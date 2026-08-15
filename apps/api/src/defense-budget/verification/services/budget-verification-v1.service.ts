@@ -266,6 +266,12 @@ export class BudgetVerificationV1Service {
         discrepancies: result.discrepancies,
         startedAt: result.startedAt,
         completedAt: result.completedAt,
+        // Phase 7 Gap 5 decision 1: the candidate row records the family and
+        // extraction method off this already-resolved, already-hash-verified
+        // artifact. Passing it here is what stops promotion eligibility from
+        // having to re-fetch an artifact to rediscover metadata that was known
+        // at verification time.
+        artifact: resolution.artifact,
       });
       return {
         ...result,
@@ -460,6 +466,11 @@ export class BudgetVerificationV1Service {
         discrepancies: result.discrepancies,
         startedAt: result.startedAt,
         completedAt: result.completedAt,
+        // Recorded on the unsupported-policy path too. This candidate is not
+        // promotable, but its family and method are still facts about it, and
+        // leaving them NULL here would make an unsupported-policy refusal
+        // indistinguishable from an un-backfilled row.
+        artifact: resolution.artifact,
       });
     }
     return result;

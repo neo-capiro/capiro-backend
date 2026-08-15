@@ -1,0 +1,52 @@
+.capiro-vnext-root.capiro-vnext-workshop {
+  min-height: 100vh;
+  padding: 28px;
+  background: var(--capiro-color-bg-canvas);
+}
+
+.capiro-vnext-root .capiro-vnext-workshop__header {
+  max-width: 760px;
+  margin-bottom: 22px;
+}
+
+.capiro-vnext-root .capiro-vnext-workshop__header h1 {
+  margin-top: 5px;
+  margin-bottom: 5px;
+  font-size: 28px;
+}
+
+.capiro-vnext-root .capiro-vnext-workshop__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.capiro-vnext-root .capiro-vnext-workshop__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.capiro-vnext-root .capiro-vnext-workshop__fields,
+.capiro-vnext-root .capiro-vnext-workshop__states {
+  display: grid;
+  gap: 12px;
+}
+
+.capiro-vnext-root .capiro-vnext-workshop__mailbox-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* Dev-only harness, but it uses the same two canonical boundaries as product
+   code (foundations/responsive.css) so it cannot drift into a third system. */
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-vnext-workshop__grid { grid-template-columns: minmax(0, 1fr); }
+  .capiro-vnext-root .capiro-vnext-workshop__mailbox-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 779px) {
+  .capiro-vnext-root.capiro-vnext-workshop { padding: 14px; }
+}

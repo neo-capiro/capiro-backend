@@ -189,94 +189,95 @@ model Tenant {
   createdAt              DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt              DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  memberships                  TenantMembership[]
-  auditLogs                    AuditLog[]
-  clients                      Client[]
-  impersonationSessions        ImpersonationSession[]
-  engagementConnections        IntegrationConnection[]
-  engagementConnectionTokens   IntegrationConnectionToken[]
-  engagementContacts           EngagementContact[]
-  meetings                     Meeting[]
-  meetingAttendees             MeetingAttendee[]
-  mailThreads                  MailThread[]
-  mailMessages                 MailMessage[]
-  engagementAttachments        EngagementAttachment[]
-  meetingNotes                 MeetingNote[]
-  meetingPreps                 MeetingPrep[]
-  engagementTasks              EngagementTask[]
-  associationOverrides         ClientAssociationOverride[]
-  contextEmbeddings            ContextEmbedding[]
-  directoryContactNotes        DirectoryContactNote[]
-  directoryContactFavorites    DirectoryContactFavorite[]
-  engagementReportTargets      EngagementReportTargetOffice[]
-  outreachRecords              OutreachRecord[]
-  outreachTemplates            OutreachTemplate[]
-  outreachAudiences            OutreachAudience[]
-  outreachAudienceMembers      OutreachAudienceMember[]
-  MeetingDebrief               MeetingDebrief[]
-  meetingBotSessions           MeetingBotSession[]
-  outreachJobs                 OutreachJob[]
-  outreachJobItems             OutreachJobItem[]
-  clioConversations            ClioConversation[]
-  clioMessages                 ClioMessage[]
-  clioArtifacts                ClioArtifact[]
-  clioNotes                    ClioNote[]
-  clioResearchSessions         ClioResearchSession[]
-  clientCapabilities           ClientCapability[]
-  clientSubmissionHistory      ClientSubmissionHistory[]
-  clientPeople                 ClientPerson[]
-  clientFacilities             ClientFacility[]
-  clientTargets                ClientTarget[]
-  clientTargetRecommendations  ClientTargetRecommendation[]
-  engagementCampaigns          EngagementCampaign[]
-  engagementCampaignRecipients EngagementCampaignRecipient[]
-  outreachAiTemplates          OutreachAiTemplate[]
-  clioMemories                 ClioMemory[]
-  clioProactiveAlerts          ClioProactiveAlert[]
-  clioScheduledTasks           ClioScheduledTask[]
-  meriActionApprovals          MeriActionApproval[]
-  meriPendingActions           MeriPendingAction[]
-  meriActionProposals          MeriActionProposal[]
-  clioAttachments              ClioAttachment[]
-  clioMcpServers               ClioMcpServer[]
-  clioMcpOAuthCredentials      ClioMcpOAuthCredential[]
-  clioFirmSkills               ClioFirmSkill[]
-  programElementWatches        ProgramElementWatch[]
-  programElementDataIssues     ProgramElementDataIssue[]
-  peAlertEmailPrefs            PeAlertEmailPref[]
-  actionRecommendations        ActionRecommendation[]
-  aiUsageEvents                AiUsageEvent[]
-  aiRuns                       AiRun[]
-  meriAuditLedgerEntries       MeriAuditLedger[]
-  contextPackets               ContextPacket[]
-  outcomeEvents                OutcomeEvent[]
-  reviewRequests               ReviewRequest[]
-  alertGenerationRecords       AlertGenerationRecord[]
-  aiCredentials                TenantAiCredential[]
-  usageMeters                  TenantUsageMeter[]
-  memoryItems                  MemoryItem[]
-  memoryEdges                  MemoryEdge[]
-  memoryCandidates             MemoryCandidate[]
-  memoryIngestRuns             MemoryIngestRun[]
-  governedMemoryAccessGrants   MemoryAccessGrant[]
-  memoryTransitionAudits       MemoryTransitionAudit[]
-  memoryCleanupOutbox          MemoryCleanupOutbox[]
-  clientMemoryAccessGrants     ClientMemoryAccess[]
-  clientGrantNexuses           ClientGrantNexus[]
-  clientFundingOpportunities   ClientFundingOpportunity[]
+  memberships                        TenantMembership[]
+  auditLogs                          AuditLog[]
+  clients                            Client[]
+  impersonationSessions              ImpersonationSession[]
+  engagementConnections              IntegrationConnection[]
+  engagementConnectionTokens         IntegrationConnectionToken[]
+  engagementContacts                 EngagementContact[]
+  meetings                           Meeting[]
+  meetingAttendees                   MeetingAttendee[]
+  mailThreads                        MailThread[]
+  mailMessages                       MailMessage[]
+  engagementAttachments              EngagementAttachment[]
+  meetingNotes                       MeetingNote[]
+  meetingPreps                       MeetingPrep[]
+  engagementTasks                    EngagementTask[]
+  associationOverrides               ClientAssociationOverride[]
+  contextEmbeddings                  ContextEmbedding[]
+  directoryContactNotes              DirectoryContactNote[]
+  directoryContactFavorites          DirectoryContactFavorite[]
+  engagementReportTargets            EngagementReportTargetOffice[]
+  outreachRecords                    OutreachRecord[]
+  outreachTemplates                  OutreachTemplate[]
+  outreachAudiences                  OutreachAudience[]
+  outreachAudienceMembers            OutreachAudienceMember[]
+  MeetingDebrief                     MeetingDebrief[]
+  meetingBotSessions                 MeetingBotSession[]
+  outreachJobs                       OutreachJob[]
+  outreachJobItems                   OutreachJobItem[]
+  clioConversations                  ClioConversation[]
+  clioMessages                       ClioMessage[]
+  clioArtifacts                      ClioArtifact[]
+  clioNotes                          ClioNote[]
+  clioResearchSessions               ClioResearchSession[]
+  clientCapabilities                 ClientCapability[]
+  clientSubmissionHistory            ClientSubmissionHistory[]
+  clientPeople                       ClientPerson[]
+  clientFacilities                   ClientFacility[]
+  clientActivity                     ClientActivity[]
+  clientTargets                      ClientTarget[]
+  clientTargetRecommendations        ClientTargetRecommendation[]
+  engagementCampaigns                EngagementCampaign[]
+  engagementCampaignRecipients       EngagementCampaignRecipient[]
+  outreachAiTemplates                OutreachAiTemplate[]
+  clioMemories                       ClioMemory[]
+  clioProactiveAlerts                ClioProactiveAlert[]
+  clioScheduledTasks                 ClioScheduledTask[]
+  meriActionApprovals                MeriActionApproval[]
+  meriPendingActions                 MeriPendingAction[]
+  meriActionProposals                MeriActionProposal[]
+  clioAttachments                    ClioAttachment[]
+  clioMcpServers                     ClioMcpServer[]
+  clioMcpOAuthCredentials            ClioMcpOAuthCredential[]
+  clioFirmSkills                     ClioFirmSkill[]
+  programElementWatches              ProgramElementWatch[]
+  programElementDataIssues           ProgramElementDataIssue[]
+  peAlertEmailPrefs                  PeAlertEmailPref[]
+  actionRecommendations              ActionRecommendation[]
+  aiUsageEvents                      AiUsageEvent[]
+  aiRuns                             AiRun[]
+  meriAuditLedgerEntries             MeriAuditLedger[]
+  contextPackets                     ContextPacket[]
+  outcomeEvents                      OutcomeEvent[]
+  reviewRequests                     ReviewRequest[]
+  alertGenerationRecords             AlertGenerationRecord[]
+  aiCredentials                      TenantAiCredential[]
+  usageMeters                        TenantUsageMeter[]
+  memoryItems                        MemoryItem[]
+  memoryEdges                        MemoryEdge[]
+  memoryCandidates                   MemoryCandidate[]
+  memoryIngestRuns                   MemoryIngestRun[]
+  governedMemoryAccessGrants         MemoryAccessGrant[]
+  memoryTransitionAudits             MemoryTransitionAudit[]
+  memoryCleanupOutbox                MemoryCleanupOutbox[]
+  clientMemoryAccessGrants           ClientMemoryAccess[]
+  clientGrantNexuses                 ClientGrantNexus[]
+  clientFundingOpportunities         ClientFundingOpportunity[]
   fundingOpportunityStageTransitions FundingOpportunityStageTransition[]
-  outreachDraftArtifacts       OutreachDraftArtifact[]
-  outreachDraftVersions        OutreachDraftVersion[]
-  outreachSendIntents          OutreachSendIntent[]
-  outreachDeliveries           OutreachDelivery[]
-  compliancePolicyPacks        CompliancePolicyPack[]
-  compliancePolicyPackEvents   CompliancePolicyPackEvent[]
-  compliancePolicyDecisions    CompliancePolicyDecision[]
-  assuranceEvalRuns            AssuranceEvalRun[]
-  assuranceEvalResults         AssuranceEvalResult[]
-  assuranceEvalDomainGates     AssuranceEvalDomainGate[]
-  assuranceFeedbackCandidates  AssuranceFeedbackCandidate[]
-  assuranceEvalFixtures        AssuranceEvalFixture[]
+  outreachDraftArtifacts             OutreachDraftArtifact[]
+  outreachDraftVersions              OutreachDraftVersion[]
+  outreachSendIntents                OutreachSendIntent[]
+  outreachDeliveries                 OutreachDelivery[]
+  compliancePolicyPacks              CompliancePolicyPack[]
+  compliancePolicyPackEvents         CompliancePolicyPackEvent[]
+  compliancePolicyDecisions          CompliancePolicyDecision[]
+  assuranceEvalRuns                  AssuranceEvalRun[]
+  assuranceEvalResults               AssuranceEvalResult[]
+  assuranceEvalDomainGates           AssuranceEvalDomainGate[]
+  assuranceFeedbackCandidates        AssuranceFeedbackCandidate[]
+  assuranceEvalFixtures              AssuranceEvalFixture[]
 
   @@map("tenants")
 }
@@ -494,34 +495,34 @@ model TenantUsageMeter {
 }
 
 model Client {
-  id                     String    @id @default(uuid()) @db.Uuid
-  tenantId               String    @map("tenant_id") @db.Uuid
-  name                   String
-  website                String?
-  description            String?
-  productDescription     String?   @map("product_description")
-  primaryContactName     String?   @map("primary_contact_name")
-  primaryContactEmail    String?   @map("primary_contact_email") @db.Citext
-  primaryContactPhone    String?   @map("primary_contact_phone")
-  logoS3Key              String?   @map("logo_s3_key")
-  logoContentType        String?   @map("logo_content_type")
-  logoUploadedAt         DateTime? @map("logo_uploaded_at") @db.Timestamptz(6)
-  intakeData             Json      @default("{}") @map("intake_data_jsonb")
-  status                 String    @default("active")
+  id                       String    @id @default(uuid()) @db.Uuid
+  tenantId                 String    @map("tenant_id") @db.Uuid
+  name                     String
+  website                  String?
+  description              String?
+  productDescription       String?   @map("product_description")
+  primaryContactName       String?   @map("primary_contact_name")
+  primaryContactEmail      String?   @map("primary_contact_email") @db.Citext
+  primaryContactPhone      String?   @map("primary_contact_phone")
+  logoS3Key                String?   @map("logo_s3_key")
+  logoContentType          String?   @map("logo_content_type")
+  logoUploadedAt           DateTime? @map("logo_uploaded_at") @db.Timestamptz(6)
+  intakeData               Json      @default("{}") @map("intake_data_jsonb")
+  status                   String    @default("active")
   // Portfolio Tab v2 additions
-  sectorTag              String?   @map("sector_tag")
-  profileType            String?   @default("CLIENT") @map("profile_type")
-  profileStatus          String    @default("ACTIVE") @map("profile_status")
-  submissionTracks       String[]  @default([]) @map("submission_tracks")
+  sectorTag                String?   @map("sector_tag")
+  profileType              String?   @default("CLIENT") @map("profile_type")
+  profileStatus            String    @default("ACTIVE") @map("profile_status")
+  submissionTracks         String[]  @default([]) @map("submission_tracks")
   // Manual client-level LDA issue-code override, set in the client summary
   // settings. Unioned with the auto codes from the confirmed LDA match to drive
   // bill/regulation matching (works even when no LDA entity is mapped).
-  issueCodes             String[]  @default([]) @map("issue_codes")
+  issueCodes               String[]  @default([]) @map("issue_codes")
   // Step 2.3 — government identifiers + code arrays for procurement matching.
-  uei                    String?   @db.VarChar(12)
-  cageCode               String?   @map("cage_code") @db.VarChar(5)
-  naicsCodes             String[]  @default([]) @map("naics_codes")
-  pscCodes               String[]  @default([]) @map("psc_codes")
+  uei                      String?   @db.VarChar(12)
+  cageCode                 String?   @map("cage_code") @db.VarChar(5)
+  naicsCodes               String[]  @default([]) @map("naics_codes")
+  pscCodes                 String[]  @default([]) @map("psc_codes")
   /// Funding Opportunities P19 — MakeGov/Tango entity shadow sync status.
   /// This is the client's OWN sync bookkeeping; the fetched entity DATA lives
   /// in the GLOBAL `tango_resource_snapshot` table (P15), keyed by this same
@@ -556,7 +557,7 @@ model Client {
   /// `needs_review` or `unknown`, never `eligible`. Empty is the honest default:
   /// it says "we do not know", which is true, rather than guessing a type from
   /// the sector and telling a user they can apply for something they cannot.
-  applicantTypes         String[]  @default([]) @map("applicant_types")
+  applicantTypes           String[]  @default([]) @map("applicant_types")
   /// DURABLE socioeconomic certifications the company HOLDS. Canonical values are
   /// the six in `set-aside.ts`: 8A, SDVOSB, VOSB, WOSB, EDWOSB, HUBZONE. Empty
   /// means unknown, never ineligible.
@@ -571,13 +572,13 @@ model Client {
   /// read it back as evidence and reported the client `eligible`.
   ///
   /// Legacy rows are migrated by `repair-set-aside-certifications.ts`.
-  setAsideCertifications String[]  @default([]) @map("set_aside_certifications")
+  setAsideCertifications   String[]  @default([]) @map("set_aside_certifications")
   // Client→data association overhaul: the confirmed set of Senate LDA client_ids
   // this client resolves to (one id per lobbying-firm relationship — a real
   // company can have many, e.g. Boeing = 27). Denormalized read-cache of the
   // confirmed source='lda' ClientIntelMapping rows; reads join
   // lda_filing.client_id = ANY(ldaClientIds) instead of fuzzy-matching the name.
-  ldaClientIds           Int[]     @default([]) @map("lda_client_ids")
+  ldaClientIds             Int[]     @default([]) @map("lda_client_ids")
   /// Ethical wall (master plan Phase 1): when true, this client's memory
   /// (clio_memory scope='client', client-linked memory_items, and their
   /// embeddings) is recallable ONLY by users granted a ClientMemoryAccess row.
@@ -585,10 +586,10 @@ model Client {
   /// column changes nothing until a wall is explicitly erected per client.
   /// Admins are NOT exempt — a real ethical screen binds seniors too; a
   /// user_admin manages grants (and any self-grant is audit-logged).
-  memoryWall             Boolean   @default(false) @map("memory_wall")
-  createdByUserId        String?   @map("created_by_user_id") @db.Uuid
-  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  memoryWall               Boolean   @default(false) @map("memory_wall")
+  createdByUserId          String?   @map("created_by_user_id") @db.Uuid
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant                  Tenant                         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   engagementContacts      EngagementContact[]
@@ -612,6 +613,7 @@ model Client {
   submissionHistory       ClientSubmissionHistory[]
   people                  ClientPerson[]
   facilities              ClientFacility[]
+  activity                ClientActivity[]
   targets                 ClientTarget[]
   targetRecommendations   ClientTargetRecommendation[]
   engagementCampaigns     EngagementCampaign[]
@@ -940,6 +942,9 @@ model EngagementAttachment {
   /// as proof of integrity. See calculatedSha256 for the server's own digest.
   checksumSha256   String?   @map("checksum_sha256")
   source           String    @default("manual")
+  /// Client CRM vNext file folder. NULL = unfiled. Moving a file rewrites this
+  /// column only; the stored S3 object is never copied (contract §12).
+  folder           String?   @db.VarChar(120)
   // Generic generated-document provenance. Hearing recaps use
   // sourceEntityType="hearing_session" plus the intel session id.
   sourceEntityType String?   @map("source_entity_type") @db.VarChar(64)
@@ -2732,8 +2737,23 @@ model ClientPerson {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // ── Organization hierarchy (Client CRM vNext 906:2790) ───────────────────
+  // NULL level = not placed yet, which is a real state the roster shows as
+  // "unplaced" — deliberately not defaulted to the bottom of the org chart.
+  /// executive | c_suite | senior_leadership | leadership | management | team
+  hierarchyLevel      String?  @map("hierarchy_level") @db.VarChar(24)
+  reportsToPersonId   String?  @map("reports_to_person_id") @db.Uuid
+  /// auto_title | manual — manual ALWAYS wins and is never re-derived.
+  placementSource     String   @default("auto_title") @map("placement_source") @db.VarChar(16)
+  /// Inference confidence; NULL for manual placements.
+  placementConfidence Decimal? @map("placement_confidence") @db.Decimal(4, 3)
+  reviewRequired      Boolean  @default(false) @map("review_required")
+
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  reportsTo    ClientPerson?  @relation("ClientPersonReportsTo", fields: [reportsToPersonId], references: [id], onDelete: SetNull, map: "client_people_reports_to_prisma_fk")
+  directReports ClientPerson[] @relation("ClientPersonReportsTo")
 
   @@index([tenantId, clientId], map: "client_people_tenant_client_idx")
   // Import-path identity lookup: Meri's update_client_profile and the contact
@@ -2748,6 +2768,39 @@ model ClientPerson {
   // duplicates have been reconciled.
   @@index([tenantId, clientId, email], map: "client_people_tenant_client_email_idx")
   @@map("client_people")
+}
+
+/// Normalized CRM activity for the client relationship history (906:3360).
+/// Only RECORDED activity lives here; meetings, attachments, outreach and
+/// actions stay in their own tables and are unioned at read time.
+model ClientActivity {
+  id              String    @id @default(uuid()) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  clientId        String    @map("client_id") @db.Uuid
+  /// email | call | note | meeting | outreach | document | request | decision | commitment
+  kind            String    @db.VarChar(24)
+  occurredAt      DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  title           String    @db.Text
+  body            String?   @db.Text
+  actorUserId     String?   @map("actor_user_id") @db.Uuid
+  personId        String?   @map("person_id") @db.Uuid
+  /// Identity of the underlying record so a row can open what it describes.
+  sourceType      String?   @map("source_type") @db.VarChar(32)
+  sourceId        String?   @map("source_id") @db.VarChar(128)
+  pinned          Boolean   @default(false)
+  dueAt           DateTime? @map("due_at") @db.Timestamptz(6)
+  settledAt       DateTime? @map("settled_at") @db.Timestamptz(6)
+  metadata        Json      @default("{}") @map("metadata_jsonb")
+  createdByUserId String?   @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, clientId, occurredAt(sort: Desc)], map: "client_activity_timeline_idx")
+  @@index([tenantId, clientId, kind, occurredAt(sort: Desc)], map: "client_activity_kind_idx")
+  @@map("client_activity")
 }
 
 model ClientFacility {
@@ -6020,8 +6073,8 @@ model ClientFundingOpportunity {
   /// rolling-deploy tail; reads fall back to the legacy pointer either way.
   /// A FUTURE source, by contrast, MUST carry both and no legacy pointer — see
   /// client_funding_opportunity_one_source_chk in the P13 migration.
-  sourceRecordType   String? @map("source_record_type") @db.VarChar(48)
-  sourceRecordKey    String? @map("source_record_key") @db.Text
+  sourceRecordType String? @map("source_record_type") @db.VarChar(48)
+  sourceRecordKey  String? @map("source_record_key") @db.Text
 
   /// 'suggested' | 'saved' | 'pursuing' | 'dismissed' | 'won' | 'lost' | 'expired'.
   /// CHECK-constrained in the migration.
@@ -6217,7 +6270,7 @@ model ClientFundingOpportunity {
 /// An exact repeat is a true no-op — no row touched, no timestamp bumped — which
 /// is what makes a nightly re-sync of unchanged data free of write amplification.
 model TangoResourceSnapshot {
-  id       String @id @default(uuid()) @db.Uuid
+  id           String @id @default(uuid()) @db.Uuid
   /// 'entity' | 'opportunity' | 'notice' | 'forecast' | 'vehicle' |
   /// 'vehicle_awardee'. Mirrors TANGO_RESOURCE_TYPES in
   /// apps/api/src/external/tango/tango.types.ts (P14) — CHECK-constrained in the
@@ -6227,7 +6280,7 @@ model TangoResourceSnapshot {
   /// The provider's own identifier for this record (a UEI, an opportunity id, a
   /// forecast id, a vehicle uuid, …). Together with `resourceType` this is the
   /// NATURAL KEY the plan asks for — deterministic, and never Capiro-assigned.
-  externalId String @map("external_id") @db.Text
+  externalId   String @map("external_id") @db.Text
 
   /// Which version of Capiro's OWN mapping (apps/api/src/external/tango/
   /// tango.mappers.ts) produced `normalizedJsonb`. Lets a later phase identify
@@ -6240,33 +6293,33 @@ model TangoResourceSnapshot {
   /// The provider's own last-modified stamp for this record, when it supplies
   /// one. NULL is a fact some resources carry honestly — P14's TangoForecast, for
   /// instance, has no modified stamp at all — never backfilled with `fetchedAt`.
-  sourceUpdatedAt DateTime? @map("source_updated_at") @db.Timestamptz(6)
+  sourceUpdatedAt   DateTime? @map("source_updated_at") @db.Timestamptz(6)
   /// When CAPIRO fetched this observation. Always set; this is "when we looked",
   /// distinct from `sourceUpdatedAt`'s "when the source says it changed".
-  providerFetchedAt DateTime @map("provider_fetched_at") @db.Timestamptz(6)
+  providerFetchedAt DateTime  @map("provider_fetched_at") @db.Timestamptz(6)
   /// The provider's own URL for this record, when one exists (an opportunity's
   /// `sam_url`, for example). NULL for resource types the provider gives no
   /// direct link for — an entity has none.
-  sourceUrl String? @map("source_url") @db.Text
+  sourceUrl         String?   @map("source_url") @db.Text
 
   /// Lower-case hex SHA-256 (64 chars), over a CANONICALIZED serialization of
   /// `normalizedJsonb` (recursively sorted object keys, so key-order noise from
   /// the provider can never look like a content change). CHECK-constrained to the
   /// hex-64 shape in the migration.
-  contentSha256 String @map("content_sha256") @db.VarChar(64)
+  contentSha256   String @map("content_sha256") @db.VarChar(64)
   /// The NORMALIZED domain object (TangoEntity, TangoOpportunity, …) as produced
   /// by tango.mappers.ts — never the provider's raw response. This is what makes
   /// "no raw payload reaches a tenant API" true by construction rather than by
   /// convention: nothing in this column ever held an un-mapped field, because the
   /// mapper's allow-list already dropped it before this row was built.
-  normalizedJsonb Json @map("normalized_jsonb")
+  normalizedJsonb Json   @map("normalized_jsonb")
 
   /// TRUE for exactly one row per (resourceType, externalId) — the current head.
   /// Enforced by a partial unique index, not just application logic.
-  active Boolean @default(true)
+  active       Boolean   @default(true)
   /// Monotonic per (resourceType, externalId), starting at 1. Lets a reader ask
   /// "how many times has this changed" without counting rows by hand.
-  version Int @default(1)
+  version      Int       @default(1)
   /// Set once, when a NEWER observation supersedes this row. NULL while active.
   supersededAt DateTime? @map("superseded_at") @db.Timestamptz(6)
 
@@ -6304,7 +6357,7 @@ model TangoResourceLink {
   /// The target row's own primary key, as TEXT regardless of its native type —
   /// `sam_opportunity.id` is a uuid, `federal_grant.id` is a free-form Grants.gov
   /// opportunity number. Text is the only type that holds both honestly.
-  localResourceId String @map("local_resource_id") @db.Text
+  localResourceId   String @map("local_resource_id") @db.Text
 
   /// Mirrors TangoResourceSnapshot.resourceType. CHECK-constrained to the same
   /// TANGO_RESOURCE_TYPES vocabulary.
@@ -6319,13 +6372,13 @@ model TangoResourceLink {
   ///                         was involved in proposing it.
   ///   'reviewed_manual'  — a human explicitly confirmed this specific pair.
   /// CHECK-constrained in the migration.
-  basis String @map("basis") @db.VarChar(24)
+  basis          String @map("basis") @db.VarChar(24)
   /// 'active' | 'rejected' | 'superseded'. CHECK-constrained. A rejection is
   /// DURABLE — the CHECK below requires an actor and timestamp whenever status is
   /// 'rejected', the same actor+timestamp pairing rule as P07's human-decision
   /// columns, so a rejection can never be silently recreated as an unattributed
   /// row.
-  status String @default("active") @map("status") @db.VarChar(16)
+  status         String @default("active") @map("status") @db.VarChar(16)
   /// 'high' | 'medium' | 'low'. CHECK-constrained. Always populated — an
   /// 'exact_identifier' link is 'high' by construction; a future phase proposing
   /// a less-certain candidate before promotion would use 'medium' or 'low'.
@@ -6335,11 +6388,11 @@ model TangoResourceLink {
   /// tracking) without resolving the disagreement here — resolution is a
   /// source-precedence decision the linking phase owns, per plan §4.2: no source
   /// silently overwrites the other.
-  conflictState String @default("none") @map("conflict_state") @db.VarChar(24)
+  conflictState  String @default("none") @map("conflict_state") @db.VarChar(24)
 
-  reviewedBy   String?   @map("reviewed_by") @db.Uuid
-  reviewedAt   DateTime? @map("reviewed_at") @db.Timestamptz(6)
-  reviewNotes  String?   @map("review_notes") @db.Text
+  reviewedBy  String?   @map("reviewed_by") @db.Uuid
+  reviewedAt  DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  reviewNotes String?   @map("review_notes") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -6371,9 +6424,9 @@ model TangoSyncCheckpoint {
 
   /// The sync script name, e.g. 'sync-tango-client-entities'. Mirrors
   /// `sync_run.source`'s convention.
-  syncVerb String @map("sync_verb") @db.VarChar(64)
+  syncVerb          String @map("sync_verb") @db.VarChar(64)
   /// Mirrors TangoResourceSnapshot.resourceType. CHECK-constrained.
-  resourceType String @map("resource_type") @db.VarChar(32)
+  resourceType      String @map("resource_type") @db.VarChar(32)
   /// Lower-case hex SHA-256 of the canonicalized filter object used for this
   /// walk. CHECK-constrained to the hex-64 shape, same as the snapshot's content
   /// hash.
@@ -6382,7 +6435,7 @@ model TangoSyncCheckpoint {
   /// OPAQUE. Pass back to the provider verbatim; never parsed or constructed
   /// client-side — the same rule as the P10 inbox cursor, for the same reason:
   /// the provider's cursor encoding is not part of any contract Capiro owns.
-  cursor String? @map("cursor") @db.Text
+  cursor      String?   @map("cursor") @db.Text
   /// The incremental "changed since" window this walk is covering, when the sync
   /// is windowed rather than a full walk.
   windowStart DateTime? @map("window_start") @db.Timestamptz(6)
@@ -6391,8 +6444,8 @@ model TangoSyncCheckpoint {
   /// 'in_progress' | 'complete' | 'incomplete'. CHECK-constrained. Mirrors the
   /// COMPLETE/INCOMPLETE vocabulary in producer-pagination.ts (P03/P04) — the
   /// same two words mean the same thing everywhere in this program.
-  completeness  String   @default("in_progress") @map("completeness") @db.VarChar(16)
-  rowsProcessed Int      @default(0) @map("rows_processed")
+  completeness  String    @default("in_progress") @map("completeness") @db.VarChar(16)
+  rowsProcessed Int       @default(0) @map("rows_processed")
   lastRunAt     DateTime? @map("last_run_at") @db.Timestamptz(6)
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -6415,17 +6468,17 @@ model TangoApiUsage {
   /// The gateway method that was called (`getEntity`, `listForecasts`, …) —
   /// mirrors TangoError.operation from tango.errors.ts (P14). Called "call
   /// family" per the plan's own wording.
-  callFamily String @map("call_family") @db.VarChar(64)
+  callFamily      String   @map("call_family") @db.VarChar(64)
   /// Bucketed to the minute, so usage aggregates cheaply without a GROUP BY over
   /// raw timestamps at query time.
   timestampBucket DateTime @map("timestamp_bucket") @db.Timestamptz(6)
   /// 'success' or one of TangoErrorKind's 7 values. CHECK-constrained to exactly
   /// that set, so a usage row's status is always one this program already knows
   /// how to reason about.
-  status String @map("status") @db.VarChar(16)
+  status          String   @map("status") @db.VarChar(16)
   /// How many domain rows the call returned. NULL for a get-by-id call, where
   /// "one or none" is not a count worth a column.
-  rowCount Int? @map("row_count")
+  rowCount        Int?     @map("row_count")
 
   rateLimitRemaining Int? @map("rate_limit_remaining")
   rateLimitLimit     Int? @map("rate_limit_limit")
@@ -6438,6 +6491,200 @@ model TangoApiUsage {
   // check and rate-ceiling logic both need.
   @@index([callFamily, timestampBucket], map: "tango_api_usage_family_time_idx")
   @@map("tango_api_usage")
+}
+
+/// Funding Opportunities P46 — one VERIFIED webhook delivery from Tango.
+///
+/// A row means exactly: at `receivedAt`, bytes carrying this `deliveryId`
+/// arrived, their HMAC-SHA256 matched the shared secret, and `payload` is what
+/// they said. It is NOT a statement that anything is true about the world — the
+/// provider's claim that a notice changed is the provider's claim, and P47
+/// decides out of band, dry-run first, whether it means anything.
+///
+/// Rows exist only for deliveries that PASSED verification, which is why there
+/// is no `signatureValid` field: a bad signature yields a 401 and no row, so
+/// the column could only ever hold `true`.
+///
+/// GLOBAL, not tenant-scoped, and deliberately carries no RLS — a webhook
+/// arrives with no session and no tenant, and this receiver is mounted outside
+/// TenantContext middleware. Inventing a tenant would write a guess into a
+/// durable record. Tenant fan-out is P48's, after P47 resolves a delivery to
+/// real local rows.
+model TangoWebhookDelivery {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The provider's own delivery identifier. THE idempotency key: a provider
+  /// retry hits the unique index and is answered 200 without a second enqueue.
+  deliveryId String @unique(map: "tango_webhook_delivery_delivery_id_uniq") @map("delivery_id")
+
+  /// Provider vocabulary, stored as stated. Not mapped to a Capiro enum: an
+  /// unknown event type must be recordable, since refusing to store an event we
+  /// do not yet understand loses the evidence needed to add support for it.
+  eventType String  @map("event_type")
+  /// The provider's id for the underlying event, when present. Distinct from
+  /// `deliveryId` — one event may be delivered more than once.
+  eventId   String? @map("event_id")
+
+  /// SHA-256 over the exact verified bytes, lowercase hex. A SEPARATE fact from
+  /// `deliveryId` and NOT unique: identical content legitimately arrives under
+  /// different delivery ids, and holding both lets P47 tell "said the same
+  /// thing twice" apart from "said something new".
+  payloadSha256 String @map("payload_sha256")
+  payloadBytes  Int    @map("payload_bytes")
+  /// Verified bytes, parsed. Stored so P47 can reconcile and replay without
+  /// re-asking the provider what it already told us.
+  payload       Json   @map("payload")
+
+  /// Delivery lifecycle only, never outcome: 'received' | 'processed' |
+  /// 'ignored' | 'failed'. P46 only ever writes 'received'. CHECK-constrained.
+  status String @default("received") @map("status")
+
+  /// The provider's own event timestamp, when supplied, used for the replay
+  /// window. NULL means the payload carried none — treated as missing evidence,
+  /// never as stale evidence.
+  providerEventAt DateTime? @map("provider_event_at") @db.Timestamptz(6)
+
+  receivedAt   DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt  DateTime? @map("processed_at") @db.Timestamptz(6)
+  /// Sanitized reason a drain failed. Never a secret, never a raw payload.
+  processError String?   @map("process_error")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  /// P47's drain query: oldest undrained delivery first.
+  @@index([status, receivedAt], map: "tango_webhook_delivery_status_idx")
+  /// P48 materiality, and operator diagnostics on event volume over time.
+  @@index([eventType, receivedAt], map: "tango_webhook_delivery_event_idx")
+  /// Same-content detection across differing delivery ids. Non-unique by design.
+  @@index([payloadSha256], map: "tango_webhook_delivery_payload_sha_idx")
+  @@map("tango_webhook_delivery")
+}
+
+/// Funding Opportunities P48 — one unit of fan-out work.
+///
+/// GLOBAL, like the delivery it comes from: a change in the federal
+/// marketplace carries no tenant. Whether it matters to a client is decided
+/// per-client downstream, against that client's own profile and workflow.
+///
+/// SEPARATE from `TangoWebhookDelivery` on purpose. A delivery is immutable
+/// inbound evidence of what arrived; this carries the MUTABLE work state —
+/// attempts, leases, quarantine — so a poisoned event's retry history never
+/// scribbles on the proof of what the provider actually sent.
+///
+/// Leased rather than locked (`leaseUntil` + `FOR UPDATE SKIP LOCKED`), so
+/// several processors run without blocking each other and a crashed processor's
+/// row becomes claimable again instead of stuck. Quarantine is TERMINAL and
+/// visible: a row at the attempt ceiling stops retrying and is skipped by the
+/// claim query forever, but it never disappears and never blocks the queue.
+model TangoEventOutbox {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The verified delivery this work came from. No relation, deliberately —
+  /// the record that work was queued must outlive what it pointed at.
+  deliveryId String @map("delivery_id")
+  /// Position of this event within its delivery, and part of the idempotency
+  /// key. A delivery carrying N events enqueues N rows; replaying it collapses
+  /// onto exactly those rows.
+  ///
+  /// The first version keyed on `deliveryId` alone, which made a multi-event
+  /// batch UNREPRESENTABLE: the receiver accepted the batch and the outbox kept
+  /// only `events[0]`, marking the row done while every later event was
+  /// silently discarded.
+  eventIndex Int    @default(0) @map("event_index")
+  eventType  String @map("event_type")
+
+  /// Which provider resource to refresh. `externalId` is nullable: a payload
+  /// may name an event with no addressable resource, and such a row completes
+  /// as a no-op rather than retrying forever.
+  resourceType String  @map("resource_type")
+  externalId   String? @map("external_id")
+
+  /// 'pending' | 'processing' | 'done' | 'quarantined'. CHECK-constrained.
+  status    String  @default("pending") @map("status")
+  attempts  Int     @default(0) @map("attempts")
+  /// Sanitized. Never a payload body, never a secret.
+  lastError String? @map("last_error")
+
+  leaseUntil      DateTime? @map("lease_until") @db.Timestamptz(6)
+  lastAttemptedAt DateTime? @map("last_attempted_at") @db.Timestamptz(6)
+
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  /// The idempotency key. A delivery carrying N events enqueues N rows under
+  /// this key; a replay of that delivery collapses onto exactly those rows via
+  /// ON CONFLICT DO NOTHING, never producing a duplicate.
+  @@unique([deliveryId, eventIndex], map: "tango_event_outbox_delivery_event_uniq")
+  /// The claim query: a row is claimable when PENDING, or when PROCESSING with
+  /// an EXPIRED lease — the second half is what lets a crashed processor's rows
+  /// be reclaimed instead of stranded. Oldest first; quarantined never selected.
+  @@index([status, leaseUntil, createdAt], map: "tango_event_outbox_claim_idx")
+  @@map("tango_event_outbox")
+}
+
+/// Funding Opportunities P48 — one material change, for one client, told once.
+///
+/// TENANT-SCOPED with RLS ENABLED and FORCED, and it carries `tenantId` so
+/// `PrismaService`'s tenant-scope extension picks it up automatically.
+///
+/// ── Deduplication is a UNIQUE INDEX, not application logic ──────────────────
+///
+/// Replay and out-of-order delivery are NORMAL for an at-least-once webhook
+/// sender, and P48's acceptance requires they "produce one result". Two
+/// processors racing the same change both reach the INSERT; only the database
+/// can collapse that correctly under concurrency.
+///
+/// The fingerprint is computed from the CHANGE (dimension + before + after),
+/// never from the delivery — so the same deadline slip re-delivered under a new
+/// delivery id collapses onto one alert. This is exactly why P46 stores
+/// `payloadSha256` separately from `deliveryId`.
+///
+/// ── No model creates a row here ─────────────────────────────────────────────
+///
+/// `evidenceJsonb` holds the P28 classifier's own before/after values. An LLM
+/// summary may be attached downstream, but it can never bring an alert into
+/// existence — the plan is explicit that model summaries "cannot create the
+/// alert".
+model TangoEventAlert {
+  id String @id @default(uuid()) @db.Uuid
+
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+
+  /// Generic source identity (P13), so forecasts and future sources reuse this
+  /// table rather than growing a second one.
+  sourceType      String @map("source_type")
+  sourceRecordKey String @map("source_record_key")
+
+  /// P28's vocabulary, reused rather than re-derived. This phase applies policy
+  /// to the classifier's band; it does not invent a second severity scale.
+  changeDimension String @map("change_dimension")
+  severity        String @map("severity")
+
+  /// Lowercase hex SHA-256 over the change. CHECK-constrained to that shape.
+  changeFingerprint String @map("change_fingerprint")
+
+  evidenceJsonb Json    @map("evidence_jsonb")
+  beforeValue   String? @map("before_value")
+  afterValue    String? @map("after_value")
+
+  /// What the row looked like when the alert fired, so a reader can tell why
+  /// they were told. A later stage change never rewrites this.
+  pipelineStageAtAlert String? @map("pipeline_stage_at_alert")
+
+  /// When Capiro last saw the source. Stale evidence must say so rather than
+  /// reading as current.
+  sourceObservedAt DateTime? @map("source_observed_at") @db.Timestamptz(6)
+
+  deliveryId String?  @map("delivery_id")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, clientId, sourceRecordKey, changeFingerprint], map: "tango_event_alert_dedupe_uniq")
+  @@index([tenantId, createdAt], map: "tango_event_alert_tenant_created_idx")
+  @@index([tenantId, clientId, createdAt], map: "tango_event_alert_client_idx")
+  @@map("tango_event_alert")
 }
 
 /// Funding Opportunities P20 — client profile enrichment review workflow.
@@ -6462,22 +6709,22 @@ model ClientProfileEnrichmentCandidate {
 
   /// 'tango' today; CHECK-constrained so a future second enrichment source
   /// cannot silently share this vocabulary without a reviewed migration.
-  source String @default("tango") @db.VarChar(16)
+  source             String @default("tango") @db.VarChar(16)
   /// 'naicsCodes' | 'pscCodes' | 'setAsideCertifications' | 'cageCode' — the
   /// CLIENT model's own field name, verbatim, not the Tango snapshot's
   /// snake_case. This row is about a client field; a reviewer should not need
   /// a second translation table to know which one.
-  field String @db.VarChar(32)
+  field              String @db.VarChar(32)
   /// The client's value AT PROPOSAL TIME — a snapshot, not a live read, so a
   /// reviewer sees exactly what would change even after the client's live
   /// value has since moved on.
-  currentValueJsonb  Json? @map("current_value_jsonb")
-  proposedValueJsonb Json  @map("proposed_value_jsonb")
+  currentValueJsonb  Json?  @map("current_value_jsonb")
+  proposedValueJsonb Json   @map("proposed_value_jsonb")
   /// Canonicalized hash of (source, field, proposedValueJsonb) — see
   /// tango-store.service.ts's computeContentHash for the same canonicalization
   /// this reuses. The unique index below is keyed on this, not the raw JSONB,
   /// because Postgres cannot uniquely index an unbounded JSONB value directly.
-  contentHash String @map("content_hash") @db.VarChar(64)
+  contentHash        String @map("content_hash") @db.VarChar(64)
 
   /// 'pending' | 'accepted' | 'rejected'. A REJECTED row is NEVER resurrected
   /// by a later proposal of the identical content — same durability
@@ -6485,10 +6732,10 @@ model ClientProfileEnrichmentCandidate {
   /// There is no bulk-accept anything: every row is reviewed by its own
   /// primary key, one at a time (this phase's acceptance bar — "no accept-all
   /// for certifications" — generalized here to no accept-all at all).
-  status         String    @default("pending") @db.VarChar(16)
-  reviewedBy     String?   @map("reviewed_by") @db.Uuid
-  reviewedAt     DateTime? @map("reviewed_at") @db.Timestamptz(6)
-  rejectionReason String?  @map("rejection_reason")
+  status          String    @default("pending") @db.VarChar(16)
+  reviewedBy      String?   @map("reviewed_by") @db.Uuid
+  reviewedAt      DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  rejectionReason String?   @map("rejection_reason")
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
@@ -6516,12 +6763,12 @@ model ClientRelevantVehicle {
 
   /// Matches tango_resource_snapshot.externalId for resourceType='vehicle'.
   /// Deliberately FK-less — global provider data, tenant-scoped summary.
-  tangoVehicleId String  @map("tango_vehicle_id")
-  vehicleName    String? @map("vehicle_name")
-  vehicleType    String? @map("vehicle_type") @db.VarChar(64)
+  tangoVehicleId    String  @map("tango_vehicle_id")
+  vehicleName       String? @map("vehicle_name")
+  vehicleType       String? @map("vehicle_type") @db.VarChar(64)
   /// 'self' | 'parent'. CHECK-constrained in the migration.
-  relationship  String @db.VarChar(16)
-  recipientUei  String @map("recipient_uei") @db.VarChar(12)
+  relationship      String  @db.VarChar(16)
+  recipientUei      String  @map("recipient_uei") @db.VarChar(12)
   orderCount        Int?    @map("order_count")
   idvObligations    Float?  @map("idv_obligations")
   idvContractsValue Float?  @map("idv_contracts_value")
@@ -6682,13 +6929,13 @@ model TangoBudgetAccount {
   /// `@db.Decimal(20, 2)` rather than a float: these are dollars, and a float
   /// that rounds an obligation is a number nobody can reconcile against the
   /// source.
-  requestedBa        Decimal? @map("requested_ba") @db.Decimal(20, 2)
-  enactedBa          Decimal? @map("enacted_ba") @db.Decimal(20, 2)
-  apportioned        Decimal? @db.Decimal(20, 2)
-  obligatedTotal     Decimal? @map("obligated_total") @db.Decimal(20, 2)
-  outlayedTotal      Decimal? @map("outlayed_total") @db.Decimal(20, 2)
-  unobligatedBalance Decimal? @map("unobligated_balance") @db.Decimal(20, 2)
-  contractObligated  Decimal? @map("contract_obligated") @db.Decimal(20, 2)
+  requestedBa         Decimal? @map("requested_ba") @db.Decimal(20, 2)
+  enactedBa           Decimal? @map("enacted_ba") @db.Decimal(20, 2)
+  apportioned         Decimal? @db.Decimal(20, 2)
+  obligatedTotal      Decimal? @map("obligated_total") @db.Decimal(20, 2)
+  outlayedTotal       Decimal? @map("outlayed_total") @db.Decimal(20, 2)
+  unobligatedBalance  Decimal? @map("unobligated_balance") @db.Decimal(20, 2)
+  contractObligated   Decimal? @map("contract_obligated") @db.Decimal(20, 2)
   assistanceObligated Decimal? @map("assistance_obligated") @db.Decimal(20, 2)
 
   /// The PROVIDER'S OWN confidence in its attribution, carried verbatim.
@@ -6796,7 +7043,7 @@ model TangoProcurementProtest {
   filedDate    DateTime? @map("filed_date") @db.Date
   decisionDate DateTime? @map("decision_date") @db.Date
 
-  agencyName String? @map("agency_name")
+  agencyName    String? @map("agency_name")
   /// The protester as named on the docket, plus its resolved UEI when the
   /// provider supplies one. The UEI is the ONLY key a client match may use.
   protesterName String? @map("protester_name")
@@ -6876,6 +7123,302 @@ model TangoEntityExclusion {
   @@map("tango_entity_exclusion")
 }
 
+/// Funding Opportunities P40 - DLA bid-board (DIBBS) solicitations.
+///
+/// RFQs and RFP/IFBs in ONE table, discriminated by `documentType`, because
+/// they are the same thing to a pursuer: a DLA bid-board item at line-item
+/// grain, keyed by solicitation + NSN + part number. The provider splits them
+/// across `/api/dibbs/rfqs/` and `/api/dibbs/rfps/` and names two fields
+/// differently for the same concept (`issue_date`/`issued_date`,
+/// `return_by_date`/`closes_date`); those are normalized here, and the source
+/// spelling is recorded in the mapper rather than in a column name.
+///
+/// GLOBAL - no `tenant_id`, no RLS. A DLA solicitation is a fact about the
+/// federal marketplace, not about any one tenant, exactly as
+/// `tango_procurement_forecast` (P24) and `sam_opportunity` (P00) already are.
+///
+/// AWARDS ARE DELIBERATELY NOT IN THIS TABLE - see `TangoDibbsAward`.
+model TangoDibbsSolicitation {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The provider's own row `uuid`. The sync's upsert key, and what keeps
+  /// duplicate line items distinct - two rows sharing a solicitation and NSN
+  /// are still two rows if the provider issued two uuids.
+  tangoDibbsId String @unique @map("tango_dibbs_id")
+
+  /// 'rfq' | 'rfp'. Bounded by tango_dibbs_solicitation_document_type_chk.
+  documentType String @map("document_type")
+
+  solicitation          String
+  /// RFQ detail only. The provider's own display spelling - never parsed.
+  solicitationFormatted String? @map("solicitation_formatted")
+  /// RFQ only.
+  purchaseRequest       String? @map("purchase_request")
+
+  /// Line-item identity. Independently nullable: the provider does not
+  /// guarantee an NSN or a part number on every row.
+  nsn          String?
+  partNumber   String? @map("part_number")
+  nomenclature String?
+
+  /// RFQ only. Decimal, not Int - the unit of issue can make a quantity
+  /// fractional, and the published contract states no type. UNCONFIRMED
+  /// against a live response; see dibbs-sbir-rest-contract.md.
+  quantity    Decimal? @db.Decimal(18, 4)
+  /// RFQ only. The unit `quantity` is counted in. A quantity without its unit
+  /// is meaningless, so neither is inferred when the other is absent.
+  unitOfIssue String?  @map("unit_of_issue")
+
+  /// RFQ only.
+  setAside   String? @map("set_aside")
+  statusCode String? @map("status_code")
+  /// RFP only.
+  buyerCode  String? @map("buyer_code")
+
+  /// Normalized across the two document types: RFQ states `issue_date` and
+  /// `return_by_date`; RFP states `issued_date` and `closes_date`.
+  issuedDate DateTime? @map("issued_date") @db.Date
+  closesDate DateTime? @map("closes_date") @db.Date
+
+  /// The provider's own open/closed judgement. Kept as stated rather than
+  /// derived from `closesDate` - a date in the past does not always mean the
+  /// provider considers the item closed.
+  isOpen Boolean? @map("is_open")
+
+  documentUrl String? @map("document_url")
+  /// RFP only.
+  techDocsUrl String? @map("tech_docs_url")
+
+  firstSyncedAt DateTime @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt  DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([solicitation], map: "tango_dibbs_solicitation_solicitation_idx")
+  @@index([nsn], map: "tango_dibbs_solicitation_nsn_idx")
+  @@index([partNumber], map: "tango_dibbs_solicitation_part_number_idx")
+  @@index([documentType, closesDate], map: "tango_dibbs_solicitation_type_closes_idx")
+  @@map("tango_dibbs_solicitation")
+}
+
+/// Funding Opportunities P40 - DIBBS awards. INFORMATIONAL ONLY.
+///
+/// WHY THIS IS A SEPARATE TABLE FROM TangoDibbsSolicitation
+/// -------------------------------------------------------------------
+/// P40's acceptance says award rows "are informational and cannot be
+/// pursued". An `isPursuable = false` column would have satisfied that only
+/// for as long as every future query remembered to filter on it. A separate
+/// table makes the requirement structural: an award cannot leak into a
+/// pursuable-opportunity surface through a forgotten predicate, because it is
+/// not in the table those surfaces read.
+///
+/// NEVER SUM total_contract_price
+/// -------------------------------------------------------------------
+/// These rows are LINE-ITEM grain, not contract grain: `delivery_order_number`
+/// and `delivery_order_counter` mean one contract can appear as many rows.
+/// Summing `totalContractPrice` across rows double-counts by construction, and
+/// the published contract defines no safe aggregation, so P40 prohibits one.
+/// If an aggregate is ever needed it needs a documented grain from the
+/// provider first - not a `SUM()` and an assumption.
+model TangoDibbsAward {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The provider's own row `uuid`. Upsert key, and the line-item identity
+  /// that keeps two delivery orders of one contract distinct.
+  tangoDibbsId String @unique @map("tango_dibbs_id")
+
+  awardNumber          String  @map("award_number")
+  deliveryOrderNumber  String? @map("delivery_order_number")
+  /// The provider's own counter for this delivery order. Part of why these
+  /// rows must never be summed - see the model doc above.
+  deliveryOrderCounter Int?    @map("delivery_order_counter")
+
+  /// The solicitation this award came from, as stated. No FK to
+  /// tango_dibbs_solicitation: an award can reference a solicitation Capiro
+  /// never synced, and a missing parent must not drop the award.
+  solicitation    String?
+  purchaseRequest String? @map("purchase_request")
+
+  nsn          String?
+  partNumber   String? @map("part_number")
+  nomenclature String?
+
+  /// Money. Decimal, never a float. `totalContractPriceText` is the
+  /// provider's own rendering, kept verbatim because it is the only evidence
+  /// of what the source displayed when the numeric field is null.
+  totalContractPrice     Decimal? @map("total_contract_price") @db.Decimal(18, 2)
+  totalContractPriceText String?  @map("total_contract_price_text")
+
+  /// The awardee, flattened from the provider's nested
+  /// `awardee(uei, cage_code, legal_business_name)`. `awardeeCage` is the
+  /// award's own top-level field and is NOT assumed equal to the nested
+  /// `awardeeCageCode` - the contract documents both, so both are stored.
+  awardeeCage              String? @map("awardee_cage")
+  awardeeUei               String? @map("awardee_uei")
+  awardeeCageCode          String? @map("awardee_cage_code")
+  awardeeLegalBusinessName String? @map("awardee_legal_business_name")
+
+  awardDate          DateTime? @map("award_date") @db.Date
+  postedDate         DateTime? @map("posted_date") @db.Date
+  lastModPostingDate DateTime? @map("last_mod_posting_date") @db.Date
+
+  firstSyncedAt DateTime @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt  DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([awardNumber], map: "tango_dibbs_award_award_number_idx")
+  @@index([solicitation], map: "tango_dibbs_award_solicitation_idx")
+  @@index([nsn], map: "tango_dibbs_award_nsn_idx")
+  @@index([awardeeCage], map: "tango_dibbs_award_awardee_cage_idx")
+  @@index([postedDate], map: "tango_dibbs_award_posted_date_idx")
+  @@map("tango_dibbs_award")
+}
+
+/// One SBIR/STTR solicitation CYCLE (P42) - the announcement a topic sits in.
+///
+/// `program` is what separates SBIR from STTR; it is a stored discriminator
+/// rather than two tables, because every other field means the same thing for
+/// both and the provider serves them from one endpoint.
+///
+/// Global, no tenant_id, no RLS: a solicitation cycle is a fact about the
+/// federal marketplace, the same reasoning tango_dibbs_solicitation (P40) and
+/// tango_procurement_forecast (P24) already carry.
+///
+/// UNCONFIRMED AGAINST A LIVE RESPONSE. Nothing has ever called /api/sbir/.
+/// Every column is a conservative reading of a published field NAME; types,
+/// null semantics and date formats are not documented. See
+/// dibbs-sbir-rest-contract.md and the migration header.
+model TangoSbirSolicitation {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The provider's own `solicitation_id`. The upsert key.
+  ///
+  /// NOT a uuid, and deliberately not named as one: the contract doc records
+  /// that topics key on `topic_id` and solicitations on `solicitation_id`,
+  /// neither of which is the `uuid` DIBBS uses. Assuming a shared identity
+  /// column across these APIs is the mistake this name exists to prevent.
+  tangoSbirId String @unique @map("tango_sbir_id")
+
+  /// The cycle's public number, and the ONLY key a topic carries back here.
+  /// NOT NULL because a cycle nothing can be joined to is not usable; the
+  /// mapper drops such a record rather than storing it unreachable.
+  solicitationNumber String  @map("solicitation_number")
+  title              String?
+
+  /// 'SBIR' | 'STTR' as the provider spells it. NOT constrained by a CHECK:
+  /// the contract documents the field, not its value set, and a bounded
+  /// vocabulary invented here would reject a real value on first contact.
+  program String?
+
+  cycleName String? @map("cycle_name")
+  year      Int?
+
+  startDate DateTime? @map("start_date") @db.Date
+  endDate   DateTime? @map("end_date") @db.Date
+
+  /// The provider's own flag for a cycle outside the normal schedule.
+  outOfCycle Boolean? @map("out_of_cycle")
+
+  activity String?
+  /// The provider's own lifecycle word, stored as stated. Never rewritten into
+  /// "open"/"closed", and never derived from endDate.
+  solicitationStatus String? @map("solicitation_status")
+
+  solDownloadUrl String? @map("sol_download_url")
+
+  firstSyncedAt DateTime @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt  DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([solicitationNumber], map: "tango_sbir_solicitation_number_idx")
+  @@index([program], map: "tango_sbir_solicitation_program_idx")
+  @@index([year], map: "tango_sbir_solicitation_year_idx")
+  @@index([solicitationStatus], map: "tango_sbir_solicitation_status_idx")
+  @@map("tango_sbir_solicitation")
+}
+
+/// One SBIR/STTR TOPIC (P42) - the unit a small business actually responds to.
+///
+/// WHY THERE IS NO FOREIGN KEY TO tango_sbir_solicitation
+/// -------------------------------------------------------------------
+/// `solicitationNumber` is the stated link to the parent cycle, unenforced -
+/// the same decision, for the same reason, as tango_dibbs_award.solicitation:
+/// a topic can name a cycle this system never synced (different filter,
+/// different window, or simply not fetched yet), and a FK would make a missing
+/// parent silently drop a real topic.
+///
+/// WHAT THE PLAN ASKS FOR THAT THE PROVIDER DOES NOT PUBLISH
+/// -------------------------------------------------------------------
+/// P42's work item names "topic, agency/component, solicitation cycle, phase,
+/// open/close dates, description, source opportunity/grant link, and DSIP
+/// parent". Four of those have NO documented field on either SBIR endpoint:
+///
+///   - PHASE (I/II/III) - a real SBIR concept, absent from the published field
+///     list. No column, because a column nothing can populate reads as "we
+///     have this and it is null" rather than "the source does not state it".
+///   - DESCRIPTION - not published on the list resource.
+///   - DSIP PARENT - `officialSolicitationUrl` may point at DSIP, but a URL is
+///     not a parent key and must not be parsed into one.
+///   - SOURCE OPPORTUNITY / GRANT LINK - no crosswalk field exists.
+///
+/// Recorded here rather than solved, so the next reader does not add a column
+/// and populate it from something adjacent. That is the
+/// AwardHistoryFacts.contractOffices mistake, which fed an office signal the
+/// awarding sub-tier because it was nearby.
+///
+/// UNCONFIRMED AGAINST A LIVE RESPONSE - see the sibling model.
+model TangoSbirTopic {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The provider's own `topic_id`. The upsert key, and NOT the same field
+  /// name the sibling table keys on - see TangoSbirSolicitation.tangoSbirId.
+  tangoSbirId String @unique @map("tango_sbir_id")
+
+  /// The public topic number, e.g. an "A24-001" style code. Distinct from
+  /// `tangoSbirId`: the provider's row id is not the number a human cites.
+  topicNumber String? @map("topic_number")
+  title       String?
+
+  /// The provider's single `agency` field. There is no separate component
+  /// field on this resource, so nothing here is split into one.
+  agency String?
+  year   Int?
+
+  /// The parent cycle, as STATED. No FK - see the model doc.
+  solicitationNumber String? @map("solicitation_number")
+
+  releaseDate DateTime? @map("release_date") @db.Date
+  openDate    DateTime? @map("open_date") @db.Date
+  closeDate   DateTime? @map("close_date") @db.Date
+
+  activity String?
+  /// The provider's own lifecycle word for the parent solicitation, stored as
+  /// stated. A closed topic is still stored - P42's acceptance is that it stays
+  /// REFERENCE-ONLY, which is a rule about what may pursue it, not a reason to
+  /// drop it.
+  solicitationStatus String? @map("solicitation_status")
+
+  topicUrl                String? @map("topic_url")
+  officialSolicitationUrl String? @map("official_solicitation_url")
+
+  firstSyncedAt DateTime @default(now()) @map("first_synced_at") @db.Timestamptz(6)
+  lastSyncedAt  DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([solicitationNumber], map: "tango_sbir_topic_solicitation_number_idx")
+  @@index([topicNumber], map: "tango_sbir_topic_topic_number_idx")
+  @@index([agency], map: "tango_sbir_topic_agency_idx")
+  @@index([closeDate], map: "tango_sbir_topic_close_date_idx")
+  @@map("tango_sbir_topic")
+}
+
 /// Per-FIELD agreement between Capiro's first-party SAM.gov row and
 /// MakeGov/Tango's own observation of the same opportunity (P27).
 ///
@@ -6922,10 +7465,10 @@ model TangoOpportunityParity {
   /// 'unreviewed' | 'local_canonical' | 'accepted_provider' | 'dismissed'.
   /// 'local_canonical' is recorded explicitly rather than left implied, so
   /// "nobody has looked" stays distinguishable from "we looked and kept ours".
-  resolution  String  @default("unreviewed")
-  reviewedBy  String? @map("reviewed_by") @db.Uuid
+  resolution  String    @default("unreviewed")
+  reviewedBy  String?   @map("reviewed_by") @db.Uuid
   reviewedAt  DateTime? @map("reviewed_at") @db.Timestamptz(6)
-  reviewNotes String? @map("review_notes")
+  reviewNotes String?   @map("review_notes")
 
   /// When this comparison was first seen with its CURRENT outcome, and when it
   /// was last confirmed. A conflict standing for three weeks reads differently
@@ -6960,13 +7503,13 @@ model TangoOpportunityNotice {
   id String @id @default(uuid()) @db.Uuid
 
   /// The provider's own notice id. The sync's upsert key.
-  tangoNoticeId String @unique @map("tango_notice_id")
+  tangoNoticeId      String  @unique @map("tango_notice_id")
   /// The parent opportunity, when the sync knows it. Nullable: a notice can be
   /// observed through a solicitation-number query before its parent is walked.
   tangoOpportunityId String? @map("tango_opportunity_id")
   /// `sam_opportunity.id` when P27's crosswalk resolved the parent. Soft
   /// pointer, no FK — the history must outlive either catalog's row lifecycle.
-  samOpportunityId String? @map("sam_opportunity_id") @db.Uuid
+  samOpportunityId   String? @map("sam_opportunity_id") @db.Uuid
 
   solicitationNumber String? @map("solicitation_number")
   title              String?
@@ -6974,7 +7517,7 @@ model TangoOpportunityNotice {
   /// The notice body, verbatim. Untrusted source text — never an instruction.
   /// Stored so a later phase has it without re-fetching; nothing on the
   /// timeline path selects it.
-  description String?
+  description       String?
   /// SHA-256 of the normalized body. The classifier compares THIS, never the
   /// bodies: a description runs to tens of kilobytes and the timeline query
   /// fetches up to 500 notices. Null when the provider stated no description —
@@ -7046,9 +7589,9 @@ model OpportunityAttachment {
   /// Source-stated. All nullable — SAM.gov's resource links routinely carry a
   /// URL and nothing else, and deriving a filename from the last path segment
   /// is a guess that reads like a fact.
-  fileName          String? @map("file_name")
-  declaredMimeType  String? @map("declared_mime_type")
-  declaredSizeBytes BigInt? @map("declared_size_bytes")
+  fileName          String?   @map("file_name")
+  declaredMimeType  String?   @map("declared_mime_type")
+  declaredSizeBytes BigInt?   @map("declared_size_bytes")
   postedDate        DateTime? @map("posted_date") @db.Timestamptz(6)
 
   /// Observed on fetch. Null until then.
@@ -7061,7 +7604,7 @@ model OpportunityAttachment {
   archiveVersionId String? @map("archive_version_id")
 
   /// 'metadata_only' | 'archived' | 'refused' | 'failed'.
-  status String @default("metadata_only")
+  status        String  @default("metadata_only")
   /// Bounded machine reason, plus a sanitized detail that NEVER contains any
   /// part of the file body.
   failureReason String? @map("failure_reason")
@@ -7102,18 +7645,18 @@ model OpportunityDocumentText {
   id String @id @default(uuid()) @db.Uuid
 
   /// `opportunity_attachment.id`. Soft pointer, no FK.
-  attachmentId String @map("attachment_id") @db.Uuid
+  attachmentId            String @map("attachment_id") @db.Uuid
   /// The hash of the exact bytes this text came from. NOT NULL: text with no
   /// binding is text nothing may cite.
   attachmentContentSha256 String @map("attachment_content_sha256")
 
   /// 'available' | 'not_entitled' | 'not_provided' | 'pending' | 'failed'.
-  status String
+  status           String
   /// 'provider' | 'local_parser'. Never mixed within a row.
   extractionMethod String? @map("extraction_method")
   /// The plan the extraction was made under, so a later downgrade explains
   /// itself.
-  providerTier String? @map("provider_tier")
+  providerTier     String? @map("provider_tier")
 
   /// UNTRUSTED SOURCE CONTENT. Never interpreted as an instruction anywhere.
   text      String?
@@ -7168,11 +7711,11 @@ model OpportunityRequirement {
   statement       String
 
   /// THE EVIDENCE. All NOT NULL.
-  sourceExcerpt String  @map("source_excerpt")
-  excerptStart  Int     @map("excerpt_start")
-  excerptEnd    Int     @map("excerpt_end")
+  sourceExcerpt String @map("source_excerpt")
+  excerptStart  Int    @map("excerpt_start")
+  excerptEnd    Int    @map("excerpt_end")
   /// Genuinely optional: a plain-text extraction has offsets and no pages.
-  sourcePage    Int?    @map("source_page")
+  sourcePage    Int?   @map("source_page")
 
   /// 'model' | 'deterministic_pattern' | 'human', and the model/rule id.
   extractionMethod String @map("extraction_method")
@@ -8911,6 +9454,13 @@ model BudgetExtractionCandidateV1 {
   policySha256              String   @map("policy_sha256") @db.Char(64)
   status                    String   @default("EXTRACTED")
   currentRunId              String?  @map("current_run_id") @db.Uuid
+  /// Phase 7 Gap 5 decision 1. Denormalized from the resolved extraction
+  /// artifact at write time (`source.family` / riskiest contributing
+  /// `parserRuns[].method`). NULL means "written before
+  /// 20260907010000 and not yet backfilled" — a refusal for any reader, never
+  /// a wildcard. Both are re-parsed through their Zod enums on read.
+  family                    String?
+  extractionMethod          String?  @map("extraction_method")
   createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                 DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
 
@@ -8922,6 +9472,7 @@ model BudgetExtractionCandidateV1 {
   @@index([sourceDocumentId], map: "budget_v1_candidate_source_document_idx")
   @@index([status], map: "budget_v1_candidate_status_idx")
   @@index([cycleId], map: "budget_v1_candidate_cycle_idx")
+  @@index([cycleId, family], map: "budget_v1_candidate_cycle_family_idx")
   @@map("budget_extraction_candidate_v1")
 }
 
@@ -9076,13 +9627,13 @@ model DefenseBudgetCanonicalSnapshot {
   activePointers        DefenseBudgetActiveSnapshot[]
   runs                  DefenseBudgetPromotionRun[]
   canonicalRows         DefenseBudgetCanonicalRow[]
-  activationsAsNew      DefenseBudgetPromotionActivation[] @relation("ActivationNewSnapshot")
-  activationsAsPrevious DefenseBudgetPromotionActivation[] @relation("ActivationPreviousSnapshot")
+  activationsAsNew      DefenseBudgetPromotionActivation[]        @relation("ActivationNewSnapshot")
+  activationsAsPrevious DefenseBudgetPromotionActivation[]        @relation("ActivationPreviousSnapshot")
   compatibilityRuns     DefenseBudgetCompatibilityProjectionRun[]
-  rollbacksFrom         DefenseBudgetRollbackRecord[]      @relation("RollbackFromSnapshot")
-  rollbacksTo           DefenseBudgetRollbackRecord[]      @relation("RollbackToSnapshot")
-  deltasAsOld           DefenseBudgetCanonicalDelta[]      @relation("CanonicalDeltaOldSnapshot")
-  deltasAsNew           DefenseBudgetCanonicalDelta[]      @relation("CanonicalDeltaNewSnapshot")
+  rollbacksFrom         DefenseBudgetRollbackRecord[]             @relation("RollbackFromSnapshot")
+  rollbacksTo           DefenseBudgetRollbackRecord[]             @relation("RollbackToSnapshot")
+  deltasAsOld           DefenseBudgetCanonicalDelta[]             @relation("CanonicalDeltaOldSnapshot")
+  deltasAsNew           DefenseBudgetCanonicalDelta[]             @relation("CanonicalDeltaNewSnapshot")
 
   @@index([domain, environment, status], map: "defense_budget_canonical_snapshot_status_idx")
   @@index([cycleId, fiscalYear], map: "defense_budget_canonical_snapshot_cycle_idx")
@@ -9123,12 +9674,73 @@ model DefenseBudgetPromotionPlan {
   planDocument             Json     @map("plan_document")
   createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  eligibility    DefenseBudgetPromotionEligibility     @relation(fields: [eligibilityHash], references: [eligibilityHash], onDelete: Restrict, onUpdate: Restrict)
   authorizations DefenseBudgetPromotionAuthorization[]
   runs           DefenseBudgetPromotionRun[]
 
   @@unique([planId, planHash], map: "defense_budget_promotion_plan_identity_unique")
   @@index([cycleId, fiscalYear], map: "defense_budget_promotion_plan_cycle_idx")
   @@map("defense_budget_promotion_plan")
+}
+
+/// Phase 7 Gap 5 decision 3. Append-only, content-addressed store for the
+/// Phase 4/5/6 projection plans an eligibility record names. Written by the
+/// producing phase, never by Phase 7 — the promotion path reloads and verifies
+/// a plan, and never recomputes a family projection.
+///
+/// `planDocument` (JSONB) and `planLocator` + `planByteSha256` are mutually
+/// exclusive storage modes; a DB CHECK enforces exactly one, so a family whose
+/// plans outgrow a row can move to object storage without a schema change.
+model DefenseBudgetProjectionPlan {
+  id                   String   @id @default(uuid()) @db.Uuid
+  projectionPlanId     String   @unique(map: "defense_budget_projection_plan_identity_unique") @map("projection_plan_id")
+  recordSchemaVersion  String   @map("record_schema_version")
+  schemaVersion        String   @map("schema_version")
+  family               String
+  cycleId              String   @map("cycle_id")
+  fiscalYear           Int      @map("fiscal_year")
+  contentSha256        String   @map("content_sha256") @db.Char(64)
+  producerVersion      String   @map("producer_version")
+  certificationId      String?  @map("certification_id")
+  certificationSha256  String   @map("certification_sha256") @db.Char(64)
+  artifactSetSha256    String   @map("artifact_set_sha256") @db.Char(64)
+  status               String   @db.VarChar(32)
+  conflictCount        Int      @map("conflict_count")
+  unsupportedCount     Int      @map("unsupported_count")
+  planDocument         Json?    @map("plan_document")
+  planLocator          String?  @map("plan_locator")
+  planByteSha256       String?  @map("plan_byte_sha256") @db.Char(64)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([cycleId, family, fiscalYear], map: "defense_budget_projection_plan_scope_idx")
+  @@index([contentSha256], map: "defense_budget_projection_plan_content_idx")
+  @@map("defense_budget_projection_plan")
+}
+
+/// Phase 7 Workstream A / Gap 3 closeout. Append-only record of one eligibility
+/// evaluation, keyed by its content hash. `defense_budget_promotion_plan`
+/// carries a foreign key to this table's `eligibilityHash` so a plan can never
+/// reference an eligibility that was never recorded.
+model DefenseBudgetPromotionEligibility {
+  id                     String   @id @default(uuid()) @db.Uuid
+  eligibilityId          String   @map("eligibility_id")
+  eligibilityHash        String   @unique(map: "defense_budget_promotion_eligibility_hash_unique") @map("eligibility_hash") @db.Char(64)
+  cycleId                String   @map("cycle_id")
+  mappingRegistryVersion String   @map("mapping_registry_version")
+  mappingRegistryHash    String   @map("mapping_registry_hash") @db.Char(64)
+  scope                  Json
+  scopeHash              String   @map("scope_hash") @db.Char(64)
+  openConflictCount      Int      @map("open_conflict_count")
+  unsupportedItemCount   Int      @map("unsupported_item_count")
+  document               Json
+  generatedAt            DateTime @map("generated_at") @db.Timestamptz(6)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  plans DefenseBudgetPromotionPlan[]
+
+  @@unique([eligibilityId, eligibilityHash], map: "defense_budget_promotion_eligibility_identity_unique")
+  @@index([cycleId], map: "defense_budget_promotion_eligibility_cycle_idx")
+  @@map("defense_budget_promotion_eligibility")
 }
 
 /// Phase 7 Workstream K. A governed human correction applied beside the active
@@ -9194,7 +9806,7 @@ model DefenseBudgetPromotionAuthorization {
   consumedByRunId          String?   @map("consumed_by_run_id") @db.Uuid
   createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  plan DefenseBudgetPromotionPlan @relation(fields: [planId], references: [planId], onDelete: Restrict, onUpdate: Cascade)
+  plan DefenseBudgetPromotionPlan  @relation(fields: [planId], references: [planId], onDelete: Restrict, onUpdate: Cascade)
   runs DefenseBudgetPromotionRun[]
 
   @@map("defense_budget_promotion_authorization")
@@ -9263,8 +9875,8 @@ model DefenseBudgetPromotionActivation {
   activatedBy        String   @map("activated_by")
   activatedAt        DateTime @default(now()) @map("activated_at") @db.Timestamptz(6)
 
-  run              DefenseBudgetPromotionRun      @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  newSnapshot      DefenseBudgetCanonicalSnapshot @relation("ActivationNewSnapshot", fields: [newSnapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  run              DefenseBudgetPromotionRun       @relation(fields: [runId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  newSnapshot      DefenseBudgetCanonicalSnapshot  @relation("ActivationNewSnapshot", fields: [newSnapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   previousSnapshot DefenseBudgetCanonicalSnapshot? @relation("ActivationPreviousSnapshot", fields: [previousSnapshotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   outbox           DefenseBudgetPromotionOutbox[]
   rollbackRecords  DefenseBudgetRollbackRecord[]
@@ -9480,4 +10092,87 @@ model DefenseBudgetPromotionAudit {
   @@index([createdAt], map: "defense_budget_promotion_audit_created_idx")
   @@index([planId], map: "defense_budget_promotion_audit_plan_idx")
   @@map("defense_budget_promotion_audit")
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// X Intelligence Feed — configurable X/Twitter dashboard feed
+//
+// The global cache tables (XTrackedAccount, XPostCache) are NOT tenant-scoped:
+// they store a single copy of each tracked X account's posts so 100 users
+// subscribing to @DeptofDefense share one provider fetch. The subscription
+// table (XFeedSubscription) IS tenant+user scoped and protected by RLS.
+// ──────────────────────────────────────────────────────────────────────────
+
+/// A globally-tracked X account. One row per unique X user, shared across all
+/// tenants. The server resolves @username → this row, then caches posts against
+/// it. `lastFetchedAt` drives incremental fetch (since_id) and TTL decisions.
+model XTrackedAccount {
+  id            String    @id @default(uuid()) @db.Uuid
+  xUserId       String    @map("x_user_id") @db.VarChar(64)
+  username      String    @db.VarChar(80)
+  displayName   String?   @map("display_name") @db.VarChar(255)
+  avatarUrl     String?   @map("avatar_url")
+  verified      Boolean   @default(false)
+  /// The most recent X post ID we have cached, used for since_id incremental
+  /// retrieval on the next fetch cycle.
+  lastPostId    String?   @map("last_post_id") @db.VarChar(64)
+  lastFetchedAt DateTime? @map("last_fetched_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  posts         XPostCache[]
+  subscriptions XFeedSubscription[]
+
+  @@unique([xUserId], map: "x_tracked_account_x_user_id_unique")
+  @@unique([username], map: "x_tracked_account_username_unique")
+  @@index([lastFetchedAt], map: "x_tracked_account_last_fetched_idx")
+  @@map("x_tracked_account")
+}
+
+/// Cached X posts for a tracked account. Global — one copy per X post, fanned
+/// out to subscribers by the feed endpoint. Retention-limited: expired or
+/// deleted posts are pruned by the service.
+model XPostCache {
+  id            String    @id @default(uuid()) @db.Uuid
+  accountId     String    @map("account_id") @db.Uuid
+  xPostId       String    @map("x_post_id") @db.VarChar(64)
+  text          String    @db.Text
+  createdAtX    DateTime  @map("created_at_x") @db.Timestamptz(6)
+  /// JSON media metadata from the X API response (urls, types, preview_image_url).
+  media         Json      @default("[]")
+  /// JSON public_metrics from the X API response (retweet_count, reply_count, like_count, quote_count).
+  metrics       Json      @default("{}")
+  /// Provider raw metadata, stored only where useful for rendering. Minimal.
+  rawMeta       Json      @default("{}") @map("raw_meta")
+  /// Marks posts that have been deleted on X or are otherwise unavailable.
+  unavailable   Boolean   @default(false)
+  fetchedAt     DateTime  @default(now()) @map("fetched_at") @db.Timestamptz(6)
+
+  account XTrackedAccount @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([accountId, xPostId], map: "x_post_cache_account_post_unique")
+  @@index([accountId, createdAtX], map: "x_post_cache_account_created_idx")
+  @@index([unavailable], map: "x_post_cache_unavailable_idx")
+  @@map("x_post_cache")
+}
+
+/// A user's subscription to an X account. Tenant-scoped AND user-scoped.
+/// Protected by RLS (see migration). A user can subscribe to at most 25
+/// accounts (enforced in service layer).
+model XFeedSubscription {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  enabled     Boolean  @default(true)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  account XTrackedAccount @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([tenantId, userId, accountId], map: "x_feed_subscription_unique")
+  @@index([tenantId, userId], map: "x_feed_subscription_tenant_user_idx")
+  @@index([tenantId, userId, enabled], map: "x_feed_subscription_enabled_idx")
+  @@map("x_feed_subscription")
 }

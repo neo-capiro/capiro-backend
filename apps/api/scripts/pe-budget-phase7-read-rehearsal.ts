@@ -262,9 +262,20 @@ async function main(): Promise<void> {
       })
     ).map((row) => manualOverrideFromRowV1(row));
     const afterProposal = inForceOverridesV1(withProposal, new Date());
+    // A proposal has no governing effect: it must not suppress the approved
+    // predecessor (see inForceOverridesV1 — proposing v2 is not a user-visible
+    // mutation). The approved v1 remains the only in-force entry.
     check(
-      afterProposal.length === 0,
-      'a newer proposal is not in force, and does not let the approved older version stand either',
+      afterProposal.length === 1 &&
+        afterProposal[0]?.provenance.overrideId === APPROVED_OVERRIDE_ID,
+      'a newer proposal is not in force, and the approved older version still stands',
+    );
+    const afterProposalApplied = applyOverrideOverlayV1(rows, afterProposal);
+    check(
+      afterProposalApplied.applied === 1 &&
+        afterProposalApplied.rows.find((row) => row.override != null)?.money?.valueMillions ===
+          overrideValueMillions,
+      'the reader still sees the approved correction while a proposal is open',
     );
 
     /* =================================================================== */

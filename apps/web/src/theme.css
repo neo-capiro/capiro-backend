@@ -24358,3 +24358,64 @@ button.engagement-debrief-badge--action:hover {
   margin-top: 2px;
 }
 .v2-root .home-week-day.is-selected .home-week-dot { background: #FFFFFF; }
+
+/* ── Dashboard meeting actions -> DS v2 (scoped to .v2-root = capiro-internal)
+   Meeting Prep / View Prep / Debrief: square white secondary on #C3CBD7.
+   Send Meri: square ink #131A24 primary. Both 34px, Hanken 13px/600.
+   dash-send-meri carries inline styles from the shared SendMeriButton, so the
+   v2 overrides use !important to win over the inline blue/pill look — scoped
+   to the dashboard only, other Meetings surfaces are untouched. ─────────── */
+
+.v2-root .dash-btn-soft {
+  background: #FFFFFF;
+  border: 1px solid #C3CBD7;
+  color: #263243;
+  border-radius: 0;
+  height: 34px;
+  padding: 0 12px;
+  font-family: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.v2-root .dash-btn-soft:hover:not(:disabled) {
+  background: #F0F1F4;
+}
+.v2-root .dash-btn-soft:focus-visible {
+  outline: 2px solid #263243;
+  outline-offset: 2px;
+}
+.v2-root .dash-btn-soft:disabled {
+  opacity: 0.55;
+}
+
+.v2-root .dash-send-meri {
+  background: #131A24 !important;
+  border: 1px solid #131A24 !important;
+  color: #FFFFFF !important;
+  border-radius: 0 !important;
+  height: 34px;
+  padding: 0 13px !important;
+  font-family: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px !important;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.v2-root .dash-send-meri:hover {
+  background: #263243 !important;
+  border-color: #263243 !important;
+}
+.v2-root .dash-send-meri:focus-visible {
+  outline: 2px solid #263243;
+  outline-offset: 2px;
+}
+
+/* Profile chip photo: fill the 24px circular avatar, keep the ink fallback. */
+.v2-root .v2-profile-avatar { overflow: hidden; }
+.v2-root .v2-profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}

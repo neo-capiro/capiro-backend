@@ -70,7 +70,14 @@ aws sts get-caller-identity --query 'Account' --output text | grep -qx "$ACCOUNT
   || { echo "WRONG AWS ACCOUNT (expected $ACCOUNT). Aborting."; exit 1; }
 APP_HTTP=$(curl -s -o /dev/null -w '%{http_code}' https://app.capiro.ai || echo 000)
 echo "app.capiro.ai -> HTTP $APP_HTTP"
-GIT_SHA=$(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)
+# `cd` then plain `git`, NOT `git -C "$REPO_ROOT"`. MSYS_NO_PATHCONV=1 above is
+# required so ECS ARN colons survive, but it also stops MSYS rewriting POSIX
+# paths for native binaries — so Windows git.exe receives a literal
+# `/c/Users/...` for -C and fails with "cannot change to". The failure is
+# swallowed by `|| echo unknown`, and with --build that silently tags and pushes
+# the images as `:unknown`, destroying the SHA→image traceability this script
+# exists to protect. `cd` is a bash builtin, so no conversion is involved.
+GIT_SHA=$( (cd "$REPO_ROOT" && git rev-parse --short HEAD) 2>/dev/null || echo unknown)
 echo "deploying from git $GIT_SHA"
 
 # ---- 1. (optional) build + push arm64 images -------------------------------

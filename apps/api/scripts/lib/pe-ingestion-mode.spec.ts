@@ -4,6 +4,11 @@ import {
   usesDeprecatedDryRunAlias,
 } from './defense-budget-ingest-mode.js';
 
+const ALLOW_LEGACY = {
+  verb: 'ingest-defense-budget',
+  environment: { PE_LEGACY_BUDGET_WRITES: 'allow', PE_SNAPSHOT_READ_MODE: 'legacy' },
+} as const;
+
 describe('resolveDefenseBudgetIngestPosture', () => {
   test('defaults to preflight when no write or extraction flag is present', () => {
     expect(
@@ -27,8 +32,29 @@ describe('resolveDefenseBudgetIngestPosture', () => {
     expect(usesDeprecatedDryRunAlias(['--dry-run'])).toBe(true);
   });
 
-  test('--commit is detected so the caller can fail closed before configuration or I/O', () => {
-    expect(resolveDefenseBudgetIngestPosture(['--commit'])).toBe('commit');
+  test('--commit is refused by default before configuration or I/O', () => {
+    expect(() =>
+      resolveDefenseBudgetIngestPosture(['--commit'], {
+        verb: 'ingest-defense-budget',
+        environment: {},
+      }),
+    ).toThrow(/legacy-write kill switch is off/);
+  });
+
+  test('--commit remains a deliberate temporary exception only with the Phase 7 override', () => {
+    expect(resolveDefenseBudgetIngestPosture(['--commit'], ALLOW_LEGACY)).toBe('commit');
+  });
+
+  test('snapshot-backed reads veto even an explicit legacy-write override', () => {
+    expect(() =>
+      resolveDefenseBudgetIngestPosture(['--commit'], {
+        verb: 'ingest-defense-budget',
+        environment: {
+          PE_LEGACY_BUDGET_WRITES: 'allow',
+          PE_SNAPSHOT_READ_MODE: 'snapshot_canary',
+        },
+      }),
+    ).toThrow(/product reads are being served from a canonical snapshot/);
   });
 
   test.each([
@@ -36,7 +62,7 @@ describe('resolveDefenseBudgetIngestPosture', () => {
     [['--commit', '--dry-run']],
     [['--extract-only', '--dry-run']],
   ])('rejects incompatible posture flags: %j', (argv) => {
-    expect(() => resolveDefenseBudgetIngestPosture(argv)).toThrow(
+    expect(() => resolveDefenseBudgetIngestPosture(argv, ALLOW_LEGACY)).toThrow(
       'Choose exactly one ingestion posture',
     );
   });

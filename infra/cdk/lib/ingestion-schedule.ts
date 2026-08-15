@@ -530,6 +530,33 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: persist SAM.gov client suggestions after SAM ingestion and promoted-field backfill (daily 11:52 UTC)',
     enabled: false,
   },
+  // DIBBS/SBIR have no live read-time scoring path (see each producer's own
+  // docblock) — these are the ONLY path to visibility for either source, not
+  // an enhancement on top of one. Scheduled shortly after each source's own
+  // sync slot (SyncTangoDibbs 13:10, SyncTangoSbir 13:30, below), same pattern
+  // as GenerateSamOpportunityCandidates running after SAM ingestion. Both
+  // declared disabled: the sync schedules they depend on are themselves still
+  // disabled pending the DIBBS/SBIR ingestion resume (decision-log D-75
+  // through D-78), so this whole chain is dormant end-to-end by design until a
+  // human deliberately advances it — not something this entry alone changes.
+  {
+    id: 'GenerateDibbsOpportunityCandidates',
+    command: ['generate-dibbs-opportunity-candidates', '--commit'],
+    cron: { minute: '15', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: persist DIBBS client suggestions after the DIBBS bid-board sync (daily 13:15 UTC)',
+    enabled: false,
+  },
+  {
+    id: 'GenerateSbirOpportunityCandidates',
+    command: ['generate-sbir-opportunity-candidates', '--commit'],
+    cron: { minute: '35', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: persist SBIR/STTR client suggestions after the SBIR/STTR sync (daily 13:35 UTC)',
+    enabled: false,
+  },
   {
     id: 'ProcessFundingOpportunityLifecycle',
     command: ['process-funding-opportunity-lifecycle', '--commit'],
@@ -601,6 +628,114 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     tier: 'daily',
     description:
       'Funding Opportunities: agency-forecast incremental sync into tango_procurement_forecast (daily 12:50 UTC)',
+    enabled: false,
+  },
+  // ── Funding Opportunities P40 part 3 — DIBBS bid board (ships DISABLED) ─────
+  //
+  // TWO JOBS, and the pairing is load-bearing rather than belt-and-braces.
+  // DIBBS publishes no `modified_after` filter — only `issue_date_after`,
+  // `issued_date_after` and `posted_date_after` — so the incremental window
+  // selects records ISSUED since a date. An amendment to an already-issued
+  // solicitation never re-enters that window, and the incremental job would
+  // report itself complete having never seen it. The weekly `--full` run is
+  // what actually keeps the catalog true; it is not an optimisation.
+  //
+  // Both are idempotent (upsert on the provider's own `uuid`), so the two
+  // firing on the same day is harmless — Sunday simply refreshes what Sunday's
+  // incremental already wrote.
+  //
+  // RATE LIMIT: P17's live probe (2026-08-08) measured this account at 25
+  // requests per ~31s. A page-complete walk at limit=100 reaches that as a
+  // matter of course, so the sync throttles and retries rather than treating a
+  // 429 as exceptional (D-65). Budget wall-clock accordingly: the full weekly
+  // reconciliation is paced by the provider, not by Postgres.
+  //
+  // DISABLED, and not merely by house convention. P17 now confirms entitlement
+  // and confirms the pagination ENVELOPE against a live response — but the
+  // probe captures no response bodies, so mapper field types, null semantics
+  // and date formats remain readings of published NAMES. Full live contract
+  // validation has not run. Enabling this before it would write a whole catalog
+  // shaped by an only-partly-verified contract.
+  // Enable the incremental first, read one run's summary — especially
+  // `quantityDroppedMissingUnit` and the per-endpoint drop counts — and only
+  // then enable the full reconciliation.
+  {
+    id: 'SyncTangoDibbs',
+    command: ['sync-tango-dibbs', '--commit'],
+    cron: { minute: '10', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: DIBBS bid-board incremental sync (daily 13:10 UTC, issue-date window + 7d overlap)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileTangoDibbsFull',
+    command: ['sync-tango-dibbs', '--commit', '--full'],
+    cron: { minute: '10', hour: '13', weekDay: 'SUN' },
+    tier: 'weekly',
+    description:
+      'Funding Opportunities: DIBBS full reconciliation (Sun 13:10 UTC) — catches amendments the issue-date window cannot',
+    enabled: false,
+  },
+  // Funding Opportunities P42 part 3: SBIR/STTR. DISABLED, and with a STRONGER
+  // reason than the DIBBS pair above.
+  //
+  // P17 confirmed the DIBBS envelope against a live response on 2026-08-08.
+  // NOTHING HAS EVER CALLED /api/sbir/ — not once. The client, the schema, the
+  // mappers and the walk are all written against a published field list, so
+  // enabling this would write a whole catalog shaped by a contract that has
+  // never been observed at all, not merely one only partly verified.
+  //
+  // Order of operations when the time comes: run the P17 probe to answer
+  // entitlement and the envelope, then a live contract validation capturing
+  // real record contents, then the incremental ALONE, then read one run's
+  // summary — especially `topicsWithNoStatedCycle` and the per-endpoint
+  // droppedNoId / droppedNoRequiredField counts, which are the fields that say
+  // the reading of an identifier or the parent key is wrong — and only then
+  // enable the full reconciliation.
+  //
+  // Offset 20 minutes from the DIBBS pair: both hit the same account, and P17
+  // measured it at 25 requests per ~31s, which a page-complete walk reaches
+  // routinely. Overlapping two catalog walks would make each throttle the other.
+  {
+    id: 'SyncTangoSbir',
+    command: ['sync-tango-sbir', '--commit'],
+    cron: { minute: '30', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: SBIR/STTR incremental sync (daily 13:30 UTC, publication-date window + 7d overlap)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileTangoSbirFull',
+    command: ['sync-tango-sbir', '--commit', '--full'],
+    cron: { minute: '30', hour: '13', weekDay: 'SUN' },
+    tier: 'weekly',
+    description:
+      'Funding Opportunities: SBIR/STTR full reconciliation (Sun 13:30 UTC) — catches topic amendments the publication-date window cannot',
+    enabled: false,
+  },
+  // Funding Opportunities P48: drain verified webhook deliveries into client
+  // alerts. DISABLED, and it must stay that way until P50's controlled
+  // enablement — P48's own ship note requires a manual two-pass quiet test
+  // before any cadence runs, because the first automated run of an alerting
+  // job is the one that can page a whole tenant at once.
+  //
+  // ORDER MATTERS: this reads what `sync-tango-opportunity-notices` holds and
+  // does not fetch inline, so it is scheduled AFTER that sync. Running it first
+  // is not harmful — it simply finds no change yet and the next cycle picks it
+  // up — but it makes alerts arrive a cycle late for no reason.
+  //
+  // `--commit` is deliberate here: the dry run is for an operator at a shell.
+  // A scheduled drain that never committed would silently do nothing, which is
+  // exactly the failure the entrypoint spec's argument-forwarding test guards.
+  {
+    id: 'ProcessTangoEvents',
+    command: ['process-tango-events', '--commit'],
+    cron: { minute: '20', hour: '13' },
+    tier: 'daily',
+    description:
+      'Funding Opportunities: drain verified Tango webhook deliveries into deduped client alerts (daily 13:20 UTC, after the notice sync)',
     enabled: false,
   },
   {

@@ -79,13 +79,52 @@ describe('Phase 7 WS M — which overrides are in force', () => {
   });
 
   it('does not apply a proposal', () => {
-    // The whole point of the two-step flow: one admin's opinion changes nothing
-    // until a second approves it.
     const proposal = override({ status: 'proposed', approverActorId: undefined } as never);
     expect(inForceOverridesV1([proposal], NOW)).toEqual([]);
   });
 
-  it('does not apply a revoked, expired, or future-dated override', () => {
+  it('a proposed replacement cannot suppress the currently approved version', () => {
+    const applied = inForceOverridesV1(
+      [
+        override({ overrideId: 'ovr-1', version: 1 }),
+        override({
+          overrideId: 'ovr-2',
+          version: 2,
+          priorOverrideId: 'ovr-1',
+          status: 'proposed',
+          approvedAt: undefined,
+          governance: {
+            authorActorId: 'author-2',
+            reason: 'candidate replacement',
+            evidenceIds: ['issue-43'],
+          },
+        } as never),
+      ],
+      NOW,
+    );
+    expect(applied).toHaveLength(1);
+    expect(applied[0]?.provenance.overrideId).toBe('ovr-1');
+  });
+
+  it('an approved future replacement leaves its predecessor active until effectiveFrom', () => {
+    const applied = inForceOverridesV1(
+      [
+        override({ overrideId: 'ovr-1', version: 1 }),
+        override({
+          overrideId: 'ovr-2',
+          version: 2,
+          priorOverrideId: 'ovr-1',
+          effectiveFrom: '2026-09-01T00:00:00.000Z',
+          value: { originalValue: '9500', originalUnit: 'thousands', valueMillions: '9.5' },
+        }),
+      ],
+      NOW,
+    );
+    expect(applied).toHaveLength(1);
+    expect(applied[0]?.provenance.overrideId).toBe('ovr-1');
+  });
+
+  it('does not apply a revoked, expired, or future-dated single override', () => {
     expect(inForceOverridesV1([override({ status: 'revoked' })], NOW)).toEqual([]);
     expect(
       inForceOverridesV1([override({ effectiveTo: '2026-08-05T00:00:00.000Z' })], NOW),
@@ -95,13 +134,14 @@ describe('Phase 7 WS M — which overrides are in force', () => {
     ).toEqual([]);
   });
 
-  it('takes the highest version when a correction supersedes a correction', () => {
+  it('takes the highest active approved version when a correction supersedes a correction', () => {
     const applied = inForceOverridesV1(
       [
         override({ overrideId: 'ovr-1', version: 1 }),
         override({
           overrideId: 'ovr-2',
           version: 2,
+          priorOverrideId: 'ovr-1',
           value: { originalValue: '9500', originalUnit: 'thousands', valueMillions: '9.5' },
         }),
       ],
@@ -112,14 +152,34 @@ describe('Phase 7 WS M — which overrides are in force', () => {
     expect(applied[0]?.value.valueMillions).toBe('9.5');
   });
 
-  it('lets a revoked newest version end the chain rather than reviving the older one', () => {
-    // Evaluating status per record and then taking the highest surviving version
-    // would let a revocation resurrect the correction it replaced. The highest
-    // version wins first, and if it is revoked nothing is in force.
+  it('lets a revoked newest decided version end the chain rather than reviving the older one', () => {
     const applied = inForceOverridesV1(
       [
         override({ overrideId: 'ovr-1', version: 1, status: 'approved' }),
-        override({ overrideId: 'ovr-2', version: 2, status: 'revoked' }),
+        override({
+          overrideId: 'ovr-2',
+          version: 2,
+          priorOverrideId: 'ovr-1',
+          status: 'revoked',
+          revokedAt: '2026-08-06T00:00:00.000Z',
+        }),
+      ],
+      NOW,
+    );
+    expect(applied).toEqual([]);
+  });
+
+  it('does not resurrect an older correction after the superseding approved version expires', () => {
+    const applied = inForceOverridesV1(
+      [
+        override({ overrideId: 'ovr-1', version: 1, status: 'approved' }),
+        override({
+          overrideId: 'ovr-2',
+          version: 2,
+          priorOverrideId: 'ovr-1',
+          effectiveFrom: '2026-08-02T00:00:00.000Z',
+          effectiveTo: '2026-08-05T00:00:00.000Z',
+        }),
       ],
       NOW,
     );
@@ -127,12 +187,9 @@ describe('Phase 7 WS M — which overrides are in force', () => {
   });
 
   it('keeps fiscal year and funding field in the target identity', () => {
-    // An override of FY2027 request must not shadow FY2028 enacted on the same
-    // line.
     expect(
       overlayTargetKeyV1({ canonicalEntity: 'e', naturalKey: 'k', fiscalYear: 2027 }),
     ).not.toBe(overlayTargetKeyV1({ canonicalEntity: 'e', naturalKey: 'k', fiscalYear: 2028 }));
-    // Null and absent are the same target.
     expect(overlayTargetKeyV1({ canonicalEntity: 'e', naturalKey: 'k' })).toBe(
       overlayTargetKeyV1({ canonicalEntity: 'e', naturalKey: 'k', fiscalYear: null }),
     );
@@ -144,7 +201,6 @@ describe('Phase 7 WS M — applying the overlay', () => {
     const result = applyOverrideOverlayV1([row()], inForceOverridesV1([override()], NOW));
     expect(result.applied).toBe(1);
     expect(result.rows[0]?.money?.valueMillions).toBe('9');
-    // A correction that hides what it corrected is a rewrite.
     expect(result.rows[0]?.officialMoney?.valueMillions).toBe('1.25');
   });
 
@@ -160,16 +216,11 @@ describe('Phase 7 WS M — applying the overlay', () => {
   });
 
   it('leaves the canonical row hash alone', () => {
-    // The hash identifies the government fact this row is. An override does not
-    // make it a different fact; it makes it a fact someone has corrected.
     const result = applyOverrideOverlayV1([row()], inForceOverridesV1([override()], NOW));
     expect(result.rows[0]?.canonicalRowHash).toBe('a'.repeat(64));
   });
 
   it('does not mutate the rows it was given', () => {
-    // Read results are cached and shared, and an override is global rather than
-    // tenant-scoped, so an in-place edit would leak into the next reader and
-    // stay invisible in a single-tenant test.
     const original = row();
     applyOverrideOverlayV1([original], inForceOverridesV1([override()], NOW));
     expect(original.money?.valueMillions).toBe('1.25');
@@ -185,10 +236,6 @@ describe('Phase 7 WS M — applying the overlay', () => {
   });
 
   it('surfaces an in-force override whose target the snapshot does not contain', () => {
-    // Dropping it silently is the "active override silently overwritten by a new
-    // snapshot" that plan §K.5 forbids, moved to the read path. Synthesizing a
-    // row would invent canonical lineage no document asserts. So it comes back
-    // as data the caller can alert on.
     const result = applyOverrideOverlayV1([], inForceOverridesV1([override()], NOW));
     expect(result.rows).toEqual([]);
     expect(result.unmatched).toHaveLength(1);
@@ -200,5 +247,13 @@ describe('Phase 7 WS M — applying the overlay', () => {
     expect(result.applied).toBe(0);
     expect(result.unmatched).toEqual([]);
     expect(result.rows[0]?.officialMoney).toBeNull();
+  });
+
+  it('does not erase provenance when a lower read layer already applied an override', () => {
+    const once = applyOverrideOverlayV1([row()], inForceOverridesV1([override()], NOW));
+    const twice = applyOverrideOverlayV1(once.rows, []);
+    expect(twice.rows[0]?.override?.overrideId).toBe('ovr-1');
+    expect(twice.rows[0]?.officialMoney?.valueMillions).toBe('1.25');
+    expect(twice.rows[0]?.money?.valueMillions).toBe('9');
   });
 });

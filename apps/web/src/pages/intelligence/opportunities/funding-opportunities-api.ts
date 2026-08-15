@@ -370,7 +370,13 @@ export const INBOX_FILTER_DESCRIPTIONS: Record<InboxFilter, string> = {
  * `FundingOpportunity` shape with holes where those three go reads as "closed",
  * "not eligible" and "$0".
  */
-export const INBOX_SOURCES = ['grants_gov', 'sam_gov', 'agency_forecast'] as const;
+export const INBOX_SOURCES = [
+  'grants_gov',
+  'sam_gov',
+  'agency_forecast',
+  'dibbs',
+  'sbir_sttr',
+] as const;
 export type InboxSource = (typeof INBOX_SOURCES)[number];
 
 export const FORECAST_SOURCE = 'agency_forecast' as const;
@@ -378,6 +384,39 @@ export const FORECAST_SOURCE = 'agency_forecast' as const;
 export function isForecastRow(row: { source: string }): boolean {
   return row.source === FORECAST_SOURCE;
 }
+
+/**
+ * The DLA bid-board rail (P41).
+ *
+ * In {@link INBOX_SOURCES} and deliberately NOT in {@link OpportunitySource},
+ * for the reason the block above gives: a bid-board line item has no response
+ * deadline, no eligibility determination and no money, so it can never be
+ * fetched as a `FundingOpportunity`. It has a quantity, a unit of issue and a
+ * closing date instead, and its recommendation comes from a different scorer
+ * with a different vocabulary.
+ */
+export const DIBBS_SOURCE = 'dibbs' as const;
+
+export function isDibbsRow(row: { source: string }): boolean {
+  return row.source === DIBBS_SOURCE;
+}
+
+/**
+ * The SBIR/STTR topic rail (P43), and the LAST planned source.
+ *
+ * Also not in {@link OpportunitySource}: P43's own acceptance keeps a topic's
+ * eligibility at `needs_review` permanently, because nothing in the schema
+ * establishes it — so a topic can never be a `FundingOpportunity`, which
+ * carries an eligibility determination.
+ */
+export const SBIR_SOURCE = 'sbir_sttr' as const;
+
+export function isSbirRow(row: { source: string }): boolean {
+  return row.source === SBIR_SOURCE;
+}
+
+/** The SBIR capability, per tenant. Mirrors P43's `funding_opportunities_sbir`. */
+export const FUNDING_OPPORTUNITIES_SBIR_FEATURE = 'funding_opportunities_sbir';
 
 /**
  * Mirrors InboxForecastFacts in apps/api.
@@ -415,17 +454,163 @@ export interface InboxForecastFacts {
   providerModifiedAt: string | null;
 }
 
+/**
+ * Mirrors InboxDibbsFacts in apps/api — the field list is COPIED from it, not
+ * re-derived, because a mirror that drifts is a type that lies about the wire.
+ *
+ * Every field is verbatim from `tango_dibbs_solicitation`. Null means the
+ * provider stated nothing — never zero, never "no", and never a closed bid.
+ *
+ * `quantity` is a STRING because the column is NUMERIC(18,4) and a value near
+ * the top of that range exceeds 2^53. The provider's exact digits are carried
+ * end to end precisely to avoid a float round-trip; turning it into a JS number
+ * here would undo that on the last step before the screen.
+ */
+export interface InboxDibbsFacts {
+  /** `'rfq' | 'rfp'` in practice. Typed as the wire types it — see {@link asPursuableDibbsFacts}. */
+  documentType: string;
+  solicitation: string;
+  /** The provider's own display spelling, when it gave one. Never parsed. */
+  solicitationFormatted: string | null;
+  nsn: string | null;
+  partNumber: string | null;
+  nomenclature: string | null;
+  /** RFQ only, as an exact decimal string. Null on an RFP, which states none. */
+  quantity: string | null;
+  /** RFQ only. A quantity without its unit is meaningless, so the pair is dropped rather than a unit invented. */
+  unitOfIssue: string | null;
+  /** RFQ only. */
+  setAside: string | null;
+  /** RFP only. */
+  buyerCode: string | null;
+  /**
+   * `YYYY-MM-DD`. A calendar day with no time component, so a bid closing on
+   * the 30th is the 30th everywhere. Format with {@link formatSourceDate}, never
+   * with `new Date()` in local time.
+   */
+  closesDate: string | null;
+  /** The provider's own judgement. `null` = never stated, and never rewritten into "open". */
+  isOpen: boolean | null;
+  documentUrl: string | null;
+  /** RFP only. */
+  techDocsUrl: string | null;
+  /** When Capiro last observed this item. Freshness, not a source fact. */
+  lastSyncedAt: string | null;
+}
+
+/** A DIBBS document a client can actually bid. Mirrors DibbsPursuableDocumentType in apps/api. */
+export type DibbsPursuableDocumentType = 'rfq' | 'rfp';
+
+/**
+ * Narrow the wire's `documentType` to the two a bid-board card can render, or
+ * null for anything else.
+ *
+ * A function rather than an inline check at the call site for the reason
+ * {@link asCatalogRef} gives: TypeScript cannot narrow an OBJECT by testing one
+ * of its properties, so every call site would otherwise need its own cast — and
+ * a cast is exactly what stops the compiler noticing when a third document type
+ * arrives. A caller that gets null must fall back to a renderer that claims
+ * nothing about the document type, never coerce it into one of these two.
+ */
+export function asPursuableDibbsFacts(
+  facts: InboxDibbsFacts,
+): (InboxDibbsFacts & { documentType: DibbsPursuableDocumentType }) | null {
+  return facts.documentType === 'rfq' || facts.documentType === 'rfp'
+    ? { ...facts, documentType: facts.documentType }
+    : null;
+}
+
+/**
+ * The part-profile gap EVERY dibbs row carries today, and why it is a constant
+ * rather than a field on the row.
+ *
+ * The gap is a scoring output, not a solicitation fact, so it is correctly
+ * absent from `InboxDibbsFacts` — that interface is verbatim
+ * `tango_dibbs_solicitation` and a scoring result does not belong in it. But the
+ * inbox response carries no scoring breakdown either, so there is no wire field
+ * to read it from.
+ *
+ * Passing `null` to the card instead would be the one thing that must not
+ * happen: `null` there means "a part-level match was attempted and there is no
+ * gap", which would tell a reader that this client's parts were compared and
+ * came up short. Nothing in this schema stores a client's reviewed NSNs or part
+ * numbers — apps/api's `scoreDibbsRelevance` documents `clientHasRecordedParts`
+ * as "`false` today for every client" — so no part-level comparison has ever
+ * happened for anyone.
+ *
+ * So the honest value today is this constant, and it is stated in ONE place
+ * with a test pinning it. When a client part store lands, this stops being a
+ * structural fact about the system and becomes per-row data: at that point it
+ * moves onto the API response and this constant is deleted, not edited.
+ */
+export const DIBBS_PART_PROFILE_GAP_TODAY = 'no_client_parts_recorded' as const;
+
+/**
+ * Mirrors InboxSbirCycleFacts in apps/api — the parent solicitation cycle for
+ * an SBIR topic, when Capiro HOLDS it.
+ *
+ * `program` is the only place the SBIR/STTR distinction lives. A topic does not
+ * carry it, so a topic whose cycle is absent cannot be labelled either — and
+ * must not be, since STTR is the one requiring a research partner.
+ */
+export interface InboxSbirCycleFacts {
+  solicitationNumber: string;
+  cycleName: string | null;
+  /** `'SBIR' | 'STTR'` as the provider spells it. Never normalised. */
+  program: string | null;
+  year: number | null;
+  startDate: string | null;
+  endDate: string | null;
+  solicitationStatus: string | null;
+  solDownloadUrl: string | null;
+}
+
+/**
+ * Mirrors InboxSbirFacts in apps/api — the field list is COPIED from it.
+ *
+ * There is deliberately NO `phase`: the published SBIR contract carries none on
+ * either endpoint, so a field here would be one nothing could ever populate.
+ */
+export interface InboxSbirFacts {
+  topicNumber: string | null;
+  title: string | null;
+  agency: string | null;
+  year: number | null;
+  /** The parent cycle as STATED by the source. Null means the source named none. */
+  solicitationNumber: string | null;
+  releaseDate: string | null;
+  openDate: string | null;
+  /** `YYYY-MM-DD`. Format with {@link formatSourceDate}, never `new Date()` locally. */
+  closeDate: string | null;
+  solicitationStatus: string | null;
+  topicUrl: string | null;
+  officialSolicitationUrl: string | null;
+  lastSyncedAt: string | null;
+  /**
+   * The parent cycle when Capiro HOLDS it.
+   *
+   * Null means NOT HELD — a fact about Capiro's sync — which is distinct from
+   * `solicitationNumber` being null, a fact about the source. The card renders
+   * two different sentences for the two, so they must stay distinguishable.
+   */
+  cycle: InboxSbirCycleFacts | null;
+}
+
 /** Mirrors InboxRow in apps/api. One CLIENT-OPPORTUNITY decision context. */
 export interface InboxRow {
   id: string;
   client: { id: string; name: string };
-  /** Includes `agency_forecast` — see {@link INBOX_SOURCES}. */
+  /** Includes `agency_forecast` and `dibbs` — see {@link INBOX_SOURCES}. */
   source: InboxSource;
   sourceRecordId: string;
   title: string;
   agency: string | null;
   /** Populated ONLY on an `agency_forecast` row. Null on every other rail. */
   forecast: InboxForecastFacts | null;
+  /** Populated ONLY on a `dibbs` row. Null on every other rail. */
+  dibbs: InboxDibbsFacts | null;
+  /** Populated ONLY on a `sbir_sttr` row. Null on every other rail. */
+  sbir: InboxSbirFacts | null;
   responseDeadline: string | null;
   daysUntilDeadline: number | null;
   workflowStatus: string;
@@ -1347,11 +1532,17 @@ export function opportunityActionApiPath(
  */
 export interface OpportunityRef {
   /**
-   * Includes `agency_forecast` (P26). The ref names a RECORD to open, and both
-   * detail bodies are reached the same way — which is what keeps the drawer, the
-   * full page and the `?detail=` deep link from needing three sets of rules.
-   * What the two bodies then render is completely different; see
+   * Includes `agency_forecast` (P26) and `dibbs` (P41). The ref names a RECORD
+   * to open, and every detail body is reached the same way — which is what keeps
+   * the drawer, the full page and the `?detail=` deep link from needing three
+   * sets of rules. What each body then renders is completely different; see
    * ForecastOpportunityDetail.
+   *
+   * A `dibbs` ref is legal and round-trips like any other, but there is no
+   * bid-board detail body yet: both the drawer and the full page say so in
+   * those words rather than falling through to a renderer for a different
+   * record type. Encoding one is therefore safe; assuming it can be RENDERED as
+   * an opportunity or a forecast is not.
    */
   source: InboxSource;
   sourceRecordId: string;
@@ -1371,13 +1562,22 @@ export interface CatalogOpportunityRef extends OpportunityRef {
 }
 
 /**
- * Narrow a ref to the catalog, or null for a forecast.
+ * Narrow a ref to the catalog, or null for anything that is not a catalog
+ * record.
  *
  * A function rather than an inline ternary at each call site because TypeScript
  * cannot narrow an OBJECT by testing one of its properties — `ref.source === 'x'`
  * narrows `ref.source`, not `ref` — so every dispatch site would otherwise need
  * its own cast, and a cast is exactly the thing that stops the compiler noticing
  * when a third record type arrives.
+ *
+ * THE THIRD RECORD TYPE HAS ARRIVED. Until P41 this returned null only for a
+ * forecast, so `asCatalogRef(ref) == null` and "this is a forecast" were the
+ * same test, and a caller could use either. They are no longer the same test:
+ * a `dibbs` ref also returns null here. A dispatch that still treats null as
+ * "forecast" renders a DLA bid-board item as an agency forecast — see
+ * FundingOpportunityDrawer, which now switches on `ref.source` for exactly this
+ * reason. Test the source, never the absence.
  */
 export function asCatalogRef(ref: OpportunityRef): CatalogOpportunityRef | null {
   return isOpportunitySource(ref.source) ? { ...ref, source: ref.source } : null;
@@ -1420,11 +1620,12 @@ export function isOpportunitySource(value: string): value is OpportunitySource {
 }
 
 /**
- * The INBOX/detail vocabulary: the catalog's two rails plus agency forecasts.
+ * The INBOX/detail vocabulary: the catalog's two rails, plus agency forecasts
+ * and the DLA bid board.
  *
  * Kept as a second predicate rather than a widening of the first, because the two
  * answer different questions: `isOpportunitySource` gates "can this be fetched as
- * a `FundingOpportunity`", which a forecast never can.
+ * a `FundingOpportunity`", which neither a forecast nor a bid-board item ever can.
  */
 export function isInboxSource(value: string): value is InboxSource {
   return (INBOX_SOURCES as readonly string[]).includes(value);
@@ -1483,14 +1684,79 @@ export const INBOX_SOURCE_LABELS: Record<InboxSource, string> = {
   grants_gov: 'Grants.gov',
   sam_gov: 'SAM.gov',
   agency_forecast: 'Agency forecast · early signal',
+  /*
+    Two facts, for the same reason the forecast label is: "DLA bid board" says
+    where it came from, "line item" says what one row IS. A reader who sees only
+    the first can reasonably read the row as a whole solicitation, and it is not
+    — `tango_dibbs_award` rows are line-item grain, which is why P40 prohibits
+    an aggregate across them outright. The grain belongs in the label, not in a
+    tooltip a reader has to hover to find.
+  */
+  dibbs: 'DLA bid board · line item',
+  /*
+    Two facts again. "SBIR/STTR" says where it came from; "topic" says what one
+    row IS — the unit a small business responds to, not a solicitation to bid.
+    The slash is deliberate: which of the two programs a topic belongs to lives
+    on its parent CYCLE, and Capiro does not always hold that, so the rail label
+    must not commit to either.
+  */
+  sbir_sttr: 'SBIR/STTR · topic',
 };
+
+/**
+ * What both detail frames say about a bid-board ref, in ONE place.
+ *
+ * The drawer and the full page render the same body for every other record type
+ * precisely so they cannot disagree about it (see FundingOpportunityDrawer's
+ * file doc). `dibbs` has no shared body to render, so the next best guarantee is
+ * one copy of the sentence — otherwise two independently written panels drift,
+ * and a reader who saw the drawer and a reader who opened the link end up with
+ * different accounts of the same item.
+ */
+export const DIBBS_NO_DETAIL_MESSAGE = 'Bid-board items do not have a detail page yet';
+export const DIBBS_NO_DETAIL_DESCRIPTION =
+  'This is a Defense Logistics Agency bid-board line item. Capiro holds it and shows it in the opportunities queue, but the detail view for this rail has not been built. This says nothing about whether the item exists.';
 
 /** The short form, for a tag where the full two-part label will not fit. */
 export const INBOX_SOURCE_SHORT_LABELS: Record<InboxSource, string> = {
   grants_gov: 'Grants.gov',
   sam_gov: 'SAM.gov',
   agency_forecast: 'Agency forecast',
+  dibbs: 'DLA bid board',
+  sbir_sttr: 'SBIR/STTR',
 };
+
+/**
+ * What both detail frames say about an SBIR topic ref, in ONE place.
+ *
+ * Same reasoning as {@link DIBBS_NO_DETAIL_MESSAGE}: there is no shared body to
+ * render for this rail, so the next best guarantee against the drawer and the
+ * full page drifting is one copy of the sentence.
+ */
+/**
+ * The two sentences an SBIR topic card shows that do NOT vary by topic.
+ *
+ * Both are byte-copies of `sbir-relevance.ts`'s constants in apps/api. They are
+ * duplicated rather than fetched because neither is a per-topic scoring output:
+ *
+ *   - the phase gap is a fact about the SOURCE — there is no phase field on
+ *     either SBIR endpoint — so it is true for every topic and will stay true
+ *     until the provider publishes one;
+ *   - eligibility is a constant `needs_review` by P43's own acceptance, since
+ *     nothing in this schema establishes it.
+ *
+ * When a producer wires the scorer to real rows, these come from the scored
+ * result and these constants are DELETED rather than edited — the same posture
+ * as {@link DIBBS_PART_PROFILE_GAP_TODAY}.
+ */
+export const SBIR_PHASE_GAP_EXPLANATION =
+  'The source publishes no phase for this topic, so none is shown. This is a gap in the published contract, not a judgement about the topic.';
+export const SBIR_ELIGIBILITY_REASON =
+  'SBIR eligibility is not evaluated. It turns on US ownership, employee count and — for STTR — a research-institution partner, none of which Capiro holds as a structured fact. A small-business certification is not the same question as the SBIR size standard for this topic.';
+
+export const SBIR_NO_DETAIL_MESSAGE = 'Topics do not have a detail page yet';
+export const SBIR_NO_DETAIL_DESCRIPTION =
+  'This is an SBIR/STTR topic. Capiro holds it and shows it in the opportunities queue, but the detail view for this rail has not been built. This says nothing about whether the topic exists.';
 
 /**
  * The common recommendation vocabulary as a reader sees it.

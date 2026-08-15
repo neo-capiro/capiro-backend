@@ -121,6 +121,10 @@ function inboxRow(partial: Partial<InboxRow> = {}): InboxRow {
     agency: 'Department of the Army',
     // P26. Null on every catalog rail; a forecast row overrides it.
     forecast: null,
+    // P41. Null on every rail but the bid board; a dibbs row overrides it.
+    dibbs: null,
+    // P43. Null on every rail but SBIR/STTR; a topic row overrides it.
+    sbir: null,
     responseDeadline: new Date(Date.now() + 9 * 86_400_000).toISOString(),
     daysUntilDeadline: 9,
     workflowStatus: 'suggested',
@@ -248,6 +252,8 @@ beforeEach(() => {
   // forecast test has to turn it on explicitly, so no existing assertion can
   // start depending on it silently.
   flags.funding_opportunities_forecasts = false;
+  // P43, same reasoning for the SBIR rail.
+  flags.funding_opportunities_sbir = false;
   inboxData = inboxResponse();
   catalogData = catalogForFreshness();
   inboxUrls = [];
@@ -819,5 +825,354 @@ describe('agency forecasts appear as forecasts, and only when the capability is 
     expect(card.textContent ?? '').not.toMatch(/deadline/i);
     expect(card.textContent ?? '').not.toMatch(/eligib/i);
     expect(card).toHaveTextContent('Anticipated award');
+  });
+});
+
+// ── P41 part 3: the DLA bid board in the queue ──────────────────────────────
+
+/**
+ * A dibbs row as the inbox API sends one (P41 part 2).
+ *
+ * The `dibbs` block mirrors `InboxDibbsFacts` field for field, including
+ * `lastSyncedAt`, which the card does not read — carried anyway so this fixture
+ * stays a copy of the wire rather than a copy of what one component happens to
+ * use today.
+ */
+function dibbsInboxRow(partial: Partial<InboxRow> = {}): InboxRow {
+  return inboxRow({
+    id: 'wf-d001',
+    source: 'dibbs',
+    sourceRecordId: 'SPE4A625T1234',
+    title: 'BEARING, ROLLER, TAPERED',
+    agency: 'Defense Logistics Agency',
+    // A bid-board line item has no response-deadline snapshot and no
+    // eligibility determination; the closing date lives in the facts block.
+    responseDeadline: null,
+    daysUntilDeadline: null,
+    relevanceScore: 41,
+    eligibility: { state: null, reason: null },
+    dibbs: {
+      documentType: 'rfq',
+      solicitation: 'SPE4A625T1234',
+      solicitationFormatted: 'SPE4A6-25-T-1234',
+      nsn: '3110-00-100-1234',
+      partNumber: null,
+      nomenclature: 'BEARING, ROLLER, TAPERED',
+      quantity: '500',
+      unitOfIssue: 'EA',
+      setAside: 'Total Small Business',
+      buyerCode: null,
+      closesDate: '2026-08-20',
+      isOpen: true,
+      documentUrl: 'https://example.invalid/sol.pdf',
+      techDocsUrl: null,
+      lastSyncedAt: '2026-08-07T02:00:00.000Z',
+    },
+    ...partial,
+  });
+}
+
+describe('DLA bid-board items appear as bid-board items (P41 part 3)', () => {
+  test('a dibbs row renders the BID-BOARD card, not the opportunity card', async () => {
+    inboxData = inboxResponse({ rows: [dibbsInboxRow()] });
+    renderPage();
+    expect(await screen.findByTestId('fo-dibbs-row-SPE4A625T1234')).toBeInTheDocument();
+    // The opportunity card would have rendered a deadline slot and an
+    // eligibility slot against a record that has neither.
+    expect(screen.queryByTestId('fo-inbox-row-wf-d001')).not.toBeInTheDocument();
+  });
+
+  test('the card names its client, like every other row in a cross-client queue', async () => {
+    inboxData = inboxResponse({ rows: [dibbsInboxRow()] });
+    renderPage();
+    expect(await screen.findByTestId('fo-dibbs-row-SPE4A625T1234')).toHaveTextContent(
+      'Acme Defense',
+    );
+  });
+
+  /**
+   * The gap is the assertion this whole rail turns on.
+   *
+   * The inbox response carries no scoring breakdown, so the gap is passed from
+   * DIBBS_PART_PROFILE_GAP_TODAY. Passing `null` instead would render nothing
+   * here — and "nothing" is a claim: it says a part-level comparison ran and
+   * found no gap. No client part store exists, so none has ever run.
+   */
+  test('the card says no part-level match was ATTEMPTED, not that the parts did not match', async () => {
+    inboxData = inboxResponse({ rows: [dibbsInboxRow()] });
+    renderPage();
+    const gap = await screen.findByTestId('fo-dibbs-part-gap');
+    expect(gap).toHaveTextContent('no part-level match was attempted');
+    // The relevance number is still shown, and must not be read as a part score.
+    expect(screen.getByTestId('fo-dibbs-relevance')).toHaveTextContent('41');
+  });
+
+  test('no "record this client’s parts" control is offered, because no such surface exists', async () => {
+    inboxData = inboxResponse({ rows: [dibbsInboxRow()] });
+    renderPage();
+    await screen.findByTestId('fo-dibbs-part-gap');
+    expect(screen.queryByTestId('fo-dibbs-review-parts')).not.toBeInTheDocument();
+  });
+
+  test('no action row is rendered at all, rather than an inert one', async () => {
+    // No pursuit mutation is wired to a dibbs row yet. The card's rule is that an
+    // absent handler removes the control instead of disabling it.
+    inboxData = inboxResponse({ rows: [dibbsInboxRow()] });
+    renderPage();
+    await screen.findByTestId('fo-dibbs-row-SPE4A625T1234');
+    expect(screen.queryByTestId('fo-dibbs-actions')).not.toBeInTheDocument();
+  });
+
+  async function openSourceFilter() {
+    await screen.findByTestId('fo-inbox');
+    const selector = document.querySelector('.fo-inbox__controls .ant-select-selector');
+    expect(selector).not.toBeNull();
+    fireEvent.mouseDown(selector!);
+  }
+
+  test('the source filter offers the bid board with NO capability flag involved', async () => {
+    // Unlike forecasts, this rail has no flag on either side — the API has
+    // returned these rows to every tenant since part 2, so a gate here would
+    // hide a filter for rows the page is already rendering.
+    flags.funding_opportunities_forecasts = false;
+    renderPage();
+    await openSourceFilter();
+    expect(await screen.findByTitle('DLA bid board')).toBeInTheDocument();
+  });
+
+  test('a `?source=dibbs` deep link is honoured with the forecast flag off', async () => {
+    flags.funding_opportunities_forecasts = false;
+    urlStore.set('?source=dibbs');
+    inboxData = inboxResponse({ rows: [dibbsInboxRow()], source: 'dibbs' });
+    renderPage();
+    await waitFor(() => expect(inboxUrls.length).toBeGreaterThan(0));
+    expect(inboxUrls[0]).toContain('source=dibbs');
+  });
+
+  test('opening a bid-board row writes a dibbs ref', async () => {
+    inboxData = inboxResponse({ rows: [dibbsInboxRow()] });
+    renderPage();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Open bid-board detail for SPE4A625T1234/ }),
+    );
+    await waitFor(() => expect(urlStore.get()).toContain('detail=dibbs%3A'));
+  });
+
+  /**
+   * The regression this part introduced and had to close.
+   *
+   * `asCatalogRef` returns null for a dibbs ref exactly as it does for a
+   * forecast, so the drawer's old `catalogRef == null` dispatch would have sent
+   * a bid-board solicitation to ForecastOpportunityDetail and rendered a DLA
+   * line item as an agency forecast.
+   */
+  test('a dibbs ref in the drawer is NOT rendered as a forecast', async () => {
+    flags.funding_opportunities_forecasts = true;
+    inboxData = inboxResponse({ rows: [dibbsInboxRow()] });
+    urlStore.set(
+      `?detail=${encodeURIComponent('dibbs')}:${encodeURIComponent('SPE4A625T1234')}:${encodeURIComponent('client-1')}`,
+    );
+    renderPage();
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Bid-board item');
+    expect(screen.getByTestId('fo-drawer-dibbs-no-detail')).toBeInTheDocument();
+    expect(dialog.textContent ?? '').not.toMatch(/forecast/i);
+  });
+
+  test('the drawer offers no "Open full page" for a rail with no full page', async () => {
+    inboxData = inboxResponse({ rows: [dibbsInboxRow()] });
+    urlStore.set(
+      `?detail=${encodeURIComponent('dibbs')}:${encodeURIComponent('SPE4A625T1234')}:${encodeURIComponent('client-1')}`,
+    );
+    renderPage();
+    await screen.findByRole('dialog');
+    expect(screen.queryByRole('button', { name: /Open full page/ })).not.toBeInTheDocument();
+  });
+
+  test('a dibbs row whose source facts are gone stays on the bid-board rail and says so', async () => {
+    // The generic card would answer "No deadline stated" and "Not evaluated" —
+    // two questions never asked of a bid-board line item.
+    inboxData = inboxResponse({ rows: [dibbsInboxRow({ dibbs: null })] });
+    renderPage();
+    const card = await screen.findByTestId('fo-dibbs-unrenderable-wf-d001');
+    expect(card).toHaveTextContent('Capiro no longer holds the bid-board record');
+    expect(card).toHaveTextContent('DLA bid board');
+    expect(screen.queryByTestId('fo-inbox-row-wf-d001')).not.toBeInTheDocument();
+  });
+
+  test('an unrecognised document type degrades instead of being coerced into an RFQ', async () => {
+    const row = dibbsInboxRow();
+    inboxData = inboxResponse({
+      rows: [{ ...row, dibbs: { ...row.dibbs!, documentType: 'award' } }],
+    });
+    renderPage();
+    const card = await screen.findByTestId('fo-dibbs-unrenderable-wf-d001');
+    expect(card).toHaveTextContent('which this rail does not render');
+    // Above all: no quote control was rendered for something that is not an RFQ.
+    expect(screen.queryByTestId('fo-dibbs-actions')).not.toBeInTheDocument();
+  });
+});
+
+// ── P43 part 3: SBIR/STTR topics in the queue ───────────────────────────────
+
+function sbirInboxRow(partial: Partial<InboxRow> = {}): InboxRow {
+  return inboxRow({
+    id: 'wf-s001',
+    source: 'sbir_sttr',
+    sourceRecordId: 'TOPIC-9001',
+    title: 'Autonomous sustainment diagnostics',
+    agency: 'Department of Defense',
+    responseDeadline: null,
+    daysUntilDeadline: null,
+    relevanceScore: 54,
+    eligibility: { state: null, reason: null },
+    sbir: {
+      topicNumber: 'A26-001',
+      title: 'Autonomous sustainment diagnostics',
+      agency: 'Department of Defense',
+      year: 2026,
+      solicitationNumber: 'DoD-SBIR-26.A',
+      releaseDate: '2025-12-04',
+      openDate: '2026-01-06',
+      closeDate: '2026-02-04',
+      solicitationStatus: 'Open',
+      topicUrl: 'https://example.invalid/topic/9001',
+      officialSolicitationUrl: 'https://example.invalid/dsip/9001',
+      lastSyncedAt: '2026-08-07T02:00:00.000Z',
+      cycle: {
+        solicitationNumber: 'DoD-SBIR-26.A',
+        cycleName: '26.A',
+        program: 'SBIR',
+        year: 2026,
+        startDate: '2026-01-06',
+        endDate: '2026-02-04',
+        solicitationStatus: 'Open',
+        solDownloadUrl: 'https://example.invalid/sol.pdf',
+      },
+    },
+    ...partial,
+  });
+}
+
+describe('SBIR/STTR topics appear as topics, and only when the capability is on', () => {
+  async function openSourceFilter() {
+    await screen.findByTestId('fo-inbox');
+    const selector = document.querySelector('.fo-inbox__controls .ant-select-selector');
+    expect(selector).not.toBeNull();
+    fireEvent.mouseDown(selector!);
+  }
+
+  test('with the flag ON a topic row renders the TOPIC card, not the opportunity card', async () => {
+    flags.funding_opportunities_sbir = true;
+    inboxData = inboxResponse({ rows: [sbirInboxRow()] });
+    renderPage();
+    expect(await screen.findByTestId('fo-sbir-row-A26-001')).toBeInTheDocument();
+    expect(screen.queryByTestId('fo-inbox-row-wf-s001')).not.toBeInTheDocument();
+  });
+
+  test('the card names the program from the CYCLE', async () => {
+    flags.funding_opportunities_sbir = true;
+    inboxData = inboxResponse({ rows: [sbirInboxRow()] });
+    renderPage();
+    expect(await screen.findByTestId('fo-sbir-program')).toHaveTextContent('SBIR');
+  });
+
+  test('an ORPHAN topic — cycle not held — says so instead of guessing a program', async () => {
+    flags.funding_opportunities_sbir = true;
+    const row = sbirInboxRow();
+    inboxData = inboxResponse({ rows: [{ ...row, sbir: { ...row.sbir!, cycle: null } }] });
+    renderPage();
+    expect(await screen.findByTestId('fo-sbir-program-unknown')).toBeInTheDocument();
+    expect(screen.getByTestId('fo-sbir-cycle')).toHaveTextContent('Capiro does not hold this cycle');
+  });
+
+  test('no action row is rendered — no workflow mutation is wired for a topic', async () => {
+    flags.funding_opportunities_sbir = true;
+    inboxData = inboxResponse({ rows: [sbirInboxRow()] });
+    renderPage();
+    await screen.findByTestId('fo-sbir-row-A26-001');
+    expect(screen.queryByTestId('fo-sbir-actions')).not.toBeInTheDocument();
+  });
+
+  test('with the flag ON the source filter offers the SBIR rail', async () => {
+    flags.funding_opportunities_sbir = true;
+    renderPage();
+    await openSourceFilter();
+    expect(await screen.findByTitle('SBIR/STTR')).toBeInTheDocument();
+  });
+
+  test('with the flag OFF the rail is not offered', async () => {
+    flags.funding_opportunities_sbir = false;
+    renderPage();
+    await openSourceFilter();
+    await screen.findByTitle('SAM.gov');
+    expect(screen.queryByTitle('SBIR/STTR')).not.toBeInTheDocument();
+  });
+
+  test('with the flag OFF topic rows are withheld, and the page SAYS how many', async () => {
+    flags.funding_opportunities_sbir = false;
+    inboxData = inboxResponse({
+      rows: [inboxRow(), sbirInboxRow()],
+      counts: { ...ZERO_COUNTS, needs_review: 2 },
+    });
+    renderPage();
+    expect(await screen.findByTestId('fo-inbox-row-wf-0001')).toBeInTheDocument();
+    expect(screen.queryByTestId('fo-sbir-row-A26-001')).not.toBeInTheDocument();
+    const notice = screen.getByTestId('fo-inbox-sbir-withheld');
+    expect(notice).toHaveTextContent('1 SBIR/STTR topic row not shown');
+  });
+
+  /**
+   * Two flagged rails can be off at once. A pooled "rows withheld" count would
+   * leave a reader unable to tell WHICH capability to ask for.
+   */
+  test('forecasts and topics withheld together are counted separately', async () => {
+    flags.funding_opportunities_forecasts = false;
+    flags.funding_opportunities_sbir = false;
+    inboxData = inboxResponse({
+      rows: [forecastInboxRow(), sbirInboxRow()],
+      counts: { ...ZERO_COUNTS, needs_review: 2 },
+    });
+    renderPage();
+    expect(await screen.findByTestId('fo-inbox-forecasts-withheld')).toHaveTextContent(
+      '1 agency forecast row not shown',
+    );
+    expect(screen.getByTestId('fo-inbox-sbir-withheld')).toHaveTextContent(
+      '1 SBIR/STTR topic row not shown',
+    );
+  });
+
+  test('a stale `?source=sbir_sttr` deep link degrades to ALL sources when the flag is off', async () => {
+    flags.funding_opportunities_sbir = false;
+    urlStore.set('?source=sbir_sttr');
+    renderPage();
+    await waitFor(() => expect(inboxUrls.length).toBeGreaterThan(0));
+    expect(inboxUrls[0]).not.toContain('source=');
+  });
+
+  test('a topic ref in the drawer is NOT rendered as a forecast or a bid-board item', async () => {
+    flags.funding_opportunities_sbir = true;
+    flags.funding_opportunities_forecasts = true;
+    inboxData = inboxResponse({ rows: [sbirInboxRow()] });
+    urlStore.set(
+      `?detail=${encodeURIComponent('sbir_sttr')}:${encodeURIComponent('TOPIC-9001')}:${encodeURIComponent('client-1')}`,
+    );
+    renderPage();
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('SBIR/STTR topic');
+    expect(screen.getByTestId('fo-drawer-sbir-no-detail')).toBeInTheDocument();
+    expect(dialog.textContent ?? '').not.toMatch(/forecast|bid-board/i);
+  });
+
+  test('a topic row whose source facts are gone stays on the SBIR rail and says so', async () => {
+    flags.funding_opportunities_sbir = true;
+    inboxData = inboxResponse({ rows: [sbirInboxRow({ sbir: null })] });
+    renderPage();
+    const card = await screen.findByTestId('fo-sbir-unrenderable-wf-s001');
+    expect(card).toHaveTextContent('Capiro no longer holds the topic record');
+    expect(card).toHaveTextContent('SBIR/STTR');
+    // Never mislabelled as the bid board, which the shared component made easy
+    // to get wrong before it took a label.
+    expect(card.textContent ?? '').not.toMatch(/DLA bid board/);
   });
 });

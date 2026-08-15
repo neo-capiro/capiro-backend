@@ -23,6 +23,10 @@ function candidate(overrides: Partial<TrustedCandidateRecordV1> = {}): TrustedCa
     candidateId: 'cand-1',
     status: 'VERIFICATION_PASSED',
     terminalVerificationRunId: 'run-1',
+    // A governed family by default, so the source-profile path stays exercised
+    // by the existing assertions; the ungoverned (Phase 1–5) case has its own
+    // tests below.
+    family: 'committee',
     extractionMethod: 'deterministic_pdfplumber',
     extractorActorId: 'actor-extractor',
     acceptedAssertionIds: ['a-2', 'a-1'],
@@ -209,6 +213,15 @@ describe('Phase 7 WS A.7 — refusals', () => {
         s.candidates = [candidate({ acceptedAssertionIds: [] })];
       },
       'assertion_not_accepted',
+    ],
+    [
+      // Gap 5 decision 2. Its own reason, not the `projection_hash_mismatch`
+      // the record's schema refinement would otherwise surface it as.
+      'a governed family whose source profile was not recorded',
+      (s) => {
+        s.candidates = [candidate({ family: 'committee', sourceProfileSha256: null })];
+      },
+      'source_profile_missing',
     ],
     [
       'no cycle certification at all',

@@ -251,6 +251,105 @@ describe('MakeGov/Tango secret wiring (P16)', () => {
   });
 });
 
+describe('MakeGov/Tango WEBHOOK secret wiring (P46)', () => {
+  const WEBHOOK_ARN =
+    'arn:aws:secretsmanager:us-east-1:123456789012:secret:capiro/dev/tango-webhook-secret-BBBBBB';
+
+  /** Families carrying a given secret name, read off the synthesized template. */
+  function familiesWithSecret(template: Template, secretName: string): string[] {
+    const found: string[] = [];
+    for (const resource of Object.values(
+      template.findResources('AWS::ECS::TaskDefinition'),
+    ) as any[]) {
+      const family = resource.Properties?.Family as string | undefined;
+      for (const container of resource.Properties?.ContainerDefinitions ?? []) {
+        const secretNames = (container.Secrets ?? []).map((s: { Name: string }) => s.Name);
+        if (secretNames.includes(secretName)) found.push(family ?? '(unnamed)');
+      }
+    }
+    return found;
+  }
+
+  test('with NO ARN configured, the webhook secret appears on NO task definition', () => {
+    // This is what "deploy the receiver dark" means at the infrastructure
+    // layer: nothing is wired, so the running API cannot verify anything and
+    // rejects every delivery.
+    const template = synthComputeStack(baseConfig());
+    expect(familiesWithSecret(template, 'TANGO_WEBHOOK_SIGNING_SECRET')).toHaveLength(0);
+  });
+
+  test('with the ARN configured, it appears on exactly ONE task definition', () => {
+    const template = synthComputeStack(baseConfig({ tangoWebhookSecret: WEBHOOK_ARN }));
+    expect(familiesWithSecret(template, 'TANGO_WEBHOOK_SIGNING_SECRET')).toHaveLength(1);
+  });
+
+  test('that one task is SERVE — never the sync or migrate task', () => {
+    const template = synthComputeStack(baseConfig({ tangoWebhookSecret: WEBHOOK_ARN }));
+    const [family] = familiesWithSecret(template, 'TANGO_WEBHOOK_SIGNING_SECRET');
+
+    expect(family).toBeDefined();
+    expect(family).not.toMatch(/sync-jobs/);
+    expect(family).not.toMatch(/migrate/);
+
+    // Pinned POSITIVELY rather than by guessing the family string: RECALL_API_KEY
+    // is already a serve-only secret, so the task carrying both is the serve
+    // task by construction. If serve is ever renamed this still holds.
+    expect(familiesWithSecret(template, 'RECALL_API_KEY')).toContain(family);
+  });
+
+  test('the two Tango credentials are NEVER on the same task — outbound vs inbound', () => {
+    // The whole reason these are separate ARNs. TANGO_API_KEY is outbound
+    // (Capiro calling MakeGov, sync task only); the webhook secret is inbound
+    // (MakeGov calling Capiro, serve task only). A task holding both would be
+    // holding one credential it has no use for, which is pure blast radius.
+    const template = synthComputeStack(
+      baseConfig({
+        tangoApiKey: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:tango-AAAAAA',
+        tangoWebhookSecret: WEBHOOK_ARN,
+      }),
+    );
+
+    const apiKeyFamilies = familiesWithSecret(template, 'TANGO_API_KEY');
+    const webhookFamilies = familiesWithSecret(template, 'TANGO_WEBHOOK_SIGNING_SECRET');
+
+    expect(apiKeyFamilies).toHaveLength(1);
+    expect(webhookFamilies).toHaveLength(1);
+    expect(apiKeyFamilies[0]).not.toEqual(webhookFamilies[0]);
+    // And each is where it belongs.
+    expect(apiKeyFamilies[0]).toMatch(/sync-jobs/);
+    expect(webhookFamilies[0]).not.toMatch(/sync-jobs/);
+  });
+
+  test('the reference points at the tango-webhook-secret name', () => {
+    const template = synthComputeStack(baseConfig({ tangoWebhookSecret: WEBHOOK_ARN }));
+    template.hasResourceProperties('AWS::ECS::TaskDefinition', {
+      ContainerDefinitions: Match.arrayWith([
+        Match.objectLike({
+          Secrets: Match.arrayWith([
+            Match.objectLike({
+              Name: 'TANGO_WEBHOOK_SIGNING_SECRET',
+              ValueFrom: Match.stringLikeRegexp('tango-webhook-secret-'),
+            }),
+          ]),
+        }),
+      ]),
+    });
+  });
+
+  test('no secret VALUE appears as a plain Environment entry', () => {
+    const template = synthComputeStack(baseConfig({ tangoWebhookSecret: WEBHOOK_ARN }));
+    const envValues = Object.values(template.findResources('AWS::ECS::TaskDefinition'))
+      .flatMap((r: any) => r.Properties?.ContainerDefinitions ?? [])
+      .flatMap((c: any) => c.Environment ?? [])
+      .map((e: any) => e.Value);
+    expect(
+      envValues.every((v) => typeof v !== 'string' || !v.includes('tango-webhook-secret-BBBBBB')),
+    ).toBe(true);
+    // Present, but only as a Secrets ValueFrom reference.
+    expect(JSON.stringify(template.toJSON())).toContain('tango-webhook-secret-BBBBBB');
+  });
+});
+
 describe('every other optional-secret task placement still holds (regression net)', () => {
   test('LEGISTORM_API_KEY and CENSUS_API_KEY still land ONLY on the sync task', () => {
     // Not new in P16, but proves the test harness itself is trustworthy: if it

@@ -119,5 +119,5 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 USER capiro
 WORKDIR /app/apps/workspace
 EXPOSE 4200
-ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/usr/local/bin/entrypoint.sh"]
 CMD ["serve"]

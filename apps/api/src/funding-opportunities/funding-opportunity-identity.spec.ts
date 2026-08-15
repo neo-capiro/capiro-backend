@@ -540,16 +540,33 @@ describe('the forecast read surface stays a READ, and the CATALOG vocabulary sta
     }
   });
 
-  test('the inbox ?source= filter now admits agency_forecast, and ONLY through its own vocabulary', () => {
-    // P26 widens the inbox's NARROWING filter to a third value. A narrowing
-    // predicate can only ever remove rows, so this cannot widen what the inbox
-    // returns — and it is expressed as its own constant (`INBOX_SOURCES`)
-    // rather than by touching `OPPORTUNITY_SOURCES`, which is what keeps the
-    // catalog closed.
+  test('the inbox ?source= filter admits its extra rails ONLY through its own vocabulary', () => {
+    // P26 widened the inbox's NARROWING filter to a third value; P41 part 2
+    // added a fourth ('dibbs'); P43 part 3 adds the fifth and LAST planned one
+    // ('sbir_sttr'). A narrowing predicate can only ever remove rows, so none of
+    // them can widen what the inbox returns — and all are expressed through the
+    // inbox's own constant (`INBOX_SOURCES`) rather than by touching
+    // `OPPORTUNITY_SOURCES`, which is what keeps the catalog closed.
     expect(inboxSource).toMatch(/source must be one of: \$\{INBOX_SOURCES\.join/);
+
+    // The SPREAD is the load-bearing part of this assertion, not the list of
+    // names: `[...OPPORTUNITY_SOURCES, ...]` is what guarantees the inbox
+    // vocabulary is a strict superset of the catalog's rather than a hand-kept
+    // copy that could drift from it. Extra rails must be literal strings
+    // appended after the spread, so adding one is a visible edit here.
+    //
+    // This assertion has now failed-on-purpose three times, once per rail. That
+    // is the design working: a new rail cannot reach the inbox without someone
+    // editing the file that guards the catalog boundary.
     expect(inboxSource).toMatch(
-      /export const INBOX_SOURCES = \[\.\.\.OPPORTUNITY_SOURCES, 'agency_forecast'\] as const;/,
+      /export const INBOX_SOURCES = \[\.\.\.OPPORTUNITY_SOURCES, 'agency_forecast', 'dibbs', 'sbir_sttr'\] as const;/,
     );
+
+    // With `sbir_sttr` live, EVERY planned source is now an inbox rail. The
+    // catalog is still exactly two entries wide, which is the invariant that
+    // was never supposed to move — and now it is the only thing separating the
+    // two vocabularies.
+    expect([...OPPORTUNITY_SOURCES]).toEqual(['grants_gov', 'sam_gov']);
   });
 
   test('the two remaining catalog/write files still name no planned source', () => {

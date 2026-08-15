@@ -3,44 +3,36 @@
  * whether a given call is served from legacy tables or the active canonical
  * snapshot.
  *
- * Wraps three already-built, Nest-free primitives from
- * `defense-budget/promotion/` behind one Nest-injectable surface:
- * `resolveSnapshotReadModeV1` (the mode decision), a **fresh-per-call**
- * `createActiveSnapshotResolverV1` (the pointer resolution), and the
- * `PE_SNAPSHOT_READ_MODE` / `PE_SNAPSHOT_CANARY_TENANTS` config.
- *
- * `resolve()` is deliberately not cached on `this` across calls. The resolver
- * module's own docstring is explicit about why: a process-lifetime cache would
- * keep serving a superseded snapshot after an activation, trading "mixed" for
- * "stale," which is quieter and just as wrong. Every call to `resolve()`
- * constructs its own resolver and therefore does its own round trip — callers
- * that need more than one lookup inside a single method invocation must call
- * `resolve()` once and reuse the returned `activeSnapshot`/`decision`, not call
- * `resolve()` again partway through (see `assertOneSnapshotV1` at the point
- * rows are assembled for why a second resolution inside one response is the
- * failure mode this whole module exists to prevent).
- *
- * `environment` has no established runtime convention yet — nothing has been
- * promoted anywhere, dev or production, as of this writing. This resolves it
- * from `NODE_ENV`, the same signal `tool-service-secret.guard.ts` already
- * treats as "the environment" for a security-relevant decision. Revisit this
- * the first time a real promotion activates a snapshot outside a disposable
- * rehearsal container, to confirm the activation's `environment` column
- * actually matches what this resolves to.
+ * The gate also owns the read-time manual-override overlay. Canonical rows stay
+ * immutable; an independently approved correction is loaded beside the exact
+ * selected rows and applied only to the returned read model, with the official
+ * value preserved as provenance.
  */
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../../config/config.schema.js';
 import {
+  assertOneSnapshotV1,
   createActiveSnapshotResolverV1,
   type ActiveSnapshotV1,
   type SnapshotReadPortV1,
   type SnapshotRowQueryV1,
-  type SnapshotCanonicalRowV1,
 } from '../../defense-budget/promotion/snapshot-read-repository-v1.js';
+import {
+  applyOverrideOverlayV1,
+  inForceOverridesV1,
+  type SnapshotReadRowV1,
+} from '../../defense-budget/promotion/manual-override-overlay-v1.js';
 import { resolveSnapshotReadModeV1 } from '../../defense-budget/promotion/snapshot-read-mode-v1.js';
 import type { SnapshotReadDecisionV1 } from '../../defense-budget/promotion/snapshot-read-mode-v1.js';
 import { SNAPSHOT_READ_PORT_V1 } from '../../defense-budget/promotion/snapshot-read-port.tokens.js';
+import { resolveCanaryRollbackV1 } from '../../defense-budget/promotion/canary-controls-v1.js';
+import { SLO_METRIC_RECORDER_V1 } from '../../defense-budget/promotion/slo-metrics.tokens.js';
+import {
+  NOOP_SLO_METRIC_RECORDER_V1,
+  type SloMetricRecorderV1,
+} from '../../defense-budget/promotion/slo-metrics-v1.js';
+import { TenantContextStore } from '../../tenant/tenant-context.store.js';
 
 const DEFENSE_BUDGET_DOMAIN = 'defense_budget';
 
@@ -54,24 +46,37 @@ export class PeSnapshotGateService {
   constructor(
     @Inject(SNAPSHOT_READ_PORT_V1) private readonly port: SnapshotReadPortV1,
     private readonly config: ConfigService<AppConfig, true>,
+    @Optional()
+    @Inject(SLO_METRIC_RECORDER_V1)
+    private readonly sloMetrics: SloMetricRecorderV1 = NOOP_SLO_METRIC_RECORDER_V1,
+    @Optional() private readonly tenantContextStore?: TenantContextStore,
   ) {}
 
   private environment(): string {
-    return this.config.get('NODE_ENV', { infer: true }) ?? 'development';
+    const explicit = process.env.PE_SNAPSHOT_ENVIRONMENT?.trim();
+    return explicit && explicit.length > 0
+      ? explicit
+      : (this.config.get('NODE_ENV', { infer: true }) ?? 'development');
   }
 
-  /**
-   * Resolve the mode/pointer for one method invocation. Call this exactly once
-   * per invocation and thread the result through every `loadRows` call that
-   * invocation makes.
-   */
   async resolve(tenantId: string | null): Promise<PeSnapshotGateResultV1> {
+    const effectiveTenantId = tenantId ?? this.tenantContextStore?.get()?.tenantId ?? null;
     const resolver = createActiveSnapshotResolverV1(
       this.port,
       DEFENSE_BUDGET_DOMAIN,
       this.environment(),
     );
     const activeSnapshot = await resolver.resolve();
+
+    const rollback = resolveCanaryRollbackV1({
+      rollbackEngaged: this.config.get('PE_SNAPSHOT_CANARY_ROLLBACK', { infer: true }) === 'on',
+    });
+    if (rollback.forceLegacy) {
+      return {
+        decision: { serve: 'legacy', compare: false, reason: 'canary_rollback_engaged' },
+        activeSnapshot,
+      };
+    }
 
     const configuredMode = this.config.get('PE_SNAPSHOT_READ_MODE', { infer: true });
     const canaryTenantIds = (this.config.get('PE_SNAPSHOT_CANARY_TENANTS', { infer: true }) ?? '')
@@ -81,7 +86,7 @@ export class PeSnapshotGateService {
 
     const decision = resolveSnapshotReadModeV1({
       configuredMode,
-      tenantId,
+      tenantId: effectiveTenantId,
       canaryTenantIds,
       hasActiveSnapshot: activeSnapshot != null,
     });
@@ -89,8 +94,52 @@ export class PeSnapshotGateService {
     return { decision, activeSnapshot };
   }
 
-  /** Thin passthrough so call sites don't need their own port injection. */
-  async loadRows(query: SnapshotRowQueryV1): Promise<SnapshotCanonicalRowV1[]> {
-    return this.port.loadRows(query);
+  sloDescriptor(): { recorder: SloMetricRecorderV1; domain: string; environment: string } {
+    return {
+      recorder: this.sloMetrics,
+      domain: DEFENSE_BUDGET_DOMAIN,
+      environment: this.environment(),
+    };
+  }
+
+  /**
+   * Load one snapshot-scoped row set and apply every in-force governed override
+   * whose target exactly matches those rows.
+   *
+   * The production Prisma port implements `loadManualOverridesForRows`; narrow
+   * test/Phase8 adapters may omit it, in which case the returned rows still get
+   * the explicit `override:null` / `officialMoney:null` shape rather than an
+   * ambiguous partial read model.
+   */
+  async loadRows(query: SnapshotRowQueryV1): Promise<SnapshotReadRowV1[]> {
+    const startedAtMs = Date.now();
+    try {
+      const canonical = await this.port.loadRows(query);
+      assertOneSnapshotV1(canonical, query.snapshotId);
+
+      const allOverrides = this.port.loadManualOverridesForRows
+        ? await this.port.loadManualOverridesForRows(canonical)
+        : [];
+      const inForce = inForceOverridesV1(allOverrides, new Date());
+      const overlaid = applyOverrideOverlayV1(canonical, inForce);
+
+      // The repository only asks for exact targets from `canonical`, so an
+      // unmatched result means the target identity changed between loading the
+      // rows and loading the override, or an adapter violated the port contract.
+      // Serving the uncorrected value would hide that governance drift.
+      if (overlaid.unmatched.length > 0) {
+        const ids = overlaid.unmatched.map((entry) => entry.provenance.overrideId).sort();
+        throw new Error(
+          `governed override target mismatch for snapshot ${query.snapshotId}: ${ids.join(', ')}`,
+        );
+      }
+      return overlaid.rows;
+    } finally {
+      this.sloMetrics.record('snapshot_read_latency_ms', Date.now() - startedAtMs, {
+        domain: DEFENSE_BUDGET_DOMAIN,
+        environment: this.environment(),
+        mode: this.config.get('PE_SNAPSHOT_READ_MODE', { infer: true }),
+      });
+    }
   }
 }

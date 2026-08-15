@@ -1,5 +1,5 @@
 /** Phase 6 Workstream F — pure link/review identity helpers. */
-import { createHash } from 'node:crypto';
+import { sha256CanonicalJson, type JsonValue } from '../../../contracts/canonical-json.js';
 import {
   type AuthorizationProvisionLinkV1,
   type AuthorizationProvisionReviewEntryV1,
@@ -68,6 +68,15 @@ export function sortLinks(links: AuthorizationProvisionLinkV1[]): AuthorizationP
   return [...map.values()].sort((a, b) => a.linkId.localeCompare(b.linkId));
 }
 
+/**
+ * Stable IDs are content identities, not JavaScript insertion-order identities.
+ *
+ * `JSON.stringify` preserves object key insertion order, so two semantically
+ * identical objects assembled in a different order could previously receive
+ * different provision/review IDs. Phase 1's canonical JSON contract already
+ * exists for exactly this class of replay defect; reuse it here rather than
+ * maintaining a second hashing convention.
+ */
 export function stableId(prefix: string, value: unknown): string {
-  return `${prefix}-${createHash('sha256').update(JSON.stringify(value)).digest('hex')}`;
+  return `${prefix}-${sha256CanonicalJson(value as JsonValue)}`;
 }

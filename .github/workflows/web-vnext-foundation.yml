@@ -1,0 +1,69 @@
+name: web-vnext-foundation
+
+on:
+  pull_request:
+    paths:
+      - 'apps/web/src/vnext/**'
+      - 'apps/web/src/App.tsx'
+      - 'apps/web/src/env.ts'
+      - 'apps/web/nginx/entrypoint.sh'
+      - 'apps/web/vnext-*.html'
+      - 'apps/web/scripts/vnext-visual-capture.mjs'
+      - 'apps/web/package.json'
+      - 'infra/cdk/bin/web-vnext.ts'
+      - 'infra/cdk/lib/web-vnext-stack.ts'
+      - 'infra/cdk/package.json'
+      - '.github/workflows/web-vnext-foundation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @capiro/shared build
+      - name: Web vNext focused tests
+        run: pnpm --filter @capiro/web exec vitest run src/vnext/app/presentation.test.ts src/vnext/foundation-contract.test.ts src/vnext/figma-strategy-legiwatch-contract.test.ts src/vnext/meri/meri-route-state.test.ts --poolOptions.threads.singleThread
+      - name: Web typecheck
+        run: pnpm --filter @capiro/web typecheck
+      - name: Web build
+        run: pnpm --filter @capiro/web build
+      - name: WebVNext CDK typecheck
+        run: pnpm --filter @capiro/infra-cdk typecheck
+      - name: Start vNext visual fixtures
+        run: |
+          pnpm --filter @capiro/web dev --host 127.0.0.1 --port 4173 > /tmp/capiro-vnext-vite.log 2>&1 &
+          echo $! > /tmp/capiro-vnext-vite.pid
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/vnext-workshop.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/capiro-vnext-vite.log
+          exit 1
+      - name: Capture visual regression foundation
+        env:
+          VNEXT_VISUAL_BASE_URL: http://127.0.0.1:4173
+          VNEXT_VISUAL_OUTPUT_DIR: artifacts/vnext-visual
+        run: pnpm --filter @capiro/web visual:vnext:capture
+      - name: Upload vNext visual captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-vnext-foundation-visuals
+          path: apps/web/artifacts/vnext-visual
+          if-no-files-found: warn
+          retention-days: 14

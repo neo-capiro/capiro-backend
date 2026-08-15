@@ -11,7 +11,17 @@ import {
   redactWithKnownSecret,
 } from './tango.errors.js';
 import { TANGO_SHAPES, TANGO_SHAPE_FIELDS } from './tango.shapes.js';
-import { bool, int, iso, mapEntity, num, pick, str, strList, unexpectedFields } from './tango.mappers.js';
+import {
+  bool,
+  int,
+  iso,
+  mapEntity,
+  num,
+  pick,
+  str,
+  strList,
+  unexpectedFields,
+} from './tango.mappers.js';
 import { TANGO_RESOURCE_TYPES } from './tango.types.js';
 
 /**
@@ -190,7 +200,9 @@ describe('only the adapter may import the SDK', () => {
 describe('a missing key is a state, not a failure', () => {
   test('constructing with no key does not throw and makes no request', () => {
     const { calls } = fakeFetch([]);
-    expect(() => new TangoGatewayService({ apiKey: null, fetchImpl: calls as never })).not.toThrow();
+    expect(
+      () => new TangoGatewayService({ apiKey: null, fetchImpl: calls as never }),
+    ).not.toThrow();
   });
 
   test('the gateway reports itself unconfigured', () => {
@@ -275,7 +287,11 @@ describe('every call requests only the fields it uses', () => {
   });
 
   test('an absent, blank, or garbage cursor all mean page 1', async () => {
-    const { service, calls } = gateway([{ body: ENTITY_PAGE }, { body: ENTITY_PAGE }, { body: ENTITY_PAGE }]);
+    const { service, calls } = gateway([
+      { body: ENTITY_PAGE },
+      { body: ENTITY_PAGE },
+      { body: ENTITY_PAGE },
+    ]);
     await service.listEntities();
     await service.listEntities({ cursor: null });
     await service.listEntities({ cursor: 'not-a-number' });
@@ -336,12 +352,17 @@ describe('failures are classified', () => {
         throw new Error('fetch failed');
       }) as unknown as typeof fetch,
     });
-    await expect(service.getVersion()).rejects.toMatchObject({ kind: 'transient', retryable: true });
+    await expect(service.getVersion()).rejects.toMatchObject({
+      kind: 'transient',
+      retryable: true,
+    });
   });
 
   test('every kind has a defined retryability, and only two are retryable', () => {
     const retryable = TANGO_ERROR_KINDS.filter(
-      (kind) => new TangoError('x', { kind, operation: 'op', statusCode: null, detail: null, rate: null }).retryable,
+      (kind) =>
+        new TangoError('x', { kind, operation: 'op', statusCode: null, detail: null, rate: null })
+          .retryable,
     );
     expect(retryable).toEqual(['rate_limit', 'transient']);
   });
@@ -556,14 +577,16 @@ describe('the boundary normalizes, and refuses to invent', () => {
     const page = await service.listForecasts();
     expect(page.items[0]!.provenance.providerUpdatedAt).toBe('2026-08-01T12:00:00.000Z');
     expect(Date.parse(page.items[0]!.provenance.fetchedAt)).toBeGreaterThan(0);
-    expect(page.items[0]!.provenance.fetchedAt).not.toBe(page.items[0]!.provenance.providerUpdatedAt);
+    expect(page.items[0]!.provenance.fetchedAt).not.toBe(
+      page.items[0]!.provenance.providerUpdatedAt,
+    );
     // Explicitly null in the raw record, not merely absent — still null, not fetchedAt.
     expect(page.items[1]!.provenance.providerUpdatedAt).toBeNull();
     // Absent from the raw record entirely (the minimal third row) — same result.
     expect(page.items[2]!.provenance.providerUpdatedAt).toBeNull();
   });
 
-  test('a forecast\'s organization hierarchy maps through, level by level, and every level tolerates absence independently', async () => {
+  test("a forecast's organization hierarchy maps through, level by level, and every level tolerates absence independently", async () => {
     const { service } = gateway([{ body: FORECAST_PAGE }]);
     const page = await service.listForecasts();
     const full = page.items[0]!;
@@ -591,7 +614,7 @@ describe('the boundary normalizes, and refuses to invent', () => {
     expect(absentOrg.organizationId).toBeNull();
   });
 
-  test('a forecast\'s primary contact is a structured object, not the plain string the SDK\'s own type declares', async () => {
+  test("a forecast's primary contact is a structured object, not the plain string the SDK's own type declares", async () => {
     const { service } = gateway([{ body: FORECAST_PAGE }]);
     const page = await service.listForecasts();
     expect(page.items[0]!.primaryContact).toEqual({
@@ -687,7 +710,7 @@ describe('the boundary normalizes, and refuses to invent', () => {
     expect(Object.keys(page.items[0]!)).not.toContain('certifications');
   });
 
-  test('the page derives nextCursor from next\'s presence, and carries the provider\'s own count', async () => {
+  test("the page derives nextCursor from next's presence, and carries the provider's own count", async () => {
     // NOT `response.cursor` — see tango.client.ts's parsePageCursor doc
     // (P22/D-42) for why the SDK's own cursor field is unusable here. This
     // fixture's `next` carries `?page=2`, which is what a real response
@@ -822,5 +845,92 @@ describe('the fixtures are synthetic', () => {
       const secrets = text.match(/sk_(live|test)_[A-Za-z0-9_]+/g) ?? [];
       for (const secret of secrets) expect(secret).toContain('NOTAREALKEY');
     }
+  });
+});
+
+// ── Webhook list pagination (P47) ────────────────────────────────────────────
+
+describe('webhook lists are walked to exhaustion, never truncated', () => {
+  /** A `PaginatedResponse` page as the SDK types it: rows live under `results`. */
+  const alertPage = (n: number, from: number) => ({
+    count: 999,
+    next: null,
+    previous: null,
+    pageMetadata: null,
+    cursor: null,
+    results: Array.from({ length: n }, (_, i) => ({
+      alert_id: `a-${from + i}`,
+      name: `capiro-managed/alert-${from + i}`,
+      query_type: 'contract',
+      filters: {},
+      frequency: 'realtime',
+      status: 'active',
+    })),
+  });
+
+  const endpointPage = (n: number, from: number) => ({
+    count: 999,
+    next: null,
+    previous: null,
+    pageMetadata: null,
+    cursor: null,
+    results: Array.from({ length: n }, (_, i) => ({
+      id: `ep-${from + i}`,
+      name: `e${from + i}`,
+      callback_url: 'https://api.dev.capiro.ai/webhooks/tango',
+      is_active: true,
+      created_at: '2026-08-08T00:00:00Z',
+      updated_at: '2026-08-08T00:00:00Z',
+    })),
+  });
+
+  test('a single short page ends the walk after ONE request', async () => {
+    const { service, calls } = gateway([{ body: alertPage(3, 0) }]);
+    const alerts = await service.listWebhookAlerts({ limit: 100 });
+    expect(alerts).toHaveLength(3);
+    expect(calls).toHaveLength(1);
+  });
+
+  test('a FULL page is followed by another request — this is the truncation bug', async () => {
+    // The first version read page 1 only. A Capiro-managed alert on page 2 would
+    // have been diffed as absent and re-created, colliding on its own name.
+    const { service, calls } = gateway([{ body: alertPage(2, 0) }, { body: alertPage(1, 2) }]);
+    const alerts = await service.listWebhookAlerts({ limit: 2 });
+    expect(alerts.map((a) => a.alertId)).toEqual(['a-0', 'a-1', 'a-2']);
+    expect(calls).toHaveLength(2);
+  });
+
+  test('an exact multiple of the page size still terminates', async () => {
+    // Page 2 comes back empty rather than short; the walk must stop, not loop.
+    const { service, calls } = gateway([{ body: alertPage(2, 0) }, { body: alertPage(0, 2) }]);
+    const alerts = await service.listWebhookAlerts({ limit: 2 });
+    expect(alerts).toHaveLength(2);
+    expect(calls).toHaveLength(2);
+  });
+
+  test('endpoints paginate the same way, on their own option name', async () => {
+    // The SDK takes `limit` here and `pageSize` for alerts. Both carry `page`.
+    const { service, calls } = gateway([
+      { body: endpointPage(2, 0) },
+      { body: endpointPage(1, 2) },
+    ]);
+    const endpoints = await service.listWebhookEndpoints({ limit: 2 });
+    expect(endpoints.map((e) => e.id)).toEqual(['ep-0', 'ep-1', 'ep-2']);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.url).toContain('page=1');
+    expect(calls[1]?.url).toContain('page=2');
+  });
+
+  test('a never-ending provider THROWS rather than returning a partial list', async () => {
+    // Fail closed. A reconciler acting on half the picture would propose
+    // creating subscriptions that already exist.
+    const { service } = gateway([{ body: alertPage(1, 0) }]); // always a full page
+    await expect(service.listWebhookAlerts({ limit: 1 })).rejects.toThrow(/partial list/);
+  });
+
+  test('rows are normalized out of `results`, the key PaginatedResponse actually uses', async () => {
+    const { service } = gateway([{ body: alertPage(1, 7) }]);
+    const [alert] = await service.listWebhookAlerts({ limit: 100 });
+    expect(alert).toMatchObject({ alertId: 'a-7', queryType: 'contract', status: 'active' });
   });
 });

@@ -90,6 +90,12 @@ export const configSchema = z.object({
   // Comma-separated tenant ids promoted to snapshot reads while the mode is
   // 'snapshot_canary'. Ignored in every other mode.
   PE_SNAPSHOT_CANARY_TENANTS: z.string().optional(),
+  // Phase 7 Gap 5 decision C — the canary rollback switch. Defaults to
+  // 'off', same shape as PE_LEGACY_BUDGET_WRITES below. 'on' forces every read
+  // to legacy regardless of PE_SNAPSHOT_READ_MODE — a single, unambiguous
+  // lever an operator can flip without redeploying the mode itself.
+  // See canary-controls-v1.ts's resolveCanaryRollbackV1.
+  PE_SNAPSHOT_CANARY_ROLLBACK: z.enum(['off', 'on']).default('off'),
   // The Workstream M kill switch. 'off' (default) refuses --commit on the twelve
   // dispatcher verbs that write canonical budget rows directly; canonical data
   // enters through the promotion workflow instead. 'allow' is the deliberate
@@ -762,6 +768,24 @@ export const configSchema = z.object({
   TANGO_CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().int().positive().default(5),
   TANGO_CIRCUIT_BREAKER_COOLDOWN_MS: z.coerce.number().int().positive().default(60_000),
 
+  // P46's webhook signing secret. A SEPARATE credential from TANGO_API_KEY, per
+  // the plan's §5 ("a separate Tango webhook signing secret is introduced only
+  // in P46") — the API key is an outbound credential injected into the ephemeral
+  // sync task, this is an inbound one injected only into API serve. Neither task
+  // ever holds both.
+  //
+  // OPTIONAL, and unset today. Absent means the receiver is DARK: it rejects
+  // every delivery unverified rather than accepting anything. That is the whole
+  // mechanism behind P46's "deploy receiver dark" — there is no development
+  // bypass and no implicit fallback, matching this program's rule that nothing
+  // has an internal-tenant escape hatch.
+  TANGO_WEBHOOK_SIGNING_SECRET: z.string().min(1).optional(),
+  // Replay window for the provider's send timestamp, applied in BOTH directions
+  // so a provider clock running fast does not reject every delivery. Defence in
+  // depth only — the real replay guarantee is the unique index on delivery_id,
+  // which holds regardless of clock skew and regardless of this value.
+  TANGO_WEBHOOK_REPLAY_WINDOW_SECONDS: z.coerce.number().int().positive().default(300),
+
   // P29's attachment archive. BOTH optional and BOTH unset today: the
   // discovery half of the sync needs neither, and the archiving half refuses
   // to start without a bucket rather than fetching megabytes with nowhere to
@@ -880,16 +904,12 @@ export const configSchema = z.object({
   ENGAGEMENT_PROCESS_MODE: z.enum(['shadow', 'active']).default('active'),
 
   // Which service owns background workers. 'disabled' = no workers run.
-  ENGAGEMENT_BACKGROUND_OWNER: z
-    .enum(['api', 'engagement-api', 'disabled'])
-    .default('api'),
+  ENGAGEMENT_BACKGROUND_OWNER: z.enum(['api', 'engagement-api', 'disabled']).default('api'),
 
   // External action mode. 'enabled' = all actions (main API default).
   // 'disabled' = none (shadow). 'test_only' = only outreach_test_send with
   // testMode=true.
-  ENGAGEMENT_EXTERNAL_ACTIONS: z
-    .enum(['disabled', 'test_only', 'enabled'])
-    .default('enabled'),
+  ENGAGEMENT_EXTERNAL_ACTIONS: z.enum(['disabled', 'test_only', 'enabled']).default('enabled'),
 
   // OAuth callbacks and Microsoft notifications. Uses the string-allowlist
   // transform (NOT z.coerce.boolean()) so 'false'/'0'/'no'/'off' correctly
@@ -898,6 +918,18 @@ export const configSchema = z.object({
     .string()
     .default('true')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
+
+  // X Intelligence Feed — application-only bearer token for the X API.
+  // Optional at API-server boot; the feed reports an honest unavailable state
+  // when it is absent. Injected ONLY into the backend runtime, never exposed
+  // to the browser.
+  X_API_BEARER_TOKEN: z.string().min(1).optional(),
+  X_API_BASE_URL: z
+    .string()
+    .url()
+    .refine((v) => new URL(v).protocol === 'https:', 'X_API_BASE_URL must use HTTPS')
+    .default('https://api.x.com/2'),
+  X_FEED_MAX_SOURCES: z.coerce.number().int().positive().default(25),
 
   // Recall webhook processing gate. Same allowlist transform.
   ENGAGEMENT_RECALL_WEBHOOK_ENABLED: z

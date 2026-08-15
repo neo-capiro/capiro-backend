@@ -48,13 +48,19 @@ function pnpmStep(name: string, args: string[], cwd: string = REPO_ROOT): Step {
   };
 }
 
+// Container-inclusive Phase 3 closeout alone can exceed 45m on cold Windows
+// Docker hosts (table/layout/ocr image builds + runtime smokes). Nested under
+// Phase 4 that budget is not enough; keep a generous hard cap rather than
+// declaring the child healthy when spawnSync kills it mid-smoke.
+const stepTimeoutMs = includeContainers ? 3 * 60 * 60 * 1000 : 45 * 60 * 1000;
+
 function run(step: Step): void {
   const started = Date.now();
   console.log(`\n==> ${step.name}`);
   const result = spawnSync(step.command, step.args, {
     cwd: step.cwd,
     stdio: 'inherit',
-    timeout: 45 * 60 * 1000,
+    timeout: stepTimeoutMs,
     env: { ...process.env },
     shell: step.shell === true,
   });

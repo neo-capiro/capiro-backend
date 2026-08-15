@@ -121,6 +121,8 @@ export interface DirectoryApiResponse {
     leadership: string[];
     committees: string[];
     issues: string[];
+    /** Functional staffer roles; value source for the Directory Role filter. */
+    roles: string[];
     caucuses: string[];
     states: string[];
     districts: string[];

@@ -215,6 +215,7 @@ describe('buildR3PerformerArtifact', () => {
             performerNormalized: 'LOCKHEED MARTIN',
             performerRole: 'PERFORMING_ACTIVITY',
             roleExplicit: false,
+            isNamedCompany: true,
             location: 'AL',
             contractMethod: 'C/CPAF',
             costCategory: 'Radar Development',

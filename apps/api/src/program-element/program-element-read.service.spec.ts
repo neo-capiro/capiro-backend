@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { ProgramElementReadService } from './program-element-read.service.js';
+import { NOOP_SLO_METRIC_RECORDER_V1 } from '../defense-budget/promotion/slo-metrics-v1.js';
 
 const ctx: TenantContext = {
   tenantId: '00000000-0000-0000-0000-000000000001',
@@ -1150,6 +1151,16 @@ function makeSnapshotGate(options: {
       },
     })),
     loadRows: jest.fn(async () => options.rows),
+    // Phase 7 Gap 5 decision C. Present because this fake promises the same
+    // shape as the real service: `serveWithSnapshotOptionV1` calls this on
+    // every compare path to get the dimensions a detached shadow comparison
+    // emits with, and a fake missing it fails at the call rather than at the
+    // assertion. The recorder is the real no-op, so nothing is emitted.
+    sloDescriptor: jest.fn(() => ({
+      recorder: NOOP_SLO_METRIC_RECORDER_V1,
+      domain: 'defense_budget',
+      environment: 'test',
+    })),
   };
 }
 

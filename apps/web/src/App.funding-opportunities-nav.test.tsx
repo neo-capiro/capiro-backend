@@ -21,6 +21,14 @@ vi.mock('./lib/billing.js', () => ({
   useBillingState: () => ({ isLoading: false, data: { billingEnabled: false } }),
 }));
 
+// The capiro-internal tenant used to be routed to a separate, stale
+// `FundingOpportunitiesV2Page` (removed — see the funding-opportunities-makegov-v1
+// decision log). Mocked here, universally, precisely because there is no longer
+// any tenant-conditional branching left to accidentally exercise differently.
+vi.mock('./lib/me.js', () => ({
+  useMe: () => ({ data: { tenant: { slug: 'capiro-internal' } } }),
+}));
+
 // The two outcomes this spec discriminates between: the new page, and the
 // /intelligence/* catch-all's redirect target.
 vi.mock('./pages/intelligence/opportunities/FundingOpportunitiesPage.js', () => ({
@@ -74,6 +82,20 @@ describe('Funding Opportunities route registration', () => {
     expect(screen.queryByTestId('data-explorer-page')).not.toBeInTheDocument();
   });
 
+  test('a capiro-internal tenant resolves to the real page too, not a v2 substitute', async () => {
+    // Regression pin for the removed FundingOpportunitiesV2Gate: that gate
+    // special-cased tenant.slug === 'capiro-internal' to render a stale,
+    // 3-source mockup page instead of the real, fully-wired Inbox. This test's
+    // whole module-level `useMe` mock (above) already renders every test in this
+    // file under that exact tenant — this one exists to make the guarantee
+    // explicit rather than incidental, so a future reviewer sees it stated
+    // rather than inferred from an unrelated mock choice.
+    renderAppWithRouter(['/intelligence/opportunities']);
+    await waitFor(() =>
+      expect(screen.getByTestId('funding-opportunities-page')).toBeInTheDocument(),
+    );
+  });
+
   test('the /intelligence/* catch-all still redirects every other path', async () => {
     renderAppWithRouter(['/intelligence/not-a-real-surface']);
 
@@ -85,6 +107,12 @@ describe('Funding Opportunities route registration', () => {
     // The failure this guards against is the same silent one as above, and it is
     // WORSE for a detail link: pasted into a ticket, an unregistered detail route
     // redirects to Data Explorer, so the record looks like it was deleted.
+    // Uses the shared helper, which supplies a QueryClientProvider. `App` began
+    // REQUIRING one when PR #813 mounted `EngagementPreviewBoundary` beside the
+    // route table — it calls `useQueryClient()` unconditionally. Two tests in
+    // this file still rendered `<App />` bare and threw
+    // "No QueryClient set, use QueryClientProvider to set one", which is what
+    // kept this gate red. Nothing about the routes under test changed.
     renderAppWithRouter(['/intelligence/opportunities/sam_gov/notice-1?clientId=c1']);
 
     await waitFor(() =>

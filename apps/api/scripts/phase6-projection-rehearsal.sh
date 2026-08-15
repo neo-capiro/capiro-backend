@@ -74,9 +74,26 @@ psql_fresh -c "INSERT INTO phase6_audit_projection($COLS) VALUES ('ex-ok','ex-ok
 psql_fresh -c "BEGIN; INSERT INTO phase6_audit_projection($COLS) VALUES ('rollback-probe','rollback-probe','rollback-probe','native_line_binding','vc','vr','a',repeat('a',64),'doc',repeat('b',64),repeat('c',64),repeat('d',64),'appropriations','hac_d',NULL,NULL,NULL,NULL,'not_applicable','[]','accepted','candidate',NULL,NULL,'{}'); ROLLBACK;" >/dev/null
 [[ "$(psql_fresh -At -c "SELECT count(*) FROM phase6_audit_projection WHERE projection_id='rollback-probe'")" == "0" ]]
 
+# Historical/pre-binding certification remains valid audit history, but can never
+# be retrofitted with a guessed projection association.
 psql_fresh -c "INSERT INTO phase6_cycle_certification(cycle_id,fiscal_year,manifest_hash,content_sha256,status,report_jsonb) VALUES ('fy2027',2027,repeat('a',64),repeat('b',64),'CERTIFIED','{}')" >/dev/null
+expect_fail "legacy-certification-cannot-bind" "INSERT INTO phase6_cycle_certification_projection(certification_content_sha256,projection_id,projection_ordinal) VALUES (repeat('b',64),'p1',0)"
 expect_fail "certification-idempotency" "INSERT INTO phase6_cycle_certification(cycle_id,fiscal_year,manifest_hash,content_sha256,status,report_jsonb) VALUES ('fy2027',2027,repeat('a',64),repeat('b',64),'CERTIFIED','{}')"
 expect_fail "certification-update" "UPDATE phase6_cycle_certification SET status='REJECTED' WHERE cycle_id='fy2027'"
 expect_fail "certification-delete" "DELETE FROM phase6_cycle_certification WHERE cycle_id='fy2027'"
 
-echo "Phase 6 projection rehearsal PASS: all migrations + replay + upgrade + terminal constraints + immutable audit lineage + rollback + idempotency"
+# New certifications must duplicate their exact projection-set identity in
+# columns and inside the immutable report. A mismatch is rejected at the DB
+# boundary even if an application bug tried to insert it.
+expect_fail "certification-report-binding-mismatch" "INSERT INTO phase6_cycle_certification(cycle_id,fiscal_year,manifest_hash,content_sha256,status,projection_set_sha256,projection_count,report_jsonb) VALUES ('fy2027-mismatch',2027,repeat('a',64),repeat('e',64),'CERTIFIED',repeat('c',64),1,jsonb_build_object('projectionSetSha256',repeat('d',64),'projectionCount',1))"
+
+psql_fresh -c "INSERT INTO phase6_cycle_certification(cycle_id,fiscal_year,manifest_hash,content_sha256,status,projection_set_sha256,projection_count,report_jsonb) VALUES ('fy2027-bound',2027,repeat('a',64),repeat('f',64),'CERTIFIED',repeat('c',64),1,jsonb_build_object('projectionSetSha256',repeat('c',64),'projectionCount',1))" >/dev/null
+psql_fresh -c "INSERT INTO phase6_cycle_certification_projection(certification_content_sha256,projection_id,projection_ordinal) VALUES (repeat('f',64),'p1',0)" >/dev/null
+[[ "$(psql_fresh -At -c "SELECT projection_id FROM phase6_cycle_certification_projection WHERE certification_content_sha256=repeat('f',64)")" == "p1" ]]
+expect_fail "certification-binding-projection-fk" "INSERT INTO phase6_cycle_certification_projection(certification_content_sha256,projection_id,projection_ordinal) VALUES (repeat('f',64),'missing-projection',1)"
+expect_fail "certification-binding-duplicate-ordinal" "INSERT INTO phase6_cycle_certification_projection(certification_content_sha256,projection_id,projection_ordinal) VALUES (repeat('f',64),'cr-ok',0)"
+expect_fail "certification-binding-update" "UPDATE phase6_cycle_certification_projection SET projection_ordinal=1 WHERE certification_content_sha256=repeat('f',64) AND projection_id='p1'"
+expect_fail "certification-binding-delete" "DELETE FROM phase6_cycle_certification_projection WHERE certification_content_sha256=repeat('f',64) AND projection_id='p1'"
+expect_fail "certification-binding-truncate" "TRUNCATE phase6_cycle_certification_projection"
+
+echo "Phase 6 projection rehearsal PASS: all migrations + replay + upgrade + terminal constraints + immutable audit lineage + exact certification bindings + rollback + idempotency"

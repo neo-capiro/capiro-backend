@@ -1,0 +1,351 @@
+.capiro-vnext-root .capiro-button,
+.capiro-vnext-root .capiro-icon-button {
+  border: 0;
+  border-radius: var(--capiro-radius-control);
+  cursor: pointer;
+  transition:
+    background var(--capiro-motion-fast) var(--capiro-motion-ease),
+    color var(--capiro-motion-fast) var(--capiro-motion-ease),
+    border-color var(--capiro-motion-fast) var(--capiro-motion-ease),
+    opacity var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .capiro-button {
+  min-width: var(--capiro-control-min-width-button);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--capiro-space-02);
+  padding: 0 var(--capiro-space-04);
+  font-size: var(--capiro-type-size-body-sm);
+  font-weight: 600;
+}
+
+.capiro-vnext-root .capiro-button--compact { height: var(--capiro-control-height-compact); }
+.capiro-vnext-root .capiro-button--standard { height: var(--capiro-control-height-standard); }
+/* Primary/solid = metallic black everywhere the UUI shell runs. Face/edge/
+   shadow are tokens so component CSS carries no color literal (the foundation
+   contract greps this file). Brand blue is reserved for non-button accents. */
+.capiro-vnext-root .capiro-button--primary {
+  background-color: transparent;
+  background-image: var(--uui-btn-metal-face);
+  box-shadow: var(--uui-btn-metal-shadow);
+  color: var(--uui-btn-metal-fg);
+  border: 0;
+  border-radius: var(--uui-radius-control, var(--capiro-radius-control));
+}
+.capiro-vnext-root .capiro-button--primary:hover:not(:disabled) { background-image: var(--uui-btn-metal-face-hover); background-color: transparent; }
+.capiro-vnext-root .capiro-button--primary:active:not(:disabled) { background-image: var(--uui-btn-metal-face-active); box-shadow: var(--uui-btn-metal-shadow-active); }
+.capiro-vnext-root .capiro-button--primary:disabled {
+  background-image: none;
+  background-color: var(--uui-gray-100, var(--capiro-color-bg-subtle));
+  box-shadow: none;
+  color: var(--uui-gray-400, var(--capiro-color-text-muted));
+}
+.capiro-vnext-root .capiro-button--secondary { background: var(--capiro-color-action-secondary-default); color: var(--capiro-color-text-primary); border: 1px solid var(--capiro-color-border-default); }
+.capiro-vnext-root .capiro-button--quiet { background: transparent; color: var(--capiro-color-text-accent); }
+.capiro-vnext-root .capiro-button:disabled,
+.capiro-vnext-root .capiro-icon-button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.capiro-vnext-root .capiro-icon-button {
+  width: var(--capiro-control-height-standard);
+  height: var(--capiro-control-height-standard);
+  /* An icon button is a fixed square: squeezing it below its own size never
+     produces a usable control, so it opts out of flex shrinking everywhere.
+     The overlay header (components/overlays) is a flex row whose title is
+     dynamic; without this a long unbreakable title crushes the close button. */
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-secondary);
+  border: 1px solid var(--capiro-color-border-default);
+}
+
+.capiro-vnext-root .capiro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 16px;
+  letter-spacing: 0.035em;
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-vnext-root .capiro-badge--success { background: var(--capiro-color-success-soft); color: var(--capiro-color-success); }
+.capiro-vnext-root .capiro-badge--warning { background: var(--capiro-color-warning-soft); color: var(--capiro-color-warning); }
+.capiro-vnext-root .capiro-badge--danger { background: var(--capiro-color-danger-soft); color: var(--capiro-color-danger); }
+.capiro-vnext-root .capiro-badge--info { background: var(--capiro-color-info-soft); color: var(--capiro-color-info); }
+
+.capiro-vnext-root .capiro-field { display: grid; gap: 6px; }
+.capiro-vnext-root .capiro-field__label { font-size: 12px; font-weight: 600; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-field__help { font-size: 11px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-field__error { font-size: 11px; color: var(--capiro-color-danger); }
+.capiro-vnext-root .capiro-input,
+.capiro-vnext-root .capiro-select {
+  width: 100%;
+  min-height: var(--capiro-control-height-standard);
+  padding: 0 10px;
+  color: var(--capiro-color-text-primary);
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-control);
+}
+.capiro-vnext-root .capiro-input[aria-invalid='true'],
+.capiro-vnext-root .capiro-select[aria-invalid='true'] { border-color: var(--capiro-color-danger); }
+
+/* The tab strip scrolls rather than crushing its tabs — the same treatment the
+   design family's other tab row already carries (.capiro-directory-tabs in
+   directory.css, .capiro-top-nav-item further down this file). Without
+   `flex: 0 0 auto` the tabs shrink to min-content instead, each label wraps to a
+   second line, and that line paints outside the 34px box (there is no
+   overflow:hidden): StewardReviewVNext builds four labels as
+   `${state.label} · ${count}` ("Superseded · 12"), measured at 391px of natural
+   row against the 358px available at a 390px viewport. `overflow-x: auto` also
+   gives the strip an automatic minimum size of zero, so it stays safe inside a
+   grid or flex track. */
+.capiro-vnext-root .capiro-tabs { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--capiro-color-border-quiet); overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+.capiro-vnext-root .capiro-tabs::-webkit-scrollbar { display: none; }
+/* The strip above is a scroll container at every width, so the default 3px
+   OUTER focus ring (foundations/reset.css) would be clipped away and keyboard
+   focus would be invisible. Swap in the inset ring: same affordance, painted
+   inside the tab's own box, zero layout change. */
+.capiro-vnext-root .capiro-tabs .capiro-tab:focus-visible { box-shadow: var(--capiro-focus-ring-inset); }
+.capiro-vnext-root .capiro-tab {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--capiro-radius-shell-control);
+  background: transparent;
+  color: var(--capiro-color-shell-nav-default);
+  cursor: pointer;
+  font-size: var(--capiro-type-size-body-sm);
+}
+.capiro-vnext-root .capiro-tab[aria-selected='true'] {
+  color: var(--capiro-color-shell-nav-current-text);
+  background: var(--capiro-color-shell-nav-current-bg);
+  border-color: var(--capiro-color-shell-signature-primary);
+}
+
+.capiro-vnext-root .capiro-surface {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-surface);
+}
+.capiro-vnext-root .capiro-card { padding: var(--capiro-space-04); }
+
+.capiro-vnext-root .capiro-table-wrap { width: 100%; overflow-x: auto; }
+.capiro-vnext-root .capiro-table { width: 100%; border-collapse: collapse; font-size: var(--capiro-type-size-body-sm); }
+.capiro-vnext-root .capiro-table th,
+.capiro-vnext-root .capiro-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--capiro-color-border-quiet); }
+.capiro-vnext-root .capiro-table th { font-family: var(--capiro-type-family-mono); font-size: 10px; font-weight: 500; letter-spacing: .04em; color: var(--capiro-color-text-muted); text-transform: uppercase; }
+
+.capiro-vnext-root .capiro-feedback { display: grid; justify-items: start; gap: 8px; padding: 20px; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .capiro-skeleton { display: block; border-radius: 6px; background: linear-gradient(90deg, var(--capiro-color-bg-subtle), var(--capiro-color-bg-skeleton-highlight), var(--capiro-color-bg-subtle)); background-size: 200% 100%; animation: capiro-vnext-skeleton 1.4s ease infinite; }
+@keyframes capiro-vnext-skeleton { to { background-position-x: -200%; } }
+
+.capiro-vnext-root .capiro-menu { min-width: 180px; margin: 0; padding: 6px; list-style: none; background: var(--capiro-color-bg-surface); border: 1px solid var(--capiro-color-border-default); border-radius: var(--capiro-radius-control); }
+.capiro-vnext-root .capiro-menu button,
+.capiro-vnext-root .capiro-menu a { width: 100%; min-height: 34px; display: flex; align-items: center; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--capiro-color-text-secondary); text-align: left; cursor: pointer; }
+.capiro-vnext-root .capiro-menu button:hover:not(:disabled),
+.capiro-vnext-root .capiro-menu a:hover:not([aria-disabled='true']) { background: var(--capiro-color-bg-subtle); }
+.capiro-vnext-root .capiro-menu button:disabled,
+.capiro-vnext-root .capiro-menu a[aria-disabled='true'] { cursor: not-allowed; opacity: 0.45; }
+
+.capiro-vnext-root .capiro-popover { position: relative; display: inline-block; }
+.capiro-vnext-root .capiro-popover__trigger { display: inline-flex; align-items: center; justify-content: center; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
+/* max-width, because the panel is absolutely positioned at the trigger's left
+   edge with no edge flip: on a 390px viewport a trigger in the right half would
+   otherwise run the panel off-screen. (Preventive — CapiroPopover has no call
+   sites yet, but it is exported design-system API.) */
+.capiro-vnext-root .capiro-popover__panel { position: absolute; z-index: var(--capiro-z-popover); min-width: 220px; max-width: min(280px, calc(100vw - 2 * var(--capiro-content-gutter-mobile, 16px))); margin-top: 6px; padding: 10px; background: var(--capiro-color-bg-surface); border: 1px solid var(--capiro-color-border-default); border-radius: var(--capiro-radius-control); }
+
+.capiro-vnext-root .capiro-overlay { position: fixed; inset: 0; z-index: var(--capiro-z-modal); display: grid; place-items: center; padding: 24px; background: var(--capiro-color-bg-overlay-scrim); }
+.capiro-vnext-root .capiro-modal { width: min(560px, 100%); max-height: min(80vh, 760px); overflow: auto; padding: 18px; background: var(--capiro-color-bg-surface); border: 1px solid var(--capiro-color-border-default); border-radius: var(--capiro-radius-surface); }
+.capiro-vnext-root .capiro-drawer { position: absolute; top: 0; right: 0; width: min(480px, 100%); height: 100%; overflow: auto; padding: 18px; background: var(--capiro-color-bg-surface); border-left: 1px solid var(--capiro-color-border-default); }
+
+/* Toasts sit above the modal layer so feedback raised from inside a dialog is not hidden by it. */
+.capiro-vnext-root .capiro-toast-region { position: fixed; top: 16px; right: 16px; z-index: calc(var(--capiro-z-modal) + 1); display: grid; gap: 8px; justify-items: end; pointer-events: none; }
+.capiro-vnext-root .capiro-toast { display: flex; align-items: center; gap: 10px; width: min(380px, calc(100vw - 32px)); padding: 10px 12px; background: var(--capiro-color-bg-surface); border: 1px solid var(--capiro-color-border-default); border-left-width: 3px; border-radius: var(--capiro-radius-control); color: var(--capiro-color-text-secondary); pointer-events: auto; }
+.capiro-vnext-root .capiro-toast--success { border-left-color: var(--capiro-color-border-success); }
+.capiro-vnext-root .capiro-toast--error { border-left-color: var(--capiro-color-border-danger); }
+.capiro-vnext-root .capiro-toast__text { flex: 1; min-width: 0; }
+.capiro-vnext-root .capiro-toast__dismiss { flex-shrink: 0; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--capiro-color-text-muted); font-size: 15px; line-height: 1; cursor: pointer; }
+.capiro-vnext-root .capiro-toast__dismiss:hover { background: var(--capiro-color-bg-subtle); color: var(--capiro-color-text-secondary); }
+/* ── Mobile band (<=779) ────────────────────────────────────────────────────
+   779, not 767: the canonical mobile boundary (foundations/responsive.css). At
+   767 the 768-779 band kept the desktop toast anchor while the fixed bottom nav
+   was already mounted, so toasts landed under it.
+
+   This is the only breakpoint in this file. Everything below is either the
+   touch-target invariant (>=44px, responsive.css §8) or the one relaxation of
+   the global button min-width described at .capiro-button. */
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-toast-region { top: auto; bottom: calc(var(--capiro-bottomnav-h, 64px) + 12px); left: 16px; right: 16px; justify-items: stretch; }
+  .capiro-vnext-root .capiro-toast { width: auto; }
+  .capiro-vnext-root .capiro-toast__dismiss { width: 44px; height: 44px; }
+
+  /* ── Button: relax the global 120px floor, mobile only ────────────────────
+     --capiro-control-min-width-button (tokens.css:135) is global and shared, so
+     it is NOT edited; it is overridden here for the mobile band only, exactly as
+     shell-uui.css:123-127 already had to do for the Meri launcher.
+
+     Why: 120px is a rigid floor, not a preferred width. A flex item whose
+     min-width is 120px cannot shrink past it, so any action row of two or more
+     buttons demands >=240px + gaps before it will even consider wrapping, and
+     rows that do not wrap simply overflow. Three separate module audits blamed
+     this token for non-wrapping action rows.
+
+     The replacement floor is the touch-target size, not zero: a button must stay
+     tappable. The Figma mobile stage draws its primary action at 72x44
+     (responsive.css §1), which is both narrower than 120 and taller than the
+     36px desktop control — so relaxing the width floor and raising the height
+     floor is what the drawn stage actually shows, not an invention.
+
+     height:auto + min-height, rather than a taller fixed height: the used height
+     is unchanged for every single-line label (auto resolves below the floor, so
+     the floor wins), but a label that now wraps — which relaxing min-width makes
+     possible — grows the button instead of painting outside a fixed-height box. */
+  .capiro-vnext-root .capiro-button {
+    min-width: var(--capiro-hit-size, 44px);
+    max-width: 100%;
+  }
+  .capiro-vnext-root .capiro-button--compact,
+  .capiro-vnext-root .capiro-button--standard {
+    height: auto;
+    min-height: var(--capiro-hit-size, 44px);
+  }
+
+  /* Touch targets. Growing these is safe: the icon button is a lone square in a
+     flex row and the menu row is already full-width, so only the cross axis
+     moves. The tab strip is the same 34px -> 44px bump; it scrolls horizontally
+     rather than clipping, so the taller row is not cut off. */
+  .capiro-vnext-root .capiro-icon-button {
+    width: var(--capiro-hit-size, 44px);
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-vnext-root .capiro-menu button,
+  .capiro-vnext-root .capiro-menu a { min-height: var(--capiro-hit-size, 44px); }
+  .capiro-vnext-root .capiro-tab { min-height: var(--capiro-hit-size, 44px); }
+}
+
+/* ── Identity/Mark ──────────────────────────────────────────────────────────
+   Canonical identity mark. People are circular; offices, committees and
+   programs take non-person rounded-rect geometry (Directory handoff 963:3064).
+   Sizes are the rendered instances: 32/36 in shell and row density, 46 in the
+   selected-profile rail (937:2856). */
+.capiro-vnext-root .capiro-identity-mark {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  background: var(--capiro-color-bg-selected);
+  border: 1px solid var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-primary);
+  font-family: var(--capiro-type-family-mono);
+  font-weight: 500;
+}
+
+.capiro-vnext-root .capiro-identity-mark--person { border-radius: var(--capiro-radius-circular); }
+.capiro-vnext-root .capiro-identity-mark--office,
+.capiro-vnext-root .capiro-identity-mark--committee,
+.capiro-vnext-root .capiro-identity-mark--program { border-radius: var(--capiro-radius-control); }
+
+.capiro-vnext-root .capiro-identity-mark--sm { width: 32px; height: 32px; font-size: 10px; line-height: 14px; letter-spacing: 0.06em; }
+.capiro-vnext-root .capiro-identity-mark--md { width: 36px; height: 36px; font-size: 10px; line-height: 14px; letter-spacing: 0.06em; }
+.capiro-vnext-root .capiro-identity-mark--lg { width: 46px; height: 46px; font-size: 12px; line-height: 17px; }
+
+.capiro-vnext-root .capiro-identity-mark__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.capiro-vnext-root .capiro-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-identity__copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-identity__name {
+  font-family: var(--capiro-type-family-sans);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  letter-spacing: -0.032px;
+  color: var(--capiro-color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-identity__meta {
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Navigation/TopItem (432:133) ───────────────────────────────────────────
+   Horizontal route tabs. Labels stay visible in every state; Current is the one
+   active destination. */
+.capiro-vnext-root .capiro-top-nav-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  height: var(--capiro-navigation-top-item-height);
+  padding: 0 var(--capiro-navigation-top-item-padding-x);
+  border: 1px solid transparent;
+  border-radius: var(--capiro-radius-shell-control);
+  font-family: var(--capiro-type-family-sans);
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-shell-nav-default);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background var(--capiro-motion-fast) var(--capiro-motion-ease),
+    color var(--capiro-motion-fast) var(--capiro-motion-ease),
+    border-color var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .capiro-top-nav-item:hover {
+  background: var(--capiro-color-shell-nav-hover-bg);
+  color: var(--capiro-color-shell-nav-current-text);
+}
+
+.capiro-vnext-root .capiro-top-nav-item:focus-visible {
+  outline: none;
+  box-shadow: var(--capiro-focus-ring);
+}
+
+.capiro-vnext-root .capiro-top-nav-item--current {
+  background: var(--capiro-color-shell-nav-current-bg);
+  border-color: var(--capiro-color-shell-signature-primary);
+  color: var(--capiro-color-shell-nav-current-text);
+}
+
+.capiro-vnext-root .capiro-top-nav-item--disabled {
+  opacity: 0.72;
+  color: var(--capiro-color-shell-nav-disabled);
+  cursor: not-allowed;
+}

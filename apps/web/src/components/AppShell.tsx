@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ChatDrawer } from './chat/ChatDrawer.js';
 import { MeriOverlay } from './chat/MeriOverlay.js';
+import { isMeriWorkspaceWindow } from './chat/meri-window.js';
 import { isStrategyMeriSuppressed } from './strategy-meri-suppression.js';
 import { WorkspaceNotificationBell } from './WorkspaceNotificationBell.js';
 import { QuickLogButton } from './QuickLog.js';
@@ -495,6 +496,15 @@ export function AppShell() {
       void signOut({ redirectUrl: '/sign-in' });
     },
   };
+
+  // Meri workspace popup (/?meriWindow=1) renders ONLY the Meri chatbot — no
+  // Capiro chrome. This must run BEFORE the capiro-internal AppShellV2 branch,
+  // otherwise the separate Meri window opens another copy of the full app
+  // (navigation, Dashboard, client bar) instead of the standalone workspace.
+  // MeriOverlay owns the workspace-window loading / not-enabled / render paths.
+  if (isMeriWorkspaceWindow()) {
+    return <MeriOverlay selectedClientName={selectedClient?.name ?? null} />;
+  }
 
   // App shell v2 (capiro-internal only): two persistent top bands replace the
   // left sider. The legacy shell below is untouched for every other tenant.

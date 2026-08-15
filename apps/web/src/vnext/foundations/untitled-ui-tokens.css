@@ -1,0 +1,122 @@
+/*
+ * Untitled UI PRO kit tokens (`Capiro Dashboard - Untitled UI.dc.html`,
+ * Figma 748:2503). Originally Dashboard-only; as of 2026-08 this is the one
+ * global shell's token set (shell/AppShellUui/), so every vnext page now
+ * gets these variables via `.capiro-vnext-uui`. Dashboard's own content
+ * (dashboard.css's uui-dash-* classes) also still consumes them — nothing
+ * about that changed, only the shell's root class name did.
+ *
+ * These are NOT --capiro-* tokens and must not be. --capiro-* (tokens.css)
+ * is a separate, retired-from-the-shell palette that Dashboard's content
+ * classes and a few other pages' own CSS may still reference directly.
+ *
+ * Brand ramp corrected 2026-08-12 to Capiro's actual accent blue (Neo:
+ * "update the colors" — the kit's default Slate purple was never meant to
+ * ship). #294E68 is literally --capiro-color-text-accent from the
+ * Capiro-native tokens.css — same brand blue, not a new color.
+ */
+.capiro-vnext-uui {
+  /* Type — Inter, per handoff §4.1. */
+  --uui-font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --uui-text-display-sm: 30px;
+  --uui-line-display-sm: 38px;
+  --uui-text-md: 18px;
+  --uui-line-md: 28px;
+  --uui-text-body: 16px;
+  --uui-line-body: 24px;
+  --uui-text-sm: 14px;
+  --uui-line-sm: 20px;
+  --uui-text-xs: 12px;
+  --uui-line-xs: 18px;
+  --uui-weight-regular: 400;
+  --uui-weight-medium: 500;
+  --uui-weight-semibold: 600;
+
+  /* Neutrals. */
+  --uui-white: #ffffff;
+  --uui-gray-25: #fdfdfd;
+  --uui-gray-50: #f9fafb;
+  --uui-gray-100: #f2f4f7;
+  --uui-gray-200: #eaecf0;
+  --uui-gray-300: #d0d5dd;
+  --uui-gray-400: #98a2b3;
+  --uui-gray-500: #667085;
+  --uui-gray-600: #475467;
+  --uui-gray-700: #344054;
+  --uui-gray-900: #101828;
+
+  /* Brand — Capiro blue. Used for buttons, links, PE codes, progress fills,
+     active tab underline, and count chips. */
+  --uui-brand-solid: #3e4784;
+  --uui-brand-hover: #363f72;
+  /* Deepest shade — pressed states and the topbar's accent underline. */
+  --uui-brand-deep: #293056;
+  --uui-brand-hover-2: #293056;
+  --uui-brand-tint: #eaecf5;
+  --uui-brand-ring: #b3b8db;
+  --uui-focus-ring: #717bbc;
+  --uui-focus-ring-outer: #d5d9eb;
+
+  /* Metallic black primary buttons. Face/edge/shadow consumed by
+     primitives.css (CapiroButton primary) and shell-uui.css (MeriLauncher) —
+     the brand blue above stays for non-button accents only. */
+  --uui-btn-metal-face: linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%);
+  --uui-btn-metal-face-hover: linear-gradient(180deg, #4a5462 0%, #252f3c 46%, #161d26 100%);
+  --uui-btn-metal-face-active: linear-gradient(180deg, #1b2430 0%, #0e141c 100%);
+  --uui-btn-metal-edge: #0e141c;
+  --uui-btn-metal-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0px 1px 2px rgba(16,24,40,0.12);
+  --uui-btn-metal-shadow-active: inset 0 1px 2px rgba(0,0,0,0.32), 0px 1px 2px rgba(16,24,40,0.08);
+  --uui-btn-metal-fg: #ffffff;
+
+  /* Semantic pill families: [bg, ring, fg, dot]. */
+  --uui-error-bg: #fef3f2;
+  --uui-error-ring: #fecdca;
+  --uui-error-fg: #b42318;
+  --uui-error-dot: #f04438;
+  --uui-error-tone: #d92d20;
+
+  --uui-warning-bg: #fffaeb;
+  --uui-warning-ring: #fedf89;
+  --uui-warning-fg: #b54708;
+  --uui-warning-dot: #f79009;
+  --uui-warning-tone: #dc6803;
+
+  --uui-success-bg: #ecfdf3;
+  --uui-success-ring: #abefc6;
+  --uui-success-fg: #027a48;
+  --uui-success-dot: #12b76a;
+
+  --uui-blue-bg: #eff8ff;
+  --uui-blue-ring: #b2ddff;
+  --uui-blue-fg: #175cd3;
+  --uui-blue-dot: #2e90fa;
+  --uui-blue-tone: #1570ef;
+
+  --uui-gray-pill-bg: #f9fafb;
+  --uui-gray-pill-ring: #eaecf0;
+  --uui-gray-pill-fg: #344054;
+  --uui-gray-pill-dot: #667085;
+
+  /* Radius + elevation. componentCssFiles (foundation-contract.test.ts) may
+     not contain a literal hex/rgba — every color lives here, and every
+     component file consumes it through var(). */
+  --uui-radius-control: 8px;
+  --uui-radius-card: 12px;
+  --uui-shadow-elevation: 0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06);
+  --uui-shadow-card: 0 0 0 1px var(--uui-gray-200), var(--uui-shadow-elevation);
+  --uui-shadow-card-warning: 0 0 0 1px var(--uui-warning-ring), var(--uui-shadow-elevation);
+  --uui-shadow-focus: inset 0 0 0 1px var(--uui-focus-ring), 0 0 0 4px var(--uui-focus-ring-outer);
+  --uui-shadow-input: inset 0 0 0 1px var(--uui-gray-300), 0px 1px 2px rgba(16, 24, 40, 0.05);
+  --uui-shadow-button: 0px 1px 2px rgba(16, 24, 40, 0.05);
+  --uui-shadow-knob: 0 1px 2px rgba(16, 24, 40, 0.15);
+  --uui-scrim: rgba(16, 24, 40, 0.36);
+
+  /* Shell geometry, per handoff §4.1/§6.1. */
+  --uui-topbar-h: 72px;
+  --uui-rail-w-expanded: 272px;
+  --uui-rail-w-collapsed: 80px;
+  --uui-content-max-w: 1280px;
+  --uui-content-gutter: 32px;
+  --uui-bp-mobile: 780px;
+  --uui-bp-tablet: 1180px;
+}

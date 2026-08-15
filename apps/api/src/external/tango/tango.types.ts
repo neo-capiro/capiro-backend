@@ -63,7 +63,6 @@ export interface TangoAddress {
   countryCode: string | null;
 }
 
-
 /** An organisation, keyed by UEI. */
 export interface TangoEntity {
   provenance: TangoProvenance;
@@ -360,10 +359,30 @@ export interface TangoVehicleListOptions extends TangoListOptions {
  *
  * ── Deliberately absent ──────────────────────────────────────────────────────
  *
- * No webhook write methods (P46 owns those, behind a separate secret). No MCP
- * (P39, research-only). No retry, no circuit breaker, no usage persistence —
- * those are P18, and putting them here would mean two places decide when to give
- * up. This adapter surfaces typed rate metadata and stops.
+ * No MCP (P39, research-only). No retry, no circuit breaker, no usage
+ * persistence — those are P18, and putting them here would mean two places
+ * decide when to give up. This adapter surfaces typed rate metadata and stops.
+ *
+ * ── Webhook methods, added at P47 ────────────────────────────────────────────
+ *
+ * P14's note here used to read "no webhook write methods (P46 owns those)".
+ * P46 turned out to own the RECEIVER — the inbound half, which needs no
+ * outbound call at all. Managing the provider's own alert subscriptions is
+ * P47, and that is what these are for.
+ *
+ * The read pair is proven reachable on this account: P17's probe recorded
+ * `webhook_event_types` and `webhook_endpoints_list` as `supported`. The WRITE
+ * methods are a different matter — P17 recorded `webhook_write_apis` as
+ * `not_attempted`, deliberately, because every one of them mutates a live
+ * subscription. The plan's own documentation discrepancy ("all tiers" filter
+ * subscriptions vs. SDK docs describing webhook writes as Large/Enterprise) is
+ * therefore STILL UNRESOLVED, and no code may assume the answer.
+ *
+ * That is why the write methods are on this interface but the reconciler
+ * treats them as may-fail-on-tier rather than available: the only honest
+ * posture is to attempt one, classify the failure, and stop cleanly. The
+ * attach-to-existing-endpoint path exists precisely so the program works even
+ * if creation is never permitted on this tier.
  */
 export interface TangoGateway {
   /** Whether a key is configured. FALSE is a normal state, not a failure. */
@@ -390,6 +409,86 @@ export interface TangoGateway {
     vehicleId: string,
     options?: TangoListOptions,
   ): Promise<TangoPage<TangoVehicleAwardee>>;
+
+  // ── Webhook subscription management (P47) ──────────────────────────────────
+  // READ: proven supported by P17's probe on this account's tier.
+  listWebhookEventTypes(): Promise<TangoWebhookEventType[]>;
+  listWebhookEndpoints(options?: TangoListOptions): Promise<TangoWebhookEndpoint[]>;
+  listWebhookAlerts(options?: TangoListOptions): Promise<TangoWebhookAlert[]>;
+
+  // WRITE: tier-unproven. Every one of these may fail with a tier error, and
+  // the reconciler is required to classify that outcome rather than retry it.
+  createWebhookAlert(input: TangoWebhookAlertInput): Promise<TangoWebhookAlert>;
+  deleteWebhookAlert(alertId: string): Promise<void>;
+
+  /**
+   * The provider's own SAMPLE delivery, and the header name it signs with.
+   *
+   * READ-ONLY and the cheapest possible way to check an assumption that is
+   * otherwise only checkable by registering a live endpoint and waiting: P46's
+   * receiver takes its signature header name and its envelope key names from
+   * the PLAN DOCUMENT, not from anything the provider confirmed. This is how
+   * that gets verified before an endpoint exists.
+   */
+  getWebhookSamplePayload(eventType?: string): Promise<TangoWebhookSample>;
+}
+
+/** What the provider says a delivery looks like, and how it signs it. */
+export interface TangoWebhookSample {
+  /** The header the provider actually signs with, verbatim. */
+  signatureHeader: string;
+  /** Event types the sample covers. */
+  eventTypes: string[];
+  /** Top-level keys of one sample delivery body. */
+  envelopeKeys: string[];
+  /** True when the body wraps events in an `events` ARRAY rather than being one event. */
+  isBatchEnvelope: boolean;
+  /** Keys of the first event inside the envelope, when there is one. */
+  eventKeys: string[];
+  note: string | null;
+}
+
+/** One provider event type Capiro may subscribe to. */
+export interface TangoWebhookEventType {
+  eventType: string;
+  description: string;
+  schemaVersion: number;
+}
+
+/**
+ * A provider delivery endpoint.
+ *
+ * `secret` is present ONLY in the response to a create call and never on a
+ * list. It is deliberately typed as optional-and-never-logged: the reconciler
+ * hands it to the operator through Secrets Manager, never through stdout.
+ */
+export interface TangoWebhookEndpoint {
+  id: string;
+  name: string;
+  callbackUrl: string;
+  isActive: boolean;
+  /** Present only immediately after creation. NEVER printed, NEVER persisted in a log. */
+  secret?: string;
+}
+
+/** A filter subscription that delivers matches to an endpoint. */
+export interface TangoWebhookAlert {
+  alertId: string;
+  name: string;
+  queryType: string;
+  filters: Record<string, unknown>;
+  frequency: string;
+  status: 'active' | 'paused';
+}
+
+/** What Capiro asks the provider to create. */
+export interface TangoWebhookAlertInput {
+  name: string;
+  queryType: string;
+  filters: Record<string, unknown>;
+  frequency?: string;
+  /** Endpoint UUID. Required when the account has more than one endpoint. */
+  endpointId?: string;
 }
 
 /** DI token. Product code injects the INTERFACE, never the implementation class. */

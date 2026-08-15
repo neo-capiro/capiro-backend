@@ -179,6 +179,8 @@ export interface ClientAttachment {
   indexedAt: string | null;
   uploadedByUserId: string | null;
   uploadedByName: string | null;
+  /** Client CRM organization metadata; null means the attachment is unfiled. */
+  folder?: string | null;
 }
 
 export interface ClientFormValues {

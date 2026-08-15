@@ -85,11 +85,175 @@ model WsDraft {
   versions      WsDocVersion[]
   editLock      WsEditLock?
   collaborators WsCollaborator[]
+  agentMessages WsAgentMessage[]
+  proposals     WsAgentProposal[]
+  approvalRequests WsApprovalRequest[]
+  shareLinks    WsShareLink[]
 
   @@index([tenantId])
   @@index([tenantId, ownerId])
   @@index([tenantId, updatedAt])
   @@map("ws_draft")
+}
+
+// ── Document Agent: append-only conversational messages ────────────────────
+// (Workspace Document Agent vNext — documentAgent config lives on WsDraft.config)
+enum WsAgentMessageRole {
+  user
+  assistant
+  system
+
+  @@map("ws_agent_message_role")
+}
+
+model WsAgentMessage {
+  id        String             @id @default(uuid()) @db.Uuid
+  tenantId  String             @map("tenant_id") @db.Uuid
+  draftId   String             @map("draft_id") @db.Uuid
+  actorId   String?            @map("actor_id")
+  role      WsAgentMessageRole
+  phase     String
+  text      String
+  data      Json               @default("{}")
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, draftId, createdAt])
+  @@map("ws_agent_message")
+}
+
+// ── Firm Blueprints: reusable, immutable versioned document blueprints ──────
+enum WsBlueprintScope {
+  capiro
+  firm
+
+  @@map("ws_blueprint_scope")
+}
+
+enum WsBlueprintVersionStatus {
+  draft
+  published
+  retired
+
+  @@map("ws_blueprint_version_status")
+}
+
+model WsBlueprint {
+  id          String           @id @default(uuid()) @db.Uuid
+  tenantId    String?          @map("tenant_id") @db.Uuid
+  scope       WsBlueprintScope
+  slug        String
+  name        String
+  product     String
+  description String?
+  ownerId     String?          @map("owner_id")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  versions WsBlueprintVersion[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, product])
+  @@map("ws_blueprint")
+}
+
+model WsBlueprintVersion {
+  id          String                   @id @default(uuid()) @db.Uuid
+  tenantId    String?                  @map("tenant_id") @db.Uuid
+  blueprintId String                   @map("blueprint_id") @db.Uuid
+  version     Int
+  status      WsBlueprintVersionStatus @default(draft)
+  definition  Json
+  definitionHash String                @map("definition_hash")
+  createdById String                   @map("created_by_id")
+  createdAt   DateTime                 @default(now()) @map("created_at")
+  publishedAt DateTime?                @map("published_at")
+  retiredAt   DateTime?                @map("retired_at")
+
+  blueprint WsBlueprint @relation(fields: [blueprintId], references: [id], onDelete: Cascade)
+
+  @@unique([blueprintId, version])
+  @@index([tenantId, status])
+  @@map("ws_blueprint_version")
+}
+
+// ── Revision Proposals: accept/reject workflow for agent-suggested edits ───
+enum WsAgentProposalStatus {
+  pending
+  accepted
+  rejected
+  stale
+
+  @@map("ws_agent_proposal_status")
+}
+
+model WsAgentProposal {
+  id           String                @id @default(uuid()) @db.Uuid
+  tenantId     String                @map("tenant_id") @db.Uuid
+  draftId      String                @map("draft_id") @db.Uuid
+  createdById  String                @map("created_by_id")
+  type         String
+  status       WsAgentProposalStatus @default(pending)
+  baseRevision Int                   @map("base_revision")
+  baseHash     String                @map("base_hash")
+  payload      Json
+  createdAt    DateTime              @default(now()) @map("created_at")
+  decidedAt    DateTime?             @map("decided_at")
+  decidedById  String?               @map("decided_by_id")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, draftId, createdAt])
+  @@map("ws_agent_proposal")
+}
+
+// ── Delivery: approval requests + secure share links ──────────────────────
+enum WsApprovalStatus {
+  pending
+  approved
+  rejected
+  expired
+
+  @@map("ws_approval_status")
+}
+
+model WsApprovalRequest {
+  id            String           @id @default(uuid()) @db.Uuid
+  tenantId      String           @map("tenant_id") @db.Uuid
+  draftId      String           @map("draft_id") @db.Uuid
+  requestedById String           @map("requested_by_id")
+  reviewerId    String?          @map("reviewer_id")
+  status       WsApprovalStatus @default(pending)
+  versionId    String?          @map("version_id") @db.Uuid
+  notes        String?
+  decisionNote String?           @map("decision_note")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  decidedAt    DateTime?         @map("decided_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, draftId, createdAt])
+  @@map("ws_approval_request")
+}
+
+model WsShareLink {
+  id          String    @id @default(uuid()) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  draftId     String    @map("draft_id") @db.Uuid
+  createdById String    @map("created_by_id")
+  tokenHash   String    @map("token_hash")
+  versionId   String?   @map("version_id") @db.Uuid
+  label       String?
+  expiresAt   DateTime? @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, draftId])
+  @@index([tokenHash])
+  @@map("ws_share_link")
 }
 
 // Collaboration status on a WsCollaborator row.

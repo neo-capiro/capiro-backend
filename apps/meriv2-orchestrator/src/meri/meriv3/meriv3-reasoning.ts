@@ -26,6 +26,7 @@ export function normalizeMeriV3ReasoningMode(value: unknown): MeriV3ReasoningMod
     : 'standard';
 }
 
+
 /**
  * Translate stable Capiro UX modes into the current OpenAI reasoning family,
  * effort, output ceiling and bounded tool-loop budget.

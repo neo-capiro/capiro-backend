@@ -153,7 +153,7 @@ describe('identifier-gated probes: entities / vehicle_awardees / vehicle_orders 
 });
 
 describe('genuinely unsupported probes (a fact about the SDK, not this run)', () => {
-  test('exclusions / dibbs / sbir_sttr / mcp_key_header_compatibility are ALWAYS unsupported', async () => {
+  test('exclusions / mcp_key_header_compatibility are ALWAYS unsupported', async () => {
     const client = fakeClient();
     const service = new TangoCapabilityProbeService();
     // Supply every identifier — proves these report unsupported regardless,
@@ -163,9 +163,107 @@ describe('genuinely unsupported probes (a fact about the SDK, not this run)', ()
       vehicleUuid: '11111111-1111-1111-1111-111111111111',
       requestCeiling: 100,
     });
-    for (const key of ['exclusions', 'dibbs', 'sbir_sttr', 'mcp_key_header_compatibility']) {
+    for (const key of ['exclusions', 'mcp_key_header_compatibility']) {
       expect(byKey(report, key).status).toBe('unsupported');
     }
+  });
+
+  /**
+   * D-62. `dibbs` and `sbir_sttr` USED TO BE in the list above, asserted
+   * `unsupported` — a status this file's own ProbeDef doc defines as "a fact
+   * about the provider/SDK surface itself". That was wrong, and the test
+   * cemented it: what had actually been verified was only that the SDK wraps
+   * neither dataset. Both have published REST APIs.
+   *
+   * `unsupported` for these two is now a REGRESSION, not a baseline.
+   */
+  test('dibbs and sbir_sttr are never reported `unsupported` — that was the D-62 error', async () => {
+    const client = fakeClient();
+    const service = new TangoCapabilityProbeService();
+    const report = await service.run(client, TEST_KEY, {
+      uei: 'ZZTESTUEI001',
+      vehicleUuid: '11111111-1111-1111-1111-111111111111',
+      requestCeiling: 100,
+    });
+
+    for (const key of ['dibbs', 'sbir_sttr']) {
+      const probe = byKey(report, key);
+      expect(probe.status).not.toBe('unsupported');
+      // No client was supplied, so this is a fact about the invocation.
+      expect(probe.status).toBe('not_attempted');
+      // And the reason must say the provider DOES document the endpoint,
+      // rather than telling a reader to escalate to MakeGov.
+      expect(probe.reason).toMatch(/provider DOES document/i);
+      expect(probe.reason).not.toMatch(/escalate to MakeGov/i);
+    }
+  });
+
+  test('a supplied DIBBS REST client makes the dibbs probe a REAL call', async () => {
+    const client = fakeClient();
+    const service = new TangoCapabilityProbeService();
+    const listRfqs = jest.fn(async () => ({ items: [], totalCount: 0, nextPage: null, rate: null }));
+    const report = await service.run(client, TEST_KEY, {
+      requestCeiling: 100,
+      dibbs: { configured: true, listRfqs, listRfps: jest.fn(), listAwards: jest.fn() } as any,
+    });
+
+    expect(listRfqs).toHaveBeenCalledTimes(1);
+    // The smallest possible shaped call — same read-only policy as every other
+    // probe in this file.
+    expect(listRfqs).toHaveBeenCalledWith({ limit: 1 });
+    expect(byKey(report, 'dibbs').status).toBe('supported');
+  });
+
+  /**
+   * P42 part 1. The mirror of the DIBBS case above, and the reason the client
+   * was built before any SBIR table: P42's plan gates the phase on "P17 must
+   * show access", and P17 could only ever answer `no_rest_client_wired` — a
+   * fact about Capiro's code (D-64), not an entitlement answer. A gate nothing
+   * can satisfy is not a gate; supplying a client is what makes the question
+   * answerable at all.
+   */
+  test('a supplied SBIR REST client makes the sbir_sttr probe a REAL call', async () => {
+    const client = fakeClient();
+    const service = new TangoCapabilityProbeService();
+    const listTopics = jest.fn(async () => ({
+      items: [],
+      totalCount: 0,
+      nextPage: null,
+      rate: null,
+    }));
+    const report = await service.run(client, TEST_KEY, {
+      requestCeiling: 100,
+      sbir: { configured: true, listTopics, listSolicitations: jest.fn() } as any,
+    });
+
+    expect(listTopics).toHaveBeenCalledTimes(1);
+    expect(listTopics).toHaveBeenCalledWith({ limit: 1 });
+    expect(byKey(report, 'sbir_sttr').status).toBe('supported');
+  });
+
+  test('a supplied SBIR client does not make the probe claim anything about DIBBS', async () => {
+    // The two REST surfaces are independent; wiring one must not change the
+    // other's reported status, which is how a phantom "supported" would appear.
+    const client = fakeClient();
+    const service = new TangoCapabilityProbeService();
+    const report = await service.run(client, TEST_KEY, {
+      requestCeiling: 100,
+      sbir: {
+        configured: true,
+        listTopics: jest.fn(async () => ({
+          items: [],
+          totalCount: 0,
+          nextPage: null,
+          rate: null,
+        })),
+        listSolicitations: jest.fn(),
+      } as any,
+    });
+
+    expect(byKey(report, 'sbir_sttr').status).toBe('supported');
+    const dibbs = byKey(report, 'dibbs');
+    expect(dibbs.status).toBe('not_attempted');
+    expect(dibbs.reason).toMatch(/no DIBBS REST client/i);
   });
 });
 
@@ -234,16 +332,27 @@ describe('authentication short-circuit', () => {
   });
 
   test('a null-call probe still reports its OWN status after an auth failure, not the auth reason', async () => {
-    // A genuine SDK gap (dibbs) is true regardless of whether this run's key
-    // authenticates — collapsing it into "skipped: auth failed" would erase a
+    // A genuine SDK gap (exclusions — no dedicated endpoint, the fields live on
+    // the Entity resource) is true regardless of whether this run's key
+    // authenticates. Collapsing it into "skipped: auth failed" would erase a
     // real, independent finding.
+    //
+    // This test used to use `dibbs` as its example. It no longer can: dibbs is
+    // not an SDK-gap probe any more (D-62), so it would be asserting the very
+    // claim that correction removed.
     const client = fakeClient({ getVersion: jest.fn(async () => { throw authError(); }) });
     const service = new TangoCapabilityProbeService();
     const report = await service.run(client, TEST_KEY, { requestCeiling: 100 });
 
+    const exclusions = byKey(report, 'exclusions');
+    expect(exclusions.status).toBe('unsupported');
+    expect(exclusions.reason).toMatch(/no dedicated exclusions endpoint/i);
+    expect(exclusions.reason).not.toMatch(/authentication failure/i);
+
+    // dibbs holds the same property for its own, different reason.
     const dibbs = byKey(report, 'dibbs');
-    expect(dibbs.status).toBe('unsupported');
-    expect(dibbs.reason).toMatch(/no method with "dibbs"/i);
+    expect(dibbs.status).toBe('not_attempted');
+    expect(dibbs.reason).toMatch(/provider DOES document/i);
     expect(dibbs.reason).not.toMatch(/authentication failure/i);
   });
 

@@ -55,6 +55,26 @@ export interface ChatMessageChartArtifact {
   title: string;
 }
 
+/**
+ * Retrieval plan metadata attached to a finished assistant message by the
+ * SSE `done` frame. Only the fields the scope label and coverage indicator
+ * need are stored here — the full frame (domains, timeWindow, toolsInvoked,
+ * …) is typed on the SseEvent side and stays optional end-to-end so legacy
+ * turns without retrieval still render.
+ */
+export interface ChatMessageRetrieval {
+  plan: {
+    subjectScope: string;
+    targetHint: string | null;
+    recipeTool: string | null;
+    queryClass: string;
+  };
+  coverage: {
+    complete: boolean;
+    stopReason: string;
+  };
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -67,6 +87,8 @@ export interface ChatMessage {
   feedback?: 'up' | 'down' | null;
   attachments?: ChatMessageAttachment[];
   chartArtifacts?: ChatMessageChartArtifact[];
+  /** Backend retrieval plan for this assistant turn (absent on legacy turns). */
+  retrieval?: ChatMessageRetrieval;
 }
 
 export interface ActiveDraftContext {
@@ -241,6 +263,20 @@ export function setChatMessageGroundingCaveat(id: string, groundingCaveat: Groun
   notify();
 }
 
+/**
+ * Attach the backend retrieval plan (from the SSE `done` frame) to a finished
+ * assistant message. Absent on legacy turns that don't forward retrieval
+ * metadata, so callers must treat `message.retrieval` as optional.
+ */
+export function setChatMessageRetrieval(
+  id: string,
+  retrieval: ChatMessageRetrieval,
+): void {
+  const messages = state.messages.map((m) => (m.id === id ? { ...m, retrieval } : m));
+  state = { ...state, messages };
+  notify();
+}
+
 export function setChatMessageSuggestions(id: string, suggestions: string[]): void {
   const messages = state.messages.map((m) => (m.id === id ? { ...m, suggestions } : m));
   state = { ...state, messages };
@@ -277,6 +313,17 @@ export function setStreaming(streaming: boolean): void {
 
 export function clearChatSession(): void {
   state = { ...state, messages: [], sessionId: null, isStreaming: false };
+  notify();
+}
+
+/**
+ * Atomically clear messages AND set the new session id in a single store
+ * update. This prevents a render where sessionId is null while isOpen is
+ * true, which would trigger the controller's auto-create-session effect
+ * and race with hydration (clearing the loaded messages).
+ */
+export function replaceChatSession(sessionId: string | null): void {
+  state = { ...state, messages: [], sessionId, isStreaming: false };
   notify();
 }
 

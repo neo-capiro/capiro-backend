@@ -108,6 +108,59 @@ describe('OpenAiResponsesClient', () => {
     expect(result.usedTenantKey).toBe(false);
   });
 
+  test('retries once without reasoning when the provider rejects reasoning.effort, then succeeds', async () => {
+    process.env.OPENAI_API_KEY = 'global-openai-key';
+    const rejection = JSON.stringify({
+      error: { message: "Unsupported parameter: 'reasoning.effort' is not supported with this model." },
+    });
+    const fetchMock = jest
+      .fn<Promise<Response>, Parameters<typeof fetch>>()
+      .mockResolvedValueOnce(new Response(rejection, { status: 400 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ...responseBody, model: 'gpt-5.6-terra' }), { status: 200 }),
+      );
+    global.fetch = fetchMock as typeof fetch;
+    const client = new OpenAiResponsesClient();
+    const result = await client.complete({
+      profile: resolveMeriV3ReasoningProfile('standard', {}),
+      instructions: 'Meri instructions',
+      input: [{ role: 'user', content: 'Help' }],
+      tools: [],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstSent = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as RequestInit).body),
+    ) as Record<string, unknown>;
+    const secondSent = JSON.parse(
+      String((fetchMock.mock.calls[1]?.[1] as RequestInit).body),
+    ) as Record<string, unknown>;
+    expect(firstSent).toHaveProperty('reasoning');
+    expect(secondSent).not.toHaveProperty('reasoning');
+    expect(result.outputText).toBe('Grounded answer.');
+  });
+
+  test('does not retry indefinitely if the provider keeps rejecting reasoning.effort', async () => {
+    process.env.OPENAI_API_KEY = 'global-openai-key';
+    const rejection = JSON.stringify({
+      error: { message: "Unsupported parameter: 'reasoning.effort' is not supported with this model." },
+    });
+    const fetchMock = jest.fn(
+      async () => new Response(rejection, { status: 400 }),
+    );
+    global.fetch = fetchMock as typeof fetch;
+    const client = new OpenAiResponsesClient();
+    await expect(
+      client.complete({
+        profile: resolveMeriV3ReasoningProfile('standard', {}),
+        instructions: 'Meri instructions',
+        input: [{ role: 'user', content: 'Help' }],
+        tools: [],
+      }),
+    ).rejects.toThrow(/reasoning\.effort/i);
+    // Exactly one retry for the reasoning-param correction, regardless of MAX_RETRIES.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   test('omits every tool field for the final tool-free synthesis request', async () => {
     process.env.OPENAI_API_KEY = 'global-openai-key';
     const fetchMock = jest.fn(

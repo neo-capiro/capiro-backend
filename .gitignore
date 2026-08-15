@@ -71,3 +71,12 @@ apps/api/scripts/__data__/_incoming/
 apps/api/scripts/__tools__/b2/
 apps/api/scripts/__tools__/b10/
 apps/api/scripts/__tools__/b11/
+
+# Negative-control runners journal their originals here so a killed run is
+# recoverable. An abandoned directory means a run was killed mid-mutation.
+.p*-nc-restore/
+
+# Generated vNext visual captures. CI uploads this directory as a build
+# artifact; the manifest's sha256 per capture is the evidence trail, so the
+# PNGs themselves do not belong in git history.
+apps/web/artifacts/vnext-visual/

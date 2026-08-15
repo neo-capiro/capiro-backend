@@ -24,6 +24,7 @@ import {
   appendChatMessage,
   clearChatSession,
   MeriSourceAttribution,
+  type ChatMessageRetrieval,
   type MeriCitation,
   type MeriVerification,
   getActiveDraft,
@@ -34,6 +35,7 @@ import {
   setChatOpen,
   setChatSession,
   setChatMessageCitations,
+  setChatMessageRetrieval,
   setChatMessageVerification,
   setChatMessageGroundingCaveat,
   setChatMessageSuggestions,
@@ -45,6 +47,7 @@ import {
   useChatStore,
 } from './chat-store.js';
 import { MERI_CONTEXT_PROMPT_EVENT, type MeriContextPromptRequest } from './meri-prompt.js';
+import { mayApplyApprovalResult, type ScopePersistStatus } from './meri-route-guards.js';
 import { isUsableAttachment, type StagedAttachment } from './ChatInput.js';
 import type { TrustStep } from './WorkPerformed.js';
 import type { CanvasArtifact } from './MeriCanvas.js';
@@ -117,7 +120,34 @@ type SseEvent =
       };
       preview: MeriActionPreview;
     }
-  | { type: 'done' }
+  // Retrieval plan forwarded by the orchestrator's `done` frame. Absent on
+  // legacy turns (and on turns that don't run the retrieval assistant), so
+  // `retrieval` stays optional and older clients keep working. The shape
+  // mirrors the backend's RetrievalFrame (version: 1).
+  | {
+      type: 'done';
+      retrieval?: {
+        plan: {
+          subjectScope: string;
+          targetHint: string | null;
+          recipeTool: string | null;
+          queryClass: string;
+          requireCompleteCoverage: boolean;
+          requiredDomains: string[];
+          timeWindow: { expression: string; withinDays: number } | null;
+          version: 1;
+        };
+        coverage: {
+          complete: boolean;
+          stopReason: string;
+          searchedDomains: string[];
+          missingDomains: string[];
+          partialDomains: string[];
+          toolsInvoked: string[];
+          version: 1;
+        };
+      };
+    }
   | { type: 'error'; message: string }
   | {
       type: 'draft_updated';
@@ -337,6 +367,16 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const location = useLocation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Every route/session boundary invalidates the previous async stream. Abort
+  // alone cannot prevent a read that had already resolved from dispatching one
+  // last SSE event into a newly selected conversation.
+  const streamEpochRef = useRef(0);
+  // Approval requests are separately asynchronous HTTP mutations. A route
+  // transition increments this epoch before any new thread hydrates so a late
+  // completion cannot repopulate cards or append an old thread's outcome.
+  const routeEpochRef = useRef(0);
+  const currentSessionRef = useRef<string | null>(sessionId);
+  currentSessionRef.current = sessionId;
 
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -369,8 +409,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // them in sendMessage's dependency array would evaluate them in the temporal
   // dead zone and throw on first render, so the call goes through these
   // (stable) refs, assigned once the real implementations exist.
-  const runApprovalRef = useRef<((proposalId: string) => Promise<void>) | null>(null);
-  const finishApprovalRoundRef = useRef<(() => void) | null>(null);
+  const runApprovalRef = useRef<
+    ((proposalId: string, sessionId?: string | null, routeEpoch?: number) => Promise<void>) | null
+  >(null);
+  const finishApprovalRoundRef = useRef<
+    ((sessionId?: string | null, routeEpoch?: number) => void) | null
+  >(null);
   const [approvingProposalId, setApprovingProposalId] = useState<string | null>(null);
   const [orchestratorTemplate, setOrchestratorTemplate] = useState<{
     heading: string;
@@ -378,6 +422,16 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   } | null>(null);
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   const [metaError, setMetaError] = useState<string | null>(null);
+  // Server-confirmed client scope. The send path must use persistedClientId,
+  // NOT the optimistic sessionClientId, to decide whether a send is safe.
+  // sessionClientId tracks the visual selection; persistedClientId tracks the
+  // durable server PATCH. They diverge while scope persistence is pending.
+  const [persistedClientId, setPersistedClientId] = useState<string | null>(null);
+  const [scopePersistStatus, setScopePersistStatus] = useState<ScopePersistStatus>('idle');
+  // Monotonically increasing scope intent. Each changeSessionClient captures
+  // the current value; on resolution it must still match to prevent an
+  // out-of-order A→B→C PATCH from overwriting C's state with B's result.
+  const scopeIntentRef = useRef(0);
   const [writeMode, setWriteMode] = useState(false);
   // Deep Research mode lives inside the chat: first message = topic (Meri plans +
   // asks clarifying questions), next message = answers (Meri runs the agentic
@@ -396,6 +450,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const [researchOffers, setResearchOffers] = useState<
     Record<string, { topic: string; reason?: string }>
   >({});
+  // The last finished assistant turn's retrieval plan, forwarded by the
+  // orchestrator's `done` frame. Drives the truthful thread scope label
+  // (CLIENT / PORTFOLIO / EXTERNAL RESEARCH / general) instead of the legacy
+  // "Scoped · <client>" placeholder. Reset to null when a new turn starts.
+  const [lastRetrieval, setLastRetrieval] = useState<ChatMessageRetrieval | null>(null);
   const [learnedMemories, setLearnedMemories] = useState<MeriLearnedMemory[]>([]);
   const [forgottenMemories, setForgottenMemories] = useState<MeriLearnedMemory[]>([]);
   const forgetTimersRef = useRef(new Map<string, number>());
@@ -517,7 +576,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     // global client filter, so the scope selector could display a client the
     // server had never been told about — the session then answered from the
     // whole firm's data while looking client-scoped (reported 2026-07-29).
-    setSessionClientId(active?.clientId ?? '');
+    const conversationClientId = active?.clientId ?? '';
+    setSessionClientId(conversationClientId);
+    // Sync persistedClientId with the server-confirmed scope. This is the
+    // authoritative value the send path checks against scopePersistStatus.
+    setPersistedClientId(conversationClientId || null);
+    setScopePersistStatus('idle');
     setMetaError(null);
   }, [conversations, activeConversationId]);
 
@@ -577,28 +641,39 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   }, [activeConversationId, authHeaders, isSavingMeta, selectedClientValue, sessionTitle]);
 
   /**
-   * Assign the session's client and PERSIST it immediately.
+   * Assign the session's client and PERSIST it immediately — transactional
+   * scope transition.
    *
-   * The scope selector used to be local state that only reached the server if
-   * the user ALSO clicked the save button, and a conversation-list refresh
-   * silently reverted an unsaved pick. Every turn reads
-   * clio_conversations.client_id, so an unsaved pick meant a session that looked
-   * scoped while every tool ran across the whole firm. Writing on change is what
-   * makes the displayed scope the scope the model is actually held to; on
-   * failure the selector snaps back rather than showing a scope the server
-   * doesn't have.
+   * On scope change:
+   * 1. clear staged attachments if client actually changes
+   * 2. set pending visual state (sessionClientId = new, scopePersistStatus = saving)
+   * 3. PATCH durable session scope
+   * 4. on success: commit persistedClientId, clear pending state
+   * 5. on failure: revert visual selection to persisted client, show error
+   *
+   * The send path MUST use only persistedClientId/server-confirmed scope.
+   * While scopePersistStatus === 'saving', Send is disabled.
+   *
+   * Uses a monotonically increasing scope intent to prevent out-of-order
+   * resolution: if A→B→C sends two PATCHes and B resolves after C starts,
+   * B's completion must NOT overwrite C's state.
    */
   const changeSessionClient = useCallback(
     async (clientId: string) => {
-      const previous = sessionClientId;
-      if (clientId === previous) return;
-      // No conversation yet (the session is still being created): refuse the
-      // pick outright rather than showing a scope nothing can be written to.
+      const previous = persistedClientId;
+      const nextClientId = clientId || null;
+      if (nextClientId === previous) return;
+      // No conversation yet: refuse the pick rather than showing a scope
+      // nothing can be written to.
       if (!activeConversationId) {
         setMetaError('The session is still starting — set the client scope again in a moment.');
         return;
       }
+      // Capture the intent sequence. Only the newest scope intent may commit.
+      const intent = ++scopeIntentRef.current;
+      // Optimistic visual state.
       setSessionClientId(clientId);
+      setScopePersistStatus('saving');
       setMetaError(null);
       setIsSavingMeta(true);
       try {
@@ -615,6 +690,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           throw new Error(text || `HTTP ${res.status}`);
         }
         const updated = await res.json();
+        // INTENT CHECK: if a newer scope change (C) started while this
+        // PATCH (B) was in flight, B must NOT overwrite C's state. Do not
+        // commit persistedClientId, do not clear the pending status, do
+        // not upsert the conversation.
+        if (intent !== scopeIntentRef.current) {
+          return;
+        }
         if (updated && typeof updated.id === 'string') {
           upsertConversation({
             id: updated.id,
@@ -628,18 +710,28 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
             updatedAt: updated.updatedAt,
           });
         }
+        setPersistedClientId(nextClientId);
+        setScopePersistStatus('idle');
       } catch (err) {
-        setSessionClientId(previous);
+        // INTENT CHECK: only the newest scope intent may revert UI on failure.
+        if (intent !== scopeIntentRef.current) {
+          return;
+        }
+        setSessionClientId(previous ?? '');
+        setScopePersistStatus('error');
         setMetaError(
           err instanceof Error
             ? `Could not change the client scope: ${err.message}`
             : 'Could not change the client scope',
         );
       } finally {
-        setIsSavingMeta(false);
+        // INTENT CHECK: only the newest intent may clear the saving flag.
+        if (intent === scopeIntentRef.current) {
+          setIsSavingMeta(false);
+        }
       }
     },
-    [activeConversationId, authHeaders, sessionClientId],
+    [activeConversationId, authHeaders, persistedClientId],
   );
 
   const archiveConversation = useCallback(async () => {
@@ -814,7 +906,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // ── Deep Research (in-chat) ────────────────────────────────────────────
   // Reads an SSE stream from a research endpoint, dispatching each event.
   const consumeResearchStream = useCallback(
-    async (path: string, controller: AbortController, onEvent: (e: ResearchSseEvent) => void) => {
+    async (
+      path: string,
+      controller: AbortController,
+      onEvent: (e: ResearchSseEvent) => void,
+      streamEpoch = streamEpochRef.current,
+    ) => {
       const res = await fetch(`${config.apiBaseUrl}${path}`, {
         method: 'POST',
         headers: await authHeaders(),
@@ -863,6 +960,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
         for (const line of lines) {
+          if (streamEpoch !== streamEpochRef.current) break outer;
           if (!line.startsWith('data: ')) continue;
           const jsonStr = line.slice(6).trim();
           if (!jsonStr) continue;
@@ -875,6 +973,9 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           onEvent(event);
           if (event.type === 'done') break outer;
         }
+      }
+      if (streamEpoch !== streamEpochRef.current) {
+        throw new DOMException('Meri route changed', 'AbortError');
       }
     },
     [authHeaders],
@@ -889,6 +990,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       setStreaming(true);
       const controller = new AbortController();
       abortRef.current = controller;
+      const streamEpoch = ++streamEpochRef.current;
 
       try {
         if (!researchSessionRef.current) {
@@ -903,6 +1005,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           });
           if (!created.ok) throw new Error(`Could not start research (HTTP ${created.status})`);
           const { id } = (await created.json()) as { id: string };
+          // A route change may happen while research creation is awaiting the
+          // server. Do not start its plan stream or write a session id into the
+          // destination thread once that request's epoch has been invalidated.
+          if (streamEpoch !== streamEpochRef.current) return;
           researchSessionRef.current = id;
 
           let planText = '';
@@ -929,14 +1035,14 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
             } else if (e.type === 'error') {
               updateChatMessage(assistantId, `Error: ${e.message}`);
             }
-          });
+          }, streamEpoch);
           // Render clarifying questions as an inline answer form (Claude-style),
           // not as text the user has to reply to free-form.
           setResearchQuestions(questions);
           setResearchAwaitingAnswers(questions.length > 0);
           if (questions.length === 0) {
             // No questions — go straight to the run.
-            await executeResearchRun(controller);
+            await executeResearchRun(controller, undefined, streamEpoch);
           }
           return;
         }
@@ -951,7 +1057,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         });
         setResearchAwaitingAnswers(false);
         setResearchQuestions([]);
-        await executeResearchRun(controller, assistantId);
+        await executeResearchRun(controller, assistantId, streamEpoch);
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return;
         updateChatMessage(
@@ -962,7 +1068,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         setResearchAwaitingAnswers(false);
         setResearchQuestions([]);
       } finally {
-        setStreaming(false);
+        if (streamEpoch === streamEpochRef.current) setStreaming(false);
       }
     },
     // executeResearchRun is stable via useCallback below; deps kept minimal.
@@ -990,7 +1096,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // message, threading tool steps into the trust timeline and the report text
   // into the message body. Records the finished session id for export actions.
   const executeResearchRun = useCallback(
-    async (controller: AbortController, existingAssistantId?: string) => {
+    async (
+      controller: AbortController,
+      existingAssistantId?: string,
+      streamEpoch = streamEpochRef.current,
+    ) => {
+      if (streamEpoch !== streamEpochRef.current) return;
       const id = researchSessionRef.current;
       if (!id) return;
       const assistantId = existingAssistantId ?? generateId();
@@ -1015,8 +1126,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         if (parts.length > 0) updateChatMessage(assistantId, parts.join('\n\n'));
       };
       try {
-        await consumeResearchStream(`/api/clio/research/${id}/stream`, controller, (e) => {
-          if (e.type === 'step') {
+        await consumeResearchStream(
+          `/api/clio/research/${id}/stream`,
+          controller,
+          (e) => {
+            if (e.type === 'step') {
             const label = e.label || e.tool;
             setTrustSteps((prev) => [...prev, { tool: e.tool, label, status: 'running' as const }]);
           } else if (e.type === 'source') {
@@ -1054,10 +1168,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           } else if (e.type === 'report' && typeof e.body === 'string') {
             report = e.body;
             updateChatMessage(assistantId, report);
-          } else if (e.type === 'error') {
-            updateChatMessage(assistantId, `${report}\n\n_Error: ${e.message}_`);
-          }
-        });
+            } else if (e.type === 'error') {
+              updateChatMessage(assistantId, `${report}\n\n_Error: ${e.message}_`);
+            }
+          },
+          streamEpoch,
+        );
       } catch (err) {
         // A stalled or dropped stream must end as a readable failure, not as a
         // message stuck on the last progress line. A user-initiated Stop keeps
@@ -1096,18 +1212,19 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       setStreaming(true);
       const controller = new AbortController();
       abortRef.current = controller;
+      const streamEpoch = ++streamEpochRef.current;
       try {
         await fetch(`${config.apiBaseUrl}/api/clio/research/${id}/clarify`, {
           method: 'POST',
           headers: await authHeaders(),
           body: JSON.stringify({ answers: skipped ? {} : answers }),
         });
-        await executeResearchRun(controller);
+        await executeResearchRun(controller, undefined, streamEpoch);
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return;
         researchSessionRef.current = null;
       } finally {
-        setStreaming(false);
+        if (streamEpoch === streamEpochRef.current) setStreaming(false);
       }
     },
     [authHeaders, executeResearchRun, isStreaming],
@@ -1134,14 +1251,16 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           appendChatMessage({ id: generateId(), role: 'user', content, createdAt: new Date() });
           const card = outstanding.length === 1 ? outstanding[0] : undefined;
           if (card) {
+            const approvalSessionId = currentSessionRef.current;
+            const approvalRouteEpoch = routeEpochRef.current;
             appendChatMessage({
               id: generateId(),
               role: 'assistant',
               content: `Approving **${card.preview.label}** and running it now.`,
               createdAt: new Date(),
             });
-            await runApprovalRef.current?.(card.proposalId);
-            finishApprovalRoundRef.current?.();
+            await runApprovalRef.current?.(card.proposalId, approvalSessionId, approvalRouteEpoch);
+            finishApprovalRoundRef.current?.(approvalSessionId, approvalRouteEpoch);
           } else {
             // Several actions are held. A typed "approve" does not say WHICH,
             // and guessing "all of them" would run writes off an ambiguous
@@ -1216,6 +1335,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       setStreaming(true);
       const controller = new AbortController();
       abortRef.current = controller;
+      const streamEpoch = ++streamEpochRef.current;
 
       try {
         const streamPayload: Record<string, unknown> = mode
@@ -1254,6 +1374,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           buffer = lines.pop() ?? '';
 
           for (const line of lines) {
+            // A route switch can race one final fulfilled reader.read(). Ignore
+            // that stale event rather than letting the former thread mutate the
+            // currently selected thread's shared controller state.
+            if (streamEpoch !== streamEpochRef.current) break outer;
             if (!line.startsWith('data: ')) continue;
             const jsonStr = line.slice(6).trim();
             if (!jsonStr) continue;
@@ -1393,6 +1517,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                 [assistantId]: { topic: event.topic, reason: event.reason },
               }));
             } else if (event.type === 'done') {
+              // Capture the backend retrieval plan (subjectScope, coverage)
+              // so the thread scope label reflects the actual retrieval scope
+              // instead of always printing "Client context · <client>".
+              if (event.retrieval) {
+                setChatMessageRetrieval(assistantId, event.retrieval);
+                setLastRetrieval(event.retrieval);
+              }
               break outer;
             } else if (event.type === 'error') {
               updateChatMessage(assistantId, `Error: ${event.message}`);
@@ -1438,7 +1569,9 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         if (err instanceof Error && err.name === 'AbortError') return;
         updateChatMessage(assistantId, 'Failed to get a response. Please try again.');
       } finally {
-        setStreaming(false);
+        // An older stream must never unlock a newly-selected thread or a newer
+        // request that is now in progress.
+        if (streamEpoch === streamEpochRef.current) setStreaming(false);
       }
     },
     [
@@ -1504,6 +1637,53 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     [authHeaders, messages],
   );
 
+  /**
+   * Discard transient, per-turn state before the vNext router changes thread.
+   *
+   * Staged attachment ids belong to a single prospective user turn. Leaving
+   * them in the shared controller while a route moves from one thread/client to
+   * another could attach the prior thread's files to the next Send. Aborting
+   * also stops an old SSE request before it can project transient execution
+   * state (plans, trust steps, proposals, or an artifact) into the next thread.
+   * Durable messages and conversations intentionally remain untouched.
+   */
+  const invalidateRouteStream = useCallback(() => {
+    // Keep durable conversation-scoped UI (notably pending approvals and staged
+    // draft attachments) intact when navigating to integrations and back. The
+    // epoch is the authority that prevents the cancelled request from delivering
+    // a late event afterward; transient execution state belongs to that request.
+    streamEpochRef.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setStreaming(false);
+    setTrustSteps([]);
+    setPlanSteps([]);
+    setOrchestratorIntent(null);
+    setOrchestratorTier(null);
+    setOrchestratorConflict(null);
+    setOrchestratorTemplate(null);
+    setActiveArtifact(null);
+    setResearchAwaitingAnswers(false);
+    setResearchQuestions([]);
+    researchSessionRef.current = null;
+  }, []);
+
+  const discardRouteState = useCallback(() => {
+    // A different conversation is a hard ownership boundary. Unlike a detour to
+    // integrations, nothing transient from the old session may cross this line.
+    // Approval HTTP requests cannot be aborted, so invalidate their completions
+    // only at an actual session ownership transition—not integrations navigation.
+    routeEpochRef.current += 1;
+    invalidateRouteStream();
+    setStagedAttachments([]);
+    setAttachmentNotice(null);
+    setPendingApprovals([]);
+    setApprovingProposalId(null);
+    executedThisRoundRef.current = [];
+    setResearchOffers({});
+    setLastRetrieval(null);
+  }, [invalidateRouteStream]);
+
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
     setStreaming(false);
@@ -1533,24 +1713,45 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // anything) to say next.
   const executedThisRoundRef = useRef<PendingApproval[]>([]);
 
-  const finishApprovalRound = useCallback(() => {
-    const executed = executedThisRoundRef.current;
-    executedThisRoundRef.current = [];
-    if (executed.length === 0) return;
-    // Include each action's own outcome. For create_client a succeeded result
-    // carries "Name (id …)" in its summary, which the model needs in history
-    // to propose the matching update_client_profile — otherwise it invents a
-    // clientId from the display name and the follow-up write 404s.
-    const names = executed
-      .map((p) => `${p.preview.label} — ${describeApprovalOutcome(p)}`)
-      .join('; ');
-    appendChatMessage({
-      id: generateId(),
-      role: 'assistant',
-      content: `${names}.`,
-      createdAt: new Date(),
-    });
-  }, []);
+  const finishApprovalRound = useCallback(
+    (
+      approvalSessionId = currentSessionRef.current,
+      approvalRouteEpoch = routeEpochRef.current,
+    ) => {
+      // Check ownership BEFORE taking/clearing the shared round accumulator. A
+      // late completion from the old thread must not discard an outcome that the
+      // newly selected thread has accumulated in the meantime.
+      if (
+        !approvalSessionId ||
+        !mayApplyApprovalResult(
+          approvalSessionId,
+          currentSessionRef.current,
+          approvalRouteEpoch,
+          routeEpochRef.current,
+        )
+      ) {
+        return;
+      }
+      const executed = executedThisRoundRef.current;
+      executedThisRoundRef.current = [];
+      if (executed.length === 0) return;
+
+      // Include each action's own outcome. For create_client a succeeded result
+      // carries "Name (id …)" in its summary, which the model needs in history
+      // to propose the matching update_client_profile — otherwise it invents a
+      // clientId from the display name and the follow-up write 404s.
+      const names = executed
+        .map((p) => `${p.preview.label} — ${describeApprovalOutcome(p)}`)
+        .join('; ');
+      appendChatMessage({
+        id: generateId(),
+        role: 'assistant',
+        content: `${names}.`,
+        createdAt: new Date(),
+      });
+    },
+    [],
+  );
 
   /**
    * Approve (or retry) ONE held write and record the outcome on its card.
@@ -1562,14 +1763,46 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
    * (Approve all finishes once, not once per card).
    */
   const runApproval = useCallback(
-    async (proposalId: string) => {
+    async (
+      proposalId: string,
+      approvalSessionId = currentSessionRef.current,
+      approvalRouteEpoch = routeEpochRef.current,
+    ) => {
+      // PRE-AWAIT CHECK: verify ownership before acquiring auth headers.
+      if (
+        !approvalSessionId ||
+        !mayApplyApprovalResult(
+          approvalSessionId,
+          currentSessionRef.current,
+          approvalRouteEpoch,
+          routeEpochRef.current,
+        )
+      ) {
+        return;
+      }
       setApprovingProposalId(proposalId);
       try {
+        // authHeaders() is async — a route change can occur while it is pending.
+        const headers = await authHeaders();
+
+        // PRE-DISPATCH CHECK: re-verify ownership immediately before the
+        // server-write fetch. Without this, a stale approval POST can still
+        // execute after the user navigated away during header acquisition.
+        if (
+          !mayApplyApprovalResult(
+            approvalSessionId,
+            currentSessionRef.current,
+            approvalRouteEpoch,
+            routeEpochRef.current,
+          )
+        ) {
+          return;
+        }
         const res = await fetch(
           `${config.apiBaseUrl}/api/clio/action-proposals/${proposalId}/approve`,
           {
             method: 'POST',
-            headers: await authHeaders(),
+            headers,
             body: JSON.stringify({}),
           },
         );
@@ -1580,12 +1813,38 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           return;
         }
         const proposal = (await res.json()) as PendingApproval;
+        // POST-RESPONSE CHECK: a prior conversation's approval may finish after
+        // a route switch. The server-side mutation remains authoritative, but
+        // its outcome must never repopulate the new thread's cards or append to
+        // its transcript.
+        if (
+          !mayApplyApprovalResult(
+            approvalSessionId,
+            currentSessionRef.current,
+            approvalRouteEpoch,
+            routeEpochRef.current,
+          )
+        ) {
+          return;
+        }
         setPendingApprovals((prev) => upsertProposal(prev, proposal));
         if (proposal.status !== 'proposed' && proposal.status !== 'executing') {
           executedThisRoundRef.current = [...executedThisRoundRef.current, proposal];
         }
       } finally {
-        setApprovingProposalId(null);
+        // FINALLY CHECK: only clear the approving lock if this operation still
+        // owns the current route/session. A stale approval must not unlock a
+        // newer thread's controls.
+        if (
+          mayApplyApprovalResult(
+            approvalSessionId,
+            currentSessionRef.current,
+            approvalRouteEpoch,
+            routeEpochRef.current,
+          )
+        ) {
+          setApprovingProposalId(null);
+        }
       }
     },
     [authHeaders],
@@ -1597,8 +1856,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const handleApprovePending = useCallback(
     async (proposalId: string) => {
       if (isStreaming || approvingProposalId) return;
-      await runApproval(proposalId);
-      finishApprovalRound();
+      const approvalSessionId = currentSessionRef.current;
+      const approvalRouteEpoch = routeEpochRef.current;
+      await runApproval(proposalId, approvalSessionId, approvalRouteEpoch);
+      finishApprovalRound(approvalSessionId, approvalRouteEpoch);
     },
     [isStreaming, approvingProposalId, runApproval, finishApprovalRound],
   );
@@ -1613,11 +1874,45 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
    */
   const handleApproveAll = useCallback(async () => {
     if (isStreaming || approvingProposalId) return;
+    const approvalSessionId = currentSessionRef.current;
+    const approvalRouteEpoch = routeEpochRef.current;
+    if (!approvalSessionId) return;
     const outstanding = outstandingApprovals(pendingApprovalsRef.current);
     for (const card of outstanding) {
-      await runApproval(card.proposalId);
+      // PRE-ITEM CHECK: verify ownership before starting this item's approval.
+      if (
+        !mayApplyApprovalResult(
+          approvalSessionId,
+          currentSessionRef.current,
+          approvalRouteEpoch,
+          routeEpochRef.current,
+        )
+      ) {
+        // Route changed mid-loop: stop immediately, dispatch no further
+        // approvals, do not clear the new route's state, and do not call
+        // finishApprovalRound against another session.
+        return;
+      }
+      // runApproval has its own pre-dispatch ownership check after
+      // authHeaders() resolves. If the route changes during header
+      // acquisition, the POST is never sent.
+      await runApproval(card.proposalId, approvalSessionId, approvalRouteEpoch);
+
+      // POST-ITEM CHECK: if ownership was lost during this item's approval,
+      // stop the loop immediately. Do not start the next item, do not
+      // finish the round against a different session.
+      if (
+        !mayApplyApprovalResult(
+          approvalSessionId,
+          currentSessionRef.current,
+          approvalRouteEpoch,
+          routeEpochRef.current,
+        )
+      ) {
+        return;
+      }
     }
-    finishApprovalRound();
+    finishApprovalRound(approvalSessionId, approvalRouteEpoch);
   }, [isStreaming, approvingProposalId, runApproval, finishApprovalRound]);
 
   /**
@@ -1673,6 +1968,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   useEffect(() => {
     setPendingApprovals([]);
     setResearchOffers({});
+    setLastRetrieval(null);
     executedThisRoundRef.current = [];
   }, [sessionId]);
 
@@ -1930,6 +2226,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     // A scope that changes without being written to the conversation is the
     // 2026-07-29 cross-client leak — changeSessionClient is the only way in.
     changeSessionClient,
+    scopePersistStatus,
+    persistedClientId,
     activeConversationId,
     isSavingMeta,
     metaError,
@@ -1954,6 +2252,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     researchReports,
     researchOffers,
     handleRunResearchOffer,
+    lastRetrieval,
     lastUserMessageId,
     editingMessageId,
     setEditingMessageId,
@@ -1990,6 +2289,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     fetchResearchExport,
     submitResearchAnswers,
     handleStop,
+    invalidateRouteStream,
+    discardRouteState,
     handleAttachFiles,
     removeStagedAttachment,
     setWriteMode,

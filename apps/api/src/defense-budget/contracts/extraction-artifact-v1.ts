@@ -152,6 +152,34 @@ export const EXTRACTION_METHOD_V1_VALUES = [
 export const extractionMethodV1Schema = z.enum(EXTRACTION_METHOD_V1_VALUES);
 export type ExtractionMethodV1 = z.infer<typeof extractionMethodV1Schema>;
 
+/**
+ * Every method, ordered most-risky first.
+ *
+ * One artifact may carry several parser runs (a composed artifact assembled
+ * from more than one parser), so anything that has to name *the* extraction
+ * method for a candidate needs a total order rather than a set. Resolving to
+ * the earliest entry present is deliberately conservative: it can only ever
+ * make a downstream segregation-of-duties check stricter, never weaker.
+ *
+ * The first three entries must stay identical to
+ * `HIGH_RISK_EXTRACTION_METHOD_V1_VALUES` in
+ * `promotion/promotion-eligibility-v1.ts`, which is asserted by a test rather
+ * than left to convention — that constant is what
+ * `deriveSegregationEvidenceV1` consults, and the two silently diverging is
+ * exactly how a high-risk artifact would stop being treated as one. After
+ * those: model- and heuristic-driven parsers, then deterministic extraction,
+ * then native structured data.
+ */
+export const EXTRACTION_METHOD_RISK_PRECEDENCE_V1 = [
+  'manual',
+  'paddleocr',
+  'llamaparse',
+  'docling',
+  'camelot',
+  'deterministic_pdfplumber',
+  'native_structured',
+] as const satisfies readonly ExtractionMethodV1[];
+
 /* ------------------------------------------------------------------ */
 /* A5. Parser-run schema                                               */
 /* ------------------------------------------------------------------ */

@@ -39,6 +39,7 @@ import type {
   PersistedRunV1,
   PersistedReviewDecisionV1,
 } from './verification-repository.js';
+import { tryDeriveCandidateSourceMetadataV1 } from '../candidate-source-metadata-v1.js';
 import {
   mapCheckToRow,
   mapDiscrepancyToRow,
@@ -216,9 +217,25 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
 
         if (existing) {
           assertValidTransition(existing.status, 'VALIDATING');
+          // Re-verifying an existing candidate also self-heals its source
+          // metadata. Safe to overwrite rather than only fill NULLs: the unique
+          // identity this row was found by already pins
+          // `extractionArtifactSha256`, so the same artifact cannot legitimately
+          // derive different values than it did last time.
+          const existingMetadata =
+            input.artifact != null ? tryDeriveCandidateSourceMetadataV1(input.artifact) : null;
           const reactivate = await tx.budgetExtractionCandidateV1.updateMany({
             where: { id: existing.id },
-            data: { status: 'VALIDATING', updatedAt: new Date() },
+            data: {
+              status: 'VALIDATING',
+              updatedAt: new Date(),
+              ...(existingMetadata != null
+                ? {
+                    family: existingMetadata.family,
+                    extractionMethod: existingMetadata.extractionMethod,
+                  }
+                : {}),
+            },
           });
           if (reactivate.count !== 1) {
             throw new VerificationConcurrencyError(
@@ -227,6 +244,15 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
           }
           candidateIdToUse = existing.id;
         } else {
+          // Phase 7 Gap 5 decision 1: derived here, from the artifact this
+          // verification already resolved and hash-verified, rather than left
+          // for promotion eligibility to rediscover. `tryDerive` returns null
+          // for an artifact that cannot answer the question (no parser runs, or
+          // family `unknown`) so a metadata concern introduced after this table
+          // existed cannot start failing verifications — NULL is a refusal at
+          // the promotion boundary, which is the boundary that cares.
+          const sourceMetadata =
+            input.artifact != null ? tryDeriveCandidateSourceMetadataV1(input.artifact) : null;
           await tx.budgetExtractionCandidateV1.create({
             data: {
               id: candidateId,
@@ -242,6 +268,8 @@ export class PrismaBudgetVerificationRepositoryV1 implements BudgetVerificationR
               policyVersion: candidateIdentity.policyVersion,
               policySha256: candidateIdentity.policySha256,
               status: 'VALIDATING',
+              family: sourceMetadata?.family ?? null,
+              extractionMethod: sourceMetadata?.extractionMethod ?? null,
             },
           });
         }

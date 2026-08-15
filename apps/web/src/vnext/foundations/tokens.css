@@ -1,0 +1,206 @@
+.capiro-vnext-root {
+  /* Typography — approved handoff family stack. No font binaries are owned here. */
+  --capiro-type-family-sans: 'Hanken Grotesk', 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --capiro-type-family-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  --capiro-type-family-serif: 'Source Serif 4', 'Iowan Old Style', Charter, Georgia, serif;
+  --capiro-type-size-body-sm: 13px;
+  --capiro-type-size-body-md: 14px;
+  --capiro-type-size-title-sm: 17px;
+  --capiro-type-size-title-md: 22px;
+  --capiro-type-size-title-lg: 29px;
+  --capiro-type-size-display-sm: 32px;
+  --capiro-type-line-body-sm: 20px;
+  --capiro-type-line-body-md: 22px;
+
+  /* Canvas + surface. */
+  --capiro-color-bg-canvas: #f0f1f4;
+  --capiro-color-bg-page: #f2f3f5;
+  --capiro-color-bg-surface: #ffffff;
+  --capiro-color-bg-surface-2: #f8fafb;
+  --capiro-color-bg-subtle: #eaedf1;
+  --capiro-color-bg-sunken: #eef1f5;
+  --capiro-color-bg-dark: #172737;
+  --capiro-color-bg-dark-2: #21384d;
+  --capiro-color-bg-interactive-primary: #131a24;
+  --capiro-color-bg-destructive: #a32b23;
+  --capiro-color-bg-skeleton-highlight: #f5f6f8;
+  --capiro-color-bg-navigation-hover: rgba(255, 255, 255, 0.55);
+  --capiro-color-bg-foundation-banner: rgba(255, 255, 255, 0.6);
+  --capiro-color-bg-overlay-scrim: rgba(19, 26, 36, 0.36);
+  --capiro-color-bg-accent-soft: #eaf0f4;
+
+  /* Text. */
+  --capiro-color-text-primary: #131a24;
+  --capiro-color-text-heading: #17212c;
+  --capiro-color-text-secondary: #48525f;
+  --capiro-color-text-body-secondary: #53606d;
+  --capiro-color-text-muted: #616b79;
+  --capiro-color-text-muted-2: #6d7783;
+  --capiro-color-text-accent: #294e68;
+  --capiro-color-text-success: #2f7655;
+  --capiro-color-text-inverse-primary: #ffffff;
+  /* Was #d1dbe3, which was stale. Figma's semantic `color/text/inverse-secondary`
+     resolves to `brand/inverse-body` = #e1e6ed in both Product and Brand modes
+     (verified by Neo against the file, 2026-08-11). */
+  --capiro-color-text-inverse-secondary: #e1e6ed;
+  --capiro-color-text-inverse-muted: #b9c5cf;
+
+  /* Icons. Figma's semantic `color/icon/accent` resolves to the same accent
+     blue-dark primitive the accent rails and orientation marks use. */
+  --capiro-color-icon-accent: var(--capiro-primitive-accent-blue-dark);
+
+  /* Borders. */
+  --capiro-color-border-default: #dfe2e8;
+  --capiro-color-border-page: #dce1e6;
+  --capiro-color-border-quiet: #eaedf1;
+  --capiro-color-border-information: #1c4e7a;
+  --capiro-color-border-divider: #e4e7eb;
+  --capiro-color-border-control: #d7dbe2;
+  --capiro-color-border-strong: #c5cdd6;
+  --capiro-color-shell-search-border: #d7e0eb;
+
+  /* Menu/overlay surfaces (Figma 728:2575). */
+  --capiro-color-bg-selected: #e6e9ef;
+  /* Read from the Figma node code rather than sampled off a render. */
+  --capiro-color-text-information: #1c4e7a;
+  --capiro-color-text-warning: #8a6218;
+  /* STALE / SOURCE UNAVAILABLE raise the module border (754:2919, 754:2932). */
+  --capiro-color-border-warning: #8a6218;
+  --capiro-color-border-badge: #eceef2;
+  --capiro-status-badge-height: 24px;
+  /* The sidebar is its own cooler surface, not the generic subtle grey. */
+  --capiro-color-bg-sidebar: #f3f6fa;
+  --capiro-color-border-strong: #b6bfcc;
+  --capiro-color-text-faint: #8792a3;
+  --capiro-color-bg-flyout-hover: #f6f7fa;
+  --capiro-color-text-destructive: #a32b23;
+  --capiro-primitive-overlay-ink-16: rgba(19, 26, 36, 0.16);
+
+  /* Brand/signature actions. */
+  --capiro-color-action-primary-default: #131a24;
+  --capiro-color-action-primary-hover: #252d38;
+  --capiro-color-action-secondary-default: #ffffff;
+  --capiro-color-action-accent-default: #294e68;
+  --capiro-color-action-accent-hover: #223f55;
+  --capiro-color-action-meri-default: #2f63f5;
+  --capiro-color-action-meri-hover: #2858dd;
+  /* SendMeriButton's Attending/Attended states (meetings-ui.tsx), reused as-is
+     on the Dashboard rather than reskinned — these are its literal established
+     production values, already live on HomePage's own meeting rows, not new
+     colors invented for vNext. */
+  --capiro-primitive-meri-attending-soft-bg: #dee6f8;
+  --capiro-primitive-meri-attended-bg: #efece4;
+  --capiro-primitive-meri-attended-border: #e6e1d6;
+  --capiro-primitive-meri-attended-ink: #8a8780;
+  --capiro-color-action-meri-text: #ffffff;
+  --capiro-color-shell-signature-primary: #2f63f5;
+  --capiro-color-shell-signature-secondary: #32c7d7;
+  --capiro-color-shell-nav-default: #4a5260;
+  --capiro-color-shell-nav-current-bg: #e7eefd;
+  --capiro-color-shell-nav-current-text: #1d48c9;
+  /* Navigation/TopItem hover + disabled states (432:127, 432:131). */
+  --capiro-color-shell-nav-hover-bg: #ebf0f7;
+  --capiro-color-shell-nav-disabled: #aab5c4;
+  --capiro-color-shell-search-bg: #ffffff;
+  --capiro-color-shell-search-text: #636c7a;
+
+  /* Semantic state — exact Strategy/LegiWatch surface values. */
+  --capiro-color-success: #2f7655;
+  --capiro-color-success-rail: #3c936b;
+  --capiro-color-success-soft: #eaf6ef;
+  --capiro-color-warning: #9b5b17;
+  --capiro-color-warning-rail: #c67a2e;
+  --capiro-color-warning-soft: #fff4e6;
+  --capiro-color-danger: #9c3d46;
+  --capiro-color-danger-rail: #b84f59;
+  --capiro-color-danger-soft: #fceaec;
+  --capiro-color-info: #2147a8;
+  --capiro-color-info-rail: #2f63f5;
+  --capiro-color-info-soft: #e8eeff;
+  --capiro-color-neutral-rail: #6e7782;
+
+  /* Spacing. */
+  --capiro-space-01: 4px;
+  --capiro-space-02: 8px;
+  --capiro-space-03: 12px;
+  --capiro-space-04: 16px;
+  --capiro-space-05: 20px;
+  --capiro-space-06: 24px;
+  --capiro-space-08: 32px;
+  --capiro-space-10: 40px;
+
+  /* Controls/layout. */
+  --capiro-control-height-compact: 32px;
+  --capiro-control-height-standard: 36px;
+  --capiro-control-min-width-button: 120px;
+  --capiro-layout-shell-topbar-height: 64px;
+  --capiro-layout-shell-sidebar-expanded: 232px;
+  --capiro-layout-shell-sidebar-collapsed: 72px;
+  --capiro-layout-shell-nav-item-height: 44px;
+  --capiro-layout-shell-icon-container: 32px;
+  /* Context Bar 722:2589 is 44px tall; both names resolve to that one frame. */
+  --capiro-layout-shell-context-height: 44px;
+  --capiro-layout-contextbar-height: 44px;
+  --capiro-layout-page-max: 1320px;
+  /* Navigation/TopItem (432:133) — route tabs, not sidebar rail items. */
+  --capiro-navigation-top-item-height: 34px;
+  --capiro-navigation-top-item-padding-x: 12px;
+
+  /* Radius. */
+  --capiro-radius-control: 8px;
+  --capiro-radius-shell-control: 10px;
+  --capiro-radius-navigation: 10px;
+  --capiro-radius-surface: 10px;
+  --capiro-radius-widget: 12px;
+  /* Figma emits `radius/circular` for pills and person marks. */
+  --capiro-radius-circular: 9999px;
+
+  /* Elevation. */
+  /* Canonical Figma primitives consumed by `Pattern/Shell/AppNavigation vNext`
+     (1126:2640). These are file-wide primitives, not Dashboard one-offs, and the
+     names below are the source-of-truth mapping to Figma — do not rename them or
+     repurpose an unrelated existing primitive in their place. Consume these via
+     var() in the shell; never inline the hex. */
+  --capiro-primitive-accent-blue-dark: #294e68;
+  --capiro-primitive-shell-porcelain: #fbfcfe;
+  --capiro-primitive-product-ink: #121722;
+  --capiro-primitive-product-ink-secondary: #4a5260;
+  --capiro-primitive-brand-inverse-line: #2f3c50;
+  --capiro-primitive-product-border: #e2e5eb;
+  /* The Directory vNext screens (937:2539, 938:2628, 939:2736, 944:2867) render
+     the sidebar on Figma's warm-paper primitive. It is recorded here as the
+     source-of-truth primitive, but the shared shell deliberately still paints
+     itself with `--capiro-color-bg-sidebar`: repointing that token would reskin
+     Dashboard/LegiWatch/Strategies too, which is outside this change's scope and
+     is not covered by the shell regression tests. */
+  --capiro-primitive-warm-paper: #f5f0e3;
+
+  --capiro-primitive-shadow-shell: rgba(7, 16, 29, 0.06);
+  --capiro-primitive-shadow-widget: rgba(7, 16, 29, 0.08);
+  --capiro-primitive-shadow-deep: rgba(7, 16, 29, 0.18);
+  --capiro-primitive-highlight-white-72: rgba(255, 255, 255, 0.72);
+  --capiro-shadow-meri: rgba(47, 99, 245, 0.3);
+  --capiro-shadow-accent: rgba(41, 78, 104, 0.16);
+
+  /* Focus, motion and layer ordering. */
+  --capiro-focus-ring: 0 0 0 3px rgba(47, 99, 245, 0.22);
+  /* Inset twin of the ring above, for controls that sit inside a scroll
+     container. An outer box-shadow paints outside the border box and is
+     therefore clipped by any ancestor with overflow other than visible — a
+     horizontally scrollable tab strip is the case that matters here. The inset
+     form renders within the control's own box, so focus stays visible with no
+     change to layout geometry. Higher alpha because it composites over the
+     control's own background rather than the page. */
+  --capiro-focus-ring-inset: inset 0 0 0 2px rgba(47, 99, 245, 0.55);
+  --capiro-motion-fast: 120ms;
+  --capiro-motion-standard: 180ms;
+  --capiro-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --capiro-z-base: 0;
+  --capiro-z-sticky: 20;
+  --capiro-z-popover: 100;
+  --capiro-z-modal: 200;
+  --capiro-z-toast: 300;
+
+  color: var(--capiro-color-text-primary);
+  background: var(--capiro-color-bg-canvas);
+}

@@ -1,0 +1,156 @@
+# Shared federal-market release gate.
+#
+# Absolute within scope: clean migration replay, no skipped/todo targeted tests,
+# script + app typechecks, and both production builds. The workflow always
+# reports; an internal diff gate avoids the required-check/path-filter trap.
+name: federal-market-ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  federal-market:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro?schema=public
+      PSQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/capiro
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Is this change in scope?
+        id: scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "in_scope=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base="${{ github.event.pull_request.base.sha }}"
+          changed=$(git diff --name-only "$base"...HEAD)
+          echo "$changed" | sed 's/^/  /'
+          if echo "$changed" | grep -Eq '^(apps/api/(prisma/migrations/2026100101[01]000_tango_subaward|scripts/sync-tango-subawards|src/external/tango/tango-subaward|src/federal-spending/|src/meri/(governed-meri-tools\.proxy|meri\.module)|tsconfig\.funding-opportunities\.json)|apps/web/src/(App\.tsx|components/AppShellV2\.tsx|components/chat/(ChatMessage|MeriWorkspaceWindow|meri-window|meri-source-strip)|pages/intelligence/federal-spending/|pages/intelligence/district-nexus/(DistrictFederalMarketPanel|DistrictNexusPage|DistrictNexusDrawer|district-federal-market))|docs/plans/tango-shared-intelligence-consumers\.md|\.github/workflows/federal-market-ci\.yml)'; then
+            echo "in_scope=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "in_scope=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.scope.outputs.in_scope == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.scope.outputs.in_scope == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install with frozen lockfile
+        if: steps.scope.outputs.in_scope == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma clients
+        if: steps.scope.outputs.in_scope == 'true'
+        run: |
+          pnpm --filter @capiro/api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
+          pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/onboard-api exec prisma generate
+          pnpm --filter @capiro/api-strategy exec prisma generate
+
+      - name: Build workspace packages
+        if: steps.scope.outputs.in_scope == 'true'
+        run: pnpm --filter "./packages/*" build
+
+      - name: Validate Prisma schema
+        if: steps.scope.outputs.in_scope == 'true'
+        run: pnpm --filter @capiro/api exec prisma validate
+
+      - name: Replay migrations into clean pgvector/PostgreSQL
+        if: steps.scope.outputs.in_scope == 'true'
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter @capiro/api exec prisma migrate deploy 2>&1 | tee migration-deploy.log
+          grep -q '20261001010000_tango_subaward_intelligence' migration-deploy.log || {
+            echo '::error::tango subaward migration was not applied'
+            exit 1
+          }
+          grep -q '20261001011000_tango_subaward_reobservation_freshness' migration-deploy.log || {
+            echo '::error::tango subaward freshness migration was not applied'
+            exit 1
+          }
+
+      - name: Assert federal-market database objects
+        if: steps.scope.outputs.in_scope == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(psql "$PSQL_DATABASE_URL" -tAc "SELECT count(*) FROM information_schema.tables WHERE table_name='tango_subaward'")" = "1"
+          test "$(psql "$PSQL_DATABASE_URL" -tAc "SELECT count(*) FROM information_schema.tables WHERE table_name='tango_subaward_sync_checkpoint'")" = "1"
+          test "$(psql "$PSQL_DATABASE_URL" -tAc "SELECT count(*) FROM pg_indexes WHERE indexname='tango_subaward_district_idx'")" = "1"
+          test "$(psql "$PSQL_DATABASE_URL" -tAc "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_subaward' AND column_name='subaward_amount'")" = "YES"
+          test "$(psql "$PSQL_DATABASE_URL" -tAc "SELECT count(*) FROM pg_class WHERE relname='tango_subaward' AND relrowsecurity")" = "0"
+          test "$(psql "$PSQL_DATABASE_URL" -tAc "SELECT count(*) FROM pg_trigger WHERE tgname='tango_subaward_touch_same_observation_trg' AND NOT tgisinternal")" = "1"
+
+      - name: Typecheck provider sync and apps
+        if: steps.scope.outputs.in_scope == 'true'
+        run: |
+          pnpm --filter @capiro/api exec tsc -p tsconfig.funding-opportunities.json --noEmit
+          pnpm turbo run typecheck --filter=@capiro/api --filter=@capiro/web
+
+      - name: API tests — shared federal market
+        if: steps.scope.outputs.in_scope == 'true'
+        run: >-
+          pnpm --filter @capiro/api exec jest --ci --runInBand
+          src/external/tango/tango-subaward.client.spec.ts
+          src/external/tango/tango-subaward.mapper.spec.ts
+          scripts/sync-tango-subawards.spec.ts
+          src/federal-spending/federal-market.service.spec.ts
+          src/federal-spending/federal-market-geography.service.spec.ts
+          src/federal-spending/federal-market-meri-tools.service.spec.ts
+
+      - name: Web tests — simplified cross-surface UX
+        if: steps.scope.outputs.in_scope == 'true'
+        run: >-
+          pnpm --filter @capiro/web exec vitest run
+          --testTimeout=20000 --hookTimeout=20000
+          src/pages/intelligence/federal-spending/FederalSpendingPage.test.tsx
+          src/pages/intelligence/district-nexus/DistrictFederalMarketPanel.test.tsx
+          src/components/chat/ChatMessage.test.tsx
+          src/components/chat/meri-window.test.ts
+          src/components/chat/MeriWorkspaceWindow.test.tsx
+
+      - name: Build API and web
+        if: steps.scope.outputs.in_scope == 'true'
+        run: |
+          pnpm --filter @capiro/api build
+          pnpm --filter @capiro/web build
+
+      - name: Out-of-scope confirmation
+        if: steps.scope.outputs.in_scope != 'true'
+        run: echo 'No shared federal-market files changed; reporting green.'

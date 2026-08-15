@@ -12,6 +12,10 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import {
+  ConsoleSloMetricSinkV1,
+  SloMetricRecorderV1,
+} from '../src/defense-budget/promotion/slo-metrics-v1.js';
 
 dotenvConfig();
 
@@ -102,6 +106,42 @@ async function main(): Promise<void> {
       environment,
     );
 
+    // Phase 7 Gap 5 decision C — `promotion_outbox_backlog_age_ms`.
+    //
+    // Age of the *oldest undrained* row, not the count: a backlog of ten rows
+    // that is four hours old is an incident, and a backlog of ten thousand rows
+    // that is nine seconds old is a healthy burst. Only PENDING and FAILED
+    // count as undrained. DONE has left, and POISON is deliberately excluded —
+    // a quarantined row ages forever by design, and folding it in would peg
+    // this metric permanently at the age of the oldest poison row, which is
+    // exactly the alarm-fatigue shape that makes an operator stop reading it.
+    // POISON has its own signal in the by-status counts above.
+    //
+    // Scoped through the same activation join as the counts, for the reason
+    // stated there.
+    const backlogAge = await prisma.$queryRawUnsafe<Array<{ ageMs: number | null }>>(
+      `SELECT COALESCE(
+                EXTRACT(EPOCH FROM (now() - MIN(o."created_at"))) * 1000,
+                0
+              )::double precision AS "ageMs"
+         FROM "defense_budget_promotion_outbox" o
+         JOIN "defense_budget_promotion_activation" a ON a."id" = o."activation_id"
+        WHERE a."environment" = $1
+          AND o."status" IN ('PENDING', 'FAILED')`,
+      environment,
+    );
+    const outboxBacklogAgeMs = Number(backlogAge[0]?.ageMs ?? 0);
+
+    // The console sink is the right one here and nowhere near a decision about
+    // a production metrics backend: this verb is run by an operator who is
+    // already reading its stdout, so the emission lands beside the report it
+    // describes.
+    new SloMetricRecorderV1({ sink: new ConsoleSloMetricSinkV1(), now: () => new Date() }).record(
+      'promotion_outbox_backlog_age_ms',
+      outboxBacklogAgeMs,
+      { domain, environment },
+    );
+
     const report = {
       environment,
       domain,
@@ -115,6 +155,7 @@ async function main(): Promise<void> {
       outboxBacklogByStatus: Object.fromEntries(
         backlog.map((row) => [row.status, Number(row.count)]),
       ),
+      outboxBacklogAgeMs,
     };
 
     console.log(JSON.stringify(report, null, 2));

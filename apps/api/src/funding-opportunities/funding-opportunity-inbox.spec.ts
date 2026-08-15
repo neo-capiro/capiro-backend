@@ -13,11 +13,14 @@ import {
   FundingOpportunityInboxService,
   INBOX_FILTERS,
   INBOX_MAX_PAGE_SIZE,
+  INBOX_SOURCES,
   buildInboxCursorWhere,
   buildInboxFilterWhere,
   decodeInboxCursor,
   encodeInboxCursor,
 } from './funding-opportunity-inbox.service.js';
+import { OPPORTUNITY_SOURCES } from './funding-opportunities.types.js';
+import { STORABLE_OPPORTUNITY_SOURCES } from './funding-opportunity-identity.js';
 
 /**
  * P10 — the cross-client triage inbox.
@@ -284,6 +287,149 @@ const FORECAST_ROW: Row = {
   responseDeadlineSnapshot: null,
 };
 
+/**
+ * The one workflow-row shape a DIBBS item can legally have (P41 part 2).
+ *
+ * Identical in structure to FORECAST_ROW and for the same reason: both legacy
+ * pointers null and identity carried entirely by P13's generic
+ * `sourceRecordKey`, which is what `client_funding_opportunity_one_source_chk`
+ * requires for any non-legacy source.
+ *
+ * `responseDeadlineSnapshot` is null. A bid board HAS a closing date, but it
+ * lives on the source record as `closesDate` and is surfaced through the facts
+ * block — it is not a `FundingOpportunity` response deadline, and putting it in
+ * the snapshot column would sort bid-board items into the deadline queue
+ * alongside solicitations whose deadline means something different.
+ */
+const DIBBS_ROW: Row = {
+  ...row(),
+  source: 'dibbs',
+  grantOpportunityId: null,
+  samOpportunityId: null,
+  sourceRecordKey: 'DIBBS-1',
+  responseDeadlineSnapshot: null,
+};
+
+/**
+ * The one workflow-row shape an SBIR topic can legally have (P43 part 3).
+ *
+ * Same structure as FORECAST_ROW and DIBBS_ROW, and `responseDeadlineSnapshot`
+ * is null for the same reason one layer along: a topic HAS a close date, but it
+ * is a topic close date on a cycle, not a `FundingOpportunity` response
+ * deadline, and putting it in the snapshot column would sort topics into the
+ * deadline queue beside solicitations whose deadline means something else.
+ */
+const SBIR_ROW: Row = {
+  ...row(),
+  source: 'sbir_sttr',
+  grantOpportunityId: null,
+  samOpportunityId: null,
+  sourceRecordKey: 'TOPIC-9001',
+  responseDeadlineSnapshot: null,
+};
+
+interface SbirTopicFixture {
+  tangoSbirId: string;
+  topicNumber: string | null;
+  title: string | null;
+  agency: string | null;
+  year: number | null;
+  solicitationNumber: string | null;
+  releaseDate: Date | null;
+  openDate: Date | null;
+  closeDate: Date | null;
+  solicitationStatus: string | null;
+  topicUrl: string | null;
+  officialSolicitationUrl: string | null;
+  lastSyncedAt: Date | null;
+}
+
+function sbirTopicFixture(over: Partial<SbirTopicFixture> = {}): SbirTopicFixture {
+  return {
+    tangoSbirId: 'TOPIC-9001',
+    topicNumber: 'A26-001',
+    title: 'Autonomous sustainment diagnostics',
+    agency: 'Department of Defense',
+    year: 2026,
+    solicitationNumber: 'DoD-SBIR-26.A',
+    releaseDate: new Date('2025-12-04T00:00:00.000Z'),
+    openDate: new Date('2026-01-06T00:00:00.000Z'),
+    closeDate: new Date('2026-02-04T00:00:00.000Z'),
+    solicitationStatus: 'Open',
+    topicUrl: 'https://example.invalid/topic/9001',
+    officialSolicitationUrl: 'https://example.invalid/dsip/9001',
+    lastSyncedAt: new Date('2026-08-07T02:00:00.000Z'),
+    ...over,
+  };
+}
+
+interface SbirCycleFixture {
+  solicitationNumber: string;
+  cycleName: string | null;
+  program: string | null;
+  year: number | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  solicitationStatus: string | null;
+  solDownloadUrl: string | null;
+}
+
+function sbirCycleFixture(over: Partial<SbirCycleFixture> = {}): SbirCycleFixture {
+  return {
+    solicitationNumber: 'DoD-SBIR-26.A',
+    cycleName: '26.A',
+    program: 'SBIR',
+    year: 2026,
+    startDate: new Date('2026-01-06T00:00:00.000Z'),
+    endDate: new Date('2026-02-04T00:00:00.000Z'),
+    solicitationStatus: 'Open',
+    solDownloadUrl: 'https://example.invalid/sol.pdf',
+    ...over,
+  };
+}
+
+interface DibbsFixture {
+  tangoDibbsId: string;
+  documentType: string;
+  solicitation: string;
+  solicitationFormatted: string | null;
+  nsn: string | null;
+  partNumber: string | null;
+  nomenclature: string | null;
+  quantity: { toString(): string } | null;
+  unitOfIssue: string | null;
+  setAside: string | null;
+  buyerCode: string | null;
+  closesDate: Date | null;
+  isOpen: boolean | null;
+  documentUrl: string | null;
+  techDocsUrl: string | null;
+  lastSyncedAt: Date | null;
+}
+
+function dibbsFixture(over: Partial<DibbsFixture> = {}): DibbsFixture {
+  return {
+    tangoDibbsId: 'DIBBS-1',
+    documentType: 'rfq',
+    solicitation: 'SPE4A625T1234',
+    solicitationFormatted: null,
+    nsn: '5340-01-234-5678',
+    partNumber: 'MS21042L4',
+    nomenclature: 'BRACKET, ANGLE',
+    // A Decimal-like: the service must call toString(), never Number().
+    quantity: { toString: () => '500.0000' },
+    unitOfIssue: 'EA',
+    setAside: null,
+    buyerCode: null,
+    closesDate: new Date('2026-09-01T00:00:00Z'),
+    isOpen: true,
+    documentUrl: 'https://example.invalid/doc.pdf',
+    techDocsUrl: null,
+    lastSyncedAt: new Date('2026-08-08T02:00:00Z'),
+    ...over,
+  };
+}
+
 function forecastFixture(over: Partial<ForecastFixture> = {}): ForecastFixture {
   return {
     tangoForecastId: 'FCST-1',
@@ -313,6 +459,10 @@ function makeFake(
     grants?: Array<{ clientId: string }>;
     failCounts?: boolean;
     forecasts?: ForecastFixture[];
+    dibbs?: DibbsFixture[];
+    sbirTopics?: SbirTopicFixture[];
+    /** An explicit `[]` means the cycle is NOT HELD — the orphan case. */
+    sbirCycles?: SbirCycleFixture[];
   } = {},
 ) {
   const clients = opts.clients ?? [{ id: 'client-1', name: 'Acme Defense', memoryWall: false }];
@@ -357,6 +507,26 @@ function makeFake(
       findMany: jest.fn(async () => {
         queries += 1;
         return opts.forecasts ?? [forecastFixture()];
+      }),
+    },
+    tangoDibbsSolicitation: {
+      findMany: jest.fn(async () => {
+        queries += 1;
+        return opts.dibbs ?? [dibbsFixture()];
+      }),
+    },
+    tangoSbirTopic: {
+      findMany: jest.fn(async () => {
+        queries += 1;
+        return opts.sbirTopics ?? [sbirTopicFixture()];
+      }),
+    },
+    tangoSbirSolicitation: {
+      findMany: jest.fn(async () => {
+        queries += 1;
+        // `undefined` means "use the default cycle"; an explicit [] means the
+        // cycle is NOT HELD, which is the orphan case P42 deliberately allows.
+        return opts.sbirCycles ?? [sbirCycleFixture()];
       }),
     },
     clientFundingOpportunity: {
@@ -666,11 +836,209 @@ describe('a failure is reported, never rendered as zero', () => {
     expect(res.source).toBe('agency_forecast');
   });
 
-  test('an unknown source is still a 400, and the message now lists three rails', async () => {
+  // ── P41 part 2: the DLA bid-board rail ────────────────────────────────────
+
+  test('a dibbs row reports source `dibbs` and carries its own facts block', async () => {
+    const { service } = makeFake({ rows: [DIBBS_ROW] });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows[0]!.source).toBe('dibbs');
+    expect(res.rows[0]!.dibbs).not.toBeNull();
+    expect(res.rows[0]!.dibbs!.nsn).toBe('5340-01-234-5678');
+    expect(res.rows[0]!.dibbs!.documentType).toBe('rfq');
+    expect(res.rows[0]!.sourceRecordId).toBe('DIBBS-1');
+  });
+
+  test('the title falls back to the solicitation number when nomenclature is absent', async () => {
+    // `solicitation` is NOT NULL, so a bid-board row can never render as
+    // "no longer in the catalog" merely for lacking a name.
+    const { service } = makeFake({
+      rows: [DIBBS_ROW],
+      dibbs: [dibbsFixture({ nomenclature: null })],
+    });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows[0]!.title).toBe('SPE4A625T1234');
+  });
+
+  test('a whitespace-only nomenclature is not a title either', async () => {
+    const { service } = makeFake({
+      rows: [DIBBS_ROW],
+      dibbs: [dibbsFixture({ nomenclature: '   ' })],
+    });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows[0]!.title).toBe('SPE4A625T1234');
+  });
+
+  test('nomenclature is the title when it has one', async () => {
+    const { service } = makeFake({ rows: [DIBBS_ROW] });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows[0]!.title).toBe('BRACKET, ANGLE');
+  });
+
+  test('the agency is stated as DLA, which is a fact about the rail', async () => {
+    const { service } = makeFake({ rows: [DIBBS_ROW] });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows[0]!.agency).toBe('Defense Logistics Agency');
+  });
+
+  test('quantity keeps the provider\'s exact digits and is never a JS number', async () => {
+    const { service } = makeFake({
+      rows: [DIBBS_ROW],
+      // 18 significant digits: past 2^53, so a float round-trip would corrupt it.
+      dibbs: [dibbsFixture({ quantity: { toString: () => '12345678901234.5678' } })],
+    });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows[0]!.dibbs!.quantity).toBe('12345678901234.5678');
+    expect(typeof res.rows[0]!.dibbs!.quantity).toBe('string');
+  });
+
+  test('closesDate is serialized as a calendar day, not a timestamp', async () => {
+    // A full ISO timestamp on a UTC-midnight DATE displays as the PREVIOUS day
+    // for every user west of Greenwich — and on this rail that field is a quote
+    // deadline, which is the one thing a supplier acts on.
+    const { service } = makeFake({ rows: [DIBBS_ROW] });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows[0]!.dibbs!.closesDate).toBe('2026-09-01');
+  });
+
+  test('a null quantity stays null — never zero', async () => {
+    const { service } = makeFake({
+      rows: [DIBBS_ROW],
+      dibbs: [dibbsFixture({ quantity: null, unitOfIssue: null, documentType: 'rfp' })],
+    });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows[0]!.dibbs!.quantity).toBeNull();
+    expect(res.rows[0]!.dibbs!.unitOfIssue).toBeNull();
+  });
+
+  test('a null isOpen stays null — an absent statement is not "closed"', async () => {
+    const { service } = makeFake({
+      rows: [DIBBS_ROW],
+      dibbs: [dibbsFixture({ isOpen: null })],
+    });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows[0]!.dibbs!.isOpen).toBeNull();
+  });
+
+  test('a grant or SAM row carries NO dibbs block at all', async () => {
+    const { service } = makeFake({ rows: [row()] });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows[0]!.dibbs).toBeNull();
+  });
+
+  test('a forecast row carries no dibbs block, and vice versa', async () => {
+    const forecastOnly = makeFake({ rows: [FORECAST_ROW] });
+    const forecastRes = await forecastOnly.service.list(TENANT, USER, {});
+    expect(forecastRes.rows[0]!.dibbs).toBeNull();
+    expect(forecastRes.rows[0]!.forecast).not.toBeNull();
+
+    const dibbsOnly = makeFake({ rows: [DIBBS_ROW] });
+    const dibbsRes = await dibbsOnly.service.list(TENANT, USER, {});
+    expect(dibbsRes.rows[0]!.forecast).toBeNull();
+    expect(dibbsRes.rows[0]!.dibbs).not.toBeNull();
+  });
+
+  test('a dibbs row whose record is gone gets no fabricated facts block', async () => {
+    const { service } = makeFake({
+      rows: [{ ...DIBBS_ROW, sourceRecordKey: 'DIBBS-VANISHED' }],
+      dibbs: [],
+    });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows[0]!.title).toMatch(/no longer in the catalog/i);
+    expect(res.rows[0]!.dibbs).toBeNull();
+  });
+
+  test('the dibbs lookup is never queried when the page has no dibbs rows', async () => {
+    const { service, tx } = makeFake({ rows: [row()] });
+    await service.list(TENANT, USER, {});
+
+    expect(tx.tangoDibbsSolicitation.findMany).not.toHaveBeenCalled();
+  });
+
+  test('`?source=dibbs` narrows to the bid-board rail and is echoed back', async () => {
+    const { service, rowArgs } = makeFake({ rows: [DIBBS_ROW] });
+    const res = await service.list(TENANT, USER, { source: 'dibbs' });
+
+    expect(rowArgs[0].where.source).toBe('dibbs');
+    expect(res.source).toBe('dibbs');
+  });
+
+  test('a mixed page hydrates every rail in a bounded number of queries', async () => {
+    // The point of the batching: four rails on one page must not become four
+    // queries PER ROW.
+    const { service, tx } = makeFake({ rows: [row(), FORECAST_ROW, DIBBS_ROW] });
+    const res = await service.list(TENANT, USER, {});
+
+    expect(res.rows).toHaveLength(3);
+    expect((tx.tangoDibbsSolicitation.findMany as jest.Mock).mock.calls).toHaveLength(1);
+    expect((tx.tangoProcurementForecast.findMany as jest.Mock).mock.calls).toHaveLength(1);
+  });
+
+  test('dibbs is NOT added to OPPORTUNITY_SOURCES — the catalog stays two rails wide', async () => {
+    // Widening OPPORTUNITY_SOURCES would make a bid-board item requestable as a
+    // FundingOpportunity, which has money, an eligibility determination and a
+    // response deadline. A line item has none of those three.
+    expect(OPPORTUNITY_SOURCES).toEqual(['grants_gov', 'sam_gov']);
+    expect(INBOX_SOURCES).toEqual([
+      'grants_gov',
+      'sam_gov',
+      'agency_forecast',
+      'dibbs',
+      'sbir_sttr',
+    ]);
+  });
+
+  /**
+   * THIS TEST'S SUBJECT HAS NOW MOVED TWICE, AND THAT IS THE LESSON.
+   *
+   * It began using `'dibbs'` as the unknown-source example. P41 part 2 made
+   * `dibbs` a real rail, so the case moved to `'sbir_sttr'` — described at the
+   * time as "the durable choice", because it was storable in the database and
+   * still not an inbox rail. P43 part 3 has now made `sbir_sttr` a rail too.
+   *
+   * **A PLANNED SOURCE IS NEVER A DURABLE EXAMPLE OF AN ILLEGAL ONE.** Every
+   * entry in `PLANNED_OPPORTUNITY_SOURCES` exists precisely because some phase
+   * intends to make it legal; picking the next one only defers the same edit.
+   * There is no planned source left to move to, which is the correct end state.
+   *
+   * The example is now a string that is in NO vocabulary and in no plan —
+   * `fpds` is a real federal system this program has never proposed ingesting,
+   * so it cannot quietly become legal the way the previous two did. If a future
+   * phase ever adds it, that phase must pick a different example rather than
+   * repeat this.
+   */
+  const NEVER_A_RAIL = 'fpds';
+
+  test('an unknown source is still a 400, and the message now lists five rails', async () => {
     const { service } = makeFake();
-    await expect(service.list(TENANT, USER, { source: 'dibbs' })).rejects.toThrow(
-      /grants_gov, sam_gov, agency_forecast/,
+    await expect(service.list(TENANT, USER, { source: NEVER_A_RAIL })).rejects.toThrow(
+      /grants_gov, sam_gov, agency_forecast, dibbs, sbir_sttr/,
     );
+  });
+
+  test('the example used here is in no vocabulary, so it cannot become legal', () => {
+    // The guard against a third move. If this fails, the example was planned
+    // after all and needs replacing — not the assertion loosening.
+    expect(INBOX_SOURCES as readonly string[]).not.toContain(NEVER_A_RAIL);
+    expect(STORABLE_OPPORTUNITY_SOURCES as readonly string[]).not.toContain(NEVER_A_RAIL);
+  });
+
+  test('a source outside the inbox vocabulary is refused, not silently ignored', async () => {
+    const { service } = makeFake();
+    // Silently dropping it would return the cross-rail inbox and echo
+    // `source: null`, which reads as "there is nothing on that rail".
+    await expect(service.list(TENANT, USER, { source: NEVER_A_RAIL })).rejects.toThrow();
+    await expect(service.list(TENANT, USER, { source: 'not_a_rail' })).rejects.toThrow();
   });
 
   test('the forecast narrowing applies to the tab counts too, so a badge cannot disagree with its list', async () => {
@@ -887,5 +1255,126 @@ describe('the route ships dark and denies portal users', () => {
     // The inbox replaces the DEFAULT experience, not the research tool.
     expect(controller).toContain("@Get('opportunities')");
     expect(controller).toContain("@Get('opportunities/inbox')");
+  });
+});
+
+// ── P43 part 3: the SBIR/STTR topic rail ────────────────────────────────────
+
+describe('P43 part 3 — SBIR topics on the inbox', () => {
+  test('a topic row carries its facts block, with the parent cycle resolved', async () => {
+    const { service } = makeFake({ rows: [SBIR_ROW] });
+    const res = await service.list(TENANT, USER, {});
+    const facts = res.rows[0]!.sbir!;
+
+    expect(res.rows[0]!.source).toBe('sbir_sttr');
+    expect(facts.topicNumber).toBe('A26-001');
+    // Dates are calendar days, not instants. Serialising a DATE column as a
+    // full timestamp is what lets a client formatting in local time show a
+    // topic opening on the 6th as the 5th.
+    expect(facts.openDate).toBe('2026-01-06');
+    expect(facts.closeDate).toBe('2026-02-04');
+    expect(facts.cycle?.program).toBe('SBIR');
+    expect(facts.cycle?.cycleName).toBe('26.A');
+  });
+
+  /**
+   * The distinction the whole rail turns on.
+   *
+   * "The source stated no cycle" and "Capiro does not hold the cycle" are
+   * different facts, and P42 deliberately has no FK precisely so the second is
+   * representable. Flattening the cycle onto the facts block would make both
+   * look like a row of nulls.
+   */
+  test('an ORPHAN topic keeps its stated cycle NUMBER while `cycle` is null', async () => {
+    const { service } = makeFake({ rows: [SBIR_ROW], sbirCycles: [] });
+    const facts = (await service.list(TENANT, USER, {})).rows[0]!.sbir!;
+
+    expect(facts.solicitationNumber).toBe('DoD-SBIR-26.A');
+    expect(facts.cycle).toBeNull();
+  });
+
+  test('a topic stating NO cycle has both null, which is a different fact', async () => {
+    const { service } = makeFake({
+      rows: [SBIR_ROW],
+      sbirTopics: [sbirTopicFixture({ solicitationNumber: null })],
+    });
+    const facts = (await service.list(TENANT, USER, {})).rows[0]!.sbir!;
+
+    expect(facts.solicitationNumber).toBeNull();
+    expect(facts.cycle).toBeNull();
+  });
+
+  test('the cycle lookup is skipped entirely when no topic states one', async () => {
+    const { service, tx } = makeFake({
+      rows: [SBIR_ROW],
+      sbirTopics: [sbirTopicFixture({ solicitationNumber: null })],
+    });
+    await service.list(TENANT, USER, {});
+    expect(tx.tangoSbirSolicitation.findMany).not.toHaveBeenCalled();
+  });
+
+  test('the facts block is null on every other rail', async () => {
+    const { service } = makeFake({ rows: [row(), FORECAST_ROW, DIBBS_ROW] });
+    const res = await service.list(TENANT, USER, {});
+    for (const r of res.rows) expect(r.sbir).toBeNull();
+  });
+
+  test('the topic lookup is never queried when the page has no topic rows', async () => {
+    const { service, tx } = makeFake({ rows: [row()] });
+    await service.list(TENANT, USER, {});
+    expect(tx.tangoSbirTopic.findMany).not.toHaveBeenCalled();
+  });
+
+  test('`?source=sbir_sttr` narrows to the topic rail and is echoed back', async () => {
+    const { service } = makeFake({ rows: [SBIR_ROW] });
+    const res = await service.list(TENANT, USER, { source: 'sbir_sttr' });
+    expect(res.source).toBe('sbir_sttr');
+  });
+
+  test('five rails on one page stay a bounded number of queries, not four per row', async () => {
+    // The point of the batching. Adding a rail added two queries (topics, then
+    // their cycles) for the whole page, not two per row.
+    const { service, tx } = makeFake({ rows: [SBIR_ROW, SBIR_ROW, SBIR_ROW] });
+    await service.list(TENANT, USER, {});
+    expect(tx.tangoSbirTopic.findMany).toHaveBeenCalledTimes(1);
+    expect(tx.tangoSbirSolicitation.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  test('the title falls back topic number, then the provider id — never "no longer in the catalog"', async () => {
+    const { service } = makeFake({
+      rows: [SBIR_ROW],
+      sbirTopics: [sbirTopicFixture({ title: null })],
+    });
+    expect((await service.list(TENANT, USER, {})).rows[0]!.title).toBe('A26-001');
+
+    const bare = makeFake({
+      rows: [SBIR_ROW],
+      sbirTopics: [sbirTopicFixture({ title: null, topicNumber: null })],
+    });
+    expect((await bare.service.list(TENANT, USER, {})).rows[0]!.title).toBe('TOPIC-9001');
+  });
+
+  /**
+   * The asymmetry with DIBBS, stated as a test so it is not read as an
+   * oversight. DIBBS is one agency's own bid board, so P41 states
+   * `'Defense Logistics Agency'` as a rail-wide constant. SBIR/STTR spans every
+   * participating agency, so a constant would be WRONG rather than unhelpful —
+   * the agency is a column and a null stays null.
+   */
+  test('agency comes from the column, and a null agency stays null', async () => {
+    const { service } = makeFake({
+      rows: [SBIR_ROW],
+      sbirTopics: [sbirTopicFixture({ agency: null })],
+    });
+    expect((await service.list(TENANT, USER, {})).rows[0]!.agency).toBeNull();
+  });
+
+  test('no phase field exists anywhere on the facts block', async () => {
+    // The published contract carries none. A column nothing can populate reads
+    // as "we hold this and it is empty" rather than "the source does not state
+    // it" — see P42's migration header.
+    const { service } = makeFake({ rows: [SBIR_ROW] });
+    const facts = (await service.list(TENANT, USER, {})).rows[0]!.sbir!;
+    expect(Object.keys(facts)).not.toContain('phase');
   });
 });

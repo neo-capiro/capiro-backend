@@ -1,0 +1,619 @@
+/* Portfolio index (PORTFOLIO-HANDOFF §7.1). Consumes the shared vNext token
+   layer — no hard-coded hex for the accent; every value references a token. */
+
+/* Adopts .capiro-page (foundations/responsive.css §2). The shell's .uui-content
+   already owns the horizontal gutter — 32px, 16px below 780 — so this page must
+   not add its own. It used to add 32px (20px below 1200) on top of it, which
+   spent ~18% of a 390px viewport on doubled gutters and squeezed the very
+   scroller the 720px clients table has to live in. Vertical rhythm is handed to
+   .capiro-page through its custom properties.
+   The old `max-width: 1360px; margin: 0 auto` never bound: .uui-content already
+   caps at --uui-content-max-w (1280px) and centres itself. */
+.capiro-portfolio {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  --capiro-page-block-start: 24px;
+  --capiro-page-block-end: 48px;
+  --capiro-page-block-end-mobile: 32px;
+}
+
+/* ── 1 · Page header ─────────────────────────────────────────────────── */
+.capiro-portfolio__head {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.capiro-portfolio__title {
+  font-size: 30px;
+  line-height: 38px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--capiro-color-text-heading);
+  margin: 0;
+}
+.capiro-portfolio__sub {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--capiro-color-text-muted);
+  margin: 4px 0 0;
+}
+.capiro-portfolio__head-spacer {
+  flex: 1;
+}
+.capiro-portfolio__section-title {
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 600;
+  color: var(--capiro-color-text-heading);
+  margin: 0;
+}
+.capiro-portfolio__meta {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--capiro-color-text-muted);
+}
+
+/* ── 2 · Pulse band ──────────────────────────────────────────────────── */
+.capiro-portfolio-pulse__band {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--capiro-color-border-quiet);
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: #1c3a4e; /* deep surface (token: --capiro-color-action-accent-default family) */
+}
+.capiro-portfolio-pulse__stat {
+  background: #1c3a4e;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.capiro-portfolio-pulse__value {
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--capiro-color-text-inverse-primary, #ffffff);
+}
+.capiro-portfolio-pulse__label {
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #a8c0d0; /* label on deep surface */
+}
+.capiro-portfolio-pulse__stat-skel {
+  height: 82px;
+  background: #24455c;
+  animation: capiro-portfolio-pulse 1.4s ease-in-out infinite;
+}
+.capiro-portfolio-pulse__error {
+  grid-column: 1 / -1;
+  padding: 20px 24px;
+  color: #a8c0d0;
+  font-size: 14px;
+  background: #1c3a4e;
+}
+@keyframes capiro-portfolio-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .capiro-portfolio-pulse__stat-skel { animation: none; }
+}
+
+/* ── 3 · Clients toolbar ─────────────────────────────────────────────── */
+.capiro-portfolio__clients {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.capiro-portfolio__clients-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.capiro-portfolio__search {
+  height: 40px;
+  min-width: 220px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-control);
+  background: var(--capiro-color-bg-surface);
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+}
+.capiro-portfolio__search:focus {
+  outline: none;
+  border-color: var(--capiro-color-action-accent-default);
+  box-shadow: 0 0 0 2px var(--capiro-color-bg-accent-soft);
+}
+/* Wraps for the same reason its parent toolbar does (line 112): four pills whose
+   text cannot shrink. Without this the group's minimum is the sum of all four,
+   and the pills instead break their own labels ("At risk" -> two lines) inside a
+   fixed 32px-high box. */
+.capiro-portfolio__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 10px;
+  padding: 4px;
+}
+.capiro-portfolio__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+  cursor: pointer;
+}
+.capiro-portfolio__filter.is-active {
+  background: var(--capiro-color-bg-surface-2);
+  color: var(--capiro-color-text-primary);
+  box-shadow: inset 0 0 0 1px var(--capiro-color-border-quiet);
+}
+.capiro-portfolio__filter-count {
+  font-size: 12px;
+  color: var(--capiro-color-text-faint);
+}
+.capiro-portfolio__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.capiro-portfolio__sort select {
+  height: 36px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-control);
+  background: var(--capiro-color-bg-surface);
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+}
+.capiro-portfolio__layout {
+  display: flex;
+  gap: 2px;
+  border: 1px solid var(--capiro-color-border-control);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.capiro-portfolio__layout-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-muted);
+  cursor: pointer;
+  font-size: 15px;
+}
+.capiro-portfolio__layout-btn.is-active {
+  background: var(--capiro-color-bg-accent-soft);
+  color: var(--capiro-color-action-accent-default);
+}
+
+/* ── Table ───────────────────────────────────────────────────────────── */
+.capiro-portfolio__table-wrap {
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 12px;
+  overflow-x: auto;
+  /* The table keeps its 720px minimum and scrolls inside this box at every
+     width; contain the scroll chain so a swipe at the end of the table does not
+     rubber-band the page behind it. */
+  overscroll-behavior-x: contain;
+  min-width: 0;
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-portfolio__table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+.capiro-portfolio__table thead th {
+  text-align: left;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--capiro-color-text-muted);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-portfolio__table tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+  vertical-align: middle;
+}
+.capiro-portfolio__table tbody tr:last-child td {
+  border-bottom: none;
+}
+.capiro-portfolio__tr {
+  cursor: pointer;
+}
+.capiro-portfolio__tr:hover {
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-portfolio__tr:focus-within {
+  outline: 2px solid var(--capiro-color-action-accent-default);
+  outline-offset: -2px;
+}
+
+.capiro-portfolio__client {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.capiro-portfolio__tile,
+.capiro-portfolio__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--capiro-color-bg-accent-soft);
+  color: var(--capiro-color-action-accent-default);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.capiro-portfolio__tile {
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
+}
+.capiro-portfolio__avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+  border-radius: 50%;
+}
+/* Client names are tenant data. In the card layout the name shares a ~326px row
+   with a 40px tile and a status badge, so a single long token has nowhere to go;
+   break it instead of widening the card past its grid track. */
+.capiro-portfolio__client-name {
+  font-weight: 600;
+  color: var(--capiro-color-text-heading);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.capiro-portfolio__owner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.capiro-portfolio__tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.capiro-portfolio__tag {
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--capiro-color-bg-surface-2);
+  border: 1px solid var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-portfolio__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
+/* ── Card layout ─────────────────────────────────────────────────────── */
+/* minmax(min(280px, 100%), 1fr), not minmax(280px, 1fr): a bare 280px floor
+   makes the single-column case 280px wide no matter how narrow the container
+   is, so the grid overflows anything under 280px instead of collapsing. */
+.capiro-portfolio__cards {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 16px;
+}
+.capiro-portfolio__clientcard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface);
+  cursor: pointer;
+  text-align: left;
+}
+.capiro-portfolio__clientcard:hover {
+  background: var(--capiro-color-bg-surface-2);
+}
+
+/* ── States ──────────────────────────────────────────────────────────── */
+.capiro-portfolio__state {
+  padding: 32px;
+  border: 1px dashed var(--capiro-color-border-control);
+  border-radius: 12px;
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-muted);
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.capiro-portfolio__state--error {
+  border-color: var(--capiro-color-border-warning);
+}
+.capiro-portfolio__state--success {
+  border-style: solid;
+  border-color: var(--capiro-color-text-success);
+}
+.capiro-portfolio__skeleton {
+  border-radius: 12px;
+  background: var(--capiro-color-bg-surface-2);
+  animation: capiro-portfolio-pulse 1.4s ease-in-out infinite;
+}
+.capiro-portfolio__linkbtn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--capiro-color-action-accent-default);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+/* ── 4 · Program elements ────────────────────────────────────────────── */
+.capiro-portfolio-pe {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.capiro-portfolio-pe__header {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.capiro-portfolio-pe__title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.capiro-portfolio-pe__title {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--capiro-color-text-heading);
+  margin: 0;
+}
+.capiro-portfolio-pe__count {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-portfolio-pe__sub {
+  flex-basis: 100%;
+  font-size: 14px;
+  color: var(--capiro-color-text-muted);
+  margin: 0;
+}
+.capiro-portfolio-pe__header-spacer {
+  flex: 1;
+}
+.capiro-portfolio-pe__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+/* Collapses to one column in the Responsive section at the bottom of this file,
+   on the canonical 1179px boundary. */
+.capiro-portfolio-pe__card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface);
+  cursor: pointer;
+  text-align: left;
+}
+.capiro-portfolio-pe__card:hover {
+  background: var(--capiro-color-bg-surface-2);
+}
+/* The PE code is white-space: nowrap by design; program titles are long. Let the
+   title drop below the code rather than compete with an unshrinkable sibling. */
+.capiro-portfolio-pe__card-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+}
+.capiro-portfolio-pe__code {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--capiro-color-action-accent-default);
+  white-space: nowrap;
+}
+.capiro-portfolio-pe__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--capiro-color-text-heading);
+}
+.capiro-portfolio-pe__progression {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.capiro-portfolio-pe__stage {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.capiro-portfolio-pe__stage-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-portfolio-pe__stage-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--capiro-color-text-heading);
+}
+.capiro-portfolio-pe__stage-value.is-missing {
+  color: var(--capiro-color-text-faint);
+}
+.capiro-portfolio-pe__arrow {
+  color: var(--capiro-color-text-faint);
+}
+.capiro-portfolio-pe__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--capiro-color-border-quiet);
+}
+.capiro-portfolio-pe__service {
+  font-size: 13px;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-portfolio-pe__delta {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.capiro-portfolio-pe__delta--up {
+  background: #ecfdf3;
+  color: var(--capiro-color-text-success);
+}
+.capiro-portfolio-pe__delta--down {
+  background: #fef3f2;
+  color: var(--capiro-color-text-destructive);
+}
+.capiro-portfolio-pe__skeleton {
+  height: 148px;
+  border-radius: 12px;
+  background: var(--capiro-color-bg-surface-2);
+  animation: capiro-portfolio-pulse 1.4s ease-in-out infinite;
+}
+
+/* ── Import with LDA ─────────────────────────────────────────────────── */
+.capiro-portfolio-lda__list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: 10px;
+}
+/* The firm step puts a CapiroButton ("This is us") in this row, and .capiro-button
+   carries a hard `min-width: var(--capiro-control-min-width-button)` = 120px that
+   flex-shrink cannot cross. With the registrant name and the city/clients/filings
+   meta beside it the row has no slack left at phone width, and because
+   .capiro-portfolio-lda__list sets overflow-y: auto its overflow-x computes to
+   auto — so anything that does not fit hides behind a nested scrollbar inside the
+   modal instead of being visible. Wrapping drops the CTA onto its own line, still
+   right-aligned by its inline margin-left: auto. */
+.capiro-portfolio-lda__row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  cursor: pointer;
+  font-size: 14px;
+}
+.capiro-portfolio-lda__list li:last-child .capiro-portfolio-lda__row {
+  border-bottom: none;
+}
+.capiro-portfolio-lda__row:hover {
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-portfolio-lda__name {
+  font-weight: 600;
+  color: var(--capiro-color-text-heading);
+  /* Registrant names are third-party data and can contain a single token longer
+     than the row; break it rather than push the row wide. */
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.capiro-portfolio-lda__foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────
+   Canonical breakpoints only (foundations/responsive.css): 1179px = tablet,
+   779px = mobile. This file used to break at 1200px, which sits inside the
+   shell's desktop band — at 1180–1200 the page collapsed its grids while the
+   shell still rendered the 272px expanded rail. Both grids were re-checked
+   across the band they moved over: at 1180 the content column is 844px, so the
+   PE grid's two cards get 414px each and the pulse band's four stats 211px
+   each, which is more than either needs. */
+
+@media (max-width: 1179px) {
+  .capiro-portfolio {
+    --capiro-page-block-start: 20px;
+    --capiro-page-block-end: 40px;
+  }
+  .capiro-portfolio-pulse__band {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .capiro-portfolio-pe__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Touch targets from the tablet band down. These four are the module's own
+     controls; the layout toggle matters most, because `list` is the default
+     (portfolio-routing.ts) and it is the only escape from the 720px table. */
+  .capiro-portfolio__search {
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-portfolio__filter {
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-portfolio__sort select {
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-portfolio__layout-btn {
+    width: var(--capiro-hit-size, 44px);
+    height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-portfolio__linkbtn {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--capiro-hit-size, 44px);
+  }
+}

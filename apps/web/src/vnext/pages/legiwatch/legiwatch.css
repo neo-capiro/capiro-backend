@@ -1,0 +1,1418 @@
+/* ============================================================================
+   LegiWatch vNext — design tokens (LEGIWATCH-HANDOFF Appendix A, verbatim).
+   Values are read out of the prototype, NOT rounded to a 4px/8px grid.
+   A 13px font, a 206px cell, an 11px radius and a #FCFCFD fill are deliberate.
+
+   ── BREAKPOINTS ───────────────────────────────────────────────────────────
+   This file uses the surface-canonical pair from foundations/responsive.css —
+   779 (shell drops the rail, mounts the 64px bottom nav) and 1179 (shell
+   collapses the rail to 80px). It previously used 767 / 1099 / 1279, taken
+   from the LegiWatch handoff's own written contract (891:2699). That contract
+   is internally coherent but disagrees with the shipped shell, which is what
+   actually determines the width this module gets, so it produced two visible
+   seams:
+     768-779    rendered the TABLET composition after the shell had already
+                dropped the rail and mounted the bottom nav — e.g. a 3-column
+                week calendar on a phone-width viewport.
+     1180-1279  rendered the REDUCED composition (single-column hearings, feed
+                and Bill360; 2-column live room) even though the shell had just
+                handed the module a desktop layout. Every `max-width: 1279`
+                rule still matched through that band.
+   Note the direction of the second one: the old file UNDER-used that band, and
+   this migration now gives it the full desktop composition inside an 844-944px
+   content box. That is denser than anything previously shipped there, so the
+   floors below are what keep it from overflowing — they are load-bearing, not
+   decoration.
+
+   Content width actually available to this module, after shell chrome:
+       >=1180px:  min(vw - 272 - 64, 1280)   ->   844 .. 1280
+       780-1179:  vw - 80 - 64               ->   636 .. 1035
+       <=779:     vw - 32                    ->     ~ .. 747
+
+   Note the inversion at the seam: crossing 1179 -> 1180 SHRINKS the content
+   box from 1035 to 844, because the rail grows by 192px. So a "desktop"
+   composition here must survive 844px, not 1280px. Every fixed column count
+   that could not has been replaced with an intrinsic auto-fit track using the
+   minmax(min(Npx, 100%), 1fr) idiom, which also removed the need for the old
+   1099 middle step — there is no third composition band in this file.
+   ========================================================================== */
+
+.capiro-vnext-root .lw {
+  /* Module gutter. The shell's .uui-content already owns the horizontal page
+     gutter (32px, 16px below 780), so below 780 this module contributes none —
+     doubling it spent a fifth of a 390px screen on empty margin. */
+  --lw-gutter: 24px;
+
+  /* A.1 type */
+  --lw-sans: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --lw-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* A.2 neutrals */
+  --lw-ink: #101828;
+  --lw-label: #344054;
+  --lw-body: #475467;
+  --lw-meta: #667085;
+  --lw-faint: #98A2B3;
+  --lw-control: #D0D5DD;
+  --lw-line: #EAECF0;
+  --lw-hover: #F2F4F7;
+  --lw-page: #F9FAFB;
+  --lw-selected: #FCFCFD;
+  --lw-surface: #ffffff;
+
+  /* brand + status 4-tuples [bg, ring, fg, dot] */
+  --lw-gray-bg: #F9FAFB;  --lw-gray-ring: #EAECF0;  --lw-gray-fg: #344054;  --lw-gray-dot: #667085;
+  --lw-brand-bg: #EDF3F7; --lw-brand-ring: #C3D5E1; --lw-brand-fg: #294E68; --lw-brand-dot: #294E68;
+  --lw-error-bg: #FEF3F2; --lw-error-ring: #FECDCA; --lw-error-fg: #B42318; --lw-error-dot: #F04438;
+  --lw-warn-bg: #FFFAEB;  --lw-warn-ring: #FEDF89;  --lw-warn-fg: #B54708;  --lw-warn-dot: #B98900;
+  --lw-succ-bg: #ECFDF3;  --lw-succ-ring: #ABEFC6;  --lw-succ-fg: #027A48;  --lw-succ-dot: #12B76A;
+  --lw-dark-bg: #F2F4F7;  --lw-dark-ring: #D0D5DD;  --lw-dark-fg: #101828;  --lw-dark-dot: #101828;
+
+  --lw-link: #294E68;
+  --lw-link-hover: #1F3D52;
+  --lw-focus: #4A7A9B;
+  --lw-warn-card: #FFFCF5;
+  --lw-gap-fill: #F79009;
+  --lw-scrim: rgba(16, 24, 40, .45);
+  --lw-scrim-heavy: rgba(16, 24, 40, .6);
+
+  /* A.3 shadows */
+  --lw-shadow-card: 0 0 0 1px #EAECF0, 0px 1px 3px rgba(16, 24, 40, .1);
+  --lw-ring-hairline: inset 0 0 0 1px #EAECF0;
+  --lw-ring-control: inset 0 0 0 1px #D0D5DD;
+  --lw-ring-selected: inset 0 0 0 2px #101828;
+  --lw-ring-active: inset 0 0 0 1px #101828;
+  --lw-shadow-seg-on: 0 0 0 1px #D0D5DD, 0px 1px 2px rgba(16, 24, 40, .05);
+  --lw-shadow-input: inset 0 0 0 1px #D0D5DD, 0px 1px 2px rgba(16, 24, 40, .05);
+  --lw-shadow-input-focus: inset 0 0 0 1px #4A7A9B, 0 0 0 4px #EDF3F7;
+  --lw-shadow-dropdown: 0 0 0 1px #EAECF0, 0px 12px 16px -4px rgba(16, 24, 40, .08), 0px 4px 6px -2px rgba(16, 24, 40, .03);
+  --lw-shadow-drawer: -8px 0 24px rgba(16, 24, 40, .14);
+  --lw-shadow-modal: 0px 24px 48px -12px rgba(16, 24, 40, .24);
+  --lw-shadow-toast: 0px 12px 16px -4px rgba(16, 24, 40, .24);
+
+  font-family: var(--lw-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-ligatures: contextual;
+  font-kerning: normal;
+  color: var(--lw-ink);
+}
+
+/* A.4 focus ring, globally */
+.capiro-vnext-root .lw :focus-visible {
+  outline: 2px solid #4A7A9B;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* A.4 motion */
+@keyframes lwFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lwRise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes lwPop { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: none; } }
+@keyframes lwSlideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+@keyframes lwSheet { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+@keyframes lwPulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@keyframes lwSkeleton { 0%, 100% { opacity: .5; } 50% { opacity: .9; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .capiro-vnext-root .lw *,
+  .capiro-vnext-root .lw *::before,
+  .capiro-vnext-root .lw *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* mono scope (§5.1) — evidence strings only, never prose */
+.capiro-vnext-root .lw .lw-mono { font-family: var(--lw-mono); }
+
+/* ---- pill recipe (A.3, ~50 uses) ------------------------------------------ */
+.capiro-vnext-root .lw .lw-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 9999px;
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+.capiro-vnext-root .lw .lw-pill__dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
+.capiro-vnext-root .lw .lw-pill--22 { height: 22px; padding: 0 8px; }
+.capiro-vnext-root .lw .lw-pill--26 { height: 26px; padding: 0 10px; }
+.capiro-vnext-root .lw .lw-pill--gray   { background: var(--lw-gray-bg);  box-shadow: inset 0 0 0 1px var(--lw-gray-ring);  color: var(--lw-gray-fg); }
+.capiro-vnext-root .lw .lw-pill--gray .lw-pill__dot { background: var(--lw-gray-dot); }
+.capiro-vnext-root .lw .lw-pill--brand  { background: var(--lw-brand-bg); box-shadow: inset 0 0 0 1px var(--lw-brand-ring); color: var(--lw-brand-fg); }
+.capiro-vnext-root .lw .lw-pill--brand .lw-pill__dot { background: var(--lw-brand-dot); }
+.capiro-vnext-root .lw .lw-pill--error  { background: var(--lw-error-bg); box-shadow: inset 0 0 0 1px var(--lw-error-ring); color: var(--lw-error-fg); }
+.capiro-vnext-root .lw .lw-pill--error .lw-pill__dot { background: var(--lw-error-dot); }
+.capiro-vnext-root .lw .lw-pill--warning { background: var(--lw-warn-bg); box-shadow: inset 0 0 0 1px var(--lw-warn-ring); color: var(--lw-warn-fg); }
+.capiro-vnext-root .lw .lw-pill--warning .lw-pill__dot { background: var(--lw-warn-dot); }
+.capiro-vnext-root .lw .lw-pill--success { background: var(--lw-succ-bg); box-shadow: inset 0 0 0 1px var(--lw-succ-ring); color: var(--lw-succ-fg); }
+.capiro-vnext-root .lw .lw-pill--success .lw-pill__dot { background: var(--lw-succ-dot); }
+.capiro-vnext-root .lw .lw-pill--dark   { background: var(--lw-dark-bg);  box-shadow: inset 0 0 0 1px var(--lw-dark-ring);  color: var(--lw-dark-fg); }
+.capiro-vnext-root .lw .lw-pill--dark .lw-pill__dot { background: var(--lw-dark-dot); }
+
+/* ---- button recipe (A.3) --------------------------------------------------- */
+.capiro-vnext-root .lw .lw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-family: var(--lw-sans);
+  font-size: 13px;
+  font-weight: 600;
+  border: 0;
+  background: var(--lw-surface);
+  box-shadow: var(--lw-ring-control);
+  color: var(--lw-label);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.capiro-vnext-root .lw .lw-btn:hover { background: var(--lw-page); }
+.capiro-vnext-root .lw .lw-btn--primary { background: var(--lw-ink); color: #fff; box-shadow: none; }
+.capiro-vnext-root .lw .lw-btn--primary:hover { background: #1D2939; }
+.capiro-vnext-root .lw .lw-btn:disabled { opacity: .55; cursor: not-allowed; }
+.capiro-vnext-root .lw .lw-btn--40 { height: 40px; }
+.capiro-vnext-root .lw .lw-btn--42 { height: 42px; }
+
+/* on ink panels the primary inverts */
+.capiro-vnext-root .lw .lw-on-ink .lw-btn--primary { background: #fff; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-on-ink .lw-btn--primary:hover { background: var(--lw-hover); }
+.capiro-vnext-root .lw .lw-on-ink .lw-btn { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .24); background: transparent; color: #fff; }
+.capiro-vnext-root .lw .lw-on-ink .lw-btn:hover { background: rgba(255, 255, 255, .08); }
+
+/* ---- segmented switch (A.3) ------------------------------------------------ */
+.capiro-vnext-root .lw .lw-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 9px;
+  background: var(--lw-page);
+  box-shadow: var(--lw-ring-hairline);
+}
+.capiro-vnext-root .lw .lw-seg__item {
+  height: 30px;
+  padding: 0 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 0;
+  background: transparent;
+  color: var(--lw-meta);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.capiro-vnext-root .lw .lw-seg__item.is-active {
+  background: #fff;
+  box-shadow: var(--lw-shadow-seg-on);
+  color: var(--lw-ink);
+}
+
+/* ---- module chrome (§7.1) -------------------------------------------------- */
+.capiro-vnext-root .lw .lw-subnav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 var(--lw-gutter);
+  height: 44px;
+  border-bottom: 1px solid var(--lw-line);
+  background: var(--lw-surface);
+  /* Five destinations plus the health chip need ~560px and never wrapped. The
+     row scrolls instead of widening the page; the 44px rail is preserved. */
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.capiro-vnext-root .lw .lw-subnav__item {
+  height: 44px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--lw-body);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+.capiro-vnext-root .lw .lw-subnav__item.is-active { color: var(--lw-ink); font-weight: 600; border-bottom-color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-subnav__health {
+  margin-left: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .03em;
+  color: var(--lw-meta);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.capiro-vnext-root .lw .lw-pagehead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px var(--lw-gutter) 16px;
+  border-bottom: 1px solid var(--lw-line);
+  background: var(--lw-surface);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-eyebrow {
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--lw-meta);
+}
+.capiro-vnext-root .lw .lw-h1 {
+  margin: 4px 0 0;
+  font-size: 30px;
+  line-height: 38px;
+  letter-spacing: -.02em;
+  font-weight: 600;
+  color: var(--lw-ink);
+}
+.capiro-vnext-root .lw .lw-desc {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--lw-body);
+  max-width: 720px;
+  text-wrap: pretty;
+}
+.capiro-vnext-root .lw .lw-pagehead__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* tab strip — roving tablist; active tab 2px ink bottom rule (A.6) */
+.capiro-vnext-root .lw .lw-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 var(--lw-gutter);
+  border-bottom: 1px solid var(--lw-line);
+  background: var(--lw-surface);
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.capiro-vnext-root .lw .lw-tab {
+  height: 46px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--lw-body);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.capiro-vnext-root .lw .lw-tab.is-active { color: var(--lw-ink); font-weight: 600; border-bottom-color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-tab__count {
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--lw-meta);
+}
+.capiro-vnext-root .lw .lw-tab.is-active .lw-tab__count { color: var(--lw-ink); }
+
+/* page body */
+.capiro-vnext-root .lw .lw-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px var(--lw-gutter) 28px;
+  max-width: 1560px;
+  min-width: 0;
+  animation: lwFade .16s ease;
+}
+/* The shell already pads .capiro-vnext-uui by the 64px bottom-nav height below
+   780, so this only needs the module's own trailing rhythm — the old 72px sat
+   on top of the shell's 64 and left 136px of dead space on every phone. */
+@media (max-width: 779px) { .capiro-vnext-root .lw .lw-body { padding-bottom: 24px; } }
+
+/* generic white card */
+.capiro-vnext-root .lw .lw-card {
+  background: var(--lw-surface);
+  border-radius: 12px;
+  box-shadow: var(--lw-shadow-card);
+}
+.capiro-vnext-root .lw .lw-card__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--lw-line);
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .lw .lw-card__title { font-size: 18px; line-height: 25px; font-weight: 600; color: var(--lw-ink); margin: 0; }
+.capiro-vnext-root .lw .lw-card__meta {
+  margin-left: auto;
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--lw-meta);
+}
+
+/* ============================================================================
+   A.7 — Hearings tab
+   ========================================================================== */
+/* Two columns only in the desktop band. At its NARROW end the content box is
+   844px, so the sessions column's floor is min()-guarded rather than a bare
+   360px — a bare floor would have pushed the schedule column to 468px and then
+   overflowed the moment the shell gutters changed. */
+.capiro-vnext-root .lw .lw-hearings-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(min(320px, 100%), 1fr);
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+@media (max-width: 1179px) { .capiro-vnext-root .lw .lw-hearings-cols { grid-template-columns: minmax(0, 1fr); } }
+
+.capiro-vnext-root .lw .lw-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  flex-wrap: wrap;
+  background: var(--lw-surface);
+  border-radius: 12px;
+  box-shadow: var(--lw-shadow-card);
+}
+.capiro-vnext-root .lw .lw-search {
+  flex: 1;
+  min-width: 200px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-radius: 8px;
+  box-shadow: var(--lw-ring-control);
+  background: var(--lw-surface);
+}
+.capiro-vnext-root .lw .lw-search input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: var(--lw-sans);
+  font-size: 13px;
+  color: var(--lw-ink);
+}
+.capiro-vnext-root .lw .lw-search input::placeholder { color: var(--lw-meta); }
+
+/* week calendar */
+.capiro-vnext-root .lw .lw-cal { overflow: hidden; }
+/* The week grid is the one place a viewport-keyed column count could not
+   survive the seam. The calendar lives in the LEFT (1.55fr) column, which is a
+   FRACTION of the content box: ~460px at vw 1180, ~700px only at vw >= 1552.
+
+   This is deliberately NOT auto-fit, and that is the whole point. A week has
+   exactly seven days, so a track count derived from available width is the
+   wrong construct — auto-fit with a 100px floor yields 4 tracks at vw 1180,
+   5 at 1280, 6 at 1440 and 7 only from ~1552, i.e. a RAGGED partial second row
+   on every common laptop (1366/1440/1512). Each cell is weekday-labelled so it
+   stays readable, but `.lw-cal__day` paints its gridlines with an inset
+   box-shadow, so a short final row reads as a broken grid.
+
+   Fixed counts per band instead, so a row is always a whole number of weeks:
+     desktop  7 — one full week, matching the drawn artifact. Cells run 65px at
+                  the 1180 floor up to 100px at 1552+. Narrow, but every day is
+                  present and `overflow-wrap: anywhere` on the chip text (below)
+                  is what keeps a long committee name inside its cell.
+     tablet   4 — 7 days over two rows (4+3); ~115px a cell at the 636px floor.
+     mobile   1 — one day per row. */
+.capiro-vnext-root .lw .lw-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: var(--lw-surface);
+  min-width: 0;
+}
+@media (max-width: 1179px) { .capiro-vnext-root .lw .lw-cal__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 779px) { .capiro-vnext-root .lw .lw-cal__grid { grid-template-columns: minmax(0, 1fr); } }
+
+.capiro-vnext-root .lw .lw-cal__day {
+  min-height: 206px;
+  min-width: 0;
+  padding: 12px 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: inset 1px 1px 0 #EAECF0;
+  background: var(--lw-surface);
+}
+.capiro-vnext-root .lw .lw-cal__day.is-today { background: var(--lw-selected); }
+/* One column below 780: seven 206px cells stacked is 1442px of mostly empty
+   scroll. The cell still holds its own content, it just stops reserving a
+   column's worth of height it no longer needs. */
+@media (max-width: 779px) { .capiro-vnext-root .lw .lw-cal__day { min-height: 96px; } }
+.capiro-vnext-root .lw .lw-cal__dayhead { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.capiro-vnext-root .lw .lw-cal__weekday {
+  font-family: var(--lw-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--lw-faint);
+}
+.capiro-vnext-root .lw .lw-cal__day.is-today .lw-cal__weekday { color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-cal__date {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--lw-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lw-ink);
+}
+.capiro-vnext-root .lw .lw-cal__day.is-today .lw-cal__date { background: var(--lw-ink); color: #fff; }
+.capiro-vnext-root .lw .lw-cal__empty {
+  font-family: var(--lw-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .05em;
+  color: var(--lw-control);
+  text-transform: uppercase;
+}
+
+/* calendar chip — the A.7 state matrix */
+.capiro-vnext-root .lw .lw-chip {
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 0;
+  border-left: 3px solid transparent;
+  text-align: left;
+  cursor: pointer;
+  display: block;
+  background: var(--lw-page);
+  box-shadow: inset 0 0 0 1px var(--lw-line);
+}
+.capiro-vnext-root .lw .lw-chip:hover { background: var(--lw-hover); }
+.capiro-vnext-root .lw .lw-chip__row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.capiro-vnext-root .lw .lw-chip__time { font-family: var(--lw-mono); font-size: 10px; font-weight: 600; letter-spacing: .04em; }
+.capiro-vnext-root .lw .lw-chip__marker { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
+/* A day cell is ~103px wide at the narrow end of the desktop band, and a real
+   committee title carries words longer than that ("Interconnection",
+   "Appropriations"). Without this the word paints across the neighbouring day
+   — the grid track holds, so it never showed up as page overflow. */
+.capiro-vnext-root .lw .lw-chip__title { margin-top: 5px; font-size: 12px; line-height: 16px; font-weight: 600; color: var(--lw-ink); text-wrap: pretty; overflow-wrap: anywhere; word-break: normal; }
+.capiro-vnext-root .lw .lw-chip__meta { margin-top: 4px; font-family: var(--lw-mono); font-size: 10px; letter-spacing: .03em; color: var(--lw-faint); overflow-wrap: anywhere; word-break: normal; }
+.capiro-vnext-root .lw .lw-cal__empty { overflow-wrap: anywhere; }
+
+.capiro-vnext-root .lw .lw-chip--live { background: var(--lw-error-bg); box-shadow: inset 0 0 0 1px var(--lw-error-ring); border-left-color: var(--lw-error-dot); }
+.capiro-vnext-root .lw .lw-chip--live .lw-chip__time { color: var(--lw-error-fg); }
+.capiro-vnext-root .lw .lw-chip--hearing { border-left-color: var(--lw-brand-fg); }
+.capiro-vnext-root .lw .lw-chip--markup { border-left-color: var(--lw-faint); }
+.capiro-vnext-root .lw .lw-chip--unavailable { background: var(--lw-selected); border-left-color: var(--lw-line); cursor: default; }
+.capiro-vnext-root .lw .lw-chip--unavailable .lw-chip__time,
+.capiro-vnext-root .lw .lw-chip--unavailable .lw-chip__title { color: var(--lw-faint); }
+
+.capiro-vnext-root .lw .lw-cal__legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--lw-line);
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .lw .lw-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--lw-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  color: var(--lw-meta);
+  text-transform: uppercase;
+}
+.capiro-vnext-root .lw .lw-legend__dot { width: 7px; height: 7px; border-radius: 50%; }
+
+/* prev/next + week label */
+.capiro-vnext-root .lw .lw-navbtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  border: 0;
+  background: var(--lw-surface);
+  box-shadow: var(--lw-ring-control);
+  color: var(--lw-meta);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.capiro-vnext-root .lw .lw-navbtn:hover { background: var(--lw-page); }
+.capiro-vnext-root .lw .lw-weeklabel { font-size: 18px; line-height: 25px; font-weight: 600; color: var(--lw-ink); white-space: nowrap; }
+
+/* list view rows */
+.capiro-vnext-root .lw .lw-lrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--lw-hover);
+  border-left: 2px solid transparent;
+  /* main(280) + side(180) + gap needs 476px; the row is 322px wide on a 390px
+     phone. Without wrap the side column pushed the whole page wider. */
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .lw .lw-lrow.is-live { border-left-color: var(--lw-brand-fg); }
+.capiro-vnext-root .lw .lw-lrow__main { flex: 1 1 280px; min-width: 0; }
+.capiro-vnext-root .lw .lw-lrow__when { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-lrow__cm { font-family: var(--lw-mono); font-size: 11px; font-weight: 500; letter-spacing: .04em; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-lrow__title { margin-top: 8px; font-size: 16px; line-height: 23px; font-weight: 600; color: var(--lw-ink); text-wrap: pretty; }
+.capiro-vnext-root .lw .lw-lrow__match { margin-top: 4px; font-family: var(--lw-mono); font-size: 11px; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-lrow__side { flex: 0 0 auto; min-width: 180px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+/* Once wrapped onto its own row the side cluster reads better leading-aligned
+   and laid out across, not right-aligned against nothing. */
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-lrow__side {
+    min-width: 0;
+    flex: 1 1 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+}
+.capiro-vnext-root .lw .lw-lrow__verb {
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--lw-link);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.capiro-vnext-root .lw .lw-lrow__verb:disabled { color: var(--lw-meta); cursor: default; }
+
+/* My Sessions */
+.capiro-vnext-root .lw .lw-session {
+  margin: 16px 18px;
+  padding: 16px;
+  border-radius: 11px;
+  background: var(--lw-ink);
+  color: #fff;
+}
+.capiro-vnext-root .lw .lw-session__badge {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, .1);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: #fff;
+}
+.capiro-vnext-root .lw .lw-session__dot { width: 7px; height: 7px; border-radius: 50%; }
+.capiro-vnext-root .lw .lw-session__dot.is-live { background: var(--lw-error-dot); animation: lwPulse 1.6s ease-in-out infinite; }
+.capiro-vnext-root .lw .lw-session__dot.is-next { background: var(--lw-faint); }
+.capiro-vnext-root .lw .lw-session__title { margin: 12px 0 0; font-size: 17px; line-height: 24px; font-weight: 600; color: #fff; text-wrap: pretty; }
+.capiro-vnext-root .lw .lw-session__sub { margin: 5px 0 0; font-family: var(--lw-mono); font-size: 11px; letter-spacing: .03em; color: var(--lw-faint); }
+.capiro-vnext-root .lw .lw-session__body { margin: 10px 0 0; font-size: 13px; line-height: 20px; color: var(--lw-faint); }
+.capiro-vnext-root .lw .lw-session__actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+.capiro-vnext-root .lw .lw-session__actions .lw-btn--primary { flex: 1; min-width: 150px; height: 40px; }
+
+.capiro-vnext-root .lw .lw-history__label {
+  padding: 0 18px 4px;
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--lw-meta);
+}
+.capiro-vnext-root .lw .lw-history__rows { padding: 8px 18px 18px; display: flex; flex-direction: column; gap: 8px; }
+.capiro-vnext-root .lw .lw-hrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--lw-page);
+  box-shadow: var(--lw-ring-hairline);
+}
+.capiro-vnext-root .lw .lw-hrow:hover { background: var(--lw-hover); }
+.capiro-vnext-root .lw .lw-hrow__title { font-size: 14px; font-weight: 600; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-hrow__sub { margin-top: 2px; font-size: 12px; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-hrow__pill { margin-left: auto; }
+
+/* scheduled recordings */
+.capiro-vnext-root .lw .lw-recs__rows { padding: 14px 18px 6px; display: flex; flex-direction: column; gap: 8px; }
+.capiro-vnext-root .lw .lw-rrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  box-shadow: var(--lw-ring-hairline);
+}
+.capiro-vnext-root .lw .lw-rrow__when { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-rrow__title { margin-top: 6px; font-size: 14px; font-weight: 600; color: var(--lw-ink); text-wrap: pretty; }
+.capiro-vnext-root .lw .lw-rrow__mode { margin-top: 3px; font-family: var(--lw-mono); font-size: 11px; letter-spacing: .03em; color: var(--lw-faint); }
+.capiro-vnext-root .lw .lw-rrow__cancel {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--lw-meta);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.capiro-vnext-root .lw .lw-rrow__cancel:hover { background: var(--lw-page); color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-recs__empty { padding: 6px 2px 8px; font-size: 13px; line-height: 20px; color: var(--lw-body); }
+.capiro-vnext-root .lw .lw-note {
+  margin: 8px 18px 18px;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--lw-page);
+  box-shadow: var(--lw-ring-hairline);
+}
+.capiro-vnext-root .lw .lw-note__label {
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--lw-meta);
+}
+.capiro-vnext-root .lw .lw-note__body { margin-top: 8px; font-size: 13px; line-height: 20px; color: var(--lw-body); }
+
+/* ============================================================================
+   A.9 — Feed, packet drawer, Bill 360
+   ========================================================================== */
+/* Feed + context rail. Shared by Feed, Digest, Analytics and Cold start. The
+   rail's 320px is affordable in the desktop band (844px content leaves the
+   worklist 508px) and stacks below it. */
+.capiro-vnext-root .lw .lw-feed-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+@media (max-width: 1179px) { .capiro-vnext-root .lw .lw-feed-cols { grid-template-columns: minmax(0, 1fr); } }
+
+.capiro-vnext-root .lw .lw-rail { position: sticky; top: 96px; }
+@media (max-width: 1179px) { .capiro-vnext-root .lw .lw-rail { position: static; } }
+
+/* packet rows */
+.capiro-vnext-root .lw .lw-prow {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--lw-hover);
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  background: var(--lw-surface);
+}
+.capiro-vnext-root .lw .lw-prow:hover { background: var(--lw-page); }
+.capiro-vnext-root .lw .lw-prow.is-selected { background: var(--lw-selected); }
+.capiro-vnext-root .lw .lw-prow__check {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  box-shadow: var(--lw-ring-control);
+  background: var(--lw-surface);
+  border: 0;
+  flex: 0 0 auto;
+  margin-top: 2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+}
+.capiro-vnext-root .lw .lw-prow__check.is-on { background: var(--lw-ink); box-shadow: none; color: #fff; }
+.capiro-vnext-root .lw .lw-prow__main { flex: 1 1 200px; min-width: 0; }
+.capiro-vnext-root .lw .lw-prow__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.capiro-vnext-root .lw .lw-prow__src { font-family: var(--lw-mono); font-size: 11px; font-weight: 500; letter-spacing: .04em; color: var(--lw-meta); text-transform: uppercase; }
+.capiro-vnext-root .lw .lw-prow__title { margin-top: 6px; font-size: 14px; line-height: 21px; font-weight: 600; color: var(--lw-ink); text-wrap: pretty; }
+.capiro-vnext-root .lw .lw-prow__block { margin-top: 6px; font-size: 13px; line-height: 20px; color: var(--lw-body); }
+.capiro-vnext-root .lw .lw-prow__prefix { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--lw-meta); text-transform: uppercase; }
+.capiro-vnext-root .lw .lw-prow__side { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+/* bulk bar */
+.capiro-vnext-root .lw .lw-bulk {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--lw-ink);
+  color: #fff;
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .lw .lw-bulk__n { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; }
+
+/* view-control rail sections */
+.capiro-vnext-root .lw .lw-rail__sect { padding: 14px 16px; border-bottom: 1px solid var(--lw-line); }
+.capiro-vnext-root .lw .lw-rail__sect:last-child { border-bottom: 0; }
+.capiro-vnext-root .lw .lw-rail__label {
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--lw-meta);
+  margin-bottom: 10px;
+}
+.capiro-vnext-root .lw .lw-rail__opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--lw-body);
+  cursor: pointer;
+  text-align: left;
+}
+.capiro-vnext-root .lw .lw-rail__opt:hover { background: var(--lw-page); }
+.capiro-vnext-root .lw .lw-rail__opt.is-active { background: var(--lw-page); color: var(--lw-ink); font-weight: 600; box-shadow: var(--lw-ring-active); }
+.capiro-vnext-root .lw .lw-rail__count { font-family: var(--lw-mono); font-size: 11px; color: var(--lw-meta); }
+
+/* packet drawer (desktop right drawer / mobile bottom sheet — same tree) */
+.capiro-vnext-root .lw .lw-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--lw-scrim);
+  z-index: 70;
+  animation: lwFade .14s ease;
+}
+.capiro-vnext-root .lw .lw-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 520px;
+  max-width: 100%;
+  background: var(--lw-surface);
+  box-shadow: var(--lw-shadow-drawer);
+  z-index: 71;
+  display: flex;
+  flex-direction: column;
+  animation: lwSlideIn .18s cubic-bezier(.2, 0, 0, 1);
+}
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-drawer {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 88%;
+    border-radius: 16px 16px 0 0;
+    animation: lwSheet .2s cubic-bezier(.2, 0, 0, 1);
+  }
+}
+.capiro-vnext-root .lw .lw-drawer__head { padding: 18px 20px; border-bottom: 1px solid var(--lw-line); min-width: 0; }
+.capiro-vnext-root .lw .lw-drawer__body { flex: 1; min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 20px; display: flex; flex-direction: column; gap: 18px; }
+.capiro-vnext-root .lw .lw-drawer__foot { padding: 16px 20px; border-top: 1px solid var(--lw-line); display: flex; gap: 10px; flex-wrap: wrap; }
+/* Confidence / Unknowns pair inside the packet drawer, and any other two-up
+   block in a drawer body. Was an inline `1fr 1fr`, which keeps two 160px
+   columns on a 350px sheet and lets a long field name push past the edge. */
+.capiro-vnext-root .lw .lw-two-up {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-sect__title { font-size: 15px; line-height: 22px; font-weight: 600; color: var(--lw-ink); margin: 0 0 8px; }
+
+/* ============================================================================
+   A.8 — Live hearing room
+   ========================================================================== */
+/* Three columns in the desktop band only.
+ *
+ * The two 340px side columns were fixed, and the room's own padding eats 40px:
+ * at the low end of the desktop band (844px content) that left the transcript
+ * 92px and the row overflowed.
+ *
+ * All three tracks are now fr-weighted with a min() floor rather than two fixed
+ * rails plus a flexible middle. A bounded `minmax(220px, 300px)` was tried
+ * first and is wrong here: grid maximizes fixed-max tracks BEFORE it expands fr
+ * tracks, so the two side panels filled to their maxima and handed the
+ * transcript whatever was left — 256px at 1180, narrower than either rail
+ * beside it. Weighting all three keeps the transcript the widest column at
+ * every width in the band: measured 204/340/227 at 1180 and 320/533/355 at
+ * 1920, against a drawn 340/1.3fr/340.
+ *
+ * The panels' grid PLACEMENT used to live in inline styles on the three
+ * <section>s (gridColumn: 1|2|3, gridRow: 2 / '1 / span 2'). Inline styles beat
+ * any stylesheet, so when the grid collapsed the Intelligence panel still asked
+ * for column 3 and grid manufactured two implicit tracks — the single-column
+ * "mobile" layout was in fact a three-column one that ran off the screen. The
+ * placement now lives here, where a media query can actually reset it. */
+.capiro-vnext-root .lw .lw-live {
+  display: grid;
+  gap: 16px;
+  grid-template-columns:
+    minmax(min(200px, 100%), 0.9fr)
+    minmax(min(280px, 100%), 1.5fr)
+    minmax(min(220px, 100%), 1fr);
+  align-items: start;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-live__source { grid-column: 1; grid-row: 2; }
+.capiro-vnext-root .lw .lw-live__transcript { grid-column: 2; grid-row: 2; }
+.capiro-vnext-root .lw .lw-live__intel { grid-column: 3; grid-row: 1 / span 2; }
+
+@media (max-width: 1179px) {
+  .capiro-vnext-root .lw .lw-live { grid-template-columns: minmax(0, 1fr); }
+  .capiro-vnext-root .lw .lw-live__source,
+  .capiro-vnext-root .lw .lw-live__transcript,
+  .capiro-vnext-root .lw .lw-live__intel {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}
+
+.capiro-vnext-root .lw .lw-video {
+  grid-column: 1 / span 2;
+  grid-row: 1;
+  background: var(--lw-ink);
+  border-radius: 12px;
+  box-shadow: var(--lw-shadow-card);
+  overflow: hidden;
+  position: relative;
+  height: 440px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+@media (max-width: 1179px) { .capiro-vnext-root .lw .lw-video { grid-column: 1 / -1; grid-row: auto; height: 340px; } }
+@media (max-width: 779px) { .capiro-vnext-root .lw .lw-video { height: 220px; } }
+
+.capiro-vnext-root .lw .lw-video__body { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
+.capiro-vnext-root .lw .lw-video__badge {
+  position: absolute;
+  top: 14px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--lw-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: #fff;
+}
+.capiro-vnext-root .lw .lw-video__badge--live { left: 14px; background: rgba(255, 255, 255, .14); }
+.capiro-vnext-root .lw .lw-video__badge--src { right: 14px; background: rgba(255, 255, 255, .1); }
+.capiro-vnext-root .lw .lw-video__mark {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--lw-mono);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: #fff;
+}
+.capiro-vnext-root .lw .lw-video__caption { margin-top: 14px; font-family: var(--lw-mono); font-size: 11px; letter-spacing: .08em; color: var(--lw-faint); text-align: center; }
+.capiro-vnext-root .lw .lw-video__bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, .06);
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .lw .lw-video__play {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 0;
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.capiro-vnext-root .lw .lw-video__play:hover { background: rgba(255, 255, 255, .2); }
+.capiro-vnext-root .lw .lw-video__clock { font-family: var(--lw-mono); font-size: 12px; font-weight: 600; letter-spacing: .04em; color: #fff; }
+.capiro-vnext-root .lw .lw-video__progress { flex: 1; min-width: 80px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .18); overflow: hidden; }
+.capiro-vnext-root .lw .lw-video__fill { height: 100%; background: var(--lw-error-dot); width: 100%; }
+.capiro-vnext-root .lw .lw-video__quality { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--lw-faint); }
+.capiro-vnext-root .lw .lw-video__fs {
+  width: 34px; height: 34px; border-radius: 8px; border: 0; background: transparent; color: #fff;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.capiro-vnext-root .lw .lw-video__fs:hover { background: rgba(255, 255, 255, .12); }
+
+/* live-room column cards */
+.capiro-vnext-root .lw .lw-panel { background: var(--lw-surface); border-radius: 12px; box-shadow: var(--lw-shadow-card); overflow: hidden; }
+.capiro-vnext-root .lw .lw-panel__head { padding: 14px 16px; border-bottom: 1px solid var(--lw-line); display: flex; align-items: center; gap: 10px; }
+.capiro-vnext-root .lw .lw-panel__title { font-size: 16px; line-height: 23px; font-weight: 600; color: var(--lw-ink); margin: 0; }
+
+/* status strip (dark) */
+.capiro-vnext-root .lw .lw-status {
+  background: var(--lw-ink);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.capiro-vnext-root .lw .lw-status__pair { display: flex; flex-direction: column; gap: 3px; }
+.capiro-vnext-root .lw .lw-status__label { font-family: var(--lw-mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--lw-faint); text-transform: uppercase; }
+.capiro-vnext-root .lw .lw-status__value { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #fff; }
+
+/* transcript */
+.capiro-vnext-root .lw .lw-tseg { padding: 12px 16px; border-bottom: 1px solid var(--lw-hover); display: flex; gap: 12px; }
+.capiro-vnext-root .lw .lw-tseg.is-match { background: var(--lw-selected); }
+.capiro-vnext-root .lw .lw-tseg__tc { font-family: var(--lw-mono); font-size: 11px; color: var(--lw-meta); flex: 0 0 auto; padding-top: 2px; }
+.capiro-vnext-root .lw .lw-tseg__sp { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .03em; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-tseg__org { font-family: var(--lw-mono); font-size: 11px; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-tseg__text { margin-top: 4px; font-size: 13px; line-height: 20px; color: var(--lw-body); }
+.capiro-vnext-root .lw .lw-tseg__interim { opacity: .6; font-style: italic; }
+
+/* moments */
+.capiro-vnext-root .lw .lw-mrow { padding: 12px 16px; border-bottom: 1px solid var(--lw-hover); display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+.capiro-vnext-root .lw .lw-mrow:hover { background: var(--lw-page); }
+.capiro-vnext-root .lw .lw-mrow__tc { font-family: var(--lw-mono); font-size: 11px; color: var(--lw-meta); flex: 0 0 auto; }
+.capiro-vnext-root .lw .lw-mrow__tc--risk { color: var(--lw-warn-fg); }
+.capiro-vnext-root .lw .lw-mrow__body { font-size: 13px; line-height: 20px; color: var(--lw-body); }
+
+/* ============================================================================
+   Bills board + Bill 360
+   ========================================================================== */
+/* Stage board. The column count is server-driven (board.columns), so a hard
+   repeat(4) was already wrong for any client whose board returns three or five
+   stages; auto-fit tracks the real count AND the real width, and holds a
+   200px floor so a bill card never gets crushed at the low desktop end. */
+.capiro-vnext-root .lw .lw-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+@media (max-width: 779px) { .capiro-vnext-root .lw .lw-board { grid-template-columns: minmax(0, 1fr); } }
+.capiro-vnext-root .lw .lw-bcol { background: var(--lw-page); border-radius: 12px; padding: 12px; }
+.capiro-vnext-root .lw .lw-bcol__head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 10px; }
+.capiro-vnext-root .lw .lw-bcol__label { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--lw-meta); text-transform: uppercase; }
+.capiro-vnext-root .lw .lw-bcard {
+  background: var(--lw-surface);
+  border-radius: 10px;
+  box-shadow: var(--lw-shadow-card);
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  border: 0;
+  width: 100%;
+  text-align: left;
+}
+.capiro-vnext-root .lw .lw-bcard:hover { background: var(--lw-selected); }
+.capiro-vnext-root .lw .lw-bcard__id { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .03em; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-bcard__title { margin-top: 4px; font-size: 13px; line-height: 19px; font-weight: 600; color: var(--lw-ink); text-wrap: pretty; }
+.capiro-vnext-root .lw .lw-bcard__meta { margin-top: 6px; display: flex; align-items: center; justify-content: space-between; font-family: var(--lw-mono); font-size: 11px; color: var(--lw-meta); }
+
+/* recs strip */
+.capiro-vnext-root .lw .lw-reccard { padding: 14px; border-radius: 10px; box-shadow: var(--lw-ring-hairline); background: var(--lw-surface); }
+.capiro-vnext-root .lw .lw-recs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Bill 360 drawer */
+.capiro-vnext-root .lw .lw-b360 {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(1080px, 100%); max-width: 100%;
+  background: var(--lw-surface);
+  z-index: 71;
+  display: flex; flex-direction: column;
+  box-shadow: var(--lw-shadow-drawer);
+  animation: lwSlideIn .18s cubic-bezier(.2, 0, 0, 1);
+}
+@media (max-width: 1179px) { .capiro-vnext-root .lw .lw-b360 { width: 92%; } }
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-b360 { width: 100%; top: auto; left: 0; height: 92%; border-radius: 16px 16px 0 0; animation: lwSheet .2s cubic-bezier(.2, 0, 0, 1); }
+}
+/* Header row: title block + Export + Open full page + Tracked + Close. Five
+   items on a 390px sheet — it has to wrap, and the title has to be allowed to
+   take the whole first line. */
+.capiro-vnext-root .lw .lw-b360__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.capiro-vnext-root .lw .lw-b360__cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(min(300px, 100%), 1fr); gap: 16px; flex: 1; overflow: hidden; }
+@media (max-width: 1179px) { .capiro-vnext-root .lw .lw-b360__cols { grid-template-columns: minmax(0, 1fr); overflow-y: auto; } }
+/* Six KPI tiles: auto-fit lands on 6 in a 1080px drawer, 3 at tablet width and
+   2 on a phone sheet — the same steps the three hard-coded rules produced,
+   without pinning them to a viewport the drawer does not actually track. */
+.capiro-vnext-root .lw .lw-b360__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+/* stat tile */
+.capiro-vnext-root .lw .lw-stat { padding: 12px; border-radius: 10px; background: var(--lw-page); box-shadow: var(--lw-ring-hairline); }
+.capiro-vnext-root .lw .lw-stat__value { font-size: 20px; line-height: 29px; font-weight: 600; color: var(--lw-ink); font-family: var(--lw-mono); }
+.capiro-vnext-root .lw .lw-stat__label { margin-top: 3px; font-size: 11px; color: var(--lw-meta); font-family: var(--lw-mono); letter-spacing: .04em; text-transform: uppercase; }
+
+/* ============================================================================
+   A.10 — overlays (one modal shell, five contents)
+   ========================================================================== */
+.capiro-vnext-root .lw .lw-modal-scrim {
+  position: fixed; inset: 0; background: var(--lw-scrim); z-index: 70;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+  animation: lwFade .14s ease;
+}
+.capiro-vnext-root .lw .lw-modal {
+  background: var(--lw-surface);
+  border-radius: 14px;
+  box-shadow: var(--lw-shadow-modal);
+  width: 640px; max-width: 100%; max-height: 90vh;
+  min-width: 0;
+  display: flex; flex-direction: column;
+  animation: lwPop .18s cubic-bezier(.2, 0, 0, 1);
+}
+.capiro-vnext-root .lw .lw-modal__head { padding: 22px 26px; background: var(--lw-page); border-bottom: 1px solid var(--lw-line); border-radius: 14px 14px 0 0; }
+.capiro-vnext-root .lw .lw-modal__title { margin: 4px 0 0; font-size: 24px; line-height: 32px; letter-spacing: -.01em; font-weight: 600; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-modal__sub { margin: 6px 0 0; font-size: 13px; line-height: 20px; color: var(--lw-body); }
+.capiro-vnext-root .lw .lw-modal__body { overflow-y: auto; overscroll-behavior: contain; padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+/* note + Cancel + primary. On a phone sheet the note alone is wider than the
+   remaining room, so the row wraps and the note takes its own line. */
+.capiro-vnext-root .lw .lw-modal__foot { padding: 18px 26px; border-top: 1px solid var(--lw-line); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.capiro-vnext-root .lw .lw-modal__note { font-size: 12px; color: var(--lw-meta); flex: 1 1 200px; min-width: 0; }
+.capiro-vnext-root .lw .lw-modal--views { width: 900px; }
+.capiro-vnext-root .lw .lw-modal--watch { width: 920px; }
+.capiro-vnext-root .lw .lw-modal--states { width: 1100px; }
+.capiro-vnext-root .lw .lw-modal--how { width: 640px; }
+@media (max-width: 1179px) {
+  .capiro-vnext-root .lw .lw-modal--views { width: 760px; }
+  .capiro-vnext-root .lw .lw-modal--watch { width: 760px; }
+  .capiro-vnext-root .lw .lw-modal--states { width: 860px; }
+}
+
+/*
+ * Below 780 the modal becomes the surface-standard full-height sheet.
+ *
+ * LwModal now carries `.capiro-overlay` on the scrim and `.capiro-modal` on the
+ * panel, so it reads as the same object the rest of the surface uses. It cannot
+ * INHERIT foundations/responsive.css §7 though: those rules are (0,2,0) and
+ * every rule in this file is (0,3,0) via `.lw`, so the module's own base sizing
+ * would win the tie regardless of import order. These restate the foundation's
+ * mobile sheet at the specificity needed to beat this file's own base rule —
+ * same declarations, not a different behaviour.
+ */
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-modal-scrim { padding: 0; align-items: stretch; justify-content: stretch; }
+  .capiro-vnext-root .lw .lw-modal,
+  .capiro-vnext-root .lw .lw-modal--views,
+  .capiro-vnext-root .lw .lw-modal--watch,
+  .capiro-vnext-root .lw .lw-modal--states,
+  .capiro-vnext-root .lw .lw-modal--how {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    animation: lwSheet .2s cubic-bezier(.2, 0, 0, 1);
+  }
+  .capiro-vnext-root .lw .lw-modal__head { border-radius: 0; padding: 18px 20px; }
+  .capiro-vnext-root .lw .lw-modal__body { padding: 16px 20px; }
+  .capiro-vnext-root .lw .lw-modal__foot { padding: 16px 20px; }
+}
+
+/* Create watch (§7.13): definition on the left, the dark preview panel on the
+   right. Was an inline `minmax(0,1fr) 320px` — a hard 320px track inside a
+   modal body that is 322px wide on a 390px phone. */
+.capiro-vnext-root .lw .lw-watch-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(min(300px, 100%), 320px);
+  gap: 16px;
+  min-width: 0;
+}
+@media (max-width: 779px) {
+  .capiro-vnext-root .lw .lw-watch-cols { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* System-states reference grid — the min() guard is the whole point: a bare
+   minmax(300px, 1fr) floors the single-column case at 300px and overflows
+   any container narrower than that (a 360px phone gives this 296px). */
+.capiro-vnext-root .lw .lw-states-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+/* transcription setup blocks (A.10) */
+.capiro-vnext-root .lw .lw-block { padding: 14px; border-radius: 10px; background: var(--lw-page); box-shadow: var(--lw-ring-hairline); }
+.capiro-vnext-root .lw .lw-block--ring { background: var(--lw-surface); box-shadow: var(--lw-ring-control); }
+.capiro-vnext-root .lw .lw-block--ink { background: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-block__label { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-block--ink .lw-block__label { color: var(--lw-faint); }
+.capiro-vnext-root .lw .lw-block__title { margin-top: 8px; font-size: 16px; font-weight: 600; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-block__when { margin-top: 4px; font-family: var(--lw-mono); font-size: 12px; letter-spacing: .03em; color: var(--lw-meta); }
+.capiro-vnext-root .lw .lw-block__head { font-size: 15px; font-weight: 600; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-block__body { margin-top: 4px; font-size: 13px; line-height: 20px; color: var(--lw-body); }
+.capiro-vnext-root .lw .lw-block--ink .lw-block__body { color: var(--lw-faint); }
+
+/* capture radio cards */
+.capiro-vnext-root .lw .lw-radio {
+  display: flex; gap: 14px; padding: 14px; border-radius: 10px;
+  background: var(--lw-surface); box-shadow: var(--lw-ring-hairline);
+  cursor: pointer; border: 0; width: 100%; text-align: left;
+}
+.capiro-vnext-root .lw .lw-radio:hover { background: var(--lw-selected); }
+.capiro-vnext-root .lw .lw-radio.is-selected { background: var(--lw-selected); box-shadow: var(--lw-ring-selected); }
+.capiro-vnext-root .lw .lw-radio:disabled { opacity: .55; cursor: not-allowed; }
+.capiro-vnext-root .lw .lw-radio__ring {
+  width: 20px; height: 20px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--lw-control);
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+}
+.capiro-vnext-root .lw .lw-radio.is-selected .lw-radio__ring { box-shadow: inset 0 0 0 1px var(--lw-ink); }
+.capiro-vnext-root .lw .lw-radio__fill { width: 8px; height: 8px; border-radius: 50%; background: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-radio__title { font-size: 15px; font-weight: 600; color: var(--lw-ink); }
+.capiro-vnext-root .lw .lw-radio__desc { margin-top: 3px; font-size: 13px; line-height: 20px; color: var(--lw-body); }
+.capiro-vnext-root .lw .lw-radio__tag { margin-left: auto; flex: 0 0 auto; height: 26px; padding: 0 10px; border-radius: 6px; display: inline-flex; align-items: center; font-family: var(--lw-mono); font-size: 11px; font-weight: 600; }
+
+/* unattended schedule rows (ink block) */
+.capiro-vnext-root .lw .lw-kvrow { display: flex; gap: 9px; align-items: baseline; }
+.capiro-vnext-root .lw .lw-kvrow__k { width: 74px; flex: 0 0 auto; font-family: var(--lw-mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--lw-faint); }
+.capiro-vnext-root .lw .lw-kvrow__v { flex: 1; min-width: 160px; font-size: 13px; line-height: 20px; color: #fff; }
+
+/* ============================================================================
+   System states (§9) — one vocabulary, geometry retained in every state
+   ========================================================================== */
+.capiro-vnext-root .lw .lw-state {
+  padding: 28px 24px;
+  border-radius: 12px;
+  background: var(--lw-surface);
+  box-shadow: var(--lw-shadow-card);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.capiro-vnext-root .lw .lw-state__title { font-size: 15px; font-weight: 600; color: var(--lw-ink); margin: 0; }
+.capiro-vnext-root .lw .lw-state__body { font-size: 13px; line-height: 20px; color: var(--lw-body); max-width: 560px; text-wrap: pretty; }
+.capiro-vnext-root .lw .lw-skel {
+  display: block;
+  border-radius: 6px;
+  background: var(--lw-hover);
+  animation: lwSkeleton 1.4s ease-in-out infinite;
+}
+.capiro-vnext-root .lw .lw-skel--2 { animation-delay: .2s; }
+.capiro-vnext-root .lw .lw-skel--3 { animation-delay: .4s; }
+
+/* cold start (§7.12) */
+.capiro-vnext-root .lw .lw-cold {
+  background: var(--lw-ink);
+  border-radius: 12px;
+  padding: 28px;
+  color: #fff;
+}
+.capiro-vnext-root .lw .lw-cold__h { font-size: 22px; line-height: 30px; letter-spacing: -.01em; font-weight: 600; margin: 8px 0 0; }
+.capiro-vnext-root .lw .lw-cold__p { margin: 10px 0 0; font-size: 13px; line-height: 20px; color: var(--lw-faint); max-width: 640px; text-wrap: pretty; }
+.capiro-vnext-root .lw .lw-cold__routes { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* analytics */
+.capiro-vnext-root .lw .lw-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-tile { background: var(--lw-ink); border-radius: 12px; padding: 16px; color: #fff; }
+.capiro-vnext-root .lw .lw-tile__value { font-size: 26px; line-height: 34px; letter-spacing: -.02em; font-weight: 600; font-family: var(--lw-mono); }
+.capiro-vnext-root .lw .lw-tile__label { margin-top: 4px; font-family: var(--lw-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--lw-faint); }
+
+/* toast */
+.capiro-vnext-root .lw .lw-toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 28px;
+  background: var(--lw-ink);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  box-shadow: var(--lw-shadow-toast);
+  z-index: 90;
+  font-size: 13px;
+  font-weight: 500;
+  animation: lwRise .16s ease;
+}
+/* Clears the shell's fixed 64px bottom nav. */
+@media (max-width: 779px) { .capiro-vnext-root .lw .lw-toast { bottom: 84px; max-width: calc(100% - 32px); } }
+
+/* live room replaces module chrome — full width route */
+.capiro-vnext-root .lw .lw-liveroom { padding: 16px var(--lw-gutter) 28px; display: flex; flex-direction: column; gap: 16px; max-width: 1560px; min-width: 0; }
+.capiro-vnext-root .lw .lw-liveroom__bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
+
+/* ============================================================================
+   Responsive — the two canonical boundaries
+   ==========================================================================
+
+   Everything above places its own breakpoint next to the geometry it changes.
+   What follows is the cross-cutting pass that has no single owner: the module
+   gutter, the horizontal-overflow guards, and the touch-target floor.
+   ========================================================================== */
+
+/* A wide table cannot be made to fit a 358px phone; it can be made to scroll
+   inside its card instead of widening the document. Uses the foundation's
+   .capiro-scroll-x, which puts the min-width on the TABLE, not the scroller. */
+.capiro-vnext-root .lw .lw-tablewrap { --capiro-scroll-x-min: 720px; }
+
+/*
+ * Flex rows that carry one free-text child and one fixed cluster. Every one of
+ * these was a row with no wrap and a child at the initial `min-width: auto`, so
+ * a long bill title or committee name set the width of the row, the row set the
+ * width of the card, and the card set the width of the page. Wrapping is the
+ * fix at every width, not only below a breakpoint.
+ */
+.capiro-vnext-root .lw .lw-hrow,
+.capiro-vnext-root .lw .lw-rrow,
+.capiro-vnext-root .lw .lw-mrow,
+.capiro-vnext-root .lw .lw-radio,
+.capiro-vnext-root .lw .lw-tseg {
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .lw .lw-hrow > *,
+.capiro-vnext-root .lw .lw-rrow > *,
+.capiro-vnext-root .lw .lw-mrow > *,
+.capiro-vnext-root .lw .lw-tseg > *,
+.capiro-vnext-root .lw .lw-card__head > *,
+.capiro-vnext-root .lw .lw-pagehead > *,
+.capiro-vnext-root .lw .lw-panel__head > *,
+.capiro-vnext-root .lw .lw-cal__legend > *,
+.capiro-vnext-root .lw .lw-bulk > *,
+.capiro-vnext-root .lw .lw-status > * {
+  min-width: 0;
+}
+.capiro-vnext-root .lw .lw-panel__head { flex-wrap: wrap; }
+.capiro-vnext-root .lw .lw-card__title,
+.capiro-vnext-root .lw .lw-panel__title,
+.capiro-vnext-root .lw .lw-sect__title,
+.capiro-vnext-root .lw .lw-modal__title,
+.capiro-vnext-root .lw .lw-h1 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/*
+ * Touch targets, tablet AND mobile (>=44px, LEGIWATCH-HANDOFF A.2).
+ *
+ * min-height, deliberately, not height: several controls in this module carry
+ * an inline `height` (the scope select at 42, the transcript filters at 32, the
+ * row work-state select at 24) and inline styles outrank any stylesheet rule.
+ * A min-height still wins over an inline height, so this reaches them without
+ * editing the geometry back out of every call site. The type ramp is untouched.
+ */
+@media (max-width: 1179px) {
+  .capiro-vnext-root .lw .lw-btn,
+  .capiro-vnext-root .lw .lw-seg__item,
+  .capiro-vnext-root .lw .lw-navbtn,
+  .capiro-vnext-root .lw .lw-rail__opt,
+  .capiro-vnext-root .lw .lw-lrow__verb,
+  .capiro-vnext-root .lw .lw-rrow__cancel,
+  .capiro-vnext-root .lw .lw-video__play,
+  .capiro-vnext-root .lw .lw-video__fs,
+  .capiro-vnext-root .lw .lw-search,
+  .capiro-vnext-root .lw .lw-check,
+  .capiro-vnext-root .lw select {
+    min-height: var(--capiro-hit-size, 44px);
+  }
+  .capiro-vnext-root .lw .lw-navbtn,
+  .capiro-vnext-root .lw .lw-rrow__cancel,
+  .capiro-vnext-root .lw .lw-video__play,
+  .capiro-vnext-root .lw .lw-video__fs {
+    min-width: var(--capiro-hit-size, 44px);
+  }
+  /* The packet-row checkbox is a 20px painted square inside a dense row, so it
+     gets the foundation's .capiro-hit treatment instead: the hit area grows,
+     the drawn box does not move. Nothing on this path clips it — .lw-prow has
+     no overflow of its own and the card's clip is far wider. */
+  .capiro-vnext-root .lw .lw-prow__check { position: relative; }
+  .capiro-vnext-root .lw .lw-prow__check::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-start: 50%;
+    width: var(--capiro-hit-size, 44px);
+    height: var(--capiro-hit-size, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (max-width: 779px) {
+  /* The shell's .uui-content already owns the 16px page gutter here. */
+  .capiro-vnext-root .lw { --lw-gutter: 0px; }
+  /* Long bill numbers, committee names and evidence strings are unbreakable
+     mono runs; they wrap rather than set the width of the page. */
+  .capiro-vnext-root .lw .lw-mono,
+  .capiro-vnext-root .lw .lw-chip__title,
+  .capiro-vnext-root .lw .lw-lrow__title,
+  .capiro-vnext-root .lw .lw-prow__title,
+  .capiro-vnext-root .lw .lw-bcard__title,
+  .capiro-vnext-root .lw .lw-hrow__title {
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+  /* Dark cards that carry their own inner padding read as inset boxes once the
+     module gutter is gone; keep them off the very edge. */
+  .capiro-vnext-root .lw .lw-cold { padding: 20px 16px; }
+  .capiro-vnext-root .lw .lw-status { padding: 14px 16px; gap: 12px 16px; }
+}

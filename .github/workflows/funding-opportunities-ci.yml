@@ -104,7 +104,7 @@ jobs:
           base="${{ github.event.pull_request.base.sha }}"
           changed=$(git diff --name-only "$base"...HEAD)
           echo "$changed" | sed 's/^/  /'
-          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
+          if echo "$changed" | grep -Eq '^(apps/api/src/funding-opportunities/|apps/api/src/external/tango/|apps/api/src/config/config\.schema\.(ts|spec\.ts)|apps/api/src/webhooks/tango-webhook|apps/api/src/webhooks/webhooks\.module\.ts|apps/api/src/bootstrap/configure-api-http-app|infra/cdk/lib/config\.ts|infra/cdk/lib/compute-stack\.ts|infra/cdk/test/compute-stack.*\.spec\.ts|apps/api/src/clients/|apps/api/src/intelligence/intelligence\.(manual-mapping|mapping-governance|service|controller)|apps/api/src/meri/(meri-tools\.service\.ts|meri-tools\.registration\.spec\.ts|meri\.module\.ts|meri-mcp\.catalog\.(ts|spec\.ts)|meri-mcp-transport\.(ts|spec\.ts)|meri-mcp\.service\.ts)|apps/api/scripts/(sync-sam-opportunities|sync-grants|enrich-grant-details|generate-funding-grant-candidates|generate-sam-opportunity-candidates|process-funding-opportunity-lifecycle|backfill-funding-mapping-review|backfill-sam-opportunity-fields|repair-set-aside-certifications|funding-opportunities-entrypoint|sam-opportunity-matcher|reconcile-tango-webhook-alerts|process-tango-events|diag-funding-opportunities-makegov|diag-tango-webhook-contract|sync-tango-dibbs)|apps/api/tsconfig\.funding-opportunities\.json|apps/api/prisma/|apps/web/src/pages/intelligence/opportunities/|apps/web/src/pages/settings/IntelligenceMappingsPage|apps/web/src/pages/clients/intelligence-v1/sections/FundingOpportunitiesSection|apps/web/src/App\.funding-opportunities-nav|\.github/workflows/funding-opportunities-ci\.yml)'; then
             echo "in_scope=true" >> "$GITHUB_OUTPUT"
             echo "In scope — running the full gate."
           else
@@ -179,15 +179,57 @@ jobs:
           for name in \
             20260810010000_funding_opportunities \
             20260810020000_funding_opportunities_closeout \
-            20260810040000_funding_opportunities_lifecycle_truth             20260819010000_funding_opportunity_decisions             20260820010000_funding_opportunity_generic_source             20260821010000_tango_source_substrate             20260826010000_tango_opportunity_crosswalk             20260827010000_tango_opportunity_notice_history             20260828010000_tango_notice_description_hash             20260829010000_opportunity_attachments             20260830010000_opportunity_document_text             20260831010000_opportunity_requirement_artifacts             20260901010000_funding_opportunity_pipeline_v2             20260902010000_tango_budget_context             20260903010000_tango_procurement_risk \
-            20260904010000_outcome_event_funding_opportunity
+            20260810040000_funding_opportunities_lifecycle_truth \
+            20260819010000_funding_opportunity_decisions \
+            20260820010000_funding_opportunity_generic_source \
+            20260821010000_tango_source_substrate \
+            20260826010000_tango_opportunity_crosswalk \
+            20260827010000_tango_opportunity_notice_history \
+            20260828010000_tango_notice_description_hash \
+            20260829010000_opportunity_attachments \
+            20260830010000_opportunity_document_text \
+            20260831010000_opportunity_requirement_artifacts \
+            20260901010000_funding_opportunity_pipeline_v2 \
+            20260902010000_tango_budget_context \
+            20260903010000_tango_procurement_risk \
+            20260904010000_outcome_event_funding_opportunity \
+            20260905010000_tango_webhook_deliveries \
+            20260906010000_tango_event_outbox \
+            20260907010000_tango_event_outbox_per_event \
+            20260908010000_tango_dibbs \
+            20260909010000_tango_sbir_sttr
           do
             if ! grep -q "$name" migration-deploy.log; then
               echo "::error::migration $name was NOT applied by migrate deploy."
-              echo "A migration stamped earlier than an already-applied one is never run."
+              echo "Most likely it is absent from apps/api/prisma/migrations, or its"
+              echo "directory name does not match the name asserted here."
               exit 1
             fi
           done
+
+      # TWO CORRECTIONS TO THE STEP ABOVE, both made in P42 and both measured.
+      #
+      # 1. 20260908010000_tango_dibbs was missing from the list. P40 shipped a
+      #    migration and did not add it here, so the one gate that proves a
+      #    migration actually ran did not cover it. Added, along with P42's.
+      #
+      # 2. The old failure message said "A migration stamped earlier than an
+      #    already-applied one is never run." THAT IS NOT TRUE of
+      #    `prisma migrate deploy` (5.22.0), and it matters because it would
+      #    push someone into renumbering a correct migration.
+      #
+      #    Measured rather than reasoned about: a clean database was migrated
+      #    with 20260909010000_tango_sbir_sttr REMOVED from the directory,
+      #    reaching 20261001011000_tango_subaward_reobservation_freshness. The
+      #    migration was then restored and `migrate deploy` run again. It
+      #    applied, created both tables, and landed in _prisma_migrations with a
+      #    finished_at LATER than the 20261001 row. deploy applies whatever is
+      #    in the directory and not in the ledger; name order decides sequence
+      #    among pending migrations, not eligibility.
+      #
+      #    The guard is still worth having — `migrate deploy` exits 0 on a
+      #    no-op, so a migration missing from the directory entirely would pass
+      #    the step above unnoticed. Only the explanation was wrong.
 
       # Schema-vs-database agreement, SCOPED TO THIS FEATURE'S OBJECTS.
       #
@@ -638,6 +680,112 @@ jobs:
           check "exclusion flag is TEXT, not boolean"             "SELECT data_type FROM information_schema.columns WHERE table_name='tango_entity_exclusion' AND column_name='exclusion_status_flag'"             "text"
           check "exclusion date-order CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_entity_exclusion_date_order_chk'"             "1"
 
+          # -- P46: verified webhook delivery ledger ----------------------------
+          # GLOBAL, and this one is load-bearing rather than incidental: a webhook
+          # arrives with NO session and NO tenant, and the receiver is mounted
+          # outside TenantContext middleware. If a tenant_id column ever appears
+          # here it means something inferred a tenant from provider-controlled
+          # data, which is the failure this assertion exists to catch.
+          check "delivery has NO tenant_id column"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_webhook_delivery' AND column_name='tenant_id'"             "0"
+          check "delivery RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_webhook_delivery'"             "f"
+          check "delivery has NO policies"             "SELECT count(*) FROM pg_policies WHERE tablename='tango_webhook_delivery'"             "0"
+
+          # THE idempotency guarantee. Without this unique index two concurrent
+          # provider retries both insert, and P48 later fans out two alerts for
+          # one event. This is the single most important assertion in the block.
+          check "delivery_id is UNIQUE"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_webhook_delivery_delivery_id_uniq'"             "1"
+          check "a blank delivery id is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_delivery_id_chk'"             "1"
+          check "a blank event type is refused"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_event_type_chk'"             "1"
+
+          # The payload digest must be a real lowercase hex SHA-256. A truncated
+          # or upper-cased hash would silently never match on comparison, making
+          # "same content twice" undetectable.
+          check "payload_sha256 shape CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_sha256_chk'"             "1"
+          check "payload_bytes non-negative CHECK exists"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_bytes_chk'"             "1"
+
+          # Lifecycle vocabulary is closed, and a drained row must carry its
+          # drain time — otherwise a half-written P47 drain looks complete.
+          check "delivery status vocabulary is closed"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_status_chk'"             "1"
+          check "processed_at agrees with status"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_webhook_delivery_processed_chk'"             "1"
+
+          # payload_sha256 is deliberately NON-unique: identical content
+          # legitimately arrives under two delivery ids. A unique index here
+          # would silently drop the second, real delivery.
+          check "payload_sha256 index is NOT unique"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_webhook_delivery_payload_sha_idx' AND indexdef LIKE '%UNIQUE%'"             "0"
+
+          # provider_event_at stays nullable forever: a payload carrying no
+          # timestamp is missing evidence, not stale evidence, and a NOT NULL
+          # here would force the receiver to invent one.
+          check "provider_event_at is nullable"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_webhook_delivery' AND column_name='provider_event_at'"             "YES"
+
+          # No FK, same reason as P45's ledgers: the record that a delivery
+          # arrived must outlive whatever row it later resolves to.
+          # -- P48: event outbox and quiet alerts -------------------------------
+          # The outbox is GLOBAL work; the alert is TENANT truth. If that split
+          # ever collapses, one of these two blocks fails.
+          check "outbox has NO tenant_id"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_event_outbox' AND column_name='tenant_id'"             "0"
+          check "outbox RLS is NOT enabled"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_event_outbox'"             "f"
+          # ONE ROW PER EVENT, not per delivery. The single-column key made a
+          # multi-event batch unrepresentable: the receiver accepted it and the
+          # outbox kept only events[0], marking the row done while every later
+          # event was silently discarded.
+          check "the old delivery-only key is GONE"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_event_outbox_delivery_uniq'"             "0"
+          check "idempotency is (delivery, event_index)"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_event_outbox_delivery_event_uniq'"             "1"
+          check "event_index is NOT NULL"             "SELECT is_nullable FROM information_schema.columns WHERE table_name='tango_event_outbox' AND column_name='event_index'"             "NO"
+          check "event_index has a non-negative CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_outbox_event_index_chk'"             "1"
+          check "outbox status vocabulary is closed"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_outbox_status_chk'"             "1"
+          check "completed_at agrees with outbox status"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_outbox_completed_chk'"             "1"
+
+          # The alert table is the one place in this phase that holds tenant
+          # data, so it carries the full four-policy FORCE RLS treatment.
+          check "alert HAS tenant_id"             "SELECT count(*) FROM information_schema.columns WHERE table_name='tango_event_alert' AND column_name='tenant_id'"             "1"
+          check "alert RLS is ENABLED"             "SELECT relrowsecurity FROM pg_class WHERE relname='tango_event_alert'"             "t"
+          check "alert RLS is FORCED"             "SELECT relforcerowsecurity FROM pg_class WHERE relname='tango_event_alert'"             "t"
+          check "alert has FOUR tenant policies"             "SELECT count(*) FROM pg_policies WHERE tablename='tango_event_alert'"             "4"
+
+          # THE quiet guarantee: replay and out-of-order delivery produce one
+          # result, and only a unique index can promise that under concurrency.
+          check "alert dedupe index is UNIQUE"             "SELECT count(*) FROM pg_indexes WHERE indexname='tango_event_alert_dedupe_uniq' AND indexdef LIKE '%UNIQUE%'"             "1"
+          check "alert fingerprint shape CHECK"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_alert_fingerprint_chk'"             "1"
+          check "alert severity vocabulary is closed"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_alert_severity_chk'"             "1"
+          check "alert stage vocabulary is closed"             "SELECT count(*) FROM pg_constraint WHERE conname='tango_event_alert_stage_chk'"             "1"
+
+          check "delivery has NO foreign keys"             "SELECT count(*) FROM pg_constraint WHERE conrelid='tango_webhook_delivery'::regclass AND contype='f'"             "0"
+
+          # EXECUTE the statement the drain actually issues, rather than asserting
+          # the index exists. Those are different claims, and the difference was a
+          # real bug: `tango_event_alert_dedupe_uniq` is a unique INDEX, so
+          # `ON CONFLICT ON CONSTRAINT <name>` raised "constraint does not exist"
+          # on EVERY insert — the drain would have retried each event five times,
+          # quarantined it, and written no alert at all. Every unit test passed,
+          # because they drive the service against an in-memory double and never
+          # run this SQL.
+          #
+          # So this runs it twice and requires 1 row then 0: the insert works AND
+          # the dedupe bites. An index-existence check could not have caught it.
+          FP_A=$(printf 'a%.0s' $(seq 1 64))
+          ins() {
+            psql "$DATABASE_URL" -tAc "INSERT INTO tango_event_alert
+              (tenant_id,client_id,source_type,source_record_key,change_dimension,
+               severity,change_fingerprint,evidence_jsonb)
+             VALUES ('11111111-1111-1111-1111-111111111111','33333333-3333-3333-3333-333333333333',
+                     'sam_opportunity','ci-probe','deadline','critical','$FP_A','{}'::jsonb)
+             ON CONFLICT (tenant_id, client_id, source_record_key, change_fingerprint)
+             DO NOTHING" 2>&1
+          }
+          first=$(ins); second=$(ins)
+          if echo "$first" | grep -q "INSERT 0 1"; then
+            echo "  PASS  the drain's real alert INSERT executes"
+          else
+            echo "::error::the drain's alert INSERT failed: $first"; fail=1
+          fi
+          if echo "$second" | grep -q "INSERT 0 0"; then
+            echo "  PASS  a duplicate alert is deduped by the unique index"
+          else
+            echo "::error::alert dedupe did not bite: $second"; fail=1
+          fi
+          psql "$DATABASE_URL" -q -c "DELETE FROM tango_event_alert WHERE source_record_key='ci-probe'" >/dev/null 2>&1
+
           exit $fail
 
       # The narrow, enforceable half of a drift check: every index the funding
@@ -703,6 +851,7 @@ jobs:
           src/funding-opportunities/
           src/external/tango/
           src/config/config.schema.spec.ts
+          src/webhooks/tango-webhook.spec.ts
           src/intelligence/intelligence.manual-mapping.spec.ts
           src/intelligence/intelligence.mapping-governance.spec.ts
           src/meri/meri-tools.registration.spec.ts
@@ -732,6 +881,13 @@ jobs:
           scripts/sync-tango-opportunity-notices.spec.ts
           scripts/sync-tango-opportunity-attachments.spec.ts
           scripts/sync-tango-opportunity-text.spec.ts
+          scripts/reconcile-tango-webhook-alerts.spec.ts
+          scripts/process-tango-events.spec.ts
+          scripts/diag-funding-opportunities-makegov.spec.ts
+          scripts/diag-tango-webhook-contract.spec.ts
+          scripts/sync-tango-dibbs.spec.ts
+          scripts/sync-tango-sbir.spec.ts
+          scripts/diag-tango-contract-capture.spec.ts
 
       # Floors: jest counts FILES in numTotalTestSuites. Measured 29 files / 958 tests
       # on this branch; the floor sits just under so adding a test does not require
@@ -1591,9 +1747,461 @@ jobs:
       # reopening a lost/passed pursuit is a second INSERT, never an UPDATE, and
       # a memory-candidate proposal failure never costs the outcome record
       # already committed. Same flag guard `funding_opportunities_pipeline_v2`.
+      # 71/2202 -> 72/2256 after P46 (verified webhook receiver): one NEW suite,
+      # tango-webhook.spec.ts (54 tests). Measured, not estimated: 72 suites /
+      # 2256 tests / 0 failures / 0 skipped / 0 todo.
+      #
+      # The 54 split roughly: HMAC verification over raw bytes (tamper, wrong
+      # secret, single flipped byte, 8 malformed-header shapes, empty body,
+      # unconfigured), the replay window in BOTH directions including forward
+      # clock skew, envelope extraction (header-over-body precedence, unknown
+      # event types accepted rather than refused), the service's branching
+      # (dark-without-secret, duplicate-via-unique-index, rethrow-on-persistence-
+      # failure), and the controller's status mapping — where the two 503 cases
+      # matter most, since answering 2xx after a failed write would silently drop
+      # a real event forever.
+      #
+      # One test is load-bearing for §4.6 and worth naming: "VERIFIES BEFORE
+      # PARSING" sends a bad signature over malformed JSON and requires the
+      # answer to be invalid_signature, not malformed_json. If that ever flips,
+      # the JSON parser is being handed unauthenticated input.
+      # 72/2256 -> 74/2316 after P47 (webhook alert reconciler): two NEW suites,
+      # tango-webhook-config.spec.ts (23) and reconcile-tango-webhook-alerts
+      # .spec.ts (36), plus one row added to the entrypoint dispatcher table.
+      # Measured: 74 suites / 2316 tests / 0 failures / 0 skipped / 0 todo.
+      #
+      # The load-bearing assertions, if these ever need defending:
+      #   - "PERFORMS NO WRITE, and issues only reads" asserts the COMPLETE call
+      #     list of a dry run, not just the absence of one method. A per-call
+      #     mock would let a stray write through unasserted.
+      #   - "exits 3 and STOPS on a refused write" proves a tier refusal leaves
+      #     no half-configured account — it attempts exactly one write, then
+      #     stops, rather than marching through collecting failures.
+      #   - "NEVER deletes a human's dashboard alert, even WITH allowDelete"
+      #     and "never proposes deleting an unmanaged alert" are the two guards
+      #     behind "deletion is never implied by absence".
+      #   - "NEVER contains a per-client subscription" is structural: it greps
+      #     the shipped desired filters for tenant/client/uei/cage/duns, because
+      #     fan-out belongs in Capiro and a per-client filter would leak the
+      #     client roster into the provider's system.
+      # 74/2316 -> 76/2394 after P48 (event fan-out and quiet alerts): two NEW
+      # suites, tango-event-processor.spec.ts (57) and process-tango-events
+      # .spec.ts (20), plus one row on the entrypoint dispatcher table.
+      # Measured: 76 suites / 2394 tests / 0 failures / 0 skipped / 0 todo.
+      #
+      # The assertions that encode this phase's promises:
+      #   - "REPLAY produces one result" and "OUT-OF-ORDER delivery produces one
+      #     result" — the two failure modes an at-least-once sender guarantees.
+      #     Both rely on the change fingerprint EXCLUDING the delivery id.
+      #   - "a POISON event is retried, then quarantined, and NEVER blocks the
+      #     queue" asserts the healthy row BEHIND the poison one still completed.
+      #   - "fans out to several tenants, and each alert carries ONLY its own"
+      #     plus the migration rehearsal's FORCE-RLS block are the two halves of
+      #     "cross-tenant fan-out impossible" — code and database.
+      #   - "SUGGESTED maps to no stage" is the quiet guarantee that matters
+      #     most in practice: `suggested` is the column DEFAULT, so alerting on
+      #     it would mean alerting on the producer's entire backlog.
+      # 76/2394 -> 77/2412 after P49 (canary diagnostic): one NEW suite,
+      # diag-funding-opportunities-makegov.spec.ts (17), plus one dispatcher row.
+      # Measured: 77 suites / 2412 tests / 0 failures / 0 skipped / 0 todo.
+      #
+      # Two assertions there are worth keeping honest:
+      #   - "issues ONLY read queries" checks the COMPLETE SQL list the script
+      #     emitted, not that one method went uncalled. That is what makes the
+      #     diagnostic safe to hand to whoever is reviewing a canary.
+      #   - "never calls the provider" STRIPS COMMENTS before scanning. The first
+      #     version failed against its own subject, because that file's header
+      #     says "TANGO_API_KEY is deliberately not read" — prose describing the
+      #     property under test. Same trap as PR #815's "real" false-matching a
+      #     a word-boundary REAL no-floating-point check. A source-scanning gate reads CODE.
+      # 77/2412 -> 78/2442 after the webhook contract probe: one NEW suite,
+      # diag-tango-webhook-contract.spec.ts (22), plus 7 batch-envelope tests
+      # added to tango-webhook.spec.ts and one dispatcher row.
+      # Measured: 78 suites / 2442 tests / 0 failures / 0 skipped / 0 todo.
+      #
+      # The batch tests are the load-bearing ones. The provider's own SDK models
+      # a sample delivery as { timestamp, events: [...] } — an ARRAY, not one
+      # event at the top level. P46 originally read only the top level, so a real
+      # batch delivery would have been rejected `missing_event_type`:
+      # authenticated, stored nowhere, and answered 400 so the provider would
+      # never retry it. That is the worst failure this receiver has.
+      # 78/2442 -> 78/2446: the canary diagnostic's own queries were fixed and
+      # the failure-vs-absence distinction added. Measured: 78 / 2446 / 0 failures.
+      #
+      # Three of that script's queries were BROKEN and invisible: they named
+      # `tango_entity_profile` (a table that has never existed in any migration —
+      # P19 writes entity rows into `tango_resource_snapshot`) and a column
+      # `agrees` (the real one is `agreement`, vocabulary agree/conflict/
+      # local_only/provider_only/both_absent). All three threw, all three were
+      # swallowed into null, and null renders as an em dash — identical to "the
+      # provider holds nothing". A canary reviewer would have read three broken
+      # measurements as three empty datasets.
+      #
+      # A failed query is now its OWN value and prints `QUERY FAILED <reason>`.
+      # The em dash is reserved for genuine absence.
+      # 78/2446 -> 78/2452: webhook list pagination. 6 tests, driven through the
+      # REAL SDK on a fake transport, so the SDK's own URL building and page
+      # handling execute exactly as in production.
+      #
+      # `PaginatedResponse` carries `count`/`next`/`results` — these endpoints ARE
+      # paginated, and the adapter read page 1 only. The account also holds alerts
+      # a HUMAN created in the MakeGov dashboard, and this program does not
+      # control how many, so a Capiro-managed alert on page 2 would have been
+      # diffed as ABSENT and re-created, colliding on its own name.
+      #
+      # Now walks until a page comes back short, and a never-ending provider
+      # THROWS rather than returning a partial list — a reconciler acting on half
+      # the picture is exactly what this program's completeness rule forbids.
+      # 78/2452 -> 78/2454: a `sh -n` syntax gate on the entrypoint dispatcher.
+      #
+      # Every other assertion in that spec checks a dispatch LINE is present,
+      # which is worth having but cannot catch the failure that matters most: a
+      # syntax error anywhere in that file makes EVERY scheduled job fail to
+      # start, not just the verb somebody edited. Parsing costs nothing and needs
+      # no database, network, or fake binaries.
+      #
+      # 78/2474 -> 78/2482 -> 78/2484 across a THIRD and FOURTH independent
+      # review of the event-drain code. The third found the second round's own
+      # fixes had introduced two new defects (D-56, D-57). The fourth confirmed
+      # both were genuinely closed — and found that D-56's fix had itself
+      # introduced a worse one (D-59): wrapping a delivery's N inserts in
+      # `$transaction` inherits Prisma's 5s interactive-transaction timeout,
+      # which a ~3000-event delivery (~152KB, well inside the 1MB body limit)
+      # exceeds. That failure is NOT transient — same count, same latency, every
+      # retry — and since deliveries drain oldest-first with no per-delivery
+      # try/catch, one such delivery would permanently jam every delivery behind
+      # it.
+      #
+      # Now fixed by removing the failure class rather than moving its
+      # threshold: one `INSERT ... SELECT FROM unnest(...)` per delivery.
+      # Postgres applies a single statement atomically by construction, so
+      # there is no transaction to time out and cost is independent of N.
+      # Arrays rather than a multi-row VALUES because VALUES binds 5 params per
+      # row against the 65535 cap — a ~13k-event ceiling, higher but still a
+      # cliff. Verified against REAL Postgres 16: 3000 events 5009ms-timeout ->
+      # 113ms, 20000 events 477ms, mid-statement failure leaves zero rows, two
+      # concurrent drains converge with no duplicates.
+      #
+      # 78/2484 -> 78/2485 after a FIFTH review, scoped to the D-59 rewrite
+      # alone. It PASSED — the first pass in five rounds — after driving the
+      # real function against real Postgres: null refs mid-batch keep every
+      # column aligned, int[] arrives as true integers, ON CONFLICT resolves
+      # each row independently, and the "no ceiling" claim holds to 5,000,000
+      # rows in one statement (the 1MB body limit caps a real delivery near
+      # 19,400 events). It also confirmed the spec's no-transaction guard
+      # genuinely fails when tripped, rather than being theater.
+      #
+      # It did find that the dry-run and commit paths returned DIFFERENT UNITS
+      # — deliveries vs events — which agreed only until the per-event outbox
+      # widening, after which a dry run stopped predicting what --commit
+      # writes. Fixed here, with a test pinning the two to the same number.
+      #
+      # FIVE reviews, four of which found something the previous round missed,
+      # three of those defects introduced BY the preceding fix. The fifth found
+      # nothing wrong with the mechanism itself. Still get a HUMAN to read
+      # tango-event-processor.service.ts and process-tango-events.ts in one
+      # sitting before treating this feature as done — no phase in P00-P51 has
+      # ever had one.
+      #
+      # 78/2485 -> 81/2525 covers TWO unrelated changes, and the split matters
+      # if this floor ever fails: +1 suite / +33 tests is P40's DIBBS mapper
+      # (src/external/tango/tango-dibbs.mapper.spec.ts); the remaining +2 suites
+      # / +7 tests arrived from main when PR #850 (federal-market unification)
+      # merged, NOT from this feature. The api typecheck baseline moved in the
+      # same merge, 6 pre-existing errors -> 12, none of them in funding-
+      # opportunities code.
+      # 81/2528 -> 82/2564: P40 part 3, plus the D-64 probe fix, plus the D-65
+      # rate-limit handling. +1 suite and +36 tests, ALL of it this feature's —
+      # nothing arrived from main in this move. Split:
+      #   +27  scripts/sync-tango-dibbs.spec.ts (new suite)
+      #    +1  dispatch row in funding-opportunities-entrypoint.spec.ts
+      #    +2  tango-capability-probe.service.spec.ts (D-64 — the dibbs/sbir_sttr
+      #        probes had D-62's error compiled in, with a test pinning
+      #        `unsupported`; that assertion is now inverted, plus a real-call test)
+      #    +6  rate-limit tests (D-65)
+      #
+      # The D-65 six exist because a LIVE probe run found what no unit test could:
+      # this account is limited to 25 requests per ~31s, and the DIBBS sync had no
+      # handling for a 429 at all — it would have killed all three endpoint walks.
+      # The fakes never return 429, so nothing in the suite could have caught it.
+      #
+      # Measured against real Postgres 16 on a clean migration replay: 82 passed,
+      # 2564 passed, zero failures, zero skips. The api typecheck baseline did
+      # NOT move — still 12 pre-existing errors, none in funding-opportunities
+      # code.
+      #
+      # Note for whoever reads the block above: its "78/2485 -> 81/2525" and
+      # "+33 tests" were understated by 3. The floor asserted at that time was
+      # already 2528, because P40's alias guard (PR #854) added 3 tests after
+      # that prose was written. The floor was right; the prose was stale.
+      #
+      # 82/2564 -> 83/2598 after P41 part 1: one NEW file, dibbs-relevance.spec.ts
+      # (34 tests), picked up by the existing src/funding-opportunities/ glob — no
+      # new path needed here, same as forecast-relevance.spec.ts at P25.
+      #
+      # SIX of those 34 are a review regression worth naming, because the bug was
+      # invisible to the other 28. `closesDate` is a DATE anchored at UTC midnight
+      # and `asOf` is a real clock, so differencing the raw INSTANTS made a bid
+      # closing TODAY come out at floor(-0.5) = -1 at any time past midnight:
+      # isClosed returned true and the item was passed on its final biddable day.
+      # Production passes new Date(), which is essentially never midnight, so this
+      # would have fired on every same-day close. The original tests missed it
+      # because their asOf was exactly midnight — the one clock value that makes
+      # the instant arithmetic accidentally correct. The comparison is now by
+      # calendar day, and the regression cases all use a MID-DAY clock.
+      #
+      # Generalisable, and the reason this is spelled out: a fixture whose clock
+      # is midnight cannot test date arithmetic. Pick an awkward time on purpose.
+      #
+      # What it proves, and the part worth not re-deriving: THREE OF P41'S FIVE
+      # SPECIFIED SIGNALS CANNOT FIRE, for structural reasons on one side or the
+      # other. No model in this schema stores a client's reviewed NSNs or part
+      # numbers, so the plan's designated STRONGEST signal (exact part/NSN) has
+      # nothing to match against; tango_dibbs_solicitation carries no PSC or NAICS
+      # column, so that signal has nothing on the provider side; and nothing stores
+      # a client's DLA buyer history. Prior CAGE award history is the only signal
+      # that can independently qualify an item today, and capability text is
+      # forbidden by the phase's own acceptance from clearing the floor alone.
+      #
+      # So the suite pins the ABSENCE as much as the behaviour: the part/NSN gap is
+      # reported as `no_client_parts_recorded` on every rule path and is never
+      # itself a reason code, because an absence of data is not evidence. The
+      # dormant signals are declared and passed false rather than fed a lookalike
+      # — the AwardHistoryFacts.contractOffices mistake, whose own comment records
+      # that feeding an office signal the awarding sub-tier produced a signal that
+      # fired on the wrong fact.
+      #
+      # Also pinned structurally: awards cannot reach the scorer, because
+      # DibbsRelevanceInput.documentType admits only 'rfq' | 'rfp' and the award
+      # path returns an object with no field a Pursue could occupy — asserted by
+      # its exact key set, not by checking a value.
+      #
+      # Measured on this branch: 83 suites / 2598 passed, zero failures, zero
+      # skips, zero todo. The api typecheck baseline did NOT move — still 12
+      # pre-existing errors (defense-budget, memory, meri), none in
+      # funding-opportunities code.
+      #
+      # 2598 -> 2615 after P41 part 2: NO new suite. The DLA bid-board inbox rail
+      # grew funding-opportunity-inbox.spec.ts from 71 to 88 tests in place.
+      #
+      # NO MIGRATION WAS NEEDED, and that is worth stating because it looks like
+      # it should have been. P13's generic identity bridge already anticipated
+      # this rail: client_funding_opportunity_source_chk has admitted 'dibbs'
+      # since 20260820010000_funding_opportunity_generic_source, whose own header
+      # says it widened the vocabulary precisely so the generic branch would be
+      # reachable and therefore testable, and SOURCE_RECORD_TYPES.dibbs is
+      # already 'dibbs_solicitation'. This is the INVERSE of D-63's
+      # tango_sync_checkpoint.resource_type, which had to be worked around
+      # because no migration ever widened it. The two are indistinguishable from
+      # a distance; check the migration before assuming either.
+      #
+      # Two pre-existing tests changed, both correctly:
+      #
+      #  - funding-opportunity-identity.spec.ts SCANS the inbox service's source
+      #    text and pinned the literal INBOX_SOURCES line. That tripwire is the
+      #    point: a new rail must be a visible edit in the file guarding the
+      #    catalog boundary. Updated, with a note that the load-bearing half of
+      #    the assertion is the SPREAD (`[...OPPORTUNITY_SOURCES, ...]`), which
+      #    is what makes the inbox vocabulary a strict superset of the catalog's
+      #    rather than a copy that can drift.
+      #  - the inbox spec used 'dibbs' as its unknown-source example. It now uses
+      #    'sbir_sttr', the better boundary: storable in the database, still not
+      #    an inbox rail, which proves INBOX_SOURCES is its own vocabulary and
+      #    not a mirror of what the schema can hold.
+      #
+      # OPPORTUNITY_SOURCES stays exactly two entries wide, newly pinned by its
+      # own test. Widening it would make a bid-board line item requestable as a
+      # FundingOpportunity — a shape with money, an eligibility determination and
+      # a response deadline, none of which a line item has.
+      #
+      # 83/2615 -> 84/2643 after P42 part 1: one NEW file,
+      # tango-sbir.client.spec.ts (26 tests), plus 2 in
+      # tango-capability-probe.service.spec.ts. No path list change — the new
+      # spec sits under the already-enumerated src/external/tango/ directory.
+      #
+      # The subject is a client for an endpoint NOTHING HAS EVER CALLED, which
+      # shapes what the tests can honestly claim. They weight toward the two
+      # things that stay true whatever the live response turns out to be: the
+      # request the client ISSUES (documented path, X-API-KEY, per-endpoint date
+      # filter spellings, no undocumented `ordering`, limit clamped so the page
+      # asked for is the page reasoned about), and its refusal to read an
+      # unexpected shape as an empty page. Five envelope shapes throw rather
+      # than returning items: [] — a wrong envelope would otherwise end every
+      # run with "0 records, complete", the quietest possible way to be wrong
+      # and the failure mode this program keeps rediscovering. A GENUINELY empty
+      # page is still accepted, because a client that refused both could never
+      # finish a normal walk.
+      #
+      # What they cannot establish is field types, null semantics or date
+      # formats. That needs a captured fixture, and plan §4.6 forbids a key
+      # passing through an agent session — so it needs an operator, and no test
+      # here should be read as covering it.
+      #
+      # The 2 probe tests are why the client was built before any SBIR table:
+      # P42's plan gates the phase on "P17 must show access", and P17 could only
+      # ever answer `no_rest_client_wired` — a fact about Capiro's code (D-64),
+      # not an entitlement answer. A gate nothing can satisfy is not a gate.
+      # The second test pins that wiring SBIR does not change what the report
+      # says about DIBBS, which is how a phantom `supported` would appear.
+      #
+      # 84/2643 -> 85/2672 after P42 part 2: one NEW file,
+      # tango-sbir.mapper.spec.ts (29 tests). Again no path-list change — the
+      # spec sits under the already-enumerated src/external/tango/.
+      #
+      # The mappers are written against DOCUMENTATION, not a response, so the
+      # tests pin the READING rather than the provider. What they do carry is
+      # the rules that stay true whatever the live shape turns out to be:
+      #
+      #  - Neither mapper reaches for `uuid`. Topics key on `topic_id` and
+      #    solicitations on `solicitation_id`; a mapper that reached for the
+      #    DIBBS key would return null for EVERY record and report a clean
+      #    "0 mapped", which is the quiet failure this program keeps meeting.
+      #    Asserted directly: a record carrying only `uuid` maps to null.
+      #  - `program` keeps the provider's spelling. It is the SBIR/STTR
+      #    discriminator, and the contract documents the field but NOT its value
+      #    set — so normalising would invent a vocabulary and silently rewrite a
+      #    real value on first contact. The column carries no CHECK for the same
+      #    reason, which is the opposite call from DIBBS `document_type` where
+      #    the documentation does enumerate the two values.
+      #  - Absence is null, never a default, and `out_of_cycle` missing is
+      #    UNKNOWN rather than false.
+      #  - A SOURCE SCAN pins the rule the type system cannot express: P42's
+      #    plan names phase, description, DSIP parent and a source
+      #    opportunity/grant link, and NONE has a documented field on either
+      #    endpoint. The scan strips comments first — those comments explain
+      #    exactly these absences, so a naive substring match would hit its own
+      #    documentation, the trap P49's "never calls the provider" test hit.
+      #    A second assertion allows only documented raw keys, so a future edit
+      #    cannot quietly start reading an undocumented one.
+      #
+      # 85/2672 -> 86/2704 after P42 part 3: one NEW file,
+      # scripts/sync-tango-sbir.spec.ts (31 tests), plus 1 in
+      # funding-opportunities-entrypoint.spec.ts for the new dispatcher verb.
+      # The new spec IS a path-list change — script specs are enumerated
+      # individually, unlike src/external/tango/ which is a directory.
+      #
+      # The walk runs entirely against fakes, which is the only honest option:
+      # nothing has ever called /api/sbir/, so a test that pretended to exercise
+      # the provider would assert a fiction. What they pin is the walk's own
+      # behaviour, and two of them are the ones worth keeping:
+      #
+      #  - IDENTITY. A record carrying only `uuid` is dropped, and a cycle
+      #    carrying `topic_id` is dropped. Topics key on topic_id and
+      #    solicitations on solicitation_id; NEITHER is the DIBBS `uuid`. A walk
+      #    that reached for it would drop every record and still report
+      #    "complete" — a clean, wrong, green run.
+      #  - THE WINDOW SPELLINGS. A cycle sends start_date_after and a topic
+      #    sends release_date_after, and each test asserts the OTHER endpoint's
+      #    parameter is absent. Sending one endpoint's spelling to the other is a
+      #    400 at best and a silent full walk at worst.
+      #
+      # A note on the rate-limit tests, because the first draft was wrong in a
+      # way that would have gone green: they throw the REAL TangoSbirHttpError,
+      # not a lookalike. `fetchWithRateLimitRetry` branches on `instanceof`, so a
+      # hand-rolled error with the same `name` and an `isRateLimited` getter is
+      # never retried — the test would have passed while never entering the path
+      # it claims to cover.
+      #
+      # 86/2704 -> 87/2738 after P43 part 1: one NEW file,
+      # src/funding-opportunities/sbir-relevance.spec.ts (34 tests). No
+      # path-list change — src/funding-opportunities/ is enumerated as a
+      # DIRECTORY, unlike scripts/*.spec.ts which are listed individually.
+      #
+      # The scorer ships DARK, like forecast-relevance.ts did: no producer, no
+      # service, no DI wiring, nothing calls it. What the tests pin is the rule
+      # order and, more importantly, three refusals:
+      #
+      #  - PHASE IS NEVER INFERRED. P43's spec asks to distinguish Phase
+      #    I/II/Direct-to-Phase-II, and there is no phase field on either SBIR
+      #    endpoint. A test asserts no output field and no composed sentence
+      #    carries a phase value, because "Direct to Phase II" in a title is the
+      #    provider describing a topic, not a structured field — a regex over it
+      #    would be the lookalike this program keeps refusing.
+      #  - ELIGIBILITY IS NEVER ESTABLISHED. Constant needs_review on every
+      #    branch, with a reason saying a small-business certification is not the
+      #    same question as the SBIR size standard.
+      #  - "CLOSING SOON" IS NOT "CLOSED". The status check compares against a
+      #    closed SET rather than by substring, which would read the first as the
+      #    second and pass on a topic that is still open.
+      #
+      # Every clock in that spec is MID-DAY, deliberately. P41 part 1 shipped a
+      # date bug that survived 28 tests because every fixture used
+      # T00:00:00.000Z — the one value that makes instant arithmetic
+      # accidentally agree with calendar arithmetic. A topic closing today is
+      # proven open at 00:00, 09:15, 14:37 and 23:59.
+      #
+      # 87/2738 -> 87/2750 after P43 part 3: no new FILE (the suite count is
+      # unchanged), 12 tests added to funding-opportunity-inbox.spec.ts for the
+      # fifth and LAST planned rail.
+      #
+      # Two of those tests are the rail's whole point: an ORPHAN topic keeps its
+      # stated cycle NUMBER while `cycle` is null, and a topic stating no cycle
+      # has both null. Those are different facts — one about the source, one
+      # about Capiro's sync — and P42 has no FK precisely so the first is
+      # representable. Flattening the cycle onto the facts block would make both
+      # look like a row of nulls, and the card renders two different sentences.
+      #
+      # Note what did NOT change: `OPPORTUNITY_SOURCES` is still exactly two
+      # entries wide. With `sbir_sttr` live, every planned source is now an inbox
+      # rail, so that width is the only thing left separating the two
+      # vocabularies — which is why the identity spec now asserts it in the same
+      # test as the INBOX_SOURCES literal.
+      #
+      # 87/2750 -> 88/2765 -> 88/2782 (2026-08-09, D-71): the contract was
+      # validated against a real capture. No new file this time — 17 tests
+      # ADDED to tango-dibbs.mapper.spec.ts and tango-sbir.mapper.spec.ts,
+      # which run every record an operator captured live (5 per endpoint, all
+      # 5 endpoints) through the actual mappers. This is the first genuine
+      # confirmation these mappers survive contact with the provider, not
+      # merely with our own assumptions about it — see the real fixtures at
+      # src/external/tango/__fixtures__/real-captures/.
+      #
+      # That subdirectory exists because the SIBLING test
+      # ("the fixtures are synthetic" in tango.client.spec.ts) requires every
+      # .json directly under __fixtures__/ to be marked SYNTHETIC, for a real
+      # reason: a captured TENANT'S fixture would freeze private data into the
+      # repo. These captures are public federal procurement data with no
+      # tenant and no secret, so marking them synthetic would itself be a lie
+      # — they live one level deeper instead, which is what keeps that
+      # sibling test's directory scan from ever seeing them. First attempt at
+      # this PR broke that test by dropping the files at the wrong level;
+      # fixed by moving them, not by loosening the assertion.
+      #
+      # 87/2750 -> 88/2765: one NEW file,
+      # scripts/diag-tango-contract-capture.spec.ts (15 tests), and a path-list
+      # entry for it.
+      #
+      # Its subject is a diagnostic whose OUTPUT cannot be tested here — that
+      # needs the live provider and an operator's key (plan 4.6). So the tests
+      # are its SAFETY properties instead: no Prisma import and no write-shaped
+      # call anywhere; each of the five list methods invoked EXACTLY ONCE, which
+      # is what bounds the run to five requests inside a 25-per-31s budget;
+      # every error string passed through both redactors, because a provider
+      # echoing the request back is the one way a key reaches an artifact; and
+      # it refuses to overwrite an existing capture, because a capture is
+      # evidence.
+      #
+      # One test pins the thing most likely to be "helpfully" broken later: the
+      # documented-field lists are transcribed from dibbs-sbir-rest-contract.md
+      # and the script imports NO mapper. Deriving them from the mappers would
+      # only prove the mappers agree with themselves — the run exists to check
+      # the DOCUMENT against reality. Relatedly, the SBIR list carries no
+      # `phase`, because the contract publishes none; looking for one would
+      # report it MISSING and invite someone to "fix" a mapper that is correct.
+      #
+      # 88/2782 -> 88/2786 (2026-08-10, D-75): a first full (--full, no --limit)
+      # DIBBS walk stalled 4.5+ hours on an unbounded
+      # `sleep(resetIn * 1000)` trusting a live rate-limit header no prior
+      # capture had ever exercised in a real burst. Fixed with a hard
+      # MAX_PROVIDER_WAIT_MS ceiling plus a log line, in both
+      # sync-tango-dibbs.ts and sync-tango-sbir.ts (SBIR shares the identical
+      # client shape and had never hit this path live either). No new file —
+      # 4 tests ADDED, 2 per script, proving the ceiling holds against an
+      # absurdly large resetIn/Retry-After on both the proactive-throttle and
+      # the 429-retry path.
       - name: Assert apps/api scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 71 2202
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 88 2786
 
       # ---------------------------------------------------------------- web --
       # ci-pr.yml runs no web tests at all, so this is the ONLY gate that exercises
@@ -1798,9 +2406,119 @@ jobs:
       # stack merge (#813), not this phase. The floor below is raised to reflect
       # the real added test count regardless; it does not and cannot make this
       # step report green until Engagement's own regression is fixed.
+      # (That leak was later found to be OURS and fixed — see the completion
+      # matrix's 2026-08-08 correction. This scope now measures 0 failures.)
+      #
+      # 109/412 -> 117/440 after P41 part 1: one NEW file,
+      # DibbsOpportunityCard.test.tsx (26 tests across 5 blocks) — the bid-board
+      # card, the informational award row, and the two pure formatters. Asserted
+      # against RENDERED TEXT, not props, because the failure being guarded is a
+      # formatter turning a null into a falsy-coalesced 0 on the way to the
+      # screen: an unscored item says "Not scored yet" while a genuine 0 still
+      # renders 0; a null award price never becomes $0; an RFP's absent quantity
+      # names the document type rather than reporting a source gap.
+      #
+      # PART OF THIS RAISE IS PRE-EXISTING SLACK, and saying so is the point.
+      # Measured on this branch: 117/441. This file contributes 5 blocks and 27
+      # tests, so the actual on main was already 112/414 — above the 109/412
+      # floor it was carrying. The floor is a MINIMUM, so that drift was silent
+      # and legal. It is closed here rather than left, because a floor sitting
+      # below the actual cannot detect the next deletion.
+      #
+      # The 27th test is a review regression: an award whose numeric price exists
+      # but whose display text is null rendered an EMPTY slot between two
+      # separators. The card receives only the text, so it is the fallback in both
+      # branches now. A gap in the middle of a line reads as a rendering fault,
+      # not as a fact about the source — the same confusion P49's em dash caused.
+      #
+      # 117/441 -> 118/454 after P41 part 3. No new FILE; the one added block is
+      # FundingOpportunityInbox.test.tsx's bid-board describe (12 tests), plus 1
+      # test in FundingOpportunityDetail.test.tsx for the route. Measured on this
+      # branch, not computed from the diff.
+      #
+      # What those 13 pin is mostly NOT "the card renders" — part 1 already
+      # covered the card. They pin the two ways wiring a third rail can lie:
+      #
+      #   1. THE DRAWER MISDISPATCH, which this part introduced and closed.
+      #      `asCatalogRef` returns null for a dibbs ref exactly as it does for a
+      #      forecast, and the drawer branched on `catalogRef == null`. Widening
+      #      INBOX_SOURCES therefore routed a DLA solicitation into
+      #      ForecastOpportunityDetail — a bid-board line item rendered as an
+      #      agency forecast, against the forecast endpoint. The dispatch now
+      #      switches on `ref.source`. The test was confirmed to FAIL against the
+      #      old dispatch before being kept; note it failed on the BODY assertion
+      #      while the title already read "Bid-board item", which is why both are
+      #      asserted.
+      #   2. THE FABRICATED PART-PROFILE GAP. The card's `partProfileGap` prop
+      #      treats null as "a part-level match was attempted and there is no
+      #      gap". The inbox response carries no scoring breakdown, so null was
+      #      the tempting default — and it would have told every reader that this
+      #      client's parts were compared and came up short. No client part store
+      #      exists (`scoreDibbsRelevance` documents `clientHasRecordedParts` as
+      #      false for every client), so no comparison has ever run for anyone.
+      #      The gap is passed from DIBBS_PART_PROFILE_GAP_TODAY, which is a
+      #      named structural fact with this reasoning attached, and is DELETED
+      #      rather than edited when a part store lands.
+      #
+      # The 13th test is the route's own version of the same class: `dibbs` is a
+      # legal source, so /intelligence/opportunities/dibbs/:id is reachable, and
+      # the malformed-URL branch would have said “dibbs” is not a source Capiro
+      # holds — false about Capiro's own data, and it sends the reader looking
+      # for a broken import instead of back to the queue where the item is.
+      #
+      # 118/454 -> 125/472 after P43 part 2: one NEW file,
+      # SbirOpportunityCard.test.tsx (18 tests). No path-list change —
+      # src/pages/intelligence/opportunities/ is enumerated as a directory.
+      #
+      # P43's acceptance is "UI labels source, phase, cycle, and deadlines
+      # honestly", and three of those four have a specific dishonest version
+      # reachable by accident. Each is asserted on RENDERED TEXT:
+      #
+      #  - SOURCE. SBIR vs STTR is NOT a property of the topic — `program` lives
+      #    on the parent CYCLE. With no cycle held the card says "Program not
+      #    stated" rather than "SBIR". The rail being named SBIR/STTR makes the
+      #    guess the easy mistake, and STTR is the one requiring a research
+      #    partner, so guessing asserts the absence of a requirement.
+      #  - PHASE. A ROW, not an omission. A test feeds a topic titled "Direct to
+      #    Phase II ..." and proves the title renders as the provider's text
+      #    while no field labelled as a phase exists — the title is the provider
+      #    describing a topic, not a structured field to parse.
+      #  - CYCLE. Three states, three sentences: the source stated no cycle; the
+      #    topic names one Capiro does not hold (an ORPHAN, which P42
+      #    deliberately allows by having no FK); or it is held and named.
+      #    Collapsing the first two into "Unknown" merges a fact about the SOURCE
+      #    with a fact about CAPIRO'S SYNC, and they send a reader elsewhere.
+      #
+      # Eligibility renders VERBATIM from the scorer. The summary anyone would
+      # write — "eligibility unknown" — drops which facts are missing and that a
+      # small-business certification is a different question; a test asserts the
+      # card never contains the word "eligible".
+      #
+      # One of these tests was wrong on its first pass, in the direction worth
+      # recording: it banned the substring "SBIR" anywhere on the card, which
+      # also banned the provider's own cycle identifier (`DoD-SBIR-26.A`) and the
+      # eligibility reason's own wording. The claim is narrower than the scan
+      # was — no TAG may assert a program — so it is scoped to the tags. A
+      # too-broad assertion fails on correct output and teaches nothing.
+      #
+      # 125/472 -> 126/484 after P43 part 3: no new FILE, one new describe block
+      # in FundingOpportunityInbox.test.tsx (12 tests) plus 1 in
+      # FundingOpportunityDetail.test.tsx for the route.
+      #
+      # The rail's central assertion is that the parent CYCLE stays nested:
+      # "Capiro does not hold the cycle" and "the topic states no cycle" are
+      # different facts — P42 has no FK precisely so the first is representable
+      # — and flattening would make both look like a row of nulls. An orphan
+      # topic is proven to say so rather than guessing a program, which matters
+      # because SBIR vs STTR lives on the cycle and STTR is the one requiring a
+      # research partner.
+      #
+      # Withheld counts are PER RAIL. Two flagged rails can be off at once, and
+      # a pooled number would leave a reader unable to tell which capability to
+      # ask for; a test turns both off and asserts two separate notices.
       - name: Assert apps/web scope is clean
         if: always() && steps.scope.outputs.in_scope == 'true'
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 109 412
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 126 484
 
       # ------------------------------------------------------------- builds --
       # A passing typecheck is not a passing build: the api build runs `nest build`

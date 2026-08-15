@@ -18,6 +18,7 @@ import {
 } from '../../contracts/decimal-string.js';
 import type { PerformerRoleV1 } from '../../contracts/extraction-artifact-v1.js';
 import { resolveRdteUnit } from '../rdte-unit-resolver.js';
+import { isNamedCompanyV1 } from './r3-named-company-classifier.js';
 import { classifyPerformerRole } from './r3-role-classifier.js';
 import { normalizePerformerName, r3PerformerNaturalKey } from './r3-performer-normalizer.js';
 
@@ -40,6 +41,13 @@ export interface R3PerformerRowV1 {
   performerNormalized: string;
   performerRole: PerformerRoleV1;
   roleExplicit: boolean;
+  /**
+   * A real named company (has a legal suffix, or a plausible proper name) as
+   * opposed to a placeholder like `Various`/`TBD`/`MIPR`, a bare government
+   * label, or state-code location bleed. Selection-filter grade, not merely
+   * display metadata — see `getContractors`'s `namedPrimes` panel.
+   */
+  isNamedCompany: boolean;
   location?: string;
   contractMethod?: string;
   costCategory?: string;
@@ -451,6 +459,7 @@ export function extractR3Performers(input: {
           performerNormalized,
           performerRole: roleClass.role,
           roleExplicit: roleClass.explicit,
+          isNamedCompany: isNamedCompanyV1(performerName),
           ...(location != null ? { location } : {}),
           ...(contractMethod != null ? { contractMethod } : {}),
           ...(costCategory != null ? { costCategory } : {}),

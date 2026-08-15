@@ -23,8 +23,11 @@
  * than disappearing.
  */
 import type { BudgetFamilyV1 } from '../contracts/extraction-artifact-v1.js';
+import type { Phase6NativeProjectionV1 } from '../phase6/phase6-native-projection-v1.js';
+import type { StageTrackV1, StageV1 } from '../stages/stage-vocabulary-v1.js';
 import {
   projectOmCandidatesV1,
+  projectPhase6ProjectionsV1,
   type ProjectionCandidateInputV1,
   type ProjectorResultV1,
 } from './canonical-projectors-v1.js';
@@ -39,8 +42,18 @@ type ProjectorRefusalV1 = ProjectorResultV1['refusals'][number];
  * The families this build can actually read. Every other family in
  * `BUDGET_FAMILY_V1_VALUES` has a projector (Workstreams F–J) but no verified
  * projection reader, so a plan cannot yet be built for it.
+ *
+ * `committee` reads Phase 6 audit projections (Gap 1) — HASC/SASC/HAC-D/SAC-D/
+ * NDAA conference/appropriations conference `stage_position` and identity-
+ * scoped `stage_action` rows persisted by `Phase6AuditProjectionRepository`.
+ * Enacted (`public_law`), reprogramming, and execution positions are not
+ * persisted by this build yet (see `phase6-projection-builder-v1.ts`'s own
+ * scope note), so `committee` covers a real subset of Phase 6, not all of it.
  */
-export const PROJECTION_SOURCE_SUPPORTED_FAMILIES_V1: readonly BudgetFamilyV1[] = ['om'];
+export const PROJECTION_SOURCE_SUPPORTED_FAMILIES_V1: readonly BudgetFamilyV1[] = [
+  'om',
+  'committee',
+];
 
 /** The narrowest Prisma surface this adapter needs. */
 export interface ProjectionPrismaLikeV1 {
@@ -119,6 +132,12 @@ export class PrismaPromotionProjectionSourceV1 implements PromotionProjectionSou
       projections.push(...result.projections);
       refusals.push(...result.refusals);
       identitiesWithoutScopedFunding += result.identitiesWithoutScopedFunding;
+    }
+
+    if (requested.includes('committee')) {
+      const result = await this.loadCommittee(scope.fiscalYear);
+      projections.push(...result.projections);
+      refusals.push(...result.refusals);
     }
 
     return { projections, refusals, unsupportedFamilies, identitiesWithoutScopedFunding };
@@ -261,4 +280,118 @@ export class PrismaPromotionProjectionSourceV1 implements PromotionProjectionSou
       ),
     };
   }
+
+  /**
+   * Committee/Phase 6 (Gap 1). Reads what `phase6-projection-builder-v1.ts`
+   * actually persists — `stage_position` and identity-scoped `stage_action`
+   * rows for stages HASC/SASC/HAC-D/SAC-D/NDAA conference/appropriations
+   * conference — and reconstructs each into the exact
+   * `Phase6NativeProjectionV1` shape `projectPhase6ProjectionsV1` already
+   * validates, rather than re-deriving a looser shape from raw columns. Only
+   * `verified` rows are read: `candidate`/`blocked`/`superseded` are review
+   * data and `projectPhase6ProjectionsV1` refuses them anyway, but filtering
+   * here keeps a promotion plan from growing every review-only row a real
+   * cycle accumulates.
+   *
+   * Fiscal year lives only in `payload_jsonb.fiscalYear` (there is no
+   * dedicated column on `phase6_audit_projection`), so the scope filter reads
+   * it out of the JSONB payload.
+   */
+  private async loadCommittee(fiscalYear: number): Promise<{
+    projections: PromotionProjectionInputV1[];
+    refusals: ProjectorRefusalV1[];
+  }> {
+    const rows = await this.prisma.$queryRawUnsafe<Phase6ProjectionRowV1[]>(
+      `SELECT "projection_id" AS "projectionId", "natural_key" AS "naturalKey",
+              "idempotency_key" AS "idempotencyKey", "projection_kind" AS "projectionKind",
+              "verification_candidate_id" AS "verificationCandidateId",
+              "verification_run_id" AS "verificationRunId",
+              "artifact_id" AS "artifactId",
+              "artifact_content_sha256" AS "artifactContentSha256",
+              "source_document_id" AS "sourceDocumentId",
+              "source_pdf_sha256" AS "sourcePdfSha256",
+              "source_profile_hash" AS "sourceProfileHash",
+              "native_identity_hash" AS "nativeIdentityHash",
+              "track", "stage", "funding_field" AS "fundingField",
+              "original_value" AS "originalValue", "original_unit" AS "originalUnit",
+              "amount_millions"::text AS "amountMillions",
+              "direct_or_derived" AS "directOrDerived",
+              "evidence_ids_jsonb" AS "evidenceIds", "binding_status" AS "bindingStatus",
+              "projection_status" AS "projectionStatus",
+              "enactment_proof_id" AS "enactmentProofId",
+              "payload_jsonb" AS "payload"
+         FROM "phase6_audit_projection"
+        WHERE "projection_status" = 'verified'
+          AND "projection_kind" IN ('stage_position', 'stage_action')
+          AND ("payload_jsonb"->>'fiscalYear')::int = $1
+        ORDER BY "natural_key"`,
+      fiscalYear,
+    );
+
+    const reconstructed: Phase6NativeProjectionV1[] = rows.map((row) => ({
+      schemaVersion: 'phase6_native_projection_v1',
+      projectionId: row.projectionId,
+      naturalKey: row.naturalKey,
+      idempotencyKey: row.idempotencyKey,
+      projectionKind: row.projectionKind as Phase6NativeProjectionV1['projectionKind'],
+      verificationCandidateId: row.verificationCandidateId,
+      verificationRunId: row.verificationRunId,
+      artifactId: row.artifactId,
+      artifactContentSha256: row.artifactContentSha256,
+      sourceDocumentId: row.sourceDocumentId,
+      sourcePdfSha256: row.sourcePdfSha256,
+      sourceProfileHash: row.sourceProfileHash,
+      nativeIdentityHash: row.nativeIdentityHash,
+      track: row.track as StageTrackV1,
+      stage: row.stage as StageV1,
+      ...(row.fundingField != null
+        ? { fundingField: row.fundingField as Phase6NativeProjectionV1['fundingField'] }
+        : {}),
+      ...(row.originalValue != null && row.originalUnit != null
+        ? {
+            money: {
+              originalValue: row.originalValue,
+              originalUnit: row.originalUnit as 'dollars' | 'thousands' | 'millions',
+              valueMillions: normalizeDecimal(row.amountMillions ?? '0'),
+            },
+          }
+        : {}),
+      directOrDerived: row.directOrDerived as Phase6NativeProjectionV1['directOrDerived'],
+      evidenceIds: evidenceIdsOf(row.evidenceIds),
+      bindingStatus: row.bindingStatus as Phase6NativeProjectionV1['bindingStatus'],
+      projectionStatus: row.projectionStatus as Phase6NativeProjectionV1['projectionStatus'],
+      ...(row.enactmentProofId != null ? { enactmentProofId: row.enactmentProofId } : {}),
+      payload: (row.payload ?? {}) as Phase6NativeProjectionV1['payload'],
+      canonicalWriteAllowed: false,
+    }));
+
+    return projectPhase6ProjectionsV1(reconstructed);
+  }
+}
+
+interface Phase6ProjectionRowV1 {
+  projectionId: string;
+  naturalKey: string;
+  idempotencyKey: string;
+  projectionKind: string;
+  verificationCandidateId: string;
+  verificationRunId: string;
+  artifactId: string;
+  artifactContentSha256: string;
+  sourceDocumentId: string;
+  sourcePdfSha256: string;
+  sourceProfileHash: string;
+  nativeIdentityHash: string;
+  track: string;
+  stage: string;
+  fundingField: string | null;
+  originalValue: string | null;
+  originalUnit: string | null;
+  amountMillions: string | null;
+  directOrDerived: string;
+  evidenceIds: unknown;
+  bindingStatus: string;
+  projectionStatus: string;
+  enactmentProofId: string | null;
+  payload: unknown;
 }

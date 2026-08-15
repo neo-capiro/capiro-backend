@@ -1,0 +1,436 @@
+/*
+ * The one global vNext shell — top bar + rail + bottom nav for every vnext
+ * page, not just Dashboard (see index.tsx for the 2026-08 history). Scoped
+ * under .capiro-vnext-root .capiro-vnext-uui so it can't collide with the
+ * retired Capiro-native shell's classes (shell/shell.css), which nothing in
+ * production mounts anymore. Reused real components (MeriLauncher/
+ * GlobalSearch/NotificationBell/ProfileMenu/MailboxSyncStatus) keep their
+ * Capiro-native class names — this file overrides their look only inside
+ * this scope, it does not fork them.
+ */
+@import '../../foundations/untitled-ui-tokens.css';
+
+.capiro-vnext-root .capiro-vnext-uui {
+  display: grid;
+  /* minmax(0, 1fr), not 1fr: a bare 1fr is minmax(auto, 1fr) whose automatic
+     minimum is the content's min-content width, so one too-wide page body
+     widens the whole grid — the topbar stretches with it while the fixed
+     bottom nav stays viewport-width and the chrome desynchronises on
+     horizontal scroll. Same reason on every other track definition below. */
+  grid-template-columns: var(--uui-rail-w-expanded) minmax(0, 1fr);
+  grid-template-rows: var(--uui-topbar-h) 1fr;
+  /* Top bar spans the full page width, above both the rail and the content —
+     not beside the rail. Neo: "the top nav should [stretch] across the
+     page" — the rail previously spanned the full height, which put its
+     first item level with the top bar instead of below it. */
+  grid-template-areas: 'topbar topbar' 'rail content';
+  /* 100vh on a mobile browser resolves to the LARGEST viewport height — the one
+     with the URL bar retracted — so the shell is taller than what is actually
+     visible and the page scrolls slightly even when it has nothing to show.
+     100dvh tracks the live viewport. The 100vh line stays first as the fallback
+     for engines without dvh. (The 64px bottom-nav padding does NOT add to this:
+     box-sizing is border-box, so min-height already absorbs it — measured 844px
+     shell height at a 390x844 viewport, zero dead scroll.) */
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--uui-gray-50);
+  color: var(--uui-gray-900);
+  font-family: var(--uui-font-family);
+  font-size: var(--uui-text-body);
+  line-height: var(--uui-line-body);
+  transition: grid-template-columns 180ms cubic-bezier(.2,0,0,1);
+}
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] {
+  grid-template-columns: var(--uui-rail-w-collapsed) minmax(0, 1fr);
+}
+
+/* Top bar — 72px, white, sticky, hairline bottom border (no brand accent). */
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar {
+  grid-area: topbar;
+  height: var(--uui-topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  background: var(--uui-white);
+  border-bottom: 1px solid var(--uui-gray-200);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__brand { display: flex; align-items: center; gap: 16px; }
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__wordmark { height: 26px; display: block; }
+/* 1px vertical divider between the wordmark and the section label. */
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__divider { width: 1px; height: 24px; background: var(--uui-gray-200); flex-shrink: 0; }
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__section { font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); white-space: nowrap; }
+/* "All clients" scope pill. */
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__scope {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 9999px;
+  background: var(--uui-gray-50); box-shadow: inset 0 0 0 1px var(--uui-gray-200);
+  font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-gray-700); white-space: nowrap;
+}
+/*
+ * Centered on the full bar, not on the leftover space between brand and
+ * actions. `flex: 1; justify-content: center` centered search only within
+ * whatever room was left after brand/actions — fine while both sides were
+ * similar widths, but actions has grown (Meri + bell + profile chip) well
+ * past the brand wordmark, so that midpoint drifted left of true center.
+ * Positioning off the bar itself keeps it centered regardless of how much
+ * gets added to either side; `min(...)` keeps it from ever growing wide
+ * enough to overlap brand/actions on a narrow viewport.
+ */
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__search {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(480px, 40vw);
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-topbar__actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+
+/* Reused GlobalSearch, restyled — 40px tall, radius 8, 16px input, ⌘K chip. */
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__trigger {
+  width: 100%;
+  max-width: 480px;
+  height: 40px;
+  border-radius: var(--uui-radius-control) !important;
+  background: var(--uui-white) !important;
+  box-shadow: var(--uui-shadow-input) !important;
+  color: var(--uui-gray-500) !important;
+  padding: 0 14px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__trigger:focus-visible {
+  box-shadow: var(--uui-shadow-focus) !important;
+  outline: none;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__placeholder { flex: 1; text-align: left; font-size: var(--uui-text-body); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__shortcut {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 6px;
+  font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-gray-500);
+  box-shadow: inset 0 0 0 1px var(--uui-gray-200); border: 0; border-radius: 4px;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__popover {
+  border-radius: var(--uui-radius-card) !important;
+  box-shadow: var(--uui-shadow-card) !important;
+  background: var(--uui-white) !important;
+  width: 480px;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__input-row { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__input { flex: 1; border: none; outline: none; font-size: var(--uui-text-body); color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__escape { font-size: 11px; color: var(--uui-gray-400); border: 1px solid var(--uui-gray-200); border-radius: 4px; padding: 2px 6px; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__results { padding: 20px 16px; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__state-title { font-weight: var(--uui-weight-medium); color: var(--uui-gray-900); margin-bottom: 4px; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__state-body { font-size: var(--uui-text-sm); color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-global-search__footer { padding: 10px 16px; border-top: 1px solid var(--uui-gray-200); font-size: var(--uui-text-xs); color: var(--uui-gray-500); }
+
+/*
+ * Reused MeriLauncher (CapiroButton) restyled to the metallic black primary
+ * button. The face/edge/shadow come from the --uui-btn-metal-* tokens (see
+ * untitled-ui-tokens.css); this file consumes them by var() only.
+ * primitives.css's 120px min-width is beat by `min-width: 0` (not `auto`);
+ * 88px splits the difference Neo asked for ("slightly wider" than bare text).
+ */
+.capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher {
+  min-width: 0 !important;
+  width: auto !important;
+  height: 40px !important;
+  background-color: transparent !important;
+  background-image: var(--uui-btn-metal-face) !important;
+  box-shadow: var(--uui-btn-metal-shadow) !important;
+  color: var(--uui-btn-metal-fg) !important;
+  border: 0 !important;
+  border-radius: var(--uui-radius-control) !important;
+  font-weight: var(--uui-weight-semibold) !important;
+  font-size: var(--uui-text-sm) !important;
+  padding: 0 16px !important;
+  gap: 6px !important;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher:hover:not(:disabled) {
+  background-image: var(--uui-btn-metal-face-hover) !important;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher:active:not(:disabled) {
+  background-image: var(--uui-btn-metal-face-active) !important;
+  box-shadow: var(--uui-btn-metal-shadow-active) !important;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher:disabled {
+  background-image: none !important;
+  background-color: var(--uui-gray-100) !important;
+  box-shadow: none !important;
+  color: var(--uui-gray-400) !important;
+}
+
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__headline { display: flex; align-items: center; gap: 8px; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__headline .capiro-mailbox-status__indicator { position: static; width: 10px; height: 10px; margin-left: 0; flex: 0 0 auto; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail { margin-top: 4px; }
+
+/* Reused NotificationBell */
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell {
+  position: relative; width: 40px; height: 40px; border-radius: var(--uui-radius-control);
+  border: 1px solid transparent; background: transparent; color: var(--uui-gray-500);
+  display: flex; align-items: center; justify-content: center;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell__count {
+  position: absolute; top: 4px; right: 4px; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--uui-brand-solid); color: var(--uui-white);
+  font-size: 10px; font-weight: var(--uui-weight-semibold); display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 2px var(--uui-white);
+}
+
+/* Reused ProfileMenu — avatar 40px initials on the brand tint; name 14px/600
+   gray-900; role 14px/400 gray-600. */
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger { display: flex; align-items: center; gap: 10px; background: none; border: none; padding: 4px; border-radius: var(--uui-radius-control); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__trigger:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-avatar {
+  width: 40px; height: 40px; border-radius: 999px; background: var(--uui-brand-tint); color: var(--uui-brand-hover);
+  display: flex; align-items: center; justify-content: center; font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold);
+  overflow: hidden; flex-shrink: 0;
+}
+/* Real photo sized to the 40px circle without the zoomed-in crop: shrink the
+   whole image to fit (contain) and center it. */
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-avatar__img {
+  width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__name { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); display: block; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__role { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-regular); color: var(--uui-gray-600); display: block; text-transform: none; letter-spacing: 0; font-family: var(--uui-font-family); }
+/* Dropdown menus (profile + notifications) are positioned below and flush to
+   the right edge of their trigger so they never clip past the viewport. */
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile,
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell-wrap { position: relative; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+  border-radius: var(--uui-radius-card) !important; box-shadow: var(--uui-shadow-card) !important;
+  background: var(--uui-white) !important; width: 240px; padding: 4px;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__header { padding: 10px 12px; border-bottom: 1px solid var(--uui-gray-200); margin-bottom: 4px; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__name { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__title, .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__email { font-size: 12px; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item {
+  width: 100%; display: flex; justify-content: space-between; gap: 8px; padding: 8px 12px; border-radius: 6px;
+  background: none; border: none; font-size: var(--uui-text-sm); color: var(--uui-gray-700); text-align: left;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item:hover:not(:disabled) { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item[data-destructive] { color: var(--uui-error-fg); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__item[data-separated] { margin-top: 4px; border-top: 1px solid var(--uui-gray-200); padding-top: 8px; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__tag { font-size: 11px; color: var(--uui-gray-400); }
+
+/* Notifications dropdown — same feed as app.capiro.ai's WorkspaceNotificationBell. */
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif { width: 360px; max-height: 460px; overflow-y: auto; padding: 0; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 11px 14px; border-bottom: 1px solid var(--uui-gray-200);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__title { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__markall { background: none; border: none; padding: 0; font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-brand-hover); cursor: pointer; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__empty { margin: 0; padding: 24px 14px; font-size: var(--uui-text-sm); color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__list { list-style: none; margin: 0; padding: 0; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item { display: block; padding: 10px 14px; border-bottom: 1px solid var(--uui-gray-200); cursor: pointer; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item:last-child { border-bottom: 0; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__item[data-unread] { background: var(--uui-brand-tint); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__message { display: block; font-size: 13px; color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__time { display: block; margin-top: 4px; font-size: 11px; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__actions { display: flex; gap: 8px; margin-top: 8px; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__accept,
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__decline {
+  height: 28px; padding: 0 12px; border-radius: 6px; font-size: 12px; font-weight: var(--uui-weight-semibold); cursor: pointer;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__accept {
+  background-image: var(--uui-btn-metal-face); box-shadow: var(--uui-btn-metal-shadow); color: var(--uui-btn-metal-fg); border: 0;
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-notif__decline {
+  background: var(--uui-white); color: var(--uui-gray-700); box-shadow: inset 0 0 0 1px var(--uui-gray-300); border: 0;
+}
+
+/* Rail — sits below the full-width top bar. 272px expanded / 80px collapsed,
+   white, hairline right border, sticky under the 72px top bar. */
+.capiro-vnext-root .capiro-vnext-uui .uui-rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  background: var(--uui-white);
+  border-right: 1px solid var(--uui-gray-200);
+  padding: 20px 16px 24px;
+  position: sticky;
+  top: var(--uui-topbar-h);
+  height: calc(100vh - var(--uui-topbar-h));
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-rail__nav { display: flex; flex-direction: column; flex: 1; }
+/* Nav item: flex, 12px gap, 8px 12px padding, 4px bottom margin, 6px radius.
+   Label 16px/600 — the most visible rail difference. Icon 24px. */
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item,
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-group > button {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px; margin-bottom: 4px;
+  border-radius: 6px; color: var(--uui-gray-700); font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold);
+  background: transparent; border: none; text-align: left; text-decoration: none;
+}
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-item,
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-group > button { justify-content: center; padding: 12px; }
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-item__label,
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-item__chevron { display: none; }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--current { background: var(--uui-gray-50); color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--current .uui-nav-item__icon { color: var(--uui-brand-solid); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__icon { flex-shrink: 0; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__label { flex: 1; }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron { color: var(--uui-gray-400); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-group { position: relative; }
+.capiro-vnext-root .capiro-vnext-uui .uui-flyout {
+  position: absolute; left: calc(100% + 8px); top: 0; width: 260px; z-index: 30;
+  background: var(--uui-white); border-radius: var(--uui-radius-card); box-shadow: var(--uui-shadow-card); padding: 6px;
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-flyout__item { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 6px; text-decoration: none; color: var(--uui-gray-700); }
+.capiro-vnext-root .capiro-vnext-uui .uui-flyout__item:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .uui-flyout__name { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium); color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .uui-flyout__meta { font-size: 12px; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .uui-flyout__item--disabled { opacity: 0.6; }
+.capiro-vnext-root .capiro-vnext-uui .uui-flyout__tag { font-size: 11px; color: var(--uui-gray-400); }
+
+/* Persistent nested list while inside a family (Directory/Intelligence) —
+   the auto-expanded equivalent of the flyout, shown instead of it. */
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--section { cursor: default; }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested { display: flex; flex-direction: column; gap: 1px; padding-left: 30px; margin-top: 1px; }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item {
+  padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--uui-gray-600); text-decoration: none;
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item:hover { background: var(--uui-gray-50); color: var(--uui-gray-900); }
+/* NavLink sets aria-current="page" on the active route regardless of how
+   className is passed; a plain-string className (used here) does not also
+   get an "active" class, so this is the only selector that will ever match. */
+.capiro-vnext-root .capiro-vnext-uui a.uui-nav-nested-item[aria-current='page'] { color: var(--uui-brand-hover); font-weight: var(--uui-weight-medium); background: var(--uui-brand-tint); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item--disabled { opacity: 0.6; cursor: not-allowed; }
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-nested { display: none; }
+
+.capiro-vnext-root .capiro-vnext-uui .uui-rail__footer { display: flex; flex-direction: column; border-top: 0; padding-top: 0; }
+/* Mailbox block shares the rail's 24px icon + 16px/600 label metrics. The
+   glyph is sized up to 24px to sit in the nav-icon slot. */
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status {
+  display: flex; flex-direction: column; align-items: stretch; gap: 0; width: 100%; padding: 16px; margin-bottom: 16px; border-radius: 12px;
+  background: var(--uui-gray-50); border: none; text-align: left; box-shadow: inset 0 0 0 1px var(--uui-gray-200);
+}
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__glyph { font-size: 20px; line-height: 1; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; color: var(--uui-gray-500); flex-shrink: 0; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__title { font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); display: block; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-regular); color: var(--uui-gray-600); display: block; }
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .capiro-mailbox-status { display: none; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__indicator { width: 6px; height: 6px; border-radius: 999px; background: var(--uui-success-dot); margin-left: auto; }
+.capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px; margin-bottom: 4px; border-radius: 6px; background: none; border: none;
+  color: var(--uui-gray-600); font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold); text-align: left;
+}
+.capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn:hover { background: var(--uui-gray-50); }
+
+/* Content */
+.capiro-vnext-root .capiro-vnext-uui .uui-content { grid-area: content; padding: 32px; max-width: var(--uui-content-max-w); width: 100%; margin: 0 auto; }
+
+@media (max-width: 999px) {
+  .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__copy { display: none; }
+}
+@media (max-width: 879px) {
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__divider,
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__section,
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__scope { display: none; }
+}
+
+/* Mobile bottom nav (< 780px) + tablet rail auto-collapse (780-1179px) */
+.capiro-vnext-root .capiro-vnext-uui .uui-bottomnav { display: none; }
+.capiro-vnext-root .capiro-vnext-uui .uui-moresheet__scrim { display: none; }
+
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search { width: min(340px, 40vw); }
+  .capiro-vnext-root .capiro-vnext-uui { grid-template-columns: var(--uui-rail-w-collapsed) minmax(0, 1fr); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__label,
+  .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-nav-item,
+  .capiro-vnext-root .capiro-vnext-uui .uui-nav-group > button { justify-content: center; padding: 12px; }
+
+  /*
+   * Rail parity for the 780-1179 band.
+   *
+   * This query forces the rail to 80px, but everything below was previously
+   * gated on the [data-collapsed] ATTRIBUTE, which reflects React state and
+   * defaults to false. So on a tablet-width screen with the rail never manually
+   * collapsed, four full-width elements rendered inside an 80px column and
+   * painted over the content beside them. The rules below restate what
+   * [data-collapsed] does, keyed on width instead of state.
+   */
+  .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn { justify-content: center; padding: 12px; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn__label { display: none; }
+}
+
+/*
+ * The rail is a sticky, full-height column with no scroller of its own. On a
+ * short viewport — a landscape phone at 390px tall, or any desktop zoomed to
+ * 200% — seven 44px nav rows plus the footer exceed the available height and
+ * Settings / Collapse become unreachable, with no affordance. The nav scrolls
+ * internally; the footer stays pinned.
+ */
+.capiro-vnext-root .capiro-vnext-uui .uui-rail__nav { overflow-y: auto; min-height: 0; }
+
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-vnext-uui { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'topbar' 'content'; padding-bottom: 64px; }
+  /*
+   * MUST be restated for the [data-collapsed] variant. Media queries add no
+   * specificity, so the (0,3,0) [data-collapsed] rule at the top of this file
+   * outranked the (0,2,0) single-column rule above it. `collapsed` is persisted
+   * in localStorage, so for any user who had ever collapsed the rail the grid
+   * kept a 80px + 1fr track list while the area map was single-column: both
+   * named areas resolved into column 1 and the ENTIRE page — topbar included —
+   * rendered inside an 80px strip. Measured at 642px wide: 80px content column
+   * with the attribute, 666px without it.
+   */
+  .capiro-vnext-root .capiro-vnext-uui[data-collapsed] { grid-template-columns: minmax(0, 1fr); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-rail { display: none; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-content { padding: 16px; }
+  /*
+   * True centering (base rule above) assumes there's room on both sides.
+   * Below this width the actions cluster (Meri + bell + profile) alone is
+   * wider than half the bar, so a truly centered box would sit on top of
+   * it — back to a small in-flow icon between brand and actions, the same
+   * shape this had before the desktop centering fix.
+   */
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search {
+    position: static;
+    top: auto;
+    left: auto;
+    transform: none;
+    height: auto;
+    width: 40px;
+    flex: 0 0 auto;
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search .capiro-global-search__placeholder,
+  .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search .capiro-global-search__shortcut { display: none; }
+
+  .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav {
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: var(--uui-white);
+    border-top: 1px solid var(--uui-gray-200); z-index: 40;
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav__item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 0 12px;
+    color: var(--uui-gray-500); font-size: 12px; font-weight: var(--uui-weight-semibold); background: none; border: none; text-decoration: none;
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav__item--current { color: var(--uui-brand-hover); }
+
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet__scrim {
+    display: flex; position: fixed; inset: 0; background: var(--uui-scrim); align-items: flex-end; z-index: 40;
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet {
+    width: 100%; background: var(--uui-white); border-radius: 16px 16px 0 0; padding: 16px 12px 24px; max-height: 70vh; overflow-y: auto;
+  }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet__label { font-size: 11px; font-weight: var(--uui-weight-semibold); color: var(--uui-gray-400); letter-spacing: 0.04em; padding: 8px 12px; }
+}
+
+/* Focus visibility everywhere in this shell, per handoff §10. */
+.capiro-vnext-root .capiro-vnext-uui button:focus-visible,
+.capiro-vnext-root .capiro-vnext-uui a:focus-visible {
+  outline: 2px solid var(--uui-focus-ring);
+  outline-offset: 2px;
+}

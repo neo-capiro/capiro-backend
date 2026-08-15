@@ -3,14 +3,14 @@ import { parseArgs, formatSummary } from './diag-tango-capabilities.js';
 import type { CapabilityReport } from '../src/external/tango/tango-capability-probe.service.js';
 
 describe('CLI parsing', () => {
-  test('with no flags and no env, there is no key and the ceiling defaults to 30', () => {
+  test('with no flags and no env, there is no key and the ceiling defaults to 25', () => {
     expect(parseArgs([], {})).toEqual({
       apiKey: undefined,
       baseUrl: undefined,
       timeoutMs: undefined,
       uei: undefined,
       vehicleUuid: undefined,
-      requestCeiling: 30,
+      requestCeiling: 25,
     });
   });
 
@@ -67,8 +67,11 @@ describe('CLI parsing', () => {
   test('the request ceiling is configurable and clamped at both ends', () => {
     expect(parseArgs(['--request-ceiling=10'], {}).requestCeiling).toBe(10);
     expect(parseArgs(['--request-ceiling=99999'], {}).requestCeiling).toBe(200);
-    expect(parseArgs(['--request-ceiling=-5'], {}).requestCeiling).toBe(30);
-    expect(parseArgs(['--request-ceiling=nonsense'], {}).requestCeiling).toBe(30);
+    // Default is 25: the account's MEASURED per-window rate limit (2026-08-08,
+    // `x-ratelimit-limit: 25`). It was 30, which sat above the provider's own
+    // limit and so could never bind — the provider always ran out first.
+    expect(parseArgs(['--request-ceiling=-5'], {}).requestCeiling).toBe(25);
+    expect(parseArgs(['--request-ceiling=nonsense'], {}).requestCeiling).toBe(25);
   });
 });
 

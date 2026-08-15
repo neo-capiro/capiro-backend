@@ -32,19 +32,9 @@ function readFilters(searchParams: URLSearchParams): DistrictNexusFilterState {
 /**
  * WS-G — the firm-wide District Nexus map page (plan §3.2, Workstream G).
  *
- * Route is registered unconditionally in App.tsx; this component owns the
- * `district_nexus_v2` gate (HearingWatchPage precedent —
- * apps/web/src/pages/intelligence/HearingWatchPage.tsx:394).
- *
- * Two deliberate scope narrowings vs. the plan's aspirational §3.2/§7-E1
- * surface, both because GET district-nexus/map (WS-E1, as actually shipped)
- * only accepts `view` / `clientId` / `state` and DistrictNexusDistrictSummary
- * carries no per-type evidence flags or agency breakdown:
- *   - No Nexus-type / Agency / Assistance-Listing / Verification-status
- *     filters (DistrictNexusFilters.tsx docblock has the detail).
- *   - No "Findings" insight panel (the prototype's findings need target data
- *     the map-aggregate response doesn't carry).
- * Both need an E1 response enrichment to close — backend work outside WS-G.
+ * The map remains a scan surface. One district's deeper federal-market context
+ * lives in DistrictNexusDrawer, keeping the default screen calm and avoiding a
+ * second dashboard below the map.
  */
 export function DistrictNexusPage() {
   const enabled = useIntelFeatureEnabled('district_nexus_v2');
@@ -52,20 +42,6 @@ export function DistrictNexusPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const filters = readFilters(searchParams);
-  /**
-   * There is exactly ONE answerable view. The backend rejects `future` outright
-   * (apps/api/src/district-nexus/district-nexus.view.ts) because award geography
-   * is reported against CURRENT districts and cannot be re-attributed to future
-   * boundaries without inventing the answer.
-   *
-   * The previous code kept a separate `view` (what the URL asked for) and
-   * `effectiveView` (what it actually requested), passed `view` to the header and
-   * `effectiveView` to the map, and so rendered "Enacted future" as selected
-   * while loading current data. A clamp under a future LABEL is the exact failure
-   * the backend refuses to produce. So there is no future state here at all:
-   * a stale `?view=future` deep link is stripped from the URL and the toggle is
-   * gone until a future rail genuinely exists.
-   */
   const view = 'current' as const;
   const selectedDistrictKey = searchParams.get('district');
   const showFacilities = searchParams.get('facilities') !== 'off';
@@ -79,8 +55,6 @@ export function DistrictNexusPage() {
     setSearchParams(next);
   }
 
-  // Strip a stale ?view=future deep link. Runs once per param change and is a
-  // no-op in the normal case.
   useEffect(() => {
     if (searchParams.get('view') != null) patchParams({ view: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -193,7 +167,7 @@ export function DistrictNexusPage() {
                 <DistrictNexusMap
                   districts={filteredDistricts}
                   metric={filters.metric}
-                  view="current"
+                  view={view}
                   selectedDistrictKey={selectedDistrictKey}
                   onSelectDistrict={(key) => patchParams({ district: key })}
                   showFacilities={showFacilities}
@@ -216,10 +190,6 @@ export function DistrictNexusPage() {
                   />
                 </div>
                 {mapQuery.data.unmapped.unmappedContractAmount || mapQuery.data.unmapped.unmappedGrantAmount ? (
-                  // Deliberately not a button. It was rendered as one with no
-                  // onClick and no destination, so it advertised an action that
-                  // did not exist. An unmapped-funding panel needs a response
-                  // field the E1 aggregate does not carry.
                   <div className="dn-rfoot">
                     <span style={{ color: 'var(--notable)', display: 'grid', placeItems: 'center' }}>
                       <WarningOutlined />
@@ -261,9 +231,6 @@ function PageHead() {
         <p className="dn-pg-desc">Verified client footprint, public funding, and representation by congressional district.</p>
       </div>
       <div className="dn-acts">
-        {/* Not a toggle. There is one answerable view, so this states the
-            vintage rather than offering a choice that cannot be honoured —
-            see the `view` docblock above. */}
         <Tooltip title="Award geography is reported against current districts, so a future-boundary view cannot be produced without re-attributing money that was never reported that way.">
           <Badge status="processing" text="Current · 119th Congress" />
         </Tooltip>
@@ -335,14 +302,6 @@ function KpiStrip({
 }) {
   const states = new Set(districts.map((d) => d.state)).size;
 
-  /**
-   * Sums that keep "we have no figure" separate from "the figure is zero".
-   *
-   * A plain `reduce((s, d) => s + (x ?? 0), 0)` returns 0 for a rail with no data
-   * at all, which formatMoney then renders as `$0` — a positive claim we cannot
-   * support. And `employees || null` did the opposite: it converted a REAL zero
-   * into an em dash. Track presence separately from the total.
-   */
   const sumOrNull = (pick: (d: DistrictNexusMapResponse['districts'][number]) => number | null) => {
     let total = 0;
     let sawValue = false;
@@ -403,9 +362,6 @@ function KpiStrip({
       <div className="dn-kgrp dn-opp" title="Opportunities are never added to awarded-dollar totals">
         <div className="dn-kpi">
           <div className="dn-k">Opportunities · not awarded</div>
-          {/* Not $0. The firm map does not carry opportunities at all (they are a
-              client-level rail with no place of performance), so this is an
-              UNAVAILABLE figure, not a zero one. */}
           <div className="dn-v">—</div>
           <div className="dn-s">per-client only · see a client profile</div>
         </div>

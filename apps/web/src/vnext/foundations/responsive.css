@@ -1,0 +1,338 @@
+/*
+ * vNext responsive foundation — canonical breakpoints, shared layout
+ * utilities, and the page-level overflow safety net.
+ *
+ * ── CANONICAL BREAKPOINTS ────────────────────────────────────────────────
+ * Exactly TWO boundaries. Do not add a third.
+ *
+ *   mobile   @media (max-width: 779px)    no rail, fixed 64px bottom nav
+ *   tablet   @media (max-width: 1179px)   80px icon rail
+ *   desktop  (no query)                   272px expanded rail
+ *
+ * Why these numbers, given three sources disagreed:
+ *   - The Figma responsive artifacts are STAGE WIDTHS, not boundaries: the
+ *     tablet stage (757:2618) is 1024 wide and the mobile stage (757:2622) is
+ *     390 wide. A stage only constrains which band it must land in. 1024 < 1180
+ *     renders tablet rules and 390 < 780 renders mobile rules, so both stages
+ *     are satisfied here.
+ *   - The LegiWatch handoff (891:2699) writes 768/1280 and the Client CRM
+ *     handoff (1244:4240) writes 1024/1200/1440 and denies mobile exists at
+ *     all. Those two cannot both hold, and no design artifact resolves them.
+ *   - So the shell's own live values win. They are the only numbers derived
+ *     from real content demand, and they already satisfy both drawn stages.
+ *
+ * Media queries cannot read custom properties, so the literals above are the
+ * source of truth; the --capiro-bp-* tokens below exist for documentation and
+ * for JS that must mirror a boundary (see useDashboardVNextModel's useIsMobile,
+ * which must stay pinned to 779).
+ *
+ * The previous --capiro-breakpoint-mobile/tablet/desktop vars (640/1024/1280)
+ * are gone: they had zero consumers anywhere in the repo, and their 640 value
+ * is what caused the dashboard's JS-vs-CSS mobile split. The
+ * --capiro-layout-shell-* overrides that used to live here drove the retired
+ * VNextShellScaffold and are gone with it.
+ *
+ * ── WHY NOT CONTAINER QUERIES ────────────────────────────────────────────
+ * `container-type: inline-size` computes to `contain: layout style inline-size`,
+ * and layout containment makes the element a containing block for
+ * `position: fixed` descendants. There are ZERO createPortal calls in
+ * src/vnext, so every overlay in the surface (.capiro-overlay, .st-overlay,
+ * .uui-dash-drawer__scrim, the workspace pane sheets) is an in-tree descendant
+ * of .uui-content. Putting container-type on .uui-content would re-parent all
+ * of them into the content column: modals would center beside the rail with a
+ * scrim covering only the column. Intrinsic sizing (flex-wrap, and
+ * minmax(min(Npx,100%),1fr) below) covers every case the audit found without
+ * that risk. Revisit only if the overlays are portaled to document.body first.
+ *
+ * ── IMPORT ORDER ─────────────────────────────────────────────────────────
+ * foundations/index.css imports this file LAST, after components/primitives.css,
+ * so the mobile overlay rules in section 7 win the tie against primitives.css's
+ * equal-specificity .capiro-modal / .capiro-drawer sizing.
+ */
+
+/* ══ 1 · Breakpoint + geometry tokens ═════════════════════════════════════ */
+
+.capiro-vnext-root {
+  /* Named for the first pixel of the NEXT band up, matching how the media
+     queries read (max-width: bp - 1px). */
+  --capiro-bp-mobile: 780px;
+  --capiro-bp-tablet: 1180px;
+
+  /* Live shell geometry, restated so page modules can compute against it
+     without reaching into the untitled-ui layer. Keep in sync with
+     foundations/untitled-ui-tokens.css lines 115-118. */
+  --capiro-rail-w-expanded: 272px;
+  --capiro-rail-w-collapsed: 80px;
+  --capiro-content-gutter: 32px;
+  --capiro-content-gutter-mobile: 16px;
+  --capiro-bottomnav-h: 64px;
+
+  /* Minimum comfortable touch target. The Figma stages hold >=44px on every
+     interactive element at tablet and mobile (rail items 56x44, bottom-nav
+     cells 78x63, Join 72x44), and the LegiWatch handoff states it as a rule. */
+  --capiro-hit-size: 44px;
+}
+
+/* ══ 2 · Page container ═══════════════════════════════════════════════════
+   The shell's .uui-content already owns the horizontal gutter (32px, 16px
+   below 780). A page body must NOT add its own — several modules currently
+   double it and spend a fifth of a 390px screen on gutters. This owns
+   vertical rhythm only. */
+
+.capiro-vnext-root .capiro-page {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding-inline: var(--capiro-page-gutter, 0px);
+  padding-block: var(--capiro-page-block-start, 0px) var(--capiro-page-block-end, 32px);
+}
+
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-page {
+    padding-block-end: var(--capiro-page-block-end-mobile, 24px);
+  }
+}
+
+/* ══ 3 · Wrapping bar ═════════════════════════════════════════════════════
+   The single most repeated defect across every module: a horizontal toolbar or
+   header row with display:flex, no flex-wrap, and at least one child that
+   cannot shrink (a .capiro-button carrying the global 120px min-width, a
+   white-space:nowrap pill, or a fixed icon button). */
+
+.capiro-vnext-root .capiro-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--capiro-bar-row-gap, 10px) var(--capiro-bar-gap, 12px);
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-bar > * {
+  min-width: 0;
+}
+/* Push a cluster to the trailing edge of whichever row it lands on. */
+.capiro-vnext-root .capiro-bar__end {
+  margin-inline-start: auto;
+}
+/* Opt a cluster out of shrinking (button groups, segmented controls). */
+.capiro-vnext-root .capiro-bar__hold {
+  flex: 0 0 auto;
+}
+/* Force a child onto its own row. */
+.capiro-vnext-root .capiro-bar__break {
+  flex-basis: 100%;
+}
+
+/* ══ 4 · Horizontal scroll container ══════════════════════════════════════
+   For wide data tables and wide diagrams. Set --capiro-scroll-x-min to the real
+   minimum the content needs; the default floor is a no-op.
+
+   A scroller only helps if it is genuinely narrower than its content — a
+   min-width on the SCROLLER (rather than on its child) defeats itself and
+   pushes the overflow back up to the page. */
+
+.capiro-vnext-root .capiro-scroll-x {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.capiro-vnext-root .capiro-scroll-x > * {
+  min-width: var(--capiro-scroll-x-min, min-content);
+}
+/* Pin the identifying column of a scrolled table so rows stay readable. */
+.capiro-vnext-root .capiro-scroll-x__pin {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  background: var(--capiro-color-bg-surface);
+}
+
+/* Retrofit the existing table primitive so it cannot crush its own cells. */
+.capiro-vnext-root .capiro-table-wrap {
+  min-width: 0;
+  overscroll-behavior-x: contain;
+}
+.capiro-vnext-root .capiro-table-wrap > .capiro-table {
+  min-width: var(--capiro-table-min, min-content);
+}
+
+/* ══ 5 · Auto-fit card grid ═══════════════════════════════════════════════
+   minmax(min(Npx, 100%), 1fr) is the whole point: a bare minmax(Npx, 1fr)
+   floors the single-column case at Npx and overflows any container narrower
+   than that. Several modules ship that bug today. */
+
+.capiro-vnext-root .capiro-grid-auto {
+  display: grid;
+  min-width: 0;
+  gap: var(--capiro-grid-auto-gap, 16px);
+  grid-template-columns: repeat(auto-fit, minmax(min(var(--capiro-grid-auto-min, 240px), 100%), 1fr));
+}
+/* auto-fill keeps empty tracks; use when a card must not stretch to fill. */
+.capiro-vnext-root .capiro-grid-auto--fill {
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--capiro-grid-auto-min, 240px), 100%), 1fr));
+}
+
+/* ══ 6 · Stack below a breakpoint ═════════════════════════════════════════
+   Collapses a grid to one column. Grid containers only; a flex row should use
+   .capiro-bar instead. Add .capiro-shrink to a child that must not stretch to
+   the full track — grid blockifies an inline-flex pill to flex, and
+   justify-self then resolves to stretch, which is the full-card-width badge. */
+
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-stack-tablet {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
+    row-gap: var(--capiro-stack-gap, 8px);
+  }
+  .capiro-vnext-root .capiro-stack-tablet > * {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-stack-mobile {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
+    row-gap: var(--capiro-stack-gap, 8px);
+  }
+  .capiro-vnext-root .capiro-stack-mobile > * {
+    grid-column: 1 / -1;
+  }
+}
+
+.capiro-vnext-root .capiro-shrink {
+  justify-self: start;
+  align-self: start;
+}
+
+/* ══ 7 · Overlay sizing ═══════════════════════════════════════════════════
+   Desktop sizing is already correct in primitives.css. What is missing is the
+   mobile sheet: below 780 every vNext modal and drawer becomes a full-bleed,
+   full-height sheet, which is the documented mobile behaviour ("mobile bottom
+   sheet / full-height sheet", LegiWatch handoff 891:2699).
+
+   Sizes use 100% of the overlay box, never 100vw: on desktop 100vw includes the
+   classic scrollbar and would itself cause overflow. */
+
+.capiro-vnext-root .capiro-overlay-panel {
+  width: min(var(--capiro-overlay-w, 560px), 100%);
+  min-width: 0;
+  max-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-overlay {
+    padding: 0;
+    place-items: stretch;
+  }
+  .capiro-vnext-root .capiro-overlay-panel,
+  .capiro-vnext-root .capiro-modal,
+  .capiro-vnext-root .capiro-drawer {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+  }
+  /* A page-owned sheet must clear the shell's fixed bottom nav. */
+  .capiro-vnext-root .capiro-sheet-safe {
+    padding-block-end: calc(var(--capiro-bottomnav-h) + 16px);
+  }
+}
+
+/* ══ 8 · Touch targets ════════════════════════════════════════════════════
+   Expands the hit area without moving anything, so dense rows keep their Figma
+   geometry. Opt in per control; never blanket-apply to `button`. The control
+   must not sit inside an overflow:hidden box tighter than the expanded area,
+   or the extra region is clipped back out of hit testing. */
+
+.capiro-vnext-root .capiro-hit {
+  position: relative;
+}
+
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-hit::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-start: 50%;
+    width: max(100%, var(--capiro-hit-size, 44px));
+    height: max(100%, var(--capiro-hit-size, 44px));
+    transform: translate(-50%, -50%);
+  }
+  /* Controls that may legitimately grow instead of overlaying. */
+  .capiro-vnext-root .capiro-hit--grow {
+    min-width: var(--capiro-hit-size, 44px);
+    min-height: var(--capiro-hit-size, 44px);
+  }
+}
+
+/* ══ 9 · Text containment ═════════════════════════════════════════════════ */
+
+.capiro-vnext-root .capiro-wrap-anywhere {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.capiro-vnext-root .capiro-truncate {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ══ 10 · Overflow safety net ═════════════════════════════════════════════
+   Scoped to .capiro-vnext-root, so it reaches the canonical pages that fall
+   through <Outlet /> into .uui-content (Engagement Manager, Data Explorer,
+   Settings, Funding Opportunities, District Nexus, the Directory profile
+   routes, LegiWatch) WITHOUT editing a single file those pages share with
+   production app.capiro.ai.
+
+   WHAT THIS DOES: stops a too-wide canonical body from widening the document,
+   so the topbar no longer stretches away from the viewport-width fixed bottom
+   nav and there is no page-level horizontal scrollbar.
+
+   WHAT THIS DOES NOT DO: it stops the scroll, it does not make the content
+   reachable. A canonical page needing 900px still has the remainder cut off on
+   a phone. This is containment that makes each page's real defect visible and
+   attributable — not a fix for those pages. */
+
+.capiro-vnext-root .capiro-vnext-uui .uui-content {
+  min-width: 0;
+}
+
+@media (max-width: 779px) {
+  /* `clip`, NOT `hidden` or `auto`. clip establishes no scroll container, so
+     position:sticky descendants keep resolving against the real viewport
+     scrollport and canonical sticky table headers survive. hidden/auto would
+     silently re-anchor every one of them to a box that never scrolls.
+     clip beside overflow-y:visible is a legal, non-blockifying pair. */
+  .capiro-vnext-root .capiro-vnext-uui .uui-content {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+  /* Per-route escape hatch: if clipping a specific canonical page proves worse
+     than letting it scroll, set data-overflow-x="visible" on that route's
+     wrapper rather than removing the net for everyone. */
+  .capiro-vnext-root .capiro-vnext-uui .uui-content[data-overflow-x='visible'] {
+    overflow-x: visible;
+  }
+  /* Outer belt, for anything anchored outside the content box. position:fixed
+     elements are never clipped by an ancestor's overflow, so the shell's own
+     bottom nav, more-sheet and toast region are unaffected. antd portals its
+     overlays to document.body, outside this root entirely, so they are too. */
+  .capiro-vnext-root {
+    overflow-x: clip;
+  }
+}
+
+/* ══ 11 · Motion ══════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .capiro-vnext-root {
+    --capiro-motion-fast: 0ms;
+    --capiro-motion-standard: 0ms;
+  }
+}

@@ -1,0 +1,466 @@
+/**
+ * Program Elements vNext — token re-skin (PROGRAM-ELEMENTS-HANDOFF §6.1, §7).
+ *
+ * This layer maps the legacy `pe-v2-*` class contract onto the canonical Capiro
+ * vNext tokens. It is scoped under `.pe-vnext-root` so it can never leak into
+ * the canonical app, and it references tokens only — the vNext
+ * `foundation-contract.test.ts` forbids raw hex / rgba in vNext CSS.
+ *
+ * Design rules honoured here:
+ *  - Capiro navy is the accent (`--capiro-color-action-accent-default`).
+ *  - Structural dark for primary actions / selection command bar
+ *    (`--capiro-color-bg-dark`).
+ *  - Monospace is scoped to evidence-bearing strings only (`.pe-v2-mono`,
+ *    codes, stage keys, dollar positions, exhibit refs) — Inter elsewhere.
+ *  - Status is never colour-only: the legacy markup already pairs a marker
+ *    (`.pe-v2-ev-mark`) with a text label; this layer only re-colours.
+ */
+
+.pe-vnext-root {
+  /* Module-local type + colour context, all token-backed. */
+  color: var(--capiro-color-text-primary, inherit);
+  font-family: inherit;
+}
+
+/* Monospace scope — evidence-bearing strings only (handoff §6.2). */
+.pe-vnext-root .pe-v2-mono,
+.pe-vnext-root .pe-v2-cell-id,
+.pe-vnext-root .pe-v2-ladder-val,
+.pe-vnext-root .pe-v2-ev-mark {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Page chrome ─────────────────────────────────────────────────────────── */
+.pe-vnext-root .pe-v2-page-title {
+  color: var(--capiro-color-text-primary);
+}
+.pe-vnext-root .pe-v2-page-sub,
+.pe-vnext-root .pe-v2-page-head {
+  color: var(--capiro-color-text-body-secondary);
+}
+.pe-vnext-root .pe-v2-eyebrow,
+.pe-vnext-root .pe-v2-eyebrow-quiet {
+  color: var(--capiro-color-text-faint);
+}
+
+/* ── Cards / panels ──────────────────────────────────────────────────────── */
+.pe-vnext-root .pe-v2-card,
+.pe-vnext-root .pe-v2-pf-card {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: 12px;
+  box-shadow: var(--capiro-elevation-card, 0 0 0 1px var(--capiro-color-border-default));
+}
+.pe-vnext-root .pe-v2-card-inktop {
+  border-top-color: var(--capiro-color-bg-dark);
+}
+.pe-vnext-root .pe-v2-card-rusttop,
+.pe-vnext-root .pe-v2-card-head {
+  border-color: var(--capiro-color-border-default);
+}
+.pe-vnext-root .pe-v2-card-title {
+  color: var(--capiro-color-text-primary);
+}
+
+/* ── Buttons / controls ──────────────────────────────────────────────────── */
+.pe-vnext-root .pe-v2-btn {
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-control);
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-body-secondary);
+}
+.pe-vnext-root .pe-v2-btn:hover {
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-primary);
+}
+.pe-vnext-root .pe-v2-btn-primary {
+  background: var(--capiro-color-action-primary-default);
+  border-color: var(--capiro-color-action-primary-default);
+  color: var(--capiro-color-bg-surface);
+}
+.pe-vnext-root .pe-v2-btn-primary:hover {
+  background: var(--capiro-color-action-primary-hover);
+  border-color: var(--capiro-color-action-primary-hover);
+}
+.pe-vnext-root .pe-v2-filter-btn,
+.pe-vnext-root .pe-v2-filter-opt {
+  border-color: var(--capiro-color-border-control);
+  color: var(--capiro-color-text-body-secondary);
+}
+.pe-vnext-root .pe-v2-filter-menu {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  box-shadow: var(--capiro-elevation-flyout, 0 4px 12px var(--capiro-color-bg-overlay-scrim));
+}
+
+/* ── Stage ladders / tracks (Authorization & Appropriations stay parallel) ── */
+.pe-vnext-root .pe-v2-ladder-node {
+  background: var(--capiro-color-bg-subtle);
+  border: 1px solid var(--capiro-color-border-default);
+}
+.pe-vnext-root .pe-v2-ladder-node[data-active='true'],
+.pe-vnext-root .pe-v2-current-badge {
+  border-color: var(--capiro-color-action-accent-default);
+  box-shadow: 0 0 0 1px var(--capiro-color-action-accent-default);
+}
+.pe-vnext-root .pe-v2-ladder-delta {
+  color: var(--capiro-color-text-body-secondary);
+}
+
+/* ── Evidence state chips (semantic, marker + label; colour via tokens) ───── */
+.pe-vnext-root .pe-v2-ev-chip {
+  border: 1px solid var(--capiro-color-border-badge);
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-body-secondary);
+}
+.pe-vnext-root .pe-v2-ev-chip[data-state='verified'] {
+  background: var(--capiro-color-success-soft);
+  border-color: var(--capiro-color-success-rail);
+  color: var(--capiro-color-success);
+}
+.pe-vnext-root .pe-v2-ev-chip[data-state='conflict'] {
+  background: var(--capiro-color-danger-soft);
+  border-color: var(--capiro-color-danger-rail);
+  color: var(--capiro-color-danger);
+}
+.pe-vnext-root .pe-v2-ev-chip[data-state='review'],
+.pe-vnext-root .pe-v2-ev-chip[data-state='pending'] {
+  background: var(--capiro-color-info-soft);
+  border-color: var(--capiro-color-info-rail);
+  color: var(--capiro-color-info);
+}
+.pe-vnext-root .pe-v2-ev-chip[data-state='warning'] {
+  background: var(--capiro-color-warning-soft);
+  border-color: var(--capiro-color-border-warning);
+  color: var(--capiro-color-warning);
+}
+
+/* ── Explore grid ────────────────────────────────────────────────────────── */
+.pe-vnext-root .pe-v2-grid-head {
+  color: var(--capiro-color-text-faint);
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+}
+.pe-vnext-root .pe-v2-grid [data-selected='true'] {
+  background: var(--capiro-color-bg-selected);
+}
+.pe-vnext-root .pe-v2-cls {
+  color: var(--capiro-color-text-faint);
+}
+
+/* ── Sparkline / funding bars ────────────────────────────────────────────── */
+.pe-vnext-root .pe-v2-fyspark-pt,
+.pe-vnext-root .pe-v2-bars-col {
+  background: var(--capiro-color-action-accent-default);
+}
+
+/* ── Source inspector drawer (490px right layer over a scrim) ─────────────── */
+.pe-vnext-root .pe-v2-drawer-scrim {
+  background: var(--capiro-color-bg-overlay-scrim);
+}
+.pe-vnext-root .pe-v2-drawer {
+  background: var(--capiro-color-bg-surface);
+  border-left: 1px solid var(--capiro-color-border-default);
+  width: 490px;
+  max-width: 100%;
+}
+.pe-vnext-root .pe-v2-drawer-block {
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+}
+.pe-vnext-root .pe-v2-excerpt {
+  background: var(--capiro-color-bg-subtle);
+  border-left: 2px solid var(--capiro-color-border-strong);
+  color: var(--capiro-color-text-body-secondary);
+}
+
+/* ── Empty / explicit states (missing ≠ zero; a resolved scope is not a failure) ── */
+.pe-vnext-root .pe-v2-empty {
+  color: var(--capiro-color-text-body-secondary);
+}
+.pe-vnext-root .pe-v2-initials {
+  background: var(--capiro-color-bg-dark);
+  color: var(--capiro-color-bg-surface);
+}
+
+/* ═════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE LAYER — scoped overrides for the canonical v2 geometry.
+
+   WHY EVERYTHING LIVES HERE. The vNext program-elements module owns no layout:
+   VNextProgramElementsRoutes mounts two canonical pages (ProgramElementsV2Page,
+   ProgramElementV2ProfilePage) that app.capiro.ai also mounts, and their layout
+   sheet `src/pages/program-element/v2/pe-v2.css` plus the PeV2*.tsx inline style
+   props are shared with production. None of those may be edited, so every fix
+   below is expressed as a `.pe-vnext-root`-scoped override. pe-v2.css carries no
+   width media query at all, so nothing here is fighting a canonical rule — the
+   class-hook overrides win on specificity (0,2,0 vs 0,1,0) and the handful that
+   must beat a React inline style prop are marked `!important` and anchored on a
+   structural hook that simply stops matching if the canonical markup moves.
+
+   BREAKPOINTS. Only the two canonical boundaries from foundations/responsive.css
+   are used: 1179 (tablet, 80px rail) and 779 (mobile, no rail, 64px bottom nav).
+   Content widths used here are recomputed from the REAL rails (272/80, not the
+   280/72 an earlier brief circulated): 944px @1280, 880px @1024, 736px @768,
+   358px @390. Card- and grid-relative arithmetic below is rail-independent.
+   Most fixes below are intrinsic (flex-wrap, minmax(min(),1fr)) and carry no
+   query at all.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1 · Intrinsic fixes — no query needed ────────────────────────────────── */
+
+/*
+ * Portfolio card grid. auto-fill resolves to one 330px track when the container
+ * is narrower than 330px; the list sits in 310px at 390 (358 shell content − 48
+ * page padding), so every card overflowed. min(330px, 100%) is the foundation's
+ * documented idiom.
+ */
+.pe-vnext-root .pe-v2-pf-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr));
+}
+
+/*
+ * Workspace destination bar (ProgramElementsV2Page, an unclassed inline-styled
+ * first child of `.pe-v2` — the profile page's first child is `.pe-v2-prof-head`,
+ * which `:not([class])` excludes). `height: 44` + five `flex:none` nowrap tabs +
+ * a nowrap MONITORED meta need ~770px of min-content and there is no flexWrap,
+ * so the bar widened the document below roughly 900px viewport width.
+ * `align-items: stretch` is deliberately preserved: with wrapping, each flex line
+ * stretches its own items, so the active-tab underline still sits on the bottom
+ * of whichever row the tab lands on.
+ */
+.pe-vnext-root .pe-v2 > div:first-child:not([class]) {
+  height: auto !important;
+  min-height: 44px;
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.pe-vnext-root .pe-v2 > div:first-child:not([class]) > button {
+  min-height: 44px;
+}
+
+/*
+ * Selection command bar (Explore). Four nowrap action buttons + two labels need
+ * ~740px against 358px of mobile content, with no flex-wrap and a hard 52px
+ * height. Wrapping is intrinsic — it costs nothing at desktop, where the bar
+ * still lays out on one 52px row.
+ */
+.pe-vnext-root .pe-v2-selbar {
+  height: auto;
+  min-height: 52px;
+  flex-wrap: wrap;
+  padding: 6px 24px;
+  row-gap: 8px;
+}
+
+/*
+ * Explore grid scroll band. The grid's own min-content is 1110px of fixed tracks
+ * + 240px identity minimum + 120px of column gaps = 1470px, and each data row
+ * adds 24px of right padding — 1494px. The canonical band is `minWidth: 1400`,
+ * 94px short, so the row background, the raised header band and the selection
+ * highlight all stopped before the Recommended and chevron columns at EVERY
+ * width, not just narrow ones. `:has(> .pe-v2-grid-head)` names the band by the
+ * only classed element it contains.
+ */
+.pe-vnext-root [data-screen-label='Explore'] div:has(> .pe-v2-grid-head) {
+  min-width: 1494px !important;
+}
+/*
+ * Same band: the column-header `.pe-v2-grid` carries `padding: 0 24px 8px` while
+ * the group header and every data row use a 0 left padding and rely on
+ * `.pe-v2-cell-check { padding-left: 24px }`. That offsets every header label
+ * 24px from its column and needs 1518px rather than 1494px. Dropping the left
+ * padding restores a shared content box for all three grids.
+ */
+.pe-vnext-root .pe-v2-grid-head > .pe-v2-grid:last-child {
+  padding-left: 0 !important;
+}
+
+/*
+ * Actions scroll band. Tracks are 1040px + 60px of gaps + 48px of row padding =
+ * 1148px against a `minWidth: 1120` band, so the Evidence column fell outside
+ * both the header's canvas fill and each row's white fill at every width. The
+ * `:only-child` chain is deliberately literal: if the canonical wrapper markup
+ * changes, this stops matching rather than mis-targeting.
+ */
+.pe-vnext-root [data-screen-label='Actions'] > div:last-child > div:only-child > div:only-child {
+  min-width: 1148px !important;
+}
+
+/* ── 2 · Tablet and below (<=1179) ────────────────────────────────────────── */
+
+@media (max-width: 1179px) {
+  /*
+   * Profile tab strip. Five nowrap tabs need ~630px against 636px of content at
+   * the 780px boundary — inside the margin of error of a text measurement, and
+   * decisively short at 390. Scrolling the strip keeps all five reachable
+   * without restructuring; `height` becomes 44px for the touch-target rule.
+   */
+  .pe-vnext-root .pe-v2-tabs {
+    height: 44px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .pe-vnext-root .pe-v2-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /*
+   * Touch targets. Foundation invariant: >=44px at tablet and mobile. These are
+   * real buttons with padding, so they grow (the `.capiro-hit--grow` variant).
+   */
+  .pe-vnext-root .pe-v2-btn,
+  .pe-vnext-root .pe-v2-selbar-btn,
+  .pe-vnext-root .pe-v2-filter-btn,
+  .pe-vnext-root .pe-v2-filter-opt,
+  .pe-vnext-root .pe-v2-seg > button {
+    min-height: 44px;
+  }
+  /*
+   * Quiet links are bare 11px mono text inside dense strips (trust bar, table
+   * foot, card heads). Growing them would move the geometry the Figma stages
+   * fix, so they use the foundation's `.capiro-hit` idiom instead: an invisible
+   * ::after expands the hit area around the text without displacing anything.
+   */
+  .pe-vnext-root .pe-v2-quiet-link {
+    position: relative;
+  }
+  .pe-vnext-root .pe-v2-quiet-link::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-start: 50%;
+    width: max(100%, var(--capiro-hit-size, 44px));
+    height: max(100%, var(--capiro-hit-size, 44px));
+    transform: translate(-50%, -50%);
+  }
+}
+
+/* ── 3 · Mobile (<=779) ───────────────────────────────────────────────────── */
+
+@media (max-width: 779px) {
+  /*
+   * The shell's `.uui-bottomnav` is position:fixed, 64px tall, z-index 20, and
+   * renders AFTER `.uui-content`, so at equal z-index it painted over the whole
+   * sticky selection bar — Compare / Monitor / Export / Create action / Clear
+   * all were unreachable on a phone. Lift the bar to sit on the nav.
+   */
+  .pe-vnext-root .pe-v2-selbar {
+    bottom: var(--capiro-bottomnav-h, 64px);
+  }
+
+  /*
+   * Destination page headers. Each carries a `minWidth: 340` title block (320 on
+   * Explore, whose header is unclassed) against 310px of usable width at 390 —
+   * a hard 30px document-level overflow on Movement, Congressional, Actions and
+   * Portfolio. The headers already wrap; they just need permission to shrink.
+   * Scoped to mobile so the desktop/tablet wrap threshold is untouched.
+   */
+  .pe-vnext-root .pe-v2-page-head > *:first-child,
+  .pe-vnext-root [data-screen-label='Explore'] > div:first-child > div:first-child {
+    min-width: 0 !important;
+  }
+
+  /*
+   * Portfolio summary metrics: `repeat(4, minmax(0,1fr))` gives 77px per cell
+   * against 36px of cell padding, so a 24px/800 money value overran its cell,
+   * crossed the 1px dividers and spilled past the card. Only `.pe-v2-card` is
+   * hit — `.pe-v2-pf-card` and the skeleton/empty cards are not grids, so the
+   * declaration is inert on them.
+   */
+  .pe-vnext-root [data-screen-label='Portfolio'] .pe-v2-card {
+    grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)) !important;
+  }
+
+  /*
+   * Bare `minmax(Npx, 1fr)` auto-fit panels: Congressional aggregates (430px),
+   * the Funding movement waterfalls (400px) and the Funding history + change
+   * ledger pair (420px), all against a 310px container. Each is named by the two
+   * `.pe-v2-card` children it wraps. Above 780 the container is >=588px, so all
+   * three already resolve to a single track — no query is needed up-band.
+   */
+  .pe-vnext-root [data-screen-label='Congressional'] div:has(> .pe-v2-card + .pe-v2-card),
+  .pe-vnext-root [data-testid='pe-v2-profile'] section:has(> .pe-v2-card + .pe-v2-card),
+  .pe-vnext-root [data-testid='pe-v2-profile'] section > div:has(> .pe-v2-card + .pe-v2-card) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /*
+   * Movement waterfall rows: 394px of tracks + 42px of gaps + 36px of padding =
+   * 472px inside a 310px card. Restack to label | value over track | delta.
+   * All four children are non-interactive, so the explicit placement changes no
+   * focus order and no DOM/reading order.
+   */
+  .pe-vnext-root .pe-v2-wfall-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 4px;
+  }
+  .pe-vnext-root .pe-v2-wfall-row > :nth-child(1) {
+    grid-area: 1 / 1 / 2 / 2;
+  }
+  .pe-vnext-root .pe-v2-wfall-row > :nth-child(3) {
+    grid-area: 1 / 2 / 2 / 3;
+  }
+  .pe-vnext-root .pe-v2-wfall-row > .pe-v2-wfall-track {
+    grid-area: 2 / 1 / 3 / 2;
+  }
+  .pe-vnext-root .pe-v2-wfall-row > :nth-child(4) {
+    grid-area: 2 / 2 / 3 / 3;
+  }
+
+  /*
+   * Overview "funding by fiscal year". `.pe-v2-bars-col` is `flex:1; min-width:0`
+   * with a nowrap `money()` label, so at 274px of card body five or more fiscal
+   * years give <=44px per column against a ~59px label and adjacent labels
+   * overlap. Floor each column at 64px and scroll the block that holds BOTH the
+   * bars and the FY axis row, so the two stay in register — the axis cells get
+   * the same floor, and both rows overflow their shared scroll parent by exactly
+   * the same amount.
+   */
+  .pe-vnext-root div:has(> .pe-v2-bars) {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  /* `!important` on the axis cells only: those carry an inline `minWidth: 0`
+     style prop, which no ordinary selector can outrank. */
+  .pe-vnext-root .pe-v2-bars > .pe-v2-bars-col {
+    min-width: 64px;
+  }
+  .pe-vnext-root .pe-v2-bars + div > * {
+    min-width: 64px !important;
+  }
+
+  /*
+   * Containment for the fixed-column tables that live inside cards and have no
+   * class of their own: Legislative relevant-bills (454px) and budget-actions
+   * (454px), Structure relationships (474px), Funding position table (372px) and
+   * snapshot change ledger (432px) — all against a 310px card. Without this the
+   * shell's mobile `overflow-x: clip` safety net makes those columns
+   * unreachable rather than merely off-screen. Cards excluded: the ones holding
+   * the bars chart (handled above, would nest scroll containers), the FY
+   * sparkline (absolutely-positioned points that intentionally overhang), and
+   * any card containing a filter menu (position:absolute, would be clipped).
+   */
+  .pe-vnext-root .pe-v2-card:not(:has(.pe-v2-bars)):not(:has(.pe-v2-fyspark)):not(:has(.pe-v2-filter)) {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  /*
+   * The Funding POSITION TABLE disclosure (300px of tracks + 36px of gaps + 36px
+   * of wrapper padding = 372px against 310px) shares the fiscal-year-history
+   * card with the sparkline, whose points overhang the card edge by design and
+   * would be clipped by a card-level scroller. Scroll the disclosure body alone
+   * — it is the only `button + div` pair inside that card.
+   */
+  .pe-vnext-root .pe-v2-card:has(.pe-v2-fyspark) button + div {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pe-vnext-root * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

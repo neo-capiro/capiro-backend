@@ -12,6 +12,11 @@
  *     [--expected-active-snapshot-id <uuid>] [--executor-identity <id>] \
  *     [--domain <domain>] [--resume] [--commit --confirm <env>]
  *
+ * The execution repository reloads projections through the exact
+ * eligibility-bound producer-plan source. It never reassembles "all rows in
+ * FY X" after authorization; the immutable plans named by eligibility remain
+ * load-bearing through staging.
+ *
  * Three deliberate refusals:
  *
  *   * It reads `PROMOTER_DATABASE_URL` and never falls back to
@@ -43,7 +48,7 @@ import {
   PrismaPromotionExecutionRepositoryV1,
   type PromotionPrismaLikeV1,
 } from '../src/defense-budget/promotion/canonical-promotion-repository-prisma-v1.js';
-import { PrismaPromotionProjectionSourceV1 } from '../src/defense-budget/promotion/promotion-projection-source-prisma-v1.js';
+import { PrismaEligibilityBoundProjectionSourceV1 } from '../src/defense-budget/promotion/eligibility-bound-projection-source-prisma-v1.js';
 import { PrismaPromotionAuditSinkV1 } from '../src/defense-budget/promotion/promotion-eligibility-service-v1.js';
 
 dotenvConfig();
@@ -146,12 +151,12 @@ async function main(): Promise<void> {
     expectedActiveSnapshotId,
     executorIdentity,
     safety:
-      'Runs as the dedicated promoter role. No secrets included. Nothing is written unless mode is execute or resume.',
+      'Runs as the dedicated promoter role. Reloads exact eligibility-bound producer plans. No secrets included. Nothing is written unless mode is execute or resume.',
     generatedAt: new Date().toISOString(),
   };
 
   try {
-    const projectionSource = new PrismaPromotionProjectionSourceV1(promoter);
+    const projectionSource = new PrismaEligibilityBoundProjectionSourceV1(promoter);
     const repository = new PrismaPromotionExecutionRepositoryV1(
       promoter as unknown as PromotionPrismaLikeV1,
       projectionSource,

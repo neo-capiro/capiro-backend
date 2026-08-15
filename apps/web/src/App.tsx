@@ -2,7 +2,7 @@ import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from
 import { lazy, Suspense } from 'react';
 import { SignIn, SignUp, useAuth } from '@clerk/clerk-react';
 import { TicketSignUpPage } from './pages/auth/TicketSignUpPage.js';
-import { config } from './env.js';
+import { config, isVNextSurface } from './env.js';
 import { AppShell } from './components/AppShell.js';
 import { PlaceholderPage } from './pages/PlaceholderPage.js';
 import { SettingsLayout } from './pages/settings/SettingsLayout.js';
@@ -130,6 +130,16 @@ const DistrictNexusPage = lazy(async () =>
   })),
 );
 
+// Federal Spending & Market Intelligence. Kept in its own chunk because the
+// four explorer tables are independent from the generic Data Explorer and from
+// District Nexus. All provider-backed rows are local reads; this page never
+// calls MakeGov/Tango directly.
+const FederalSpendingPage = lazy(async () =>
+  import('./pages/intelligence/federal-spending/FederalSpendingPage.js').then((m) => ({
+    default: m.FederalSpendingPage,
+  })),
+);
+
 // Funding Opportunities. Lazy for the same chunk-splitting reason as the routes
 // above — it is a large page with its own card/CSS surface that nothing else
 // needs, and it must never reach the initial bundle. Gated IN-PAGE by
@@ -148,6 +158,12 @@ const FundingOpportunityDetailPage = lazy(async () =>
   import('./pages/intelligence/opportunities/FundingOpportunityDetail.js').then((m) => ({
     default: m.FundingOpportunityDetailPage,
   })),
+);
+
+// Runtime-selected presentation bundle. Keeping this lazy is the isolation
+// guarantee: canonical app.capiro.ai does not eagerly load vNext CSS/components.
+const VNextApp = lazy(async () =>
+  import('./vnext/app/VNextApp.js').then((m) => ({ default: m.VNextApp })),
 );
 
 export function App() {
@@ -331,6 +347,24 @@ export function App() {
             </Suspense>
           }
         />
+        {/* Federal Spending & Market Intelligence — local first-party awards and
+            provider-labelled Tango subawards, vehicles, and forecasts. This
+            literal route must precede the `/intelligence/*` catch-all. */}
+        <Route
+          path="/intelligence/federal-spending"
+          element={
+            <Suspense
+              fallback={
+                <PlaceholderPage
+                  title="Loading Federal Spending"
+                  description="Loading awards, subawards, vehicles, and forecasts..."
+                />
+              }
+            >
+              <FederalSpendingPage />
+            </Suspense>
+          }
+        />
         {/* Funding Opportunities — Grants.gov + SAM.gov contract opportunities.
             Registered BEFORE the catch-all `/intelligence/*` redirect below,
             which would otherwise swallow it and bounce the user to /explorer. */}
@@ -387,7 +421,17 @@ export function App() {
         />
         <Route path="/intelligence/*" element={<Navigate to="/explorer" replace />} />
         <Route path="/intelligence-center" element={<ComingSoonIntelligence />} />
+        {/* `/directory` stays the backward-compatible entry point. The four
+            first-class list surfaces (Figma 941:2860) are peer routes over the
+            same canonical records — no new data model, no duplicated identity.
+            The vNext presentation is substituted per-route by VNextRouter where
+            an approved Figma implementation exists; otherwise these resolve to
+            the canonical Directory page. */}
         <Route path="/directory" element={<DirectoryPage />} />
+        <Route path="/directory/congressional-staff" element={<DirectoryPage />} />
+        <Route path="/directory/committee-staff" element={<DirectoryPage />} />
+        <Route path="/directory/department-of-war" element={<DirectoryPage />} />
+        <Route path="/directory/state-legislators" element={<DirectoryPage />} />
         {/* Deep-linkable directory profiles + committee dictionary (static segments precede :params). */}
         <Route path="/directory/members/:memberId" element={<MemberDirectoryProfilePage />} />
         <Route path="/directory/staff/:staffId" element={<StaffDirectoryProfilePage />} />
@@ -474,6 +518,13 @@ function BillingGate() {
   // invoice is paid — the lifecycle cron clears locked when payment lands.
   if (data?.billingEnabled && data.locked) {
     return <LockoutScreen />;
+  }
+  if (isVNextSurface) {
+    return (
+      <Suspense fallback={<PlaceholderPage title="Loading Capiro vNext" description="Preparing the vNext surface..." />}>
+        <VNextApp />
+      </Suspense>
+    );
   }
   return <AppShell />;
 }

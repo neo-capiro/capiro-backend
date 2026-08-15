@@ -294,6 +294,23 @@ export class ComputeStack extends cdk.Stack {
           cfg.externalSecretArns.tangoApiKey,
         )
       : undefined;
+    // MakeGov/Tango WEBHOOK signing secret (Funding Opportunities P46). GATED
+    // on its ARN for the same reason as the two above.
+    //
+    // WHERE THIS GOES IS ALSO THE WHOLE POINT, and it is the MIRROR IMAGE of
+    // tangoApiKey: added ONLY to apiServeSecrets below, never to
+    // apiSyncSecrets or apiMigrateSecrets. Serve is the only task that hosts an
+    // HTTP listener, so it is the only task that could ever need to verify an
+    // inbound signature — and a sync or migrate task holding an inbound
+    // credential it cannot use is pure blast radius.
+    const tangoWebhookSecret = cfg.externalSecretArns?.tangoWebhookSecret
+      ? importExternalSecret(
+          this,
+          'ImportedTangoWebhookSecret',
+          `capiro/${cfg.envName}/tango-webhook-secret`,
+          cfg.externalSecretArns.tangoWebhookSecret,
+        )
+      : undefined;
 
     // Google Workspace OAuth (engagement Gmail/Calendar integration + the
     // onboarding IT-admin test-connect). Both live out-of-band today; see
@@ -516,6 +533,11 @@ export class ComputeStack extends cdk.Stack {
       ...(recallWebhookSecret
         ? { RECALL_WEBHOOK_SECRET: ecs.Secret.fromSecretsManager(recallWebhookSecret) }
         : {}),
+      // Tango webhook receiver (P46) — SERVE ONLY, by design. Absent until the
+      // provider endpoint exists (P50), and the receiver runs dark without it.
+      ...(tangoWebhookSecret
+        ? { TANGO_WEBHOOK_SIGNING_SECRET: ecs.Secret.fromSecretsManager(tangoWebhookSecret) }
+        : {}),
     };
     const apiMigrateSecrets = {
       CLERK_SECRET_KEY: ecs.Secret.fromSecretsManager(clerkSecretKeyImported),
@@ -557,7 +579,10 @@ export class ComputeStack extends cdk.Stack {
       // bootstrap (before Clerk instance is created) so the API skips issuer
       // validation, acceptable until clerkJwtIssuer is filled in config.ts.
       ...(cfg.clerkJwtIssuer ? { CLERK_JWT_ISSUER: cfg.clerkJwtIssuer } : {}),
-      WEB_ORIGIN: `https://${cfg.appHost},https://${cfg.wildcardHost.replace('*', 'acmelobby')}`,
+      // The isolated vNext surface is served from os.capiro.ai but uses this
+      // API through the shared ALB. Keep it explicit (not a wildcard) so it
+      // can perform authenticated browser mutations without broadening CORS.
+      WEB_ORIGIN: `https://${cfg.appHost},https://${cfg.wildcardHost.replace('*', 'acmelobby')},https://os.capiro.ai`,
       ASSETS_BUCKET: assetsStack.bucket.bucketName,
       AWS_REGION_DEFAULT: this.region,
       GOVINFO_CACHE_BUCKET: `capiro-govinfo-cache-${this.account}-${this.region}`,

@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { classifyStatus, redact, redactWithKnownSecret, type TangoRateMetadata } from './tango.errors.js';
+import type { TangoDibbsGateway } from './tango-dibbs.client.js';
+import type { TangoSbirGateway } from './tango-sbir.client.js';
 
 /**
  * The DIAGNOSTIC-ONLY probe surface — the second and last file in this
@@ -39,6 +41,14 @@ export const PROBE_STATUSES = [
   'unsupported',
   'tier_gated',
   'not_found',
+  /**
+   * The provider throttled this call. Says NOTHING about the capability — the
+   * account simply ran out of request budget mid-run. Its own status for the
+   * same reason `not_found` is: folding it into `error` makes a throttled
+   * probe indistinguishable from a broken one, and a reader diffing two
+   * reports would see a phantom regression.
+   */
+  'rate_limited',
   'error',
   'not_attempted',
 ] as const;
@@ -107,18 +117,30 @@ interface ProbeClient {
 }
 
 /**
+ * REST surfaces that exist on the provider but are NOT wrapped by the SDK.
+ *
+ * Kept separate from `ProbeClient` deliberately: conflating "the SDK can do
+ * this" with "the provider can do this" is exactly the error D-62 corrects.
+ * A probe backed by one of these is answering a question about the PROVIDER,
+ * using a client this repo wrote, not one the SDK supplied.
+ */
+export interface ProbeRestClients {
+  dibbs: TangoDibbsGateway | null;
+  sbir: TangoSbirGateway | null;
+}
+
+/**
  * One probe definition: a key, the phases that depend on it, and the call.
  *
- * `call` returns `null` when the SDK genuinely has no method for this
- * capability — that is a real, useful finding (see DIBBS/SBIR-STTR/exclusions
- * below), not a bug in this file. It is reported as `unsupported` with a
- * reason naming the SDK version checked, so the finding is falsifiable against
- * a future SDK upgrade rather than asserted from memory.
+ * `call` returns `null` when there is genuinely nothing to invoke. Read
+ * `skippedReason` for WHICH of the four reasons applies — they do not all mean
+ * the same thing, and collapsing them is how this file previously reported a
+ * documented REST dataset as "unsupported by provider" (D-62).
  */
 interface ProbeDef {
   key: string;
   usedByPhases: string[];
-  call: ((client: ProbeClient) => Promise<unknown>) | null;
+  call: ((client: ProbeClient, rest: ProbeRestClients) => Promise<unknown>) | null;
   /** Set only when `call` is null — WHY there is nothing to call. */
   unavailableReason?: string;
   /**
@@ -139,8 +161,18 @@ interface ProbeDef {
    *   wrong: it would tell a reader the provider/SDK cannot do webhook
    *   writes, when the true fact is narrower — this diagnostic run chose not
    *   to try.
+   * - `no_rest_client_wired` → `not_attempted`. The provider DOCUMENTS a REST
+   *   endpoint for this dataset, but this repo has no client for it yet (or
+   *   this run was not given one). A fact about Capiro's code, not about the
+   *   provider. Reporting it as `unsupported` is precisely the D-62 error —
+   *   it told readers "escalate to MakeGov before designing P40" about a
+   *   dataset that has had a published REST API the whole time.
    */
-  skippedReason?: 'unsupported_by_provider' | 'no_identifier_supplied' | 'mutating_write_excluded';
+  skippedReason?:
+    | 'unsupported_by_provider'
+    | 'no_identifier_supplied'
+    | 'mutating_write_excluded'
+    | 'no_rest_client_wired';
 }
 
 const SDK_VERSION_CHECKED = '@makegov/tango-node@1.1.0';
@@ -155,7 +187,12 @@ const NO_IDENTIFIER_REASON =
  * needs one and did not get one is `not_attempted` with an explicit reason,
  * never silently skipped or run against a guess.
  */
-function probes(uei: string | undefined, vehicleUuid: string | undefined): ProbeDef[] {
+function probes(
+  uei: string | undefined,
+  vehicleUuid: string | undefined,
+  dibbs: TangoDibbsGateway | null,
+  sbir: TangoSbirGateway | null,
+): ProbeDef[] {
   return [
     { key: 'version', usedByPhases: [], call: (c) => c.getVersion() },
     {
@@ -230,21 +267,52 @@ function probes(uei: string | undefined, vehicleUuid: string | undefined): Probe
       skippedReason: 'unsupported_by_provider',
     },
     {
+      // CORRECTED AT D-62. This probe previously reported `unsupported` with
+      // "escalate to MakeGov before designing P40 around it" — which read as a
+      // PROVIDER gap. The true fact was narrower and only ever about the SDK:
+      // no method with "dibbs" in its name exists anywhere in
+      // SDK_VERSION_CHECKED's 96-method surface. That remains true. The dataset
+      // has a fully documented REST API at /api/dibbs/rfqs|rfps|awards/, so it
+      // is now probed through TangoDibbsClient — the repo's own client, not the
+      // SDK's.
+      //
+      // The smallest possible shaped call, same policy as every probe here:
+      // one RFQ list, limit 1, read-only.
       key: 'dibbs',
       usedByPhases: ['P40', 'P41'],
-      call: null,
-      unavailableReason: `No method with "dibbs" in its name exists anywhere in ${SDK_VERSION_CHECKED}'s ` +
-        'client surface (96 methods enumerated). P40 cannot assume this dataset is reachable through ' +
-        'this SDK version; escalate to MakeGov before designing P40 around it.',
-      skippedReason: 'unsupported_by_provider',
+      call: dibbs ? (_c, r) => r.dibbs!.listRfqs({ limit: 1 }) : null,
+      unavailableReason: dibbs
+        ? undefined
+        : 'Not attempted: this run was given no DIBBS REST client. The provider DOES document ' +
+          '/api/dibbs/rfqs|rfps|awards/ — this is a fact about how the probe was invoked, not about ' +
+          'provider support. See decision-log D-62.',
+      skippedReason: dibbs ? undefined : 'no_rest_client_wired',
     },
     {
+      // Same D-62 correction as `dibbs`, and as of P42 part 1 the same
+      // resolution: there IS an SBIR client now, so this is a real call when
+      // one is supplied.
+      //
+      // Why the client came before the schema: P42's plan gates the phase on
+      // "P17 must show access", and P17 reported `no_rest_client_wired` —
+      // a fact about Capiro's code, not the provider (D-64). That gate could
+      // never be satisfied by waiting, because nothing would ever make the
+      // call. Building the client first makes the entitlement question
+      // ANSWERABLE, before any table is designed around an assumption about
+      // the answer.
+      //
+      // The smallest possible shaped call, same policy as every probe here:
+      // one topic list, limit 1, read-only.
       key: 'sbir_sttr',
       usedByPhases: ['P42', 'P43'],
-      call: null,
-      unavailableReason: `No method with "sbir" or "sttr" in its name exists anywhere in ${SDK_VERSION_CHECKED}'s ` +
-        'client surface. Same escalation as DIBBS applies before P42 is designed.',
-      skippedReason: 'unsupported_by_provider',
+      call: sbir ? (_c, r) => r.sbir!.listTopics({ limit: 1 }) : null,
+      unavailableReason: sbir
+        ? undefined
+        : 'Not attempted: this run was given no SBIR REST client. The provider DOES document ' +
+          `/api/sbir/topics/ and /api/sbir/solicitations/ (no SBIR/STTR method exists in ${SDK_VERSION_CHECKED}, ` +
+          'which is a fact about the SDK only — see decision-log D-62). This is a fact about how the ' +
+          'probe was invoked, not about provider support.',
+      skippedReason: sbir ? undefined : 'no_rest_client_wired',
     },
     {
       key: 'budget_accounts_flows',
@@ -329,9 +397,21 @@ export class TangoCapabilityProbeService {
   async run(
     client: ProbeClient,
     apiKey: string | null,
-    options: { uei?: string; vehicleUuid?: string; requestCeiling: number },
+    options: {
+      uei?: string;
+      vehicleUuid?: string;
+      requestCeiling: number;
+      /**
+       * Provider REST surfaces the SDK does not wrap. Optional: omitting it
+       * reports those probes `not_attempted` with an explicit reason, never
+       * `unsupported` — see ProbeDef.skippedReason and decision-log D-62.
+       */
+      dibbs?: TangoDibbsGateway | null;
+      sbir?: TangoSbirGateway | null;
+    },
   ): Promise<CapabilityReport> {
-    const defs = probes(options.uei, options.vehicleUuid);
+    const rest: ProbeRestClients = { dibbs: options.dibbs ?? null, sbir: options.sbir ?? null };
+    const defs = probes(options.uei, options.vehicleUuid, rest.dibbs, rest.sbir);
     const results: ProbeResult[] = [];
     let issued = 0;
     let authenticationFailed = false;
@@ -345,7 +425,9 @@ export class TangoCapabilityProbeService {
         // `unsupported`. See the ProbeDef.skippedReason doc for why
         // collapsing these would mislead a reader.
         const status: ProbeStatus =
-          def.skippedReason === 'no_identifier_supplied' || def.skippedReason === 'mutating_write_excluded'
+          def.skippedReason === 'no_identifier_supplied' ||
+          def.skippedReason === 'mutating_write_excluded' ||
+          def.skippedReason === 'no_rest_client_wired'
             ? 'not_attempted'
             : 'unsupported';
         results.push({
@@ -387,7 +469,7 @@ export class TangoCapabilityProbeService {
       const started = Date.now();
       issued += 1;
       try {
-        await def.call(client);
+        await def.call(client, rest);
         results.push({
           key: def.key,
           usedByPhases: def.usedByPhases,
@@ -406,7 +488,24 @@ export class TangoCapabilityProbeService {
         // is unavailable — short-circuit the rest rather than proving the same
         // fact ~20 more times.
         if (def.key === 'version' && kind === 'auth') authenticationFailed = true;
-        const status: ProbeStatus = kind === 'tier' ? 'tier_gated' : kind === 'not_found' ? 'not_found' : 'error';
+        // `rate_limited` is its OWN status for exactly the reason `not_found`
+        // is: collapsing it into `error` makes a throttled probe
+        // indistinguishable from a broken capability. The 2026-08-08 run
+        // reported `budget_accounts_flows` as `error: Rate limit exceeded`
+        // after the account's 25-per-~31s budget ran out mid-run — a reader
+        // comparing against the prior report, which had it `supported`, would
+        // reasonably have read a P44 regression that did not exist.
+        //
+        // It says NOTHING about the capability. Re-run with a lower
+        // --request-ceiling, or wait out the window, to learn anything.
+        const status: ProbeStatus =
+          kind === 'tier'
+            ? 'tier_gated'
+            : kind === 'not_found'
+              ? 'not_found'
+              : kind === 'rate_limit'
+                ? 'rate_limited'
+                : 'error';
         results.push({
           key: def.key,
           usedByPhases: def.usedByPhases,

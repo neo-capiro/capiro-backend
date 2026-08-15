@@ -25,6 +25,7 @@
  * away.
  */
 import {
+  DEFENSE_BUDGET_PROMOTION_ELIGIBILITY_SCHEMA_VERSION,
   defenseBudgetPromotionEligibilityV1Schema,
   evaluatePromotionEligibilityV1,
   promotionEligibilityHashV1,
@@ -36,6 +37,8 @@ import {
   DEFENSE_BUDGET_CANONICAL_MAPPING_REGISTRY_VERSION,
   canonicalMappingRegistryHashV1,
 } from './canonical-mapping-registry-v1.js';
+import { familyRequiresStageSourceProfileV1 } from '../stages/stage-source-profile-coverage-v1.js';
+import { NOOP_SLO_METRIC_RECORDER_V1, type SloMetricRecorderV1 } from './slo-metrics-v1.js';
 import type { BudgetFamilyV1, ExtractionMethodV1 } from '../contracts/extraction-artifact-v1.js';
 
 /* ------------------------------------------------------------------ */
@@ -67,6 +70,12 @@ export interface TrustedCandidateRecordV1 {
   status: string;
   /** The run the candidate's current terminal status came from. */
   terminalVerificationRunId: string | null;
+  /**
+   * Phase 7 Gap 5 decision 1: read from `budget_extraction_candidate_v1.family`,
+   * denormalized there from the artifact at verification time. A repository that
+   * cannot supply it must refuse the candidate rather than widen the scope.
+   */
+  family: BudgetFamilyV1;
   extractionMethod: ExtractionMethodV1;
   extractorActorId?: string | null;
   reviewDecisionId?: string | null;
@@ -74,7 +83,13 @@ export interface TrustedCandidateRecordV1 {
   acceptedAssertionIds: string[];
   artifactSha256: string;
   sourceSha256: string;
-  sourceProfileSha256: string;
+  /**
+   * Phase 7 Gap 5 decision 2: the governed `DefenseBudgetStageSourceProfileV1`
+   * hash this candidate was extracted under, or `null` for a family that has no
+   * such artifact. `null` is a legitimate answer for Phase 1–5 families and a
+   * blocking one for Phase 6 families — see `familyRequiresStageSourceProfileV1`.
+   */
+  sourceProfileSha256: string | null;
   verificationPolicySha256: string;
   manifestSha256: string;
 }
@@ -216,19 +231,50 @@ export interface PromotionEligibilityServiceOptionsV1 {
   now: () => Date;
   /** Deterministic eligibility identifier, derived by the caller's convention. */
   eligibilityId: (request: PromotionEligibilityRequestV1) => string;
+  /**
+   * Phase 7 Gap 5 decision C. Optional and defaulted to a no-op, so every
+   * existing caller keeps compiling unchanged. Measures
+   * `eligibility_evaluation_latency_ms` around the whole evaluation — not only
+   * the allowed path, since a slow refusal is still a latency fact an SLO
+   * needs to see. The threshold this emits is always
+   * `THRESHOLD_PENDING_ROLLOUT_BASELINE`; see `slo-metrics-v1.ts`.
+   */
+  sloMetrics?: SloMetricRecorderV1;
 }
 
 /**
  * Builds an eligibility record from trusted persistence and evaluates it.
  */
 export class DefenseBudgetPromotionEligibilityServiceV1 {
+  private readonly sloMetrics: SloMetricRecorderV1;
+
   constructor(
     private readonly repository: PromotionEligibilityRepositoryV1,
     private readonly audit: PromotionAuditSinkV1,
     private readonly options: PromotionEligibilityServiceOptionsV1,
-  ) {}
+  ) {
+    this.sloMetrics = options.sloMetrics ?? NOOP_SLO_METRIC_RECORDER_V1;
+  }
 
   async evaluate(request: PromotionEligibilityRequestV1): Promise<PromotionEligibilityResultV1> {
+    const startedAtMs = this.options.now().getTime();
+    let outcome: 'ALLOWED' | 'REFUSED' | 'ERROR' = 'ERROR';
+    try {
+      const result = await this.evaluateInner(request);
+      outcome = result.eligible ? 'ALLOWED' : 'REFUSED';
+      return result;
+    } finally {
+      this.sloMetrics.record('eligibility_evaluation_latency_ms', this.options.now().getTime() - startedAtMs, {
+        cycleId: request.cycleId,
+        environment: request.environment,
+        outcome,
+      });
+    }
+  }
+
+  private async evaluateInner(
+    request: PromotionEligibilityRequestV1,
+  ): Promise<PromotionEligibilityResultV1> {
     const domain = request.domain ?? 'defense_budget';
     const blocks: { reason: PromotionEligibilityBlockReasonV1; detail: string }[] = [];
 
@@ -300,6 +346,22 @@ export class DefenseBudgetPromotionEligibilityServiceV1 {
         });
         continue;
       }
+      // Phase 7 Gap 5 decision 2. Blocked here, with its own reason, rather
+      // than left to fail the record's schema refinement later: a zod failure
+      // surfaces as `projection_hash_mismatch`, which would send an operator
+      // looking at projection plans for a source-profile problem.
+      if (
+        familyRequiresStageSourceProfileV1(candidate.family) &&
+        candidate.sourceProfileSha256 == null
+      ) {
+        blocks.push({
+          reason: 'source_profile_missing',
+          detail:
+            `candidate ${candidate.candidateId} is family ${candidate.family}, which is governed ` +
+            `by a stage source profile, but no profile hash was recorded for it`,
+        });
+        continue;
+      }
 
       // A newer terminal run means the result being promoted is stale.
       const latest = await this.repository.loadLatestTerminalRunId(candidate.candidateId);
@@ -366,7 +428,10 @@ export class DefenseBudgetPromotionEligibilityServiceV1 {
     }
 
     const parsed = defenseBudgetPromotionEligibilityV1Schema.safeParse({
-      schemaVersion: 'defense_budget_promotion_eligibility_v1',
+      // The constant, not a repeated literal: this exact drift is what made a
+      // schema-version bump fail as `projection_hash_mismatch` instead of as a
+      // version mismatch.
+      schemaVersion: DEFENSE_BUDGET_PROMOTION_ELIGIBILITY_SCHEMA_VERSION,
       eligibilityId: this.options.eligibilityId(request),
       cycleId: request.cycleId,
       scope: {
@@ -383,7 +448,9 @@ export class DefenseBudgetPromotionEligibilityServiceV1 {
         candidateId: candidate.candidateId,
         status: candidate.status,
         terminalVerificationRunId: candidate.terminalVerificationRunId,
+        family: candidate.family,
         extractionMethod: candidate.extractionMethod,
+        sourceProfileSha256: candidate.sourceProfileSha256,
         ...(candidate.extractorActorId != null
           ? { extractorActorId: candidate.extractorActorId }
           : {}),
@@ -400,7 +467,13 @@ export class DefenseBudgetPromotionEligibilityServiceV1 {
       sourceDocumentHashes: usable.map((c) => c.sourceSha256),
       artifactHashes: usable.map((c) => c.artifactSha256),
       manifestHash: usable[0]?.manifestSha256,
-      sourceProfileHashes: usable.map((c) => c.sourceProfileSha256),
+      // Only the profiles that genuinely exist. Phase 1–5 candidates contribute
+      // nothing here, which is why the record-level array is allowed to be
+      // empty; the contract cross-checks this set against the candidates so an
+      // omission cannot hide behind the same emptiness.
+      sourceProfileHashes: usable
+        .map((c) => c.sourceProfileSha256)
+        .filter((hash): hash is string => hash != null),
       verificationPolicyHashes: usable.map((c) => c.verificationPolicySha256),
       cycleCertificationIds: certified.map((c) => c.certificationId),
       cycleCertificationHashes: certified.map((c) => c.contentSha256),

@@ -15,9 +15,7 @@ import { buildPhase6OperatorPlanV1 } from './phase6-cycle-runner-v1.js';
 
 const SHA = 'a'.repeat(64);
 
-function projection(
-  overrides: Partial<Phase6NativeProjectionV1> = {},
-): Phase6NativeProjectionV1 {
+function projection(overrides: Partial<Phase6NativeProjectionV1> = {}): Phase6NativeProjectionV1 {
   return phase6NativeProjectionV1Schema.parse({
     schemaVersion: 'phase6_native_projection_v1',
     projectionId: 'p1',
@@ -79,6 +77,7 @@ class FakeStore implements Phase6AuditProjectionStore {
   byIdempotency = new Map<string, Phase6NativeProjectionV1>();
   byNatural = new Map<string, Phase6NativeProjectionV1>();
   certifications = new Map<string, Phase6CycleCertificationV1>();
+  bindings = new Map<string, Array<{ projectionId: string; ordinal: number }>>();
 
   async findByIdempotencyKey(key: string) {
     const value = this.byIdempotency.get(key);
@@ -98,7 +97,18 @@ class FakeStore implements Phase6AuditProjectionStore {
     const value = this.certifications.get(contentSha256);
     return value == null
       ? null
-      : { cycleId: value.cycleId, contentSha256: value.contentSha256 };
+      : {
+          cycleId: value.cycleId,
+          contentSha256: value.contentSha256,
+          projectionSetSha256: value.projectionSetSha256,
+          projectionCount: value.projectionCount,
+        };
+  }
+
+  async findProjectionIdsForCertification(contentSha256: string) {
+    return [...(this.bindings.get(contentSha256) ?? [])]
+      .sort((a, b) => a.ordinal - b.ordinal)
+      .map((binding) => binding.projectionId);
   }
 
   async insertProjection(value: Phase6NativeProjectionV1) {
@@ -108,6 +118,16 @@ class FakeStore implements Phase6AuditProjectionStore {
 
   async insertCertification(value: Phase6CycleCertificationV1) {
     this.certifications.set(value.contentSha256, value);
+  }
+
+  async insertCertificationProjectionBinding(
+    certificationContentSha256: string,
+    projectionId: string,
+    ordinal: number,
+  ) {
+    const current = this.bindings.get(certificationContentSha256) ?? [];
+    current.push({ projectionId, ordinal });
+    this.bindings.set(certificationContentSha256, current);
   }
 }
 
@@ -223,6 +243,9 @@ describe('Phase 6 Workstream N projection/certification', () => {
         const byIdempotency = new Map(store.byIdempotency);
         const byNatural = new Map(store.byNatural);
         const certifications = new Map(store.certifications);
+        const bindings = new Map(
+          [...store.bindings.entries()].map(([key, value]) => [key, [...value]]),
+        );
         try {
           await fn(store);
           throw new Error('force rollback');
@@ -230,6 +253,7 @@ describe('Phase 6 Workstream N projection/certification', () => {
           store.byIdempotency = byIdempotency;
           store.byNatural = byNatural;
           store.certifications = certifications;
+          store.bindings = bindings;
           throw error;
         }
       },
@@ -243,6 +267,7 @@ describe('Phase 6 Workstream N projection/certification', () => {
     ).rejects.toThrow(/force rollback/);
     expect(store.byIdempotency.size).toBe(0);
     expect(store.certifications.size).toBe(0);
+    expect(store.bindings.size).toBe(0);
   });
 
   it('keeps every operator command inspect-only by default', () => {

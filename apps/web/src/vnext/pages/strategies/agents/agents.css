@@ -1,0 +1,552 @@
+/*
+ * Agents surface (§7.8 proposals queue / §7.9 execution runs) — scoped under
+ * .capiro-vnext-root .capiro-strategies; token layer only (var(--st-*) /
+ * var(--capiro-*)), no hex or rgb literals. Accent is Capiro navy; status
+ * pills reuse the shared .st-pill (dot AND text label, never colour-only).
+ * Monospace appears ONLY via .st-mono on §5.1 identifiers (op verbs, run/change-set
+ * ids, base revisions, run-state tokens, artifact refs, counts).
+ */
+
+.capiro-vnext-root .capiro-strategies .st-agents {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---- sections ------------------------------------------------------------ */
+.capiro-vnext-root .capiro-strategies .st-agents__section {
+  margin-top: 24px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__section-head .st-section-label {
+  margin: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__count {
+  font-size: 12px;
+  color: var(--st-gray-400);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__group-client {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--st-gray-500);
+}
+
+/* ---- links / meta --------------------------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-agents__link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--st-gray-900);
+  text-align: left;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__link:hover {
+  color: var(--st-accent);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__link:focus-visible {
+  outline: none;
+  box-shadow: var(--st-shadow-focus);
+  border-radius: 4px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__meta {
+  font-size: 12px;
+  color: var(--st-gray-500);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__spacer {
+  flex: 1;
+}
+
+/* ---- change-set / run cards ------------------------------------------------ */
+.capiro-vnext-root .capiro-strategies .st-agents__card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__summary {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--st-gray-900);
+  margin: 10px 0 0;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__summary-inline {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---- operations list --------------------------------------------------------
+   Read-only diff rows; the checkbox is the ONLY control (subset approval). */
+.capiro-vnext-root .capiro-strategies .st-agents__ops {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__op {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+/* Label wrapper around the 15px checkbox. It exists only to carry the mobile
+   touch target below — the checkbox keeps its own aria-label, and the wrapper
+   holds no text, so nothing about the accessible name or tab order changes. */
+.capiro-vnext-root .capiro-strategies .st-agents__op-checkbox {
+  display: inline-flex;
+  align-items: flex-start;
+  flex: none;
+  cursor: pointer;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__op-check {
+  margin-top: 3px;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--st-accent);
+  flex: none;
+  cursor: pointer;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__op-check:disabled {
+  cursor: default;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__op-check:focus-visible {
+  outline: 2px solid var(--st-accent-focus);
+  outline-offset: 2px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__op-check-spacer {
+  width: 15px;
+  flex: none;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__op-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__op-title {
+  font-size: 13px;
+  color: var(--st-gray-900);
+  overflow-wrap: anywhere;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__op-verb {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-accent);
+  background: var(--st-accent-tint);
+  box-shadow: inset 0 0 0 1px var(--st-accent-tint-border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-right: 4px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__op-moved {
+  color: var(--st-warning-fg);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__diffs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* Mono before/after values — arbitrary, unbreakable field content. */
+.capiro-vnext-root .capiro-strategies .st-agents__diff {
+  font-size: 11px;
+  color: var(--st-gray-500);
+  overflow-wrap: anywhere;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__diff s {
+  color: var(--st-gray-400);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__diff b {
+  color: var(--st-gray-900);
+  font-weight: 600;
+}
+
+/* ---- selected-operations rail (§7.8) --------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-agents__rail {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--st-gray-50);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__rail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: min(220px, 100%);
+  flex: 1;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__rail-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__undo-note {
+  font-size: 12px;
+  color: var(--st-gray-500);
+  max-width: 460px;
+}
+/* Two kit buttons, each carrying the global 120px min-width floor: ~248px that
+   cannot shrink, against ~226px inside the rail on a 390px screen. The rail
+   itself already wraps; the action pair has to as well. */
+.capiro-vnext-root .capiro-strategies .st-agents__rail-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: none;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__rail-hint {
+  margin: 8px 0 0;
+}
+
+/* ---- notices / states ------------------------------------------------------- */
+/* 409 stale-head: "this plan changed elsewhere / regenerate" (hard rule 4). */
+.capiro-vnext-root .capiro-strategies .st-agents__notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  background: var(--st-warning-bg);
+  box-shadow: inset 0 0 0 1px var(--st-warning-ring);
+  color: var(--st-warning-fg);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__notice-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+/* §9.1 stale marker — data stays visible alongside it. */
+.capiro-vnext-root .capiro-strategies .st-agents__stale-note {
+  font-size: 12px;
+  color: var(--st-warning-fg);
+  background: var(--st-warning-bg);
+  box-shadow: inset 0 0 0 1px var(--st-warning-ring);
+  border-radius: 8px;
+  padding: 6px 12px;
+  margin-bottom: 10px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__error-box {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--st-error-fg);
+  background: var(--st-error-bg);
+  box-shadow: inset 0 0 0 1px var(--st-error-ring);
+  border-radius: 8px;
+  padding: 9px 12px;
+  display: block;
+}
+
+/* ---- findings --------------------------------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-agents__findings {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__finding {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--st-gray-700);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__finding-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  margin-top: 5px;
+  flex: none;
+  background: var(--st-gray-400);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__finding--error .st-agents__finding-dot {
+  background: var(--st-error-dot);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__finding--warning .st-agents__finding-dot {
+  background: var(--st-warning-dot);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__finding--info .st-agents__finding-dot {
+  background: var(--st-info-dot);
+}
+
+/* ---- applied rows (undo surface) -------------------------------------------- */
+/* Risk pill + summary + a 120px Undo button. At 254px of card body the summary
+   was left with ~40px, so the row wraps and the body claims a real basis. */
+.capiro-vnext-root .capiro-strategies .st-agents__applied {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__applied-body {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__applied .st-agents__summary {
+  margin: 0;
+}
+
+/* ---- execution tasks ---------------------------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-agents__tasks {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__task {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  background: var(--st-gray-50);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__task-index {
+  font-size: 12px;
+  color: var(--st-gray-400);
+  flex: none;
+  margin-top: 1px;
+}
+/* The trailing status pill is nowrap (~100px); without a real flex basis the
+   task title is squeezed to ~90px on a phone. */
+.capiro-vnext-root .capiro-strategies .st-agents__task-body {
+  flex: 1 1 160px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__task-title {
+  font-size: 13px;
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__task-type {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-gray-500);
+  margin-right: 8px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__task-blocked {
+  font-size: 12px;
+  color: var(--st-error-fg);
+}
+
+/* ---- blocked / waiting notice -------------------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-agents__block {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  background: var(--st-warning-bg);
+  box-shadow: inset 0 0 0 1px var(--st-warning-ring);
+  color: var(--st-warning-fg);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__block-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---- staged outreach preview (READ-ONLY — no send control, rule 7) ------------- */
+.capiro-vnext-root .capiro-strategies .st-agents__send-preview {
+  margin-top: 12px;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--st-accent-tint);
+  box-shadow: inset 0 0 0 1px var(--st-accent-tint-border);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__send-preview-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-info-fg);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__send-preview-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 6px 14px;
+  font-size: 13px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__send-preview-grid dt {
+  color: var(--st-gray-500);
+  font-weight: 600;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__send-preview-grid dd {
+  margin: 0;
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__send-preview-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__send-preview-warning {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--st-warning-fg);
+}
+
+/* ---- run actions ----------------------------------------------------------------- */
+.capiro-vnext-root .capiro-strategies .st-agents__run-actions {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---- run state model card --------------------------------------------------------- */
+/* minmax(min(300px, 100%), 1fr), not minmax(300px, 1fr): the bare form floors
+   even the single-column case at 300px and overflows any narrower container. */
+.capiro-vnext-root .capiro-strategies .st-agents__states-grid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 8px 20px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__state-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__state-token {
+  font-size: 12px;
+  color: var(--st-accent);
+  flex: none;
+  min-width: 108px;
+}
+
+/* ---- security control card (not decorative — §11 rule 9) --------------------------- */
+.capiro-vnext-root .capiro-strategies .st-agents__security {
+  box-shadow: var(--st-shadow-card), inset 0 0 0 1px var(--st-accent-tint-border);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__security-copy {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--st-gray-700);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__security-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--st-gray-700);
+}
+
+/* ---- confirm modals ------------------------------------------------------------------ */
+.capiro-vnext-root .capiro-strategies .st-agents__modal-copy {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--st-gray-700);
+  margin: 0 0 10px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__modal-list {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ─────────────────────────────────────────────────────────── responsive ──
+ * This sheet had no media query at all. Everything above is intrinsic
+ * (flex-wrap / minmax(min(),1fr)) and needs none; the only thing that has to
+ * restructure is the approval checkbox's hit area.
+ *
+ * The page's own gutter comes from `.st-page` in strategies.css and is
+ * deliberately not overridden here — that file belongs to the strategies top
+ * level. Bottom-nav clearance is not added either: the shell already reserves
+ * 64px on `.capiro-vnext-uui` below 780 (shell-uui.css).
+ */
+@media (max-width: 779px) {
+  /* 44x44 hit box around the approval checkbox. The padding is cancelled by an
+     equal negative margin, so the control still starts on the same left edge
+     and the body still starts in the same place. The row gap opens to 24px
+     (2 x 12) so two neighbouring hit boxes meet rather than overlap, and the
+     column gap to 14px so the box's 12px overhang stays inside the gutter
+     instead of landing on the diff text. */
+  .capiro-vnext-root .capiro-strategies .st-agents__ops {
+    gap: 24px;
+  }
+  .capiro-vnext-root .capiro-strategies .st-agents__op {
+    gap: 14px;
+  }
+  .capiro-vnext-root .capiro-strategies .st-agents__op-checkbox {
+    padding: 12px;
+    margin: -12px;
+  }
+  .capiro-vnext-root .capiro-strategies .st-agents__op-check,
+  .capiro-vnext-root .capiro-strategies .st-agents__op-check-spacer {
+    width: 20px;
+  }
+  .capiro-vnext-root .capiro-strategies .st-agents__op-check {
+    height: 20px;
+    margin-top: 1px;
+  }
+}

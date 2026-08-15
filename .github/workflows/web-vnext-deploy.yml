@@ -1,0 +1,318 @@
+name: web-vnext-deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/web/src/vnext/**'
+      - 'apps/web/src/components/chat/**'
+      - 'apps/web/src/env.ts'
+      - 'apps/web/nginx/**'
+      - 'apps/web/Dockerfile'
+      - 'packages/shared/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/web-vnext-deploy.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: web-vnext-dev-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  ECS_CLUSTER: capiro-dev
+  ECS_SERVICE: capiro-dev-web-vnext
+  TARGET_GROUP_NAME: Capiro-WebVN-NF4THUBAPLB6
+  EXPECTED_ECR_REPOSITORY: capiro/dev/web-vnext
+  EXPECTED_CONTAINER_NAME: web-vnext
+  EXPECTED_CONTAINER_PORT: '8080'
+  EXPECTED_HEALTH_PATH: /healthz
+
+jobs:
+  validate-build-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out release
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @capiro/shared build
+
+      - name: Run vNext focused tests
+        run: >-
+          pnpm --filter @capiro/web exec vitest run
+          src/vnext/app/presentation.test.ts
+          src/vnext/foundation-contract.test.ts
+          src/vnext/figma-strategy-legiwatch-contract.test.ts
+          src/vnext/meri/meri-route-state.test.ts
+          --poolOptions.threads.singleThread
+
+      - name: Typecheck web
+        run: pnpm --filter @capiro/web typecheck
+
+      - name: Build web
+        run: pnpm --filter @capiro/web build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEV_GHA_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify exact vNext deployment target
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SERVICE_JSON="$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --output json)"
+
+          if [[ "$(jq -r '.services | length' <<<"$SERVICE_JSON")" != "1" ]]; then
+            echo "Expected exactly one ECS service named $ECS_SERVICE" >&2
+            exit 1
+          fi
+          if [[ "$(jq -r '.services[0].status' <<<"$SERVICE_JSON")" != "ACTIVE" ]]; then
+            echo "ECS service $ECS_SERVICE is not ACTIVE" >&2
+            exit 1
+          fi
+          if ! jq -e '.services[0].deploymentConfiguration.deploymentCircuitBreaker.enable == true and .services[0].deploymentConfiguration.deploymentCircuitBreaker.rollback == true' <<<"$SERVICE_JSON" >/dev/null; then
+            echo "ECS deployment circuit breaker with rollback is required" >&2
+            exit 1
+          fi
+
+          TARGET_GROUP_ARN="$(aws elbv2 describe-target-groups \
+            --names "$TARGET_GROUP_NAME" \
+            --query 'TargetGroups[0].TargetGroupArn' \
+            --output text)"
+          if [[ -z "$TARGET_GROUP_ARN" || "$TARGET_GROUP_ARN" == "None" ]]; then
+            echo "Target group $TARGET_GROUP_NAME was not found" >&2
+            exit 1
+          fi
+
+          SERVICE_TARGET_GROUP_ARN="$(jq -r --arg name "$EXPECTED_CONTAINER_NAME" --argjson port "$EXPECTED_CONTAINER_PORT" '
+            .services[0].loadBalancers[]?
+            | select(.containerName == $name and .containerPort == $port)
+            | .targetGroupArn
+          ' <<<"$SERVICE_JSON" | head -n 1)"
+          if [[ "$SERVICE_TARGET_GROUP_ARN" != "$TARGET_GROUP_ARN" ]]; then
+            echo "Service target group does not match $TARGET_GROUP_NAME" >&2
+            exit 1
+          fi
+
+          TARGET_GROUP_JSON="$(aws elbv2 describe-target-groups \
+            --target-group-arns "$TARGET_GROUP_ARN" \
+            --output json)"
+          if [[ "$(jq -r '.TargetGroups[0].Port' <<<"$TARGET_GROUP_JSON")" != "$EXPECTED_CONTAINER_PORT" ]]; then
+            echo "Target group port is not $EXPECTED_CONTAINER_PORT" >&2
+            exit 1
+          fi
+          if [[ "$(jq -r '.TargetGroups[0].HealthCheckPath' <<<"$TARGET_GROUP_JSON")" != "$EXPECTED_HEALTH_PATH" ]]; then
+            echo "Target group health path is not $EXPECTED_HEALTH_PATH" >&2
+            exit 1
+          fi
+
+          CURRENT_TASK_DEFINITION="$(jq -r '.services[0].taskDefinition' <<<"$SERVICE_JSON")"
+          aws ecs describe-task-definition \
+            --task-definition "$CURRENT_TASK_DEFINITION" \
+            --output json > /tmp/current-task-definition.json
+
+          if ! jq -e --arg name "$EXPECTED_CONTAINER_NAME" --argjson port "$EXPECTED_CONTAINER_PORT" '
+            [.taskDefinition.containerDefinitions[]
+              | select(.name == $name)
+              | .portMappings[]?
+              | select(.containerPort == $port)]
+            | length == 1
+          ' /tmp/current-task-definition.json >/dev/null; then
+            echo "Current task definition does not expose $EXPECTED_CONTAINER_NAME:$EXPECTED_CONTAINER_PORT" >&2
+            exit 1
+          fi
+
+          if ! jq -e --arg name "$EXPECTED_CONTAINER_NAME" '
+            [.taskDefinition.containerDefinitions[]
+              | select(.name == $name)
+              | .environment[]?
+              | select(.name == "WEB_SURFACE" and .value == "vnext")]
+            | length == 1
+          ' /tmp/current-task-definition.json >/dev/null; then
+            echo "Current task definition is not WEB_SURFACE=vnext" >&2
+            exit 1
+          fi
+
+          CURRENT_IMAGE="$(jq -r --arg name "$EXPECTED_CONTAINER_NAME" '
+            .taskDefinition.containerDefinitions[] | select(.name == $name) | .image
+          ' /tmp/current-task-definition.json)"
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          EXPECTED_REPO_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${EXPECTED_ECR_REPOSITORY}"
+          CURRENT_REPO_URI="$(sed -E 's/@sha256:[0-9a-f]+$//' <<<"$CURRENT_IMAGE" | sed -E 's/:[^/:]+$//')"
+          if [[ "$CURRENT_REPO_URI" != "$EXPECTED_REPO_URI" ]]; then
+            echo "Current vNext task is not using expected ECR repository $EXPECTED_ECR_REPOSITORY" >&2
+            exit 1
+          fi
+
+          aws ecr describe-repositories --repository-names "$EXPECTED_ECR_REPOSITORY" >/dev/null
+
+          echo "repo_uri=$EXPECTED_REPO_URI" >> "$GITHUB_OUTPUT"
+          echo "target_group_arn=$TARGET_GROUP_ARN" >> "$GITHUB_OUTPUT"
+          echo "previous_task_definition=$CURRENT_TASK_DEFINITION" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push isolated vNext image
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          no-cache-filters: build
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+          tags: |
+            ${{ steps.target.outputs.repo_uri }}:${{ github.sha }}
+            ${{ steps.target.outputs.repo_uri }}:latest
+          cache-from: type=gha,scope=web-vnext
+          cache-to: type=gha,mode=max,scope=web-vnext
+
+      - name: Register and deploy immutable task definition
+        id: deploy
+        shell: bash
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+          REPO_URI: ${{ steps.target.outputs.repo_uri }}
+          PREVIOUS_TASK_DEFINITION: ${{ steps.target.outputs.previous_task_definition }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Docker did not return an immutable sha256 image digest" >&2
+            exit 1
+          fi
+
+          NEW_IMAGE="${REPO_URI}@${IMAGE_DIGEST}"
+          jq \
+            --arg name "$EXPECTED_CONTAINER_NAME" \
+            --arg image "$NEW_IMAGE" \
+            --arg release "$GITHUB_SHA" '
+              .taskDefinition
+              | del(
+                  .taskDefinitionArn,
+                  .revision,
+                  .status,
+                  .requiresAttributes,
+                  .compatibilities,
+                  .registeredAt,
+                  .registeredBy
+                )
+              | .containerDefinitions |= map(
+                  if .name == $name then
+                    .image = $image
+                    | .environment = (
+                        [(.environment // [])[] | select(.name != "CAPIRO_WEB_RELEASE_SHA")]
+                        + [{"name":"CAPIRO_WEB_RELEASE_SHA","value":$release}]
+                      )
+                  else . end
+                )
+            ' /tmp/current-task-definition.json > /tmp/new-task-definition.json
+
+          NEW_TASK_DEFINITION="$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/new-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)"
+
+          echo "previous_task_definition=$PREVIOUS_TASK_DEFINITION" >> "$GITHUB_OUTPUT"
+          echo "new_task_definition=$NEW_TASK_DEFINITION" >> "$GITHUB_OUTPUT"
+          echo "image=$NEW_IMAGE" >> "$GITHUB_OUTPUT"
+
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "$NEW_TASK_DEFINITION" \
+            --force-new-deployment \
+            >/dev/null
+
+      - name: Wait for vNext service stability
+        run: aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
+
+      - name: Verify deployed service and target health
+        shell: bash
+        env:
+          EXPECTED_TASK_DEFINITION: ${{ steps.deploy.outputs.new_task_definition }}
+          TARGET_GROUP_ARN: ${{ steps.target.outputs.target_group_arn }}
+        run: |
+          set -euo pipefail
+          RUNNING_TASK_DEFINITION="$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)"
+          if [[ "$RUNNING_TASK_DEFINITION" != "$EXPECTED_TASK_DEFINITION" ]]; then
+            echo "ECS service is not pinned to the newly registered task definition" >&2
+            exit 1
+          fi
+
+          HEALTHY_COUNT="$(aws elbv2 describe-target-health \
+            --target-group-arn "$TARGET_GROUP_ARN" \
+            --query "length(TargetHealthDescriptions[?TargetHealth.State=='healthy'])" \
+            --output text)"
+          if ! [[ "$HEALTHY_COUNT" =~ ^[0-9]+$ ]] || (( HEALTHY_COUNT < 1 )); then
+            echo "Target group has no healthy vNext targets" >&2
+            aws elbv2 describe-target-health --target-group-arn "$TARGET_GROUP_ARN"
+            exit 1
+          fi
+
+          echo "vNext deployment healthy: $HEALTHY_COUNT target(s)"
+
+      - name: Roll back task definition on failure
+        if: failure() && steps.deploy.outputs.previous_task_definition != ''
+        shell: bash
+        env:
+          PREVIOUS_TASK_DEFINITION: ${{ steps.deploy.outputs.previous_task_definition }}
+        run: |
+          set -euo pipefail
+          echo "Rolling $ECS_SERVICE back to $PREVIOUS_TASK_DEFINITION"
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "$PREVIOUS_TASK_DEFINITION" \
+            --force-new-deployment \
+            >/dev/null
+          aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "### Capiro vNext deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Service: \`$ECS_SERVICE\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cluster: \`$ECS_CLUSTER\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Target group: \`$TARGET_GROUP_NAME\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Port / health: \`$EXPECTED_CONTAINER_PORT$EXPECTED_HEALTH_PATH\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Release: \`$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image: \`${{ steps.deploy.outputs.image }}\`" >> "$GITHUB_STEP_SUMMARY"

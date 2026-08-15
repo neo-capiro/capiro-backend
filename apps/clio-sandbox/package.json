@@ -8,7 +8,8 @@
     "dev": "tsx src/server.ts",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "pentest": "tsx scripts/pentest.ts"
+    "pentest": "tsx scripts/pentest.ts",
+    "visual-smoke": "tsx scripts/visual-smoke.ts"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",

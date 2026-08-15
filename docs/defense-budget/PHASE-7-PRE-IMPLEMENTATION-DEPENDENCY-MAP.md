@@ -28,11 +28,54 @@ Everything below was verified against the working tree, not inferred from the pl
 | -------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | Phases 0–5 merged and green                        | **SATISFIED**                                     | `verify:pe-budget-phase-1`…`-5` present on `main`; closeout PRs #748–#757 merged                   |
 | Phase 6 A–O complete and green                     | **SATISFIED on this base**, pending merge of #777 | `verify:pe-budget-phase-6` PASS — 78 suites / 779 tests, 24/24 negative controls, safety gate PASS |
-| Every Phase 4–6 family has a typed projection plan | SATISFIED                                         | `defense-budget/{rdte,procurement,om,milcon,stages,phase6}` projection contracts present           |
+| Every Phase 4–6 family has a typed projection plan | **SUPERSEDED — see note below**                   | `defense-budget/{rdte,procurement,om,milcon,stages,phase6}` projection contracts present           |
 | Migration chain passes fresh + from baseline       | **NOT YET REHEARSED**                             | Phase 7 Workstream D task; no shared DB touched                                                    |
 | Production-scale disposable dataset                | **NOT PRESENT**                                   | Phase 7 Workstream O task                                                                          |
 | Approved rollback + DB backup procedure            | **NOT VERIFIED**                                  | operator-owned; must exist before any cutover step                                                 |
 | Current AWS/CDK drift documented                   | PARTIAL                                           | drift is referenced in infra runbooks; must be re-confirmed before Workstream N                    |
+
+### Correction (session 10) — "typed projection plan" was accepted for "persisted projection plan"
+
+The row above is accurate about what it says and wrong about what it was taken
+to mean, and the gap that produced is worth recording next to the claim rather
+than only in the gap tracker.
+
+Projection **contracts** are present for every Phase 4–6 family. Persisted
+projection **plans** were not, and never had been: the planners computed a plan
+in memory, reported its `contentSha256`, and discarded it. `git log --all
+-S"projection_plan" -- apps/api/prisma` finds no commit on any branch that ever
+created a table for one. Phase 7 nonetheless binds authorization to
+`projectionPlanIds` / `projectionPlanHashes` and treats them as reloadable
+evidence, which a discarded object cannot be.
+
+This is the same conflation Gap 1 records for Phase 6's "merged and green" —
+green tests over contracts whose production wiring does not exist. Two
+prerequisites in this table were accepted on the presence of a contract rather
+than of a producer.
+
+Closed in session 10 under Gap 5 decision 3: `defense_budget_projection_plan`
+(migration `20260907020000`) plus the `projection-plan/` substrate.
+
+**Session 11 completes it.** Phase 6 was the last family with no plan-shaped
+document to persist at all; `build-defense-budget-phase6-projection-plan-v1`
+plus the pure `phase6-projection-plan-builder-v1.ts` close that, and the DB
+rehearsal proves the committee family filing a real, non-empty plan end to end.
+All three families can now produce a persisted plan.
+
+Note the shape this settled into, because it looks like an omission and is not:
+**filing stays a separate verb, deliberately.** Phase 5's mandatory negative
+control NC20 forbids its planner scripts from importing Prisma at all, so
+"wire persistence into the planner" is prohibited, not merely unfinished. The
+architecture Neo confirmed is `pure deterministic planner → immutable plan +
+content hash → separate persistence command → reload + hash verification →
+Phase 7 eligibility`. What remains is chaining the verb into producing
+pipelines and rebuilding existing outputs — operational sequencing, not a
+missing capability.
+
+**The generalizable check, for any future prerequisite in this table:** ask
+whether the thing is *produced and persisted*, not whether a type for it
+exists. A contract, a schema, and a green suite are jointly compatible with
+nothing ever having written a row.
 
 ### Standing blocker — CI cannot run
 
@@ -147,6 +190,110 @@ No planned symbol was found missing, and nothing was invented.
 4. **Rollback/backup procedure not verified** as existing and approved.
 
 None of these prevent Workstream A–D implementation; items 2–4 block Workstream O closeout.
+
+---
+
+## 8a. Phase 8 dependency inventory — settled rules carried forward
+
+Two architectural rules were decided by Neo on 2026-08-08. Both are **settled,
+not open questions**, and both are enforced by tests rather than convention.
+Phase 8 inherits them as constraints, not as topics to revisit.
+
+### R1 — snapshot data and live enrichment are never aggregated
+
+> One response may contain canonical snapshot data and live enrichment, but they
+> must remain separately typed, separately attributed, separately dated, and
+> never be silently aggregated.
+
+This is the general model for **any** external enrichment in Phase 8, not a
+contractor-specific patch. Contract lives in `@capiro/shared/funding-claim`
+(`AttributedMeasure`, `MeasureProvenance`, `sumAttributedMeasures`,
+`MeasureConflationError`); enforced by
+`apps/api/src/program-element/measure-provenance.spec.ts`.
+
+Rules a Phase 8 endpoint must satisfy:
+
+- every live/external bucket carries an explicit `asOf` (required, not optional)
+  and its window if it is a windowed total;
+- every snapshot bucket carries its `snapshotId` and activation `asOf`;
+- crossing the provenance boundary in one sum throws rather than returning a
+  number;
+- live external data is **not** forced into the canonical snapshot merely to
+  make an endpoint reproducible — enrichment may be live, it just has to say so.
+
+`assertOneSnapshotV1` is a *different* rule and remains valid: it forbids two
+canonical snapshots in one response, and is silent on snapshot-plus-external.
+
+### R2 — `native identity ≠ crosswalk`
+
+No snapshot-backed method may resolve a procurement BLIN from a `peCode` alone.
+The native identities are different canonical entities:
+
+```text
+RDT&E        peCode
+Procurement  component + account + lineCode + advanceProcurement
+```
+
+A PE→BLIN relationship exists **only** when a reviewed relationship record
+supports it. It is never inferred from matching titles, legacy foreign keys,
+`program_element_procurement_line`, shared program names, proximity in a budget
+book, performer overlap, or award overlap. That legacy tables make the lookup
+possible is not authorization to preserve it — that table *is* the conflation
+Workstreams G and H exist to remove.
+
+Contract and readiness check: `promotion/cross-family-crosswalk-v1.ts`;
+enforced by `cross-family-crosswalk-v1.spec.ts`.
+
+**Current state: no governed crosswalk exists.** `canonical_budget_line_relationship`
+(physical model `NonRdteBudgetLineRelationship`) is the correct substrate to
+reuse and already carries both native identities, `relationshipType`,
+`evidenceIds`, `explicitInSource`, and full verification lineage — but it has
+**no `status`, `reviewedBy`, or `reviewedAt`** (verified 2026-08-08, zero such
+columns). Every link in it is therefore a candidate.
+
+Consequences Phase 8 inherits:
+
+| Item | State |
+| --- | --- |
+| Read methods needing PE→procurement traversal | **stay on the legacy path**, labelled as candidates |
+| Building + reviewing the crosswalk | **separate data-curation work item**, not a coding task |
+| UI: "Related procurement line" | reserved for `status: 'accepted'` |
+| UI: "Possible related procurement line" | `status: 'candidate'` |
+| UI: a BLIN rendered as a child PE record | **forbidden** — it is a peer identity in another family |
+
+Do not solve the missing governed relationship by recreating identity
+conflation in cleaner code.
+
+### R1a — `legacy_compatibility` is a third provenance kind, and it is the default
+
+An unmigrated read is **not** snapshot-backed just because a snapshot happens to
+be active. `getContractors` shipped briefly labelling its R-3 exhibit measure
+`kind: 'canonical_snapshot'` with a live `snapshotId`, while `namedPrimes` reads
+`program_element_performer` unconditionally — which would have attached a real
+snapshot id to legacy data the moment any snapshot went active. Caught and
+fixed before any snapshot existed; regression-guarded in
+`measure-provenance.spec.ts`.
+
+`LegacyCompatibilityProvenance` carries the mutable `table` it read and a
+required `reason`, because an unmigrated read with no stated reason is
+indistinguishable from one nobody has looked at.
+
+### Workstream M — verified blockers on the three "mixed provenance" methods
+
+R1 answered the *provenance* question for `getRelationships`, `getGraph`, and
+`getIncumbents`, but all three turn out to be blocked underneath it by missing
+producers. This is the `contract present ≠ producer exists` trap in §7 again.
+
+| Method | Blocker | Evidence |
+| --- | --- | --- |
+| `getRelationships` | PE↔PE edges have **no RDT&E canonical producer** | `canonical_budget_line_relationship` has exactly one producing projection kind, `non_rdte:BudgetLineRelationship`; there are zero `rdte:*Relationship` kinds |
+| `getGraph` | same | same |
+| `getIncumbents` | `canonical_rdte_performer` carries **no money** | registry declares `moneyRule: 'none'`, `valueAxes: ['identity','text']`, so `totalCostM` has no canonical home |
+
+The `getIncumbents` finding also bounds `getContractors`: its exhibit measure
+cannot become snapshot-backed by migrating the read, because the value does not
+exist on the canonical row. Both need Phase 4 to give
+`canonical_rdte_performer` a money axis first.
 
 ---
 

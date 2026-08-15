@@ -2,6 +2,7 @@ import { describe, expect, test } from '@jest/globals';
 import {
   PE_EXACT_SHA_DOLLAR_LOADERS,
   assertExactShaCommitAllowed,
+  assertLegacyBudgetWriteGateForLoaderV1,
   auditArtifactQuality,
   buildInspectReport,
   isPeExactShaDollarLoader,
@@ -10,6 +11,10 @@ import {
 
 const SHA = 'a'.repeat(64);
 const SHA_B = 'b'.repeat(64);
+const ALLOW_LEGACY = {
+  verb: 'load-om',
+  environment: { PE_LEGACY_BUDGET_WRITES: 'allow', PE_SNAPSHOT_READ_MODE: 'legacy' },
+} as const;
 
 describe('resolvePeDollarLoaderPosture', () => {
   test('defaults to inspect (no canonical write)', () => {
@@ -17,8 +22,40 @@ describe('resolvePeDollarLoaderPosture', () => {
     expect(resolvePeDollarLoaderPosture(['--inspect'])).toBe('inspect');
   });
 
-  test('commit is explicit', () => {
-    expect(resolvePeDollarLoaderPosture(['--commit'])).toBe('commit');
+  test('commit is explicit and additionally requires the Phase 7 legacy-write override', () => {
+    expect(() =>
+      resolvePeDollarLoaderPosture(['--commit'], {
+        verb: 'load-om',
+        environment: {},
+      }),
+    ).toThrow(/legacy-write kill switch is off/);
+    expect(resolvePeDollarLoaderPosture(['--commit'], ALLOW_LEGACY)).toBe('commit');
+  });
+
+  test('snapshot and canary read modes veto the legacy-write override', () => {
+    for (const mode of ['snapshot_canary', 'snapshot'] as const) {
+      expect(() =>
+        resolvePeDollarLoaderPosture(['--commit'], {
+          verb: 'load-om',
+          environment: {
+            PE_LEGACY_BUDGET_WRITES: 'allow',
+            PE_SNAPSHOT_READ_MODE: mode,
+          },
+        }),
+      ).toThrow(/product reads are being served from a canonical snapshot/);
+    }
+  });
+
+  test('an invalid snapshot read mode fails closed for one-off scripts', () => {
+    expect(() =>
+      assertLegacyBudgetWriteGateForLoaderV1(['--commit'], {
+        verb: 'load-om',
+        environment: {
+          PE_LEGACY_BUDGET_WRITES: 'allow',
+          PE_SNAPSHOT_READ_MODE: 'snapshto',
+        },
+      }),
+    ).toThrow(/PE_SNAPSHOT_READ_MODE=snapshto is invalid/);
   });
 
   test('extract-only and deprecated dry-run are extract_only', () => {
@@ -26,13 +63,13 @@ describe('resolvePeDollarLoaderPosture', () => {
     expect(resolvePeDollarLoaderPosture(['--dry-run'])).toBe('extract_only');
   });
 
-  test('rejects mixed posture flags', () => {
-    expect(() => resolvePeDollarLoaderPosture(['--commit', '--inspect'])).toThrow(
+  test('rejects mixed posture flags before considering authorization', () => {
+    expect(() => resolvePeDollarLoaderPosture(['--commit', '--inspect'], ALLOW_LEGACY)).toThrow(
       'Choose exactly one loader posture',
     );
-    expect(() => resolvePeDollarLoaderPosture(['--commit', '--extract-only'])).toThrow(
-      'Choose exactly one loader posture',
-    );
+    expect(() =>
+      resolvePeDollarLoaderPosture(['--commit', '--extract-only'], ALLOW_LEGACY),
+    ).toThrow('Choose exactly one loader posture');
   });
 });
 
@@ -67,7 +104,7 @@ describe('assertExactShaCommitAllowed', () => {
     ).toThrow('Quality audit failed');
   });
 
-  test('matching sha + non-empty rows allow commit', () => {
+  test('matching sha + non-empty rows allow the exact-SHA leg', () => {
     const result = assertExactShaCommitAllowed({
       actualSha256: SHA,
       approvedSha256Raw: SHA,
@@ -89,7 +126,7 @@ describe('auditArtifactQuality', () => {
 });
 
 describe('buildInspectReport', () => {
-  test('documents commit requirements without writing', () => {
+  test('documents both commit requirements without writing', () => {
     const report = buildInspectReport({
       loader: 'load-om.ts',
       posture: 'inspect',
@@ -99,8 +136,11 @@ describe('buildInspectReport', () => {
       quality: auditArtifactQuality({ rowCount: 2 }),
     });
     expect(report.mode).toBe('INSPECT');
-    expect((report.commitRequirements as { approvedSha256MustEqual: string }).approvedSha256MustEqual).toBe(
-      SHA,
+    expect(
+      (report.commitRequirements as { approvedSha256MustEqual: string }).approvedSha256MustEqual,
+    ).toBe(SHA);
+    expect((report.commitRequirements as { legacyWriteGate: string }).legacyWriteGate).toContain(
+      'PE_LEGACY_BUDGET_WRITES=allow',
     );
   });
 });

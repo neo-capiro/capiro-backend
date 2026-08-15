@@ -13,6 +13,29 @@ USER_NAME="postgres"
 PASSWORD="postgres"
 DB_NAME="capiro"
 P5_MIGRATION="20260818030000_non_rdte_phase5_projection_schema"
+# Phase 7's canonical-promotion migration (added by a later session) FKs into
+# procurement_budget_line, which Phase 5's own migration creates. Written
+# back when Phase 5 was the newest phase, this script's "pre-Phase-5"
+# baseline was simply "everything except Phase 5's own migration" — correct
+# then, but Phase 7 now sits chronologically after Phase 5 in that same
+# "everything else" set, so replaying it before Phase 5 exists fails on a
+# missing relation. Excluded here for the same reason
+# pe-budget-phase7-migration-rehearsal.sh excludes its OWN later add-ons from
+# ITS pre-baseline: none of these four are needed until Phase 5's tables
+# already exist, and Path A above already proves they apply cleanly at tip.
+P7_MIGRATION="20260822010000_pe_budget_phase7_canonical_promotion"
+P7_MIGRATION_K="20260822020000_pe_budget_phase7_manual_override_queue_link"
+P7_MIGRATION_L="20260902010000_pe_budget_phase7_outbox_drain"
+P7_MIGRATION_GAP3="20260903010000_pe_budget_phase7_promotion_eligibility"
+# Gap 5 / exact-plan grants land after Phase 7's function + eligibility tables.
+# Path B builds a pre-Phase-5 baseline by also omitting Phase 7 itself (P7 FKs
+# Phase 5 tables), so these later migrations cannot replay in that baseline:
+# 20260907020000 attaches enforce_promotion_ledger_append_only(), which only
+# exists once P7_MIGRATION has run. Mirror pe-budget-phase7-migration-rehearsal.sh
+# and rdte-phase-4-migration-rehearsal.sh exclusions.
+P7_MIGRATION_GAP5_CANDIDATE="20260907010000_pe_budget_phase2_candidate_source_metadata"
+P7_MIGRATION_GAP5_PLANS="20260907020000_pe_budget_projection_plan_persistence"
+P7_MIGRATION_EXACT_PLAN_GRANTS="20260909020000_pe_budget_phase7_exact_plan_read_grants"
 TMP_REL=".p5-rehearsal-migrations"
 
 log() { echo "[p5-rehearsal] $*"; }
@@ -71,7 +94,16 @@ cp "$API_ROOT/prisma/schema.prisma" "$API_ROOT/$TMP_REL/schema.prisma"
 cp "$MIGRATIONS_DIR/migration_lock.toml" "$API_ROOT/$TMP_REL/migrations/" 2>/dev/null || true
 for dir in "$MIGRATIONS_DIR"/*/; do
   migration="$(basename "$dir")"
-  [ "$migration" = "$P5_MIGRATION" ] && continue
+  if [ "$migration" = "$P5_MIGRATION" ] || \
+     [ "$migration" = "$P7_MIGRATION" ] || \
+     [ "$migration" = "$P7_MIGRATION_K" ] || \
+     [ "$migration" = "$P7_MIGRATION_L" ] || \
+     [ "$migration" = "$P7_MIGRATION_GAP3" ] || \
+     [ "$migration" = "$P7_MIGRATION_GAP5_CANDIDATE" ] || \
+     [ "$migration" = "$P7_MIGRATION_GAP5_PLANS" ] || \
+     [ "$migration" = "$P7_MIGRATION_EXACT_PLAN_GRANTS" ]; then
+    continue
+  fi
   cp -r "$dir" "$API_ROOT/$TMP_REL/migrations/"
 done
 (cd "$API_ROOT" && npx prisma migrate deploy --schema "$TMP_REL/schema.prisma" >/dev/null) \

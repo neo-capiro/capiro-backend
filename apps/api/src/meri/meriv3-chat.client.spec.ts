@@ -23,7 +23,37 @@ describe('MeriV3ChatClient', () => {
     jest.restoreAllMocks();
   });
 
-  test('posts the reasoning mode and parses frames across the V3 route', async () => {
+  test('posts the reasoning mode and parses retrieval coverage across the V3 route', async () => {
+    const retrieval = {
+      plan: {
+        version: 1,
+        queryClass: 'relationship_history',
+        subjectScope: 'external_entity',
+        targetHint: 'Victory Six',
+        recipeTool: 'query_relationship_brief',
+        requireCompleteCoverage: true,
+        requiredDomains: ['mail'],
+        timeWindow: null,
+      },
+      coverage: {
+        version: 1,
+        complete: false,
+        requestedDomains: ['mail'],
+        searchedDomains: ['mail'],
+        missingDomains: [],
+        partialDomains: ['mail'],
+        requestedEntityCount: 1,
+        searchedEntityCount: 1,
+        recordsEvaluated: 1,
+        recordsReturned: 1,
+        paginationComplete: true,
+        truncated: false,
+        sourceHealth: [],
+        unavailableSources: [],
+        toolsInvoked: ['search_emails'],
+        stopReason: 'partial',
+      },
+    } as const;
     const fetchMock = jest.fn(async (..._args: Parameters<typeof fetch>) =>
       sseResponse([
         { type: 'runtime', runtime: 'meriv3', model: 'gpt-5.1', reasoningMode: 'deep' },
@@ -36,6 +66,7 @@ describe('MeriV3ChatClient', () => {
           reasoningEffort: 'high',
           reply: 'Answer',
           steps: [],
+          retrieval,
         },
       ]),
     );
@@ -65,6 +96,7 @@ describe('MeriV3ChatClient', () => {
     expect(init.headers).toEqual(expect.objectContaining({ authorization: 'Bearer bearer' }));
     expect(JSON.parse(String(init.body))).toMatchObject({ reasoningMode: 'deep' });
     expect(events).toHaveLength(3);
+    expect(events[2]).toEqual(expect.objectContaining({ type: 'done', retrieval }));
   });
 
   test('fails before the network without the caller bearer', async () => {

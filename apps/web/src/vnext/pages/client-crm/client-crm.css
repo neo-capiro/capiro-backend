@@ -1,0 +1,1541 @@
+/*
+ * Client CRM vNext — Figma page `906:2502`.
+ *
+ * Geometry is transcribed from `get_design_context`, not measured off a
+ * screenshot. Reference stage is 1600×1000: TopBar 64, nav 232, context bar 44,
+ * so the working surface is 1368×892 beginning at x=232 / y=108. Everything
+ * below is expressed relative to that surface, which the vNext shell owns.
+ *
+ * Local `--crm-*` custom properties exist so no literal hex appears in a rule.
+ * Each one records the Figma variable it stands for; where the design system
+ * already publishes an equivalent token, the alias points at it rather than
+ * restating the value.
+ */
+
+.capiro-vnext-root .capiro-crm {
+  /* Figma color/border/active — the hairline on pills and chips. */
+  --crm-border-pill: var(--capiro-color-text-primary);
+  /* Figma color/bg/inverse — the client mark. */
+  --crm-bg-mark: var(--capiro-color-text-primary);
+  --crm-surface: var(--capiro-color-bg-surface);
+  --crm-body-bg: var(--capiro-color-bg-subtle);
+  --crm-quiet: var(--capiro-color-border-quiet);
+  --crm-ink: var(--capiro-color-text-primary);
+  --crm-ink-accent: var(--capiro-color-text-accent);
+  --crm-ink-secondary: var(--capiro-color-text-secondary);
+
+  /* Figma Capiro vNext/Product type ramp. The shared --capiro-type-size-body-sm
+     is 13/20 for legacy surfaces; the vNext CRM ramp is 12.5/18, so it is
+     scoped here instead of retuning a token the shipped Dashboard depends on. */
+  --crm-body-sm-size: 12.5px;
+  --crm-body-sm-line: 18px;
+  --crm-body-md-size: 14px;
+  --crm-body-md-line: 22px;
+  --crm-heading-sub-size: 16px;
+  --crm-heading-sub-line: 22px;
+  --crm-heading-section-size: 22px;
+  --crm-heading-section-line: 28px;
+  --crm-meta-size: 10px;
+  --crm-meta-line: 14px;
+  --crm-meta-tracking: 0.6px;
+  --crm-code-size: 12px;
+  --crm-code-line: 17px;
+
+  /* 1368 surface − 24 gutters = 1320 content; 20px between cards. */
+  --crm-gutter: 24px;
+  --crm-gap: 20px;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--crm-body-bg);
+  font-family: var(--capiro-type-family-sans);
+}
+
+/* ── Shared type helpers ─────────────────────────────────────────────────── */
+
+/* Visually hidden but announced — used to give a screen reader the reason a
+   metric is unavailable, which sighted users get from the em dash's tooltip. */
+.capiro-vnext-root .capiro-crm__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.capiro-vnext-root .capiro-crm__meta {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-meta-size);
+  line-height: var(--crm-meta-line);
+  font-weight: 500;
+  letter-spacing: var(--crm-meta-tracking);
+  text-transform: uppercase;
+  color: var(--crm-ink-secondary);
+  margin: 0;
+}
+
+.capiro-vnext-root .capiro-crm__code {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-code-size);
+  line-height: var(--crm-code-line);
+  font-weight: 500;
+  margin: 0;
+}
+
+/* ── Compact client header (906:2751) — 120px tall, sticky across tabs ───── */
+
+.capiro-vnext-root .capiro-crm__header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  flex: 0 0 auto;
+  background: var(--crm-surface);
+  /* 906:2788 — a 1px accent rule closes the header. */
+  border-bottom: 1px solid var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-crm__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  height: 42px;
+  padding: 12px var(--crm-gutter) 0;
+}
+
+.capiro-vnext-root .capiro-crm__mark {
+  flex: 0 0 auto;
+  /* The frame puts the mark at y=12 with the name centred 8px higher, so it
+     aligns to the top of the content box rather than to the name. */
+  align-self: flex-start;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--capiro-radius-control);
+  background: var(--crm-bg-mark);
+  color: var(--capiro-color-text-inverse-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-code-size);
+  line-height: 17px;
+  font-weight: 500;
+  overflow: hidden;
+}
+
+.capiro-vnext-root .capiro-crm__mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.capiro-vnext-root .capiro-crm__name {
+  /* 906:2754 — the name starts at x=72. The 36px mark ends at x=60 and the
+     row's flex gap contributes 8, so this adds the remaining 4. */
+  margin: 0 0 0 4px;
+  font-size: var(--crm-heading-sub-size);
+  line-height: var(--crm-heading-sub-line);
+  font-weight: 600;
+  letter-spacing: -0.032px;
+  color: var(--crm-ink-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.capiro-vnext-root .capiro-crm__identity-spacer { flex: 1 1 auto; min-width: 12px; }
+
+.capiro-vnext-root .capiro-crm__owner {
+  display: flex;
+  align-items: baseline;
+  gap: var(--capiro-space-02);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__owner-value {
+  margin: 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__owner-value--empty { color: var(--crm-ink-secondary); }
+
+/* Pills: status, focus chips, signal chips — 24px, circular, hairline. */
+.capiro-vnext-root .capiro-crm__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid var(--crm-border-pill);
+  border-radius: var(--capiro-radius-circular, 9999px);
+  background: var(--crm-surface);
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-meta-size);
+  line-height: var(--crm-meta-line);
+  font-weight: 500;
+  letter-spacing: var(--crm-meta-tracking);
+  color: var(--crm-ink-secondary);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__pill--filled {
+  background: var(--capiro-color-bg-subtle);
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__pill--action {
+  cursor: pointer;
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.capiro-vnext-root .capiro-crm__focus {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  /* Was `height: 36px; overflow: hidden`, which silently CLIPPED any focus
+     chip past the right edge — the chips are white-space:nowrap, so they never
+     shrank and the last one simply disappeared with no affordance to reach it.
+     min-height keeps the Figma 36px row whenever the chips fit on one line and
+     lets the row grow instead of hiding data when they do not. */
+  min-height: 36px;
+  padding: 4px var(--crm-gutter);
+}
+
+.capiro-vnext-root .capiro-crm__focus .capiro-crm__meta { margin-right: 4px; }
+
+.capiro-vnext-root .capiro-crm__more {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  border-radius: var(--capiro-radius-control);
+  color: var(--crm-ink-secondary);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.capiro-vnext-root .capiro-crm__more:hover { background: var(--capiro-color-bg-subtle); }
+
+/* ── Primary tabs (906:2781) — 42px strip, 2px active underline ──────────── */
+
+.capiro-vnext-root .capiro-crm__tabs {
+  display: flex;
+  align-items: stretch;
+  height: 42px;
+  padding: 0 var(--crm-gutter);
+  background: var(--crm-surface);
+}
+
+.capiro-vnext-root .capiro-crm__tab {
+  position: relative;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0 var(--capiro-space-04);
+  /* min-width REPLACES the flex automatic minimum size, so without the two
+     lines below every tab shrank to 64px and its label spilled across the
+     neighbour instead of producing the scroll width the overflow-x rule in the
+     responsive section is there to scroll. */
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-width: 64px;
+  font-family: inherit;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm__tab[aria-selected='true'] { color: var(--crm-ink-accent); }
+
+.capiro-vnext-root .capiro-crm__tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--capiro-color-border-strong, var(--capiro-primitive-product-border));
+}
+
+.capiro-vnext-root .capiro-crm__tab:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: -2px;
+  border-radius: var(--capiro-radius-control);
+}
+
+/* Secondary view rail (Relationships / Intelligence). */
+.capiro-vnext-root .capiro-crm__subtabs {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  padding: 0 var(--crm-gutter) var(--capiro-space-03);
+  background: var(--crm-body-bg);
+}
+
+.capiro-vnext-root .capiro-crm__subtab {
+  appearance: none;
+  /* Same reasoning as .capiro-crm__tab: the pills must keep their label width
+     so the sub-rail can scroll rather than crush. "Government relationships"
+     and the six Intelligence views exceed the content width well before 780. */
+  flex: 0 0 auto;
+  white-space: nowrap;
+  height: 32px;
+  padding: 0 var(--capiro-space-03);
+  border: 1px solid var(--crm-quiet);
+  border-radius: var(--capiro-radius-control);
+  background: var(--crm-surface);
+  font-family: inherit;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm__subtab[aria-selected='true'] {
+  border-color: var(--crm-border-pill);
+  color: var(--crm-ink-accent);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-crm__subtab:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: 1px;
+}
+
+/* ── Body (906:2789) ─────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 21px var(--crm-gutter) var(--crm-gutter);
+  background: var(--crm-body-bg);
+}
+
+.capiro-vnext-root .capiro-crm__page-head {
+  display: flex;
+  align-items: flex-start;
+  /* The trailing control is either a button or a full-width search input
+     (VNextClientPicker, Files). At 390 the input's own minimum plus the title's
+     longest word exceed the content width, so the row wraps instead of pushing
+     the page into horizontal scroll. Above ~700 nothing wraps and the desktop
+     geometry is untouched. */
+  flex-wrap: wrap;
+  gap: var(--capiro-space-03) var(--capiro-space-04);
+  margin-bottom: 14px;
+}
+
+.capiro-vnext-root .capiro-crm__page-title {
+  margin: 0;
+  font-size: var(--crm-heading-section-size);
+  line-height: var(--crm-heading-section-line);
+  font-weight: 600;
+  letter-spacing: -0.132px;
+  color: var(--crm-ink-accent);
+}
+
+/* Figma: title box 21–49, subtitle 54–72, first card at 86. The 5px and 14px
+   below are those gaps, not round numbers picked for tidiness. */
+.capiro-vnext-root .capiro-crm__page-sub {
+  margin: 5px 0 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+}
+
+.capiro-vnext-root .capiro-crm__page-head-spacer { flex: 1 1 auto; }
+
+/* Card grid. 728+20+572 = 1320 and 650+20+650 = 1320 both fall out of `fr`
+   because the Figma widths already sum to the content width minus the gap. */
+.capiro-vnext-root .capiro-crm__grid {
+  display: grid;
+  gap: var(--crm-gap);
+  margin-bottom: var(--crm-gap);
+}
+
+.capiro-vnext-root .capiro-crm__grid--profile { grid-template-columns: minmax(0, 728fr) minmax(0, 572fr); }
+.capiro-vnext-root .capiro-crm__grid--even { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.capiro-vnext-root .capiro-crm__grid:last-child { margin-bottom: 0; }
+
+.capiro-vnext-root .capiro-crm__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--crm-surface);
+  border: 1px solid var(--crm-quiet);
+  border-radius: var(--capiro-radius-widget);
+  /* Figma card head: text baseline box 16-38 from the card top. */
+  padding: 13px 19px 19px;
+}
+
+.capiro-vnext-root .capiro-crm__card-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02) var(--capiro-space-03);
+  min-height: 28px;
+  /* Attention rail starts at y=55: 13 padding + 28 head + 14. */
+  margin-bottom: 14px;
+}
+
+.capiro-vnext-root .capiro-crm__card-title {
+  margin: 0;
+  font-size: var(--crm-heading-sub-size);
+  line-height: var(--crm-heading-sub-line);
+  font-weight: 600;
+  letter-spacing: -0.032px;
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__card-title--ink { color: var(--crm-ink); }
+
+.capiro-vnext-root .capiro-crm__card-action {
+  margin-left: auto;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-meta-size);
+  line-height: var(--crm-meta-line);
+  font-weight: 500;
+  letter-spacing: var(--crm-meta-tracking);
+  text-transform: uppercase;
+  color: var(--capiro-primitive-product-ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__card-action:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Client profile card (908:2899) ──────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__profile { display: flex; gap: var(--capiro-space-05); }
+
+.capiro-vnext-root .capiro-crm__profile-mark {
+  flex: 0 0 auto;
+  width: 68px;
+  height: 68px;
+  border-radius: var(--capiro-radius-widget);
+  background: var(--crm-bg-mark);
+  color: var(--capiro-color-text-inverse-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--crm-heading-sub-size);
+  line-height: var(--crm-heading-sub-line);
+  font-weight: 600;
+  letter-spacing: -0.032px;
+  overflow: hidden;
+}
+
+.capiro-vnext-root .capiro-crm__profile-mark img { width: 100%; height: 100%; object-fit: cover; }
+
+.capiro-vnext-root .capiro-crm__profile-body { min-width: 0; flex: 1 1 auto; }
+
+.capiro-vnext-root .capiro-crm__profile-desc {
+  margin: 0 0 var(--capiro-space-02);
+  font-size: var(--crm-body-md-size);
+  line-height: var(--crm-body-md-line);
+  color: var(--crm-ink-accent);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.capiro-vnext-root .capiro-crm__profile-facts {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-05);
+  flex-wrap: wrap;
+  margin-bottom: var(--capiro-space-03);
+}
+
+.capiro-vnext-root .capiro-crm__profile-link {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-code-size);
+  line-height: var(--crm-code-line);
+  font-weight: 500;
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__profile-place {
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+}
+
+/* ── Account card (908:2910) ─────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* 908:2913-2919 — row pitch is 50px: 14 label + 3 + 18 value + 20. */
+  gap: 20px var(--capiro-space-05);
+}
+
+.capiro-vnext-root .capiro-crm__field-value {
+  margin: 3px 0 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__field-value--empty { color: var(--crm-ink-secondary); }
+
+/* 908:2920-2930 — the team avatars and the brief chip share row 2's cell. */
+.capiro-vnext-root .capiro-crm__field-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  flex-wrap: wrap;
+  /* Matches a plain value line so the 24px chip does not grow the row — but as
+     a MINIMUM, not a fixed height. The row is allowed to wrap and this cell is
+     one of two `.capiro-crm__fields` columns (~174px at 1280), while the value
+     plus the brief chip needs ~187px: with `height: 18px` the wrapped chip
+     rendered below the box, past the card's 19px bottom padding and across its
+     border. Costs 6px of Figma-exact height only when it actually wraps. */
+  min-height: 18px;
+}
+
+/* ── Needs attention (908:2931) — 45px rows with a 4px leading rail ──────── */
+
+/* The last row has no divider, so the card closes tighter than a text card. */
+.capiro-vnext-root .capiro-crm__card--attention { padding-bottom: 11px; }
+
+/* 908:2969 / 908:2985 — the pulse cards close 14px under their last line. */
+.capiro-vnext-root .capiro-crm__card--pulse { padding-bottom: 14px; }
+
+.capiro-vnext-root .capiro-crm__attention { display: flex; flex-direction: column; }
+
+.capiro-vnext-root .capiro-crm__attention-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  column-gap: var(--capiro-space-03);
+  min-height: 45px;
+  padding: 0 0 0 12px;
+  margin: 0 -19px;
+  padding-right: 19px;
+  border: 0;
+  border-bottom: 1px solid var(--crm-quiet);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  width: calc(100% + 38px);
+}
+
+.capiro-vnext-root .capiro-crm__attention-row:last-child { border-bottom: 0; }
+.capiro-vnext-root .capiro-crm__attention-row:hover { background: var(--capiro-color-bg-canvas); }
+
+.capiro-vnext-root .capiro-crm__attention-row:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: -2px;
+}
+
+/* The 4px rail at x=-1 in the frame; tone comes from urgency, but never alone —
+   the badge and the status text carry the same information as text (§6). */
+.capiro-vnext-root .capiro-crm__attention-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__attention-row[data-urgent='true']::before {
+  background: var(--capiro-color-danger-rail, var(--capiro-color-danger));
+}
+
+.capiro-vnext-root .capiro-crm__attention-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--crm-ink-secondary);
+}
+
+.capiro-vnext-root .capiro-crm__attention-row[data-urgent='true'] .capiro-crm__attention-dot {
+  background: var(--capiro-color-danger);
+}
+
+.capiro-vnext-root .capiro-crm__attention-title {
+  margin: 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__attention-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+}
+
+.capiro-vnext-root .capiro-crm__attention-when {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-code-size);
+  line-height: var(--crm-code-line);
+  color: var(--crm-ink-secondary);
+  text-align: right;
+  min-width: 72px;
+}
+
+.capiro-vnext-root .capiro-crm__attention-status { min-width: 56px; text-align: right; }
+
+/* ── Pulse cards (908:2969 / 908:2985) ───────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--capiro-space-03);
+  margin-bottom: 21px;
+}
+
+.capiro-vnext-root .capiro-crm__metric {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  min-width: 0;
+}
+
+.capiro-vnext-root button.capiro-crm__metric { cursor: pointer; }
+
+.capiro-vnext-root button.capiro-crm__metric:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.capiro-vnext-root .capiro-crm__metric-value {
+  margin: 0;
+  font-size: var(--crm-heading-section-size);
+  line-height: var(--crm-heading-section-line);
+  font-weight: 600;
+  letter-spacing: -0.132px;
+  color: var(--crm-ink-accent);
+  margin-bottom: 4px;
+}
+
+/* An unavailable metric is an em dash with a reason, never a zero (§7). */
+.capiro-vnext-root .capiro-crm__metric-value--unavailable { color: var(--crm-ink-secondary); }
+
+.capiro-vnext-root .capiro-crm__readiness { margin-top: auto; }
+
+.capiro-vnext-root .capiro-crm__track-row {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  /* The row is 17px tall because the percentage's line box is, while the track
+     itself is 8px centred inside it — so the gap under the label is 4, not 12. */
+  margin: 4px 0 17px;
+}
+
+.capiro-vnext-root .capiro-crm__track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: var(--capiro-radius-circular, 9999px);
+  background: var(--capiro-color-bg-subtle);
+  overflow: hidden;
+}
+
+/* 908:2983 — the percentage sits at the end of the track, not beneath it. */
+.capiro-vnext-root .capiro-crm__track-pct {
+  flex: 0 0 auto;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-code-size);
+  line-height: var(--crm-code-line);
+  font-weight: 500;
+  color: var(--crm-ink-accent);
+}
+
+.capiro-vnext-root .capiro-crm__track-value {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-crm__foot {
+  margin: 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+}
+
+.capiro-vnext-root .capiro-crm__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  margin-bottom: var(--capiro-space-03);
+}
+
+/* ── Async, empty and error states (§7) ──────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__skeleton {
+  border-radius: 4px;
+  background: var(--capiro-color-bg-subtle);
+  animation: capiro-crm-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes capiro-crm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capiro-vnext-root .capiro-crm__skeleton { animation: none; }
+}
+
+.capiro-vnext-root .capiro-crm__state {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-04) 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+}
+
+.capiro-vnext-root .capiro-crm__state--error { color: var(--capiro-color-text-destructive, var(--capiro-color-danger)); }
+
+/* ── Responsive contract (§5) ────────────────────────────────────────────── */
+
+/*
+ * BREAKPOINTS. This file used to key off 1199/1439 and carried a comment
+ * claiming the shell "collapses its own rail to 72px" at 1200. That was wrong
+ * in both numbers: the shell collapses at max-width 1179 and its rails are
+ * 272/80, not 280/72 (shell-uui.css, foundations/responsive.css). The 1199
+ * queries have been moved onto the canonical 1179 boundary so the page body
+ * restacks exactly when the rail becomes an icon rail; the only band that
+ * changes behaviour is 1180–1199, which now renders the same two-column
+ * arrangement it already rendered at 1200 (content is ~844px either way).
+ *
+ * The old 1439 query, which only retuned --crm-gutter/--crm-gap, is folded into
+ * the 1179 query below rather than surviving as a third boundary: nothing
+ * reflowed across 1439, so the only effect is that 1180–1439 now keeps the
+ * Figma-exact 24/20 spacing it was designed with instead of the compressed
+ * 20/16 pair, which costs about 6px of card interior and breaks nothing.
+ */
+
+/* ≤1179 — tablet: the shell shows an 80px icon rail. Compress the spacing
+   customs and stack the two-column regions once their minimum widths fail. */
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-crm { --crm-gutter: 20px; --crm-gap: 16px; }
+
+  .capiro-vnext-root .capiro-crm__grid--profile,
+  .capiro-vnext-root .capiro-crm__grid--even { grid-template-columns: minmax(0, 1fr); }
+
+  .capiro-vnext-root .capiro-crm__tabs { overflow-x: auto; }
+
+  /* Dense rows lose their date column before they lose their identity. */
+  .capiro-vnext-root .capiro-crm__attention-when { min-width: 0; }
+}
+
+/* ── Generic record rows (capabilities, people, targets, files) ──────────── */
+
+.capiro-vnext-root .capiro-crm__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capiro-vnext-root .capiro-crm__row {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  width: calc(100% + 38px);
+  margin: 0 -19px;
+  padding: 0 19px;
+  min-height: 45px;
+  border: 0;
+  border-bottom: 1px solid var(--crm-quiet);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm__rows > li:last-child .capiro-crm__row { border-bottom: 0; }
+.capiro-vnext-root .capiro-crm__row:hover { background: var(--capiro-color-bg-canvas); }
+
+.capiro-vnext-root .capiro-crm__row:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: -2px;
+}
+
+.capiro-vnext-root .capiro-crm__row-main { flex: 1 1 auto; min-width: 0; }
+
+.capiro-vnext-root .capiro-crm__row-title {
+  display: block;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__row-meta {
+  display: block;
+  text-transform: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__row-side {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+}
+
+/* ── Header overflow menu ────────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__more-wrap { position: relative; flex: 0 0 auto; }
+
+.capiro-vnext-root .capiro-crm__more-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 220px;
+}
+
+/* ── Fill with Meri drawer (§14) ─────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm-fill {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-03);
+  font-family: var(--capiro-type-family-sans);
+}
+
+.capiro-vnext-root .capiro-crm-fill__state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-04) 0;
+}
+
+.capiro-vnext-root .capiro-crm-fill__warning {
+  padding: var(--capiro-space-02) var(--capiro-space-03);
+  border: 1px solid var(--capiro-color-border-warning, var(--capiro-color-warning));
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-warning, var(--crm-ink));
+}
+
+.capiro-vnext-root .capiro-crm-fill__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  padding-bottom: var(--capiro-space-02);
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm-fill__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.capiro-vnext-root .capiro-crm-fill__item {
+  display: flex;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-03) 0;
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm-fill__item:last-child { border-bottom: 0; }
+
+.capiro-vnext-root .capiro-crm-fill__check {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-crm-fill__item-body { min-width: 0; flex: 1 1 auto; }
+
+.capiro-vnext-root .capiro-crm-fill__field {
+  display: block;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  font-weight: 600;
+  color: var(--crm-ink);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm-fill__diff {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  margin: 4px 0 6px;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+}
+
+/* The existing value stays visible next to the proposal — §14 forbids a silent
+   overwrite, so the user always sees what would be replaced. */
+.capiro-vnext-root .capiro-crm-fill__before {
+  color: var(--crm-ink-secondary);
+  text-decoration: line-through;
+}
+
+.capiro-vnext-root .capiro-crm-fill__arrow { color: var(--crm-ink-secondary); }
+.capiro-vnext-root .capiro-crm-fill__after { color: var(--crm-ink-accent); font-weight: 600; }
+
+.capiro-vnext-root .capiro-crm-fill__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+}
+
+.capiro-vnext-root .capiro-crm-fill__evidence {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+}
+
+.capiro-vnext-root .capiro-crm-fill__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  padding-top: var(--capiro-space-03);
+}
+
+/* ── Organization (906:2790) — canvas 972 + 20 + settings 328 = 1320 ─────── */
+
+.capiro-vnext-root .capiro-crm__grid--org {
+  grid-template-columns: minmax(0, 972fr) minmax(0, 328fr);
+}
+
+.capiro-vnext-root .capiro-crm__org-scroll {
+  overflow: auto;
+  min-height: 0;
+  padding-bottom: var(--capiro-space-02);
+}
+
+/* Org chart: nested lists with CSS connectors, so the tree is real markup a
+   screen reader can walk rather than absolutely-placed boxes. */
+.capiro-vnext-root .capiro-crm__org-tree,
+.capiro-vnext-root .capiro-crm__org-children {
+  display: flex;
+  gap: var(--capiro-space-04);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * NOT `justify-content: center`. Centred flex content that overflows its scroll
+ * container cannot be scrolled back to on the start side — scrollLeft cannot go
+ * negative — so the leftmost branch was permanently unreachable. Three 208px
+ * sibling cards plus gaps need ~656px and the canvas card is ~620px interior at
+ * 1280, so this was already losing a branch on a DESKTOP viewport, not only on
+ * a phone. `width: max-content` + auto inline margins centre the tree while it
+ * fits and left-align it the moment it does not, which is what makes the whole
+ * tree reachable through .capiro-crm__org-scroll.
+ */
+.capiro-vnext-root .capiro-crm__org-tree {
+  justify-content: flex-start;
+  width: max-content;
+  max-width: none;
+  margin-inline: auto;
+}
+
+.capiro-vnext-root .capiro-crm__org-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.capiro-vnext-root .capiro-crm__org-children {
+  margin-top: 27px;
+  position: relative;
+}
+
+/* Stem down from the parent. */
+.capiro-vnext-root .capiro-crm__org-children::before {
+  content: '';
+  position: absolute;
+  top: -27px;
+  left: 50%;
+  width: 1px;
+  height: 27px;
+  background: var(--capiro-color-border-strong, var(--capiro-primitive-product-border));
+}
+
+/* Stem up from each child, plus the horizontal branch across siblings. */
+.capiro-vnext-root .capiro-crm__org-children > .capiro-crm__org-node::before {
+  content: '';
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  width: 1px;
+  height: 14px;
+  background: var(--capiro-color-border-strong, var(--capiro-primitive-product-border));
+}
+
+.capiro-vnext-root .capiro-crm__org-children > .capiro-crm__org-node::after {
+  content: '';
+  position: absolute;
+  top: -14px;
+  height: 1px;
+  background: var(--capiro-color-border-strong, var(--capiro-primitive-product-border));
+  left: 50%;
+  right: calc(-1 * var(--capiro-space-04) / 2);
+}
+
+.capiro-vnext-root .capiro-crm__org-children > .capiro-crm__org-node:last-child::after {
+  right: 50%;
+  left: calc(-1 * var(--capiro-space-04) / 2);
+}
+
+/* A single child needs the stem but no crossbar. */
+.capiro-vnext-root .capiro-crm__org-children > .capiro-crm__org-node:only-child::after { display: none; }
+
+.capiro-vnext-root .capiro-crm__person {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--capiro-space-02);
+  width: 208px;
+  padding: var(--capiro-space-02) var(--capiro-space-03);
+  border: 1px solid var(--crm-quiet);
+  border-radius: var(--capiro-radius-widget);
+  background: var(--crm-surface);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm__person:hover { border-color: var(--crm-border-pill); }
+
+.capiro-vnext-root .capiro-crm__person:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: 1px;
+}
+
+.capiro-vnext-root .capiro-crm__person-avatar {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+  color: var(--crm-ink-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--crm-meta-size);
+  letter-spacing: var(--crm-meta-tracking);
+}
+
+.capiro-vnext-root .capiro-crm__person-body { min-width: 0; flex: 1 1 auto; }
+
+.capiro-vnext-root .capiro-crm__person-body > span { display: block; }
+
+.capiro-vnext-root .capiro-crm__person-name {
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  font-weight: 600;
+  color: var(--crm-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__person-title {
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-crm__org-loose {
+  margin-top: var(--capiro-space-05);
+  padding-top: var(--capiro-space-03);
+  border-top: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__org-loose-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  margin-top: var(--capiro-space-02);
+}
+
+/* ── Hierarchy settings panel ────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm__setting { margin-bottom: var(--capiro-space-03); }
+
+.capiro-vnext-root .capiro-crm__setting-head {
+  margin-top: var(--capiro-space-04);
+  margin-bottom: var(--capiro-space-02);
+}
+
+.capiro-vnext-root .capiro-crm__levels {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capiro-vnext-root .capiro-crm__level {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: var(--capiro-space-02);
+  min-height: 44px;
+  padding: var(--capiro-space-02) 0;
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__level:last-child { border-bottom: 0; }
+
+.capiro-vnext-root .capiro-crm__level-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .capiro-crm__level-label {
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink);
+}
+
+.capiro-vnext-root .capiro-crm__level-examples {
+  grid-column: 1;
+  text-transform: none;
+}
+
+.capiro-vnext-root .capiro-crm__review-row {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-02) 0;
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__review-select { max-width: 180px; }
+
+/* ── Forms in drawers and modals ─────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-crm-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-03);
+  font-family: var(--capiro-type-family-sans);
+}
+
+/*
+ * This row only ever lives inside a drawer, whose width is min(480px, 100%) —
+ * a function of the OVERLAY, not of the viewport. Stacking it on a viewport
+ * media query was therefore answering the wrong question: it went single-column
+ * on a 1024px tablet where the drawer is still a comfortable 480px, and stayed
+ * two-column nowhere it mattered. auto-fit measures the box it is actually in.
+ */
+.capiro-vnext-root .capiro-crm-form__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: var(--capiro-space-03);
+}
+
+.capiro-vnext-root .capiro-crm-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-crm-form__input {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px var(--capiro-space-02);
+  border: 1px solid var(--capiro-color-border-control, var(--crm-quiet));
+  border-radius: var(--capiro-radius-control);
+  background: var(--crm-surface);
+  font-family: inherit;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink);
+}
+
+.capiro-vnext-root .capiro-crm-form__input:focus-visible {
+  outline: 2px solid var(--capiro-color-text-accent);
+  outline-offset: -1px;
+}
+
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-crm__grid--org { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── History (906:3360) / Government (906:3075) / Work (906:3645) ────────── */
+
+.capiro-vnext-root .capiro-crm__grid--history {
+  grid-template-columns: minmax(0, 900fr) minmax(0, 400fr);
+  align-items: start;
+}
+
+.capiro-vnext-root .capiro-crm__grid--files {
+  grid-template-columns: minmax(0, 300fr) minmax(0, 1000fr);
+  align-items: start;
+}
+
+.capiro-vnext-root .capiro-crm__rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--crm-gap);
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-crm__filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  padding-bottom: var(--capiro-space-03);
+  margin-bottom: var(--capiro-space-02);
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__search { max-width: 260px; }
+
+.capiro-vnext-root .capiro-crm__timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capiro-vnext-root .capiro-crm__event {
+  display: flex;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-03) 0;
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__event:last-child { border-bottom: 0; }
+
+.capiro-vnext-root .capiro-crm__event-rail {
+  flex: 0 0 auto;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--crm-quiet);
+}
+
+/* Kind is carried by the badge text too — the rail colour is never the only
+   signal (§6). */
+.capiro-vnext-root .capiro-crm__event-rail--commitment,
+.capiro-vnext-root .capiro-crm__event-rail--request {
+  background: var(--capiro-color-warning-rail, var(--capiro-color-warning));
+}
+.capiro-vnext-root .capiro-crm__event-rail--decision {
+  background: var(--capiro-color-success-rail, var(--capiro-color-success));
+}
+.capiro-vnext-root .capiro-crm__event-rail--meeting,
+.capiro-vnext-root .capiro-crm__event-rail--outreach {
+  background: var(--capiro-color-info-rail, var(--capiro-color-info));
+}
+
+.capiro-vnext-root .capiro-crm__event-body { min-width: 0; flex: 1 1 auto; }
+
+.capiro-vnext-root .capiro-crm__event-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-02);
+  margin-bottom: 4px;
+}
+
+.capiro-vnext-root .capiro-crm__event-title {
+  margin: 0;
+  font-size: var(--crm-body-sm-size);
+  line-height: var(--crm-body-sm-line);
+  color: var(--crm-ink);
+}
+
+.capiro-vnext-root .capiro-crm__pinned {
+  display: block;
+  padding: var(--capiro-space-02) 0;
+  border-bottom: 1px solid var(--crm-quiet);
+}
+
+.capiro-vnext-root .capiro-crm__pinned:last-child { border-bottom: 0; }
+
+.capiro-vnext-root .capiro-crm__provenance {
+  margin-top: var(--capiro-space-03);
+  padding-top: var(--capiro-space-02);
+  border-top: 1px solid var(--crm-quiet);
+  text-transform: none;
+}
+
+.capiro-vnext-root .capiro-crm__row--static { cursor: default; }
+.capiro-vnext-root .capiro-crm__row--static:hover { background: transparent; }
+
+.capiro-vnext-root .capiro-crm__row[aria-pressed='true'] {
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-crm__file-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* minmax(min(240px, 100%), 1fr), not minmax(240px, 1fr): a bare 240px floor
+     overflows any container narrower than 240 — the file card's interior is
+     224px at a 320px viewport. */
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: var(--capiro-space-03);
+}
+
+.capiro-vnext-root .capiro-crm__file-grid .capiro-crm__row {
+  width: 100%;
+  margin: 0;
+  padding: var(--capiro-space-03);
+  border: 1px solid var(--crm-quiet);
+  border-radius: var(--capiro-radius-widget);
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-crm__grid--history,
+  .capiro-vnext-root .capiro-crm__grid--files { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Scoped override for a canonical component ───────────────────────────── */
+
+/*
+ * ClientCrmCapabilities deliberately mounts the CANONICAL CapabilityDrawer
+ * (src/pages/clients/CapabilityDrawer.tsx) rather than re-implementing the
+ * editor, and that drawer renders IN FLOW inside .capiro-crm__body — no portal,
+ * no overlay. Its panel is `width: 560px; min-width: 560px` in src/theme.css,
+ * which is a file shared with production app.capiro.ai and must not be edited
+ * on this branch. At 390 that is a 560px block in a ~334px body: the
+ * foundation's overflow-x:clip safety net stops the page scrolling and
+ * therefore cuts ~226px of the editor — including form fields — clean off.
+ *
+ * min(560px, 100%) is the same idiom .capiro-overlay-panel uses. It is
+ * identical to the canonical rule at every width where 560px fits, so the
+ * production surface is unaffected and only the vNext CRM subtree is retargeted.
+ * The drawer's INTERNAL geometry is still canonical and unaudited — see the
+ * residual risk note in this change's summary.
+ */
+.capiro-vnext-root .capiro-crm .cap-drawer {
+  width: min(560px, 100%);
+  min-width: 0;
+}
+
+/* ── Touch targets, ≤1179 (tablet and mobile) ────────────────────────────── */
+
+/*
+ * The Figma stages hold >=44px on every interactive element at tablet and
+ * mobile and the LegiWatch handoff states it as a rule, so these grow IN FLOW
+ * rather than through an overlaid ::after. An overlay was the first instinct —
+ * it preserves the Figma-exact density — but these controls sit 8px apart in
+ * .capiro-crm__row-side and .capiro-crm__event-head, and two 44px overlays on
+ * 14px labels 8px apart intersect. Move and Delete on a file row are 8px apart
+ * and one of them is destructive; overlapping their hit areas is worse than
+ * spending the vertical pixels.
+ */
+@media (max-width: 1179px) {
+  /* The 42px strip cannot host a 44px control. */
+  .capiro-vnext-root .capiro-crm__identity,
+  .capiro-vnext-root .capiro-crm__tabs { height: auto; }
+  .capiro-vnext-root .capiro-crm__identity { min-height: 42px; }
+  .capiro-vnext-root .capiro-crm__tab { min-height: var(--capiro-hit-size, 44px); }
+
+  .capiro-vnext-root .capiro-crm__more {
+    width: var(--capiro-hit-size, 44px);
+    height: var(--capiro-hit-size, 44px);
+  }
+
+  /* Sub-rail: scroll rather than crush, and clear the 1px-offset focus ring
+     that the scroll container would otherwise clip at the top edge. */
+  .capiro-vnext-root .capiro-crm__subtabs {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-top: 2px;
+  }
+  .capiro-vnext-root .capiro-crm__subtab {
+    min-height: var(--capiro-hit-size, 44px);
+    padding-inline: var(--capiro-space-04);
+  }
+
+  /* Move / Delete on every file row, Pin / Settle / Open on every history
+     event, and the card-head actions. 10px line-height on its own is a 14px
+     target. */
+  .capiro-vnext-root .capiro-crm__card-action {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--capiro-hit-size, 44px);
+    padding-inline: var(--capiro-space-02);
+  }
+
+  /* The nine kind filters in Relationship history. */
+  .capiro-vnext-root .capiro-crm__pill--action {
+    min-height: var(--capiro-hit-size, 44px);
+    padding-inline: 14px;
+  }
+
+  /* The clickable label is the target, and it is 18px tall inside a 44px row. */
+  .capiro-vnext-root .capiro-crm__level-toggle { min-height: var(--capiro-hit-size, 44px); }
+
+  .capiro-vnext-root .capiro-crm-form__input { min-height: var(--capiro-hit-size, 44px); }
+  .capiro-vnext-root .capiro-crm-fill__check { width: 24px; height: 24px; }
+
+  /*
+   * Every action in this module is size="compact", which is 32px from the
+   * shared --capiro-control-height-compact token. The real cause lives in
+   * components/primitives.css, which this branch must not touch, so the fix is
+   * scoped to the CRM subtree — including its drawers and modals, which are
+   * in-tree descendants of .capiro-crm (there are no createPortal calls in
+   * src/vnext). Reported as an out-of-scope root cause.
+   */
+  .capiro-vnext-root .capiro-crm .capiro-button--compact {
+    min-height: var(--capiro-hit-size, 44px);
+  }
+}
+
+/* ── Mobile, ≤779 ────────────────────────────────────────────────────────── */
+
+/*
+ * The Client CRM handoff (1244:4240) declares 1024 the minimum supported
+ * viewport and defers mobile to "a separate mobile spec" that does not exist.
+ * This band is therefore DERIVED from the desktop composition, not drawn: same
+ * modules, same content, same named text styles (the Figma responsive stages
+ * were verified to reuse identical type at every stage), only geometry changes.
+ * Nothing is dropped and no field is invented to make a row fit.
+ */
+@media (max-width: 779px) {
+  /*
+   * The shell's .uui-content already spends 16px a side here. The CRM's own
+   * 20px gutter on top of that costs 72px of a 390px screen — nearly a fifth —
+   * so the page's share is trimmed rather than doubling the shell's.
+   */
+  .capiro-vnext-root .capiro-crm { --crm-gutter: 12px; --crm-gap: 12px; }
+
+  /*
+   * Identity restacks to: mark + name + status / account owner + Fill with Meri
+   * / overflow. Nothing is hidden — the row simply cannot hold ~540px of
+   * unshrinkable content (two nowrap pills, a button and a 44px icon) in 334px.
+   */
+  .capiro-vnext-root .capiro-crm__identity {
+    flex-wrap: wrap;
+    row-gap: var(--capiro-space-02);
+    padding-bottom: var(--capiro-space-02);
+  }
+  /* flex-basis 0 keeps the name out of the line-breaking calculation, so the
+     status pill stays on row one and the name ellipsises into what is left of
+     it instead of pushing the pill onto a line of its own. */
+  .capiro-vnext-root .capiro-crm__name { flex: 1 1 0; }
+  /* The spacer would otherwise compete with the name for the free space on
+     row one and open a gap in the middle of the identity. */
+  .capiro-vnext-root .capiro-crm__identity-spacer { display: none; }
+  /*
+   * Keeps the overflow button on the trailing edge of whichever row it lands
+   * on. Without it the button sits mid-row and its menu — anchored right:0 to
+   * this wrapper and 220px wide — opens off the left edge of the screen.
+   */
+  .capiro-vnext-root .capiro-crm__more-wrap { margin-inline-start: auto; }
+
+  /*
+   * Four tracks in a ~294px card interior are ~61px each, while single
+   * unbreakable label words rendered by .capiro-crm__meta are wider
+   * ("Opportunities" ~86px, "MILESTONES" ~66px) and spilled into the
+   * neighbouring metric. Two tracks at ~141px hold every label in the set.
+   */
+  .capiro-vnext-root .capiro-crm__metrics {
+    grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+  }
+
+  /*
+   * Needs attention: the dot, four gaps, the kind badge, the date and the
+   * status consumed ~214px of a ~287px row, leaving the 1fr title about nine
+   * characters before it ellipsised. The trailing pair drops to a second grid
+   * row so the title keeps the full width.
+   */
+  .capiro-vnext-root .capiro-crm__attention-row {
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+    row-gap: 2px;
+    padding-block: var(--capiro-space-02);
+  }
+  .capiro-vnext-root .capiro-crm__attention-when { grid-column: 2; text-align: left; }
+  .capiro-vnext-root .capiro-crm__attention-status { grid-column: 3; }
+
+  /*
+   * Record rows: .capiro-crm__row-side is flex:0 0 auto and never shrinks, so
+   * the trailing cluster (TRL + MRL + "n PE" + funding ask on a capability;
+   * LINKED + INDEXED + Move + Delete on a file; the status badge in
+   * VNextClientPicker) left ~60px for the record's own name. Letting the row
+   * wrap gives the name the full width and the actions their own line.
+   */
+  .capiro-vnext-root .capiro-crm__row {
+    flex-wrap: wrap;
+    row-gap: var(--capiro-space-02);
+    padding-block: var(--capiro-space-02);
+  }
+  .capiro-vnext-root .capiro-crm__row-main { flex: 1 1 160px; }
+  /* 44px actions need more than 8px between them once they are side by side. */
+  .capiro-vnext-root .capiro-crm__row-side { gap: var(--capiro-space-04); }
+  .capiro-vnext-root .capiro-crm__event-head { column-gap: var(--capiro-space-04); }
+
+  /* The history filter row holds 44px pills now; 8px between rows of them is
+     not enough to read as separate controls. */
+  .capiro-vnext-root .capiro-crm__filters { row-gap: var(--capiro-space-03); }
+}

@@ -94,6 +94,129 @@ export type MissingMarkStatus =
   | 'candidate_gap'
   | 'unknown_coverage';
 
+/* ------------------------------------------------------------------ */
+/* Measure provenance — canonical snapshot vs live external enrichment  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Neo's decision, 2026-08-08, settled architecture — do not reopen.
+ *
+ * **One response may contain canonical snapshot data and live enrichment, but
+ * they must remain separately typed, separately attributed, separately dated,
+ * and never be silently aggregated.**
+ *
+ * This is the general model Phase 8 uses for *any* external enrichment, not a
+ * one-off for contractors. It exists because `getContractors` used to compute
+ * `acceptedDirectAmountM = directAwardM + namedPrimeM`, adding a
+ * government-stated R-3 exhibit value to a rolling 24-month USAspending
+ * obligation total and rendering the sum as one dollar figure. Those two
+ * numbers differ in source, temporal semantics, financial meaning,
+ * reproducibility, and update cadence. A reader given the sum cannot recover
+ * any of that, and the sum is not reproducible tomorrow.
+ *
+ * `assertOneSnapshotV1` (Phase 7 Workstream M) is a different rule and remains
+ * valid: it forbids two *canonical snapshots* in one response. It is silent on
+ * snapshot-plus-external, which is why this contract is separate rather than an
+ * extension of it.
+ *
+ * Note the deliberate non-goal: live external data is NOT forced into the
+ * canonical snapshot to make an endpoint reproducible. Enrichment is allowed to
+ * be live; it just has to say so.
+ */
+export type MeasureProvenanceKind =
+  | 'canonical_snapshot'
+  | 'live_external'
+  | 'legacy_compatibility';
+
+/** A measure read out of an immutable, content-addressed canonical snapshot. */
+export interface CanonicalSnapshotProvenance {
+  kind: 'canonical_snapshot';
+  /** Human-facing origin, e.g. 'R-3'. */
+  source: string;
+  /** Which snapshot produced it. Null only when serving the legacy path. */
+  snapshotId: string | null;
+  /** Snapshot activation instant — the "as of" a snapshot measure carries. */
+  asOf: string | null;
+}
+
+/** A measure observed from a live external system that moves on its own clock. */
+export interface LiveExternalProvenance {
+  kind: 'live_external';
+  /** Human-facing origin, e.g. 'USAspending'. */
+  source: string;
+  /** When this observation was taken. Never optional: freshness is the point. */
+  asOf: string;
+  /** Trailing window the observation covers, when it is a windowed total. */
+  windowMonths?: number;
+}
+
+/**
+ * A measure still read from the mutable legacy/compatibility tables.
+ *
+ * The third kind exists because it is the *honest* state of every read method
+ * Workstream M has not migrated yet, and mislabelling one of those as
+ * `canonical_snapshot` is the exact misattribution this contract prevents. A
+ * measure is `canonical_snapshot` only when it was actually read out of a
+ * snapshot — not when a snapshot merely happens to be active while the value
+ * came from `program_element_*`.
+ *
+ * It is a distinct kind, so `sumAttributedMeasures` refuses to add it to either
+ * of the others for free.
+ */
+export interface LegacyCompatibilityProvenance {
+  kind: 'legacy_compatibility';
+  /** Human-facing origin, e.g. 'R-3'. */
+  source: string;
+  /** The mutable table the value came from, named so the gap is auditable. */
+  table: string;
+  /**
+   * Why this is not snapshot-backed yet. Required: an unmigrated read with no
+   * stated reason is indistinguishable from one nobody has looked at.
+   */
+  reason: string;
+}
+
+export type MeasureProvenance =
+  | CanonicalSnapshotProvenance
+  | LiveExternalProvenance
+  | LegacyCompatibilityProvenance;
+
+/** One dollar measure that knows where it came from and when. */
+export interface AttributedMeasure {
+  amountM: number;
+  count: number;
+  unit: 'USD millions';
+  label: string;
+  provenance: MeasureProvenance;
+}
+
+/** Thrown when unlike measures would be aggregated into one figure. */
+export class MeasureConflationError extends Error {
+  constructor(readonly kinds: readonly MeasureProvenanceKind[]) {
+    super(
+      `refusing to aggregate measures across provenance kinds [${[...kinds].sort().join(', ')}]: ` +
+        'canonical snapshot value and live external observation are different financial measures ' +
+        'and must be presented separately',
+    );
+    this.name = 'MeasureConflationError';
+  }
+}
+
+/**
+ * Sum measures, refusing to cross a provenance boundary.
+ *
+ * The guard is a function rather than a convention because a convention cannot
+ * fail a build. Any future code that wants one total must come through here,
+ * and gets a loud error instead of a plausible wrong number. Summing within one
+ * provenance kind stays legal — two USAspending windows may legitimately add.
+ */
+export function sumAttributedMeasures(measures: readonly AttributedMeasure[]): number {
+  const kinds = new Set<MeasureProvenanceKind>();
+  for (const measure of measures) kinds.add(measure.provenance.kind);
+  if (kinds.size > 1) throw new MeasureConflationError([...kinds]);
+  return measures.reduce((total, measure) => total + measure.amountM, 0);
+}
+
 export type ContractorEvidenceClass =
   | 'accepted_direct'
   | 'candidate'
@@ -433,6 +556,13 @@ export function buildCapabilityTotal(input: {
 /**
  * Partition contractor/performer dollar evidence into the three honest classes.
  * Unmatched dollars stay visible and are never folded into accepted totals.
+ *
+ * Scope note (Neo, 2026-08-08): evidence *class* and measure *provenance* are
+ * orthogonal axes, and this function only partitions the first. It must be fed
+ * measures of a single provenance kind — in practice the federal-award side
+ * alone. Feeding it `awardDollars + exhibitValue` is what produced the
+ * conflated `accepted_direct` bucket this contract now forbids; see
+ * `sumAttributedMeasures` above.
  */
 export function partitionContractorEvidence(input: {
   acceptedDirectAmountM?: number;

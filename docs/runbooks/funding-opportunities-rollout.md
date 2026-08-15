@@ -1654,3 +1654,342 @@ safe: the pass will not recreate them unless the source genuinely changed again.
 
 **Hard boundary, restated:** do not deploy the drifted `Capiro-dev-Compute` stack
 under any circumstances, including rollback.
+
+---
+
+# Part I — Tango webhooks (P46 receiver, P47 alert reconciler)
+
+## 27. Provision the webhook endpoint and its signing secret
+
+**Operator step. Not automatable, deliberately.** Nothing in this repository
+creates a MakeGov webhook endpoint, and nothing in it ever handles the signing
+secret in process memory.
+
+Two reasons, both load-bearing:
+
+1. **The tier is unknown.** P17 recorded `webhook_write_apis` as
+   `not_attempted` — every one of those SDK methods mutates a live
+   subscription, so a read-only probe could not answer it. The plan's own
+   "all tiers vs Large/Enterprise" discrepancy is therefore still open, and
+   `reconcile-tango-webhook-alerts` is written to discover the answer and stop
+   cleanly rather than assume one.
+2. **Endpoint creation is the only call that returns a signing secret.** A
+   secret that reaches a CLI's memory is a secret that wants to be printed,
+   logged, or left in shell history.
+
+So: create the endpoint in the MakeGov console, and put the secret straight
+into Secrets Manager without it passing through a terminal you can scroll back.
+
+```bash
+# Callback URL to register in the MakeGov console:
+#   https://api.dev.capiro.ai/webhooks/tango
+#
+# Then, WITHOUT echoing the value:
+read -s TANGO_WEBHOOK_SECRET
+aws secretsmanager create-secret \
+  --profile capiro-dev \
+  --region us-east-1 \
+  --name capiro/dev/tango-webhook-secret \
+  --secret-string "$TANGO_WEBHOOK_SECRET"
+unset TANGO_WEBHOOK_SECRET
+```
+
+If the secret already exists, use `put-secret-value` — never a second
+same-name secret.
+
+**Then, and only then**, set `externalSecretArns.tangoWebhookSecret` in
+`infra/cdk/lib/config.ts`. It is ARN-gated: while unset, the receiver runs
+dark and rejects every delivery, and no task definition references it. Setting
+it before the secret exists would make every new serve task fail to start
+("unable to pull secrets" → circuit-breaker rollback).
+
+The secret goes onto **API serve only**. `TANGO_API_KEY` is the mirror image —
+outbound, sync task only. A CDK synth test asserts the two never land on the
+same task definition.
+
+## 28. Reconcile the alert subscriptions
+
+Dry run first. It is read-only, and it is the default.
+
+```bash
+aws ecs run-task --cluster capiro-dev --launch-type FARGATE \
+  --task-definition capiro-dev-api-sync-jobs \
+  --overrides '{"containerOverrides":[{"name":"api","command":["reconcile-tango-webhook-alerts"]}]}' \
+  --network-configuration "$NETCFG" --region us-east-1
+```
+
+Read the exit code — it is the operator contract:
+
+| Exit | Meaning |
+|---:|---|
+| 0 | desired state already matches, or the commit completed |
+| 2 | bad arguments; nothing attempted |
+| 3 | **tier or permission denied** — nothing left half-configured |
+| 4 | endpoint ambiguous or missing; nothing attempted |
+| 5 | drift exists, and this was a dry run |
+
+**Exit 3 is the interesting one.** It means this account's tier does not permit
+webhook writes, which finally settles the P17 discrepancy. Do not retry it;
+take it to MakeGov.
+
+To commit, the endpoint id and its callback URL must BOTH be stated, and the
+provider must agree with the URL:
+
+```bash
+# --confirm-callback must match the endpoint's actual callback_url as the
+# provider reports it. This is the guard against attaching Capiro's
+# subscriptions to the wrong endpoint and sending federal procurement events
+# somewhere unintended.
+reconcile-tango-webhook-alerts --commit \
+  --endpoint-id=<uuid-from-the-dry-run> \
+  --confirm-callback=https://api.dev.capiro.ai/webhooks/tango
+```
+
+Re-run the dry run afterwards. **It must report no work.** If it does not, stop
+and read the diff rather than re-committing.
+
+`--allow-delete` is opt-in and is safe to pass on a dry run — that is the
+recommended way to preview a removal. Even with it, an alert lacking the
+`capiro-managed/` prefix is never proposed for deletion: absence from desired
+state is not evidence that a human's dashboard alert is unwanted.
+
+## 29. Drain webhook events into alerts (P48)
+
+**Two-pass quiet test before any cadence.** The `ProcessTangoEvents` schedule
+ships `enabled: false` and must stay that way until P50. The first automated run
+of an alerting job is the one that can page a whole tenant at once.
+
+Run the notice sync FIRST — the drain reads what that sync holds and does not
+fetch inline:
+
+```bash
+sync-tango-opportunity-notices --commit
+```
+
+Then dry-run the drain. It writes nothing: no insert, no lease, no status change.
+
+```bash
+process-tango-events
+```
+
+Read the JSON summary. `alertsWritten` is what a `--commit` run WOULD write;
+`suppressions` explains every alert that did not fire, by reason:
+
+| Reason | Meaning |
+|---|---|
+| `baselined_first_observation` | nothing before it to compare against |
+| `no_change` / (absent) | the source did not change |
+| `below_materiality` | informational only — visible on the timeline instead |
+| `human_declined` | somebody already passed on it |
+| `terminal_stage` | won, lost, or passed |
+| `stage_not_engaged` | nobody staged it; usually `workflow_status = 'suggested'` |
+| `volume_capped` | this client already hit `MAX_ALERTS_PER_EVENT_PER_CLIENT` (25) for **this one event** — the newest changes were sent; older ones are on the P28 timeline, not silently dropped. Note the unit: the budget resets per EVENT, so a multi-event delivery, or several deliveries over the same history, can each send up to the cap. This bounds one event's blast radius, NOT a drain run's total (D-58) |
+
+**A `volume_capped` count above zero on the FIRST drain over an existing history is expected and not a
+failure** — see decision-log **D-58** before treating repeated capping across many *separate* deliveries
+as normal; the cap bounds one delivery's contribution per client, not the total across a run.
+
+**The quiet test:** run the dry run twice with no sync in between. The second
+run must report the same `alertsWritten` and write nothing new. If the number
+grows, the fingerprint is not stable and the dedupe index will not save you —
+stop and investigate before committing.
+
+Then commit:
+
+```bash
+process-tango-events --commit --limit=200
+```
+
+Re-run the dry run afterwards. `alertsWritten` must be 0 and `alertsDeduped`
+should equal what the commit wrote.
+
+**Quarantine.** A poison event is retried up to 5 times, then moved to
+`quarantined` — terminal, visible, and skipped by the claim query forever after.
+It never blocks the queue. To see them:
+
+```sql
+SELECT delivery_id, event_type, attempts, last_error, completed_at
+FROM tango_event_outbox WHERE status = 'quarantined' ORDER BY completed_at DESC;
+```
+
+A quarantined row is an operator decision, not a retry: fix the cause, then
+reset it to `pending` with `attempts = 0` deliberately, one row at a time.
+
+---
+
+# Part J — controlled schedule and webhook enablement (P50)
+
+## 30. Read this before registering any task-definition revision
+
+**27 EventBridge rules target the `capiro-dev-api-migrate` task-definition
+family. 23 of them are NOT revision-pinned, and 16 of those are ENABLED.**
+
+Measured 2026-08-08, not inferred:
+
+```bash
+for r in $(aws events list-rules --region us-east-1 --query 'Rules[].Name' --output text); do
+  td=$(aws events list-targets-by-rule --rule "$r" --region us-east-1 \
+        --query 'Targets[0].EcsParameters.TaskDefinitionArn' --output text)
+  case "$td" in *api-migrate:[0-9]*) ;; *api-migrate*) echo "UNPINNED $r";; esac
+done
+```
+
+An unpinned target runs **whatever revision is latest at fire time**. So
+registering a new `capiro-dev-api-migrate` revision — which every migration
+deploy does — silently changes the container image for all 16 enabled jobs,
+including `sync-sam-opportunities`, `enrich-grant-details`,
+`generate-grant-opportunity-candidates`, `sync-federal-award`,
+`refresh-memory-graph`, and both clio jobs.
+
+Three consequences worth internalising:
+
+1. **A migrate task exiting 0 may not be your run.** One of those rules firing
+   produces a task in the same family that exits 0 having run something else
+   entirely. Always check `startedBy` before believing an exit code.
+2. **Registering a migrate revision is a de facto deploy of 16 scheduled jobs.**
+   It should be treated with the care of a deploy, not the care of a config
+   change — and the image it points at should be a reviewed merge SHA.
+3. **This is why P48's schedule ships `enabled: false`.** Adding an enabled
+   rule to this family compounds the problem.
+
+### 30a. There is a SAFE family for migrations, and the deploy script already uses it
+
+Measured 2026-08-08, by the same sweep as above counted per family:
+
+| family | EventBridge rules targeting it |
+|---|---|
+| `capiro-dev-api-migrate` | **27** (23 unpinned, 16 enabled) |
+| `capiro-dev-api-admin-migrate` | **0** |
+
+`scripts/deploy-dev.sh` line 49 already sets `MIGRATE_TD="capiro-dev-api-admin-migrate"`.
+So the hazard in §30 is real but **avoidable**, and the canonical deploy path
+avoids it: registering a revision on `api-admin-migrate` changes the image for
+no scheduled job at all, because nothing is scheduled against it.
+
+Do not read §30 as "migrations are dangerous here". Read it as: **run migrations
+through `api-admin-migrate`, never through `api-migrate`.** If you find yourself
+registering a revision on `api-migrate`, stop — you are deploying 16 jobs.
+
+### 30b. `capiro-dev-api-admin-migrate:9` carries a hardcoded `migrate resolve`
+
+Revision 9 — the latest ACTIVE at the time of writing, and therefore the one
+`deploy-dev.sh` picks up, since it uses the family name and not a pinned
+revision — runs this **before** `migrate deploy`:
+
+```
+prisma migrate resolve --rolled-back 20260503170000_directory_contact_notes || true
+```
+
+That line is a leftover from a specific past recovery. It is not conditional on
+anything, and `|| true` means it cannot fail the task or announce itself. On a
+database where that migration is applied and healthy, the resolve errors and is
+swallowed — harmless. The failure mode to think about is the one where it
+*succeeds*: the ledger then says rolled-back for a migration whose objects still
+exist, and the following `migrate deploy` will try to re-apply it.
+
+**Before the next dev migration run, register a clean revision** whose command is
+`migrate deploy` alone, and let `deploy-dev.sh` pick that up as latest. Leaving a
+one-off recovery step baked into the family every deploy re-uses is how a
+recovery becomes a recurring behaviour nobody remembers enabling.
+
+### 30c. What "apply the migration to capiro-dev" actually costs
+
+`scripts/deploy-dev.sh` is not a migration runner. It builds **both** the api and
+web images (`docker buildx build --platform linux/arm64`, so QEMU emulation from
+an x86 host), pushes both to ECR, registers task definitions, and then runs the
+migrate task. Applying one migration through it means **deploying the whole dev
+environment**.
+
+That matters for sequencing: as of 2026-08-08 the repo-wide GitHub Actions
+`startup_failure` condition means no CI-built image exists for any recent commit,
+so anything deployed this way is validated only by whatever ran locally. Decide
+deliberately whether that is acceptable for the change in hand; for a schema
+change that nothing in the environment can yet exercise (no registered webhook
+endpoint, no signing secret, schedules disabled), the honest answer is usually
+that it can wait for a real deploy.
+
+**Do not fix this by pinning revisions casually** — a pinned rule stops
+receiving migrations and security updates, which is its own failure mode. The
+real fix is a separate task-definition family for scheduled jobs
+(`capiro-dev-api-sync-jobs` already exists, at revision 1, and is what these
+rules should target). That is a reconciliation task with its own blast radius,
+not something to do during a rollout.
+
+## 31. Enablement order
+
+Never enable a downstream job before the one that feeds it. The order is the
+data dependency, not a preference:
+
+```
+provider source sync  →  crosswalk / enrichment  →  producer / recommendation  →  lifecycle / event processor
+```
+
+Concretely, for this program:
+
+| Order | Job | Verb | Feeds |
+|---:|---|---|---|
+| 1 | SAM source sync | `sync-sam-opportunities` | everything |
+| 2 | Grant detail enrichment | `enrich-grant-details` | grant producer scoring |
+| 3 | Tango opportunity shadow | `sync-tango-opportunity-shadow` | crosswalk + parity |
+| 4 | Tango notice history | `sync-tango-opportunity-notices` | **the event processor** |
+| 5 | Producers | `generate-sam-opportunity-candidates`, `generate-funding-grant-candidates` | recommendations |
+| 6 | Lifecycle | `process-funding-opportunity-lifecycle` | staleness/closure |
+| 7 | Event drain | `process-tango-events` | client alerts |
+
+**Webhooks supplement scheduled reconciliation; they never replace it.** A
+periodic correctness sweep catches what a missed or unverified delivery loses.
+If webhooks are ever treated as the only refresh path, a provider outage
+becomes silent staleness.
+
+## 32. Per-job enablement record
+
+Every job enabled must have this recorded in the P50 handoff **before** it is
+turned on. A rule nobody can disable in one command is a rule nobody should
+have enabled.
+
+| Field | Where to get it |
+|---|---|
+| Command | the `Input` containerOverrides on the rule target |
+| Task definition | `aws events list-targets-by-rule --rule <name> --query 'Targets[0].EcsParameters.TaskDefinitionArn'` |
+| Rule ARN | `aws events describe-rule --name <name> --query 'Arn'` |
+| Log group | `/capiro/dev/api`, stream prefix `api` |
+| Expected cadence | `aws events describe-rule --name <name> --query 'ScheduleExpression'` |
+| **Disable command** | `aws events disable-rule --name <name> --region us-east-1` |
+
+**Two clean manual commit runs per job** before its rule is enabled. Not one —
+the second is what proves idempotency and quietness, and it is the run that
+catches a producer that creates duplicate suggestions on a second pass.
+
+## 33. Alarms
+
+Create these before enabling, not after. An alarm added after the first bad
+night is an alarm that did not catch the first bad night.
+
+| Alarm | Signal | Why it matters |
+|---|---|---|
+| Last success age | max age since a job's last successful run | a silently-failing schedule looks identical to a quiet one |
+| Error / degraded run | non-zero task exit, or `INCOMPLETE` completion | producers return `INCOMPLETE` rather than lying about coverage |
+| Checkpoint incompleteness | `tango_sync_checkpoint.completeness <> 'complete'` | a resumable walk that never resumes |
+| 429 / breaker | `tango_api_usage.status = 'rate_limit'`; breaker opens | account-level limit, shared with every other consumer |
+| Webhook signature failures | 401s on `/webhooks/tango` | either a rotated secret or someone probing |
+| Queue age | oldest `pending` in `tango_event_outbox` | the drain is not keeping up, or not running |
+| Poison events | count of `quarantined` | terminal by design; each one needs a human |
+| Alert volume | alerts/day, and alerts per client | the quietness promise, measured continuously |
+
+Test each alarm by forcing its condition once. An untested alarm is a
+hypothesis.
+
+## 34. Rollout and rollback
+
+Roll out **one tenant and one capability at a time**. Rollback is the reverse:
+
+1. Disable the provider webhook alerts (`reconcile-tango-webhook-alerts
+   --commit --allow-delete`, or pause them in the console).
+2. Disable the EventBridge rules (`aws events disable-rule --name <name>`).
+3. Then the tenant flags.
+
+Source data stays. No phase in this program ships a destructive migration.
+
+**Do not run `cdk deploy Capiro-dev-Compute`.** The tracked Compute stack is
+drifted; enabling live rules is an out-of-band operation until that drift is
+formally reconciled.

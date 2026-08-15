@@ -39,6 +39,7 @@ describe('configureApiHttpApp', () => {
       releaseShaHeader: undefined,
       includeClerkRawBody: true,
       includeRecallRawBody: true,
+      includeTangoRawBody: true,
       includeEmailSignatureLargeBody: true,
       defaultJsonLimit: '1mb',
     };
@@ -98,6 +99,9 @@ describe('configureApiHttpApp', () => {
       releaseShaHeader: releaseSha,
       includeClerkRawBody: false,
       includeRecallRawBody: true,
+      // The engagement service does not mount WebhooksModule, so it hosts no
+      // Tango receiver and needs no raw parser for it.
+      includeTangoRawBody: false,
       includeEmailSignatureLargeBody: false,
       defaultJsonLimit: '1mb',
     };
@@ -157,11 +161,14 @@ describe('configureApiHttpApp', () => {
       expect(origins.has('http://localhost:5173')).toBe(true);
     });
 
-    it('includes capiro.ai production origins', () => {
+    it('includes the production web surfaces', () => {
       const origins = resolvedAllowedOrigins(undefined);
       expect(origins.has('https://capiro.ai')).toBe(true);
       expect(origins.has('https://www.capiro.ai')).toBe(true);
       expect(origins.has('https://onboarding.capiro.ai')).toBe(true);
+      // os.capiro.ai is the isolated vNext web surface. It uses the same API
+      // host as app.capiro.ai, so browser writes must pass this allowlist.
+      expect(origins.has('https://os.capiro.ai')).toBe(true);
     });
 
     it('uses WEB_ORIGIN when provided', () => {

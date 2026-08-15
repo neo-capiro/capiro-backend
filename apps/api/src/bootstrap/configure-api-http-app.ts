@@ -30,6 +30,13 @@ export interface ConfigureApiHttpAppOptions {
   includeClerkRawBody: boolean;
   /** Register the Recall webhook raw-body parser on /webhooks/recall. */
   includeRecallRawBody: boolean;
+  /**
+   * Register the Tango webhook raw-body parser on /webhooks/tango (P46).
+   * Required for HMAC verification: the signature covers the exact bytes sent,
+   * so re-serializing parsed JSON would change key order and whitespace and
+   * invalidate every signature.
+   */
+  includeTangoRawBody: boolean;
   /** Register the 32mb email-signature JSON parser on /api/me/email-signature. */
   includeEmailSignatureLargeBody: boolean;
   /** Default JSON body limit. */
@@ -42,15 +49,17 @@ export interface ConfigureApiHttpAppOptions {
  * The main API allows comma-separated origins via WEB_ORIGIN and always
  * includes the production + onboarding origins.
  */
-export function resolvedAllowedOrigins(
-  rawWebOrigin: string | undefined,
-): Set<string> {
+export function resolvedAllowedOrigins(rawWebOrigin: string | undefined): Set<string> {
   return new Set(
     [
       ...(rawWebOrigin?.split(',') ?? ['http://localhost:5173']),
       'https://capiro.ai',
       'https://www.capiro.ai',
       'https://onboarding.capiro.ai',
+      // os.capiro.ai is the isolated vNext presentation surface. It shares
+      // this API with app.capiro.ai, so authenticated browser mutations must
+      // receive the same CORS permission without widening to arbitrary hosts.
+      'https://os.capiro.ai',
     ]
       .map((origin) => origin.trim())
       .filter(Boolean),
@@ -119,6 +128,12 @@ export function configureApiHttpApp(
   }
   if (options.includeRecallRawBody) {
     app.use('/webhooks/recall', raw({ type: '*/*', limit: '1mb' }));
+  }
+  // P46. Same 1mb ceiling as the other two receivers: an oversized body is
+  // refused by express with a 413 before it reaches the controller, so a
+  // multi-megabyte payload can never be buffered, hashed, or parsed.
+  if (options.includeTangoRawBody) {
+    app.use('/webhooks/tango', raw({ type: '*/*', limit: '1mb' }));
   }
 
   // 5. Email-signature large body parser — mounted before the global json()

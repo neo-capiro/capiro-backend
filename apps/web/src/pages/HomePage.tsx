@@ -1,13 +1,12 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { App, Empty, Form, Modal, Skeleton, Tag } from 'antd';
+import { App, Button, Empty, Form, Modal, Popover, Skeleton, Switch, Tag } from 'antd';
 import { Link } from 'react-router-dom';
 import { useApi } from '../lib/use-api.js';
 import {
   DebriefNotesView,
   extractMeetingJoinUrl,
-  MeetingQuickActions,
   NotetakerConsentFields,
   openMeetingJoinLink,
 } from './engagement/meeting-actions.js';
@@ -19,13 +18,23 @@ import type { Client } from './clients/clientTypes.js';
 import type {
   ComingUpItem,
   ComingUpResult,
-  DailyBrief,
   IntelligenceChange,
   PortfolioAlertItem,
   PortfolioAlertsResponse,
 } from './intelligence/types.js';
+import { useActionsList } from './actions/actions-api.js';
+import { STATUS_LABELS as ACTION_STATUS_LABELS, type ActionCardDto } from './actions/types.js';
+import { useReviewsList } from './reviews/reviews-api.js';
+import {
+  RISK_TIER_LABELS,
+  SURFACE_LABELS,
+  type ReviewRequestDto,
+} from './reviews/types.js';
+import { DashboardNewsAndNarrative } from './dashboard/DashboardNewsAndNarrative.js';
+import { DashboardWorkQueue } from './dashboard/DashboardWorkQueue.js';
+import './home-dashboard.css';
 
-/* ── Local data shapes (lean projections of the API responses) ──────────── */
+/* ── Local data shapes (lean projections of API responses) ─────────────── */
 
 interface CommentAlertItem {
   documentId: string;
@@ -48,9 +57,6 @@ interface DashMeeting {
   id: string;
   subject: string;
   location: string | null;
-  // description + metadata come back on the same /api/engagement/meetings payload
-  // (this is a lean projection type); needed by extractMeetingJoinUrl to find the
-  // real online join link in the invite body / Outlook webLink.
   description: string | null;
   metadata: Record<string, unknown> | null;
   source: string;
@@ -61,14 +67,11 @@ interface DashMeeting {
   attendees: Array<{ name: string | null; role: string | null }>;
   preps: Array<{ status: string }>;
   debriefs: Array<{ id: string }>;
-  // Meetings v2 fields (present once the API decorate layer is live): the stored
-  // join link + the coarse notetaker state driving the Meri/Join primitives (§8a).
   isVirtual?: boolean;
   joinLink?: string | null;
   meri?: 'scheduled' | 'attending' | 'attended' | 'done' | null;
 }
 
-/** Minimal saved-debrief shape for the home notes modal. */
 interface HomeDebrief {
   id: string;
   body: string | null;
@@ -86,11 +89,60 @@ interface DashOutreach {
   updatedAt: string;
 }
 
+interface NewsDashboardItem {
+  id: string;
+  title: string;
+  source: string;
+  url: string;
+  imageUrl: string | null;
+  publishedAt: string;
+  clientMatches: Array<{ id: string; name: string }>;
+  topics: string[];
+  relevanceReason: string;
+  duplicateCount: number | null;
+}
+
+interface NewsDashboardResponse {
+  available: boolean;
+  provider: 'newscatcher';
+  items: NewsDashboardItem[];
+  generatedAt: string;
+  cached: boolean;
+  stale?: boolean;
+  reason?: 'not_configured' | 'no_clients' | 'provider_unavailable';
+  monitoredClientCount: number;
+  activeClientCount: number;
+  coverageLimited: boolean;
+}
+
+type DashboardModuleKey = 'today' | 'work' | 'news';
+type DashboardVisibility = Record<DashboardModuleKey, boolean>;
+
+const DEFAULT_VISIBILITY: DashboardVisibility = {
+  today: true,
+  work: true,
+  news: true,
+};
+
 const COMMENTS_LINK = '/explorer?source=comment-deadlines';
+const ACTIVE_ACTION_STATUSES = new Set([
+  'new',
+  'triaged',
+  'assigned',
+  'drafting',
+  'ready_for_review',
+]);
 
 export function HomePage() {
   const api = useApi();
   const { user } = useUser();
+  const me = useMe();
+
+  const preferenceKey = useMemo(() => {
+    if (!user?.id || !me.data?.tenant.id) return null;
+    return `capiro:dashboard-visibility:${me.data.tenant.id}:${user.id}`;
+  }, [me.data?.tenant.id, user?.id]);
+  const [visibility, setVisibility] = useDashboardVisibility(preferenceKey);
 
   const clients = useQuery<Client[]>({
     queryKey: ['clients'],
@@ -98,10 +150,7 @@ export function HomePage() {
     staleTime: 60_000,
   });
 
-  // No try/catch: a caught failure here used to render as "0 new signals
-  // overnight" in the greeting and silently drop out of the Needs Attention
-  // merge — both read identically to "genuinely nothing happened". Letting the
-  // query fail lets GreetingRow and NeedsAttention read `.isError` and say so.
+  // Let failures remain visible: "couldn't check" must never render as "zero".
   const recentChanges = useQuery<IntelligenceChange[]>({
     queryKey: ['intel-changes-tracked'],
     queryFn: async () => {
@@ -113,12 +162,6 @@ export function HomePage() {
     staleTime: 2 * 60 * 1000,
   });
 
-  const brief = useQuery<DailyBrief>({
-    queryKey: ['daily-brief'],
-    queryFn: async () => (await api.get<DailyBrief>('/api/intelligence/daily-brief')).data,
-    staleTime: 10 * 60 * 1000,
-  });
-
   const commentAlerts = useQuery<CommentAlertsResponse>({
     queryKey: ['comment-alerts-dashboard'],
     queryFn: async () =>
@@ -126,18 +169,12 @@ export function HomePage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Upcoming hearings/markups (next 7 days) for the Needs-Attention banner.
   const comingUp = useQuery<ComingUpResult>({
     queryKey: ['coming-up'],
     queryFn: async () => (await api.get<ComingUpResult>('/api/intelligence/coming-up')).data,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Cross-client alert roll-up — same taxonomy as the client Intelligence tab's
-  // Top Alerts (comment deadlines/overdue, competitor filings, contract awards,
-  // hearings, bill movement), spanning every active client. Server-side cached
-  // (2-min TTL) since it runs the per-client aggregate for each client.
-  // No try/catch: see recentChanges above for why.
   const portfolioAlerts = useQuery<PortfolioAlertsResponse>({
     queryKey: ['portfolio-alerts'],
     queryFn: async () =>
@@ -149,8 +186,6 @@ export function HomePage() {
     staleTime: 2 * 60 * 1000,
   });
 
-  // This-week meetings for the Client Engagement strip. Range = Mon 00:00
-  // through Sun 23:59 of the current ET week.
   const week = useMemo(() => weekBounds(new Date()), []);
   const meetings = useQuery<DashMeeting[]>({
     queryKey: ['engagement-meetings-week', week.from, week.to],
@@ -170,6 +205,20 @@ export function HomePage() {
     staleTime: 60_000,
   });
 
+  const actions = useActionsList({ sort: 'deadline', limit: 25, page: 1 });
+  const reviews = useReviewsList('pending');
+
+  // The customizable news module owns the live query. Keep this legacy query
+  // dormant while the old local renderer remains below for regression history.
+  const news = useQuery<NewsDashboardResponse>({
+    queryKey: ['dashboard-news'],
+    queryFn: async () =>
+      (await api.get<NewsDashboardResponse>('/api/intelligence/news/dashboard')).data,
+    enabled: false,
+    staleTime: 15 * 60 * 1000,
+    retry: false,
+  });
+
   const overnightCount = useMemo(() => {
     const cutoff = Date.now() - 24 * 60 * 60 * 1000;
     return (recentChanges.data ?? []).filter((c) => new Date(c.detectedAt).getTime() >= cutoff)
@@ -183,9 +232,11 @@ export function HomePage() {
 
   const firstName = user?.firstName || (user?.fullName?.split(' ')[0] ?? null) || null;
   const clientNameById = useMemo(
-    () => new Map((clients.data ?? []).map((c) => [c.id, c.name])),
+    () => new Map((clients.data ?? []).map((client) => [client.id, client.name])),
     [clients.data],
   );
+
+  const visibleGridModules = Number(visibility.today) + Number(visibility.work);
 
   return (
     <section className="command-page redesign">
@@ -194,9 +245,10 @@ export function HomePage() {
         overnightCount={overnightCount}
         criticalToday={criticalTodayCount}
         signalsUnknown={recentChanges.isError}
+        action={<DashboardCustomize visibility={visibility} onChange={setVisibility} />}
       />
 
-      <NeedsAttention
+      <NeedsAction
         alerts={commentAlerts.data?.alerts ?? []}
         comingUp={comingUp.data?.items ?? []}
         changes={recentChanges.data ?? []}
@@ -206,29 +258,41 @@ export function HomePage() {
         someSourcesUnavailable={recentChanges.isError || portfolioAlerts.isError}
       />
 
-      <MeriBrief brief={brief.data} loading={brief.isLoading} isError={brief.isError} />
+      {visibility.news ? <DashboardNewsAndNarrative /> : null}
 
-      <div className="home-grid-2">
-        <ClientEngagement meetings={meetings.data ?? []} loading={meetings.isLoading} />
-        <OutreachDrafts records={outreach.data ?? []} loading={outreach.isLoading} />
-      </div>
+      {visibleGridModules > 0 ? (
+        <div
+          className="home-grid-2"
+          style={visibleGridModules === 1 ? { gridTemplateColumns: '1fr' } : undefined}
+        >
+          {visibility.today ? (
+            <TodayAndComingUp
+              meetings={meetings.data ?? []}
+              comingUp={comingUp.data?.items ?? []}
+              loading={meetings.isLoading || comingUp.isLoading}
+            />
+          ) : null}
+          {visibility.work ? <DashboardWorkQueue /> : null}
+        </div>
+      ) : null}
     </section>
   );
 }
 
-/* ── Greeting row ───────────────────────────────────────────────────────── */
+/* ── Greeting + lightweight show/hide customization ───────────────────── */
 
 function GreetingRow({
   firstName,
   overnightCount,
   criticalToday,
   signalsUnknown,
+  action,
 }: {
   firstName: string | null;
   overnightCount: number;
   criticalToday: number;
-  /** The changes fetch behind both counts failed — say so, don't claim 0. */
   signalsUnknown: boolean;
+  action?: ReactNode;
 }) {
   const now = new Date();
   const hour = now.getHours();
@@ -265,8 +329,6 @@ function GreetingRow({
               overnight
             </>
           )}
-          {/* Suppressed (not "0 critical") when the fetch failed: we don't know
-              there were none, we just couldn't check. */}
           {!signalsUnknown && criticalToday > 0 ? (
             <>
               {' · '}
@@ -277,11 +339,91 @@ function GreetingRow({
           ) : null}
         </p>
       </div>
+      {action}
     </header>
   );
 }
 
-/* ── Needs Attention banner (single-row scroller, up to 10) ─────────────── */
+function DashboardCustomize({
+  visibility,
+  onChange,
+}: {
+  visibility: DashboardVisibility;
+  onChange: (next: DashboardVisibility) => void;
+}) {
+  const set = (key: DashboardModuleKey, checked: boolean) =>
+    onChange({ ...visibility, [key]: checked });
+
+  const content = (
+    <div className="home-dashboard-customize-popover">
+      <div className="home-dashboard-customize-title">Dashboard modules</div>
+      <label className="home-dashboard-customize-row">
+        <span>Today &amp; Coming Up</span>
+        <Switch size="small" checked={visibility.today} onChange={(v) => set('today', v)} />
+      </label>
+      <label className="home-dashboard-customize-row">
+        <span>Work Queue</span>
+        <Switch size="small" checked={visibility.work} onChange={(v) => set('work', v)} />
+      </label>
+      <label className="home-dashboard-customize-row">
+        <span>News &amp; Narrative</span>
+        <Switch size="small" checked={visibility.news} onChange={(v) => set('news', v)} />
+      </label>
+      <div className="home-dashboard-customize-note">
+        Needs Action stays pinned so urgent client and policy signals are never hidden. Your choices
+        are saved in this browser.
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="home-dashboard-customize">
+      <Popover content={content} trigger="click" placement="bottomRight">
+        <Button size="small">Customize</Button>
+      </Popover>
+    </div>
+  );
+}
+
+function useDashboardVisibility(
+  preferenceKey: string | null,
+): [DashboardVisibility, (next: DashboardVisibility) => void] {
+  const [visibility, setVisibilityState] = useState<DashboardVisibility>(DEFAULT_VISIBILITY);
+
+  useEffect(() => {
+    if (!preferenceKey || typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(preferenceKey);
+      if (!raw) {
+        setVisibilityState(DEFAULT_VISIBILITY);
+        return;
+      }
+      const parsed = JSON.parse(raw) as Partial<DashboardVisibility>;
+      setVisibilityState({
+        today: parsed.today !== false,
+        work: parsed.work !== false,
+        news: parsed.news !== false,
+      });
+    } catch {
+      setVisibilityState(DEFAULT_VISIBILITY);
+    }
+  }, [preferenceKey]);
+
+  const persist = (next: DashboardVisibility) => {
+    setVisibilityState(next);
+    if (!preferenceKey || typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(preferenceKey, JSON.stringify(next));
+    } catch {
+      // A blocked/full localStorage should never prevent dashboard customization
+      // for the current session.
+    }
+  };
+
+  return [visibility, persist];
+}
+
+/* ── Needs Action: preserve the existing horizontal signal strip ───────── */
 
 interface BannerItem {
   id: string;
@@ -290,10 +432,10 @@ interface BannerItem {
   title: string;
   context: string;
   href: string;
-  rank: number; // lower = more urgent within a severity tier
+  rank: number;
 }
 
-function NeedsAttention({
+function NeedsAction({
   alerts,
   comingUp,
   changes,
@@ -308,164 +450,156 @@ function NeedsAttention({
   portfolioAlerts: PortfolioAlertItem[];
   clientNameById: Map<string, string>;
   loading: boolean;
-  /** At least one of the merged feeds failed to load — an empty result here
-   *  is "couldn't check everything", not "confirmed nothing needs attention". */
   someSourcesUnavailable: boolean;
 }) {
   const items = useMemo<BannerItem[]>(() => {
     const out: BannerItem[] = [];
+    const dashboardPortfolioAlerts = portfolioAlerts.filter(
+      (alert) => alert.type !== 'comment_overdue',
+    );
+    const hasPortfolio = dashboardPortfolioAlerts.length > 0;
 
-    // 0. Cross-client portfolio alerts (the shared taxonomy — same as the
-    // client Intelligence tab Top Alerts). Rendered FIRST and we suppress the
-    // legacy comment/hearing feeds below for categories this already covers, so
-    // the banner shows one consistent set of categories across all clients.
-    const hasPortfolio = portfolioAlerts.length > 0;
-    for (const a of portfolioAlerts) {
-      // Acknowledged alerts are de-emphasized (kept but ranked lower).
+    for (const alert of dashboardPortfolioAlerts) {
       const sev: BannerItem['sev'] =
-        a.severity === 'critical' || a.severity === 'notable' ? a.severity : 'info';
+        alert.severity === 'critical' || alert.severity === 'notable'
+          ? alert.severity
+          : 'info';
       out.push({
-        id: `pa-${a.id}`,
+        id: `pa-${alert.id}`,
         sev,
-        eyebrow: `${portfolioAlertCategoryLabel(a.type)}${a.countdownLabel ? ` · ${a.countdownLabel}` : ''}`,
-        title: a.title,
-        context: a.clientName || 'Unmapped',
-        href: a.href ?? '/intelligence/changes',
-        // Soonest deadline first; alerts without a countdown sort by recency.
-        rank: typeof a.countdownDays === 'number' ? Math.max(0, a.countdownDays) : 50,
+        eyebrow: `${portfolioAlertCategoryLabel(alert.type)}${alert.countdownLabel ? ` · ${alert.countdownLabel}` : ''}`,
+        title: alert.title,
+        context: alert.clientName || 'Unmapped',
+        href: alert.href ?? '/intelligence/changes',
+        rank: typeof alert.countdownDays === 'number' ? Math.max(0, alert.countdownDays) : 50,
       });
     }
 
-    // 1. Comment-period deadlines (legacy feed). Suppressed when portfolio
-    // alerts are present — portfolio already carries comment_deadline.
     if (!hasPortfolio) {
-      for (const a of alerts) {
+      for (const alert of alerts) {
         out.push({
-          id: `c-${a.documentId}`,
-          sev: commentSeverity(a.daysToDeadline),
-          eyebrow: `${prettySource(a.type || a.agencies[0] || 'FedReg')} · ${deadlineLabel(a.daysToDeadline)}`,
-          title: a.title,
-          context: a.clientName || 'Unmapped',
+          id: `c-${alert.documentId}`,
+          sev: commentSeverity(alert.daysToDeadline),
+          eyebrow: `${prettySource(alert.type || alert.agencies[0] || 'FedReg')} · ${deadlineLabel(alert.daysToDeadline)}`,
+          title: alert.title,
+          context: alert.clientName || 'Unmapped',
           href: COMMENTS_LINK,
-          rank: Math.max(0, a.daysToDeadline),
+          rank: Math.max(0, alert.daysToDeadline),
         });
       }
-    }
 
-    // 2. Hearings + markups in the next 7 days (legacy feed). Suppressed when
-    // portfolio alerts are present — portfolio already carries hearing alerts.
-    if (!hasPortfolio) {
-      for (const e of comingUp) {
-        if (e.kind !== 'hearing' && e.kind !== 'markup') continue;
-        const sev = e.severity === 'critical' || e.severity === 'notable' ? e.severity : 'info';
+      for (const event of comingUp) {
+        if (event.kind !== 'hearing' && event.kind !== 'markup') continue;
+        const sev =
+          event.severity === 'critical' || event.severity === 'notable'
+            ? event.severity
+            : 'info';
         out.push({
-          id: `e-${e.id}`,
+          id: `e-${event.id}`,
           sev,
-          eyebrow: `${e.kind === 'markup' ? 'Markup' : 'Hearing'} · ${whenLabel(e.date, e.time)}`,
-          title: e.title,
-          context: e.label || e.detail || 'Capitol Hill',
-          href: e.href ?? '/intelligence',
-          rank: Math.max(0, dayDiff(e.date)),
+          eyebrow: `${event.kind === 'markup' ? 'Markup' : 'Hearing'} · ${whenLabel(event.date, event.time)}`,
+          title: event.title,
+          context: event.label || event.detail || 'Capitol Hill',
+          href: event.href ?? '/legiwatch',
+          rank: Math.max(0, dayDiff(event.date)),
         });
       }
     }
 
-    // 3. Program-element budget moves, per-bill stage alerts, high-sev reg/FEC
-    for (const c of changes) {
-      const sev = c.severity === 'critical' || c.severity === 'notable' ? c.severity : 'info';
-      const names = c.relatedClientIds
+    for (const change of changes) {
+      const sev =
+        change.severity === 'critical' || change.severity === 'notable'
+          ? change.severity
+          : 'info';
+      const names = change.relatedClientIds
         .map((id) => clientNameById.get(id))
         .filter(Boolean) as string[];
-      if (c.source === 'program_element') {
-        const pe = c.relatedPeCodes?.[0];
+
+      if (change.source === 'program_element') {
+        const pe = change.relatedPeCodes?.[0];
         out.push({
-          id: `pe-${c.id}`,
+          id: `pe-${change.id}`,
           sev,
-          eyebrow: `Budget · ${peChangeLabel(c.changeType)}`,
-          title: c.title,
+          eyebrow: `Budget · ${peChangeLabel(change.changeType)}`,
+          title: change.title,
           context: pe ? `PE ${pe}` : (names[0] ?? 'Tracked program'),
           href: pe ? `/program-elements/${encodeURIComponent(pe)}` : '/intelligence/changes',
-          rank: hoursSince(c.detectedAt),
+          rank: hoursSince(change.detectedAt),
         });
-      } else if (c.source === 'congress_bill' && c.changeType.startsWith('bill_')) {
+      } else if (change.source === 'congress_bill' && change.changeType.startsWith('bill_')) {
         out.push({
-          id: `b-${c.id}`,
+          id: `b-${change.id}`,
           sev,
-          eyebrow: `Bill · ${relativeTime(c.detectedAt)}`,
-          title: c.title,
+          eyebrow: `Bill · ${relativeTime(change.detectedAt)}`,
+          title: change.title,
           context:
-            names[0] ?? (c.relatedIssues[0] ? `Issue ${c.relatedIssues[0]}` : 'Tracked bill'),
+            names[0] ??
+            (change.relatedIssues[0] ? `Issue ${change.relatedIssues[0]}` : 'Tracked bill'),
           href: '/intelligence/changes',
-          rank: hoursSince(c.detectedAt),
+          rank: hoursSince(change.detectedAt),
         });
-      } else if (c.source === 'state_bill') {
-        // State Legislation Platform (S7.5) — DD4's second rail: apps/api's own
-        // emit-state-changes.ts writes these (intel-api never writes apps/api
-        // tables). Deep-links into LegiWatch's Bills tab, scoped to the first
-        // related client (the same ?tab=…&client=… pattern used by alert emails).
+      } else if (change.source === 'state_bill') {
         out.push({
-          id: `sb-${c.id}`,
+          id: `sb-${change.id}`,
           sev,
-          eyebrow: `State bill · ${relativeTime(c.detectedAt)}`,
-          title: c.title,
+          eyebrow: `State bill · ${relativeTime(change.detectedAt)}`,
+          title: change.title,
           context: names[0] ?? 'Tracked state bill',
-          href: c.relatedClientIds[0]
-            ? `/legiwatch?tab=bills&client=${encodeURIComponent(c.relatedClientIds[0])}`
+          href: change.relatedClientIds[0]
+            ? `/legiwatch?tab=bills&client=${encodeURIComponent(change.relatedClientIds[0])}`
             : '/legiwatch?tab=bills',
-          rank: hoursSince(c.detectedAt),
+          rank: hoursSince(change.detectedAt),
         });
-      } else if (c.source === 'redistricting') {
-        // WS-C, LegiStorm gaps/enrichment plan: emit-redistricting-alerts.ts
-        // writes these when an enacted-but-not-yet-effective congressional
-        // map (or a revision to one already alerted on) covers a district
-        // where a tracked client has a facility.
-        //
-        // WS-D3: the per-district page now exists, so these deep-link to it
-        // instead of the generic changes inbox — see `redistrictingHref` for
-        // why the payload's `facilityDistrictCode` (not `districtNo`) is the
-        // field that matches the route.
-        //
-        // The page opens on the CURRENT map even though the alert is about a
-        // FUTURE one: DistrictDetailPage keeps its C/F selection in local
-        // state rather than the URL, so there is nothing to deep-link to and
-        // the user toggles.
+      } else if (change.source === 'redistricting') {
         out.push({
-          id: `rd-${c.id}`,
+          id: `rd-${change.id}`,
           sev,
-          eyebrow: `Redistricting · ${relativeTime(c.detectedAt)}`,
-          title: c.title,
-          context: names[0] ?? (c.data as { name?: string } | undefined)?.name ?? 'Tracked district',
-          href: redistrictingHref(c.data),
-          rank: hoursSince(c.detectedAt),
+          eyebrow: `Redistricting · ${relativeTime(change.detectedAt)}`,
+          title: change.title,
+          context:
+            names[0] ??
+            (change.data as { name?: string } | undefined)?.name ??
+            'Tracked district',
+          href: redistrictingHref(change.data),
+          rank: hoursSince(change.detectedAt),
         });
       } else if (
-        (c.source === 'federal_register_document' || c.source === 'fec_contribution') &&
+        (change.source === 'federal_register_document' || change.source === 'fec_contribution') &&
         sev !== 'info'
       ) {
         out.push({
-          id: `r-${c.id}`,
+          id: `r-${change.id}`,
           sev,
-          eyebrow: `${prettySource(c.source)} · ${relativeTime(c.detectedAt)}`,
-          title: c.title,
+          eyebrow: `${prettySource(change.source)} · ${relativeTime(change.detectedAt)}`,
+          title: change.title,
           context: names[0] ?? 'Unmapped',
           href: '/intelligence/changes',
-          rank: hoursSince(c.detectedAt),
+          rank: hoursSince(change.detectedAt),
         });
       }
     }
 
-    const sevRank = { critical: 0, notable: 1, info: 2 } as const;
-    return out.sort((x, y) => sevRank[x.sev] - sevRank[y.sev] || x.rank - y.rank).slice(0, 10);
-    // portfolioAlerts MUST be in the deps: it gates the legacy-feed suppression
-    // (hasPortfolio) and is the slowest input (serial per-client roll-up). Omit
-    // it and the banner freezes on the comment-only fallback computed before the
-    // roll-up resolves.
-  }, [alerts, comingUp, changes, clientNameById, portfolioAlerts]);
+    const severityRank = { critical: 0, notable: 1, info: 2 } as const;
+    const seen = new Set<string>();
+    return out
+      .sort((a, b) => severityRank[a.sev] - severityRank[b.sev] || a.rank - b.rank)
+      .filter((item) => {
+        const key = item.title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 4);
+  }, [alerts, clientNameById, comingUp, changes, portfolioAlerts]);
 
   return (
     <div className="home-attention">
       <div className="home-attention-head">
-        <span className="home-attention-title">Needs Attention</span>
+        <span className="home-attention-title">Needs Action</span>
         <span className="meta">
           {items.length} item{items.length === 1 ? '' : 's'} ·{' '}
           <Link
@@ -491,20 +625,20 @@ function NeedsAttention({
             description={
               someSourcesUnavailable
                 ? "Couldn't load some sources — this list may be incomplete. Try refreshing."
-                : 'Nothing needs your attention right now.'
+                : 'Nothing needs your action right now.'
             }
           />
         </div>
       ) : (
         <div className="home-attention-scroll">
-          {items.map((it) => (
-            <Link key={it.id} to={it.href} className="home-attention-card is-link">
+          {items.map((item) => (
+            <Link key={item.id} to={item.href} className="home-attention-card is-link">
               <span className="home-attention-eyebrow">
-                <span className={`dot ${it.sev}`} aria-hidden />
-                {it.eyebrow}
+                <span className={`dot ${item.sev}`} aria-hidden />
+                {item.eyebrow}
               </span>
-              <span className="home-attention-title-row home-clamp-2">{it.title}</span>
-              <span className="home-attention-dek">{it.context}</span>
+              <span className="home-attention-title-row home-clamp-2">{item.title}</span>
+              <span className="home-attention-dek">{item.context}</span>
             </Link>
           ))}
         </div>
@@ -513,119 +647,33 @@ function NeedsAttention({
   );
 }
 
-/* ── Meri brief (full width, gradient card) ─────────────────────────────── */
+/* ── Today & Coming Up: meetings + direct actions + policy calendar ────── */
 
-function MeriBrief({
-  brief,
+function TodayAndComingUp({
+  meetings,
+  comingUp,
   loading,
-  isError,
 }: {
-  brief: DailyBrief | undefined;
+  meetings: DashMeeting[];
+  comingUp: ComingUpItem[];
   loading: boolean;
-  isError: boolean;
 }) {
-  const dateLabel = (
-    brief?.generatedAt ? new Date(brief.generatedAt) : new Date()
-  ).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-
-  return (
-    <div className="home-brief">
-      <span className="home-brief-corner" aria-hidden />
-      <div className="home-brief-top">
-        <span className="home-brief-avatar" aria-hidden>
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff" aria-hidden>
-            <path d="M12 2.2l1.9 5.6 5.6 1.9-5.6 1.9L12 17.2l-1.9-5.6L4.5 9.7l5.6-1.9z" />
-            <path
-              d="M18.2 13.4l.85 2.45 2.45.85-2.45.85-.85 2.45-.85-2.45-2.45-.85 2.45-.85z"
-              opacity="0.85"
-            />
-          </svg>
-        </span>
-        <div className="home-brief-id">
-          <span className="home-brief-kicker">Meri briefing</span>
-          <span className="home-brief-date">{dateLabel}</span>
-        </div>
-      </div>
-      <div className="home-brief-body">
-        {loading ? (
-          <Skeleton active paragraph={{ rows: 3 }} title={false} />
-        ) : isError ? (
-          <p className="home-brief-empty">Meri is offline right now. Check back in a minute.</p>
-        ) : brief?.brief ? (
-          <p className="home-brief-text">{renderBrief(brief.brief)}</p>
-        ) : (
-          <p className="home-brief-empty">
-            No brief generated yet. Once Meri has client activity to summarize, your morning brief
-            appears here.
-          </p>
-        )}
-      </div>
-      <div className="home-brief-foot">
-        <span className="home-brief-foot-meta">
-          {brief?.model ? `Synthesized · ${brief.model}` : 'Synthesized by Meri'}
-        </span>
-        <Link to="/intelligence/changes" className="home-brief-foot-link">
-          See all changes →
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-// Heuristic highlighter: tint sentences that signal an urgent deadline (red)
-// or a legislative movement (amber), approximating the designed brief card.
-// The daily-brief API returns plain prose, so this is a best-effort pass;
-// structured highlight spans would require a backend change.
-function renderBrief(text: string): ReactNode[] {
-  const urgent =
-    /comment period|deadline|\bcloses?\b|\bdue\b|in \d+ days?\b|\btoday\b|\btomorrow\b|before EOD/i;
-  const legis =
-    /\badvanced\b|\bpassed\b|\breported\b|\bmark(ed)? ?up\b|to (the )?floor|\bcleared\b|became law|\bvote\b|\bcosponsor/i;
-  const sentences = text.match(/[^.!?]+[.!?]*\s*/g) ?? [text];
-  return sentences.map((s, i) => {
-    if (urgent.test(s))
-      return (
-        <mark key={i} className="hl-urgent">
-          {s}
-        </mark>
-      );
-    if (legis.test(s))
-      return (
-        <mark key={i} className="hl-note">
-          {s}
-        </mark>
-      );
-    return <span key={i}>{s}</span>;
-  });
-}
-
-/* ── Client engagement: week strip + per-day meetings (fixed height) ─────── */
-function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; loading: boolean }) {
   const api = useApi();
   const qc = useQueryClient();
   const { message } = App.useApp();
-  // Meetings v2 (§8a): restyle the per-row Meri/Join actions to match the
-  // redesign when the tenant is on the flag; otherwise keep the current buttons.
-  const meetingsV2 = useMe().data?.features?.meetingsV2 ?? false;
   const now = useMemo(() => new Date(), []);
   const days = useMemo(() => weekDays(now), [now]);
   const todayKey = dayKey(now);
   const [selectedDay, setSelectedDay] = useState<string>(todayKey);
 
-  // ── Send Meri + view-notes wiring (mirrors the Engagement Manager; the modal
-  // bodies come from the shared meeting-actions module so the compliance-reviewed
-  // consent copy stays single-sourced). ──
   const [notetakerForm] = Form.useForm();
   const notetakerAuthorized = Form.useWatch('authorizedToRecord', notetakerForm);
   const notetakerNotified = Form.useWatch('allPartiesWillBeNotified', notetakerForm);
   const [notetakerOpen, setNotetakerOpen] = useState(false);
   const [notetakerTargetId, setNotetakerTargetId] = useState<string | null>(null);
   const [notesMeetingId, setNotesMeetingId] = useState<string | null>(null);
+  const [briefMeetingId, setBriefMeetingId] = useState<string | null>(null);
+  const [briefGeneratingId, setBriefGeneratingId] = useState<string | null>(null);
 
   const dispatchNotetaker = useMutation({
     mutationFn: async ({ meetingId, meetingUrl }: { meetingId: string; meetingUrl: string }) =>
@@ -640,10 +688,10 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
       message.success('Meri is joining the meeting');
       setNotetakerOpen(false);
       notetakerForm.resetFields();
-      qc.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
+      void qc.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
     },
-    onError: (err: unknown) =>
-      message.error(err instanceof Error ? err.message : 'Could not send Meri'),
+    onError: (error: unknown) =>
+      message.error(error instanceof Error ? error.message : 'Could not send Meri'),
   });
 
   const notesQuery = useQuery<HomeDebrief[]>({
@@ -653,29 +701,25 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
     enabled: Boolean(notesMeetingId),
   });
 
-  // Meeting Prep (§8a): generate a prep in place; view the generated prep in a modal.
-  const [prepMeetingId, setPrepMeetingId] = useState<string | null>(null);
-  const [prepGenId, setPrepGenId] = useState<string | null>(null);
-  const prepQuery = useQuery<Meeting>({
-    queryKey: ['engagement-meeting-full', prepMeetingId],
-    queryFn: async () => (await api.get<Meeting>(`/api/engagement/meetings/${prepMeetingId}`)).data,
-    enabled: Boolean(prepMeetingId),
+  const briefQuery = useQuery<Meeting>({
+    queryKey: ['engagement-meeting-full', briefMeetingId],
+    queryFn: async () => (await api.get<Meeting>(`/api/engagement/meetings/${briefMeetingId}`)).data,
+    enabled: Boolean(briefMeetingId),
   });
-  const generatePrep = useMutation({
+
+  const generateBrief = useMutation({
     mutationFn: async (meetingId: string) =>
       (await api.post(`/api/engagement/meetings/${meetingId}/prep`, {})).data,
-    onSuccess: () => {
-      message.success('Prep generated.');
-      qc.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
+    onSuccess: (_data, meetingId) => {
+      message.success('Meeting brief generated.');
+      setBriefMeetingId(meetingId);
+      void qc.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
+      void qc.invalidateQueries({ queryKey: ['engagement-meeting-full', meetingId] });
     },
-    onError: (err: unknown) =>
-      message.error(err instanceof Error ? err.message : 'Could not generate prep'),
-    onSettled: () => setPrepGenId(null),
+    onError: (error: unknown) =>
+      message.error(error instanceof Error ? error.message : 'Could not generate meeting brief'),
+    onSettled: () => setBriefGeneratingId(null),
   });
-  const runPrep = (id: string) => {
-    setPrepGenId(id);
-    generatePrep.mutate(id);
-  };
 
   const openNotetaker = (meeting: DashMeeting) => {
     setNotetakerTargetId(meeting.id);
@@ -688,42 +732,67 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
   };
 
   const meetingDayKeys = useMemo(
-    () => new Set(meetings.map((m) => dayKey(new Date(m.startsAt)))),
+    () => new Set(meetings.map((meeting) => dayKey(new Date(meeting.startsAt)))),
     [meetings],
+  );
+  const policyDayKeys = useMemo(
+    () =>
+      new Set(
+        comingUp
+          .filter((event) => event.kind !== 'meeting')
+          .map((event) => comingUpDayKey(event.date)),
+      ),
+    [comingUp],
   );
 
   const dayMeetings = useMemo(
     () =>
       meetings
-        .filter((m) => dayKey(new Date(m.startsAt)) === selectedDay)
+        .filter((meeting) => dayKey(new Date(meeting.startsAt)) === selectedDay)
         .sort((a, b) => +new Date(a.startsAt) - +new Date(b.startsAt)),
     [meetings, selectedDay],
   );
 
+  const dayPolicyEvents = useMemo(
+    () =>
+      comingUp
+        .filter(
+          (event) => event.kind !== 'meeting' && comingUpDayKey(event.date) === selectedDay,
+        )
+        .sort((a, b) => String(a.time ?? '').localeCompare(String(b.time ?? ''))),
+    [comingUp, selectedDay],
+  );
+
   return (
-    <div className="home-panel home-panel--fixed">
+    <div className="home-panel">
       <header className="home-panel-head">
-        <span className="home-panel-title">Client Engagement</span>
+        <span className="home-panel-title">Today &amp; Coming Up</span>
         <span className="open">
           <Link to="/engagement">Open Engagement Manager →</Link>
         </span>
       </header>
 
-      <div className="home-week-label">Meetings · This Week</div>
+      <div className="home-week-label">This Week</div>
       <div className="home-week-strip">
-        {days.map((d) => {
-          const cls = [
+        {days.map((day) => {
+          const hasActivity = meetingDayKeys.has(day.key) || policyDayKeys.has(day.key);
+          const className = [
             'home-week-day',
-            d.isToday ? 'is-today' : '',
-            d.key === selectedDay ? 'is-selected' : '',
+            day.isToday ? 'is-today' : '',
+            day.key === selectedDay ? 'is-selected' : '',
           ]
             .filter(Boolean)
             .join(' ');
           return (
-            <button type="button" key={d.key} className={cls} onClick={() => setSelectedDay(d.key)}>
-              <span className="home-week-wd">{d.weekday}</span>
-              <span className="home-week-num num">{d.dayNum}</span>
-              {meetingDayKeys.has(d.key) ? <span className="home-week-dot" aria-hidden /> : null}
+            <button
+              type="button"
+              key={day.key}
+              className={className}
+              onClick={() => setSelectedDay(day.key)}
+            >
+              <span className="home-week-wd">{day.weekday}</span>
+              <span className="home-week-num num">{day.dayNum}</span>
+              {hasActivity ? <span className="home-week-dot" aria-hidden /> : null}
             </button>
           );
         })}
@@ -737,92 +806,140 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
             </div>
           ))}
         </div>
-      ) : dayMeetings.length === 0 ? (
+      ) : dayMeetings.length === 0 && dayPolicyEvents.length === 0 ? (
         <div className="home-panel-empty">
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={`No meetings on ${selectedDayLabel(selectedDay)}.`}
+            description={`Nothing scheduled on ${selectedDayLabel(selectedDay)}.`}
           />
         </div>
       ) : (
-        <div className="home-panel-list">
-          {dayMeetings.map((m) => {
-            const channel = m.location || (m.source ? prettySource(m.source) : null);
-            const who =
-              m.organizerName || m.attendees.find((a) => a.name)?.name || m.client?.name || '';
-            const prepped = m.preps.length > 0;
-            const hasDebrief = m.debriefs.length > 0 || m.meri === 'done';
-            // Show Send Meri for any virtual meeting without a debrief — same rule
-            // as the Meetings tab (no "already ended" gate, so it never disappears).
-            const canMeri = m.isVirtual ?? Boolean(extractMeetingJoinUrl(m));
-            return (
-              // Actions live OUTSIDE the <Link> (buttons can't nest inside an
-              // anchor) so a click doesn't also navigate.
-              <div key={m.id} className="home-panel-row-wrap">
-                <Link
-                  to={`/engagement/meetings/${encodeURIComponent(m.id)}`}
-                  className="home-panel-row"
-                >
-                  <div className="home-panel-row-main">
-                    <span className="home-meeting-when num">
-                      {formatCompactTime(new Date(m.startsAt))}
-                    </span>
-                    <span className="home-panel-row-title">{m.subject}</span>
-                    <span className="home-panel-row-sub">
-                      {[who, channel].filter(Boolean).join(' · ') || ' '}
-                    </span>
+        <>
+          {dayMeetings.length > 0 ? (
+            <div className="home-panel-list">
+              {dayMeetings.map((meeting) => {
+                const channel =
+                  meeting.location || (meeting.source ? prettySource(meeting.source) : null);
+                const who =
+                  meeting.organizerName ||
+                  meeting.attendees.find((attendee) => attendee.name)?.name ||
+                  meeting.client?.name ||
+                  '';
+                const hasBrief = meeting.preps.length > 0;
+                const hasDebrief = meeting.debriefs.length > 0 || meeting.meri === 'done';
+                const joinUrl = extractMeetingJoinUrl(meeting);
+                const canMeri = meeting.isVirtual ?? Boolean(joinUrl);
+
+                return (
+                  <div key={meeting.id} className="home-panel-row-wrap">
+                    <Link
+                      to={`/engagement/meetings/${encodeURIComponent(meeting.id)}`}
+                      className="home-panel-row"
+                    >
+                      <div className="home-panel-row-main">
+                        <span className="home-meeting-when num">
+                          {formatCompactTime(new Date(meeting.startsAt))}
+                        </span>
+                        <span className="home-panel-row-title">{meeting.subject}</span>
+                        <span className="home-panel-row-sub">
+                          {[who, channel].filter(Boolean).join(' · ') || ' '}
+                        </span>
+                      </div>
+                    </Link>
+                    <div className="home-meeting-actions">
+                      {joinUrl ? (
+                        <button
+                          type="button"
+                          className="dash-btn-soft"
+                          onClick={() => openMeetingJoinLink(meeting)}
+                        >
+                          Join
+                        </button>
+                      ) : null}
+                      {hasBrief ? (
+                        <button
+                          type="button"
+                          className="dash-btn-soft"
+                          onClick={() => setBriefMeetingId(meeting.id)}
+                        >
+                          View Brief
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="dash-btn-soft"
+                          disabled={briefGeneratingId === meeting.id}
+                          onClick={() => {
+                            setBriefGeneratingId(meeting.id);
+                            generateBrief.mutate(meeting.id);
+                          }}
+                        >
+                          {briefGeneratingId === meeting.id ? 'Preparing…' : 'Create Brief'}
+                        </button>
+                      )}
+                      {hasDebrief ? (
+                        <button
+                          type="button"
+                          className="dash-btn-soft"
+                          onClick={() => setNotesMeetingId(meeting.id)}
+                        >
+                          Debrief
+                        </button>
+                      ) : canMeri ? (
+                        <SendMeriButton
+                          m={meeting}
+                          size="sm"
+                          className="dash-send-meri"
+                          onClick={() => openNotetaker(meeting)}
+                        />
+                      ) : null}
+                    </div>
                   </div>
-                </Link>
-                {meetingsV2 ? (
-                  <div
-                    className="engagement-meeting-quick-actions"
-                    style={{ display: 'flex', gap: 8, alignItems: 'center' }}
-                  >
-                    {/* Meeting Prep → View Prep once prepped */}
-                    {prepped ? (
-                      <button
-                        type="button"
-                        className="dash-btn-soft"
-                        onClick={() => setPrepMeetingId(m.id)}
-                      >
-                        View Prep
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="dash-btn-soft"
-                        disabled={prepGenId === m.id}
-                        onClick={() => runPrep(m.id)}
-                      >
-                        {prepGenId === m.id ? 'Preparing…' : 'Meeting Prep'}
-                      </button>
-                    )}
-                    {/* Send Meri → Debrief once Meri has notes */}
-                    {hasDebrief ? (
-                      <button
-                        type="button"
-                        className="dash-btn-soft"
-                        onClick={() => setNotesMeetingId(m.id)}
-                      >
-                        Debrief
-                      </button>
-                    ) : canMeri ? (
-                      <SendMeriButton m={m} size="sm" onClick={() => openNotetaker(m)} />
-                    ) : null}
-                  </div>
-                ) : (
-                  <MeetingQuickActions
-                    meeting={m}
-                    compact
-                    onJoin={() => openMeetingJoinLink(m)}
-                    onSendNotetaker={() => openNotetaker(m)}
-                    onViewNotes={() => setNotesMeetingId(m.id)}
-                  />
-                )}
+                );
+              })}
+            </div>
+          ) : null}
+
+          {dayPolicyEvents.length > 0 ? (
+            <>
+              <div className="home-coming-policy-label">Policy calendar</div>
+              <div className="home-panel-list">
+                {dayPolicyEvents.map((event) => {
+                  const content = (
+                    <>
+                      <div className="home-panel-row-main">
+                        <span className="home-meeting-when num">
+                          {event.time || policyEventTimeLabel(event.kind)}
+                        </span>
+                        <span className="home-panel-row-title">{event.title}</span>
+                        <span className="home-panel-row-sub">
+                          {[event.label, event.detail].filter(Boolean).join(' · ')}
+                        </span>
+                      </div>
+                      <Tag className="home-coming-kind">{policyKindLabel(event.kind)}</Tag>
+                    </>
+                  );
+                  return event.href ? (
+                    <Link
+                      key={`${event.kind}-${event.id}`}
+                      to={event.href}
+                      className="home-panel-row home-coming-policy-row"
+                    >
+                      {content}
+                    </Link>
+                  ) : (
+                    <div
+                      key={`${event.kind}-${event.id}`}
+                      className="home-panel-row home-coming-policy-row"
+                    >
+                      {content}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            </>
+          ) : null}
+        </>
       )}
 
       <Modal
@@ -834,10 +951,6 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
         confirmLoading={dispatchNotetaker.isPending}
         okButtonProps={{ disabled: !(notetakerAuthorized && notetakerNotified) }}
         width={560}
-        // antd portals a Modal's DOM to document.body by default, escaping this
-        // page's <section className="command-page redesign"> subtree — without
-        // rootClassName, NotetakerConsentFields renders in the app's global
-        // antd default look (Public Sans + navy) instead of the redesign.
         rootClassName="redesign"
       >
         <Form
@@ -862,156 +975,229 @@ function ClientEngagement({ meetings, loading }: { meetings: DashMeeting[]; load
         footer={null}
         width={640}
       >
-        {(() => {
-          if (notesQuery.isLoading) return <span>Loading debrief…</span>;
-          const debrief = (notesQuery.data ?? []).find((d) => !d.restricted && d.body);
-          if (!debrief || !debrief.body) {
-            return (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No debrief for this meeting yet."
-              />
-            );
-          }
-          return <DebriefNotesView body={debrief.body} />;
-        })()}
+        {notesQuery.isLoading ? (
+          <span>Loading debrief…</span>
+        ) : (() => {
+            const debrief = (notesQuery.data ?? []).find((item) => !item.restricted && item.body);
+            if (!debrief?.body) {
+              return (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="No debrief for this meeting yet."
+                />
+              );
+            }
+            return <DebriefNotesView body={debrief.body} />;
+          })()}
       </Modal>
 
       <Modal
-        title="Meeting Prep"
-        open={Boolean(prepMeetingId)}
-        onCancel={() => setPrepMeetingId(null)}
+        title="Meeting Brief"
+        open={Boolean(briefMeetingId)}
+        onCancel={() => setBriefMeetingId(null)}
         footer={null}
         width={640}
       >
-        {(() => {
-          if (prepQuery.isLoading) return <span>Loading prep…</span>;
-          const prep = prepQuery.data?.preps?.[0] ?? null;
-          if (!prep) {
-            return (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="No prep for this meeting yet."
-              />
-            );
-          }
-          return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              {prep.summary && (
-                <div>
-                  <SectionLabel style={{ marginBottom: 7 }}>Summary</SectionLabel>
-                  <p style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--ink-2)', margin: 0 }}>
-                    {prep.summary}
-                  </p>
-                </div>
-              )}
-              {prep.agenda.length > 0 && (
-                <div>
-                  <SectionLabel style={{ marginBottom: 7 }}>Agenda</SectionLabel>
-                  <ul
-                    style={{
-                      margin: 0,
-                      paddingLeft: 18,
-                      fontSize: 13,
-                      lineHeight: 1.6,
-                      color: 'var(--ink-1)',
-                    }}
-                  >
-                    {prep.agenda.map((a, i) => (
-                      <li key={i}>{a}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {prep.talkingPoints.length > 0 && (
-                <div>
-                  <SectionLabel style={{ marginBottom: 9 }}>Talking points</SectionLabel>
-                  <ul
-                    style={{
-                      margin: 0,
-                      paddingLeft: 0,
-                      listStyle: 'none',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 8,
-                    }}
-                  >
-                    {prep.talkingPoints.map((t, i) => (
-                      <li
-                        key={i}
-                        style={{
-                          display: 'flex',
-                          gap: 10,
-                          fontSize: 13,
-                          lineHeight: 1.55,
-                          color: 'var(--ink-1)',
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: 'var(--accent)',
-                            flexShrink: 0,
-                            marginTop: 2,
-                          }}
-                        >
-                          {String(i + 1).padStart(2, '0')}
-                        </span>
-                        {t}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {prep.risks.length > 0 && (
-                <div>
-                  <SectionLabel style={{ marginBottom: 9 }}>Watch-outs</SectionLabel>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                    {prep.risks.map((r, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          fontSize: 12.5,
-                          lineHeight: 1.5,
-                          color: 'var(--ink-2)',
-                          padding: '9px 12px',
-                          background: 'var(--notable-soft)',
-                          borderRadius: 7,
-                        }}
-                      >
-                        {r}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
+        <MeetingBriefBody meeting={briefQuery.data} loading={briefQuery.isLoading} />
       </Modal>
     </div>
   );
 }
 
-/* ── Outreach drafts (fixed height) ─────────────────────────────────────── */
-
-function OutreachDrafts({ records, loading }: { records: DashOutreach[]; loading: boolean }) {
-  const drafts = useMemo(
-    () =>
-      [...records]
-        .filter((r) => r.status === 'draft')
-        .sort((a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt)),
-    [records],
-  );
+function MeetingBriefBody({ meeting, loading }: { meeting: Meeting | undefined; loading: boolean }) {
+  if (loading) return <span>Loading brief…</span>;
+  const prep = meeting?.preps?.[0] ?? null;
+  if (!prep) {
+    return (
+      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No brief for this meeting yet." />
+    );
+  }
 
   return (
-    <div className="home-panel home-panel--fixed">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {prep.summary ? (
+        <div>
+          <SectionLabel style={{ marginBottom: 7 }}>Summary</SectionLabel>
+          <p style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--ink-2)', margin: 0 }}>
+            {prep.summary}
+          </p>
+        </div>
+      ) : null}
+      {prep.agenda.length > 0 ? (
+        <div>
+          <SectionLabel style={{ marginBottom: 7 }}>Agenda</SectionLabel>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: 18,
+              fontSize: 13,
+              lineHeight: 1.6,
+              color: 'var(--ink-1)',
+            }}
+          >
+            {prep.agenda.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {prep.talkingPoints.length > 0 ? (
+        <div>
+          <SectionLabel style={{ marginBottom: 9 }}>Talking points</SectionLabel>
+          <ul
+            style={{
+              margin: 0,
+              paddingLeft: 0,
+              listStyle: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            {prep.talkingPoints.map((item, index) => (
+              <li
+                key={index}
+                style={{
+                  display: 'flex',
+                  gap: 10,
+                  fontSize: 13,
+                  lineHeight: 1.55,
+                  color: 'var(--ink-1)',
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono-rd)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--accent)',
+                    flexShrink: 0,
+                    marginTop: 2,
+                  }}
+                >
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {prep.risks.length > 0 ? (
+        <div>
+          <SectionLabel style={{ marginBottom: 9 }}>Watch-outs</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {prep.risks.map((item, index) => (
+              <div
+                key={index}
+                style={{
+                  fontSize: 12.5,
+                  lineHeight: 1.5,
+                  color: 'var(--ink-2)',
+                  padding: '9px 12px',
+                  background: 'var(--notable-soft)',
+                  borderRadius: 7,
+                }}
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/* ── Legacy Work Queue kept for regression reference; no longer mounted ─ */
+
+interface WorkQueueItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  href: string;
+  tag: string;
+  tagColor?: string;
+  rank: number;
+  timestamp: number;
+}
+
+function WorkQueue({
+  actions,
+  reviews,
+  outreach,
+  loading,
+}: {
+  actions: ActionCardDto[];
+  reviews: ReviewRequestDto[];
+  outreach: DashOutreach[];
+  loading: boolean;
+}) {
+  const items = useMemo<WorkQueueItem[]>(() => {
+    const out: WorkQueueItem[] = [];
+
+    for (const review of reviews) {
+      out.push({
+        id: `review-${review.id}`,
+        title: review.title,
+        subtitle: `${SURFACE_LABELS[review.surface]} · ${review.reason}`,
+        href: `/reviews?id=${encodeURIComponent(review.id)}`,
+        tag: `${RISK_TIER_LABELS[review.riskTier]} review`,
+        tagColor: review.riskTier === 'restricted' || review.riskTier === 'high' ? 'red' : 'gold',
+        rank: 0,
+        timestamp: +new Date(review.createdAt),
+      });
+    }
+
+    for (const action of actions) {
+      if (!ACTIVE_ACTION_STATUSES.has(action.status)) continue;
+      const deadline = action.deadline ? +new Date(action.deadline) : Number.POSITIVE_INFINITY;
+      out.push({
+        id: `action-${action.id}`,
+        title: action.issueTitle,
+        subtitle: [action.clientName, action.recommendedAction].filter(Boolean).join(' · '),
+        href: '/actions',
+        tag: ACTION_STATUS_LABELS[action.status],
+        tagColor: action.status === 'ready_for_review' ? 'gold' : 'blue',
+        rank: 1,
+        timestamp: deadline,
+      });
+    }
+
+    for (const draft of outreach) {
+      if (draft.status !== 'draft') continue;
+      const ready = Boolean(draft.body?.trim() && draft.recipientCount > 0);
+      out.push({
+        id: `outreach-${draft.id}`,
+        title: draft.title,
+        subtitle: [
+          draft.client?.name,
+          draft.subject ||
+            (draft.recipientCount
+              ? `${draft.recipientCount} recipient${draft.recipientCount === 1 ? '' : 's'}`
+              : 'No recipients yet'),
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        href: `/engagement/outreach/draft/${encodeURIComponent(draft.id)}`,
+        tag: ready ? 'Ready to send' : 'Draft',
+        tagColor: ready ? 'green' : undefined,
+        rank: 2,
+        timestamp: -new Date(draft.updatedAt).getTime(),
+      });
+    }
+
+    return out
+      .sort((a, b) => a.rank - b.rank || a.timestamp - b.timestamp)
+      .slice(0, 8);
+  }, [actions, outreach, reviews]);
+
+  return (
+    <div className="home-panel">
       <header className="home-panel-head">
-        <span className="home-panel-title">Outreach Drafts</span>
+        <span className="home-panel-title">Work Queue</span>
         <span className="open">
-          <Link to="/engagement">Open Engagement Manager →</Link>
+          <Link to="/actions">Open Actions →</Link>
         </span>
       </header>
       {loading ? (
@@ -1022,47 +1208,150 @@ function OutreachDrafts({ records, loading }: { records: DashOutreach[]; loading
             </div>
           ))}
         </div>
-      ) : drafts.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="home-panel-empty">
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="No outreach drafts in progress."
-          />
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Your work queue is clear." />
         </div>
       ) : (
-        <div className="home-panel-list">
-          {drafts.map((r) => {
-            const ready = Boolean(r.body && r.body.trim() && r.recipientCount > 0);
-            const sub =
-              r.subject ||
-              (r.recipientCount
-                ? `${r.recipientCount} recipient${r.recipientCount === 1 ? '' : 's'}`
-                : 'No recipients yet');
-            return (
-              <Link
-                key={r.id}
-                to={`/engagement/outreach/draft/${encodeURIComponent(r.id)}`}
-                className="home-panel-row"
-              >
-                <div className="home-panel-row-main">
-                  <span className="home-panel-row-title">{r.title}</span>
-                  <span className="home-panel-row-sub">
-                    {[r.client?.name, sub].filter(Boolean).join(' · ')}
-                  </span>
-                </div>
-                <Tag color={ready ? 'green' : 'default'} className="home-panel-tag">
-                  {ready ? 'Ready to send' : 'Draft'}
-                </Tag>
-              </Link>
-            );
-          })}
+        <div className="home-work-list">
+          {items.map((item) => (
+            <Link key={item.id} to={item.href} className="home-work-row">
+              <div className="home-work-main">
+                <span className="home-work-title">{item.title}</span>
+                <span className="home-work-sub">{item.subtitle}</span>
+              </div>
+              <Tag color={item.tagColor} className="home-panel-tag">
+                {item.tag}
+              </Tag>
+            </Link>
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-/* ── Helpers ────────────────────────────────────────────────────────────── */
+/* ── Legacy News renderer kept for regression reference; no longer mounted ─ */
+
+function NewsAndNarrative({
+  data,
+  loading,
+  isError,
+}: {
+  data: NewsDashboardResponse | undefined;
+  loading: boolean;
+  isError: boolean;
+}) {
+  return (
+    <div className="home-panel home-news-panel">
+      <header className="home-panel-head">
+        <span className="home-panel-title">News &amp; Narrative</span>
+        <span className="open">Client-relevant coverage · last 48h</span>
+      </header>
+
+      {loading ? (
+        <div className="home-panel-list">
+          {[0, 1, 2, 3].map((i) => (
+            <div className="home-panel-row" key={i}>
+              <Skeleton active paragraph={{ rows: 1 }} title={false} />
+            </div>
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="home-news-status">News intelligence could not load right now.</div>
+      ) : !data?.available ? (
+        <div className="home-news-status">{newsUnavailableMessage(data?.reason)}</div>
+      ) : data.items.length === 0 ? (
+        <div className="home-panel-empty">
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="No client-relevant policy coverage found in the last 48 hours."
+          />
+        </div>
+      ) : (
+        <div className="home-panel-list home-news-list">
+          {data.items.map((item) => (
+            <a
+              key={item.id}
+              className="home-news-row"
+              href={item.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <span className="home-news-thumb" aria-hidden>
+                <span className="home-news-thumb-fallback">{sourceInitials(item.source)}</span>
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    onError={(event) => {
+                      event.currentTarget.style.display = 'none';
+                    }}
+                  />
+                ) : null}
+              </span>
+              <div className="home-news-main">
+                <span className="home-news-title">{item.title}</span>
+                <span className="home-news-meta">
+                  {item.source} · {relativeTime(item.publishedAt)}
+                  {item.duplicateCount && item.duplicateCount > 1
+                    ? ` · ${item.duplicateCount} similar placements`
+                    : ''}
+                </span>
+                <span className="home-news-relevance">{item.relevanceReason}</span>
+              </div>
+              {item.topics[0] ? <Tag className="home-panel-tag">{item.topics[0]}</Tag> : null}
+            </a>
+          ))}
+        </div>
+      )}
+
+      {data?.available ? (
+        <div className="home-news-footnote">
+          <span>
+            NewsCatcher · {data.monitoredClientCount} client
+            {data.monitoredClientCount === 1 ? '' : 's'} monitored
+            {data.stale ? ' · cached fallback' : ''}
+          </span>
+          {data.coverageLimited ? (
+            <span className="coverage-warning">· portfolio exceeds MVP entity-query envelope</span>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function sourceInitials(source: string): string {
+  const parts = source
+    .replace(/\.[a-z]{2,}$/i, '')
+    .split(/[\s._-]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const initials = parts
+    .slice(0, 2)
+    .map((part) => part[0] ?? '')
+    .join('')
+    .toUpperCase();
+  return initials || 'N';
+}
+
+function newsUnavailableMessage(reason: NewsDashboardResponse['reason']): string {
+  switch (reason) {
+    case 'not_configured':
+      return 'News intelligence is ready to activate once NEWSCATCHER_API_KEY is configured.';
+    case 'no_clients':
+      return 'Add an active client to begin monitoring relevant policy coverage.';
+    case 'provider_unavailable':
+      return 'NewsCatcher is unavailable right now. The rest of your dashboard is unaffected.';
+    default:
+      return 'News intelligence is not available right now.';
+  }
+}
+
+/* ── Helpers ───────────────────────────────────────────────────────────── */
 
 function congressSession(now: Date): string {
   const year = now.getFullYear();
@@ -1085,15 +1374,9 @@ function commentSeverity(days: number): 'critical' | 'notable' | 'info' {
   return 'info';
 }
 
-/**
- * Friendly eyebrow label for each portfolio-alert category. Mirrors the
- * taxonomy emitted by the client Intelligence tab Top Alerts so the dashboard
- * and the tab read identically.
- */
 function portfolioAlertCategoryLabel(type: string): string {
   const map: Record<string, string> = {
     comment_deadline: 'Comment deadline',
-    comment_overdue: 'Comment closed',
     competitor_filing: 'Competitor filing',
     contract_award: 'Contract award',
     hearing: 'Hearing',
@@ -1130,19 +1413,22 @@ function peChangeLabel(changeType: string): string {
 }
 
 function dayDiff(dateIso: string): number {
-  const a = new Date(dateIso);
-  a.setHours(0, 0, 0, 0);
-  const b = new Date();
-  b.setHours(0, 0, 0, 0);
-  return Math.round((a.getTime() - b.getTime()) / 86_400_000);
+  const key = comingUpDayKey(dateIso);
+  const [year = 0, month = 0, day = 0] = key.split('-').map(Number);
+  const target = new Date(year, month - 1, day);
+  target.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
 }
 
 function whenLabel(dateIso: string, time: string | null): string {
-  const t = time ? ` ${time}` : '';
-  const dd = dayDiff(dateIso);
-  if (dd <= 0) return `Today${t}`;
-  if (dd === 1) return `Tomorrow${t}`;
-  return `${new Date(dateIso).toLocaleDateString('en-US', { weekday: 'short' })}${t}`;
+  const timeSuffix = time ? ` ${time}` : '';
+  const difference = dayDiff(dateIso);
+  if (difference <= 0) return `Today${timeSuffix}`;
+  if (difference === 1) return `Tomorrow${timeSuffix}`;
+  const [year = 0, month = 0, day = 0] = comingUpDayKey(dateIso).split('-').map(Number);
+  return `${new Date(year, month - 1, day).toLocaleDateString('en-US', { weekday: 'short' })}${timeSuffix}`;
 }
 
 function hoursSince(iso: string): number {
@@ -1150,8 +1436,7 @@ function hoursSince(iso: string): number {
 }
 
 function weekBounds(now: Date): { from: string; to: string } {
-  // Monday 00:00 → Sunday 23:59:59 of the current week (local time).
-  const day = now.getDay(); // 0=Sun..6=Sat
+  const day = now.getDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
   const monday = new Date(now);
   monday.setDate(now.getDate() + mondayOffset);
@@ -1176,38 +1461,67 @@ function weekDays(now: Date): WeekDay[] {
   monday.setDate(now.getDate() + mondayOffset);
   monday.setHours(0, 0, 0, 0);
   const todayKey = dayKey(now);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + index);
     return {
-      key: dayKey(d),
-      weekday: d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
-      dayNum: d.toLocaleDateString('en-US', { day: 'numeric' }),
-      isToday: dayKey(d) === todayKey,
+      key: dayKey(date),
+      weekday: date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+      dayNum: date.toLocaleDateString('en-US', { day: 'numeric' }),
+      isToday: dayKey(date) === todayKey,
     };
   });
 }
 
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+function dayKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+function comingUpDayKey(value: string): string {
+  const dateOnly = value.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (dateOnly) return dateOnly;
+  return dayKey(new Date(value));
 }
 
 function selectedDayLabel(key: string): string {
-  const [y, m, d] = key.split('-').map((n) => Number.parseInt(n, 10));
-  if (y == null || m == null || d == null) return 'this day';
-  return new Date(y, m, d).toLocaleDateString('en-US', {
+  const [year = 0, month = 0, day = 0] = key.split('-').map(Number);
+  if (!year || !month || !day) return 'this day';
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
   });
 }
 
-function formatCompactTime(d: Date): string {
-  const h = d.getHours();
-  const m = d.getMinutes();
-  const mer = h >= 12 ? 'pm' : 'am';
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return m === 0 ? `${h12}${mer}` : `${h12}:${String(m).padStart(2, '0')}${mer}`;
+function formatCompactTime(date: Date): string {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const meridiem = hours >= 12 ? 'pm' : 'am';
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+  return minutes === 0
+    ? `${hour12}${meridiem}`
+    : `${hour12}:${String(minutes).padStart(2, '0')}${meridiem}`;
+}
+
+function policyKindLabel(kind: ComingUpItem['kind']): string {
+  switch (kind) {
+    case 'hearing':
+      return 'Hearing';
+    case 'markup':
+      return 'Markup';
+    case 'deadline':
+      return 'Deadline';
+    default:
+      return 'Event';
+  }
+}
+
+function policyEventTimeLabel(kind: ComingUpItem['kind']): string {
+  return kind === 'deadline' ? 'Due' : '—';
 }
 
 function relativeTime(iso: string): string {
@@ -1227,12 +1541,15 @@ function prettySource(raw: string): string {
     sec: 'SEC EDGAR',
     fedreg: 'FedReg',
     federal_register: 'FedReg',
+    federal_register_document: 'FedReg',
     congress: 'Congress.gov',
     lda: 'LDA',
     gao: 'GAO',
     crs: 'CRS',
     bls: 'BLS',
+    outlook: 'Outlook',
+    google: 'Google Calendar',
   };
   const key = (raw ?? '').toLowerCase();
-  return map[key] ?? (raw ?? '').replace(/[_-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return map[key] ?? (raw ?? '').replace(/[_-]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
