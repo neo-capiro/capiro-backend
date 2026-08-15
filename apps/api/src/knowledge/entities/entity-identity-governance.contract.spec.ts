@@ -18,6 +18,12 @@ const migration = readFileSync(
   ),
   'utf8',
 );
+const concurrencyMigration = readFileSync(
+  repositoryPath(
+    'prisma/migrations/20261120141000_entity_governance_concurrency/migration.sql',
+  ),
+  'utf8',
+);
 const repository = readFileSync(
   repositoryPath(
     'src/knowledge/entities/entity-identity-governance.repository.ts',
@@ -55,6 +61,14 @@ describe('entity identity governance contract', () => {
     expect(migration).toContain('Entity governance action cannot cross tenants');
     expect(migration).toContain('Only an active entity alias may be governed');
     expect(migration).toContain('Only an active entity identifier may be governed');
+  });
+
+  test('serializes duplicate simultaneous governance retries', () => {
+    expect(concurrencyMigration).toContain('pg_advisory_xact_lock');
+    expect(concurrencyMigration).toContain(
+      "p_tenant_id::text || ':' || p_idempotency_key",
+    );
+    expect(concurrencyMigration.match(/pg_advisory_xact_lock/g)?.length).toBe(2);
   });
 
   test('resolution rejection is append-only and repeats tenant predicates', () => {
