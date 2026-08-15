@@ -5,6 +5,7 @@ on:
     branches:
       - feat/phase-5-universal-entity-resolution
       - feat/phase-5-governance-evals
+      - feat/phase-5-meri-compat-adjustments
     paths:
       - 'apps/api/src/knowledge/entities/**'
       - 'apps/api/src/knowledge/knowledge.module.ts'
