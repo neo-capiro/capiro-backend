@@ -4,6 +4,8 @@ import { AssertionConflictService } from './assertions/assertion-conflict.servic
 import { AssertionConsolidationService } from './assertions/assertion-consolidation.service.js';
 import { KnowledgeAssertionRepository } from './assertions/knowledge-assertion.repository.js';
 import { KnowledgeAssertionService } from './assertions/knowledge-assertion.service.js';
+import { CanonicalEntityRepository } from './entities/canonical-entity.repository.js';
+import { UniversalEntityResolutionService } from './entities/universal-entity-resolution.service.js';
 import { KnowledgeEvidenceRepository } from './evidence/knowledge-evidence.repository.js';
 import { KnowledgeEvidenceValidatorService } from './evidence/knowledge-evidence-validator.service.js';
 import { KnowledgeEvidenceService } from './evidence/knowledge-evidence.service.js';
@@ -16,7 +18,7 @@ import { MailboxNormalizerService } from './mailbox/mailbox-normalizer.service.j
 import { MailboxRelevanceService } from './mailbox/mailbox-relevance.service.js';
 import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
 
-/** Lower-level evidence, assertions, and incremental mailbox substrate beneath memory_items. */
+/** Shared evidence, identity, assertions, and incremental mailbox substrate beneath memory_items. */
 @Module({
   imports: [PrismaModule],
   providers: [
@@ -29,6 +31,8 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     KnowledgeAssertionService,
     AssertionConflictService,
     AssertionConsolidationService,
+    CanonicalEntityRepository,
+    UniversalEntityResolutionService,
     MailboxKnowledgeFlagsService,
     MailboxKnowledgeRepository,
     MailboxNormalizerService,
@@ -42,6 +46,7 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     KnowledgeAssertionService,
     AssertionConflictService,
     AssertionConsolidationService,
+    UniversalEntityResolutionService,
     MailboxNormalizerService,
     MailboxRelevanceService,
     MailboxThreadService,
