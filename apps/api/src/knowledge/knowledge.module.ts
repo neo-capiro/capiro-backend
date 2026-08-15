@@ -4,6 +4,8 @@ import { AssertionConflictService } from './assertions/assertion-conflict.servic
 import { AssertionConsolidationService } from './assertions/assertion-consolidation.service.js';
 import { KnowledgeAssertionRepository } from './assertions/knowledge-assertion.repository.js';
 import { KnowledgeAssertionService } from './assertions/knowledge-assertion.service.js';
+import { CanonicalEntityRegistrationRepository } from './entities/canonical-entity-registration.repository.js';
+import { CanonicalEntityRegistrationService } from './entities/canonical-entity-registration.service.js';
 import { CanonicalEntityRepository } from './entities/canonical-entity.repository.js';
 import { UniversalEntityResolutionService } from './entities/universal-entity-resolution.service.js';
 import { KnowledgeEvidenceRepository } from './evidence/knowledge-evidence.repository.js';
@@ -18,7 +20,7 @@ import { MailboxNormalizerService } from './mailbox/mailbox-normalizer.service.j
 import { MailboxRelevanceService } from './mailbox/mailbox-relevance.service.js';
 import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
 
-/** Shared evidence, identity, assertions, and incremental mailbox substrate beneath memory_items. */
+/** Lower-level evidence, identity, assertions, and incremental mailbox substrate beneath memory_items. */
 @Module({
   imports: [PrismaModule],
   providers: [
@@ -33,6 +35,8 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     AssertionConsolidationService,
     CanonicalEntityRepository,
     UniversalEntityResolutionService,
+    CanonicalEntityRegistrationRepository,
+    CanonicalEntityRegistrationService,
     MailboxKnowledgeFlagsService,
     MailboxKnowledgeRepository,
     MailboxNormalizerService,
@@ -47,6 +51,7 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     AssertionConflictService,
     AssertionConsolidationService,
     UniversalEntityResolutionService,
+    CanonicalEntityRegistrationService,
     MailboxNormalizerService,
     MailboxRelevanceService,
     MailboxThreadService,

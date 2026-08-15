@@ -31,17 +31,28 @@ export function normalizeEntityIdentifier(type: string, value: string): string {
     case 'domain':
     case 'official_domain':
       return normalizeDomain(trimmed);
+    case 'cik':
+      return normalizeCik(trimmed);
+    case 'bioguide_id':
+    case 'lis_id':
+      return trimmed.toUpperCase().replace(/\s+/g, '');
+    case 'openstates_person_id':
+    case 'federal_contractor_id':
+      return trimmed.toLocaleLowerCase('en-US');
     case 'uei':
     case 'cage':
     case 'sam_entity_id':
-    case 'cik':
     case 'congress_id':
     case 'committee_id':
     case 'directory_person_id':
     case 'usaspending_recipient_id':
     case 'lda_client_id':
+    case 'lda_registrant_id':
+    case 'legiscan_people_id':
     case 'crm_client_id':
     case 'crm_contact_id':
+    case 'engagement_contact_id':
+    case 'acquisition_personnel_id':
     case 'provider_contact_id':
     case 'bill_id':
     case 'program_element_code':
@@ -72,6 +83,14 @@ export function normalizeDomain(value: string): string {
     throw new Error(`Invalid entity domain: ${value}`);
   }
   return normalized;
+}
+
+function normalizeCik(value: string): string {
+  const digits = value.replace(/\D+/g, '');
+  if (!digits || digits.length > 10) {
+    throw new Error(`Invalid SEC CIK: ${value}`);
+  }
+  return digits.padStart(10, '0');
 }
 
 export function clampResolutionConfidence(value: number | undefined, fallback = 1): number {
