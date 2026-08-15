@@ -35,7 +35,7 @@ export const ENTITY_RESOLUTION_GOLDEN_CORPUS: readonly EntityResolutionGoldenCas
   {
     id: 'org_exact_uei_rtx',
     description: 'A unique exact UEI resolves RTX despite a historical legal-name change.',
-    category: 'exact_identifier',
+    category: 'rename',
     tenantFixture: 'tenant_a',
     input: {
       query: 'Raytheon Technologies Corporation',
@@ -59,7 +59,7 @@ export const ENTITY_RESOLUTION_GOLDEN_CORPUS: readonly EntityResolutionGoldenCas
   {
     id: 'org_historical_alias',
     description: 'A verified historical legal-name alias resolves to the current entity.',
-    category: 'rename',
+    category: 'alias',
     tenantFixture: 'tenant_a',
     input: {
       query: 'Raytheon Technologies',
