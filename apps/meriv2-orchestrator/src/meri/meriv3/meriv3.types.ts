@@ -1,6 +1,7 @@
 import type { ProviderUsage } from '@capiro/shared';
 import type { ChatInput, ChatResult, ChatStreamEvent } from '../chat/chat-prompt.js';
 import type { MeriCoverageManifest } from '../retrieval/meri-retrieval-coverage.js';
+import type { MeriRetrievalTrace } from '../retrieval/meri-retrieval-coordinator.js';
 import type {
   MeriRetrievalDomain,
   MeriRetrievalRecipeTool,
@@ -42,6 +43,7 @@ export interface MeriV3RetrievalSummary {
     timeWindow: MeriRetrievalTimeWindow | null;
   };
   coverage: MeriCoverageManifest;
+  trace: MeriRetrievalTrace;
 }
 
 export interface MeriV3ChatResult extends ChatResult {

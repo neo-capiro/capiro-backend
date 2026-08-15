@@ -8,6 +8,7 @@ import type {
 
 export const MERI_RETRIEVAL_RECIPE_TOOLS = [
   'query_relationship_brief',
+  'query_client_changes',
   'query_portfolio_changes',
   'research_external_company',
   'query_portfolio_overlap',
@@ -19,6 +20,7 @@ export type MeriRetrievalDomain =
   | 'identity'
   | 'clients'
   | 'internal_research'
+  | 'documents'
   | 'mail'
   | 'contacts'
   | 'meetings'
@@ -27,6 +29,11 @@ export type MeriRetrievalDomain =
   | 'outreach'
   | 'memory'
   | 'legislation'
+  | 'hearings'
+  | 'regulatory'
+  | 'directory'
+  | 'intelligence'
+  | 'economic'
   | 'budget'
   | 'opportunities'
   | 'awards'
@@ -109,6 +116,9 @@ function recipeFor(
     (intent.queryClass === 'change_detection' || intent.queryClass === 'portfolio_scan')
   ) {
     return 'query_portfolio_changes';
+  }
+  if (intent.subjectScope === 'client' && intent.queryClass === 'change_detection') {
+    return 'query_client_changes';
   }
   if (intent.queryClass === 'federal_market_analysis') return 'research_external_company';
   if (

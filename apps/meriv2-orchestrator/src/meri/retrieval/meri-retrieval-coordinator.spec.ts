@@ -11,7 +11,7 @@ function plan(): MeriRetrievalPlan {
     requireCompleteCoverage: true,
     requiredDomains: ['identity', 'internal_research', 'mail', 'contacts', 'memory'],
     optionalDomains: [],
-    recommendedTools: [],
+    recommendedTools: ['query_relationship_brief', 'search_emails', 'find_contacts'],
     timeWindow: null,
     activeClients: [],
     reasons: [],
@@ -85,7 +85,7 @@ describe('MeriRetrievalCoordinator', () => {
     expect(observation?.detail).toContain('has not synchronized within the last 48 hours');
   });
 
-  test('keeps a current, fully paginated mailbox result complete', async () => {
+  test('keeps a current, fully returned mailbox result complete', async () => {
     const coordinator = new MeriRetrievalCoordinator();
 
     const observation = await coordinator.run(plan(), async () => {
@@ -108,6 +108,43 @@ describe('MeriRetrievalCoordinator', () => {
     });
 
     expect(observation?.status).toBe('complete');
+  });
+
+  test('records recipe-first adherence, out-of-plan tools, latency and pagination debt', async () => {
+    const coordinator = new MeriRetrievalCoordinator();
+    const trace = await coordinator.run(plan(), async () => {
+      coordinator.recordModelTool('query_relationship_brief');
+      coordinator.recordModelTool('search_public_web');
+      coordinator.observe('query_tasks', { limit: 50 }, { tasks: [] }, 12);
+      coordinator.observe('search_emails', { query: 'Victory Six' }, {
+        totalMatches: 1,
+        returned: 1,
+        hasMore: false,
+        messages: [{ id: 'mail-1' }],
+        searchedMailboxes: [
+          {
+            accountEmail: 'neo@example.com',
+            provider: 'microsoft_365',
+            status: 'connected',
+            syncedMessages: 10,
+            lastSyncAt: new Date().toISOString(),
+          },
+        ],
+      }, 8);
+      return coordinator.trace(Date.now() + 25);
+    });
+
+    expect(trace.recipeFirst).toBe(true);
+    expect(trace.outOfPlanModelTools).toEqual(['search_public_web']);
+    expect(trace.observedToolCalls).toBe(2);
+    expect(trace.cumulativeToolMs).toBe(20);
+    expect(trace.paginationDebt).toContain('query_tasks');
+    expect(trace.tools).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ tool: 'query_tasks', durationMs: 12, status: 'partial' }),
+        expect.objectContaining({ tool: 'search_emails', durationMs: 8, status: 'complete' }),
+      ]),
+    );
   });
 
   test('isolates concurrent request observations with AsyncLocalStorage', async () => {

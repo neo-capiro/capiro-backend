@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { MeriContext } from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -64,6 +64,7 @@ interface AssistantInternals {
 
 const RECIPE_LABELS: Record<string, string> = {
   query_relationship_brief: 'Building relationship brief',
+  query_client_changes: 'Scanning client changes',
   query_portfolio_changes: 'Scanning portfolio changes',
   research_external_company: 'Researching company',
   query_portfolio_overlap: 'Comparing portfolio overlap',
@@ -127,6 +128,8 @@ function enhancedDescription(schema: ToolSchema): ToolSchema {
  */
 @Injectable()
 export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantService {
+  private readonly retrievalLogger = new Logger(MeriV3RetrievalAssistantService.name);
+
   constructor(
     registryService: MeriRegistryService,
     openai: OpenAiResponsesClient,
@@ -159,8 +162,9 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
     };
 
     const invokeObserved = async (args: InvokeArgs): Promise<unknown> => {
+      const startedAt = Date.now();
       const result = await nativeInvoke(args);
-      this.retrieval.observe(args.name, args.input, result);
+      this.retrieval.observe(args.name, args.input, result, Date.now() - startedAt);
       return result;
     };
 
@@ -178,7 +182,9 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
 
     internals.invokeTool = async (args: InvokeArgs): Promise<unknown> => {
       const plan = this.retrieval.currentPlan();
+      this.retrieval.recordModelTool(args.name);
       if (plan && isMeriRetrievalRecipeTool(args.name)) {
+        const recipeStartedAt = Date.now();
         const label = RECIPE_LABELS[args.name] ?? toolLabel(args.name);
         args.emit({ type: 'tool_call', tool: args.name, label });
         if (args.scopeViolation) {
@@ -196,7 +202,12 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
             detail: args.scopeViolation,
           });
           const blocked = { error: args.scopeViolation, blocked: true };
-          this.retrieval.observe(args.name, args.input, blocked);
+          this.retrieval.observe(
+            args.name,
+            args.input,
+            blocked,
+            Date.now() - recipeStartedAt,
+          );
           return blocked;
         }
         try {
@@ -206,7 +217,12 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
             invoke: invokeUnderlying(args),
           });
           const result = compactMeriRetrievalRecipeResult(rawResult);
-          this.retrieval.observe(args.name, args.input, result);
+          this.retrieval.observe(
+            args.name,
+            args.input,
+            result,
+            Date.now() - recipeStartedAt,
+          );
           args.steps.push({ tool: args.name, label, status: 'done' });
           args.emit({ type: 'tool_done', tool: args.name, label, status: 'done' });
           return result;
@@ -214,28 +230,30 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
           const detail =
             error instanceof Error ? error.message.slice(0, 240) : 'Retrieval recipe failed';
           const failed = { error: detail };
-          this.retrieval.observe(args.name, args.input, failed);
+          this.retrieval.observe(
+            args.name,
+            args.input,
+            failed,
+            Date.now() - recipeStartedAt,
+          );
           args.steps.push({ tool: args.name, label, status: 'error', detail });
           args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
           return failed;
         }
       }
 
-      // The API's canonical resolver covers members/committees/bills. For an
-      // external-company turn, widen only this read into a deterministic public
-      // identity cascade. The callback invokes the original governed tools, so
-      // authorization, audit traces and source citations remain unchanged.
       if (
         plan?.subjectScope === 'external_entity' &&
         args.name === 'resolve_entity' &&
         typeof args.input.query === 'string' &&
         args.input.query.trim()
       ) {
+        const startedAt = Date.now();
         const result = await executeMeriExternalEntityResolution(
           args.input.query.trim(),
           invokeUnderlying(args),
         );
-        this.retrieval.observe(args.name, args.input, result);
+        this.retrieval.observe(args.name, args.input, result, Date.now() - startedAt);
         return result;
       }
 
@@ -262,13 +280,6 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
       meriRetrievalPlanPrompt(retrievalPlan),
     ].join('\n\n');
 
-    // A selected client is a hard subject only for a client-scoped turn, or a
-    // deliberate comparison anchor ("compare my client with Shield AI"). For
-    // explicit portfolio/external requests, remove every silently pre-warmed
-    // selected-client input before the established runtime builds its operating
-    // frame. The recipe then retrieves only the evidence required for the named
-    // subject through governed tools. Conversation history remains available so
-    // the user can deliberately refer to earlier turns.
     const includeFocusedClient = retrievalIntent.includeFocusedClientContext;
     const scopedDto: MeriV3ChatInput = includeFocusedClient
       ? dto
@@ -301,10 +312,6 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
           ...opts,
           onEvent: originalOnEvent
             ? (event) => {
-                // The base emits its final answer as one text event. Hold that
-                // event until coverage has been compiled, then emit the exact
-                // reply returned in the done frame so stream/non-stream never
-                // disagree.
                 if (event.type === 'text') {
                   textEventSeen = true;
                   return;
@@ -315,10 +322,30 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
         },
       );
       const coverage = this.retrieval.coverage();
+      const trace = this.retrieval.trace();
       const reply = appendMeriCoverageDisclosure(result.reply, retrievalPlan, coverage);
       if (originalOnEvent && textEventSeen && !opts.signal?.aborted) {
         originalOnEvent({ type: 'text', text: reply });
       }
+      this.retrievalLogger.log(
+        JSON.stringify({
+          event: 'meri.retrieval',
+          tenantId: ctx.tenantId,
+          queryClass: retrievalPlan.queryClass,
+          subjectScope: retrievalPlan.subjectScope,
+          recipeTool: retrievalPlan.recipeTool,
+          complete: coverage.complete,
+          missingDomains: coverage.missingDomains,
+          partialDomains: coverage.partialDomains,
+          durationMs: trace.durationMs,
+          cumulativeToolMs: trace.cumulativeToolMs,
+          observedToolCalls: trace.observedToolCalls,
+          modelTools: trace.modelTools,
+          recipeFirst: trace.recipeFirst,
+          outOfPlanModelTools: trace.outOfPlanModelTools,
+          paginationDebt: trace.paginationDebt,
+        }),
+      );
       return {
         ...result,
         reply,
@@ -334,13 +361,11 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
             timeWindow: retrievalPlan.timeWindow,
           },
           coverage,
+          trace,
         },
       };
     });
   }
 }
 
-// Retain the base token as the public injection contract. MeriModule binds it
-// to this adapter, while tests and non-Nest callers may still instantiate the
-// base service directly.
 export type MeriV3RetrievalAssistantToken = MeriV3AssistantService;
