@@ -61,4 +61,68 @@ describe('Engagement UI closeout contract', () => {
     expect(workspace).toContain('Submit for memory review');
     expect(workspace).not.toContain('Priya prefers the technical-briefing framing');
   });
+
+  it('keeps unknown deliveries terminal for automation with no resend path', () => {
+    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
+    expect(workspace).toContain('Unknown is terminal for automation.');
+    expect(workspace).toContain('does not automatically retry or resend');
+    // Refreshing reads durable state; it must never become a resend control.
+    // (The prose above legitimately contains the word, so assert on controls.)
+    expect(workspace).not.toMatch(/resendOutreach|resendIntent|onResend|>\s*Resend/);
+  });
+
+  it('states the real test-send guarantee rather than implying a live send', () => {
+    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
+    expect(workspace).toContain('Send one exact version to your own mailbox');
+    expect(workspace).toContain('No target receives anything.');
+  });
+
+  it('acknowledging held recipients never claims to unblock them', () => {
+    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
+    expect(workspace).toContain('This acknowledgment does not remove their blockers or send to them.');
+  });
+
+  it('has no dead post-send next actions', () => {
+    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
+    // /mailbox is not a route anywhere in this app; linking to it was a dead end.
+    expect(workspace).not.toContain('href="/mailbox"');
+    // Next actions navigate in-app instead of full-reloading the SPA.
+    expect(workspace).not.toMatch(/<a className="uui-button" href=/);
+    expect(workspace).toContain("navigate('/engagement/outreach')");
+    expect(workspace).toContain("navigate('/engagement/meetings?compose=meeting')");
+    // ...and the composer deep link is actually honoured by canonical Engagement.
+    const engagement = source('src/pages/engagement/EngagementPage.tsx');
+    expect(engagement).toContain("searchParams.get('compose') !== 'meeting'");
+  });
+
+  it('gives every shared production window a loading and error state', () => {
+    const dialog = source('src/pages/engagement/meetings/EngagementDialog.tsx');
+    // The primitive owns these so no caller can silently omit them.
+    expect(dialog).toContain('role="alert"');
+    expect(dialog).toContain('role="status"');
+    expect(dialog).toContain('aria-busy');
+    expect(dialog).toContain('aria-modal="true"');
+    // Closing is refused while a mutation is in flight or edits are unsaved.
+    expect(dialog).toContain('if (state.busy) return;');
+    expect(dialog).toContain('window.confirm');
+
+    // Each promoted window feeds real mutation state into those slots.
+    for (const file of [
+      'src/pages/engagement/meetings/MeetingDetailPanel.tsx',
+      'src/pages/engagement/meetings/PrepTab.tsx',
+      'src/pages/engagement/meetings/NotesTab.tsx',
+      'src/pages/engagement/meetings/DebriefTab.tsx',
+    ]) {
+      expect(source(file)).toMatch(/error=\{[a-zA-Z]+\.isError/);
+    }
+  });
+
+  it('keeps the dialog shell responsive and motion-safe', () => {
+    const css = source('src/pages/engagement/meetings/engagement-dialog.css');
+    // Bottom sheet on small viewports.
+    expect(css).toContain('@media (max-width: 760px)');
+    expect(css).toContain('align-items: end');
+    expect(css).toContain('env(safe-area-inset-bottom)');
+    expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+  });
 });
