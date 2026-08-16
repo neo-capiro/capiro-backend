@@ -15,7 +15,11 @@ function positiveInt(raw: string | undefined, fallback: number, min: number, max
 }
 
 function effort(raw: string | undefined, fallback: MeriV3ReasoningEffort): MeriV3ReasoningEffort {
-  return raw === 'low' || raw === 'medium' || raw === 'high' || raw === 'xhigh' || raw === 'max'
+  return raw === 'low' ||
+    raw === 'medium' ||
+    raw === 'high' ||
+    raw === 'xhigh' ||
+    raw === 'max'
     ? raw
     : fallback;
 }
@@ -26,7 +30,6 @@ export function normalizeMeriV3ReasoningMode(value: unknown): MeriV3ReasoningMod
     : 'standard';
 }
 
-
 /**
  * Translate stable Capiro UX modes into the current OpenAI reasoning family,
  * effort, output ceiling and bounded tool-loop budget.
@@ -34,6 +37,8 @@ export function normalizeMeriV3ReasoningMode(value: unknown): MeriV3ReasoningMod
  * - Fast defaults to GPT-5.6 Luna (cost-sensitive / high-volume tier).
  * - Standard defaults to GPT-5.6 Terra (balanced intelligence and cost).
  * - Deep and Max default to GPT-5.6 Sol (`gpt-5.6` alias).
+ * - Max requests the provider's `max` effort. OpenAiResponsesClient degrades
+ *   only when the selected/BYOK model rejects that exact effort.
  *
  * Model ids remain environment configuration rather than browser input. A
  * tenant's explicit BYOK model override is applied later by

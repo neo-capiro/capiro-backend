@@ -7,7 +7,7 @@ import {
   type MeriToolCoverageObservation,
 } from './meri-retrieval-coverage.js';
 import {
-  MERI_RETRIEVAL_RECIPE_TOOLS,
+  MERI_RUNTIME_RETRIEVAL_RECIPE_TOOLS,
   type MeriRetrievalPlan,
 } from './meri-retrieval-plan.js';
 
@@ -45,7 +45,7 @@ interface MeriRetrievalRunState {
   toolTraces: MeriRetrievalToolTrace[];
 }
 
-const RECIPE_TOOLS = new Set<string>(MERI_RETRIEVAL_RECIPE_TOOLS);
+const RECIPE_TOOLS = new Set<string>(MERI_RUNTIME_RETRIEVAL_RECIPE_TOOLS);
 const MAX_MAILBOX_STALENESS_MS = 48 * 60 * 60 * 1000;
 
 /**

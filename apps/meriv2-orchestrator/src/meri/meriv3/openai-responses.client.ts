@@ -1,12 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import type {
+  MeriV3ReasoningEffort,
   MeriV3ReasoningProfile,
   OpenAiResponsesFunctionCall,
   OpenAiResponsesFunctionTool,
   OpenAiResponsesOutputItem,
   OpenAiResponsesResult,
+  OpenAiResponsesToolChoice,
 } from './meriv3.types.js';
 
 const RESPONSES_URL = 'https://api.openai.com/v1/responses';
@@ -20,7 +23,7 @@ interface CompleteParams {
   instructions: string;
   input: Array<Record<string, unknown>>;
   tools: OpenAiResponsesFunctionTool[];
-  toolChoice?: 'auto' | 'none';
+  toolChoice?: OpenAiResponsesToolChoice;
   timeoutMs?: number;
   signal?: AbortSignal;
   safetyIdentifier?: string;
@@ -47,6 +50,19 @@ export function parseOpenAiResponsesUsage(body: RawResponsesBody): ProviderUsage
     cacheReadTokens: Number(body.usage?.input_tokens_details?.cached_tokens ?? 0) || 0,
     cacheCreationTokens: 0,
   };
+}
+
+function combinedUsage(...values: ProviderUsage[]): ProviderUsage {
+  return values.reduce<ProviderUsage>(
+    (total, value) => ({
+      inputTokens: total.inputTokens + value.inputTokens,
+      outputTokens: total.outputTokens + value.outputTokens,
+      cacheReadTokens: (total.cacheReadTokens ?? 0) + (value.cacheReadTokens ?? 0),
+      cacheCreationTokens:
+        (total.cacheCreationTokens ?? 0) + (value.cacheCreationTokens ?? 0),
+    }),
+    { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0 },
+  );
 }
 
 export function extractResponsesOutputText(output: OpenAiResponsesOutputItem[]): string {
@@ -114,15 +130,36 @@ function sanitizedProviderError(status: number, raw: string): Error {
 }
 
 // Some model tiers intermittently reject the `reasoning` parameter outright
-// ("Unsupported parameter: 'reasoning.effort' is not supported with this
-// model") depending on which backend serves a given request — the same
-// model has been observed succeeding with it minutes apart. Detect that
+// depending on which backend or BYOK model serves a request. Detect that
 // specific rejection so a turn can retry without the parameter rather than
-// assume any given model can never accept it.
+// assume any configured model supports it.
 function isReasoningEffortUnsupported(status: number | undefined, error: unknown): boolean {
   if (status !== 400) return false;
   const message = error instanceof Error ? error.message : String(error);
-  return /unsupported parameter.*reasoning\.effort/i.test(message);
+  return /unsupported parameter.*reasoning\.effort|reasoning\.effort.*unsupported parameter/i.test(
+    message,
+  );
+}
+
+function isNamedEffortUnsupported(
+  status: number | undefined,
+  error: unknown,
+  effort: 'max' | 'xhigh',
+): boolean {
+  if (status !== 400) return false;
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    new RegExp(`(?:value|effort|reasoning)[^\\n]{0,100}\\b${effort}\\b`, 'i').test(message) &&
+    /unsupported|invalid|not supported|not available|allowed values/i.test(message)
+  );
+}
+
+function criticProfile(profile: MeriV3ReasoningProfile): MeriV3ReasoningProfile {
+  return {
+    ...profile,
+    effort: profile.effort === 'max' ? 'xhigh' : profile.effort,
+    maxOutputTokens: Math.min(profile.maxOutputTokens, 8_192),
+  };
 }
 
 @Injectable()
@@ -130,6 +167,7 @@ export class OpenAiResponsesClient {
   private readonly logger = new Logger(OpenAiResponsesClient.name);
 
   async complete(params: CompleteParams): Promise<OpenAiResponsesResult> {
+    const requestStartedAt = Date.now();
     const requestCredential = RequestCredentialsStore.get()?.aiProvider;
     const requestOpenAi = requestCredential?.provider === 'openai' ? requestCredential : undefined;
     // apps/api forwards either the tenant's OpenAI key OR Capiro's global key on
@@ -145,8 +183,24 @@ export class OpenAiResponsesClient {
     const model =
       usedTenantKey && requestOpenAi?.modelOverridden ? requestOpenAi.model : params.profile.model;
 
+    const forcedTool = params.tools.length
+      ? MeriV3ResearchRuntimeStore.consumeForcedFirstTool()
+      : null;
+    const forcedToolExists = forcedTool
+      ? params.tools.some((tool) => tool.name === forcedTool)
+      : false;
+    if (forcedTool && !forcedToolExists) {
+      this.logger.error(
+        `Research Director requested unavailable first tool ${forcedTool}; falling back to the supplied tool choice.`,
+      );
+    }
+    const effectiveToolChoice: OpenAiResponsesToolChoice = forcedToolExists
+      ? { type: 'function', name: forcedTool! }
+      : params.toolChoice ?? 'auto';
+
     let lastError: unknown;
     let reasoningUnsupported = false;
+    let activeReasoningEffort: MeriV3ReasoningEffort = params.profile.effort;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
       if (params.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       const controller = new AbortController();
@@ -159,7 +213,7 @@ export class OpenAiResponsesClient {
         const toolFields = params.tools.length
           ? {
               tools: params.tools,
-              tool_choice: params.toolChoice ?? 'auto',
+              tool_choice: effectiveToolChoice,
               parallel_tool_calls: true,
             }
           : {};
@@ -179,7 +233,7 @@ export class OpenAiResponsesClient {
               ? {}
               : {
                   reasoning: {
-                    effort: params.profile.effort,
+                    effort: activeReasoningEffort,
                     // Request a provider-authored bounded summary for continuity
                     // in the current turn, but never emit or persist reasoning
                     // items.
@@ -201,7 +255,7 @@ export class OpenAiResponsesClient {
           typeof body.output_text === 'string'
             ? body.output_text.trim()
             : extractResponsesOutputText(output);
-        return {
+        const draft: OpenAiResponsesResult = {
           id: String(body.id ?? ''),
           status: String(body.status ?? 'completed'),
           output,
@@ -212,11 +266,110 @@ export class OpenAiResponsesClient {
           usedTenantKey,
           incompleteReason: body.incomplete_details?.reason ?? null,
         };
+
+        const researchFinalization = draft.functionCalls.length
+          ? null
+          : MeriV3ResearchRuntimeStore.beginFinalization();
+        if (!researchFinalization) return draft;
+
+        const totalBudgetMs = params.timeoutMs ?? params.profile.turnBudgetMs;
+        const remainingBudgetMs = totalBudgetMs - (Date.now() - requestStartedAt);
+        if (remainingBudgetMs < 30_000 || params.signal?.aborted) {
+          this.logger.warn(
+            `Research Director finalization skipped because only ${Math.max(0, remainingBudgetMs)}ms remained.`,
+          );
+          return draft;
+        }
+
+        const criticBudgetMs = Math.max(
+          15_000,
+          Math.min(90_000, Math.floor(remainingBudgetMs * 0.3)),
+        );
+        const synthesisBudgetMs = Math.max(15_000, remainingBudgetMs - criticBudgetMs);
+        const evidenceInput: Array<Record<string, unknown>> = [
+          ...params.input,
+          ...(draft.output as Array<Record<string, unknown>>),
+        ];
+
+        try {
+          const critic = await this.complete({
+            profile: criticProfile(params.profile),
+            instructions: `${params.instructions}\n\n${researchFinalization.criticInstructions}`,
+            input: evidenceInput,
+            tools: [],
+            toolChoice: 'none',
+            timeoutMs: criticBudgetMs,
+            ...(params.signal ? { signal: params.signal } : {}),
+            ...(params.safetyIdentifier
+              ? { safetyIdentifier: params.safetyIdentifier }
+              : {}),
+          });
+          const synthesisInput: Array<Record<string, unknown>> = [
+            ...evidenceInput,
+            {
+              role: 'assistant',
+              content:
+                critic.outputText ||
+                '{"missingSections":[],"unsupportedClaims":[],"contradictions":[],"overlookedLanes":[],"requiredCaveats":[],"synthesisPriorities":[]}',
+            },
+          ];
+          const synthesis = await this.complete({
+            profile: params.profile,
+            instructions: `${params.instructions}\n\n${researchFinalization.synthesisInstructions}`,
+            input: synthesisInput,
+            tools: [],
+            toolChoice: 'none',
+            timeoutMs: synthesisBudgetMs,
+            ...(params.signal ? { signal: params.signal } : {}),
+            ...(params.safetyIdentifier
+              ? { safetyIdentifier: params.safetyIdentifier }
+              : {}),
+          });
+          return {
+            ...synthesis,
+            usage: combinedUsage(draft.usage, critic.usage, synthesis.usage),
+            usedTenantKey:
+              draft.usedTenantKey || critic.usedTenantKey || synthesis.usedTenantKey,
+          };
+        } catch (finalizationError) {
+          this.logger.warn(
+            `Research Director critic/synthesis failed; releasing the grounded draft instead: ${
+              finalizationError instanceof Error
+                ? finalizationError.message.slice(0, 240)
+                : String(finalizationError).slice(0, 240)
+            }`,
+          );
+          return draft;
+        }
       } catch (error) {
         lastError = error;
         if (params.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
         if (error instanceof DOMException && error.name === 'AbortError') {
           throw new Error(`OpenAI Responses request timed out after ${timeoutMs}ms`);
+        }
+        if (
+          !reasoningUnsupported &&
+          activeReasoningEffort === 'max' &&
+          isNamedEffortUnsupported(status, error, 'max')
+        ) {
+          activeReasoningEffort = 'xhigh';
+          this.logger.warn(
+            `MeriV3 model ${model} rejected max reasoning on this request; retrying the same turn with xhigh effort.`,
+          );
+          attempt -= 1;
+          continue;
+        }
+        if (
+          !reasoningUnsupported &&
+          activeReasoningEffort === 'xhigh' &&
+          isNamedEffortUnsupported(status, error, 'xhigh')
+        ) {
+          activeReasoningEffort = 'high';
+          this.logger.warn(
+            `MeriV3 model ${model} rejected xhigh reasoning on this request; retrying the same turn with high effort.`,
+          );
+          attempt -= 1;
+          continue;
         }
         if (!reasoningUnsupported && isReasoningEffortUnsupported(status, error)) {
           reasoningUnsupported = true;

@@ -9,6 +9,13 @@ import {
   type ChatArtifact,
   type ChatStep,
 } from '../chat/chat-prompt.js';
+import {
+  buildMeriResearchDirectorPlan,
+  elevateMeriResearchReasoningMode,
+  meriResearchCriticInstructions,
+  meriResearchDirectorPrompt,
+  meriResearchSynthesisInstructions,
+} from '../retrieval/meri-research-director.js';
 import { appendMeriCoverageDisclosure } from '../retrieval/meri-retrieval-coverage.js';
 import { MeriRetrievalCoordinator } from '../retrieval/meri-retrieval-coordinator.js';
 import {
@@ -30,6 +37,7 @@ import {
   isMeriRetrievalRecipeTool,
   MERI_RETRIEVAL_TOOL_SCHEMAS,
 } from './meriv3-retrieval-recipes.js';
+import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
 import { OpenAiResponsesClient } from './openai-responses.client.js';
 import type {
   MeriV3ChatInput,
@@ -67,6 +75,7 @@ const RECIPE_LABELS: Record<string, string> = {
   query_client_changes: 'Scanning client changes',
   query_portfolio_changes: 'Scanning portfolio changes',
   research_external_company: 'Researching company',
+  research_federal_market_strategy: 'Building comprehensive federal strategy',
   query_portfolio_overlap: 'Comparing portfolio overlap',
 };
 
@@ -275,10 +284,18 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
       ctx,
       priorUserTargetHint(dto),
     );
+    const comprehensiveResearch =
+      retrievalPlan.recipeTool === 'research_federal_market_strategy';
+    const researchDirectorPlan = comprehensiveResearch
+      ? buildMeriResearchDirectorPlan(request, retrievalPlan.targetHint)
+      : null;
     const retrievalSteering = [
       meriRetrievalIntentPrompt(retrievalIntent, selectedClientId),
       meriRetrievalPlanPrompt(retrievalPlan),
-    ].join('\n\n');
+      researchDirectorPlan ? meriResearchDirectorPrompt(researchDirectorPlan) : null,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
 
     const includeFocusedClient = retrievalIntent.includeFocusedClientContext;
     const scopedDto: MeriV3ChatInput = includeFocusedClient
@@ -296,31 +313,48 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
           clientSteering: undefined,
           contextPacket: undefined,
         };
+    const effectiveReasoningMode = elevateMeriResearchReasoningMode(
+      scopedDto.reasoningMode,
+      comprehensiveResearch,
+    );
 
     return this.retrieval.run(retrievalPlan, async () => {
       const originalOnEvent = opts.onEvent;
       let textEventSeen = false;
-      const result = await super.run(
-        scopedCtx,
-        {
-          ...scopedDto,
-          skillAddendum: [dto.skillAddendum, retrievalSteering]
-            .filter(Boolean)
-            .join('\n\n'),
-        },
-        {
-          ...opts,
-          onEvent: originalOnEvent
-            ? (event) => {
-                if (event.type === 'text') {
-                  textEventSeen = true;
-                  return;
+      const runAssistant = () =>
+        super.run(
+          scopedCtx,
+          {
+            ...scopedDto,
+            reasoningMode: effectiveReasoningMode,
+            skillAddendum: [dto.skillAddendum, retrievalSteering]
+              .filter(Boolean)
+              .join('\n\n'),
+          },
+          {
+            ...opts,
+            onEvent: originalOnEvent
+              ? (event) => {
+                  if (event.type === 'text') {
+                    textEventSeen = true;
+                    return;
+                  }
+                  originalOnEvent(event);
                 }
-                originalOnEvent(event);
-              }
-            : undefined,
-        },
-      );
+              : undefined,
+          },
+        );
+
+      const result = researchDirectorPlan
+        ? await MeriV3ResearchRuntimeStore.run(
+            {
+              forcedFirstTool: 'research_federal_market_strategy',
+              criticInstructions: meriResearchCriticInstructions(researchDirectorPlan),
+              synthesisInstructions: meriResearchSynthesisInstructions(researchDirectorPlan),
+            },
+            runAssistant,
+          )
+        : await runAssistant();
       const coverage = this.retrieval.coverage();
       const trace = this.retrieval.trace();
       const reply = appendMeriCoverageDisclosure(result.reply, retrievalPlan, coverage);
@@ -334,6 +368,8 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
           queryClass: retrievalPlan.queryClass,
           subjectScope: retrievalPlan.subjectScope,
           recipeTool: retrievalPlan.recipeTool,
+          researchDirector: comprehensiveResearch,
+          effectiveReasoningMode,
           complete: coverage.complete,
           missingDomains: coverage.missingDomains,
           partialDomains: coverage.partialDomains,

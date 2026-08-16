@@ -15,7 +15,7 @@ describe('MeriV3 reasoning profiles', () => {
     });
   });
 
-  test('maps the four product modes onto the current GPT-5.6 family', () => {
+  test('maps the four product modes onto distinct supported reasoning tiers', () => {
     const profiles = listMeriV3ReasoningProfiles({});
     expect(profiles.map((profile) => profile.mode)).toEqual(['fast', 'standard', 'deep', 'max']);
     expect(profiles.map(({ model, effort }) => ({ model, effort }))).toEqual([
@@ -52,13 +52,18 @@ describe('MeriV3 reasoning profiles', () => {
     expect(profile.turnBudgetMs).toBe(30_000);
   });
 
-  test('accepts the current max effort when the configured model supports it', () => {
+  test('uses provider max for Max and accepts an explicit xhigh compatibility override', () => {
     expect(
       resolveMeriV3ReasoningProfile('max', {
         MERIV3_MAX_MODEL: 'gpt-5.6-sol',
-        MERIV3_MAX_REASONING_EFFORT: 'max',
       }),
     ).toMatchObject({ model: 'gpt-5.6-sol', effort: 'max' });
+
+    expect(
+      resolveMeriV3ReasoningProfile('max', {
+        MERIV3_MAX_REASONING_EFFORT: 'xhigh',
+      }).effort,
+    ).toBe('xhigh');
   });
 
   test('does not silently accept unsupported product labels or malformed numbers', () => {
