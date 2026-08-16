@@ -55,6 +55,18 @@ describe('Engagement UI closeout contract', () => {
     expect(workspace).toContain('14 deterministic checks');
   });
 
+  it('keeps the real production states after removing the prototype state controls', () => {
+    const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
+    const route = source('src/pages/engagement/outreach/v3/OutreachV3CompleteRoute.tsx');
+    // Deleting ?state=/forcedState must not delete the states themselves —
+    // each is now driven by real controller/props rather than a debug switch.
+    expect(workspace).toContain('controller.isBootstrapping'); // loading
+    expect(workspace).toContain('controller.reasoningUnavailable'); // Meri/model outage
+    expect(workspace).toContain('uui-engagement-error'); // session error
+    expect(workspace).toContain('Generation recovery'); // resumable generation
+    expect(route).toContain('connectionWarning'); // mailbox disconnected
+  });
+
   it('keeps post-send learning reply-backed and governed', () => {
     const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
     expect(workspace).toContain('Select a real inbound reply');
