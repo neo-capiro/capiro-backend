@@ -1,4 +1,5 @@
 import type { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import { isVNextSurface } from '../env.js';
 import { readEngagementPreviewMode } from './engagement-api-preview.js';
 
 export const ENGAGEMENT_PREVIEW_ROUTE_MISS = 'ENGAGEMENT_PREVIEW_ROUTE_MISS';
@@ -95,10 +96,19 @@ export function assertEngagementPreviewResponseIdentity(response: AxiosResponse)
  * Prevent an old-mode response from becoming new-mode React Query data. This is
  * independent of query cancellation: many existing queryFns do not consume the
  * AbortSignal, so the transport may still complete after a toggle.
+ *
+ * `current` only tracks the manual sessionStorage toggle, which is the one
+ * thing that can actually change between dispatch and response. On the vNext
+ * surface, requests are also dispatched as 'preview' automatically (see
+ * `engagementPreviewHeader`'s `isVNextSurface` branch) — but `isVNextSurface`
+ * is a frozen, module-load-time constant that can never itself go stale, so a
+ * 'preview'-dispatched request explained by it is never a real staleness bug
+ * and must not be discarded.
  */
 export function assertEngagementRequestModeCurrent(response: AxiosResponse): void {
   const dispatched = engagementRequestMode(response.config);
   if (!dispatched) return;
+  if (dispatched === 'preview' && isVNextSurface) return;
   const current: EngagementRequestMode =
     readEngagementPreviewMode() === 'v3' ? 'preview' : 'main';
   if (dispatched !== current) throw new EngagementPreviewStaleResponseError();
