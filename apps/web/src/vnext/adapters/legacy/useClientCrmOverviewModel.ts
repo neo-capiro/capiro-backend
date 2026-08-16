@@ -189,13 +189,13 @@ function withinDays(iso: string | null, days: number): boolean {
 }
 
 /** Most recent successful fetch among the given queries, or null if none have settled yet. */
-function latestDataUpdatedAt(...queries: Array<{ dataUpdatedAt: number }>): number | null {
+export function latestDataUpdatedAt(...queries: Array<{ dataUpdatedAt: number }>): number | null {
   const timestamps = queries.map((q) => q.dataUpdatedAt).filter((t) => t > 0);
   return timestamps.length ? Math.max(...timestamps) : null;
 }
 
 /** "3 minutes ago" / "2 hours ago" / "Aug 16" — matches this file's `shortWhen` precedent. */
-function relativeRefresh(ms: number): string {
+export function relativeRefresh(ms: number): string {
   const minutes = Math.max(0, Math.round((Date.now() - ms) / 60_000));
   if (minutes < 1) return 'moments ago';
   if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;

@@ -25,6 +25,7 @@ import {
   GRANTS_GOV_APPLICANT_TYPES,
 } from '@capiro/shared';
 import type { Client, ClientFormSubmit, ClientFormValues, ClientPayload } from './clientTypes.js';
+import { SET_ASIDE_CERTIFICATION_OPTIONS } from './client-registrations.js';
 import { useApi } from '../../lib/use-api.js';
 
 interface ClientFormModalProps {
@@ -528,20 +529,9 @@ function GovRegistrationStep({
             allowClear
             optionFilterProp="label"
             placeholder="Select verified certifications"
-            options={[
-              { value: 'SBA', label: 'Total small business set-aside eligible' },
-              { value: 'SBP', label: 'Partial small business set-aside eligible' },
-              { value: '8A', label: '8(a)' },
-              { value: '8AN', label: '8(a) sole source' },
-              { value: 'SDVOSBC', label: 'Service-disabled veteran-owned small business' },
-              { value: 'SDVOSBS', label: 'SDVOSB sole source' },
-              { value: 'WOSB', label: 'Women-owned small business' },
-              { value: 'WOSBSS', label: 'WOSB sole source' },
-              { value: 'EDWOSB', label: 'Economically disadvantaged WOSB' },
-              { value: 'EDWOSBSS', label: 'EDWOSB sole source' },
-              { value: 'HZC', label: 'HUBZone' },
-              { value: 'HZS', label: 'HUBZone sole source' },
-            ]}
+            // Shared with the read-side Registrations card (client-registrations.ts)
+            // so the picked label and the rendered label are one list.
+            options={[...SET_ASIDE_CERTIFICATION_OPTIONS]}
           />
         </Form.Item>
       </Col>

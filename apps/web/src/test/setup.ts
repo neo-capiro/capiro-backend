@@ -17,6 +17,17 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
   });
 }
 
+// JSDOM implements neither half of the object-URL API (it has no way to hand
+// out a real blob: URL). Every download in this app — CSV, PDF, .ics — builds
+// a Blob, createObjectURL's it, clicks a synthetic <a>, then revokes it, so
+// testing any of them throws `createObjectURL does not exist` without these.
+// Defined as real (no-op) methods rather than left absent so `vi.spyOn` can
+// replace them per test.
+if (typeof URL !== 'undefined' && !URL.createObjectURL) {
+  URL.createObjectURL = () => 'blob:jsdom';
+  URL.revokeObjectURL = () => undefined;
+}
+
 // JSDOM has no layout engine, so it doesn't implement ResizeObserver either.
 // DistrictNexusMap (and anything else that measures its own box to redraw)
 // observes its container on mount, so rendering it throws `ResizeObserver is

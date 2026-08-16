@@ -6,8 +6,11 @@ const TRUE_VALUES = new Set(['1', 'true', 'yes', 'on', 'enabled']);
 @Injectable()
 export class MailboxKnowledgeFlagsService {
   enabled(): boolean {
-    return readBooleanFlag('KNOWLEDGE_PLANE_ENABLED') &&
-      readBooleanFlag('MAILBOX_KNOWLEDGE_INGEST_ENABLED');
+    return (
+      readBooleanFlag('KNOWLEDGE_PLANE_ENABLED') &&
+      (readBooleanFlag('MAILBOX_KNOWLEDGE_ENABLED') ||
+        readBooleanFlag('MAILBOX_KNOWLEDGE_INGEST_ENABLED'))
+    );
   }
 
   batchSize(): number {
@@ -16,6 +19,22 @@ export class MailboxKnowledgeFlagsService {
 
   maxAttempts(): number {
     return readBoundedInteger('MAILBOX_KNOWLEDGE_MAX_ATTEMPTS', 8, 1, 25);
+  }
+
+  /**
+   * Phase 6 is separately armed so deploying extraction code cannot itself
+   * start sending private mailbox text to an AI provider.
+   */
+  extractionEnabled(): boolean {
+    return this.enabled() && readBooleanFlag('MAILBOX_KNOWLEDGE_EXTRACTION_ENABLED');
+  }
+
+  extractionBatchSize(): number {
+    return readBoundedInteger('MAILBOX_KNOWLEDGE_EXTRACTION_BATCH_SIZE', 5, 1, 50);
+  }
+
+  extractionMaxAttempts(): number {
+    return readBoundedInteger('MAILBOX_KNOWLEDGE_EXTRACTION_MAX_ATTEMPTS', 6, 1, 25);
   }
 }
 

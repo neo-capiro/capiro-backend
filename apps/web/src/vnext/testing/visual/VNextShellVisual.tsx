@@ -154,6 +154,17 @@ export function VNextShellVisual({
               onNavigate={() => undefined}
               onFillWithMeri={() => undefined}
               onDataHealth={() => undefined}
+              // Harness-only values so the captured frame still carries the
+              // breadcrumb freshness, the gap chip, the focus "Add" affordance
+              // and the archive menu item that the Figma frame shows. In the
+              // product these come from the real source reads and the viewer's
+              // role (ClientCrmPage); this file is the offline capture harness
+              // and is never mounted as product code.
+              refreshedLabel="2 hours ago"
+              profileGapCount={1}
+              canEditFocus
+              canArchive
+              onArchive={() => undefined}
             >
               {crmTab === 'overview' ? (
                 <ClientCrmOverviewProto client={CLIENT_CRM_VISUAL_CLIENT} />

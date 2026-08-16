@@ -36,6 +36,9 @@ import { KnowledgeEvidenceService } from './evidence/knowledge-evidence.service.
 import { KnowledgeEventRepository } from './events/knowledge-event.repository.js';
 import { KnowledgeEventService } from './events/knowledge-event.service.js';
 import { MailboxKnowledgeConsumer } from './mailbox/mailbox-knowledge.consumer.js';
+import { MailboxKnowledgeExtractionConsumer } from './mailbox/mailbox-knowledge-extraction.consumer.js';
+import { MailboxKnowledgeExtractionRepository } from './mailbox/mailbox-knowledge-extraction.repository.js';
+import { MailboxKnowledgeExtractorService } from './mailbox/mailbox-knowledge-extractor.service.js';
 import { MailboxKnowledgeFlagsService } from './mailbox/mailbox-knowledge-flags.service.js';
 import { MailboxKnowledgeRepository } from './mailbox/mailbox-knowledge.repository.js';
 import { MailboxNormalizerService } from './mailbox/mailbox-normalizer.service.js';
@@ -107,6 +110,9 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     MailboxRelevanceService,
     MailboxThreadService,
     MailboxKnowledgeConsumer,
+    MailboxKnowledgeExtractionRepository,
+    MailboxKnowledgeExtractorService,
+    MailboxKnowledgeExtractionConsumer,
   ],
   exports: [
     KnowledgeEventService,
@@ -125,6 +131,7 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     MailboxRelevanceService,
     MailboxThreadService,
     MailboxKnowledgeConsumer,
+    MailboxKnowledgeExtractionConsumer,
   ],
 })
 export class KnowledgeModule {}

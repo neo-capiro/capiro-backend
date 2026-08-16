@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClientCrmCapabilitiesProto } from './CapabilitiesTab.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
@@ -27,11 +28,13 @@ const client: Client = {
   updatedAt: '2026-01-15T00:00:00.000Z',
 };
 
-function renderCapabilities(onFillWithMeri?: () => void) {
+function renderCapabilities(onFillWithMeri?: () => void, clientOverride?: Client) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <ClientCrmCapabilitiesProto client={client} onFillWithMeri={onFillWithMeri} />
+      <MemoryRouter>
+        <ClientCrmCapabilitiesProto client={clientOverride ?? client} onFillWithMeri={onFillWithMeri} />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -61,5 +64,50 @@ describe('ClientCrmCapabilitiesProto', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Fill with Meri' }));
 
     expect(onFillWithMeri).toHaveBeenCalledTimes(1);
+  });
+
+  /* ── §7.2 Registrations & codes (wire-audit "3 Compose extend" item 1) ──── */
+
+  it('renders registrations from the real client record, not the CAP_CODES fixture', async () => {
+    getMock.mockResolvedValue({ data: [] });
+    // Deliberately none of these values appear in portfolio-fixtures.ts — a
+    // test that reuses a fixture string passes even when nothing is wired.
+    renderCapabilities(undefined, {
+      ...client,
+      uei: 'WQ7RSTUV1234',
+      cageCode: '5K2P1',
+      pscCodes: ['5865', 'R425'],
+      setAsideCertifications: ['HZC'],
+      intakeData: {
+        primaryNaics: '541512 · Computer Systems Design Services',
+        samStatus: 'Active',
+        samExpirationDate: '2027-03-19',
+        sbClassification: { sb: true, wosb: true },
+      },
+    });
+
+    expect(await screen.findByText('WQ7RSTUV1234')).toBeInTheDocument();
+    expect(screen.getByText('5K2P1')).toBeInTheDocument();
+    expect(screen.getByText('5865, R425')).toBeInTheDocument();
+    expect(screen.getByText('541512 · Computer Systems Design Services')).toBeInTheDocument();
+    // SAM codes render as their English labels, from the same option list the
+    // Company Info wizard writes them with.
+    expect(screen.getByText('HUBZone')).toBeInTheDocument();
+    expect(screen.getByText('Small Business · WOSB')).toBeInTheDocument();
+    // The header stamp is the recorded SAM status, not a hardcoded date.
+    expect(screen.getByText(/SAM\.gov · Active · expires/)).toBeInTheDocument();
+
+    // The fixture's own UEI must not appear anywhere.
+    expect(screen.queryByText('ZQ4M8TR2LKD7')).not.toBeInTheDocument();
+    expect(screen.queryByText('SAM.gov · verified Aug 04')).not.toBeInTheDocument();
+  });
+
+  it('shows a real empty state when the client has no registrations recorded', async () => {
+    getMock.mockResolvedValue({ data: [] });
+    renderCapabilities();
+
+    expect(await screen.findByText('No registrations or codes recorded for this client yet.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit client profile' })).toBeInTheDocument();
+    expect(screen.queryByText('ZQ4M8TR2LKD7')).not.toBeInTheDocument();
   });
 });
