@@ -88,34 +88,33 @@
   color: var(--st-warning-fg);
 }
 
-/* metadata strip */
-.capiro-vnext-root .capiro-strategies .st-ctxdoc__meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
-}
-.capiro-vnext-root .capiro-strategies .st-ctxdoc__meta .capiro-badge { text-transform: capitalize; }
+/* meta-strip chips — white pill, uppercase label + 13px/600 value (design
+ * handoff "View: Document viewer" meta-strip spec). Link chips (supersession)
+ * keep a single text node instead of the label/value split. */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__chip {
   display: inline-flex;
   align-items: center;
-  height: 24px;
+  gap: 6px;
+  height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  background: var(--st-gray-50);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--st-white);
   box-shadow: inset 0 0 0 1px var(--st-gray-200);
-  color: var(--st-gray-700);
+  color: var(--st-gray-900);
   white-space: nowrap;
   text-decoration: none;
 }
-.capiro-vnext-root .capiro-strategies .st-ctxdoc__chip.is-stale {
-  background: var(--st-warning-bg);
-  box-shadow: inset 0 0 0 1px var(--st-warning-ring);
-  color: var(--st-warning-fg);
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__chip-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--st-gray-500);
 }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__chip-value { color: inherit; }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__chip.is-stale .st-ctxdoc__chip-value { color: var(--st-warning-fg); }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__chip.is-link {
   color: var(--st-accent);
   box-shadow: inset 0 0 0 1px var(--st-accent-tint-border);
@@ -155,11 +154,30 @@
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__note a { color: inherit; font-weight: 600; }
 
+/* ---- meta strip (design handoff "View: Document viewer" section) --------- */
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__metastrip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 28px;
+  background: var(--st-gray-50);
+  border-top: 1px solid var(--st-gray-200);
+  border-bottom: 1px solid var(--st-gray-200);
+}
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__metastrip .capiro-badge { text-transform: capitalize; }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__metastrip-spacer { flex: 1; }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__metastrip-version {
+  font-size: 13px;
+  color: var(--st-gray-600);
+  white-space: nowrap;
+}
+
 /* ---- main: viewer + rail ------------------------------------------------- */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__main {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 360px;
   gap: 18px;
   padding: 20px 28px 48px;
   align-items: start;
@@ -181,14 +199,14 @@
   display: grid;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__lines {
-  padding: 16px 0 24px;
-  font-size: 12px;
-  line-height: 1.65;
+  padding: 14px 0;
+  font-size: 13px;
+  line-height: 22px;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__line {
   display: flex;
   gap: 12px;
-  padding: 0 14px 0 0;
+  padding: 0 20px 0 0;
   border-left: 3px solid transparent;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__line.is-hit {
@@ -196,7 +214,7 @@
   border-left-color: var(--st-accent);
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__line-no {
-  width: 40px;
+  width: 56px;
   flex-shrink: 0;
   text-align: right;
   color: var(--st-gray-400);

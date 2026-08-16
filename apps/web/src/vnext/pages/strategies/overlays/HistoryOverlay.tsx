@@ -96,7 +96,7 @@ export function HistoryOverlay() {
       title="Version history"
       subtitle="Every edit is snapshotted. Restoring creates a new version and never deletes steps or staged work."
       closeTo={`/strategies/${strategyId ?? ''}`}
-      size="lg"
+      maxWidth={1080}
       headerMeta={
         items[0] ? (
           <span className="st-pill st-pill--info">Current · {relativeTime(items[0].createdAt)}</span>

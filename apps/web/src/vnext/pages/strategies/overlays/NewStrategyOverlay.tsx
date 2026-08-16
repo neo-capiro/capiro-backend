@@ -110,7 +110,7 @@ export function NewStrategyOverlay() {
       title="What are you trying to achieve?"
       closeTo="/strategies"
       dirty={dirty && !busy}
-      size="lg"
+      maxWidth={1000}
       primaryLabel={startingPoint === 'draft' ? 'Create strategy & draft' : 'Create strategy'}
       onPrimary={submit}
       primaryDisabled={!requiredComplete || busy}

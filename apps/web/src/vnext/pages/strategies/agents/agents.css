@@ -171,6 +171,20 @@
   padding: 1px 6px;
   margin-right: 4px;
 }
+/* Operation KIND pill — the node kind an op creates/updates (design handoff
+   "Step-kind table": Milestone/purple, Gate/gray, Action/brand, Risk/error).
+   Reuses the shared .st-pill tone classes; only the Decision shade (kept
+   distinct per strategies-tokens.css) needs a local variant here. */
+.capiro-vnext-root .capiro-strategies .st-agents__op-kind {
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__op-kind--decision {
+  background: var(--st-accent-tint);
+  box-shadow: inset 0 0 0 1px var(--st-accent-tint-border);
+  color: var(--st-kind-decision);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__op-kind--decision::before { background: var(--st-kind-decision); }
 .capiro-vnext-root .capiro-strategies .st-agents__op-moved {
   color: var(--st-warning-fg);
 }
@@ -193,49 +207,85 @@
   font-weight: 600;
 }
 
-/* ---- selected-operations rail (§7.8) --------------------------------------- */
-.capiro-vnext-root .capiro-strategies .st-agents__rail {
-  margin-top: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/* ---- awaiting-review change-set + review panel (design handoff, "Review
+   queue tab" — 1fr/340px) ----------------------------------------------------
+   Two SIBLING `.st-card`s per change-set: the change-set card (op list) and a
+   dedicated review panel (selected count, breakdown, actions). Narrows to one
+   column at the project's canonical tablet boundary (1179px — see the
+   responsive note at the bottom of strategies.css), same as every other
+   1fr/340px-ish split in this module. */
+.capiro-vnext-root .capiro-strategies .st-agents__cs-grid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 16px;
-  flex-wrap: wrap;
-  background: var(--st-gray-50);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
-  border-radius: 10px;
-  padding: 12px 14px;
+  align-items: start;
 }
-.capiro-vnext-root .capiro-strategies .st-agents__rail-meta {
+.capiro-vnext-root .capiro-strategies .st-agents__cs-main,
+.capiro-vnext-root .capiro-strategies .st-agents__cs-panel {
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__cs-panel .st-card__body {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  min-width: min(220px, 100%);
-  flex: 1;
+  gap: 14px;
 }
-.capiro-vnext-root .capiro-strategies .st-agents__rail-count {
-  font-size: 13px;
+.capiro-vnext-root .capiro-strategies .st-agents__cs-panel-count {
+  display: block;
+  margin-top: 4px;
+  font-size: 24px;
+  line-height: 30px;
   font-weight: 600;
   color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__cs-panel-well {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--st-gray-50);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__cs-panel-well .st-section-label { margin-bottom: 4px; }
+.capiro-vnext-root .capiro-strategies .st-agents__cs-panel-actions {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .capiro-vnext-root .capiro-strategies .st-agents__undo-note {
   font-size: 12px;
   color: var(--st-gray-500);
-  max-width: 460px;
-}
-/* Two kit buttons, each carrying the global 120px min-width floor: ~248px that
-   cannot shrink, against ~226px inside the rail on a 390px screen. The rail
-   itself already wraps; the action pair has to as well. */
-.capiro-vnext-root .capiro-strategies .st-agents__rail-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-  flex: none;
 }
 .capiro-vnext-root .capiro-strategies .st-agents__rail-hint {
-  margin: 8px 0 0;
+  margin: 0;
+}
+
+/* ---- split button (design handoff — "Approve | Apply N operations, one
+   8px-radius group with a rgba(255,255,255,.16) divider"). Purely a visual
+   grouping of TWO EXISTING, separately-gated primary buttons — never merges
+   their click handlers, and never both live at once (approve ≠ apply). The
+   divider is a translucent white overlay meant for the dark metal button face
+   beneath it, same family/precedent as the dark-banner chip's
+   rgba(255,255,255,.12) in strategies.css — not a brand color, so it is a
+   literal here too rather than a token. */
+.capiro-vnext-root .capiro-strategies .st-agents__split {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  align-items: stretch;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__split-btn {
+  flex: 1;
+  border-radius: 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__split-divider {
+  flex: none;
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 /* ---- notices / states ------------------------------------------------------- */
@@ -465,22 +515,103 @@
 }
 .capiro-vnext-root .capiro-strategies .st-agents__state-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
 }
+/* Design handoff — "listing every state as a mono pill": the token itself
+   renders as a real .st-pill-shaped chip (dot + bg + ring), the explanatory
+   note stays alongside it (real, existing per-state documentation — kept
+   rather than dropped just to match the mock's plainer list). */
 .capiro-vnext-root .capiro-strategies .st-agents__state-token {
-  font-size: 12px;
-  color: var(--st-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px 0 8px;
+  border-radius: 9999px;
+  background: var(--st-gray-50);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  color: var(--st-gray-700);
   flex: none;
-  min-width: 108px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__state-token::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--st-gray-400);
+  flex: none;
 }
 
-/* ---- security control card (not decorative — §11 rule 9) --------------------------- */
+/* ---- execution task icon tile (design handoff — "a 32px tinted icon
+   tile") ------------------------------------------------------------------
+   Tinted per the SAME tone already computed for the task's own status pill
+   (TASK_STATUS_PILL) — real, already-fetched data, not a second invented
+   type-based color scheme. */
+.capiro-vnext-root .capiro-strategies .st-agents__task-icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--st-gray-100);
+  color: var(--st-gray-500);
+  font-size: 16px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--accent { background: var(--st-info-bg); color: var(--st-info-fg); }
+.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--warning { background: var(--st-warning-bg); color: var(--st-warning-fg); }
+.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--success { background: var(--st-success-bg); color: var(--st-success-fg); }
+.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--error { background: var(--st-error-bg); color: var(--st-error-fg); }
+
+/* ---- run "Plan" well (design handoff — a labeled #F9FAFB box) ----------------------- */
+.capiro-vnext-root .capiro-strategies .st-agents__plan-well {
+  display: flex;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--st-gray-50);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__plan-well-label {
+  flex: none;
+  padding-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--st-gray-500);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__plan-well .st-agents__summary {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+/* ---- security control card (not decorative — §11 rule 9) ---------------------------
+   Design handoff: the ONE card that sits on the error tone (#FEF3F2/#FECDCA),
+   not white/accent — a deliberate escalation for the one place the product
+   explains why there is no send control. */
 .capiro-vnext-root .capiro-strategies .st-agents__security {
-  box-shadow: var(--st-shadow-card), inset 0 0 0 1px var(--st-accent-tint-border);
+  background: var(--st-error-bg);
+  box-shadow: inset 0 0 0 1px var(--st-error-ring);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__security .st-card__title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--st-error-fg);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__security-headline {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--st-gray-900);
 }
 .capiro-vnext-root .capiro-strategies .st-agents__security-copy {
-  margin: 0;
+  margin: 6px 0 0;
   font-size: 13px;
   line-height: 1.55;
   color: var(--st-gray-700);
@@ -515,15 +646,25 @@
 }
 
 /* ─────────────────────────────────────────────────────────── responsive ──
- * This sheet had no media query at all. Everything above is intrinsic
- * (flex-wrap / minmax(min(),1fr)) and needs none; the only thing that has to
- * restructure is the approval checkbox's hit area.
+ * Most of the sheet is intrinsic (flex-wrap / minmax(min(),1fr)) and needs no
+ * media query. Two things do not restructure on their own: the change-set /
+ * review-panel split (a hard 340px track — design handoff "narrow" behavior,
+ * §"Responsive Behavior": "Context and agent layouts single-column") and the
+ * approval checkbox's hit area.
  *
  * The page's own gutter comes from `.st-page` in strategies.css and is
  * deliberately not overridden here — that file belongs to the strategies top
  * level. Bottom-nav clearance is not added either: the shell already reserves
  * 64px on `.capiro-vnext-uui` below 780 (shell-uui.css).
  */
+@media (max-width: 1179px) {
+  /* Canonical tablet boundary (foundations/responsive.css) — matches every
+     other 1fr/340px-ish split in this module, not the handoff's raw 1200px. */
+  .capiro-vnext-root .capiro-strategies .st-agents__cs-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 779px) {
   /* 44x44 hit box around the approval checkbox. The padding is cancelled by an
      equal negative margin, so the control still starts on the same left edge

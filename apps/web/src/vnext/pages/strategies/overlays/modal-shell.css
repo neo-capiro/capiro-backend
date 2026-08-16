@@ -16,30 +16,50 @@
 
 /* ------------------------------------------------------------------ shell */
 
+/* Shared shell (README "Modals"): fixed/full-bleed, top-aligned and
+   scrollable (NOT centered — a tall body like History or Upload must be able
+   to scroll the whole frame, not just clip at viewport height), backdrop
+   `rgba(12,17,29,.6)`. z-index:70 is the handoff's own literal — it sits
+   above every shell chrome layer this module runs under (rail/header
+   dropdowns top out at 60) and below the global toast pipeline
+   (--capiro-z-modal + 1), so a save/upload toast still surfaces over an open
+   overlay. */
 .capiro-strategies .st-overlay {
   position: fixed;
   inset: 0;
-  z-index: var(--capiro-z-modal, 1000);
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: var(--capiro-color-bg-overlay-scrim, rgba(16, 24, 40, 0.56));
+  z-index: 70;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 24px;
+  overflow-y: auto;
+  background: rgba(12, 17, 29, 0.6);
 }
 
 .capiro-strategies .st-modal {
-  width: min(760px, 100%);
+  position: relative;
+  width: 100%;
+  /* Per-modal frame width (handoff's per-modal table) — set inline by
+     StrategiesModalShell as a custom property; 900px only guards a caller
+     that forgets to pass one. */
+  max-width: var(--st-modal-max-width, 900px);
   max-height: min(88vh, 900px);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--st-white);
-  border: 1px solid var(--st-gray-200);
   border-radius: 16px;
-  box-shadow: 0 24px 64px rgba(16, 24, 40, 0.28);
+  box-shadow:
+    0px 20px 24px -4px rgba(16, 24, 40, 0.12),
+    0px 8px 8px -4px rgba(16, 24, 40, 0.04);
+  animation: stPop 0.2s cubic-bezier(0.2, 0, 0, 1);
   outline: none;
 }
 
-.capiro-strategies .st-modal--lg {
-  width: min(1020px, 100%);
+@media (prefers-reduced-motion: reduce) {
+  .capiro-strategies .st-modal {
+    animation: none;
+  }
 }
 
 .capiro-strategies .st-modal__header {
@@ -47,32 +67,51 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 24px 16px;
+  padding: 22px 24px;
+  background: var(--st-gray-50);
   border-bottom: 1px solid var(--st-gray-200);
 }
 
 .capiro-strategies .st-modal__eyebrow {
   margin: 0 0 4px;
   font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.09em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--st-gray-500);
 }
 
 .capiro-strategies .st-modal__title {
   margin: 0;
-  font-size: 20px;
-  line-height: 28px;
-  font-weight: 650;
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--st-gray-900);
 }
 
 .capiro-strategies .st-modal__subtitle {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 20px;
+  color: var(--st-gray-600);
+  text-wrap: pretty;
+}
+
+/* 32px close button (README header anatomy) — overrides the kit
+   CapiroIconButton's default 36px square for this one call site. */
+.capiro-strategies .st-modal__header-side .capiro-icon-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--st-white);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
   color: var(--st-gray-500);
+}
+
+.capiro-strategies .st-modal__header-side .capiro-icon-button:hover {
+  background: var(--st-gray-100);
+  color: var(--st-gray-700);
 }
 
 /* The title block must be allowed to shrink, or a long title pushes the
@@ -93,7 +132,7 @@
 .capiro-strategies .st-modal__body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 24px;
+  padding: 22px 24px;
 }
 
 /* Dirty-state guard strip — replaces a window.confirm; lives in the shell. */
@@ -131,7 +170,8 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px 16px;
-  padding: 14px 24px;
+  padding: 18px 24px;
+  background: var(--st-white);
   border-top: 1px solid var(--st-gray-200);
 }
 
@@ -233,42 +273,87 @@
   color: var(--st-gray-500);
 }
 
-/* Dark feature panel (previews, resulting states, provenance). */
+/* Dark feature panel (previews, resulting states, provenance). Governance
+   surfaces outside the modals keep the four places the README's "Dark
+   panels" section names; inside a modal, `--st-accent-deep` is the same
+   neutral gray-900 token per the handoff (stewardship-style emphasis, not a
+   fifth place invented locally). */
 .capiro-strategies .st-dark-panel {
   background: var(--st-accent-deep);
   border-radius: 12px;
-  padding: 16px;
+  padding: 20px;
   color: var(--st-white);
 }
 
+/* Uppercase micro-label role — `--st-accent-deep-eyebrow` (#98A2B3), not
+   `-label` (#D0D5DD is the body-copy shade; using it here under-contrasts
+   the eyebrow against every dark panel in the reference). */
 .capiro-strategies .st-dark-panel__label {
   margin: 0 0 10px;
   font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.09em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--st-accent-deep-label);
+  color: var(--st-accent-deep-eyebrow);
 }
 
 .capiro-strategies .st-dark-panel__title {
   margin: 0 0 6px;
-  font-size: 15px;
-  font-weight: 650;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .capiro-strategies .st-dark-panel__text {
   margin: 0;
-  font-size: 13px;
-  line-height: 19px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--st-accent-deep-label);
 }
 
-/* Two-column modal body: main column + aside. */
+/* A `.st-check` row (pass/fail checklist) reused inside a dark panel — the
+   light-background tones (pale success/warning fills, muted grays) read as
+   washed out on gray-900, so the icon chip goes translucent-white and text
+   goes white/light per the panel's own palette. `AlertCircle` failures use
+   the warning dot, not error — the reference's own choice for this exact
+   checklist (e.g. "supersession detected" is a fact to note, not a hard
+   error), kept for the strategies checklist wherever it renders on dark. */
+.capiro-strategies .st-dark-panel .st-check__icon {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+}
+.capiro-strategies .st-dark-panel .st-check__icon--pass {
+  color: var(--st-success-dot);
+}
+.capiro-strategies .st-dark-panel .st-check__icon--fail {
+  color: var(--st-warning-dot);
+}
+.capiro-strategies .st-dark-panel .st-check__label {
+  color: var(--st-white);
+}
+.capiro-strategies .st-dark-panel .st-check__desc {
+  color: var(--st-accent-deep-label);
+}
+.capiro-strategies .st-dark-panel .st-check__desc.is-fail {
+  color: var(--st-warning-dot);
+}
+
+/* Two-column modal body: main column + aside. 1.5:1 matches the handoff's
+   own ratio for New / Firm phases (`newCols` / `phasesCols`); Export's is
+   1.35:1 — close enough that a second ratio isn't worth a modifier class. */
 .capiro-strategies .st-cols {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
+}
+
+/* Even two-up row (Resolve conflict's rationale + resulting-states pair —
+   `conflictModalCols` is `repeat(2,1fr)`, unlike every other modal's
+   lopsided main+aside). */
+.capiro-strategies .st-cols--even {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .capiro-strategies .st-field-stack {
@@ -546,19 +631,42 @@
   color: var(--st-gray-500);
 }
 
+/* Renders on the (light) modal body, not a dark panel — gray-600, not the
+   dark-panel body tone (`--st-accent-deep-label` is a near-white D0D5DD that
+   under-contrasts against white/gray-50). Individual usages still override
+   to success/error fg for a specific status line. */
 .capiro-strategies .st-rule {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--st-accent-deep-label);
+  color: var(--st-gray-600);
   padding: 3px 0;
+}
+
+/* Inner translucent box wrapping the FY label + preview bars inside the
+   Firm-phases dark timeline-preview panel. */
+.capiro-strategies .st-preview-box {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.capiro-strategies .st-preview-fy {
+  display: block;
+  text-align: center;
+  font-family: var(--st-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--st-accent-deep-eyebrow);
 }
 
 .capiro-strategies .st-preview-bars {
   display: grid;
   gap: 6px;
-  margin: 12px 0;
+  margin: 10px 0 0;
 }
 
 .capiro-strategies .st-preview-bar {
@@ -1035,13 +1143,14 @@
  * mobile. The module's old 900px step is retired.
  *
  * Why 779 and not 1179 for the two-column bodies: the overlay is
- * position:fixed, so the shell rail is irrelevant to it — the frame is
- * min(760|1020, 100vw - 48). At the narrowest tablet viewport (780) the lg
- * frame is 732 and its body is 684 wide, which still carries `.st-cols`
- * (364 + 300), `.st-history` (300 + 384) and `.st-candidates` (2 x 336)
- * comfortably. They only stop fitting once the frame goes full-bleed below
- * 780. Stacking them at 1179 would have flattened the drawn 1024 tablet
- * stage for no reason.
+ * position:fixed, so the shell rail is irrelevant to it — every frame is
+ * min(<per-modal width>, 100vw - 48) (the overlay's own 24px side padding).
+ * At the narrowest tablet viewport (780) even the widest frame (1080px,
+ * History) is capped to 732px, 684px of body — which still carries
+ * `.st-cols` (~410 + ~274), `.st-history` (300 + 384) and `.st-candidates`
+ * (2 x 336) comfortably. They only stop fitting once the frame goes
+ * full-bleed below 780. Stacking them at 1179 would have flattened the drawn
+ * 1024 tablet stage for no reason.
  *
  * `.st-format-grid` has left this list: its auto-fit template above already
  * resolves to a single track once the body drops under ~230px, and to 3-up
@@ -1053,20 +1162,18 @@
      `.capiro-modal` class names that section already covers: the kit modal
      brings `overflow: auto` + `padding: 18px` + `width: min(560px, 100%)`,
      which would fight this shell's flex column and its internally scrolled
-     body. These are the parallel rules instead. The frame is z-index 200 and
+     body. These are the parallel rules instead. The frame is z-index 70 and
      the shell's bottom nav is z-index 20, so the sheet covers the nav and
      needs no `.capiro-sheet-safe` inset. */
   .capiro-strategies .st-overlay {
     padding: 0;
-    place-items: stretch;
+    align-items: stretch;
   }
-  .capiro-strategies .st-modal,
-  .capiro-strategies .st-modal--lg {
+  .capiro-strategies .st-modal {
     width: 100%;
     max-width: none;
     height: 100%;
     max-height: none;
-    border: 0;
     border-radius: 0;
   }
 
