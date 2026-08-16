@@ -47,6 +47,22 @@ import {
   getClientRepresentation,
   type RepresentationResult,
 } from '../../../../pages/clients/intelligence-v1/representation-api.js';
+import { useIntelFeature } from '../../../../lib/intel-feature-flags.js';
+import {
+  getRelevantPesForClient,
+  formatScorePct,
+  type RelevantPeRow,
+} from '../../../../pages/clients/relevance-api.js';
+import {
+  FUNDING_OPPORTUNITIES_FEATURE,
+  KIND_LABELS,
+  SOURCE_LABELS,
+  formatDeadline,
+  moneyLine,
+  type ClientFundingOpportunitySummary,
+  type FundingOpportunity,
+  type OpportunityWorkflowStatus,
+} from '../../../../pages/intelligence/opportunities/funding-opportunities-api.js';
 
 /**
  * Intelligence tab (spec §10). Six domains via a segmented bar: Overview ·
@@ -63,15 +79,26 @@ const INTEL_TONE: Record<string, PillTone> = {
 };
 
 export function ClientCrmIntelligenceProto({ client, view }: { client: Client; view: IntelligenceView }) {
+  const navigate = useNavigate();
   const domain = DOMAIN_META[view] ?? DOMAIN_META.overview!;
+  // District's action is client-specific navigation (item 3, wire-audit "2 Wire
+  // existing APIs"), so it's computed here rather than in the static map below.
+  const actions =
+    view === 'district' ? (
+      <SecondaryBtn onClick={() => navigate(`/clients?clientId=${client.id}&tab=facilities`)}>
+        Manage facilities
+      </SecondaryBtn>
+    ) : (
+      domain.actions
+    );
   return (
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <TabPageHead title={domain.title} sub={domain.sub} actions={domain.actions} />
+      <TabPageHead title={domain.title} sub={domain.sub} actions={actions} />
       {view !== 'overview' ? <DomainStatsStrip view={view} /> : null}
       {view === 'overview' ? <IntelOverview /> : null}
       {view === 'legislative' ? <LegislativePanel /> : null}
       {view === 'regulatory' ? <RegulatoryPanel /> : null}
-      {view === 'funding' ? <FundingPanel /> : null}
+      {view === 'funding' ? <FundingPanel client={client} /> : null}
       {view === 'footprint' ? <FootprintPanel /> : null}
       {view === 'district' ? <DistrictPanel client={client} /> : null}
     </div>
@@ -112,7 +139,7 @@ const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactN
   district: {
     title: 'District Nexus',
     sub: 'Facilities, employees, contracts, grants, and representatives translated into a defensible congressional footprint.',
-    actions: <SecondaryBtn>Manage facilities</SecondaryBtn>,
+    // actions computed in ClientCrmIntelligenceProto — see the comment there.
   },
 };
 
@@ -500,8 +527,66 @@ const FUND_NESTED = [
   { key: 'pursuits', label: 'Pursuits' },
 ];
 
-function FundingPanel() {
+/** Workflow status → pill presentation. Reads the real `OpportunityWorkflow.status`
+ * enum directly; `null` means no workflow row exists yet (nothing decided either way). */
+function workflowStatusPill(status: OpportunityWorkflowStatus | null): { label: string; tone: PillTone; dotless: boolean } {
+  switch (status) {
+    case 'pursuing':
+      return { label: 'Pursuing', tone: 'brand', dotless: false };
+    case 'won':
+      return { label: 'Won', tone: 'success', dotless: false };
+    case 'saved':
+      return { label: 'Saved', tone: 'gray', dotless: true };
+    case 'dismissed':
+      return { label: 'Dismissed', tone: 'gray', dotless: true };
+    case 'lost':
+      return { label: 'Lost', tone: 'gray', dotless: true };
+    case 'expired':
+      return { label: 'Expired', tone: 'gray', dotless: true };
+    case 'suggested':
+      return { label: 'Suggested', tone: 'gray', dotless: true };
+    default:
+      return { label: 'Match', tone: 'gray', dotless: true };
+  }
+}
+
+function FundingPanel({ client }: { client: Client }) {
+  const api = useApi();
+  const navigate = useNavigate();
   const [nested, setNested] = useState('opportunities');
+
+  // Item 5: Opportunities list. Same endpoint + feature gate as the established
+  // legacy widget (FundingOpportunitiesSection.tsx) — a disabled flag is an
+  // unavailable feature, not an empty result, so the design fixture stays up
+  // rather than showing a broken-looking blank card.
+  const { enabled: foEnabled, ready: foReady } = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
+  const opportunitiesQ = useQuery<ClientFundingOpportunitySummary>({
+    queryKey: ['client-funding-opportunities', client.id],
+    queryFn: async () =>
+      (
+        await api.get<ClientFundingOpportunitySummary>(
+          `/api/intelligence/clients/${client.id}/opportunities/summary`,
+        )
+      ).data,
+    enabled: Boolean(client.id) && foReady && foEnabled,
+    staleTime: 2 * 60_000,
+    retry: 1,
+  });
+  const realOpportunities = foReady && foEnabled && opportunitiesQ.isSuccess ? opportunitiesQ.data : null;
+  const opportunityRows = realOpportunities
+    ? [...realOpportunities.topGrants, ...realOpportunities.topContracts].slice(0, 6)
+    : [];
+
+  // Item 4: Open budget / Open PE. Real PE ids + titles from the relevance
+  // engine (same threshold the already-built, currently-unrouted
+  // ClientCrmIntelligence.tsx FundingView uses: minScore 0.5).
+  const pesQ = useQuery({
+    queryKey: ['client-pe-relevance', client.id, { minScore: 0.5 }],
+    queryFn: () => getRelevantPesForClient(api, client.id, { minScore: 0.5, limit: 12 }),
+    staleTime: 60_000,
+  });
+  const realPes = pesQ.isSuccess ? pesQ.data.data : null;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div style={{ alignSelf: 'flex-start' }}>
@@ -517,22 +602,53 @@ function FundingPanel() {
                 Matches use capabilities, facilities, eligibility, agencies, and Strategy context.
               </span>
             </span>
-            <LinkBtn>View all 7</LinkBtn>
+            {realOpportunities ? (
+              <LinkBtn onClick={() => navigate(`/intelligence/opportunities?clientId=${client.id}`)}>
+                View all {realOpportunities.counts.activeGrants + realOpportunities.counts.activeContracts}
+              </LinkBtn>
+            ) : (
+              <LinkBtn>View all 7</LinkBtn>
+            )}
           </div>
           <div style={{ padding: '0 16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {OPPS.map((o) => (
-              <OppRow key={o.title} o={o} />
-            ))}
+            {realOpportunities ? (
+              opportunityRows.length ? (
+                opportunityRows.map((o) => <RealOppRow key={o.id} o={o} />)
+              ) : (
+                <p style={{ margin: '4px 8px', fontSize: 14, color: '#475467' }}>
+                  {realOpportunities.emptyExplanation ??
+                    'No opportunity currently clears the relevance threshold for this client.'}
+                </p>
+              )
+            ) : (
+              OPPS.map((o) => <OppRow key={o.title} o={o} />)
+            )}
           </div>
         </Card>
 
         {/* Relevant budget programs */}
         <Card>
-          <CardHead title="Relevant budget programs" action={<LinkBtn>Open budget</LinkBtn>} />
+          <CardHead
+            title="Relevant budget programs"
+            action={<LinkBtn onClick={() => navigate('/program-elements')}>Open budget</LinkBtn>}
+          />
           <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {PROGRAMS.map((p) => (
-              <ProgramCard key={p.code} p={p} />
-            ))}
+            {realPes ? (
+              realPes.length ? (
+                realPes.map((pe) => (
+                  <RealProgramRow key={pe.peCode} pe={pe} onOpen={() => navigate(`/program-elements/${pe.peCode}`)} />
+                ))
+              ) : (
+                <p style={{ margin: '4px 8px', fontSize: 14, color: '#475467' }}>
+                  No program elements scored above the relevance threshold for this client.
+                </p>
+              )
+            ) : (
+              PROGRAMS.map((p) => <ProgramCard key={p.code} p={p} />)
+            )}
+            {/* Pursuits has no wired data source yet (a separate, unbuilt nested
+                view) — stays a documented UI-only element regardless of mode,
+                same convention as WorkTab's "On track" pill. */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 4px 4px', borderTop: '1px solid #EAECF0', flexWrap: 'wrap' }}>
               <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>Pursuit pipeline</span>
               <Pill tone="brand" size="lg">Army AGV · Qualifying</Pill>
@@ -540,6 +656,62 @@ function FundingPanel() {
             </div>
           </div>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+function RealOppRow({ o }: { o: FundingOpportunity }) {
+  const [hover, setHover] = useState(false);
+  const money = moneyLine(o);
+  const deadline = formatDeadline(o.responseDeadline, o.responseDeadlineNote);
+  const soon = deadline.daysRemaining != null && deadline.daysRemaining >= 0 && deadline.daysRemaining <= 14;
+  const { label: statusLabel, tone: statusTone, dotless } = workflowStatusPill(o.workflow?.status ?? null);
+  return (
+    <div onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 10, background: hover ? '#F2F4F7' : '#F9FAFB', boxShadow: hover ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0' }}>
+      <span style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 78, minHeight: 26, borderRadius: 6, background: '#ffffff', boxShadow: 'inset 0 0 0 1px #D0D5DD', color: '#344054', fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', textAlign: 'center', padding: '2px 4px' }}>
+        {KIND_LABELS[o.kind]}
+      </span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>
+          {o.sourceUrl ? (
+            <a href={o.sourceUrl} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
+              {o.title}
+            </a>
+          ) : (
+            o.title
+          )}
+        </span>
+        <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085' }}>{o.agency ?? SOURCE_LABELS[o.source]}</span>
+      </span>
+      <span style={{ flex: '0 0 auto', width: 92, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+        <span style={{ fontSize: 15, fontWeight: 600, color: '#101828' }}>{money.value}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: soon ? '#B54708' : '#667085' }}>
+          {deadline.daysRemaining != null ? `Due ${deadline.text}` : deadline.text}
+        </span>
+      </span>
+      <span style={{ flex: '0 0 auto', width: 100, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+        <Pill tone="gray" dotless>{o.relevanceScore}% fit</Pill>
+        <Pill tone={statusTone} dotless={dotless}>{statusLabel}</Pill>
+      </span>
+    </div>
+  );
+}
+
+function RealProgramRow({ pe, onOpen }: { pe: RelevantPeRow; onOpen: () => void }) {
+  return (
+    <div style={{ padding: '14px 16px', borderRadius: 10, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#101828', padding: '2px 6px', borderRadius: 6, background: '#F2F4F7' }}>{pe.peCode}</span>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>{pe.title ?? pe.peCode}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>Relevance</span>
+        <span style={{ fontSize: 16, fontWeight: 600, color: '#101828' }}>{formatScorePct(pe.score)}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+        <LinkBtn onClick={onOpen}>Open PE →</LinkBtn>
       </div>
     </div>
   );
