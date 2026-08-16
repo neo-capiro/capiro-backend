@@ -38,9 +38,9 @@ describe('attachment-driven entity fallback fixture providers', () => {
       expect.objectContaining({
         canonicalName: 'Victory Six, Inc.',
         evidenceKinds: ['public_web_claim'],
-        canonicalEntity: undefined,
       }),
     ]);
+    expect(result.candidates[0]).not.toHaveProperty('canonicalEntity');
   });
 
   test('returns misspelled Kinetic candidates from public and model stages', async () => {

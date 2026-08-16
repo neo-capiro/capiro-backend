@@ -10,7 +10,7 @@ import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
-import { buildWebSearchRequest, normalizeWebResults, type NormalizedWebResult } from '../meri/meri-websearch.helpers.js';
+import { buildWebSearchRequest, normalizeWebResults, type NormalizedWebResult } from '../common/web-search.helpers.js';
 import { SamEntityEnrichmentService } from '../intelligence/sam-entity.service.js';
 import { ClientPeRelevanceService } from '../intelligence/client-pe-relevance.service.js';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';

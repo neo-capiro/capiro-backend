@@ -2,7 +2,7 @@ export interface GoldenPersonSeedFixture {
   id: string;
   canonicalName: string;
   aliases: readonly string[];
-  identifiers: readonly Array<{ type: string; value: string }>;
+  identifiers: readonly { type: string; value: string }[];
 }
 
 /**

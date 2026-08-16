@@ -68,23 +68,23 @@ export class EntityIdentityGovernanceService {
     );
   }
 
-  confirmAlias(tenantId: string, input: GovernEntityLinkInput): Promise<string> {
+  async confirmAlias(tenantId: string, input: GovernEntityLinkInput): Promise<string> {
     return this.governAlias(tenantId, 'confirm', input);
   }
 
-  withdrawAlias(tenantId: string, input: GovernEntityLinkInput): Promise<string> {
+  async withdrawAlias(tenantId: string, input: GovernEntityLinkInput): Promise<string> {
     return this.governAlias(tenantId, 'withdraw', input);
   }
 
-  confirmIdentifier(tenantId: string, input: GovernEntityLinkInput): Promise<string> {
+  async confirmIdentifier(tenantId: string, input: GovernEntityLinkInput): Promise<string> {
     return this.governIdentifier(tenantId, 'confirm', input);
   }
 
-  withdrawIdentifier(tenantId: string, input: GovernEntityLinkInput): Promise<string> {
+  async withdrawIdentifier(tenantId: string, input: GovernEntityLinkInput): Promise<string> {
     return this.governIdentifier(tenantId, 'withdraw', input);
   }
 
-  private governAlias(
+  private async governAlias(
     tenantId: string,
     action: 'confirm' | 'withdraw',
     input: GovernEntityLinkInput,
@@ -107,7 +107,7 @@ export class EntityIdentityGovernanceService {
     );
   }
 
-  private governIdentifier(
+  private async governIdentifier(
     tenantId: string,
     action: 'confirm' | 'withdraw',
     input: GovernEntityLinkInput,

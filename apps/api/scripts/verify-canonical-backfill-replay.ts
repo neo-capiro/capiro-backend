@@ -2,8 +2,9 @@
  * Verify one data-bearing tenant canonical-identity backfill cohort is
  * idempotent when replayed with the exact same source/cursor/limit.
  *
- * This command is intentionally manual and bounded. It never schedules work.
- * Run only against disposable or explicitly designated development databases.
+ * This command is intentionally manual and bounded: it only runs when invoked
+ * by hand, never on a timer, trigger, or queue. Run only against disposable or
+ * explicitly designated development databases.
  *
  * Example:
  *   pnpm --filter @capiro/api exec tsx scripts/verify-canonical-backfill-replay.ts \

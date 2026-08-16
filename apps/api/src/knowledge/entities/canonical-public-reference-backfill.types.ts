@@ -54,6 +54,11 @@ export interface CanonicalPublicReferenceBackfillResult {
   eligible: number;
   processed: number;
   skipped: number;
+  wouldCreate: number;
+  wouldLink: number;
+  ambiguous: number;
+  failed: number;
+  complete: boolean;
   failures: CanonicalPublicReferenceBackfillFailure[];
   entityIds: string[];
 }

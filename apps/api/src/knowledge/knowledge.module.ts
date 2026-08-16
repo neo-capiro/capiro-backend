@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
 import { AssertionConflictService } from './assertions/assertion-conflict.service.js';
 import { AssertionConsolidationService } from './assertions/assertion-consolidation.service.js';
 import { KnowledgeAssertionRepository } from './assertions/knowledge-assertion.repository.js';
@@ -18,6 +19,8 @@ import {
   UsaSpendingEntityResolutionProvider,
 } from './entities/canonical-structured-public-fallback.providers.js';
 import { CanonicalStructuredPublicLookupRepository } from './entities/canonical-structured-public-lookup.repository.js';
+import { PublicWebEntityResolutionProvider } from './entities/canonical-public-web-entity-resolution.provider.js';
+import { ModelCandidateReconciliationEntityResolutionProvider } from './entities/canonical-model-candidate-reconciliation.provider.js';
 import { CanonicalSourceAdapterService } from './entities/canonical-source-adapter.service.js';
 import { CanonicalSourceBackfillRepository } from './entities/canonical-source-backfill.repository.js';
 import { CanonicalSourceBackfillService } from './entities/canonical-source-backfill.service.js';
@@ -40,7 +43,7 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
 
 /** Lower-level evidence, identity, assertions, and incremental mailbox substrate beneath memory_items. */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, AiCredentialsModule],
   providers: [
     KnowledgeEventRepository,
     KnowledgeEventService,
@@ -61,6 +64,8 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     UsaSpendingEntityResolutionProvider,
     LdaEntityResolutionProvider,
     SecCikEntityResolutionProvider,
+    PublicWebEntityResolutionProvider,
+    ModelCandidateReconciliationEntityResolutionProvider,
     {
       provide: ENTITY_RESOLUTION_FALLBACK_PROVIDERS,
       useFactory: (
@@ -69,13 +74,17 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
         usaSpending: UsaSpendingEntityResolutionProvider,
         lda: LdaEntityResolutionProvider,
         sec: SecCikEntityResolutionProvider,
-      ) => [directory, samUei, usaSpending, lda, sec],
+        publicWeb: PublicWebEntityResolutionProvider,
+        modelCandidateReconciliation: ModelCandidateReconciliationEntityResolutionProvider,
+      ) => [directory, samUei, usaSpending, lda, sec, publicWeb, modelCandidateReconciliation],
       inject: [
         DirectoryGovernmentEntityResolutionProvider,
         SamUeiEntityResolutionProvider,
         UsaSpendingEntityResolutionProvider,
         LdaEntityResolutionProvider,
         SecCikEntityResolutionProvider,
+        PublicWebEntityResolutionProvider,
+        ModelCandidateReconciliationEntityResolutionProvider,
       ],
     },
     AuthoritativeFirstUniversalEntityResolutionOrchestratorService,

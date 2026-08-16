@@ -53,7 +53,7 @@ describe('canonical source backfill contract', () => {
 
   test('runs one bounded page and returns a resume cursor', () => {
     expect(script).toContain('backfill.runPage');
-    expect(script).toContain('afterId: values.after');
+    expect(script).toContain("afterId: stringArg(values.after)?.trim() || null");
     expect(script).toContain("event: 'canonical_entity_backfill.page'");
   });
 });

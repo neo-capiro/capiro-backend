@@ -2,6 +2,7 @@ import { describe, expect, jest, test } from '@jest/globals';
 import { CanonicalSourceAdapterService } from './canonical-source-adapter.service.js';
 import { CanonicalSourceBackfillRepository } from './canonical-source-backfill.repository.js';
 import { CanonicalSourceBackfillService } from './canonical-source-backfill.service.js';
+import type { CanonicalSourceSyncResult } from './canonical-source-adapter.types.js';
 
 const TENANT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
@@ -17,7 +18,7 @@ function harness(records = [client('11111111-1111-4111-8111-111111111111')]) {
     listEngagementContacts: jest.fn(async () => []),
     listConfirmedClientMappings: jest.fn(async () => []),
   } as unknown as CanonicalSourceBackfillRepository;
-  const syncClient = jest.fn(async (record: ReturnType<typeof client>) => ({
+  const syncClient = jest.fn(async (record: ReturnType<typeof client>): Promise<CanonicalSourceSyncResult> => ({
     sourceKind: 'client' as const,
     sourceId: record.id,
     status: 'would_create' as const,

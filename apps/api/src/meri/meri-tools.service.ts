@@ -88,7 +88,7 @@ import {
   reportLanguageNoteForModel,
   searchFundingClaimForModel,
 } from './meri-defense-budget-tool.helpers.js';
-import { buildWebSearchRequest, normalizeWebResults } from './meri-websearch.helpers.js';
+import { buildWebSearchRequest, normalizeWebResults } from '../common/web-search.helpers.js';
 import { looksLikePdf } from './meri-scrape.helpers.js';
 import {
   buildKnowledgeGraph,

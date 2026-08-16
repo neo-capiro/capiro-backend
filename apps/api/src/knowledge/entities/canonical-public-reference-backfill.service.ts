@@ -47,8 +47,13 @@ export class CanonicalPublicReferenceBackfillService {
       eligible: 0,
       processed: 0,
       skipped: 0,
+      wouldCreate: 0,
+      wouldLink: 0,
+      ambiguous: 0,
+      failed: 0,
       failures: [],
       entityIds: [],
+      complete: rows.length < limit,
     };
 
     for (const row of rows) {
@@ -60,6 +65,7 @@ export class CanonicalPublicReferenceBackfillService {
       result.eligible += 1;
 
       if (!execute) {
+        result.wouldCreate += 1;
         result.nextCursor = row.cursorKey;
         continue;
       }
@@ -72,6 +78,7 @@ export class CanonicalPublicReferenceBackfillService {
         result.processed += 1;
         result.nextCursor = row.cursorKey;
       } catch (error) {
+        result.failed += 1;
         result.failures.push({
           sourceId: row.sourceId,
           message: sanitizeError(error),
@@ -79,9 +86,12 @@ export class CanonicalPublicReferenceBackfillService {
         // Stop on the first failure. The returned cursor remains at the last
         // successful row, making the retry deterministic and lossless.
         result.exhausted = false;
+        result.complete = false;
         break;
       }
     }
+
+    result.complete = result.exhausted && result.failures.length === 0;
 
     return result;
   }
