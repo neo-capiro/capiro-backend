@@ -1,6 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import { sha256Identity, stableStringify } from '../knowledge.helpers.js';
-import type { KnowledgeEventRecord, KnowledgeJsonObject, KnowledgeRef } from '../knowledge.types.js';
+import type {
+  KnowledgeEventRecord,
+  KnowledgeJsonObject,
+  KnowledgeRef,
+} from '../knowledge.types.js';
 import type { MailboxThreadEpisodeGroupingKey } from './knowledge-episode.types.js';
 
 /**
@@ -93,7 +97,11 @@ export function requireUnambiguousEventScope(event: KnowledgeEventRecord): void 
       'KnowledgeEvent sensitivity is ambiguous; refusing episode projection.',
     );
   }
-  if (!event.accessScope || typeof event.accessScope !== 'object' || Array.isArray(event.accessScope)) {
+  if (
+    !event.accessScope ||
+    typeof event.accessScope !== 'object' ||
+    Array.isArray(event.accessScope)
+  ) {
     throw new BadRequestException(
       'KnowledgeEvent accessScope is ambiguous; refusing episode projection.',
     );

@@ -42,9 +42,7 @@ describe('mailboxThreadGroupingKeyFromEvent', () => {
   test('returns null when evidenceLocator lacks connectionId or providerThreadId', () => {
     expect(mailboxThreadGroupingKeyFromEvent(event({ evidenceLocator: {} }))).toBeNull();
     expect(
-      mailboxThreadGroupingKeyFromEvent(
-        event({ evidenceLocator: { connectionId: 'conn-1' } }),
-      ),
+      mailboxThreadGroupingKeyFromEvent(event({ evidenceLocator: { connectionId: 'conn-1' } })),
     ).toBeNull();
     expect(
       mailboxThreadGroupingKeyFromEvent(
@@ -134,8 +132,12 @@ describe('mailboxThreadEpisodeIdentityKey', () => {
   });
 
   test('two mailboxes with the same opaque provider thread id never collide', () => {
-    const mailboxA = event({ evidenceLocator: { connectionId: 'conn-a', providerThreadId: 'thread-x' } });
-    const mailboxB = event({ evidenceLocator: { connectionId: 'conn-b', providerThreadId: 'thread-x' } });
+    const mailboxA = event({
+      evidenceLocator: { connectionId: 'conn-a', providerThreadId: 'thread-x' },
+    });
+    const mailboxB = event({
+      evidenceLocator: { connectionId: 'conn-b', providerThreadId: 'thread-x' },
+    });
     const keyA = mailboxThreadEpisodeIdentityKey(mailboxThreadGroupingKeyFromEvent(mailboxA)!);
     const keyB = mailboxThreadEpisodeIdentityKey(mailboxThreadGroupingKeyFromEvent(mailboxB)!);
     expect(keyA).not.toBe(keyB);
@@ -178,9 +180,7 @@ describe('requireUnambiguousEventScope', () => {
       ),
     ).toThrow();
     expect(() =>
-      requireUnambiguousEventScope(
-        event({ accessScope: [] as unknown as Record<string, never> }),
-      ),
+      requireUnambiguousEventScope(event({ accessScope: [] as unknown as Record<string, never> })),
     ).toThrow();
   });
 

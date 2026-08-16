@@ -30,9 +30,7 @@ describe('KnowledgeEpisodeRepository contract', () => {
     expect(repository).toContain('FOR UPDATE SKIP LOCKED');
     expect(repository).toContain("locked_at < CURRENT_TIMESTAMP - INTERVAL '15 minutes'");
     expect(repository).toContain('attempt_count < 100');
-    expect(repository).toContain(
-      "CASE WHEN status IN ('pending', 'failed') THEN 0 ELSE 1 END",
-    );
+    expect(repository).toContain("CASE WHEN status IN ('pending', 'failed') THEN 0 ELSE 1 END");
   });
 
   test('every job transition (complete/skip/fail) is fenced by tenant + id + locked_by + attempt_count', () => {
@@ -48,20 +46,24 @@ describe('KnowledgeEpisodeRepository contract', () => {
   test('membership inserts use ON CONFLICT DO NOTHING against the exact unique constraint columns', () => {
     expect(repository).toContain('ON CONFLICT (tenant_id, episode_id, event_id) DO NOTHING');
     expect(repository).toContain('ON CONFLICT (tenant_id, episode_id, assertion_id) DO NOTHING');
-    expect(repository).toContain('ON CONFLICT (tenant_id, episode_id, canonical_entity_id) DO NOTHING');
+    expect(repository).toContain(
+      'ON CONFLICT (tenant_id, episode_id, canonical_entity_id) DO NOTHING',
+    );
     expect(repository).toContain('ON CONFLICT (tenant_id, strategy, identity_key) DO NOTHING');
   });
 
   test('counts are incremented only by the number of rows actually inserted this call (no double-count on replay)', () => {
     expect(repository).toContain('event_count = event_count + (SELECT count(*) FROM inserted_row)');
-    expect(repository).toContain('assertion_count = assertion_count + (SELECT count(*) FROM inserted_row)');
-    expect(repository).toContain('entity_count = entity_count + (SELECT count(*) FROM inserted_row)');
+    expect(repository).toContain(
+      'assertion_count = assertion_count + (SELECT count(*) FROM inserted_row)',
+    );
+    expect(repository).toContain(
+      'entity_count = entity_count + (SELECT count(*) FROM inserted_row)',
+    );
   });
 
   test('never persists a raw error message/exception into operational state', () => {
-    expect(repository).toContain(
-      "return error instanceof Error ? error.name : 'UnknownError'",
-    );
+    expect(repository).toContain("return error instanceof Error ? error.name : 'UnknownError'");
     expect(repository).not.toContain('error.message`');
     expect(repository).not.toContain('${error}`');
   });
@@ -70,7 +72,6 @@ describe('KnowledgeEpisodeRepository contract', () => {
     expect(repository).toContain("status = 'dead_letter'");
     expect(repository).toContain("last_error = 'MaxAttemptsExceeded'");
   });
-
 });
 
 function extractMethod(source: string, name: string): string {

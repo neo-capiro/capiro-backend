@@ -285,10 +285,7 @@ export class KnowledgeEpisodeRepository {
     });
   }
 
-  async complete(
-    job: KnowledgeEpisodeProjectionJobRecord,
-    episodeId: string,
-  ): Promise<boolean> {
+  async complete(job: KnowledgeEpisodeProjectionJobRecord, episodeId: string): Promise<boolean> {
     return this.prisma.withTenant(job.tenantId, async (tx) => {
       const updated = await tx.$executeRaw`
         UPDATE knowledge_episode_projection_jobs

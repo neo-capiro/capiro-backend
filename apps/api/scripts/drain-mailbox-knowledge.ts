@@ -102,10 +102,9 @@ async function drainPhase6() {
     return { claimed: 0, succeeded: 0, skipped: 0, failed: 0 };
   }
 
-  const app = await NestFactory.createApplicationContext(
-    MailboxKnowledgeExtractionWorkerModule,
-    { logger: ['error', 'warn'] },
-  );
+  const app = await NestFactory.createApplicationContext(MailboxKnowledgeExtractionWorkerModule, {
+    logger: ['error', 'warn'],
+  });
   try {
     return await app.get(MailboxKnowledgeExtractionConsumer).drainOnce();
   } finally {
@@ -114,10 +113,9 @@ async function drainPhase6() {
 }
 
 async function drainPhase7() {
-  const app = await NestFactory.createApplicationContext(
-    MailboxKnowledgeExtractionWorkerModule,
-    { logger: ['error', 'warn'] },
-  );
+  const app = await NestFactory.createApplicationContext(MailboxKnowledgeExtractionWorkerModule, {
+    logger: ['error', 'warn'],
+  });
   try {
     return await app.get(KnowledgeEpisodeProjectionConsumer).drainOnce();
   } finally {
@@ -141,6 +139,8 @@ async function main(): Promise<void> {
 
 main().catch((error: unknown) => {
   const errorName = error instanceof Error ? error.name : 'WorkerError';
-  console.error(JSON.stringify({ event: 'mailbox_knowledge_worker.crashed', error_code: errorName }));
+  console.error(
+    JSON.stringify({ event: 'mailbox_knowledge_worker.crashed', error_code: errorName }),
+  );
   process.exit(1);
 });

@@ -48,7 +48,9 @@ function event(overrides: Partial<KnowledgeEventRecord> = {}): KnowledgeEventRec
   };
 }
 
-function job(overrides: Partial<KnowledgeEpisodeProjectionJobRecord> = {}): KnowledgeEpisodeProjectionJobRecord {
+function job(
+  overrides: Partial<KnowledgeEpisodeProjectionJobRecord> = {},
+): KnowledgeEpisodeProjectionJobRecord {
   return {
     id: 'job-1',
     tenantId: TENANT_ID,
@@ -175,7 +177,9 @@ describe('KnowledgeEpisodeProjectionConsumer', () => {
   });
 
   test('uses the job tenant for the immutable event lookup and rejects a mismatched event tenant', async () => {
-    const { consumer, repository, events } = harness({ event: event({ tenantId: OTHER_TENANT_ID }) });
+    const { consumer, repository, events } = harness({
+      event: event({ tenantId: OTHER_TENANT_ID }),
+    });
     (repository.claimBatch as AnyMock).mockResolvedValue([job()]);
     const result = await consumer.drainOnce();
     expect(events.findById).toHaveBeenCalledWith(TENANT_ID, EVENT_ID);
@@ -188,7 +192,10 @@ describe('KnowledgeEpisodeProjectionConsumer', () => {
     (repository.claimBatch as AnyMock).mockResolvedValue([job()]);
     const result = await consumer.drainOnce();
     expect(result.skipped).toBe(1);
-    expect(repository.skip).toHaveBeenCalledWith(expect.anything(), 'KnowledgeEvent no longer exists');
+    expect(repository.skip).toHaveBeenCalledWith(
+      expect.anything(),
+      'KnowledgeEvent no longer exists',
+    );
   });
 
   test('skips when the KnowledgeEvent is not active', async () => {
@@ -209,14 +216,23 @@ describe('KnowledgeEpisodeProjectionConsumer', () => {
   test('derives assertion and canonical-entity membership only from already-resolved assertions (no new resolution)', async () => {
     const { consumer, repository, assertions } = harness({
       assertions: [
-        assertion({ subjectType: 'canonical_entity', subjectId: ENTITY_ID, objectType: 'text', objectId: null }),
+        assertion({
+          subjectType: 'canonical_entity',
+          subjectId: ENTITY_ID,
+          objectType: 'text',
+          objectId: null,
+        }),
       ],
     });
     (repository.claimBatch as AnyMock).mockResolvedValue([job()]);
     await consumer.drainOnce();
     expect(assertions.findByOriginEvent).toHaveBeenCalledWith(TENANT_ID, EVENT_ID);
     expect(repository.addAssertionMembership).toHaveBeenCalledWith(
-      expect.objectContaining({ episodeId: EPISODE_ID, assertionId: ASSERTION_ID, originEventId: EVENT_ID }),
+      expect.objectContaining({
+        episodeId: EPISODE_ID,
+        assertionId: ASSERTION_ID,
+        originEventId: EVENT_ID,
+      }),
     );
     expect(repository.addEntityMembership).toHaveBeenCalledWith(
       expect.objectContaining({ episodeId: EPISODE_ID, canonicalEntityId: ENTITY_ID }),
@@ -246,7 +262,12 @@ describe('KnowledgeEpisodeProjectionConsumer', () => {
   test('does not add entity membership for a non-canonical_entity subject/object', async () => {
     const { consumer, repository } = harness({
       assertions: [
-        assertion({ subjectType: 'email_address', subjectId: 'jane@example.com', objectType: 'text', objectId: null }),
+        assertion({
+          subjectType: 'email_address',
+          subjectId: 'jane@example.com',
+          objectType: 'text',
+          objectId: null,
+        }),
       ],
     });
     (repository.claimBatch as AnyMock).mockResolvedValue([job()]);
@@ -274,7 +295,10 @@ describe('KnowledgeEpisodeProjectionConsumer', () => {
     const { consumer, repository } = harness({});
     let resolveFirstClaim: (value: KnowledgeEpisodeProjectionJobRecord[]) => void = () => {};
     (repository.claimBatch as AnyMock).mockImplementation(
-      () => new Promise((resolve) => { resolveFirstClaim = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          resolveFirstClaim = resolve;
+        }),
     );
     const firstDrain = consumer.drainOnce();
     const secondDrain = await consumer.drainOnce();

@@ -66,7 +66,9 @@ describe('Knowledge Plane Phase 7 episode migration contract', () => {
       'REVOKE UPDATE, DELETE, TRUNCATE ON TABLE "knowledge_episode_entities" FROM capiro_app',
     );
     // Episodes/jobs are mutable derived state but never destructively deleted.
-    expect(migration).toContain('REVOKE DELETE, TRUNCATE ON TABLE "knowledge_episodes" FROM capiro_app');
+    expect(migration).toContain(
+      'REVOKE DELETE, TRUNCATE ON TABLE "knowledge_episodes" FROM capiro_app',
+    );
     expect(migration).toContain(
       'REVOKE DELETE, TRUNCATE ON TABLE "knowledge_episode_projection_jobs" FROM capiro_app',
     );
@@ -112,9 +114,7 @@ describe('Knowledge Plane Phase 7 episode migration contract', () => {
   });
 
   test('assertion membership origin_event_id must match the assertion own origin event', () => {
-    expect(migration).toContain(
-      "origin_event_id must match the assertion''s own origin event",
-    );
+    expect(migration).toContain("origin_event_id must match the assertion''s own origin event");
     expect(migration).toContain('v_assertion_origin_event IS DISTINCT FROM NEW.origin_event_id');
   });
 
@@ -137,6 +137,15 @@ describe('Knowledge Plane Phase 7 episode migration contract', () => {
       /INSERT\s+INTO\s+knowledge_episode_projection_jobs[\s\S]{0,300}\bSELECT\b/i,
     );
     expect(migration).toContain('No historical backfill is performed by this migration');
+  });
+
+  test('succeeded projection jobs remain purgeable without nulling their episode_id', () => {
+    expect(migration).toContain(
+      'FOREIGN KEY ("episode_id") REFERENCES "knowledge_episodes"("id")\n    ON DELETE CASCADE ON UPDATE CASCADE',
+    );
+    expect(migration).not.toContain(
+      'FOREIGN KEY ("episode_id") REFERENCES "knowledge_episodes"("id")\n    ON DELETE SET NULL ON UPDATE CASCADE',
+    );
   });
 
   test('projection job enqueue is idempotent under replay', () => {

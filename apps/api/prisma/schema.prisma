@@ -10687,7 +10687,7 @@ model KnowledgeEpisodeProjectionJob {
 
   tenant  Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_projection_jobs_tenant_fkey")
   event   KnowledgeEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_projection_jobs_event_fkey")
-  episode KnowledgeEpisode? @relation(fields: [episodeId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "knowledge_episode_projection_jobs_episode_fkey")
+  episode KnowledgeEpisode? @relation(fields: [episodeId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_projection_jobs_episode_fkey")
 
   @@unique([tenantId, eventId], map: "knowledge_episode_projection_jobs_event_unique")
   @@index([tenantId, eventId], map: "knowledge_episode_projection_jobs_tenant_event_idx")

@@ -54,6 +54,36 @@ MESSAGE_A2="88888888-8888-4888-8888-888888888888"
 CLIENT_1="99999999-9999-4999-8999-999999999991"
 CLIENT_2="99999999-9999-4999-8999-999999999992"
 
+echo "== Cleaning prior rehearsal fixtures =="
+psql_cmd <<SQL
+-- The rehearsal uses fixed UUIDs so every assertion can be addressed
+-- deterministically. Make repeated local runs safe by purging only those
+-- fixtures through the same explicit trusted purge boundary tested below.
+SELECT set_config('app.bypass_rls', 'on', false);
+SELECT set_config('app.allow_knowledge_purge', 'on', false);
+DO \$\$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM tenants
+    WHERE id = '$TENANT_A'::uuid
+      AND slug <> 'phase7-rehearsal-a'
+  ) OR EXISTS (
+    SELECT 1
+    FROM tenants
+    WHERE id = '$TENANT_B'::uuid
+      AND slug <> 'phase7-rehearsal-b'
+  ) THEN
+    RAISE EXCEPTION 'fixed Phase 7 rehearsal UUID belongs to a non-rehearsal tenant';
+  END IF;
+END
+\$\$;
+DELETE FROM tenants
+WHERE id IN ('$TENANT_A'::uuid, '$TENANT_B'::uuid);
+DELETE FROM users WHERE id = '$USER_A'::uuid;
+SQL
+pass "prior rehearsal fixtures removed"
+
 echo "== Seeding fixtures =="
 psql_cmd <<SQL
 -- pgcrypto is test-fixture-only tooling (digest() for synthesizing valid
@@ -128,6 +158,37 @@ E6=$(insert_event "$TENANT_A" "ev-6" "$CONNECTION_A1" "thread-ext-2" "normal" "$
 
 [ -n "$E1" ] && [ -n "$E2" ] && [ -n "$E3" ] && [ -n "$E4" ] && [ -n "$E5" ] && [ -n "$E6" ] || fail "event seeding produced empty ids"
 pass "seeded events E1..E6"
+
+echo "== Phase 4 -> Phase 7 enqueue trigger =="
+MAILBOX_JOB_ID="dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+psql_cmd <<SQL
+INSERT INTO knowledge_mailbox_jobs (
+  id, tenant_id, mail_message_id, source_revision, status
+) VALUES (
+  '$MAILBOX_JOB_ID'::uuid, '$TENANT_A'::uuid, '$MESSAGE_A1'::uuid, repeat('c', 32), 'pending'
+);
+UPDATE knowledge_mailbox_jobs
+SET
+  status = 'succeeded',
+  result_event_id = '$E1'::uuid,
+  processed_content_hash = (SELECT source_content_hash FROM knowledge_events WHERE id = '$E1'::uuid)
+WHERE id = '$MAILBOX_JOB_ID'::uuid;
+SQL
+ENQUEUED_JOB_COUNT=$(psql_cmd -t -A -c "SELECT count(*) FROM knowledge_episode_projection_jobs WHERE tenant_id='$TENANT_A'::uuid AND event_id='$E1'::uuid;")
+[ "$ENQUEUED_JOB_COUNT" = "1" ] || fail "Phase 4 success did not enqueue exactly one Phase 7 projection job (count=$ENQUEUED_JOB_COUNT)"
+
+# Replaying the same Phase 4 success update must not create a second job.
+psql_cmd <<SQL
+UPDATE knowledge_mailbox_jobs
+SET
+  status = 'succeeded',
+  result_event_id = '$E1'::uuid,
+  processed_content_hash = (SELECT source_content_hash FROM knowledge_events WHERE id = '$E1'::uuid)
+WHERE id = '$MAILBOX_JOB_ID'::uuid;
+SQL
+REPLAYED_JOB_COUNT=$(psql_cmd -t -A -c "SELECT count(*) FROM knowledge_episode_projection_jobs WHERE tenant_id='$TENANT_A'::uuid AND event_id='$E1'::uuid;")
+[ "$REPLAYED_JOB_COUNT" = "1" ] || fail "replaying Phase 4 success created a duplicate Phase 7 projection job (count=$REPLAYED_JOB_COUNT)"
+pass "successful Phase 4 mailbox job enqueues one idempotent Phase 7 projection job"
 
 # Compute the deterministic identity keys exactly as the application does:
 # SHA-256 of the stable-sorted JSON of the grouping key object. We replicate
@@ -364,6 +425,28 @@ then
   [ "$UPDATE_COUNT" != "closed" ] || fail "cross-tenant episode UPDATE unexpectedly took effect"
 fi
 pass "cross-tenant episode lookup/update is blocked by the tenant-scope RLS policy under the app role"
+
+# Seed a succeeded Phase 7 job attached to tenant B's episode so the trusted
+# purge proof also exercises the succeeded-job -> episode foreign key.
+EPISODE_B="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+JOB_B="cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+psql_cmd <<SQL
+INSERT INTO knowledge_episodes (
+  id, tenant_id, strategy, identity_key, sensitivity, access_scope,
+  client_refs, grouping_key, first_event_at, last_event_at
+) VALUES (
+  '$EPISODE_B'::uuid, '$TENANT_B'::uuid, 'mailbox_thread_v1', repeat('b', 64),
+  'normal', '{"kind":"tenant"}'::jsonb, '[]'::jsonb, '{}'::jsonb,
+  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+);
+INSERT INTO knowledge_episode_projection_jobs (
+  id, tenant_id, event_id, status, attempt_count, episode_id
+) VALUES (
+  '$JOB_B'::uuid, '$TENANT_B'::uuid, '$TENANT_B_EVENT'::uuid,
+  'succeeded', 1, '$EPISODE_B'::uuid
+);
+SQL
+pass "seeded succeeded projection job for tenant-B purge proof"
 
 echo "== 12: append-only membership cannot be mutated by the application role =="
 

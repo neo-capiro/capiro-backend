@@ -166,10 +166,7 @@ export class KnowledgeEpisodeProjectionConsumer {
     }
   }
 
-  private async skip(
-    job: KnowledgeEpisodeProjectionJobRecord,
-    reason: string,
-  ): Promise<'skipped'> {
+  private async skip(job: KnowledgeEpisodeProjectionJobRecord, reason: string): Promise<'skipped'> {
     await this.repository.skip(job, reason);
     return 'skipped';
   }

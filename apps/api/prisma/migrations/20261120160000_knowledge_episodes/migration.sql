@@ -420,7 +420,7 @@ CREATE TABLE "knowledge_episode_projection_jobs" (
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT "knowledge_episode_projection_jobs_episode_fkey"
     FOREIGN KEY ("episode_id") REFERENCES "knowledge_episodes"("id")
-    ON DELETE SET NULL ON UPDATE CASCADE,
+    ON DELETE CASCADE ON UPDATE CASCADE,
   -- Exactly one projection job per event: trigger-driven enqueue is
   -- idempotent under replay via ON CONFLICT DO NOTHING against this.
   CONSTRAINT "knowledge_episode_projection_jobs_event_unique"
