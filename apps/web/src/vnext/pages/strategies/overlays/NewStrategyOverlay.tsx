@@ -145,10 +145,10 @@ export function NewStrategyOverlay() {
           <label className="capiro-field">
             <span className="capiro-field__label">Goal statement · Required</span>
             <textarea
-              className="st-textarea"
+              className="st-textarea st-textarea--tall"
               value={goal}
               onChange={(event) => setGoal(event.target.value)}
-              placeholder="e.g. Restore the FY27 Ground Robotics reduction and protect related procurement through conference."
+              placeholder="What outcome does this strategy have to produce?"
             />
           </label>
           <div className="st-field-row">
@@ -171,7 +171,7 @@ export function NewStrategyOverlay() {
           <label className="capiro-field">
             <span className="capiro-field__label">Context for Meri · Optional</span>
             <textarea
-              className="st-textarea"
+              className="st-textarea st-textarea--short"
               value={meriContext}
               onChange={(event) => setMeriContext(event.target.value)}
               placeholder="Prioritize verified budget evidence, committee jurisdiction and client-approved proof points."

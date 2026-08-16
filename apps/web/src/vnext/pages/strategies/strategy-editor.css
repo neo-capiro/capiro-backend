@@ -134,6 +134,10 @@
   --st-tl-month-w: 46px;
 }
 .capiro-vnext-root .capiro-strategies .st-tl__grid {
+  /* Containing block for .st-tl-today (direct child as of the full-height fix
+     below): its top:0/bottom:0 needs to resolve against the ENTIRE stack of
+     rows, which is exactly this element's own (auto, content-derived) height. */
+  position: relative;
   min-width: calc(var(--st-tl-label-w) + var(--st-tl-months, 36) * var(--st-tl-month-w));
 }
 
@@ -198,6 +202,12 @@
 }
 .capiro-vnext-root .capiro-strategies .st-tl-month:first-child { border-left: none; }
 .capiro-vnext-root .capiro-strategies .st-tl-month--fy { border-left-color: var(--st-fyline); color: var(--st-gray-600); }
+/* Current-month emphasis, distinct from --fy (which marks every fiscal year's
+   FIRST month, not "now"). Reuses --st-today — already this exact module's
+   "today" accent (the marker line/pill above) — rather than a new one-off
+   color. Declared after --fy so the current month still reads as current on
+   the rare month that is both (October landing on today). */
+.capiro-vnext-root .capiro-strategies .st-tl-month--current { font-weight: 700; color: var(--st-today); }
 
 /* Today marker: 2px line at 50% opacity spanning the full height, plus a
    pill (both pointer-events:none — design handoff "Working timeline"). */

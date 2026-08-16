@@ -76,8 +76,18 @@
   background: var(--st-white); box-shadow: inset 0 0 0 1px var(--st-gray-200);
   transition: box-shadow 120ms ease, background 120ms ease;
 }
-.capiro-vnext-root .capiro-strategies .st-inspector__evidence li:hover {
+/* Only fact-anchored evidence (StepInspector.tsx: a 'fact:<id>' ref) has
+   somewhere to navigate — the Steward review's ?fact= deep-link. Cursor and
+   the hover/focus feedback below are scoped to that variant so a plain,
+   non-actionable citation never implies it's clickable. */
+.capiro-vnext-root .capiro-strategies .st-inspector__evidence li.st-inspector__evidence-link {
+  cursor: pointer;
+}
+.capiro-vnext-root .capiro-strategies .st-inspector__evidence li.st-inspector__evidence-link:hover {
   background: var(--st-gray-50); box-shadow: inset 0 0 0 1px var(--st-accent-tint-border);
+}
+.capiro-vnext-root .capiro-strategies .st-inspector__evidence li.st-inspector__evidence-link:focus-visible {
+  outline: none; box-shadow: var(--st-shadow-focus);
 }
 .capiro-vnext-root .capiro-strategies .st-inspector__evidence-title { font-size: 13px; font-weight: 500; color: var(--st-gray-900); min-width: 0; }
 /* A provenance ref is a machine identifier (path, hash, source line) with no
@@ -98,12 +108,59 @@
 
 .capiro-vnext-root .capiro-strategies .st-meri-tab { gap: 12px; }
 .capiro-vnext-root .capiro-strategies .st-meri-thread { display: flex; flex-direction: column; gap: 10px; min-height: 120px; }
-.capiro-vnext-root .capiro-strategies .st-meri-msg { max-width: 100%; }
+/* Role differentiation: user bubbles right-align on a dark fill; Meri's
+   replies left-align on a light surface with a subtle ring. Reuses
+   --st-accent-deep/--st-white (this module's existing dark-panel pairing —
+   strategies.css's .st-dark-banner) and --st-gray-50/--st-gray-200 (the
+   light+ring pairing already used a few rules above on
+   .st-inspector__evidence) rather than inventing new colors. */
+.capiro-vnext-root .capiro-strategies .st-meri-msg { max-width: 88%; display: flex; flex-direction: column; }
+.capiro-vnext-root .capiro-strategies .st-meri-msg--user { align-self: flex-end; }
+.capiro-vnext-root .capiro-strategies .st-meri-msg--meri,
+.capiro-vnext-root .capiro-strategies .st-meri-msg--system { align-self: flex-start; }
 .capiro-vnext-root .capiro-strategies .st-meri-msg__body { font-size: 14px; line-height: 20px; margin: 0; padding: 10px 12px; border-radius: 10px; }
-.capiro-vnext-root .capiro-strategies .st-meri-msg--user .st-meri-msg__body { background: var(--st-accent-tint); color: var(--st-gray-900); }
-.capiro-vnext-root .capiro-strategies .st-meri-msg--meri .st-meri-msg__body, .st-meri-msg--system .st-meri-msg__body { background: var(--st-gray-50); color: var(--st-gray-700); }
-.capiro-vnext-root .capiro-strategies .st-meri-composer { display: flex; gap: 8px; }
+.capiro-vnext-root .capiro-strategies .st-meri-msg--user .st-meri-msg__body { background: var(--st-accent-deep); color: var(--st-white); }
+.capiro-vnext-root .capiro-strategies .st-meri-msg--meri .st-meri-msg__body,
+.capiro-vnext-root .capiro-strategies .st-meri-msg--system .st-meri-msg__body {
+  background: var(--st-gray-50);
+  color: var(--st-gray-700);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+}
+
+/* Composer pinned across tabs (StepInspector.tsx): sticky to the bottom of
+   .st-inspector's own scrollport, mirroring the sticky-header idiom already
+   used on .st-inspector__head at narrow viewports below. */
+.capiro-vnext-root .capiro-strategies .st-inspector__composer {
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  background: var(--st-white);
+  border-top: 1px solid var(--st-gray-100);
+}
+.capiro-vnext-root .capiro-strategies .st-meri-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.capiro-vnext-root .capiro-strategies .st-meri-chip {
+  border: 1px solid var(--st-gray-200);
+  background: var(--st-white);
+  color: var(--st-gray-700);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.capiro-vnext-root .capiro-strategies .st-meri-chip:hover:not(:disabled) { background: var(--st-gray-50); }
+.capiro-vnext-root .capiro-strategies .st-meri-chip:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
+.capiro-vnext-root .capiro-strategies .st-meri-chip:disabled { cursor: not-allowed; opacity: 0.55; }
+.capiro-vnext-root .capiro-strategies .st-meri-composer { display: flex; align-items: flex-end; gap: 8px; }
 .capiro-vnext-root .capiro-strategies .st-meri-composer .capiro-input, .st-meri-composer input { flex: 1; }
+.capiro-vnext-root .capiro-strategies .st-meri-send:hover:not(:disabled) { opacity: 0.85; }
 .capiro-vnext-root .capiro-strategies .st-meri-hint { font-size: 12px; color: var(--st-gray-500); margin: 0; }
 
 .capiro-vnext-root .capiro-strategies .st-newstep { display: flex; flex-direction: column; gap: 12px; }

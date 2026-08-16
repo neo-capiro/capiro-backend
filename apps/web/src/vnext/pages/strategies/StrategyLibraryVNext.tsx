@@ -34,7 +34,11 @@ import './strategy-library.css';
 /** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-const TYPE_LABEL: Record<string, string> = {
+/* Exported so StrategyEditorVNext's eyebrow can render the same friendly
+ * label for `StrategyType` instead of the raw slug — both statically
+ * imported by VNextStrategiesRoutes.tsx already, so this adds no new
+ * bundle/circular-import concern. */
+export const TYPE_LABEL: Record<string, string> = {
   appropriations: 'Appropriations ask',
   authorization: 'Authorization',
   regulatory: 'Regulatory / Policy',
@@ -248,7 +252,9 @@ export function StrategyLibraryVNext() {
           </div>
         )}
 
-        {/* Four navigational stats (§7.1) — each is a filter or navigation, never decoration. */}
+        {/* Four navigational stats (§7.1) — each is a filter or navigation, never decoration.
+            "Approaching gates" and "Plan coverage" stay honest gaps (see per-button comments
+            below) rather than faking a fleet-wide number this view cannot ground. */}
         <div className="st-stats">
           <button type="button" className="st-stat" onClick={() => setOwnerFilter('all')}>
             <p className="st-stat__value">{activeCount}</p>
@@ -260,11 +266,23 @@ export function StrategyLibraryVNext() {
             <p className="st-stat__label">Needs review</p>
             <p className="st-stat__hint">Watcher proposals</p>
           </button>
+          {/* GAP, not a placeholder: a real count needs every strategy's gate nodes +
+              due dates, which live only on StrategyDetail.nodes (lib/plan-health.ts's
+              computePlanHealth already reads that shape, per-strategy). The list
+              endpoint's StrategyListItem (pages/strategy/types.ts) carries only
+              `nodeCount`, no node-level detail, and strategies-api.ts exposes no
+              fleet-wide gates endpoint — computing this here would mean an
+              N+1 useStrategy(id) fetch per row on every library load. Disclose the
+              gap with "—" rather than fabricate a number. */}
           <button type="button" className="st-stat" onClick={() => navigate('/strategies/agents/proposals')}>
             <p className="st-stat__value">—</p>
             <p className="st-stat__label">Approaching gates</p>
             <p className="st-stat__hint">Within 30 days</p>
           </button>
+          {/* GAP, same root cause as "Approaching gates" above: owner coverage is
+              per-node (StrategyDetail.nodes[].ownerUserId), not carried on the list
+              endpoint's StrategyListItem, and no lightweight fleet aggregate exists
+              in strategies-api.ts today. */}
           <button type="button" className="st-stat" onClick={() => setOwnerFilter('all')}>
             <p className="st-stat__value">—</p>
             <p className="st-stat__label">Plan coverage</p>
@@ -400,7 +418,7 @@ function StrategyRow({
       aria-label={`Open strategy ${strategy.title}`}
     >
       <td>
-        <div className="st-library-client st-mono">{client}</div>
+        <div className="st-library-client">{client}</div>
         <div className="st-library-title">{strategy.title}</div>
       </td>
       <td>

@@ -9,19 +9,36 @@
  * (§7.9 — STAGE only, no send control anywhere).
  */
 import { useNavigate } from 'react-router-dom';
-import { CapiroTabs } from '../../../components/menus/index.js';
+import { CapiroTabs, type CapiroTabItem } from '../../../components/menus/index.js';
 import { ScopeBar, type ScopeBarStatus } from '../ScopeBar.js';
-import { useChangeSets } from '../strategies-api.js';
+import { useChangeSets, useExecutionRuns } from '../strategies-api.js';
 import { ProposalsQueue } from './ProposalsQueue.js';
 import { ExecutionRuns } from './ExecutionRuns.js';
 import './agents.css';
 
 export type AgentsTab = 'proposals' | 'runs';
 
-const TABS = [
-  { id: 'proposals', label: 'Proposals' },
-  { id: 'runs', label: 'Execution runs' },
-] as const;
+/*
+ * Tab-dependent H1 + description (design handoff correction — an earlier
+ * draft's "Proposals" label and one blended header sentence were superseded
+ * by a distinct "Review queue"/"Execution" header per tab in the final
+ * handoff). Wording is reused from each tab's own dark-banner copy
+ * (ProposalsQueue / ExecutionRuns) rather than invented fresh — "the dark
+ * banner copy is product policy — do not reword" governs the SOURCE of these
+ * phrases, not a new claim about the product.
+ */
+const TAB_COPY: Record<AgentsTab, { h1: string; description: string }> = {
+  proposals: {
+    h1: 'Agent review queue',
+    description:
+      "Review what the Watcher proposes against your plans — every change needs a person's approval before it touches a strategy.",
+  },
+  runs: {
+    h1: 'Execution',
+    description:
+      'See what the Execution Agent drafts and stages — Workspace assets and outreach records — for human review. Nothing is sent from this surface.',
+  },
+};
 
 /*
  * Scope-bar status (design handoff "Scope bar" section — "warning 'Human
@@ -33,10 +50,10 @@ const TABS = [
  * the shared shell so both tabs show the same real count — never a fabricated
  * number, and never a bare `0`/hidden pill while it is still loading or failed.
  */
-function useAgentScopeStatus(): ScopeBarStatus {
-  const proposed = useChangeSets({ status: 'proposed' });
-  const approved = useChangeSets({ status: 'approved' });
-
+function useAgentScopeStatus(
+  proposed: ReturnType<typeof useChangeSets>,
+  approved: ReturnType<typeof useChangeSets>,
+): ScopeBarStatus {
   if (proposed.isLoading || approved.isLoading) {
     return { tone: 'gray', label: 'Checking approval status…' };
   }
@@ -51,7 +68,48 @@ function useAgentScopeStatus(): ScopeBarStatus {
 
 export function AgentsTabsVNext({ tab }: { tab: AgentsTab }) {
   const navigate = useNavigate();
-  const scopeStatus = useAgentScopeStatus();
+  const proposed = useChangeSets({ status: 'proposed' });
+  const approved = useChangeSets({ status: 'approved' });
+  /* Unfiltered — same queryKey ExecutionRuns.tsx itself uses whenever no
+   * ?strategyId= scope is active, so react-query dedupes the fetch. */
+  const runs = useExecutionRuns(null, true);
+  const scopeStatus = useAgentScopeStatus(proposed, approved);
+
+  /*
+   * Per-tab count badges (design handoff — a warning-toned pending count on
+   * the queue tab, a gray-toned needs-review count on the runs tab).
+   * Grounded in the SAME real queries the tab bodies themselves render from
+   * — never a fabricated number, and never a bare "0" while still loading or
+   * on error (badge stays absent, not zeroed, in that case). Hidden outright
+   * at a genuine 0, same convention as StrategyLibraryVNext's "Agent review"
+   * count.
+   */
+  const pendingChangeSets =
+    proposed.isSuccess && approved.isSuccess
+      ? (proposed.data?.length ?? 0) + (approved.data?.length ?? 0)
+      : null;
+  const runsNeedingReview = runs.isSuccess
+    ? (runs.data ?? []).filter((r) => r.state === 'ready_for_review' || r.state === 'failed_recoverable').length
+    : null;
+
+  const items: CapiroTabItem[] = [
+    {
+      id: 'proposals',
+      label: 'Review queue',
+      badge:
+        pendingChangeSets !== null && pendingChangeSets > 0
+          ? { count: pendingChangeSets, tone: 'warning' }
+          : undefined,
+    },
+    {
+      id: 'runs',
+      label: 'Execution runs',
+      badge:
+        runsNeedingReview !== null && runsNeedingReview > 0
+          ? { count: runsNeedingReview, tone: 'neutral' }
+          : undefined,
+    },
+  ];
 
   return (
     <>
@@ -68,18 +126,31 @@ export function AgentsTabsVNext({ tab }: { tab: AgentsTab }) {
           `.st-hero--editor`, nothing here needs a narrower override. */}
       <div className="st-hero">
         <div className="st-page-header">
-          <div>
-            <p className="st-eyebrow">Strategy Operating System</p>
-            <h1 className="st-title">Agent governance</h1>
-            <p className="st-purpose">
-              Review what the Watcher proposes against your plans, and what the Execution Agent stages
-              from them — every change waits for a person.
-            </p>
+          <div className="st-agents__header-left">
+            {/* Back-to-library control — mirrors StrategyEditorVNext's
+                `.st-editor-back` chevron button exactly (same markup, same
+                aria-label), but styled under this module's own class in
+                agents.css rather than reaching into strategy-editor.css,
+                which is a separate lazy chunk not guaranteed to be loaded
+                when this route is opened directly. */}
+            <button
+              type="button"
+              className="st-agents__back"
+              aria-label="Back to strategies"
+              onClick={() => navigate('/strategies')}
+            >
+              ‹
+            </button>
+            <div>
+              <p className="st-eyebrow">Strategy Operating System</p>
+              <h1 className="st-title">{TAB_COPY[tab].h1}</h1>
+              <p className="st-purpose">{TAB_COPY[tab].description}</p>
+            </div>
           </div>
           <div className="st-actions">
             <CapiroTabs
               label="Agent governance sections"
-              items={[...TABS]}
+              items={items}
               activeId={tab}
               onChange={(id) =>
                 navigate(id === 'runs' ? '/strategies/agents/runs' : '/strategies/agents/proposals')

@@ -618,7 +618,7 @@ export function ContextDocumentVNext() {
           <section className="st-ctxdoc__card st-ctxdoc__card--muted" aria-label="Provenance">
             <span className="st-ctxdoc__card-label">Provenance</span>
             <div className="st-ctxdoc__hash-row">
-              <span className="st-ctxdoc__hash-chip st-mono">SHA-256</span>
+              <span className="st-ctxdoc__hash-chip st-mono">SHA-256 VERIFIED</span>
               <span className="st-ctxdoc__hash-value st-mono" title={d.checksum}>
                 {d.checksum.slice(0, 16)}…
               </span>

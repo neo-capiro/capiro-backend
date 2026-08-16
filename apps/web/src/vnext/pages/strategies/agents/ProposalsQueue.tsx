@@ -76,6 +76,20 @@ const RISK_PILL: Record<ChangeSetRisk, { label: string; tone: string }> = {
 };
 
 /*
+ * Risk-level filter (design handoff, "Awaiting review" section) — a
+ * threshold ladder over the SAME risk vocabulary the pills above already
+ * use ("Medium+"/"High+" read as "at least this severity"), filtering the
+ * already-fetched queue client-side rather than re-fetching.
+ */
+const RISK_RANK: Record<ChangeSetRisk, number> = { low: 0, medium: 1, high: 2, critical: 3 };
+type RiskFilter = 'all' | 'medium' | 'high';
+const RISK_FILTER_MIN: Record<RiskFilter, number> = {
+  all: 0,
+  medium: RISK_RANK.medium,
+  high: RISK_RANK.high,
+};
+
+/*
  * Operation kind pill (design handoff "Step-kind table" — Action/brand,
  * Gate/gray, Milestone/purple, Risk/error; Decision keeps its own
  * accent-focus shade per strategies-tokens.css). Reuses the shared pill tone
@@ -160,6 +174,21 @@ export function ProposalsQueue() {
     );
   }, [proposed.data, approved.data]);
 
+  /* "All risk" default; narrower thresholds filter the SAME grouped data
+   * (never a re-fetch). The section summary below stays grounded in the
+   * true, unfiltered `groups`/`openCount` — only the rendered list narrows
+   * (StewardReviewVNext's "Open only" toggle is the precedent: its own
+   * section summary likewise stays on the client-scoped, not further-
+   * filtered, total). */
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
+  const visibleGroups = useMemo(() => {
+    if (riskFilter === 'all') return groups;
+    const min = RISK_FILTER_MIN[riskFilter];
+    return groups
+      .map(([strategyId, rows]) => [strategyId, rows.filter((cs) => RISK_RANK[cs.risk] >= min)] as const)
+      .filter(([, rows]) => rows.length > 0);
+  }, [groups, riskFilter]);
+
   const queueLoading = proposed.isLoading || approved.isLoading;
   const queueQuery = proposed.isError ? proposed : approved;
   const queueState = staleOrError(queueQuery);
@@ -221,6 +250,24 @@ export function ProposalsQueue() {
           )}
         </div>
 
+        {/* Risk-level filter — same active/inactive toggle-button visual
+            language as StrategyLibraryVNext's owner filter / StewardReviewVNext's
+            "Open only" toggle (`.st-segmented`, strategies.css), not a new
+            filter-chip pattern. Shown only once there is a real queue to filter. */}
+        {!queueLoading && queueState === null && groups.length > 0 && (
+          <div className="st-segmented st-agents__risk-filter" role="group" aria-label="Filter by risk level">
+            <button type="button" aria-pressed={riskFilter === 'all'} onClick={() => setRiskFilter('all')}>
+              All risk
+            </button>
+            <button type="button" aria-pressed={riskFilter === 'medium'} onClick={() => setRiskFilter('medium')}>
+              Medium+
+            </button>
+            <button type="button" aria-pressed={riskFilter === 'high'} onClick={() => setRiskFilter('high')}>
+              High+
+            </button>
+          </div>
+        )}
+
         {queueState === 'stale' && <StaleNote dataUpdatedAt={queueQuery.dataUpdatedAt} />}
 
         {queueLoading ? (
@@ -256,9 +303,14 @@ export function ProposalsQueue() {
             title="Nothing to review"
             description="The Watcher has no open proposals. Enable Watch on a strategy — or run a check from its rail — to get proactive suggestions here."
           />
+        ) : visibleGroups.length === 0 ? (
+          <CapiroEmptyState
+            title="No change-sets match this risk filter"
+            description="Try a lower risk threshold to see the rest of the open queue."
+          />
         ) : (
           <div className="st-agents__groups">
-            {groups.map(([strategyId, rows]) => (
+            {visibleGroups.map(([strategyId, rows]) => (
               <StrategyGroup
                 key={strategyId}
                 strategyId={strategyId}
@@ -588,12 +640,12 @@ function ChangeSetCard({
             {cs.createdByUserId === null && <span className="st-pill">Watcher</span>}
             <span className="st-agents__spacer" />
             <span className="st-agents__meta">
+              Generated {fmtRelative(cs.createdAt)}
+              {' · '}
               base revision{' '}
               <span className="st-mono" title={cs.strategyVersionId}>
                 {shortId(cs.strategyVersionId)}
               </span>
-              {' · '}
-              {fmtRelative(cs.createdAt)}
             </span>
           </div>
 
@@ -631,16 +683,26 @@ function ChangeSetCard({
                   </span>
                   {d.changes.length > 0 && (
                     <span className="st-agents__diffs">
+                      {/* BEFORE/AFTER value chips (design handoff) — two
+                          right-aligned, stacked monospace chips per changed
+                          field, replacing the old inline "field: ~~before~~ →
+                          **after**" line. Rectangular (4px radius, matching
+                          this file's existing `.st-agents__op-verb` chip),
+                          not the fully-round `.st-pill` — a value chip, not a
+                          status pill. */}
                       {d.changes.map((c, j) => (
-                        <span key={j} className="st-mono st-agents__diff">
-                          {c.field}:{' '}
-                          {c.before !== null && (
-                            <>
-                              <s>{c.before}</s>
-                              {' → '}
-                            </>
-                          )}
-                          <b>{c.after}</b>
+                        <span key={j} className="st-agents__diff-row">
+                          <span className="st-agents__diff-field">{c.field}</span>
+                          <span className="st-agents__diff-chips">
+                            {c.before !== null && (
+                              <span className="st-mono st-agents__chip st-agents__chip--before">
+                                BEFORE · {c.before}
+                              </span>
+                            )}
+                            <span className="st-mono st-agents__chip st-agents__chip--after">
+                              AFTER · {c.after}
+                            </span>
+                          </span>
                         </span>
                       ))}
                     </span>
@@ -698,7 +760,7 @@ function ChangeSetCard({
           )}
 
           <div className="st-agents__cs-panel-actions">
-            <CapiroButton size="compact" disabled={busy} onClick={() => setConfirm('reject')}>
+            <CapiroButton variant="quiet" size="compact" disabled={busy} onClick={() => setConfirm('reject')}>
               Reject set
             </CapiroButton>
             {/*

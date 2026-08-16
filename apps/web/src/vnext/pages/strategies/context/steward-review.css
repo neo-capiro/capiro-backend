@@ -218,6 +218,38 @@
   color: var(--st-gray-900);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__section-spacer { flex: 1; }
+
+/* "Open only" conflicts filter — an aria-pressed toggle chip (the same
+   interaction pattern as the other filter toggles in this codebase, e.g. the
+   Strategy library's owner filter). ON is tinted with the same error tokens
+   already used for Reject below, since an open conflict is the same
+   needs-attention state that button warns about — no new visual language. */
+.capiro-vnext-root .capiro-strategies .st-steward__filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--st-gray-300);
+  border-radius: 8px;
+  background: var(--st-white);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--st-font-sans);
+  color: var(--st-gray-600);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__filter-toggle:hover { color: var(--st-gray-900); }
+.capiro-vnext-root .capiro-strategies .st-steward__filter-toggle.is-active {
+  border-color: var(--st-error-ring);
+  background: var(--st-error-bg);
+  color: var(--st-error-fg);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__filter-toggle.is-active:hover { color: var(--st-error-fg); }
+.capiro-vnext-root .capiro-strategies .st-steward__filter-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--st-shadow-focus);
+}
 .capiro-vnext-root .capiro-strategies .st-steward__note {
   padding: 8px 12px;
   border-radius: 8px;
@@ -367,12 +399,13 @@
   font-size: 12px;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__candidate.is-missing p { margin: 0; }
-.capiro-vnext-root .capiro-strategies .st-steward__candidate-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--st-gray-500);
+/* The candidate label is a shared `.st-pill st-mono` tag now (a small
+   monospace pill + dot, not the old plain uppercase text — design QA). As a
+   `display:inline-flex` element it gets blockified into a grid item here and
+   would otherwise stretch to fill `.st-steward__candidate`'s single column
+   under the default `justify-self: stretch`; pin it back to content width. */
+.capiro-vnext-root .capiro-strategies .st-steward__candidate > .st-pill {
+  justify-self: start;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__candidate-text {
   margin: 0;
@@ -555,6 +588,11 @@
 
   /* Touch target (>=44px) for the per-fact reject control. */
   .capiro-vnext-root .capiro-strategies .st-steward__reject {
+    min-height: var(--capiro-hit-size, 44px);
+  }
+
+  /* Touch target (>=44px) for the "Open only" conflicts filter toggle. */
+  .capiro-vnext-root .capiro-strategies .st-steward__filter-toggle {
     min-height: var(--capiro-hit-size, 44px);
   }
 }

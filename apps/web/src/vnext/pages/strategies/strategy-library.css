@@ -168,6 +168,26 @@
 .capiro-vnext-root .capiro-strategies .st-library-updated { color: var(--st-gray-600); white-space: nowrap; }
 .capiro-vnext-root .capiro-strategies .st-library-chev { color: var(--st-gray-400); font-size: 20px; text-align: right; }
 
+/*
+ * Typography correction: .st-stat__value/.st-stat__hint (base rule in
+ * strategies.css) render at 28px/34px and 13px — off-scale. The spec wants
+ * the value to match .st-title's scale (strategies.css, defined a couple of
+ * rules above .st-stat__value: 30px/38px/600 — weight/letter-spacing/color
+ * already match, only size+leading were off) and the hint to read at 14px.
+ * strategies.css is out of scope for this pass (another agent's pill-CSS
+ * fix lives there), so the correction is scoped here instead: `.st-stats`
+ * already wraps every `.st-stat__value`/`.st-stat__hint` in this view, and
+ * one extra class of specificity beats the base rule outright — no
+ * dependency on stylesheet import order.
+ */
+.capiro-vnext-root .capiro-strategies .st-stats .st-stat__value {
+  font-size: 30px;
+  line-height: 38px;
+}
+.capiro-vnext-root .capiro-strategies .st-stats .st-stat__hint {
+  font-size: 14px;
+}
+
 .capiro-vnext-root .capiro-strategies .st-visually-hidden {
   position: absolute;
   width: 1px; height: 1px;

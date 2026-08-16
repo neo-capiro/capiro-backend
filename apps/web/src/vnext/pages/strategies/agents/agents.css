@@ -23,6 +23,37 @@
   letter-spacing: 0.05em;
 }
 
+/* ---- back-to-library control (design handoff) --------------------------
+   Mirrors StrategyEditorVNext's `.st-editor-back` chevron button exactly
+   (same 36px/8px-radius/gray-300-border markup, same hover/focus), but
+   duplicated under this module's own class rather than depending on
+   strategy-editor.css — a separate lazy chunk that is not guaranteed to be
+   loaded when this route is opened directly (e.g. a hard refresh on
+   /strategies/agents/proposals with the editor never visited). */
+.capiro-vnext-root .capiro-strategies .st-agents__header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__header-left > div {
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__back {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--st-gray-300);
+  background: var(--st-white);
+  color: var(--st-gray-700);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  flex: none;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__back:hover { background: var(--st-gray-50); }
+.capiro-vnext-root .capiro-strategies .st-agents__back:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
+
 /* ---- dark banner deltas (design handoff — 20px 24px padding, a 36px icon
    tile, 16px/14px type, and a real pill-shaped chip with its own dot). Both
    banners on this surface use `.st-dark-banner` (strategies.css, not edited
@@ -94,6 +125,13 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--st-gray-900);
+}
+/* Risk-level filter row (design handoff, "Awaiting review") — `.st-segmented`
+   itself (strategies.css) is fully self-contained; this only adds the gap
+   before the list below, since the filter is a new sibling after the
+   section head (which already carries its own bottom margin). */
+.capiro-vnext-root .capiro-strategies .st-agents__risk-filter {
+  margin-bottom: 12px;
 }
 .capiro-vnext-root .capiro-strategies .st-agents__count {
   font-size: 12px;
@@ -297,20 +335,53 @@
   color: var(--st-warning-fg);
 }
 .capiro-vnext-root .capiro-strategies .st-agents__diffs {
+  margin-top: 2px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
 }
-/* Mono before/after values — arbitrary, unbreakable field content. */
-.capiro-vnext-root .capiro-strategies .st-agents__diff {
+/* Each changed field: the field name on the left, its BEFORE/AFTER value
+   chips stacked and right-aligned on the right (design handoff — replaces
+   the old inline "field: ~~before~~ → **after**" line). */
+.capiro-vnext-root .capiro-strategies .st-agents__diff-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__diff-field {
+  padding-top: 4px;
   font-size: 11px;
   color: var(--st-gray-500);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__diff-chips {
+  flex: none;
+  max-width: 60%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+/* Rectangular value chip (4px radius — matches this file's existing
+   `.st-agents__op-verb` chip precedent) rather than the fully-round
+   `.st-pill`: a value chip, not a status pill. Arbitrary, unbreakable field
+   content. */
+.capiro-vnext-root .capiro-strategies .st-agents__chip {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: right;
   overflow-wrap: anywhere;
+  background: var(--st-gray-50);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  color: var(--st-gray-500);
 }
-.capiro-vnext-root .capiro-strategies .st-agents__diff s {
-  color: var(--st-gray-400);
-}
-.capiro-vnext-root .capiro-strategies .st-agents__diff b {
+.capiro-vnext-root .capiro-strategies .st-agents__chip--after {
+  background: var(--st-white);
+  box-shadow: inset 0 0 0 1px var(--st-gray-300);
   color: var(--st-gray-900);
   font-weight: 600;
 }
@@ -625,6 +696,12 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+/* Pushes the row's primary CTA (Execute plan / Resume run) to the far right,
+   after Cancel/Edit plan — design handoff order: Cancel (ghost) → Edit plan
+   (secondary) → Execute (primary). */
+.capiro-vnext-root .capiro-strategies .st-agents__run-actions-primary {
+  margin-left: auto;
+}
 
 /* ---- execution runs two-column layout (design handoff "Execution runs tab"
    — 1fr/380px): active run(s) + the run-state-model card on the left,
@@ -784,6 +861,34 @@
   line-height: 1.6;
   color: var(--st-gray-700);
 }
+/* "View Stage H criteria" (§11 rule 9 — the single most safety-emphasized
+   control in the design handoff): solid red, using the SAME error-family
+   token this file already reads elsewhere (--st-error-fg, #B42318) as a
+   background rather than its usual tint/border role. Purely informational —
+   it only opens a read-only modal over the SAME static text above. */
+.capiro-vnext-root .capiro-strategies .st-agents__stageh-btn {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--st-error-fg);
+  color: var(--st-white);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.capiro-vnext-root .capiro-strategies .st-agents__stageh-btn:hover {
+  background-color: var(--st-error-fg);
+  filter: brightness(0.88);
+}
+.capiro-vnext-root .capiro-strategies .st-agents__stageh-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--st-shadow-focus);
+}
 
 /* ---- confirm modals ------------------------------------------------------------------ */
 .capiro-vnext-root .capiro-strategies .st-agents__modal-copy {
@@ -851,5 +956,11 @@
   .capiro-vnext-root .capiro-strategies .st-agents__op-check {
     height: 20px;
     margin-top: 1px;
+  }
+  /* Touch-target floor (>=44px) for the back-to-library control — same
+     treatment as StrategyEditorVNext's identical `.st-editor-back`. */
+  .capiro-vnext-root .capiro-strategies .st-agents__back {
+    width: var(--capiro-hit-size, 44px);
+    height: var(--capiro-hit-size, 44px);
   }
 }

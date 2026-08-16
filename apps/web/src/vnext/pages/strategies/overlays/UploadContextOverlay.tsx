@@ -19,10 +19,38 @@
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CapiroIconButton } from '../../../components/actions/index.js';
 import { CapiroSelect } from '../../../components/fields/index.js';
+import { CapiroDownloadIcon } from '../../../components/icons/index.js';
 import { parseUploadError } from '../../../../pages/strategy/context/context-utils.js';
 import { clientName, useClientsLite, useContextDocuments, useUploadContextDocument } from '../strategies-api.js';
 import { StrategiesModalShell } from './StrategiesModalShell.js';
+
+/** Real server limit (apps/api-strategy/src/main.ts: `json({ limit: '8mb' })`)
+ * — the whole upload body (content + clientId) is capped here, so this is
+ * the one true "maximum size" number for the dropzone copy in item 14. */
+const MAX_UPLOAD_MB = 8;
+
+/** Local `XClose` glyph for the file-chip remove button — same convention as
+ * StrategiesModalShell.tsx / FirmPhasesOverlay.tsx's own copies of this
+ * glyph (the shared icon set has no close/X entry). */
+function CloseGlyph({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
 
 /* ------------------------------------------------------------------------ */
 /* Server-validator mirror (apps/api-strategy/src/context/frontmatter.ts).   */
@@ -246,6 +274,111 @@ function parseAndValidate(raw: string): ParsedDoc {
   return { frontmatter: fm, structureErrors, fieldErrors };
 }
 
+/* ------------------------------------------------------------ metadata grid */
+/* Item 15 — GENERATE/PATCH the frontmatter lines the checklist above
+ * validates from a 2-column dropdown/date grid, instead of requiring the
+ * user to hand-type every `key: value` line. These mutate the SAME raw
+ * `content` string the textarea and the checklist read, so the grid, the
+ * textarea and the checklist can never drift out of sync with each other. */
+
+/** Upsert a single flat `key: value` line inside the `---`-fenced frontmatter
+ * block, creating the block (and preserving any existing text as the body
+ * beneath it — never discarding what was already typed/pasted) if one
+ * doesn't already parse. */
+function upsertFrontmatterField(content: string, key: string, rawValue: string): string {
+  const lines = content.length > 0 ? content.split(/\r?\n/) : [];
+  const isFenced = lines.length > 0 && FENCE.test(lines[0] ?? '');
+  let closeIdx = -1;
+  if (isFenced) {
+    for (let i = 1; i < lines.length; i++) {
+      if (FENCE.test(lines[i] ?? '')) {
+        closeIdx = i;
+        break;
+      }
+    }
+  }
+
+  if (!isFenced || closeIdx === -1) {
+    const body = content.replace(/^\r?\n+/, '');
+    return `---\n${key}: ${rawValue}\n---\n${body ? `\n${body}` : '\n'}`;
+  }
+
+  for (let i = 1; i < closeIdx; i++) {
+    const match = KEY_VALUE.exec(lines[i] ?? '');
+    if (match && match[1] === key) {
+      lines[i] = `${key}: ${rawValue}`;
+      return lines.join('\n');
+    }
+  }
+  lines.splice(closeIdx, 0, `${key}: ${rawValue}`);
+  return lines.join('\n');
+}
+
+/** Remove a `key: value` line from the frontmatter block, if present —
+ * reverting a grid field to its placeholder reverts the document too. */
+function removeFrontmatterField(content: string, key: string): string {
+  const lines = content.length > 0 ? content.split(/\r?\n/) : [];
+  if (lines.length === 0 || !FENCE.test(lines[0] ?? '')) return content;
+  let closeIdx = -1;
+  for (let i = 1; i < lines.length; i++) {
+    if (FENCE.test(lines[i] ?? '')) {
+      closeIdx = i;
+      break;
+    }
+  }
+  if (closeIdx === -1) return content;
+  for (let i = 1; i < closeIdx; i++) {
+    const match = KEY_VALUE.exec(lines[i] ?? '');
+    if (match && match[1] === key) {
+      lines.splice(i, 1);
+      return lines.join('\n');
+    }
+  }
+  return content;
+}
+
+/** 'strategy_brief' -> 'Strategy brief' — display label only; the value
+ * written into the document is always the exact raw vocab token below. */
+function humanizeToken(value: string): string {
+  return value.length > 0 ? `${value[0]!.toUpperCase()}${value.slice(1).replace(/_/g, ' ')}` : value;
+}
+
+/** The five closed-vocabulary dropdowns in the grid; source_of_truth and the
+ * two date fields are handled separately below (boolean / date shapes). */
+const METADATA_ENUM_FIELDS: ReadonlyArray<{ key: string; label: string; vocab: readonly string[] }> = [
+  { key: 'document_type', label: 'Document type', vocab: DOCUMENT_TYPES },
+  { key: 'state', label: 'State', vocab: CONTEXT_STATES },
+  { key: 'scope', label: 'Scope', vocab: CONTEXT_SCOPES },
+  { key: 'authority', label: 'Authority', vocab: AUTHORITIES },
+  { key: 'confidentiality', label: 'Confidentiality', vocab: CONFIDENTIALITIES },
+];
+
+/* ------------------------------------------------------------- file chip */
+/* Item 13/14 helpers — real, computed-from-the-actual-file numbers only
+ * (byte size from the File object, line count from the loaded text, a real
+ * client-side SHA-256 of the actual bytes) — nothing here is a placeholder. */
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function sha256Hex(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/** 'notes.markdown' -> 'MAR' — a short, real-derived-from-the-filename label
+ * for the file-chip badge; never a fabricated file-type. */
+function extLabel(name: string): string {
+  const ext = name.split('.').pop() ?? '';
+  return (ext || 'DOC').slice(0, 3).toUpperCase();
+}
+
 /* ---------------------------------------------------------------- checklist */
 
 type CheckStatus = 'pass' | 'fail' | 'idle';
@@ -295,6 +428,13 @@ function buildChecks(content: string): { checks: CheckResult[]; parsed: ParsedDo
 
 /* ------------------------------------------------------------------ overlay */
 
+interface SelectedFileMeta {
+  name: string;
+  size: number;
+  /** null while the real hash is still being computed (see sha256Hex). */
+  hash: string | null;
+}
+
 export function UploadContextOverlay() {
   const navigate = useNavigate();
   const clients = useClientsLite();
@@ -303,14 +443,41 @@ export function UploadContextOverlay() {
 
   const [content, setContent] = useState('');
   const [clientId, setClientId] = useState('');
-  const [fileName, setFileName] = useState<string | null>(null);
+  const [fileMeta, setFileMeta] = useState<SelectedFileMeta | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  /** Item 12 — File / Paste segmented toggle; both write the same `content`. */
+  const [activeTab, setActiveTab] = useState<'file' | 'paste'>('file');
 
   const { checks, parsed } = useMemo(() => buildChecks(content), [content]);
   const failed = checks.filter((c) => c.status === 'fail');
   const documentType = parsed?.frontmatter?.document_type;
   const canUpload =
     content.trim().length > 0 && checks.length > 0 && failed.length === 0 && !upload.isPending;
+  const lineCount = content ? content.split(/\r?\n/).length : 0;
+
+  /* Item 15 — read a field straight off the already-parsed frontmatter (the
+   * same `parsed` the checklist uses), so the grid can never show a value
+   * the checklist itself doesn't see. */
+  const fm = parsed?.frontmatter ?? null;
+  const fmString = (key: string): string => {
+    const value = fm ? fm[key] : undefined;
+    return typeof value === 'string' ? value : '';
+  };
+  const fmBoolString = (key: string): string => {
+    const value = fm ? fm[key] : undefined;
+    return typeof value === 'boolean' ? String(value) : '';
+  };
+  const patchField = (key: string, rawValue: string) => {
+    setContent((current) => {
+      if (!rawValue) return removeFrontmatterField(current, key);
+      const withField = upsertFrontmatterField(current, key, rawValue);
+      // schema_version has exactly one valid value across all 14 templates
+      // (validateFrontmatter: "must be '1.0'") — once the grid writes any
+      // real field, keep it correct automatically rather than making the
+      // user hand-type the one constant every document needs identically.
+      return upsertFrontmatterField(withField, 'schema_version', '"1.0"');
+    });
+  };
 
   /* Headline for the dark Validation panel (README "Modals" → upload) —
    * grounded in the real check results, never a fabricated count. */
@@ -336,8 +503,19 @@ export function UploadContextOverlay() {
 
   const readFile = (file: File | undefined) => {
     if (!file) return;
-    setFileName(file.name);
+    setFileMeta({ name: file.name, size: file.size, hash: null });
     void file.text().then(setContent);
+    // Real client-side hash of the actual bytes, filled in once ready — the
+    // chip shows "Hashing…" (item 13) until then rather than a fabricated
+    // placeholder value.
+    void sha256Hex(file).then((hash) => {
+      setFileMeta((current) => (current && current.name === file.name && current.size === file.size ? { ...current, hash } : current));
+    });
+  };
+
+  const clearFile = () => {
+    setFileMeta(null);
+    setContent('');
   };
 
   const submit = () => {
@@ -386,48 +564,146 @@ export function UploadContextOverlay() {
 
       <div className="st-cols">
         <div style={{ minWidth: 0 }}>
-          <div
-            className={`st-dropzone${dragOver ? ' is-over' : ''}`}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={(event) => {
-              event.preventDefault();
-              setDragOver(false);
-              readFile(event.dataTransfer.files?.[0]);
-            }}
-          >
-            <p className="st-dropzone__title">Drop a .md file, or paste below</p>
-            <p className="st-dropzone__sub">
-              {fileName
-                ? `Loaded ${fileName} — the editor below holds its text.`
-                : 'The document must start with a --- front-matter block.'}
-            </p>
-            <label className="capiro-button capiro-button--secondary capiro-button--compact capiro-elevation-control" style={{ cursor: 'pointer' }}>
-              Choose file
-              <input
-                type="file"
-                accept=".md,.markdown,.txt,text/markdown,text/plain"
-                style={{ display: 'none' }}
-                onChange={(event) => readFile(event.target.files?.[0])}
-              />
-            </label>
+          {/* Item 12: File / Paste — .st-seg was fully styled in modal-shell.css
+           * but never wired to any state; the dropzone and the paste textarea
+           * used to render stacked, always both visible. Now exactly one
+           * shows, driven by this tab. */}
+          <div className="st-seg" role="tablist" aria-label="Add content by">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'file'}
+              onClick={() => setActiveTab('file')}
+            >
+              File
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'paste'}
+              onClick={() => setActiveTab('paste')}
+            >
+              Paste
+            </button>
           </div>
 
-          <div className="st-field-stack" style={{ marginTop: 16 }}>
+          {activeTab === 'file' ? (
+            <div
+              className={`st-dropzone${dragOver ? ' is-over' : ''}`}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragOver(true);
+              }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDragOver(false);
+                readFile(event.dataTransfer.files?.[0]);
+              }}
+            >
+              <span aria-hidden="true" style={{ display: 'flex', justifyContent: 'center', color: 'var(--st-gray-400)', marginBottom: 8 }}>
+                <CapiroDownloadIcon style={{ width: 22, height: 22 }} />
+              </span>
+              <p className="st-dropzone__title">Drop a .md file, or paste below</p>
+              {fileMeta ? (
+                /* Item 13: the selected-file chip — replaces the plain helper
+                 * sentence once a file is chosen. */
+                <div className="st-filechip" style={{ textAlign: 'left' }}>
+                  <span className="st-filechip__badge" aria-hidden="true">
+                    {extLabel(fileMeta.name)}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span
+                      className="st-filechip__name st-mono"
+                      style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    >
+                      {fileMeta.name}
+                    </span>
+                    <span className="st-filechip__meta st-mono" style={{ display: 'block' }}>
+                      {formatBytes(fileMeta.size)} · {lineCount} line{lineCount === 1 ? '' : 's'} ·{' '}
+                      {fileMeta.hash ? `sha256:${fileMeta.hash.slice(0, 10)}…` : 'Hashing…'}
+                    </span>
+                  </span>
+                  <CapiroIconButton label="Remove selected file" icon={<CloseGlyph size={14} />} onClick={clearFile} />
+                </div>
+              ) : (
+                <p className="st-dropzone__sub">
+                  The document must start with a --- front-matter block. Maximum size {MAX_UPLOAD_MB} MB.
+                </p>
+              )}
+              <label className="capiro-button capiro-button--secondary capiro-button--compact capiro-elevation-control" style={{ cursor: 'pointer' }}>
+                Choose file
+                <input
+                  type="file"
+                  accept=".md,.markdown,.txt,text/markdown,text/plain"
+                  style={{ display: 'none' }}
+                  onChange={(event) => readFile(event.target.files?.[0])}
+                />
+              </label>
+            </div>
+          ) : (
             <label className="capiro-field">
               <span className="capiro-field__label">Document · Required</span>
               <textarea
                 className="st-textarea st-mono"
-                style={{ minHeight: 180 }}
+                style={{ minHeight: 220 }}
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
                 placeholder={'---\ndocument_type: strategy_brief\nschema_version: "1.0"\n…\n---\n'}
                 spellCheck={false}
               />
             </label>
+          )}
+
+          <div className="st-field-stack" style={{ marginTop: 16 }}>
+            <div>
+              <p className="st-panel__label" style={{ marginBottom: 8 }}>
+                Document metadata
+              </p>
+              <div className="st-field-row">
+                {METADATA_ENUM_FIELDS.map((field) => (
+                  <CapiroSelect
+                    key={field.key}
+                    label={field.label}
+                    value={fmString(field.key)}
+                    onChange={(event) => patchField(field.key, event.target.value)}
+                    options={[
+                      { value: '', label: `Select ${field.label.toLowerCase()}` },
+                      ...field.vocab.map((v) => ({ value: v, label: humanizeToken(v) })),
+                    ]}
+                  />
+                ))}
+                <CapiroSelect
+                  label="Source of truth"
+                  value={fmBoolString('source_of_truth')}
+                  onChange={(event) => patchField('source_of_truth', event.target.value)}
+                  options={[
+                    { value: '', label: 'Select source of truth' },
+                    { value: 'true', label: 'True' },
+                    { value: 'false', label: 'False' },
+                  ]}
+                />
+                <label className="capiro-field">
+                  <span className="capiro-field__label">as_of</span>
+                  <input
+                    className="capiro-input"
+                    type="date"
+                    value={fmString('as_of')}
+                    onChange={(event) => patchField('as_of', event.target.value)}
+                  />
+                </label>
+                <label className="capiro-field">
+                  <span className="capiro-field__label">valid_until</span>
+                  <input
+                    className="capiro-input"
+                    type="date"
+                    value={fmString('valid_until')}
+                    onChange={(event) => patchField('valid_until', event.target.value)}
+                  />
+                </label>
+              </div>
+              <p className="st-ns__note">Selecting a value writes the matching line directly into the document.</p>
+            </div>
             <CapiroSelect
               label="Client · Optional"
               value={clientId}
@@ -485,14 +761,30 @@ export function UploadContextOverlay() {
                 <span className="st-mono">{documentType}</span> document
                 {superseded.length === 1 ? '' : 's'}:
               </span>
+              {/* Item 16: spec wants "vN · active → vN+1 · active" with an
+               * arrow between the current and new version. Context documents
+               * carry no version-counter field anywhere in the API (the same
+               * gap ContextDocumentVNext.tsx documents for its own metastrip:
+               * "there is no version counter... so this shows the one real
+               * [value] instead of a fabricated one") — so this shows the one
+               * real state transition instead: the existing document's actual
+               * state -> this upload's actual state (from the metadata grid
+               * above), with the same arrow treatment and using the
+               * pre-existing bare-arrow convention this module already uses
+               * for a before/after pair (see the FY·Q range a few rows up in
+               * FirmPhasesOverlay.tsx) rather than a new icon import. */}
               {superseded.map((doc) => (
                 <div className="st-change-row" key={doc.id}>
                   <span className="st-change-row__field st-mono">{doc.templateKey}</span>
                   <span>{doc.title}</span>
-                  <span style={{ fontSize: 12, color: 'var(--st-gray-500)' }}>
-                    {clientName(clients.data, doc.clientId)} · {doc.state}
+                  <span className="st-mono" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--st-gray-600)' }}>
+                    {doc.state}
+                    <span aria-hidden="true">→</span>
+                    {fmString('state') || 'new'}
                   </span>
-                  <span />
+                  <span style={{ fontSize: 12, color: 'var(--st-gray-500)' }}>
+                    {clientName(clients.data, doc.clientId)}
+                  </span>
                 </div>
               ))}
             </>

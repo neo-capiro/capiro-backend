@@ -254,55 +254,17 @@
 
 /* ----------------------------------------------------- shared body pieces */
 
-/* Status pill — ALWAYS dot + text label (never colour-only). */
-.capiro-strategies .st-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border: 1px solid var(--st-gray-200);
-  color: var(--st-gray-600);
-  background: var(--st-gray-50);
-  white-space: nowrap;
-}
-
-.capiro-strategies .st-pill::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: currentColor;
-  flex: none;
-}
-
-.capiro-strategies .st-pill--success {
-  background: var(--st-success-bg);
-  border-color: var(--st-success-ring);
-  color: var(--st-success-fg);
-}
-
-.capiro-strategies .st-pill--warning {
-  background: var(--st-warning-bg);
-  border-color: var(--st-warning-ring);
-  color: var(--st-warning-fg);
-}
-
-.capiro-strategies .st-pill--danger {
-  background: var(--st-error-bg);
-  border-color: var(--st-error-ring);
-  color: var(--st-error-fg);
-}
-
-.capiro-strategies .st-pill--info {
-  background: var(--st-info-bg);
-  border-color: var(--st-info-ring);
-  color: var(--st-info-fg);
-}
+/* Status pill — ALWAYS dot + text label (never colour-only). This module used
+   to define a second, parallel `.st-pill` system here (uppercase, letter-
+   spaced, bordered, with `--danger`/`--info` modifiers strategies.css didn't
+   know). Because overlay bodies render inline rather than through a portal,
+   both stylesheets matched the same elements inside a modal, and
+   strategies.css's higher-specificity `.capiro-vnext-root .capiro-strategies
+   .st-pill` selector always won — so `--danger`/`--info` pills in every
+   overlay silently fell back to a plain gray dot. Fixed by deleting this
+   duplicate outright: `.st-pill` and all of its tone modifiers (including
+   `--danger` and `--info`, now aliases of `--error`/`--accent`) live only in
+   strategies.css. See that file for the single tone table. */
 
 /* Light inset panel (form groupings, metadata cards). */
 .capiro-strategies .st-panel {
@@ -433,6 +395,18 @@
   outline: none;
   box-shadow: var(--st-shadow-focus);
   border-color: var(--st-accent-focus);
+}
+
+/* New-strategy fix: the required Goal statement and optional Context-for-
+   Meri textareas shared one min-height and rendered identically tall.
+   Modifiers on top of the shared .st-textarea chrome — the base rule (and
+   every other .st-textarea call site) is untouched. */
+.capiro-strategies .st-textarea--tall {
+  min-height: 92px;
+}
+
+.capiro-strategies .st-textarea--short {
+  min-height: 72px;
 }
 
 /* Toggle switch (role="switch") — Export content toggles. */
@@ -743,6 +717,21 @@
   text-overflow: ellipsis;
 }
 
+/* Firm phases fix: the preview used to hard-cap at 5 bars (rows.slice(0,5)),
+   so phases 6-12 never rendered one at all. Now every active phase (up to
+   MAX_PHASES=12) renders a bar; past 5 the fixed 26px/6px-gap sizing above
+   gets visually heavy in the fixed-width dark panel, so the overlay adds
+   this modifier once the count exceeds 5 to step both down rather than
+   truncating the list again. Additive — the base classes above are
+   untouched for the <=5 case. */
+.capiro-strategies .st-preview-bars--dense {
+  gap: 4px;
+}
+.capiro-strategies .st-preview-bars--dense .st-preview-bar {
+  height: 20px;
+  font-size: 11px;
+}
+
 /* ------------------------------------------------------------------- export */
 
 /* Four format cards. Each card's head is `name + "Not yet available" pill`
@@ -763,6 +752,22 @@
 
 .capiro-strategies .st-format-card__ext {
   margin-top: 8px;
+}
+
+/* A generic file-type icon tile per format card (visual completeness only —
+   the enabled/disabled format set itself is unchanged). Sized/toned like the
+   module's other small square icon tiles (e.g. strategy-library.css's
+   .st-library-phases__icon), added here since the format cards are this
+   overlay's own body piece. */
+.capiro-strategies .st-format-card__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--st-gray-100);
+  color: var(--st-gray-500);
+  display: grid;
+  place-items: center;
+  margin-bottom: 8px;
 }
 
 /* Literal structure (5 stacked pieces, exact per-element spacing — no uniform
@@ -1204,6 +1209,39 @@
 
 .capiro-strategies .st-audit strong {
   color: var(--st-gray-900);
+}
+
+/* Resolve-conflict's decision-consequence banner (the one tied to an
+   irreversible write — NOT the compact resolved/dismissed strip that reuses
+   the plain .st-audit above it) reads as neutral gray today despite being
+   the highest-stakes banner in this module. Error-family tokens already
+   defined in strategies-tokens.css, referenced (not hardcoded) here; a
+   modifier so the OTHER .st-audit usage in this file stays neutral.
+   Deliberately does NOT touch grid-template-columns: the responsive block
+   below re-sets that on the shared .st-audit at the same specificity, so the
+   icon tile is sized to fit the existing 20px first column at every width
+   instead of asking for a wider one. */
+.capiro-strategies .st-audit--danger {
+  background: var(--st-error-bg);
+  border-color: var(--st-error-ring);
+}
+
+/* White icon tile — same raised-square-on-tint pattern as the modal header's
+   own close-button tile above (.st-modal__header-side .capiro-icon-button),
+   reused here instead of the bare text glyph the banner rendered before;
+   sized to the .st-audit grid's existing 20px first column. */
+.capiro-strategies .st-audit__icon-tile {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--st-white);
+  box-shadow: inset 0 0 0 1px var(--st-error-ring);
+  color: var(--st-error-fg);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 11px;
+  flex: none;
 }
 
 /* Gap / not-yet-available block (export generation, downstream counts). */

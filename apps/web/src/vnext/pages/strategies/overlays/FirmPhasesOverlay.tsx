@@ -44,6 +44,46 @@ function CloseGlyph({ size = 14 }: { size?: number }) {
   );
 }
 
+/** Local `ChevronUp`/`ChevronDown` glyphs for the reorder buttons — same
+ * rationale as `CloseGlyph` above and `ContextLibraryVNext.tsx`'s own
+ * ChevronLeft/Right: the shared icon set has no chevron entry, so this stays
+ * a self-contained, file-local glyph pair matching its stroke conventions. */
+function ChevronUpGlyph({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5 15l7-7 7 7" />
+    </svg>
+  );
+}
+
+function ChevronDownGlyph({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5 9l7 7 7-7" />
+    </svg>
+  );
+}
+
 type Row = FirmPhaseInput & { _key: string };
 
 function toRow(phase: FirmPhase): Row {
@@ -200,6 +240,27 @@ export function FirmPhasesOverlay() {
     });
   };
 
+  /* Reorder: FirmPhaseInput (pages/strategy/types.ts) carries no `position`
+   * field of its own — only the read-model FirmPhase echoes one back. The
+   * PUT is a full-replace of the array (`usePutFirmPhases` / this file's own
+   * header comment: "the body edits a local copy of the rows and saves the
+   * whole set at once"), so array ORDER is what the save payload encodes as
+   * position; swapping the two rows here is the entire fix; toInputs(rows)
+   * and the "N" numbering both already read off array order (index + 1). */
+  const moveRow = (key: string, direction: -1 | 1) => {
+    setRows((current) => {
+      const rowsNow = current ?? [];
+      const index = rowsNow.findIndex((row) => row._key === key);
+      const targetIndex = index + direction;
+      if (index === -1 || targetIndex < 0 || targetIndex >= rowsNow.length) return rowsNow;
+      const next = rowsNow.slice();
+      const moved = next[index]!;
+      next[index] = next[targetIndex]!;
+      next[targetIndex] = moved;
+      return next;
+    });
+  };
+
   const canSave = dirty && problems.length === 0 && !put.isPending;
 
   const save = () => {
@@ -291,12 +352,26 @@ export function FirmPhasesOverlay() {
       ) : (
         <div className="st-cols">
           <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                justifyContent: 'space-between',
+                gap: 12,
+                marginBottom: 10,
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 650, color: 'var(--st-gray-700)' }}>
+                {rows.length} active phase{rows.length === 1 ? '' : 's'}
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--st-gray-500)' }}>Use the arrows to reorder</p>
+            </div>
             <div className="st-phases__list">
               {rows.map((row, index) => {
                 const quarters = spanQuarters(row);
                 return (
                   <div className="st-phase-row" key={row._key}>
-                    <span className="st-phase-row__num">{index + 1}</span>
+                    <span className="st-phase-row__num st-mono">{index + 1}</span>
                     <input
                       className={`st-phase-row__input${dupeKeys.has(row._key) ? ' is-dupe' : ''}`}
                       aria-label={`Phase ${index + 1} name`}
@@ -310,11 +385,23 @@ export function FirmPhasesOverlay() {
                         <span aria-hidden="true">→</span>
                         FY{fyInput(row, 'endFy', 'end')} Q{qInput(row, 'endQ', 'end')}
                       </span>
-                      <span className="st-phase-row__span">
+                      <span className="st-phase-row__span st-mono">
                         {quarters === null ? '—' : `${quarters} quarter${quarters === 1 ? '' : 's'}`} · end exclusive
                       </span>
                     </span>
                     <span className="st-phase-row__actions">
+                      <CapiroIconButton
+                        label={`Move phase ${index + 1} up`}
+                        icon={<ChevronUpGlyph size={14} />}
+                        disabled={index === 0}
+                        onClick={() => moveRow(row._key, -1)}
+                      />
+                      <CapiroIconButton
+                        label={`Move phase ${index + 1} down`}
+                        icon={<ChevronDownGlyph size={14} />}
+                        disabled={index === rows.length - 1}
+                        onClick={() => moveRow(row._key, 1)}
+                      />
                       <CapiroIconButton
                         label={`Remove phase ${index + 1}`}
                         icon={<CloseGlyph size={14} />}
@@ -333,6 +420,7 @@ export function FirmPhasesOverlay() {
                 size="compact"
                 disabled={rows.length >= MAX_PHASES}
                 onClick={addRow}
+                style={{ width: '100%' }}
                 leadingIcon={
                   <CapiroPlusIcon style={{ width: 16, height: 16, color: 'var(--st-gray-500)' }} />
                 }
@@ -362,8 +450,8 @@ export function FirmPhasesOverlay() {
               </p>
               <div className="st-preview-box">
                 {rows[0] ? <span className="st-preview-fy">FY{rows[0].startFy}</span> : null}
-                <div className="st-preview-bars">
-                  {rows.slice(0, 5).map((row) => (
+                <div className={`st-preview-bars${rows.length > 5 ? ' st-preview-bars--dense' : ''}`}>
+                  {rows.map((row) => (
                     <div className="st-preview-bar" key={row._key}>
                       {row.label.trim() || 'Untitled phase'}
                     </div>
