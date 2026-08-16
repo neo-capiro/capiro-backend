@@ -690,6 +690,24 @@ export const LLM_WARN_THRESHOLD = 0.8;
 /** Overage above the allowance is billed at this multiple of our real cost. */
 export const LLM_OVERAGE_MULTIPLIER = 2;
 
+/**
+ * Included file storage per CLIENT (not per tenant) — the denominator behind
+ * the client file room's storage meter.
+ *
+ * Product policy, deliberately a single shared constant rather than a column:
+ * it is one number for every plan today, and living here means the API can
+ * enforce the same value the UI reports the moment enforcement is wanted.
+ * Move it to a per-plan entitlement when plans start to differ.
+ *
+ * NOTE: this is currently REPORTED but NOT ENFORCED. `MAX_ATTACHMENT_BYTES`
+ * (per single file) is enforced at presign; nothing yet rejects an upload for
+ * exceeding a client's total. See the storage meter in FilesTab.
+ */
+export const CLIENT_STORAGE_QUOTA_BYTES = 10 * 1024 * 1024 * 1024;
+
+/** Fraction of the storage quota at which the meter warns. Mirrors LLM_WARN_THRESHOLD. */
+export const CLIENT_STORAGE_WARN_THRESHOLD = 0.8;
+
 export const BILLING_STATUSES = [
   'none',
   'trialing',

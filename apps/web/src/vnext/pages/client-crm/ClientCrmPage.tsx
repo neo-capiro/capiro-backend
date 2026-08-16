@@ -29,6 +29,7 @@ import { useMe } from '../../../lib/me.js';
 import { hasAtLeast } from '@capiro/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useClientDataHealth } from './client-data-health.js';
+import { refreshOfficeRecommendations } from '../../../pages/clients/targets-api.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroModal } from '../../components/overlays/index.js';
 import './client-crm.css';
@@ -100,15 +101,64 @@ export function ClientCrmPage({ client }: { client: Client }) {
     setFillOpen(true);
   }, []);
 
-  // §15: Sync — 1500ms "Syncing…" → toast.
-  const runSync = useCallback(() => {
+  /**
+   * Sync — a real re-read of this client's sources.
+   *
+   * Two things actually happen, and the toast reports what came back rather
+   * than the old hardcoded "6 of 6 connected" (which was a 1500ms setTimeout
+   * and no request at all):
+   *
+   *  1. Every source behind the profile is refetched — the same reads the Data
+   *     health drawer and the breadcrumb freshness label use, so the "Sources
+   *     read N ago" stamp beside this button moves for real.
+   *  2. Office recommendations are force-recomputed server-side
+   *     (`POST /clients/:id/target-recommendations/refresh`) — the only real
+   *     per-client recompute this product exposes. It is slow by design (the
+   *     server caches precisely because computing is expensive), and it is
+   *     allowed to fail without failing the whole Sync: a re-read that worked
+   *     should not report as a failure because one recompute timed out.
+   *
+   * What Sync deliberately does NOT do: re-pull LDA, FEC, awards or Federal
+   * Register for this client. No endpoint ingests those per client. The other
+   * `/sync` routes in the API are per-integration-connection OAuth jobs
+   * (Google/Microsoft mailbox + calendar, tenant-wide) — a different and
+   * side-effectful operation this button must not trigger silently.
+   */
+  const runSync = useCallback(async () => {
     if (syncBusy) return;
     setSyncBusy(true);
-    window.setTimeout(() => {
+    let recomputed = false;
+    let total = 0;
+    let failed = 0;
+    try {
+      const [read, recompute] = await Promise.all([
+        health.refetchAll(),
+        refreshOfficeRecommendations(api, client.id).then(
+          () => true,
+          () => false,
+        ),
+      ]);
+      // Counts come from the refetch results themselves — sampling the
+      // rendered state here would race the re-render and under-report
+      // failures (see refetchAll's docblock).
+      total = read.total;
+      failed = read.failures;
+      recomputed = recompute;
+      if (recompute) {
+        void qc.invalidateQueries({ queryKey: ['client-target-recommendations', client.id] });
+      }
+    } finally {
       setSyncBusy(false);
-      setToast('Sources refreshed · 6 of 6 connected');
-    }, 1500);
-  }, [syncBusy]);
+    }
+    const answered = total - failed;
+    setToast(
+      failed > 0
+        ? `${answered} of ${total} sources answered · ${failed} unavailable`
+        : recomputed
+          ? `${total} of ${total} sources answered · recommendations recomputed`
+          : `${total} of ${total} sources answered · recommendations unavailable`,
+    );
+  }, [syncBusy, health, api, qc, client.id]);
 
   return (
     <>
@@ -120,7 +170,7 @@ export function ClientCrmPage({ client }: { client: Client }) {
         onFillWithMeri={runFillWithMeri}
         onDataHealth={() => setHealthOpen(true)}
         syncLabel={syncBusy ? 'Syncing…' : 'Sync'}
-        onSync={runSync}
+        onSync={() => void runSync()}
         // Item 12: a real count of sources that answered with nothing, not a
         // hardcoded 1. Held back until every source has settled so the chip
         // does not flash a number that is really "still loading".

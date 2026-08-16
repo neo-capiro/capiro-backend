@@ -15,6 +15,7 @@ import { openMeriWorkspaceWithContext } from '../../../../components/chat/meri-w
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
 import { FILES, FOLDERS } from '../portfolio-fixtures.js';
+import { CLIENT_STORAGE_QUOTA_BYTES, CLIENT_STORAGE_WARN_THRESHOLD } from '@capiro/shared';
 
 /**
  * Files tab (spec §11, Figma geometry from `dom-tab-files.txt`).
@@ -43,8 +44,13 @@ import { FILES, FOLDERS } from '../portfolio-fixtures.js';
  *    either files the current selection into the new label (a real move
  *    PATCH, which is what makes the folder exist) or opens a draft folder you
  *    can upload into — labelled as such until a file lands in it.
- *  - The storage meter and the smart-link provenance copy are designed UI
- *    (§11) with no per-client backend.
+ *  - Client storage is REAL on both halves: used bytes are the sum of every
+ *    attachment's stored `byteSize`, and the denominator is the product's
+ *    per-client allowance (`CLIENT_STORAGE_QUOTA_BYTES`, @capiro/shared) so the
+ *    API can enforce the same number. It is REPORTED, not enforced — nothing
+ *    rejects an upload for exceeding the total today — so the meter warns at
+ *    80% and states an overage rather than blocking.
+ *  - The smart-link provenance copy is designed UI (§11).
  *  - "Create with Meri" opens the real Meri workspace scoped to this client;
  *    no skill generates a file directly into client files (wire-audit "4 New
  *    capability" row 4).
@@ -141,6 +147,15 @@ const sameFolder = (a: string, b: string) => a.trim().toLowerCase() === b.trim()
 const UNFILED_ID = '  unfiled  ';
 /** Matches the `@MaxLength(120)` on the move DTO. */
 const FOLDER_NAME_MAX = 120;
+
+/** Binary units, matching how storage is quoted everywhere else in this app. */
+function formatBytes(bytes: number): string {
+  if (bytes <= 0) return '0 MB';
+  const mb = bytes / 1024 / 1024;
+  if (mb < 1) return '<1 MB';
+  if (mb < 1024) return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+  return `${(mb / 1024).toFixed(1)} GB`;
+}
 
 function fixtureTree(): FolderTreeNode[] {
   return (FOLDERS as FolderFixture[]).map((f) => ({
@@ -446,6 +461,16 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
   );
 
   const smartCount = rows.filter((row) => row.smart).length;
+  // Sum of every stored attachment for this client. Rows with a null byteSize
+  // (older uploads whose size was never captured) contribute nothing rather
+  // than being guessed at, so this is a floor, not an estimate.
+  const storedBytes = useMemo(
+    () => (filesQuery.data ?? []).reduce((total, file) => total + (file.byteSize ?? 0), 0),
+    [filesQuery.data],
+  );
+  const storagePct = (storedBytes / CLIENT_STORAGE_QUOTA_BYTES) * 100;
+  const storageWarn = storedBytes >= CLIENT_STORAGE_QUOTA_BYTES * CLIENT_STORAGE_WARN_THRESHOLD;
+  const storageOver = storedBytes > CLIENT_STORAGE_QUOTA_BYTES;
   const allChecked = rows.length > 0 && rows.every((row) => selected.has(row.id));
   const deletingRow = deletingId ? allRows.find((row) => row.id === deletingId) : undefined;
 
@@ -707,10 +732,55 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
             <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
               Client storage
             </div>
-            <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: '#101828' }}>1.8 GB of 10 GB</div>
-            <span style={{ display: 'block', marginTop: 8, height: 6, borderRadius: 3, background: '#F2F4F7', overflow: 'hidden' }}>
-              <span style={{ display: 'block', height: 6, width: '18%', borderRadius: 3, background: GRADIENT_DARK }} />
-            </span>
+{/* Both halves are now real. The numerator is the sum of every stored
+                `byteSize` for this client — the list endpoint has no pagination,
+                so it is the whole file room rather than a page, and rows whose
+                size was never captured contribute nothing rather than being
+                guessed at (so this is a floor, not an estimate). The
+                denominator is the product's per-client allowance,
+                `CLIENT_STORAGE_QUOTA_BYTES` in @capiro/shared, which the API can
+                enforce against the same value when enforcement is wanted.
+
+                Reported, not enforced: nothing today rejects an upload for
+                exceeding the total (the per-FILE cap, MAX_ATTACHMENT_BYTES, IS
+                enforced at presign). The meter therefore warns and can read
+                over 100% rather than blocking.
+
+                The fixture branch keeps the design's exact geometry — it is
+                what the offline capture harness diffs against the Figma frame,
+                and it is a loading placeholder, never a claim about a client. */}
+            {real ? (
+              <>
+                <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: storageOver ? '#B54708' : '#101828' }}>
+                  {`${formatBytes(storedBytes)} of ${formatBytes(CLIENT_STORAGE_QUOTA_BYTES)}`}
+                </div>
+                <span style={{ display: 'block', marginTop: 8, height: 6, borderRadius: 3, background: '#F2F4F7', overflow: 'hidden' }}>
+                  <span
+                    style={{
+                      display: 'block',
+                      height: 6,
+                      // Clamped so an over-quota client cannot overflow the
+                      // track — the copy below is what states the overage.
+                      width: `${Math.min(100, storagePct)}%`,
+                      borderRadius: 3,
+                      background: storageOver ? '#F79009' : GRADIENT_DARK,
+                    }}
+                  />
+                </span>
+                <div style={{ marginTop: 6, fontSize: 13, color: storageWarn ? '#B54708' : '#667085' }}>
+                  {storageOver
+                    ? `Over the ${formatBytes(CLIENT_STORAGE_QUOTA_BYTES)} allowance · ${allRows.length} file${allRows.length === 1 ? '' : 's'}`
+                    : `${storagePct < 1 ? '<1' : Math.round(storagePct)}% used · ${allRows.length} file${allRows.length === 1 ? '' : 's'}`}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: '#101828' }}>1.8 GB of 10 GB</div>
+                <span style={{ display: 'block', marginTop: 8, height: 6, borderRadius: 3, background: '#F2F4F7', overflow: 'hidden' }}>
+                  <span style={{ display: 'block', height: 6, width: '18%', borderRadius: 3, background: GRADIENT_DARK }} />
+                </span>
+              </>
+            )}
             <p style={{ margin: '12px 0 0', fontSize: 13, lineHeight: '19px', color: '#667085', textWrap: 'pretty' }}>
               Smart links point to the original Strategy, meeting, Workspace, or Outreach object — no duplicate file is
               created.

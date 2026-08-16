@@ -258,3 +258,81 @@ describe('ClientCrmPage — breadcrumb freshness (item 11)', () => {
     expect(await screen.findByRole('button', { name: '5 profile gaps' })).toBeInTheDocument();
   });
 });
+
+/* ── Sync — a real re-read, not a 1500ms timeout ──────────────────────────── */
+
+describe('ClientCrmPage — Sync', () => {
+  it('refetches every source, recomputes recommendations, and reports the real counts', async () => {
+    let sourceReads = 0;
+    getMock.mockImplementation((url: string) => {
+      if (url.includes('/fill-with-meri/latest')) return Promise.resolve({ data: null });
+      if (url.includes('/fill-with-meri/runs/')) return Promise.resolve({ data: COMPLETED_RUN });
+      sourceReads += 1;
+      return Promise.resolve({ data: [] });
+    });
+    postMock.mockImplementation((url: string) => {
+      if (url.includes('/fill-with-meri/runs')) return Promise.resolve({ data: COMPLETED_RUN });
+      if (url.includes('/target-recommendations/refresh')) return Promise.resolve({ data: {} });
+      return Promise.reject(new Error(`unexpected post ${url}`));
+    });
+    renderPage();
+
+    // Let the initial source reads settle so the re-read count is unambiguous.
+    await screen.findByRole('button', { name: '6 profile gaps' });
+    const initialReads = sourceReads;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sync' }));
+
+    // A real server-side recompute — the only per-client one this product has.
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/clients/client-1/target-recommendations/refresh',
+      ),
+    );
+    // And a real re-read of the sources, not a setTimeout.
+    await waitFor(() => expect(sourceReads).toBeGreaterThan(initialReads));
+
+    // The toast reports what came back; the old copy was hardcoded.
+    expect(await screen.findByText(/6 of 6 sources answered/)).toBeInTheDocument();
+    expect(screen.queryByText('Sources refreshed · 6 of 6 connected')).not.toBeInTheDocument();
+  });
+
+  it('reports the sources that did not answer rather than claiming a clean sync', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url.includes('/fill-with-meri/latest')) return Promise.resolve({ data: null });
+      if (url.includes('/fill-with-meri/runs/')) return Promise.resolve({ data: COMPLETED_RUN });
+      if (url.includes('/capabilities')) return Promise.reject(new Error('boom'));
+      return Promise.resolve({ data: [] });
+    });
+    postMock.mockImplementation((url: string) => {
+      if (url.includes('/fill-with-meri/runs')) return Promise.resolve({ data: COMPLETED_RUN });
+      if (url.includes('/target-recommendations/refresh')) return Promise.resolve({ data: {} });
+      return Promise.reject(new Error(`unexpected post ${url}`));
+    });
+    renderPage();
+
+    await screen.findByText('1 source unavailable');
+    fireEvent.click(screen.getByRole('button', { name: 'Sync' }));
+
+    // Reported from the refetch results, so a source that failed mid-sync is
+    // counted rather than read as "still loading".
+    expect(await screen.findByText('5 of 6 sources answered · 1 unavailable')).toBeInTheDocument();
+  });
+
+  it('still reports the re-read when the slow recompute fails', async () => {
+    postMock.mockImplementation((url: string) => {
+      if (url.includes('/fill-with-meri/runs')) return Promise.resolve({ data: COMPLETED_RUN });
+      // The recompute is expensive and allowed to fail — a re-read that worked
+      // must not be reported as a failed sync because of it.
+      return Promise.reject(new Error('recompute timed out'));
+    });
+    renderPage();
+
+    await screen.findByRole('button', { name: '6 profile gaps' });
+    fireEvent.click(screen.getByRole('button', { name: 'Sync' }));
+
+    expect(
+      await screen.findByText('6 of 6 sources answered · recommendations unavailable'),
+    ).toBeInTheDocument();
+  });
+});
