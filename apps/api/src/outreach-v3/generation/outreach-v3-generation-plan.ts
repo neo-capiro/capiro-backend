@@ -100,7 +100,7 @@ export interface BuildOutreachV3GenerationPlanInput {
 export function buildOutreachV3GenerationPlan(
   input: BuildOutreachV3GenerationPlanInput,
 ): OutreachV3GenerationPlan {
-  const blockers = planningBlockers(input.readiness);
+  const blockers: OutreachV3GenerationBlockerCode[] = planningBlockers(input.readiness);
   if (input.pendingProposalCount > 0) blockers.push('PENDING_PROPOSALS');
   if (
     input.spec.delivery.pattern === 'shared_thread' &&

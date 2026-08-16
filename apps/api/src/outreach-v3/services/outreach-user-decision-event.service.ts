@@ -39,7 +39,7 @@ export class OutreachUserDecisionEventService {
       safeMetadata: Record<string, unknown>;
     },
   ): Promise<{ event: OutreachEventRow; idempotent: boolean }> {
-    return this.prisma.withTenantTransaction(ctx.tenantId, async (tx) => {
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const session = await this.state.lockOwnedSession(tx, ctx, sessionId);
       if (session.status !== 'active') {
         throw new OutreachCommandError(

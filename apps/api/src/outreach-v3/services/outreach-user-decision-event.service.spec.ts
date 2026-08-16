@@ -42,9 +42,11 @@ function harness(
       .mockResolvedValueOnce(options.latest ? [options.latest] : []),
   };
   const prisma = {
-    withTenantTransaction: jest
+    withTenantUser: jest
       .fn()
-      .mockImplementation(async (_tenantId: string, fn: (value: any) => unknown) => fn(tx)),
+      .mockImplementation(
+        async (_tenantId: string, _userId: string, fn: (value: any) => unknown) => fn(tx),
+      ),
     withTenant: jest
       .fn()
       .mockImplementation(async (_tenantId: string, fn: (value: any) => unknown) => fn(tx)),

@@ -108,7 +108,7 @@ export class OutreachV3SendService {
         'OUTREACH_COMMAND_BLOCKED',
         'One or more attachments are not ready to send.',
         409,
-        { blockers: attachmentReadiness.blockers },
+        { blockers: attachmentReadiness.blockers.join(',') },
       );
     }
 
@@ -252,7 +252,7 @@ export class OutreachV3SendService {
       testMode,
     });
 
-    const blockers = [...evaluated.blockers];
+    const blockers: string[] = [...evaluated.blockers];
     const internalOnly = current.spec.sponsor.kind === 'internal_team';
     if (internalOnly) blockers.push('SPONSOR_SCOPE_BLOCKED');
     const heldOutAcknowledged =
@@ -297,7 +297,13 @@ export class OutreachV3SendService {
         'OUTREACH_COMMAND_BLOCKED',
         'The campaign did not pass server-authoritative preflight.',
         409,
-        { blockers: preflight.blockers, checks: preflight.checks },
+        {
+          blockers: preflight.blockers.join(','),
+          blockedChecks: preflight.checks
+            .filter((check) => check.state === 'blocked')
+            .map((check) => check.key)
+            .join(','),
+        },
       );
     }
     const created = await this.sendIntents.createIntent(ctx, {
@@ -347,6 +353,16 @@ export class OutreachV3SendService {
     const event = await this.decisions.latest(ctx, sessionId, SETTINGS_EVENT);
     if (!event) return null;
     const metadata = asRecord(event.safeMetadataJsonb);
+    // Every settings decision event is persisted with the audited state version
+    // it produced. A null here means the durable event row is corrupt, not that
+    // the campaign has "version 0" — never fabricate a version for send state.
+    if (event.stateVersionAfter === null) {
+      throw new OutreachCommandError(
+        'OUTREACH_STATE_CORRUPT',
+        'The stored send-settings event is missing its audited state version.',
+        500,
+      );
+    }
     const raw = asRecord(metadata.settings);
     const normalized = normalizeSettingsInput({
       senderConnectionId: String(raw.senderConnectionId ?? ''),

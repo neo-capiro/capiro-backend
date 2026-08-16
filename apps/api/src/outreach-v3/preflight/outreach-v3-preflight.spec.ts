@@ -1,6 +1,9 @@
 import type { OutreachV3DraftVersionIdentity } from '../drafts/outreach-v3-draft-lifecycle.js';
 import { createOutreachV3DraftApprovalSnapshot } from '../drafts/outreach-v3-draft-lifecycle.js';
-import type { OutreachV3GenerationPlan } from '../generation/outreach-v3-generation-plan.js';
+import type {
+  OutreachV3GenerationPlan,
+  OutreachV3GenerationRecipient,
+} from '../generation/outreach-v3-generation-plan.js';
 import {
   evaluateOutreachV3Preflight,
   type OutreachV3PreflightDraft,
@@ -44,7 +47,7 @@ function plan(shared = false): OutreachV3GenerationPlan {
   };
 }
 
-function recipient(targetKey: string, email: string) {
+function recipient(targetKey: string, email: string): OutreachV3GenerationRecipient {
   return {
     targetKey,
     displayName: targetKey.toUpperCase(),
