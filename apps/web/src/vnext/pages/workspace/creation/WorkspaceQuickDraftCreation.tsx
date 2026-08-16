@@ -1,7 +1,15 @@
+/**
+ * Workspace vNext — New-document intake (design-handoff §6).
+ *
+ * One scrolling column, four numbered sections + a sticky footer. Section 3
+ * (template questions) only exists once a template is chosen, so the material
+ * section's number is computed (3 or 4). Wires the aggregate intake pipeline
+ * (submitIntake + crypto.randomUUID + the dual-client attachment pipeline) —
+ * the browser never reads file bodies.
+ */
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { CapiroButton } from '../../../components/actions/index.js';
 import { useApi } from '../../../../lib/use-api.js';
 import { api } from '../api/client.js';
 import type {
@@ -10,19 +18,31 @@ import type {
   DraftSummary,
   RecommendResponse,
 } from '../types/agent.js';
-import { submitIntake, getTwoStepDraftCapability, type IntakeRequest } from './intake-client.js';
+import {
+  submitIntake,
+  getTwoStepDraftCapability,
+  type IntakeRequest,
+} from './intake-client.js';
+import { WorkspaceIcon } from '../components/WorkspaceIcon.js';
+import {
+  WsButton,
+  WsMono,
+  WsPill,
+  WsSpinner,
+} from '../components/WorkspacePrimitives.js';
 import '../styles/workspace.css';
-import '../styles/workspace-audit.css';
-import '../styles/workspace-quick-draft.css';
+import '../styles/workspace-parity.css';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-// Mirrors the canonical attachment pipeline (25 MB). The server extracts text
-// from .txt/.csv/.pdf/.docx/.xlsx — the browser never reads file bodies.
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_PASTED_CHARS = 50_000;
 
-interface ClientOption { id: string; name: string; industry?: string | null; }
+interface ClientOption {
+  id: string;
+  name: string;
+  industry?: string | null;
+}
 type UploadStatus = 'uploading' | 'scanning' | 'extracting' | 'ready' | 'failed';
 
 interface AttachmentUpload {
@@ -30,35 +50,44 @@ interface AttachmentUpload {
   name: string;
   size: number;
   status: UploadStatus;
-  /** Server attachment id, present once the upload is confirmed. */
   attachmentId?: string;
   message?: string;
 }
 
-interface ContextDomain { id: string; label: string; description: string; enabled: boolean; }
+interface ContextDomain {
+  id: string;
+  label: string;
+  sub: string;
+  enabled: boolean;
+}
 
-/**
- * The real Capiro context domains. For this PR only `client-profile` and
- * `institutional-memory` are ENABLED; the rest render disabled with a
- * “Not available yet” notice and are never default-selected.
- */
+/** Capiro context domains (handoff §6.5 card 04). Only the two enabled domains
+ *  are interactive; the rest render greyed with `cursor:not-allowed`. */
 const CONTEXT_DOMAINS: ContextDomain[] = [
-  { id: 'client-profile', label: 'Client profile', description: 'Company, capabilities, goals, terminology and approved positioning.', enabled: true },
-  { id: 'institutional-memory', label: 'Institutional memory', description: 'Approved firm, client and user memories relevant to the request.', enabled: true },
-  { id: 'strategies', label: 'Strategies & priorities', description: 'Current strategies, priorities, desired outcomes and active work.', enabled: false },
-  { id: 'relationships', label: 'Relationships & targets', description: 'Government relationships, current targets and relationship context.', enabled: false },
-  { id: 'activity', label: 'Engagement history', description: 'Meetings, outreach, commitments, notes and follow-up history.', enabled: false },
-  { id: 'mailbox', label: 'Mailbox & correspondence', description: 'Relevant email history, commitments, requests and prior language.', enabled: false },
-  { id: 'client-files', label: 'Client files & notes', description: 'Saved files, notes and working materials from the client record.', enabled: false },
+  { id: 'client-profile', label: 'Client profile', sub: 'Identity, programs, positions', enabled: true },
+  { id: 'institutional-memory', label: 'Institutional memory', sub: 'What the firm already knows', enabled: true },
+  { id: 'strategies', label: 'Strategies & priorities', sub: 'Active plays for this client', enabled: false },
+  { id: 'relationships', label: 'Relationships & targets', sub: 'Who the firm can reach', enabled: false },
+  { id: 'engagement', label: 'Engagement history', sub: 'Meetings, calls, outcomes', enabled: false },
+  { id: 'client-files', label: 'Client files & notes', sub: 'Uploaded client material', enabled: false },
+  { id: 'budget', label: 'Defense budget', sub: 'PB, marks, enacted by PE', enabled: false },
+  { id: 'legislation', label: 'Legislation & hearings', sub: 'Bills, marks, hearing records', enabled: false },
+  { id: 'nexus', label: 'District Nexus', sub: 'Facilities, jobs, districts', enabled: false },
+  { id: 'mailbox', label: 'Mailbox & correspondence', sub: 'Not available yet', enabled: false },
+  { id: 'people', label: 'People & stakeholders', sub: 'Not available yet', enabled: false },
+  { id: 'grants', label: 'Grants & contracts', sub: 'Not available yet', enabled: false },
+  { id: 'news', label: 'News & intelligence', sub: 'Not available yet', enabled: false },
 ];
 
 const ENABLED_DOMAIN_IDS = new Set(
   CONTEXT_DOMAINS.filter((d) => d.enabled).map((d) => d.id),
 );
 
-// ── Pure helpers (kept outside the component for testability) ────────────────
+// ── Pure helpers ───────────────────────────────────────────────────────────
 
-function latestPublishedVersion(blueprint: BlueprintSummary): BlueprintVersionSummary | null {
+function latestPublishedVersion(
+  blueprint: BlueprintSummary,
+): BlueprintVersionSummary | null {
   return (
     (blueprint.versions ?? [])
       .filter((v) => v.status === 'published')
@@ -77,7 +106,6 @@ function errorMessage(error: unknown, fallback: string): string {
   return (error as { message?: string } | null)?.message ?? fallback;
 }
 
-/** Normalize the /api/clients payload into the option shape used by the UI. */
 function toClientOptions(raw: unknown): ClientOption[] {
   const list = Array.isArray(raw)
     ? raw
@@ -94,11 +122,6 @@ function toClientOptions(raw: unknown): ClientOption[] {
     .filter((c) => c.id);
 }
 
-/**
- * Prior Workspace drafts for the selected client, filtered by `config.clientId`
- * (per the aggregate-intake contract). Drafts are fetched with `scope: 'mine'`
- * and filtered client-side.
- */
 function draftsForClient(drafts: DraftSummary[], clientId: string): DraftSummary[] {
   return drafts.filter((d) => {
     const config = d.config as Record<string, unknown> | undefined;
@@ -106,22 +129,6 @@ function draftsForClient(drafts: DraftSummary[], clientId: string): DraftSummary
   });
 }
 
-function statusLabel(status: UploadStatus): string {
-  switch (status) {
-    case 'uploading': return 'Uploading…';
-    case 'scanning': return 'Scanning…';
-    case 'extracting': return 'Extracting text…';
-    case 'ready': return 'Ready';
-    case 'failed': return 'Failed';
-  }
-}
-
-/**
- * Assemble the aggregate intake request. Only browser-authored pasted text
- * (`pastedContext` / `pastedSample`) is sent as body content — every file is
- * referenced by its server attachment id, every prior draft by its draft id.
- * Disabled context domains are filtered out.
- */
 function buildIntakeRequest(args: {
   goal: string;
   clientId?: string;
@@ -135,7 +142,9 @@ function buildIntakeRequest(args: {
   title?: string;
 }): IntakeRequest {
   const ready = (uploads: AttachmentUpload[]) =>
-    uploads.filter((u) => u.status === 'ready' && u.attachmentId).map((u) => u.attachmentId as string);
+    uploads
+      .filter((u) => u.status === 'ready' && u.attachmentId)
+      .map((u) => u.attachmentId as string);
   const selectedContextDomains = Array.from(args.selectedDomains).filter((id) =>
     ENABLED_DOMAIN_IDS.has(id),
   );
@@ -156,31 +165,24 @@ function buildIntakeRequest(args: {
   return intake;
 }
 
-// ── Subcomponent ────────────────────────────────────────────────────────────
+// ── File state pill ─────────────────────────────────────────────────────────
 
-function AttachmentUploadList({ uploads, onRemove }: {
-  uploads: AttachmentUpload[];
-  onRemove: (id: string) => void;
-}) {
-  if (!uploads.length) return null;
+const FILE_STATE_LABEL: Record<UploadStatus, string> = {
+  uploading: 'Uploading',
+  scanning: 'Scanning',
+  extracting: 'Extracting',
+  ready: 'Ready',
+  failed: 'Failed',
+};
+
+function FileStatePill({ state }: { state: UploadStatus }) {
+  const spinning =
+    state === 'uploading' || state === 'scanning' || state === 'extracting';
   return (
-    <ul className="ws-quick-file-list">
-      {uploads.map((upload) => {
-        const removable = upload.status === 'ready' || upload.status === 'failed';
-        return (
-          <li key={upload.id}>
-            <span>
-              <strong>{upload.name}</strong>
-              <em>
-                {Math.max(1, Math.round(upload.size / 1024))} KB · {statusLabel(upload.status)}
-                {upload.status === 'failed' && upload.message ? ` · ${upload.message}` : ''}
-              </em>
-            </span>
-            {removable ? <button type="button" onClick={() => onRemove(upload.id)}>Remove</button> : null}
-          </li>
-        );
-      })}
-    </ul>
+    <span className="ws-intake-file__state" data-state={state}>
+      {spinning ? <WsSpinner size={8} /> : null}
+      {FILE_STATE_LABEL[state]}
+    </span>
   );
 }
 
@@ -192,6 +194,7 @@ export function WorkspaceQuickDraftCreation() {
 
   const [goal, setGoal] = useState('');
   const [clientId, setClientId] = useState('');
+  const [clientQuery, setClientQuery] = useState('');
   const [selectedBlueprintId, setSelectedBlueprintId] = useState('');
   const [recommendation, setRecommendation] = useState<RecommendResponse | null>(null);
   const [relevantUploads, setRelevantUploads] = useState<AttachmentUpload[]>([]);
@@ -199,45 +202,44 @@ export function WorkspaceQuickDraftCreation() {
   const [relevantPaste, setRelevantPaste] = useState('');
   const [samplePaste, setSamplePaste] = useState('');
   const [selectedSavedDocs, setSelectedSavedDocs] = useState<Set<string>>(new Set());
-  // Default-select only ENABLED domains (client-profile). Disabled domains are
-  // never default-selected.
-  const [selectedDomains, setSelectedDomains] = useState<Set<string>>(new Set(['client-profile']));
+  const [selectedDomains, setSelectedDomains] = useState<Set<string>>(
+    new Set(['client-profile']),
+  );
   const [recommending, setRecommending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [srcTab, setSrcTab] = useState<'files' | 'workspace'>('files');
 
-  // ── Data fetching (react-query) ──────────────────────────────────────────
-
+  // ── Data ──────────────────────────────────────────────────────────────────
   const blueprintsQuery = useQuery({
-    queryKey: ['workspace-blueprints'],
+    queryKey: ['ws-vnext', 'blueprints'],
     queryFn: () => api.listBlueprints(),
   });
   const draftsQuery = useQuery({
-    queryKey: ['workspace-drafts', 'mine'],
+    queryKey: ['ws-vnext', 'drafts', 'mine'],
     queryFn: () => api.listDrafts({ scope: 'mine' }),
   });
   const clientsQuery = useQuery({
-    queryKey: ['workspace-quick-draft-clients'],
+    queryKey: ['ws-vnext', 'clients'],
     queryFn: async () => (await coreApi.get('/api/clients')).data,
     staleTime: 60_000,
   });
-  // The two-step Max draft capability is also gated at the route. Re-check here
-  // so a stale gate surfaces gracefully instead of a failed submit.
   const capabilityQuery = useQuery({
-    queryKey: ['two-step-draft-capability'],
+    queryKey: ['ws-vnext', 'two-step-draft-capability'],
     queryFn: () => getTwoStepDraftCapability(),
     staleTime: 5 * 60_000,
   });
-  const capabilityDisabled = Boolean(capabilityQuery.data && !capabilityQuery.data.enabled);
+  const capabilityDisabled = Boolean(
+    capabilityQuery.data && !capabilityQuery.data.enabled,
+  );
 
   const blueprints = blueprintsQuery.data?.blueprints ?? [];
   const drafts = draftsQuery.data?.drafts ?? [];
   const clients = useMemo(() => toClientOptions(clientsQuery.data), [clientsQuery.data]);
 
-  // ── Derived selections ───────────────────────────────────────────────────
-
+  // ── Derived ────────────────────────────────────────────────────────────────
   const selectedClient = useMemo(
     () => clients.find((c) => c.id === clientId) ?? null,
     [clientId, clients],
@@ -250,6 +252,11 @@ export function WorkspaceQuickDraftCreation() {
     () => publishedBlueprints.find((b) => b.blueprintId === selectedBlueprintId) ?? null,
     [publishedBlueprints, selectedBlueprintId],
   );
+  const filteredClients = useMemo(() => {
+    const q = clientQuery.trim().toLowerCase();
+    if (!q) return clients;
+    return clients.filter((c) => c.name.toLowerCase().includes(q));
+  }, [clients, clientQuery]);
   const clientSavedDocs = useMemo(
     () => (selectedClient ? draftsForClient(drafts, selectedClient.id) : []),
     [drafts, selectedClient],
@@ -257,7 +264,8 @@ export function WorkspaceQuickDraftCreation() {
   const uploadsInFlight = useMemo(
     () =>
       [...relevantUploads, ...sampleUploads].some(
-        (u) => u.status === 'uploading' || u.status === 'scanning' || u.status === 'extracting',
+        (u) =>
+          u.status === 'uploading' || u.status === 'scanning' || u.status === 'extracting',
       ),
     [relevantUploads, sampleUploads],
   );
@@ -271,33 +279,33 @@ export function WorkspaceQuickDraftCreation() {
     (relevantPaste.trim() ? 1 : 0) +
     (samplePaste.trim() ? 1 : 0);
 
-  // Default-select the first published blueprint once the catalog resolves.
+  // Section numbering: section 3 (questions) exists only with a template, so
+  // material is section 3 or 4.
+  const materialNum = selectedBlueprint ? '4' : '3';
+
   useEffect(() => {
     if (selectedBlueprintId || !publishedBlueprints.length) return;
     setSelectedBlueprintId(publishedBlueprints[0]?.blueprintId ?? '');
   }, [publishedBlueprints, selectedBlueprintId]);
 
-  // Reset saved-doc selections whenever the client changes.
   useEffect(() => {
     setSelectedSavedDocs(new Set());
   }, [clientId]);
 
-  // ── Attachment uploads (presigned S3 → confirm → extract-text) ────────────
-  //
-  // The browser NEVER reads file bodies. Each file flows through the canonical
-  // attachment pipeline and is referenced by its server attachment id in the
-  // intake request. The backend re-fetches and authorizes every id.
-
-  const setList = (target: 'relevant' | 'sample', updater: (list: AttachmentUpload[]) => AttachmentUpload[]) =>
-    (target === 'relevant' ? setRelevantUploads : setSampleUploads)(updater);
+  // ── Attachments (presigned S3 → confirm → extract-text) ───────────────────
+  const setList = (
+    target: 'relevant' | 'sample',
+    updater: (list: AttachmentUpload[]) => AttachmentUpload[],
+  ) => (target === 'relevant' ? setRelevantUploads : setSampleUploads)(updater);
 
   const uploadOne = async (file: File, target: 'relevant' | 'sample') => {
     const localId = `${file.name}:${file.lastModified}:${file.size}`;
-    if (relevantUploads.some((u) => u.id === localId)) return;
-    setList(target, (list) => [...list, { id: localId, name: file.name, size: file.size, status: 'uploading' }]);
+    setList(target, (list) => [
+      ...list,
+      { id: localId, name: file.name, size: file.size, status: 'uploading' },
+    ]);
     const patch = (next: Partial<AttachmentUpload>) =>
       setList(target, (list) => list.map((u) => (u.id === localId ? { ...u, ...next } : u)));
-
     try {
       const contentType = file.type || 'application/octet-stream';
       const presigned = (
@@ -311,7 +319,6 @@ export function WorkspaceQuickDraftCreation() {
       form.append('file', file);
       const s3 = await fetch(presigned.url, { method: 'POST', body: form });
       if (!s3.ok) throw new Error('Storage rejected the upload');
-
       patch({ status: 'scanning' });
       const confirmed = (
         await coreApi.post<{ id: string }>('/api/engagement/attachments/confirm', {
@@ -321,12 +328,13 @@ export function WorkspaceQuickDraftCreation() {
           clientId: clientId || undefined,
         })
       ).data;
-
       patch({ status: 'extracting', attachmentId: confirmed.id });
       try {
-        await coreApi.post(`/api/engagement/attachments/${encodeURIComponent(confirmed.id)}/extract-text`);
+        await coreApi.post(
+          `/api/engagement/attachments/${encodeURIComponent(confirmed.id)}/extract-text`,
+        );
       } catch {
-        // Attachment is stored; the backend re-extracts server-side during intake.
+        /* backend re-extracts during intake */
       }
       patch({ status: 'ready' });
     } catch (caught) {
@@ -334,7 +342,10 @@ export function WorkspaceQuickDraftCreation() {
     }
   };
 
-  const handleFiles = async (event: ChangeEvent<HTMLInputElement>, target: 'relevant' | 'sample') => {
+  const handleFiles = async (
+    event: ChangeEvent<HTMLInputElement>,
+    target: 'relevant' | 'sample',
+  ) => {
     const picked = Array.from(event.target.files ?? []);
     event.target.value = '';
     if (!picked.length) return;
@@ -345,13 +356,12 @@ export function WorkspaceQuickDraftCreation() {
         rejected.push(`${file.name} (larger than ${MAX_FILE_BYTES / 1024 / 1024} MB)`);
         continue;
       }
-      void uploadOne(file, target); // parallel uploads
+      void uploadOne(file, target);
     }
     if (rejected.length) setFileError(`Not added: ${rejected.join(', ')}.`);
   };
 
-  // ── Recommend a template (still uses the /recommend workspace endpoint) ──
-
+  // ── Recommend ─────────────────────────────────────────────────────────────
   const recommendTemplate = async () => {
     if (!goal.trim() || recommending) return;
     setRecommending(true);
@@ -364,14 +374,15 @@ export function WorkspaceQuickDraftCreation() {
       );
       if (recommended) setSelectedBlueprintId(recommended.blueprintId);
     } catch (caught) {
-      setError(errorMessage(caught, 'Meri could not recommend a template. You can still choose one manually.'));
+      setError(
+        errorMessage(caught, 'Meri could not recommend a template. You can still choose one manually.'),
+      );
     } finally {
       setRecommending(false);
     }
   };
 
-  // ── Aggregate intake submit → immediate redirect to the editor ──────────
-
+  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!goal.trim() || !selectedBlueprint || submitting) return;
     const publishedVersion = latestPublishedVersion(selectedBlueprint);
@@ -383,9 +394,6 @@ export function WorkspaceQuickDraftCreation() {
       setError('Wait for the uploaded files to finish processing.');
       return;
     }
-
-    // Idempotency key is generated client-side. Fail gracefully if the
-    // environment cannot produce one rather than sending an unkeyed request.
     const idempotencyKey =
       typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
@@ -394,7 +402,6 @@ export function WorkspaceQuickDraftCreation() {
       setError('Could not generate a request key. Please reload and try again.');
       return;
     }
-
     setSubmitting(true);
     setError(null);
     setRedirecting(false);
@@ -416,10 +423,6 @@ export function WorkspaceQuickDraftCreation() {
         title,
       });
       const response = await submitIntake(intake, idempotencyKey);
-
-      // 202 received — navigate to the editor immediately. The editor polls the
-      // run status and hydrates stages/sections. Show a brief redirect state so
-      // the transition is not a blank flash.
       setRedirecting(true);
       window.setTimeout(() => navigate(`/workspace/${response.draftId}`, { replace: true }), 500);
     } catch (caught) {
@@ -429,8 +432,6 @@ export function WorkspaceQuickDraftCreation() {
     }
   };
 
-  // ── Toggles ──────────────────────────────────────────────────────────────
-
   const toggleSavedDoc = (id: string) => {
     setSelectedSavedDocs((current) => {
       const next = new Set(current);
@@ -439,9 +440,8 @@ export function WorkspaceQuickDraftCreation() {
       return next;
     });
   };
-
   const toggleDomain = (id: string) => {
-    if (!ENABLED_DOMAIN_IDS.has(id)) return; // only enabled domains are interactive
+    if (!ENABLED_DOMAIN_IDS.has(id)) return;
     setSelectedDomains((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
@@ -449,280 +449,520 @@ export function WorkspaceQuickDraftCreation() {
       return next;
     });
   };
-
   const removeUpload = (target: 'relevant' | 'sample', id: string) =>
     setList(target, (list) => list.filter((u) => u.id !== id));
 
-  const generateDisabled =
-    !goal.trim() || !selectedBlueprint || submitting || uploadsInFlight || capabilityDisabled;
+  // Blockers (prototype order: goal → template → questions → files).
+  const blockers: string[] = [];
+  if (goal.trim().length < 12) blockers.push('Tell Meri what you are trying to accomplish.');
+  if (!selectedBlueprint) blockers.push('Choose a submission template before generating.');
+  if (uploadsInFlight) blockers.push('Files are still being prepared.');
+  const canGenerate = blockers.length === 0 && !capabilityDisabled && !submitting;
+
   const loadingTemplates = blueprintsQuery.isLoading;
 
   return (
-    <div className="ws-vnext-creation ws-quick-intake">
-      <header className="ws-quick-intake__header">
-        <div>
-          <div className="ws-audit-eyebrow">NEW DOCUMENT</div>
-          <h1>Tell Meri what you need. Get the first draft next.</h1>
-          <p>
-            Choose a proven submission template, add the material that matters, and Meri will plan,
-            draft, and edit the complete document with Max reasoning before opening Workspace.
-          </p>
-        </div>
-        <CapiroButton variant="quiet" size="compact" onClick={() => navigate('/workspace')}>
-          Cancel
-        </CapiroButton>
-      </header>
-
-      {capabilityDisabled ? (
-        <div className="ws-vnext-banner" data-variant="amber" role="status">
-          <span className="ws-vnext-banner__text">
-            Two-step Max draft isn’t enabled for your workspace yet. Contact an admin to enable it.
-          </span>
-        </div>
-      ) : null}
-
-      {error ? (
-        <div className="ws-vnext-banner" data-variant="red" role="alert">
-          <span className="ws-vnext-banner__text">{error}</span>
-          <span className="ws-quick-banner-actions">
-            <button type="button" className="ws-vnext-banner__action" onClick={() => setError(null)}>
-              Dismiss
-            </button>
-          </span>
-        </div>
-      ) : null}
-
-      <main className="ws-quick-intake__body">
-        <section className="ws-quick-goal-card">
-          <div className="ws-quick-section-heading">
-            <span>1</span>
-            <div>
-              <h2>What should this document accomplish?</h2>
-              <p>Include the audience, the action you want, and why it matters now.</p>
-            </div>
+    <div className="ws-intake">
+      <div className="ws-intake__scroll">
+        {/* Header */}
+        <div className="ws-intake__header">
+          <div className="ws-intake__header-lead">
+            <WsMono variant="eyebrow">New document</WsMono>
+            <h1 className="ws-intake__title">What do you want Meri to create?</h1>
+            <p className="ws-intake__sub">
+              Tell Meri the outcome you need, choose a proven submission template, answer
+              the few questions that matter, and give her the material she should use. Meri
+              will handle the brief, research plan, structure, and first draft.
+            </p>
           </div>
-          <textarea
-            value={goal}
-            onChange={(event) => setGoal(event.target.value)}
-            placeholder="Example: Create a two-page FY27 NDAA paper asking HASC staff to protect the Ground Robotics request and support accelerated fielding."
-            autoFocus
-          />
-          <div className="ws-quick-goal-card__footer">
-            <label>
-              Client
-              <select value={clientId} onChange={(event) => setClientId(event.target.value)}>
-                <option value="">No client selected</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                    {client.industry ? ` · ${client.industry}` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <CapiroButton
+          <WsButton variant="secondary" size="md" onClick={() => navigate('/workspace')}>
+            Cancel
+          </WsButton>
+        </div>
+
+        {capabilityDisabled ? (
+          <div className="ws-intake-banner" data-tone="amber" role="status">
+            Two-step Max draft isn’t enabled for your workspace yet. Contact an admin to enable it.
+          </div>
+        ) : null}
+        {error ? (
+          <div className="ws-intake-banner" data-tone="red" role="alert">
+            <span>{error}</span>
+            <button type="button" onClick={() => setError(null)}>Dismiss</button>
+          </div>
+        ) : null}
+
+        {/* Section 1 — goal + client */}
+        <section className="ws-intake-card">
+          <h2 className="ws-intake-card__title">
+            <span className="ws-intake-card__num">1 ·</span> Tell Meri what you’re trying to accomplish
+          </h2>
+          <div className="ws-intake-goal">
+            <textarea
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              placeholder="Create a two-page FY27 NDAA paper for HASC staff asking them to protect the Ground Robotics funding request and support accelerated fielding. Lead with operational readiness and explain why the reduction would delay deployment."
+              autoFocus
+            />
+          </div>
+          <p className="ws-intake-hint">
+            Include the audience, the action you want, and why it matters. You don’t need to
+            structure the document — Meri will do that.
+          </p>
+
+          <div className="ws-intake-client">
+            <div className="ws-intake-client__row">
+              <WsMono variant="field">Client</WsMono>
+              <span className="ws-intake-client__selected">
+                {selectedClient ? selectedClient.name : 'No client selected'}
+              </span>
+              <span className="ws-intake-client__spacer" />
+              <input
+                type="text"
+                value={clientQuery}
+                onChange={(e) => setClientQuery(e.target.value)}
+                placeholder="Search clients"
+                className="ws-intake-client__search"
+              />
+            </div>
+            <div className="ws-intake-client__options">
+              <button
+                type="button"
+                data-active={!clientId}
+                onClick={() => setClientId('')}
+              >
+                No client / internal document
+              </button>
+              {filteredClients.map((client) => (
+                <button
+                  type="button"
+                  key={client.id}
+                  data-active={clientId === client.id}
+                  onClick={() => setClientId(client.id)}
+                >
+                  {client.name}
+                </button>
+              ))}
+            </div>
+            <p className="ws-intake-caption">
+              The client decides which authorized context and saved documents Meri may reach for.
+            </p>
+          </div>
+        </section>
+
+        {/* Section 2 — template */}
+        <section className="ws-intake-card">
+          <div className="ws-intake-card__row">
+            <div className="ws-intake-card__row-lead">
+              <h2 className="ws-intake-card__title">
+                <span className="ws-intake-card__num">2 ·</span> Choose the type of submission
+              </h2>
+              <p className="ws-intake-hint">
+                Templates give Meri the right structure, evidence rules, drafting instructions,
+                follow-up questions, tone, and delivery requirements.
+              </p>
+            </div>
+            <WsButton
               variant="secondary"
-              size="compact"
+              size="md"
+              icon="Stars02"
               disabled={!goal.trim() || recommending}
-              loading={recommending}
               onClick={() => void recommendTemplate()}
             >
               Recommend a template
-            </CapiroButton>
+            </WsButton>
           </div>
-          {recommendation ? (
-            <div className="ws-quick-recommendation">
-              <strong>Meri recommends {recommendation.documentType.label}</strong>
-              <span>{recommendation.rationale}</span>
+
+          {recommending ? (
+            <div className="ws-intake-thinking">
+              <WsSpinner size={15} />
+              <span>
+                Reading the goal against the client, the submission intent and every template
+                available to your firm…
+              </span>
             </div>
           ) : null}
-        </section>
 
-        <section className="ws-quick-template-section">
-          <div className="ws-quick-section-heading">
-            <span>2</span>
-            <div>
-              <h2>Choose a submission template</h2>
-              <p>
-                Published Capiro and firm templates control structure, evidence rules, and the
-                default document design.
-              </p>
+          {recommendation && !recommending ? (
+            <div className="ws-intake-rec">
+              <span className="ws-intake-rec__tile">M</span>
+              <span className="ws-intake-rec__body">
+                <span className="ws-intake-rec__title">
+                  Meri recommends: {recommendation.documentType.label}
+                </span>
+                <span className="ws-intake-rec__why">{recommendation.rationale}</span>
+              </span>
             </div>
-            <button type="button" onClick={() => navigate('/workspace/studio')}>Create your own →</button>
-          </div>
+          ) : null}
+
           {loadingTemplates ? (
-            <div className="ws-quick-template-grid" aria-busy="true">
-              {Array.from({ length: 4 }, (_, index) => (
-                <div className="ws-quick-template-card" key={index}>
-                  <div className="ws-vnext-skeleton-row" />
-                  <div className="ws-vnext-skeleton-row" />
-                </div>
+            <div className="ws-intake-templates" aria-busy="true">
+              {[0, 1, 2, 3].map((i) => (
+                <div className="ws-intake-template ws-intake-template--skeleton" key={i} />
               ))}
             </div>
           ) : publishedBlueprints.length ? (
-            <div className="ws-quick-template-grid">
+            <div className="ws-intake-templates">
               {publishedBlueprints.map((blueprint) => {
                 const version = latestPublishedVersion(blueprint);
                 const selected = blueprint.blueprintId === selectedBlueprintId;
+                const isRecommended =
+                  recommendation?.recommendedBlueprints.some(
+                    (r) => r.blueprintId === blueprint.blueprintId,
+                  ) ?? false;
                 return (
                   <button
                     type="button"
                     key={blueprint.blueprintId}
-                    className="ws-quick-template-card"
+                    className="ws-intake-template"
                     data-selected={selected}
+                    data-recommended={isRecommended && !selected}
                     onClick={() => setSelectedBlueprintId(blueprint.blueprintId)}
                   >
-                    <span className="ws-quick-template-card__meta">
-                      {blueprint.scope === 'firm' ? 'FIRM' : 'CAPIRO'} · {blueprint.documentType || 'DOCUMENT'}
+                    <span className="ws-intake-template__tags">
+                      <WsPill tone={blueprint.scope === 'firm' ? 'cream' : 'neutral'}>
+                        {blueprint.scope === 'firm' ? 'FIRM' : 'CAPIRO'}
+                      </WsPill>
+                      <WsMono variant="tag">{blueprint.documentType || 'Document'}</WsMono>
+                      {isRecommended ? <WsPill tone="navy">Recommended</WsPill> : null}
                     </span>
-                    <strong>{blueprint.name}</strong>
-                    <p>{blueprint.description || 'Firm-ready structure with governed evidence and content rules.'}</p>
-                    <em>Published v{version?.version ?? '—'}</em>
+                    <span className="ws-intake-template__name">{blueprint.name}</span>
+                    <span className="ws-intake-template__desc">
+                      {blueprint.description ||
+                        'Firm-ready structure with governed evidence and content rules.'}
+                    </span>
+                    <span className="ws-intake-template__facts">
+                      <WsMono variant="tag">Published v{version?.version ?? '—'}</WsMono>
+                    </span>
                   </button>
                 );
               })}
+              <button
+                type="button"
+                className="ws-intake-template ws-intake-template--own"
+                onClick={() => navigate('/workspace/studio')}
+              >
+                <span className="ws-intake-template__name">Create your own →</span>
+                <span className="ws-intake-template__desc">
+                  Build a firm template with its own sections, evidence rules and follow-up
+                  questions in Template Studio.
+                </span>
+              </button>
             </div>
           ) : (
-            <div className="ws-vnext-empty">
-              <div className="ws-vnext-empty__title">No published templates are available</div>
-              <div className="ws-vnext-empty__desc">
+            <div className="ws-intake-empty-templates">
+              <span className="ws-intake-empty-templates__title">No published templates are available</span>
+              <span className="ws-intake-empty-templates__desc">
                 Publish a firm template in Template Studio before creating this document.
-              </div>
+              </span>
             </div>
           )}
         </section>
 
-        <section className="ws-quick-sources-section">
-          <div className="ws-quick-section-heading">
-            <span>3</span>
-            <div>
-              <h2>Give Meri the right material</h2>
-              <p>Four simple source groups keep factual evidence separate from sample-writing references.</p>
-            </div>
-          </div>
+        {/* Section 3/4 — material */}
+        <section className="ws-intake-card">
+          <h2 className="ws-intake-card__title">
+            <span className="ws-intake-card__num">{materialNum} ·</span> Give Meri the material that matters
+          </h2>
+          <p className="ws-intake-hint">
+            Add anything Meri should use to understand the issue, support factual claims, or
+            improve the quality of the draft.
+          </p>
 
           {fileError ? (
-            <div className="ws-vnext-banner" data-variant="amber" role="status">
-              <span className="ws-vnext-banner__text">{fileError}</span>
-              <button type="button" className="ws-vnext-banner__action" onClick={() => setFileError(null)}>
-                Dismiss
-              </button>
+            <div className="ws-intake-banner" data-tone="amber" role="status">
+              <span>{fileError}</span>
+              <button type="button" onClick={() => setFileError(null)}>Dismiss</button>
             </div>
           ) : null}
 
-          <div className="ws-quick-source-grid">
-            <article className="ws-quick-source-card">
-              <header><span>01</span><div><h3>Relevant context</h3><p>Anything you believe Meri should know or cite.</p></div></header>
-              <label className="ws-quick-upload">
-                Add files (PDF, DOCX, TXT, CSV, XLSX…)
-                <input type="file" multiple onChange={(event) => void handleFiles(event, 'relevant')} />
-              </label>
-              <textarea
-                value={relevantPaste}
-                onChange={(event) => setRelevantPaste(event.target.value)}
-                placeholder="Or paste relevant notes or source text…"
-              />
-              <AttachmentUploadList uploads={relevantUploads} onRemove={(id) => removeUpload('relevant', id)} />
-            </article>
-
-            <article className="ws-quick-source-card">
-              <header><span>02</span><div><h3>Client saved documents</h3><p>Reuse prior Workspace documents already associated with this client.</p></div></header>
-              {!selectedClient ? (
-                <div className="ws-quick-source-empty">Choose a client above to see saved documents.</div>
-              ) : clientSavedDocs.length ? (
-                <div className="ws-quick-saved-docs">
-                  {clientSavedDocs.map((draft) => (
-                    <label key={draft.id}>
-                      <input
-                        type="checkbox"
-                        checked={selectedSavedDocs.has(draft.id)}
-                        onChange={() => toggleSavedDoc(draft.id)}
-                      />
-                      <span>
-                        <strong>{draft.docTitle}</strong>
-                        <em>
-                          {draft.documentType || 'Workspace document'} ·{' '}
-                          {new Date(draft.updatedAt).toLocaleDateString()}
-                        </em>
+          <div className="ws-intake-material">
+            {/* 01 · Relevant material */}
+            <div className="ws-intake-sub">
+              <WsMono variant="panel" className="ws-intake-sub__ordinal">01</WsMono>
+              <span className="ws-intake-sub__title">Relevant material</span>
+              <span className="ws-intake-sub__desc">
+                Anything you believe Meri should know or use as factual context.
+              </span>
+              <div className="ws-intake-files">
+                {relevantUploads.map((upload) => (
+                  <div className="ws-intake-file" key={upload.id}>
+                    <span className="ws-intake-file__main">
+                      <span className="ws-intake-file__name">{upload.name}</span>
+                      <span className="ws-intake-file__meta">
+                        {Math.max(1, Math.round(upload.size / 1024))} KB
                       </span>
-                    </label>
-                  ))}
+                    </span>
+                    <FileStatePill state={upload.status} />
+                    {upload.status === 'failed' ? (
+                      <span className="ws-intake-file__failed-actions">
+                        <button type="button" onClick={() => removeUpload('relevant', upload.id)}>
+                          Remove
+                        </button>
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              <div className="ws-intake-sub__actions">
+                <label className="ws-intake-upload">
+                  <WorkspaceIcon name="Plus" size={14} color="#475467" />
+                  Add files
+                  <input
+                    type="file"
+                    multiple
+                    onChange={(e) => void handleFiles(e, 'relevant')}
+                  />
+                </label>
+                <button type="button" className="ws-intake-paste">
+                  Paste notes or source text
+                </button>
+              </div>
+              <textarea
+                className="ws-intake-paste-area"
+                value={relevantPaste}
+                onChange={(e) => setRelevantPaste(e.target.value)}
+                placeholder="Paste notes or source text…"
+              />
+              <WsMono variant="tag" className="ws-intake-formats">
+                PDF · DOCX · TXT · Markdown · CSV
+              </WsMono>
+            </div>
+
+            {/* 02 · Client saved documents */}
+            <div className="ws-intake-sub">
+              <WsMono variant="panel" className="ws-intake-sub__ordinal">02</WsMono>
+              <span className="ws-intake-sub__title">Client saved documents</span>
+              <span className="ws-intake-sub__desc">
+                Reuse approved client files and prior Workspace work already associated with this client.
+              </span>
+              {!selectedClient ? (
+                <div className="ws-intake-sub__empty">
+                  Select a client above and Meri will list the files and prior documents that
+                  client has authorized.
                 </div>
               ) : (
-                <div className="ws-quick-source-empty">
-                  No saved Workspace documents were found for {selectedClient.name}.
-                </div>
+                <>
+                  <div className="ws-intake-tabs">
+                    <button
+                      type="button"
+                      data-active={srcTab === 'files'}
+                      onClick={() => setSrcTab('files')}
+                    >
+                      Client Files
+                    </button>
+                    <button
+                      type="button"
+                      data-active={srcTab === 'workspace'}
+                      onClick={() => setSrcTab('workspace')}
+                    >
+                      Prior Workspace
+                    </button>
+                  </div>
+                  <div className="ws-intake-files">
+                    {srcTab === 'workspace' ? (
+                      clientSavedDocs.length ? (
+                        clientSavedDocs.map((draft) => {
+                          const on = selectedSavedDocs.has(draft.id);
+                          return (
+                            <button
+                              type="button"
+                              className="ws-intake-doc"
+                              key={draft.id}
+                              onClick={() => toggleSavedDoc(draft.id)}
+                            >
+                              <span className="ws-intake-doc__box" data-on={on}>
+                                {on ? <WorkspaceIcon name="Check" size={10} color="#ffffff" /> : null}
+                              </span>
+                              <span className="ws-intake-doc__main">
+                                <span className="ws-intake-doc__name">{draft.docTitle}</span>
+                                <span className="ws-intake-doc__meta">
+                                  {draft.documentType || 'Workspace document'} ·{' '}
+                                  {new Date(draft.updatedAt).toLocaleDateString()}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="ws-intake-sub__empty">
+                          No saved Workspace documents were found for {selectedClient.name}.
+                        </div>
+                      )
+                    ) : (
+                      <div className="ws-intake-sub__empty">
+                        Client files are not yet linked to the intake. Use “Add files” to upload
+                        client documents directly.
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
-            </article>
+            </div>
 
-            <article className="ws-quick-source-card">
-              <header><span>03</span><div><h3>Sample documents</h3><p>Examples Meri can study for structure, tone, and drafting quality—not factual evidence.</p></div></header>
-              <label className="ws-quick-upload">
-                Add sample files
-                <input type="file" multiple onChange={(event) => void handleFiles(event, 'sample')} />
-              </label>
-              <textarea
-                value={samplePaste}
-                onChange={(event) => setSamplePaste(event.target.value)}
-                placeholder="Or paste sample document text…"
-              />
-              <AttachmentUploadList uploads={sampleUploads} onRemove={(id) => removeUpload('sample', id)} />
-              <div className="ws-quick-style-policy">
-                STYLE ONLY · Samples cannot support factual claims and distinctive wording should not be copied.
-              </div>
-            </article>
-
-            <article className="ws-quick-source-card">
-              <header><span>04</span><div><h3>Capiro context</h3><p>Select the internal context domains Meri should use.</p></div></header>
-              <div className="ws-quick-domain-grid">
-                {CONTEXT_DOMAINS.map((domain) => {
-                  const selected = selectedDomains.has(domain.id);
-                  return (
-                    <label key={domain.id} data-selected={selected} data-disabled={!domain.enabled ? true : undefined}>
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        disabled={!domain.enabled}
-                        onChange={() => toggleDomain(domain.id)}
-                      />
-                      <span>
-                        <strong>{domain.label}</strong>
-                        <em>{domain.description}{!domain.enabled ? ' · Not available yet' : ''}</em>
+            {/* 03 · Sample documents */}
+            <div className="ws-intake-sub">
+              <span className="ws-intake-sub__ordinal-row">
+                <WsMono variant="panel" className="ws-intake-sub__ordinal">03</WsMono>
+                <WsPill tone="amber">Style &amp; structure only</WsPill>
+              </span>
+              <span className="ws-intake-sub__title">Sample documents</span>
+              <span className="ws-intake-sub__desc">
+                Give Meri examples of what a strong final document should look and sound like.
+              </span>
+              <div className="ws-intake-files">
+                {sampleUploads.map((upload) => (
+                  <div className="ws-intake-file" key={upload.id}>
+                    <span className="ws-intake-file__main">
+                      <span className="ws-intake-file__name">{upload.name}</span>
+                      <span className="ws-intake-file__meta">
+                        {Math.max(1, Math.round(upload.size / 1024))} KB
                       </span>
-                    </label>
+                    </span>
+                    <FileStatePill state={upload.status} />
+                    {upload.status === 'failed' ? (
+                      <span className="ws-intake-file__failed-actions">
+                        <button type="button" onClick={() => removeUpload('sample', upload.id)}>
+                          Remove
+                        </button>
+                      </span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              <div className="ws-intake-sub__actions">
+                <label className="ws-intake-upload">
+                  <WorkspaceIcon name="Plus" size={14} color="#475467" />
+                  Add a sample
+                  <input
+                    type="file"
+                    multiple
+                    onChange={(e) => void handleFiles(e, 'sample')}
+                  />
+                </label>
+                <button type="button" className="ws-intake-paste">
+                  Paste sample text
+                </button>
+              </div>
+              <textarea
+                className="ws-intake-paste-area"
+                value={samplePaste}
+                onChange={(e) => setSamplePaste(e.target.value)}
+                placeholder="Paste sample document text…"
+              />
+              <span className="ws-intake-style-note">
+                Samples can influence organization, tone, density, and rhetorical style. Their
+                factual claims are not treated as verified evidence unless independently supported.
+              </span>
+            </div>
+
+            {/* 04 · Capiro Context */}
+            <div className="ws-intake-sub">
+              <WsMono variant="panel" className="ws-intake-sub__ordinal">04</WsMono>
+              <span className="ws-intake-sub__title">Capiro Context</span>
+              <span className="ws-intake-sub__desc">
+                Bring relevant information Capiro already knows into this draft.
+              </span>
+              <div className="ws-intake-domains">
+                {CONTEXT_DOMAINS.map((domain) => {
+                  const on = domain.enabled && selectedDomains.has(domain.id);
+                  return (
+                    <button
+                      type="button"
+                      key={domain.id}
+                      className="ws-intake-domain"
+                      data-on={on}
+                      data-disabled={!domain.enabled}
+                      disabled={!domain.enabled}
+                      onClick={() => toggleDomain(domain.id)}
+                    >
+                      <span className="ws-intake-domain__tick">
+                        {on ? <WorkspaceIcon name="Check" size={12} color="#294E68" /> : null}
+                      </span>
+                      <span className="ws-intake-domain__main">
+                        <span className="ws-intake-domain__label">{domain.label}</span>
+                        <span className="ws-intake-domain__sub">
+                          {domain.enabled ? domain.sub : 'Not available yet'}
+                        </span>
+                      </span>
+                    </button>
                   );
                 })}
               </div>
-              <div className="ws-quick-style-policy">
-                Only enabled domains are sent to Meri. The backend re-fetches and authorizes every selected context source.
-              </div>
-            </article>
+              <span className="ws-intake-grey-note">
+                Greyed categories have no retrieval route yet. Nothing is fetched from them and
+                nothing is implied in the draft.
+              </span>
+            </div>
           </div>
         </section>
-      </main>
 
-      <footer className="ws-quick-intake__footer">
-        <div>
-          <span>{selectedBlueprint ? selectedBlueprint.name : 'Choose a template'}</span>
-          <strong>
-            {selectedSourceCount} source selection{selectedSourceCount === 1 ? '' : 's'} · MAX REASONING
-          </strong>
+        {/* Source tray */}
+        <section className="ws-intake-card ws-intake-tray">
+          <div className="ws-intake-tray__row">
+            <WsMono variant="panel">What Meri will use</WsMono>
+            <span className="ws-intake-tray__spacer" />
+            <span className="ws-intake-tray__count">{selectedSourceCount} sources selected</span>
+          </div>
+          <div className="ws-intake-tray__chips">
+            {readyUploadCount ? (
+              <span className="ws-intake-tray__chip">{readyUploadCount} uploaded sources</span>
+            ) : null}
+            {selectedSavedDocs.size ? (
+              <span className="ws-intake-tray__chip">{selectedSavedDocs.size} client documents</span>
+            ) : null}
+            {sampleUploads.filter((u) => u.status === 'ready').length || samplePaste.trim() ? (
+              <span className="ws-intake-tray__chip ws-intake-tray__chip--style">
+                {sampleUploads.filter((u) => u.status === 'ready').length +
+                  (samplePaste.trim() ? 1 : 0)}{' '}
+                style samples
+              </span>
+            ) : null}
+            {CONTEXT_DOMAINS.filter(
+              (d) => d.enabled && selectedDomains.has(d.id),
+            ).map((d) => (
+              <span className="ws-intake-tray__chip ws-intake-tray__chip--ctx" key={d.id}>
+                {d.label}
+              </span>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* Sticky footer */}
+      <div className="ws-intake-footer">
+        <div className="ws-intake-footer__template">
+          <span className="ws-intake-footer__name">
+            {selectedBlueprint ? selectedBlueprint.name : 'No template selected'}
+          </span>
+          <WsMono variant="tag" className="ws-intake-footer__meta">
+            {selectedSourceCount} sources
+          </WsMono>
         </div>
-        <CapiroButton
-          variant="primary"
-          disabled={generateDisabled}
-          loading={submitting}
+        <span className="ws-intake-footer__mode">Max reasoning</span>
+        <span className="ws-intake-footer__spacer" />
+        {!canGenerate && blockers.length ? (
+          <span className="ws-intake-footer__blocker">
+            <WorkspaceIcon name="AlertCircle" size={15} color="#B86E12" />
+            {blockers[0]}
+          </span>
+        ) : null}
+        <WsButton
+          variant="metal"
+          size="lg"
+          icon="Stars02"
+          disabled={!canGenerate}
           onClick={() => void handleSubmit()}
         >
           Generate first draft
-        </CapiroButton>
-      </footer>
+        </WsButton>
+      </div>
 
       {submitting || redirecting ? (
-        <div className="ws-quick-generating" role="status" aria-live="polite">
-          <div className="ws-quick-generating__card">
-            <div className="ws-quick-generating__mark">M</div>
-            <div className="ws-audit-eyebrow">MAX REASONING</div>
+        <div className="ws-intake-generating" role="status" aria-live="polite">
+          <div className="ws-intake-generating__card">
+            <div className="ws-intake-generating__mark">M</div>
+            <WsMono variant="eyebrow">Max reasoning</WsMono>
             <h2>{redirecting ? 'Opening editor…' : 'Starting your draft'}</h2>
             <p>
               {redirecting

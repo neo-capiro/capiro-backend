@@ -923,12 +923,24 @@ export function WorkspaceEditorStabilized({ draftId, isRunView = false }: Worksp
     <div className="ws-vnext ws-audit-editor" data-agent-collapsed={agentCollapsed} data-inspector-collapsed={inspectorCollapsed}>
       <header className="ws-audit-editor__header">
         <div className="ws-audit-editor__title-row">
-          <button type="button" onClick={() => navigate('/workspace')} aria-label="Back to documents"><Icon name="ArrowLeft" size={18} /></button>
-          <div className="ws-audit-editor__title"><h1>{draft.docTitle}</h1><span>{state.documentType?.label || draft.product || 'Document'} · VERSION {state.outline.version || 1} · {saveState.toUpperCase()}</span></div>
+          <button type="button" className="ws-audit-editor__back" onClick={() => navigate('/workspace')} aria-label="Back to documents" title="Back to Workspace"><Icon name="ArrowLeft" size={16} /></button>
+          <div className="ws-audit-editor__title">
+            <h1>{draft.docTitle}</h1>
+            <span className="ws-audit-editor__meta">
+              <span className="ws-audit-editor__meta-kind">{state.documentType?.label || draft.product || 'Document'}{draft.client ? ` · ${draft.client}` : ''}</span>
+              <span className="ws-audit-editor__meta-divider" />
+              <span className="ws-audit-editor__meta-pin">Blueprint · v{state.blueprintPin?.version ?? state.outline.version ?? 1}</span>
+              <span className="ws-audit-editor__meta-divider" />
+              <span className="ws-audit-editor__save" data-state={saveState}>
+                <span className="ws-audit-editor__save-dot" />
+                {saveState === 'saved' ? 'Saved' : saveState === 'saving' ? 'Saving' : 'Save error'}
+              </span>
+            </span>
+          </div>
           <div className="ws-audit-editor__header-actions">
             <CapiroButton variant="secondary" size="compact" onClick={() => window.open(`/workspace/preview/${draftId}`, '_blank', 'noopener,noreferrer')}>Preview as client</CapiroButton>
             <CapiroButton variant="primary" size="compact" disabled={currentSpine < 3} onClick={() => setOverlay('delivery')}>Deliver</CapiroButton>
-            <button type="button" className="ws-audit-icon-button" onClick={() => setOverlay('versions')} aria-label="More document actions"><Icon name="MoreHorizontal" size={18} /></button>
+            <button type="button" className="ws-audit-icon-button" onClick={() => setOverlay('versions')} aria-label="More document actions"><Icon name="MoreHorizontal" size={20} /></button>
           </div>
         </div>
         <PhaseSpine state={state} onOpen={openSpine} />

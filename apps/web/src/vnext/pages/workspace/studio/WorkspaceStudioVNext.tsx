@@ -332,8 +332,39 @@ function ViewTabs() {
 
 // ── 2. Blueprint editor ─────────────────────────────────────────────────────
 
-const STEPS = ['Basics', 'Intake', 'Structure', 'Rules', 'Test & publish'] as const;
+const STEPS = [
+  'Basics',
+  'Structure',
+  'Questions',
+  'Evidence',
+  'Instructions',
+  'Approval',
+  'Design',
+  'Test',
+] as const;
 type StepKey = (typeof STEPS)[number];
+
+const STEP_SUBS: Record<StepKey, string> = {
+  Basics: 'Name, type, description',
+  Structure: 'Sections and word targets',
+  Questions: 'What Meri asks before drafting',
+  Evidence: 'Sources, citations, freshness',
+  Instructions: 'Drafting rules and voice',
+  Approval: 'Who signs off, and when',
+  Design: 'Theme and export defaults',
+  Test: 'Sample run and release',
+};
+
+const STEP_TITLES: Record<StepKey, string> = {
+  Basics: 'Template basics',
+  Structure: 'Section structure',
+  Questions: 'Follow-up questions',
+  Evidence: 'Evidence rules',
+  Instructions: 'Drafting instructions',
+  Approval: 'Approval policy',
+  Design: 'Design defaults',
+  Test: 'Test and publish',
+};
 
 function BlueprintEditor({ blueprintId, versionId }: { blueprintId: string; versionId: string }) {
   const navigate = useNavigate();
@@ -561,6 +592,7 @@ function BlueprintEditor({ blueprintId, versionId }: { blueprintId: string; vers
       {/* Step rail + step body */}
       <div className="ws-vnext-studio__editor-body">
         <nav className="ws-vnext-studio__step-rail" aria-label="Blueprint editor steps">
+          <span className="ws-vnext-studio__step-rail-label">Template studio</span>
           {STEPS.map((label, i) => (
             <button
               key={label}
@@ -571,19 +603,36 @@ function BlueprintEditor({ blueprintId, versionId }: { blueprintId: string; vers
               onClick={() => setStep(i)}
             >
               <span className="ws-vnext-studio__step-num">{i + 1}</span>
-              <span className="ws-vnext-studio__step-label">{label}</span>
+              <span className="ws-vnext-studio__step-text">
+                <span className="ws-vnext-studio__step-label">{label}</span>
+                <span className="ws-vnext-studio__step-sub">{STEP_SUBS[label]}</span>
+              </span>
             </button>
           ))}
         </nav>
 
         <div className="ws-vnext-studio__step-panel">
+          {(() => {
+            const currentStep: StepKey = STEPS[step] ?? 'Basics';
+            return (
+              <>
+                <div className="ws-vnext-studio__step-kicker">
+                  Step {step + 1} of {STEPS.length} · {currentStep}
+                </div>
+                <h2 className="ws-vnext-studio__step-title">{STEP_TITLES[currentStep]}</h2>
+              </>
+            );
+          })()}
           {step === 0 && (
             <BasicsStep def={def} updateDef={updateDef} readOnly={readOnly} version={version} />
           )}
-          {step === 1 && <IntakeStep def={def} updateDef={updateDef} readOnly={readOnly} />}
-          {step === 2 && <StructureStep def={def} updateDef={updateDef} readOnly={readOnly} />}
+          {step === 1 && <StructureStep def={def} updateDef={updateDef} readOnly={readOnly} />}
+          {step === 2 && <IntakeStep def={def} updateDef={updateDef} readOnly={readOnly} />}
           {step === 3 && <RulesStep def={def} updateDef={updateDef} readOnly={readOnly} />}
-          {step === 4 && (
+          {step === 4 && <RulesStep def={def} updateDef={updateDef} readOnly={readOnly} />}
+          {step === 5 && <ApprovalStep def={def} updateDef={updateDef} readOnly={readOnly} />}
+          {step === 6 && <DesignStep def={def} updateDef={updateDef} readOnly={readOnly} />}
+          {step === 7 && (
             <TestPublishStep
               def={def}
               version={version}
@@ -1120,6 +1169,97 @@ function RulesStep({ def, updateDef, readOnly }: StepProps) {
           )}
         </div>
       </Field>
+    </div>
+  );
+}
+
+function ApprovalStep({ def, updateDef, readOnly }: StepProps) {
+  const approval = def.approvalPolicy ?? {
+    clientFacingApprovalRequired: false,
+    permittedApproverRoles: [] as string[],
+  };
+  const setApproval = (a: ApprovalPolicy) => updateDef({ approvalPolicy: a });
+  const roles = ['owner', 'reviewer', 'editor'];
+  return (
+    <div className="ws-vnext-studio__form">
+      <p className="ws-vnext-studio__muted">
+        The approval policy decides whether delivery is gated, and who may release a document to a
+        client.
+      </p>
+      <Field label="Approval required before client delivery">
+        <label className="ws-vnext-studio__checkbox">
+          <input
+            type="checkbox"
+            checked={approval.clientFacingApprovalRequired ?? false}
+            disabled={readOnly}
+            onChange={(e) =>
+              setApproval({ ...approval, clientFacingApprovalRequired: e.target.checked })
+            }
+          />
+          <span>Delivery is blocked until an approver signs off</span>
+        </label>
+      </Field>
+      <Field label="Permitted approvers">
+        <div className="ws-vnext-studio__chip-row">
+          {roles.map((role) => {
+            const on = (approval.permittedApproverRoles ?? []).includes(role);
+            return (
+              <button
+                type="button"
+                key={role}
+                className="ws-vnext-studio__chip"
+                data-active={on}
+                disabled={readOnly}
+                onClick={() =>
+                  setApproval({
+                    ...approval,
+                    permittedApproverRoles: on
+                      ? (approval.permittedApproverRoles ?? []).filter((r) => r !== role)
+                      : [...(approval.permittedApproverRoles ?? []), role],
+                  })
+                }
+              >
+                {role}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+      <Field label="Re-approval on material edit">
+        <p className="ws-vnext-studio__muted">
+          An approved document that changes materially reads “Approval outdated” and delivery is
+          blocked until it is re-approved.
+        </p>
+      </Field>
+    </div>
+  );
+}
+
+function DesignStep({ def, updateDef, readOnly }: StepProps) {
+  const theme = def.defaultTheme;
+  return (
+    <div className="ws-vnext-studio__form">
+      <p className="ws-vnext-studio__muted">
+        Design defaults set the theme a new document starts on. The author can still change it in
+        the document Design tab.
+      </p>
+      <Field label="Default theme">
+        <input
+          className="ws-vnext-studio__input"
+          value={theme?.name ?? ''}
+          placeholder="Capiro Formal"
+          disabled={readOnly}
+          onChange={(e) =>
+            updateDef({
+              defaultTheme: { id: theme?.id ?? 'default', name: e.target.value, settings: theme?.settings },
+            })
+          }
+        />
+      </Field>
+      <div className="ws-vnext-callout">
+        Theme CRUD endpoints are not available (GAPS §15). The default theme name is stored on the
+        blueprint definition; the full theme object is read-only until theme routes exist.
+      </div>
     </div>
   );
 }

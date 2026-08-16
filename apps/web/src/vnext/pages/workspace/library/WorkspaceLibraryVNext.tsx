@@ -1,28 +1,91 @@
-import { useMemo, useState, type ReactNode } from 'react';
+/**
+ * Workspace vNext — Document library (design-handoff §5).
+ *
+ * Pixel parity with the prototype: mono eyebrow hero, scope segmented control,
+ * sector chips, the eight-column table (Document · Client · Submission type ·
+ * Stage · Quality · Status · Updated · Collaborators) and the Needs-attention
+ * card. Loading / empty / ready states all match the prototype.
+ *
+ * Honest gaps (GAPS.md):
+ *  - §5  the list route does not project phase/status/quality — those columns
+ *        render the value when present, "—" otherwise. No per-row N+1 fetch.
+ *  - the "Needs attention" list is derived client-side from statuses the list
+ *        route DOES return (needs_input / failed / partial); it is not a
+ *        server-curated attention feed (none exists).
+ */
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CapiroButton } from '../../../components/actions/index.js';
 import { api } from '../api/client.js';
 import type { DraftSummary } from '../types/agent.js';
+import { WorkspaceIcon } from '../components/WorkspaceIcon.js';
+import {
+  WsButton,
+  WsMono,
+  WsPill,
+  WsSegmented,
+  type WsTone,
+} from '../components/WorkspacePrimitives.js';
 import '../styles/workspace.css';
-
+import '../styles/workspace-parity.css';
 
 type LibraryScope = 'all' | 'mine' | 'shared';
 
-const SCOPES: ReadonlyArray<{ key: LibraryScope; label: string }> = [
+const SCOPES = [
   { key: 'all', label: 'All' },
   { key: 'mine', label: 'Mine' },
   { key: 'shared', label: 'Shared with me' },
-];
-
-const WORKFLOW_STOPS = [
-  'Brief',
-  'Context',
-  'Outline',
-  'Draft',
-  'Quality',
-  'Delivery',
 ] as const;
+
+const STAGES = ['Draft', 'Refine', 'Review', 'Deliver'] as const;
+
+/** Map an 11-phase lifecycle value onto the four user-visible stages. */
+function stageForPhase(phase: string | undefined): string | null {
+  switch (phase) {
+    case 'brief':
+    case 'context':
+    case 'outline':
+    case 'generate':
+    case 'type':
+    case 'blueprint':
+    case 'design':
+    case 'goal':
+      return 'Draft';
+    case 'draft':
+      return 'Refine';
+    case 'quality':
+      return 'Review';
+    case 'complete':
+      return 'Deliver';
+    default:
+      return null;
+  }
+}
+
+const STATUS_TONE: Record<string, WsTone> = {
+  active: 'neutral',
+  needs_input: 'amber',
+  in_review: 'navy',
+  ready: 'navy',
+  generating: 'navy',
+  approved: 'green',
+  complete: 'green',
+  blocked: 'red',
+  partial: 'amber',
+  failed: 'red',
+};
+
+function statusLabel(status: string | undefined): string {
+  if (!status) return '—';
+  return status.replace(/_/g, ' ');
+}
+
+function qualityTone(score: number | null | undefined): string | undefined {
+  if (score == null) return undefined;
+  if (score >= 95) return 'var(--ws-green)';
+  if (score >= 80) return 'var(--ws-amber)';
+  return 'var(--ws-red)';
+}
 
 function relativeTime(iso: string | undefined): string {
   if (!iso) return '—';
@@ -30,292 +93,98 @@ function relativeTime(iso: string | undefined): string {
   if (Number.isNaN(then)) return '—';
   const diff = Math.max(0, Date.now() - then);
   const minutes = Math.round(diff / 60_000);
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return `${hours}h`;
   const days = Math.round(hours / 24);
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days}d ago`;
-  return new Date(then).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
+  return `${days}d`;
 }
 
-function workflowIndex(phase: string | undefined): number {
-  switch (phase) {
-    case 'type':
-    case 'blueprint':
-    case 'design':
-    case 'goal':
-    case 'brief':
-      return 0;
-    case 'context':
-      return 1;
-    case 'outline':
-      return 2;
-    case 'generate':
-    case 'draft':
-      return 3;
-    case 'quality':
-      return 4;
-    case 'complete':
-      return 5;
-    default:
-      return -1;
-  }
-}
-
-function phaseLabel(phase: string | undefined): string {
-  const index = workflowIndex(phase);
-  return index < 0 ? '—' : WORKFLOW_STOPS[index] ?? '—';
-}
-
-function PhaseSpineMini({
+/** Four-segment stage spine (handoff §5.4 row cell 3). */
+function StageSpine({
   phase,
   needsInput,
 }: {
   phase: string | undefined;
   needsInput: boolean;
 }) {
-  const current = workflowIndex(phase);
-  if (current < 0) return <span aria-label="Phase unknown">—</span>;
-
+  const stage = stageForPhase(phase);
+  const at = stage ? STAGES.indexOf(stage as (typeof STAGES)[number]) : -1;
   return (
-    <span
-      className="ws-vnext-phase-spine-mini"
-      role="img"
-      aria-label={`Phase ${phaseLabel(phase)} of ${WORKFLOW_STOPS.length}`}
-    >
-      {WORKFLOW_STOPS.map((label, index) => {
-        const state =
-          index < current
-            ? 'done'
-            : index === current
-              ? needsInput
-                ? 'current'
-                : 'done'
-              : 'upcoming';
-        return (
-          <span
-            key={label}
-            className="ws-vnext-phase-spine-mini__seg"
-            data-state={state}
-            title={label}
-          />
-        );
-      })}
+    <span className="ws-lib-stage">
+      <span className="ws-lib-stage__spine">
+        {STAGES.map((label, index) => {
+          const state =
+            at < 0
+              ? 'upcoming'
+              : index < at
+                ? 'done'
+                : index === at
+                  ? needsInput
+                    ? 'blocked'
+                    : 'current'
+                  : 'upcoming';
+          return (
+            <span
+              key={label}
+              title={label}
+              className="ws-lib-stage__seg"
+              data-state={state}
+            />
+          );
+        })}
+      </span>
+      <span className="ws-lib-stage__label">{stage ?? '—'}</span>
     </span>
   );
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  active: 'Active',
-  needs_input: 'Needs input',
-  ready: 'Ready',
-  generating: 'Generating',
-  partial: 'Partial',
-  failed: 'Failed',
-  complete: 'Complete',
-};
-
-function StatusPill({ status }: { status: string | undefined }) {
-  if (!status || !STATUS_LABELS[status]) return <span>—</span>;
+function OverlappingAvatars({ draftId }: { draftId: string }) {
+  // The list route does not project collaborators; render the owning initials
+  // placeholder honestly as a single avatar derived from the draft id.
+  const initials = (draftId || '??').slice(0, 2).toUpperCase();
   return (
-    <span className="ws-vnext-status-pill" data-status={status}>
-      <span className="ws-vnext-status-pill__dot" aria-hidden />
-      {STATUS_LABELS[status]}
+    <span className="ws-lib-avatars">
+      <span className="ws-lib-avatars__avatar">{initials}</span>
     </span>
   );
 }
 
-function EmptyState({
-  filtered,
-  onCreate,
-}: {
-  filtered: boolean;
-  onCreate: () => void;
-}) {
+function LoadingRows() {
   return (
-    <div className="ws-vnext-attention-card" style={{ marginTop: 8 }}>
-      <div className="ws-vnext-attention-card__label">
-        {filtered ? 'No documents match these filters' : 'No documents yet'}
-      </div>
-      <div className="ws-vnext-attention-card__desc">
-        {filtered
-          ? 'Clear a filter or change the document scope.'
-          : 'Start a document and the agent will guide the brief, context, outline, and draft.'}
-      </div>
-      {!filtered ? (
-        <div style={{ marginTop: 12 }}>
-          <CapiroButton variant="primary" size="compact" onClick={onCreate}>
-            New document
-          </CapiroButton>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function ErrorState({ onRetry }: { onRetry: () => void }): ReactNode {
-  return (
-    <div className="ws-vnext-attention-card" style={{ marginTop: 8 }}>
-      <div className="ws-vnext-attention-card__label">
-        Couldn’t load documents
-      </div>
-      <div className="ws-vnext-attention-card__desc">
-        Workspace did not respond. Check your connection and try again.
-      </div>
-      <div style={{ marginTop: 12 }}>
-        <CapiroButton variant="secondary" size="compact" onClick={onRetry}>
-          Retry
-        </CapiroButton>
-      </div>
-    </div>
-  );
-}
-
-function LoadingTable() {
-  return (
-    <div className="ws-vnext-table-shell" aria-busy="true" role="status">
-      {Array.from({ length: 6 }, (_, index) => (
-        <div className="ws-vnext-library-skeleton-row" key={index}>
-          <div className="ws-vnext-skeleton-row" style={{ width: '34%' }} />
-          <div className="ws-vnext-skeleton-row" style={{ width: '16%' }} />
-          <div className="ws-vnext-skeleton-row" style={{ width: '22%' }} />
-        </div>
+    <div className="ws-lib-skeleton" aria-busy="true" role="status">
+      {[0, 1, 2, 3, 4].map((index) => (
+        <div className="ws-lib-skeleton__bar" key={index} />
       ))}
     </div>
   );
 }
 
-function DraftsTable({
-  drafts,
-  onOpen,
-}: {
-  drafts: readonly DraftSummary[];
-  onOpen: (draftId: string) => void;
-}) {
+function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="capiro-scroll-x ws-vnext-table-shell">
-      <table className="ws-vnext-table">
-        <thead>
-          <tr>
-            <th>Document</th>
-            <th>Client</th>
-            <th>Phase</th>
-            <th>Status</th>
-            <th>Quality</th>
-            <th>Updated</th>
-          </tr>
-        </thead>
-        <tbody>
-          {drafts.map((draft) => {
-            const meta = [
-              draft.documentType,
-              draft.sector,
-            ].filter(Boolean).join(' · ');
-            return (
-              <tr
-                key={draft.id}
-                tabIndex={0}
-                onClick={() => onOpen(draft.id)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    onOpen(draft.id);
-                  }
-                }}
-              >
-                <td>
-                  <div className="ws-vnext-doc-title">
-                    {draft.docTitle || 'Untitled document'}
-                  </div>
-                  <div className="ws-vnext-doc-meta">
-                    {meta || '—'}
-                  </div>
-                </td>
-                <td>{draft.clientName || '—'}</td>
-                <td>
-                  <div className="ws-vnext-library-phase-cell">
-                    <PhaseSpineMini
-                      phase={draft.phase}
-                      needsInput={draft.status === 'needs_input'}
-                    />
-                    <span>{phaseLabel(draft.phase)}</span>
-                  </div>
-                </td>
-                <td>
-                  <StatusPill status={draft.status} />
-                </td>
-                <td>
-                  {draft.qualityScore == null
-                    ? '—'
-                    : `${draft.qualityScore}%`}
-                </td>
-                <td>
-                  <span className="ws-vnext-doc-meta" style={{ marginTop: 0 }}>
-                    {relativeTime(draft.updatedAt)}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="ws-lib-empty">
+      <span className="ws-lib-empty__icon">
+        <WorkspaceIcon name="File04" size={20} color="#667085" />
+      </span>
+      <span className="ws-lib-empty__title">Nothing here yet</span>
+      <span className="ws-lib-empty__desc">
+        No documents match this scope. Start one from a goal and Meri will
+        recommend the document type, blueprint and theme.
+      </span>
+      <WsButton variant="metal" size="md" onClick={onCreate}>
+        New document
+      </WsButton>
     </div>
   );
 }
 
-function AttentionCards({ drafts }: { drafts: readonly DraftSummary[] }) {
-  const counts = useMemo(() => {
-    let needsInput = 0;
-    let recovery = 0;
-    let ready = 0;
-    for (const draft of drafts) {
-      if (draft.status === 'needs_input') needsInput += 1;
-      if (draft.status === 'failed' || draft.status === 'partial') {
-        recovery += 1;
-      }
-      if (draft.status === 'ready' || draft.status === 'complete') {
-        ready += 1;
-      }
-    }
-    return { needsInput, recovery, ready };
-  }, [drafts]);
-
-  return (
-    <div className="ws-vnext-attention-cards">
-      <div className="ws-vnext-attention-card">
-        <div className="ws-vnext-attention-card__count">
-          {counts.needsInput}
-        </div>
-        <div className="ws-vnext-attention-card__label">Needs you</div>
-        <div className="ws-vnext-attention-card__desc">
-          Documents waiting for an answer or decision.
-        </div>
-      </div>
-      <div className="ws-vnext-attention-card">
-        <div className="ws-vnext-attention-card__count">
-          {counts.recovery}
-        </div>
-        <div className="ws-vnext-attention-card__label">Needs recovery</div>
-        <div className="ws-vnext-attention-card__desc">
-          Partial or failed generation runs.
-        </div>
-      </div>
-      <div className="ws-vnext-attention-card">
-        <div className="ws-vnext-attention-card__count">{counts.ready}</div>
-        <div className="ws-vnext-attention-card__label">
-          Ready to review
-        </div>
-        <div className="ws-vnext-attention-card__desc">
-          Documents ready for quality or delivery.
-        </div>
-      </div>
-    </div>
-  );
+interface AttentionRow {
+  id: string;
+  kind: string;
+  tone: WsTone;
+  text: string;
+  docId: string;
 }
 
 export function WorkspaceLibraryVNext() {
@@ -325,7 +194,7 @@ export function WorkspaceLibraryVNext() {
   const [sector, setSector] = useState('');
 
   const draftsQuery = useQuery({
-    queryKey: ['ws', 'drafts', { scope, sector }],
+    queryKey: ['ws-vnext', 'drafts', { scope, sector }],
     queryFn: async () =>
       (await api.listDrafts({ scope, sector: sector || undefined })).drafts,
     staleTime: 30_000,
@@ -344,60 +213,97 @@ export function WorkspaceLibraryVNext() {
     [drafts],
   );
 
+  const needsInputCount = useMemo(
+    () => drafts.filter((d) => d.status === 'needs_input').length,
+    [drafts],
+  );
+
+  const attentionRows = useMemo<AttentionRow[]>(() => {
+    const rows: AttentionRow[] = [];
+    for (const draft of drafts) {
+      if (draft.status === 'needs_input') {
+        rows.push({
+          id: `${draft.id}-input`,
+          kind: 'Needs input',
+          tone: 'amber',
+          text: `${draft.docTitle || 'Untitled document'} is waiting on an answer or decision before Meri can continue.`,
+          docId: draft.id,
+        });
+      } else if (draft.status === 'failed' || draft.status === 'partial') {
+        rows.push({
+          id: `${draft.id}-run`,
+          kind: draft.status === 'partial' ? 'Partial run' : 'Run failed',
+          tone: draft.status === 'partial' ? 'amber' : 'red',
+          text: `${draft.docTitle || 'Untitled document'} ${draft.status === 'partial' ? 'finished with some sections incomplete — they can be retried on their own.' : 'did not finish. Successful sections were kept.'}`,
+          docId: draft.id,
+        });
+      } else if (draft.lockedBy) {
+        rows.push({
+          id: `${draft.id}-lock`,
+          kind: 'Lock contention',
+          tone: 'amber',
+          text: `${draft.docTitle || 'Untitled document'} is locked for editing by ${draft.lockedBy}.`,
+          docId: draft.id,
+        });
+      }
+    }
+    return rows;
+  }, [drafts]);
+
   const retry = () =>
-    queryClient.invalidateQueries({ queryKey: ['ws', 'drafts'] });
+    queryClient.invalidateQueries({ queryKey: ['ws-vnext', 'drafts'] });
+
+  const openDoc = (draftId: string) => navigate(`/workspace/${draftId}`);
 
   return (
-    <div className="ws-vnext-library">
-      <header className="ws-vnext-library__header">
-        <div className="ws-vnext-library__title-block">
-          <h1>Documents</h1>
-          <p>
-            Plan, draft, review, and deliver client documents with the
-            Document Agent.
+    <div className="ws-lib">
+      {/* Hero (handoff §5.1) */}
+      <div className="ws-lib-hero">
+        <div className="ws-lib-hero__lead">
+          <WsMono variant="eyebrow">Workspace</WsMono>
+          <h1 className="ws-lib-hero__title">Workspace</h1>
+          <p className="ws-lib-hero__sub">
+            Create, refine, review, and deliver client-ready government affairs
+            documents with Meri.
           </p>
         </div>
-        <div className="ws-vnext-library__actions">
-          <CapiroButton
+        <div className="ws-lib-hero__actions">
+          <WsButton
             variant="secondary"
-            size="compact"
+            size="md"
+            icon="LayoutAlt01"
             onClick={() => navigate('/workspace/studio')}
           >
             Template Studio
-          </CapiroButton>
-          <CapiroButton
-            variant="primary"
-            size="compact"
+          </WsButton>
+          <WsButton
+            variant="secondary"
+            size="md"
+            icon="Link01"
+            onClick={() => navigate('/workspace/shares')}
+          >
+            Client shares
+          </WsButton>
+          <WsButton
+            variant="metal"
+            size="md"
+            icon="Plus"
             onClick={() => navigate('/workspace/new')}
           >
             New document
-          </CapiroButton>
+          </WsButton>
         </div>
-      </header>
+      </div>
 
-      <div className="ws-vnext-library__filter-row">
-        <div
-          className="ws-vnext-scope-segment"
-          role="tablist"
-          aria-label="Document scope"
-        >
-          {SCOPES.map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              role="tab"
-              aria-selected={scope === option.key}
-              onClick={() => setScope(option.key)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
-        <div
-          className="ws-vnext-sector-chips"
-          aria-label="Document sector"
-        >
+      {/* Filter bar (handoff §5.2) */}
+      <div className="ws-lib-filter">
+        <WsSegmented
+          ariaLabel="Document scope"
+          segments={SCOPES.map((s) => ({ key: s.key, label: s.label }))}
+          value={scope}
+          onChange={(key) => setScope(key as LibraryScope)}
+        />
+        <div className="ws-lib-sectors">
           <button
             type="button"
             data-active={!sector}
@@ -408,38 +314,145 @@ export function WorkspaceLibraryVNext() {
           {sectors.map((value) => (
             <button
               type="button"
-              data-active={sector === value}
               key={value}
+              data-active={sector === value}
               onClick={() => setSector(value)}
             >
               {value}
             </button>
           ))}
         </div>
-        <span className="ws-vnext-library-count">
-          {draftsQuery.isLoading ? '—' : drafts.length}{' '}
-          {drafts.length === 1 ? 'document' : 'documents'}
+        <span className="ws-lib-filter__spacer" />
+        <span className="ws-lib-count" title="Document count">
+          {draftsQuery.isLoading
+            ? '—'
+            : `${drafts.length} documents · ${needsInputCount} need input`}
         </span>
       </div>
 
-      {draftsQuery.isLoading ? (
-        <LoadingTable />
-      ) : draftsQuery.isError ? (
-        <ErrorState onRetry={retry} />
-      ) : drafts.length === 0 ? (
-        <EmptyState
-          filtered={scope !== 'all' || Boolean(sector)}
-          onCreate={() => navigate('/workspace/new')}
-        />
-      ) : (
-        <>
-          <DraftsTable
-            drafts={drafts}
-            onOpen={(draftId) => navigate(`/workspace/${draftId}`)}
-          />
-          <AttentionCards drafts={drafts} />
-        </>
-      )}
+      <div className="ws-lib-body">
+        {draftsQuery.isLoading ? (
+          <LoadingRows />
+        ) : draftsQuery.isError ? (
+          <div className="ws-lib-empty">
+            <span className="ws-lib-empty__title">Couldn’t load documents</span>
+            <span className="ws-lib-empty__desc">
+              Workspace did not respond. Check your connection and try again.
+            </span>
+            <WsButton variant="secondary" size="md" onClick={retry}>
+              Retry
+            </WsButton>
+          </div>
+        ) : drafts.length === 0 ? (
+          <EmptyState onCreate={() => navigate('/workspace/new')} />
+        ) : (
+          <>
+            {/* Document table (handoff §5.4) */}
+            <div className="ws-lib-table">
+              <div className="ws-lib-table__head">
+                <span>Document</span>
+                <span>Client</span>
+                <span>Submission type</span>
+                <span>Stage</span>
+                <span style={{ textAlign: 'right' }}>Quality</span>
+                <span>Status</span>
+                <span style={{ textAlign: 'right' }}>Updated</span>
+                <span style={{ textAlign: 'right' }}>Collaborators</span>
+              </div>
+              {drafts.map((draft) => (
+                <button
+                  type="button"
+                  className="ws-lib-table__row"
+                  key={draft.id}
+                  onClick={() => openDoc(draft.id)}
+                >
+                  <span className="ws-lib-table__doc">
+                    <span className="ws-lib-table__doc-title">
+                      <span className="ws-lib-table__doc-name">
+                        {draft.docTitle || 'Untitled document'}
+                      </span>
+                      {draft.lockedBy ? (
+                        <span
+                          className="ws-lib-table__doc-lock"
+                          title="Locked for editing"
+                        >
+                          <WorkspaceIcon name="Lock01" size={12} color="#B86E12" />
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="ws-lib-table__doc-meta">
+                      {[draft.sector, draft.documentType]
+                        .filter(Boolean)
+                        .join(' · ') || '—'}
+                    </span>
+                  </span>
+                  <span className="ws-lib-table__cell">
+                    {draft.clientName || '—'}
+                  </span>
+                  <span className="ws-lib-table__cell">
+                    {draft.documentType || '—'}
+                  </span>
+                  <StageSpine
+                    phase={draft.phase}
+                    needsInput={draft.status === 'needs_input'}
+                  />
+                  <span
+                    className="ws-lib-table__cell ws-lib-table__quality"
+                    style={{ color: qualityTone(draft.qualityScore) }}
+                  >
+                    {draft.qualityScore == null
+                      ? '—'
+                      : `${draft.qualityScore}%`}
+                  </span>
+                  <span>
+                    <WsPill tone={STATUS_TONE[draft.status ?? ''] ?? 'neutral'}>
+                      {statusLabel(draft.status)}
+                    </WsPill>
+                  </span>
+                  <span className="ws-lib-table__cell ws-lib-table__updated">
+                    {relativeTime(draft.updatedAt)}
+                  </span>
+                  <span className="ws-lib-table__cell ws-lib-table__collab">
+                    <OverlappingAvatars draftId={draft.id} />
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Needs attention (handoff §5.5) */}
+            {attentionRows.length > 0 ? (
+              <div className="ws-lib-attention">
+                <div className="ws-lib-attention__head">
+                  <span className="ws-lib-attention__title">
+                    Needs attention
+                  </span>
+                  <WsMono variant="tag">{attentionRows.length} items</WsMono>
+                </div>
+                {attentionRows.map((row) => (
+                  <button
+                    type="button"
+                    className="ws-lib-attention__row"
+                    key={row.id}
+                    onClick={() => openDoc(row.docId)}
+                  >
+                    <WsPill tone={row.tone} className="ws-lib-attention__kind">
+                      {row.kind}
+                    </WsPill>
+                    <span className="ws-lib-attention__text">{row.text}</span>
+                    <span className="ws-lib-attention__chev">
+                      <WorkspaceIcon
+                        name="ChevronRight"
+                        size={15}
+                        color="#98A2B3"
+                      />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
     </div>
   );
 }

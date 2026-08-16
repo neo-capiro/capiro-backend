@@ -18,6 +18,7 @@ import { useApi } from '../../../lib/use-api.js';
 import { installWorkspaceTransportBridge } from './api/transport-bridge.js';
 import { getTwoStepDraftCapability } from './creation/intake-client.js';
 import './styles/workspace.css';
+import './styles/workspace-parity.css';
 import './styles/workspace-audit.css';
 import './styles/workspace-editor-audit.css';
 

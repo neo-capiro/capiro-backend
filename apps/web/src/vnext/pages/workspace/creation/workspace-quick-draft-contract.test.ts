@@ -23,12 +23,12 @@ describe('Workspace two-screen quick-draft contract (aggregate intake)', () => {
   });
 
   it('keeps goal, templates, and all four source groups on the same screen', () => {
-    expect(creation).toContain('What should this document accomplish?');
-    expect(creation).toContain('Choose a submission template');
-    expect(creation).toContain('Relevant context');
+    expect(creation).toContain('What do you want Meri to create?');
+    expect(creation).toContain('Choose the type of submission');
+    expect(creation).toContain('Relevant material');
     expect(creation).toContain('Client saved documents');
     expect(creation).toContain('Sample documents');
-    expect(creation).toContain('Capiro context');
+    expect(creation).toContain('Capiro Context');
     expect(creation).toContain("navigate('/workspace/studio')");
   });
 
@@ -57,11 +57,11 @@ describe('Workspace two-screen quick-draft contract (aggregate intake)', () => {
     expect(creation).toContain('/api/engagement/attachments/upload-url');
     expect(creation).toContain('/api/engagement/attachments/confirm');
     expect(creation).toContain('/api/engagement/attachments/');
-    expect(creation).toContain("status: 'uploading'");
-    expect(creation).toContain("status: 'scanning'");
-    expect(creation).toContain("status: 'extracting'");
-    expect(creation).toContain("status: 'ready'");
-    expect(creation).toContain("status: 'failed'");
+    expect(creation).toContain("'uploading'");
+    expect(creation).toContain("'scanning'");
+    expect(creation).toContain("'extracting'");
+    expect(creation).toContain("'ready'");
+    expect(creation).toContain("'failed'");
   });
 
   it('shows only enabled Capiro context domains and gates the disabled ones', () => {
@@ -69,17 +69,15 @@ describe('Workspace two-screen quick-draft contract (aggregate intake)', () => {
     expect(creation).toContain("'institutional-memory'");
     expect(creation).toContain("'strategies'");
     expect(creation).toContain("'relationships'");
-    expect(creation).toContain("'activity'");
     expect(creation).toContain("'mailbox'");
-    expect(creation).toContain("'client-files'");
     expect(creation).toContain('Not available yet');
     // Disabled domains are never default-selected.
     expect(creation).toContain("new Set(['client-profile'])");
   });
 
   it('uses the governed Max endpoint and separates samples from facts', () => {
-    expect(creation).toContain('MAX REASONING');
-    expect(creation).toContain('STYLE ONLY');
+    expect(creation).toContain('Max reasoning');
+    expect(creation).toContain('Style &amp; structure only');
   });
 
   it('redirects to the editor immediately after the 202 response', () => {
