@@ -858,7 +858,13 @@ function makeWorkerHarness(opts: {
       },
       findMany: async () => [{ status: 'sent' }],
     },
-    $queryRaw: async () => {
+    $queryRaw: async (strings?: TemplateStringsArray) => {
+      // The worker now splits ownership: isOutreachV3Session probes
+      // outreach_events to decide whether an intent belongs to the V3 worker or
+      // the classic one. These worker tests cover the CLASSIC path, so the probe
+      // reports "not a V3 session".
+      const sql = Array.isArray(strings) ? strings.join(' ') : '';
+      if (sql.includes('outreach_events')) return [];
       if (state.claimed) return [];
       state.claimed = true;
       state.guarded = true; // the SQL predicate is status='pending'
@@ -888,6 +894,9 @@ function makeWorkerHarness(opts: {
         outreachRecordId: 'rec-1',
         senderConnection: { id: 'conn-1', provider: 'google_workspace' },
       }),
+      // findRunnableIntentId now reads a bounded batch and picks the first
+      // intent this worker actually owns, rather than the single oldest row.
+      findMany: async () => [{ id: 'intent-1', tenantId: 't1', outreachRecordId: 'rec-1' }],
       updateMany: async () => ({ count: 1 }),
     },
     outreachRecord: { updateMany: async () => ({ count: 1 }) },
@@ -1103,8 +1112,17 @@ describe('worker delivery — at-most-once', () => {
 });
 
 describe('worker reconciliation (plan §g4 — bounded and logged)', () => {
+  /**
+   * The closeout split classic and Outreach V3 worker ownership, so
+   * reconcileStale now selects candidates through the Prisma client (and checks
+   * which worker owns each one) instead of one raw SQL statement. The safety
+   * guarantees it must still uphold are unchanged: only rows stuck in 'sending'
+   * past a cutoff are touched, they become 'unknown' and never 'pending' (which
+   * would risk a duplicate email), the scan is bounded, and any aging is logged.
+   */
   function makeReconcileHarness(rows: Array<{ id: string }>) {
-    const calls: Array<{ sql: string; values: unknown[] }> = [];
+    const finds: Array<Record<string, unknown>> = [];
+    const updates: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = [];
     const warnings: string[] = [];
     const service = Object.create(OutreachSendIntentService.prototype) as OutreachSendIntentService;
     const patch = service as unknown as Record<string, unknown>;
@@ -1119,47 +1137,91 @@ describe('worker reconciliation (plan §g4 — bounded and logged)', () => {
       snapshot: () => ({ serviceName: 'api', processMode: 'active', backgroundOwner: 'api', externalActions: 'enabled', callbacksEnabled: true, recallWebhookEnabled: true }),
       isRecallWebhookEnabled: () => true,
     };
-    patch.prisma = {
-      withSystem: (fn: (t: unknown) => unknown) =>
-        fn({
-          $queryRaw: (strings: TemplateStringsArray, ...values: unknown[]) => {
-            calls.push({ sql: strings.join('?'), values });
-            return Promise.resolve(rows);
-          },
-        }),
+    const tx = {
+      outreachDelivery: {
+        findMany: async (args: Record<string, unknown>) => {
+          finds.push(args);
+          return rows.map((row) => ({
+            id: row.id,
+            sendIntent: { tenantId: 't1', outreachRecordId: 'rec-1' },
+          }));
+        },
+        updateMany: async (args: {
+          where: Record<string, unknown>;
+          data: Record<string, unknown>;
+        }) => {
+          updates.push(args);
+          return { count: rows.length };
+        },
+      },
+      // isOutreachV3Session probe: these are classic-owned intents.
+      $queryRaw: async () => [],
     };
-    return { service, calls, warnings };
+    patch.prisma = { withSystem: (fn: (t: unknown) => unknown) => fn(tx) };
+    return { service, finds, updates, warnings };
   }
+
+  const reconcile = (h: { service: OutreachSendIntentService }) =>
+    (h.service as unknown as { reconcileStale(v3Only?: boolean): Promise<void> }).reconcileStale();
 
   test('a stale claim becomes UNKNOWN, never pending', async () => {
     const h = makeReconcileHarness([{ id: 'del-1' }]);
-    await (h.service as unknown as { reconcileStale(): Promise<void> }).reconcileStale();
-    expect(h.calls).toHaveLength(1);
-    // Only rows stuck in 'sending' are touched…
-    expect(h.calls[0]!.sql).toMatch(/status = 'sending'/);
+    await reconcile(h);
+
+    // Only rows stuck in 'sending' are considered…
+    expect(h.finds[0]!.where).toMatchObject({ status: 'sending' });
+    expect(h.updates).toHaveLength(1);
+    expect(h.updates[0]!.where).toMatchObject({ status: 'sending' });
     // …and they go to 'unknown'. 'pending' here would risk a duplicate email.
-    expect(h.calls[0]!.sql).toMatch(/status = 'unknown'/);
-    expect(h.calls[0]!.sql).not.toMatch(/status = 'pending'/);
+    expect(h.updates[0]!.data.status).toBe('unknown');
+    expect(h.updates[0]!.data.status).not.toBe('pending');
+    expect(h.updates[0]!.data.errorCode).toBe('WORKER_ABANDONED_CLAIM');
   });
 
   test('bounded: the query carries a cutoff date and a numeric row LIMIT', async () => {
     const h = makeReconcileHarness([]);
-    await (h.service as unknown as { reconcileStale(): Promise<void> }).reconcileStale();
-    expect(h.calls[0]!.sql).toContain('LIMIT');
-    expect(h.calls[0]!.values).toHaveLength(2);
-    expect(h.calls[0]!.values[0]).toBeInstanceOf(Date);
-    expect(typeof h.calls[0]!.values[1]).toBe('number');
+    await reconcile(h);
+
+    const where = h.finds[0]!.where as { claimedAt: { lt: unknown } };
+    expect(where.claimedAt.lt).toBeInstanceOf(Date);
+    expect(typeof h.finds[0]!.take).toBe('number');
+    // Oldest claims first, so a backlog drains deterministically.
+    expect(h.finds[0]!.orderBy).toMatchObject({ claimedAt: 'asc' });
   });
 
   test('logs a warning naming how many deliveries were aged', async () => {
     const h = makeReconcileHarness([{ id: 'del-1' }, { id: 'del-2' }]);
-    await (h.service as unknown as { reconcileStale(): Promise<void> }).reconcileStale();
+    await reconcile(h);
     expect(h.warnings.some((w) => /aged 2 delivery/.test(w))).toBe(true);
   });
 
   test('nothing stale logs nothing — this firing at all is an operational signal, not routine', async () => {
     const h = makeReconcileHarness([]);
-    await (h.service as unknown as { reconcileStale(): Promise<void> }).reconcileStale();
+    await reconcile(h);
+    // Nothing to age means no update is even attempted.
+    expect(h.updates).toHaveLength(0);
+    expect(h.warnings).toHaveLength(0);
+  });
+
+  test('leaves V3-owned stale claims to the V3 worker', async () => {
+    const h = makeReconcileHarness([{ id: 'del-1' }]);
+    // Report the intent as a V3 session; the classic sweep must skip it so the
+    // two workers cannot both age the same delivery.
+    (
+      (h.service as unknown as { prisma: { withSystem: (fn: (t: unknown) => unknown) => unknown } })
+        .prisma as unknown as Record<string, unknown>
+    ).withSystem = (fn: (t: unknown) => unknown) =>
+      fn({
+        outreachDelivery: {
+          findMany: async () => [
+            { id: 'del-1', sendIntent: { tenantId: 't1', outreachRecordId: 'rec-1' } },
+          ],
+          updateMany: async () => ({ count: 1 }),
+        },
+        $queryRaw: async () => [{ found: 1 }],
+      });
+
+    await reconcile(h);
     expect(h.warnings).toHaveLength(0);
   });
 });
