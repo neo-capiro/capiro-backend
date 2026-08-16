@@ -182,7 +182,11 @@ function NavRow({ route }: { route: VNextRouteDefinition }) {
   );
 }
 
-function topbarSectionLabel(pathname: string, routes: readonly VNextRouteDefinition[]): string {
+/** Exported for the shell contract test; the topbar is its only caller. */
+export function topbarSectionLabel(
+  pathname: string,
+  routes: readonly VNextRouteDefinition[],
+): string {
   const current = routes.find((route) => {
     if (route.path && (pathname === route.path || pathname.startsWith(`${route.path}/`))) {
       return true;

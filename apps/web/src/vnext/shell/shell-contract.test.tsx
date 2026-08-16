@@ -9,6 +9,7 @@ import { ShellOverlayProvider, useShellOverlay } from './overlay-manager.js';
 import { CapiroSidebar } from './Sidebar/index.js';
 import { isClientContextEnabledForPath } from '../adapters/legacy/useShellClientContext.js';
 import { VNEXT_ROUTE_MANIFEST } from '../adapters/routes/routeManifest.js';
+import { topbarSectionLabel } from './AppShellUui/index.js';
 
 function OverlayProbe({ id, label }: { id: 'search' | 'profile'; label: string }) {
   const { isOpen, containerRef, toggle } = useShellOverlay(id);
@@ -143,5 +144,33 @@ describe('directory navigation', () => {
     expect(entry.getAttribute('aria-disabled')).toBe('true');
     expect(entry.tagName).not.toBe('A');
     expect(within(menu).queryAllByRole('link')).toHaveLength(0);
+  });
+});
+
+describe('topbar section identity', () => {
+  const routes = VNEXT_ROUTE_MANIFEST;
+
+  it('reads "Engagement" anywhere inside the Engagement module, not "Dashboard"', () => {
+    for (const path of [
+      '/engagement',
+      '/engagement/meetings',
+      '/engagement/meeting-library',
+      '/engagement/outreach',
+      '/engagement/outreach/new',
+      '/engagement/reports',
+    ]) {
+      expect(topbarSectionLabel(path, routes)).toBe('Engagement');
+    }
+  });
+
+  it('still reads Dashboard at the root and keeps other sections on their own label', () => {
+    expect(topbarSectionLabel('/', routes)).toBe('Dashboard');
+    // An unknown path must not borrow the Engagement identity.
+    expect(topbarSectionLabel('/not-a-real-route', routes)).toBe('Dashboard');
+  });
+
+  it('does not match a sibling route that merely shares a path prefix', () => {
+    // '/engagementx' must not be treated as inside '/engagement'.
+    expect(topbarSectionLabel('/engagementx', routes)).toBe('Dashboard');
   });
 });
