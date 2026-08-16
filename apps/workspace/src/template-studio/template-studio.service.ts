@@ -39,9 +39,9 @@ import type {
  *
  * Authorization:
  *  - Reads: any tenant collaborator (TenantGuard already proved membership).
- *  - Create / publish / retire: firm admin only, via assertFirmAdmin() — a
- *    placeholder check reading tenants.settings_jsonb.firmAdmin. Default
- *    DENY when the field is absent or the read fails.
+ *  - Create / version / publish / retire / clone: any authenticated tenant
+ *    member (TenantGuard). Firm-admin-only gating was removed so Template
+ *    Studio is usable by every firm user.
  *
  * Immutability:
  *  - A published WsBlueprintVersion is immutable; PATCH → 409.
@@ -60,37 +60,6 @@ export class TemplateStudioService {
   ) {}
 
   // ── Authorization ───────────────────────────────────────────────────────
-
-  /**
-   * Placeholder firm-admin gate. Reads tenants.settings_jsonb for a `firmAdmin`
-   * field matching the actor's Clerk user id. Default DENY on read failure or
-   * absent field (same conservative posture as MeriV2FlagsService). This is a
-   * stand-in until an explicit role string ships in the collaborators matrix.
-   */
-  async assertFirmAdmin(tenantId: string, clerkUserId: string): Promise<boolean> {
-    try {
-      const rows = await this.prisma.$queryRaw<Array<{ settings_jsonb: unknown }>>`
-        SELECT settings_jsonb FROM tenants WHERE id = ${tenantId}::uuid LIMIT 1
-      `;
-      const settings = rows[0]?.settings_jsonb;
-      if (settings && typeof settings === 'object' && !Array.isArray(settings)) {
-        const admin = (settings as Record<string, unknown>).firmAdmin;
-        return admin === clerkUserId;
-      }
-      return false;
-    } catch (e) {
-      this.logger.warn(`firm-admin check failed for tenant ${tenantId}: ${(e as Error).message}`);
-      return false;
-    }
-  }
-
-  /** Throw 403 unless the actor is the firm admin. */
-  private async requireFirmAdmin(tenantId: string, clerkUserId: string): Promise<void> {
-    const ok = await this.assertFirmAdmin(tenantId, clerkUserId);
-    if (!ok) {
-      throw new ForbiddenException('Only a firm admin may perform this action');
-    }
-  }
 
   /**
    * Read gate: any tenant collaborator. Blueprints aren't drafts, so we treat
@@ -125,21 +94,18 @@ export class TemplateStudioService {
     return row as unknown as WsBlueprint;
   }
 
-  /** Create a new blueprint (firm admin only). */
+  /** Create a new firm-scoped blueprint (any authenticated tenant member). */
   async createBlueprint(
     tenantId: string,
     clerkUserId: string,
     dto: CreateBlueprintDto,
   ): Promise<WsBlueprint> {
-    await this.requireFirmAdmin(tenantId, clerkUserId);
-    const scope = (dto.scope ?? 'firm') as WsBlueprintScope;
-    // capiro-global blueprints (scope 'capiro') carry tenantId null and are
-    // authored by the capiro org; the firm admin creating one is recorded as
-    // ownerId for write-back authorization.
-    const tenantIdFor = scope === 'capiro' ? null : tenantId;
+    // Always firm-scoped. Global capiro blueprints are not created from the
+    // multi-user Template Studio path.
+    const scope = 'firm' as WsBlueprintScope;
     return this.prisma.wsBlueprint.create({
       data: {
-        tenantId: tenantIdFor,
+        tenantId,
         scope,
         slug: dto.slug,
         name: dto.name,
@@ -169,7 +135,7 @@ export class TemplateStudioService {
   /**
    * Create a new draft version. The version number is max(existing)+1. The
    * definition starts as a copy of the blueprint's latest version's definition
-   * (so edits branch from current state). Firm admin only.
+   * (so edits branch from current state). Any authenticated tenant member.
    */
   async createVersion(
     tenantId: string,
@@ -177,7 +143,6 @@ export class TemplateStudioService {
     clerkUserId: string,
     _dto: CreateVersionDto,
   ): Promise<WsBlueprintVersion> {
-    await this.requireFirmAdmin(tenantId, clerkUserId);
     const blueprint = await this.getBlueprint(tenantId, blueprintId);
     const versions = await this.prisma.wsBlueprintVersion.findMany({
       where: { blueprintId },
@@ -205,7 +170,7 @@ export class TemplateStudioService {
   /**
    * Clone a blueprint into a new draft version. Copies the source version's
    * definition verbatim (same hash) into a fresh draft the editor can diverge.
-   * Firm admin only.
+   * Any authenticated tenant member.
    */
   async cloneBlueprint(
     tenantId: string,
@@ -213,7 +178,6 @@ export class TemplateStudioService {
     clerkUserId: string,
     dto: CloneBlueprintDto,
   ): Promise<WsBlueprintVersion> {
-    await this.requireFirmAdmin(tenantId, clerkUserId);
     const blueprint = await this.getBlueprint(tenantId, blueprintId);
     const source = dto.fromVersionId
       ? await this.getVersion(tenantId, blueprintId, dto.fromVersionId)
@@ -244,7 +208,7 @@ export class TemplateStudioService {
 
   /**
    * Update a draft version's definition. Published/retired versions are
-   * immutable → 409. Recomputes the hash on every save. Firm admin only.
+   * immutable → 409. Recomputes the hash on every save. Any authenticated tenant member.
    */
   async updateVersion(
     tenantId: string,
@@ -253,7 +217,6 @@ export class TemplateStudioService {
     clerkUserId: string,
     dto: UpdateVersionDto,
   ): Promise<WsBlueprintVersion> {
-    await this.requireFirmAdmin(tenantId, clerkUserId);
     const version = await this.getVersion(tenantId, blueprintId, versionId);
     if (version.status !== 'draft') {
       throw new ConflictException(
@@ -355,7 +318,7 @@ export class TemplateStudioService {
    *  - sample test passes
    *  - version is currently draft
    * The definitionHash is finalized and the row becomes immutable (PATCH →
-   * 409 thereafter). Firm admin only.
+   * 409 thereafter). Any authenticated tenant member.
    */
   async publishVersion(
     tenantId: string,
@@ -363,7 +326,6 @@ export class TemplateStudioService {
     versionId: string,
     clerkUserId: string,
   ): Promise<WsBlueprintVersion> {
-    await this.requireFirmAdmin(tenantId, clerkUserId);
     const version = await this.getVersion(tenantId, blueprintId, versionId);
     if (version.status !== 'draft') {
       throw new ConflictException(
@@ -395,14 +357,13 @@ export class TemplateStudioService {
     }) as Promise<WsBlueprintVersion>;
   }
 
-  /** Retire a published version. Firm admin only. */
+  /** Retire a published version. Any authenticated tenant member. */
   async retireVersion(
     tenantId: string,
     blueprintId: string,
     versionId: string,
     clerkUserId: string,
   ): Promise<WsBlueprintVersion> {
-    await this.requireFirmAdmin(tenantId, clerkUserId);
     const version = await this.getVersion(tenantId, blueprintId, versionId);
     if (version.status !== 'published') {
       throw new ConflictException(

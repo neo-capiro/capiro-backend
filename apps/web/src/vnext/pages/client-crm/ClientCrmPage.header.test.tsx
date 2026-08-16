@@ -23,10 +23,17 @@ vi.mock('./tabs/WorkTab.js', () => ({ ClientCrmWorkProto: () => <div>work</div> 
 vi.mock('./tabs/IntelligenceTab.js', () => ({ ClientCrmIntelligenceProto: () => <div>intelligence</div> }));
 vi.mock('./tabs/FilesTab.js', () => ({ ClientCrmFilesProto: () => <div>files</div> }));
 
+const openMeriMock = vi.hoisted(() => vi.fn());
+vi.mock('../../../components/chat/meri-window.js', () => ({
+  openMeriWorkspaceWithContext: openMeriMock,
+}));
+
 const getMock = vi.hoisted(() => vi.fn());
 const postMock = vi.hoisted(() => vi.fn());
+const putMock = vi.hoisted(() => vi.fn());
+const deleteMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: getMock, post: postMock }),
+  useApi: () => ({ get: getMock, post: postMock, put: putMock, delete: deleteMock }),
 }));
 
 const client: Client = {
@@ -89,6 +96,8 @@ function renderPage() {
 beforeEach(() => {
   getMock.mockReset();
   postMock.mockReset();
+  putMock.mockReset();
+  deleteMock.mockReset();
   getMock.mockImplementation((url: string) => {
     if (url.includes('/fill-with-meri/latest')) return Promise.resolve({ data: null });
     if (url.includes('/fill-with-meri/runs/')) return Promise.resolve({ data: COMPLETED_RUN });
@@ -119,7 +128,9 @@ describe('ClientCrmPage header wiring', () => {
   it('opens the real ClientDataHealthDrawer (not the fixture) from the profile-gap crumb', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: '1 profile gap' }));
+    // Item 12: the count is now real. Every mocked source answers with an
+    // empty array, so all six are genuine gaps — not the old hardcoded 1.
+    fireEvent.click(await screen.findByRole('button', { name: '6 profile gaps' }));
 
     expect(await screen.findByText('Data health — Overland AI')).toBeInTheDocument();
     // The old fixture drawer's fabricated 92%/Arlington-facility copy must be gone.
@@ -134,5 +145,116 @@ describe('ClientCrmPage header wiring', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Clients' }));
     expect(screen.getByTestId('location')).toHaveTextContent('/clients');
+  });
+
+  it('opens the real Meri workspace scoped to this client from the overflow menu (item 18)', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByText('Ask Meri about this client'));
+
+    // clientId must be carried, and a prompt must be present — Meri's own
+    // readContextRequest() drops a clientId that arrives without one.
+    expect(openMeriMock).toHaveBeenCalledWith(
+      expect.objectContaining({ clientId: 'client-1', prompt: expect.stringContaining('Overland AI') }),
+    );
+  });
+});
+
+/* ═══════ wire-audit "3 Compose extend" items 9-12 ════════════════════════ */
+
+describe('ClientCrmPage — Archive client (item 9)', () => {
+  it('confirms first, then archives via the real endpoint and leaves the profile', async () => {
+    deleteMock.mockResolvedValue({ data: { id: 'client-1', status: 'archived' } });
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByText('Archive client'));
+
+    // Nothing is written on the menu click alone — this is destructive-ish and
+    // list-wide, so it asks first.
+    expect(deleteMock).not.toHaveBeenCalled();
+    expect(await screen.findByText('Archive Overland AI?')).toBeInTheDocument();
+    // The copy must not imply deletion: archive flips status, it removes nothing.
+    expect(screen.getByText(/Nothing is deleted/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Archive client' }));
+
+    await waitFor(() => expect(deleteMock).toHaveBeenCalledWith('/api/clients/client-1'));
+    // The profile we were on no longer belongs in any list.
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/clients'));
+  });
+});
+
+describe('ClientCrmPage — Focus Add (item 10)', () => {
+  it('appends the tag while preserving the rest of intakeData', async () => {
+    putMock.mockResolvedValue({ data: { ...client, intakeData: { city: 'Seattle', tags: ['Autonomy', 'Shipbuilding'] } } });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <div className="capiro-vnext-root">
+            <ClientCrmPage
+              client={{ ...client, intakeData: { city: 'Seattle', tags: ['Autonomy'] } }}
+            />
+          </div>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.change(screen.getByLabelText('New focus tag'), { target: { value: 'Shipbuilding' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    // PUT replaces intakeData wholesale, so the unrelated `city` must ride
+    // along — sending `{tags}` alone would silently wipe the rest of intake.
+    await waitFor(() =>
+      expect(putMock).toHaveBeenCalledWith('/api/clients/client-1', {
+        intakeData: { city: 'Seattle', tags: ['Autonomy', 'Shipbuilding'] },
+      }),
+    );
+  });
+
+  it('refuses a focus that is already on the client', () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter>
+          <div className="capiro-vnext-root">
+            <ClientCrmPage client={{ ...client, intakeData: { tags: ['Autonomy'] } }} />
+          </div>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    // Case-insensitive: the same focus, differently typed.
+    fireEvent.change(screen.getByLabelText('New focus tag'), { target: { value: 'autonomy' } });
+
+    expect(screen.getByText('Already a focus')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(putMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('ClientCrmPage — breadcrumb freshness (item 11)', () => {
+  it('reports when the sources were actually read, not a hardcoded 2h', async () => {
+    renderPage();
+
+    expect(await screen.findByText(/^Sources read /)).toBeInTheDocument();
+    expect(screen.queryByText('Intel refreshed 2h ago')).not.toBeInTheDocument();
+  });
+
+  it('says a source is unavailable rather than claiming a fresh read', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url.includes('/fill-with-meri/latest')) return Promise.resolve({ data: null });
+      if (url.includes('/fill-with-meri/runs/')) return Promise.resolve({ data: COMPLETED_RUN });
+      if (url.includes('/capabilities')) return Promise.reject(new Error('boom'));
+      return Promise.resolve({ data: [] });
+    });
+    renderPage();
+
+    expect(await screen.findByText('1 source unavailable')).toBeInTheDocument();
+    // A failed source is not a gap — we do not know what it holds, and calling
+    // an outage a gap sends the user to re-enter data that may already exist.
+    expect(await screen.findByRole('button', { name: '5 profile gaps' })).toBeInTheDocument();
   });
 });

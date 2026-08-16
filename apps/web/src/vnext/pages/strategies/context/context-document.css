@@ -16,45 +16,51 @@
 /* ---- header -------------------------------------------------------------- */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__header {
   background: var(--st-white);
-  border-bottom: 1px solid var(--st-gray-200);
-  padding: 14px 28px 16px;
+  /* No border here — the meta strip below supplies its own border-top, per
+     the design handoff (this view's header has none of its own). */
+  padding: 20px 24px 0;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__state-page {
-  padding: 24px 28px;
+  padding: 24px;
   display: grid;
   gap: 16px;
   justify-items: start;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__back {
-  display: inline-block;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--st-gray-600);
+  color: var(--st-accent);
   text-decoration: none;
-  margin-bottom: 10px;
 }
-.capiro-vnext-root .capiro-strategies .st-ctxdoc__back:hover { color: var(--st-accent); }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__back:hover { color: var(--st-accent-hover); }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__title-row {
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
-  gap: 12px 24px;
+  gap: 24px;
+  margin-top: 14px;
+  padding-bottom: 20px;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__title-block {
-  flex: 1 1 220px;
-  min-width: 0;
+  flex: 1;
+  min-width: 300px;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__eyebrow {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--st-gray-500);
 }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__eyebrow.st-mono {
+  letter-spacing: 0.02em;
+}
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__title {
-  margin: 2px 0 0;
-  font-size: 24px;
-  font-weight: 700;
+  margin: 6px 0 0;
+  font-size: 30px;
+  line-height: 38px;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--st-gray-900);
   overflow: hidden;
@@ -68,8 +74,9 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 10px;
+  gap: 12px;
   flex-shrink: 0;
+  padding-top: 6px;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__action-wrap { display: inline-flex; }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__confirm {
@@ -88,34 +95,33 @@
   color: var(--st-warning-fg);
 }
 
-/* metadata strip */
-.capiro-vnext-root .capiro-strategies .st-ctxdoc__meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
-}
-.capiro-vnext-root .capiro-strategies .st-ctxdoc__meta .capiro-badge { text-transform: capitalize; }
+/* meta-strip chips — white pill, uppercase label + 13px/600 value (design
+ * handoff "View: Document viewer" meta-strip spec). Link chips (supersession)
+ * keep a single text node instead of the label/value split. */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__chip {
   display: inline-flex;
   align-items: center;
-  height: 24px;
+  gap: 6px;
+  height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-  background: var(--st-gray-50);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--st-white);
   box-shadow: inset 0 0 0 1px var(--st-gray-200);
-  color: var(--st-gray-700);
+  color: var(--st-gray-900);
   white-space: nowrap;
   text-decoration: none;
 }
-.capiro-vnext-root .capiro-strategies .st-ctxdoc__chip.is-stale {
-  background: var(--st-warning-bg);
-  box-shadow: inset 0 0 0 1px var(--st-warning-ring);
-  color: var(--st-warning-fg);
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__chip-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--st-gray-500);
 }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__chip-value { color: inherit; }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__chip.is-stale .st-ctxdoc__chip-value { color: var(--st-warning-fg); }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__chip.is-link {
   color: var(--st-accent);
   box-shadow: inset 0 0 0 1px var(--st-accent-tint-border);
@@ -155,13 +161,32 @@
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__note a { color: inherit; font-weight: 600; }
 
+/* ---- meta strip (design handoff "View: Document viewer" section) --------- */
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__metastrip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 24px;
+  background: var(--st-gray-50);
+  border-top: 1px solid var(--st-gray-200);
+  border-bottom: 1px solid var(--st-gray-200);
+}
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__metastrip .capiro-badge { text-transform: capitalize; }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__metastrip-spacer { flex: 1; }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__metastrip-version {
+  font-size: 13px;
+  color: var(--st-gray-500);
+  white-space: nowrap;
+}
+
 /* ---- main: viewer + rail ------------------------------------------------- */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__main {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 18px;
-  padding: 20px 28px 48px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 20px;
+  padding: 24px;
   align-items: start;
   min-height: 0;
 }
@@ -180,15 +205,35 @@
   gap: 9px;
   display: grid;
 }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__viewer-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--st-gray-200);
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__viewer-head .st-mono {
+  flex: 1;
+  min-width: 160px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--st-gray-700);
+}
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__viewer-head-label {
+  font-size: 13px;
+  color: var(--st-gray-500);
+  white-space: nowrap;
+}
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__lines {
-  padding: 16px 0 24px;
-  font-size: 12px;
-  line-height: 1.65;
+  padding: 14px 0;
+  font-size: 13px;
+  line-height: 22px;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__line {
   display: flex;
   gap: 12px;
-  padding: 0 14px 0 0;
+  padding: 0 20px 0 0;
   border-left: 3px solid transparent;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__line.is-hit {
@@ -196,7 +241,7 @@
   border-left-color: var(--st-accent);
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__line-no {
-  width: 40px;
+  width: 56px;
   flex-shrink: 0;
   text-align: right;
   color: var(--st-gray-400);
@@ -227,7 +272,9 @@
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__selection-label {
   flex: 1 1 200px;
   min-width: 0;
+  font-family: var(--st-font-mono);
   font-size: 12px;
+  font-weight: 600;
   color: var(--st-gray-600);
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__selection-spacer { flex: 1; }
@@ -242,19 +289,32 @@
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__card {
   background: var(--st-white);
   border-radius: 12px;
-  box-shadow: var(--st-shadow-card);
-  padding: 16px 18px;
+  box-shadow: var(--st-shadow-card-sm);
+  padding: 20px;
   display: grid;
   gap: 12px;
   align-content: start;
 }
+/* Provenance is the one rail card the handoff pins to the gray-50/inset
+   treatment (its "View: Document viewer" section), not the white card the
+   other two rail cards use. */
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__card--muted {
+  background: var(--st-gray-50);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+}
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__card-label {
   display: block;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--st-gray-500);
+}
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__card-title {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--st-gray-900);
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__card-hint {
   margin: 0;

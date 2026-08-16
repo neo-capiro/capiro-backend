@@ -30,11 +30,7 @@ import {
   CapiroSkeleton,
 } from '../../../components/feedback/index.js';
 import { useCapiroToast } from '../../../components/feedback/toast.js';
-import {
-  CapiroCopyIcon,
-  CapiroFolderIcon,
-  CapiroThunderboltIcon,
-} from '../../../components/icons/index.js';
+import { CapiroCopyIcon } from '../../../components/icons/index.js';
 import { CapiroTooltip } from '../../../components/menus/index.js';
 import {
   clientName,
@@ -43,10 +39,13 @@ import {
   useContextDocument,
   useContextDocuments,
   useContextFacts,
+  useContextHealth,
   useContextLocate,
   useContextSections,
   useExtractContextFacts,
 } from '../strategies-api.js';
+import { ScopeBar, type ScopeBarStatus } from '../ScopeBar.js';
+import { useShellClientContext } from '../../../adapters/legacy/useShellClientContext.js';
 import { useMe } from '../../../../lib/me.js';
 import { errorMessage } from '../../../../lib/error-message.js';
 import {
@@ -58,6 +57,40 @@ import {
 } from '../../../../pages/strategy/context/context-utils.js';
 import type { ContextDocState } from '../../../../pages/strategy/types.js';
 import './context-document.css';
+
+/*
+ * Local glyphs (design handoff: ChevronLeft / Stars02 / Package). The shared
+ * icon set (../../../components/icons/index.tsx) has no chevron, sparkle or
+ * package entry, and adding one there is out of scope for this pass — that
+ * file may be touched by another concurrent Strategies agent. These mirror
+ * its stroke conventions (24x24 viewBox, currentColor, 1.75 stroke) as
+ * self-contained, view-local glyphs instead.
+ */
+function ChevronLeftGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 5l-7 7 7 7" />
+    </svg>
+  );
+}
+
+function StarsGlyph({ size = 18, color }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color ?? 'currentColor'} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 3l1.6 4.2L17 9l-4.4 1.8L11 15l-1.6-4.2L5 9l4.4-1.8L11 3Z" />
+      <path d="M18.5 14.5l.75 1.9 1.9.75-1.9.75-.75 1.9-.75-1.9-1.9-.75 1.9-.75.75-1.9Z" />
+    </svg>
+  );
+}
+
+function PackageGlyph({ size = 18, color }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color ?? 'currentColor'} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 8.2 12 4l8.5 4.2v7.6L12 20l-8.5-4.2V8.2Z" />
+      <path d="M3.7 8.4 12 12.3l8.3-3.9M12 12.3V20" />
+    </svg>
+  );
+}
 
 const STATE_TONE: Record<ContextDocState, 'success' | 'warning' | 'neutral'> = {
   active: 'success',
@@ -96,6 +129,38 @@ export function ContextDocumentVNext() {
   const facts = useContextFacts();
   const archive = useArchiveContextDocument();
   const extract = useExtractContextFacts();
+
+  /* ScopeBar status — same shared cross-app client scope + real ContextHealth
+   * signal as the context library (not this document's own client): there is
+   * no single meaningful "N facts" number across all clients, so an unscoped
+   * portfolio never gets a fabricated "Healthy" reading. */
+  const clientContext = useShellClientContext();
+  const scopeClientId = clientContext.selectedClientId;
+  const health = useContextHealth(scopeClientId);
+  const scopedActiveFactCount = (facts.data ?? []).filter(
+    (fact) => fact.clientId === scopeClientId && fact.state === 'active',
+  ).length;
+  const scopeStatus: ScopeBarStatus = !scopeClientId
+    ? { tone: 'gray', label: 'Select a client to see context health' }
+    : health.isLoading
+      ? { tone: 'gray', label: 'Checking context health…' }
+      : health.isError || !health.data
+        ? { tone: 'gray', label: 'Context health unavailable' }
+        : {
+            tone:
+              health.data.status === 'ok'
+                ? 'success'
+                : health.data.status === 'degraded'
+                  ? 'warning'
+                  : 'error',
+            label: `${
+              health.data.status === 'ok'
+                ? 'Healthy'
+                : health.data.status === 'degraded'
+                  ? 'Degraded'
+                  : 'Conflicted'
+            } · ${scopedActiveFactCount} fact${scopedActiveFactCount === 1 ? '' : 's'}`,
+          };
 
   /* §4.1 #8: selection is single-sourced from the outline and lives in the URL
    * (?ref=), so a copied source link restores the exact highlighted range. */
@@ -174,6 +239,7 @@ export function ContextDocumentVNext() {
   if (doc.isLoading) {
     return (
       <div className="st-ctxdoc" aria-label="Loading context document">
+        <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
         <div className="st-ctxdoc__header">
           <CapiroSkeleton width={140} height={12} />
           <CapiroSkeleton width={220} height={11} />
@@ -202,9 +268,10 @@ export function ContextDocumentVNext() {
   if (doc.isError || !doc.data) {
     return (
       <div className="st-ctxdoc">
+        <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
         <div className="st-ctxdoc__state-page">
           <Link className="st-ctxdoc__back" to="/strategies/context">
-            ‹ Context library
+            <ChevronLeftGlyph />Context library
           </Link>
           {isForbidden(doc.error) ? (
             <CapiroEmptyState
@@ -288,15 +355,17 @@ export function ContextDocumentVNext() {
 
   return (
     <div className="st-ctxdoc">
+      <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
+
       {/* ---- header ------------------------------------------------------- */}
       <header className="st-ctxdoc__header">
         <Link className="st-ctxdoc__back" to="/strategies/context">
-          ‹ Context library
+          <ChevronLeftGlyph />Context library
         </Link>
         <div className="st-ctxdoc__title-row">
           <div className="st-ctxdoc__title-block">
-            <div className="st-ctxdoc__eyebrow">
-              <span className="st-mono">{d.templateKey}</span>
+            <div className="st-ctxdoc__eyebrow st-mono">
+              {d.templateKey}
               <span aria-hidden="true"> · </span>
               {clientLabel}
             </div>
@@ -313,7 +382,7 @@ export function ContextDocumentVNext() {
                 <span className="st-ctxdoc__action-wrap">
                   <CapiroButton
                     variant="primary"
-                    leadingIcon={<CapiroThunderboltIcon size={0.95} />}
+                    leadingIcon={<StarsGlyph size={18} />}
                     disabled={extractDisabledReason !== null}
                     loading={extract.isPending}
                     onClick={onExtract}
@@ -349,8 +418,8 @@ export function ContextDocumentVNext() {
                 >
                   <span className="st-ctxdoc__action-wrap">
                     <CapiroButton
-                      variant="quiet"
-                      leadingIcon={<CapiroFolderIcon size={0.95} />}
+                      variant="secondary"
+                      leadingIcon={<PackageGlyph size={18} color="var(--st-gray-500)" />}
                       disabled={archiveBlockedByFacts}
                       onClick={() => setConfirmingArchive(true)}
                     >
@@ -361,40 +430,6 @@ export function ContextDocumentVNext() {
               )
             ) : null}
           </div>
-        </div>
-
-        {/* metadata strip: scope · authority · state · as-of · valid-to · supersession */}
-        <div className="st-ctxdoc__meta" aria-label="Document metadata">
-          <span className="st-ctxdoc__chip">{d.scope} scope</span>
-          {authority ? <span className="st-ctxdoc__chip">{authority.replace(/_/g, ' ')}</span> : null}
-          <CapiroBadge tone={STATE_TONE[d.state]} dot={<span className="st-ctxdoc__dot" aria-hidden="true" />}>
-            {d.state}
-          </CapiroBadge>
-          {stale ? (
-            <CapiroBadge tone="warning" dot={<span className="st-ctxdoc__dot" aria-hidden="true" />}>
-              Stale
-            </CapiroBadge>
-          ) : null}
-          {asOf ? <span className="st-ctxdoc__chip">as of {fmtDay(asOf) ?? asOf.slice(0, 10)}</span> : null}
-          {validUntil ? (
-            <span className={`st-ctxdoc__chip${stale ? ' is-stale' : ''}`}>
-              valid to {fmtDay(validUntil) ?? validUntil.slice(0, 10)}
-            </span>
-          ) : null}
-          {supersedes ? (
-            <Link className="st-ctxdoc__chip is-link" to={`/strategies/context/${supersedes.id}`}>
-              Supersedes {supersedes.title}
-            </Link>
-          ) : d.supersedesId ? (
-            <span className="st-ctxdoc__chip">
-              Supersedes <span className="st-mono">{d.supersedesId.slice(0, 8)}…</span>
-            </span>
-          ) : null}
-          {supersededBy ? (
-            <Link className="st-ctxdoc__chip is-link" to={`/strategies/context/${supersededBy.id}`}>
-              Superseded by {supersededBy.title}
-            </Link>
-          ) : null}
         </div>
 
         {docRefetchFailed ? (
@@ -411,9 +446,69 @@ export function ContextDocumentVNext() {
         ) : null}
       </header>
 
+      {/* ---- meta strip: scope · authority · state · as-of · valid-to · supersession ---- */}
+      <div className="st-ctxdoc__metastrip" aria-label="Document metadata">
+        <span className="st-ctxdoc__chip">
+          <span className="st-ctxdoc__chip-label">Scope</span>
+          <span className="st-ctxdoc__chip-value">{d.scope}</span>
+        </span>
+        {authority ? (
+          <span className="st-ctxdoc__chip">
+            <span className="st-ctxdoc__chip-label">Authority</span>
+            <span className="st-ctxdoc__chip-value">{authority.replace(/_/g, ' ')}</span>
+          </span>
+        ) : null}
+        <CapiroBadge tone={STATE_TONE[d.state]} dot={<span className="st-ctxdoc__dot" aria-hidden="true" />}>
+          {d.state}
+        </CapiroBadge>
+        {stale ? (
+          <CapiroBadge tone="warning" dot={<span className="st-ctxdoc__dot" aria-hidden="true" />}>
+            Stale
+          </CapiroBadge>
+        ) : null}
+        {asOf ? (
+          <span className="st-ctxdoc__chip">
+            <span className="st-ctxdoc__chip-label">As of</span>
+            <span className="st-ctxdoc__chip-value">{fmtDay(asOf) ?? asOf.slice(0, 10)}</span>
+          </span>
+        ) : null}
+        {validUntil ? (
+          <span className={`st-ctxdoc__chip${stale ? ' is-stale' : ''}`}>
+            <span className="st-ctxdoc__chip-label">Valid to</span>
+            <span className="st-ctxdoc__chip-value">{fmtDay(validUntil) ?? validUntil.slice(0, 10)}</span>
+          </span>
+        ) : null}
+        {supersedes ? (
+          <Link className="st-ctxdoc__chip is-link" to={`/strategies/context/${supersedes.id}`}>
+            Supersedes {supersedes.title}
+          </Link>
+        ) : d.supersedesId ? (
+          <span className="st-ctxdoc__chip">
+            Supersedes <span className="st-mono">{d.supersedesId.slice(0, 8)}…</span>
+          </span>
+        ) : null}
+        {supersededBy ? (
+          <Link className="st-ctxdoc__chip is-link" to={`/strategies/context/${supersededBy.id}`}>
+            Superseded by {supersededBy.title}
+          </Link>
+        ) : null}
+        <span className="st-ctxdoc__metastrip-spacer" />
+        {/* The handoff's right-aligned line reads "Version 3 · supersedes v2 ·
+           uploaded by …" — there is no version counter or resolved uploader
+           display name anywhere in the API (only raw *ByUserId columns), so
+           this shows the one real timestamp instead of a fabricated one. */}
+        <span className="st-ctxdoc__metastrip-version">
+          Updated {fmtDay(d.updatedAt) ?? d.updatedAt.slice(0, 10)}
+        </span>
+      </div>
+
       <div className="st-ctxdoc__main">
         {/* ---- source viewer: numbered monospace lines, read-only ---------- */}
         <section className="st-ctxdoc__viewer" aria-label="Document source">
+          <div className="st-ctxdoc__viewer-head">
+            <span className="st-mono">{d.templateKey}.md</span>
+            <span className="st-ctxdoc__viewer-head-label">Line view</span>
+          </div>
           <div className="st-ctxdoc__lines">
             {contentLines.map((line, index) => {
               const n = index + 1;
@@ -450,12 +545,7 @@ export function ContextDocumentVNext() {
                 Clear selection
               </CapiroButton>
             ) : null}
-            <CapiroButton
-              variant="secondary"
-              size="compact"
-              leadingIcon={<CapiroCopyIcon size={0.9} />}
-              onClick={onCopySourceLink}
-            >
+            <CapiroButton variant="secondary" size="compact" onClick={onCopySourceLink}>
               Copy source link
             </CapiroButton>
           </div>
@@ -465,6 +555,7 @@ export function ContextDocumentVNext() {
         <aside className="st-ctxdoc__rail">
           <section className="st-ctxdoc__card" aria-label="Outline">
             <span className="st-ctxdoc__card-label">Outline</span>
+            <h2 className="st-ctxdoc__card-title">Document outline</h2>
             <p className="st-ctxdoc__card-hint">
               Click a section to locate its exact source lines — retrieved deterministically, no AI
               involved.
@@ -524,7 +615,7 @@ export function ContextDocumentVNext() {
             ) : null}
           </section>
 
-          <section className="st-ctxdoc__card" aria-label="Provenance">
+          <section className="st-ctxdoc__card st-ctxdoc__card--muted" aria-label="Provenance">
             <span className="st-ctxdoc__card-label">Provenance</span>
             <div className="st-ctxdoc__hash-row">
               <span className="st-ctxdoc__hash-chip st-mono">SHA-256</span>
@@ -619,7 +710,7 @@ export function ContextDocumentVNext() {
                 ) : null}
               </>
             )}
-            <CapiroButton variant="secondary" onClick={() => navigate('/strategies/context/steward')}>
+            <CapiroButton variant="primary" onClick={() => navigate('/strategies/context/steward')}>
               Open steward review
             </CapiroButton>
           </section>

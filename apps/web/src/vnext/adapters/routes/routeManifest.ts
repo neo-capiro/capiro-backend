@@ -64,6 +64,20 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
     path: '/strategies',
     availability: 'existing',
     meFeature: 'strategyPlanner',
+    // Rail sub-navigation (design handoff 2026-08-16): Strategy library ·
+    // Context library · Agent review · Execution runs. Same NavFlyout
+    // mechanism as Directory/Intelligence above — nothing new to build.
+    // The handoff also specs a badge count on each of the last three; that
+    // needs a live-data source polled from the rail regardless of which page
+    // is open, which no route in this manifest has today (it is deliberately
+    // static, data-layer-free — see the file's own header comment). Left out
+    // rather than half-built; counts already surface inside each screen.
+    children: [
+      { id: 'strategies-library', label: 'Strategy library', path: '/strategies', availability: 'existing' },
+      { id: 'strategies-context', label: 'Context library', path: '/strategies/context', availability: 'existing' },
+      { id: 'strategies-agent-review', label: 'Agent review', path: '/strategies/agents/proposals', availability: 'existing' },
+      { id: 'strategies-execution-runs', label: 'Execution runs', path: '/strategies/agents/runs', availability: 'existing' },
+    ],
   },
   {
     id: 'directory',

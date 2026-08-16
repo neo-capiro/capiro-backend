@@ -135,3 +135,55 @@ describe('ClientCrmWorkProto', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(`/strategies/${STRATEGY_ID}`);
   });
 });
+
+/* ── stat band (item 13, wire-audit "3 Compose extend") ───────────────────── */
+
+const SECOND_ID = '22222222-2222-4222-8222-222222222222';
+
+describe('ClientCrmWorkProto — stat band', () => {
+  it('dashes the band instead of showing fixture figures when the details cannot be read', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/strategy-api/strategies') return Promise.resolve({ data: [listItem] });
+      // The client demonstrably HAS a strategy; only its detail fails.
+      return Promise.reject(new Error('detail unavailable'));
+    });
+    renderWork();
+
+    await waitFor(() => expect(screen.getByText('1 strategy could not be read.')).toBeInTheDocument());
+    // The strategy count is still known from the list itself.
+    expect(screen.getByText('1')).toBeInTheDocument();
+    // BAND_FIXTURE's figures must not stand in for this client's real numbers.
+    expect(screen.queryByText('12')).not.toBeInTheDocument();
+    expect(screen.queryByText('9')).not.toBeInTheDocument();
+    // Unavailable is not zero, and never renders as one.
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('states how many strategies were left out when only some details fail', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/strategy-api/strategies')
+        return Promise.resolve({ data: [listItem, { ...listItem, id: SECOND_ID }] });
+      if (url === `/strategy-api/strategies/${STRATEGY_ID}`) return Promise.resolve({ data: detail });
+      return Promise.reject(new Error('detail unavailable'));
+    });
+    renderWork();
+
+    // The figures below are real but SHORT — a low number that is silently
+    // wrong is worse than one that says what it is missing.
+    await waitFor(() =>
+      expect(
+        screen.getByText('1 of 2 strategies could not be read — figures below exclude them.'),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it('keeps the design band while the details are still loading', () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/strategy-api/strategies') return Promise.resolve({ data: [listItem] });
+      return new Promise(() => {}); // detail never resolves
+    });
+    renderWork();
+
+    expect(screen.queryByText('1 strategy could not be read.')).not.toBeInTheDocument();
+  });
+});

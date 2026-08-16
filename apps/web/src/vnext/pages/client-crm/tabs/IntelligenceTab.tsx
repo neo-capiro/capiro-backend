@@ -37,10 +37,12 @@ import { useApi } from '../../../../lib/use-api.js';
 import {
   trackerKeys,
   trackerPaths,
+  type BoardBill,
+  type BoardResponse,
   type RecommendationBill,
   type RecommendationsResponse,
 } from '../../../../pages/clients/tracker/tracker-api.js';
-import { intelTrackerPaths } from '../../../../pages/clients/tracker/intel-tracker-api.js';
+import { adaptBoard, intelTrackerPaths } from '../../../../pages/clients/tracker/intel-tracker-api.js';
 import {
   getClientFacilities,
   formatFacilityDistrict,
@@ -52,9 +54,14 @@ import {
 } from '../../../../pages/clients/intelligence-v1/district-nexus-api.js';
 import { getClientLdaFilings } from '../../../../pages/clients/intelligence-v1/lda-filings-api.js';
 import {
+  getClientFecMoneyFlow,
+  topPacRecipients,
+} from '../../../../pages/clients/intelligence-v1/fec-money-flow-api.js';
+import {
   getClientRepresentation,
   type RepresentationResult,
 } from '../../../../pages/clients/intelligence-v1/representation-api.js';
+import type { ClientProfileV1 } from '../../../../pages/clients/intelligence-v1/mappers.js';
 import { useIntelFeature } from '../../../../lib/intel-feature-flags.js';
 import {
   getRelevantPesForClient,
@@ -89,13 +96,29 @@ const INTEL_TONE: Record<string, PillTone> = {
 export function ClientCrmIntelligenceProto({ client, view }: { client: Client; view: IntelligenceView }) {
   const navigate = useNavigate();
   const domain = DOMAIN_META[view] ?? DOMAIN_META.overview!;
-  // District's action is client-specific navigation (item 3, wire-audit "2 Wire
-  // existing APIs"), so it's computed here rather than in the static map below.
+  // Actions that need the client are computed here rather than in the static
+  // map below: District's "Manage facilities" (item 3, wire-audit "2 Wire
+  // existing APIs") and Legislative's "Configure" (item 4, "3 Compose extend").
   const actions =
     view === 'district' ? (
       <SecondaryBtn onClick={() => navigate(`/clients?clientId=${client.id}&tab=facilities`)}>
         Manage facilities
       </SecondaryBtn>
+    ) : view === 'legislative' ? (
+      <>
+        {/* The real source/alert configuration for a client's legislative
+            intelligence is the tracker's Configure panel — watchlist topics and
+            terms, per-trigger alert toggles, channels. Radar mounts it at
+            ?tab=watchlist, scoped by ?client=. There is no second config store
+            for this domain to open instead. */}
+        <SecondaryBtn onClick={() => navigate(`/legiwatch?tab=watchlist&client=${client.id}`)}>
+          Configure
+        </SecondaryBtn>
+        {/* Header "Track bill" is not part of item 4 — the live track path is
+            the Recommendations card's per-bill Track (wire-audit "2 Wire
+            existing APIs" item 6). Left as the design has it. */}
+        <PrimaryBtn>Track bill</PrimaryBtn>
+      </>
     ) : (
       domain.actions
     );
@@ -103,9 +126,9 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <TabPageHead title={domain.title} sub={domain.sub} actions={actions} />
       {view !== 'overview' ? <DomainStatsStrip view={view} /> : null}
-      {view === 'overview' ? <IntelOverview /> : null}
+      {view === 'overview' ? <IntelOverview client={client} /> : null}
       {view === 'legislative' ? <LegislativePanel client={client} /> : null}
-      {view === 'regulatory' ? <RegulatoryPanel /> : null}
+      {view === 'regulatory' ? <RegulatoryPanel client={client} /> : null}
       {view === 'funding' ? <FundingPanel client={client} /> : null}
       {view === 'footprint' ? <FootprintPanel client={client} /> : null}
       {view === 'district' ? <DistrictPanel client={client} /> : null}
@@ -122,12 +145,7 @@ const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactN
   legislative: {
     title: 'Legislative',
     sub: 'Tracked bills, client-fit recommendations, hearings, and material changes from LegiWatch.',
-    actions: (
-      <>
-        <SecondaryBtn>Configure</SecondaryBtn>
-        <PrimaryBtn>Track bill</PrimaryBtn>
-      </>
-    ),
+    // actions computed in ClientCrmIntelligenceProto — see the comment there.
   },
   regulatory: {
     title: 'Regulatory',
@@ -171,11 +189,22 @@ function PrimaryBtn({ children, onClick }: { children: ReactNode; onClick?: () =
     </button>
   );
 }
-function LinkBtn({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+function LinkBtn({
+  children,
+  onClick,
+  disabled,
+  title,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  title?: string;
+}) {
   const [hover, setHover] = useState(false);
   return (
-    <button type="button" onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ fontSize: 14, fontWeight: 600, color: hover ? '#0E141C' : '#101828', whiteSpace: 'nowrap' }}>
+    <button type="button" onClick={onClick} disabled={disabled} {...(title ? { title } : {})}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{ fontSize: 14, fontWeight: 600, color: disabled ? '#98A2B3' : hover ? '#0E141C' : '#101828', whiteSpace: 'nowrap', cursor: disabled ? 'not-allowed' : 'pointer' }}>
       {children}
     </button>
   );
@@ -199,7 +228,8 @@ function DomainStatsStrip({ view }: { view: IntelligenceView }) {
 
 /* ═════════════════════════════ §10.1 Overview ══════════════════════════════ */
 
-function IntelOverview() {
+function IntelOverview({ client }: { client: Client }) {
+  const navigate = useNavigate();
   return (
     <>
       {/* Client intelligence pulse — deep band */}
@@ -221,7 +251,18 @@ function IntelOverview() {
       <div className="cap-pf-grid-intel">
         {/* Needs attention */}
         <Card>
-          <CardHead title="Needs attention" action={<LinkBtn>View unified feed</LinkBtn>} />
+          {/* Item 6: the unified feed is the Changes Inbox. This is the exact
+              href the API itself hands out for this client (`links.changesInbox`
+              on profile-v1, and the Top-Alerts CTA), so the in-app link and the
+              server-generated one land in the same place. */}
+          <CardHead
+            title="Needs attention"
+            action={
+              <LinkBtn onClick={() => navigate(`/intelligence/changes?clientId=${client.id}`)}>
+                View unified feed
+              </LinkBtn>
+            }
+          />
           <div>
             {INTEL_ATTN.map((a) => (
               <AttentionRow key={a.title} a={a} />
@@ -319,6 +360,64 @@ function LegislativePanel({ client }: { client: Client }) {
   });
   const realRecs = ready && recsQ.isSuccess ? recsQ.data.recommendations.slice(0, 5) : null;
 
+  // Item 19: the tracked-bill board. The server already groups by stage and its
+  // four stage ids match the design's own STAGES exactly, so columns are used
+  // as returned rather than re-derived client-side.
+  const boardQ = useQuery<BoardResponse>({
+    queryKey: trackerKeys.board(client.id),
+    queryFn: async () => {
+      if (trackerV2) {
+        // `IntelBoard` isn't exported; take its shape from the adapter itself.
+        const raw = (
+          await api.get<Parameters<typeof adaptBoard>[0]>(intelTrackerPaths.board(client.id))
+        ).data;
+        return adaptBoard(raw);
+      }
+      return (await api.get<BoardResponse>(trackerPaths.board(client.id))).data;
+    },
+    enabled: ready,
+    staleTime: 60_000,
+  });
+  const realBoard = ready && boardQ.isSuccess ? boardQ.data : null;
+
+  /**
+   * Item 5 (Dismiss). Mirrors `TrackerTab`'s own `dismissMutation`: the
+   * `marked_irrelevant` feedback signal is what "dismiss a recommendation"
+   * means in this product — there is no separate dismiss endpoint. The
+   * structured `reason`/`matchedTags` payload is intel-api-only (the legacy
+   * DTO runs `forbidNonWhitelisted` and would 400 on extra fields), and this
+   * card has no reason picker, so neither path sends one. The optimistic
+   * removal keeps the card from lingering after the click; `aboveFloorCount`
+   * is corrected in the same write so the card's own copy stays consistent.
+   */
+  const dismissMutation = useMutation({
+    mutationFn: async (billId: string) =>
+      trackerV2
+        ? (
+            await api.post(intelTrackerPaths.feedback(client.id), {
+              targetRef: billId,
+              signal: 'marked_irrelevant',
+            })
+          ).data
+        : (await api.post(trackerPaths.feedback(client.id), { billId, signal: 'marked_irrelevant' })).data,
+    onMutate: (billId) => {
+      qc.setQueryData<RecommendationsResponse>(trackerKeys.recommendations(client.id), (prev) =>
+        prev
+          ? {
+              ...prev,
+              recommendations: prev.recommendations.filter((r) => r.billId !== billId),
+              aboveFloorCount: Math.max(
+                0,
+                prev.aboveFloorCount -
+                  (prev.recommendations.find((r) => r.billId === billId && !r.belowFloor) ? 1 : 0),
+              ),
+            }
+          : prev,
+      );
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: trackerKeys.recommendations(client.id) }),
+  });
+
   const trackMutation = useMutation({
     mutationFn: (billId: string) =>
       api.post(trackerV2 ? intelTrackerPaths.track(client.id) : trackerPaths.track(client.id), {
@@ -341,9 +440,31 @@ function LegislativePanel({ client }: { client: Client }) {
         {/* Board card */}
         <Card>
           <CardHead title={nested === 'tracked' ? 'Tracked bills' : nested} action={<LinkBtn onClick={() => setBoardView((v) => !v)}>{boardView ? 'Table view' : 'Board view'}</LinkBtn>} />
-          {boardView ? <BillBoard /> : <BillTable />}
+          {realBoard ? (
+            realBoard.total === 0 ? (
+              <p style={{ margin: 0, padding: '4px 24px 16px', fontSize: 14, color: '#475467' }}>
+                No bills are on this client&apos;s board yet.
+              </p>
+            ) : boardView ? (
+              <RealBillBoard board={realBoard} />
+            ) : (
+              <RealBillTable board={realBoard} />
+            )
+          ) : boardView ? (
+            <BillBoard />
+          ) : (
+            <BillTable />
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 24px 18px' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>6 more tracked bills</span>
+            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+              {/* `withheld` must be stated when > 0 — a bounded board that stays
+                  silent about it is less honest than an unbounded one. */}
+              {realBoard
+                ? realBoard.withheld
+                  ? `${realBoard.withheld} more tracked bill${realBoard.withheld === 1 ? '' : 's'} not shown`
+                  : `${realBoard.total} tracked bill${realBoard.total === 1 ? '' : 's'}`
+                : '6 more tracked bills'}
+            </span>
             <span style={{ flex: 1 }} />
             <LinkBtn onClick={() => navigate('/legiwatch')}>Open full board →</LinkBtn>
           </div>
@@ -369,6 +490,7 @@ function LegislativePanel({ client }: { client: Client }) {
                     r={r}
                     tracking={trackMutation.isPending && trackMutation.variables === r.billId}
                     onTrack={() => trackMutation.mutate(r.billId)}
+                    onDismiss={() => dismissMutation.mutate(r.billId)}
                   />
                 ))
               ) : (
@@ -390,7 +512,17 @@ function LegislativePanel({ client }: { client: Client }) {
   );
 }
 
-function RealRecCard({ r, onTrack, tracking }: { r: RecommendationBill; onTrack: () => void; tracking: boolean }) {
+function RealRecCard({
+  r,
+  onTrack,
+  onDismiss,
+  tracking,
+}: {
+  r: RecommendationBill;
+  onTrack: () => void;
+  onDismiss: () => void;
+  tracking: boolean;
+}) {
   return (
     <span style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 14, borderRadius: 10, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -408,11 +540,111 @@ function RealRecCard({ r, onTrack, tracking }: { r: RecommendationBill; onTrack:
         >
           {tracking ? 'Tracking…' : 'Track'}
         </button>
-        <button type="button" style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#667085' }}>
+        <button
+          type="button"
+          onClick={onDismiss}
+          style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#667085' }}
+        >
           Dismiss
         </button>
       </span>
     </span>
+  );
+}
+
+/**
+ * `BoardBill.probability` is PASSAGE probability (0..1, occasionally already
+ * 0-100 — `probClass` in tracker-api.ts tolerates both, so this does too).
+ * It is NOT the fixture's client-"fit" score, so it is never rendered in the
+ * bare `FitChip` the fixture uses — the label always says what the number is.
+ */
+function passagePct(probability: number): number {
+  return Math.round(probability > 1 ? probability : probability * 100);
+}
+
+const CHANGE_TONE: Record<string, PillTone> = {
+  critical: 'error',
+  notable: 'warning',
+  info: 'blue',
+  success: 'success',
+};
+
+function RealBillBoard({ board }: { board: BoardResponse }) {
+  return (
+    <div style={{ padding: '20px 20px 12px', overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(188px,1fr))', gap: 14, minWidth: 800, alignItems: 'start' }}>
+        {board.columns.map((col) => (
+          <span key={col.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: '1px solid #EAECF0' }}>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>{col.label}</span>
+              <span style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 22, height: 22, padding: '0 7px', borderRadius: 9999, background: GRADIENT_DARK, color: '#ffffff', fontSize: 11, fontWeight: 600 }}>{col.count}</span>
+            </span>
+            {col.bills.map((b) => (
+              <RealBillCard key={b.billId} b={b} />
+            ))}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RealBillCard({ b }: { b: BoardBill }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, padding: 12, borderRadius: 8, background: hover ? '#F9FAFB' : '#ffffff', boxShadow: hover ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0', textAlign: 'left' }}
+    >
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {b.unread ? <span aria-label="Unread" style={{ flex: '0 0 auto', width: 6, height: 6, borderRadius: '50%', background: '#101828' }} /> : null}
+        <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>{b.displayNum}</span>
+        <Pill tone="gray" dotless>{passagePct(b.probability)}% pass</Pill>
+      </span>
+      <span style={{ fontSize: 13, lineHeight: '18px', color: '#344054', textWrap: 'pretty' }}>{b.title}</span>
+      {/* The real status label, when the board carries one — the coarse stage
+          lane the card sits in is already shown by its column header. */}
+      {b.canonicalStatus ? (
+        <span style={{ fontSize: 12, color: '#667085', textWrap: 'pretty' }}>{b.canonicalStatus}</span>
+      ) : null}
+      {b.latestActionText ? (
+        <span style={{ fontSize: 12, color: '#667085', textWrap: 'pretty' }}>{b.latestActionText}</span>
+      ) : null}
+      {b.change ? (
+        <span style={{ alignSelf: 'flex-start' }}>
+          <Pill tone={CHANGE_TONE[b.change.tone] ?? 'gray'} dotless={!b.change.dot}>{b.change.label}</Pill>
+        </span>
+      ) : null}
+      {b.terminalRisk ? (
+        <span style={{ alignSelf: 'flex-start' }}>
+          <Pill tone="error">Terminal risk</Pill>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function RealBillTable({ board }: { board: BoardResponse }) {
+  const rows = board.columns.flatMap((col) => col.bills.map((b) => ({ bill: b, stageLabel: col.label })));
+  return (
+    <div>
+      {rows.map(({ bill: r, stageLabel }) => (
+        <div key={r.billId} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 16, padding: '14px 24px', borderBottom: '1px solid #EAECF0', textAlign: 'left' }}>
+          <span style={{ flex: '0 0 auto', width: 88, fontSize: 14, fontWeight: 600, color: '#101828' }}>{r.displayNum}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 14, color: '#101828', textWrap: 'pretty' }}>{r.title}</span>
+            <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085' }}>
+              {r.latestActionText ?? r.canonicalStatus ?? 'No action recorded'}
+            </span>
+          </span>
+          <span style={{ flex: '0 0 auto', width: 104, fontSize: 13, color: '#475467' }}>{stageLabel}</span>
+          <span style={{ flex: '0 0 auto', width: 76, display: 'flex', justifyContent: 'flex-end' }}>
+            <Pill tone="gray" dotless>{passagePct(r.probability)}% pass</Pill>
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -498,7 +730,95 @@ function RecCard({ r }: { r: (typeof RECS)[number] }) {
 
 /* ═══════════════════════════ §10.3 Regulatory ══════════════════════════════ */
 
-function RegulatoryPanel() {
+/**
+ * A comment deadline is a calendar DAY, but the API serializes it as an
+ * instant (midnight UTC). Reading that back with local getters moves it to the
+ * previous day for every viewer west of UTC — the rail would show a deadline a
+ * day early and the .ics would put the event on the wrong date. So the UTC
+ * calendar day is re-anchored to local midnight once, here, and everything
+ * downstream (label, urgency band, DTSTART) reads that one value.
+ */
+function deadlineDay(value: string | Date): Date | null {
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Date(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate());
+}
+
+/** A deadline the rail can render — real or from the design fixture. */
+interface DeadlineView {
+  key: string;
+  date: string;
+  title: string;
+  ask: string;
+  urgent: boolean;
+  /** Present only on real rows; what the .ics is built from. */
+  on?: Date;
+  documentNumber?: string;
+}
+
+function RegulatoryPanel({ client }: { client: Client }) {
+  const api = useApi();
+
+  /**
+   * Item 5 (Calendar). The comment deadlines are real: the profile-v1
+   * aggregate's regulatory lifecycle rails are Federal Register rulemakings
+   * with real `deadline` dates, and it is the same query key + endpoint the
+   * canonical `ClientIntelV1Page` uses, so the two share one cache entry.
+   * Calendar exports THOSE dates — a .ics built from the design fixture would
+   * be a file of invented events sitting in someone's calendar, so the button
+   * is disabled whenever the fixture is what is on screen.
+   */
+  const aggregate = useQuery<ClientProfileV1>({
+    queryKey: ['client-intel-v1-aggregate', client.id],
+    queryFn: async () =>
+      (await api.get<ClientProfileV1>(`/api/intelligence/clients/${client.id}/profile-v1`)).data,
+    staleTime: 2 * 60 * 1000,
+    retry: 1,
+  });
+
+  const lifecycle = aggregate.data?.sections.legislativeRegulatory.regulatoryLifecycle;
+  const loaded = aggregate.data !== undefined && !aggregate.isError;
+
+  const realDeadlines: DeadlineView[] = useMemo(() => {
+    const rails = lifecycle?.rails ?? [];
+    return rails
+      .flatMap((rail) => {
+        if (!rail.deadline) return [];
+        const on = deadlineDay(rail.deadline);
+        if (!on) return [];
+        const days = Math.ceil((on.getTime() - Date.now()) / 86_400_000);
+        return [
+          {
+            key: rail.documentNumber,
+            date: on
+              .toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+              .toUpperCase(),
+            title: rail.title,
+            // Same "≤ 3 days is critical" band the canonical
+            // LegislativeRegulatorySection applies to these very rails.
+            urgent: days <= 3,
+            ask: [rail.agencyNames.join(' · '), rail.currentStage].filter(Boolean).join(' · '),
+            on,
+            documentNumber: rail.documentNumber,
+          },
+        ];
+      })
+      .sort((a, b) => a.on.getTime() - b.on.getTime());
+  }, [lifecycle]);
+
+  // Fixture only while the aggregate is loading or errored (§14 convention).
+  // Once it resolves, real deadlines — or an honest "none" — are shown.
+  const showFixture = !loaded;
+  const deadlines: DeadlineView[] = showFixture
+    ? DEADLINES.map((d) => ({
+        key: d.title,
+        date: d.date,
+        title: d.title,
+        ask: d.ask,
+        urgent: Boolean(d.urgent),
+      }))
+    : realDeadlines;
+
   return (
     <div className="cap-pf-grid-intel">
       {/* Active matters */}
@@ -513,10 +833,30 @@ function RegulatoryPanel() {
 
       {/* Deadline rail */}
       <Card>
-        <CardHead title="Deadline rail" action={<LinkBtn>Calendar</LinkBtn>} />
+        <CardHead
+          title="Deadline rail"
+          action={
+            <LinkBtn
+              disabled={realDeadlines.length === 0}
+              title={
+                realDeadlines.length === 0
+                  ? 'No dated comment deadlines to export for this client'
+                  : undefined
+              }
+              onClick={() => downloadDeadlineIcs(client.name, realDeadlines)}
+            >
+              Calendar
+            </LinkBtn>
+          }
+        />
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {DEADLINES.map((d) => (
-            <span key={d.title} style={{ display: 'flex', gap: 14, padding: '14px 16px', borderRadius: 10, background: d.urgent ? '#FFFAEB' : '#F9FAFB', boxShadow: d.urgent ? 'inset 0 0 0 1px #FEDF89' : 'inset 0 0 0 1px #EAECF0' }}>
+          {deadlines.length === 0 ? (
+            <p style={{ margin: 0, padding: '4px 4px 8px', fontSize: 14, color: '#475467' }}>
+              No open comment deadlines for this client right now.
+            </p>
+          ) : null}
+          {deadlines.map((d) => (
+            <span key={d.key} style={{ display: 'flex', gap: 14, padding: '14px 16px', borderRadius: 10, background: d.urgent ? '#FFFAEB' : '#F9FAFB', boxShadow: d.urgent ? 'inset 0 0 0 1px #FEDF89' : 'inset 0 0 0 1px #EAECF0' }}>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: d.urgent ? '#B54708' : '#667085' }}>{d.date}</span>
                 <span style={{ display: 'block', marginTop: 4, fontSize: 14, fontWeight: 600, color: '#101828', textWrap: 'pretty' }}>{d.title}</span>
@@ -534,6 +874,59 @@ function RegulatoryPanel() {
       </Card>
     </div>
   );
+}
+
+/* ── Calendar export (§10.3 Deadline rail) ────────────────────────────────── */
+
+/** RFC 5545 escaping for TEXT values. Backslash first, or it double-escapes. */
+function icsText(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+}
+
+/** `YYYYMMDD` in local time — a comment deadline is a calendar day, not an instant. */
+function icsDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
+}
+
+/**
+ * Export the real comment deadlines as an all-day .ics. Never called with
+ * fixture rows — the button is disabled unless real dated rails exist.
+ */
+function downloadDeadlineIcs(clientName: string, deadlines: DeadlineView[]) {
+  if (deadlines.length === 0) return;
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Capiro//Client regulatory deadlines//EN',
+    'CALSCALE:GREGORIAN',
+    ...deadlines.flatMap((d) => {
+      // DTEND is exclusive for all-day events, so it is the day after.
+      const end = new Date(d.on!.getTime() + 86_400_000);
+      return [
+        'BEGIN:VEVENT',
+        `UID:capiro-reg-${icsText(d.documentNumber ?? d.key)}@capiro.ai`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${icsDate(d.on!)}`,
+        `DTEND;VALUE=DATE:${icsDate(end)}`,
+        `SUMMARY:${icsText(`Comment deadline · ${d.title}`)}`,
+        `DESCRIPTION:${icsText([clientName, d.ask, d.documentNumber].filter(Boolean).join(' · '))}`,
+        'END:VEVENT',
+      ];
+    }),
+    'END:VCALENDAR',
+  ];
+  const url = URL.createObjectURL(
+    new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' }),
+  );
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${clientName.replace(/[^\w-]+/g, '-').toLowerCase()}-regulatory-deadlines.ics`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 const MATTER_STAGE_TONE: Record<string, PillTone> = { warning: 'warning', blue: 'blue', brand: 'brand' };
@@ -884,6 +1277,14 @@ function FootprintPanel({ client }: { client: Client }) {
   });
   const realNexus = nexusQ.isSuccess && nexusQ.data.linked ? nexusQ.data : null;
 
+  // Item 20: the client's own PAC disbursements (Schedule B).
+  const fecQ = useQuery({
+    queryKey: ['client-fec-money-flow', client.id],
+    queryFn: () => getClientFecMoneyFlow(api, client.id),
+    staleTime: 5 * 60_000,
+  });
+  const realPac = fecQ.isSuccess ? (fecQ.data.pacGiving ?? null) : null;
+
   const intelHref = `/clients?clientId=${encodeURIComponent(client.id)}&tab=intelligence#financial-footprint`;
 
   return (
@@ -974,26 +1375,80 @@ function FootprintPanel({ client }: { client: Client }) {
           )}
         </FootCard>
 
-        {/* Political giving — no dedicated real API surface exists yet (see
-            memory: getFecMoneyFlow/pacGiving reach the frontend type layer via
-            intelligence-v1/mappers.ts but no component consumes them anywhere).
-            Left on the design fixture rather than a hollow partial wire. */}
-        <FootCard title="Political giving" action={<LinkBtn>Open FEC / PAC</LinkBtn>}>
-          <div style={{ marginTop: 16, fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$380K</div>
-          <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>PAC disbursements · current cycle</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
-            {([['Incumbent members', '$214K', '90%'], ['Leadership PACs', '$102K', '43%'], ['Party committees', '$64K', '27%']] as const).map(([label, value, w]) => (
-              <span key={label} style={{ display: 'block' }}>
-                <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: 14 }}>
-                  <span style={{ color: '#344054' }}>{label}</span>
-                  <span style={{ fontWeight: 600, color: '#101828' }}>{value}</span>
-                </span>
-                <span style={{ display: 'block', marginTop: 6, height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
-                  <span style={{ display: 'block', height: 8, width: w, borderRadius: 4, background: '#98A2B3' }} />
-                </span>
-              </span>
-            ))}
-          </div>
+        {/* Political giving — the client's OWN PAC disbursements (item 20). */}
+        <FootCard title="Political giving" action={<LinkBtn onClick={() => navigate(intelHref)}>Open FEC / PAC</LinkBtn>}>
+          {realPac ? (
+            !realPac.tracked ? (
+              /* "No committee mapped" is not "$0 given" — never render it as one. */
+              <p style={{ margin: '16px 0 0', fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+                No FEC committee is mapped to this client, so its PAC giving cannot be reported.
+              </p>
+            ) : (
+              <>
+                <div style={{ marginTop: 16, fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>
+                  {realPac.summary ? `$${realPac.summary.totalAmount.toLocaleString()}` : '—'}
+                </div>
+                <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+                  PAC disbursements
+                  {realPac.summary
+                    ? ` · ${realPac.summary.disbursementCount} disbursement${realPac.summary.disbursementCount === 1 ? '' : 's'}`
+                    : ''}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
+                  {/* Real top recipients. The fixture's Incumbent/Leadership/Party
+                      buckets have no equivalent in the data — recipients are named
+                      rows, not categories — so they are not reproduced. */}
+                  {topPacRecipients(realPac).length === 0 ? (
+                    <p style={{ margin: 0, fontSize: 14, color: '#475467' }}>
+                      A committee is mapped, but it has no disbursements on record.
+                    </p>
+                  ) : (
+                    topPacRecipients(realPac).map((r, i, all) => (
+                      <span key={`${r.recipientName}-${r.candidateName ?? ''}`} style={{ display: 'block' }}>
+                        <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
+                          <span style={{ color: '#344054', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {r.candidateName ?? r.recipientName}
+                          </span>
+                          <span style={{ fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>${r.totalAmount.toLocaleString()}</span>
+                        </span>
+                        <span style={{ display: 'block', marginTop: 6, height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
+                          <span
+                            style={{
+                              display: 'block',
+                              height: 8,
+                              // Bars are relative to the largest recipient, so the
+                              // width is a real comparison rather than a designed %.
+                              width: (all[0]?.totalAmount ?? 0) > 0 ? `${Math.round((r.totalAmount / all[0]!.totalAmount) * 100)}%` : '0%',
+                              borderRadius: 4,
+                              background: '#98A2B3',
+                            }}
+                          />
+                        </span>
+                      </span>
+                    ))
+                  )}
+                </div>
+              </>
+            )
+          ) : (
+            <>
+              <div style={{ marginTop: 16, fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$380K</div>
+              <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>PAC disbursements · current cycle</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
+                {([['Incumbent members', '$214K', '90%'], ['Leadership PACs', '$102K', '43%'], ['Party committees', '$64K', '27%']] as const).map(([label, value, w]) => (
+                  <span key={label} style={{ display: 'block' }}>
+                    <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: 14 }}>
+                      <span style={{ color: '#344054' }}>{label}</span>
+                      <span style={{ fontWeight: 600, color: '#101828' }}>{value}</span>
+                    </span>
+                    <span style={{ display: 'block', marginTop: 6, height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
+                      <span style={{ display: 'block', height: 8, width: w, borderRadius: 4, background: '#98A2B3' }} />
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </FootCard>
       </div>
 

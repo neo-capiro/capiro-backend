@@ -1,6 +1,7 @@
 import { openVNextMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
+import { MERI_LOGO_SRC } from '../../meri/meri-presentation.js';
 
 export interface MeriLauncherProps {
   label?: string;
@@ -24,10 +25,12 @@ export function MeriLauncher({ label = 'Meri', onLaunch }: MeriLauncherProps) {
       size="standard"
       className="capiro-meri-launcher"
       leadingIcon={<DashboardIcon name="Stars02" size={18} />}
-      aria-label="Open Meri workspace"
+      aria-label={`Open ${label} workspace`}
       onClick={launch}
     >
-      {label}
+      {/* The real wordmark asset, not a text label — alt="" since the
+          button's aria-label above already carries the accessible name. */}
+      <img src={MERI_LOGO_SRC} alt="" className="capiro-meri-launcher__wordmark" />
     </CapiroButton>
   );
 }

@@ -13,8 +13,11 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CapiroButton } from '../../components/actions/index.js';
+import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
 import { IdentityMark } from '../../components/identity/index.js';
+import { CapiroPlusIcon } from '../../components/icons/index.js';
+import { ScopeBar, type ScopeBarStatus } from './ScopeBar.js';
 import {
   clientName,
   memberName,
@@ -24,7 +27,7 @@ import {
   useStrategies,
   useTenantMembers,
 } from './strategies-api.js';
-import type { StrategyListItem } from '../../../pages/strategy/types.js';
+import type { FirmPhase, StrategyListItem } from '../../../pages/strategy/types.js';
 import './strategies.css';
 import './strategy-library.css';
 
@@ -42,6 +45,53 @@ const TYPE_LABEL: Record<string, string> = {
 
 type SortKey = 'recent' | 'health' | 'gate';
 
+/*
+ * Local glyphs (design handoff, "Assets" section: LayersThree01 / Stars02 /
+ * BookOpen01). The shared icon set (../../components/icons/index.tsx) has no
+ * layers/sparkle/book entry, and adding one there is out of scope for this
+ * pass — that file may be touched by another concurrent Strategies agent.
+ * These mirror its stroke conventions (24x24 viewBox, currentColor, 1.75
+ * stroke) as self-contained, view-local glyphs instead.
+ */
+function LibraryPhasesGlyph() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3 21 8l-9 5-9-5 9-5Z" />
+      <path d="M3 12l9 5 9-5" />
+      <path d="M3 16l9 5 9-5" />
+    </svg>
+  );
+}
+
+function AgentReviewGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 3l1.6 4.2L17 9l-4.4 1.8L11 15l-1.6-4.2L5 9l4.4-1.8L11 3Z" />
+      <path d="M18.5 14.5l.75 1.9 1.9.75-1.9.75-.75 1.9-.75-1.9-1.9-.75 1.9-.75.75-1.9Z" />
+    </svg>
+  );
+}
+
+function ContextLibraryGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 5.5c1.8-1 4.4-1 6.5 0 .3.15.5.46.5.8v11.7c0 .5-.5.8-.95.6-2-.9-4.4-.9-6.35.1-.4.2-.7-.1-.7-.5V6c0-.2.1-.4.3-.5Z" />
+      <path d="M20 5.5c-1.8-1-4.4-1-6.5 0-.3.15-.5.46-.5.8v11.7c0 .5.5.8.95.6 2-.9 4.4-.9 6.35.1.4.2.7-.1.7-.5V6c0-.2-.1-.4-.3-.5Z" />
+    </svg>
+  );
+}
+
+/** Real FY span across the firm's configured phases (min start → max end).
+ *  The handoff's reference copy hardcodes "FY27–FY29" as fixture text; this
+ *  computes the actual span from `FirmPhase.startFy`/`endFy` so the banner
+ *  never claims a window the firm's real phase rows don't back. */
+function firmPhaseFyRange(phases: FirmPhase[]): string | null {
+  if (phases.length === 0) return null;
+  const startFy = Math.min(...phases.map((p) => p.startFy));
+  const endFy = Math.max(...phases.map((p) => p.endFy));
+  return startFy === endFy ? `FY${startFy}` : `FY${startFy}–FY${endFy}`;
+}
+
 export function StrategyLibraryVNext() {
   const navigate = useNavigate();
   const strategies = useStrategies();
@@ -55,6 +105,16 @@ export function StrategyLibraryVNext() {
 
   const rows = strategies.data ?? [];
   const counts = watchCounts.data ?? {};
+  const fyRange = useMemo(() => firmPhaseFyRange(firmPhases.data ?? []), [firmPhases.data]);
+
+  /* Live-status pill (design handoff, "Scope bar" section): a real react-query
+   * fetch timestamp, never a fabricated "Live" claim — falls back to an
+   * honest gray state while loading or if the last fetch failed. */
+  const status: ScopeBarStatus = strategies.isError
+    ? { tone: 'gray', label: 'Live status unavailable' }
+    : strategies.dataUpdatedAt
+      ? { tone: 'success', label: `Live · refreshed ${relativeTime(new Date(strategies.dataUpdatedAt).toISOString())}` }
+      : { tone: 'gray', label: 'Loading…' };
 
   const owners = useMemo(() => {
     const set = new Map<string, string>();
@@ -89,177 +149,225 @@ export function StrategyLibraryVNext() {
 
   if (strategies.isLoading) {
     return (
-      <div className="st-page">
-        <div className="st-page-header">
-          <div>
-            <p className="st-eyebrow">Strategy Operating System</p>
-            <h1 className="st-title">Strategies</h1>
+      <>
+        <ScopeBar clientLabel="PORTFOLIO" status={status} />
+        <div className="st-page">
+          <div className="st-page-header">
+            <div>
+              <p className="st-eyebrow">Strategy operating system</p>
+              <h1 className="st-title">Strategies</h1>
+            </div>
           </div>
+          <div className="st-stats">{[0, 1, 2, 3].map((i) => <CapiroSkeleton key={i} height={88} />)}</div>
+          <div className="st-state-row">{[0, 1, 2, 3].map((i) => <CapiroSkeleton key={i} height={64} />)}</div>
         </div>
-        <div className="st-stats">{[0, 1, 2, 3].map((i) => <CapiroSkeleton key={i} height={88} />)}</div>
-        <div className="st-state-row">{[0, 1, 2, 3].map((i) => <CapiroSkeleton key={i} height={64} />)}</div>
-      </div>
+      </>
     );
   }
 
   if (strategies.isError) {
     return (
-      <div className="st-page">
-        <CapiroErrorState
-          title="Strategies could not be loaded"
-          description="The strategy service did not respond. Your data is intact — retry to reload the library."
-          onRetry={() => void strategies.refetch()}
-        />
-      </div>
+      <>
+        <ScopeBar clientLabel="PORTFOLIO" status={status} />
+        <div className="st-page">
+          <CapiroErrorState
+            title="Strategies could not be loaded"
+            description="The strategy service did not respond. Your data is intact — retry to reload the library."
+            onRetry={() => void strategies.refetch()}
+          />
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="st-page">
-      <div className="st-page-header">
-        <div>
-          <p className="st-eyebrow">Strategy Operating System</p>
-          <h1 className="st-title">Strategies</h1>
-          <p className="st-purpose">
-            Turn client goals into executable plans aligned to appropriations, authorization,
-            regulatory and procurement calendars.
-          </p>
-        </div>
-        <div className="st-actions">
-          <CapiroButton onClick={() => navigate('/strategies/agents/proposals')}>
-            Agent review{needsReview > 0 ? ` (${needsReview})` : ''}
-          </CapiroButton>
-          <CapiroButton onClick={() => navigate('/strategies/context')}>Context library</CapiroButton>
-          <CapiroButton variant="primary" onClick={() => navigate('/strategies/new')}>
-            New strategy
-          </CapiroButton>
+    <>
+      <ScopeBar clientLabel="PORTFOLIO" status={status} />
+      <div className="st-hero">
+        <div className="st-page-header">
+          <div>
+            <p className="st-eyebrow">Strategy operating system</p>
+            <h1 className="st-title">Strategies</h1>
+            <p className="st-purpose">
+              Turn client goals into executable plans aligned to appropriations, authorization,
+              regulatory and procurement calendars.
+            </p>
+          </div>
+          <div className="st-actions">
+            <CapiroButton leadingIcon={<AgentReviewGlyph />} onClick={() => navigate('/strategies/agents/proposals')}>
+              Agent review
+              {needsReview > 0 ? <CapiroBadge tone="warning">{needsReview}</CapiroBadge> : null}
+            </CapiroButton>
+            <CapiroButton leadingIcon={<ContextLibraryGlyph />} onClick={() => navigate('/strategies/context')}>
+              Context library
+            </CapiroButton>
+            <CapiroButton variant="primary" leadingIcon={<CapiroPlusIcon />} onClick={() => navigate('/strategies/new')}>
+              New strategy
+            </CapiroButton>
+          </div>
         </div>
       </div>
-
-      {/* Firm phases banner (§7.1) — setup prompt when unconfigured, never an empty card. */}
-      {firmPhases.data && firmPhases.data.length === 0 ? (
-        <div className="st-card st-library-phases st-library-phases--setup">
-          <div className="st-card__body">
-            <h2 className="st-card__title">Set the firm&rsquo;s operating phases</h2>
-            <p className="st-purpose">
-              No phase model is configured. Firm phases align every strategy to the firm&rsquo;s
-              fiscal rhythm — set them to light up the reference layer.
-            </p>
-            <div className="st-actions" style={{ marginTop: 12 }}>
+      <div className="st-canvas">
+        {/* Firm phases banner (§7.1) — setup prompt when unconfigured, never an empty card.
+            40px icon tile per the design handoff ("View: Strategy library"); the fy range
+            in the configured copy is computed from the real FirmPhase rows (see
+            firmPhaseFyRange above), not the handoff's hardcoded "FY27–FY29" fixture text. */}
+        {firmPhases.data && firmPhases.data.length === 0 ? (
+          <div className="st-card st-library-phases st-library-phases--setup">
+            <div className="st-card__body st-library-phases__row">
+              <span className="st-library-phases__icon" aria-hidden="true">
+                <LibraryPhasesGlyph />
+              </span>
+              <div className="st-library-phases__text">
+                <h2 className="st-card__title">Set the firm&rsquo;s operating phases</h2>
+                <p className="st-purpose">
+                  No phase model is configured. Firm phases align every strategy to the firm&rsquo;s
+                  fiscal rhythm — set them to light up the reference layer.
+                </p>
+              </div>
               <CapiroButton variant="primary" onClick={() => navigate('/strategies/phases')}>
                 Set up phases
               </CapiroButton>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="st-card st-library-phases">
-          <div className="st-card__body st-library-phases__row">
-            <div>
-              <h2 className="st-card__title">Firm phases are set</h2>
-              <p className="st-purpose">
-                {firmPhases.data?.length ?? 0} operating phases align every strategy to the firm&rsquo;s
-                fiscal rhythm.
-              </p>
+        ) : (
+          <div className="st-card st-library-phases">
+            <div className="st-card__body st-library-phases__row">
+              <span className="st-library-phases__icon" aria-hidden="true">
+                <LibraryPhasesGlyph />
+              </span>
+              <div className="st-library-phases__text">
+                <h2 className="st-card__title">Firm phases are set</h2>
+                <p className="st-purpose">
+                  {firmPhases.data?.length ?? 0} operating phases align every strategy to the firm&rsquo;s
+                  {fyRange ? ` ${fyRange}` : ''} rhythm.
+                </p>
+              </div>
+              <CapiroButton onClick={() => navigate('/strategies/phases')}>Edit phases</CapiroButton>
             </div>
-            <CapiroButton onClick={() => navigate('/strategies/phases')}>Edit phases</CapiroButton>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Four navigational stats (§7.1) — each is a filter or navigation, never decoration. */}
-      <div className="st-stats">
-        <button type="button" className="st-stat" onClick={() => setOwnerFilter('all')}>
-          <p className="st-stat__value">{activeCount}</p>
-          <p className="st-stat__label">Active strategies</p>
-          <p className="st-stat__hint">Across {clientCount} {clientCount === 1 ? 'client' : 'clients'}</p>
-        </button>
-        <button type="button" className="st-stat" onClick={() => navigate('/strategies/agents/proposals')}>
-          <p className="st-stat__value">{needsReview}</p>
-          <p className="st-stat__label">Needs review</p>
-          <p className="st-stat__hint">Watcher proposals</p>
-        </button>
-        <button type="button" className="st-stat" onClick={() => navigate('/strategies/agents/proposals')}>
-          <p className="st-stat__value">—</p>
-          <p className="st-stat__label">Approaching gates</p>
-          <p className="st-stat__hint">Within 30 days</p>
-        </button>
-        <button type="button" className="st-stat" onClick={() => setOwnerFilter('all')}>
-          <p className="st-stat__value">—</p>
-          <p className="st-stat__label">Plan coverage</p>
-          <p className="st-stat__hint">Steps with owners</p>
-        </button>
-      </div>
-
-      {/* List header: filters + sort (§7.1). Client scope comes from the context strip. */}
-      <div className="st-library-listhead">
-        <div>
-          <p className="st-section-label">Your strategies</p>
-          <p className="st-purpose">
-            {filtered.length} {filtered.length === 1 ? 'plan' : 'plans'}
-            {needsReview > 0 ? ` · ${needsReview} need attention` : ''}
-          </p>
+        {/* Four navigational stats (§7.1) — each is a filter or navigation, never decoration. */}
+        <div className="st-stats">
+          <button type="button" className="st-stat" onClick={() => setOwnerFilter('all')}>
+            <p className="st-stat__value">{activeCount}</p>
+            <p className="st-stat__label">Active strategies</p>
+            <p className="st-stat__hint">Across {clientCount} {clientCount === 1 ? 'client' : 'clients'}</p>
+          </button>
+          <button type="button" className="st-stat" onClick={() => navigate('/strategies/agents/proposals')}>
+            <p className="st-stat__value">{needsReview}</p>
+            <p className="st-stat__label">Needs review</p>
+            <p className="st-stat__hint">Watcher proposals</p>
+          </button>
+          <button type="button" className="st-stat" onClick={() => navigate('/strategies/agents/proposals')}>
+            <p className="st-stat__value">—</p>
+            <p className="st-stat__label">Approaching gates</p>
+            <p className="st-stat__hint">Within 30 days</p>
+          </button>
+          <button type="button" className="st-stat" onClick={() => setOwnerFilter('all')}>
+            <p className="st-stat__value">—</p>
+            <p className="st-stat__label">Plan coverage</p>
+            <p className="st-stat__hint">Steps with owners</p>
+          </button>
         </div>
-        <div className="st-actions">
-          <div className="st-segmented" role="group" aria-label="Owner filter">
-            <button aria-pressed={ownerFilter === 'all'} onClick={() => setOwnerFilter('all')}>All owners</button>
-            {owners.map(([id, name]) => (
-              <button key={id} aria-pressed={ownerFilter === id} onClick={() => setOwnerFilter(id)}>
-                {name}
-              </button>
-            ))}
+
+        {/* List header: filters + sort (§7.1). Client scope comes from the context strip. */}
+        <div className="st-library-listhead">
+          <div>
+            <p className="st-section-label">Your strategies</p>
+            <p className="st-purpose">
+              {filtered.length} {filtered.length === 1 ? 'plan' : 'plans'}
+              {needsReview > 0 ? ` · ${needsReview} need attention` : ''}
+            </p>
           </div>
-          <div className="st-segmented" role="group" aria-label="Sort">
-            <button aria-pressed={sort === 'recent'} onClick={() => setSort('recent')}>Recently updated</button>
-            <button aria-pressed={sort === 'health'} onClick={() => setSort('health')}>Plan health</button>
-            <button aria-pressed={sort === 'gate'} onClick={() => setSort('gate')}>Next gate</button>
-          </div>
-        </div>
-      </div>
-
-      {filtered.length === 0 ? (
-        <CapiroEmptyState
-          title="No strategies match"
-          description="No plans match the current filters. Clear the owner filter or create a new strategy."
-          action={
-            <CapiroButton variant="primary" onClick={() => navigate('/strategies/new')}>
-              New strategy
-            </CapiroButton>
-          }
-        />
-      ) : (
-        <div className="st-card st-library-tablecard">
-          <table className="st-library-table">
-            <thead>
-              <tr>
-                <th scope="col">Client / Strategy</th>
-                <th scope="col">Plan</th>
-                <th scope="col">Owner</th>
-                <th scope="col">Updated</th>
-                <th scope="col"><span className="st-visually-hidden">Open</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((s) => (
-                <StrategyRow
-                  key={s.id}
-                  strategy={s}
-                  client={clientName(clients.data, s.clientId)}
-                  owner={memberName(members.data, s.ownerUserId)}
-                  watchCount={counts[s.id] ?? 0}
-                  onOpen={() => {
-                    // Guard: never navigate with an empty/malformed id — the editor
-                    // would render "This strategy link is not valid" (PR #919).
-                    if (!s.id || !UUID_RE.test(s.id)) return;
-                    navigate(`/strategies/${s.id}`);
-                  }}
-                />
+          <div className="st-actions">
+            <div className="st-segmented" role="group" aria-label="Owner filter">
+              <button aria-pressed={ownerFilter === 'all'} onClick={() => setOwnerFilter('all')}>All owners</button>
+              {owners.map(([id, name]) => (
+                <button key={id} aria-pressed={ownerFilter === id} onClick={() => setOwnerFilter(id)}>
+                  {name}
+                </button>
               ))}
-            </tbody>
-          </table>
+            </div>
+            <span className="st-library-divider" aria-hidden="true" />
+            <span className="st-library-sortlabel">Sort</span>
+            <div className="st-segmented" role="group" aria-label="Sort">
+              <button aria-pressed={sort === 'recent'} onClick={() => setSort('recent')}>Recently updated</button>
+              <button aria-pressed={sort === 'health'} onClick={() => setSort('health')}>Plan health</button>
+              <button aria-pressed={sort === 'gate'} onClick={() => setSort('gate')}>Next gate</button>
+            </div>
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* Genuinely no strategies at all — distinct from the owner filter
+            emptying the result set below (README, "Strategy table": "Footer
+            carries the result count and a Clear filters link when filtered to
+            empty" — that's the OTHER case, handled inside the table card). */}
+        {rows.length === 0 ? (
+          <CapiroEmptyState
+            title="No strategies yet"
+            description="Create the firm's first strategy to get started."
+            action={
+              <CapiroButton variant="primary" onClick={() => navigate('/strategies/new')}>
+                New strategy
+              </CapiroButton>
+            }
+          />
+        ) : (
+          <div className="st-card st-library-tablecard">
+            <div className="st-library-tablescroll">
+              <table className="st-library-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Client / Strategy</th>
+                    <th scope="col">Plan</th>
+                    <th scope="col">Owner</th>
+                    <th scope="col">Updated</th>
+                    <th scope="col"><span className="st-visually-hidden">Open</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr className="st-library-emptyrow">
+                      <td colSpan={5}>No strategies match the current owner filter.</td>
+                    </tr>
+                  ) : (
+                    filtered.map((s) => (
+                      <StrategyRow
+                        key={s.id}
+                        strategy={s}
+                        client={clientName(clients.data, s.clientId)}
+                        owner={memberName(members.data, s.ownerUserId)}
+                        watchCount={counts[s.id] ?? 0}
+                        onOpen={() => {
+                          // Guard: never navigate with an empty/malformed id — the editor
+                          // would render "This strategy link is not valid" (PR #919).
+                          if (!s.id || !UUID_RE.test(s.id)) return;
+                          navigate(`/strategies/${s.id}`);
+                        }}
+                      />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="st-library-tablefoot">
+              <span className="st-purpose">
+                {filtered.length === rows.length
+                  ? `Showing all ${rows.length} ${rows.length === 1 ? 'strategy' : 'strategies'}`
+                  : `Showing ${filtered.length} of ${rows.length} strategies`}
+              </span>
+              {filtered.length === 0 ? (
+                <button type="button" className="st-library-clearlink" onClick={() => setOwnerFilter('all')}>
+                  Clear filters
+                </button>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 

@@ -16,11 +16,49 @@
  * Route sync: overlays are routes (§6). Closing navigates to `closeTo` (the
  * caller route), so browser back/forward re-opens and re-closes the overlay.
  * The router renders the caller beneath; this shell renders only the modal.
+ *
+ * v3 pass (design handoff 2026-08-16): frame geometry is now the exact shared
+ * shell from the handoff's "Modals" section — fixed/inset:0, z-index:70, a
+ * `rgba(12,17,29,.6)` backdrop, top-aligned + scrollable (not centered), the
+ * two-part panel shadow, and the `stPop` entrance keyframe (strategies-tokens
+ * .css). Each modal carries its own frame width via `maxWidth` (px) rather
+ * than a two-value `size` enum — the six overlays differ enough (900–1080px)
+ * that a binary md/lg no longer fit; see each overlay's call site for its
+ * value from the handoff's per-modal table.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CapiroButton, CapiroIconButton } from '../../../components/actions/index.js';
 import './modal-shell.css';
+
+/** Lets the panel set its own `--st-modal-max-width` (a real CSS custom
+ * property is not part of the DOM.CSSProperties typing). */
+type ModalPanelStyle = CSSProperties & { '--st-modal-max-width'?: string };
+
+/** Local `XClose` glyph (design handoff "Icons": `x-import ... name="XClose"`
+ * on the header close button, size 18). The shared icon set
+ * (`../../../components/icons/index.tsx`) has no close/X entry, and adding
+ * one there is out of scope for this pass — that file is shared, not owned
+ * here. Mirrors its stroke convention (24x24 viewBox, currentColor, 1.75
+ * stroke — see the glyph functions atop StrategyLibraryVNext.tsx) as a
+ * self-contained, file-local glyph instead. */
+function CloseGlyph({ size = 18 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -51,8 +89,14 @@ export interface StrategiesModalShellProps {
   closeTo: string;
   /** When true, close gestures (Escape / backdrop / × / Cancel) ask first. */
   dirty?: boolean;
-  /** Wide frame for History / Export / Firm phases. */
-  size?: 'md' | 'lg';
+  /** Panel max-width in px — one per modal, per the handoff's per-modal table
+   * (README "Modals" / reference `modalVals` meta.w): new 1000, phases 960,
+   * export 980, history 1080, upload 960, conflict 900. */
+  maxWidth: number;
+  /** Resolve-conflict is the one modal whose primary is solid red instead of
+   * the dark gradient (`modalVals` meta.conflict.bg: '#B42318'). Every other
+   * modal leaves this false and keeps the standard gradient primary. */
+  primaryDanger?: boolean;
 }
 
 export function StrategiesModalShell({
@@ -69,7 +113,8 @@ export function StrategiesModalShell({
   cancelLabel = 'Cancel',
   closeTo,
   dirty = false,
-  size = 'md',
+  maxWidth,
+  primaryDanger = false,
 }: StrategiesModalShellProps) {
   const navigate = useNavigate();
   const dialogRef = useRef<HTMLElement | null>(null);
@@ -150,7 +195,8 @@ export function StrategiesModalShell({
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className={`st-modal${size === 'lg' ? ' st-modal--lg' : ''}`}
+        className="st-modal"
+        style={{ '--st-modal-max-width': `${maxWidth}px` } as ModalPanelStyle}
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -163,7 +209,7 @@ export function StrategiesModalShell({
           </div>
           <div className="st-modal__header-side">
             {headerMeta}
-            <CapiroIconButton label="Close" icon="×" onClick={requestClose} />
+            <CapiroIconButton label="Close" icon={<CloseGlyph size={18} />} onClick={requestClose} />
           </div>
         </header>
 
@@ -194,6 +240,7 @@ export function StrategiesModalShell({
             {onPrimary ? (
               <CapiroButton
                 variant="primary"
+                className={primaryDanger ? 'st-modal__primary--danger' : undefined}
                 onClick={onPrimary}
                 disabled={primaryDisabled}
                 loading={primaryBusy}

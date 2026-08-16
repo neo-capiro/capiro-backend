@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ClientFillWithMeriDrawer } from './ClientFillWithMeriDrawer.js';
 import { ClientDataHealthDrawer } from './ClientDataHealthDrawer.js';
 import { PfToast } from './portfolio-overlays.js';
@@ -28,6 +28,9 @@ import { useApi } from '../../../lib/use-api.js';
 import { useMe } from '../../../lib/me.js';
 import { hasAtLeast } from '@capiro/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useClientDataHealth } from './client-data-health.js';
+import { CapiroButton } from '../../components/actions/index.js';
+import { CapiroModal } from '../../components/overlays/index.js';
 import './client-crm.css';
 import './portfolio-proto.css';
 
@@ -60,10 +63,36 @@ export function ClientCrmPage({ client }: { client: Client }) {
   const [fillOpen, setFillOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const api = useApi();
+  const qc = useQueryClient();
+  const navigate = useNavigate();
   const me = useMe();
   const canManageClients = Boolean(me.data && hasAtLeast(me.data.role, 'user_admin'));
+  // Archive is DELETE /api/clients/:id, which the API gates at standard_user —
+  // a lower bar than editing, so it gets its own flag rather than reusing
+  // canManageClients (which mirrors the user_admin gate on PUT).
+  const canArchiveClient = Boolean(me.data && hasAtLeast(me.data.role, 'standard_user'));
+
+  // Items 11-12: one read of the client's sources, shared with the Data health
+  // drawer. Same query keys the tabs use, so this adds no requests.
+  const health = useClientDataHealth(client);
+
+  const archive = useMutation({
+    // The API calls this "archive": DELETE flips status to 'archived', which
+    // hides the client from every default list. It is not a hard delete, and
+    // the confirm copy says so rather than implying the record is gone.
+    mutationFn: async () => (await api.delete(`/api/clients/${client.id}`)).data,
+    onSuccess: () => {
+      setArchiving(false);
+      void qc.invalidateQueries({ queryKey: ['clients'] });
+      void qc.invalidateQueries({ queryKey: ['client', client.id] });
+      // The profile we are standing on no longer belongs in any list.
+      navigate('/clients');
+    },
+  });
 
   // §15: opens the real review drawer, which resumes any in-flight run or
   // starts a fresh one itself — no fabricated delay or change count here.
@@ -92,7 +121,16 @@ export function ClientCrmPage({ client }: { client: Client }) {
         onDataHealth={() => setHealthOpen(true)}
         syncLabel={syncBusy ? 'Syncing…' : 'Sync'}
         onSync={runSync}
-        profileGapCount={1}
+        // Item 12: a real count of sources that answered with nothing, not a
+        // hardcoded 1. Held back until every source has settled so the chip
+        // does not flash a number that is really "still loading".
+        profileGapCount={health.settled ? health.gaps : 0}
+        // Item 11: how fresh what is on screen actually is.
+        refreshedLabel={health.refreshedLabel}
+        sourceFailures={health.failures}
+        canArchive={canArchiveClient}
+        onArchive={() => setArchiving(true)}
+        canEditFocus={canManageClients}
       >
         <ClientCrmBody
           client={client}
@@ -115,6 +153,29 @@ export function ClientCrmPage({ client }: { client: Client }) {
         <ClientDataHealthDrawer client={client} onClose={() => setHealthOpen(false)} />
       ) : null}
       {editing ? <ClientProfileEditor client={client} onClose={() => setEditing(false)} /> : null}
+
+      {/* Item 9: archive is a real, list-wide state change — it confirms. */}
+      <CapiroModal open={archiving} title={`Archive ${client.name}?`} onClose={() => setArchiving(false)}>
+        <p style={{ margin: 0, fontSize: 14, color: '#475467' }}>
+          This hides <strong>{client.name}</strong> from client lists, pickers, and portfolio
+          rollups for everyone in this workspace. Nothing is deleted — the record and its history
+          stay, and an admin can restore it.
+        </p>
+        {archive.isError ? (
+          <p style={{ margin: '8px 0 0', fontSize: 14, color: '#B42318' }}>
+            {archive.error instanceof Error ? archive.error.message : 'Could not archive this client'}
+          </p>
+        ) : null}
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <CapiroButton variant="primary" size="compact" loading={archive.isPending} onClick={() => archive.mutate()}>
+            Archive client
+          </CapiroButton>
+          <CapiroButton variant="secondary" size="compact" onClick={() => setArchiving(false)}>
+            Cancel
+          </CapiroButton>
+        </div>
+      </CapiroModal>
+
       {toast ? <PfToast message={toast} onDone={() => setToast(null)} /> : null}
     </>
   );

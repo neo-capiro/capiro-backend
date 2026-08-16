@@ -312,6 +312,14 @@ export function UploadContextOverlay() {
   const canUpload =
     content.trim().length > 0 && checks.length > 0 && failed.length === 0 && !upload.isPending;
 
+  /* Headline for the dark Validation panel (README "Modals" → upload) —
+   * grounded in the real check results, never a fabricated count. */
+  const validationHeadline = !content.trim()
+    ? 'Paste a document to begin'
+    : failed.length > 0
+      ? `${failed.length} check${failed.length === 1 ? '' : 's'} need attention`
+      : 'Ready to upload';
+
   /* Supersession preview: existing documents of the same template type
    * (templateKey is "NN_<document_type>"). */
   const superseded = useMemo(() => {
@@ -353,7 +361,7 @@ export function UploadContextOverlay() {
       title="Add a context document"
       subtitle="Markdown with its front-matter block. The checklist mirrors the server validator — every check must pass before upload."
       closeTo="/strategies/context"
-      size="lg"
+      maxWidth={960}
       dirty={content.trim().length > 0 && !upload.isPending}
       primaryLabel="Upload document"
       onPrimary={submit}
@@ -376,86 +384,89 @@ export function UploadContextOverlay() {
         </div>
       ) : null}
 
-      <div
-        className={`st-dropzone${dragOver ? ' is-over' : ''}`}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragOver(false);
-          readFile(event.dataTransfer.files?.[0]);
-        }}
-      >
-        <p className="st-dropzone__title">Drop a .md file, or paste below</p>
-        <p className="st-dropzone__sub">
-          {fileName
-            ? `Loaded ${fileName} — the editor below holds its text.`
-            : 'The document must start with a --- front-matter block.'}
-        </p>
-        <label className="capiro-button capiro-button--secondary capiro-button--compact capiro-elevation-control" style={{ cursor: 'pointer' }}>
-          Choose file
-          <input
-            type="file"
-            accept=".md,.markdown,.txt,text/markdown,text/plain"
-            style={{ display: 'none' }}
-            onChange={(event) => readFile(event.target.files?.[0])}
-          />
-        </label>
-      </div>
+      <div className="st-cols">
+        <div style={{ minWidth: 0 }}>
+          <div
+            className={`st-dropzone${dragOver ? ' is-over' : ''}`}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragOver(false);
+              readFile(event.dataTransfer.files?.[0]);
+            }}
+          >
+            <p className="st-dropzone__title">Drop a .md file, or paste below</p>
+            <p className="st-dropzone__sub">
+              {fileName
+                ? `Loaded ${fileName} — the editor below holds its text.`
+                : 'The document must start with a --- front-matter block.'}
+            </p>
+            <label className="capiro-button capiro-button--secondary capiro-button--compact capiro-elevation-control" style={{ cursor: 'pointer' }}>
+              Choose file
+              <input
+                type="file"
+                accept=".md,.markdown,.txt,text/markdown,text/plain"
+                style={{ display: 'none' }}
+                onChange={(event) => readFile(event.target.files?.[0])}
+              />
+            </label>
+          </div>
 
-      <div className="st-field-stack" style={{ marginTop: 16 }}>
-        <label className="capiro-field">
-          <span className="capiro-field__label">Document · Required</span>
-          <textarea
-            className="st-textarea st-mono"
-            style={{ minHeight: 180 }}
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-            placeholder={'---\ndocument_type: strategy_brief\nschema_version: "1.0"\n…\n---\n'}
-            spellCheck={false}
-          />
-        </label>
-        <CapiroSelect
-          label="Client · Optional"
-          value={clientId}
-          onChange={(event) => setClientId(event.target.value)}
-          options={clientOptions}
-        />
-      </div>
-
-      {content.trim() ? (
-        <div style={{ marginTop: 16 }}>
-          <p className="st-panel__label">Validation</p>
-          {checks.map((checkResult) => (
-            <div className="st-check" key={checkResult.key}>
-              <span className={`st-check__icon st-check__icon--${checkResult.status}`} aria-hidden="true">
-                {checkResult.status === 'pass' ? '✓' : checkResult.status === 'fail' ? '!' : '·'}
-              </span>
-              <span>
-                <span className="st-check__label">{checkResult.label}</span>
-                {checkResult.problems.length > 0 ? (
-                  <span className="st-check__desc is-fail" style={{ display: 'block' }}>
-                    {checkResult.problems.map((p) => `${p.field}: ${p.message}`).join(' · ')}
-                  </span>
-                ) : null}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div style={{ marginTop: 16 }}>
-          <p className="st-panel__label">Validation</p>
-          <div className="st-check">
-            <span className="st-check__icon st-check__icon--idle" aria-hidden="true">
-              ·
-            </span>
-            <span className="st-check__desc">Paste a document to run the checks.</span>
+          <div className="st-field-stack" style={{ marginTop: 16 }}>
+            <label className="capiro-field">
+              <span className="capiro-field__label">Document · Required</span>
+              <textarea
+                className="st-textarea st-mono"
+                style={{ minHeight: 180 }}
+                value={content}
+                onChange={(event) => setContent(event.target.value)}
+                placeholder={'---\ndocument_type: strategy_brief\nschema_version: "1.0"\n…\n---\n'}
+                spellCheck={false}
+              />
+            </label>
+            <CapiroSelect
+              label="Client · Optional"
+              value={clientId}
+              onChange={(event) => setClientId(event.target.value)}
+              options={clientOptions}
+            />
           </div>
         </div>
-      )}
+
+        <aside className="st-dark-panel" style={{ minWidth: 0 }}>
+          <p className="st-dark-panel__label">Validation</p>
+          <p className="st-dark-panel__title">{validationHeadline}</p>
+          {content.trim() ? (
+            /* Literal `uploadChecks` wrapper: `gap:12px` between rows (the
+               rows themselves carry no padding — see `.st-check`). */
+            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+              {checks.map((checkResult) => (
+                <div className="st-check" key={checkResult.key}>
+                  <span className={`st-check__icon st-check__icon--${checkResult.status}`} aria-hidden="true">
+                    {checkResult.status === 'pass' ? '✓' : '!'}
+                  </span>
+                  <span>
+                    <span className="st-check__label">{checkResult.label}</span>
+                    {checkResult.problems.length > 0 ? (
+                      <span className="st-check__desc is-fail" style={{ display: 'block' }}>
+                        {checkResult.problems.map((p) => `${p.field}: ${p.message}`).join(' · ')}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="st-dark-panel__text" style={{ marginTop: 12 }}>
+              Paste a document to run the checks.
+            </p>
+          )}
+        </aside>
+      </div>
 
       {typeof documentType === 'string' && DOCUMENT_TYPES.includes(documentType as never) ? (
         <div className="st-panel" style={{ marginTop: 16 }}>

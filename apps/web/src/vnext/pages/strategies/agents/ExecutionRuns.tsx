@@ -17,6 +17,11 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../../components/feedback/index.js';
+import {
+  CapiroBellIcon,
+  CapiroFileTextIcon,
+  CapiroSafetyCertificateIcon,
+} from '../../../components/icons/index.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
 import {
   clientName,
@@ -40,7 +45,7 @@ import type {
   ExecutionTaskStatus,
   RunState,
 } from '../../../../pages/strategy/types.js';
-import { fmtRelative, isForbidden, shortId, StaleNote, staleOrError } from './agents-shared.js';
+import { BannerLockGlyph, fmtRelative, isForbidden, shortId, StaleNote, staleOrError } from './agents-shared.js';
 
 /** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -125,6 +130,16 @@ const TASK_TYPE_LABEL: Record<ExecutionTask['type'], string> = {
   await_send_approval: 'Send approval',
 };
 
+/* Task icon tile glyph (design handoff — "a 32px tinted icon tile"), by task
+ * TYPE. The tile's tint reuses the SAME tone already computed for the task's
+ * own status pill (TASK_STATUS_PILL) — real, already-fetched data — rather
+ * than inventing a second, type-based color scheme. */
+const TASK_TYPE_ICON: Record<ExecutionTask['type'], typeof CapiroFileTextIcon> = {
+  workspace_draft: CapiroFileTextIcon,
+  outreach_record: CapiroBellIcon,
+  await_send_approval: CapiroSafetyCertificateIcon,
+};
+
 function RunPill({ state }: { state: RunState }) {
   const meta = RUN_PILL[state] ?? { token: state, tone: '' };
   return (
@@ -161,11 +176,20 @@ export function ExecutionRuns() {
   const active = rows.filter((r) => !TERMINAL.has(r.state));
   const history = rows.filter((r) => TERMINAL.has(r.state));
   const state = staleOrError(runs);
+  /* Design handoff "runSummary" ("4 runs · 2 need review") — real, already-
+   * classified data (ready_for_review is a human-obligation state; a
+   * recoverable failure is too), never a fabricated count. */
+  const needsReview = rows.filter(
+    (r) => r.state === 'ready_for_review' || r.state === 'failed_recoverable',
+  ).length;
 
   return (
     <div className="st-agents">
       {/* Policy copy — do not reword (§7.9, BUILD-CONTRACT). */}
-      <div className="st-dark-banner">
+      <div className="st-dark-banner st-dark-banner--agents">
+        <span className="st-dark-banner__icon" aria-hidden="true">
+          <BannerLockGlyph />
+        </span>
         <div>
           <p className="st-dark-banner__title">
             External send is disabled until security review (Stage H).
@@ -180,43 +204,58 @@ export function ExecutionRuns() {
 
       {state === 'stale' && <StaleNote dataUpdatedAt={runs.dataUpdatedAt} />}
 
-      {runs.isLoading ? (
-        <div className="st-agents__list">
-          {[0, 1].map((i) => (
-            <div key={i} className="st-card">
-              <div className="st-card__body st-agents__skeleton-card">
-                <CapiroSkeleton height={18} width="45%" />
-                <CapiroSkeleton height={14} width="85%" />
-                <CapiroSkeleton height={14} width="65%" />
-              </div>
+      {/* Two-column layout (design handoff "Execution runs tab" — 1fr/380px):
+          active run(s) + the run-state-model card on the left, execution
+          history + the security-control card on the right. The two static
+          reference cards render unconditionally in their column regardless of
+          the run list's own loading/error/empty state — they are reference
+          material, not run data, and must never disappear (§9.1: a panel
+          never disappears because a source failed). */}
+      <div className="st-agents__run-grid">
+        <div className="st-agents__run-col">
+          {runs.isLoading ? (
+            <div className="st-agents__list">
+              {[0, 1].map((i) => (
+                <div key={i} className="st-card">
+                  <div className="st-card__body st-agents__skeleton-card">
+                    <CapiroSkeleton height={18} width="45%" />
+                    <CapiroSkeleton height={14} width="85%" />
+                    <CapiroSkeleton height={14} width="65%" />
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : state === 'error' ? (
-        isForbidden(runs.error) ? (
-          <CapiroEmptyState
-            title="No access to execution runs"
-            description="Your role does not include agent execution review. The runs are intact — ask an administrator for the agentic-Meri feature if you should see them."
-          />
-        ) : (
-          <CapiroErrorState
-            title="Execution runs could not be loaded"
-            description={`${errorMessage(runs.error, 'The strategy service did not respond.')} Your data is intact — retry to reload the runs.`}
-            onRetry={() => void runs.refetch()}
-          />
-        )
-      ) : rows.length === 0 ? (
-        <CapiroEmptyState
-          title="No execution runs yet"
-          description="Stage a node's execution from the strategy editor — the planned run lands here for review before anything is staged."
-        />
-      ) : (
-        <>
-          {active.length > 0 && (
+          ) : state === 'error' ? (
+            isForbidden(runs.error) ? (
+              <CapiroEmptyState
+                title="No access to execution runs"
+                description="Your role does not include agent execution review. The runs are intact — ask an administrator for the agentic-Meri feature if you should see them."
+              />
+            ) : (
+              <CapiroErrorState
+                title="Execution runs could not be loaded"
+                description={`${errorMessage(runs.error, 'The strategy service did not respond.')} Your data is intact — retry to reload the runs.`}
+                onRetry={() => void runs.refetch()}
+              />
+            )
+          ) : rows.length === 0 ? (
+            <CapiroEmptyState
+              title="No execution runs yet"
+              description="Stage a node's execution from the strategy editor — the planned run lands here for review before anything is staged."
+            />
+          ) : active.length > 0 ? (
             <div className="st-agents__section">
-              <div className="st-agents__section-head">
+              {/* Design handoff — label stacked above a real "runSummary"
+                  line ("N runs · M need review"), both real already-computed
+                  counts over the full run list, never fabricated. */}
+              <div className="st-agents__section-head st-agents__section-head--stack">
                 <h2 className="st-section-label">Runs</h2>
-                <span className="st-mono st-agents__count">{active.length} active</span>
+                <span className="st-agents__section-summary">
+                  {rows.length} run{rows.length === 1 ? '' : 's'}
+                  {needsReview > 0
+                    ? ` · ${needsReview} need${needsReview === 1 ? 's' : ''} review`
+                    : ''}
+                </span>
               </div>
               <div className="st-agents__list">
                 {active.map((run) => (
@@ -224,9 +263,30 @@ export function ExecutionRuns() {
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
-          {history.length > 0 && (
+          {/* ---- Run state model (§7.9) — the full supported vocabulary --- */}
+          <div className="st-agents__section">
+            <div className="st-card">
+              <div className="st-card__header">
+                <h2 className="st-card__title">Run state model</h2>
+              </div>
+              <div className="st-card__body">
+                <div className="st-agents__states-grid">
+                  {RUN_STATE_MODEL.map((s) => (
+                    <div key={s.token} className="st-agents__state-row">
+                      <span className="st-mono st-agents__state-token">{s.token}</span>
+                      <span className="st-agents__meta">{s.note}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="st-agents__run-col">
+          {!runs.isLoading && state !== 'error' && history.length > 0 && (
             <div className="st-agents__section">
               <div className="st-agents__section-head">
                 <h2 className="st-section-label">Execution history</h2>
@@ -239,47 +299,33 @@ export function ExecutionRuns() {
               </div>
             </div>
           )}
-        </>
-      )}
 
-      {/* ---- Run state model (§7.9) — the full supported vocabulary --------- */}
-      <div className="st-agents__section">
-        <div className="st-card">
-          <div className="st-card__header">
-            <h2 className="st-card__title">Run state model</h2>
-          </div>
-          <div className="st-card__body">
-            <div className="st-agents__states-grid">
-              {RUN_STATE_MODEL.map((s) => (
-                <div key={s.token} className="st-agents__state-row">
-                  <span className="st-mono st-agents__state-token">{s.token}</span>
-                  <span className="st-agents__meta">{s.note}</span>
-                </div>
-              ))}
+          {/* ---- Security control (§7.9/§11 rule 9) — NOT decorative ------
+            GAP (logged): the handoff links this card to the Stage-H criteria,
+            but no criteria route/document exists yet — the criteria render
+            inline here instead of as a dead link. */}
+          <div className="st-agents__section">
+            <div className="st-card st-agents__security">
+              <div className="st-card__header">
+                <h2 className="st-card__title">Security control</h2>
+              </div>
+              <div className="st-card__body">
+                <p className="st-agents__security-headline">No direct send action is available.</p>
+                <p className="st-agents__security-copy">
+                  No direct send action exists on this surface. Outreach artifacts are staged for
+                  human review, and external send stays disabled until the Stage H security review
+                  clears it.
+                </p>
+                <ul className="st-agents__security-list">
+                  <li>Stage H security evals pass before any send path ships.</li>
+                  <li>The send grant is enabled server-side only — no client control can turn it on.</li>
+                  <li>
+                    When it ships, approval binds to the exact staged content hash; any edit
+                    invalidates it.
+                  </li>
+                </ul>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ---- Security control (§7.9/§11 rule 9) — NOT decorative ------------
-        GAP (logged): the handoff links this card to the Stage-H criteria, but
-        no criteria route/document exists yet — the criteria render inline here
-        instead of as a dead link. */}
-      <div className="st-agents__section">
-        <div className="st-card st-agents__security">
-          <div className="st-card__header">
-            <h2 className="st-card__title">Security control</h2>
-          </div>
-          <div className="st-card__body">
-            <p className="st-agents__security-copy">
-              No direct send action exists on this surface. Outreach artifacts are staged for human
-              review, and external send stays disabled until the Stage H security review clears it.
-            </p>
-            <ul className="st-agents__security-list">
-              <li>Stage H security evals pass before any send path ships.</li>
-              <li>The send grant is enabled server-side only — no client control can turn it on.</li>
-              <li>When it ships, approval binds to the exact staged content hash; any edit invalidates it.</li>
-            </ul>
           </div>
         </div>
       </div>
@@ -350,7 +396,7 @@ function RunCard({
   };
 
   return (
-    <div className="st-card">
+    <div className="st-card st-agents__run-card">
       <div className="st-card__body">
         <div className="st-agents__card-head">
           <RunPill state={run.state} />
@@ -379,7 +425,15 @@ function RunCard({
           </span>
         </div>
 
-        {run.summary && <p className="st-agents__summary">{run.summary}</p>}
+        {/* Plan well (design handoff — a labeled #F9FAFB box). The reference
+            also shows an "Operator · Name" line, but no such field exists on
+            ExecutionRun — omitted rather than fabricated. */}
+        {run.summary && (
+          <div className="st-agents__plan-well">
+            <span className="st-agents__plan-well-label">Plan</span>
+            <p className="st-agents__summary">{run.summary}</p>
+          </div>
+        )}
 
         {/* Every failure state surfaces its reason — a failed run is never
             hidden behind a bare pill (§7.9 must-not). */}
@@ -563,11 +617,15 @@ function RunCard({
   );
 }
 
-/** One numbered task: index, type label, title, per-task state pill, blocked reason. */
+/** One numbered task: icon tile, index, type label, title, per-task state pill, blocked reason. */
 function TaskRow({ task, index }: { task: ExecutionTask; index: number }) {
   const status = TASK_STATUS_PILL[task.status] ?? { label: task.status, tone: '' };
+  const Icon = TASK_TYPE_ICON[task.type] ?? CapiroFileTextIcon;
   return (
     <li className="st-agents__task">
+      <span className={`st-agents__task-icon ${status.tone}`.trim()} aria-hidden="true">
+        <Icon size={0.9} />
+      </span>
       <span className="st-mono st-agents__task-index">{index}.</span>
       <div className="st-agents__task-body">
         <span className="st-agents__task-title">

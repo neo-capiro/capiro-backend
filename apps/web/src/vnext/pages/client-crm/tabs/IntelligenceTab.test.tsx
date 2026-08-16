@@ -490,7 +490,26 @@ const LDA_FILINGS_REAL = {
   filings: [LDA_FILING],
 };
 
-function mockFootprintApis(overrides: { lda?: unknown; nexus?: unknown } = {}) {
+const PAC_GIVING_REAL = {
+  pacGiving: {
+    tracked: true,
+    committees: [
+      {
+        committeeId: 'C001',
+        committeeName: 'Overland AI PAC',
+        totalAmount: 90_000,
+        disbursementCount: 4,
+        recipients: [
+          { recipientName: 'WHITFIELD FOR CONGRESS', candidateName: 'Dana Whitfield', totalAmount: 60_000 },
+          { recipientName: 'REYES FOR SENATE', candidateName: 'Luis Reyes', totalAmount: 30_000 },
+        ],
+      },
+    ],
+    summary: { totalAmount: 90_000, disbursementCount: 4, recipientCount: 2 },
+  },
+};
+
+function mockFootprintApis(overrides: { lda?: unknown; nexus?: unknown; fec?: unknown } = {}) {
   const lda = overrides.lda ?? LDA_FILINGS_REAL;
   const nexus = overrides.nexus ?? {
     linked: true,
@@ -502,9 +521,11 @@ function mockFootprintApis(overrides: { lda?: unknown; nexus?: unknown } = {}) {
     districts: [],
     disclaimer: 'Figures reflect confirmed contractor mappings only.',
   };
+  const fec = overrides.fec ?? PAC_GIVING_REAL;
   getMock.mockImplementation((url: string) => {
     if (url === '/api/intelligence/clients/client-1/lda-filings') return Promise.resolve({ data: lda });
     if (url === '/api/intelligence/clients/client-1/district-nexus-spend') return Promise.resolve({ data: nexus });
+    if (url === '/api/intelligence/clients/client-1/fec-money-flow') return Promise.resolve({ data: fec });
     return Promise.reject(new Error(`unexpected GET ${url}`));
   });
 }
@@ -545,5 +566,331 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     expect(screen.getAllByText('$1.8M').length).toBeGreaterThan(0);
     expect(screen.getAllByText('$84.2M').length).toBeGreaterThan(0);
     expect(screen.getByText('Northwest Government Affairs')).toBeInTheDocument();
+  });
+});
+
+
+describe('ClientCrmIntelligenceProto — political giving (item 20, wire-audit)', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+  });
+
+  it('renders the real PAC total and real top recipients instead of the fixture buckets', async () => {
+    mockFootprintApis();
+    renderFootprint();
+
+    await waitFor(() => expect(screen.getByText('$90,000')).toBeInTheDocument());
+    expect(screen.getByText('Dana Whitfield')).toBeInTheDocument();
+    expect(screen.getByText('Luis Reyes')).toBeInTheDocument();
+    // The fixture's invented categories have no equivalent in the data.
+    expect(screen.queryByText('Incumbent members')).not.toBeInTheDocument();
+    expect(screen.queryByText('Leadership PACs')).not.toBeInTheDocument();
+  });
+
+  it('says no committee is mapped rather than rendering an unmapped client as $0', async () => {
+    mockFootprintApis({ fec: { pacGiving: { tracked: false, committees: [] } } });
+    renderFootprint();
+
+    await waitFor(() =>
+      expect(screen.getByText(/No FEC committee is mapped to this client/)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText('$0')).not.toBeInTheDocument();
+    expect(screen.queryByText('Incumbent members')).not.toBeInTheDocument();
+  });
+});
+
+describe('ClientCrmIntelligenceProto — bill board (item 19, wire-audit)', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+  });
+
+  const BOARD = {
+    columns: [
+      {
+        id: 'introduced',
+        label: 'Introduced',
+        count: 1,
+        bills: [
+          {
+            billId: 'b1',
+            displayNum: 'H.R. 5150',
+            title: 'Maritime Uncrewed Logistics Act',
+            stage: 'introduced',
+            probability: 0.62,
+            tags: [],
+            isManual: true,
+            trackedAt: '2026-06-01T00:00:00.000Z',
+            unread: true,
+            change: { tone: 'notable', label: 'Committee action', dot: true },
+            latestActionText: 'Referred to House Armed Services',
+          },
+        ],
+      },
+      { id: 'committee', label: 'In committee', count: 0, bills: [] },
+      { id: 'passed', label: 'Passed chamber', count: 0, bills: [] },
+      { id: 'enacted', label: 'Enacted', count: 0, bills: [] },
+    ],
+    total: 1,
+  };
+
+  function mockBoardApis(board: unknown = BOARD, withheld?: number) {
+    const payload = withheld == null ? board : { ...(board as object), withheld };
+    getMock.mockImplementation((url: string) => {
+      if (url === '/intel-api/feature-flags') return Promise.resolve({ data: {} });
+      if (url === '/api/intelligence/clients/client-1/tracker/board') return Promise.resolve({ data: payload });
+      if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
+        return Promise.resolve({ data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } });
+      }
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+  }
+
+  it('renders real board bills, labelling probability as passage rather than fit', async () => {
+    mockBoardApis();
+    renderLegislative();
+
+    await waitFor(() => expect(screen.getByText('Maritime Uncrewed Logistics Act')).toBeInTheDocument());
+    expect(screen.getByText('H.R. 5150')).toBeInTheDocument();
+    expect(screen.getByText('62% pass')).toBeInTheDocument();
+    expect(screen.getByText('Referred to House Armed Services')).toBeInTheDocument();
+    // The BILLS fixture must not leak through as if real.
+    expect(screen.queryByText('Defense Autonomy Test Range Act')).not.toBeInTheDocument();
+  });
+
+  it('states withheld bills rather than silently bounding the board', async () => {
+    mockBoardApis(BOARD, 7);
+    renderLegislative();
+
+    await waitFor(() => expect(screen.getByText('7 more tracked bills not shown')).toBeInTheDocument());
+  });
+
+  it('shows a real empty state when the board is genuinely empty', async () => {
+    mockBoardApis({ columns: [], total: 0 });
+    renderLegislative();
+
+    await waitFor(() =>
+      expect(screen.getByText("No bills are on this client's board yet.")).toBeInTheDocument(),
+    );
+  });
+});
+
+/* ═══════ wire-audit "3 Compose extend" items 4-6 ═════════════════════════ */
+
+function renderWithRoutes(view: 'legislative' | 'overview' | 'regulatory') {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/clients']}>
+        <Routes>
+          <Route
+            path="/clients"
+            element={
+              <>
+                <ClientCrmIntelligenceProto client={client} view={view} />
+                <LocationProbe />
+              </>
+            }
+          />
+          <Route path="/legiwatch" element={<LocationProbe />} />
+          <Route path="/intelligence/changes" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+describe('ClientCrmIntelligenceProto — Configure (item 4, "3 Compose extend")', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    postMock.mockReset();
+  });
+
+  it('opens the real tracker Configure panel scoped to this client', () => {
+    mockLegislativeApis();
+    renderWithRoutes('legislative');
+
+    fireEvent.click(screen.getByText('Configure'));
+
+    // ?tab=watchlist is the Configure panel on Radar; ?client= scopes it, or
+    // the panel lands on the client picker instead of this client.
+    expect(screen.getByTestId('location')).toHaveTextContent('/legiwatch?tab=watchlist&client=client-1');
+  });
+});
+
+describe('ClientCrmIntelligenceProto — unified feed (item 6, "3 Compose extend")', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    postMock.mockReset();
+  });
+
+  it('opens the changes inbox for this client', () => {
+    getMock.mockImplementation(() => new Promise(() => {}));
+    renderWithRoutes('overview');
+
+    fireEvent.click(screen.getByText('View unified feed'));
+
+    // Same href the API hands out as `links.changesInbox` on profile-v1.
+    expect(screen.getByTestId('location')).toHaveTextContent('/intelligence/changes?clientId=client-1');
+  });
+});
+
+describe('ClientCrmIntelligenceProto — Dismiss (item 5, "3 Compose extend")', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    postMock.mockReset();
+  });
+
+  it('posts the marked_irrelevant feedback signal for the real bill and drops the card', async () => {
+    // The server stops recommending a bill once it is marked irrelevant, so the
+    // refetch that follows the write must return it gone. With a static mock
+    // the card would reappear and the test would only prove the optimistic
+    // update, not that dismissal sticks.
+    let dismissed = false;
+    getMock.mockImplementation((url: string) => {
+      if (url === '/intel-api/feature-flags') return Promise.resolve({ data: {} });
+      if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
+        return Promise.resolve({
+          data: {
+            recommendations: dismissed ? [] : [RECOMMENDATION_BILL],
+            aboveFloorCount: dismissed ? 0 : 1,
+            total: dismissed ? 0 : 1,
+            floor: 0.5,
+          },
+        });
+      }
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    postMock.mockImplementation((url: string) => {
+      if (url.endsWith('/tracker/feedback')) dismissed = true;
+      return Promise.resolve({ data: {} });
+    });
+    renderLegislative();
+
+    await waitFor(() =>
+      expect(screen.getByText('Unmanned Ground Systems Interoperability Act')).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText('Dismiss'));
+
+    // There is no dismiss endpoint — 'marked_irrelevant' feedback IS dismissal
+    // in this product (same call TrackerTab's own dismiss makes).
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith('/api/intelligence/clients/client-1/tracker/feedback', {
+        billId: 'bill-4471',
+        signal: 'marked_irrelevant',
+      }),
+    );
+    // Optimistically removed, so the card does not linger after the click.
+    await waitFor(() =>
+      expect(screen.queryByText('Unmanned Ground Systems Interoperability Act')).not.toBeInTheDocument(),
+    );
+  });
+});
+
+/* ── item 5, Calendar ────────────────────────────────────────────────────── */
+
+const AGGREGATE_WITH_DEADLINES = {
+  client: { id: 'client-1', name: 'Overland AI' },
+  generatedAt: '2026-08-16T00:00:00.000Z',
+  links: {},
+  sections: {
+    legislativeRegulatory: {
+      regulatoryLifecycle: {
+        totalRegulations: 2,
+        rails: [
+          {
+            documentNumber: '2026-17422',
+            // Deliberately absent from portfolio-fixtures.ts.
+            title: 'Unmanned Systems Cyber Baseline; Proposed Rule',
+            agencyNames: ['Department of the Navy'],
+            linkedBills: [],
+            currentStage: 'Comment period open',
+            deadline: '2027-02-11T00:00:00.000Z',
+            stages: [],
+          },
+          {
+            documentNumber: '2026-17999',
+            title: 'Rule with no comment deadline',
+            agencyNames: ['GSA'],
+            linkedBills: [],
+            currentStage: 'Final rule',
+            deadline: null,
+            stages: [],
+          },
+        ],
+      },
+    },
+  },
+};
+
+function mockAggregate(data: unknown) {
+  getMock.mockImplementation((url: string) => {
+    if (url === '/api/intelligence/clients/client-1/profile-v1') return Promise.resolve({ data });
+    return Promise.reject(new Error(`unexpected GET ${url}`));
+  });
+}
+
+describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    postMock.mockReset();
+  });
+
+  it('renders the real comment deadlines instead of the DEADLINES fixture', async () => {
+    mockAggregate(AGGREGATE_WITH_DEADLINES);
+    renderWithRoutes('regulatory');
+
+    await waitFor(() =>
+      expect(screen.getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument(),
+    );
+    // A rail with no deadline is not a deadline — it must not appear on the rail.
+    expect(screen.queryByText('Rule with no comment deadline')).not.toBeInTheDocument();
+    // The fixture's own deadlines must not leak through as if real. Asserted on
+    // the DEADLINES `ask` copy, not its titles: the titles are also in MATTERS,
+    // which the Active matters card still renders as fixture on purpose, so a
+    // title assertion would fail against a card this item never claimed.
+    expect(screen.queryByText('Submit or approve comment strategy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Final rule becomes effective')).not.toBeInTheDocument();
+  });
+
+  it('downloads an .ics built from the real deadlines', async () => {
+    mockAggregate(AGGREGATE_WITH_DEADLINES);
+    const blobs: Blob[] = [];
+    const createUrl = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockImplementation((blob: Blob | MediaSource) => {
+        blobs.push(blob as Blob);
+        return 'blob:ics';
+      });
+    const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    renderWithRoutes('regulatory');
+    await waitFor(() =>
+      expect(screen.getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByText('Calendar'));
+
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    const ics = await blobs[0]!.text();
+    expect(ics).toContain('BEGIN:VCALENDAR');
+    expect(ics).toContain('DTSTART;VALUE=DATE:20270211');
+    // RFC 5545 escaping: the ';' inside the rule title must be escaped, or the
+    // line parses as a property parameter and the event breaks.
+    expect(ics).toContain('SUMMARY:Comment deadline · Unmanned Systems Cyber Baseline\\; Proposed Rule');
+    // One VEVENT — the deadline-less rail contributes nothing.
+    expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(1);
+
+    createUrl.mockRestore();
+    revokeUrl.mockRestore();
+    clickSpy.mockRestore();
+  });
+
+  it('disables Calendar rather than exporting the design fixture', () => {
+    getMock.mockImplementation(() => new Promise(() => {})); // never resolves
+    renderWithRoutes('regulatory');
+
+    // The fixture is on screen for pixel review, but it must never become a
+    // calendar file full of invented events.
+    expect(screen.getByText('Calendar')).toBeDisabled();
   });
 });

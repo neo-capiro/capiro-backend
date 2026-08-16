@@ -18,6 +18,18 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
 vi.mock('../../../lib/me.js', () => ({
   useMe: () => ({ data: { role: 'user_admin' } }),
 }));
+// The shell reads the client's sources for the breadcrumb freshness/gap chip
+// and writes focus tags, so it needs an API client. Mocked the same way the
+// sibling header test does — the real `useApi` pulls in Clerk's `useAuth`,
+// which throws without a ClerkProvider.
+vi.mock('../../../lib/use-api.js', () => ({
+  useApi: () => ({
+    get: () => Promise.resolve({ data: [] }),
+    post: () => Promise.resolve({ data: {} }),
+    put: () => Promise.resolve({ data: {} }),
+    delete: () => Promise.resolve({ data: {} }),
+  }),
+}));
 vi.mock('./tabs/OverviewTab.js', () => ({
   ClientCrmOverviewProto: () => <div data-testid="overview-surface">overview</div>,
 }));

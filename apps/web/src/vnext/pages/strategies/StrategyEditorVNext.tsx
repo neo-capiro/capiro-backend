@@ -5,7 +5,7 @@
  * (firm- or calendar-owned, never editable here); row 5 is the plan.
  *
  *   1  Fiscal window   derived FY headers + month ticks
- *   2  Legislative     calendar service          (toggle: Congress)
+ *   2  Legislative     calendar service          (toggle: "Congress", state key `congress`)
  *   3  PPBE            calendar service          (toggle: PPBE)
  *   4  Firm phases     firm settings             (always on)
  *   5  Watch           agent service, PROPOSED   (toggle: Watch · N)
@@ -41,10 +41,18 @@ import {
 } from './lib/timeline.js';
 import type { FirmPhase, ReferenceRow, StrategyNode } from '../../../pages/strategy/types.js';
 import { StepInspector } from './StepInspector.js';
+import { ScopeBar, type HorizonKey } from './ScopeBar.js';
 import './strategies.css';
 import './strategy-editor.css';
 
-type Horizon = '3fy' | '2fy' | '1fy';
+/**
+ * Timeline column width in px — widens as fewer months are on screen (design
+ * handoff `.dc.html`: `colW = n<=12 ? 92 : n<=24 ? 62 : 46`), so a 12-month
+ * horizon isn't rendered at the same cramped column width as the 36-month one.
+ */
+function monthColumnWidth(monthCount: number): number {
+  return monthCount <= 12 ? 92 : monthCount <= 24 ? 62 : 46;
+}
 
 /** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -56,6 +64,19 @@ const KIND_LABEL: Record<string, string> = {
   decision: 'Decision',
   risk: 'Risk',
 };
+
+// Lane pitch constants (px) for the absolute-positioned timeline rows —
+// literal reference file (`.dc.html` line ~386/393): layer lanes
+// grid-auto-rows:26px/row-gap:6px, step lane grid-auto-rows:72px/row-gap:8px.
+// Both mirror strategies-tokens.css (--st-refbar-h, --st-step-h) — change
+// either only in tandem with its token, never alone, or the CSS grid height
+// and this JS-computed lane offset drift apart and step cards start
+// overlapping/gapping.
+const REF_LANE_H = 26;
+const REF_LANE_GAP = 6;
+const STEP_CARD_H = 72;
+const STEP_LANE_GAP = 8;
+const STEP_LANE_PITCH = STEP_CARD_H + STEP_LANE_GAP;
 
 export function StrategyEditorVNext() {
   const { strategyId } = useParams<{ strategyId: string }>();
@@ -75,16 +96,23 @@ export function StrategyEditorVNext() {
   const members = useTenantMembers();
   const watchCounts = usePendingWatchCounts(true);
 
-  const [horizon, setHorizon] = useState<Horizon>('3fy');
+  const [horizon, setHorizon] = useState<HorizonKey>('3fy');
   const [layers, setLayers] = useState({ congress: true, ppbe: true, watch: true });
 
   const detail = strategy.data ?? null;
   const openStepId = searchParams.get('step');
   const inspectorTab = searchParams.get('tab') === 'meri' ? 'meri' : 'step';
 
+  // Horizon semantics (design handoff 2026-08-16, "Scope bar" section — replaces
+  // the previous FY27–29 / FY28–29 / FY29 set, which this editor owned before
+  // ScopeBar existed): the window always starts at FY27 and only its END moves.
+  //   '3fy' FY27–FY29 (36mo, unchanged)  '2fy' FY27–FY28 (24mo)  '1fy' FY27 only (12mo)
+  // Previously: end was fixed at 2029 and horizon moved the START — '2fy' was
+  // FY28–FY29 and '1fy' was FY29-only. Both '1fy' and '2fy' now resolve to a
+  // different window than before, not just a relabeling.
   const axis = useMemo(() => {
-    const end = 2029;
-    const start = horizon === '1fy' ? 2029 : horizon === '2fy' ? 2028 : 2027;
+    const start = 2027;
+    const end = horizon === '1fy' ? 2027 : horizon === '2fy' ? 2028 : 2029;
     return buildFiscalAxis(start, end);
   }, [horizon]);
 
@@ -165,10 +193,25 @@ export function StrategyEditorVNext() {
   };
 
   return (
-    <div className="st-editor">
-      <div className="st-editor__main">
-        {/* Header (§7.2). */}
-        <header className="st-editor-header">
+    <>
+      {/* Scope bar (design handoff "Layout"/"Scope bar"): sticky above the hero,
+          mounted once per editor view. Client is fixed here (the strategy's own
+          client, not a scope the editor can change); horizon is real and drives
+          `axis` above; status reflects this query's own last-fetch time — never
+          a fabricated "Live". */}
+      <ScopeBar
+        clientLabel="CLIENT"
+        fixedClientName={clientName(clients.data, detail.clientId)}
+        horizon={{ value: horizon, onChange: setHorizon }}
+        status={{ tone: 'success', label: `Live · refreshed ${formatRelativeTime(strategy.dataUpdatedAt)}` }}
+      />
+      <div className="st-editor">
+      <div className="st-editor__col">
+        {/* Header (§7.2) — a full-bleed white hero band, distinct from the
+            gray canvas body below it (design handoff: every view draws these
+            as two separate bands, not one flat page — see `.st-hero` in
+            strategies.css). */}
+        <header className="st-hero st-hero--editor">
           <div className="st-editor-header__left">
             <button
               type="button"
@@ -185,54 +228,66 @@ export function StrategyEditorVNext() {
             </div>
           </div>
           <div className="st-editor-header__right">
-            <div className="st-segmented" role="group" aria-label="Reference layers">
-              <button
-                aria-pressed={layers.ppbe}
-                onClick={() => setLayers((l) => ({ ...l, ppbe: !l.ppbe }))}
-              >
-                PPBE
-              </button>
-              <button
-                aria-pressed={layers.congress}
-                onClick={() => setLayers((l) => ({ ...l, congress: !l.congress }))}
-              >
-                Congress
-              </button>
-              <button
-                aria-pressed={layers.watch}
-                onClick={() => setLayers((l) => ({ ...l, watch: !l.watch }))}
-              >
-                Watch{watchCount > 0 ? ` · ${watchCount}` : ''}
-              </button>
+            {/* Row 1: reference-layer toggles (horizon moved to the ScopeBar above). */}
+            <div className="st-editor-header__row">
+              <span className="st-editor-layers-label">Layers</span>
+              <div className="st-segmented" role="group" aria-label="Reference layers">
+                <button
+                  aria-pressed={layers.ppbe}
+                  onClick={() => setLayers((l) => ({ ...l, ppbe: !l.ppbe }))}
+                >
+                  <span className="st-layer-dot" aria-hidden="true" />
+                  PPBE
+                </button>
+                <button
+                  aria-pressed={layers.congress}
+                  onClick={() => setLayers((l) => ({ ...l, congress: !l.congress }))}
+                >
+                  <span className="st-layer-dot" aria-hidden="true" />
+                  {/* Literal reference (`.dc.html` layerToggles) uses "Congress"
+                      for THIS toggle button specifically, distinct from the
+                      timeline row label below it ("Legislative", `.dc.html`
+                      row config) — the same underlying `congress` layer gets
+                      two different display names in two different places in
+                      the original design. Do not unify them. */}
+                  Congress
+                </button>
+                <button
+                  aria-pressed={layers.watch}
+                  onClick={() => setLayers((l) => ({ ...l, watch: !l.watch }))}
+                >
+                  <span className="st-layer-dot" aria-hidden="true" />
+                  Watch{watchCount > 0 ? ` · ${watchCount}` : ''}
+                </button>
+              </div>
             </div>
-            <CapiroButton onClick={() => navigate(`/strategies/${strategyId}/export`)}>Export</CapiroButton>
-            <CapiroButton onClick={() => navigate(`/strategies/${strategyId}/history`)}>History</CapiroButton>
-            <SaveStamp updatedAt={detail.lastEditedAt} />
-            <CapiroButton
-              variant="primary"
-              onClick={() => openInspector(openStepId ?? detail.nodes[0]?.id ?? '', 'meri')}
-            >
-              Ask Meri
-            </CapiroButton>
+            {/* Row 2: export / history / saved stamp / Ask Meri. */}
+            <div className="st-editor-header__row">
+              <CapiroButton onClick={() => navigate(`/strategies/${strategyId}/export`)}>Export</CapiroButton>
+              <CapiroButton onClick={() => navigate(`/strategies/${strategyId}/history`)}>History</CapiroButton>
+              <SaveStamp updatedAt={detail.lastEditedAt} />
+              <CapiroButton
+                variant="primary"
+                onClick={() => openInspector(openStepId ?? detail.nodes[0]?.id ?? '', 'meri')}
+              >
+                Ask Meri
+              </CapiroButton>
+            </div>
           </div>
         </header>
 
+        <div className="st-editor__main">
         {/* Working timeline (§7.3). */}
         <section className="st-card st-timeline">
           <div className="st-timeline__head">
             <div>
-              <p className="st-section-label" style={{ margin: 0 }}>Working timeline</p>
+              <p className="st-card__title">Working timeline</p>
               <p className="st-timeline__meta">
                 {detail.nodes.length} steps · {referenceLayerCount} reference layers · centered on today
               </p>
             </div>
             <div className="st-actions">
               <PlanHealthChip detail={detail} onReview={() => navigate('/strategies/agents/proposals')} />
-              <div className="st-segmented" role="group" aria-label="Horizon">
-                <button aria-pressed={horizon === '3fy'} onClick={() => setHorizon('3fy')}>FY27–FY29</button>
-                <button aria-pressed={horizon === '2fy'} onClick={() => setHorizon('2fy')}>FY28–FY29</button>
-                <button aria-pressed={horizon === '1fy'} onClick={() => setHorizon('1fy')}>FY29</button>
-              </div>
               <CapiroButton variant="secondary" onClick={() => navigate('/strategies/phases')}>Firm phases</CapiroButton>
               <CapiroButton variant="primary" onClick={() => openInspector('__new__')}>Add step</CapiroButton>
             </div>
@@ -258,6 +313,7 @@ export function StrategyEditorVNext() {
           <NextThirtyDays detail={detail} members={members.data} onOpen={(id) => openInspector(id)} />
           <PlanHealthCard detail={detail} onReview={() => navigate('/strategies/agents/proposals')} />
         </div>
+        </div>
       </div>
 
       {openStep || openStepId === '__new__' ? (
@@ -269,11 +325,23 @@ export function StrategyEditorVNext() {
           onClose={closeInspector}
         />
       ) : null}
-    </div>
+      </div>
+    </>
   );
 }
 
 /* ------------------------------------------------------------------ pieces */
+
+/**
+ * "Live · refreshed N min ago" (ScopeBar status, design handoff "Scope bar"):
+ * grounded in this query's own `dataUpdatedAt` (react-query's last-successful-
+ * fetch timestamp) — real client-observed freshness, not a fabricated pulse.
+ */
+function formatRelativeTime(updatedAtMs: number): string {
+  const mins = Math.max(0, Math.round((Date.now() - updatedAtMs) / 60000));
+  if (mins < 1) return 'just now';
+  return `${mins} min ago`;
+}
 
 function SaveStamp({ updatedAt }: { updatedAt: string | null }) {
   // Honest persistence state (§7.2): reflect the last server write. There is no
@@ -422,21 +490,42 @@ function Timeline({
     return years;
   }, [axis]);
 
+  // Gutter label for the fiscal-window row (design handoff `.dc.html`
+  // HORIZON_LABEL: '3-FY window' | 'FY27 window' | 'FY27–FY28 window'),
+  // derived from the axis itself rather than duplicating HorizonKey here.
+  const fyShort = (fy: number) => `FY${String(fy).slice(2)}`;
+  const windowLabel =
+    axis.startFy === axis.endFy
+      ? `${fyShort(axis.startFy)} window`
+      : axis.endFy - axis.startFy === 1
+        ? `${fyShort(axis.startFy)}–${fyShort(axis.endFy)} window`
+        : '3-FY window';
+
   return (
     <div className="st-tl" role="group" aria-label="Strategy timeline">
       {/* The canvas is sized from the real cell count so the month ruler, the FY
           header row and every percentage-positioned bar share one scale — see
-          the .st-tl__grid note in strategy-editor.css. */}
+          the .st-tl__grid note in strategy-editor.css. Column width widens as
+          the horizon narrows (design handoff colW: 92/62/46px at <=12/<=24/<=36
+          months) so a 1FY window isn't rendered at 36-month density. */}
       <div
         className="st-tl__grid"
-        style={{ '--st-tl-months': axis.cells.length } as React.CSSProperties}
+        style={
+          {
+            '--st-tl-months': axis.cells.length,
+            '--st-tl-month-w': `${monthColumnWidth(axis.cells.length)}px`,
+          } as React.CSSProperties
+        }
       >
         {/* Row 1: fiscal window headers + month ticks. */}
-        <TimelineRow label="3-FY window">
+        <TimelineRow label={windowLabel} className="st-tl-row--header">
           <div className="st-tl-fy">
             {showToday ? (
               <span className="st-tl-today" style={{ left: `${todayPos}%` }}>
-                <span className="st-tl-today__pill">Today</span>
+                <span className="st-tl-today__pill">
+                  <span className="st-tl-today__dot" aria-hidden="true" />
+                  Today
+                </span>
               </span>
             ) : null}
             {fiscalYears.map((y) => (
@@ -533,8 +622,14 @@ function ReferenceBars({
   if (laned.length === 0) {
     return <div className="st-tl-empty">No {kind === 'congress' ? 'legislative' : 'PPBE'} marks in range.</div>;
   }
+  // Layer-lane pitch (design handoff "Working timeline": grid-auto-rows:26px,
+  // row-gap:6px) — matches --st-refbar-h (26px, strategies-tokens.css) + the
+  // spec's 6px row-gap. Container height follows the same `.dc.html` formula
+  // (16 + lanes*26 + (lanes-1)*6) so multi-lane rows don't clip/overlap the
+  // next reference row.
+  const lanes = Math.max(1, laneCount(laned));
   return (
-    <div className="st-tl-bars">
+    <div className="st-tl-bars" style={{ minHeight: 16 + lanes * REF_LANE_H + (lanes - 1) * REF_LANE_GAP }}>
       {laned.map(({ item, lane }) => {
         const g = barGeometry(axis, item.startIso, item.endIso);
         if (!g) return null;
@@ -546,7 +641,7 @@ function ReferenceBars({
             key={item.id}
             type="button"
             className={`st-tl-refbar st-tl-refbar--${kind}${active ? ' st-tl-refbar--active' : ''}`}
-            style={{ left: `${g.left}%`, width: `${g.width}%`, top: lane * 30 }}
+            style={{ left: `${g.left}%`, width: `${g.width}%`, top: lane * (REF_LANE_H + REF_LANE_GAP) }}
             title={item.row.label}
             aria-label={`${item.row.label} (reference)`}
           >
@@ -631,7 +726,7 @@ function StepBars({
   const laned = assignLanes(items);
   const lanes = Math.max(1, laneCount(laned));
   return (
-    <div className="st-tl-steps" style={{ minHeight: lanes * 96 }}>
+    <div className="st-tl-steps" style={{ minHeight: lanes * STEP_LANE_PITCH }}>
       {laned.map(({ item, lane }) => {
         const node = item.node;
         const g = barGeometry(axis, node.startsOn, node.endsOn ?? node.startsOn);
@@ -643,8 +738,9 @@ function StepBars({
             key={node.id}
             type="button"
             className={`st-step st-step--${node.kind}${selected ? ' st-step--selected' : ''}`}
-            style={{ left: `${g.left}%`, width: `${Math.max(g.width, 9)}%`, top: lane * 96 }}
+            style={{ left: `${g.left}%`, width: `${Math.max(g.width, 9)}%`, top: lane * STEP_LANE_PITCH }}
             onClick={() => onStepClick(node.id)}
+            title={node.title}
             aria-label={`${KIND_LABEL[node.kind] ?? node.kind}: ${node.title}`}
             aria-pressed={selected}
           >

@@ -85,7 +85,7 @@ export function ExportOverlay() {
             : 'The strategy title could not be loaded — the export still works.'
       }
       closeTo={`/strategies/${strategyId ?? ''}`}
-      size="lg"
+      maxWidth={980}
       primaryLabel={downloading ? 'Preparing…' : 'Download markdown'}
       onPrimary={download}
       primaryDisabled={!strategyId || downloading}
@@ -157,26 +157,7 @@ export function ExportOverlay() {
       </div>
 
       <div className="st-cols" style={{ marginTop: 20 }}>
-        <div>
-          <p className="st-panel__label">Preview</p>
-          <div className="st-preview-page" aria-hidden="true">
-            <div className="st-preview-block st-preview-block--hero" />
-            <div className="st-preview-block" />
-            <div className="st-preview-block st-preview-block--wide" />
-            <div className="st-preview-row">
-              <div className="st-preview-block" />
-              <div className="st-preview-block" />
-              <div className="st-preview-block" />
-            </div>
-            <div className="st-preview-block" />
-          </div>
-          <div className="st-preview-meta">
-            <span>Markdown · current plan</span>
-            <span className="st-mono">{filename.endsWith('.md') ? filename : `${filename}.md`}</span>
-          </div>
-        </div>
-
-        <aside>
+        <div style={{ minWidth: 0 }}>
           <p className="st-panel__label">Contents</p>
           <div className="st-field-stack">
             <div className="st-toggle-row">
@@ -211,6 +192,25 @@ export function ExportOverlay() {
                 <CapiroSkeleton height={14} width="70%" />
               </div>
             ) : null}
+          </div>
+        </div>
+
+        <aside className="st-dark-panel" style={{ minWidth: 0 }}>
+          <p className="st-dark-panel__label">Client-ready preview</p>
+          <div className="st-preview-page" aria-hidden="true" style={{ marginTop: 12 }}>
+            <div className="st-preview-block--logo" />
+            <div className="st-preview-block--line" />
+            <div className="st-preview-block--line-short" />
+            <div className="st-preview-row">
+              <div className="st-preview-block" />
+              <div className="st-preview-block" />
+              <div className="st-preview-block" />
+            </div>
+            <div className="st-preview-block st-preview-block--wide" />
+          </div>
+          <div className="st-preview-meta">
+            <span>Markdown · current plan</span>
+            <span className="st-mono">{filename.endsWith('.md') ? filename : `${filename}.md`}</span>
           </div>
         </aside>
       </div>

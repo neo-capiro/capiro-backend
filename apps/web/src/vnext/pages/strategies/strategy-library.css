@@ -1,6 +1,6 @@
 /* Strategy library (§7.1). */
 
-.capiro-vnext-root .capiro-strategies .st-library-phases { margin-bottom: 24px; }
+.capiro-vnext-root .capiro-strategies .st-library-phases { margin: 0; }
 .capiro-vnext-root .capiro-strategies .st-library-phases__row {
   display: flex;
   align-items: center;
@@ -10,28 +10,62 @@
 }
 .capiro-vnext-root .capiro-strategies .st-library-phases--setup { box-shadow: 0 0 0 1px var(--st-warning-ring), var(--st-shadow-card); }
 
+/* 40px icon tile (design handoff, "View: Strategy library" — LayersThree01 on
+   the accent tint). Flex:none so it never shrinks when the row wraps. */
+.capiro-vnext-root .capiro-strategies .st-library-phases__icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--st-accent-tint);
+  color: var(--st-accent);
+}
+.capiro-vnext-root .capiro-strategies .st-library-phases__text { flex: 1; min-width: 220px; }
+
+.capiro-vnext-root .capiro-strategies .st-library-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--st-gray-200);
+  flex: none;
+}
+.capiro-vnext-root .capiro-strategies .st-library-sortlabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-gray-500);
+  white-space: nowrap;
+}
+
 .capiro-vnext-root .capiro-strategies .st-library-listhead {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px 16px;
-  margin: 8px 0 12px;
   min-width: 0;
 }
 
 /*
  * The card was `overflow: hidden`, which turned this table's overflow into an
  * unreachable clip: at 390px the table's ~700px of min-content left Owner,
- * Updated and the open chevron cut off with no way to get to them. Make the
- * card an explicit horizontal scroller instead. overflow-y stays hidden so the
- * card's radius still clips the row hover fill; a table cannot be crushed below
- * its min-content, so the min-width simply holds the intended column widths
- * rather than letting five columns concertina into wrapped fragments. There is
- * no sticky content inside this card, so promoting it to a scroll container
- * re-anchors nothing.
+ * Updated and the open chevron cut off with no way to get to them. The scroll
+ * behaviour now lives on `.st-library-tablescroll`, an inner wrapper around
+ * ONLY the `<table>` — the footer added below it (result count + "Clear
+ * filters") is a sibling outside that wrapper so it stays put rather than
+ * scrolling out of view with the table. The outer card keeps `overflow:
+ * hidden` purely so its radius still clips the header row's flush top
+ * corners and the row hover fill; a table cannot be crushed below its
+ * min-content, so the min-width simply holds the intended column widths
+ * rather than letting five columns concertina into wrapped fragments.
  */
 .capiro-vnext-root .capiro-strategies .st-library-tablecard {
+  overflow: hidden;
+}
+.capiro-vnext-root .capiro-strategies .st-library-tablescroll {
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
@@ -50,15 +84,62 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--st-gray-500);
-  padding: 14px 20px;
+  padding: 14px 24px;
+  background: var(--st-gray-50);
+  border-top: 1px solid var(--st-gray-200);
   border-bottom: 1px solid var(--st-gray-200);
 }
 .capiro-vnext-root .capiro-strategies .st-library-table tbody td {
-  padding: 16px 20px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--st-gray-100);
   vertical-align: middle;
 }
 .capiro-vnext-root .capiro-strategies .st-library-table tbody tr:last-child td { border-bottom: none; }
+
+/* Column geometry (design handoff, "View: Strategy library" table spec):
+   client/strategy flexes, the rest hold fixed widths. */
+.capiro-vnext-root .capiro-strategies .st-library-table th:nth-child(2),
+.capiro-vnext-root .capiro-strategies .st-library-table td:nth-child(2) { width: 210px; }
+.capiro-vnext-root .capiro-strategies .st-library-table th:nth-child(3),
+.capiro-vnext-root .capiro-strategies .st-library-table td:nth-child(3) { width: 150px; }
+.capiro-vnext-root .capiro-strategies .st-library-table th:nth-child(4),
+.capiro-vnext-root .capiro-strategies .st-library-table td:nth-child(4) { width: 190px; }
+.capiro-vnext-root .capiro-strategies .st-library-table th:nth-child(5),
+.capiro-vnext-root .capiro-strategies .st-library-table td:nth-child(5) { width: 20px; }
+
+/* Filtered-to-empty row (owner filter narrowed the set to zero) — distinct
+   from the "no strategies at all" CapiroEmptyState rendered above the card. */
+.capiro-vnext-root .capiro-strategies .st-library-emptyrow td {
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--st-gray-500);
+  font-size: 14px;
+}
+
+/* Table footer — result count + "Clear filters" link, per the handoff's
+   "Footer carries the result count and a Clear filters link when filtered
+   to empty." */
+.capiro-vnext-root .capiro-strategies .st-library-tablefoot {
+  display: flex;
+  align-items: center;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  padding: 14px 24px;
+  border-top: 1px solid var(--st-gray-200);
+}
+.capiro-vnext-root .capiro-strategies .st-library-tablefoot .st-purpose { margin: 0; flex: 1; min-width: 0; }
+.capiro-vnext-root .capiro-strategies .st-library-clearlink {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--st-accent);
+  cursor: pointer;
+  padding: 0;
+  flex: none;
+}
+.capiro-vnext-root .capiro-strategies .st-library-clearlink:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
 
 .capiro-vnext-root .capiro-strategies .st-library-row { cursor: pointer; }
 .capiro-vnext-root .capiro-strategies .st-library-row:hover { background: var(--st-gray-50); }

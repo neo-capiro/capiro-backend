@@ -49,10 +49,11 @@ import type {
   ChangeSet,
   ChangeSetRisk,
   ChangeSetStatus,
+  NodeKind,
   RunFinding,
   StrategyNode,
 } from '../../../../pages/strategy/types.js';
-import { fmtRelative, isForbidden, shortId, StaleNote, staleOrError } from './agents-shared.js';
+import { BannerGovernanceGlyph, fmtRelative, isForbidden, shortId, StaleNote, staleOrError } from './agents-shared.js';
 
 /** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -74,6 +75,25 @@ const RISK_PILL: Record<ChangeSetRisk, { label: string; tone: string }> = {
   critical: { label: 'Critical risk', tone: 'st-pill--error' },
 };
 
+/*
+ * Operation kind pill (design handoff "Step-kind table" — Action/brand,
+ * Gate/gray, Milestone/purple, Risk/error; Decision keeps its own
+ * accent-focus shade per strategies-tokens.css). Reuses the shared pill tone
+ * classes (`.st-pill--purple` etc. — strategies.css) already wired to the
+ * `--st-kind-*` / `--st-purple-*` tokens; no literal color here. Shown only
+ * when the op itself carries a real `kind` (an add, or an update that
+ * changes it) — a plain remove/retime with no kind is never given a
+ * fabricated one.
+ */
+const KIND_PILL: Record<NodeKind, { label: string; tone: string }> = {
+  action: { label: 'Action', tone: 'st-pill--accent' },
+  gate: { label: 'Gate', tone: '' },
+  milestone: { label: 'Milestone', tone: 'st-pill--purple' },
+  risk: { label: 'Risk', tone: 'st-pill--error' },
+  decision: { label: 'Decision', tone: 'st-agents__op-kind--decision' },
+};
+const NODE_KINDS = new Set<string>(['action', 'gate', 'milestone', 'risk', 'decision']);
+
 function StatusPill({ status }: { status: ChangeSetStatus }) {
   const meta = CS_PILL[status] ?? { label: status, tone: '' };
   return <span className={`st-pill ${meta.tone}`.trim()}>{meta.label}</span>;
@@ -82,6 +102,12 @@ function StatusPill({ status }: { status: ChangeSetStatus }) {
 function RiskPill({ risk }: { risk: ChangeSetRisk }) {
   const meta = RISK_PILL[risk] ?? RISK_PILL.critical;
   return <span className={`st-pill ${meta.tone}`.trim()}>{meta.label}</span>;
+}
+
+function OpKindPill({ kind }: { kind: string | undefined }) {
+  if (!kind || !NODE_KINDS.has(kind)) return null;
+  const meta = KIND_PILL[kind as NodeKind];
+  return <span className={`st-pill st-mono st-agents__op-kind ${meta.tone}`.trim()}>{meta.label}</span>;
 }
 
 /** §7.8 rail breakdown: counts by op verb over the selected ops. */
@@ -143,7 +169,10 @@ export function ProposalsQueue() {
   return (
     <div className="st-agents">
       {/* Policy copy — do not reword (§7.8, BUILD-CONTRACT). */}
-      <div className="st-dark-banner">
+      <div className="st-dark-banner st-dark-banner--agents">
+        <span className="st-dark-banner__icon" aria-hidden="true">
+          <BannerGovernanceGlyph />
+        </span>
         <div>
           <p className="st-dark-banner__title">Human approval is the control plane.</p>
           <p className="st-dark-banner__sub">
@@ -177,10 +206,18 @@ export function ProposalsQueue() {
 
       {/* ---- Awaiting review ------------------------------------------------- */}
       <div className="st-agents__section">
-        <div className="st-agents__section-head">
+        {/* Design handoff — label stacked above a real summary line ("N
+            change-sets awaiting review across M strategies"), not the small
+            inline mono count this used to show; both numbers are the same
+            already-fetched real data (openCount / groups.length), never a
+            fabricated total. */}
+        <div className="st-agents__section-head st-agents__section-head--stack">
           <h2 className="st-section-label">Awaiting review</h2>
           {!queueLoading && queueState === null && (
-            <span className="st-mono st-agents__count">{openCount} open</span>
+            <span className="st-agents__section-summary">
+              {openCount} change-set{openCount === 1 ? '' : 's'} awaiting review across{' '}
+              {groups.length} strateg{groups.length === 1 ? 'y' : 'ies'}
+            </span>
           )}
         </div>
 
@@ -341,11 +378,11 @@ function FirmChecks({ runs }: { runs: ReturnType<typeof useFirmReviewRuns> }) {
           description="Calendar baseline, firm phase model and outreach guardrail checks land here when a firm review run needs attention."
         />
       ) : (
-        <div className="st-agents__list">
+        <div className="st-agents__list st-agents__firm-list">
           {rows.map((run) => {
             const findings = extractRunFindings(run.findings);
             return (
-              <div key={run.id} className="st-card">
+              <div key={run.id} className="st-card st-agents__firm-card">
                 <div className="st-card__body">
                   <div className="st-agents__card-head">
                     <RiskPill risk={runRiskLevel(run.findings)} />
@@ -533,153 +570,191 @@ function ChangeSetCard({
     );
   };
 
+  /*
+   * Awaiting-review layout (design handoff "Review queue tab" — 1fr/340px):
+   * the change-set + operation list on the left, a dedicated review panel on
+   * the right carrying the selected-operation count, the (real, derived —
+   * never a fabricated plan-health delta, §8.7 GAP) change breakdown, and the
+   * action row. Two SIBLING `.st-card`s in a grid, matching the reference's
+   * own two-card split (not one card internally divided).
+   */
   return (
-    <div className="st-card">
-      <div className="st-card__body">
-        <div className="st-agents__card-head">
-          <RiskPill risk={cs.risk} />
-          <StatusPill status={cs.status} />
-          {cs.createdByUserId === null && <span className="st-pill">Watcher</span>}
-          <span className="st-agents__spacer" />
-          <span className="st-agents__meta">
-            base revision{' '}
-            <span className="st-mono" title={cs.strategyVersionId}>
-              {shortId(cs.strategyVersionId)}
+    <div className="st-agents__cs-grid">
+      <div className="st-card st-agents__cs-main">
+        <div className="st-card__body">
+          <div className="st-agents__card-head">
+            <RiskPill risk={cs.risk} />
+            <StatusPill status={cs.status} />
+            {cs.createdByUserId === null && <span className="st-pill">Watcher</span>}
+            <span className="st-agents__spacer" />
+            <span className="st-agents__meta">
+              base revision{' '}
+              <span className="st-mono" title={cs.strategyVersionId}>
+                {shortId(cs.strategyVersionId)}
+              </span>
+              {' · '}
+              {fmtRelative(cs.createdAt)}
             </span>
-            {' · '}
-            {fmtRelative(cs.createdAt)}
-          </span>
-        </div>
+          </div>
 
-        <p className="st-agents__summary">{cs.summary || 'Untitled change-set'}</p>
+          <p className="st-agents__summary">{cs.summary || 'Untitled change-set'}</p>
 
-        {/* ---- operations (read-only diff; checkboxes only while proposed) -- */}
-        <div className="st-agents__ops">
-          {diffs.length === 0 && <span className="st-agents__meta">No operations on this change-set.</span>}
-          {diffs.map((d, i) => (
-            <div key={i} className="st-agents__op">
-              {isProposed ? (
-                /* The label carries the mobile touch target (agents.css); the
-                   input keeps its own aria-label, and the label has no text of
-                   its own, so the accessible name is unchanged. */
-                <label className="st-agents__op-checkbox">
-                  <input
-                    type="checkbox"
-                    className="st-agents__op-check"
-                    checked={selected.has(i)}
-                    disabled={busy}
-                    onChange={() => toggleOp(i)}
-                    aria-label={`Select change ${i + 1}: ${d.verb} ${d.nodeTitle}`}
-                  />
-                </label>
-              ) : (
-                <span className="st-agents__op-check-spacer" aria-hidden="true" />
-              )}
-              <div className="st-agents__op-body">
-                <span className="st-agents__op-title">
-                  <span className="st-mono st-agents__op-verb">{d.verb}</span> {d.nodeTitle}
-                  {d.unknownNode && (
-                    <span className="st-agents__op-moved"> (step no longer in the plan)</span>
-                  )}
-                </span>
-                {d.changes.length > 0 && (
-                  <span className="st-agents__diffs">
-                    {d.changes.map((c, j) => (
-                      <span key={j} className="st-mono st-agents__diff">
-                        {c.field}:{' '}
-                        {c.before !== null && (
-                          <>
-                            <s>{c.before}</s>
-                            {' → '}
-                          </>
-                        )}
-                        <b>{c.after}</b>
-                      </span>
-                    ))}
+          {/* ---- operations (read-only diff; checkboxes only while proposed) -- */}
+          <div className="st-agents__ops">
+            {diffs.length === 0 && <span className="st-agents__meta">No operations on this change-set.</span>}
+            {diffs.map((d, i) => (
+              <div key={i} className="st-agents__op">
+                {isProposed ? (
+                  /* The label carries the mobile touch target (agents.css); the
+                     input keeps its own aria-label, and the label has no text of
+                     its own, so the accessible name is unchanged. */
+                  <label className="st-agents__op-checkbox">
+                    <input
+                      type="checkbox"
+                      className="st-agents__op-check"
+                      checked={selected.has(i)}
+                      disabled={busy}
+                      onChange={() => toggleOp(i)}
+                      aria-label={`Select change ${i + 1}: ${d.verb} ${d.nodeTitle}`}
+                    />
+                  </label>
+                ) : (
+                  <span className="st-agents__op-check-spacer" aria-hidden="true" />
+                )}
+                <div className="st-agents__op-body">
+                  <span className="st-agents__op-title">
+                    <OpKindPill kind={displayOps[i]?.kind} />
+                    <span className="st-mono st-agents__op-verb">{d.verb}</span> {d.nodeTitle}
+                    {d.unknownNode && (
+                      <span className="st-agents__op-moved"> (step no longer in the plan)</span>
+                    )}
                   </span>
-                )}
+                  {d.changes.length > 0 && (
+                    <span className="st-agents__diffs">
+                      {d.changes.map((c, j) => (
+                        <span key={j} className="st-mono st-agents__diff">
+                          {c.field}:{' '}
+                          {c.before !== null && (
+                            <>
+                              <s>{c.before}</s>
+                              {' → '}
+                            </>
+                          )}
+                          <b>{c.after}</b>
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {actionError && (
-          <div className="st-agents__error-box" role="alert">
-            {actionError}
+            ))}
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* ---- selected-operations rail (§7.8) ------------------------------ */}
-        <div className="st-agents__rail">
-          <div className="st-agents__rail-meta">
-            {isProposed ? (
-              <>
-                <span className="st-agents__rail-count">
-                  {selected.size} of {cs.ops.length} selected
-                </span>
-                {selected.size > 0 && (
-                  /*
-                   * Change breakdown is derived from the selected ops. A plan-
-                   * health DELTA is not server-computed (§8.7 GAP — no scalar
-                   * exists pre-apply) and is never synthesised here (rule 8).
-                   */
-                  <span className="st-agents__meta">{changeBreakdown(selectedDiffs)}</span>
-                )}
-              </>
-            ) : (
-              <>
-                <span className="st-agents__rail-count">
-                  {displayOps.length} approved change{displayOps.length === 1 ? '' : 's'} staged
-                </span>
-                {displayOps.length > 0 && (
-                  <span className="st-agents__meta">{changeBreakdown(diffs)}</span>
-                )}
-              </>
-            )}
-            <span className="st-agents__undo-note">
-              Applying cuts one new revision. Every applied set is undoable — undo restores the
-              pre-apply plan as another revision.
+      {/* ---- review panel (§7.8) ------------------------------------------- */}
+      <div className="st-card st-agents__cs-panel">
+        <div className="st-card__body">
+          <div>
+            <span className="st-section-label">Selected operations</span>
+            <span className="st-agents__cs-panel-count">
+              {isProposed ? selected.size : displayOps.length}
+            </span>
+            {/* Static product copy from the design handoff — not reworded. */}
+            <span className="st-agents__cs-panel-note">
+              Reviewing only changes that preserve source grounding and external-send controls.
             </span>
           </div>
-          <div className="st-agents__rail-actions">
+
+          <div className="st-agents__cs-panel-well">
+            <span className="st-section-label">Operations</span>
+            {isProposed ? (
+              selected.size > 0 ? (
+                /*
+                 * Change breakdown is derived from the selected ops. A plan-
+                 * health DELTA is not server-computed (§8.7 GAP — no scalar
+                 * exists pre-apply) and is never synthesised here (rule 8).
+                 */
+                <span className="st-agents__meta">{changeBreakdown(selectedDiffs)}</span>
+              ) : (
+                <span className="st-agents__meta">
+                  Select at least one change to approve — or reject the set.
+                </span>
+              )
+            ) : displayOps.length > 0 ? (
+              <span className="st-agents__meta">
+                {displayOps.length} approved change{displayOps.length === 1 ? '' : 's'} staged —{' '}
+                {changeBreakdown(diffs)}
+              </span>
+            ) : (
+              <span className="st-agents__meta">No operations approved.</span>
+            )}
+          </div>
+
+          {actionError && (
+            <div className="st-agents__error-box" role="alert">
+              {actionError}
+            </div>
+          )}
+
+          <div className="st-agents__cs-panel-actions">
             <CapiroButton size="compact" disabled={busy} onClick={() => setConfirm('reject')}>
               Reject set
             </CapiroButton>
-            {isProposed ? (
+            {/*
+             * Split button (design handoff — "one 8px-radius group with a
+             * rgba(255,255,255,.16) divider"): purely a visual grouping of the
+             * two EXISTING, separate mutations. Approve stays gated on a
+             * proposed status + a non-empty selection; Apply stays gated on an
+             * approved status — never both live at once, so exactly one side
+             * of the pair is ever enabled (hard rule 2: approve ≠ apply).
+             */}
+            <span className="st-agents__split">
               <CapiroButton
                 variant="primary"
                 size="compact"
-                disabled={busy || selected.size === 0}
+                className="st-agents__split-btn"
+                disabled={busy || !isProposed || selected.size === 0}
                 title={
-                  selected.size === 0
-                    ? 'Select at least one change to approve — or reject the set.'
-                    : undefined
+                  !isProposed
+                    ? 'Already approved.'
+                    : selected.size === 0
+                      ? 'Select at least one change to approve — or reject the set.'
+                      : undefined
                 }
                 onClick={onApprove}
               >
                 {approve.isPending
                   ? 'Approving…'
-                  : selected.size === cs.ops.length
-                    ? 'Approve'
-                    : `Approve ${selected.size} of ${cs.ops.length}`}
+                  : !isProposed
+                    ? 'Approved'
+                    : selected.size === cs.ops.length
+                      ? 'Approve'
+                      : `Approve ${selected.size} of ${cs.ops.length}`}
               </CapiroButton>
-            ) : (
+              <span className="st-agents__split-divider" aria-hidden="true" />
               <CapiroButton
                 variant="primary"
                 size="compact"
-                disabled={busy || displayOps.length === 0}
+                className="st-agents__split-btn"
+                disabled={busy || isProposed || displayOps.length === 0}
+                title={isProposed ? 'Approve the change-set before applying it.' : undefined}
                 onClick={onApply}
               >
                 {apply.isPending ? 'Applying…' : `Apply ${displayOps.length} change${displayOps.length === 1 ? '' : 's'}`}
               </CapiroButton>
-            )}
+            </span>
           </div>
+          <span className="st-agents__undo-note">
+            Applying cuts one new revision. Every applied set is undoable — undo restores the
+            pre-apply plan as another revision.
+          </span>
+          {isProposed && selected.size === 0 && (
+            <p className="st-agents__meta st-agents__rail-hint">
+              Select at least one change to approve — or reject the set.
+            </p>
+          )}
         </div>
-        {isProposed && selected.size === 0 && (
-          <p className="st-agents__meta st-agents__rail-hint">
-            Select at least one change to approve — or reject the set.
-          </p>
-        )}
       </div>
 
       {/* Reject confirm — rejection is recorded (§11 rule 10); no plan touch. */}

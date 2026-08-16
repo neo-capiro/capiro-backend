@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useApi } from '../../../lib/use-api.js';
 import { UIcon, PfButton, GRADIENT_DARK, GRADIENT_DARK_HOVER, PILL } from './portfolio-primitives.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
+import { openMeriWorkspaceWithContext } from '../../../components/chat/meri-window.js';
 import { CRM_TAB_LABELS, type CrmSurface, type CrmView } from './client-crm-routing.js';
 
 /**
@@ -43,6 +46,19 @@ export interface ProfileShellProps {
   syncLabel?: string;
   onSync?: () => void;
   profileGapCount?: number;
+  /**
+   * Item 11: how fresh the client's sources on screen are, already phrased
+   * ("4 minutes ago"). Null while nothing has loaded — the label then says so
+   * instead of asserting a freshness nobody measured.
+   */
+  refreshedLabel?: string | null;
+  /** Sources that could not be read at all; the dot stops claiming health. */
+  sourceFailures?: number;
+  /** Item 9: archive is gated at standard_user on the API. */
+  canArchive?: boolean;
+  onArchive?: () => void;
+  /** Item 10: the client PUT behind a focus tag is gated at user_admin. */
+  canEditFocus?: boolean;
   /** Rendered tab body. */
   children: ReactNode;
 }
@@ -66,6 +82,11 @@ export function ClientProfileShell({
   syncLabel = 'Sync',
   onSync,
   profileGapCount = 0,
+  refreshedLabel = null,
+  sourceFailures = 0,
+  canArchive = false,
+  onArchive,
+  canEditFocus = false,
   children,
 }: ProfileShellProps) {
   const chips = focusChipsFor(client);
@@ -113,9 +134,26 @@ export function ClientProfileShell({
           {client.name}
         </span>
         <span style={{ flex: 1 }} />
+        {/* Item 11: real freshness. The green pulse is a health claim, so it
+            only shows when every source answered — a failing source turns the
+            dot amber and the copy says what happened instead of a stale time.
+            This measures when the app last fetched, which is what "refreshed"
+            means here; no per-client ingestion timestamp exists to read. */}
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#475467', whiteSpace: 'nowrap' }}>
-          <span className="cap-pf-anim-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: '#12B76A' }} />
-          Intel refreshed 2h ago
+          <span
+            className={sourceFailures === 0 ? 'cap-pf-anim-pulse' : undefined}
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: '50%',
+              background: sourceFailures > 0 ? '#F79009' : refreshedLabel ? '#12B76A' : '#98A2B3',
+            }}
+          />
+          {sourceFailures > 0
+            ? `${sourceFailures} source${sourceFailures === 1 ? '' : 's'} unavailable`
+            : refreshedLabel
+              ? `Sources read ${refreshedLabel}`
+              : 'Reading sources…'}
         </span>
         <span style={{ color: '#D0D5DD' }}>·</span>
         {profileGapCount > 0 ? (
@@ -204,7 +242,7 @@ export function ClientProfileShell({
                   {chip}
                 </span>
               ))}
-              <AddFocusButton />
+              {canEditFocus ? <AddFocusButton client={client} existing={chips} /> : null}
             </div>
           </div>
 
@@ -217,7 +255,7 @@ export function ClientProfileShell({
               <span style={{ fontSize: 14, fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>Sarah Martinez</span>
             </span>
             <FillButton busy={fillBusy} label={fillLabel} onClick={onFillWithMeri} />
-            <OverflowMenu client={client} onDataHealth={onDataHealth} />
+            <OverflowMenu client={client} onDataHealth={onDataHealth} canArchive={canArchive} onArchive={onArchive} />
           </div>
         </div>
 
@@ -263,31 +301,142 @@ function CrumbButton({ label, strong = false, onClick }: { label: string; strong
   );
 }
 
-function AddFocusButton() {
+/**
+ * Item 10 (wire-audit "3 Compose extend"): add a focus tag for real.
+ *
+ * Focus chips read `intakeData.portfolio` + `intakeData.tags`; new ones are
+ * written to `tags`, since `portfolio` is the strategy/programme a client sits
+ * in rather than a free-form label. **`PUT /api/clients/:id` REPLACES the whole
+ * `intakeData` blob** (`intakeData: input.intakeData ?? {}` in the service), so
+ * this sends the existing blob back with `tags` extended — never `{tags}`
+ * alone, which would silently wipe every other intake field.
+ *
+ * The API gates that PUT at `user_admin`, so the button only renders for users
+ * who can actually save; showing an input that always 403s would be worse than
+ * not showing it.
+ */
+function AddFocusButton({ client, existing }: { client: Client; existing: string[] }) {
+  const api = useApi();
+  const qc = useQueryClient();
   const [hover, setHover] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState('');
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
+  const save = useMutation({
+    mutationFn: async (tag: string) => {
+      const intake = (client.intakeData ?? {}) as Record<string, unknown>;
+      const tags = Array.isArray(intake.tags) ? (intake.tags as unknown[]).map(String) : [];
+      return (
+        await api.put<Client>(`/api/clients/${client.id}`, {
+          intakeData: { ...intake, tags: [...tags, tag] },
+        })
+      ).data;
+    },
+    onSuccess: (updated) => {
+      qc.setQueryData(['client', client.id], updated);
+      void qc.invalidateQueries({ queryKey: ['clients'] });
+      void qc.invalidateQueries({ queryKey: ['client', client.id] });
+      setValue('');
+      setOpen(false);
+    },
+  });
+
+  const trimmed = value.trim();
+  const duplicate = existing.some((chip) => chip.toLowerCase() === trimmed.toLowerCase());
+  const submit = () => {
+    if (!trimmed || duplicate || save.isPending) return;
+    save.mutate(trimmed);
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          height: 26,
+          padding: '0 10px',
+          borderRadius: 8,
+          boxShadow: 'inset 0 0 0 1px #D0D5DD',
+          color: hover ? '#344054' : '#475467',
+          background: hover ? '#F9FAFB' : 'transparent',
+          fontSize: 13,
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <UIcon name="Plus" size={14} />
+        Add
+      </button>
+    );
+  }
+
   return (
-    <button
-      type="button"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-        height: 26,
-        padding: '0 10px',
-        borderRadius: 8,
-        boxShadow: 'inset 0 0 0 1px #D0D5DD',
-        color: hover ? '#344054' : '#475467',
-        background: hover ? '#F9FAFB' : 'transparent',
-        fontSize: 13,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      <UIcon name="Plus" size={14} />
-      Add
-    </button>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <input
+        ref={inputRef}
+        value={value}
+        maxLength={60}
+        aria-label="New focus tag"
+        placeholder="e.g. Autonomy"
+        disabled={save.isPending}
+        onChange={(event) => setValue(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') submit();
+          if (event.key === 'Escape') {
+            setValue('');
+            setOpen(false);
+          }
+        }}
+        style={{
+          height: 26,
+          width: 148,
+          padding: '0 8px',
+          borderRadius: 8,
+          border: 0,
+          outline: 'none',
+          boxShadow: `inset 0 0 0 1px ${duplicate ? '#FDA29B' : '#D0D5DD'}`,
+          background: '#ffffff',
+          fontSize: 13,
+          color: '#101828',
+        }}
+      />
+      <button
+        type="button"
+        onClick={submit}
+        disabled={!trimmed || duplicate || save.isPending}
+        style={{
+          height: 26,
+          padding: '0 10px',
+          borderRadius: 8,
+          background: !trimmed || duplicate ? '#F2F4F7' : GRADIENT_DARK,
+          color: !trimmed || duplicate ? '#98A2B3' : '#ffffff',
+          fontSize: 13,
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {save.isPending ? 'Saving…' : 'Save'}
+      </button>
+      {duplicate ? (
+        <span style={{ fontSize: 12, color: '#B42318', whiteSpace: 'nowrap' }}>Already a focus</span>
+      ) : null}
+      {save.isError ? (
+        <span style={{ fontSize: 12, color: '#B42318', whiteSpace: 'nowrap' }}>
+          {save.error instanceof Error ? save.error.message : 'Could not save'}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -406,7 +555,17 @@ function TabButton({
 
 /* ── Overflow menu (§5.2) ─────────────────────────────────────────────────── */
 
-function OverflowMenu({ client, onDataHealth }: { client: Client; onDataHealth: () => void }) {
+function OverflowMenu({
+  client,
+  onDataHealth,
+  canArchive,
+  onArchive,
+}: {
+  client: Client;
+  onDataHealth: () => void;
+  canArchive?: boolean;
+  onArchive?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -427,11 +586,37 @@ function OverflowMenu({ client, onDataHealth }: { client: Client; onDataHealth: 
   }, [open]);
 
   const items: Array<{ label: string; danger?: boolean; onSelect: () => void }> = [
-    { label: 'Ask Meri about this client', onSelect: () => setOpen(false) },
+    {
+      // Item 18 (wire-audit "2 Wire existing APIs"): opens the real Meriv3
+      // workspace scoped to this client. The prompt is required — Meri's own
+      // `readContextRequest()` drops a clientId that arrives without one — so
+      // it carries the client by name rather than being left blank.
+      label: 'Ask Meri about this client',
+      onSelect: () => {
+        setOpen(false);
+        openMeriWorkspaceWithContext({
+          prompt: `What should I know about ${client.name} right now?`,
+          clientId: client.id,
+        });
+      },
+    },
     { label: 'Profile & source health', onSelect: () => { setOpen(false); onDataHealth(); } },
     { label: 'Export client profile', onSelect: () => setOpen(false) },
-    { label: 'Archive client', danger: true, onSelect: () => setOpen(false) },
   ];
+
+  // Item 9: only offered to users the API would actually let archive
+  // (DELETE /api/clients/:id is @Roles('standard_user')). The confirm dialog
+  // and the write itself live in ClientCrmPage.
+  if (canArchive && onArchive) {
+    items.push({
+      label: 'Archive client',
+      danger: true,
+      onSelect: () => {
+        setOpen(false);
+        onArchive();
+      },
+    });
+  }
 
   return (
     <div ref={wrapRef} style={{ position: 'relative' }}>
