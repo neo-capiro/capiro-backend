@@ -32,6 +32,21 @@ import {
 import { DistrictNexusMap } from '../DistrictNexusMap.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import type { IntelligenceView } from '../client-crm-routing.js';
+import { useQuery } from '@tanstack/react-query';
+import { useApi } from '../../../../lib/use-api.js';
+import {
+  getClientFacilities,
+  formatFacilityDistrict,
+  type ClientFacility,
+} from '../../../../pages/clients/facilities-api.js';
+import {
+  getClientDistrictNexus,
+  type DistrictNexusRow,
+} from '../../../../pages/clients/intelligence-v1/district-nexus-api.js';
+import {
+  getClientRepresentation,
+  type RepresentationResult,
+} from '../../../../pages/clients/intelligence-v1/representation-api.js';
 
 /**
  * Intelligence tab (spec §10). Six domains via a segmented bar: Overview ·
@@ -58,7 +73,7 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
       {view === 'regulatory' ? <RegulatoryPanel /> : null}
       {view === 'funding' ? <FundingPanel /> : null}
       {view === 'footprint' ? <FootprintPanel /> : null}
-      {view === 'district' ? <DistrictPanel /> : null}
+      {view === 'district' ? <DistrictPanel client={client} /> : null}
     </div>
   );
 }
@@ -703,7 +718,320 @@ function Sparkline() {
 
 /* ═══════════════════════════ §10.6 District Nexus ══════════════════════════ */
 
-function DistrictPanel() {
+interface RealDistrictModel {
+  code: string;
+  lat: number;
+  lon: number;
+  facilityNames: string[];
+  employeeCount: number | null;
+  totalAmount: number | null;
+  awardCount: number | null;
+  repName: string | null;
+  repParty: string | null;
+  repChamber: string | null;
+  score: number;
+  strength: 'Strong' | 'Moderate' | 'Developing';
+  ui: PillTone;
+}
+
+function tierOf(score: number): { strength: RealDistrictModel['strength']; ui: PillTone } {
+  if (score >= 80) return { strength: 'Strong', ui: 'success' };
+  if (score >= 60) return { strength: 'Moderate', ui: 'blue' };
+  return { strength: 'Developing', ui: 'gray' };
+}
+
+/**
+ * v1 (`getClientDistrictNexus`) reports real award dollars/counts per district
+ * but has no normalized 0-100 nexus score — that scoring model belongs to
+ * District Nexus v2, which is feature-flagged and dark for most tenants today.
+ * Rather than inventing a precise-looking score this app has no real basis
+ * for, real districts get one of two disclosed, coarse tiers (confirmed
+ * federal award activity vs. facility presence only); the real dollar/count
+ * figures are always shown alongside, never replaced by this tier.
+ */
+function scoreOf(nexusRow: DistrictNexusRow | undefined): number {
+  return nexusRow && nexusRow.totalAmount > 0 ? 75 : 40;
+}
+
+function buildRealDistricts(
+  facilities: ClientFacility[],
+  nexusByDistrict: Map<string, DistrictNexusRow>,
+  repByFacilityId: Map<string, RepresentationResult>,
+): RealDistrictModel[] {
+  const byCode = new Map<string, ClientFacility[]>();
+  for (const facility of facilities) {
+    const code = formatFacilityDistrict(facility.state, facility.congressionalDistrict);
+    if (!code) continue;
+    const group = byCode.get(code) ?? [];
+    group.push(facility);
+    byCode.set(code, group);
+  }
+
+  const models: RealDistrictModel[] = [];
+  for (const [code, group] of byCode) {
+    const geocoded = group.find((f) => f.latitude != null && f.longitude != null);
+    if (!geocoded) continue; // no coordinates to plot — still listed in the facilities table below
+
+    const nexusRow = nexusByDistrict.get(code);
+    const knownEmployees = group.filter((f): f is ClientFacility & { employeeCount: number } => f.employeeCount != null);
+
+    let repName: string | null = null;
+    let repParty: string | null = null;
+    let repChamber: string | null = null;
+    for (const facility of group) {
+      const rep = repByFacilityId.get(facility.id);
+      if (rep && !rep.unresolved && rep.federal.house) {
+        repName = rep.federal.house.fullName;
+        repParty = rep.federal.house.party;
+        repChamber = 'House';
+        break;
+      }
+    }
+
+    const score = scoreOf(nexusRow);
+    models.push({
+      code,
+      lat: geocoded.latitude as number,
+      lon: geocoded.longitude as number,
+      facilityNames: group.map((f) => f.name),
+      employeeCount: knownEmployees.length ? knownEmployees.reduce((sum, f) => sum + f.employeeCount, 0) : null,
+      totalAmount: nexusRow?.totalAmount ?? null,
+      awardCount: nexusRow?.awardCount ?? null,
+      repName,
+      repParty,
+      repChamber,
+      score,
+      ...tierOf(score),
+    });
+  }
+
+  return models.sort((a, b) => {
+    const byAmount = (b.totalAmount ?? -1) - (a.totalAmount ?? -1);
+    if (byAmount !== 0) return byAmount;
+    return (b.employeeCount ?? 0) - (a.employeeCount ?? 0);
+  });
+}
+
+function facilityStatus(facility: ClientFacility, representation: RepresentationResult | undefined): { label: string; tone: PillTone } {
+  if (
+    !facility.congressionalDistrict ||
+    facility.geocodeStatus === 'no_match' ||
+    facility.geocodeStatus === 'ambiguous' ||
+    facility.geocodeStatus === 'error'
+  ) {
+    return { label: 'Needs review', tone: 'warning' };
+  }
+  if (representation && !representation.unresolved && representation.federal.house) {
+    return { label: 'Confirmed', tone: 'success' };
+  }
+  return { label: 'Representative pending', tone: 'warning' };
+}
+
+function DistrictPanel({ client }: { client: Client }) {
+  const api = useApi();
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const facilitiesQ = useQuery({
+    queryKey: ['client-facilities', client.id],
+    queryFn: () => getClientFacilities(api, client.id),
+    staleTime: 60_000,
+  });
+  const nexusQ = useQuery({
+    queryKey: ['client-district-nexus', client.id],
+    queryFn: () => getClientDistrictNexus(api, client.id),
+    staleTime: 2 * 60_000,
+  });
+  const representationQ = useQuery({
+    queryKey: ['client-representation', client.id],
+    queryFn: () => getClientRepresentation(api, client.id),
+    staleTime: 2 * 60_000,
+  });
+
+  const facilitiesLoaded = facilitiesQ.data !== undefined && !facilitiesQ.isError;
+  const genuinelyEmpty = facilitiesLoaded && facilitiesQ.data!.length === 0;
+  const real = facilitiesLoaded && facilitiesQ.data!.length > 0;
+
+  const nexusByDistrict = useMemo(() => {
+    const map = new Map<string, DistrictNexusRow>();
+    if (nexusQ.data?.linked) for (const row of nexusQ.data.districts) map.set(row.district, row);
+    return map;
+  }, [nexusQ.data]);
+  const repByFacilityId = useMemo(
+    () => new Map((representationQ.data ?? []).map((r) => [r.facility.id, r.representation])),
+    [representationQ.data],
+  );
+  const list = useMemo(
+    () => (real ? buildRealDistricts(facilitiesQ.data!, nexusByDistrict, repByFacilityId) : []),
+    [real, facilitiesQ.data, nexusByDistrict, repByFacilityId],
+  );
+  const ungeocodedCount = real
+    ? facilitiesQ.data!.filter((f) => f.latitude == null || f.longitude == null).length
+    : 0;
+
+  if (genuinelyEmpty) {
+    return (
+      <Card>
+        <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>No facilities recorded for this client</h3>
+          <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+            District Nexus builds on this client&apos;s recorded facility addresses. Add a facility to see its
+            congressional district, representative, and any confirmed federal award activity here.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  // Loading or errored — the original design fixture stays pixel-reviewable
+  // rather than showing a spinner, matching every other Proto tab (§9 Work).
+  if (!real) return <DistrictPanelFixture />;
+
+  const effectiveSelected = selected && list.some((d) => d.code === selected) ? selected : (list[0]?.code ?? null);
+  const sel = list.find((d) => d.code === effectiveSelected) ?? null;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '20px 24px 16px', flexWrap: 'wrap' }}>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>District footprint</span>
+            <span style={{ display: 'block', marginTop: 4, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+              Real facility locations and confirmed federal award activity by congressional district. Select a district on the map or in the list.
+            </span>
+          </span>
+          <Pill tone="gray" dotless>{list.length} district{list.length === 1 ? '' : 's'}</Pill>
+        </div>
+        {list.length === 0 ? (
+          <p style={{ margin: 0, padding: '0 24px 20px', fontSize: 14, color: '#475467' }}>
+            {ungeocodedCount > 0
+              ? `${ungeocodedCount} facilit${ungeocodedCount === 1 ? 'y is' : 'ies are'} recorded but not yet geocoded, so no district can be plotted yet.`
+              : 'No facility has resolved to a congressional district yet.'}
+          </p>
+        ) : (
+          <div className="cap-pf-map-cols">
+            <div className="cap-pf-map-frame">
+              <DistrictNexusMap
+                districts={list.map((d) => ({ code: d.code, score: d.score, lat: d.lat, lon: d.lon }))}
+                selected={effectiveSelected ?? ''}
+                onSelect={setSelected}
+              />
+            </div>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {list.map((d) => (
+                <RealDistrictRailRow key={d.code} d={d} selected={effectiveSelected === d.code} onSelect={() => setSelected(d.code)} />
+              ))}
+            </div>
+          </div>
+        )}
+        {ungeocodedCount > 0 && list.length > 0 ? (
+          <p style={{ margin: 0, padding: '0 24px 18px', fontSize: 13, color: '#667085' }}>
+            {ungeocodedCount} more facilit{ungeocodedCount === 1 ? 'y is' : 'ies are'} recorded but not yet geocoded.
+          </p>
+        ) : null}
+        {nexusQ.data && !nexusQ.data.linked ? (
+          <p style={{ margin: 0, padding: '0 24px 18px', fontSize: 13, color: '#667085' }}>{nexusQ.data.disclaimer}</p>
+        ) : null}
+      </Card>
+
+      {sel ? (
+        <div className="cap-pf-grid-dist">
+          <Card>
+            <CardHead title="Selected district" />
+            <div style={{ padding: '20px 24px 22px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>{sel.code}</span>
+                <Pill tone={sel.ui} size="lg">{sel.strength} nexus</Pill>
+              </div>
+              <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Federal representative</div>
+              <div style={{ marginTop: 3, fontSize: 16, color: '#101828' }}>
+                {sel.repName ? `${sel.repName}${sel.repParty ? ` (${sel.repParty})` : ''} · ${sel.repChamber}` : 'Not yet resolved'}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(96px,1fr))', gap: 10, marginTop: 18 }}>
+                {(
+                  [
+                    ['Facilities', sel.facilityNames.join(', ') || '—'],
+                    ['Employees', sel.employeeCount != null ? String(sel.employeeCount) : 'Needs count'],
+                    ['Federal awards', sel.totalAmount != null ? `$${sel.totalAmount.toLocaleString()}` : 'No confirmed awards'],
+                    ['Awards on record', sel.awardCount != null ? String(sel.awardCount) : '—'],
+                  ] as const
+                ).map(([label, value]) => (
+                  <span key={label} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 10px', borderRadius: 8, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{label}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{value}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHead title="Facilities & representation" />
+            <div>
+              {facilitiesQ.data!.map((f) => {
+                const representation = repByFacilityId.get(f.id);
+                const { label, tone } = facilityStatus(f, representation);
+                const repName = representation && !representation.unresolved ? representation.federal.house?.fullName : null;
+                return (
+                  <button key={f.id} type="button" style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 12, padding: '13px 24px', borderBottom: '1px solid #F2F4F7', textAlign: 'left' }}>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
+                    <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, color: '#475467' }}>{formatFacilityDistrict(f.state, f.congressionalDistrict) || 'Not geocoded'}</span>
+                    <span style={{ flex: '0 0 auto', width: 40, fontSize: 13, color: '#475467', textAlign: 'right' }}>{f.employeeCount ?? 'Needs count'}</span>
+                    <span style={{ flex: '0 0 auto', width: 118, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{repName ?? 'Not resolved'}</span>
+                    <span style={{ flex: '0 0 auto', width: 140, display: 'flex', justifyContent: 'flex-end' }}>
+                      <Pill tone={tone}>{label}</Pill>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function RealDistrictRailRow({ d, selected, onSelect }: { d: RealDistrictModel; selected: boolean; onSelect: () => void }) {
+  const [hover, setHover] = useState(false);
+  const dot = d.score >= 80 ? '#101828' : d.score >= 60 ? '#475467' : '#98A2B3';
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '11px 12px',
+        borderRadius: 10,
+        textAlign: 'left',
+        background: selected ? '#F9FAFB' : hover ? '#F2F4F7' : '#ffffff',
+        boxShadow: selected ? 'inset 0 0 0 1.5px #101828' : hover ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0',
+      }}
+    >
+      <span style={{ flex: '0 0 auto', width: 8, height: 8, borderRadius: '50%', background: dot }} />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '.02em', color: '#101828' }}>{d.code}</span>
+          <span style={{ fontSize: 13, color: '#667085', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {d.facilityNames[0]}
+            {d.facilityNames.length > 1 ? ` +${d.facilityNames.length - 1}` : ''}
+          </span>
+        </span>
+        <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: '#667085' }}>
+          {d.totalAmount != null ? `$${d.totalAmount.toLocaleString()}` : 'No confirmed awards'}
+          {d.employeeCount != null ? ` · ${d.employeeCount} employees` : ''}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** Original design fixture — rendered while the real facilities query is loading or errored, and as a
+ * pixel-review surface, matching the established convention (see §9 Work). */
+function DistrictPanelFixture() {
   const [selected, setSelected] = useState('WA-07');
   const sel = (DISTRICTS as any[]).find((d) => d.code === selected) ?? (DISTRICTS as any[])[0];
   return (

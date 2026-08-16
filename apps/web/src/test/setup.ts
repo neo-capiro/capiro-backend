@@ -16,3 +16,15 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
     dispatchEvent: () => false,
   });
 }
+
+// JSDOM has no layout engine, so it doesn't implement ResizeObserver either.
+// DistrictNexusMap (and anything else that measures its own box to redraw)
+// observes its container on mount, so rendering it throws `ResizeObserver is
+// not defined` without this.
+if (typeof window !== 'undefined' && !window.ResizeObserver) {
+  window.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}
