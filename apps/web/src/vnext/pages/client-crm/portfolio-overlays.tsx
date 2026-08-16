@@ -420,21 +420,65 @@ export function PersonDrawer({ person, onClose }: { person: PersonRecord; onClos
 
 /* ═══════════════════════════ §12.2 Target drawer ════════════════════════════ */
 
+/**
+ * A government target, as shown in the drawer.
+ *
+ * `name`/`role`/`init`/`kind` are the only fields the real targets backend
+ * (`pages/clients/targets-api.ts`) can populate. Everything below them is
+ * OPTIONAL because it exists solely in the design fixture — `disposition`,
+ * `confirm`, `strategy`, `ask`, `next` and `why` are Strategy-linked narrative
+ * with no column behind them today. The drawer omits whatever is absent rather
+ * than printing an invented value, so the same component serves both the real
+ * data path and the pixel-review fixture (`VNextShellVisual`) unchanged.
+ */
 export interface TargetRecord {
   kind: 'person' | 'org';
   init: string;
   name: string;
   role: string;
-  disposition: string;
-  dispTone: 'success' | 'warning' | 'gray' | 'brand' | 'error' | 'blue';
-  confirm: string;
-  strategy: string;
-  ask: string;
-  next: string;
-  why: Array<[string, string]>;
+  disposition?: string;
+  dispTone?: 'success' | 'warning' | 'gray' | 'brand' | 'error' | 'blue';
+  confirm?: string;
+  strategy?: string;
+  ask?: string;
+  next?: string;
+  why?: Array<[string, string]>;
+  /** Real, from `ClientTarget` — rendered only when present. */
+  tier?: 1 | 2 | 3 | null;
+  addedAt?: string;
+  addedVia?: 'manual' | 'meri';
+  facilities?: string[];
+  /** Real directory profile route for this member. */
+  profileHref?: string;
 }
 
-export function TargetDrawer({ target, onClose }: { target: TargetRecord; onClose: () => void }) {
+export function TargetDrawer({
+  target,
+  onClose,
+  onOpenProfile,
+}: {
+  target: TargetRecord;
+  onClose: () => void;
+  onOpenProfile?: () => void;
+}) {
+  const context: Array<[string, string]> = [
+    ...(target.strategy ? ([['Linked strategy', target.strategy]] as Array<[string, string]>) : []),
+    ...(target.ask ? ([['Current ask', target.ask]] as Array<[string, string]>) : []),
+    ...(target.next ? ([['Next action', target.next]] as Array<[string, string]>) : []),
+  ];
+  const record: Array<[string, string]> = [
+    ...(target.tier != null ? ([['Tier', `Tier ${target.tier}`]] as Array<[string, string]>) : []),
+    ...(target.addedVia
+      ? ([['Added via', target.addedVia === 'meri' ? 'Meri suggestion' : 'Manual']] as Array<[string, string]>)
+      : []),
+    ...(target.addedAt
+      ? ([['Added', new Date(target.addedAt).toLocaleDateString()]] as Array<[string, string]>)
+      : []),
+    ...(target.facilities?.length
+      ? ([['Represents', target.facilities.join(', ')]] as Array<[string, string]>)
+      : []),
+  ];
+
   return (
     <PfDrawer
       eyebrow="Government relationship"
@@ -442,10 +486,17 @@ export function TargetDrawer({ target, onClose }: { target: TargetRecord; onClos
       sub={target.role}
       onClose={onClose}
       footer={
-        <>
-          <GhostFooterBtn onClick={onClose}>Open Strategy</GhostFooterBtn>
-          <PrimaryFooterBtn onClick={onClose}>Create brief</PrimaryFooterBtn>
-        </>
+        onOpenProfile ? (
+          <>
+            <GhostFooterBtn onClick={onClose}>Close</GhostFooterBtn>
+            <PrimaryFooterBtn onClick={onOpenProfile}>Open directory profile</PrimaryFooterBtn>
+          </>
+        ) : (
+          <>
+            <GhostFooterBtn onClick={onClose}>Open Strategy</GhostFooterBtn>
+            <PrimaryFooterBtn onClick={onClose}>Create brief</PrimaryFooterBtn>
+          </>
+        )
       }
     >
       <DrawerStack>
@@ -453,39 +504,64 @@ export function TargetDrawer({ target, onClose }: { target: TargetRecord; onClos
           <span style={{ flex: 1, minWidth: 200, display: 'flex', gap: 10, padding: 12, borderRadius: 10, background: '#ffffff', boxShadow: 'inset 0 0 0 1.5px #101828' }}>
             <Tile initials={target.init} size={32} dark round={target.kind === 'person'} />
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: GRADIENT_DARK }} />
-                {target.disposition}
-              </span>
+              {target.disposition ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: GRADIENT_DARK }} />
+                  {target.disposition}
+                </span>
+              ) : null}
               <span style={{ display: 'block', marginTop: 3, fontSize: 14, fontWeight: 600, color: '#101828' }}>{target.name}</span>
               <span style={{ display: 'block', fontSize: 13, color: '#475467' }}>{target.role}</span>
-              <span style={{ display: 'block', marginTop: 2, fontSize: 12, color: '#667085' }}>{target.confirm}</span>
+              {target.confirm ? (
+                <span style={{ display: 'block', marginTop: 2, fontSize: 12, color: '#667085' }}>{target.confirm}</span>
+              ) : null}
             </span>
           </span>
           <Pill tone="brand" size="lg">Active strategy target</Pill>
         </div>
 
-        <SubPanel title="Target context" action={<UpperLink>Edit</UpperLink>}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
-            <ReadField label="Linked strategy" value={target.strategy} />
-            <ReadField label="Current ask" value={target.ask} />
-            <ReadField label="Next action" value={target.next} />
-          </div>
-        </SubPanel>
+        {record.length ? (
+          <SubPanel title="Target record">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+              {record.map(([label, value]) => (
+                <ReadField key={label} label={label} value={value} />
+              ))}
+            </div>
+          </SubPanel>
+        ) : null}
 
-        <SubPanel title="Why this target" borderTop>
-          <div style={{ display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-            {target.why.map(([label, value]) => (
-              <span key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 0', borderBottom: '1px solid #F2F4F7' }}>
-                <span style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, width: 118, fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: GRADIENT_DARK }} />
-                  {label}
+        {context.length ? (
+          <SubPanel title="Target context" action={<UpperLink>Edit</UpperLink>}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+              {context.map(([label, value]) => (
+                <ReadField key={label} label={label} value={value} />
+              ))}
+            </div>
+          </SubPanel>
+        ) : (
+          <SubPanel title="Target context">
+            <p style={{ margin: '14px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+              No linked strategy, ask or next action is recorded against this target. Those live in
+              Strategies, which has no target-level link today.
+            </p>
+          </SubPanel>
+        )}
+
+        {target.why?.length ? (
+          <SubPanel title="Why this target" borderTop>
+            <div style={{ display: 'flex', flexDirection: 'column', marginTop: 8 }}>
+              {target.why.map(([label, value]) => (
+                <span key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 0', borderBottom: '1px solid #F2F4F7' }}>
+                  <span style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, width: 118, fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: GRADIENT_DARK }} />
+                    {label}
+                  </span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', textWrap: 'pretty' }}>{value}</span>
                 </span>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', textWrap: 'pretty' }}>{value}</span>
-              </span>
-            ))}
-          </div>
-        </SubPanel>
+              ))}
+            </div>
+          </SubPanel>
+        ) : null}
       </DrawerStack>
     </PfDrawer>
   );
