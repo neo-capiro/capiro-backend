@@ -14,8 +14,8 @@ import type {
 
 /**
  * Template Studio REST surface. Every route is tenant-scoped via TenantGuard
- * and @CurrentTenant(). Reads are open to any tenant collaborator; create /
- * publish / retire are firm-admin-only (enforced in the service).
+ * and @CurrentTenant(). Reads and writes are open to any authenticated tenant
+ * member (TenantGuard proves membership).
  *
  * Mounted under /workspace-api/template-studio by the global prefix.
  */
@@ -30,7 +30,7 @@ export class TemplateStudioController {
     return this.studio.listBlueprints(ctx.tenantId);
   }
 
-  /** POST /template-studio/blueprints — create a blueprint (firm admin). */
+  /** POST /template-studio/blueprints — create a firm blueprint. */
   @Post('blueprints')
   createBlueprint(
     @CurrentTenant() ctx: WorkspaceTenantContext,

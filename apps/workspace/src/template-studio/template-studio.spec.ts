@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { TemplateStudioService } from './template-studio.service.js';
 import { TemplateValidator } from './template-validator.js';
 import type { WorkspaceBlueprintDefinition } from './template-definition.js';
@@ -238,7 +238,7 @@ function makeService(opts: { firmAdmin?: string } = {}) {
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('TemplateStudioService', () => {
-  it('creates a blueprint and a draft version (firm admin)', async () => {
+  it('creates a blueprint and a draft version for any member', async () => {
     const { service } = makeService({ firmAdmin: ADMIN });
     const bp = await service.createBlueprint(TENANT, ADMIN, {
       slug: 'ndaa-just',
@@ -258,15 +258,17 @@ describe('TemplateStudioService', () => {
     expect(version.definitionHash).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('denies blueprint creation to non-admins (403)', async () => {
-    const { service } = makeService({ firmAdmin: ADMIN });
-    await expect(
-      service.createBlueprint(TENANT, NON_ADMIN, {
-        slug: 'x',
-        name: 'X',
-        product: 'NDAA',
-      }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+  it('allows any authenticated tenant member to create a blueprint', async () => {
+    const { service } = makeService();
+    const bp = await service.createBlueprint(TENANT, NON_ADMIN, {
+      slug: 'x',
+      name: 'X',
+      product: 'NDAA',
+    });
+    expect(bp.id).toBeDefined();
+    expect(bp.tenantId).toBe(TENANT);
+    expect(bp.scope).toBe('firm');
+    expect(bp.ownerId).toBe(NON_ADMIN);
   });
 
   it('publishes a version and makes it immutable (PATCH after publish → 409)', async () => {
