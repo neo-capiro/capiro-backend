@@ -48,6 +48,12 @@ const PUBLIC_LOOKUP_STAGES = new Set<EntityResolutionStage>([
   'public_web',
 ]);
 
+const EXTERNAL_LOOKUP_STAGES = new Set<EntityResolutionStage>([
+  'official_website',
+  'public_web',
+  'model_candidate_reconciliation',
+]);
+
 /**
  * Shared ordered identity-resolution path for every Capiro surface.
  *
@@ -77,6 +83,14 @@ export class UniversalEntityResolutionOrchestratorService {
     let publicLookupRan = false;
 
     for (const stage of ENTITY_RESOLUTION_STAGE_ORDER) {
+      // Private-evidence callers (mailbox extraction is the first) may use the
+      // same universal orchestrator without implicitly exporting source-language
+      // names/emails to external web or model providers. Structured/canonical
+      // stages continue normally; only the explicitly external stages are skipped.
+      if (input.allowExternalLookup === false && EXTERNAL_LOOKUP_STAGES.has(stage)) {
+        continue;
+      }
+
       const deterministicInput = deterministicInputForStage(stage, normalized);
       let stageWasAttempted = false;
       let stageStatus: EntityResolutionStageTrace['status'] = 'unresolved';

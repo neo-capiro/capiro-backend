@@ -113,4 +113,12 @@ export interface ResolveEntityAcrossSourcesInput extends ResolveEntityInput {
    * candidates but cannot create a new global canonical entity.
    */
   allowAuthoritativePublicRegistration?: boolean;
+  /**
+   * True by default for explicit identity/research flows. Set false when the
+   * input originates in private evidence (for example mailbox extraction) so
+   * names/emails cannot implicitly leave Capiro via website search, public web,
+   * or model-assisted reconciliation. Canonical/private and approved structured
+   * authoritative stages still run through this same orchestrator.
+   */
+  allowExternalLookup?: boolean;
 }
