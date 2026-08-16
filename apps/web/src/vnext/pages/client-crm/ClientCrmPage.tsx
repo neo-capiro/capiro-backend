@@ -106,6 +106,7 @@ export function ClientCrmPage({ client }: { client: Client }) {
           onNavigate={goTo}
           onEditProfile={() => setEditing(true)}
           canManageClients={canManageClients}
+          onFillWithMeri={runFillWithMeri}
         />
       </ClientProfileShell>
       {fillOpen ? (
@@ -140,12 +141,14 @@ function ClientCrmBody({
   onNavigate,
   onEditProfile,
   canManageClients,
+  onFillWithMeri,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
   onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
   onEditProfile: () => void;
   canManageClients: boolean;
+  onFillWithMeri: () => void;
 }) {
   const views =
     route.tab === 'relationships'
@@ -175,6 +178,7 @@ function ClientCrmBody({
         route={route}
         onEditProfile={canManageClients ? onEditProfile : undefined}
         canManageClients={canManageClients}
+        onFillWithMeri={onFillWithMeri}
       />
     </div>
   );
@@ -185,14 +189,16 @@ function ClientCrmSurface({
   route,
   onEditProfile,
   canManageClients,
+  onFillWithMeri,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
   onEditProfile?: () => void;
   canManageClients: boolean;
+  onFillWithMeri: () => void;
 }) {
   if (route.tab === 'overview') return <ClientCrmOverviewProto client={client} onEditProfile={onEditProfile} />;
-  if (route.tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} />;
+  if (route.tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} onFillWithMeri={onFillWithMeri} />;
   if (route.tab === 'relationships') {
     if (route.view === 'government') return <ClientCrmGovernmentProto client={client} />;
     if (route.view === 'history') return <ClientCrmHistoryProto client={client} />;

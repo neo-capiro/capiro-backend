@@ -68,8 +68,7 @@ export function ClientCrmCapabilitiesProto({
   const refresh = () => void qc.invalidateQueries({ queryKey: ['client-capabilities', client.id] });
 
   const live = capabilities.data ?? [];
-  const areas: CapabilityAreaView[] =
-    live.length > 0 ? live.map((cap, i) => toLiveAreaView(cap, i)) : CAP_AREAS.map(toFixtureAreaView);
+  const areas: CapabilityAreaView[] = live.map((cap, i) => toLiveAreaView(cap, i));
 
   return (
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -85,7 +84,12 @@ export function ClientCrmCapabilitiesProto({
       />
 
       {/* §7.1 Capability areas */}
-      <CapabilityAreasCard areas={areas} onOpenArea={(cap) => setEditing(cap)} />
+      <CapabilityAreasCard
+        areas={areas}
+        loading={capabilities.isLoading}
+        onOpenArea={(cap) => setEditing(cap)}
+        onAddCapability={() => setCreating(true)}
+      />
 
       {/* §7.2 Registrations & codes · Where capabilities create fit (two-up) */}
       <div className="cap-pf-grid-2">
@@ -265,27 +269,16 @@ function toLiveAreaView(cap: Capability, i: number): CapabilityAreaView {
   };
 }
 
-function toFixtureAreaView(a: (typeof CAP_AREAS)[number], i: number): CapabilityAreaView {
-  return {
-    key: `fixture-${i}`,
-    name: a.name,
-    maturity: a.maturity,
-    tone: a.ui as PillTone,
-    body: a.body,
-    tags: a.tags,
-    pe: a.pe,
-    matches: a.matches,
-    tier: a.tier as EvidenceTier,
-    source: a.source,
-  };
-}
-
 function CapabilityAreasCard({
   areas,
+  loading,
   onOpenArea,
+  onAddCapability,
 }: {
   areas: CapabilityAreaView[];
+  loading: boolean;
   onOpenArea: (cap: Capability) => void;
+  onAddCapability: () => void;
 }) {
   const fielded = areas.filter((a) => a.maturity === 'Fielded').length;
   return (
@@ -295,34 +288,45 @@ function CapabilityAreasCard({
         title="Capability areas"
         description="Each area carries its maturity, the budget lines it maps to, and where the claim comes from."
         action={
-          <span
-            style={{
-              flex: '0 0 auto',
-              display: 'inline-flex',
-              alignItems: 'center',
-              height: 24,
-              padding: '0 10px',
-              borderRadius: 9999,
-              background: '#F9FAFB',
-              boxShadow: 'inset 0 0 0 1px #EAECF0',
-              color: '#344054',
-              fontSize: 12,
-              fontWeight: 500,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {`${areas.length} area${areas.length === 1 ? '' : 's'} · ${fielded} fielded`}
-          </span>
+          loading ? null : (
+            <span
+              style={{
+                flex: '0 0 auto',
+                display: 'inline-flex',
+                alignItems: 'center',
+                height: 24,
+                padding: '0 10px',
+                borderRadius: 9999,
+                background: '#F9FAFB',
+                boxShadow: 'inset 0 0 0 1px #EAECF0',
+                color: '#344054',
+                fontSize: 12,
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {`${areas.length} area${areas.length === 1 ? '' : 's'} · ${fielded} fielded`}
+            </span>
+          )
         }
       />
       <div className="cap-pf-grid-cap-areas" style={{ padding: '0 24px 24px' }}>
-        {areas.map((area) => (
-          <CapabilityAreaCard
-            key={area.key}
-            area={area}
-            onOpen={area.capability ? () => onOpenArea(area.capability as Capability) : undefined}
-          />
-        ))}
+        {loading ? (
+          <p style={{ margin: 0, fontSize: 14, color: '#667085' }}>Loading capability areas…</p>
+        ) : areas.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12, padding: '8px 0 16px' }}>
+            <p style={{ margin: 0, fontSize: 14, color: '#667085' }}>No capability areas recorded yet.</p>
+            <SecondaryBtn onClick={onAddCapability}>Add capability</SecondaryBtn>
+          </div>
+        ) : (
+          areas.map((area) => (
+            <CapabilityAreaCard
+              key={area.key}
+              area={area}
+              onOpen={area.capability ? () => onOpenArea(area.capability as Capability) : undefined}
+            />
+          ))
+        )}
       </div>
     </Card>
   );
