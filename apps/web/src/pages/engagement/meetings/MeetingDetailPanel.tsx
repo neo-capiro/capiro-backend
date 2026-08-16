@@ -146,6 +146,8 @@ function ClientAssign({ meeting }: { meeting: Meeting }) {
         description="Associate this meeting with the client whose context, artifacts, and reporting should receive it."
         width={540}
         busy={assign.isPending}
+        busyLabel="Updating the meeting client…"
+        error={assign.isError ? 'Could not update the meeting client. Try again.' : null}
         dirty={selectedClientId !== currentClientId}
         onClose={() => setEditing(false)}
         footer={

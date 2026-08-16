@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowUp,
@@ -685,6 +686,8 @@ function SendPanel({
   const [selectedReplyId, setSelectedReplyId] = useState('');
   const [proposedLearning, setProposedLearning] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const replySelectRef = useRef<HTMLSelectElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const settings = settingsQuery.data;
@@ -897,15 +900,49 @@ function SendPanel({
           <span className="uui-eyebrow">Next actions</span>
           <h3>Follow-up remains explicit</h3>
           <div>
-            <a className="uui-button" href="/mailbox">
-              Review replies
-            </a>
-            <a className="uui-button" href="/engagement/outreach">
-              Start follow-up campaign
-            </a>
-            <a className="uui-button" href="/engagement/meetings">
+            {/*
+              These are real actions, not decoration. "Record reply" works off the
+              inbound replies actually matched to THIS send intent's envelope —
+              there is no standalone /mailbox route to link to — and the other two
+              use client-side navigation so campaign state is not thrown away by a
+              full document load.
+            */}
+            <button
+              type="button"
+              className="uui-button"
+              disabled={replyCandidates.isFetching}
+              onClick={async () => {
+                const refreshed = await replyCandidates.refetch();
+                if ((refreshed.data ?? []).length > 0) {
+                  const first = refreshed.data![0]!;
+                  setSelectedReplyId((current) => current || first.id);
+                }
+                replySelectRef.current?.scrollIntoView({ block: 'center' });
+                replySelectRef.current?.focus();
+              }}
+            >
+              {replyCandidates.isFetching
+                ? 'Checking replies…'
+                : `Record reply${
+                    (replyCandidates.data ?? []).length
+                      ? ` (${(replyCandidates.data ?? []).length})`
+                      : ''
+                  }`}
+            </button>
+            <button
+              type="button"
+              className="uui-button"
+              onClick={() => navigate('/engagement/outreach')}
+            >
+              Schedule follow-up
+            </button>
+            <button
+              type="button"
+              className="uui-button"
+              onClick={() => navigate('/engagement/meetings?compose=meeting')}
+            >
               Create meeting
-            </a>
+            </button>
           </div>
           <article className="uui-learning-proposal">
             <div>
@@ -928,6 +965,7 @@ function SendPanel({
                 </button>
               </div>
               <select
+                ref={replySelectRef}
                 aria-label="Reply source for learning proposal"
                 value={selectedReplyId}
                 onChange={(event) => setSelectedReplyId(event.target.value)}

@@ -291,6 +291,8 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         description="Update the approved working content without changing the meeting record itself."
         width={720}
         busy={update.isPending}
+        busyLabel="Saving prep…"
+        error={update.isError ? 'Could not update the prep. Your edits are still here.' : null}
         dirty={JSON.stringify(editValues) !== JSON.stringify(prepEditValues(prep))}
         onClose={() => setEditOpen(false)}
         footer={

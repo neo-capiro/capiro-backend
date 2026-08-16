@@ -29,6 +29,14 @@ export interface EngagementDialogProps {
   children: ReactNode;
   footer?: ReactNode;
   busy?: boolean;
+  /** Message shown while `busy`, so a pending window is not silently frozen. */
+  busyLabel?: string;
+  /**
+   * Failure to surface inside the window itself. A transient toast is not
+   * sufficient: the user is still inside the dialog and needs the reason next
+   * to the control that failed.
+   */
+  error?: ReactNode;
   dirty?: boolean;
   closeLabel?: string;
   onClose: () => void;
@@ -48,6 +56,8 @@ export function EngagementDialog({
   children,
   footer,
   busy = false,
+  busyLabel = 'Working…',
+  error = null,
   dirty = false,
   closeLabel = 'Close',
   onClose,
@@ -131,6 +141,7 @@ export function EngagementDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={description ? descriptionId : undefined}
+        aria-busy={busy || undefined}
         tabIndex={-1}
         style={
           {
@@ -156,6 +167,17 @@ export function EngagementDialog({
           </button>
         </header>
         <div className="engagement-dialog__body">{children}</div>
+        {error ? (
+          <p className="engagement-dialog__error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {busy ? (
+          <p className="engagement-dialog__busy" role="status">
+            <span className="engagement-dialog__busy-spinner" aria-hidden="true" />
+            {busyLabel}
+          </p>
+        ) : null}
         {footer ? <footer className="engagement-dialog__footer">{footer}</footer> : null}
       </div>
     </div>,

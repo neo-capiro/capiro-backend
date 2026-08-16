@@ -1159,6 +1159,24 @@ export function EngagementPage() {
     setMeetingModalOpen(true);
   };
 
+  // `?compose=meeting` opens the create-meeting window on arrival, so the
+  // post-send "Create meeting" action in Outreach lands on a real composer
+  // instead of merely dropping the user on the calendar. The param is consumed
+  // immediately (replace, not push) so refresh and Back do not re-open it.
+  useEffect(() => {
+    if (searchParams.get('compose') !== 'meeting') return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('compose');
+    navigate(
+      { pathname: location.pathname, search: next.toString() ? `?${next.toString()}` : '' },
+      { replace: true },
+    );
+    openMeetingModal();
+    // openMeetingModal is recreated every render; the param guard above is the
+    // real idempotency gate, so it is intentionally not a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, location.pathname, navigate]);
+
   // Resets + prefills the Add Target Office form (spec Phase 2 §2b2). Nothing
   // opened this modal before this change — the ReportsView header/empty-state
   // buttons are the first real trigger.

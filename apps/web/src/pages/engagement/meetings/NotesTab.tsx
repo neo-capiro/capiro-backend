@@ -92,6 +92,8 @@ function NoteRow({ meetingId, note }: { meetingId: string; note: MeetingNote }) 
         description="Saving creates the current editable note state. Approval remains a separate action."
         width={660}
         busy={update.isPending}
+        busyLabel="Saving notes…"
+        error={update.isError ? 'Could not save the note. Your edits are still here.' : null}
         dirty={draft !== (note.body ?? '')}
         onClose={() => setEditing(false)}
         footer={

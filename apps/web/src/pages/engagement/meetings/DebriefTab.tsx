@@ -472,6 +472,8 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
         description="Edit the exact debrief body. Approval and sharing remain separate actions."
         width={680}
         busy={save.isPending}
+        busyLabel="Saving debrief…"
+        error={save.isError ? 'Could not save the debrief. Your edits are still here.' : null}
         dirty={editBody !== (current.body ?? '')}
         onClose={() => setEditOpen(false)}
         footer={
