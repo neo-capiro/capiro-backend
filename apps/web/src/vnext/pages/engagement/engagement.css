@@ -68,8 +68,6 @@
 
 .capiro-vnext-root .uui-eyebrow,
 .capiro-vnext-root .uui-state-control,
-.capiro-vnext-root .uui-mtg-row__time,
-.capiro-vnext-root .uui-mtg-status,
 .capiro-vnext-root .uui-library-date,
 .capiro-vnext-root .uui-library-visibility,
 .capiro-vnext-root .uui-outreach-section__number,
@@ -295,190 +293,13 @@
   text-transform: uppercase;
 }
 
-/* Meetings */
-.capiro-vnext-root .uui-mtg-workspace {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  min-height: calc(100vh - 214px);
-  background: var(--eng-recessed);
-}
-.capiro-vnext-root .uui-mtg-card {
-  min-width: 0;
-  padding: 22px 24px 40px;
-  background: var(--eng-recessed);
-}
-.capiro-vnext-root .uui-mtg-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.capiro-vnext-root .uui-mtg-toolbar__title {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-right: 8px;
-}
-.capiro-vnext-root .uui-mtg-toolbar__title svg {
-  display: none;
-}
-.capiro-vnext-root .uui-mtg-toolbar__title h2 {
-  margin: 0;
-  font-size: 24px;
-  line-height: 32px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-.capiro-vnext-root .uui-mtg-toolbar__period {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.capiro-vnext-root .uui-mtg-toolbar__period strong {
-  min-width: 136px;
-  text-align: center;
-  font-size: 15px;
-}
-.capiro-vnext-root .uui-mtg-toolbar__views {
-  display: inline-flex;
-  align-items: center;
-  min-height: 38px;
-  padding: 3px;
-  border-radius: 9px;
-  background: var(--eng-muted);
-}
-.capiro-vnext-root .uui-mtg-toolbar__views button {
-  height: 32px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--eng-ink-2);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-mtg-toolbar__views button[data-active] {
-  background: var(--eng-primary);
-  color: white;
-}
-.capiro-vnext-root .uui-mtg-toolbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: auto;
-}
-.capiro-vnext-root .uui-mtg-weekstrip {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 1px;
-  margin-bottom: 20px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--eng-border);
-  box-shadow: 0 0 0 1px var(--eng-border);
-}
-.capiro-vnext-root .uui-mtg-weekstrip button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-width: 0;
-  min-height: 78px;
-  padding: 10px 4px 12px;
-  border: 0;
-  background: var(--eng-surface);
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-mtg-weekstrip button[data-selected] {
-  background: var(--eng-accent-soft);
-}
-.capiro-vnext-root .uui-mtg-weekstrip button span,
-.capiro-vnext-root .uui-mtg-weekstrip button small {
-  font-family: var(--eng-font-mono);
-  font-size: 11px;
-  color: var(--eng-ink-4);
-}
-.capiro-vnext-root .uui-mtg-weekstrip button strong {
-  font-size: 20px;
-  font-weight: 600;
-}
-.capiro-vnext-root .uui-mtg-weekstrip button[data-selected] strong {
-  color: var(--eng-accent);
-}
-.capiro-vnext-root .uui-mtg-body {
-  min-width: 0;
-}
-.capiro-vnext-root .uui-mtg-body[data-receded] {
-  background: var(--eng-recessed);
-}
-.capiro-vnext-root .uui-mtg-day-list > h3,
-.capiro-vnext-root .uui-mtg-list-groups section > h3 {
-  margin: 0 0 10px 2px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #344054;
-}
-.capiro-vnext-root .uui-mtg-list-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-.capiro-vnext-root .uui-mtg-list-groups section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.capiro-vnext-root .uui-mtg-row {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-  min-height: 70px;
-  margin-bottom: 8px;
-  padding: 16px 18px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--eng-surface);
-  box-shadow: 0 0 0 1px var(--eng-border);
-  text-align: left;
-  cursor: pointer;
-  animation: uiRise 160ms ease both;
-}
-.capiro-vnext-root .uui-mtg-row[data-selected] {
-  background: var(--eng-accent-soft);
-  box-shadow: 0 0 0 1px var(--eng-accent-border);
-}
-.capiro-vnext-root .uui-mtg-row__time {
-  font-size: 13px;
-  font-weight: 500;
-  color: #344054;
-}
-.capiro-vnext-root .uui-mtg-row__main {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 3px;
-}
-.capiro-vnext-root .uui-mtg-row__main strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 15px;
-  font-weight: 600;
-}
-.capiro-vnext-root .uui-mtg-row__main small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--eng-ink-3);
-  font-size: 13px;
-}
-.capiro-vnext-root .uui-mtg-status,
+/* Shared state/status pill — used by Outreach (VNextOutreachWorkspace,
+   OutreachV3CompleteRoute) for section/intent/settings status. Was
+   previously comma-joined with the dead `.uui-mtg-status` scaffold rule
+   removed from this file (2026-08-16 Meetings phase); restored standalone
+   here with identical styling — see meetings-vnext.css for the Meetings
+   surface's OWN status pill, which uses `.eng-pill` from engagement-tones.css
+   instead of this class. */
 .capiro-vnext-root .uui-state-pill {
   display: inline-flex;
   align-items: center;
@@ -497,7 +318,6 @@
   color: var(--eng-ink-2);
   box-shadow: inset 0 0 0 1px var(--eng-border);
 }
-.capiro-vnext-root .uui-mtg-status i,
 .capiro-vnext-root .uui-state-pill::before {
   content: '';
   width: 6px;
@@ -505,37 +325,35 @@
   border-radius: 50%;
   background: var(--eng-ink-4);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='navy'],
 .capiro-vnext-root .uui-state-pill[data-tone='navy'] {
   background: var(--eng-accent-soft);
   color: var(--eng-accent);
   box-shadow: inset 0 0 0 1px var(--eng-accent-border);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='navy'] i,
 .capiro-vnext-root .uui-state-pill[data-tone='navy']::before {
   background: var(--eng-accent);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='warning'],
 .capiro-vnext-root .uui-state-pill[data-tone='warning'] {
   background: var(--eng-warning-bg);
   color: var(--eng-warning);
   box-shadow: inset 0 0 0 1px var(--eng-warning-border);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='warning'] i,
 .capiro-vnext-root .uui-state-pill[data-tone='warning']::before {
   background: var(--eng-warning-dot);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='error'],
 .capiro-vnext-root .uui-state-pill[data-tone='error'] {
   background: var(--eng-error-bg);
   color: var(--eng-error);
   box-shadow: inset 0 0 0 1px var(--eng-error-border);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='error'] i,
 .capiro-vnext-root .uui-state-pill[data-tone='error']::before {
   background: var(--eng-error-dot);
 }
-.capiro-vnext-root .uui-mtg-empty,
+
+/* Shared empty/recovery panel — used by Outreach (OutreachV3CompleteRoute's
+   `.uui-empty-panel is-compact`). Was previously comma-joined with the dead
+   `.uui-mtg-empty` scaffold rule removed from this file; restored standalone
+   with identical styling. */
 .capiro-vnext-root .uui-empty-panel {
   display: flex;
   flex-direction: column;
@@ -546,132 +364,11 @@
   background: var(--eng-surface);
   box-shadow: inset 0 0 0 1px var(--eng-border);
 }
-.capiro-vnext-root .uui-mtg-empty__icon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: var(--eng-accent-soft);
-  color: var(--eng-accent);
-}
-.capiro-vnext-root .uui-mtg-empty p,
 .capiro-vnext-root .uui-empty-panel p {
   margin: 0 0 6px;
   color: var(--eng-ink-3);
   font-size: 14px;
   line-height: 20px;
-}
-.capiro-vnext-root .uui-mtg-load-history {
-  margin-top: 4px;
-}
-.capiro-vnext-root .uui-mtg-month {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 0 0 1px var(--eng-border);
-  background: var(--eng-border);
-}
-.capiro-vnext-root .uui-mtg-month__weekdays,
-.capiro-vnext-root .uui-mtg-month__grid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 1px;
-}
-.capiro-vnext-root .uui-mtg-month__weekdays span {
-  padding: 8px;
-  background: var(--eng-muted);
-  color: var(--eng-ink-4);
-  font-family: var(--eng-font-mono);
-  font-size: 10px;
-  text-align: center;
-  text-transform: uppercase;
-}
-.capiro-vnext-root .uui-mtg-month__grid button {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  min-height: 92px;
-  padding: 8px 10px;
-  border: 0;
-  background: var(--eng-surface);
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-mtg-month__grid button[data-outside] {
-  opacity: 0.45;
-}
-.capiro-vnext-root .uui-mtg-month__grid button[data-today] .uui-mtg-month__date {
-  color: var(--eng-accent);
-  font-weight: 600;
-}
-.capiro-vnext-root .uui-mtg-month__date {
-  font-size: 13px;
-  font-weight: 500;
-}
-.capiro-vnext-root .uui-mtg-month__count {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 9999px;
-  background: var(--eng-accent-soft);
-  color: var(--eng-accent);
-  font-family: var(--eng-font-mono);
-  font-size: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-}
-.capiro-vnext-root .uui-mtg-month__count i {
-  width: 6px;
-  height: 6px;
-  margin-right: 5px;
-  border-radius: 50%;
-  background: var(--eng-accent);
-}
-.capiro-vnext-root .uui-mtg-month__count em {
-  margin-left: 4px;
-  font-style: normal;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.capiro-vnext-root .uui-mtg-detail-not-found {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 55;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 520px;
-  height: 100%;
-  padding: 80px 32px;
-  border-left: 1px solid var(--eng-border);
-  background: var(--eng-surface);
-}
-.capiro-vnext-root .uui-mtg-detail-not-found__close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-}
-
-/* Force the reused canonical meeting drawer into the vNext two-column contract. */
-.capiro-vnext-root .uui-mtg-workspace > div[style*='rgba(12, 26, 56'],
-.capiro-vnext-root .uui-mtg-workspace > div[style*='rgba(12,26,56'] {
-  display: none !important;
-}
-.capiro-vnext-root .uui-mtg-workspace > div[style*='box-shadow: -8px'],
-.capiro-vnext-root .uui-mtg-workspace > div[style*='boxShadow'] {
-  width: 520px !important;
-  max-width: 520px !important;
-  box-shadow: none !important;
 }
 
 /* Library */
@@ -2352,7 +2049,6 @@
   animation: uiSpin 1s linear infinite;
 }
 .capiro-vnext-root .uui-table-skeleton,
-.capiro-vnext-root .uui-mtg-skeletons,
 .capiro-vnext-root .uui-outreach-loading {
   display: flex;
   flex-direction: column;
@@ -2453,25 +2149,8 @@
   .capiro-vnext-root .engagement-vnext select {
     min-height: 44px;
   }
-  .capiro-vnext-root .uui-mtg-toolbar {
-    align-items: flex-start;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__title {
-    flex-basis: calc(100% - 360px);
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__actions {
-    margin-left: 0;
-  }
   .capiro-vnext-root .uui-outreach-chat {
     flex-basis: 380px;
-  }
-  .capiro-vnext-root .uui-mtg-workspace > div[style*='box-shadow: -8px'],
-  .capiro-vnext-root .uui-mtg-workspace > div[style*='boxShadow'] {
-    width: 420px !important;
-    max-width: 420px !important;
-  }
-  .capiro-vnext-root .uui-mtg-detail-not-found {
-    width: 420px;
   }
   .capiro-vnext-root .uui-library-filters {
     grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(140px, 0.6fr));
@@ -2508,82 +2187,10 @@
   .capiro-vnext-root .uui-mailbox-banner {
     margin-inline: 16px;
   }
-  .capiro-vnext-root .uui-mtg-card,
   .capiro-vnext-root .uui-library-page,
   .capiro-vnext-root .uui-reports-page,
   .capiro-vnext-root .uui-hidden-overview {
     padding: 18px 16px 36px;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__title {
-    flex-basis: 100%;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__period {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__period strong {
-    flex: 1;
-    min-width: 0;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__views {
-    flex: 1;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__views button {
-    flex: 1;
-    min-width: 64px;
-    padding-inline: 10px;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__actions {
-    width: 100%;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__actions .uui-button {
-    flex: 1;
-  }
-  .capiro-vnext-root .uui-mtg-weekstrip button {
-    min-height: 68px;
-  }
-  .capiro-vnext-root .uui-mtg-weekstrip button small {
-    font-size: 9px;
-  }
-  .capiro-vnext-root .uui-mtg-row {
-    grid-template-columns: 1fr auto;
-    gap: 8px 12px;
-  }
-  .capiro-vnext-root .uui-mtg-row__time {
-    grid-column: 1/-1;
-  }
-  .capiro-vnext-root .uui-mtg-row__main small {
-    white-space: normal;
-  }
-  .capiro-vnext-root .uui-mtg-status {
-    grid-column: 2;
-    grid-row: 2;
-  }
-  .capiro-vnext-root .uui-mtg-month__grid button {
-    min-height: 72px;
-    padding: 7px;
-  }
-  .capiro-vnext-root .uui-mtg-month__count {
-    padding-inline: 6px;
-  }
-  .capiro-vnext-root .uui-mtg-month__count em,
-  .capiro-vnext-root .uui-mtg-month__count i {
-    display: none;
-  }
-  .capiro-vnext-root .uui-mtg-workspace > div[style*='box-shadow: -8px'],
-  .capiro-vnext-root .uui-mtg-workspace > div[style*='boxShadow'] {
-    position: fixed !important;
-    top: 72px !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-  .capiro-vnext-root .uui-mtg-detail-not-found {
-    position: fixed;
-    top: 72px;
-    width: 100%;
   }
   .capiro-vnext-root .uui-library-filters {
     grid-template-columns: 1fr;

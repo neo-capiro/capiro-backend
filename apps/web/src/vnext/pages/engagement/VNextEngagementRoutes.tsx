@@ -1,38 +1,38 @@
 /**
- * vNext Engagement module router — STAGED ROLLOUT (foundations phase,
+ * vNext Engagement module router — STAGED ROLLOUT (Meetings phase,
  * 2026-08-16).
  *
  * Adapted from `origin/agent/engagement-complete-gpt56`'s
  * `VNextEngagementRoutes.tsx` (`git show origin/agent/engagement-complete-gpt56:apps/web/src/vnext/pages/engagement/VNextEngagementRoutes.tsx`),
  * which rendered a fully-forked alternate Engagement shell (its own New
  * Meeting modal, a hidden Overview, and a debug "State Inspector") over four
- * destinations that all already had native vNext bodies. On this branch only
- * Outreach does — Meetings/Meeting Library/Reports keep their real work for
- * later phases of this reskin, and per this phase's scope this component
- * only needs to host the one destination that's actually ready today.
+ * destinations that all already had native vNext bodies. On this branch,
+ * Outreach and Meetings do — Meeting Library/Reports keep their real work
+ * for later phases of this reskin.
  * Deliberately NOT ported from the reference:
- *   - The New Meeting modal and hidden Overview reference — Meetings-only
- *     concerns with nothing to attach to until VNextMeetingsWorkspace exists.
+ *   - The reference's own New Meeting modal / hidden Overview — this phase's
+ *     VNextMeetingsWorkspace brings its own minimal New Meeting composer
+ *     (EngagementDialog-based) instead; the hidden Overview stays unbuilt.
  *   - The "State Inspector" — a debug/prototype affordance (its own eyebrow
  *     read "Engagement · prototype"), not part of the production surface.
- *   - The mailbox-connection banner — meeting-notetaking-specific messaging,
- *     not needed for Outreach alone.
+ *   - The mailbox-connection banner — meeting-notetaking-specific messaging;
+ *     still not wired at the router level even though Meetings now exists,
+ *     since it's a self-contained banner with no dependency on this file.
  * What IS kept: the module-level header (title + client scope) and the
  * Meetings/Outreach/Reports tab strip, using the `uui-engagement-page-header`
  * / `uui-client-scope` / `uui-engagement-tabs` classes engagement.css already
- * defines for exactly this purpose. Without them, a user landing on the vNext
- * Outreach view would have no way back to Meetings/Reports or to change the
- * client scope — dropping them would be a real regression, not a
- * simplification.
+ * defines for exactly this purpose. Without them, a user landing on any vNext
+ * destination would have no way to switch tabs or change the client scope —
+ * dropping them would be a real regression, not a simplification.
  *
  * `VNextRouter` only mounts this component when `isVNextEngagementPath`
- * returns true (currently: Outreach paths only — see
+ * returns true (currently: Outreach and Meetings — see
  * `ENGAGEMENT_DESTINATION_READY` in engagement-route-state.ts), so the
- * `meetings` / `library` / `reports` cases below are unreachable today. They
- * exist so the render switch stays exhaustive and so promoting a destination
- * later is additive: build the real component, import it here, add its case,
- * flip its flag in engagement-route-state.ts. No other routing change, and
- * no change to VNextRouter.tsx, is required.
+ * `library` / `reports` cases below are unreachable today. They exist so the
+ * render switch stays exhaustive and so promoting a destination later is
+ * additive: build the real component, import it here, add its case, flip its
+ * flag in engagement-route-state.ts. No other routing change, and no change
+ * to VNextRouter.tsx, is required.
  */
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -49,8 +49,16 @@ import {
   type EngagementDestination,
 } from './engagement-route-state.js';
 import { VNextOutreachWorkspace, type EngagementOutreachStep } from './VNextOutreachWorkspace.js';
+import { VNextMeetingsWorkspace } from './VNextMeetingsWorkspace.js';
 import './engagement.css';
 import './engagement-ui-closeout.css';
+// Tone table (eng-pill classes) — established in the foundations commit but
+// never actually imported anywhere until this phase's Meetings status pills
+// became its first consumer. Loaded once here (router level) rather than
+// per-destination, matching how engagement.css itself is loaded here — later
+// Library/Reports/drawer phases share this same import, per this file's own
+// header comment about its scope.
+import './engagement-tones.css';
 
 export { isVNextEngagementPath };
 
@@ -134,13 +142,16 @@ export function VNextEngagementRoutes() {
       );
       break;
     case 'meetings':
+      body = <VNextMeetingsWorkspace clientId={clientFilter.selectedClientId} />;
+      break;
     case 'library':
     case 'reports':
       // Pending — see the staged-rollout comment above and
       // ENGAGEMENT_DESTINATION_READY in engagement-route-state.ts.
-      // Unreachable today: isVNextEngagementPath only claims 'outreach', so
-      // VNextRouter falls through to the canonical EngagementPage (still
-      // inside this same vNext shell) for these three destinations.
+      // Unreachable today: isVNextEngagementPath only claims Outreach and
+      // Meetings, so VNextRouter falls through to the canonical
+      // EngagementPage (still inside this same vNext shell) for these two
+      // destinations.
       body = null;
       break;
   }

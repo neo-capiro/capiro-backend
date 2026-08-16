@@ -1,13 +1,13 @@
 /**
- * vNext Engagement route state — STAGED ROLLOUT (foundations phase,
- * 2026-08-16).
+ * vNext Engagement route state — STAGED ROLLOUT (Meetings phase, 2026-08-16).
  *
  * Adapted from `origin/agent/engagement-complete-gpt56`'s route-state module
  * (`git show origin/agent/engagement-complete-gpt56:apps/web/src/vnext/pages/engagement/engagement-route-state.ts`),
  * which assumed all four Engagement destinations already had native vNext
- * bodies. On this branch only Outreach does (`VNextOutreachWorkspace`,
- * shipped before this phase) — `VNextMeetingsWorkspace`, `VNextMeetingLibrary`
- * and its Reports counterpart are built in later phases of this navy reskin.
+ * bodies. On this branch, Outreach (`VNextOutreachWorkspace`, shipped before
+ * this phase) and Meetings (`VNextMeetingsWorkspace`, this phase) do —
+ * `VNextMeetingLibrary` and its Reports counterpart are built in later phases
+ * of this navy reskin.
  *
  * `engagementDestination` and `canonicalEngagementLocation` are unchanged,
  * pure URL logic, ported as-is from that reference. `isVNextEngagementPath`
@@ -23,17 +23,32 @@ export type EngagementDestination = 'meetings' | 'library' | 'outreach' | 'repor
 const MEETING_DETAIL_PREFIX = '/engagement/meetings/';
 
 /**
+ * The REAL Meeting Library route — a flat sibling of `/engagement/meetings`,
+ * not nested under it. Matches routeManifest.ts's `engagement-library` entry
+ * and the literal path EngagementPage.tsx's URL writer navigates to. (Bug fix,
+ * 2026-08-16: `engagementDestination` previously checked the nested shape
+ * `/engagement/meetings/library`, which no route in the app ever produces —
+ * harmless only because ENGAGEMENT_DESTINATION_READY.meetings was false, so
+ * every meetings-shaped path fell through to canonical regardless. Promoting
+ * Meetings to `true` this phase would otherwise make the real Library URL
+ * silently misclassify as the `meetings` destination and get claimed by
+ * vNext instead of falling through to the still-canonical Library page.)
+ */
+const LIBRARY_PATH = '/engagement/meeting-library';
+
+/**
  * Staged-rollout switchboard. Flip an entry to `true` once its real vNext
  * component exists and is wired into `VNextEngagementRoutes`' render switch —
  * no other change to the interception contract (this file or VNextRouter.tsx)
  * is required.
  *
  *   - outreach: LIVE — VNextOutreachWorkspace (shipped before this phase).
- *   - meetings, library, reports: PENDING — canonical EngagementPage keeps
- *     rendering these on both domains until each gets its own vNext body.
+ *   - meetings: LIVE — VNextMeetingsWorkspace (this phase, 2026-08-16).
+ *   - library, reports: PENDING — canonical EngagementPage keeps rendering
+ *     these on both domains until each gets its own vNext body.
  */
 const ENGAGEMENT_DESTINATION_READY: Record<EngagementDestination, boolean> = {
-  meetings: false,
+  meetings: true,
   library: false,
   outreach: true,
   reports: false,
@@ -45,7 +60,7 @@ const ENGAGEMENT_DESTINATION_READY: Record<EngagementDestination, boolean> = {
  * destination gets promoted to `true` above.
  */
 export function engagementDestination(pathname: string): EngagementDestination {
-  if (pathname === '/engagement/meetings/library') return 'library';
+  if (pathname === LIBRARY_PATH) return 'library';
   if (pathname.startsWith('/engagement/outreach')) return 'outreach';
   if (pathname.startsWith('/engagement/reports')) return 'reports';
   return 'meetings';
@@ -56,10 +71,10 @@ export function engagementDestination(pathname: string): EngagementDestination {
  * decide between rendering `VNextEngagementRoutes` and falling through to the
  * canonical page — the same contract `isVNextDirectoryPath` /
  * `isVNextLegiWatchPath` use for their own modules. A path only counts once
- * its destination is marked ready above, so `/engagement`, `/engagement/
- * meetings`, `/engagement/meetings/library` and `/engagement/reports` all
- * stay canonical (unchanged) until Meetings/Library/Reports ship their own
- * vNext bodies.
+ * its destination is marked ready above, so `/engagement` and `/engagement/
+ * meetings` are now claimed by vNext (VNextMeetingsWorkspace, this phase),
+ * while `/engagement/meeting-library` and `/engagement/reports` stay
+ * canonical (unchanged) until Library/Reports ship their own vNext bodies.
  */
 export function isVNextEngagementPath(pathname: string): boolean {
   if (!(pathname === '/engagement' || pathname.startsWith('/engagement/'))) return false;
@@ -85,7 +100,7 @@ export function canonicalEngagementLocation(pathname: string, search: string): s
     return '/engagement/meetings';
   }
 
-  if (pathname.startsWith(MEETING_DETAIL_PREFIX) && pathname !== '/engagement/meetings/library') {
+  if (pathname.startsWith(MEETING_DETAIL_PREFIX) && pathname !== LIBRARY_PATH) {
     const rawId = pathname.slice(MEETING_DETAIL_PREFIX.length).split('/')[0] ?? '';
     if (!rawId) return '/engagement/meetings';
     const params = new URLSearchParams(search);

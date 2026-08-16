@@ -6,15 +6,19 @@ import {
 } from './engagement-route-state.js';
 
 describe('vNext Engagement route state', () => {
-  it('claims Outreach — the one destination with a shipped vNext component — and nothing else yet', () => {
+  it('claims Outreach and Meetings — the two destinations with a shipped vNext component — and nothing else yet', () => {
     expect(isVNextEngagementPath('/engagement/outreach')).toBe(true);
     expect(isVNextEngagementPath('/engagement/outreach/draft/123')).toBe(true);
+    // Meetings shipped this phase (VNextMeetingsWorkspace) — the bare module
+    // root and the meetings path itself are both now claimed.
+    expect(isVNextEngagementPath('/engagement')).toBe(true);
+    expect(isVNextEngagementPath('/engagement/meetings')).toBe(true);
 
-    // Meetings, Library and Reports stay canonical until their own vNext
-    // components ship in later phases — see ENGAGEMENT_DESTINATION_READY.
-    expect(isVNextEngagementPath('/engagement')).toBe(false);
-    expect(isVNextEngagementPath('/engagement/meetings')).toBe(false);
-    expect(isVNextEngagementPath('/engagement/meetings/library')).toBe(false);
+    // Library and Reports stay canonical until their own vNext components
+    // ship in later phases — see ENGAGEMENT_DESTINATION_READY. Note the real
+    // Library route is the flat `/engagement/meeting-library`, not nested
+    // under `/engagement/meetings/` (see LIBRARY_PATH's comment).
+    expect(isVNextEngagementPath('/engagement/meeting-library')).toBe(false);
     expect(isVNextEngagementPath('/engagement/reports')).toBe(false);
 
     // Unrelated paths are never claimed.
@@ -25,7 +29,7 @@ describe('vNext Engagement route state', () => {
   it('recognizes the four rendered destinations regardless of rollout status', () => {
     expect(engagementDestination('/engagement')).toBe('meetings');
     expect(engagementDestination('/engagement/meetings')).toBe('meetings');
-    expect(engagementDestination('/engagement/meetings/library')).toBe('library');
+    expect(engagementDestination('/engagement/meeting-library')).toBe('library');
     expect(engagementDestination('/engagement/outreach/abc')).toBe('outreach');
     expect(engagementDestination('/engagement/reports')).toBe('reports');
   });
