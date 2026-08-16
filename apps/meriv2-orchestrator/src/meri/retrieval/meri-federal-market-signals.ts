@@ -47,7 +47,16 @@ const AGENCY_FIELDS = [
 
 const NAICS_FIELDS = ['naics', 'naicsCode', 'naicsCodes'] as const;
 const PSC_FIELDS = ['psc', 'pscCode', 'pscCodes', 'productServiceCode'] as const;
-const PE_FIELDS = ['peCode', 'peNumber', 'peNumbers', 'programElement', 'programElementCode'] as const;
+const PE_FIELDS = [
+  'peCode',
+  'code',
+  'peNumber',
+  'peNumbers',
+  'programElement',
+  'programElementCode',
+  'lineItem',
+  'lineItemCode',
+] as const;
 
 const STOPWORDS = new Set([
   'about',
@@ -140,6 +149,14 @@ function sourceRows(value: unknown): unknown[] {
   return [];
 }
 
+function isDefenseBudgetCode(value: string): boolean {
+  return (
+    /^\d{7}[A-Z0-9]{1,3}$/.test(value) ||
+    /^\d{4}[A-Z]\d{4}$/.test(value) ||
+    /^\d{8,12}$/.test(value)
+  );
+}
+
 function addCodes(target: Set<string>, value: unknown, kind: 'naics' | 'psc' | 'pe'): void {
   for (const raw of stringsFrom(value)) {
     const candidates = raw.split(/[\s,;|/]+/).filter(Boolean);
@@ -148,12 +165,7 @@ function addCodes(target: Set<string>, value: unknown, kind: 'naics' | 'psc' | '
       if (!normalized) continue;
       if (kind === 'naics' && /^\d{6}$/.test(normalized)) target.add(normalized);
       if (kind === 'psc' && /^[A-Z0-9]{4}$/.test(normalized)) target.add(normalized);
-      if (
-        kind === 'pe' &&
-        (/^\d{7}[A-Z]$/.test(normalized) || /^\d{4}[A-Z]\d{4}$/.test(normalized))
-      ) {
-        target.add(normalized);
-      }
+      if (kind === 'pe' && isDefenseBudgetCode(normalized)) target.add(normalized);
     }
   }
 }

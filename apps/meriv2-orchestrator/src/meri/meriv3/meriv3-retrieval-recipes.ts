@@ -1,10 +1,11 @@
-import type { MeriRetrievalRecipeTool } from '../retrieval/meri-retrieval-plan.js';
+import type { MeriRuntimeRetrievalRecipeTool } from '../retrieval/meri-retrieval-plan.js';
 import {
   executeMeriClientChanges,
   executeMeriPortfolioChanges,
 } from './meriv3-retrieval-changes.js';
 import {
   executeMeriExternalCompanyResearch,
+  executeMeriFederalMarketStrategyResearch,
   executeMeriPortfolioOverlap,
 } from './meriv3-retrieval-company.js';
 import { executeMeriRelationshipBrief } from './meriv3-retrieval-relationship.js';
@@ -72,12 +73,28 @@ export const MERI_RETRIEVAL_TOOL_SCHEMAS: MeriRetrievalToolSchema[] = [
   {
     name: 'research_external_company',
     description:
-      'Resolve and research a company whether or not it is a Capiro client. Builds a verified company evidence set, extracts capability/agency/NAICS/PSC/PE signals, searches SAM opportunities, grants and Program Elements from those signals, and names qualification gaps. Use FIRST for external-company profiles and federal-market strategy requests. Candidate matches are evidence for analysis, not automatic proof of eligibility or program fit.',
+      'Resolve and research a company whether or not it is a Capiro client. Builds a verified company evidence set, extracts capability/agency/NAICS/PSC/PE signals, searches SAM opportunities, grants and Program Elements from those signals, and names qualification gaps. Use FIRST for ordinary external-company profiles or a focused market lookup. Candidate matches are evidence for analysis, not automatic proof of eligibility or program fit.',
     input_schema: {
       type: 'object',
       additionalProperties: false,
       properties: {
         entity: stringSchema('Company or organization name, alias, or domain'),
+      },
+      required: ['entity'],
+    },
+  },
+  {
+    name: 'research_federal_market_strategy',
+    description:
+      'Run the mandatory Research Director workflow for a comprehensive company federal-growth, capture, or pursuit strategy. Use FIRST for “comprehensive strategy”, “what PEs/grants/contracts should this company pursue”, federal growth strategy, and similar broad requests. It resolves identity; abstracts products into capabilities, operational effects and government mission vocabulary; searches internal Capiro data and public sources in multiple waves; investigates Program Elements, procurement, current and recurring acquisition channels, OTAs, consortia, marketplaces, grants/SBIR/xTech, congressional report language, OEM/prime routes, operational validation, industrial-base/finance, compliance and stakeholders; validates top budget lines with specialist readers; and returns a coverage gate and critic-ready dossier for artifact-quality synthesis. Do not replace this with a few literal keyword searches.',
+    input_schema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        entity: stringSchema('Company or organization name, alias, misspelling, or domain'),
+        objective: stringSchema(
+          'Optional user objective or strategic emphasis; preserve the user’s broad request when omitted',
+        ),
       },
       required: ['entity'],
     },
@@ -97,12 +114,12 @@ export const MERI_RETRIEVAL_TOOL_SCHEMAS: MeriRetrievalToolSchema[] = [
   },
 ];
 
-export function isMeriRetrievalRecipeTool(name: string): name is MeriRetrievalRecipeTool {
+export function isMeriRetrievalRecipeTool(name: string): name is MeriRuntimeRetrievalRecipeTool {
   return MERI_RETRIEVAL_TOOL_SCHEMAS.some((schema) => schema.name === name);
 }
 
 export async function executeMeriRetrievalRecipe(
-  name: MeriRetrievalRecipeTool,
+  name: MeriRuntimeRetrievalRecipeTool,
   input: Record<string, unknown>,
   ctx: MeriRetrievalRecipeContext,
 ): Promise<unknown> {
@@ -115,6 +132,8 @@ export async function executeMeriRetrievalRecipe(
       return executeMeriPortfolioChanges(input, ctx);
     case 'research_external_company':
       return executeMeriExternalCompanyResearch(input, ctx);
+    case 'research_federal_market_strategy':
+      return executeMeriFederalMarketStrategyResearch(input, ctx);
     case 'query_portfolio_overlap':
       return executeMeriPortfolioOverlap(input, ctx);
   }

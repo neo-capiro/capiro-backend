@@ -40,6 +40,8 @@ const TOOL_DOMAIN_OVERRIDES: Record<string, MeriRetrievalDomain[]> = {
   get_program_element: ['budget'],
   get_pe_budget_timeline: ['budget'],
   get_pe_report_language: ['budget'],
+  get_pe_contractors: ['budget', 'awards'],
+  get_pe_bills: ['budget', 'legislation'],
   search_sam_opportunities: ['opportunities'],
   get_funding_opportunity: ['opportunities'],
   explain_opportunity_match: ['opportunities'],
@@ -54,6 +56,17 @@ const TOOL_DOMAIN_OVERRIDES: Record<string, MeriRetrievalDomain[]> = {
   search_fara_registrations: ['registries'],
   search_public_web: ['public_web'],
   scrape_web_page: ['public_web'],
+  research_federal_market_strategy: [
+    'identity',
+    'public_web',
+    'registries',
+    'awards',
+    'opportunities',
+    'grants',
+    'budget',
+    'intelligence',
+    'directory',
+  ],
 };
 
 /**
@@ -70,6 +83,8 @@ const EXHAUSTIVE_TOOLS = new Set([
   'get_program_element',
   'get_pe_budget_timeline',
   'get_pe_report_language',
+  'get_pe_contractors',
+  'get_pe_bills',
   'get_acquisition_person',
   'get_state_rule_status',
   'get_funding_opportunity',
@@ -140,7 +155,9 @@ export function meriToolCoverageCatalogEntry(tool: string): MeriToolCatalogEntry
     ? true
     : NON_EXHAUSTIVE_TOOLS.has(tool)
       ? false
-      : datasets.length > 0 && datasets.every((dataset) => dataset.capabilities.exhaustiveScan);
+      : tool === 'research_federal_market_strategy'
+        ? false
+        : datasets.length > 0 && datasets.every((dataset) => dataset.capabilities.exhaustiveScan);
 
   return {
     domains: [...domains],

@@ -1,3 +1,5 @@
+import { compactMeriFederalStrategyResult } from './meri-strategy-result.js';
+
 const MAX_PRIMARY_RESULTS = 30;
 const MAX_CARRYOVER_RESULTS = 10;
 const MAX_COMPANY_RESULTS = 20;
@@ -58,12 +60,17 @@ function compactCompanyResearch(value: unknown): unknown {
 /**
  * The Responses runtime bounds each tool result before returning it to the
  * model. Coverage must therefore appear before evidence arrays, otherwise a
- * large result could hide the very metadata that prevents false exhaustive
- * claims. This helper also caps evidence at a useful reasoning size while the
- * underlying governed calls retain their complete audit traces.
+ * large result could hide the metadata that prevents false exhaustive claims.
+ * The comprehensive federal-strategy recipe has a dedicated, citation-aware
+ * compactor because its dossier must preserve every strategic domain under the
+ * 12k model-visible tool-result ceiling.
  */
 export function compactMeriRetrievalRecipeResult(value: unknown): unknown {
   if (!isRecord(value)) return value;
+  if (value.tool === 'research_federal_market_strategy') {
+    return compactMeriFederalStrategyResult(value);
+  }
+
   const {
     coverage,
     results,

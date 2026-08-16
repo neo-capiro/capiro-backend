@@ -305,7 +305,7 @@ export function MeriWorkspaceWindow({ controller }: { controller: MeriChatContro
 
             <div className="meri-v3-header-thread">
               <strong>{sessionTitle}</strong>
-              {!isNewThread && activeConversationId ? (
+              {activeConversationId ? (
                 <div className="meri-v3-header-chips">
                   {headerChips.map((chip) => (
                     <span className="meri-v3-header-chip" key={chip}>

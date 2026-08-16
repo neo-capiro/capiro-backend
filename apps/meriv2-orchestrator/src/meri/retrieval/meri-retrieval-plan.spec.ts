@@ -42,16 +42,36 @@ describe('buildMeriRetrievalPlan', () => {
     expect(result.requireCompleteCoverage).toBe(true);
   });
 
-  test('routes misspelled domain-style federal-market work to external research', () => {
+  test('routes comprehensive federal-market work to the Research Director recipe', () => {
     const result = plan(
-      'Give me a comprehensive strategy on kindeticindustries.inc and tell me what Program Elements and contracts it should pursue.',
+      'Give me a comprehensive strategy on kindeticindustries.inc and tell me what Program Elements, grants, and government contracts it should pursue.',
     );
 
-    expect(result.recipeTool).toBe('research_external_company');
+    expect(result.recipeTool).toBe('research_federal_market_strategy');
     expect(result.targetHint).toBe('kindeticindustries.inc');
     expect(result.requiredDomains).toEqual(
-      expect.arrayContaining(['identity', 'public_web', 'registries', 'awards', 'opportunities']),
+      expect.arrayContaining([
+        'identity',
+        'public_web',
+        'registries',
+        'awards',
+        'opportunities',
+        'grants',
+        'budget',
+        'intelligence',
+        'directory',
+      ]),
     );
+    expect(result.recommendedTools).toEqual(
+      expect.arrayContaining([
+        'research_federal_market_strategy',
+        'get_pe_report_language',
+        'get_pe_contractors',
+        'get_pe_bills',
+        'search_acquisition_personnel',
+      ]),
+    );
+    expect(result.reasons).toContain('research-director-required');
   });
 
   test('routes the explicit Search across clients follow-up to portfolio overlap', () => {
@@ -76,5 +96,15 @@ describe('buildMeriRetrievalPlan', () => {
     expect(prompt).toContain('Authorized active client count: 2.');
     expect(prompt).toContain('Aperture Defense Systems (Aperture Defense Systems)');
     expect(prompt).toContain('Do not turn zero matches into a claim of absence');
+  });
+
+  test('renders the mandatory Research Director contract', () => {
+    const prompt = meriRetrievalPlanPrompt(
+      plan('Give me a comprehensive federal growth strategy for Kinetic Industries.'),
+    );
+    expect(prompt).toContain('Call research_federal_market_strategy FIRST.');
+    expect(prompt).toContain('Do not substitute research_external_company');
+    expect(prompt).toContain('congressional research');
+    expect(prompt).toContain('senior-reviewer gap check');
   });
 });

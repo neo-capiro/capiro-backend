@@ -61,6 +61,8 @@ const RELATIONSHIP_PATTERNS = [
 
 const FEDERAL_MARKET_PATTERNS = [
   /\bfederal\s+market\b/i,
+  /\bfederal\s+(?:growth|market|capture|pursuit)\s+strategy\b/i,
+  /\b(?:growth|capture|market|pursuit)\s+strategy\b/i,
   /\bpursuit\s+strategy\b/i,
   /\bwhat\s+should\s+.+\s+pursue\b/i,
   /\bprogram\s+elements?\b/i,

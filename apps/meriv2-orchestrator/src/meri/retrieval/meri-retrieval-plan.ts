@@ -1,11 +1,13 @@
 import type { MeriContext } from '@capiro/meriv2-core';
 import { meriRecipeCatalogEntry } from './meri-data-catalog.js';
+import { isComprehensiveFederalMarketResearch } from './meri-research-director.js';
 import type {
   MeriQueryClass,
   MeriRetrievalIntent,
   MeriSubjectScope,
 } from './meri-retrieval-intent.js';
 
+/** Recipes represented in the static Meri data catalog. */
 export const MERI_RETRIEVAL_RECIPE_TOOLS = [
   'query_relationship_brief',
   'query_client_changes',
@@ -15,6 +17,15 @@ export const MERI_RETRIEVAL_RECIPE_TOOLS = [
 ] as const;
 
 export type MeriRetrievalRecipeTool = (typeof MERI_RETRIEVAL_RECIPE_TOOLS)[number];
+
+/** Runtime recipes include the deeper Research Director workflow. */
+export const MERI_RUNTIME_RETRIEVAL_RECIPE_TOOLS = [
+  ...MERI_RETRIEVAL_RECIPE_TOOLS,
+  'research_federal_market_strategy',
+] as const;
+
+export type MeriRuntimeRetrievalRecipeTool =
+  (typeof MERI_RUNTIME_RETRIEVAL_RECIPE_TOOLS)[number];
 
 export type MeriRetrievalDomain =
   | 'identity'
@@ -58,7 +69,7 @@ export interface MeriRetrievalPlan {
   queryClass: MeriQueryClass;
   subjectScope: MeriSubjectScope;
   targetHint: string | null;
-  recipeTool: MeriRetrievalRecipeTool | null;
+  recipeTool: MeriRuntimeRetrievalRecipeTool | null;
   requireCompleteCoverage: boolean;
   requiredDomains: MeriRetrievalDomain[];
   optionalDomains: MeriRetrievalDomain[];
@@ -70,6 +81,51 @@ export interface MeriRetrievalPlan {
 
 const PORTFOLIO_OVERLAP_RE =
   /\b(?:search|scan|compare)\s+(?:across|against)\s+(?:my|our|the)?\s*clients?\b|\bwhich\s+(?:of\s+)?(?:my|our)\s+clients?\b|\bportfolio\s+(?:overlap|match|partner|fit)\b|\bpotential\s+partners?\s+(?:in|across)\s+(?:my|our)\s+(?:clients?|portfolio)\b/i;
+
+const RESEARCH_DIRECTOR_REQUIRED_DOMAINS: MeriRetrievalDomain[] = [
+  'identity',
+  'public_web',
+  'registries',
+  'awards',
+  'opportunities',
+  'grants',
+  'budget',
+  'intelligence',
+  'directory',
+];
+
+const RESEARCH_DIRECTOR_OPTIONAL_DOMAINS: MeriRetrievalDomain[] = [
+  'internal_research',
+  'memory',
+  'legislation',
+  'hearings',
+];
+
+const RESEARCH_DIRECTOR_RECOMMENDED_TOOLS = [
+  'research_federal_market_strategy',
+  'research_external_company',
+  'resolve_entity',
+  'search_public_web',
+  'scrape_web_page',
+  'search_lda_filings',
+  'search_sec_filings',
+  'search_federal_awards',
+  'search_sam_opportunities',
+  'search_federal_grants',
+  'search_program_elements',
+  'get_program_element',
+  'get_pe_budget_timeline',
+  'get_pe_report_language',
+  'get_pe_contractors',
+  'get_pe_bills',
+  'search_acquisition_personnel',
+  'search_intel_articles',
+  'search_gao_reports',
+  'search_crs_reports',
+  'search_committee_hearings',
+  'search_research_sources',
+  'search_memory',
+];
 
 function unique<T>(values: readonly T[]): T[] {
   return [...new Set(values)];
@@ -105,7 +161,7 @@ function inferTimeWindow(request: string): MeriRetrievalTimeWindow | null {
 function recipeFor(
   request: string,
   intent: MeriRetrievalIntent,
-): MeriRetrievalRecipeTool | null {
+): MeriRuntimeRetrievalRecipeTool | null {
   // This explicit command is a follow-up to an entity/company analysis in the
   // product flow. Check it before the generic portfolio-scan rule so “Search
   // across clients” compares the current entity against the portfolio instead
@@ -120,7 +176,14 @@ function recipeFor(
   if (intent.subjectScope === 'client' && intent.queryClass === 'change_detection') {
     return 'query_client_changes';
   }
-  if (intent.queryClass === 'federal_market_analysis') return 'research_external_company';
+  // Research Director must win over exhaustive_search → relationship_brief when the
+  // user asked for a comprehensive federal/company strategy.
+  if (isComprehensiveFederalMarketResearch(request, intent.queryClass)) {
+    return 'research_federal_market_strategy';
+  }
+  if (intent.queryClass === 'federal_market_analysis') {
+    return 'research_external_company';
+  }
   if (
     intent.queryClass === 'relationship_history' ||
     (intent.queryClass === 'exhaustive_search' && intent.subjectScope === 'external_entity')
@@ -140,7 +203,10 @@ export function buildMeriRetrievalPlan(
   priorTargetHint?: string | null,
 ): MeriRetrievalPlan {
   const recipeTool = recipeFor(request, intent);
-  const recipe = recipeTool ? meriRecipeCatalogEntry(recipeTool) : null;
+  const catalogRecipe =
+    recipeTool && recipeTool !== 'research_federal_market_strategy'
+      ? meriRecipeCatalogEntry(recipeTool)
+      : null;
   const roster = (ctx.clientRoster ?? []) as MeriRetrievalClientRef[];
   // Every client-scoped Meri tool resolves an exact display name through the
   // same authorization choke point when no UUID is available. Using that exact
@@ -153,9 +219,23 @@ export function buildMeriRetrievalPlan(
   const targetHint = intent.targetHint ?? priorTargetHint ?? null;
   const reasons = [...intent.reasonCodes];
   if (recipeTool) reasons.push(`recipe:${recipeTool}`);
+  if (recipeTool === 'research_federal_market_strategy') reasons.push('research-director-required');
   if (timeWindow) reasons.push(`time-window:${timeWindow.expression}`);
   if (targetHint && !intent.targetHint) reasons.push('target-from-conversation-history');
   if (intent.requireCompleteCoverage) reasons.push('coverage-required');
+
+  const requiredDomains =
+    recipeTool === 'research_federal_market_strategy'
+      ? RESEARCH_DIRECTOR_REQUIRED_DOMAINS
+      : catalogRecipe?.requiredDomains ?? [];
+  const optionalDomains =
+    recipeTool === 'research_federal_market_strategy'
+      ? RESEARCH_DIRECTOR_OPTIONAL_DOMAINS
+      : catalogRecipe?.optionalDomains ?? [];
+  const recommendedTools =
+    recipeTool === 'research_federal_market_strategy'
+      ? RESEARCH_DIRECTOR_RECOMMENDED_TOOLS
+      : catalogRecipe?.recommendedTools ?? [];
 
   return {
     version: 1,
@@ -164,9 +244,9 @@ export function buildMeriRetrievalPlan(
     targetHint,
     recipeTool,
     requireCompleteCoverage: intent.requireCompleteCoverage,
-    requiredDomains: unique(recipe?.requiredDomains ?? []),
-    optionalDomains: unique(recipe?.optionalDomains ?? []),
-    recommendedTools: unique(recipe?.recommendedTools ?? []),
+    requiredDomains: unique(requiredDomains),
+    optionalDomains: unique(optionalDomains),
+    recommendedTools: unique(recommendedTools),
     timeWindow,
     activeClients,
     reasons: unique(reasons),
@@ -189,6 +269,11 @@ export function meriRetrievalPlanPrompt(plan: MeriRetrievalPlan): string {
   if (plan.recipeTool) {
     lines.push(
       `Call ${plan.recipeTool} FIRST. It performs the required deterministic fan-out and returns a coverage manifest. Use lower-level tools afterward only to close a named gap or verify a load-bearing record.`,
+    );
+  }
+  if (plan.recipeTool === 'research_federal_market_strategy') {
+    lines.push(
+      'This recipe is a Research Director workflow. Do not substitute research_external_company or a few literal keyword searches. It must complete capability abstraction, mission expansion, acquisition-channel discovery, congressional research, program validation, partner analysis, compliance/scale analysis, and a senior-reviewer gap check before synthesis.',
     );
   }
   if (plan.requiredDomains.length) {
