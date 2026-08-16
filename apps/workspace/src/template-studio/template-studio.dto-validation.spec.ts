@@ -39,7 +39,8 @@ function dtoImportBlocks(src: string): Array<{ kind: 'value' | 'type'; names: st
   let m: RegExpExecArray | null;
   while ((m = re.exec(src)) !== null) {
     const kind = m[1] ? 'type' : 'value';
-    const names = m[2]
+    const body = m[2] ?? '';
+    const names = body
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)
