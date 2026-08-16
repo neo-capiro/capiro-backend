@@ -1,0 +1,213 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useClientCrmOverviewModel } from './useClientCrmOverviewModel.js';
+import type { Client } from '../../../pages/clients/clientTypes.js';
+
+/**
+ * Items 9-10 (wire-audit "2 Wire existing APIs"): the Overview tab's Intel
+ * pulse / Work pulse composition. These three behaviors were bugs in an
+ * already-real pipeline (facility rows miscounted as districts, a hardcoded
+ * `lastRefresh: null`, and a "Next 30 days" label with no upper bound) —
+ * not new wiring — so these tests exercise the hook's derivation directly
+ * rather than a rendered card.
+ */
+
+const getMock = vi.hoisted(() => vi.fn());
+vi.mock('../../../lib/use-api.js', () => ({
+  useApi: () => ({ get: getMock }),
+}));
+
+const client: Client = {
+  id: 'client-1',
+  name: 'Overland AI',
+  website: 'overland.ai',
+  description: null,
+  productDescription: null,
+  primaryContactName: null,
+  primaryContactEmail: null,
+  primaryContactPhone: null,
+  logoS3Key: null,
+  logoContentType: null,
+  logoUploadedAt: null,
+  intakeData: null,
+  status: 'active',
+  createdAt: '2026-01-15T00:00:00.000Z',
+  updatedAt: '2026-01-15T00:00:00.000Z',
+};
+
+function Harness() {
+  const model = useClientCrmOverviewModel(client);
+  return (
+    <div>
+      <div data-testid="districts">
+        {model.intelligence.districts.kind === 'value' ? model.intelligence.districts.value : 'unavailable'}
+      </div>
+      <div data-testid="last-refresh">{model.intelligence.lastRefresh ?? 'null'}</div>
+      {/* Settle signal: real once the strategies list + its node detail have
+          loaded, so a milestones assertion of "0" can't pass vacuously on the
+          transient pre-fetch state (also 0, since strategyDetails starts empty). */}
+      <div data-testid="current-strategies">
+        {model.work.currentStrategies.kind === 'value' ? model.work.currentStrategies.value : 'unavailable'}
+      </div>
+      <div data-testid="milestones">
+        {model.work.upcomingMilestones.kind === 'value' ? model.work.upcomingMilestones.value : 'unavailable'}
+      </div>
+    </div>
+  );
+}
+
+function renderModel() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <Harness />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+const NOW = Date.now();
+const isoInDays = (days: number) => new Date(NOW + days * 86_400_000).toISOString();
+
+function strategyNode(overrides: Record<string, unknown>) {
+  return {
+    id: 'node-1',
+    strategyId: 'strat-1',
+    kind: 'milestone',
+    subject: 'client',
+    title: 'A milestone',
+    note: null,
+    ownerUserId: null,
+    status: 'active',
+    startsOn: isoInDays(-5),
+    endsOn: null,
+    openEnded: false,
+    dependsOnIds: [],
+    provenance: null,
+    targetRef: null,
+    meriAuthored: false,
+    ...overrides,
+  };
+}
+
+function mockEndpoints(overrides: {
+  facilities?: unknown[];
+  strategies?: unknown[];
+  strategyDetails?: Record<string, unknown>;
+} = {}) {
+  const facilities = overrides.facilities ?? [];
+  const strategies = overrides.strategies ?? [];
+  const strategyDetails = overrides.strategyDetails ?? {};
+
+  getMock.mockImplementation((url: string) => {
+    if (url === '/api/intelligence/actions') return Promise.resolve({ data: { data: [], total: 0 } });
+    if (url === '/api/engagement/meetings') return Promise.resolve({ data: [] });
+    if (url === '/intel-api/feature-flags') return Promise.resolve({ data: {} });
+    if (url === '/strategy-api/strategies') return Promise.resolve({ data: strategies });
+    if (url.startsWith('/strategy-api/strategies/')) {
+      const id = url.split('/').pop()!;
+      return Promise.resolve({ data: strategyDetails[id] ?? null });
+    }
+    if (url === '/api/intelligence/clients/client-1/tracker/summary') {
+      return Promise.resolve({ data: { boardCount: 0, unread: 0 } });
+    }
+    if (url === '/api/intelligence/clients/client-1/opportunities/summary') {
+      return Promise.resolve({ data: { total: 0 } });
+    }
+    if (url === '/api/clients/client-1/facilities') return Promise.resolve({ data: facilities });
+    if (url === '/api/intelligence/comment-alerts') return Promise.resolve({ data: { alerts: [] } });
+    return Promise.reject(new Error(`unexpected GET ${url}`));
+  });
+}
+
+beforeEach(() => {
+  getMock.mockReset();
+});
+
+describe('useClientCrmOverviewModel — Intel pulse districts (item 9)', () => {
+  it('counts DISTINCT congressional districts, not facility rows', async () => {
+    mockEndpoints({
+      facilities: [
+        { id: 'f1', clientId: 'client-1', name: 'HQ', state: 'WA', congressionalDistrict: '07', latitude: 47.6, longitude: -122.3, employeeCount: 200 },
+        { id: 'f2', clientId: 'client-1', name: 'Annex', state: 'WA', congressionalDistrict: '07', latitude: 47.61, longitude: -122.31, employeeCount: 20 },
+        { id: 'f3', clientId: 'client-1', name: 'Austin site', state: 'TX', congressionalDistrict: '31', latitude: 30.5, longitude: -97.7, employeeCount: 40 },
+      ],
+    });
+    renderModel();
+
+    // 3 facilities, but only 2 distinct districts (WA-07 shared by two facilities).
+    await waitFor(() => expect(screen.getByTestId('districts')).toHaveTextContent('2'));
+  });
+});
+
+describe('useClientCrmOverviewModel — Intel pulse lastRefresh (item 9)', () => {
+  it('computes a real lastRefresh from actual query fetch times instead of a hardcoded null', async () => {
+    mockEndpoints();
+    renderModel();
+
+    await waitFor(() => expect(screen.getByTestId('last-refresh')).not.toHaveTextContent('null'));
+  });
+});
+
+describe('useClientCrmOverviewModel — Work pulse upcoming milestones (item 10)', () => {
+  it('counts a milestone due within 30 days', async () => {
+    mockEndpoints({
+      strategies: [{ id: 'strat-1', clientId: 'client-1', title: 'FY27 push', type: 'appropriations', ownerUserId: 'u1', createdByUserId: 'u1', lastEditedByUserId: null, lastEditedAt: null, createdAt: '2026-01-01T00:00:00.000Z', nodeCount: 1 }],
+      strategyDetails: {
+        'strat-1': {
+          id: 'strat-1', clientId: 'client-1', title: 'FY27 push', type: 'appropriations', goal: null,
+          meriContext: null, meriSummary: null, draftedByMeri: false, targetDate: null, ownerUserId: 'u1',
+          createdByUserId: 'u1', lastEditedByUserId: null, lastEditedAt: null, archivedAt: null,
+          createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', artifacts: [],
+          nodes: [strategyNode({ id: 'near', endsOn: isoInDays(10) })],
+        },
+      },
+    });
+    renderModel();
+
+    await waitFor(() => expect(screen.getByTestId('milestones')).toHaveTextContent('1'));
+  });
+
+  it('does NOT count a milestone due in 60 days, despite the "Next 30 days" label previously having no upper bound', async () => {
+    mockEndpoints({
+      strategies: [{ id: 'strat-1', clientId: 'client-1', title: 'FY27 push', type: 'appropriations', ownerUserId: 'u1', createdByUserId: 'u1', lastEditedByUserId: null, lastEditedAt: null, createdAt: '2026-01-01T00:00:00.000Z', nodeCount: 1 }],
+      strategyDetails: {
+        'strat-1': {
+          id: 'strat-1', clientId: 'client-1', title: 'FY27 push', type: 'appropriations', goal: null,
+          meriContext: null, meriSummary: null, draftedByMeri: false, targetDate: null, ownerUserId: 'u1',
+          createdByUserId: 'u1', lastEditedByUserId: null, lastEditedAt: null, archivedAt: null,
+          createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', artifacts: [],
+          nodes: [strategyNode({ id: 'far', endsOn: isoInDays(60) })],
+        },
+      },
+    });
+    renderModel();
+
+    // Wait for the strategy detail to have actually loaded before trusting
+    // "0" — that value is also the transient pre-fetch state.
+    await waitFor(() => expect(screen.getByTestId('current-strategies')).toHaveTextContent('1'));
+    expect(screen.getByTestId('milestones')).toHaveTextContent('0');
+  });
+
+  it('does NOT count an open-ended milestone with no end date (no bounded date to verify "next 30 days" against)', async () => {
+    mockEndpoints({
+      strategies: [{ id: 'strat-1', clientId: 'client-1', title: 'FY27 push', type: 'appropriations', ownerUserId: 'u1', createdByUserId: 'u1', lastEditedByUserId: null, lastEditedAt: null, createdAt: '2026-01-01T00:00:00.000Z', nodeCount: 1 }],
+      strategyDetails: {
+        'strat-1': {
+          id: 'strat-1', clientId: 'client-1', title: 'FY27 push', type: 'appropriations', goal: null,
+          meriContext: null, meriSummary: null, draftedByMeri: false, targetDate: null, ownerUserId: 'u1',
+          createdByUserId: 'u1', lastEditedByUserId: null, lastEditedAt: null, archivedAt: null,
+          createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', artifacts: [],
+          nodes: [strategyNode({ id: 'open-ended', endsOn: null, openEnded: true })],
+        },
+      },
+    });
+    renderModel();
+
+    await waitFor(() => expect(screen.getByTestId('current-strategies')).toHaveTextContent('1'));
+    expect(screen.getByTestId('milestones')).toHaveTextContent('0');
+  });
+});
