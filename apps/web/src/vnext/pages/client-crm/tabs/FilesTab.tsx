@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import type { Client, ClientAttachment } from '../../../../pages/clients/clientTypes.js';
 import {
@@ -10,6 +10,9 @@ import {
   UIcon,
   type PillTone,
 } from '../portfolio-primitives.js';
+import { MoveToFolderModal, type FolderNode } from '../portfolio-overlays.js';
+import { CapiroButton } from '../../../components/actions/index.js';
+import { CapiroModal } from '../../../components/overlays/index.js';
 import { FILES, FOLDERS } from '../portfolio-fixtures.js';
 
 /**
@@ -19,14 +22,28 @@ import { FILES, FOLDERS } from '../portfolio-fixtures.js';
  *  - The file list reuses the canonical attachments query
  *    (`['client-attachments', client.id]` — same key as the profile, so
  *    uploads invalidate both surfaces). When the service returns rows they
- *    are mapped onto the design's row shape; while loading, on error, or
- *    when the client has no attachments, the design's FILES fixture renders
- *    so the surface stays pixel-reviewable (flagged UI-only).
+ *    are mapped onto the design's row shape; while loading or on error, the
+ *    design's FILES fixture renders so the surface stays pixel-reviewable
+ *    (flagged UI-only). Once the query resolves and the client genuinely has
+ *    no attachments, a real empty state renders instead — the fixture is a
+ *    loading placeholder, never a stand-in for "no data".
+ *  - Upload, move, and delete port the same presign → S3 → confirm and
+ *    folder-PATCH pipeline the canonical `ClientCrmFiles` surface uses
+ *    (same query key, so both invalidate together and no second copy of the
+ *    stored object is ever created).
  *  - The folder tree, folder counts, the storage meter and the smart-link
  *    provenance copy are designed UI (§11) with no per-client backend — they
  *    render the FOLDERS fixture in every mode.
  *  - `All source links healthy` is a designed status pill (UI-only).
  */
+
+const MAX_BYTES = 25 * 1024 * 1024;
+
+interface UploadState {
+  name: string;
+  status: 'uploading' | 'failed';
+  message?: string;
+}
 
 /* ── view models ──────────────────────────────────────────────────────────── */
 
@@ -43,6 +60,8 @@ interface FileRowModel {
   tone: PillTone;
   /** Fixture folder id, or the real folder label for attachments. */
   folder: string | null;
+  /** Present only for real attachments — lets the row open/download the file. */
+  downloadUrl: string | null;
 }
 
 type FilterKey = 'all' | 'documents' | 'smart' | 'client' | 'meri';
@@ -97,6 +116,7 @@ function fixtureRow(f: (typeof FILES)[number] & { smart?: boolean }): FileRowMod
     status: f.status,
     tone: toneOf(f.ui),
     folder: f.folder,
+    downloadUrl: null,
   };
 }
 
@@ -160,6 +180,7 @@ function attachmentRow(file: ClientAttachment): FileRowModel {
     status: file.indexedAt ? 'Indexed' : 'Uploaded',
     tone: file.indexedAt ? 'success' : 'gray',
     folder,
+    downloadUrl: file.downloadUrl,
   };
 }
 
@@ -181,17 +202,26 @@ function usePfNarrow(): boolean {
 
 export function ClientCrmFilesProto({ client }: { client: Client }) {
   const api = useApi();
+  const qc = useQueryClient();
   const narrow = usePfNarrow();
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const uploadFolderRef = useRef<string | null>(null);
 
   const [folderId, setFolderId] = useState<string>('fy27');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
   const [sort, setSort] = useState<SortKey>('modified');
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [uploads, setUploads] = useState<UploadState[]>([]);
+  const [moving, setMoving] = useState<{ ids: string[]; count: number } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [menuRowId, setMenuRowId] = useState<string | null>(null);
+
+  const attachmentsKey = ['client-attachments', client.id];
 
   // Same key as the canonical profile surface — one shared cache entry.
   const filesQuery = useQuery<ClientAttachment[]>({
-    queryKey: ['client-attachments', client.id],
+    queryKey: attachmentsKey,
     queryFn: async () =>
       (
         await api.get<ClientAttachment[]>('/api/engagement/attachments', {
@@ -200,14 +230,38 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
       ).data,
   });
 
-  const real = filesQuery.data !== undefined && !filesQuery.isError && filesQuery.data.length > 0;
+  const loaded = filesQuery.data !== undefined && !filesQuery.isError;
+  const real = loaded && filesQuery.data!.length > 0;
+  const genuinelyEmpty = loaded && filesQuery.data!.length === 0;
+
+  const move = useMutation({
+    mutationFn: async ({ ids, folder }: { ids: string[]; folder: string | null }) => {
+      await Promise.all(ids.map((id) => api.patch(`/api/clients/${client.id}/files/${id}/folder`, { folder })));
+    },
+    onSuccess: () => {
+      setMoving(null);
+      setSelected(new Set());
+      void qc.invalidateQueries({ queryKey: attachmentsKey });
+    },
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => (await api.delete(`/api/engagement/attachments/${id}`)).data,
+    onSuccess: () => {
+      setDeletingId(null);
+      void qc.invalidateQueries({ queryKey: attachmentsKey });
+    },
+  });
 
   const folders = FOLDERS as FolderFixture[];
   const current = folders.find((f) => f.id === folderId) ?? FALLBACK_FOLDER;
+  const folderNodes: FolderNode[] = folders
+    .filter((f) => f.id !== 'root')
+    .map((f) => ({ label: f.label, depth: f.depth, count: f.count }));
 
   const allRows: FileRowModel[] = useMemo(
-    () => (real ? (filesQuery.data ?? []).map(attachmentRow) : FILES.map(fixtureRow)),
-    [real, filesQuery.data],
+    () => (real ? (filesQuery.data ?? []).map(attachmentRow) : genuinelyEmpty ? [] : FILES.map(fixtureRow)),
+    [real, genuinelyEmpty, filesQuery.data],
   );
 
   const rows = useMemo(() => {
@@ -231,8 +285,18 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
     return shown;
   }, [allRows, query, folderId, filter, sort, real, current.label]);
 
+  // Real ids currently in view for this folder, ignoring search/filter — the
+  // scope "Manage" reorganizes, same membership test the main list applies.
+  const currentFolderIds = useMemo(() => {
+    if (!real) return [];
+    return allRows
+      .filter((row) => (folderId === 'root' ? true : (row.folder ?? '').toLowerCase() === current.label.toLowerCase()))
+      .map((row) => row.id);
+  }, [allRows, real, folderId, current.label]);
+
   const smartCount = rows.filter((row) => row.smart).length;
   const allChecked = rows.length > 0 && rows.every((row) => selected.has(row.id));
+  const deletingRow = deletingId ? allRows.find((row) => row.id === deletingId) : undefined;
 
   const toggleRow = (id: string) =>
     setSelected((prev) => {
@@ -247,19 +311,117 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
     setSelected(new Set());
   };
 
+  function triggerUpload(folder: string | null) {
+    uploadFolderRef.current = folder;
+    inputRef.current?.click();
+  }
+
+  async function handleFiles(list: FileList | null) {
+    if (!list || list.length === 0) return;
+    const folder = uploadFolderRef.current;
+    for (const file of Array.from(list)) {
+      if (file.size > MAX_BYTES) {
+        setUploads((previous) => [
+          ...previous,
+          { name: file.name, status: 'failed', message: 'Larger than the 25 MB limit' },
+        ]);
+        continue;
+      }
+      setUploads((previous) => [...previous, { name: file.name, status: 'uploading' }]);
+      try {
+        const contentType = file.type || 'application/octet-stream';
+        const presigned = (
+          await api.post<{ url: string; fields: Record<string, string>; s3Key: string }>(
+            '/api/engagement/attachments/upload-url',
+            { clientId: client.id, fileName: file.name, contentType, contentLength: file.size },
+          )
+        ).data;
+        const form = new FormData();
+        Object.entries(presigned.fields).forEach(([key, value]) => form.append(key, String(value)));
+        form.append('file', file);
+        const response = await fetch(presigned.url, { method: 'POST', body: form });
+        if (!response.ok) throw new Error('Storage rejected the upload');
+        const attachment = (
+          await api.post<ClientAttachment>('/api/engagement/attachments/confirm', {
+            clientId: client.id,
+            fileName: file.name,
+            contentType,
+            s3Key: presigned.s3Key,
+          })
+        ).data;
+        if (folder) {
+          await api.patch(`/api/clients/${client.id}/files/${attachment.id}/folder`, { folder });
+        }
+        setUploads((previous) => previous.filter((entry) => entry.name !== file.name));
+      } catch (caught) {
+        setUploads((previous) =>
+          previous.map((entry) =>
+            entry.name === file.name
+              ? {
+                  ...entry,
+                  status: 'failed',
+                  message: caught instanceof Error ? caught.message : 'Upload failed',
+                }
+              : entry,
+          ),
+        );
+      }
+    }
+    void qc.invalidateQueries({ queryKey: attachmentsKey });
+  }
+
   return (
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        style={{ display: 'none' }}
+        onChange={(event) => {
+          void handleFiles(event.target.files);
+          event.target.value = '';
+        }}
+      />
+
       <TabPageHead
         title="Client files"
         sub="A folder-based client file room for uploads, Capiro artifacts, and provenance-preserving smart references."
         actions={
           <>
             <PfButton variant="secondary">New folder</PfButton>
-            <PfButton variant="secondary">Upload</PfButton>
+            <PfButton variant="secondary" onClick={() => triggerUpload(null)}>
+              Upload
+            </PfButton>
             <PfButton variant="primary">Create with Meri</PfButton>
           </>
         }
       />
+
+      {uploads.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {uploads.map((entry) => (
+            <div
+              key={entry.name}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '10px 16px',
+                borderRadius: 8,
+                background: entry.status === 'failed' ? '#FEF3F2' : '#F9FAFB',
+                boxShadow: entry.status === 'failed' ? 'inset 0 0 0 1px #FECDCA' : 'inset 0 0 0 1px #EAECF0',
+              }}
+            >
+              <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {entry.name}
+              </span>
+              <span style={{ flex: '0 0 auto', fontSize: 13, color: entry.status === 'failed' ? '#B42318' : '#667085' }}>
+                {entry.status === 'uploading' ? 'Uploading…' : entry.message}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {/* toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -311,7 +473,11 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
         >
           <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{`${selected.size} selected`}</span>
           <span style={{ flex: 1 }} />
-          <PfButton variant="primary" size="sm">
+          <PfButton
+            variant="primary"
+            size="sm"
+            onClick={() => setMoving({ ids: [...selected], count: selected.size })}
+          >
             Move to folder
           </PfButton>
           <PfButton variant="link" onClick={() => setSelected(new Set())}>
@@ -351,7 +517,12 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
             >
               Folders
             </span>
-            <PfButton variant="link" style={{ fontSize: 13 }}>
+            <PfButton
+              variant="link"
+              style={{ fontSize: 13 }}
+              disabled={currentFolderIds.length === 0}
+              onClick={() => setMoving({ ids: currentFolderIds, count: currentFolderIds.length })}
+            >
               Manage
             </PfButton>
           </div>
@@ -405,7 +576,12 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                 {`${current.count} files · ${current.subs} subfolders`}
               </span>
             </span>
-            <PfButton variant="secondary" size="sm" style={{ flex: '0 0 auto' }}>
+            <PfButton
+              variant="secondary"
+              size="sm"
+              style={{ flex: '0 0 auto' }}
+              onClick={() => triggerUpload(folderId === 'root' ? null : current.label)}
+            >
               Upload here
             </PfButton>
           </div>
@@ -439,15 +615,29 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
               </div>
 
               {rows.length === 0 ? (
-                <div style={{ padding: '24px', fontSize: 14, color: '#667085' }}>No files match this view.</div>
+                <div style={{ padding: '24px', fontSize: 14, color: '#667085' }}>
+                  {allRows.length === 0 ? 'No files uploaded yet.' : 'No files match this view.'}
+                </div>
               ) : (
                 rows.map((row, i) => (
                   <FileRow
                     key={row.id}
                     row={row}
+                    real={real}
                     checked={selected.has(row.id)}
                     bg={selected.has(row.id) ? '#F2F4F7' : i % 2 === 1 ? '#FCFCFD' : '#ffffff'}
+                    menuOpen={menuRowId === row.id}
                     onToggle={() => toggleRow(row.id)}
+                    onToggleMenu={() => setMenuRowId((prev) => (prev === row.id ? null : row.id))}
+                    onCloseMenu={() => setMenuRowId(null)}
+                    onRequestMove={() => {
+                      setMenuRowId(null);
+                      setMoving({ ids: [row.id], count: 1 });
+                    }}
+                    onRequestDelete={() => {
+                      setMenuRowId(null);
+                      setDeletingId(row.id);
+                    }}
                   />
                 ))
               )}
@@ -474,6 +664,39 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
           </div>
         </section>
       </div>
+
+      {moving ? (
+        <MoveToFolderModal
+          count={moving.count}
+          folders={folderNodes}
+          onClose={() => setMoving(null)}
+          onMove={(dest) => move.mutate({ ids: moving.ids, folder: dest })}
+        />
+      ) : null}
+
+      <CapiroModal open={Boolean(deletingId)} title="Delete file" onClose={() => setDeletingId(null)}>
+        <p style={{ margin: 0, fontSize: 14, color: '#475467' }}>
+          Delete <strong>{deletingRow?.name}</strong>? Anything linking to it loses the reference. This cannot be undone.
+        </p>
+        {remove.isError ? (
+          <p style={{ margin: '8px 0 0', fontSize: 14, color: '#B42318' }}>
+            {remove.error instanceof Error ? remove.error.message : 'Delete failed'}
+          </p>
+        ) : null}
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <CapiroButton
+            variant="primary"
+            size="compact"
+            loading={remove.isPending}
+            onClick={() => deletingId && remove.mutate(deletingId)}
+          >
+            Delete
+          </CapiroButton>
+          <CapiroButton variant="secondary" size="compact" onClick={() => setDeletingId(null)}>
+            Cancel
+          </CapiroButton>
+        </div>
+      </CapiroModal>
     </div>
   );
 }
@@ -623,14 +846,26 @@ function Checkbox({
 
 function FileRow({
   row,
+  real,
   checked,
   bg,
+  menuOpen,
   onToggle,
+  onToggleMenu,
+  onCloseMenu,
+  onRequestMove,
+  onRequestDelete,
 }: {
   row: FileRowModel;
+  real: boolean;
   checked: boolean;
   bg: string;
+  menuOpen: boolean;
   onToggle: () => void;
+  onToggleMenu: () => void;
+  onCloseMenu: () => void;
+  onRequestMove: () => void;
+  onRequestDelete: () => void;
 }) {
   const [hover, setHover] = useState(false);
   const [menuHover, setMenuHover] = useState(false);
@@ -639,6 +874,7 @@ function FileRow({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
+        position: 'relative',
         display: 'flex',
         alignItems: 'center',
         gap: 14,
@@ -648,7 +884,14 @@ function FileRow({
       }}
     >
       <Checkbox checked={checked} onToggle={onToggle} ariaLabel={`Select ${row.name}`} />
-      <button type="button" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+      <button
+        type="button"
+        disabled={!row.downloadUrl}
+        onClick={() => {
+          if (row.downloadUrl) window.open(row.downloadUrl, '_blank', 'noopener,noreferrer');
+        }}
+        style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}
+      >
         <span
           aria-hidden
           style={{
@@ -727,15 +970,71 @@ function FileRow({
       <span style={{ flex: '0 0 auto', width: 112 }}>
         <Pill tone={row.tone}>{row.status}</Pill>
       </span>
-      <button
-        type="button"
-        aria-label={`More actions for ${row.name}`}
-        onMouseEnter={() => setMenuHover(true)}
-        onMouseLeave={() => setMenuHover(false)}
-        style={{ flex: '0 0 auto', width: 28, display: 'flex', justifyContent: 'center', color: menuHover ? '#101828' : '#667085' }}
-      >
-        <UIcon name="DotsHorizontal" size={18} />
-      </button>
+      <span style={{ flex: '0 0 auto', width: 28, position: 'relative' }}>
+        <button
+          type="button"
+          aria-label={`More actions for ${row.name}`}
+          disabled={!real}
+          onClick={onToggleMenu}
+          onMouseEnter={() => setMenuHover(true)}
+          onMouseLeave={() => setMenuHover(false)}
+          style={{ width: 28, display: 'flex', justifyContent: 'center', color: menuHover ? '#101828' : '#667085' }}
+        >
+          <UIcon name="DotsHorizontal" size={18} />
+        </button>
+        {menuOpen ? (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 39 }} onClick={onCloseMenu} />
+            <div
+              role="menu"
+              style={{
+                position: 'absolute',
+                top: 30,
+                right: 0,
+                zIndex: 40,
+                minWidth: 160,
+                padding: 6,
+                borderRadius: 8,
+                background: '#ffffff',
+                boxShadow: '0px 12px 16px -4px rgba(16,24,40,.14),0px 0 0 1px #EAECF0',
+              }}
+            >
+              <MenuItem onClick={onRequestMove}>Move to folder</MenuItem>
+              <MenuItem danger onClick={onRequestDelete}>
+                Delete
+              </MenuItem>
+            </div>
+          </>
+        ) : null}
+      </span>
     </div>
+  );
+}
+
+function MenuItem({ children, danger = false, onClick }: { children: React.ReactNode; danger?: boolean; onClick: () => void }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: 'flex',
+        width: '100%',
+        alignItems: 'center',
+        height: 34,
+        padding: '0 10px',
+        borderRadius: 6,
+        background: hover ? (danger ? '#FEF3F2' : '#F9FAFB') : 'transparent',
+        color: danger ? '#B42318' : '#101828',
+        fontSize: 14,
+        fontWeight: 500,
+        textAlign: 'left',
+      }}
+    >
+      {children}
+    </button>
   );
 }

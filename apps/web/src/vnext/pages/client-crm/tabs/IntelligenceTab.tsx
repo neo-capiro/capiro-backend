@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   CardHead,
@@ -245,6 +246,7 @@ const LEG_NESTED = [
 ];
 
 function LegislativePanel() {
+  const navigate = useNavigate();
   const [nested, setNested] = useState('tracked');
   const [boardView, setBoardView] = useState(true);
   return (
@@ -260,7 +262,7 @@ function LegislativePanel() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 24px 18px' }}>
             <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>6 more tracked bills</span>
             <span style={{ flex: 1 }} />
-            <LinkBtn>Open full board →</LinkBtn>
+            <LinkBtn onClick={() => navigate('/legiwatch')}>Open full board →</LinkBtn>
           </div>
         </Card>
 
