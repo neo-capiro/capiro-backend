@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ClientFillWithMeriDrawer } from './ClientFillWithMeriDrawer.js';
-import { DataHealthDrawer, PfToast } from './portfolio-overlays.js';
+import { ClientDataHealthDrawer } from './ClientDataHealthDrawer.js';
+import { PfToast } from './portfolio-overlays.js';
 import { ClientCrmCapabilitiesProto } from './tabs/CapabilitiesTab.js';
 import { ClientCrmOrganizationProto } from './tabs/RelationshipsOrgTab.js';
 import { ClientCrmGovernmentProto } from './tabs/RelationshipsGovTab.js';
@@ -59,22 +60,16 @@ export function ClientCrmPage({ client }: { client: Client }) {
   const [fillOpen, setFillOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [fillBusy, setFillBusy] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const me = useMe();
   const canManageClients = Boolean(me.data && hasAtLeast(me.data.role, 'user_admin'));
 
-  // §15: Fill with Meri — 1700ms "Analyzing…" → toast, then the review drawer.
+  // §15: opens the real review drawer, which resumes any in-flight run or
+  // starts a fresh one itself — no fabricated delay or change count here.
   const runFillWithMeri = useCallback(() => {
-    if (fillBusy) return;
-    setFillBusy(true);
-    window.setTimeout(() => {
-      setFillBusy(false);
-      setToast('Meri proposed 7 field changes for review');
-      setFillOpen(true);
-    }, 1700);
-  }, [fillBusy]);
+    setFillOpen(true);
+  }, []);
 
   // §15: Sync — 1500ms "Syncing…" → toast.
   const runSync = useCallback(() => {
@@ -95,7 +90,6 @@ export function ClientCrmPage({ client }: { client: Client }) {
         onNavigate={goTo}
         onFillWithMeri={runFillWithMeri}
         onDataHealth={() => setHealthOpen(true)}
-        fillBusy={fillBusy}
         syncLabel={syncBusy ? 'Syncing…' : 'Sync'}
         onSync={runSync}
         profileGapCount={1}
@@ -118,14 +112,7 @@ export function ClientCrmPage({ client }: { client: Client }) {
         />
       ) : null}
       {healthOpen ? (
-        <DataHealthDrawer
-          onClose={() => setHealthOpen(false)}
-          onResolveGap={() => {
-            setHealthOpen(false);
-            goTo('intelligence', 'district');
-            setToast('Jump to District Nexus · resolve the Arlington facility');
-          }}
-        />
+        <ClientDataHealthDrawer client={client} onClose={() => setHealthOpen(false)} />
       ) : null}
       {editing ? <ClientProfileEditor client={client} onClose={() => setEditing(false)} /> : null}
       {toast ? <PfToast message={toast} onDone={() => setToast(null)} /> : null}
@@ -179,6 +166,7 @@ function ClientCrmBody({
         onEditProfile={canManageClients ? onEditProfile : undefined}
         canManageClients={canManageClients}
         onFillWithMeri={onFillWithMeri}
+        onNavigate={onNavigate}
       />
     </div>
   );
@@ -190,14 +178,23 @@ function ClientCrmSurface({
   onEditProfile,
   canManageClients,
   onFillWithMeri,
+  onNavigate,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
   onEditProfile?: () => void;
   canManageClients: boolean;
   onFillWithMeri: () => void;
+  onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
 }) {
-  if (route.tab === 'overview') return <ClientCrmOverviewProto client={client} onEditProfile={onEditProfile} />;
+  if (route.tab === 'overview')
+    return (
+      <ClientCrmOverviewProto
+        client={client}
+        onEditProfile={onEditProfile}
+        onOpenFederalFootprint={() => onNavigate('intelligence', 'footprint')}
+      />
+    );
   if (route.tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} onFillWithMeri={onFillWithMeri} />;
   if (route.tab === 'relationships') {
     if (route.view === 'government') return <ClientCrmGovernmentProto client={client} />;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UIcon, PfButton, GRADIENT_DARK, GRADIENT_DARK_HOVER, PILL } from './portfolio-primitives.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
@@ -72,6 +73,7 @@ export function ClientProfileShell({
   const statusTone = isActive ? 'success' : (client.status ?? '').toLowerCase() === 'at risk' ? 'warning' : 'gray';
   const [st, sr, sf, sd] = PILL[statusTone];
   const bp = usePfBreakpoints();
+  const navigate = useNavigate();
 
   return (
     <div
@@ -94,9 +96,9 @@ export function ClientProfileShell({
           overflow: 'hidden',
         }}
       >
-        <CrumbButton label="Portfolio" />
+        <CrumbButton label="Portfolio" onClick={() => navigate('/clients')} />
         <Sep />
-        <CrumbButton label="Clients" />
+        <CrumbButton label="Clients" onClick={() => navigate('/clients')} />
         <Sep />
         <span
           style={{

@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { DIRECTORY_ROUTES } from '../../directory/directory-routes.js';
 import {
   Avatar,
   Card,
@@ -232,6 +234,7 @@ function TargetField({ label, value }: { label: string; value: string }) {
 /* ── All government relationships (table) ─────────────────────────────────── */
 
 function RelationshipsTableCard() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<GroupFilter>('Congress');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -261,7 +264,11 @@ function RelationshipsTableCard() {
       <CardHead
         withDesc
         title="All government relationships"
-        action={<PfButton variant="link">View directory</PfButton>}
+        action={
+          <PfButton variant="link" onClick={() => navigate(DIRECTORY_ROUTES.congressionalStaff)}>
+            View directory
+          </PfButton>
+        }
       />
 
       {/* toolbar */}

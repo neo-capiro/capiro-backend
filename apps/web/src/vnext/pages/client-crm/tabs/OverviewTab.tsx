@@ -32,7 +32,15 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
  * lifecycle records — they render the design's fixtures (flagged UI-only).
  */
 
-export function ClientCrmOverviewProto({ client, onEditProfile }: { client: Client; onEditProfile?: () => void }) {
+export function ClientCrmOverviewProto({
+  client,
+  onEditProfile,
+  onOpenFederalFootprint,
+}: {
+  client: Client;
+  onEditProfile?: () => void;
+  onOpenFederalFootprint?: () => void;
+}) {
   const model = useClientCrmOverviewModel(client);
   return (
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -49,11 +57,11 @@ export function ClientCrmOverviewProto({ client, onEditProfile }: { client: Clie
       {/* profile + account (§6.1) */}
       <div className="cap-pf-grid-profile">
         <ProfileCard model={model} onEditProfile={onEditProfile} />
-        <AccountCard model={model} />
+        <AccountCard model={model} client={client} />
       </div>
 
       {/* federal footprint (§6.2) */}
-      <FederalFootprintCard />
+      <FederalFootprintCard onOpen={onOpenFederalFootprint} />
 
       {/* advocacy history (§6.3) */}
       <AdvocacyHistoryCard />
@@ -171,15 +179,21 @@ function ProfileCard({ model, onEditProfile }: { model: ClientCrmOverviewModel; 
 
 /* ── §6.1 Account ─────────────────────────────────────────────────────────── */
 
-function AccountCard({ model }: { model: ClientCrmOverviewModel }) {
+function AccountCard({ model, client }: { model: ClientCrmOverviewModel; client: Client }) {
   const { account } = model;
   const briefLabel = account.briefState === 'ready' ? 'Brief ready' : account.briefState === 'none' ? 'No brief yet' : 'No meeting scheduled';
+  const contactEmail = client.primaryContactEmail;
   return (
     <Card>
       <CardHead title="Account" action={<LinkBtn>Manage team</LinkBtn>} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px', padding: 24 }}>
         <Field label="Account owner" value={account.accountOwner ?? 'Not tracked'} empty={!account.accountOwner} />
-        <Field label="Primary contact" value={account.primaryContact ?? 'Not set'} empty={!account.primaryContact} link={Boolean(account.primaryContact)} />
+        <Field
+          label="Primary contact"
+          value={account.primaryContact ?? 'Not set'}
+          empty={!account.primaryContact}
+          href={contactEmail ? `mailto:${contactEmail}` : undefined}
+        />
         <Field label="Next meeting" value={account.nextMeeting?.label ?? 'None scheduled'} empty={!account.nextMeeting} />
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Account team</div>
@@ -197,20 +211,20 @@ function AccountCard({ model }: { model: ClientCrmOverviewModel }) {
   );
 }
 
-function Field({ label, value, empty = false, link = false }: { label: string; value: string; empty?: boolean; link?: boolean }) {
+function Field({ label, value, empty = false, href }: { label: string; value: string; empty?: boolean; href?: string }) {
   const [hover, setHover] = useState(false);
   return (
     <div>
       <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>{label}</div>
-      {link ? (
-        <button
-          type="button"
+      {href ? (
+        <a
+          href={href}
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => setHover(false)}
-          style={{ marginTop: 4, fontSize: 16, fontWeight: 500, color: hover ? '#0E141C' : '#101828' }}
+          style={{ display: 'block', marginTop: 4, fontSize: 16, fontWeight: 500, color: hover ? '#0E141C' : '#101828' }}
         >
           {value}
-        </button>
+        </a>
       ) : (
         <div style={{ marginTop: 4, fontSize: 16, fontWeight: 500, color: empty ? '#98A2B3' : '#101828' }}>{value}</div>
       )}
@@ -220,7 +234,7 @@ function Field({ label, value, empty = false, link = false }: { label: string; v
 
 /* ── §6.2 Federal footprint ───────────────────────────────────────────────── */
 
-function FederalFootprintCard() {
+function FederalFootprintCard({ onOpen }: { onOpen?: () => void }) {
   return (
     <Card>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '20px 24px 18px', borderBottom: '1px solid #EAECF0', flexWrap: 'wrap' }}>
@@ -230,7 +244,7 @@ function FederalFootprintCard() {
             The public record: lobbying disclosures, federal awards, political giving, and the districts this client sits in.
           </span>
         </span>
-        <LinkBtn>Open federal footprint →</LinkBtn>
+        <LinkBtn onClick={onOpen}>Open federal footprint →</LinkBtn>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap' }}>
         {FOOT_STATS.map((f, i) => (

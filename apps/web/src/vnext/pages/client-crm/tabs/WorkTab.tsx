@@ -342,6 +342,11 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
 
   const loaded = details.map((query) => query.data).filter((d): d is StrategyDetail => Boolean(d));
   const real = list.data !== undefined && !list.isError && mine.length > 0 && loaded.length > 0;
+  // The list itself (not each strategy's detail) is enough to know honestly
+  // that this client has zero strategies — no need to wait on detail queries
+  // that will never exist to fetch.
+  const listLoaded = list.data !== undefined && !list.isError;
+  const genuinelyEmpty = listLoaded && mine.length === 0;
 
   const detailNodes = loaded.flatMap((detail) => detail.nodes.map((node) => ({ detail, node })));
   const committed = detailNodes.filter(({ node }) => isCommitted(node));
@@ -357,17 +362,23 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
         String(riskNodes.length),
         String(artifactCount),
       ]
-    : BAND_FIXTURE;
+    : genuinelyEmpty
+      ? ['0', '0', '0', '0', '0']
+      : BAND_FIXTURE;
 
-  const featured: FeaturedModel = useMemo(() => {
+  const featured: FeaturedModel | null = useMemo(() => {
     const first = loaded[0];
-    return real && first ? featuredOf(first, members) : FEATURED_FIXTURE;
+    if (real && first) return featuredOf(first, members);
+    if (genuinelyEmpty) return null;
+    return FEATURED_FIXTURE;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [real, loaded, members]);
+  }, [real, genuinelyEmpty, loaded, members]);
 
   const secondaries: SecondaryModel[] = real
     ? loaded.slice(1, 3).map((d, i) => secondaryOf(d, members, i))
-    : SECONDARY_FIXTURES;
+    : genuinelyEmpty
+      ? []
+      : SECONDARY_FIXTURES;
 
   const upcoming: UpcomingModel[] = real
     ? committed
@@ -385,14 +396,16 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
             tone: STATUS_PILL[node.status][1],
           };
         })
-    : UPCOMING.map((u) => ({
-        id: `fx-${u.date}-${u.title}`,
-        date: u.date,
-        title: u.title,
-        strategy: u.strategy,
-        init: u.init,
-        tone: toneOf(u.ui),
-      }));
+    : genuinelyEmpty
+      ? []
+      : UPCOMING.map((u) => ({
+          id: `fx-${u.date}-${u.title}`,
+          date: u.date,
+          title: u.title,
+          strategy: u.strategy,
+          init: u.init,
+          tone: toneOf(u.ui),
+        }));
 
   const risks: RiskModel[] = real
     ? riskNodes.slice(0, 2).map(({ node }) => ({
@@ -400,7 +413,9 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
         title: node.title,
         body: `${node.openEnded ? 'Open-ended Strategy risk' : 'Strategy risk'} · owner ${memberName(members, node.ownerUserId, 'Team member')}`,
       }))
-    : RISK_FIXTURES;
+    : genuinelyEmpty
+      ? []
+      : RISK_FIXTURES;
 
   const openStrategy = (id: string | null) => {
     if (id && UUID_RE.test(id)) navigate(`/strategies/${id}`);
@@ -504,9 +519,57 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
           {/* featured strategy — selected-card ring §1.5 */}
-          <section style={{ background: '#ffffff', borderRadius: 12, boxShadow: '0 0 0 1.5px #101828', overflow: 'hidden' }}>
-            <div style={{ padding: '22px 24px 20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {featured ? (
+            <section style={{ background: '#ffffff', borderRadius: 12, boxShadow: '0 0 0 1.5px #101828', overflow: 'hidden' }}>
+              <div style={{ padding: '22px 24px 20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: '.05em',
+                      textTransform: 'uppercase',
+                      color: '#667085',
+                    }}
+                  >
+                    {featured.eyebrow}
+                  </span>
+                  <span style={{ flex: 1 }} />
+                  {/* Designed status pill — no completion signal in the API (UI-only). */}
+                  <Pill tone="success" size="lg" style={{ height: 24 }}>
+                    On track
+                  </Pill>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24, marginTop: 12, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: 280 }}>
+                    <h3 style={{ margin: 0, fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>
+                      {featured.title}
+                    </h3>
+                    <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+                      {featured.body}
+                    </p>
+                  </div>
+                  <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+                    <PfButton variant="link" onClick={() => openStrategy(featured.id)}>
+                      Open strategy →
+                    </PfButton>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
+                        Owner
+                      </span>
+                      <Avatar initials={featured.init} size={24} />
+                      <span style={{ fontSize: 14, color: '#101828', whiteSpace: 'nowrap' }}>{featured.owner}</span>
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
+                        Target date
+                      </span>
+                      <span style={{ fontSize: 14, color: '#101828' }}>{featured.target}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div style={{ borderTop: '1px solid #EAECF0', padding: '16px 24px 8px' }}>
                 <span
                   style={{
                     fontSize: 11,
@@ -516,60 +579,16 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
                     color: '#667085',
                   }}
                 >
-                  {featured.eyebrow}
+                  Next strategy nodes
                 </span>
-                <span style={{ flex: 1 }} />
-                {/* Designed status pill — no completion signal in the API (UI-only). */}
-                <Pill tone="success" size="lg" style={{ height: 24 }}>
-                  On track
-                </Pill>
               </div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24, marginTop: 12, flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 280 }}>
-                  <h3 style={{ margin: 0, fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>
-                    {featured.title}
-                  </h3>
-                  <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
-                    {featured.body}
-                  </p>
-                </div>
-                <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
-                  <PfButton variant="link" onClick={() => openStrategy(featured.id)}>
-                    Open strategy →
-                  </PfButton>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
-                      Owner
-                    </span>
-                    <Avatar initials={featured.init} size={24} />
-                    <span style={{ fontSize: 14, color: '#101828', whiteSpace: 'nowrap' }}>{featured.owner}</span>
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
-                      Target date
-                    </span>
-                    <span style={{ fontSize: 14, color: '#101828' }}>{featured.target}</span>
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div style={{ borderTop: '1px solid #EAECF0', padding: '16px 24px 8px' }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  letterSpacing: '.05em',
-                  textTransform: 'uppercase',
-                  color: '#667085',
-                }}
-              >
-                Next strategy nodes
-              </span>
-            </div>
-            {featured.nodes.map((node) => (
-              <NodeRow key={node.id} row={node} onOpen={() => openStrategy(featured.id)} />
-            ))}
-          </section>
+              {featured.nodes.map((node) => (
+                <NodeRow key={node.id} row={node} onOpen={() => openStrategy(featured.id)} />
+              ))}
+            </section>
+          ) : (
+            <EmptyFeaturedCard onCreate={() => navigate('/strategies')} />
+          )}
 
           {/* secondary strategy cards */}
           {secondaries.map((st) => (
@@ -636,18 +655,24 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
                   Live Strategy nodes ordered by date
                 </span>
               </span>
-              <PfButton variant="link" onClick={() => navigate('/strategies')}>
+              <PfButton variant="link" onClick={() => openStrategy(featured?.id ?? null)}>
                 View timeline
               </PfButton>
             </div>
-            {upcoming.map((row, i) => (
-              <UpcomingRow
-                key={row.id}
-                row={row}
-                bg={i % 2 === 1 ? '#FCFCFD' : '#ffffff'}
-                onOpen={() => navigate('/strategies')}
-              />
-            ))}
+            {upcoming.length === 0 ? (
+              <p style={{ margin: 0, padding: '20px 24px', fontSize: 14, color: '#475467' }}>
+                Nothing scheduled in the next year.
+              </p>
+            ) : (
+              upcoming.map((row, i) => (
+                <UpcomingRow
+                  key={row.id}
+                  row={row}
+                  bg={i % 2 === 1 ? '#FCFCFD' : '#ffffff'}
+                  onOpen={() => navigate('/strategies')}
+                />
+              ))
+            )}
           </Card>
 
           {/* §9.3 Risks & blockers */}
@@ -664,6 +689,33 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── empty state (spec §9.2 — no fabricated strategy when there is none) ──── */
+
+function EmptyFeaturedCard({ onCreate }: { onCreate: () => void }) {
+  return (
+    <section
+      style={{
+        background: '#ffffff',
+        borderRadius: 12,
+        boxShadow: '0 0 0 1px #EAECF0',
+        padding: '40px 24px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        gap: 12,
+      }}
+    >
+      <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>No strategies yet for this client</h3>
+      <p style={{ margin: 0, fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+        Create a Strategy to start tracking plan steps, milestones, and risk against this account.
+      </p>
+      <PfButton variant="primary" onClick={onCreate}>
+        New strategy
+      </PfButton>
+    </section>
   );
 }
 

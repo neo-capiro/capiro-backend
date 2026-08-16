@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroDrawer } from '../../components/overlays/index.js';
@@ -26,6 +27,22 @@ export function ClientFillWithMeriDrawer({
   onClose: () => void;
 }) {
   const fill = useClientFillWithMeri(clientId, open);
+
+  // Opening the drawer resumes an in-flight run automatically (see the hook);
+  // once that check settles into 'idle' — nothing to resume — start a real
+  // run right away instead of waiting on a redundant manual click.
+  const startedRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      startedRef.current = false;
+      return;
+    }
+    if (fill.phase === 'idle' && !startedRef.current) {
+      startedRef.current = true;
+      fill.start();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, fill.phase]);
 
   return (
     <CapiroDrawer open={open} title={`Fill with Meri — ${clientName}`} onClose={onClose}>

@@ -99,6 +99,8 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
   });
 
   const all = activity.data ?? [];
+  const loaded = activity.data !== undefined && !activity.isError;
+  const genuinelyEmpty = loaded && all.length === 0;
 
   const open = (item: ActivityItem) => {
     // Every derived row can reach its source record.
@@ -107,9 +109,12 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
     else if (item.sourceType === 'outreach') navigate(`/outreach/${item.sourceId}`);
   };
 
-  // Real activity mapped to the design's entry shape; the design fixture when
-  // the record is empty (loading included), so the panel never fabricates rows.
+  // Real activity mapped to the design's entry shape. The design fixture
+  // renders while loading or on error (keeps the surface pixel-reviewable);
+  // once the fetch genuinely resolves to zero records, a real empty state
+  // renders instead — the fixture is never a stand-in for "no activity".
   const entries: HistEntry[] = useMemo(() => {
+    if (genuinelyEmpty) return [];
     if (all.length === 0) {
       return TIMELINE.map((e, i) => ({
         id: `fixture-${i}`,
@@ -144,7 +149,7 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [all, client.id]);
+  }, [all, genuinelyEmpty, client.id]);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -204,7 +209,7 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
       </div>
 
       <div className="cap-pf-grid-side-380">
-        <TimelineCard entries={shown} />
+        <TimelineCard entries={shown} noActivityYet={genuinelyEmpty} />
         <ControlsCard
           commitments={openCommitments}
           fallbackCommitments={all.length === 0}
@@ -228,14 +233,18 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
 
 /* ── Timeline card ────────────────────────────────────────────────────────── */
 
-function TimelineCard({ entries }: { entries: HistEntry[] }) {
+function TimelineCard({ entries, noActivityYet }: { entries: HistEntry[]; noActivityYet: boolean }) {
   return (
     <Card>
       <CardHead title="Account relationship timeline" action={<PfButton variant="link">Export</PfButton>} />
       <div>
-        {entries.map((e) => (
-          <TimelineEntry key={e.id} entry={e} />
-        ))}
+        {entries.length === 0 ? (
+          <p style={{ margin: 0, padding: '20px 24px', fontSize: 14, color: '#667085' }}>
+            {noActivityYet ? 'No activity recorded for this client yet.' : 'No activity matches this filter.'}
+          </p>
+        ) : (
+          entries.map((e) => <TimelineEntry key={e.id} entry={e} />)
+        )}
       </div>
     </Card>
   );
