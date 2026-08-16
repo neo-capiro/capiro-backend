@@ -5,7 +5,7 @@
  * (firm- or calendar-owned, never editable here); row 5 is the plan.
  *
  *   1  Fiscal window   derived FY headers + month ticks
- *   2  Legislative     calendar service          (toggle: "Legislative", state key `congress`)
+ *   2  Legislative     calendar service          (toggle: "Congress", state key `congress`)
  *   3  PPBE            calendar service          (toggle: PPBE)
  *   4  Firm phases     firm settings             (always on)
  *   5  Watch           agent service, PROPOSED   (toggle: Watch · N)
@@ -65,18 +65,16 @@ const KIND_LABEL: Record<string, string> = {
   risk: 'Risk',
 };
 
-// Lane pitch constants (px) for the absolute-positioned timeline rows (design
-// handoff "Working timeline": layer lanes grid-auto-rows:26px/row-gap:6px,
-// step lane grid-auto-rows:72px/row-gap:8px). REF_LANE_H mirrors --st-refbar-h
-// (strategies-tokens.css, 26px — already matches the handoff exactly).
-// STEP_CARD_H mirrors --st-step-h (86px): that token predates this geometry
-// pass and is 86px rather than the handoff's drawn 72px; strategies-tokens.css
-// is out of scope for this change, so the pitch here stays derived FROM the
-// token (86 + gap) rather than hand-picking the handoff's 72, to keep the
-// card's CSS height and its JS-computed lane offset from drifting apart.
+// Lane pitch constants (px) for the absolute-positioned timeline rows —
+// literal reference file (`.dc.html` line ~386/393): layer lanes
+// grid-auto-rows:26px/row-gap:6px, step lane grid-auto-rows:72px/row-gap:8px.
+// Both mirror strategies-tokens.css (--st-refbar-h, --st-step-h) — change
+// either only in tandem with its token, never alone, or the CSS grid height
+// and this JS-computed lane offset drift apart and step cards start
+// overlapping/gapping.
 const REF_LANE_H = 26;
 const REF_LANE_GAP = 6;
-const STEP_CARD_H = 86;
+const STEP_CARD_H = 72;
 const STEP_LANE_GAP = 8;
 const STEP_LANE_PITCH = STEP_CARD_H + STEP_LANE_GAP;
 
@@ -208,9 +206,12 @@ export function StrategyEditorVNext() {
         status={{ tone: 'success', label: `Live · refreshed ${formatRelativeTime(strategy.dataUpdatedAt)}` }}
       />
       <div className="st-editor">
-      <div className="st-editor__main">
-        {/* Header (§7.2). */}
-        <header className="st-editor-header">
+      <div className="st-editor__col">
+        {/* Header (§7.2) — a full-bleed white hero band, distinct from the
+            gray canvas body below it (design handoff: every view draws these
+            as two separate bands, not one flat page — see `.st-hero` in
+            strategies.css). */}
+        <header className="st-hero st-hero--editor">
           <div className="st-editor-header__left">
             <button
               type="button"
@@ -243,11 +244,13 @@ export function StrategyEditorVNext() {
                   onClick={() => setLayers((l) => ({ ...l, congress: !l.congress }))}
                 >
                   <span className="st-layer-dot" aria-hidden="true" />
-                  {/* Display label only — "Legislative" is this domain's real
-                      user-facing name for the congress calendar (see
-                      RefCalendarConfig.tsx's "Edit the legislative calendar");
-                      the `congress` state/query key is unchanged. */}
-                  Legislative
+                  {/* Literal reference (`.dc.html` layerToggles) uses "Congress"
+                      for THIS toggle button specifically, distinct from the
+                      timeline row label below it ("Legislative", `.dc.html`
+                      row config) — the same underlying `congress` layer gets
+                      two different display names in two different places in
+                      the original design. Do not unify them. */}
+                  Congress
                 </button>
                 <button
                   aria-pressed={layers.watch}
@@ -273,6 +276,7 @@ export function StrategyEditorVNext() {
           </div>
         </header>
 
+        <div className="st-editor__main">
         {/* Working timeline (§7.3). */}
         <section className="st-card st-timeline">
           <div className="st-timeline__head">
@@ -308,6 +312,7 @@ export function StrategyEditorVNext() {
         <div className="st-editor-cards">
           <NextThirtyDays detail={detail} members={members.data} onOpen={(id) => openInspector(id)} />
           <PlanHealthCard detail={detail} onReview={() => navigate('/strategies/agents/proposals')} />
+        </div>
         </div>
       </div>
 

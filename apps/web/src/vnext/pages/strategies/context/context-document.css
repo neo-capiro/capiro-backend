@@ -16,45 +16,51 @@
 /* ---- header -------------------------------------------------------------- */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__header {
   background: var(--st-white);
-  border-bottom: 1px solid var(--st-gray-200);
-  padding: 14px 28px 16px;
+  /* No border here — the meta strip below supplies its own border-top, per
+     the design handoff (this view's header has none of its own). */
+  padding: 20px 24px 0;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__state-page {
-  padding: 24px 28px;
+  padding: 24px;
   display: grid;
   gap: 16px;
   justify-items: start;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__back {
-  display: inline-block;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--st-gray-600);
+  color: var(--st-accent);
   text-decoration: none;
-  margin-bottom: 10px;
 }
-.capiro-vnext-root .capiro-strategies .st-ctxdoc__back:hover { color: var(--st-accent); }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__back:hover { color: var(--st-accent-hover); }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__title-row {
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
-  gap: 12px 24px;
+  gap: 24px;
+  margin-top: 14px;
+  padding-bottom: 20px;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__title-block {
-  flex: 1 1 220px;
-  min-width: 0;
+  flex: 1;
+  min-width: 300px;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__eyebrow {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--st-gray-500);
 }
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__eyebrow.st-mono {
+  letter-spacing: 0.02em;
+}
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__title {
-  margin: 2px 0 0;
-  font-size: 24px;
-  font-weight: 700;
+  margin: 6px 0 0;
+  font-size: 30px;
+  line-height: 38px;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--st-gray-900);
   overflow: hidden;
@@ -68,8 +74,9 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 10px;
+  gap: 12px;
   flex-shrink: 0;
+  padding-top: 6px;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__action-wrap { display: inline-flex; }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__confirm {
@@ -160,7 +167,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px 28px;
+  padding: 10px 24px;
   background: var(--st-gray-50);
   border-top: 1px solid var(--st-gray-200);
   border-bottom: 1px solid var(--st-gray-200);
@@ -169,7 +176,7 @@
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__metastrip-spacer { flex: 1; }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__metastrip-version {
   font-size: 13px;
-  color: var(--st-gray-600);
+  color: var(--st-gray-500);
   white-space: nowrap;
 }
 
@@ -178,8 +185,8 @@
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 18px;
-  padding: 20px 28px 48px;
+  gap: 20px;
+  padding: 24px;
   align-items: start;
   min-height: 0;
 }
@@ -197,6 +204,26 @@
   padding: 20px;
   gap: 9px;
   display: grid;
+}
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__viewer-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--st-gray-200);
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__viewer-head .st-mono {
+  flex: 1;
+  min-width: 160px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--st-gray-700);
+}
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__viewer-head-label {
+  font-size: 13px;
+  color: var(--st-gray-500);
+  white-space: nowrap;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__lines {
   padding: 14px 0;
@@ -245,7 +272,9 @@
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__selection-label {
   flex: 1 1 200px;
   min-width: 0;
+  font-family: var(--st-font-mono);
   font-size: 12px;
+  font-weight: 600;
   color: var(--st-gray-600);
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__selection-spacer { flex: 1; }
@@ -260,19 +289,32 @@
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__card {
   background: var(--st-white);
   border-radius: 12px;
-  box-shadow: var(--st-shadow-card);
-  padding: 16px 18px;
+  box-shadow: var(--st-shadow-card-sm);
+  padding: 20px;
   display: grid;
   gap: 12px;
   align-content: start;
 }
+/* Provenance is the one rail card the handoff pins to the gray-50/inset
+   treatment (its "View: Document viewer" section), not the white card the
+   other two rail cards use. */
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__card--muted {
+  background: var(--st-gray-50);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+}
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__card-label {
   display: block;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--st-gray-500);
+}
+.capiro-vnext-root .capiro-strategies .st-ctxdoc__card-title {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--st-gray-900);
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__card-hint {
   margin: 0;

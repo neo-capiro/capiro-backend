@@ -164,6 +164,7 @@ export function ResolveConflictOverlay() {
       onPrimary={isOpen ? submit : undefined}
       primaryDisabled={!canSubmit}
       primaryBusy={resolve.isPending}
+      primaryDanger
       cancelLabel={isOpen ? 'Cancel' : 'Close'}
       footerNote={
         conflict

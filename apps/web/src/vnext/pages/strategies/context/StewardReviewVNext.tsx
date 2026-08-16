@@ -106,6 +106,21 @@ function isForbidden(error: unknown): boolean {
   return (error as { response?: { status?: number } } | null)?.response?.status === 403;
 }
 
+/*
+ * Local glyph (design handoff: ChevronLeft). The shared icon set
+ * (../../../components/icons/index.tsx) has no chevron entry, and adding one
+ * there is out of scope for this pass — that file may be touched by another
+ * concurrent Strategies agent. Mirrors its stroke conventions (24x24 viewBox,
+ * currentColor, 1.75 stroke) as a self-contained, view-local glyph instead.
+ */
+function ChevronLeftGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 5l-7 7 7 7" />
+    </svg>
+  );
+}
+
 export function StewardReviewVNext() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -219,6 +234,10 @@ export function StewardReviewVNext() {
     return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facts.data, clientFilter]);
+  /* "Facts" section summary (design handoff: an 18px/600 value under the
+   * eyebrow) — the real total across every state for the current client
+   * filter, never a fixture-style flat count. */
+  const factsTotal = stateCounts.active + stateCounts.stale + stateCounts.superseded + stateCounts.rejected;
 
   const visibleFacts = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -289,7 +308,7 @@ export function StewardReviewVNext() {
       {/* ---- header ------------------------------------------------------- */}
       <header className="st-steward__header">
         <Link className="st-steward__back" to="/strategies/context">
-          ‹ Context library
+          <ChevronLeftGlyph />Context library
         </Link>
         <div className="st-steward__title-row">
           <div className="st-steward__title-block">
@@ -418,11 +437,13 @@ export function StewardReviewVNext() {
         {/* ---- conflicts ---------------------------------------------------- */}
         <section className="st-steward__section" aria-label="Conflicts">
           <div className="st-steward__section-head">
-            <h2 className="st-steward__section-title">Conflicts</h2>
-            <span className="st-steward__section-count">
-              {conflicts.isError
-                ? 'Unavailable'
-                : `${openConflictCount} open · ${visibleConflicts.length} total`}
+            <span className="st-steward__section-headcol">
+              <h2 className="st-steward__section-title">Conflicts</h2>
+              <span className={`st-steward__section-count${openConflictCount > 0 ? ' is-alert' : ''}`}>
+                {conflicts.isError
+                  ? 'Unavailable'
+                  : `${openConflictCount} open · ${visibleConflicts.length} total`}
+              </span>
             </span>
           </div>
 
@@ -493,7 +514,16 @@ export function StewardReviewVNext() {
         {/* ---- facts ledger ------------------------------------------------- */}
         <section className="st-steward__section" aria-label="Facts">
           <div className="st-steward__section-head">
-            <h2 className="st-steward__section-title">Facts</h2>
+            <span className="st-steward__section-headcol">
+              <h2 className="st-steward__section-title">Facts</h2>
+              <span className="st-steward__section-summary">
+                {facts.isError
+                  ? 'Unavailable'
+                  : `${factsTotal} fact${factsTotal === 1 ? '' : 's'} tracked${
+                      clientFilter === 'all' ? '' : ` for ${clientLabel(healthClientId)}`
+                    }`}
+              </span>
+            </span>
             <span className="st-steward__section-spacer" />
             <CapiroTabs
               label="Filter facts by state"
@@ -804,12 +834,11 @@ function ConflictCard({
               </span>
             ) : (
               <>
-                <CapiroButton variant="quiet" size="compact" onClick={onAskDismiss}>
+                <CapiroButton variant="quiet" onClick={onAskDismiss}>
                   Dismiss conflict
                 </CapiroButton>
                 <CapiroButton
                   variant="primary"
-                  size="compact"
                   onClick={() => navigate(`/strategies/context/steward/${conflict.id}`)}
                 >
                   Resolve conflict

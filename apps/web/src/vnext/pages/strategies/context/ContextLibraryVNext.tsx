@@ -39,6 +39,30 @@ import {
 import type { ContextDocumentListItem, ContextDocState } from '../../../../pages/strategy/types.js';
 import './context-library.css';
 
+/*
+ * Local glyphs (design handoff: ChevronLeft / ChevronRight). The shared icon
+ * set (../../../components/icons/index.tsx) has no chevron entry, and adding
+ * one there is out of scope for this pass — that file may be touched by
+ * another concurrent Strategies agent. These mirror its stroke conventions
+ * (24x24 viewBox, currentColor, 1.75 stroke) as self-contained, view-local
+ * glyphs instead.
+ */
+function ChevronLeftGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M15 5l-7 7 7 7" />
+    </svg>
+  );
+}
+
+function ChevronRightGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
 type StateFilter = 'active' | 'all' | ContextDocState;
 
 const STATE_FILTERS: ReadonlyArray<{ id: StateFilter; label: string }> = [
@@ -258,17 +282,17 @@ export function ContextLibraryVNext() {
       {/* ---- header --------------------------------------------------------- */}
       <header className="st-ctxlib__header">
         <Link className="st-ctxlib__back" to="/strategies">
-          ‹ Strategies
+          <ChevronLeftGlyph />Strategies
         </Link>
         <div className="st-ctxlib__title-row">
           <div className="st-ctxlib__title-block">
             <div className="st-ctxlib__eyebrow">Grounded agent context</div>
             <h1 className="st-ctxlib__title">Context library</h1>
+            <p className="st-ctxlib__lede">
+              Durable, typed documents that ground Meri and strategy agents with validated front matter, provenance
+              and supersession.
+            </p>
           </div>
-          <p className="st-ctxlib__lede">
-            Durable, typed documents that ground Meri and strategy agents with validated front matter, provenance
-            and supersession.
-          </p>
           <div className="st-ctxlib__actions">
             <CapiroButton variant="primary" onClick={() => navigate('/strategies/context/steward')}>
               Steward review
@@ -291,6 +315,7 @@ export function ContextLibraryVNext() {
                 value={activeDocuments.length}
                 label="Active documents"
                 detail="Across firm + clients"
+                onClick={() => setParam('state', 'active')}
               />
               <StatCard
                 loading={statsLoading}
@@ -298,6 +323,7 @@ export function ContextLibraryVNext() {
                 value={activeFacts.length}
                 label="Extracted facts"
                 detail={`${activeFacts.length} active · ${staleFactCount} stale`}
+                onClick={() => navigate('/strategies/context/steward')}
               />
               <StatCard
                 loading={statsLoading}
@@ -306,6 +332,7 @@ export function ContextLibraryVNext() {
                 label="Open conflicts"
                 detail={openConflicts.length > 0 ? 'Steward decision required' : 'No steward decision required'}
                 tone={openConflicts.length > 0 ? 'error' : 'default'}
+                onClick={() => navigate('/strategies/context/steward')}
               />
             </section>
 
@@ -313,10 +340,10 @@ export function ContextLibraryVNext() {
             <section className="st-ctxlib__documents" aria-label="Context documents">
             <div className="st-ctxlib__toolbar">
               <div className="st-ctxlib__toolbar-title">
-                <span className="st-ctxlib__section-label">Documents</span>
-                <strong>
+                <span className="st-ctxlib__doctitle">Documents</span>
+                <span className="st-ctxlib__doctitle-count">
                   {visibleCount} document{visibleCount === 1 ? '' : 's'} · grouped by template
-                </strong>
+                </span>
               </div>
               <div className="st-ctxlib__pill-group" role="group" aria-label="Filter by client">
                 <FilterPill active={clientFilter === 'all'} onClick={() => setParam('client', 'all')}>
@@ -483,6 +510,7 @@ function StatCard({
   tone = 'default',
   loading,
   failed,
+  onClick,
 }: {
   value: number;
   label: string;
@@ -490,21 +518,26 @@ function StatCard({
   tone?: 'default' | 'error';
   loading: boolean;
   failed: boolean;
+  onClick: () => void;
 }) {
   return (
-    <article className={`st-ctxlib__stat${tone === 'error' ? ' is-error' : ''}`}>
-      {loading ? (
-        <CapiroSkeleton width={56} height={30} />
-      ) : failed ? (
-        <strong className="st-ctxlib__stat-value is-unavailable">—</strong>
-      ) : (
-        <strong className="st-ctxlib__stat-value">{value}</strong>
-      )}
-      <div className="st-ctxlib__stat-copy">
+    <button
+      type="button"
+      className={`st-ctxlib__stat${tone === 'error' ? ' is-error' : ''}`}
+      onClick={onClick}
+    >
+      <span className="st-ctxlib__stat-top">
+        {loading ? (
+          <CapiroSkeleton width={56} height={30} />
+        ) : failed ? (
+          <strong className="st-ctxlib__stat-value is-unavailable">—</strong>
+        ) : (
+          <strong className="st-ctxlib__stat-value">{value}</strong>
+        )}
         <span className="st-ctxlib__stat-label">{label}</span>
-        <small>{failed ? 'Unavailable — see panel below' : detail}</small>
-      </div>
-    </article>
+      </span>
+      <span className="st-ctxlib__stat-sub">{failed ? 'Unavailable — see panel below' : detail}</span>
+    </button>
   );
 }
 
@@ -555,7 +588,7 @@ function DocumentRow({ doc, clientLabel }: { doc: ContextDocumentListItem; clien
       </span>
       <span className="st-ctxlib__row-updated">Updated {updatedAgo(doc.updatedAt)}</span>
       <span className="st-ctxlib__row-chevron" aria-hidden="true">
-        ›
+        <ChevronRightGlyph />
       </span>
     </button>
   );
@@ -565,7 +598,7 @@ function ContractItem({ title, detail }: { title: string; detail: string }) {
   return (
     <div className="st-ctxlib__contract-item">
       <span className="st-ctxlib__contract-check" aria-hidden="true">
-        <CapiroCheckIcon size={0.8} />
+        <CapiroCheckIcon size={1} />
       </span>
       <div>
         <strong>{title}</strong>

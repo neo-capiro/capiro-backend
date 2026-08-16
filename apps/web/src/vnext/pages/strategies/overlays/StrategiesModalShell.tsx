@@ -35,6 +35,31 @@ import './modal-shell.css';
  * property is not part of the DOM.CSSProperties typing). */
 type ModalPanelStyle = CSSProperties & { '--st-modal-max-width'?: string };
 
+/** Local `XClose` glyph (design handoff "Icons": `x-import ... name="XClose"`
+ * on the header close button, size 18). The shared icon set
+ * (`../../../components/icons/index.tsx`) has no close/X entry, and adding
+ * one there is out of scope for this pass — that file is shared, not owned
+ * here. Mirrors its stroke convention (24x24 viewBox, currentColor, 1.75
+ * stroke — see the glyph functions atop StrategyLibraryVNext.tsx) as a
+ * self-contained, file-local glyph instead. */
+function CloseGlyph({ size = 18 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
 const FOCUSABLE_SELECTOR = [
   'a[href]',
   'button:not([disabled])',
@@ -68,6 +93,10 @@ export interface StrategiesModalShellProps {
    * (README "Modals" / reference `modalVals` meta.w): new 1000, phases 960,
    * export 980, history 1080, upload 960, conflict 900. */
   maxWidth: number;
+  /** Resolve-conflict is the one modal whose primary is solid red instead of
+   * the dark gradient (`modalVals` meta.conflict.bg: '#B42318'). Every other
+   * modal leaves this false and keeps the standard gradient primary. */
+  primaryDanger?: boolean;
 }
 
 export function StrategiesModalShell({
@@ -85,6 +114,7 @@ export function StrategiesModalShell({
   closeTo,
   dirty = false,
   maxWidth,
+  primaryDanger = false,
 }: StrategiesModalShellProps) {
   const navigate = useNavigate();
   const dialogRef = useRef<HTMLElement | null>(null);
@@ -179,7 +209,7 @@ export function StrategiesModalShell({
           </div>
           <div className="st-modal__header-side">
             {headerMeta}
-            <CapiroIconButton label="Close" icon="×" onClick={requestClose} />
+            <CapiroIconButton label="Close" icon={<CloseGlyph size={18} />} onClick={requestClose} />
           </div>
         </header>
 
@@ -210,6 +240,7 @@ export function StrategiesModalShell({
             {onPrimary ? (
               <CapiroButton
                 variant="primary"
+                className={primaryDanger ? 'st-modal__primary--danger' : undefined}
                 onClick={onPrimary}
                 disabled={primaryDisabled}
                 loading={primaryBusy}

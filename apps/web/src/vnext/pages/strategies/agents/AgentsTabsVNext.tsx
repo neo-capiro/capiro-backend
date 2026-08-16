@@ -56,11 +56,17 @@ export function AgentsTabsVNext({ tab }: { tab: AgentsTab }) {
   return (
     <>
       {/* Full-bleed, sticky under the shell header (§ Layout / Scope bar) —
-          deliberately a sibling of `.st-page`, not nested inside its
-          max-width:1360px container. */}
+          deliberately a sibling of `.st-hero`, not nested inside its
+          own container. */}
       <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
 
-      <div className="st-page st-agents">
+      {/* Hero/canvas split (design handoff — every view here draws a white,
+          bordered hero band and a separate gray-canvas body below it, not one
+          flat page; see `.st-hero`/`.st-canvas` in strategies.css and
+          StrategyLibraryVNext for the identical pattern). This surface uses
+          the shared default padding (28px 24px 24px) — unlike the editor's
+          `.st-hero--editor`, nothing here needs a narrower override. */}
+      <div className="st-hero">
         <div className="st-page-header">
           <div>
             <p className="st-eyebrow">Strategy Operating System</p>
@@ -81,9 +87,9 @@ export function AgentsTabsVNext({ tab }: { tab: AgentsTab }) {
             />
           </div>
         </div>
-
-        {tab === 'proposals' ? <ProposalsQueue /> : <ExecutionRuns />}
       </div>
+
+      <div className="st-canvas">{tab === 'proposals' ? <ProposalsQueue /> : <ExecutionRuns />}</div>
     </>
   );
 }

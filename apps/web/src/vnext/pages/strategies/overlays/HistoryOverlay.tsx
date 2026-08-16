@@ -104,6 +104,7 @@ export function HistoryOverlay() {
       }
       primaryLabel="Close"
       onPrimary={undefined}
+      cancelLabel="Close"
       footerNote="Meri's edits are logged for AI-use disclosure."
     >
       {restoredNote ? (
