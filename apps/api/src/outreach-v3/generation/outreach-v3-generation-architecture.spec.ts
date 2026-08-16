@@ -1,11 +1,13 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
 import { parseOutreachV3GenerationEnabled } from './outreach-v3-generation.guard.js';
 import { parseOutreachV3FullGenerationEnabled } from './outreach-v3-full-generation.guard.js';
 
 function apiRoot(): string {
   const cwd = process.cwd();
-  return cwd.endsWith('apps/api') ? cwd : resolve(cwd, 'apps/api');
+  // process.cwd() uses the platform separator, so a bare endsWith('apps/api')
+  // never matches on Windows and the path silently doubles to apps/api/apps/api.
+  return cwd.split(sep).join('/').endsWith('apps/api') ? cwd : resolve(cwd, 'apps/api');
 }
 
 const API_ROOT = apiRoot();
@@ -112,9 +114,14 @@ describe('Outreach V3 governed generation architecture', () => {
     const worker = readApi('src/engagement-workers/outreach-v3-full-generation-worker.service.ts');
     expect(workers).toContain('OutreachV3FullGenerationWorkerService');
     expect(workers).toContain('OutreachV3GenerationPreparationService');
-    expect(workers).not.toContain('OutreachV3GenerationModule');
-    expect(worker).toContain('runtime.backgroundWorkersEnabled()');
-    expect(worker).toContain("assertBackgroundOwner('outreach-v3-full-generation-worker')");
+    // Assert on the real import specifier, not the bare class name: the module
+    // deliberately names OutreachV3GenerationModule in an explanatory comment
+    // about why it is NOT imported, which a substring check would flag.
+    expect(workers).not.toContain('outreach-v3-generation.module.js');
+    // Bounded V3 worker authority replaced global background ownership so the
+    // main API and engagement-api cannot race the same generation jobs.
+    expect(worker).toContain('runtime.outreachV3FullGenerationWorkerEnabled()');
+    expect(worker).toContain('assertOutreachV3FullGenerationWorker()');
     expect(worker).toContain('FOR UPDATE OF i SKIP LOCKED');
     expect(worker).toContain('includeRelevantEmail: false');
     expect(worker).toContain('existingVersionForPlan');
@@ -139,7 +146,10 @@ describe('Outreach V3 governed generation architecture', () => {
     expect(manifest.featureFlag).toBe('OUTREACH_V3_GENERATION_ENABLED');
     expect(manifest.fullGenerationFlag).toBe('OUTREACH_V3_FULL_GENERATION_ENABLED');
     expect(manifest.disabledBehavior).toBe(404);
-    expect(manifest.routes).toHaveLength(7);
+    // 8 routes on OutreachV3GenerationController: plan, generateSamples,
+    // getApproachApproval, approveApproach, startFullGeneration,
+    // getFullGenerationJob, cancelFullGenerationJob, retryFullGenerationItem.
+    expect(manifest.routes).toHaveLength(8);
     expect(manifest.routes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ method: 'POST', handler: 'generateSamples', maxSlots: 3 }),

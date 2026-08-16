@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
 import { parseOutreachV3DraftsEnabled } from './outreach-v3-drafts.guard.js';
 
 function apiRoot(): string {
   const cwd = process.cwd();
-  return cwd.endsWith('apps/api') ? cwd : resolve(cwd, 'apps/api');
+  // process.cwd() uses the platform separator, so a bare endsWith('apps/api')
+  // never matches on Windows and the path silently doubles to apps/api/apps/api.
+  return cwd.split(sep).join('/').endsWith('apps/api') ? cwd : resolve(cwd, 'apps/api');
 }
 
 const API_ROOT = apiRoot();
@@ -74,7 +76,27 @@ describe('Outreach V3 exact draft approval architecture', () => {
     expect(manifest.requiresStateFlag).toBe('OUTREACH_V3_STATE_ENABLED');
     expect(manifest.featureFlag).toBe('OUTREACH_V3_DRAFTS_ENABLED');
     expect(manifest.disabledBehavior).toBe(404);
+    // Frozen against the real OutreachV3DraftsController surface: read paths
+    // plus append-only revise plus exact-version approval. Draft mutation is
+    // append-only (each revise creates a new immutable version) rather than
+    // absent, which is what `appendOnlyDraftMutation` records.
     expect(manifest.routes).toEqual([
+      {
+        method: 'GET',
+        path: '/api/engagement/outreach-v3/sessions/:sessionId/drafts',
+        handler: 'list',
+      },
+      {
+        method: 'GET',
+        path: '/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId',
+        handler: 'getVersion',
+      },
+      {
+        method: 'POST',
+        path: '/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/versions',
+        handler: 'revise',
+        humanDecisionOnly: true,
+      },
       {
         method: 'POST',
         path: '/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId/approval',
@@ -83,7 +105,7 @@ describe('Outreach V3 exact draft approval architecture', () => {
       },
     ]);
     expect(manifest.authority).toEqual({
-      draftMutation: false,
+      appendOnlyDraftMutation: true,
       exactVersionAuthorApproval: true,
       preflight: false,
       sendIntent: false,

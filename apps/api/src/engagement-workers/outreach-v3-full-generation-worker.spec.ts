@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
 import { parseOutreachV3FullGenerationWorkerEnabled } from './outreach-v3-full-generation-worker.service.js';
 
 function apiRoot(): string {
   const cwd = process.cwd();
-  return cwd.endsWith('apps/api') ? cwd : resolve(cwd, 'apps/api');
+  // process.cwd() uses the platform separator, so a bare endsWith('apps/api')
+  // never matches on Windows and the path silently doubles to apps/api/apps/api.
+  return cwd.split(sep).join('/').endsWith('apps/api') ? cwd : resolve(cwd, 'apps/api');
 }
 
 const read = (path: string) => readFileSync(resolve(apiRoot(), path), 'utf8');
@@ -21,10 +23,16 @@ describe('Outreach V3 full-generation worker boundary', () => {
     );
   });
 
-  it('requires the existing runtime background owner and multi-replica-safe claims', () => {
+  it('requires the bounded V3 worker authority and multi-replica-safe claims', () => {
     const worker = read('src/engagement-workers/outreach-v3-full-generation-worker.service.ts');
-    expect(worker).toContain('runtime.backgroundWorkersEnabled()');
-    expect(worker).toContain("assertBackgroundOwner('outreach-v3-full-generation-worker')");
+    // The closeout deliberately narrowed this worker from global Engagement
+    // background ownership to a dedicated, flag-gated V3 authority so the main
+    // API and engagement-api cannot race the same jobs. Assert the bounded gate
+    // and assert the global one is NOT used.
+    expect(worker).toContain('runtime.outreachV3FullGenerationWorkerEnabled()');
+    expect(worker).toContain('assertOutreachV3FullGenerationWorker()');
+    expect(worker).not.toContain('runtime.backgroundWorkersEnabled()');
+    expect(worker).not.toContain("assertBackgroundOwner('outreach-v3-full-generation-worker')");
     expect(worker).toContain('FOR UPDATE OF i SKIP LOCKED');
     expect(worker).toContain("status: { in: ['claimed', 'generating'] }");
     expect(worker).toContain("data: { status: 'pending', claimedAt: null, error: null }");
