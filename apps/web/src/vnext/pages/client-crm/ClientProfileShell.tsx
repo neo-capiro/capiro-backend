@@ -248,11 +248,16 @@ export function ClientProfileShell({
 
           {/* Right cluster */}
           <div className="cap-pf-identity-right" style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Row 11, wire-audit "4 New capability": this read "Sarah
+                Martinez" for every client in every tenant — a fabricated human
+                name presented as the account owner. There is no owner column on
+                Client and no assignment UI, so it states the absence. The
+                Overview tab's Account card already did exactly this. */}
             <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
               <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
                 Account owner
               </span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>Sarah Martinez</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#98A2B3', whiteSpace: 'nowrap' }}>Not tracked</span>
             </span>
             <FillButton busy={fillBusy} label={fillLabel} onClick={onFillWithMeri} />
             <OverflowMenu client={client} onDataHealth={onDataHealth} canArchive={canArchive} onArchive={onArchive} />

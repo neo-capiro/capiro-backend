@@ -11,6 +11,7 @@ import {
   type PillTone,
 } from '../portfolio-primitives.js';
 import { MoveToFolderModal, type FolderNode } from '../portfolio-overlays.js';
+import { openMeriWorkspaceWithContext } from '../../../../components/chat/meri-window.js';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
 import { FILES, FOLDERS } from '../portfolio-fixtures.js';
@@ -44,7 +45,12 @@ import { FILES, FOLDERS } from '../portfolio-fixtures.js';
  *    can upload into — labelled as such until a file lands in it.
  *  - The storage meter and the smart-link provenance copy are designed UI
  *    (§11) with no per-client backend.
- *  - `All source links healthy` is a designed status pill (UI-only).
+ *  - "Create with Meri" opens the real Meri workspace scoped to this client;
+ *    no skill generates a file directly into client files (wire-audit "4 New
+ *    capability" row 4).
+ *  - The design's `All source links healthy` pill is GONE: nothing checks
+ *    whether a smart link still resolves, so it asserted a health it never
+ *    measured (row 3).
  */
 
 const MAX_BYTES = 25 * 1024 * 1024;
@@ -542,7 +548,23 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
             <PfButton variant="secondary" onClick={() => triggerUpload(null)}>
               Upload
             </PfButton>
-            <PfButton variant="primary">Create with Meri</PfButton>
+            {/* Row 4, wire-audit "4 New capability": no skill generates a file
+                INTO client files, so this opens the real Meri workspace scoped
+                to the client instead of pretending to produce one here. Same
+                shape as the overflow menu's "Ask Meri about this client". The
+                prompt is required — Meri drops a clientId that arrives
+                without one. */}
+            <PfButton
+              variant="primary"
+              onClick={() =>
+                openMeriWorkspaceWithContext({
+                  prompt: `Draft a document for ${client.name} and save it to the client's files.`,
+                  clientId: client.id,
+                })
+              }
+            >
+              Create with Meri
+            </PfButton>
           </>
         }
       />
@@ -814,10 +836,10 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
           >
             <span style={{ fontSize: 14, color: '#475467' }}>{`${rows.length} files · ${smartCount} smart links`}</span>
             <span style={{ flex: 1 }} />
-            {/* Designed status — no link-health backend (UI-only). */}
-            <Pill tone="success" size="lg">
-              All source links healthy
-            </Pill>
+            {/* Row 3, wire-audit "4 New capability": "All source links healthy"
+                was a designed pill with NO link-health backend — nothing checks
+                whether a smart link still resolves, so it asserted a health it
+                never measured. Removed rather than left claiming green. */}
           </div>
         </section>
       </div>

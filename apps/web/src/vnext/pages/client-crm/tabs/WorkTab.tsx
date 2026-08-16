@@ -51,8 +51,11 @@ import { NODES, UPCOMING } from '../portfolio-fixtures.js';
  *    fixture figures that would read as this client's real numbers
  *    (wire-audit "3 Compose extend" item 13).
  *  - The `On track` pill and the secondary readiness percentages have no
- *    honest backing signal (the Strategy API has no completion state — see
- *    useClientCrmOverviewModel) and are design elements in every mode.
+ *    honest backing signal — the Strategy API carries no completion state (see
+ *    useClientCrmOverviewModel). They are therefore design elements of the
+ *    FIXTURE only: a real strategy card renders neither, rather than showing a
+ *    status and a "54% ready" meter nothing measured (wire-audit "4 New
+ *    capability" rows 8-9).
  */
 
 /* ── fixture view-models (design literals; used when no real data) ────────── */
@@ -87,7 +90,13 @@ interface SecondaryModel {
   body: string;
   owner: string;
   init: string;
-  pct: string;
+  /**
+   * Row 9, wire-audit "4 New capability": the Strategy API has NO completion
+   * or readiness signal, so a real card carries no percentage. It used to take
+   * one from a two-entry constant by index, which put "54% ready" under a real
+   * strategy name. Present only on the design fixture.
+   */
+  pct?: string;
   target: string;
   next: string;
 }
@@ -189,8 +198,7 @@ const BAND_LABELS = [
 /** Design fixture figures (spec §9.1). */
 const BAND_FIXTURE = ['3', '12', '4', '2', '9'];
 
-/** Readiness percentages for real secondary cards — UI-only (see header). */
-const SECONDARY_PCT = ['54%', '38%'];
+
 
 /* ── real-data mapping helpers ────────────────────────────────────────────── */
 
@@ -296,7 +304,6 @@ function secondaryOf(
     body: detail.goal ?? '',
     owner,
     init: initialsOf(owner),
-    pct: SECONDARY_PCT[index] ?? SECONDARY_PCT[SECONDARY_PCT.length - 1] ?? '0%',
     target: detail.targetDate ? shortDate(detail.targetDate) : '—',
     next: next ? `${next.title} · ${shortDate(next.endsOn ?? next.startsOn)}` : '—',
   };
@@ -565,10 +572,15 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
                     {featured.eyebrow}
                   </span>
                   <span style={{ flex: 1 }} />
-                  {/* Designed status pill — no completion signal in the API (UI-only). */}
-                  <Pill tone="success" size="lg" style={{ height: 24 }}>
-                    On track
-                  </Pill>
+                  {/* Row 8, wire-audit "4 New capability": there is no completion
+                      state anywhere in the Strategy API, so "On track" was an
+                      assertion about a real strategy that nothing backed. It
+                      stays only over the design fixture. */}
+                  {real ? null : (
+                    <Pill tone="success" size="lg" style={{ height: 24 }}>
+                      On track
+                    </Pill>
+                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24, marginTop: 12, flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: 280 }}>
@@ -658,12 +670,19 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 18, flexWrap: 'wrap' }}>
-                <span style={{ flex: 1, minWidth: 180, display: 'block', height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
-                  <span style={{ display: 'block', height: 8, width: st.pct, borderRadius: 4, background: GRADIENT_DARK }} />
-                </span>
-                <span style={{ flex: '0 0 auto', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#344054' }}>
-                  {`${st.pct} ready`}
-                </span>
+                {/* No readiness meter on a real strategy — nothing measures it. */}
+                {st.pct ? (
+                  <>
+                    <span style={{ flex: 1, minWidth: 180, display: 'block', height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
+                      <span style={{ display: 'block', height: 8, width: st.pct, borderRadius: 4, background: GRADIENT_DARK }} />
+                    </span>
+                    <span style={{ flex: '0 0 auto', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#344054' }}>
+                      {`${st.pct} ready`}
+                    </span>
+                  </>
+                ) : (
+                  <span style={{ flex: 1, minWidth: 180 }} />
+                )}
                 <span style={{ flex: '0 0 auto', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
                   {`Target ${st.target}`}
                 </span>
