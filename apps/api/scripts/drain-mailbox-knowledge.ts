@@ -1,27 +1,50 @@
 /**
- * Drain durable mailbox KnowledgeEvent work.
+ * Drain durable mailbox KnowledgeEvent work, then (when separately armed)
+ * drain the Phase 6 post-event extraction outbox.
  *
- * This is an out-of-band worker. EventBridge / ECS starts a short-lived task;
- * concurrent invocations are safe because claims use FOR UPDATE SKIP LOCKED.
- * The queue payload is only job IDs and revision identifiers — the worker
- * reloads the tenant-scoped mail_messages row from Postgres.
+ * Phase 4 remains an out-of-band deterministic worker. Phase 6 is a distinct
+ * durable queue/consumer and is disabled unless MAILBOX_KNOWLEDGE_EXTRACTION_ENABLED
+ * is explicitly true. The shared ECS verb is retained so no second scheduler or
+ * deployment path is introduced.
  *
  * Usage:
  *   drain-mailbox-knowledge [batch-size]
- *
- * Exits non-zero when any claimed job failed so EventBridge/ECS and CloudWatch
- * surface the run instead of treating a partial drain as healthy.
  */
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
 import { PrismaClient, type Prisma } from '@prisma/client';
 import { KnowledgeEventRepository } from '../src/knowledge/events/knowledge-event.repository.js';
 import { KnowledgeEventService } from '../src/knowledge/events/knowledge-event.service.js';
+import { KnowledgeModule } from '../src/knowledge/knowledge.module.js';
 import { MailboxKnowledgeConsumer } from '../src/knowledge/mailbox/mailbox-knowledge.consumer.js';
+import { MailboxKnowledgeExtractionConsumer } from '../src/knowledge/mailbox/mailbox-knowledge-extraction.consumer.js';
 import { MailboxKnowledgeFlagsService } from '../src/knowledge/mailbox/mailbox-knowledge-flags.service.js';
 import { MailboxKnowledgeRepository } from '../src/knowledge/mailbox/mailbox-knowledge.repository.js';
 import { MailboxNormalizerService } from '../src/knowledge/mailbox/mailbox-normalizer.service.js';
 import { MailboxRelevanceService } from '../src/knowledge/mailbox/mailbox-relevance.service.js';
 import { MailboxThreadService } from '../src/knowledge/mailbox/mailbox-thread.service.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
+
+function workerConfigDefaults() {
+  return {
+    OPENAI_MODEL: process.env.OPENAI_MODEL ?? 'gpt-4.1-mini',
+    ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5-20251001',
+    CLIO_WEB_SEARCH_PROVIDER: process.env.CLIO_WEB_SEARCH_PROVIDER ?? 'duckduckgo',
+  };
+}
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      cache: true,
+      load: [workerConfigDefaults],
+    }),
+    KnowledgeModule,
+  ],
+})
+class MailboxKnowledgeExtractionWorkerModule {}
 
 function positiveInteger(raw: string | undefined, fallback: number, label: string): number {
   if (raw === undefined) return fallback;
@@ -48,8 +71,7 @@ function mailboxKnowledgePrismaFromClient(prisma: PrismaClient): PrismaService {
   }) as unknown as PrismaService;
 }
 
-async function main(): Promise<void> {
-  const limit = positiveInteger(process.argv[2], 10, 'batch size');
+async function drainPhase4(limit: number) {
   if (process.env.MAILBOX_KNOWLEDGE_BATCH_SIZE === undefined) {
     process.env.MAILBOX_KNOWLEDGE_BATCH_SIZE = String(limit);
   }
@@ -66,12 +88,38 @@ async function main(): Promise<void> {
   );
 
   try {
-    const summary = await consumer.drainOnce();
-    console.log(JSON.stringify({ event: 'mailbox_knowledge_worker.drain', ...summary }));
-    if (summary.failed > 0) process.exitCode = 1;
+    return await consumer.drainOnce();
   } finally {
     await prisma.$disconnect();
   }
+}
+
+async function drainPhase6() {
+  const flags = new MailboxKnowledgeFlagsService();
+  if (!flags.extractionEnabled()) {
+    return { claimed: 0, succeeded: 0, skipped: 0, failed: 0 };
+  }
+
+  const app = await NestFactory.createApplicationContext(
+    MailboxKnowledgeExtractionWorkerModule,
+    { logger: ['error', 'warn'] },
+  );
+  try {
+    return await app.get(MailboxKnowledgeExtractionConsumer).drainOnce();
+  } finally {
+    await app.close();
+  }
+}
+
+async function main(): Promise<void> {
+  const limit = positiveInteger(process.argv[2], 10, 'batch size');
+  const phase4 = await drainPhase4(limit);
+  console.log(JSON.stringify({ event: 'mailbox_knowledge_worker.drain', ...phase4 }));
+
+  const phase6 = await drainPhase6();
+  console.log(JSON.stringify({ event: 'mailbox_knowledge_extraction_worker.drain', ...phase6 }));
+
+  if (phase4.failed > 0 || phase6.failed > 0) process.exitCode = 1;
 }
 
 main().catch((error: unknown) => {
