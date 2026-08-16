@@ -29,7 +29,14 @@ export const MERI_COMPATIBLE_ENTITY_RESOLUTION_CASES: readonly MeriCompatibleEnt
     },
     expectedStatus: 'resolved',
     expectedSelectedCanonicalName: 'Kinetic Industries, Inc.',
-    requiredAttemptedStages: ['existing_canonical', 'email_domain'],
+    // Query AND an identifier are both present, so the production
+    // AuthoritativeFirstUniversalEntityResolutionOrchestratorService runs its
+    // identifiers-first preflight with the query blanked (see that class's
+    // own docstring): existing_canonical's deterministic input depends only on
+    // a non-empty query, so it is correctly never attempted on that pass, and
+    // this identifier-only result already resolves before any name-only pass
+    // would run.
+    requiredAttemptedStages: ['email_domain'],
   },
   {
     id: 'external_company_public_web_candidate_only',

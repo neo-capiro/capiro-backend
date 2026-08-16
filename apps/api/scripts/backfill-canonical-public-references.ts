@@ -1,9 +1,18 @@
 #!/usr/bin/env node
-import { Logger } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+/**
+ * Pass --resume for a durable, checkpointed run instead of one manual page:
+ * this reads the persisted cursor for this global source from
+ * canonical_entity_backfill_checkpoints, loops pages until the source is
+ * exhausted or a row fails, and is safe to invoke again after a crash — it
+ * resumes from the last committed page rather than restarting.
+ *
+ *   pnpm --filter @capiro/api exec tsx scripts/backfill-canonical-public-references.ts \
+ *     --source federal_contractors --execute --resume
+ */
 import { parseArgs } from 'node:util';
-import { AppModule } from '../src/app.module.js';
 import { CanonicalEntityRegistrationService } from '../src/knowledge/entities/canonical-entity-registration.service.js';
+import { CanonicalEntityRegistrationRepository } from '../src/knowledge/entities/canonical-entity-registration.repository.js';
+import { CanonicalEntityBackfillCheckpointRepository } from '../src/knowledge/entities/canonical-entity-backfill-checkpoint.repository.js';
 import { CanonicalPublicReferenceBackfillRepository } from '../src/knowledge/entities/canonical-public-reference-backfill.repository.js';
 import { CanonicalPublicReferenceBackfillService } from '../src/knowledge/entities/canonical-public-reference-backfill.service.js';
 import {
@@ -18,19 +27,15 @@ const { values } = parseArgs({
     after: { type: 'string' },
     limit: { type: 'string' },
     execute: { type: 'boolean', default: false },
+    'dry-run': { type: 'boolean', default: false },
+    resume: { type: 'boolean', default: false },
+    'max-pages': { type: 'string' },
   },
 });
 
 function parseSource(value: string | undefined): CanonicalPublicReferenceSource {
-  if (
-    !value ||
-    !CANONICAL_PUBLIC_REFERENCE_SOURCES.includes(
-      value as CanonicalPublicReferenceSource,
-    )
-  ) {
-    throw new Error(
-      `--source is required and must be one of: ${CANONICAL_PUBLIC_REFERENCE_SOURCES.join(', ')}`,
-    );
+  if (!value || !CANONICAL_PUBLIC_REFERENCE_SOURCES.includes(value as CanonicalPublicReferenceSource)) {
+    throw new Error(`--source is required and must be one of: ${CANONICAL_PUBLIC_REFERENCE_SOURCES.join(', ')}`);
   }
   return value as CanonicalPublicReferenceSource;
 }
@@ -44,43 +49,72 @@ function parseLimit(value: string | undefined): number | undefined {
   return parsed;
 }
 
+function parseMaxPages(value: string | undefined): number {
+  if (value === undefined) return Number.MAX_SAFE_INTEGER;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error('--max-pages must be a positive integer');
+  }
+  return parsed;
+}
+
 async function main(): Promise<void> {
   const source = parseSource(values.source);
-  const logger = new Logger('backfill-canonical-public-references');
-  const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: ['error', 'warn', 'log'],
-  });
+  // AppModule validates web-only Clerk secrets. A database backfill CLI must not
+  // require those unrelated application credentials just to read source rows.
+  const prisma = new PrismaService();
+  await prisma.$connect();
 
   try {
-    const prisma = app.get(PrismaService);
-    const registration = app.get(CanonicalEntityRegistrationService);
-    const repository = new CanonicalPublicReferenceBackfillRepository(prisma);
-    const service = new CanonicalPublicReferenceBackfillService(
-      repository,
-      registration,
+    const registration = new CanonicalEntityRegistrationService(
+      new CanonicalEntityRegistrationRepository(prisma),
     );
+    const service = new CanonicalPublicReferenceBackfillService(
+      new CanonicalPublicReferenceBackfillRepository(prisma),
+      registration,
+      new CanonicalEntityBackfillCheckpointRepository(prisma),
+    );
+    const execute = values.execute === true && values['dry-run'] !== true;
+
+    if (values.resume === true) {
+      const { pages, checkpoint } = await service.runToCompletion({
+        source,
+        limit: parseLimit(values.limit),
+        execute,
+        maxPages: parseMaxPages(values['max-pages']),
+      });
+      console.log(
+        JSON.stringify({
+          event: 'canonical_public_reference_backfill.resume',
+          pagesRun: pages.length,
+          checkpoint,
+        }),
+      );
+      if (checkpoint.status === 'failed' || pages.some((page) => page.failures.length > 0)) {
+        process.exitCode = 1;
+      }
+      return;
+    }
 
     const result = await service.run({
       source,
       cursor: values.after ?? null,
       limit: parseLimit(values.limit),
-      execute: values.execute === true,
+      execute,
     });
 
-    logger.log(JSON.stringify({ event: 'canonical_public_reference_backfill', ...result }));
+    console.log(JSON.stringify({ event: 'canonical_public_reference_backfill', ...result }));
     if (result.failures.length > 0) process.exitCode = 1;
   } finally {
-    await app.close();
+    await prisma.$disconnect();
   }
 }
 
 main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(
-    JSON.stringify({
-      event: 'canonical_public_reference_backfill.crashed',
-      error: message.replace(/[\r\n\t]+/g, ' ').slice(0, 500),
-    }),
-  );
+  console.error(JSON.stringify({
+    event: 'canonical_public_reference_backfill.crashed',
+    error: message.replace(/[\r\n\t]+/g, ' ').slice(0, 500),
+  }));
   process.exit(1);
 });

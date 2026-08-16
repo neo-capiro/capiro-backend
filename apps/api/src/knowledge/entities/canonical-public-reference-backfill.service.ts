@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional } from '@nestjs/common';
 import { CanonicalEntityRegistrationService } from './canonical-entity-registration.service.js';
 import { CanonicalPublicReferenceBackfillRepository } from './canonical-public-reference-backfill.repository.js';
 import {
@@ -8,6 +8,10 @@ import {
   type CanonicalPublicReferenceRecord,
   type CanonicalPublicReferenceSource,
 } from './canonical-public-reference-backfill.types.js';
+import {
+  CanonicalEntityBackfillCheckpointRepository,
+  type CanonicalEntityBackfillCheckpointRecord,
+} from './canonical-entity-backfill-checkpoint.repository.js';
 
 const DEFAULT_BATCH_SIZE = 100;
 
@@ -16,12 +20,74 @@ const DEFAULT_BATCH_SIZE = 100;
  * service deliberately delegates every write to the single canonical
  * registration boundary; it never writes canonical identity tables directly.
  */
+export interface CanonicalPublicReferenceBackfillRunToCompletionInput
+  extends Omit<CanonicalPublicReferenceBackfillInput, 'cursor'> {
+  /** Bounds how many pages one invocation processes before returning; omit to run to completion or failure. */
+  maxPages?: number;
+}
+
+export interface CanonicalPublicReferenceBackfillRunToCompletionResult {
+  pages: CanonicalPublicReferenceBackfillResult[];
+  checkpoint: CanonicalEntityBackfillCheckpointRecord;
+}
+
 @Injectable()
 export class CanonicalPublicReferenceBackfillService {
   constructor(
     private readonly repository: CanonicalPublicReferenceBackfillRepository,
     private readonly registration: CanonicalEntityRegistrationService,
+    @Optional() private readonly checkpoints?: CanonicalEntityBackfillCheckpointRepository,
   ) {}
+
+  /**
+   * Durable, resumable driver over {@link run}: this source is global (no
+   * tenant), so the checkpoint is keyed by (NULL tenant, source). Resumes from
+   * the last persisted cursor rather than restarting, loops bounded pages
+   * persisting the checkpoint after each, and is a no-op once the checkpoint
+   * is already 'completed'.
+   */
+  async runToCompletion(
+    input: CanonicalPublicReferenceBackfillRunToCompletionInput,
+  ): Promise<CanonicalPublicReferenceBackfillRunToCompletionResult> {
+    if (!this.checkpoints) {
+      throw new BadRequestException(
+        'runToCompletion requires a CanonicalEntityBackfillCheckpointRepository.',
+      );
+    }
+
+    const existing = await this.checkpoints.startOrResume(null, input.source);
+    if (existing.status === 'completed') {
+      return { pages: [], checkpoint: existing };
+    }
+
+    const pages: CanonicalPublicReferenceBackfillResult[] = [];
+    let cursor = existing.cursor;
+    const maxPages = input.maxPages ?? Number.POSITIVE_INFINITY;
+    let checkpoint = existing;
+
+    for (let pageCount = 0; pageCount < maxPages; pageCount += 1) {
+      const page = await this.run({ ...input, cursor });
+      pages.push(page);
+
+      const firstFailure = page.failures[0];
+      checkpoint = await this.checkpoints.recordPage(null, input.source, {
+        nextCursor: page.nextCursor,
+        scanned: page.scanned,
+        created: page.processed,
+        linked: 0,
+        ambiguous: page.ambiguous,
+        skipped: page.skipped,
+        failed: page.failed,
+        complete: page.complete,
+        errorMessage: firstFailure ? firstFailure.message : null,
+      });
+
+      cursor = page.nextCursor;
+      if (page.complete || firstFailure) break;
+    }
+
+    return { pages, checkpoint };
+  }
 
   async run(
     input: CanonicalPublicReferenceBackfillInput,

@@ -284,7 +284,191 @@ model Tenant {
   knowledgeEvidence    KnowledgeEvidence[]
   knowledgeMailboxJobs KnowledgeMailboxJob[]
 
+  canonicalEntities                  CanonicalEntity[]
+  canonicalEntityMerges              CanonicalEntityMerge[]
+  entityAliases                      EntityAlias[]
+  entityIdentifiers                  EntityIdentifier[]
+  entityResolutions                  EntityResolution[]
+  entityIdentityGovernanceEvents     EntityIdentityGovernanceEvent[]
+  canonicalEntityBackfillCheckpoints CanonicalEntityBackfillCheckpoint[]
+
   @@map("tenants")
+}
+
+/// Universal canonical identity registry. The SQL migrations remain the source
+/// of truth for RLS, partial uniqueness, triggers, SECURITY DEFINER functions,
+/// append-only rules, and terminal-state invariants; this model makes the table
+/// reachable through Prisma without generating a replacement migration.
+model CanonicalEntity {
+  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId             String?  @map("tenant_id") @db.Uuid
+  identityScope        String   @map("identity_scope") @db.VarChar(24)
+  entityType           String   @map("entity_type") @db.VarChar(64)
+  canonicalName        String   @map("canonical_name")
+  normalizedName       String   @map("normalized_name")
+  status               String   @default("active") @db.VarChar(24)
+  resolutionConfidence Decimal  @default(1.0) @map("resolution_confidence") @db.Decimal(5, 4)
+  resolutionMethod     String   @map("resolution_method") @db.VarChar(64)
+  metadata             Json     @default("{}")
+  mergedIntoEntityId   String?  @map("merged_into_entity_id") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant              Tenant?                @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "canonical_entities_tenant_fkey")
+  mergedInto          CanonicalEntity?       @relation("CanonicalEntityMergeTarget", fields: [mergedIntoEntityId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "canonical_entities_merged_into_fkey")
+  mergedSources       CanonicalEntity[]      @relation("CanonicalEntityMergeTarget")
+  aliases             EntityAlias[]
+  identifiers         EntityIdentifier[]
+  selectedResolutions EntityResolution[]     @relation("EntityResolutionSelectedEntity")
+  mergeSources        CanonicalEntityMerge?  @relation("CanonicalEntityMergeSource")
+  mergeTargets        CanonicalEntityMerge[] @relation("CanonicalEntityMergeTarget")
+
+  @@index([entityType, normalizedName, identityScope, tenantId, status], map: "canonical_entities_visible_name_idx")
+  // SQL-owned partial index: tenant_id IS NOT NULL.
+  // SQL-owned partial index: merged_into_entity_id IS NOT NULL.
+  @@map("canonical_entities")
+}
+
+model EntityAlias {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  entityId        String    @map("entity_id") @db.Uuid
+  tenantId        String?   @map("tenant_id") @db.Uuid
+  identityScope   String    @map("identity_scope") @db.VarChar(24)
+  alias           String
+  normalizedAlias String    @map("normalized_alias")
+  sourceType      String    @map("source_type") @db.VarChar(64)
+  sourceId        String?   @map("source_id") @db.VarChar(512)
+  confidence      Decimal   @default(1.0) @db.Decimal(5, 4)
+  verifiedAt      DateTime? @map("verified_at") @db.Timestamptz(6)
+  status          String    @default("active") @db.VarChar(24)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  entity CanonicalEntity @relation(fields: [entityId], references: [id], onDelete: Restrict, map: "entity_aliases_entity_fkey")
+  tenant Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "entity_aliases_tenant_fkey")
+
+  // All uniqueness and lookup indexes are SQL-owned partial indexes because
+  // withdrawn links must remain in history without blocking replacements.
+  @@map("entity_aliases")
+}
+
+model EntityIdentifier {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  entityId        String    @map("entity_id") @db.Uuid
+  tenantId        String?   @map("tenant_id") @db.Uuid
+  identityScope   String    @map("identity_scope") @db.VarChar(24)
+  identifierType  String    @map("identifier_type") @db.VarChar(64)
+  identifierValue String    @map("identifier_value")
+  normalizedValue String    @map("normalized_value")
+  sourceType      String    @map("source_type") @db.VarChar(64)
+  sourceId        String?   @map("source_id") @db.VarChar(512)
+  confidence      Decimal   @default(1.0) @db.Decimal(5, 4)
+  verifiedAt      DateTime? @map("verified_at") @db.Timestamptz(6)
+  status          String    @default("active") @db.VarChar(24)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  entity CanonicalEntity @relation(fields: [entityId], references: [id], onDelete: Restrict, map: "entity_identifiers_entity_fkey")
+  tenant Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "entity_identifiers_tenant_fkey")
+
+  @@index([entityId, identifierType, status], map: "entity_identifiers_entity_idx")
+  // Scope/status uniqueness is SQL-owned and partial so withdrawals remain
+  // append-only and replacement links can be added safely.
+  @@map("entity_identifiers")
+}
+
+model EntityResolution {
+  id                       String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId                 String   @map("tenant_id") @db.Uuid
+  idempotencyKey           String   @map("idempotency_key") @db.VarChar(64)
+  actorUserId              String?  @map("actor_user_id") @db.Uuid
+  rawInput                 String   @map("raw_input")
+  normalizedInput          String   @map("normalized_input")
+  entityTypeHint           String?  @map("entity_type_hint") @db.VarChar(64)
+  candidateEntityIds       Json     @default("[]") @map("candidate_entity_ids")
+  selectedEntityId         String?  @map("selected_entity_id") @db.Uuid
+  status                   String   @db.VarChar(24)
+  confidence               Decimal  @db.Decimal(5, 4)
+  resolutionMethod         String   @map("resolution_method") @db.VarChar(64)
+  provenance               Json     @default("[]")
+  correctionOfResolutionId String?  @map("correction_of_resolution_id") @db.Uuid
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "entity_resolutions_tenant_fkey")
+  selectedEntity CanonicalEntity?   @relation("EntityResolutionSelectedEntity", fields: [selectedEntityId], references: [id], onDelete: Restrict, map: "entity_resolutions_selected_entity_fkey")
+  correctionOf   EntityResolution?  @relation("EntityResolutionCorrection", fields: [correctionOfResolutionId], references: [id], onDelete: Restrict, map: "entity_resolutions_correction_fkey")
+  corrections    EntityResolution[] @relation("EntityResolutionCorrection")
+
+  @@unique([tenantId, idempotencyKey], map: "entity_resolutions_identity_unique")
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)], map: "entity_resolutions_tenant_created_idx")
+  // selected_entity and correction indexes are SQL-owned partial indexes.
+  @@map("entity_resolutions")
+}
+
+model CanonicalEntityMerge {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  sourceEntityId String   @unique(map: "canonical_entity_merges_source_unique") @map("source_entity_id") @db.Uuid
+  targetEntityId String   @map("target_entity_id") @db.Uuid
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  reasonCode     String   @map("reason_code") @db.VarChar(64)
+  reason         String?
+  provenance     Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "canonical_entity_merges_tenant_fkey")
+  source CanonicalEntity @relation("CanonicalEntityMergeSource", fields: [sourceEntityId], references: [id], onDelete: Restrict, map: "canonical_entity_merges_source_fkey")
+  target CanonicalEntity @relation("CanonicalEntityMergeTarget", fields: [targetEntityId], references: [id], onDelete: Restrict, map: "canonical_entity_merges_target_fkey")
+
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)], map: "canonical_entity_merges_tenant_created_idx")
+  @@index([tenantId, targetEntityId, createdAt(sort: Desc)], map: "canonical_entity_merges_target_idx")
+  @@map("canonical_entity_merges")
+}
+
+model EntityIdentityGovernanceEvent {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  idempotencyKey String   @map("idempotency_key") @db.VarChar(64)
+  actionType     String   @map("action_type") @db.VarChar(40)
+  subjectType    String   @map("subject_type") @db.VarChar(24)
+  subjectId      String   @map("subject_id") @db.Uuid
+  entityId       String?  @map("entity_id") @db.Uuid
+  actorUserId    String   @map("actor_user_id") @db.Uuid
+  reasonCode     String   @map("reason_code") @db.VarChar(64)
+  reason         String?
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "entity_identity_governance_events_tenant_fkey")
+
+  @@unique([tenantId, idempotencyKey], map: "entity_identity_governance_events_identity_unique")
+  @@index([tenantId, subjectType, subjectId, createdAt(sort: Desc)], map: "entity_identity_governance_events_subject_idx")
+  @@index([tenantId, actorUserId, createdAt(sort: Desc)], map: "entity_identity_governance_events_actor_idx")
+  // entity_idx is SQL-owned partial because entity_id is nullable.
+  @@map("entity_identity_governance_events")
+}
+
+model CanonicalEntityBackfillCheckpoint {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId    String?   @map("tenant_id") @db.Uuid
+  source      String    @db.VarChar(64)
+  cursor      String?   @map("source_cursor")
+  status      String    @default("running") @db.VarChar(24)
+  scanned     Int       @default(0)
+  created     Int       @default(0)
+  linked      Int       @default(0)
+  ambiguous   Int       @default(0)
+  skipped     Int       @default(0)
+  failed      Int       @default(0)
+  lastError   String?   @map("last_error")
+  startedAt   DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "canonical_entity_backfill_checkpoints_tenant_fkey")
+
+  // Scope uniqueness and terminal-state checks are SQL-owned in the additive
+  // checkpoint migration. NULL tenant_id denotes a global public source.
+  @@index([tenantId, status, updatedAt(sort: Desc)], map: "canonical_entity_backfill_checkpoints_tenant_status_idx")
+  @@map("canonical_entity_backfill_checkpoints")
 }
 
 model User {

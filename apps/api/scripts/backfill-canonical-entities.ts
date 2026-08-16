@@ -19,12 +19,22 @@
  *
  *   pnpm --filter @capiro/api exec tsx scripts/backfill-canonical-entities.ts \
  *     --tenant <uuid> --source client --limit 100 --after <uuid>
+ *
+ * Pass --resume for a durable, checkpointed run instead of one manual page:
+ * this reads the persisted cursor for (tenant, source) from
+ * canonical_entity_backfill_checkpoints, loops pages until the source is
+ * exhausted or a row fails, and is safe to invoke again after a crash — it
+ * resumes from the last committed page rather than restarting.
+ *
+ *   pnpm --filter @capiro/api exec tsx scripts/backfill-canonical-entities.ts \
+ *     --tenant <uuid> --source client --resume
  */
 import { PrismaClient, type Prisma } from '@prisma/client';
 import { parseArgs } from 'node:util';
 import { CanonicalEntityRegistrationRepository } from '../src/knowledge/entities/canonical-entity-registration.repository.js';
 import { CanonicalEntityRegistrationService } from '../src/knowledge/entities/canonical-entity-registration.service.js';
 import { CanonicalEntityRepository } from '../src/knowledge/entities/canonical-entity.repository.js';
+import { CanonicalEntityBackfillCheckpointRepository } from '../src/knowledge/entities/canonical-entity-backfill-checkpoint.repository.js';
 import { CanonicalSourceAdapterService } from '../src/knowledge/entities/canonical-source-adapter.service.js';
 import { CanonicalSourceBackfillRepository } from '../src/knowledge/entities/canonical-source-backfill.repository.js';
 import { CanonicalSourceBackfillService } from '../src/knowledge/entities/canonical-source-backfill.service.js';
@@ -89,6 +99,8 @@ async function main(): Promise<void> {
       limit: { type: 'string' },
       actor: { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
+      resume: { type: 'boolean', default: false },
+      'max-pages': { type: 'string' },
     },
   });
   const tenantId = stringArg(values.tenant)?.trim();
@@ -105,15 +117,42 @@ async function main(): Promise<void> {
   const backfill = new CanonicalSourceBackfillService(
     new CanonicalSourceBackfillRepository(prismaLike),
     adapter,
+    new CanonicalEntityBackfillCheckpointRepository(prismaLike),
   );
 
   try {
+    const source = normalizeSource(stringArg(values.source));
+    const limit = positiveInteger(stringArg(values.limit), 100);
+    const dryRun = values['dry-run'] === true;
+    const actorUserId = stringArg(values.actor)?.trim() || null;
+
+    if (values.resume === true) {
+      const { pages, checkpoint } = await backfill.runToCompletion(tenantId, {
+        source,
+        limit,
+        dryRun,
+        actorUserId,
+        maxPages: positiveInteger(stringArg(values['max-pages']), Number.MAX_SAFE_INTEGER),
+      });
+      console.log(
+        JSON.stringify({
+          event: 'canonical_entity_backfill.resume',
+          pagesRun: pages.length,
+          checkpoint,
+        }),
+      );
+      if (checkpoint.status === 'failed' || pages.some((page) => page.failures.length > 0)) {
+        process.exitCode = 1;
+      }
+      return;
+    }
+
     const result = await backfill.runPage(tenantId, {
-      source: normalizeSource(stringArg(values.source)),
+      source,
       afterId: stringArg(values.after)?.trim() || null,
-      limit: positiveInteger(stringArg(values.limit), 100),
-      dryRun: values['dry-run'] === true,
-      actorUserId: stringArg(values.actor)?.trim() || null,
+      limit,
+      dryRun,
+      actorUserId,
     });
     console.log(
       JSON.stringify({ event: 'canonical_entity_backfill.page', ...result }),

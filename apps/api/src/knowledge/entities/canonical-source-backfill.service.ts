@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional } from '@nestjs/common';
 import { CanonicalSourceAdapterService } from './canonical-source-adapter.service.js';
 import type {
   CanonicalSourceSyncResult,
@@ -14,6 +14,10 @@ import type {
   CanonicalSourceBackfillOptions,
   CanonicalSourceBackfillPageResult,
 } from './canonical-source-backfill.types.js';
+import {
+  CanonicalEntityBackfillCheckpointRepository,
+  type CanonicalEntityBackfillCheckpointRecord,
+} from './canonical-entity-backfill-checkpoint.repository.js';
 
 type CanonicalBackfillRecord =
   | ConfirmedClientMappingIdentitySource
@@ -33,13 +37,79 @@ const ALL_STATUSES: CanonicalSourceSyncStatus[] = [
   'failed',
 ];
 
+export interface CanonicalSourceBackfillRunToCompletionOptions
+  extends Omit<CanonicalSourceBackfillOptions, 'afterId'> {
+  /** Bounds how many pages one invocation processes before returning; omit to run to completion or failure. */
+  maxPages?: number;
+}
+
+export interface CanonicalSourceBackfillRunToCompletionResult {
+  pages: CanonicalSourceBackfillPageResult[];
+  checkpoint: CanonicalEntityBackfillCheckpointRecord;
+}
+
 /** Runs one bounded, keyset-paginated canonical-source backfill page. */
 @Injectable()
 export class CanonicalSourceBackfillService {
   constructor(
     private readonly repository: CanonicalSourceBackfillRepository,
     private readonly adapter: CanonicalSourceAdapterService,
+    @Optional() private readonly checkpoints?: CanonicalEntityBackfillCheckpointRepository,
   ) {}
+
+  /**
+   * Durable, resumable driver over {@link runPage}: reads the last persisted
+   * checkpoint cursor for (tenantId, source) — resuming a prior run rather
+   * than restarting it — then loops bounded pages, persisting the checkpoint
+   * after each one, until the source is exhausted, a page fails, or
+   * `maxPages` is reached. A checkpoint already 'completed' is a no-op so a
+   * later invocation can never re-run a finished source from scratch.
+   */
+  async runToCompletion(
+    tenantId: string,
+    options: CanonicalSourceBackfillRunToCompletionOptions,
+  ): Promise<CanonicalSourceBackfillRunToCompletionResult> {
+    if (!this.checkpoints) {
+      throw new BadRequestException(
+        'runToCompletion requires a CanonicalEntityBackfillCheckpointRepository.',
+      );
+    }
+
+    const existing = await this.checkpoints.startOrResume(tenantId, options.source);
+    if (existing.status === 'completed') {
+      return { pages: [], checkpoint: existing };
+    }
+
+    const pages: CanonicalSourceBackfillPageResult[] = [];
+    let cursor = existing.cursor;
+    const maxPages = options.maxPages ?? Number.POSITIVE_INFINITY;
+    let checkpoint = existing;
+
+    for (let pageCount = 0; pageCount < maxPages; pageCount += 1) {
+      const page = await this.runPage(tenantId, { ...options, afterId: cursor });
+      pages.push(page);
+
+      const firstFailure = page.failures[0];
+      checkpoint = await this.checkpoints.recordPage(tenantId, options.source, {
+        nextCursor: page.nextCursor,
+        scanned: page.scanned,
+        created: page.counts.created,
+        linked: page.counts.linked,
+        ambiguous: page.counts.ambiguous,
+        skipped: page.counts.skipped,
+        failed: page.counts.failed,
+        complete: page.complete,
+        errorMessage: firstFailure
+          ? `${firstFailure.sourceKind}:${firstFailure.sourceId}:${firstFailure.errorCode}`
+          : null,
+      });
+
+      cursor = page.nextCursor;
+      if (page.complete || firstFailure) break;
+    }
+
+    return { pages, checkpoint };
+  }
 
   async runPage(
     tenantId: string,

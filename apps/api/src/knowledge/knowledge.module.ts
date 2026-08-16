@@ -24,6 +24,7 @@ import { ModelCandidateReconciliationEntityResolutionProvider } from './entities
 import { CanonicalSourceAdapterService } from './entities/canonical-source-adapter.service.js';
 import { CanonicalSourceBackfillRepository } from './entities/canonical-source-backfill.repository.js';
 import { CanonicalSourceBackfillService } from './entities/canonical-source-backfill.service.js';
+import { CanonicalEntityBackfillCheckpointRepository } from './entities/canonical-entity-backfill-checkpoint.repository.js';
 import { EntityIdentityGovernanceRepository } from './entities/entity-identity-governance.repository.js';
 import { EntityIdentityGovernanceService } from './entities/entity-identity-governance.service.js';
 import { ENTITY_RESOLUTION_FALLBACK_PROVIDERS } from './entities/universal-entity-resolution-orchestrator.types.js';
@@ -93,6 +94,7 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
       useExisting: AuthoritativeFirstUniversalEntityResolutionOrchestratorService,
     },
     CanonicalSourceAdapterService,
+    CanonicalEntityBackfillCheckpointRepository,
     CanonicalSourceBackfillRepository,
     CanonicalSourceBackfillService,
     CanonicalPublicReferenceBackfillRepository,
