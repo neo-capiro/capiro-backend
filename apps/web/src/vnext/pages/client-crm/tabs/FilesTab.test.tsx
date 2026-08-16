@@ -314,3 +314,48 @@ describe('ClientCrmFilesProto — Meri and link health', () => {
     expect(screen.queryByText('All source links healthy')).not.toBeInTheDocument();
   });
 });
+
+/* ── Client storage — real bytes, no invented quota ───────────────────────── */
+
+describe('ClientCrmFilesProto — client storage', () => {
+  it('sums the real stored byteSize and drops the invented 10 GB quota', async () => {
+    mockApi({
+      attachments: [
+        attachment({ id: 'a1', fileName: 'One.pdf', byteSize: 3 * 1024 * 1024 }),
+        attachment({ id: 'a2', fileName: 'Two.pdf', byteSize: 1024 * 1024 }),
+        // An older upload whose size was never captured contributes nothing
+        // rather than being guessed at.
+        attachment({ id: 'a3', fileName: 'Three.pdf', byteSize: null }),
+      ],
+    });
+    renderFiles();
+
+    // Numerator is the real sum; denominator is the shared product allowance.
+    expect(await screen.findByText('4.0 MB of 10.0 GB')).toBeInTheDocument();
+    expect(screen.getByText('<1% used · 3 files')).toBeInTheDocument();
+    // The design's fabricated reading must not survive against real files.
+    expect(screen.queryByText('1.8 GB of 10 GB')).not.toBeInTheDocument();
+  });
+
+  it('states an overage rather than silently clamping the meter', async () => {
+    mockApi({
+      attachments: [
+        attachment({ id: 'big', fileName: 'Huge.bin', byteSize: 11 * 1024 * 1024 * 1024 }),
+      ],
+    });
+    renderFiles();
+
+    // Nothing enforces the total today, so a client CAN exceed it — the meter
+    // says so instead of pinning at a tidy 100%.
+    expect(await screen.findByText(/Over the 10\.0 GB allowance/)).toBeInTheDocument();
+  });
+
+  it('keeps the design figure and bar while the file list is still loading', () => {
+    getMock.mockImplementation(() => new Promise(() => {})); // never resolves
+    renderFiles();
+
+    // The fixture branch is what the capture harness diffs against Figma, and
+    // it is a loading placeholder — never a claim about a real client.
+    expect(screen.getByText('1.8 GB of 10 GB')).toBeInTheDocument();
+  });
+});

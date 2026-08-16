@@ -72,7 +72,7 @@ export interface DataHealthRow {
   state: SourceState;
   count: number;
   error: unknown;
-  refetch: () => void;
+  refetch: () => Promise<unknown>;
 }
 
 export interface ClientDataHealth {
@@ -99,7 +99,18 @@ export interface ClientDataHealth {
    * so it always reads "just now" and says nothing about the data's age.
    */
   refreshedLabel: string | null;
-  refetchAll: () => void;
+  /**
+   * Re-read every source and report what came back.
+   *
+   * The outcome is derived from the refetch RESULTS, not from this hook's
+   * render state: mid-refetch an errored query reads as `loading` rather than
+   * `unavailable` (it has no data, so `isLoading` is true while fetching), so
+   * a caller sampling the rendered counts right after awaiting would report a
+   * clean sync that never happened.
+   */
+  refetchAll: () => Promise<{ total: number; failures: number }>;
+  /** How many sources are checked — the denominator Sync reports against. */
+  total: number;
 }
 
 export function useClientDataHealth(client: Client): ClientDataHealth {
@@ -134,7 +145,7 @@ export function useClientDataHealth(client: Client): ClientDataHealth {
       state,
       count: countOf(result?.data),
       error: result?.error,
-      refetch: () => void result?.refetch(),
+      refetch: () => result?.refetch() ?? Promise.resolve(),
     };
   });
 
@@ -146,7 +157,19 @@ export function useClientDataHealth(client: Client): ClientDataHealth {
     failures: rows.filter((row) => row.state === 'unavailable').length,
     settled: rows.every((row) => row.state !== 'loading'),
     refreshedLabel: refreshedAt == null ? null : relativeRefresh(refreshedAt),
-    refetchAll: () => rows.forEach((row) => row.refetch()),
+    refetchAll: async () => {
+      // allSettled, not all: a source that rejects is exactly the case Sync
+      // must survive and report. With Promise.all one failing read would
+      // abort the whole sync and the user would get no result at all.
+      const settled = await Promise.allSettled(rows.map((row) => row.refetch()));
+      const failures = settled.filter((outcome) => {
+        if (outcome.status === 'rejected') return true;
+        const result = outcome.value as { isError?: boolean; status?: string } | undefined;
+        return Boolean(result?.isError) || result?.status === 'error';
+      }).length;
+      return { total: rows.length, failures };
+    },
+    total: rows.length,
   };
 }
 

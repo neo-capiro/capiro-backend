@@ -19,6 +19,14 @@ vi.mock('./ActionProposalList.js', () => ({ ActionProposalList: () => <div data-
 vi.mock('./ResearchClarifyForm.js', () => ({ ResearchClarifyForm: () => <div /> }));
 vi.mock('./MeriCanvas.js', () => ({ MeriCanvas: () => <div /> }));
 vi.mock('../../env.js', () => ({ config: { apiBaseUrl: 'https://api.test' } }));
+// The component calls `useApi()` (added with the semantic-skills work), and the
+// real hook uses Clerk's `useAuth`, which throws outside a ClerkProvider.
+vi.mock('../../lib/use-api.js', () => ({
+  useApi: () => ({
+    get: () => Promise.resolve({ data: [] }),
+    post: () => Promise.resolve({ data: {} }),
+  }),
+}));
 
 import { MeriWorkspaceConversation } from './MeriWorkspaceConversation.js';
 
