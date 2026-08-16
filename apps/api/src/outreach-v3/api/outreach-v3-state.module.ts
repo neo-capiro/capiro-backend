@@ -7,6 +7,7 @@ import { OutreachSessionService } from '../services/outreach-session.service.js'
 import { OutreachCommandEngineService } from '../services/outreach-command-engine.service.js';
 import { OutreachCommandProposalService } from '../services/outreach-command-proposal.service.js';
 import { OutreachStateVersionGuardService } from '../services/outreach-state-version-guard.service.js';
+import { OutreachUserDecisionEventService } from '../services/outreach-user-decision-event.service.js';
 import { OutreachV3StateController } from './outreach-v3-state.controller.js';
 import { OutreachV3StateGuard } from './outreach-v3-state.guard.js';
 import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
@@ -24,16 +25,20 @@ import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
     OutreachCommandEngineService,
     OutreachCommandProposalService,
     OutreachStateVersionGuardService,
+    OutreachUserDecisionEventService,
     OutreachV3StateGuard,
     OutreachV3ExceptionFilter,
   ],
   // Later reasoning receives only bounded session/proposal/version-check seams.
-  // The command engine is not exported, so no model layer can gain direct
-  // mutation authority through Nest injection.
+  // The command engine and raw repository are not exported, so no model layer can
+  // gain direct Campaign Spec mutation authority through Nest injection. The
+  // decision-event seam can append only enumerated human approval events at an
+  // exact state version; reasoning is statically forbidden from consuming it.
   exports: [
     OutreachSessionService,
     OutreachCommandProposalService,
     OutreachStateVersionGuardService,
+    OutreachUserDecisionEventService,
   ],
 })
 export class OutreachV3StateModule {}

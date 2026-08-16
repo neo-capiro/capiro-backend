@@ -1,16 +1,28 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useClerk } from '@clerk/clerk-react';
-import { useShellNavigation, type ShellNavigationViewModel } from '../../adapters/legacy/useShellNavigation.js';
-import { useShellIdentity, type ShellIdentityViewModel } from '../../adapters/legacy/useShellIdentity.js';
-import { useShellNotifications, type ShellNotificationsViewModel } from '../../adapters/legacy/useShellNotifications.js';
+import {
+  useShellNavigation,
+  type ShellNavigationViewModel,
+} from '../../adapters/legacy/useShellNavigation.js';
+import {
+  useShellIdentity,
+  type ShellIdentityViewModel,
+} from '../../adapters/legacy/useShellIdentity.js';
+import {
+  useShellNotifications,
+  type ShellNotificationsViewModel,
+} from '../../adapters/legacy/useShellNotifications.js';
 import { useShellClientContext } from '../../adapters/legacy/useShellClientContext.js';
 import type { VNextRouteDefinition } from '../../adapters/routes/routeManifest.js';
 import { MeriLauncher } from '../MeriLauncher/index.js';
 import { NotificationBell, ProfileMenu } from '../TopBar/index.js';
 import { GlobalSearch } from '../GlobalSearch/index.js';
 import { MailboxSyncStatusView } from '../MailboxSyncStatus/index.js';
-import { useMailboxSyncStatus, type MailboxSyncViewModel } from '../../adapters/legacy/useMailboxSyncStatus.js';
+import {
+  useMailboxSyncStatus,
+  type MailboxSyncViewModel,
+} from '../../adapters/legacy/useMailboxSyncStatus.js';
 import { ShellOverlayProvider, useShellOverlay } from '../overlay-manager.js';
 import { SHELL_NAV_DESCRIPTIONS } from '../nav-content.js';
 import { openMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
@@ -52,7 +64,7 @@ function readCollapsed(): boolean {
  */
 function NavFlyout({ route }: { route: VNextRouteDefinition }) {
   const { isOpen, containerRef, toggle, close } = useShellOverlay(
-    route.id as 'directory' | 'intelligence',
+    route.id as 'directory' | 'intelligence' | 'engagement-manager',
   );
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const location = useLocation();
@@ -120,7 +132,11 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
     return (
       <div className="uui-nav-group">
         <div className="uui-nav-item uui-nav-item--current uui-nav-item--section">
-          <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={20} className="uui-nav-item__icon" />
+          <Icon
+            name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'}
+            size={20}
+            className="uui-nav-item__icon"
+          />
           <span className="uui-nav-item__label">{route.label}</span>
         </div>
         <div className="uui-nav-nested" role="group" aria-label={route.label}>
@@ -140,7 +156,11 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
         aria-haspopup="menu"
         onClick={() => toggle(triggerRef.current)}
       >
-        <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={20} className="uui-nav-item__icon" />
+        <Icon
+          name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'}
+          size={20}
+          className="uui-nav-item__icon"
+        />
         <span className="uui-nav-item__label">{route.label}</span>
         <Icon name="chevronRight" size={16} className="uui-nav-item__chevron" />
       </button>
@@ -163,10 +183,31 @@ function NavRow({ route }: { route: VNextRouteDefinition }) {
       end={route.path === '/'}
       className={({ isActive }) => `uui-nav-item${isActive ? ' uui-nav-item--current' : ''}`}
     >
-      <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={20} className="uui-nav-item__icon" />
+      <Icon
+        name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'}
+        size={20}
+        className="uui-nav-item__icon"
+      />
       <span className="uui-nav-item__label">{route.label}</span>
     </NavLink>
   );
+}
+
+/** Exported for the shell contract test; the topbar is its only caller. */
+export function topbarSectionLabel(
+  pathname: string,
+  routes: readonly VNextRouteDefinition[],
+): string {
+  const current = routes.find((route) => {
+    if (route.path && (pathname === route.path || pathname.startsWith(`${route.path}/`))) {
+      return true;
+    }
+    return route.children?.some(
+      (child) => child.path && (pathname === child.path || pathname.startsWith(`${child.path}/`)),
+    );
+  });
+  if (!current) return 'Dashboard';
+  return current.id === 'engagement-manager' ? 'Engagement' : current.label;
 }
 
 export interface AppShellUuiViewProps {
@@ -207,6 +248,8 @@ export function AppShellUuiView({
 }: AppShellUuiViewProps) {
   const [collapsed, setCollapsed] = useState(() => initialCollapsed ?? readCollapsed());
   const [moreOpen, setMoreOpen] = useState(false);
+  const location = useLocation();
+  const sectionLabel = topbarSectionLabel(location.pathname, navigation.primary);
 
   // Same MERI contract VNextShellChrome enforces (730:2574): Ctrl+J opens the
   // separate workspace window.
@@ -257,7 +300,7 @@ export function AppShellUuiView({
           <span className="uui-topbar__brand">
             <img src="/logo.png" alt="Capiro" className="uui-topbar__wordmark" />
             <span className="uui-topbar__divider" aria-hidden="true" />
-            <span className="uui-topbar__section">Dashboard</span>
+            <span className="uui-topbar__section">{sectionLabel}</span>
             <span className="uui-topbar__scope">{scopeLabel}</span>
           </span>
           <div className="uui-topbar__search">
@@ -275,12 +318,21 @@ export function AppShellUuiView({
           </div>
         </header>
 
-        <aside className="uui-rail" data-collapsed={collapsed || undefined} aria-label="Primary navigation">
+        <aside
+          className="uui-rail"
+          data-collapsed={collapsed || undefined}
+          aria-label="Primary navigation"
+        >
           <nav className="uui-rail__nav">
-            {navigation.primary.map((route) => <NavRow key={route.id} route={route} />)}
+            {navigation.primary.map((route) => (
+              <NavRow key={route.id} route={route} />
+            ))}
           </nav>
           <div className="uui-rail__footer">
-            <MailboxSyncStatusView status={mailboxStatus} onClick={() => onNavigate('/settings/integrations')} />
+            <MailboxSyncStatusView
+              status={mailboxStatus}
+              onClick={() => onNavigate('/settings/integrations')}
+            />
             {navigation.settings?.path ? (
               <NavLink to={navigation.settings.path} className="uui-nav-item">
                 <Icon name="settings" size={20} className="uui-nav-item__icon" />
@@ -303,7 +355,14 @@ export function AppShellUuiView({
 
         <nav className="uui-bottomnav" aria-label="Primary navigation">
           {tabRoutes.map((route) => (
-            <NavLink key={route.id} to={destinationOf(route) ?? '#'} end={route.path === '/'} className={({ isActive }) => `uui-bottomnav__item${isActive ? ' uui-bottomnav__item--current' : ''}`}>
+            <NavLink
+              key={route.id}
+              to={destinationOf(route) ?? '#'}
+              end={route.path === '/'}
+              className={({ isActive }) =>
+                `uui-bottomnav__item${isActive ? ' uui-bottomnav__item--current' : ''}`
+              }
+            >
               <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={21} />
               <span>{TAB_LABEL_OVERRIDES[route.id] ?? route.label}</span>
             </NavLink>
@@ -315,23 +374,45 @@ export function AppShellUuiView({
         </nav>
 
         {moreOpen ? (
-          <div className="uui-moresheet__scrim" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setMoreOpen(false); }}>
+          <div
+            className="uui-moresheet__scrim"
+            role="presentation"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setMoreOpen(false);
+            }}
+          >
             <div className="uui-moresheet" role="dialog" aria-modal="true" aria-label="More">
               <p className="uui-moresheet__label">MORE</p>
-              {moreRoutes.map((route) => (
+              {moreRoutes.map((route) =>
                 destinationOf(route) ? (
-                  <NavLink key={route.id} to={destinationOf(route) as string} className="uui-nav-item" onClick={() => setMoreOpen(false)}>
-                    <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={20} className="uui-nav-item__icon" />
+                  <NavLink
+                    key={route.id}
+                    to={destinationOf(route) as string}
+                    className="uui-nav-item"
+                    onClick={() => setMoreOpen(false)}
+                  >
+                    <Icon
+                      name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'}
+                      size={20}
+                      className="uui-nav-item__icon"
+                    />
                     <span className="uui-nav-item__label">{route.label}</span>
                   </NavLink>
-                ) : null
-              ))}
+                ) : null,
+              )}
               {navigation.settings?.path ? (
-                <NavLink to={navigation.settings.path} className="uui-nav-item" onClick={() => setMoreOpen(false)}>
+                <NavLink
+                  to={navigation.settings.path}
+                  className="uui-nav-item"
+                  onClick={() => setMoreOpen(false)}
+                >
                   <span className="uui-nav-item__label">{navigation.settings.label}</span>
                 </NavLink>
               ) : null}
-              <MailboxSyncStatusView status={mailboxStatus} onClick={() => onNavigate('/settings/integrations')} />
+              <MailboxSyncStatusView
+                status={mailboxStatus}
+                onClick={() => onNavigate('/settings/integrations')}
+              />
             </div>
           </div>
         ) : null}

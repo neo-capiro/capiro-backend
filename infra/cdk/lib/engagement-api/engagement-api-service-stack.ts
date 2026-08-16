@@ -113,7 +113,13 @@ export class EngagementApiServiceStack extends cdk.Stack {
         sid: 'AllowCloudWatchLogsForThisLogGroupOnly',
         effect: iam.Effect.ALLOW,
         principals: [new iam.ServicePrincipal(`logs.${cfg.region}.amazonaws.com`)],
-        actions: ['kms:Encrypt*', 'kms:Decrypt*', 'kms:ReEncrypt*', 'kms:GenerateDataKey*', 'kms:Describe*'],
+        actions: [
+          'kms:Encrypt*',
+          'kms:Decrypt*',
+          'kms:ReEncrypt*',
+          'kms:GenerateDataKey*',
+          'kms:Describe*',
+        ],
         resources: ['*'],
         conditions: {
           ArnLike: {
@@ -299,6 +305,28 @@ export function engagementApiTaskEnvironment(
     ENGAGEMENT_EXTERNAL_ACTIONS: 'disabled',
     ENGAGEMENT_CALLBACKS_ENABLED: 'false',
     ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+
+    // Bounded Outreach V3 authority. Global Engagement external actions and
+    // background ownership remain disabled; runtime policy recognizes only the
+    // dedicated V3 action classes and the one full-generation worker.
+    OUTREACH_V3_STATE_ENABLED: 'true',
+    OUTREACH_V3_REASONING_ENABLED: 'true',
+    OUTREACH_V3_GENERATION_ENABLED: 'true',
+    OUTREACH_V3_DRAFTS_ENABLED: 'true',
+    OUTREACH_V3_SEND_ENABLED: 'true',
+    OUTREACH_V3_FULL_GENERATION_ENABLED: 'true',
+
+    // Substrate the V3 flags above cannot function without, scoped to THIS dark
+    // task only — the main API keeps both at their repository default of false.
+    //   ENGAGEMENT_GENERATION_GATEWAY: V3 sample/full generation refuses with
+    //   503 generation_gateway_disabled unless the governed gateway is on, so
+    //   every V3 generation route is dead without it.
+    //   ENGAGEMENT_VERSIONED_OUTREACH: V3 send is defined as immutable draft
+    //   version ids -> preflight -> durable send intent. With the flag off no
+    //   intents can be created and the send-intent worker returns before it
+    //   sweeps, so V3 send is dead without it.
+    ENGAGEMENT_GENERATION_GATEWAY: 'true',
+    ENGAGEMENT_VERSIONED_OUTREACH: 'true',
 
     AWS_REGION_DEFAULT: cfg.region,
 

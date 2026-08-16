@@ -364,4 +364,30 @@ describe('MeetingsV2', () => {
     expect(screen.queryByTestId('detail-panel')).not.toBeInTheDocument();
     expect(screen.getByText(/meeting not found/i)).toBeInTheDocument();
   });
+
+  test('a calendar load failure offers a Retry that actually refetches', () => {
+    const refetch = vi.fn();
+    useMeetingsMock.mockReturnValue({ data: [], isLoading: false, isError: true, refetch });
+
+    render(<MeetingsV2 {...defaultProps()} />);
+
+    expect(screen.getByText(/couldn't load meetings/i)).toBeInTheDocument();
+    // The failure is scoped to the calendar; the rest of Engagement is reachable.
+    expect(screen.getByText(/rest of engagement is still available/i)).toBeInTheDocument();
+
+    const retry = screen.getByRole('button', { name: /retry calendar/i });
+    fireEvent.click(retry);
+    // A real refetch, not a decorative control.
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('the calendar toolbar stays usable while meetings are loading', () => {
+    useMeetingsMock.mockReturnValue({ data: [], isLoading: true, isError: false });
+
+    render(<MeetingsV2 {...defaultProps()} />);
+
+    // Loading the calendar must not blank or disable the surrounding controls.
+    expect(screen.getByRole('button', { name: 'Month' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Day' })).toBeEnabled();
+  });
 });

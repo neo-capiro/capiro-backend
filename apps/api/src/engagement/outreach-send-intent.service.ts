@@ -49,10 +49,7 @@ import {
   AmbiguousMailSendError,
   type SendableConnection,
 } from './mail-sender.service.js';
-import {
-  appendOutreachSignature,
-  renderOutreachBody,
-} from './outreach-email-renderer.js';
+import { appendOutreachSignature, renderOutreachBody } from './outreach-email-renderer.js';
 import {
   canTransitionOutreachDelivery,
   isDraftVersionSendable,
@@ -75,6 +72,12 @@ const RECONCILE_STALE_BATCH = 500;
 const MAX_ATTACHMENTS_PER_INTENT = 25;
 
 export interface CreateSendIntentInput {
+  /** Internal runtime authority supplied by a trusted server-side caller. */
+  runtimeAction?:
+    | 'outreach_send'
+    | 'outreach_test_send'
+    | 'outreach_v3_send'
+    | 'outreach_v3_test_send';
   outreachRecordId: string;
   requestKey: string;
   senderConnectionId: string;
@@ -230,10 +233,9 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
   ): Promise<{ intentId: string; deduped: boolean }> {
     // Engagement API Phase 1 — assert external action before any work.
     // testMode=true → outreach_test_send; otherwise → outreach_send.
-    this.runtimePolicy.assertExternalAction(
-      input.testMode ? 'outreach_test_send' : 'outreach_send',
-      { testMode: input.testMode },
-    );
+    const runtimeAction =
+      input.runtimeAction ?? (input.testMode ? 'outreach_test_send' : 'outreach_send');
+    this.runtimePolicy.assertExternalAction(runtimeAction, { testMode: input.testMode });
     const requestKey = input.requestKey?.trim() ?? '';
     if (requestKey.length < 8 || requestKey.length > 128) {
       throw new BadRequestException('requestKey must be 8–128 characters.');
@@ -320,10 +322,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
             `Fix the recipient before sending.`,
         );
       }
-      const rendered = appendOutreachSignature(
-        renderOutreachBody(v.body),
-        signature.signatureHtml,
-      );
+      const rendered = appendOutreachSignature(renderOutreachBody(v.body), signature.signatureHtml);
       const subject = testMode ? `[TEST] ${v.subject || 'Outreach preview'}` : v.subject;
       return {
         versionId: v.id,
@@ -572,26 +571,32 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
 
   // ── Worker ────────────────────────────────────────────────────────────────
 
-  async runSweep(): Promise<void> {
-    this.runtimePolicy.assertBackgroundOwner('outreach-send-intent-worker');
-    await this.reconcileStale();
-    const intentId = await this.findRunnableIntentId();
+  async runSweep(v3Only = false): Promise<void> {
+    if (v3Only) this.runtimePolicy.assertOutreachV3SendIntentWorker();
+    else this.runtimePolicy.assertBackgroundOwner('outreach-send-intent-worker');
+    await this.reconcileStale(v3Only);
+    const intentId = await this.findRunnableIntentId(v3Only);
     if (!intentId) return;
     await this.processIntent(intentId);
   }
 
-  private async findRunnableIntentId(): Promise<string | null> {
-    return this.prisma.withSystem(async (tx) => {
-      const row = await tx.outreachSendIntent.findFirst({
+  private async findRunnableIntentId(v3Only = false): Promise<string | null> {
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.outreachSendIntent.findMany({
         where: {
           status: { in: ['queued', 'running'] },
           deliveries: { some: { status: 'pending' } },
         },
         orderBy: { createdAt: 'asc' },
-        select: { id: true },
-      });
-      return row?.id ?? null;
-    });
+        take: 100,
+        select: { id: true, tenantId: true, outreachRecordId: true },
+      }),
+    );
+    for (const row of rows) {
+      const isV3 = await this.isOutreachV3Session(row.tenantId, row.outreachRecordId);
+      if (isV3 === v3Only) return row.id;
+    }
+    return null;
   }
 
   private async processIntent(intentId: string): Promise<void> {
@@ -611,6 +616,14 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
       }),
     );
     if (!intent) return;
+    const isV3 = await this.isOutreachV3Session(intent.tenantId, intent.outreachRecordId);
+    const runtimeAction = isV3
+      ? intent.testMode
+        ? 'outreach_v3_test_send'
+        : 'outreach_v3_send'
+      : intent.testMode
+        ? 'outreach_test_send'
+        : 'outreach_send';
 
     if (intent.status === 'queued') {
       await this.prisma.withSystem((tx) =>
@@ -625,7 +638,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     for (;;) {
       const claimed = await this.claimNextDelivery(intentId);
       if (!claimed) break;
-      await this.deliverClaimed(ctx, intent.senderConnection, claimed);
+      await this.deliverClaimed(ctx, intent.senderConnection, claimed, runtimeAction);
       await this.rollUpIntent(intentId);
       // Gentle pacing (~1.5/sec), well under provider limits.
       await sleep(650);
@@ -682,6 +695,11 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     // Prisma provider enum, so erasing it here would hide a genuine mismatch.
     connection: SendableConnection,
     delivery: ClaimedDelivery,
+    runtimeAction:
+      | 'outreach_send'
+      | 'outreach_test_send'
+      | 'outreach_v3_send'
+      | 'outreach_v3_test_send',
   ): Promise<void> {
     // Edge case 16: an attachment deleted between intent creation and send. The
     // delivery FAILS rather than going out without the document it promised.
@@ -710,6 +728,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
           correlationId: delivery.correlationId,
           ...(attachments?.length ? { attachments } : {}),
         },
+        runtimeAction,
       );
       // Edge case 20: the provider ACCEPTED. If this write fails we retry only
       // the local persistence using the already-claimed row — never the send.
@@ -865,31 +884,60 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
    * firing at all means a worker crashed or a provider call hung past
    * staleMs — that is an operational signal, not routine.
    */
-  private async reconcileStale(): Promise<void> {
+  private async reconcileStale(v3Only = false): Promise<void> {
     const cutoff = new Date(Date.now() - this.staleMs);
-    const aged = await this.prisma.withSystem((tx) =>
-      tx.$queryRaw<Array<{ id: string }>>`
-        UPDATE outreach_deliveries SET
-          status = 'unknown',
-          error_code = 'WORKER_ABANDONED_CLAIM',
-          error_message = 'The sender restarted while this delivery was in flight.',
-          updated_at = NOW()
-        WHERE id IN (
-          SELECT id FROM outreach_deliveries
-          WHERE status = 'sending' AND claimed_at < ${cutoff}
-          ORDER BY claimed_at
-          LIMIT ${RECONCILE_STALE_BATCH}
-          FOR UPDATE SKIP LOCKED
-        )
-        RETURNING id
-      `,
+    const candidates = await this.prisma.withSystem((tx) =>
+      tx.outreachDelivery.findMany({
+        where: { status: 'sending', claimedAt: { lt: cutoff } },
+        orderBy: { claimedAt: 'asc' },
+        take: RECONCILE_STALE_BATCH * 2,
+        select: {
+          id: true,
+          sendIntent: { select: { tenantId: true, outreachRecordId: true } },
+        },
+      }),
     );
-    if (aged.length > 0) {
+    const ids: string[] = [];
+    for (const row of candidates) {
+      if (ids.length >= RECONCILE_STALE_BATCH) break;
+      const isV3 = await this.isOutreachV3Session(
+        row.sendIntent.tenantId,
+        row.sendIntent.outreachRecordId,
+      );
+      if (isV3 === v3Only) ids.push(row.id);
+    }
+    if (!ids.length) return;
+    const aged = await this.prisma.withSystem((tx) =>
+      tx.outreachDelivery.updateMany({
+        where: { id: { in: ids }, status: 'sending', claimedAt: { lt: cutoff } },
+        data: {
+          status: 'unknown',
+          errorCode: 'WORKER_ABANDONED_CLAIM',
+          errorMessage: 'The sender restarted while this delivery was in flight.',
+        },
+      }),
+    );
+    if (aged.count > 0) {
       this.logger.warn(
-        `reconcileStale aged ${aged.length} delivery(ies) sending → unknown ` +
+        `reconcileStale aged ${aged.count} delivery(ies) sending → unknown ` +
           `(claimed more than ${this.staleMs}ms ago)`,
       );
     }
+  }
+
+  /** Whether this parent record is a canonical V3 session. */
+  private async isOutreachV3Session(tenantId: string, outreachRecordId: string): Promise<boolean> {
+    const rows = await this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRaw<Array<{ found: number }>>`
+        SELECT 1 AS found
+        FROM outreach_events
+        WHERE tenant_id = CAST(${tenantId} AS uuid)
+          AND session_id = CAST(${outreachRecordId} AS uuid)
+        LIMIT 1
+      `,
+    );
+    return rows.length > 0;
   }
 
   /**
@@ -1054,7 +1102,10 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
       // onto the wrong OutreachRecord's stats. Same 404 either way: no
       // existence leak, and no separate "wrong campaign" signal to a caller
       // who already owns both records.
-      if (v.artifact.createdByUserId !== ctx.userId || v.artifact.outreachRecordId !== outreachRecordId) {
+      if (
+        v.artifact.createdByUserId !== ctx.userId ||
+        v.artifact.outreachRecordId !== outreachRecordId
+      ) {
         throw new NotFoundException('One or more drafts could not be found.');
       }
       if (v.version !== v.artifact.currentVersion) {
@@ -1121,7 +1172,8 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
       throw new BadRequestException('One or more attachments could not be found.');
     }
     const manifest: AttachmentManifestEntry[] = [];
-    const inlineAttachments: Array<{ name: string; contentType: string; contentBytes: string }> = [];
+    const inlineAttachments: Array<{ name: string; contentType: string; contentBytes: string }> =
+      [];
     const oversized: string[] = [];
     const unusable: string[] = [];
     for (const row of rows) {
@@ -1308,9 +1360,7 @@ export function buildEnvelope(recipientSnapshot: unknown): RecipientEnvelope {
       ? [{ email: single, name: r.name ? String(r.name) : null }]
       : [];
   const clean = (list: unknown): string[] =>
-    (Array.isArray(list) ? list : [])
-      .map((e) => String(e ?? '').trim())
-      .filter(Boolean);
+    (Array.isArray(list) ? list : []).map((e) => String(e ?? '').trim()).filter(Boolean);
   return { to, cc: clean(r.cc), bcc: clean(r.bcc) };
 }
 
@@ -1379,7 +1429,9 @@ export function sendIntentRequestFingerprint(input: {
     c: input.senderConnectionId,
     v: [...input.versionIds].sort(),
     a: [
-      ...input.manifest.map((m) => `${m.id}:${m.fileName}:${m.contentType}:${m.byteSize}:${m.sha256}`),
+      ...input.manifest.map(
+        (m) => `${m.id}:${m.fileName}:${m.contentType}:${m.byteSize}:${m.sha256}`,
+      ),
     ].sort(),
     sig: input.appendSignature,
     test: input.testMode,
@@ -1481,12 +1533,16 @@ function classifyProviderError(err: unknown): string {
 /** Bounded so a malformed provider identifier cannot bloat the row. */
 function boundedId(value: string | null): string | null {
   if (!value) return null;
-  const clean = String(value).replace(/[\r\n]/g, '').trim();
+  const clean = String(value)
+    .replace(/[\r\n]/g, '')
+    .trim();
   return clean ? clean.slice(0, 500) : null;
 }
 
 function truncateError(message: string): string {
-  return String(message).replace(/[\r\n]+/g, ' ').slice(0, 500);
+  return String(message)
+    .replace(/[\r\n]+/g, ' ')
+    .slice(0, 500);
 }
 
 function sleep(ms: number): Promise<void> {

@@ -12,6 +12,7 @@ import { MemoryIngestService } from './memory-ingest.service.js';
 import { GovernedMemoryIngestService } from './governed-memory-ingest.service.js';
 import { MemoryInterviewService } from './memory-interview.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
+import { OutreachReplyLearningService } from './outreach-reply-learning.service.js';
 import { GovernedMemoryCandidateService } from './governed-memory-candidate.service.js';
 import { SettingsAwareMemoryCandidateService } from './settings-aware-memory-candidate.service.js';
 import { SettingsMemoryVersionCandidateService } from './settings-memory-version-candidate.service.js';
@@ -69,6 +70,7 @@ import { InternalMemoryController } from './internal-memory.controller.js';
     GovernedMemoryIngestService,
     { provide: MemoryIngestService, useExisting: GovernedMemoryIngestService },
     MemoryInterviewService,
+    OutreachReplyLearningService,
     SettingsMemoryVersionCandidateService,
     MemorySettingsReviewReadinessService,
     SettingsAwareMemoryCandidateService,

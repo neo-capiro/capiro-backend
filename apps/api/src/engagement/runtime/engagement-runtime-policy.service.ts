@@ -64,6 +64,50 @@ export class EngagementRuntimePolicyService {
     return this.backgroundOwner === this.serviceName;
   }
 
+  /**
+   * Dedicated exception for Outreach V3 full generation. It does not change
+   * global background ownership and cannot start any other Engagement worker.
+   */
+  outreachV3FullGenerationWorkerEnabled(): boolean {
+    return (
+      this.serviceName === 'engagement-api' &&
+      process.env.OUTREACH_V3_STATE_ENABLED === 'true' &&
+      process.env.OUTREACH_V3_GENERATION_ENABLED === 'true' &&
+      process.env.OUTREACH_V3_DRAFTS_ENABLED === 'true' &&
+      process.env.OUTREACH_V3_FULL_GENERATION_ENABLED === 'true'
+    );
+  }
+
+  assertOutreachV3FullGenerationWorker(): void {
+    if (!this.outreachV3FullGenerationWorkerEnabled()) {
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'OUTREACH_V3_FULL_GENERATION_WORKER_DISABLED',
+        message: 'The Outreach V3 full-generation worker is disabled.',
+      });
+    }
+  }
+
+  /** Dedicated exception for the send-intent worker, scoped to V3 sessions. */
+  outreachV3SendIntentWorkerEnabled(): boolean {
+    return (
+      this.serviceName === 'engagement-api' &&
+      process.env.OUTREACH_V3_STATE_ENABLED === 'true' &&
+      process.env.OUTREACH_V3_DRAFTS_ENABLED === 'true' &&
+      process.env.OUTREACH_V3_SEND_ENABLED === 'true'
+    );
+  }
+
+  assertOutreachV3SendIntentWorker(): void {
+    if (!this.outreachV3SendIntentWorkerEnabled()) {
+      throw new ServiceUnavailableException({
+        statusCode: 503,
+        code: 'OUTREACH_V3_SEND_WORKER_DISABLED',
+        message: 'The Outreach V3 send-intent worker is disabled.',
+      });
+    }
+  }
+
   assertBackgroundOwner(workerName: string): void {
     if (!this.backgroundWorkersEnabled()) {
       this.logger.log(
@@ -92,15 +136,29 @@ export class EngagementRuntimePolicyService {
    *   disabled   → no other action
    *   test_only  → only outreach_test_send with testMode=true
    */
-  externalActionAllowed(
-    action: EngagementExternalAction,
-    opts?: { testMode?: boolean },
-  ): boolean {
+  externalActionAllowed(action: EngagementExternalAction, opts?: { testMode?: boolean }): boolean {
     if (action === 'outreach_reasoning') {
       return (
         this.serviceName === 'engagement-api' &&
         process.env.OUTREACH_V3_STATE_ENABLED === 'true' &&
         process.env.OUTREACH_V3_REASONING_ENABLED === 'true'
+      );
+    }
+    if (action === 'outreach_v3_generate') {
+      return (
+        this.serviceName === 'engagement-api' &&
+        process.env.OUTREACH_V3_STATE_ENABLED === 'true' &&
+        process.env.OUTREACH_V3_GENERATION_ENABLED === 'true' &&
+        process.env.OUTREACH_V3_DRAFTS_ENABLED === 'true'
+      );
+    }
+    if (action === 'outreach_v3_send' || action === 'outreach_v3_test_send') {
+      return (
+        this.serviceName === 'engagement-api' &&
+        process.env.OUTREACH_V3_STATE_ENABLED === 'true' &&
+        process.env.OUTREACH_V3_DRAFTS_ENABLED === 'true' &&
+        process.env.OUTREACH_V3_SEND_ENABLED === 'true' &&
+        (action !== 'outreach_v3_test_send' || opts?.testMode === true)
       );
     }
     if (this.externalActionsMode === 'enabled') return true;
@@ -109,10 +167,7 @@ export class EngagementRuntimePolicyService {
     return false;
   }
 
-  assertExternalAction(
-    action: EngagementExternalAction,
-    opts?: { testMode?: boolean },
-  ): void {
+  assertExternalAction(action: EngagementExternalAction, opts?: { testMode?: boolean }): void {
     if (!this.externalActionAllowed(action, opts)) {
       throw new ServiceUnavailableException({
         statusCode: 503,

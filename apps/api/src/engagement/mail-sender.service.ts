@@ -11,7 +11,15 @@ import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-pol
  * MicrosoftGraphSendMailInput (so it passes straight through to Graph) and
  * consumed verbatim by the Gmail MIME builder — one shape, both providers.
  */
+export type EngagementSendRuntimeAction =
+  | 'outreach_send'
+  | 'outreach_test_send'
+  | 'outreach_v3_send'
+  | 'outreach_v3_test_send';
+
 export interface EngagementSendMailInput {
+  /** Internal-only marker consumed by guarded provider adapters. */
+  runtimeAction?: EngagementSendRuntimeAction;
   subject: string;
   body: string;
   /** Body content type. Defaults to 'Text'; outreach sends HTML drafts as 'HTML'. */
@@ -37,10 +45,7 @@ export interface EngagementSendMailInput {
 // ./mail-send-result.js leaf so the adapters can import the error class at
 // runtime without cycling back through this module (which imports them).
 // Re-exported here so callers still have one import site.
-export {
-  AmbiguousMailSendError,
-  type EngagementMailSendResult,
-} from './mail-send-result.js';
+export { AmbiguousMailSendError, type EngagementMailSendResult } from './mail-send-result.js';
 
 /** The minimum a resolved sending connection must carry for routing. */
 export interface SendableConnection {
@@ -58,9 +63,7 @@ export interface SendableConnection {
  * `sendMail()` above routes on, so the recorded provider and the provider that
  * actually delivered can never disagree.
  */
-export function sendProviderSlug(
-  provider: EngagementProvider,
-): 'microsoft_graph' | 'gmail' {
+export function sendProviderSlug(provider: EngagementProvider): 'microsoft_graph' | 'gmail' {
   return provider === EngagementProvider.google_workspace ? 'gmail' : 'microsoft_graph';
 }
 
@@ -95,15 +98,16 @@ export class EngagementMailSender {
     ctx: TenantContext,
     connection: SendableConnection,
     input: EngagementSendMailInput,
+    runtimeAction: EngagementSendRuntimeAction = 'outreach_send',
   ): Promise<EngagementMailSendResult> {
-    // Defense-in-depth: the controller guard and send-intent service already
-    // check, but this is the last gate before the wire. Ordinary calls assert
-    // outreach_send; the test-only exception is owned by OutreachSendIntentService.
-    this.runtimePolicy.assertExternalAction('outreach_send');
+    this.runtimePolicy.assertExternalAction(runtimeAction, {
+      testMode: runtimeAction === 'outreach_test_send' || runtimeAction === 'outreach_v3_test_send',
+    });
+    const providerInput: EngagementSendMailInput = { ...input, runtimeAction };
     if (connection.provider === EngagementProvider.google_workspace) {
-      return this.gmailSend.sendMail(ctx, connection.id, input);
+      return this.gmailSend.sendMail(ctx, connection.id, providerInput);
     }
     // microsoft_365 (and any future non-Google provider a resolver returns).
-    return this.microsoftGraph.sendMail(ctx, connection.id, input);
+    return this.microsoftGraph.sendMail(ctx, connection.id, providerInput);
   }
 }

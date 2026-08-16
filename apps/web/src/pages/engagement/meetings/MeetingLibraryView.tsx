@@ -20,6 +20,8 @@ export function MeetingLibraryView({
   const [type, setType] = useState<'all' | ArtifactKind>('all');
   const [vis, setVis] = useState<'all' | 'shared' | 'private'>('all');
   const [q, setQ] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [page, setPage] = useState(1);
 
   const clients = useClientOptions();
@@ -27,6 +29,8 @@ export function MeetingLibraryView({
     clientId,
     artifactType: type === 'all' ? undefined : type,
     visibility: vis === 'all' ? undefined : vis,
+    from: fromDate ? new Date(`${fromDate}T00:00:00`).toISOString() : undefined,
+    to: toDate ? new Date(`${toDate}T23:59:59.999`).toISOString() : undefined,
     page,
     limit: LIMIT,
   });
@@ -75,6 +79,7 @@ export function MeetingLibraryView({
 
   return (
     <div
+      className="engagement-library-view"
       style={{
         flex: 1,
         display: 'flex',
@@ -207,6 +212,77 @@ export function MeetingLibraryView({
                 ))}
               </select>
             </label>
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--ink-1)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-1)',
+                borderRadius: 7,
+                padding: '6px 10px',
+              }}
+            >
+              From
+              <input
+                aria-label="Meeting Library from date"
+                type="date"
+                value={fromDate}
+                max={toDate || undefined}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setFromDate(value);
+                  if (value && toDate && value > toDate) setToDate(value);
+                  setPage(1);
+                }}
+                style={{ border: 'none', background: 'transparent', color: 'var(--ink-1)' }}
+              />
+            </label>
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 12,
+                fontWeight: 500,
+                color: 'var(--ink-1)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-1)',
+                borderRadius: 7,
+                padding: '6px 10px',
+              }}
+            >
+              To
+              <input
+                aria-label="Meeting Library to date"
+                type="date"
+                value={toDate}
+                min={fromDate || undefined}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setToDate(value);
+                  if (value && fromDate && value < fromDate) setFromDate(value);
+                  setPage(1);
+                }}
+                style={{ border: 'none', background: 'transparent', color: 'var(--ink-1)' }}
+              />
+            </label>
+            {(fromDate || toDate) && (
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => {
+                  setFromDate('');
+                  setToDate('');
+                  setPage(1);
+                }}
+              >
+                Clear dates
+              </button>
+            )}
             {toggle(
               [
                 ['all', 'All'],

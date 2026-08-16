@@ -114,9 +114,15 @@ export class GenerationGatewayService {
    */
   async resolvePinnedIdentity(
     ctx: TenantContext,
-    opts: { policy: GaPolicy },
+    opts: {
+      policy: GaPolicy;
+      runtimeAction?: 'outreach_generate' | 'outreach_v3_generate';
+    },
   ): Promise<{ creds: ResolvedAiCredential[]; pinned: PinnedGenerationIdentity } | null> {
-    const creds = await this.ai.resolveOutreachCredentials(ctx);
+    const creds =
+      opts.runtimeAction === 'outreach_v3_generate'
+        ? await this.ai.resolveOutreachV3Credentials(ctx)
+        : await this.ai.resolveOutreachCredentials(ctx);
     const head = creds[0];
     if (!head) return null;
     return {
@@ -185,8 +191,7 @@ export class GenerationGatewayService {
       .catch(() => null);
     // §4.11: env flag on but tenant setting off ⇒ scope stays 'mine'.
     const tenantAllows = engagementFirmMailContextEnabled(tenant?.settings);
-    const scope: EmailContextScope =
-      tenantAllows && wallAllowsClient ? 'firm_shared' : 'mine';
+    const scope: EmailContextScope = tenantAllows && wallAllowsClient ? 'firm_shared' : 'mine';
     return { scope, wallAllowsClient };
   }
 
@@ -349,7 +354,11 @@ export class GenerationGatewayService {
 
     // ── 5. Style profile (never raw examples) ──
     const styleProfile = await this.styles
-      .getProfile(ctx, request.clientId, { creds: pinnedCreds, now })
+      .getProfile(ctx, request.clientId, {
+        creds: pinnedCreds,
+        now,
+        runtimeAction: request.runtimeAction,
+      })
       .catch(() => null);
 
     // ── 5. Message Plan + deterministic pre-draft validation ──
@@ -357,14 +366,13 @@ export class GenerationGatewayService {
     let planModelUsed = pinned.planModel ?? pinned.model;
     try {
       const built = await this.plans.buildPlan(ctx, {
+        runtimeAction: request.runtimeAction,
         packet,
         policy,
         creds: pinnedCreds,
         recipientBrief: this.recipientBrief(request),
         audienceKind: request.audienceKind,
-        ...(request.groupMemberCount != null
-          ? { groupMemberCount: request.groupMemberCount }
-          : {}),
+        ...(request.groupMemberCount != null ? { groupMemberCount: request.groupMemberCount } : {}),
         clientName: enrichment.clientName,
         tone: request.tone,
       });
@@ -432,6 +440,7 @@ export class GenerationGatewayService {
     try {
       const cred = pinnedCreds[0]!;
       const completion = await this.llm.complete({
+        runtimeAction: request.runtimeAction,
         provider: cred.provider,
         apiKey: cred.apiKey,
         // The PINNED model, not cred.model — a job's chunk must use the identity
@@ -602,7 +611,10 @@ export class GenerationGatewayService {
       out.push({
         id,
         kind,
-        text: t.length > MAX_USER_INSTRUCTION_CHARS * 4 ? t.slice(0, MAX_USER_INSTRUCTION_CHARS * 4) : t,
+        text:
+          t.length > MAX_USER_INSTRUCTION_CHARS * 4
+            ? t.slice(0, MAX_USER_INSTRUCTION_CHARS * 4)
+            : t,
         scope: 'all',
         authenticatedUserId: ctx.userId,
       });
@@ -772,7 +784,12 @@ export class GenerationGatewayService {
 function emailDomain(email: string | null): string | null {
   if (!email) return null;
   const at = email.lastIndexOf('@');
-  return at >= 0 ? email.slice(at + 1).trim().toLowerCase() : null;
+  return at >= 0
+    ? email
+        .slice(at + 1)
+        .trim()
+        .toLowerCase()
+    : null;
 }
 
 function parseDraft(text: string): { subject: string; body: string; contextNote: string } | null {

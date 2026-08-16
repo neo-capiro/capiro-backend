@@ -5,6 +5,10 @@
  * stay renderable in the Clerk-free visual harness, which never boots `env.ts`.
  */
 export const SHELL_NAV_DESCRIPTIONS: Readonly<Record<string, string>> = {
+  'engagement-meetings': 'Calendar, prep, notes and debriefs',
+  'engagement-library': 'Approved meeting artifacts across clients',
+  'engagement-outreach': 'Governed targeting, drafts and delivery',
+  'engagement-reports': 'Office activity, overrides and follow-up',
   'congressional-staff': 'Members, personal offices & staff',
   'committee-staff': 'Authorizing & appropriations staff',
   'department-of-war': 'Pentagon leadership & acquisition officials',

@@ -57,6 +57,18 @@ export const GMAIL_SEND_RUNTIME_METHODS = {
   sendMail: { action: 'outreach_send' },
 } as const satisfies Readonly<Record<string, BoundaryMetadata>>;
 
+function resolveBoundaryAction(
+  property: string,
+  fallback: EngagementExternalAction,
+  args: unknown[],
+): EngagementExternalAction {
+  if (property !== 'sendMail') return fallback;
+  const input = args[2];
+  if (!input || typeof input !== 'object') return fallback;
+  const action = (input as { runtimeAction?: unknown }).runtimeAction;
+  return action === 'outreach_v3_send' || action === 'outreach_v3_test_send' ? action : fallback;
+}
+
 function guardService<T extends object>(
   service: T,
   policy: EngagementRuntimePolicyService,
@@ -69,7 +81,13 @@ function guardService<T extends object>(
       const metadata = methods[property];
       if (!metadata) return value.bind(target);
       return (...args: unknown[]) => {
-        policy.assertExternalAction(metadata.action, { testMode: metadata.testMode });
+        const action = resolveBoundaryAction(property, metadata.action, args);
+        policy.assertExternalAction(action, {
+          testMode:
+            metadata.testMode === true ||
+            action === 'outreach_test_send' ||
+            action === 'outreach_v3_test_send',
+        });
         if (metadata.requiresCallbacks) {
           policy.assertCallbacksEnabled(metadata.action);
         }

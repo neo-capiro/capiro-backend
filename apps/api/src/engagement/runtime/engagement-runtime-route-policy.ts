@@ -45,6 +45,20 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
     sendCampaignEmails: { action: 'outreach_send' },
     sendCampaignTest: { action: 'outreach_test_send', testMode: true },
   },
+  OutreachV3GenerationController: {
+    generateSamples: { action: 'outreach_v3_generate' },
+    startFullGeneration: { action: 'outreach_v3_generate' },
+    retryFullGenerationItem: { action: 'outreach_v3_generate' },
+  },
+  OutreachV3DraftsController: {
+    revise: { action: 'outreach_v3_generate' },
+  },
+  OutreachV3SendController: {
+    testSend: { action: 'outreach_v3_test_send', testMode: true },
+    createIntent: { action: 'outreach_v3_send' },
+    refreshIntent: { action: 'outreach_v3_send' },
+    cancelIntent: { action: 'outreach_v3_send' },
+  },
   MicrosoftOAuthController: {
     disconnect: { action: 'integration_disconnect' },
     start: { action: 'integration_oauth_start' },

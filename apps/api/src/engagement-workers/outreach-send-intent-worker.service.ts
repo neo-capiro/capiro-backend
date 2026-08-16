@@ -22,7 +22,13 @@ export class OutreachSendIntentWorkerService implements OnModuleInit, OnModuleDe
   }
 
   onModuleInit(): void {
-    if (this.timer || !this.enabled || !this.runtime.backgroundWorkersEnabled()) return;
+    if (
+      this.timer ||
+      !this.enabled ||
+      (!this.runtime.backgroundWorkersEnabled() &&
+        !this.runtime.outreachV3SendIntentWorkerEnabled())
+    )
+      return;
     this.timer = setInterval(() => void this.tick(), this.sweepMs);
     this.timer.unref?.();
   }
@@ -36,10 +42,14 @@ export class OutreachSendIntentWorkerService implements OnModuleInit, OnModuleDe
     if (this.running) return;
     this.running = true;
     try {
-      this.runtime.assertBackgroundOwner('outreach-send-intent-worker');
+      const v3Only = !this.runtime.backgroundWorkersEnabled();
+      if (v3Only) this.runtime.assertOutreachV3SendIntentWorker();
+      else this.runtime.assertBackgroundOwner('outreach-send-intent-worker');
       await (
-        this.intents as OutreachSendIntentService & { runWorkerSweep(): Promise<void> }
-      ).runWorkerSweep();
+        this.intents as OutreachSendIntentService & {
+          runWorkerSweep(v3Only?: boolean): Promise<void>;
+        }
+      ).runWorkerSweep(v3Only);
     } catch (error) {
       this.logger.error(`outreach send-intent sweep failed: ${(error as Error).message}`);
     } finally {

@@ -113,7 +113,11 @@ export class AuthorStyleProfileService {
   async getProfile(
     ctx: TenantContext,
     clientId: string | null,
-    opts?: { creds?: ResolvedAiCredential[]; now?: Date },
+    opts?: {
+      creds?: ResolvedAiCredential[];
+      now?: Date;
+      runtimeAction?: 'outreach_generate' | 'outreach_v3_generate';
+    },
   ): Promise<AuthorStyleProfile | null> {
     const voiceMemory = await this.loadVoiceMemory(ctx, clientId);
     const examples = await this.loadConsentedExamples(ctx, clientId);
@@ -134,18 +138,20 @@ export class AuthorStyleProfileService {
       return profile;
     }
 
-    const extracted = await this.extractProfile(voiceMemory, examples, opts?.creds ?? []).catch(
-      (e) => {
-        // §4.18: an extractor failure degrades to voice memory (or nothing). It
-        // must never stop a factually-grounded draft from being written.
-        this.logger.warn(`style-profile extraction failed (degrading): ${(e as Error).message}`);
-        return null;
-      },
-    );
+    const extracted = await this.extractProfile(
+      voiceMemory,
+      examples,
+      opts?.creds ?? [],
+      opts?.runtimeAction,
+    ).catch((e) => {
+      // §4.18: an extractor failure degrades to voice memory (or nothing). It
+      // must never stop a factually-grounded draft from being written.
+      this.logger.warn(`style-profile extraction failed (degrading): ${(e as Error).message}`);
+      return null;
+    });
 
     const profile =
-      extracted ??
-      (voiceMemory ? this.profileFromVoiceMemoryOnly(voiceMemory, sourceHash) : null);
+      extracted ?? (voiceMemory ? this.profileFromVoiceMemoryOnly(voiceMemory, sourceHash) : null);
     if (!profile) return null;
     const finalProfile: AuthorStyleProfile = {
       ...profile,
@@ -272,6 +278,7 @@ export class AuthorStyleProfileService {
     voiceMemory: string | null,
     examples: string[],
     creds: ResolvedAiCredential[],
+    runtimeAction?: 'outreach_generate' | 'outreach_v3_generate',
   ): Promise<AuthorStyleProfile | null> {
     const cred = creds[0];
     if (!cred) return null;
@@ -296,6 +303,7 @@ export class AuthorStyleProfileService {
     userParts.push('Return the style profile as JSON.');
 
     const result = await this.llm.complete({
+      runtimeAction,
       provider: cred.provider,
       apiKey: cred.apiKey,
       model: cred.model,
@@ -329,10 +337,7 @@ export class AuthorStyleProfileService {
    * human-authored steering, so its own words are the guidance — an extraction
    * pass would only add cost and a chance to garble it.
    */
-  private profileFromVoiceMemoryOnly(
-    voiceMemory: string,
-    sourceHash: string,
-  ): AuthorStyleProfile {
+  private profileFromVoiceMemoryOnly(voiceMemory: string, sourceHash: string): AuthorStyleProfile {
     const lower = voiceMemory.toLowerCase();
     const toneTags: string[] = [];
     for (const tag of [
