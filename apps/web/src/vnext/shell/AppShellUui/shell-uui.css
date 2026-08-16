@@ -162,6 +162,16 @@
   background-image: var(--uui-btn-metal-face-active) !important;
   box-shadow: var(--uui-btn-metal-shadow-active) !important;
 }
+/* The real Meri wordmark image (MERI_LOGO_SRC — same asset the Meri
+   workspace itself uses), inverted to white for this dark button. Was
+   rendering as plain text before; per the handoff, this button is icon +
+   wordmark image, never a text label. */
+.capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher__wordmark {
+  height: 13px;
+  width: auto;
+  display: block;
+  filter: brightness(0) invert(1);
+}
 .capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher:disabled {
   background-image: none !important;
   background-color: var(--uui-gray-100) !important;
