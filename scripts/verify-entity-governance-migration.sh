@@ -10,6 +10,7 @@ MIGRATIONS=(
   "$ROOT/apps/api/prisma/migrations/20261120130000_canonical_entity_terminal_lifecycle/migration.sql"
   "$ROOT/apps/api/prisma/migrations/20261120140000_entity_identity_governance/migration.sql"
   "$ROOT/apps/api/prisma/migrations/20261120141000_entity_governance_concurrency/migration.sql"
+  "$ROOT/apps/api/prisma/migrations/20261120142000_resolution_governance_projection/migration.sql"
 )
 
 T1=11111111-1111-4111-8111-111111111111
