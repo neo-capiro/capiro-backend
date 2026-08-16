@@ -99,6 +99,33 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
     );
   }
 
+  // A prior generation attempt failed (see PrepStatus in meetings-types.ts).
+  // `prep` is still truthy here (the failed record itself), so without this
+  // branch execution falls through into the success-body render below with
+  // every optional section empty — an empty/broken-looking "successful" prep
+  // instead of a clear error. Mirrors NotesTab's `meri === 'failed'` handling.
+  if (prep.status === 'failed') {
+    return (
+      <Empty
+        icon={<TriangleAlert size={20} />}
+        title="Prep generation failed"
+        body="Meri couldn't generate prep for this meeting. Try again, optionally with more context."
+        action={
+          <button
+            type="button"
+            className="btn sm btn-accent"
+            style={{ marginTop: 2, gap: 6 }}
+            disabled={!aiConfigured}
+            onClick={() => runGenerate()}
+          >
+            <MeriGlyph size={15} tone="white" />
+            Retry generation
+          </button>
+        }
+      />
+    );
+  }
+
   const onExport = () =>
     exportArtifactPdf(`Prep — ${meeting.subject}`, formatDayTitle(new Date(meeting.startsAt)), [
       { heading: 'Summary', body: prep.summary ?? '' },

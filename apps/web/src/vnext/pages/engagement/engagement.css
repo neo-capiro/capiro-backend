@@ -10,17 +10,24 @@
   --eng-ink-3: #667085;
   --eng-ink-4: #98a2b3;
   --eng-primary: #101828;
-  /* Engagement previously hardcoded a local navy ramp (#294e68) that exists on
-     no other screen. The design handoff calls this out as a real inconsistency
-     rather than an intentional per-screen theme, says not to hardcode it either
-     way, and recommends adopting the shell ramp - which is also what the
-     closeout requires ("reuse existing tokens"). These now resolve to the
-     shell's brand tokens, with the handoff's own option-1 values as fallbacks. */
-  --eng-accent: var(--uui-brand-solid, #3e4784);
-  --eng-accent-hover: var(--uui-brand-deep, #293056);
-  --eng-accent-soft: var(--uui-brand-100, #f5f6fa);
-  --eng-accent-border: var(--uui-brand-200, #dcdfec);
-  --eng-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  /* v3 pass (2026-08-16): the product owner has overridden the prior
+     closeout's shell-indigo resolution for Engagement specifically. Unlike
+     Strategies/Dashboard/LegiWatch — which resolved this same mockup-navy-vs-
+     shell-indigo divergence by unifying on the shell's indigo brand ramp —
+     Engagement now gets its own vNext-only fork on the mockup's literal navy
+     (#294E68). This is a confirmed, intentional per-module exception, not a
+     regression back to the handoff's original inconsistency. See
+     engagement-tones.css for this same navy value's role in the pill/dot tone
+     table used across Meetings/Library/Reports status pills. */
+  --eng-accent: #294E68;
+  --eng-accent-hover: #1F3D52;
+  --eng-accent-soft: #EDF3F7;
+  --eng-accent-border: #C3D5E1;
+  /* IBM Plex Mono loads once, globally, via the shared Google Fonts <link> in
+     index.html — the same mechanism Workspace, Program Elements, LegiWatch,
+     Client CRM and Meri already rely on. No new font-loading infrastructure
+     belongs here; just the shared token. */
+  --eng-font-mono: var(--capiro-type-family-mono);
   --eng-warning: #b54708;
   --eng-warning-deep: #93370d;
   --eng-warning-dot: #dc6803;
