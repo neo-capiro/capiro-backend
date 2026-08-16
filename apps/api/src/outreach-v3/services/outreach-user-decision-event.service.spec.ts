@@ -135,8 +135,11 @@ describe('Outreach V3 bounded human decision event seam', () => {
   it('reads only the requested latest human decision after owner authorization', async () => {
     const latest = event({ eventType: 'draft_version_approved' });
     const h = harness({ latest });
-    // Consume the first mocked query slot used by append() tests so latest() sees
-    // the second configured row in this compact harness.
+    // latest() issues exactly one query. mockResolvedValueOnce APPENDS, so
+    // queueing another row here would still leave the harness's first
+    // (append-oriented) slot to be consumed first and latest() would read [].
+    // Reset the queue so the row under test is the one it actually reads.
+    h.tx.$queryRaw.mockReset();
     h.tx.$queryRaw.mockResolvedValueOnce([latest]);
     const result = await h.service.latest(CTX, SESSION_ID, 'draft_version_approved');
     expect(h.state.getOwnedSession).toHaveBeenCalledWith(h.tx, CTX, SESSION_ID);
