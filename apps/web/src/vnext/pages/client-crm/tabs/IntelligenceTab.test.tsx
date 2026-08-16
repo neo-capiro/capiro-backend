@@ -490,7 +490,26 @@ const LDA_FILINGS_REAL = {
   filings: [LDA_FILING],
 };
 
-function mockFootprintApis(overrides: { lda?: unknown; nexus?: unknown } = {}) {
+const PAC_GIVING_REAL = {
+  pacGiving: {
+    tracked: true,
+    committees: [
+      {
+        committeeId: 'C001',
+        committeeName: 'Overland AI PAC',
+        totalAmount: 90_000,
+        disbursementCount: 4,
+        recipients: [
+          { recipientName: 'WHITFIELD FOR CONGRESS', candidateName: 'Dana Whitfield', totalAmount: 60_000 },
+          { recipientName: 'REYES FOR SENATE', candidateName: 'Luis Reyes', totalAmount: 30_000 },
+        ],
+      },
+    ],
+    summary: { totalAmount: 90_000, disbursementCount: 4, recipientCount: 2 },
+  },
+};
+
+function mockFootprintApis(overrides: { lda?: unknown; nexus?: unknown; fec?: unknown } = {}) {
   const lda = overrides.lda ?? LDA_FILINGS_REAL;
   const nexus = overrides.nexus ?? {
     linked: true,
@@ -502,9 +521,11 @@ function mockFootprintApis(overrides: { lda?: unknown; nexus?: unknown } = {}) {
     districts: [],
     disclaimer: 'Figures reflect confirmed contractor mappings only.',
   };
+  const fec = overrides.fec ?? PAC_GIVING_REAL;
   getMock.mockImplementation((url: string) => {
     if (url === '/api/intelligence/clients/client-1/lda-filings') return Promise.resolve({ data: lda });
     if (url === '/api/intelligence/clients/client-1/district-nexus-spend') return Promise.resolve({ data: nexus });
+    if (url === '/api/intelligence/clients/client-1/fec-money-flow') return Promise.resolve({ data: fec });
     return Promise.reject(new Error(`unexpected GET ${url}`));
   });
 }
@@ -545,5 +566,110 @@ describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', 
     expect(screen.getAllByText('$1.8M').length).toBeGreaterThan(0);
     expect(screen.getAllByText('$84.2M').length).toBeGreaterThan(0);
     expect(screen.getByText('Northwest Government Affairs')).toBeInTheDocument();
+  });
+});
+
+
+describe('ClientCrmIntelligenceProto — political giving (item 20, wire-audit)', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+  });
+
+  it('renders the real PAC total and real top recipients instead of the fixture buckets', async () => {
+    mockFootprintApis();
+    renderFootprint();
+
+    await waitFor(() => expect(screen.getByText('$90,000')).toBeInTheDocument());
+    expect(screen.getByText('Dana Whitfield')).toBeInTheDocument();
+    expect(screen.getByText('Luis Reyes')).toBeInTheDocument();
+    // The fixture's invented categories have no equivalent in the data.
+    expect(screen.queryByText('Incumbent members')).not.toBeInTheDocument();
+    expect(screen.queryByText('Leadership PACs')).not.toBeInTheDocument();
+  });
+
+  it('says no committee is mapped rather than rendering an unmapped client as $0', async () => {
+    mockFootprintApis({ fec: { pacGiving: { tracked: false, committees: [] } } });
+    renderFootprint();
+
+    await waitFor(() =>
+      expect(screen.getByText(/No FEC committee is mapped to this client/)).toBeInTheDocument(),
+    );
+    expect(screen.queryByText('$0')).not.toBeInTheDocument();
+    expect(screen.queryByText('Incumbent members')).not.toBeInTheDocument();
+  });
+});
+
+describe('ClientCrmIntelligenceProto — bill board (item 19, wire-audit)', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+  });
+
+  const BOARD = {
+    columns: [
+      {
+        id: 'introduced',
+        label: 'Introduced',
+        count: 1,
+        bills: [
+          {
+            billId: 'b1',
+            displayNum: 'H.R. 5150',
+            title: 'Maritime Uncrewed Logistics Act',
+            stage: 'introduced',
+            probability: 0.62,
+            tags: [],
+            isManual: true,
+            trackedAt: '2026-06-01T00:00:00.000Z',
+            unread: true,
+            change: { tone: 'notable', label: 'Committee action', dot: true },
+            latestActionText: 'Referred to House Armed Services',
+          },
+        ],
+      },
+      { id: 'committee', label: 'In committee', count: 0, bills: [] },
+      { id: 'passed', label: 'Passed chamber', count: 0, bills: [] },
+      { id: 'enacted', label: 'Enacted', count: 0, bills: [] },
+    ],
+    total: 1,
+  };
+
+  function mockBoardApis(board: unknown = BOARD, withheld?: number) {
+    const payload = withheld == null ? board : { ...(board as object), withheld };
+    getMock.mockImplementation((url: string) => {
+      if (url === '/intel-api/feature-flags') return Promise.resolve({ data: {} });
+      if (url === '/api/intelligence/clients/client-1/tracker/board') return Promise.resolve({ data: payload });
+      if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
+        return Promise.resolve({ data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } });
+      }
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+  }
+
+  it('renders real board bills, labelling probability as passage rather than fit', async () => {
+    mockBoardApis();
+    renderLegislative();
+
+    await waitFor(() => expect(screen.getByText('Maritime Uncrewed Logistics Act')).toBeInTheDocument());
+    expect(screen.getByText('H.R. 5150')).toBeInTheDocument();
+    expect(screen.getByText('62% pass')).toBeInTheDocument();
+    expect(screen.getByText('Referred to House Armed Services')).toBeInTheDocument();
+    // The BILLS fixture must not leak through as if real.
+    expect(screen.queryByText('Defense Autonomy Test Range Act')).not.toBeInTheDocument();
+  });
+
+  it('states withheld bills rather than silently bounding the board', async () => {
+    mockBoardApis(BOARD, 7);
+    renderLegislative();
+
+    await waitFor(() => expect(screen.getByText('7 more tracked bills not shown')).toBeInTheDocument());
+  });
+
+  it('shows a real empty state when the board is genuinely empty', async () => {
+    mockBoardApis({ columns: [], total: 0 });
+    renderLegislative();
+
+    await waitFor(() =>
+      expect(screen.getByText("No bills are on this client's board yet.")).toBeInTheDocument(),
+    );
   });
 });

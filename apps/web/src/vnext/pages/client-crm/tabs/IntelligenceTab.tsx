@@ -37,10 +37,12 @@ import { useApi } from '../../../../lib/use-api.js';
 import {
   trackerKeys,
   trackerPaths,
+  type BoardBill,
+  type BoardResponse,
   type RecommendationBill,
   type RecommendationsResponse,
 } from '../../../../pages/clients/tracker/tracker-api.js';
-import { intelTrackerPaths } from '../../../../pages/clients/tracker/intel-tracker-api.js';
+import { adaptBoard, intelTrackerPaths } from '../../../../pages/clients/tracker/intel-tracker-api.js';
 import {
   getClientFacilities,
   formatFacilityDistrict,
@@ -51,6 +53,10 @@ import {
   type DistrictNexusRow,
 } from '../../../../pages/clients/intelligence-v1/district-nexus-api.js';
 import { getClientLdaFilings } from '../../../../pages/clients/intelligence-v1/lda-filings-api.js';
+import {
+  getClientFecMoneyFlow,
+  topPacRecipients,
+} from '../../../../pages/clients/intelligence-v1/fec-money-flow-api.js';
 import {
   getClientRepresentation,
   type RepresentationResult,
@@ -319,6 +325,26 @@ function LegislativePanel({ client }: { client: Client }) {
   });
   const realRecs = ready && recsQ.isSuccess ? recsQ.data.recommendations.slice(0, 5) : null;
 
+  // Item 19: the tracked-bill board. The server already groups by stage and its
+  // four stage ids match the design's own STAGES exactly, so columns are used
+  // as returned rather than re-derived client-side.
+  const boardQ = useQuery<BoardResponse>({
+    queryKey: trackerKeys.board(client.id),
+    queryFn: async () => {
+      if (trackerV2) {
+        // `IntelBoard` isn't exported; take its shape from the adapter itself.
+        const raw = (
+          await api.get<Parameters<typeof adaptBoard>[0]>(intelTrackerPaths.board(client.id))
+        ).data;
+        return adaptBoard(raw);
+      }
+      return (await api.get<BoardResponse>(trackerPaths.board(client.id))).data;
+    },
+    enabled: ready,
+    staleTime: 60_000,
+  });
+  const realBoard = ready && boardQ.isSuccess ? boardQ.data : null;
+
   const trackMutation = useMutation({
     mutationFn: (billId: string) =>
       api.post(trackerV2 ? intelTrackerPaths.track(client.id) : trackerPaths.track(client.id), {
@@ -341,9 +367,31 @@ function LegislativePanel({ client }: { client: Client }) {
         {/* Board card */}
         <Card>
           <CardHead title={nested === 'tracked' ? 'Tracked bills' : nested} action={<LinkBtn onClick={() => setBoardView((v) => !v)}>{boardView ? 'Table view' : 'Board view'}</LinkBtn>} />
-          {boardView ? <BillBoard /> : <BillTable />}
+          {realBoard ? (
+            realBoard.total === 0 ? (
+              <p style={{ margin: 0, padding: '4px 24px 16px', fontSize: 14, color: '#475467' }}>
+                No bills are on this client&apos;s board yet.
+              </p>
+            ) : boardView ? (
+              <RealBillBoard board={realBoard} />
+            ) : (
+              <RealBillTable board={realBoard} />
+            )
+          ) : boardView ? (
+            <BillBoard />
+          ) : (
+            <BillTable />
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 24px 18px' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>6 more tracked bills</span>
+            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+              {/* `withheld` must be stated when > 0 — a bounded board that stays
+                  silent about it is less honest than an unbounded one. */}
+              {realBoard
+                ? realBoard.withheld
+                  ? `${realBoard.withheld} more tracked bill${realBoard.withheld === 1 ? '' : 's'} not shown`
+                  : `${realBoard.total} tracked bill${realBoard.total === 1 ? '' : 's'}`
+                : '6 more tracked bills'}
+            </span>
             <span style={{ flex: 1 }} />
             <LinkBtn onClick={() => navigate('/legiwatch')}>Open full board →</LinkBtn>
           </div>
@@ -413,6 +461,102 @@ function RealRecCard({ r, onTrack, tracking }: { r: RecommendationBill; onTrack:
         </button>
       </span>
     </span>
+  );
+}
+
+/**
+ * `BoardBill.probability` is PASSAGE probability (0..1, occasionally already
+ * 0-100 — `probClass` in tracker-api.ts tolerates both, so this does too).
+ * It is NOT the fixture's client-"fit" score, so it is never rendered in the
+ * bare `FitChip` the fixture uses — the label always says what the number is.
+ */
+function passagePct(probability: number): number {
+  return Math.round(probability > 1 ? probability : probability * 100);
+}
+
+const CHANGE_TONE: Record<string, PillTone> = {
+  critical: 'error',
+  notable: 'warning',
+  info: 'blue',
+  success: 'success',
+};
+
+function RealBillBoard({ board }: { board: BoardResponse }) {
+  return (
+    <div style={{ padding: '20px 20px 12px', overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(188px,1fr))', gap: 14, minWidth: 800, alignItems: 'start' }}>
+        {board.columns.map((col) => (
+          <span key={col.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, borderBottom: '1px solid #EAECF0' }}>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>{col.label}</span>
+              <span style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 22, height: 22, padding: '0 7px', borderRadius: 9999, background: GRADIENT_DARK, color: '#ffffff', fontSize: 11, fontWeight: 600 }}>{col.count}</span>
+            </span>
+            {col.bills.map((b) => (
+              <RealBillCard key={b.billId} b={b} />
+            ))}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RealBillCard({ b }: { b: BoardBill }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, padding: 12, borderRadius: 8, background: hover ? '#F9FAFB' : '#ffffff', boxShadow: hover ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0', textAlign: 'left' }}
+    >
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {b.unread ? <span aria-label="Unread" style={{ flex: '0 0 auto', width: 6, height: 6, borderRadius: '50%', background: '#101828' }} /> : null}
+        <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>{b.displayNum}</span>
+        <Pill tone="gray" dotless>{passagePct(b.probability)}% pass</Pill>
+      </span>
+      <span style={{ fontSize: 13, lineHeight: '18px', color: '#344054', textWrap: 'pretty' }}>{b.title}</span>
+      {/* The real status label, when the board carries one — the coarse stage
+          lane the card sits in is already shown by its column header. */}
+      {b.canonicalStatus ? (
+        <span style={{ fontSize: 12, color: '#667085', textWrap: 'pretty' }}>{b.canonicalStatus}</span>
+      ) : null}
+      {b.latestActionText ? (
+        <span style={{ fontSize: 12, color: '#667085', textWrap: 'pretty' }}>{b.latestActionText}</span>
+      ) : null}
+      {b.change ? (
+        <span style={{ alignSelf: 'flex-start' }}>
+          <Pill tone={CHANGE_TONE[b.change.tone] ?? 'gray'} dotless={!b.change.dot}>{b.change.label}</Pill>
+        </span>
+      ) : null}
+      {b.terminalRisk ? (
+        <span style={{ alignSelf: 'flex-start' }}>
+          <Pill tone="error">Terminal risk</Pill>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function RealBillTable({ board }: { board: BoardResponse }) {
+  const rows = board.columns.flatMap((col) => col.bills.map((b) => ({ bill: b, stageLabel: col.label })));
+  return (
+    <div>
+      {rows.map(({ bill: r, stageLabel }) => (
+        <div key={r.billId} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 16, padding: '14px 24px', borderBottom: '1px solid #EAECF0', textAlign: 'left' }}>
+          <span style={{ flex: '0 0 auto', width: 88, fontSize: 14, fontWeight: 600, color: '#101828' }}>{r.displayNum}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 14, color: '#101828', textWrap: 'pretty' }}>{r.title}</span>
+            <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085' }}>
+              {r.latestActionText ?? r.canonicalStatus ?? 'No action recorded'}
+            </span>
+          </span>
+          <span style={{ flex: '0 0 auto', width: 104, fontSize: 13, color: '#475467' }}>{stageLabel}</span>
+          <span style={{ flex: '0 0 auto', width: 76, display: 'flex', justifyContent: 'flex-end' }}>
+            <Pill tone="gray" dotless>{passagePct(r.probability)}% pass</Pill>
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -884,6 +1028,14 @@ function FootprintPanel({ client }: { client: Client }) {
   });
   const realNexus = nexusQ.isSuccess && nexusQ.data.linked ? nexusQ.data : null;
 
+  // Item 20: the client's own PAC disbursements (Schedule B).
+  const fecQ = useQuery({
+    queryKey: ['client-fec-money-flow', client.id],
+    queryFn: () => getClientFecMoneyFlow(api, client.id),
+    staleTime: 5 * 60_000,
+  });
+  const realPac = fecQ.isSuccess ? (fecQ.data.pacGiving ?? null) : null;
+
   const intelHref = `/clients?clientId=${encodeURIComponent(client.id)}&tab=intelligence#financial-footprint`;
 
   return (
@@ -974,26 +1126,80 @@ function FootprintPanel({ client }: { client: Client }) {
           )}
         </FootCard>
 
-        {/* Political giving — no dedicated real API surface exists yet (see
-            memory: getFecMoneyFlow/pacGiving reach the frontend type layer via
-            intelligence-v1/mappers.ts but no component consumes them anywhere).
-            Left on the design fixture rather than a hollow partial wire. */}
-        <FootCard title="Political giving" action={<LinkBtn>Open FEC / PAC</LinkBtn>}>
-          <div style={{ marginTop: 16, fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$380K</div>
-          <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>PAC disbursements · current cycle</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
-            {([['Incumbent members', '$214K', '90%'], ['Leadership PACs', '$102K', '43%'], ['Party committees', '$64K', '27%']] as const).map(([label, value, w]) => (
-              <span key={label} style={{ display: 'block' }}>
-                <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: 14 }}>
-                  <span style={{ color: '#344054' }}>{label}</span>
-                  <span style={{ fontWeight: 600, color: '#101828' }}>{value}</span>
-                </span>
-                <span style={{ display: 'block', marginTop: 6, height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
-                  <span style={{ display: 'block', height: 8, width: w, borderRadius: 4, background: '#98A2B3' }} />
-                </span>
-              </span>
-            ))}
-          </div>
+        {/* Political giving — the client's OWN PAC disbursements (item 20). */}
+        <FootCard title="Political giving" action={<LinkBtn onClick={() => navigate(intelHref)}>Open FEC / PAC</LinkBtn>}>
+          {realPac ? (
+            !realPac.tracked ? (
+              /* "No committee mapped" is not "$0 given" — never render it as one. */
+              <p style={{ margin: '16px 0 0', fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+                No FEC committee is mapped to this client, so its PAC giving cannot be reported.
+              </p>
+            ) : (
+              <>
+                <div style={{ marginTop: 16, fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>
+                  {realPac.summary ? `$${realPac.summary.totalAmount.toLocaleString()}` : '—'}
+                </div>
+                <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+                  PAC disbursements
+                  {realPac.summary
+                    ? ` · ${realPac.summary.disbursementCount} disbursement${realPac.summary.disbursementCount === 1 ? '' : 's'}`
+                    : ''}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
+                  {/* Real top recipients. The fixture's Incumbent/Leadership/Party
+                      buckets have no equivalent in the data — recipients are named
+                      rows, not categories — so they are not reproduced. */}
+                  {topPacRecipients(realPac).length === 0 ? (
+                    <p style={{ margin: 0, fontSize: 14, color: '#475467' }}>
+                      A committee is mapped, but it has no disbursements on record.
+                    </p>
+                  ) : (
+                    topPacRecipients(realPac).map((r, i, all) => (
+                      <span key={`${r.recipientName}-${r.candidateName ?? ''}`} style={{ display: 'block' }}>
+                        <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
+                          <span style={{ color: '#344054', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {r.candidateName ?? r.recipientName}
+                          </span>
+                          <span style={{ fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>${r.totalAmount.toLocaleString()}</span>
+                        </span>
+                        <span style={{ display: 'block', marginTop: 6, height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
+                          <span
+                            style={{
+                              display: 'block',
+                              height: 8,
+                              // Bars are relative to the largest recipient, so the
+                              // width is a real comparison rather than a designed %.
+                              width: (all[0]?.totalAmount ?? 0) > 0 ? `${Math.round((r.totalAmount / all[0]!.totalAmount) * 100)}%` : '0%',
+                              borderRadius: 4,
+                              background: '#98A2B3',
+                            }}
+                          />
+                        </span>
+                      </span>
+                    ))
+                  )}
+                </div>
+              </>
+            )
+          ) : (
+            <>
+              <div style={{ marginTop: 16, fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$380K</div>
+              <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>PAC disbursements · current cycle</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
+                {([['Incumbent members', '$214K', '90%'], ['Leadership PACs', '$102K', '43%'], ['Party committees', '$64K', '27%']] as const).map(([label, value, w]) => (
+                  <span key={label} style={{ display: 'block' }}>
+                    <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: 14 }}>
+                      <span style={{ color: '#344054' }}>{label}</span>
+                      <span style={{ fontWeight: 600, color: '#101828' }}>{value}</span>
+                    </span>
+                    <span style={{ display: 'block', marginTop: 6, height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
+                      <span style={{ display: 'block', height: 8, width: w, borderRadius: 4, background: '#98A2B3' }} />
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </FootCard>
       </div>
 
