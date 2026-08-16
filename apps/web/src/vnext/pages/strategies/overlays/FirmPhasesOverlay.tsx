@@ -109,6 +109,33 @@ export function FirmPhasesOverlay() {
     return out;
   }, [rows, dupeKeys]);
 
+  /* Same constraints as `problems`, reshaped as a pass/fail checklist for the
+   * "Rules" panel (README "Modals" → firm phases: a light rules card beside
+   * the dark timeline preview). `problems` keeps the detailed per-issue text
+   * near the rows being edited; this is the persistent at-a-glance summary. */
+  const rules = useMemo(() => {
+    const list = rows ?? [];
+    const quartersOk = list.every(
+      (r) =>
+        Number.isInteger(r.startQ) && r.startQ >= 1 && r.startQ <= 4 &&
+        Number.isInteger(r.endQ) && r.endQ >= 1 && r.endQ <= 4,
+    );
+    const fyOk = list.every(
+      (r) =>
+        Number.isInteger(r.startFy) && String(Math.abs(r.startFy)).length === 4 &&
+        Number.isInteger(r.endFy) && String(Math.abs(r.endFy)).length === 4,
+    );
+    return [
+      { key: 'min', label: `At least ${MIN_PHASES} phases`, ok: list.length >= MIN_PHASES },
+      { key: 'max', label: `No more than ${MAX_PHASES} phases`, ok: list.length <= MAX_PHASES },
+      { key: 'named', label: 'Every phase has a name', ok: list.every((r) => r.label.trim().length > 0) },
+      { key: 'unique', label: 'Phase names are unique', ok: dupeKeys.size === 0 },
+      { key: 'quarters', label: 'Quarters run Q1–Q4', ok: quartersOk },
+      { key: 'fy', label: 'Fiscal years are 4-digit', ok: fyOk },
+      { key: 'scope', label: 'Saving updates every existing strategy timeline', ok: true },
+    ];
+  }, [rows, dupeKeys]);
+
   /* "Updated by X · date" — the most recent stamp across the saved rows. */
   const stamp = useMemo(() => {
     let latest: FirmPhase | null = null;
@@ -199,7 +226,7 @@ export function FirmPhasesOverlay() {
       title="The firm's shared phase ladder"
       subtitle="These phases underlie every strategy timeline. Saving replaces the whole ladder at once."
       closeTo="/strategies"
-      size="lg"
+      maxWidth={960}
       dirty={dirty && !put.isPending}
       primaryLabel="Save phases"
       onPrimary={save}
@@ -239,64 +266,104 @@ export function FirmPhasesOverlay() {
           onRetry={() => void phases.refetch()}
         />
       ) : (
-        <>
-          <div className="st-phases__list">
-            {rows.map((row, index) => {
-              const quarters = spanQuarters(row);
-              return (
-                <div className="st-phase-row" key={row._key}>
-                  <span className="st-phase-row__num">{index + 1}</span>
-                  <input
-                    className={`st-phase-row__input${dupeKeys.has(row._key) ? ' is-dupe' : ''}`}
-                    aria-label={`Phase ${index + 1} name`}
-                    placeholder="Phase name"
-                    value={row.label}
-                    onChange={(event) => updateRow(row._key, { label: event.target.value })}
-                  />
-                  <span className="st-phase-row__editor">
-                    <span className="st-phase-row__fields">
-                      FY{fyInput(row, 'startFy', 'start')} Q{qInput(row, 'startQ', 'start')}
-                      <span aria-hidden="true">→</span>
-                      FY{fyInput(row, 'endFy', 'end')} Q{qInput(row, 'endQ', 'end')}
-                    </span>
-                    <span className="st-phase-row__span">
-                      {quarters === null ? '—' : `${quarters} quarter${quarters === 1 ? '' : 's'}`} · end exclusive
-                    </span>
-                  </span>
-                  <span className="st-phase-row__actions">
-                    <CapiroIconButton
-                      label={`Remove phase ${index + 1}`}
-                      icon="×"
-                      disabled={rows.length <= MIN_PHASES}
-                      onClick={() => removeRow(row._key)}
+        <div className="st-cols">
+          <div style={{ minWidth: 0 }}>
+            <div className="st-phases__list">
+              {rows.map((row, index) => {
+                const quarters = spanQuarters(row);
+                return (
+                  <div className="st-phase-row" key={row._key}>
+                    <span className="st-phase-row__num">{index + 1}</span>
+                    <input
+                      className={`st-phase-row__input${dupeKeys.has(row._key) ? ' is-dupe' : ''}`}
+                      aria-label={`Phase ${index + 1} name`}
+                      placeholder="Phase name"
+                      value={row.label}
+                      onChange={(event) => updateRow(row._key, { label: event.target.value })}
                     />
-                  </span>
-                </div>
-              );
-            })}
+                    <span className="st-phase-row__editor">
+                      <span className="st-phase-row__fields">
+                        FY{fyInput(row, 'startFy', 'start')} Q{qInput(row, 'startQ', 'start')}
+                        <span aria-hidden="true">→</span>
+                        FY{fyInput(row, 'endFy', 'end')} Q{qInput(row, 'endQ', 'end')}
+                      </span>
+                      <span className="st-phase-row__span">
+                        {quarters === null ? '—' : `${quarters} quarter${quarters === 1 ? '' : 's'}`} · end exclusive
+                      </span>
+                    </span>
+                    <span className="st-phase-row__actions">
+                      <CapiroIconButton
+                        label={`Remove phase ${index + 1}`}
+                        icon="×"
+                        disabled={rows.length <= MIN_PHASES}
+                        onClick={() => removeRow(row._key)}
+                      />
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+              <CapiroButton
+                variant="secondary"
+                size="compact"
+                disabled={rows.length >= MAX_PHASES}
+                onClick={addRow}
+              >
+                Add phase
+              </CapiroButton>
+            </div>
+
+            {problems.length > 0 ? (
+              <div style={{ marginTop: 16 }}>
+                {problems.map((problem) => (
+                  <p className="st-rule" role="alert" key={problem} style={{ color: 'var(--st-error-fg)' }}>
+                    · {problem}
+                  </p>
+                ))}
+              </div>
+            ) : null}
           </div>
 
-          <div style={{ marginTop: 12 }}>
-            <CapiroButton
-              variant="secondary"
-              size="compact"
-              disabled={rows.length >= MAX_PHASES}
-              onClick={addRow}
-            >
-              Add phase
-            </CapiroButton>
-          </div>
-
-          <div style={{ marginTop: 16 }}>
-            <p className="st-rule">· Between {MIN_PHASES} and {MAX_PHASES} phases; names must be unique.</p>
-            <p className="st-rule">· The end FY·Q is exclusive — a phase runs up to, not through, that quarter.</p>
-            {problems.map((problem) => (
-              <p className="st-rule" role="alert" key={problem} style={{ color: 'var(--st-error-fg)' }}>
-                · {problem}
+          <aside style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="st-dark-panel">
+              <p className="st-dark-panel__label">Timeline preview</p>
+              <p className="st-dark-panel__title">A shared rhythm, not a rigid process.</p>
+              <p className="st-dark-panel__text">
+                Each strategy still adds its own actions, gates, risks and milestones. Firm phases
+                provide the stable layer beneath them.
               </p>
-            ))}
-          </div>
-        </>
+              <div className="st-preview-box">
+                {rows[0] ? <span className="st-preview-fy">FY{rows[0].startFy}</span> : null}
+                <div className="st-preview-bars">
+                  {rows.slice(0, 5).map((row) => (
+                    <div className="st-preview-bar" key={row._key}>
+                      {row.label.trim() || 'Untitled phase'}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="st-panel">
+              <p className="st-panel__label">Rules</p>
+              <div style={{ display: 'grid', gap: 2 }}>
+                {rules.map((rule) => (
+                  <div className="st-check" key={rule.key}>
+                    <span
+                      className={`st-check__icon st-check__icon--${rule.ok ? 'pass' : 'fail'}`}
+                      aria-hidden="true"
+                    >
+                      {rule.ok ? '✓' : '!'}
+                    </span>
+                    <span className="st-check__label">{rule.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+        </div>
       )}
     </StrategiesModalShell>
   );

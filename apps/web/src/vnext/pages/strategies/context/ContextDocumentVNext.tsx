@@ -43,10 +43,13 @@ import {
   useContextDocument,
   useContextDocuments,
   useContextFacts,
+  useContextHealth,
   useContextLocate,
   useContextSections,
   useExtractContextFacts,
 } from '../strategies-api.js';
+import { ScopeBar, type ScopeBarStatus } from '../ScopeBar.js';
+import { useShellClientContext } from '../../../adapters/legacy/useShellClientContext.js';
 import { useMe } from '../../../../lib/me.js';
 import { errorMessage } from '../../../../lib/error-message.js';
 import {
@@ -96,6 +99,38 @@ export function ContextDocumentVNext() {
   const facts = useContextFacts();
   const archive = useArchiveContextDocument();
   const extract = useExtractContextFacts();
+
+  /* ScopeBar status — same shared cross-app client scope + real ContextHealth
+   * signal as the context library (not this document's own client): there is
+   * no single meaningful "N facts" number across all clients, so an unscoped
+   * portfolio never gets a fabricated "Healthy" reading. */
+  const clientContext = useShellClientContext();
+  const scopeClientId = clientContext.selectedClientId;
+  const health = useContextHealth(scopeClientId);
+  const scopedActiveFactCount = (facts.data ?? []).filter(
+    (fact) => fact.clientId === scopeClientId && fact.state === 'active',
+  ).length;
+  const scopeStatus: ScopeBarStatus = !scopeClientId
+    ? { tone: 'gray', label: 'Select a client to see context health' }
+    : health.isLoading
+      ? { tone: 'gray', label: 'Checking context health…' }
+      : health.isError || !health.data
+        ? { tone: 'gray', label: 'Context health unavailable' }
+        : {
+            tone:
+              health.data.status === 'ok'
+                ? 'success'
+                : health.data.status === 'degraded'
+                  ? 'warning'
+                  : 'error',
+            label: `${
+              health.data.status === 'ok'
+                ? 'Healthy'
+                : health.data.status === 'degraded'
+                  ? 'Degraded'
+                  : 'Conflicted'
+            } · ${scopedActiveFactCount} fact${scopedActiveFactCount === 1 ? '' : 's'}`,
+          };
 
   /* §4.1 #8: selection is single-sourced from the outline and lives in the URL
    * (?ref=), so a copied source link restores the exact highlighted range. */
@@ -174,6 +209,7 @@ export function ContextDocumentVNext() {
   if (doc.isLoading) {
     return (
       <div className="st-ctxdoc" aria-label="Loading context document">
+        <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
         <div className="st-ctxdoc__header">
           <CapiroSkeleton width={140} height={12} />
           <CapiroSkeleton width={220} height={11} />
@@ -202,6 +238,7 @@ export function ContextDocumentVNext() {
   if (doc.isError || !doc.data) {
     return (
       <div className="st-ctxdoc">
+        <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
         <div className="st-ctxdoc__state-page">
           <Link className="st-ctxdoc__back" to="/strategies/context">
             ‹ Context library
@@ -288,6 +325,8 @@ export function ContextDocumentVNext() {
 
   return (
     <div className="st-ctxdoc">
+      <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
+
       {/* ---- header ------------------------------------------------------- */}
       <header className="st-ctxdoc__header">
         <Link className="st-ctxdoc__back" to="/strategies/context">
@@ -363,40 +402,6 @@ export function ContextDocumentVNext() {
           </div>
         </div>
 
-        {/* metadata strip: scope · authority · state · as-of · valid-to · supersession */}
-        <div className="st-ctxdoc__meta" aria-label="Document metadata">
-          <span className="st-ctxdoc__chip">{d.scope} scope</span>
-          {authority ? <span className="st-ctxdoc__chip">{authority.replace(/_/g, ' ')}</span> : null}
-          <CapiroBadge tone={STATE_TONE[d.state]} dot={<span className="st-ctxdoc__dot" aria-hidden="true" />}>
-            {d.state}
-          </CapiroBadge>
-          {stale ? (
-            <CapiroBadge tone="warning" dot={<span className="st-ctxdoc__dot" aria-hidden="true" />}>
-              Stale
-            </CapiroBadge>
-          ) : null}
-          {asOf ? <span className="st-ctxdoc__chip">as of {fmtDay(asOf) ?? asOf.slice(0, 10)}</span> : null}
-          {validUntil ? (
-            <span className={`st-ctxdoc__chip${stale ? ' is-stale' : ''}`}>
-              valid to {fmtDay(validUntil) ?? validUntil.slice(0, 10)}
-            </span>
-          ) : null}
-          {supersedes ? (
-            <Link className="st-ctxdoc__chip is-link" to={`/strategies/context/${supersedes.id}`}>
-              Supersedes {supersedes.title}
-            </Link>
-          ) : d.supersedesId ? (
-            <span className="st-ctxdoc__chip">
-              Supersedes <span className="st-mono">{d.supersedesId.slice(0, 8)}…</span>
-            </span>
-          ) : null}
-          {supersededBy ? (
-            <Link className="st-ctxdoc__chip is-link" to={`/strategies/context/${supersededBy.id}`}>
-              Superseded by {supersededBy.title}
-            </Link>
-          ) : null}
-        </div>
-
         {docRefetchFailed ? (
           <div className="st-ctxdoc__note is-warning" role="status">
             Refresh failed — showing data from {new Date(docDataUpdatedAt).toLocaleTimeString()}.
@@ -410,6 +415,62 @@ export function ContextDocumentVNext() {
           </div>
         ) : null}
       </header>
+
+      {/* ---- meta strip: scope · authority · state · as-of · valid-to · supersession ---- */}
+      <div className="st-ctxdoc__metastrip" aria-label="Document metadata">
+        <span className="st-ctxdoc__chip">
+          <span className="st-ctxdoc__chip-label">Scope</span>
+          <span className="st-ctxdoc__chip-value">{d.scope}</span>
+        </span>
+        {authority ? (
+          <span className="st-ctxdoc__chip">
+            <span className="st-ctxdoc__chip-label">Authority</span>
+            <span className="st-ctxdoc__chip-value">{authority.replace(/_/g, ' ')}</span>
+          </span>
+        ) : null}
+        <CapiroBadge tone={STATE_TONE[d.state]} dot={<span className="st-ctxdoc__dot" aria-hidden="true" />}>
+          {d.state}
+        </CapiroBadge>
+        {stale ? (
+          <CapiroBadge tone="warning" dot={<span className="st-ctxdoc__dot" aria-hidden="true" />}>
+            Stale
+          </CapiroBadge>
+        ) : null}
+        {asOf ? (
+          <span className="st-ctxdoc__chip">
+            <span className="st-ctxdoc__chip-label">As of</span>
+            <span className="st-ctxdoc__chip-value">{fmtDay(asOf) ?? asOf.slice(0, 10)}</span>
+          </span>
+        ) : null}
+        {validUntil ? (
+          <span className={`st-ctxdoc__chip${stale ? ' is-stale' : ''}`}>
+            <span className="st-ctxdoc__chip-label">Valid to</span>
+            <span className="st-ctxdoc__chip-value">{fmtDay(validUntil) ?? validUntil.slice(0, 10)}</span>
+          </span>
+        ) : null}
+        {supersedes ? (
+          <Link className="st-ctxdoc__chip is-link" to={`/strategies/context/${supersedes.id}`}>
+            Supersedes {supersedes.title}
+          </Link>
+        ) : d.supersedesId ? (
+          <span className="st-ctxdoc__chip">
+            Supersedes <span className="st-mono">{d.supersedesId.slice(0, 8)}…</span>
+          </span>
+        ) : null}
+        {supersededBy ? (
+          <Link className="st-ctxdoc__chip is-link" to={`/strategies/context/${supersededBy.id}`}>
+            Superseded by {supersededBy.title}
+          </Link>
+        ) : null}
+        <span className="st-ctxdoc__metastrip-spacer" />
+        {/* The handoff's right-aligned line reads "Version 3 · supersedes v2 ·
+           uploaded by …" — there is no version counter or resolved uploader
+           display name anywhere in the API (only raw *ByUserId columns), so
+           this shows the one real timestamp instead of a fabricated one. */}
+        <span className="st-ctxdoc__metastrip-version">
+          Updated {fmtDay(d.updatedAt) ?? d.updatedAt.slice(0, 10)}
+        </span>
+      </div>
 
       <div className="st-ctxdoc__main">
         {/* ---- source viewer: numbered monospace lines, read-only ---------- */}

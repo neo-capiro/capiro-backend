@@ -24,7 +24,39 @@
 .capiro-vnext-root .capiro-strategies .st-editor-header__left { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
 /* min-width:0 has to reach the title block itself, not just its flex parent. */
 .capiro-vnext-root .capiro-strategies .st-editor-header__left > div { min-width: 0; }
-.capiro-vnext-root .capiro-strategies .st-editor-header__right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+/*
+ * Two-row control stack (design handoff "View: Strategy editor" hero:
+ * "on the right a two-row control stack: layer toggles ..., then Export ·
+ * History · Ask Meri and a 'Saved' timestamp"). Horizon lives in the sticky
+ * ScopeBar above the hero now, not in this stack.
+ */
+.capiro-vnext-root .capiro-strategies .st-editor-header__right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; min-width: 0; }
+.capiro-vnext-root .capiro-strategies .st-editor-header__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+.capiro-vnext-root .capiro-strategies .st-editor-layers-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--st-gray-500);
+}
+/* Per-layer toggle dot (design handoff: "layer toggles ... in a #F9FAFB
+   segmented track with per-layer dots"). The reference file's own toggle
+   logic (`.dc.html` edVals: `dot: on ? '#294E68' : '#D0D5DD'`) colors every
+   toggle's dot the SAME accent/gray pair keyed off its own pressed state, not
+   a distinct hue per layer — so this follows that literal behavior rather
+   than inventing three separate layer colors. */
+.capiro-vnext-root .capiro-strategies .st-layer-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--st-gray-300);
+  margin-right: 6px;
+  flex: none;
+}
+.capiro-vnext-root .capiro-strategies .st-segmented button[aria-pressed='true'] .st-layer-dot {
+  background: var(--st-accent);
+}
 .capiro-vnext-root .capiro-strategies .st-editor-title { font-size: 26px; line-height: 32px; }
 .capiro-vnext-root .capiro-strategies .st-editor-back {
   width: 36px; height: 36px;
@@ -52,11 +84,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 20px;
+  padding: 18px 20px;
   border-bottom: 1px solid var(--st-gray-200);
   flex-wrap: wrap;
 }
-.capiro-vnext-root .capiro-strategies .st-timeline__meta { font-size: 13px; color: var(--st-gray-500); margin: 2px 0 0; }
+.capiro-vnext-root .capiro-strategies .st-timeline__meta { font-size: 14px; color: var(--st-gray-600); margin: 2px 0 0; }
 .capiro-vnext-root .capiro-strategies .st-planhealth-chip { border: none; cursor: pointer; }
 
 /*
@@ -73,12 +105,21 @@
  * control (1FY/2FY/3FY) is how a user narrows the canvas.
  *
  * --st-tl-months is written by StrategyEditorVNext from axis.cells.length; the
- * 36 fallback is the default 3FY horizon.
+ * 36 fallback is the default 3FY horizon. --st-tl-month-w is ALSO written by
+ * StrategyEditorVNext per horizon (design handoff colW: 92/62/46px at
+ * <=12/<=24/<=36 months — narrower horizons get wider columns); 46px below is
+ * only the pre-JS fallback for the default 3FY/36-month case.
+ *
+ * --st-tl-label-w is the gutter width (design handoff "Working timeline":
+ * "a fixed left gutter (200px, 140px when tight)"). The literal reference
+ * file's own computed value (`.dc.html` edVals: `gutterW: c.tight ? '116px'
+ * : '150px'`) is narrower than that prose — used here instead, per the
+ * handoff's own fidelity note ("read the HTML for exact values").
  */
 .capiro-vnext-root .capiro-strategies .st-tl {
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  --st-tl-label-w: 168px;
+  --st-tl-label-w: 150px;
   --st-tl-month-w: 46px;
 }
 .capiro-vnext-root .capiro-strategies .st-tl__grid {
@@ -90,6 +131,9 @@
   grid-template-columns: var(--st-tl-label-w) minmax(0, 1fr);
   border-bottom: 1px solid var(--st-gray-100);
 }
+/* Fiscal-window header row (FY ticks + month ticks): flush, no track padding —
+   unlike the data rows below it, which keep .st-tl-row__track's 8/12px. */
+.capiro-vnext-root .capiro-strategies .st-tl-row--header .st-tl-row__track { padding: 0; }
 .capiro-vnext-root .capiro-strategies .st-tl-row:last-child { border-bottom: none; }
 .capiro-vnext-root .capiro-strategies .st-tl-row__label {
   padding: 14px 16px;
@@ -111,49 +155,65 @@
 .capiro-vnext-root .capiro-strategies .st-tl-row__track { position: relative; padding: 8px 0; min-height: 44px; }
 .capiro-vnext-root .capiro-strategies .st-tl-row--steps .st-tl-row__track { padding: 12px 0; }
 
-/* Fiscal window */
-.capiro-vnext-root .capiro-strategies .st-tl-fy { position: relative; display: flex; border-bottom: 1px solid var(--st-gray-100); }
+/* Fiscal window — FY header 34px, month header 28px (design handoff "Working
+   timeline": "FY header — 34px ..." / "Month header — 28px on #FCFCFD"). */
+.capiro-vnext-root .capiro-strategies .st-tl-fy { position: relative; display: flex; height: 34px; border-bottom: 1px solid var(--st-gray-100); }
 .capiro-vnext-root .capiro-strategies .st-tl-fy__cell {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
   font-weight: 600;
   color: var(--st-gray-600);
-  padding: 4px 0;
   border-left: 1px solid var(--st-fyline);
 }
 .capiro-vnext-root .capiro-strategies .st-tl-fy__cell:first-child { border-left: none; }
-.capiro-vnext-root .capiro-strategies .st-tl-months { display: flex; }
+/* The handoff draws this row on a near-white #FCFCFD; the token layer's
+   closest neutral is --st-gray-50 (#F9FAFB) — no dedicated token exists for
+   that exact shade (out of scope: strategies-tokens.css). The two are
+   imperceptibly close, so gray-50 stands in rather than adding a literal. */
+.capiro-vnext-root .capiro-strategies .st-tl-months { display: flex; height: 28px; background: var(--st-gray-50); }
 .capiro-vnext-root .capiro-strategies .st-tl-month {
   flex: 1 1 0;
   min-width: var(--st-tl-month-w);
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   color: var(--st-gray-400);
-  padding: 4px 0;
   border-left: 1px solid var(--st-gridline);
 }
 .capiro-vnext-root .capiro-strategies .st-tl-month:first-child { border-left: none; }
-.capiro-vnext-root .capiro-strategies .st-tl-month--fy { border-left-color: var(--st-fyline); color: var(--st-gray-600); font-weight: 600; }
+.capiro-vnext-root .capiro-strategies .st-tl-month--fy { border-left-color: var(--st-fyline); color: var(--st-gray-600); }
 
-.capiro-vnext-root .capiro-strategies .st-tl-today { position: absolute; top: 0; bottom: 0; width: 0; z-index: 2; }
+/* Today marker: 2px line at 50% opacity spanning the full height, plus a
+   pill (both pointer-events:none — design handoff "Working timeline"). */
+.capiro-vnext-root .capiro-strategies .st-tl-today { position: absolute; top: 0; bottom: 0; width: 0; z-index: 2; pointer-events: none; }
 .capiro-vnext-root .capiro-strategies .st-tl-today::before {
   content: '';
   position: absolute; top: 0; bottom: 0; left: -1px;
   width: 2px; background: var(--st-today); opacity: 0.5;
 }
 .capiro-vnext-root .capiro-strategies .st-tl-today__pill {
-  position: absolute; top: -2px; left: -18px;
+  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 20px; padding: 0 8px;
   background: var(--st-today); color: var(--st-white);
   font-size: 10px; font-weight: 600; text-transform: uppercase;
-  padding: 1px 6px; border-radius: 999px;
+  border-radius: 999px;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
+.capiro-vnext-root .capiro-strategies .st-tl-today__dot { width: 5px; height: 5px; border-radius: 999px; background: var(--st-white); flex: none; }
 
 /* Reference bars (§5.3) */
 .capiro-vnext-root .capiro-strategies .st-tl-bars { position: relative; min-height: 30px; }
 .capiro-vnext-root .capiro-strategies .st-tl-refbar {
   position: absolute;
   height: var(--st-refbar-h);
+  margin: 0 3px;
   border-radius: var(--st-refbar-radius);
   font-size: 12px;
   padding: 0 10px;
@@ -180,46 +240,72 @@
 }
 .capiro-vnext-root .capiro-strategies .st-tl-empty { font-size: 13px; color: var(--st-gray-400); padding: 6px 4px; }
 
-/* Step cards (§5.3) */
+/* Step cards (design handoff "Working timeline": "margin:0 4px, padding:8px
+   10px, border-radius:8px, white, a 6px kind dot with a 10px/600 uppercase
+   kind label, a 13px/500 title, and a 10px/600 uppercase #98A2B3 meta line.
+   Selected: navy ring. Hover: ring + elevation shadow."). */
 .capiro-vnext-root .capiro-strategies .st-tl-steps { position: relative; }
 .capiro-vnext-root .capiro-strategies .st-step {
   position: absolute;
   height: var(--st-step-h);
   min-width: 120px;
+  margin: 0 4px;
   background: var(--st-white);
   border-radius: var(--st-step-radius);
-  box-shadow: 0 0 0 1px var(--st-step-ring);
-  padding: 10px 12px;
+  box-shadow: 0 0 0 1px var(--st-step-ring), 0px 1px 2px rgba(16, 24, 40, 0.05);
+  padding: 8px 10px;
   text-align: left;
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 4px;
   overflow: hidden;
   border: none;
   font: inherit;
+  transition: box-shadow 120ms ease;
 }
-.capiro-vnext-root .capiro-strategies .st-step:hover { box-shadow: 0 0 0 1px var(--st-gray-300); }
+.capiro-vnext-root .capiro-strategies .st-step:hover {
+  box-shadow: 0 0 0 1px var(--st-accent-tint-border), 0px 4px 8px -2px rgba(16, 24, 40, 0.12);
+}
 .capiro-vnext-root .capiro-strategies .st-step:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
-.capiro-vnext-root .capiro-strategies .st-step--selected { box-shadow: 0 0 0 2px var(--st-step-selected); }
+.capiro-vnext-root .capiro-strategies .st-step--selected {
+  box-shadow: 0 0 0 2px var(--st-step-selected), 0px 4px 8px -2px rgba(16, 24, 40, 0.14);
+}
 
 .capiro-vnext-root .capiro-strategies .st-step__kind {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   color: var(--st-gray-600);
 }
-.capiro-vnext-root .capiro-strategies .st-step__dot { width: 7px; height: 7px; border-radius: 999px; background: var(--st-gray-400); }
+.capiro-vnext-root .capiro-strategies .st-step__dot { width: 6px; height: 6px; border-radius: 999px; background: var(--st-gray-400); flex: none; }
+/* Kind text AND dot both carry the kind color (Step-kind table: "Dot /
+   foreground" share one value per kind) — not just the dot. */
+.capiro-vnext-root .capiro-strategies .st-step__kind--action { color: var(--st-kind-action); }
 .capiro-vnext-root .capiro-strategies .st-step__kind--action .st-step__dot { background: var(--st-kind-action); }
+.capiro-vnext-root .capiro-strategies .st-step__kind--gate { color: var(--st-kind-gate); }
 .capiro-vnext-root .capiro-strategies .st-step__kind--gate .st-step__dot { background: var(--st-kind-gate); }
+.capiro-vnext-root .capiro-strategies .st-step__kind--milestone { color: var(--st-kind-milestone); }
 .capiro-vnext-root .capiro-strategies .st-step__kind--milestone .st-step__dot { background: var(--st-kind-milestone); }
+.capiro-vnext-root .capiro-strategies .st-step__kind--decision { color: var(--st-kind-decision); }
 .capiro-vnext-root .capiro-strategies .st-step__kind--decision .st-step__dot { background: var(--st-kind-decision); }
+.capiro-vnext-root .capiro-strategies .st-step__kind--risk { color: var(--st-kind-risk); }
 .capiro-vnext-root .capiro-strategies .st-step__kind--risk .st-step__dot { background: var(--st-kind-risk); }
 
+/* Single-line ellipsis + native tooltip (the button's `title` attribute) —
+   matches the reference's own treatment more closely than a 2-line clamp,
+   which this card's height doesn't comfortably fit anyway. */
 .capiro-vnext-root .capiro-strategies .st-step__title {
-  font-size: 13px; font-weight: 600; color: var(--st-gray-900); line-height: 18px;
-  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  flex: 0 0 auto;
+  font-size: 13px; font-weight: 500; color: var(--st-gray-900); line-height: 17px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.capiro-vnext-root .capiro-strategies .st-step__meta { font-size: 11px; color: var(--st-gray-500); margin-top: auto; }
+.capiro-vnext-root .capiro-strategies .st-step__meta {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--st-gray-400); margin-top: auto;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* Bottom cards */
 .capiro-vnext-root .capiro-strategies .st-editor-cards {
@@ -250,6 +336,12 @@
      ~382px cards, which fits .st-planhealth__body's ~330px min-content now
      that it wraps. */
   .capiro-vnext-root .capiro-strategies .st-editor-cards { grid-template-columns: minmax(0, 1fr); }
+
+  /* "Tight" gutter (design handoff: gutter narrows below ~1024px; mapped onto
+     the canonical 1179 tablet boundary like the rest of this file's
+     responsive behavior). Literal reference value — see the .st-tl comment
+     above. */
+  .capiro-vnext-root .capiro-strategies .st-tl { --st-tl-label-w: 116px; }
 
   /*
    * Restack the editor's two panes.
@@ -306,6 +398,10 @@
     padding: 16px 0 24px;
   }
   .capiro-vnext-root .capiro-strategies .st-editor-header__right {
+    align-items: flex-start;
+    width: 100%;
+  }
+  .capiro-vnext-root .capiro-strategies .st-editor-header__row {
     justify-content: flex-start;
     width: 100%;
   }

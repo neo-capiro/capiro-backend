@@ -16,11 +16,24 @@
  * Route sync: overlays are routes (§6). Closing navigates to `closeTo` (the
  * caller route), so browser back/forward re-opens and re-closes the overlay.
  * The router renders the caller beneath; this shell renders only the modal.
+ *
+ * v3 pass (design handoff 2026-08-16): frame geometry is now the exact shared
+ * shell from the handoff's "Modals" section — fixed/inset:0, z-index:70, a
+ * `rgba(12,17,29,.6)` backdrop, top-aligned + scrollable (not centered), the
+ * two-part panel shadow, and the `stPop` entrance keyframe (strategies-tokens
+ * .css). Each modal carries its own frame width via `maxWidth` (px) rather
+ * than a two-value `size` enum — the six overlays differ enough (900–1080px)
+ * that a binary md/lg no longer fit; see each overlay's call site for its
+ * value from the handoff's per-modal table.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CapiroButton, CapiroIconButton } from '../../../components/actions/index.js';
 import './modal-shell.css';
+
+/** Lets the panel set its own `--st-modal-max-width` (a real CSS custom
+ * property is not part of the DOM.CSSProperties typing). */
+type ModalPanelStyle = CSSProperties & { '--st-modal-max-width'?: string };
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -51,8 +64,10 @@ export interface StrategiesModalShellProps {
   closeTo: string;
   /** When true, close gestures (Escape / backdrop / × / Cancel) ask first. */
   dirty?: boolean;
-  /** Wide frame for History / Export / Firm phases. */
-  size?: 'md' | 'lg';
+  /** Panel max-width in px — one per modal, per the handoff's per-modal table
+   * (README "Modals" / reference `modalVals` meta.w): new 1000, phases 960,
+   * export 980, history 1080, upload 960, conflict 900. */
+  maxWidth: number;
 }
 
 export function StrategiesModalShell({
@@ -69,7 +84,7 @@ export function StrategiesModalShell({
   cancelLabel = 'Cancel',
   closeTo,
   dirty = false,
-  size = 'md',
+  maxWidth,
 }: StrategiesModalShellProps) {
   const navigate = useNavigate();
   const dialogRef = useRef<HTMLElement | null>(null);
@@ -150,7 +165,8 @@ export function StrategiesModalShell({
       <section
         ref={dialogRef}
         tabIndex={-1}
-        className={`st-modal${size === 'lg' ? ' st-modal--lg' : ''}`}
+        className="st-modal"
+        style={{ '--st-modal-max-width': `${maxWidth}px` } as ModalPanelStyle}
         role="dialog"
         aria-modal="true"
         aria-label={title}

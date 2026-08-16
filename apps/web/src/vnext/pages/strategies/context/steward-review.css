@@ -93,7 +93,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--st-accent-deep-label);
+  color: var(--st-accent-deep-eyebrow);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__band-head strong {
   font-size: 15px;
@@ -125,7 +125,7 @@
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--st-accent-deep-label);
+  color: var(--st-accent-deep-eyebrow);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__band-hint {
   flex: 1;
@@ -152,14 +152,16 @@
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--st-accent-deep-label);
+  color: var(--st-accent-deep-eyebrow);
   margin-right: 4px;
 }
+/* Dark-panel inset chip (design handoff "Dark panels" section):
+   rgba(255,255,255,.08), not a solid brand fill. */
 .capiro-vnext-root .capiro-strategies .st-steward__band-missing-chip {
   padding: 3px 8px;
   border-radius: 6px;
   font-size: 10px;
-  background: var(--st-accent);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--st-white);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__band-missing-more {
@@ -243,16 +245,56 @@
   display: grid;
   gap: 12px;
 }
+/* Two-column card (design handoff "View: Steward review", 1fr 300px): the
+ * question/candidates on the left, a resolution well on the right. Collapses
+ * to one column on the same tablet boundary the rest of the module uses. */
 .capiro-vnext-root .capiro-strategies .st-steward__conflict {
   background: var(--st-white);
   border-radius: 12px;
   box-shadow: var(--st-shadow-card);
-  padding: 16px 18px;
+  padding: 18px 20px;
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__conflict.is-open {
   box-shadow: var(--st-shadow-card), inset 3px 0 0 var(--st-warning-dot);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__conflict-main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__conflict-well {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  background: var(--st-gray-50);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  padding: 16px;
+}
+.capiro-vnext-root .capiro-strategies .st-steward__well-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--st-gray-500);
+}
+/* Compound selector (not just `.st-steward__decision--well`) so this beats
+   the base `.st-steward__decision` box regardless of source order. */
+.capiro-vnext-root .capiro-strategies .st-steward__decision.st-steward__decision--well {
+  border: 0;
+  border-left: 3px solid var(--st-accent);
+  border-radius: 0;
+  background: transparent;
+  padding: 0 0 0 10px;
+}
+@media (max-width: 1179px) {
+  .capiro-vnext-root .capiro-strategies .st-steward__conflict {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .capiro-vnext-root .capiro-strategies .st-steward__conflict-head {
   display: flex;
@@ -306,8 +348,9 @@
 }
 .capiro-vnext-root .capiro-strategies .st-steward__candidate-text {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
   color: var(--st-gray-900);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__candidate-meta {

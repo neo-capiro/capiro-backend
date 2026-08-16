@@ -28,7 +28,10 @@ import {
   useContextConflicts,
   useContextDocuments,
   useContextFacts,
+  useContextHealth,
 } from '../strategies-api.js';
+import { ScopeBar, type ScopeBarStatus } from '../ScopeBar.js';
+import { useShellClientContext } from '../../../adapters/legacy/useShellClientContext.js';
 import {
   fmScalar,
   isContextDocStale,
@@ -140,6 +143,15 @@ export function ContextLibraryVNext() {
   const conflicts = useContextConflicts();
   const clients = useClientsLite();
 
+  /* ScopeBar status: the shared cross-app client scope (the same one the
+   * ScopeBar's own Client chip reads), not this page's own client filter
+   * pills below — a different, page-local concern. There is no single
+   * meaningful "N facts" number across all clients, so an unscoped portfolio
+   * never gets a fabricated "Healthy" reading (see ScopeBar status below). */
+  const clientContext = useShellClientContext();
+  const scopeClientId = clientContext.selectedClientId;
+  const health = useContextHealth(scopeClientId);
+
   const clientFilter = searchParams.get('client') ?? 'all';
   const stateFilter = (searchParams.get('state') ?? 'active') as StateFilter;
   const query = searchParams.get('q') ?? '';
@@ -167,7 +179,33 @@ export function ContextLibraryVNext() {
   const activeFacts = (facts.data ?? []).filter((fact) => fact.state === 'active');
   const staleFactCount = (facts.data ?? []).filter((fact) => fact.state === 'stale').length;
   const openConflicts = (conflicts.data ?? []).filter((conflict) => conflict.state === 'open');
-  const healthy = openConflicts.length === 0;
+
+  /* Scoped fact count backing the ScopeBar pill — active facts for the
+   * selected client only, never a cross-client sum. */
+  const scopedActiveFactCount = (facts.data ?? []).filter(
+    (fact) => fact.clientId === scopeClientId && fact.state === 'active',
+  ).length;
+  const scopeStatus: ScopeBarStatus = !scopeClientId
+    ? { tone: 'gray', label: 'Select a client to see context health' }
+    : health.isLoading
+      ? { tone: 'gray', label: 'Checking context health…' }
+      : health.isError || !health.data
+        ? { tone: 'gray', label: 'Context health unavailable' }
+        : {
+            tone:
+              health.data.status === 'ok'
+                ? 'success'
+                : health.data.status === 'degraded'
+                  ? 'warning'
+                  : 'error',
+            label: `${
+              health.data.status === 'ok'
+                ? 'Healthy'
+                : health.data.status === 'degraded'
+                  ? 'Degraded'
+                  : 'Conflicted'
+            } · ${scopedActiveFactCount} fact${scopedActiveFactCount === 1 ? '' : 's'}`,
+          };
 
   const clientOptions = useMemo(
     () =>
@@ -215,34 +253,7 @@ export function ContextLibraryVNext() {
 
   return (
     <div className="st-ctxlib">
-      {/* ---- context status bar ------------------------------------------- */}
-      <div className="st-ctxbar" aria-label="Context status">
-        <span className="st-ctxbar__chip">
-          <small>Context</small>
-          <strong>
-            {clientFilter === 'all' ? 'All clients' : clientFilter === 'firm' ? 'Firm' : clientName(clientFilter)}
-          </strong>
-        </span>
-        <span className="st-ctxbar__chip">
-          <small>Pack</small>
-          <strong>00–13</strong>
-        </span>
-        <span className="st-ctxbar__chip">
-          <small>State</small>
-          <strong>{STATE_FILTERS.find((f) => f.id === stateFilter)?.label ?? 'Active'}</strong>
-        </span>
-        <span className="st-ctxbar__spacer" />
-        {conflicts.isError ? (
-          <span className="st-ctxbar__health is-unknown">Health unavailable</span>
-        ) : (
-          <span className={`st-ctxbar__health ${healthy ? 'is-healthy' : 'is-conflict'}`}>
-            <span aria-hidden="true" className="st-ctxbar__health-dot" />
-            {healthy
-              ? `Healthy · ${activeFacts.length} facts`
-              : `${openConflicts.length} open conflict${openConflicts.length === 1 ? '' : 's'} · ${activeFacts.length} facts`}
-          </span>
-        )}
-      </div>
+      <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
 
       {/* ---- header --------------------------------------------------------- */}
       <header className="st-ctxlib__header">
@@ -270,43 +281,36 @@ export function ContextLibraryVNext() {
       </header>
 
       <main className="st-ctxlib__body">
-        {/* ---- stats + stewardship band ------------------------------------ */}
-        <section className="st-ctxlib__band" aria-label="Context summary">
-          <StatCard
-            loading={statsLoading}
-            failed={docs.isError}
-            value={activeDocuments.length}
-            label="Active documents"
-            detail="Across firm + clients"
-          />
-          <StatCard
-            loading={statsLoading}
-            failed={facts.isError}
-            value={activeFacts.length}
-            label="Extracted facts"
-            detail={`${activeFacts.length} active · ${staleFactCount} stale`}
-          />
-          <StatCard
-            loading={statsLoading}
-            failed={conflicts.isError}
-            value={openConflicts.length}
-            label="Open conflicts"
-            detail={openConflicts.length > 0 ? 'Steward decision required' : 'No steward decision required'}
-            tone={openConflicts.length > 0 ? 'error' : 'default'}
-          />
-          <aside className="st-ctxlib__stewardship">
-            <span className="st-ctxlib__stewardship-label">Stewardship</span>
-            <strong>Context is operational data.</strong>
-            <p>
-              Facts retain exact source references. Supersession preserves history. Rejection never edits the
-              source document.
-            </p>
-          </aside>
-        </section>
-
         <div className="st-ctxlib__grid">
-          {/* ---- documents -------------------------------------------------- */}
-          <section className="st-ctxlib__documents" aria-label="Context documents">
+          {/* ---- left column: stats + documents ------------------------------ */}
+          <div className="st-ctxlib__left">
+            <section className="st-ctxlib__stats" aria-label="Context summary">
+              <StatCard
+                loading={statsLoading}
+                failed={docs.isError}
+                value={activeDocuments.length}
+                label="Active documents"
+                detail="Across firm + clients"
+              />
+              <StatCard
+                loading={statsLoading}
+                failed={facts.isError}
+                value={activeFacts.length}
+                label="Extracted facts"
+                detail={`${activeFacts.length} active · ${staleFactCount} stale`}
+              />
+              <StatCard
+                loading={statsLoading}
+                failed={conflicts.isError}
+                value={openConflicts.length}
+                label="Open conflicts"
+                detail={openConflicts.length > 0 ? 'Steward decision required' : 'No steward decision required'}
+                tone={openConflicts.length > 0 ? 'error' : 'default'}
+              />
+            </section>
+
+            {/* ---- documents -------------------------------------------------- */}
+            <section className="st-ctxlib__documents" aria-label="Context documents">
             <div className="st-ctxlib__toolbar">
               <div className="st-ctxlib__toolbar-title">
                 <span className="st-ctxlib__section-label">Documents</span>
@@ -430,10 +434,23 @@ export function ContextLibraryVNext() {
                 ))}
               </div>
             )}
-          </section>
+            </section>
+          </div>
 
-          {/* ---- right rail: document contract ------------------------------ */}
+          {/* ---- right rail: dark stewardship card + document contract ------- */}
           <aside className="st-ctxlib__rail">
+            <section className="st-ctxlib__stewardship">
+              <span className="st-ctxlib__stewardship-label">Stewardship</span>
+              <strong>Context is operational data.</strong>
+              <p>
+                Facts retain exact source references. Supersession preserves history. Rejection never edits the
+                source document.
+              </p>
+              <CapiroButton variant="secondary" onClick={() => navigate('/strategies/context/steward')}>
+                Review {openConflicts.length} conflict{openConflicts.length === 1 ? '' : 's'}
+              </CapiroButton>
+            </section>
+
             <div className="st-ctxlib__contract">
               <span className="st-ctxlib__section-label">Document contract</span>
               <h2>What every context document carries</h2>

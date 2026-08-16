@@ -60,6 +60,7 @@ import {
   useDismissContextConflict,
   useRejectContextFact,
 } from '../strategies-api.js';
+import { ScopeBar, type ScopeBarStatus } from '../ScopeBar.js';
 import { errorMessage } from '../../../../lib/error-message.js';
 import { clip, templateLabel } from '../../../../pages/strategy/context/context-utils.js';
 import type {
@@ -128,6 +129,20 @@ export function StewardReviewVNext() {
 
   const healthClientId = clientFilter !== 'all' && clientFilter !== 'firm' ? clientFilter : null;
   const health = useContextHealth(healthClientId);
+
+  /* ScopeBar status — this view's own primary signal is conflicts, not a
+   * client-scoped health status (that only exists once a client is picked
+   * below), so the pill is grounded in the portfolio-wide open-conflict count
+   * from the same useContextConflicts() query the section below renders,
+   * never an invented number. */
+  const openConflictsAll = (conflicts.data ?? []).filter((conflict) => conflict.state === 'open').length;
+  const scopeStatus: ScopeBarStatus = conflicts.isLoading
+    ? { tone: 'gray', label: 'Checking conflicts…' }
+    : conflicts.isError
+      ? { tone: 'gray', label: 'Context health unavailable' }
+      : openConflictsAll > 0
+        ? { tone: 'warning', label: `${openConflictsAll} open conflict${openConflictsAll === 1 ? '' : 's'}` }
+        : { tone: 'success', label: 'Healthy · no open conflicts' };
 
   const setParam = (key: string, value: string | null) => {
     setSearchParams(
@@ -269,6 +284,8 @@ export function StewardReviewVNext() {
 
   return (
     <div className="st-steward">
+      <ScopeBar clientLabel="PORTFOLIO" status={scopeStatus} />
+
       {/* ---- header ------------------------------------------------------- */}
       <header className="st-steward__header">
         <Link className="st-steward__back" to="/strategies/context">
@@ -721,73 +738,87 @@ function ConflictCard({
 
   return (
     <article className={`st-steward__conflict${conflict.state === 'open' ? ' is-open' : ''}`}>
-      <header className="st-steward__conflict-head">
-        <CapiroBadge
-          tone={CONFLICT_STATE_TONE[conflict.state]}
-          dot={<span className="st-steward__dot" aria-hidden="true" />}
-        >
-          {conflict.state === 'open' ? 'Open' : conflict.state === 'resolved' ? 'Resolved' : 'Dismissed'}
-        </CapiroBadge>
-        {conflict.material ? (
-          <CapiroBadge tone="danger" dot={<span className="st-steward__dot" aria-hidden="true" />}>
-            Material
+      <div className="st-steward__conflict-main">
+        <header className="st-steward__conflict-head">
+          <CapiroBadge
+            tone={CONFLICT_STATE_TONE[conflict.state]}
+            dot={<span className="st-steward__dot" aria-hidden="true" />}
+          >
+            {conflict.state === 'open' ? 'Open' : conflict.state === 'resolved' ? 'Resolved' : 'Dismissed'}
           </CapiroBadge>
-        ) : null}
-        <span className="st-steward__conflict-meta">
-          {clientLabel} · {fmtDay(conflict.createdAt) ?? conflict.createdAt.slice(0, 10)}
-          {detectedIn ? ` · ${detectedIn}` : ''}
-        </span>
-      </header>
+          {conflict.material ? (
+            <CapiroBadge tone="danger" dot={<span className="st-steward__dot" aria-hidden="true" />}>
+              Material
+            </CapiroBadge>
+          ) : null}
+          <span className="st-steward__conflict-meta">
+            {clientLabel} · {fmtDay(conflict.createdAt) ?? conflict.createdAt.slice(0, 10)}
+            {detectedIn ? ` · ${detectedIn}` : ''}
+          </span>
+        </header>
 
-      <p className="st-steward__conflict-question">
-        Which statement should agents treat as current?
-      </p>
+        <p className="st-steward__conflict-question">
+          Which statement should agents treat as current?
+        </p>
 
-      <div className="st-steward__candidates">
-        <CandidateView label="Statement A" candidate={conflict.factA} ledgerFact={factById.get(conflict.factAId)} />
-        <CandidateView label="Statement B" candidate={conflict.factB} ledgerFact={factById.get(conflict.factBId)} />
+        <div className="st-steward__candidates">
+          <CandidateView label="Statement A" candidate={conflict.factA} ledgerFact={factById.get(conflict.factAId)} />
+          <CandidateView label="Statement B" candidate={conflict.factB} ledgerFact={factById.get(conflict.factBId)} />
+        </div>
       </div>
 
-      {conflict.state !== 'open' && conflict.resolutionNote ? (
-        <div className="st-steward__decision">
-          <span className="st-steward__decision-label">
-            {conflict.state === 'resolved' ? 'Resolution note' : 'Dismissal note'}
-          </span>
-          <p>{conflict.resolutionNote}</p>
-        </div>
-      ) : null}
-
-      {conflict.state === 'open' ? (
-        <footer className="st-steward__conflict-actions">
-          {confirming ? (
-            <span className="st-steward__confirm" role="group" aria-label="Confirm dismissal">
-              <span className="st-steward__confirm-label">
-                Dismiss? Both facts stay active — the dismissal is recorded.
-              </span>
-              <CapiroButton variant="primary" size="compact" loading={busy} onClick={onDismiss}>
-                Confirm dismiss
-              </CapiroButton>
-              <CapiroButton variant="quiet" size="compact" disabled={busy} onClick={onCancelDismiss}>
-                Cancel
-              </CapiroButton>
+      {/* Right well (design handoff "View: Steward review" — 1fr 300px conflict
+       * card). The literal reference puts a resolution-note textarea here;
+       * that write (with its required rationale) lives in the Resolve-conflict
+       * overlay route instead, so this well explains the handoff and hosts the
+       * two real actions rather than a textarea with nowhere to send its note. */}
+      <div className="st-steward__conflict-well">
+        {conflict.state !== 'open' && conflict.resolutionNote ? (
+          <div className="st-steward__decision st-steward__decision--well">
+            <span className="st-steward__decision-label">
+              {conflict.state === 'resolved' ? 'Resolution note' : 'Dismissal note'}
             </span>
-          ) : (
-            <>
-              <CapiroButton variant="quiet" size="compact" onClick={onAskDismiss}>
-                Dismiss conflict
-              </CapiroButton>
-              <span className="st-steward__section-spacer" />
-              <CapiroButton
-                variant="primary"
-                size="compact"
-                onClick={() => navigate(`/strategies/context/steward/${conflict.id}`)}
-              >
-                Resolve conflict
-              </CapiroButton>
-            </>
-          )}
-        </footer>
-      ) : null}
+            <p>{conflict.resolutionNote}</p>
+          </div>
+        ) : conflict.state === 'open' ? (
+          <p className="st-steward__well-hint">
+            Resolving requires a rationale, recorded in the Resolve-conflict overlay.
+          </p>
+        ) : (
+          <p className="st-steward__well-hint">No rationale was recorded for this decision.</p>
+        )}
+
+        {conflict.state === 'open' ? (
+          <footer className="st-steward__conflict-actions">
+            {confirming ? (
+              <span className="st-steward__confirm" role="group" aria-label="Confirm dismissal">
+                <span className="st-steward__confirm-label">
+                  Dismiss? Both facts stay active — the dismissal is recorded.
+                </span>
+                <CapiroButton variant="primary" size="compact" loading={busy} onClick={onDismiss}>
+                  Confirm dismiss
+                </CapiroButton>
+                <CapiroButton variant="quiet" size="compact" disabled={busy} onClick={onCancelDismiss}>
+                  Cancel
+                </CapiroButton>
+              </span>
+            ) : (
+              <>
+                <CapiroButton variant="quiet" size="compact" onClick={onAskDismiss}>
+                  Dismiss conflict
+                </CapiroButton>
+                <CapiroButton
+                  variant="primary"
+                  size="compact"
+                  onClick={() => navigate(`/strategies/context/steward/${conflict.id}`)}
+                >
+                  Resolve conflict
+                </CapiroButton>
+              </>
+            )}
+          </footer>
+        ) : null}
+      </div>
     </article>
   );
 }

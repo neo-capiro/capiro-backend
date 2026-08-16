@@ -9,57 +9,6 @@
   font-family: var(--st-font-sans);
 }
 
-/* ---- shared context status bar (library / document / steward) ----------- */
-.capiro-strategies .st-ctxbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 10px;
-  padding: 10px 28px;
-  background: var(--st-white);
-  border-bottom: 1px solid var(--st-gray-200);
-}
-.capiro-strategies .st-ctxbar__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border: 1px solid var(--st-gray-200);
-  border-radius: 8px;
-  background: var(--st-white);
-}
-.capiro-strategies .st-ctxbar__chip small {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--st-gray-500);
-}
-.capiro-strategies .st-ctxbar__chip strong {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--st-gray-900);
-}
-.capiro-strategies .st-ctxbar__spacer { flex: 1; }
-.capiro-strategies .st-ctxbar__health {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-.capiro-strategies .st-ctxbar__health-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.capiro-strategies .st-ctxbar__health.is-healthy { color: var(--st-success-fg); }
-.capiro-strategies .st-ctxbar__health.is-conflict { color: var(--st-error-fg); }
-.capiro-strategies .st-ctxbar__health.is-unknown { color: var(--st-gray-400); }
-
 /* ---- header -------------------------------------------------------------- */
 .capiro-strategies .st-ctxlib__header {
   background: var(--st-white);
@@ -118,10 +67,10 @@
   padding: 22px 28px 48px;
 }
 
-/* stats + stewardship band */
-.capiro-strategies .st-ctxlib__band {
+/* stats row — left column, above the documents card */
+.capiro-strategies .st-ctxlib__stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(260px, 1.15fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 .capiro-strategies .st-ctxlib__stat {
@@ -135,7 +84,8 @@
 }
 .capiro-strategies .st-ctxlib__stat-value {
   font-size: 30px;
-  font-weight: 700;
+  line-height: 38px;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--st-gray-900);
 }
@@ -155,37 +105,62 @@
   font-size: 12px;
   color: var(--st-gray-500);
 }
+/* Dark panel (design handoff "Dark panels" section): gray-900 bg, eyebrow vs
+ * body token split, white title. The one action button on this panel is a
+ * real navigation (Steward review), never a fabricated control. */
 .capiro-strategies .st-ctxlib__stewardship {
   background: var(--st-accent-deep);
   border-radius: 12px;
-  padding: 16px 20px;
+  padding: 24px;
   color: var(--st-white);
   display: grid;
-  gap: 6px;
+  gap: 8px;
   align-content: start;
 }
 .capiro-strategies .st-ctxlib__stewardship-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--st-accent-deep-label);
+  color: var(--st-accent-deep-eyebrow);
 }
-.capiro-strategies .st-ctxlib__stewardship strong { font-size: 15px; font-weight: 700; }
+.capiro-strategies .st-ctxlib__stewardship strong {
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
 .capiro-strategies .st-ctxlib__stewardship p {
   margin: 0;
-  font-size: 12px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--st-accent-deep-label);
 }
+.capiro-strategies .st-ctxlib__stewardship .capiro-button {
+  justify-self: start;
+  margin-top: 10px;
+}
 
-/* ---- grid: documents + right rail ---------------------------------------- */
+/* ---- grid: left column (stats + documents) + right rail ------------------ */
 .capiro-strategies .st-ctxlib__grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 20px;
   margin-top: 20px;
   align-items: start;
+}
+.capiro-strategies .st-ctxlib__left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.capiro-strategies .st-ctxlib__rail {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: sticky;
+  top: 20px;
 }
 
 .capiro-strategies .st-ctxlib__section-label {
@@ -385,7 +360,6 @@
 }
 
 /* ---- right rail: document contract --------------------------------------- */
-.capiro-strategies .st-ctxlib__rail { position: sticky; top: 20px; }
 .capiro-strategies .st-ctxlib__contract {
   background: var(--st-white);
   border-radius: 12px;
@@ -413,8 +387,8 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--st-gray-100);
-  color: var(--st-gray-600);
+  background: var(--st-accent-tint);
+  color: var(--st-accent);
   flex-shrink: 0;
   margin-top: 1px;
 }
@@ -440,11 +414,11 @@
  * rest of the tablet range.
  */
 
-/* tablet: collapse the contract rail under the documents column */
+/* tablet: collapse the rail (stewardship + contract) under the left column */
 @media (max-width: 1179px) {
   .capiro-strategies .st-ctxlib__grid { grid-template-columns: minmax(0, 1fr); }
   .capiro-strategies .st-ctxlib__rail { position: static; }
-  .capiro-strategies .st-ctxlib__band { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .capiro-strategies .st-ctxlib__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 779px) {
@@ -452,13 +426,12 @@
      gutter took 88px of a 390px screen; 16px leaves the stat cards a usable
      track. Bottom-nav clearance is the shell's (it reserves 64px on
      .capiro-vnext-uui below 780), so this only touches the inline axis. */
-  .capiro-strategies .st-ctxbar { padding-inline: 16px; }
   .capiro-strategies .st-ctxlib__header { padding-inline: 16px; }
   .capiro-strategies .st-ctxlib__body { padding-inline: 16px; }
 
   /* A stat is `30px value + uppercase label`; two of those in ~145px tracks
      overflowed their own cards. One card per row. */
-  .capiro-strategies .st-ctxlib__band { grid-template-columns: minmax(0, 1fr); }
+  .capiro-strategies .st-ctxlib__stats { grid-template-columns: minmax(0, 1fr); }
 
   /* Row: copy + state pills on line one, updated stamp + chevron on line two.
      Nothing is dropped, and the DOM order is unchanged so the reading and tab

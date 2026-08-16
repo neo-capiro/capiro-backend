@@ -62,12 +62,23 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
   );
 
   const childList = (variant: 'flyout' | 'nested') =>
-    children.map((child) =>
-      child.path ? (
+    children.map((child) => {
+      // Every family here so far (Directory, Intelligence) has disjoint sibling
+      // paths, so React Router's default prefix match ("/foo" matches
+      // "/foo/bar") never collides. Strategies breaks that assumption: its
+      // library child IS "/strategies", a strict prefix of its own siblings
+      // ("/strategies/context", "/strategies/agents/..."), so without `end`
+      // it would stay lit as "current" while actually on Context library or
+      // Agent review. `end` scopes it to an exact match instead.
+      const end = child.path
+        ? children.some((sibling) => sibling !== child && sibling.path?.startsWith(`${child.path}/`))
+        : false;
+      return child.path ? (
         <NavLink
           key={child.id}
           role="menuitem"
           to={child.path}
+          end={end}
           className={variant === 'nested' ? 'uui-nav-nested-item' : 'uui-flyout__item'}
           onClick={close}
         >
@@ -102,8 +113,8 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
             </>
           )}
         </div>
-      ),
-    );
+      );
+    });
 
   if (hasCurrentChild) {
     return (

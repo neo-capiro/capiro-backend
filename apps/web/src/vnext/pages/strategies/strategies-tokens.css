@@ -1,33 +1,60 @@
 /*
- * Strategies module — Capiro navy token layer (STRATEGIES-HANDOFF §5).
+ * Strategies module — Untitled UI v3 token layer.
  *
  * Scoped to `.capiro-strategies` (the module page root). The shared
- * `.capiro-vnext-root` foundations remain the base; this layer pins the
- * Strategies accent to Capiro navy #294E68 and declares the timeline-specific
- * geometry from §5.3. Values reference the Untitled UI neutral/status ramps
- * already used across vNext; only the accent differs (navy, not the kit's
- * Slate, and not the Dashboard's #3E4784 — Strategies is a separate surface).
+ * `.capiro-vnext-root` foundations remain the base; this layer declares the
+ * Strategies-specific accent and the timeline-specific geometry (§5.3 of the
+ * original handoff).
+ *
+ * v3 pass (`Capiro Strategies - Untitled UI.dc.html`, design handoff
+ * 2026-08-16): the reference file's own accent is Capiro navy (#294E68) and
+ * every primary action in it uses a dark gradient. Its own README flags both
+ * as open questions and recommends resolving to the shell's actual v3
+ * decisions — which by now are settled elsewhere in this codebase, not
+ * hypothetical: `foundations/untitled-ui-tokens.css` already runs the full
+ * indigo brand ramp (`--uui-brand-solid:#3e4784`) as the one shell-wide
+ * accent, and `.capiro-button--primary` (components/primitives.css) already
+ * paints the dark gradient for every primary button shell-wide — so neither
+ * question is actually open here; this file just adopts what's already
+ * canonical. Every navy hex below is the handoff's own literal mapping onto
+ * that ramp (`#294E68→#3E4784`, `#1F3D52→#293056`, `#EDF3F7→#F5F6FA`,
+ * `#C3D5E1→#DCDFEC`, `#4A7A9B→#4E5BA6`); gray-200 also picks up the same
+ * `#EAECF0→#E4E7EC` correction the shell ramp made in its own v3 pass.
+ *
+ * Dark panels (stewardship card, steward-review scoreboard, agent-review
+ * banner, toast) are a documented exception: the handoff pins these to
+ * neutral gray-900 (`#101828`), not an accent-tinted dark — so
+ * `--st-accent-deep` below is gray-900, deliberately not part of the brand
+ * ramp.
+ *
+ * Milestone is a genuine fifth semantic color the handoff calls out
+ * (`#6941C6`, Untitled UI's own purple-600) — documented here as a real
+ * addition, not a one-off literal. `decision` is a real domain NodeKind
+ * (`pages/strategy/types.ts`) the new handoff's step-kind table omits
+ * entirely; it keeps mapping to the accent-focus shade under the new ramp,
+ * same relative role it had under navy.
  *
  * Rule (§5.1): monospace is scoped to machine-verifiable identifiers only —
  * template keys, filenames, source line refs, hashes, run/op state tokens,
  * confidence and version strings. Everything else is the vNext sans family.
  */
 .capiro-strategies {
-  /* Accent — Capiro navy (§5, §5.1 colour table). */
-  --st-accent: #294e68;
-  --st-accent-hover: #1f3d52;
-  --st-accent-deep: #1c3a4e;         /* deep surface — stat bands */
-  --st-accent-deep-label: #a8c0d0;   /* label on deep surface */
-  --st-accent-tint: #edf3f7;         /* selected rows / tinted panels */
-  --st-accent-tint-border: #c3d5e1;
-  --st-accent-focus: #4a7a9b;        /* focus ring, 2px, 2px offset */
-  --st-accent-secondary: #8fb2c9;    /* secondary bar fill */
+  /* Accent — Capiro indigo v3 ramp (shared with shell/Dashboard). */
+  --st-accent: #3e4784;
+  --st-accent-hover: #293056;
+  --st-accent-deep: #101828;         /* dark-panel bg — gray-900, NOT accent-tinted */
+  --st-accent-deep-label: #d0d5dd;   /* dark-panel body copy */
+  --st-accent-deep-eyebrow: #98a2b3; /* dark-panel eyebrow / uppercase micro-label */
+  --st-accent-tint: #f5f6fa;         /* selected rows / tinted panels */
+  --st-accent-tint-border: #dcdfec;
+  --st-accent-focus: #4e5ba6;        /* focus ring, 2px, 2px offset */
+  --st-accent-secondary: #b3badd;    /* secondary bar fill */
 
-  /* Neutrals (Untitled UI Gray) — mirrored for module-local use. */
+  /* Neutrals (Untitled UI Gray v3) — mirrored for module-local use. */
   --st-white: #ffffff;
   --st-gray-50: #f9fafb;
   --st-gray-100: #f2f4f7;
-  --st-gray-200: #eaecf0;
+  --st-gray-200: #e4e7ec;
   --st-gray-300: #d0d5dd;
   --st-gray-400: #98a2b3;
   --st-gray-500: #667085;
@@ -35,11 +62,14 @@
   --st-gray-700: #344054;
   --st-gray-900: #101828;
 
-  /* Status ramps [bg, ring, fg, dot] — §5.1. */
+  /* Status ramps [bg, ring, fg, dot] — pill tone table. */
   --st-error-bg: #fef3f2;   --st-error-ring: #fecdca;   --st-error-fg: #b42318;   --st-error-dot: #f04438;
   --st-warning-bg: #fffaeb; --st-warning-ring: #fedf89; --st-warning-fg: #b54708; --st-warning-dot: #f79009;
   --st-success-bg: #ecfdf3; --st-success-ring: #abefc6; --st-success-fg: #027a48; --st-success-dot: #12b76a;
-  --st-info-bg: #edf3f7;    --st-info-ring: #c3d5e1;    --st-info-fg: #294e68;    --st-info-dot: #4a7a9b;
+  --st-info-bg: #f5f6fa;    --st-info-ring: #dcdfec;    --st-info-fg: #3e4784;    --st-info-dot: #3e4784;
+  /* Purple — Milestone only (Untitled UI purple-50/200/600/500). Not a
+     brand color; do not reuse for anything but the Milestone kind. */
+  --st-purple-bg: #f4f3ff;  --st-purple-ring: #d9d6fe;  --st-purple-fg: #6941c6;  --st-purple-dot: #7a5af8;
 
   /* Type — inherit the vNext sans; monospace helper for §5.1 identifiers. */
   --st-font-sans: var(--capiro-type-family-sans, 'Inter', ui-sans-serif, system-ui, sans-serif);
@@ -47,27 +77,27 @@
 
   /* Timeline geometry (§5.3). */
   --st-gridline: #f2f4f7;            /* month column gridline */
-  --st-fyline: #eaecf0;              /* fiscal-year boundary */
+  --st-fyline: #e4e7ec;              /* fiscal-year boundary */
   --st-refbar-h: 26px;
   --st-refbar-radius: 6px;
   --st-refbar-active-bg: #101828;    /* active legislative bar */
-  --st-firmphase-bg: #edf3f7;
-  --st-firmphase-ring: #c3d5e1;
-  --st-firmphase-label: #294e68;
+  --st-firmphase-bg: #f5f6fa;
+  --st-firmphase-ring: #dcdfec;
+  --st-firmphase-label: #3e4784;
   --st-watch-bg: #fffaeb;
   --st-watch-ring: #fedf89;
   --st-watch-label: #b54708;
   --st-step-h: 86px;
   --st-step-radius: 8px;
-  --st-step-ring: #eaecf0;
-  --st-step-selected: #294e68;
-  --st-today: #294e68;
+  --st-step-ring: #e4e7ec;
+  --st-step-selected: #3e4784;
+  --st-today: #3e4784;
 
-  /* Step kind dots (§5.3). */
-  --st-kind-action: #294e68;
+  /* Step kind dots. */
+  --st-kind-action: #3e4784;
   --st-kind-gate: #101828;
-  --st-kind-milestone: #12b76a;
-  --st-kind-decision: #4a7a9b;
+  --st-kind-milestone: #6941c6;
+  --st-kind-decision: #4e5ba6;
   --st-kind-risk: #f04438;
 
   /* Elevation. */
@@ -84,3 +114,9 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
 }
+
+/* Entrance keyframes (design handoff 2026-08-16) — module-prefixed per the
+   established per-module convention (see legiwatch.css's lw* set). */
+@keyframes stRise    { from { opacity: 0; transform: translateY(6px); }              to { opacity: 1; transform: none; } }
+@keyframes stSlideIn  { from { opacity: 0; transform: translateX(32px); }            to { opacity: 1; transform: none; } }
+@keyframes stPop      { from { opacity: 0; transform: translateY(8px) scale(.99); }  to { opacity: 1; transform: none; } }
