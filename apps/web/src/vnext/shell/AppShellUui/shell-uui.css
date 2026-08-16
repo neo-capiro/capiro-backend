@@ -107,7 +107,10 @@
   gap: 8px;
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-global-search__trigger:focus-visible {
-  box-shadow: var(--uui-shadow-focus) !important;
+  /* Neutral gray-400/gray-100 ring for the filled search field, matching the
+     handoff's literal values for this state — distinct from the brand-tinted
+     generic focus-visible outline used on plain buttons/links below. */
+  box-shadow: var(--uui-shadow-input-focus) !important;
   outline: none;
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-global-search__placeholder { flex: 1; text-align: left; font-size: var(--uui-text-body); }
@@ -118,7 +121,7 @@
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-global-search__popover {
   border-radius: var(--uui-radius-card) !important;
-  box-shadow: var(--uui-shadow-card) !important;
+  box-shadow: var(--uui-shadow-menu) !important;
   background: var(--uui-white) !important;
   width: 480px;
 }
@@ -150,7 +153,7 @@
   font-weight: var(--uui-weight-semibold) !important;
   font-size: var(--uui-text-sm) !important;
   padding: 0 16px !important;
-  gap: 6px !important;
+  gap: 8px !important;
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-meri-launcher:hover:not(:disabled) {
   background-image: var(--uui-btn-metal-face-hover) !important;
@@ -206,7 +209,7 @@
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-bell-wrap { position: relative; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu {
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
-  border-radius: var(--uui-radius-card) !important; box-shadow: var(--uui-shadow-card) !important;
+  border-radius: var(--uui-radius-card) !important; box-shadow: var(--uui-shadow-menu) !important;
   background: var(--uui-white) !important; width: 240px; padding: 4px;
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-menu__header { padding: 10px 12px; border-bottom: 1px solid var(--uui-gray-200); margin-bottom: 4px; }
@@ -248,42 +251,48 @@
   background: var(--uui-white); color: var(--uui-gray-700); box-shadow: inset 0 0 0 1px var(--uui-gray-300); border: 0;
 }
 
-/* Rail — sits below the full-width top bar. 272px expanded / 80px collapsed,
-   white, hairline right border, sticky under the 72px top bar. */
+/* Rail — sits below the full-width top bar. 248px expanded / 72px collapsed.
+   v3 moves it from a white chrome with a hairline border to the handoff's
+   near-black "surface-chrome" — the strong dark/light contrast against the
+   canvas is the separation now, so the border is dropped. */
 .capiro-vnext-root .capiro-vnext-uui .uui-rail {
   grid-area: rail;
   display: flex;
   flex-direction: column;
-  background: var(--uui-white);
-  border-right: 1px solid var(--uui-gray-200);
-  padding: 20px 16px 24px;
+  background: var(--uui-chrome-bg);
+  padding: 16px 12px;
   position: sticky;
   top: var(--uui-topbar-h);
   height: calc(100vh - var(--uui-topbar-h));
 }
 .capiro-vnext-root .capiro-vnext-uui .uui-rail__nav { display: flex; flex-direction: column; flex: 1; }
-/* Nav item: flex, 12px gap, 8px 12px padding, 4px bottom margin, 6px radius.
-   Label 16px/600 — the most visible rail difference. Icon 24px. */
+/* Nav item: flex, 12px gap, 9px 12px padding (11px collapsed), 2px bottom
+   margin, 8px radius, 14px/500 label — idle is dimmed white-on-dark, active
+   is a soft white-tint fill with full-white label+icon (no brand accent on
+   the rail itself, per the handoff). Icon 20px, passed explicitly by icons.tsx. */
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-item,
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-group > button {
-  display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px; margin-bottom: 4px;
-  border-radius: 6px; color: var(--uui-gray-700); font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold);
-  background: transparent; border: none; text-align: left; text-decoration: none;
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px; margin-bottom: 2px;
+  border-radius: var(--uui-radius-control); color: var(--uui-chrome-label-idle); font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium);
+  background: transparent; border: none; text-align: left; text-decoration: none; transition: background 120ms ease;
 }
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-item,
-.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-group > button { justify-content: center; padding: 12px; }
+.capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-group > button { justify-content: center; padding: 11px; }
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-item__label,
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-item__chevron { display: none; }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item:hover { background: var(--uui-gray-50); }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--current { background: var(--uui-gray-50); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--current .uui-nav-item__icon { color: var(--uui-brand-solid); }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__icon { flex-shrink: 0; color: var(--uui-gray-500); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item:hover { background: var(--uui-chrome-item-hover-bg); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--current { background: var(--uui-chrome-item-active-bg); color: var(--uui-chrome-label-active); font-weight: var(--uui-weight-semibold); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item--current .uui-nav-item__icon { color: var(--uui-chrome-label-active); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__icon { flex-shrink: 0; color: var(--uui-chrome-icon-idle); }
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__label { flex: 1; }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron { color: var(--uui-gray-400); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron { color: var(--uui-chrome-icon-idle); }
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-group { position: relative; }
+/* The flyout itself pops out into the canvas as a detached white popover —
+   unlike the rail it sits on, it's a "raised" surface, so it keeps the
+   light menu treatment (now shadow-menu instead of shadow-card). */
 .capiro-vnext-root .capiro-vnext-uui .uui-flyout {
   position: absolute; left: calc(100% + 8px); top: 0; width: 260px; z-index: 30;
-  background: var(--uui-white); border-radius: var(--uui-radius-card); box-shadow: var(--uui-shadow-card); padding: 6px;
+  background: var(--uui-white); border-radius: var(--uui-radius-card); box-shadow: var(--uui-shadow-menu); padding: 6px;
 }
 .capiro-vnext-root .capiro-vnext-uui .uui-flyout__item { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 6px; text-decoration: none; color: var(--uui-gray-700); }
 .capiro-vnext-root .capiro-vnext-uui .uui-flyout__item:hover { background: var(--uui-gray-50); }
@@ -293,43 +302,52 @@
 .capiro-vnext-root .capiro-vnext-uui .uui-flyout__tag { font-size: 11px; color: var(--uui-gray-400); }
 
 /* Persistent nested list while inside a family (Directory/Intelligence) —
-   the auto-expanded equivalent of the flyout, shown instead of it. */
+   the auto-expanded equivalent of the flyout, shown instead of it. Renders
+   inside the dark rail itself (not a detached popover), so — unlike the
+   flyout above — it needs the light-on-dark chrome treatment. */
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-item--section { cursor: default; }
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested { display: flex; flex-direction: column; gap: 1px; padding-left: 30px; margin-top: 1px; }
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item {
-  padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--uui-gray-600); text-decoration: none;
+  padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--uui-chrome-label-idle); text-decoration: none;
 }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item:hover { background: var(--uui-gray-50); color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item:hover { background: var(--uui-chrome-item-hover-bg); color: var(--uui-chrome-label-active); }
 /* NavLink sets aria-current="page" on the active route regardless of how
    className is passed; a plain-string className (used here) does not also
    get an "active" class, so this is the only selector that will ever match. */
-.capiro-vnext-root .capiro-vnext-uui a.uui-nav-nested-item[aria-current='page'] { color: var(--uui-brand-hover); font-weight: var(--uui-weight-medium); background: var(--uui-brand-tint); }
+.capiro-vnext-root .capiro-vnext-uui a.uui-nav-nested-item[aria-current='page'] { color: var(--uui-chrome-label-active); font-weight: var(--uui-weight-semibold); background: var(--uui-chrome-item-active-bg); }
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item--disabled { opacity: 0.6; cursor: not-allowed; }
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] .uui-nav-nested { display: none; }
 
 .capiro-vnext-root .capiro-vnext-uui .uui-rail__footer { display: flex; flex-direction: column; border-top: 0; padding-top: 0; }
-/* Mailbox block shares the rail's 24px icon + 16px/600 label metrics. The
-   glyph is sized up to 24px to sit in the nav-icon slot. */
+/* Mailbox sync — plain text on the rail, not a bordered card (the handoff's
+   footer group has no background box here). Real title/detail from
+   useMailboxSyncStatus can run longer than the handoff's static "2m" demo
+   string (e.g. an error detail), so the two stay on separate lines rather
+   than being forced into one. */
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status {
-  display: flex; flex-direction: column; align-items: stretch; gap: 0; width: 100%; padding: 16px; margin-bottom: 16px; border-radius: 12px;
-  background: var(--uui-gray-50); border: none; text-align: left; box-shadow: inset 0 0 0 1px var(--uui-gray-200);
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; padding: 10px 12px; margin-bottom: 6px;
+  background: transparent; border: none; text-align: left;
 }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status:hover { background: var(--uui-gray-50); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__glyph { font-size: 20px; line-height: 1; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; color: var(--uui-gray-500); flex-shrink: 0; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__title { font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); display: block; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-regular); color: var(--uui-gray-600); display: block; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status:hover { background: var(--uui-chrome-item-hover-bg); border-radius: var(--uui-radius-control); }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__glyph { display: none; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__title { font-size: 12px; font-weight: var(--uui-weight-regular); color: var(--uui-chrome-icon-idle); display: block; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail { font-size: 12px; font-weight: var(--uui-weight-regular); color: var(--uui-chrome-icon-idle); display: block; }
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] .capiro-mailbox-status { display: none; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__indicator { width: 6px; height: 6px; border-radius: 999px; background: var(--uui-success-dot); margin-left: auto; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__indicator { width: 6px; height: 6px; border-radius: 999px; background: var(--uui-success-dot); margin-left: 0; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status[data-state='needs_attention'] .capiro-mailbox-status__indicator { background: var(--uui-warning-dot); }
 .capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn {
-  display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 12px; margin-bottom: 4px; border-radius: 6px; background: none; border: none;
-  color: var(--uui-gray-600); font-size: var(--uui-text-body); font-weight: var(--uui-weight-semibold); text-align: left;
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px; margin-top: 2px; border-radius: var(--uui-radius-control); background: none; border: none;
+  color: var(--uui-chrome-label-idle); font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium); text-align: left;
 }
-.capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-vnext-uui .uui-collapse-btn:hover { background: var(--uui-chrome-item-hover-bg); }
 
 /* Content */
-.capiro-vnext-root .capiro-vnext-uui .uui-content { grid-area: content; padding: 32px; max-width: var(--uui-content-max-w); width: 100%; margin: 0 auto; }
+.capiro-vnext-root .capiro-vnext-uui .uui-content { grid-area: content; padding: var(--uui-content-gutter); max-width: var(--uui-content-max-w); width: 100%; margin: 0 auto; }
 
-@media (max-width: 999px) {
+/* v3 corrected this from 999px to the handoff's explicit "identity text
+   hidden below 1240px" rule — the avatar always shows, only the name/role
+   text collapses. */
+@media (max-width: 1239px) {
   .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__copy { display: none; }
 }
 @media (max-width: 879px) {
@@ -409,15 +427,19 @@
   .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search .capiro-global-search__placeholder,
   .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search .capiro-global-search__shortcut { display: none; }
 
+  /* v3 moves the tab bar to the same dark surface-chrome as the rail — it's
+     the rail's mobile replacement, so it carries the same idle/active
+     colors (chrome-icon-idle already equals the handoff's literal idle tab
+     color). */
   .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav {
-    display: flex; position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: var(--uui-white);
-    border-top: 1px solid var(--uui-gray-200); z-index: 40;
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: var(--uui-chrome-bg);
+    border-top: 0; z-index: 40;
   }
   .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav__item {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 0 12px;
-    color: var(--uui-gray-500); font-size: 12px; font-weight: var(--uui-weight-semibold); background: none; border: none; text-decoration: none;
+    color: var(--uui-chrome-icon-idle); font-size: 11px; font-weight: var(--uui-weight-semibold); background: none; border: none; text-decoration: none;
   }
-  .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav__item--current { color: var(--uui-brand-hover); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-bottomnav__item--current { color: var(--uui-chrome-label-active); }
 
   .capiro-vnext-root .capiro-vnext-uui .uui-moresheet__scrim {
     display: flex; position: fixed; inset: 0; background: var(--uui-scrim); align-items: flex-end; z-index: 40;
@@ -426,6 +448,23 @@
     width: 100%; background: var(--uui-white); border-radius: 16px 16px 0 0; padding: 16px 12px 24px; max-height: 70vh; overflow-y: auto;
   }
   .capiro-vnext-root .capiro-vnext-uui .uui-moresheet__label { font-size: 11px; font-weight: var(--uui-weight-semibold); color: var(--uui-gray-400); letter-spacing: 0.04em; padding: 8px 12px; }
+
+  /*
+   * .uui-nav-item and .capiro-mailbox-status are shared with the dark rail
+   * above, but the More sheet is a white popup sheet, not the rail — reusing
+   * the dark-chrome idle/hover colors here would render near-invisible
+   * light-gray-on-white text. Restore the light equivalents inside this
+   * scope only.
+   */
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item { color: var(--uui-gray-700); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item:hover { background: var(--uui-gray-50); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item__icon { color: var(--uui-gray-500); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item--current { background: var(--uui-gray-50); color: var(--uui-gray-900); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .uui-nav-item--current .uui-nav-item__icon { color: var(--uui-brand-solid); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .capiro-mailbox-status { display: flex; }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .capiro-mailbox-status:hover { background: var(--uui-gray-50); }
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .capiro-mailbox-status__title,
+  .capiro-vnext-root .capiro-vnext-uui .uui-moresheet .capiro-mailbox-status__detail { color: var(--uui-gray-600); }
 }
 
 /* Focus visibility everywhere in this shell, per handoff §10. */
