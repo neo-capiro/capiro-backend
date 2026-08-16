@@ -109,7 +109,7 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
     return (
       <div className="uui-nav-group">
         <div className="uui-nav-item uui-nav-item--current uui-nav-item--section">
-          <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} className="uui-nav-item__icon" />
+          <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={20} className="uui-nav-item__icon" />
           <span className="uui-nav-item__label">{route.label}</span>
         </div>
         <div className="uui-nav-nested" role="group" aria-label={route.label}>
@@ -129,7 +129,7 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
         aria-haspopup="menu"
         onClick={() => toggle(triggerRef.current)}
       >
-        <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} className="uui-nav-item__icon" />
+        <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={20} className="uui-nav-item__icon" />
         <span className="uui-nav-item__label">{route.label}</span>
         <Icon name="chevronRight" size={16} className="uui-nav-item__chevron" />
       </button>
@@ -152,7 +152,7 @@ function NavRow({ route }: { route: VNextRouteDefinition }) {
       end={route.path === '/'}
       className={({ isActive }) => `uui-nav-item${isActive ? ' uui-nav-item--current' : ''}`}
     >
-      <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} className="uui-nav-item__icon" />
+      <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={20} className="uui-nav-item__icon" />
       <span className="uui-nav-item__label">{route.label}</span>
     </NavLink>
   );
@@ -272,7 +272,7 @@ export function AppShellUuiView({
             <MailboxSyncStatusView status={mailboxStatus} onClick={() => onNavigate('/settings/integrations')} />
             {navigation.settings?.path ? (
               <NavLink to={navigation.settings.path} className="uui-nav-item">
-                <Icon name="settings" className="uui-nav-item__icon" />
+                <Icon name="settings" size={20} className="uui-nav-item__icon" />
                 <span className="uui-nav-item__label">{navigation.settings.label}</span>
               </NavLink>
             ) : null}
@@ -282,7 +282,7 @@ export function AppShellUuiView({
               onClick={toggleCollapsed}
               aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
             >
-              <Icon name={collapsed ? 'expand' : 'collapse'} size={24} />
+              <Icon name={collapsed ? 'expand' : 'collapse'} size={20} />
               {!collapsed ? <span className="uui-collapse-btn__label">Collapse</span> : null}
             </button>
           </div>
@@ -293,12 +293,12 @@ export function AppShellUuiView({
         <nav className="uui-bottomnav" aria-label="Primary navigation">
           {tabRoutes.map((route) => (
             <NavLink key={route.id} to={destinationOf(route) ?? '#'} end={route.path === '/'} className={({ isActive }) => `uui-bottomnav__item${isActive ? ' uui-bottomnav__item--current' : ''}`}>
-              <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={22} />
+              <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={21} />
               <span>{TAB_LABEL_OVERRIDES[route.id] ?? route.label}</span>
             </NavLink>
           ))}
           <button type="button" className="uui-bottomnav__item" onClick={() => setMoreOpen(true)}>
-            <Icon name="dots" size={22} />
+            <Icon name="dots" size={21} />
             <span>More</span>
           </button>
         </nav>
@@ -310,7 +310,7 @@ export function AppShellUuiView({
               {moreRoutes.map((route) => (
                 destinationOf(route) ? (
                   <NavLink key={route.id} to={destinationOf(route) as string} className="uui-nav-item" onClick={() => setMoreOpen(false)}>
-                    <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} className="uui-nav-item__icon" />
+                    <Icon name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'} size={20} className="uui-nav-item__icon" />
                     <span className="uui-nav-item__label">{route.label}</span>
                   </NavLink>
                 ) : null

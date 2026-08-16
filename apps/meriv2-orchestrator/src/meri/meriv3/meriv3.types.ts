@@ -4,7 +4,7 @@ import type { MeriCoverageManifest } from '../retrieval/meri-retrieval-coverage.
 import type { MeriRetrievalTrace } from '../retrieval/meri-retrieval-coordinator.js';
 import type {
   MeriRetrievalDomain,
-  MeriRetrievalRecipeTool,
+  MeriRuntimeRetrievalRecipeTool,
   MeriRetrievalTimeWindow,
 } from '../retrieval/meri-retrieval-plan.js';
 import type { MeriQueryClass, MeriSubjectScope } from '../retrieval/meri-retrieval-intent.js';
@@ -37,7 +37,7 @@ export interface MeriV3RetrievalSummary {
     queryClass: MeriQueryClass;
     subjectScope: MeriSubjectScope;
     targetHint: string | null;
-    recipeTool: MeriRetrievalRecipeTool | null;
+    recipeTool: MeriRuntimeRetrievalRecipeTool | null;
     requireCompleteCoverage: boolean;
     requiredDomains: MeriRetrievalDomain[];
     timeWindow: MeriRetrievalTimeWindow | null;
@@ -71,6 +71,15 @@ export interface OpenAiResponsesFunctionTool {
   parameters: Record<string, unknown>;
   strict?: boolean;
 }
+
+export type OpenAiResponsesToolChoice =
+  | 'auto'
+  | 'none'
+  | 'required'
+  | {
+      type: 'function';
+      name: string;
+    };
 
 export interface OpenAiResponsesFunctionCall {
   type: 'function_call';

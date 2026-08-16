@@ -14,6 +14,16 @@
  * "update the colors" — the kit's default Slate purple was never meant to
  * ship). #294E68 is literally --capiro-color-text-accent from the
  * Capiro-native tokens.css — same brand blue, not a new color.
+ *
+ * v3 pass (`Capiro Dashboard v3 - Untitled UI.dc.html`): the rail + bottom
+ * tab bar move from a white chrome to a near-black "surface-chrome" per the
+ * v3 handoff's surface hierarchy (chrome / canvas / raised / sunken / inset).
+ * A handful of neutrals were nudged to the handoff's literal hex (gray-200,
+ * brand-ring) and card/menu/drawer shadows were split apart — v2 shared one
+ * shadow-card value for cards, menus and popovers; v3 specifies three
+ * different ones. Existing token names/values are kept wherever the v3 hex
+ * already matched (most of gray/error/warning/success did) — only real
+ * deltas are called out below.
  */
 .capiro-vnext-uui {
   /* Type — Inter, per handoff §4.1. */
@@ -37,7 +47,12 @@
   --uui-gray-25: #fdfdfd;
   --uui-gray-50: #f9fafb;
   --uui-gray-100: #f2f4f7;
-  --uui-gray-200: #eaecf0;
+  /* v3 corrected this from #eaecf0 to the handoff's literal border-default
+     hex — a ~6/channel darkening. gray-200 is used exclusively as a border/
+     divider color across shell + dashboard, so updating it here (rather than
+     adding a parallel --uui-border-default) propagates correctly everywhere
+     without creating two near-duplicate neutrals to keep in sync. */
+  --uui-gray-200: #e4e7ec;
   --uui-gray-300: #d0d5dd;
   --uui-gray-400: #98a2b3;
   --uui-gray-500: #667085;
@@ -46,15 +61,26 @@
   --uui-gray-900: #101828;
 
   /* Brand — Capiro blue. Used for buttons, links, PE codes, progress fills,
-     active tab underline, and count chips. */
+     active tab underline, and count chips. Full v3 ramp (11 stops):
+     F5F6FA · EAECF5 · DCDFEC · C6CBE3 · B3BADD · 98A2D3 · 7B84B8 · 4E5BA6 ·
+     3E4784 · 363F72 · 293056 — brand-100/200 below are the ramp's 1st/3rd
+     stops (info-banner bg/ring); brand-tint (2nd stop) keeps its existing
+     job as the selected/pill tint, a deliberately different shade. */
   --uui-brand-solid: #3e4784;
   --uui-brand-hover: #363f72;
   /* Deepest shade — pressed states and the topbar's accent underline. */
   --uui-brand-deep: #293056;
   --uui-brand-hover-2: #293056;
   --uui-brand-tint: #eaecf5;
-  --uui-brand-ring: #b3b8db;
-  --uui-focus-ring: #717bbc;
+  /* v3 corrected from #b3b8db to the ramp's exact 5th stop. */
+  --uui-brand-ring: #b3badd;
+  /* Info/loading banner background + ring (ramp stops 1 and 3) — distinct
+     from brand-tint/brand-ring above, which are the selection/pill tones. */
+  --uui-brand-100: #f5f6fa;
+  --uui-brand-200: #dcdfec;
+  /* v3 corrected the generic keyboard focus-visible outline from an
+     interpolated #717bbc to the ramp's exact 8th stop. */
+  --uui-focus-ring: #4e5ba6;
   --uui-focus-ring-outer: #d5d9eb;
 
   /* Metallic black primary buttons. Face/edge/shadow consumed by
@@ -92,10 +118,12 @@
   --uui-blue-dot: #2e90fa;
   --uui-blue-tone: #1570ef;
 
-  --uui-gray-pill-bg: #f9fafb;
-  --uui-gray-pill-ring: #eaecf0;
-  --uui-gray-pill-fg: #344054;
-  --uui-gray-pill-dot: #667085;
+  /* Aliased to the neutrals above (not re-literaled) so the gray-200 border
+     correction just above can't drift out of sync with this ring again. */
+  --uui-gray-pill-bg: var(--uui-gray-50);
+  --uui-gray-pill-ring: var(--uui-gray-200);
+  --uui-gray-pill-fg: var(--uui-gray-700);
+  --uui-gray-pill-dot: var(--uui-gray-500);
 
   /* Radius + elevation. componentCssFiles (foundation-contract.test.ts) may
      not contain a literal hex/rgba — every color lives here, and every
@@ -103,20 +131,47 @@
   --uui-radius-control: 8px;
   --uui-radius-card: 12px;
   --uui-shadow-elevation: 0px 1px 3px rgba(16, 24, 40, 0.1), 0px 1px 2px rgba(16, 24, 40, 0.06);
-  --uui-shadow-card: 0 0 0 1px var(--uui-gray-200), var(--uui-shadow-elevation);
-  --uui-shadow-card-warning: 0 0 0 1px var(--uui-warning-ring), var(--uui-shadow-elevation);
+  /* v3 softened the card shadow — it no longer shares --uui-shadow-elevation
+     (that stays for buttons/knobs). Menus/popovers and the drawer each get
+     their own, more diffuse shadow; v2 had all three sharing shadow-card. */
+  --uui-shadow-card: 0 0 0 1px var(--uui-gray-200), 0px 1px 2px rgba(16, 24, 40, 0.04);
+  --uui-shadow-card-warning: 0 0 0 1px var(--uui-warning-ring), 0px 1px 2px rgba(16, 24, 40, 0.04);
+  --uui-shadow-menu: 0 0 0 1px var(--uui-gray-200), 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);
+  --uui-shadow-drawer: 0px 24px 48px -12px rgba(16, 24, 40, 0.18);
   --uui-shadow-focus: inset 0 0 0 1px var(--uui-focus-ring), 0 0 0 4px var(--uui-focus-ring-outer);
+  /* Neutral focus ring for filled inputs/search (gray-400/gray-100 already
+     equal the handoff's literal #98A2B3/#F2F4F7 — no new hex needed). The
+     brand-tinted --uui-shadow-focus above stays for non-input elements. */
+  --uui-shadow-input-focus: inset 0 0 0 1px var(--uui-gray-400), 0 0 0 4px var(--uui-gray-100);
   --uui-shadow-input: inset 0 0 0 1px var(--uui-gray-300), 0px 1px 2px rgba(16, 24, 40, 0.05);
   --uui-shadow-button: 0px 1px 2px rgba(16, 24, 40, 0.05);
   --uui-shadow-knob: 0 1px 2px rgba(16, 24, 40, 0.15);
   --uui-scrim: rgba(16, 24, 40, 0.36);
 
-  /* Shell geometry, per handoff §4.1/§6.1. */
-  --uui-topbar-h: 72px;
-  --uui-rail-w-expanded: 272px;
-  --uui-rail-w-collapsed: 80px;
+  /* Shell geometry, per handoff §4.1/§6.1. v3 corrected topbar 72→64px and
+     rail 272/80→248/72px; content-max-w stays 1280 (Dashboard already
+     overrides to 1440 itself — see dashboard.css — so this default is left
+     alone rather than widening every other vnext page's content column as a
+     side effect). */
+  --uui-topbar-h: 64px;
+  --uui-rail-w-expanded: 248px;
+  --uui-rail-w-collapsed: 72px;
   --uui-content-max-w: 1280px;
   --uui-content-gutter: 32px;
   --uui-bp-mobile: 780px;
   --uui-bp-tablet: 1180px;
+
+  /* Rail + bottom tab bar "surface-chrome" — v3's dark near-black chrome,
+     replacing the v2 white rail entirely. */
+  --uui-chrome-bg: #12161f;
+  --uui-chrome-item-active-bg: rgba(255, 255, 255, 0.1);
+  --uui-chrome-item-hover-bg: rgba(255, 255, 255, 0.06);
+  --uui-chrome-label-active: #ffffff;
+  --uui-chrome-label-idle: #98a2b3;
+  --uui-chrome-icon-idle: #7c8698;
+  --uui-chrome-divider: rgba(255, 255, 255, 0.14);
+
+  /* Canvas/sunken surfaces — v3's surface hierarchy below "raised" white. */
+  --uui-surface-canvas: #eff1f5;
+  --uui-surface-sunken: #f7f8fa;
 }

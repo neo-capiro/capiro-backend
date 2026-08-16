@@ -1,7 +1,8 @@
 .ws-audit-editor {
   --ws-agent-width: 300px;
   --ws-inspector-width: 356px;
-  min-height: calc(100vh - 72px);
+  /* 64px, matching the v3 shell topbar (was 72px) — see untitled-ui-tokens.css. */
+  min-height: calc(100vh - 64px);
   background: var(--ws-page-bg);
   color: var(--ws-ink);
 }
@@ -321,7 +322,7 @@
 .ws-audit-share-result button { border: 0; border-radius: 8px; background: var(--btn-primary-bg); color: #fff; padding: 7px 12px; font-weight: 600; cursor: pointer; }
 .ws-audit-share-result span { grid-column: 1 / -1; color: var(--ws-muted); font: 500 9px/1.4 var(--capiro-type-family-mono); }
 .ws-audit-editor-loading,
-.ws-audit-agent-unavailable { min-height: calc(100vh - 72px); padding: 32px; }
+.ws-audit-agent-unavailable { min-height: calc(100vh - 64px); padding: 32px; }
 
 @media (max-width: 1280px) {
   .ws-audit-editor { --ws-agent-width: 270px; --ws-inspector-width: 320px; }

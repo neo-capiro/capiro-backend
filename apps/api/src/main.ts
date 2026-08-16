@@ -7,6 +7,9 @@ import {
   configureApiHttpServerTimeouts,
 } from './bootstrap/configure-api-http-app.js';
 import { assertEngagementRuntimeEnvironment } from './engagement/runtime/engagement-runtime-env.js';
+import { disablePersistedMeriPolicyPackEnforcement } from './meri/meri-policy-pack-runtime.js';
+
+disablePersistedMeriPolicyPackEnforcement();
 
 async function bootstrap() {
   // Fail before Nest constructs providers, connects to the database, or starts

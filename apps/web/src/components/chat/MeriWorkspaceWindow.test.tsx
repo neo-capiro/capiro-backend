@@ -161,15 +161,44 @@ describe('MeriWorkspaceWindow prototype parity', () => {
     expect(mocks.sendMessage).not.toHaveBeenCalled();
   });
 
-  test('renders an empty durable conversation as the prototype New thread state', () => {
+  test('shows scope and reasoning policy in an empty durable conversation', async () => {
     render(
       <MeriWorkspaceWindow
         controller={controller({ messages: [], sessionTitle: 'Chat session' })}
       />,
     );
     expect(screen.getByText('New thread')).toBeTruthy();
-    expect(screen.queryByText('SCOPED · C2 STRATEGIES')).toBeNull();
-    expect(screen.queryByRole('button', { name: /MODE · STANDARD/i })).toBeNull();
+    expect(screen.getByText('SCOPED · C2 STRATEGIES')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /MODE · STANDARD/i })).toBeTruthy();
+    await waitFor(() =>
+      expect(mocks.get).toHaveBeenCalledWith('/api/clio/v3/conversations/conv-1/reasoning-mode'),
+    );
+  });
+
+  test('persists a reasoning selection before the first message is sent', async () => {
+    mocks.patch.mockResolvedValue({ data: { reasoningMode: 'max' } });
+    render(
+      <MeriWorkspaceWindow
+        controller={controller({ messages: [], sessionTitle: 'Chat session' })}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /MODE · STANDARD/i }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitemradio', { name: /Max/i }));
+    });
+
+    await waitFor(() =>
+      expect(mocks.patch).toHaveBeenCalledWith('/api/clio/v3/conversations/conv-1/reasoning-mode', {
+        reasoningMode: 'max',
+      }),
+    );
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /MODE · MAX/i })).toBeTruthy(),
+    );
   });
 
   test('removes obsolete runtime and close controls and uses the prototype Pro Tip/minimize controls', () => {

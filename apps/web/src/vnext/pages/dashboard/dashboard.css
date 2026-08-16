@@ -195,7 +195,10 @@
 
 /* Drawer */
 .capiro-vnext-root .capiro-vnext-uui .dashv2-drawer-scrim { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; background: var(--uui-scrim); }
-.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer { width: 440px; max-width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--uui-white); box-shadow: var(--uui-shadow-elevation); animation: uiSlide 200ms cubic-bezier(.2,0,0,1); overflow: hidden; }
+/* v3 corrected the drawer from 440px to the handoff's literal 420px, and it
+   gets its own diffuse shadow now instead of sharing --uui-shadow-elevation
+   (the buttons/knob shadow). */
+.capiro-vnext-root .capiro-vnext-uui .dashv2-drawer { width: 420px; max-width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--uui-white); box-shadow: var(--uui-shadow-drawer); animation: uiSlide 200ms cubic-bezier(.2,0,0,1); overflow: hidden; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__body { min-height: 0; flex: 1; overflow-y: auto; padding: 24px; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__header { display: flex; align-items: flex-start; gap: 16px; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-feature-icon { display: grid; place-items: center; border-radius: 10px; background: var(--dash-brand-tint); color: var(--dash-link); box-shadow: inset 0 0 0 1px var(--dash-brand-ring); }
@@ -203,7 +206,7 @@
 .capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__header-copy { min-width: 0; flex: 1; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__header h2 { margin: 0; font-size: 18px; line-height: 28px; font-weight: 600; color: var(--uui-gray-900); }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__header p { margin: 4px 0 0; font-size: 14px; line-height: 20px; color: var(--uui-gray-600); text-wrap: pretty; }
-.capiro-vnext-root .capiro-vnext-uui .dashv2-icon-button { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 8px; background: transparent; color: var(--uui-gray-500); cursor: pointer; font-size: 24px; line-height: 1; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-icon-button { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 8px; background: transparent; color: var(--uui-gray-500); cursor: pointer; font-size: 24px; line-height: 1; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-icon-button:hover { background: var(--uui-gray-50); color: var(--uui-gray-700); }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__divider { height: 1px; background: var(--uui-gray-200); margin: 24px 0 20px; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__section-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
@@ -230,7 +233,7 @@
 .capiro-vnext-root .capiro-vnext-uui .dashv2-account__remove:hover { background: var(--uui-white); color: var(--uui-error-fg); }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-add-row { display: flex; gap: 8px; margin-top: 10px; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-add-row input { min-width: 0; flex: 1; height: 40px; padding: 0 12px; border: 0; outline: none; border-radius: 8px; background: var(--uui-white); box-shadow: var(--uui-shadow-input); color: var(--uui-gray-900); font-size: 14px; }
-.capiro-vnext-root .capiro-vnext-uui .dashv2-add-row input:focus { box-shadow: var(--uui-shadow-focus); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-add-row input:focus { box-shadow: var(--uui-shadow-input-focus); }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__error { margin: 8px 0 0; font-size: 13px; color: var(--uui-error-fg); }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-topic-list { display: grid; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-topic { display: flex; align-items: center; gap: 12px; padding: 8px 0; background: transparent; color: var(--uui-gray-700); cursor: pointer; font-size: 14px; font-weight: 500; text-align: left; }
