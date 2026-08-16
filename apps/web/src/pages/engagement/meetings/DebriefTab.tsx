@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { App, Input, Modal } from 'antd';
+import { App } from 'antd';
 import { Lock, Mic, PenLine, Sparkles, Upload } from 'lucide-react';
 import { parseDebriefBody } from '../meeting-actions.js';
 import {
@@ -15,6 +15,7 @@ import { formatDayTitle } from './meetings-format.js';
 import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
 import { ArtifactActionBar, GeneratingState } from './tab-kit.js';
 import type { Meeting, MeetingDebriefDraft } from './meetings-types.js';
+import { EngagementDialog } from './EngagementDialog.js';
 
 function formatDebriefBody(d: MeetingDebriefDraft): string {
   return [
@@ -46,6 +47,7 @@ function SourcePicker({
 }) {
   const [sel, setSel] = useState<Source>(hasNotes ? 'meri' : 'upload');
   const [manual, setManual] = useState('');
+  const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const cards: {
     k: Source;
@@ -184,43 +186,62 @@ function SourcePicker({
         />
       )}
       {(sel === 'upload' || sel === 'voice') && (
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => fileRef.current?.click()}
-          style={{
-            border: '1.5px dashed var(--border-strong)',
-            borderRadius: 9,
-            padding: '22px',
-            textAlign: 'center',
-            color: 'var(--ink-3)',
-            fontSize: 12.5,
-            marginBottom: 16,
-            background: 'var(--bg-surface-2)',
-            cursor: 'pointer',
-          }}
+        <button
+          type="button"
+          className="engagement-source-upload"
+          onClick={() => setSourceDialogOpen(true)}
         >
-          {sel === 'voice' ? (
-            <Mic size={20} style={{ opacity: 0.5 }} />
-          ) : (
-            <Upload size={20} style={{ opacity: 0.5 }} />
-          )}
-          <div style={{ marginTop: 6 }}>
-            Drop a file here or{' '}
-            <span style={{ color: 'var(--accent)', fontWeight: 500 }}>browse</span>
-          </div>
-        </div>
+          {sel === 'voice' ? <Mic size={20} /> : <Upload size={20} />}
+          <strong>{sel === 'voice' ? 'Add a voice memo' : 'Add a recording or transcript'}</strong>
+          <span>Open the source window to choose the exact file Meri may use.</span>
+        </button>
       )}
-      <input
-        ref={fileRef}
-        type="file"
-        accept="audio/*,video/*,.txt,.md,.vtt,.srt,.pdf,.doc,.docx"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          onFile(e.target.files?.[0]);
-          e.target.value = '';
-        }}
-      />
+      <EngagementDialog
+        open={sourceDialogOpen}
+        eyebrow="Meeting · attachments"
+        title="Transcript and attachments"
+        description={
+          sel === 'voice'
+            ? 'Choose the voice memo that should be transcribed and used as the debrief source.'
+            : 'Choose an audio, video, text, PDF, or Word source. Generation stays grounded in the extracted source text.'
+        }
+        width={620}
+        busy={busy}
+        onClose={() => setSourceDialogOpen(false)}
+        footer={
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => setSourceDialogOpen(false)}
+          >
+            Cancel
+          </button>
+        }
+      >
+        <label className="engagement-source-upload">
+          {sel === 'voice' ? <Mic size={24} /> : <Upload size={24} />}
+          <strong>Choose a file</strong>
+          <span>
+            {sel === 'voice'
+              ? 'Audio and video files are transcribed before drafting.'
+              : 'Audio, video, .txt, .md, .vtt, .srt, PDF, .doc, and .docx are supported.'}
+          </span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="audio/*,video/*,.txt,.md,.vtt,.srt,.pdf,.doc,.docx"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.currentTarget.value = '';
+              if (!file) return;
+              setSourceDialogOpen(false);
+              onFile(file);
+            }}
+          />
+        </label>
+      </EngagementDialog>
       <button
         type="button"
         className="btn btn-accent"
@@ -229,7 +250,7 @@ function SourcePicker({
         onClick={() => {
           if (sel === 'meri') onUseNotes();
           else if (sel === 'manual') onManual(manual);
-          else if (sel === 'upload' || sel === 'voice') fileRef.current?.click();
+          else if (sel === 'upload' || sel === 'voice') setSourceDialogOpen(true);
         }}
       >
         {sel === 'meri' ? <MeriGlyph size={16} tone="white" /> : <Sparkles size={15} />}
@@ -444,22 +465,54 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
         approving={approve.isPending}
       />
 
-      <Modal
-        title="Edit debrief"
+      <EngagementDialog
         open={editOpen}
-        onCancel={() => setEditOpen(false)}
-        okText="Save"
-        confirmLoading={save.isPending}
-        rootClassName="redesign"
-        width={560}
-        onOk={async () => {
-          await save.mutateAsync({ meetingId: meeting.id, debriefId: current.id, body: editBody });
-          message.success('Debrief updated.');
-          setEditOpen(false);
-        }}
+        eyebrow="Meeting · secondary actions"
+        title="Edit debrief"
+        description="Edit the exact debrief body. Approval and sharing remain separate actions."
+        width={680}
+        busy={save.isPending}
+        dirty={editBody !== (current.body ?? '')}
+        onClose={() => setEditOpen(false)}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn"
+              disabled={save.isPending}
+              onClick={() => setEditOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-accent"
+              disabled={save.isPending || !editBody.trim()}
+              onClick={async () => {
+                await save.mutateAsync({
+                  meetingId: meeting.id,
+                  debriefId: current.id,
+                  body: editBody,
+                });
+                message.success('Debrief updated.');
+                setEditOpen(false);
+              }}
+            >
+              {save.isPending ? 'Saving…' : 'Save'}
+            </button>
+          </>
+        }
       >
-        <Input.TextArea rows={12} value={editBody} onChange={(e) => setEditBody(e.target.value)} />
-      </Modal>
+        <label className="engagement-dialog__field">
+          Debrief
+          <textarea
+            autoFocus
+            rows={16}
+            value={editBody}
+            onChange={(event) => setEditBody(event.target.value)}
+          />
+        </label>
+      </EngagementDialog>
     </div>
   );
 }

@@ -46,6 +46,7 @@ import {
   NotetakerConsentFields,
   parseDebriefBody,
 } from './meeting-actions.js';
+import './engagement-ui-closeout.css';
 
 interface EngagementCapabilities {
   ai: { activeProvider: 'openai' | 'anthropic' | null };
@@ -438,15 +439,19 @@ export function EngagementPage() {
 
     const segments = location.pathname.split('/').filter(Boolean);
     const rawSection = segments[0] === 'engagement' ? (segments[1] ?? 'meetings') : null;
+    const isMeetingLibraryRoute = rawSection === 'meeting-library';
     // Overview is hidden for now — redirect any /engagement/overview (old default
-    // or existing bookmarks) to Meetings so we never select a non-existent tab.
-    const section = rawSection === 'overview' ? 'meetings' : rawSection;
+    // or existing bookmarks) to Meetings. Meeting Library is a first-class
+    // route, but it still belongs to the shared Meetings tab.
+    const section = rawSection === 'overview' || isMeetingLibraryRoute ? 'meetings' : rawSection;
     const nextTab =
       section && ['meetings', 'outreach', 'reports'].includes(section)
         ? (section as 'meetings' | 'outreach' | 'reports')
         : null;
     const nextMeetingId =
-      nextTab === 'meetings' && segments[2] ? decodeURIComponent(segments[2]) : null;
+      nextTab === 'meetings' && !isMeetingLibraryRoute && segments[2]
+        ? decodeURIComponent(segments[2])
+        : null;
     const nextDetail = searchParams.get('detail');
     // Accepts the legacy `view=calendar` alias and normalizes it to 'month'
     // (spec Phase 2 §2a1 / edge case 4) — the stored state and every future
@@ -461,6 +466,9 @@ export function EngagementPage() {
     const hasUrlStateChange =
       (nextTab && nextTab !== activeEngagementTab) ||
       (nextTab === 'meetings' && nextMeetingId !== selectedMeetingId) ||
+      (nextTab === 'meetings' &&
+        meetingsV2Enabled &&
+        isMeetingLibraryRoute !== meetingsLibraryOpen) ||
       (nextTab === 'meetings' && nextDetail && nextDetail !== meetingDetailTab) ||
       (nextTab === 'meetings' && nextView && nextView !== meetingViewMode) ||
       (nextTab === 'meetings' && nextFrom && nextFrom !== rangeStart) ||
@@ -488,6 +496,7 @@ export function EngagementPage() {
     }
     if (nextTab === 'meetings') {
       setSelectedMeetingId(nextMeetingId);
+      if (meetingsV2Enabled) setMeetingsLibraryOpen(isMeetingLibraryRoute);
       if (nextDetail) setMeetingDetailTab(nextDetail);
       if (nextView) setMeetingViewMode(nextView);
       if (nextFrom) setRangeStart(nextFrom);
@@ -505,6 +514,7 @@ export function EngagementPage() {
     location.pathname,
     meetingCursor,
     meetingDetailTab,
+    meetingsLibraryOpen,
     meetingsV2Enabled,
     meetingViewMode,
     rangeEnd,
@@ -525,22 +535,26 @@ export function EngagementPage() {
     let nextPath = '/engagement/meetings';
 
     if (activeEngagementTab === 'meetings') {
-      nextPath = selectedMeetingId
-        ? `/engagement/meetings/${encodeURIComponent(selectedMeetingId)}`
-        : '/engagement/meetings';
-      if (meetingDetailTab && meetingDetailTab !== 'prep')
-        nextParams.set('detail', meetingDetailTab);
-      // Day is the default view, so only serialize the non-default views.
-      if (meetingViewMode !== 'day') nextParams.set('view', meetingViewMode);
-      if (meetingsV2Enabled) {
-        // Meetings v2 pivots on a single cursor date for every mode
-        // (day/month/list) — always serialize it, and never write the legacy
-        // from/to pair (spec §2a4). The URL writer only ever emits the
-        // canonical 'month', never 'calendar' (edge case 4).
-        nextParams.set('date', inputValueFromDate(meetingCursor));
+      if (meetingsV2Enabled && meetingsLibraryOpen) {
+        nextPath = '/engagement/meeting-library';
       } else {
-        if (rangeStart) nextParams.set('from', rangeStart);
-        if (rangeEnd) nextParams.set('to', rangeEnd);
+        nextPath = selectedMeetingId
+          ? `/engagement/meetings/${encodeURIComponent(selectedMeetingId)}`
+          : '/engagement/meetings';
+        if (meetingDetailTab && meetingDetailTab !== 'prep')
+          nextParams.set('detail', meetingDetailTab);
+        // Day is the default view, so only serialize the non-default views.
+        if (meetingViewMode !== 'day') nextParams.set('view', meetingViewMode);
+        if (meetingsV2Enabled) {
+          // Meetings v2 pivots on a single cursor date for every mode
+          // (day/month/list) — always serialize it, and never write the legacy
+          // from/to pair (spec §2a4). The URL writer only ever emits the
+          // canonical 'month', never 'calendar' (edge case 4).
+          nextParams.set('date', inputValueFromDate(meetingCursor));
+        } else {
+          if (rangeStart) nextParams.set('from', rangeStart);
+          if (rangeEnd) nextParams.set('to', rangeEnd);
+        }
       }
     } else if (activeEngagementTab === 'outreach') {
       nextPath = location.pathname.startsWith('/engagement/outreach')
@@ -571,6 +585,7 @@ export function EngagementPage() {
     location.pathname,
     meetingCursor,
     meetingDetailTab,
+    meetingsLibraryOpen,
     meetingsV2Enabled,
     meetingViewMode,
     navigate,
@@ -1166,6 +1181,9 @@ export function EngagementPage() {
       nextKey === 'outreach' ||
       nextKey === 'reports'
     ) {
+      if (nextKey === 'meetings' && activeEngagementTab !== 'meetings') {
+        setMeetingsLibraryOpen(false);
+      }
       setActiveEngagementTab(nextKey);
     }
   };
@@ -1496,6 +1514,7 @@ export function EngagementPage() {
       />
 
       <Modal
+        rootClassName="redesign"
         title="New meeting"
         open={meetingModalOpen}
         onCancel={() => setMeetingModalOpen(false)}
@@ -1543,6 +1562,7 @@ export function EngagementPage() {
       </Modal>
 
       <Modal
+        rootClassName="redesign"
         title="New task"
         open={taskModalOpen}
         onCancel={() => setTaskModalOpen(false)}
@@ -1563,6 +1583,7 @@ export function EngagementPage() {
       </Modal>
 
       <Modal
+        rootClassName="redesign"
         title="Add target office"
         open={targetOfficeModalOpen}
         onCancel={() => setTargetOfficeModalOpen(false)}
@@ -1608,7 +1629,12 @@ export function EngagementPage() {
       </Modal>
 
       <Modal
-        title={reportMeetingRow ? `${reportMeetingRow.memberPrincipal} meetings` : 'Meetings'}
+        rootClassName="redesign"
+        title={
+          reportMeetingRow
+            ? `Target office · linked meetings — ${reportMeetingRow.memberPrincipal}`
+            : 'Target office · linked meetings'
+        }
         open={Boolean(reportMeetingRow)}
         onCancel={() => setReportMeetingRow(null)}
         footer={null}
@@ -1646,6 +1672,7 @@ export function EngagementPage() {
       </Modal>
 
       <Modal
+        rootClassName="redesign"
         title={editingPrep ? `Edit prep - ${editingPrep.meeting.subject}` : 'Edit prep'}
         open={Boolean(editingPrep)}
         onCancel={() => setEditingPrep(null)}
@@ -1714,6 +1741,7 @@ export function EngagementPage() {
       </Modal>
 
       <Modal
+        rootClassName="redesign"
         title="Meeting notes"
         open={Boolean(notesModalMeetingId)}
         onCancel={() => setNotesModalMeetingId(null)}
@@ -3577,6 +3605,11 @@ function ReportsView({
                             .filter(Boolean)
                             .join(' | ')}
                         </Typography.Text>
+                        {row.manuallyOverridden ? (
+                          <Tag color="gold" style={{ marginTop: 4, width: 'fit-content' }}>
+                            Manual override
+                          </Tag>
+                        ) : null}
                       </td>
                       <td>{row.committee || '-'}</td>
                       <td>{row.staffer || '-'}</td>

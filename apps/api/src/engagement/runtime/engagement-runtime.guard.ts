@@ -10,10 +10,7 @@ import {
   type EngagementRuntimeActionMetadata,
 } from './engagement-runtime-action.decorator.js';
 import { EngagementRuntimePolicyService } from './engagement-runtime-policy.service.js';
-import {
-  runtimePolicyForHandler,
-  sameRuntimeMetadata,
-} from './engagement-runtime-route-policy.js';
+import { runtimePolicyForHandler, sameRuntimeMetadata } from './engagement-runtime-route-policy.js';
 
 export const ENGAGEMENT_DENIAL_BOUNDARY_HEADER = 'X-Capiro-Engagement-Denial-Boundary';
 export const ENGAGEMENT_DENIAL_BOUNDARY_ROUTE_GUARD = 'route-guard';
@@ -28,10 +25,7 @@ interface HttpResponseLike {
 
 function recordRouteGuardDenial(context: ExecutionContext): void {
   const response = context.switchToHttp().getResponse<HttpResponseLike>();
-  response?.setHeader?.(
-    ENGAGEMENT_DENIAL_BOUNDARY_HEADER,
-    ENGAGEMENT_DENIAL_BOUNDARY_ROUTE_GUARD,
-  );
+  response?.setHeader?.(ENGAGEMENT_DENIAL_BOUNDARY_HEADER, ENGAGEMENT_DENIAL_BOUNDARY_ROUTE_GUARD);
 }
 
 /**
@@ -44,15 +38,21 @@ export function conditionalRouteMetadata(
   handlerName: string,
   body: unknown,
 ): EngagementRuntimeActionMetadata | undefined {
-  if (controllerName !== 'EngagementController' || handlerName !== 'createDraftVersion') {
-    return undefined;
-  }
+  const isLegacyDraftRoute =
+    controllerName === 'EngagementController' && handlerName === 'createDraftVersion';
+  const isV3DraftRoute =
+    controllerName === 'OutreachV3DraftsController' && handlerName === 'revise';
+  if (!isLegacyDraftRoute && !isV3DraftRoute) return undefined;
   const editKind =
     body && typeof body === 'object' && 'editKind' in body
       ? (body as { editKind?: unknown }).editKind
       : undefined;
   if (editKind === 'manual' || editKind === 'revert') return undefined;
-  return { action: 'outreach_generate', requiresCallbacks: false, testMode: false };
+  return {
+    action: isV3DraftRoute ? 'outreach_v3_generate' : 'outreach_generate',
+    requiresCallbacks: false,
+    testMode: false,
+  };
 }
 
 /** Global only in EngagementApiAppModule; AppModule behavior is unchanged. */
@@ -87,8 +87,8 @@ export class EngagementRuntimeGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<HttpRequestLike>();
     const conditional = conditionalRouteMetadata(controllerName, handlerName, request?.body);
     const isLocalDraftEdit =
-      controllerName === 'EngagementController' &&
-      handlerName === 'createDraftVersion' &&
+      ((controllerName === 'EngagementController' && handlerName === 'createDraftVersion') ||
+        (controllerName === 'OutreachV3DraftsController' && handlerName === 'revise')) &&
       conditional === undefined;
     if (isLocalDraftEdit) return true;
 

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { setActiveDraft } from '../../components/chat/chat-store.js';
 import { useLocation, useNavigate } from 'react-router-dom';
-// The v2 wizard is the sole outreach wizard; aliased to OutreachWizard so the
-// existing render sites read unchanged.
-import { NewOutreachWizard as OutreachWizard } from './outreach/v2/index.js';
+// Keep Classic Outreach as the fail-closed default, but route every entry point
+// through the V3 compatibility boundary so preview/native V3 sessions can mount.
+import { OutreachWizardRouter as OutreachWizard } from './outreach/v3/OutreachWizardRouter.js';
 import {
   CheckOutlined,
   DeleteOutlined,
@@ -477,19 +477,22 @@ export function OutreachView({
 
   useEffect(() => {
     const handler = (event: Event) => {
-      const detail = (event as CustomEvent<{
-        target?: string;
-        engagementId?: string;
-        recipientId?: string;
-        subject?: string;
-        body?: string;
-      }>).detail;
+      const detail = (
+        event as CustomEvent<{
+          target?: string;
+          engagementId?: string;
+          recipientId?: string;
+          subject?: string;
+          body?: string;
+        }>
+      ).detail;
       if (!detail) return;
       if (detail.target !== 'outreach_draft') return;
       if (mode !== 'campaign') return;
 
       const currentEngagementId = workflow.record?.id ?? draftRecordIdFromPath ?? '';
-      if (detail.engagementId && currentEngagementId && detail.engagementId !== currentEngagementId) return;
+      if (detail.engagementId && currentEngagementId && detail.engagementId !== currentEngagementId)
+        return;
 
       setWorkflow((current) => {
         const nextSubject = typeof detail.subject === 'string' ? detail.subject : current.subject;
@@ -2662,7 +2665,11 @@ function DirectoryRecipientRow({
 
   return (
     <div className="outreach-directory-row-group">
-      <button type="button" className="outreach-directory-row" onClick={() => onAdd(memberRecipient)}>
+      <button
+        type="button"
+        className="outreach-directory-row"
+        onClick={() => onAdd(memberRecipient)}
+      >
         <span>{initials(entry.memberName)}</span>
         <div>
           <strong>{entry.fullName}</strong>
@@ -2687,9 +2694,13 @@ function DirectoryRecipientRow({
                 <span>{initials(staffer.fullName)}</span>
                 <div>
                   <strong>{staffer.fullName}</strong>
-                  <small>{[staffer.title, staffer.issueAreas[0]].filter(Boolean).join(' | ')}</small>
+                  <small>
+                    {[staffer.title, staffer.issueAreas[0]].filter(Boolean).join(' | ')}
+                  </small>
                 </div>
-                <b className={`outreach-row-action${isSelected(stafferRecipient) ? ' is-selected' : ''}`}>
+                <b
+                  className={`outreach-row-action${isSelected(stafferRecipient) ? ' is-selected' : ''}`}
+                >
                   {isSelected(stafferRecipient) ? 'Selected' : 'Add'}
                 </b>
               </button>

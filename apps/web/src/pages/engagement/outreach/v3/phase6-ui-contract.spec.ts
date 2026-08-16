@@ -21,9 +21,19 @@ describe('Outreach V3 Phase 6 UI contract', () => {
     expect(api).not.toContain('draft-artifacts');
   });
 
+  it('routes the canonical Engagement entry through the fail-closed V3 compatibility router', () => {
+    const engagementEntry = readFileSync(path.join(DIR, '../../OutreachView.tsx'), 'utf8');
+    expect(engagementEntry).toContain('OutreachWizardRouter as OutreachWizard');
+    expect(engagementEntry).not.toContain('NewOutreachWizard as OutreachWizard');
+  });
+
   it('requires both explicit preview modes and preserves Classic drafts', () => {
     const router = source('OutreachWizardRouter.tsx');
-    expect(router).toContain("previewMode === 'v3' && isEngagementPreviewActive() && !hasClassicDraft");
+    expect(router).toContain('!forceClassic');
+    expect(router).toContain('!hasClassicDraft');
+    expect(router).toContain('isVNextSurface ||');
+    expect(router).toContain("previewMode === 'v3' && isEngagementPreviewActive()");
+    expect(router).toContain('<OutreachV3CompleteRoute');
     expect(router).toContain('initialRecord || props.initialDraftId');
     expect(router).toContain('<ClassicOutreachWizard {...props} />');
   });
@@ -87,7 +97,9 @@ describe('Outreach V3 Phase 6 UI contract', () => {
     expect(conversation).toContain('ov3-conversation-history');
     expect(conversation).toContain('ov3-live-turn');
     expect(conversation).toContain('ov3-docked-composer');
-    expect(conversation).toContain('typed instructions become proposals and never apply themselves');
+    expect(conversation).toContain(
+      'typed instructions become proposals and never apply themselves',
+    );
 
     expect(brief).toContain('ov3-brief-strip');
     expect(brief).toContain('onSelectStage');
@@ -104,7 +116,9 @@ describe('Outreach V3 Phase 6 UI contract', () => {
       'utf8',
     );
     expect(manifest).toContain('84b26c1d2ea0dd8d122ee0b4bdbe4087cdf37e1b328bf1ab6fd1146d0624f453');
-    expect(manifest).toContain('The desktop screen is **not** a permanent conversation/work split.');
+    expect(manifest).toContain(
+      'The desktop screen is **not** a permanent conversation/work split.',
+    );
     expect(manifest).toContain('Goal → Targets → Delivery → Context → Drafts → Send');
     expect(manifest).toContain('Typing “send it” must never send from Phase 6.');
   });

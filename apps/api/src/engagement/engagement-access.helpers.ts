@@ -15,6 +15,17 @@ import type { TenantContext } from '@capiro/shared';
 import { activeMailMessageWhere, activeMailThreadWhere } from './mail-message-state.js';
 
 /**
+ * Reserved compatibility parents that exist only so newer governed artifacts
+ * can reuse the mature immutable draft/send FK graph. They are not Classic
+ * Outreach campaigns and must never appear through Classic list/open/update
+ * predicates.
+ *
+ * Keep this predicate-based rather than relying on UI filtering: a caller that
+ * manually supplies `type=outreach_v3` must still receive no Classic record.
+ */
+export const INTERNAL_OUTREACH_RECORD_TYPES = ['outreach_v3'] as const;
+
+/**
  * A user sees a meeting they created, or one that arrived through a calendar
  * connection they own.
  *
@@ -46,16 +57,25 @@ export function ownMailMessageWhere(userId: string): Prisma.MailMessageWhereInpu
 }
 
 /**
- * Parent outreach drafts (OutreachRecord) are tenant-scoped but not
- * owner-scoped: PrismaService.withTenant() injects a tenant predicate only, and
- * the runtime application role bypasses RLS, so a colleague's private draft is
- * otherwise readable by any same-tenant caller who has (or guesses) its id.
- * Callers must continue supplying the tenant predicate separately — this
- * helper intentionally omits tenantId so it composes with withTenant() instead
- * of duplicating it.
+ * Parent Classic outreach drafts are tenant-scoped but not owner-scoped:
+ * PrismaService.withTenant() injects a tenant predicate only, and the runtime
+ * application role bypasses RLS, so a colleague's private draft is otherwise
+ * readable by any same-tenant caller who has (or guesses) its id.
+ *
+ * This predicate also excludes reserved INTERNAL outreach records. `AND` is
+ * deliberate: callers often spread a later `{ type }` filter into their where
+ * object; placing the exclusion directly on `type` could be overwritten by that
+ * spread and let a crafted `type=outreach_v3` request surface the internal root.
+ *
+ * Callers must continue supplying the tenant predicate separately — this helper
+ * intentionally omits tenantId so it composes with withTenant() instead of
+ * duplicating it.
  */
 export function ownOutreachRecordWhere(userId: string): Prisma.OutreachRecordWhereInput {
-  return { createdByUserId: userId };
+  return {
+    createdByUserId: userId,
+    AND: [{ type: { notIn: [...INTERNAL_OUTREACH_RECORD_TYPES] } }],
+  };
 }
 
 /**

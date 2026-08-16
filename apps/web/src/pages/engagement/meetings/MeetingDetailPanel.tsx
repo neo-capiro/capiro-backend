@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { App, Select } from 'antd';
+import { App } from 'antd';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Lock, Plus, Users, X } from 'lucide-react';
+import { Lock, Plus, Users, X } from 'lucide-react';
 import { PrepTab } from './PrepTab.js';
 import { NotesTab } from './NotesTab.js';
 import { DebriefTab } from './DebriefTab.js';
@@ -25,6 +25,7 @@ import {
   showSendMeri,
 } from './meetings-ui.js';
 import type { DetailTab, Meeting } from './meetings-types.js';
+import { EngagementDialog } from './EngagementDialog.js';
 
 /**
  * Phase 2 §3.e — replaces the binary Private/Shared toggle (which unshared
@@ -67,7 +68,9 @@ function ShareArtifactsControl({ m, onOpenShare }: { m: Meeting; onOpenShare: ()
   };
 
   return (
-    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+    <div
+      style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}
+    >
       <div style={{ display: 'inline-flex', gap: 6 }}>
         <button
           type="button"
@@ -103,59 +106,88 @@ function ShareArtifactsControl({ m, onOpenShare }: { m: Meeting; onOpenShare: ()
 function ClientAssign({ meeting }: { meeting: Meeting }) {
   const { message } = App.useApp();
   const [editing, setEditing] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState(meeting.client?.id ?? '');
   const clients = useClientOptions(editing);
   const assign = useAssignMeetingClient();
 
-  if (editing) {
-    return (
-      <Select
-        autoFocus
-        open={editing}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) setEditing(false);
-        }}
-        showSearch
-        size="small"
-        style={{ minWidth: 220 }}
-        placeholder="Assign a client…"
-        loading={clients.isLoading}
-        defaultValue={meeting.client?.id}
-        optionFilterProp="label"
-        options={(clients.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-        onBlur={() => setEditing(false)}
-        onChange={async (clientId: string) => {
-          setEditing(false);
-          if (clientId === meeting.client?.id) return;
-          await assign.mutateAsync({ meetingId: meeting.id, clientId });
-          message.success('Client updated for this meeting.');
-        }}
-      />
-    );
-  }
+  useEffect(() => {
+    if (editing) setSelectedClientId(meeting.client?.id ?? '');
+  }, [editing, meeting.client?.id]);
 
-  if (meeting.client) {
-    return (
+  const currentClientId = meeting.client?.id ?? '';
+  const save = async () => {
+    try {
+      await assign.mutateAsync({ meetingId: meeting.id, clientId: selectedClientId || null });
+      message.success('Client updated for this meeting.');
+      setEditing(false);
+    } catch {
+      message.error('Could not update the meeting client.');
+    }
+  };
+
+  return (
+    <>
       <button
         type="button"
         onClick={() => setEditing(true)}
-        title="Change client"
-        className="pill info"
-        style={{ fontSize: 11, border: 'none', cursor: 'pointer' }}
+        className={`engagement-disclosure-button engagement-client-assignment-trigger${
+          meeting.client ? ' pill info' : ''
+        }`}
+        title={meeting.client ? 'Change client assignment' : 'Assign a client'}
       >
-        {meeting.client.name}
+        {!meeting.client ? <Plus size={12} /> : null}
+        <span>{meeting.client?.name ?? 'Assign client'}</span>
+        <span aria-hidden="true">›</span>
       </button>
-    );
-  }
-  return (
-    <button
-      type="button"
-      onClick={() => setEditing(true)}
-      className="btn sm"
-      style={{ gap: 4, fontSize: 11.5, padding: '3px 9px' }}
-    >
-      <Plus size={11} />
-      Assign client
-    </button>
+      <EngagementDialog
+        open={editing}
+        eyebrow="Meeting · relationship"
+        title="Client assignment"
+        description="Associate this meeting with the client whose context, artifacts, and reporting should receive it."
+        width={540}
+        busy={assign.isPending}
+        dirty={selectedClientId !== currentClientId}
+        onClose={() => setEditing(false)}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn"
+              disabled={assign.isPending}
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-accent"
+              disabled={assign.isPending}
+              onClick={() => void save()}
+            >
+              {assign.isPending ? 'Saving…' : 'Save assignment'}
+            </button>
+          </>
+        }
+      >
+        <label className="engagement-dialog__field">
+          Client
+          <select
+            autoFocus
+            value={selectedClientId}
+            disabled={clients.isLoading || assign.isPending}
+            onChange={(event) => setSelectedClientId(event.target.value)}
+          >
+            <option value="">No client / internal</option>
+            {(clients.data ?? []).map((client) => (
+              <option key={client.id} value={client.id}>
+                {client.name}
+              </option>
+            ))}
+          </select>
+          <small>Sharing requires a client. Internal meetings may remain unassigned.</small>
+        </label>
+      </EngagementDialog>
+    </>
   );
 }
 
@@ -350,108 +382,52 @@ export function MeetingDetailPanel({
             <ShareArtifactsControl m={m} onOpenShare={() => onRequestShare(m)} />
           </div>
 
-          {/* Attendees (collapsible) */}
+          {/* Attendees window */}
           <div style={{ marginBottom: 14 }}>
             <button
               type="button"
-              onClick={() => setAttOpen((o) => !o)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 7,
-                width: '100%',
-                border: 'none',
-                background: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-              }}
+              className="engagement-disclosure-button"
+              onClick={() => setAttOpen(true)}
             >
-              <SectionLabel style={{ marginBottom: 0 }}>
-                Attendees · {m.attendees.length}
-              </SectionLabel>
-              {attOpen ? (
-                <ChevronDown size={13} style={{ color: 'var(--ink-3)' }} />
-              ) : (
-                <ChevronRight size={13} style={{ color: 'var(--ink-3)' }} />
-              )}
+              <Users size={15} />
+              Attendees · {m.attendees.length}
+              <span aria-hidden="true">›</span>
             </button>
-            {attOpen && (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  maxHeight: 170,
-                  overflowY: 'auto',
-                  margin: '9px -6px 0',
-                  padding: '0 6px',
-                }}
-              >
-                {m.attendees.length === 0 ? (
-                  <div style={{ fontSize: 11.5, color: 'var(--ink-3)', padding: '7px 0' }}>
-                    No attendees recorded.
-                  </div>
-                ) : (
-                  m.attendees.map((a, i) => (
-                    <div
-                      key={a.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        minWidth: 0,
-                        padding: '7px 0',
-                        borderBottom:
-                          i < m.attendees.length - 1 ? '1px solid var(--border-1)' : 'none',
-                      }}
-                    >
-                      <Ava initials={initialsOf(a.name || a.email)} size={30} />
-                      <div style={{ minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 12.5,
-                            fontWeight: 600,
-                            color: 'var(--ink-1)',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {a.name || a.email || 'Unknown'}
-                        </div>
-                        {a.role && (
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: 'var(--ink-2)',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {a.role}
-                          </div>
-                        )}
-                        {a.email && (
-                          <div
-                            style={{
-                              fontSize: 11,
-                              color: 'var(--ink-3)',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {a.email}
-                          </div>
-                        )}
-                      </div>
+          </div>
+          <EngagementDialog
+            open={attOpen}
+            eyebrow="Meeting · people"
+            title="Attendees"
+            description={`${m.attendees.length} attendee${m.attendees.length === 1 ? '' : 's'} recorded for this meeting.`}
+            width={620}
+            onClose={() => setAttOpen(false)}
+            footer={
+              <button type="button" className="btn" onClick={() => setAttOpen(false)}>
+                Close
+              </button>
+            }
+          >
+            {m.attendees.length === 0 ? (
+              <div className="engagement-dialog-empty">No attendees recorded.</div>
+            ) : (
+              <div className="engagement-dialog__list">
+                {m.attendees.map((attendee) => (
+                  <div className="engagement-dialog__list-row" key={attendee.id}>
+                    <span className="engagement-attendee-avatar" aria-hidden="true">
+                      {initialsOf(attendee.name || attendee.email)}
+                    </span>
+                    <div>
+                      <strong>{attendee.name || attendee.email || 'Unknown attendee'}</strong>
+                      <span>
+                        {[attendee.role, attendee.email].filter(Boolean).join(' · ') ||
+                          'No additional details'}
+                      </span>
                     </div>
-                  ))
-                )}
+                  </div>
+                ))}
               </div>
             )}
-          </div>
+          </EngagementDialog>
 
           {/* Live-share note */}
           {shared && m.client && (

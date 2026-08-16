@@ -113,7 +113,13 @@ export class EngagementApiServiceStack extends cdk.Stack {
         sid: 'AllowCloudWatchLogsForThisLogGroupOnly',
         effect: iam.Effect.ALLOW,
         principals: [new iam.ServicePrincipal(`logs.${cfg.region}.amazonaws.com`)],
-        actions: ['kms:Encrypt*', 'kms:Decrypt*', 'kms:ReEncrypt*', 'kms:GenerateDataKey*', 'kms:Describe*'],
+        actions: [
+          'kms:Encrypt*',
+          'kms:Decrypt*',
+          'kms:ReEncrypt*',
+          'kms:GenerateDataKey*',
+          'kms:Describe*',
+        ],
         resources: ['*'],
         conditions: {
           ArnLike: {
@@ -299,6 +305,16 @@ export function engagementApiTaskEnvironment(
     ENGAGEMENT_EXTERNAL_ACTIONS: 'disabled',
     ENGAGEMENT_CALLBACKS_ENABLED: 'false',
     ENGAGEMENT_RECALL_WEBHOOK_ENABLED: 'false',
+
+    // Bounded Outreach V3 authority. Global Engagement external actions and
+    // background ownership remain disabled; runtime policy recognizes only the
+    // dedicated V3 action classes and the one full-generation worker.
+    OUTREACH_V3_STATE_ENABLED: 'true',
+    OUTREACH_V3_REASONING_ENABLED: 'true',
+    OUTREACH_V3_GENERATION_ENABLED: 'true',
+    OUTREACH_V3_DRAFTS_ENABLED: 'true',
+    OUTREACH_V3_SEND_ENABLED: 'true',
+    OUTREACH_V3_FULL_GENERATION_ENABLED: 'true',
 
     AWS_REGION_DEFAULT: cfg.region,
 

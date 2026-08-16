@@ -12,14 +12,8 @@ import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
 import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
 import { MeetingCapturePersistenceService } from '../meeting-capture/meeting-capture-persistence.service.js';
-import {
-  NotetakerModule,
-  RAW_MEETING_BOT_PROVIDER,
-} from './notetaker/notetaker.module.js';
-import {
-  MEETING_BOT_PROVIDER,
-  type MeetingBotProvider,
-} from './notetaker/meeting-bot.provider.js';
+import { NotetakerModule, RAW_MEETING_BOT_PROVIDER } from './notetaker/notetaker.module.js';
+import { MEETING_BOT_PROVIDER, type MeetingBotProvider } from './notetaker/meeting-bot.provider.js';
 import { EngagementController } from './engagement.controller.js';
 import { ClientAssociationService } from './client-association.service.js';
 import { EngagementAiService } from './engagement-ai.service.js';
@@ -112,10 +106,8 @@ import {
     { provide: RAW_MICROSOFT_GRAPH_SYNC_SERVICE, useClass: MicrosoftGraphSyncService },
     {
       provide: MicrosoftGraphSyncService,
-      useFactory: (
-        raw: MicrosoftGraphSyncService,
-        runtime: EngagementRuntimePolicyService,
-      ) => guardMicrosoftGraphSyncService(raw, runtime),
+      useFactory: (raw: MicrosoftGraphSyncService, runtime: EngagementRuntimePolicyService) =>
+        guardMicrosoftGraphSyncService(raw, runtime),
       inject: [RAW_MICROSOFT_GRAPH_SYNC_SERVICE, EngagementRuntimePolicyService],
     },
     { provide: RAW_MICROSOFT_OAUTH_SERVICE, useClass: MicrosoftOAuthService },
@@ -139,7 +131,11 @@ import {
         guardGoogleOAuthService(raw, runtime),
       inject: [RAW_GOOGLE_OAUTH_SERVICE, EngagementRuntimePolicyService],
     },
-    { provide: RAW_GMAIL_SEND_SERVICE, useClass: GmailSendService },
+    {
+      provide: RAW_GMAIL_SEND_SERVICE,
+      useFactory: (rawToken: GoogleTokenService) => new GmailSendService(rawToken),
+      inject: [RAW_GOOGLE_TOKEN_SERVICE],
+    },
     {
       provide: GmailSendService,
       useFactory: (raw: GmailSendService, runtime: EngagementRuntimePolicyService) =>

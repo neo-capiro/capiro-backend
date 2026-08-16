@@ -1,0 +1,227 @@
+.engagement-dialog-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--uui-scrim, rgba(16, 24, 40, 0.36));
+  backdrop-filter: blur(2px);
+  animation: engagement-dialog-fade 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.engagement-dialog {
+  width: min(var(--engagement-dialog-width, 620px), 100%);
+  max-height: min(90vh, 900px);
+  max-height: min(90dvh, 900px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--uui-radius-card, 12px);
+  background: var(--uui-white, #fff);
+  color: var(--uui-gray-900, #101828);
+  font-family: var(--uui-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
+  box-shadow:
+    0 24px 48px -12px rgba(16, 24, 40, 0.28),
+    0 0 0 1px rgba(16, 24, 40, 0.04);
+  animation: engagement-dialog-pop 160ms cubic-bezier(0.2, 0, 0, 1);
+  outline: none;
+}
+
+.engagement-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 24px 18px;
+  border-bottom: 1px solid var(--uui-gray-200, #eaecf0);
+}
+.engagement-dialog__heading {
+  min-width: 0;
+}
+.engagement-dialog__eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--uui-gray-400, #98a2b3);
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  line-height: 18px;
+  text-transform: uppercase;
+}
+.engagement-dialog__heading h2 {
+  margin: 0;
+  color: var(--uui-gray-900, #101828);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 28px;
+}
+.engagement-dialog__heading p {
+  margin: 5px 0 0;
+  color: var(--uui-gray-600, #475467);
+  font-size: 14px;
+  line-height: 20px;
+  text-wrap: pretty;
+}
+.engagement-dialog__close {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--uui-gray-500, #667085);
+  cursor: pointer;
+}
+.engagement-dialog__close:hover {
+  background: var(--uui-gray-50, #f9fafb);
+  color: var(--uui-gray-700, #344054);
+}
+.engagement-dialog__close:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.engagement-dialog__body {
+  min-height: 0;
+  overflow: auto;
+  padding: 22px 24px 26px;
+}
+.engagement-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--uui-gray-200, #eaecf0);
+  background: var(--uui-gray-25, #fdfdfd);
+}
+.engagement-dialog :is(button, input, select, textarea, a):focus-visible {
+  outline: 2px solid var(--uui-focus-ring, #717bbc);
+  outline-offset: 2px;
+}
+.engagement-dialog__field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.engagement-dialog__field-grid > .is-full {
+  grid-column: 1 / -1;
+}
+.engagement-dialog__field {
+  display: grid;
+  gap: 6px;
+  color: var(--uui-gray-700, #344054);
+  font-size: 13px;
+  font-weight: 600;
+}
+.engagement-dialog__field small {
+  color: var(--uui-gray-500, #667085);
+  font-weight: 400;
+}
+.engagement-dialog__field :is(input, select, textarea) {
+  width: 100%;
+  border: 0;
+  border-radius: var(--uui-radius-control, 8px);
+  background: var(--uui-white, #fff);
+  box-shadow: var(--uui-shadow-input, inset 0 0 0 1px #d0d5dd, 0 1px 2px rgba(16, 24, 40, 0.05));
+  color: var(--uui-gray-900, #101828);
+  font: inherit;
+  font-weight: 400;
+  padding: 10px 12px;
+}
+.engagement-dialog__field textarea {
+  resize: vertical;
+  line-height: 1.55;
+}
+.engagement-dialog__list {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--uui-gray-200, #eaecf0);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.engagement-dialog__list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--uui-gray-200, #eaecf0);
+}
+.engagement-dialog__list-row:last-child {
+  border-bottom: 0;
+}
+.engagement-dialog__list-row > div {
+  min-width: 0;
+}
+.engagement-dialog__list-row strong,
+.engagement-dialog__list-row span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.engagement-dialog__list-row strong {
+  color: var(--uui-gray-900, #101828);
+  font-size: 14px;
+}
+.engagement-dialog__list-row span {
+  color: var(--uui-gray-500, #667085);
+  font-size: 12px;
+}
+
+@keyframes engagement-dialog-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes engagement-dialog-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .engagement-dialog-layer {
+    align-items: end;
+    padding: 0;
+  }
+  .engagement-dialog {
+    width: 100%;
+    max-height: 94dvh;
+    border-radius: 16px 16px 0 0;
+  }
+  .engagement-dialog__header {
+    padding: 18px 18px 16px;
+  }
+  .engagement-dialog__body {
+    padding: 18px;
+  }
+  .engagement-dialog__footer {
+    padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+  }
+  .engagement-dialog__field-grid {
+    grid-template-columns: 1fr;
+  }
+  .engagement-dialog__field-grid > .is-full {
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .engagement-dialog-layer,
+  .engagement-dialog {
+    animation: none;
+  }
+}

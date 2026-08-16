@@ -1,12 +1,40 @@
 import { useEffect, useState } from 'react';
 import { App } from 'antd';
 import { FileText, Link as LinkIcon, TriangleAlert } from 'lucide-react';
-import { useApprovePrep, useGeneratePrep } from './meetings-api.js';
+import { useApprovePrep, useGeneratePrep, useUpdatePrep } from './meetings-api.js';
 import { exportArtifactPdf } from './meetings-print.js';
 import { formatDayTitle } from './meetings-format.js';
 import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
 import { ArtifactActionBar, GeneratingState } from './tab-kit.js';
 import type { Meeting } from './meetings-types.js';
+import { EngagementDialog } from './EngagementDialog.js';
+
+interface PrepEditValues {
+  summary: string;
+  agenda: string;
+  talkingPoints: string;
+  risks: string;
+  followUps: string;
+  emailEvidence: string;
+}
+
+function prepEditValues(prep: Meeting['preps'][number]): PrepEditValues {
+  return {
+    summary: prep.summary ?? '',
+    agenda: prep.agenda.join('\n'),
+    talkingPoints: prep.talkingPoints.join('\n'),
+    risks: prep.risks.join('\n'),
+    followUps: prep.followUps.join('\n'),
+    emailEvidence: prep.emailEvidence.join('\n'),
+  };
+}
+
+function splitLines(value: string): string[] {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
 
 /** Prep tab — a port of the prototype PrepPanel. Meri drafts prep; the user
  *  refines (add context), regenerates, exports, and approves. */
@@ -15,8 +43,25 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
   const prep = meeting.preps[0] ?? null;
   const generate = useGeneratePrep();
   const approve = useApprovePrep();
+  const update = useUpdatePrep();
   const [refine, setRefine] = useState('');
-  useEffect(() => setRefine(''), [meeting.id]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editValues, setEditValues] = useState<PrepEditValues>(() =>
+    prep
+      ? prepEditValues(prep)
+      : {
+          summary: '',
+          agenda: '',
+          talkingPoints: '',
+          risks: '',
+          followUps: '',
+          emailEvidence: '',
+        },
+  );
+  useEffect(() => {
+    setRefine('');
+    setEditOpen(false);
+  }, [meeting.id]);
 
   const runGenerate = async (additionalContext?: string) => {
     await generate.mutateAsync({ meetingId: meeting.id, additionalContext });
@@ -226,6 +271,10 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         onRegenerate={() => void runGenerate(refine.trim() || undefined)}
         regenerating={generate.isPending}
         regenerateDisabled={!aiConfigured}
+        onEdit={() => {
+          setEditValues(prepEditValues(prep));
+          setEditOpen(true);
+        }}
         onExport={onExport}
         approved={prep.status === 'approved'}
         shared={prep.sharedAt != null}
@@ -235,6 +284,115 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         }}
         approving={approve.isPending}
       />
+      <EngagementDialog
+        open={editOpen}
+        eyebrow="Meeting · secondary actions"
+        title="Edit prep"
+        description="Update the approved working content without changing the meeting record itself."
+        width={720}
+        busy={update.isPending}
+        dirty={JSON.stringify(editValues) !== JSON.stringify(prepEditValues(prep))}
+        onClose={() => setEditOpen(false)}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn"
+              disabled={update.isPending}
+              onClick={() => setEditOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-accent"
+              disabled={update.isPending}
+              onClick={async () => {
+                try {
+                  await update.mutateAsync({
+                    prepId: prep.id,
+                    summary: editValues.summary.trim() || null,
+                    agenda: splitLines(editValues.agenda),
+                    talkingPoints: splitLines(editValues.talkingPoints),
+                    risks: splitLines(editValues.risks),
+                    followUps: splitLines(editValues.followUps),
+                    emailEvidence: splitLines(editValues.emailEvidence),
+                  });
+                  message.success('Prep updated.');
+                  setEditOpen(false);
+                } catch {
+                  message.error('Could not update the prep.');
+                }
+              }}
+            >
+              {update.isPending ? 'Saving…' : 'Save prep'}
+            </button>
+          </>
+        }
+      >
+        <div className="engagement-dialog__field-grid">
+          <label className="engagement-dialog__field is-full">
+            Summary
+            <textarea
+              rows={4}
+              value={editValues.summary}
+              onChange={(event) =>
+                setEditValues((current) => ({ ...current, summary: event.target.value }))
+              }
+            />
+          </label>
+          <label className="engagement-dialog__field">
+            Agenda <small>One item per line</small>
+            <textarea
+              rows={7}
+              value={editValues.agenda}
+              onChange={(event) =>
+                setEditValues((current) => ({ ...current, agenda: event.target.value }))
+              }
+            />
+          </label>
+          <label className="engagement-dialog__field">
+            Talking points <small>One item per line</small>
+            <textarea
+              rows={7}
+              value={editValues.talkingPoints}
+              onChange={(event) =>
+                setEditValues((current) => ({ ...current, talkingPoints: event.target.value }))
+              }
+            />
+          </label>
+          <label className="engagement-dialog__field">
+            Watch-outs <small>One item per line</small>
+            <textarea
+              rows={6}
+              value={editValues.risks}
+              onChange={(event) =>
+                setEditValues((current) => ({ ...current, risks: event.target.value }))
+              }
+            />
+          </label>
+          <label className="engagement-dialog__field">
+            Follow-ups <small>One item per line</small>
+            <textarea
+              rows={6}
+              value={editValues.followUps}
+              onChange={(event) =>
+                setEditValues((current) => ({ ...current, followUps: event.target.value }))
+              }
+            />
+          </label>
+          <label className="engagement-dialog__field is-full">
+            Email evidence <small>One source note per line</small>
+            <textarea
+              rows={5}
+              value={editValues.emailEvidence}
+              onChange={(event) =>
+                setEditValues((current) => ({ ...current, emailEvidence: event.target.value }))
+              }
+            />
+          </label>
+        </div>
+      </EngagementDialog>
     </div>
   );
 }

@@ -1,0 +1,255 @@
+/*
+ * Engagement UI closeout.
+ *
+ * The canonical Meetings/Library/Reports code stays shared across app.capiro.ai
+ * and os.capiro.ai. This layer maps that existing code onto the vNext Untitled UI
+ * token system without forking the feature implementation.
+ */
+.engagement-page.redesign {
+  --engagement-ink: var(--uui-gray-900, #101828);
+  --engagement-ink-2: var(--uui-gray-600, #475467);
+  --engagement-ink-3: var(--uui-gray-500, #667085);
+  --engagement-border: var(--uui-gray-200, #eaecf0);
+  --engagement-border-strong: var(--uui-gray-300, #d0d5dd);
+  --engagement-surface: var(--uui-white, #fff);
+  --engagement-canvas: var(--uui-gray-50, #f9fafb);
+  --engagement-accent: var(--uui-brand-solid, #3e4784);
+  --engagement-accent-hover: var(--uui-brand-hover, #363f72);
+  --engagement-accent-soft: var(--uui-brand-tint, #eaecf5);
+  --engagement-success: var(--uui-success-fg, #027a48);
+  min-height: 100%;
+  color: var(--engagement-ink);
+  font-family: var(--uui-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
+  background: var(--engagement-canvas);
+}
+
+.engagement-page.redesign .eng-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px 28px 0;
+  background: var(--engagement-surface);
+}
+.engagement-page.redesign .eng-page-h1 {
+  margin: 0;
+  color: var(--engagement-ink);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 38px;
+}
+.engagement-page.redesign .engagement-tabs > .ant-tabs-nav {
+  min-height: 62px;
+  margin: 0;
+  padding: 10px 28px 0;
+  border-bottom: 1px solid var(--engagement-border);
+  background: var(--engagement-surface);
+}
+.engagement-page.redesign .engagement-tabs > .ant-tabs-nav::before {
+  border-bottom: 0;
+}
+.engagement-page.redesign .engagement-tabs .ant-tabs-tab {
+  margin: 0 18px 0 0;
+  padding: 12px 0 14px;
+  color: var(--engagement-ink-3);
+  font-size: 14px;
+  font-weight: 500;
+}
+.engagement-page.redesign .engagement-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--engagement-ink);
+  font-weight: 600;
+}
+.engagement-page.redesign .engagement-tabs .ant-tabs-ink-bar {
+  background: var(--engagement-ink);
+}
+.engagement-page.redesign .engagement-tabs > .ant-tabs-content-holder {
+  padding: 22px 28px 36px;
+  background: var(--engagement-canvas);
+}
+
+.engagement-page.redesign :is(.btn, .ant-btn) {
+  min-height: 38px;
+  border-radius: var(--uui-radius-control, 8px);
+  font-weight: 600;
+  box-shadow: var(--uui-shadow-button, 0 1px 2px rgba(16, 24, 40, 0.05));
+}
+.engagement-page.redesign :is(.btn-accent, .ant-btn-primary) {
+  border-color: var(--uui-btn-metal-edge, #0e141c) !important;
+  background: var(--uui-btn-metal-face, linear-gradient(180deg, #39424f, #0e141c)) !important;
+  color: var(--uui-btn-metal-fg, #fff) !important;
+  box-shadow: var(--uui-btn-metal-shadow) !important;
+}
+.engagement-page.redesign :is(.btn-accent, .ant-btn-primary):hover:not(:disabled) {
+  background: var(--uui-btn-metal-face-hover, linear-gradient(180deg, #4a5462, #161d26)) !important;
+}
+.engagement-page.redesign :is(button, input, select, textarea, a):focus-visible {
+  outline: 2px solid var(--uui-focus-ring, #717bbc);
+  outline-offset: 2px;
+}
+
+.engagement-page.redesign .engagement-meetings-v2,
+.engagement-page.redesign .engagement-library-view {
+  border-radius: var(--uui-radius-card, 12px);
+}
+.engagement-page.redesign .engagement-meetings-v2 > div:first-child,
+.engagement-page.redesign .card {
+  box-shadow: var(--uui-shadow-card, 0 0 0 1px #eaecf0, 0 1px 3px rgba(16, 24, 40, 0.1));
+}
+.engagement-page.redesign .mtg-lib-row {
+  transition: background 120ms ease;
+}
+.engagement-page.redesign .mtg-lib-row:hover {
+  background: var(--uui-gray-50, #f9fafb) !important;
+}
+
+.engagement-disclosure-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--engagement-ink-2, #475467);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.engagement-disclosure-button:hover {
+  background: var(--uui-gray-50, #f9fafb);
+  color: var(--engagement-ink, #101828);
+}
+.engagement-client-assignment-trigger {
+  max-width: 260px;
+}
+.engagement-client-assignment-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.engagement-attendee-avatar {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--engagement-accent-soft, #eaecf5);
+  color: var(--engagement-accent, #3e4784);
+  font-size: 12px;
+  font-weight: 700;
+}
+.engagement-dialog-empty {
+  padding: 28px;
+  border: 1px dashed var(--engagement-border-strong, #d0d5dd);
+  border-radius: 10px;
+  color: var(--engagement-ink-3, #667085);
+  text-align: center;
+}
+.engagement-source-upload {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 160px;
+  padding: 24px;
+  border: 1.5px dashed var(--engagement-border-strong, #d0d5dd);
+  border-radius: 10px;
+  background: var(--uui-gray-50, #f9fafb);
+  color: var(--engagement-ink-3, #667085);
+  text-align: center;
+  cursor: pointer;
+}
+.engagement-source-upload:hover {
+  border-color: var(--engagement-accent, #3e4784);
+  background: var(--engagement-accent-soft, #eaecf5);
+}
+
+/* The existing AntD creation/report modals remain real shared code. Match them to
+   the same dialog geometry rather than replacing their behavior. */
+.redesign .ant-modal-content {
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--uui-radius-card, 12px);
+  box-shadow: 0 24px 48px -12px rgba(16, 24, 40, 0.28);
+}
+.redesign .ant-modal-header {
+  margin: 0;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--uui-gray-200, #eaecf0);
+}
+.redesign .ant-modal-title {
+  color: var(--uui-gray-900, #101828);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+}
+.redesign .ant-modal-body {
+  padding: 22px 24px 26px;
+}
+.redesign .ant-modal-footer {
+  margin: 0;
+  padding: 14px 24px;
+  border-top: 1px solid var(--uui-gray-200, #eaecf0);
+  background: var(--uui-gray-25, #fdfdfd);
+}
+.redesign .ant-modal-close {
+  top: 16px;
+  right: 16px;
+  border-radius: 8px;
+}
+.redesign :is(.ant-input, .ant-input-affix-wrapper, .ant-select-selector, .ant-picker) {
+  border-color: transparent !important;
+  border-radius: var(--uui-radius-control, 8px) !important;
+  box-shadow: var(--uui-shadow-input) !important;
+}
+
+@media (max-width: 1180px) {
+  .engagement-page.redesign .engagement-tabs > .ant-tabs-content-holder {
+    padding: 18px 20px 28px;
+  }
+  .engagement-page.redesign .eng-head,
+  .engagement-page.redesign .engagement-tabs > .ant-tabs-nav {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}
+@media (max-width: 760px) {
+  .engagement-page.redesign .eng-head {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 18px 16px 0;
+  }
+  .engagement-page.redesign .eng-page-h1 {
+    font-size: 26px;
+    line-height: 34px;
+  }
+  .engagement-page.redesign .engagement-tabs > .ant-tabs-nav {
+    padding: 8px 16px 0;
+  }
+  .engagement-page.redesign .engagement-tabs > .ant-tabs-content-holder {
+    padding: 14px 12px 24px;
+  }
+  .engagement-page.redesign .engagement-tab-actions {
+    width: 100%;
+  }
+  .redesign .ant-modal {
+    max-width: 100%;
+    margin: 0;
+    top: auto;
+    padding: 0;
+  }
+  .redesign .ant-modal-content {
+    border-radius: 16px 16px 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .engagement-page.redesign *,
+  .engagement-page.redesign *::before,
+  .engagement-page.redesign *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
