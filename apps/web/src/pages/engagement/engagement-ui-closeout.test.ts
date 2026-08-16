@@ -1,9 +1,12 @@
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const repo = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..');
+// Resolve from the module path itself. `new URL('.', import.meta.url)` does not
+// reliably yield a file: URL under this vitest/jsdom setup, which made every
+// assertion in this suite fail before it ran.
+const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const source = (path: string) => readFileSync(resolve(repo, path), 'utf8');
 
 describe('Engagement UI closeout contract', () => {
