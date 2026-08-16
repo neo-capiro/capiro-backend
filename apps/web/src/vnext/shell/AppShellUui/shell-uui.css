@@ -1,4 +1,7 @@
 /*
+ * ============================================================================
+ * GLOBAL vNext SHELL CSS — TOP BAR + LEFT NAV (Neo Martinez directive)
+ * ============================================================================
  * The one global vNext shell — top bar + rail + bottom nav for every vnext
  * page, not just Dashboard (see index.tsx for the 2026-08 history). Scoped
  * under .capiro-vnext-root .capiro-vnext-uui so it can't collide with the
@@ -7,6 +10,16 @@
  * GlobalSearch/NotificationBell/ProfileMenu/MailboxSyncStatus) keep their
  * Capiro-native class names — this file overrides their look only inside
  * this scope, it does not fork them.
+ *
+ * 2026-08-16: the left-rail dropdown families (Directory / Intelligence /
+ * Engagement) expand INLINE below their parent row — never a white flyout to
+ * the right (the INLINE SUBMENU block below). The rail stays the v3 dark
+ * surface-chrome.
+ *
+ * DO NOT modify the left nav or top bar rules in this file unless the change
+ * is explicitly approved by Neo Martinez. This chrome is global and must look
+ * identical on every vNext page.
+ * ============================================================================
  */
 @import '../../foundations/untitled-ui-tokens.css';
 
@@ -276,6 +289,16 @@
   height: calc(100vh - var(--uui-topbar-h));
 }
 .capiro-vnext-root .capiro-vnext-uui .uui-rail__nav { display: flex; flex-direction: column; flex: 1; }
+/* "NAVIGATION" eyebrow above the rail list (hidden when collapsed). Part of
+   the 2026-08-16 inline-dropdown pass — DO NOT restyle without Neo's approval. */
+.capiro-vnext-root .capiro-vnext-uui .uui-rail__eyebrow {
+  font-size: 11px;
+  font-weight: var(--uui-weight-semibold);
+  letter-spacing: 0.08em;
+  color: var(--uui-chrome-icon-idle);
+  padding: 0 12px;
+  margin-bottom: 12px;
+}
 /* Nav item: flex, 12px gap, 9px 12px padding (11px collapsed), 2px bottom
    margin, 8px radius, 14px/500 label — idle is dimmed white-on-dark, active
    is a soft white-tint fill with full-white label+icon (no brand accent on
@@ -295,28 +318,27 @@
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-item--current .uui-nav-item__icon { color: var(--uui-chrome-label-active); }
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__icon { flex-shrink: 0; color: var(--uui-chrome-icon-idle); }
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-item__label { flex: 1; }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron { color: var(--uui-chrome-icon-idle); }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron { color: var(--uui-chrome-icon-idle); transition: transform 150ms cubic-bezier(.2,0,0,1); }
+/* The chevron points right when the family is collapsed and rotates 90deg
+   (points down) when open — the inline dropdown state cue. */
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-item__chevron[data-open] { transform: rotate(90deg); }
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-group { position: relative; }
-/* The flyout itself pops out into the canvas as a detached white popover —
-   unlike the rail it sits on, it's a "raised" surface, so it keeps the
-   light menu treatment (now shadow-menu instead of shadow-card). */
-.capiro-vnext-root .capiro-vnext-uui .uui-flyout {
-  position: absolute; left: calc(100% + 8px); top: 0; width: 260px; z-index: 30;
-  background: var(--uui-white); border-radius: var(--uui-radius-card); box-shadow: var(--uui-shadow-menu); padding: 6px;
-}
-.capiro-vnext-root .capiro-vnext-uui .uui-flyout__item { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 6px; text-decoration: none; color: var(--uui-gray-700); }
-.capiro-vnext-root .capiro-vnext-uui .uui-flyout__item:hover { background: var(--uui-gray-50); }
-.capiro-vnext-root .capiro-vnext-uui .uui-flyout__name { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-medium); color: var(--uui-gray-900); }
-.capiro-vnext-root .capiro-vnext-uui .uui-flyout__meta { font-size: 12px; color: var(--uui-gray-500); }
-.capiro-vnext-root .capiro-vnext-uui .uui-flyout__item--disabled { opacity: 0.6; }
-.capiro-vnext-root .capiro-vnext-uui .uui-flyout__tag { font-size: 11px; color: var(--uui-gray-400); }
 
-/* Persistent nested list while inside a family (Directory/Intelligence) —
-   the auto-expanded equivalent of the flyout, shown instead of it. Renders
-   inside the dark rail itself (not a detached popover), so — unlike the
-   flyout above — it needs the light-on-dark chrome treatment. */
+/* ============================================================================
+   INLINE SUBMENU (2026-08-16 — Neo Martinez directive)
+   Family children ALWAYS expand INSIDE the dark rail below their parent row.
+   There is intentionally NO .uui-flyout / no detached right-opening white
+   popover anymore — that was Neos complaint (menu opened to the right, white,
+   off-screen). The nested list reuses the v3 dark-chrome treatment; a thin
+   left rail groups the children under the parent, matching the target
+   screenshot. DO NOT change this without Neo Martinez's explicit approval.
+   ============================================================================ */
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-item--section { cursor: default; }
-.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested { display: flex; flex-direction: column; gap: 1px; padding-left: 30px; margin-top: 1px; }
+.capiro-vnext-root .capiro-vnext-uui .uui-nav-nested {
+  display: flex; flex-direction: column; gap: 1px;
+  margin-top: 1px; margin-bottom: 4px; margin-left: 23px; padding-left: 12px;
+  border-left: 1px solid var(--uui-chrome-divider);
+}
 .capiro-vnext-root .capiro-vnext-uui .uui-nav-nested-item {
   padding: 6px 12px; border-radius: 6px; font-size: 13px; color: var(--uui-chrome-label-idle); text-decoration: none;
 }

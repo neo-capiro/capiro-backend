@@ -24,7 +24,6 @@ import {
   type MailboxSyncViewModel,
 } from '../../adapters/legacy/useMailboxSyncStatus.js';
 import { ShellOverlayProvider, useShellOverlay } from '../overlay-manager.js';
-import { SHELL_NAV_DESCRIPTIONS } from '../nav-content.js';
 import { openMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import { Icon, NAV_ICON_BY_ROUTE_ID } from './icons.js';
 import './shell-uui.css';
@@ -54,13 +53,25 @@ function readCollapsed(): boolean {
 }
 
 /**
- * Directory/Intelligence families. While you're on one of a family's own
- * routes, its children render as a persistent, always-open nested list
- * instead of a click-to-open flyout — the equivalent of the Capiro-native
- * shell's ContextBar-area IntelligenceRail (`ContextBar/index.tsx`), which
- * this shell has no separate region for. Off-family, it's still a flyout for
- * discovery. Losing the persistent list going global was the one real
- * regression the shell-coupling audit found for LegiWatch.
+ * ============================================================================
+ * GLOBAL LEFT NAV — INLINE DROPDOWNS (Neo Martinez directive 2026-08-16)
+ * ============================================================================
+ * Directory / Intelligence / Engagement families ALWAYS expand INLINE below
+ * their parent row — NEVER as a white flyout positioned to the right of the
+ * rail. The 2026-08-16 target screenshot (dark rail, Meetings expanded inline
+ * under Engagement) is the canonical reference. The nested list reuses the
+ * v3 dark-chrome treatment; the active child is the soft white-tint fill.
+ *
+ * Behavior:
+ *   - While the current location is inside a family, that family is pinned
+ *     open (the child list is always visible) — same as the legacy
+ *     ContextBar-area IntelligenceRail this shell replaced.
+ *   - Off-family, clicking the parent row toggles the inline list.
+ *
+ * DO NOT modify this component, the rail markup, or the rail CSS unless the
+ * change is explicitly approved by Neo Martinez. The left nav and top bar are
+ * global chrome and must look identical on every vNext page.
+ * ============================================================================
  */
 function NavFlyout({ route }: { route: VNextRouteDefinition }) {
   const { isOpen, containerRef, toggle, close } = useShellOverlay(
@@ -73,7 +84,12 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
     (child) => child.path && location.pathname.startsWith(child.path),
   );
 
-  const childList = (variant: 'flyout' | 'nested') =>
+  // Pinned open while on a family route; otherwise the click toggles the
+  // inline list. Either way the children render INSIDE the rail below the
+  // parent row — there is no detached right-opening flyout anymore.
+  const expanded = hasCurrentChild || isOpen;
+
+  const childList = () =>
     children.map((child) => {
       // Every family here so far (Directory, Intelligence) has disjoint sibling
       // paths, so React Router's default prefix match ("/foo" matches
@@ -91,68 +107,32 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
           role="menuitem"
           to={child.path}
           end={end}
-          className={variant === 'nested' ? 'uui-nav-nested-item' : 'uui-flyout__item'}
+          className="uui-nav-nested-item"
           onClick={close}
         >
-          {variant === 'nested' ? (
-            <span className="uui-nav-nested-item__label">{child.label}</span>
-          ) : (
-            <>
-              <span className="uui-flyout__name">{child.label}</span>
-              {SHELL_NAV_DESCRIPTIONS[child.id] ? (
-                <span className="uui-flyout__meta">{SHELL_NAV_DESCRIPTIONS[child.id]}</span>
-              ) : null}
-            </>
-          )}
+          <span className="uui-nav-nested-item__label">{child.label}</span>
         </NavLink>
       ) : (
         <div
           key={child.id}
           role="menuitem"
           aria-disabled="true"
-          className={
-            variant === 'nested'
-              ? 'uui-nav-nested-item uui-nav-nested-item--disabled'
-              : 'uui-flyout__item uui-flyout__item--disabled'
-          }
+          className="uui-nav-nested-item uui-nav-nested-item--disabled"
         >
-          {variant === 'nested' ? (
-            <span className="uui-nav-nested-item__label">{child.label}</span>
-          ) : (
-            <>
-              <span className="uui-flyout__name">{child.label}</span>
-              <span className="uui-flyout__tag">Not available</span>
-            </>
-          )}
+          <span className="uui-nav-nested-item__label">{child.label}</span>
         </div>
       );
     });
-
-  if (hasCurrentChild) {
-    return (
-      <div className="uui-nav-group">
-        <div className="uui-nav-item uui-nav-item--current uui-nav-item--section">
-          <Icon
-            name={NAV_ICON_BY_ROUTE_ID[route.id] ?? 'grid'}
-            size={20}
-            className="uui-nav-item__icon"
-          />
-          <span className="uui-nav-item__label">{route.label}</span>
-        </div>
-        <div className="uui-nav-nested" role="group" aria-label={route.label}>
-          {childList('nested')}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="uui-nav-group" ref={containerRef}>
       <button
         ref={triggerRef}
         type="button"
-        className="uui-nav-item"
-        aria-expanded={isOpen}
+        className={`uui-nav-item uui-nav-item--trigger${
+          hasCurrentChild ? ' uui-nav-item--current' : ''
+        }`}
+        aria-expanded={expanded}
         aria-haspopup="menu"
         onClick={() => toggle(triggerRef.current)}
       >
@@ -162,12 +142,19 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
           className="uui-nav-item__icon"
         />
         <span className="uui-nav-item__label">{route.label}</span>
-        <Icon name="chevronRight" size={16} className="uui-nav-item__chevron" />
+        {/* chevronRight rotates 90deg (points down) when the family is open —
+            the CSS transition on .uui-nav-item__chevron animates it. */}
+        <Icon
+          name="chevronRight"
+          size={16}
+          className="uui-nav-item__chevron"
+          data-open={expanded || undefined}
+        />
       </button>
 
-      {isOpen ? (
-        <div className="uui-flyout" role="menu" aria-label={route.label}>
-          {childList('flyout')}
+      {expanded ? (
+        <div className="uui-nav-nested" role="menu" aria-label={route.label}>
+          {childList()}
         </div>
       ) : null}
     </div>
@@ -323,6 +310,7 @@ export function AppShellUuiView({
           data-collapsed={collapsed || undefined}
           aria-label="Primary navigation"
         >
+          {!collapsed ? <div className="uui-rail__eyebrow">NAVIGATION</div> : null}
           <nav className="uui-rail__nav">
             {navigation.primary.map((route) => (
               <NavRow key={route.id} route={route} />
@@ -422,6 +410,9 @@ export function AppShellUuiView({
 }
 
 /**
+ * ============================================================================
+ * GLOBAL vNext SHELL — TOP BAR + LEFT NAV (Neo Martinez directive 2026-08-16)
+ * ============================================================================
  * The one global vNext shell (Figma `Capiro Dashboard - Untitled UI.dc.html`,
  * top bar/rail geometry from `748:2503`). Replaces VNextShellScaffold
  * (`shell/AppShell/index.tsx`) as of 2026-08 — Neo: "the top nav and left nav
@@ -429,6 +420,16 @@ export function AppShellUuiView({
  * Capiro-native shell components are left in place (VNextShellVisual.tsx's
  * harness screens still use them) but nothing in production mounts them
  * anymore; see VNextApp.tsx.
+ *
+ * 2026-08-16: the left-rail dropdown families (Directory / Intelligence /
+ * Engagement) now expand INLINE below their parent row — never a white
+ * flyout to the right — matching the target screenshot Neo attached. See the
+ * NavFlyout comment and the rail rules in shell-uui.css.
+ *
+ * DO NOT modify the left nav or top bar — markup, tokens, or CSS — unless the
+ * change is explicitly approved by Neo Martinez. This chrome is global and
+ * must look identical on every vNext page.
+ * ============================================================================
  *
  * Behavior is 100% reused, not reimplemented: useShellNavigation/Identity/
  * Notifications/ClientContext, useMailboxSyncStatus (via
