@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import type { Client, ClientAttachment } from '../../../../pages/clients/clientTypes.js';
@@ -31,9 +31,19 @@ import { FILES, FOLDERS } from '../portfolio-fixtures.js';
  *    folder-PATCH pipeline the canonical `ClientCrmFiles` surface uses
  *    (same query key, so both invalidate together and no second copy of the
  *    stored object is ever created).
- *  - The folder tree, folder counts, the storage meter and the smart-link
- *    provenance copy are designed UI (§11) with no per-client backend — they
- *    render the FOLDERS fixture in every mode.
+ *  - The folder tree and its counts are real (wire-audit "3 Compose extend"
+ *    items 2-3): `GET /api/clients/:id/files/folders` groups the client's
+ *    attachments by folder, so every row is a folder that genuinely holds
+ *    files, plus Unfiled. Folders in this product are labels on attachments —
+ *    there is no folder table and no nesting — so the tree renders one flat
+ *    level under the client root rather than inventing a hierarchy. The
+ *    FOLDERS fixture renders only while that query is loading or errored.
+ *  - "New folder" therefore cannot create an empty folder server-side. It
+ *    either files the current selection into the new label (a real move
+ *    PATCH, which is what makes the folder exist) or opens a draft folder you
+ *    can upload into — labelled as such until a file lands in it.
+ *  - The storage meter and the smart-link provenance copy are designed UI
+ *    (§11) with no per-client backend.
  *  - `All source links healthy` is a designed status pill (UI-only).
  */
 
@@ -90,16 +100,57 @@ const toneOf = (ui: string): PillTone => TONE_OF[ui] ?? 'gray';
 
 /** FOLDERS rows optionally carry kids/open — widen the union for access. */
 type FolderFixture = (typeof FOLDERS)[number] & { kids?: boolean; open?: boolean };
-const FALLBACK_FOLDER: FolderFixture = {
-  id: 'root',
-  label: 'Overland AI',
-  count: 28,
-  subs: 7,
-  depth: 0,
-  kids: true,
-  open: true,
-  crumb: 'Overland AI',
-};
+
+/** What `GET /api/clients/:id/files/folders` returns (ClientFilesService.folders). */
+interface FolderGroup {
+  folder: string | null;
+  count: number;
+}
+
+/** A row in the folder tree, real or fixture. */
+interface FolderTreeNode {
+  id: string;
+  label: string;
+  count: number;
+  subs: number;
+  depth: number;
+  kids?: boolean;
+  open?: boolean;
+  crumb: string;
+  /**
+   * The attachment folder this row scopes to: a real label, or `null` for
+   * Unfiled. `undefined` on the root row, which scopes to everything.
+   */
+  folder?: string | null;
+  /** Named in this session but not yet persisted — no file carries the label. */
+  draft?: boolean;
+}
+
+/** Folder labels are free text; the backend never case-folds, so neither do we
+ *  when comparing — but a duplicate that differs only in case is still a
+ *  duplicate to a human, so name checks use this. */
+const sameFolder = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** Cannot collide with a real label: the backend trims, so this is unreachable. */
+const UNFILED_ID = '  unfiled  ';
+/** Matches the `@MaxLength(120)` on the move DTO. */
+const FOLDER_NAME_MAX = 120;
+
+function fixtureTree(): FolderTreeNode[] {
+  return (FOLDERS as FolderFixture[]).map((f) => ({
+    id: f.id,
+    label: f.label,
+    count: f.count,
+    subs: f.subs,
+    depth: f.depth,
+    ...(f.kids === undefined ? {} : { kids: f.kids }),
+    ...(f.open === undefined ? {} : { open: f.open }),
+    crumb: f.crumb,
+    // Fixture rows below the root also scope real attachments by label, which
+    // is what the tab did before the tree was real.
+    ...(f.id === 'root' ? {} : { folder: f.label }),
+  }));
+}
 
 /* ── fixture + real-row mapping ───────────────────────────────────────────── */
 
@@ -207,7 +258,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const uploadFolderRef = useRef<string | null>(null);
 
-  const [folderId, setFolderId] = useState<string>('fy27');
+  const [folderId, setFolderId] = useState<string>('root');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
   const [sort, setSort] = useState<SortKey>('modified');
@@ -216,8 +267,13 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
   const [moving, setMoving] = useState<{ ids: string[]; count: number } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [menuRowId, setMenuRowId] = useState<string | null>(null);
+  /** Open with the ids to file into the new folder; `[]` creates a draft. */
+  const [creatingFolder, setCreatingFolder] = useState<{ ids: string[] } | null>(null);
+  /** Folders named here but not yet holding a file — see the file docblock. */
+  const [draftFolders, setDraftFolders] = useState<string[]>([]);
 
   const attachmentsKey = ['client-attachments', client.id];
+  const foldersKey = ['client-file-folders', client.id];
 
   // Same key as the canonical profile surface — one shared cache entry.
   const filesQuery = useQuery<ClientAttachment[]>({
@@ -230,18 +286,30 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
       ).data,
   });
 
+  // Real folder tree (item 2). Grouped server-side, so the counts are the
+  // client's whole file room, not just the page of attachments in hand.
+  const foldersQuery = useQuery<FolderGroup[]>({
+    queryKey: foldersKey,
+    queryFn: async () => (await api.get<FolderGroup[]>(`/api/clients/${client.id}/files/folders`)).data,
+  });
+
   const loaded = filesQuery.data !== undefined && !filesQuery.isError;
   const real = loaded && filesQuery.data!.length > 0;
   const genuinelyEmpty = loaded && filesQuery.data!.length === 0;
+  const realTree = foldersQuery.data !== undefined && !foldersQuery.isError;
 
   const move = useMutation({
     mutationFn: async ({ ids, folder }: { ids: string[]; folder: string | null }) => {
       await Promise.all(ids.map((id) => api.patch(`/api/clients/${client.id}/files/${id}/folder`, { folder })));
+      return folder;
     },
-    onSuccess: () => {
+    onSuccess: (folder) => {
       setMoving(null);
       setSelected(new Set());
+      // The label now exists on real rows, so it is no longer a draft.
+      if (folder) setDraftFolders((prev) => prev.filter((name) => !sameFolder(name, folder)));
       void qc.invalidateQueries({ queryKey: attachmentsKey });
+      void qc.invalidateQueries({ queryKey: foldersKey });
     },
   });
 
@@ -250,14 +318,96 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
     onSuccess: () => {
       setDeletingId(null);
       void qc.invalidateQueries({ queryKey: attachmentsKey });
+      void qc.invalidateQueries({ queryKey: foldersKey });
     },
   });
 
-  const folders = FOLDERS as FolderFixture[];
-  const current = folders.find((f) => f.id === folderId) ?? FALLBACK_FOLDER;
+  /**
+   * The tree. Folders are labels on attachments — there is no folder table and
+   * no nesting anywhere in this product (`ClientFilesService.folders` groups by
+   * a single `folder` column; the move DTO takes one flat string) — so real
+   * folders render as one level under the client root rather than as the
+   * design's invented three-deep hierarchy. Unfiled appears only when files
+   * are actually unfiled.
+   */
+  const folders: FolderTreeNode[] = useMemo(() => {
+    if (!realTree) return fixtureTree();
+    const groups = foldersQuery.data ?? [];
+    const named = groups
+      .filter((group): group is { folder: string; count: number } => Boolean(group.folder?.trim()))
+      .map((group) => ({ label: group.folder.trim(), count: group.count, draft: false }));
+    const drafts = draftFolders
+      .filter((name) => !named.some((entry) => sameFolder(entry.label, name)))
+      .map((name) => ({ label: name, count: 0, draft: true }));
+    const children = [...named, ...drafts].sort((a, b) => a.label.localeCompare(b.label));
+    const unfiled = groups.find((group) => !group.folder?.trim())?.count ?? 0;
+    const total = groups.reduce((sum, group) => sum + group.count, 0);
+
+    const rows: FolderTreeNode[] = [
+      {
+        id: 'root',
+        label: client.name,
+        count: total,
+        subs: children.length,
+        depth: 0,
+        kids: children.length > 0,
+        open: true,
+        crumb: client.name,
+      },
+      ...children.map((entry) => ({
+        id: entry.label,
+        label: entry.label,
+        count: entry.count,
+        subs: 0,
+        depth: 1,
+        crumb: `${client.name} / ${entry.label}`,
+        folder: entry.label,
+        draft: entry.draft,
+      })),
+    ];
+    if (unfiled > 0) {
+      rows.push({
+        id: UNFILED_ID,
+        label: 'Unfiled',
+        count: unfiled,
+        subs: 0,
+        depth: 1,
+        crumb: `${client.name} / Unfiled`,
+        folder: null,
+      });
+    }
+    return rows;
+  }, [realTree, foldersQuery.data, draftFolders, client.name]);
+
+  const current = folders.find((f) => f.id === folderId) ?? folders[0]!;
   const folderNodes: FolderNode[] = folders
-    .filter((f) => f.id !== 'root')
+    .filter((f) => f.id !== 'root' && f.id !== UNFILED_ID)
     .map((f) => ({ label: f.label, depth: f.depth, count: f.count }));
+
+  /**
+   * Does a row belong to the selected folder? Fixture file rows carry fixture
+   * folder ids; real attachments carry the folder label the backend stored.
+   */
+  /**
+   * Filing a set of files. With no destination folder yet — a real
+   * possibility now that the tree is real, and impossible when it was a
+   * ten-folder fixture — a "move" modal would offer an empty list, so naming
+   * the folder and filing into it becomes one step instead of a dead end.
+   */
+  const requestMove = (ids: string[]) => {
+    if (folderNodes.length === 0) setCreatingFolder({ ids });
+    else setMoving({ ids, count: ids.length });
+  };
+
+  const inCurrentFolder = useCallback(
+    (row: FileRowModel): boolean => {
+      if (current.id === 'root') return true;
+      if (!real) return row.folder === current.id;
+      if (current.folder === null) return row.folder === null;
+      return (row.folder ?? '').toLowerCase() === (current.folder ?? '').toLowerCase();
+    },
+    [current, real],
+  );
 
   const allRows: FileRowModel[] = useMemo(
     () => (real ? (filesQuery.data ?? []).map(attachmentRow) : genuinelyEmpty ? [] : FILES.map(fixtureRow)),
@@ -271,10 +421,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
     // folder label (the fixture tree is designed UI, §11).
     let shown = needle
       ? allRows.filter((row) => `${row.name} ${row.linked}`.toLowerCase().includes(needle))
-      : allRows.filter((row) => {
-          if (folderId === 'root') return true;
-          return real ? (row.folder ?? '').toLowerCase() === current.label.toLowerCase() : row.folder === folderId;
-        });
+      : allRows.filter(inCurrentFolder);
     if (filter === 'documents') shown = shown.filter((row) => !row.smart);
     else if (filter === 'smart') shown = shown.filter((row) => row.smart);
     else if (filter === 'client') shown = shown.filter((row) => row.owner === 'Client');
@@ -283,16 +430,14 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
     else if (sort === 'owner') shown = [...shown].sort((a, b) => a.owner.localeCompare(b.owner));
     else if (real) shown = [...shown].sort((a, b) => b.modifiedTs - a.modifiedTs);
     return shown;
-  }, [allRows, query, folderId, filter, sort, real, current.label]);
+  }, [allRows, query, filter, sort, real, inCurrentFolder]);
 
   // Real ids currently in view for this folder, ignoring search/filter — the
   // scope "Manage" reorganizes, same membership test the main list applies.
-  const currentFolderIds = useMemo(() => {
-    if (!real) return [];
-    return allRows
-      .filter((row) => (folderId === 'root' ? true : (row.folder ?? '').toLowerCase() === current.label.toLowerCase()))
-      .map((row) => row.id);
-  }, [allRows, real, folderId, current.label]);
+  const currentFolderIds = useMemo(
+    () => (real ? allRows.filter(inCurrentFolder).map((row) => row.id) : []),
+    [allRows, real, inCurrentFolder],
+  );
 
   const smartCount = rows.filter((row) => row.smart).length;
   const allChecked = rows.length > 0 && rows.every((row) => selected.has(row.id));
@@ -351,6 +496,8 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
         ).data;
         if (folder) {
           await api.patch(`/api/clients/${client.id}/files/${attachment.id}/folder`, { folder });
+          // A draft folder becomes real the moment a file carries its label.
+          setDraftFolders((previous) => previous.filter((name) => !sameFolder(name, folder)));
         }
         setUploads((previous) => previous.filter((entry) => entry.name !== file.name));
       } catch (caught) {
@@ -368,6 +515,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
       }
     }
     void qc.invalidateQueries({ queryKey: attachmentsKey });
+    void qc.invalidateQueries({ queryKey: foldersKey });
   }
 
   return (
@@ -388,7 +536,9 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
         sub="A folder-based client file room for uploads, Capiro artifacts, and provenance-preserving smart references."
         actions={
           <>
-            <PfButton variant="secondary">New folder</PfButton>
+            <PfButton variant="secondary" onClick={() => setCreatingFolder({ ids: [...selected] })}>
+              New folder
+            </PfButton>
             <PfButton variant="secondary" onClick={() => triggerUpload(null)}>
               Upload
             </PfButton>
@@ -476,7 +626,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
           <PfButton
             variant="primary"
             size="sm"
-            onClick={() => setMoving({ ids: [...selected], count: selected.size })}
+            onClick={() => requestMove([...selected])}
           >
             Move to folder
           </PfButton>
@@ -521,7 +671,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
               variant="link"
               style={{ fontSize: 13 }}
               disabled={currentFolderIds.length === 0}
-              onClick={() => setMoving({ ids: currentFolderIds, count: currentFolderIds.length })}
+              onClick={() => requestMove(currentFolderIds)}
             >
               Manage
             </PfButton>
@@ -573,14 +723,21 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                 {current.label}
               </span>
               <span style={{ display: 'block', marginTop: 3, fontSize: 14, color: '#475467' }}>
-                {`${current.count} files · ${current.subs} subfolders`}
+                {/* Subfolder count only where there are subfolders — real
+                    folders never nest, so "0 subfolders" on every row would be
+                    noise about a hierarchy this product does not have. */}
+                {current.draft
+                  ? 'Draft folder · upload or move a file here to create it'
+                  : `${current.count} file${current.count === 1 ? '' : 's'}${current.subs > 0 ? ` · ${current.subs} subfolders` : ''}`}
               </span>
             </span>
             <PfButton
               variant="secondary"
               size="sm"
               style={{ flex: '0 0 auto' }}
-              onClick={() => triggerUpload(folderId === 'root' ? null : current.label)}
+              // `current.folder` is undefined at the root and null on Unfiled —
+              // both mean "file it nowhere", which is what the backend's null is.
+              onClick={() => triggerUpload(current.folder ?? null)}
             >
               Upload here
             </PfButton>
@@ -632,7 +789,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                     onCloseMenu={() => setMenuRowId(null)}
                     onRequestMove={() => {
                       setMenuRowId(null);
-                      setMoving({ ids: [row.id], count: 1 });
+                      requestMove([row.id]);
                     }}
                     onRequestDelete={() => {
                       setMenuRowId(null);
@@ -674,6 +831,23 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
         />
       ) : null}
 
+      <NewFolderModal
+        open={Boolean(creatingFolder)}
+        existing={folderNodes.map((f) => f.label)}
+        selectedCount={creatingFolder?.ids.length ?? 0}
+        onClose={() => setCreatingFolder(null)}
+        onCreate={async (name) => {
+          // Filing files is what makes the folder exist server-side; with none
+          // to file there is no write to make yet, so the folder is a draft
+          // until something lands in it.
+          const ids = creatingFolder?.ids ?? [];
+          if (ids.length > 0) await move.mutateAsync({ ids, folder: name });
+          else setDraftFolders((previous) => [...previous, name]);
+          setFolderId(name);
+          setCreatingFolder(null);
+        }}
+      />
+
       <CapiroModal open={Boolean(deletingId)} title="Delete file" onClose={() => setDeletingId(null)}>
         <p style={{ margin: 0, fontSize: 14, color: '#475467' }}>
           Delete <strong>{deletingRow?.name}</strong>? Anything linking to it loses the reference. This cannot be undone.
@@ -702,6 +876,111 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
 }
 
 /* ── pieces ───────────────────────────────────────────────────────────────── */
+
+/**
+ * New folder (item 3).
+ *
+ * A folder in this product is a label on an attachment — `ClientFilesService`
+ * has `folders` (a groupBy) and `move`, and nothing else. There is no create
+ * endpoint to call because there is nothing to create: a folder exists exactly
+ * as long as a file carries its name. So this either files the current
+ * selection under the new name (a real move, after which the folder is real)
+ * or opens it as a draft the next upload will make permanent. The copy says
+ * which, rather than implying a folder was stored.
+ */
+function NewFolderModal({
+  open,
+  existing,
+  selectedCount,
+  onClose,
+  onCreate,
+}: {
+  open: boolean;
+  existing: string[];
+  selectedCount: number;
+  onClose: () => void;
+  onCreate: (name: string) => Promise<void>;
+}) {
+  const [name, setName] = useState('');
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const trimmed = name.trim();
+  const duplicate = existing.some((label) => sameFolder(label, trimmed));
+  const invalid = trimmed.length === 0 || duplicate;
+
+  const close = () => {
+    setName('');
+    setError(null);
+    onClose();
+  };
+
+  const submit = async () => {
+    if (invalid || pending) return;
+    setPending(true);
+    setError(null);
+    try {
+      await onCreate(trimmed);
+      setName('');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not create that folder');
+    } finally {
+      setPending(false);
+    }
+  };
+
+  return (
+    <CapiroModal open={open} title="New folder" onClose={close}>
+      <p style={{ margin: 0, fontSize: 14, color: '#475467' }}>
+        {selectedCount > 0
+          ? `The ${selectedCount} selected file${selectedCount === 1 ? '' : 's'} will be filed here.`
+          : 'Folders are created by filing a file into them. This one stays a draft until you upload or move a file into it.'}
+      </p>
+      <label style={{ display: 'block', marginTop: 16 }}>
+        <span style={{ display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+          Folder name
+        </span>
+        <input
+          value={name}
+          autoFocus
+          maxLength={FOLDER_NAME_MAX}
+          onChange={(event) => setName(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') void submit();
+          }}
+          placeholder="e.g. FY27 submissions"
+          aria-label="Folder name"
+          style={{
+            display: 'block',
+            width: '100%',
+            marginTop: 6,
+            height: 40,
+            padding: '0 12px',
+            borderRadius: 8,
+            border: 0,
+            outline: 'none',
+            background: '#ffffff',
+            boxShadow: 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+            fontSize: 14,
+            color: '#101828',
+          }}
+        />
+      </label>
+      {duplicate ? (
+        <p style={{ margin: '8px 0 0', fontSize: 14, color: '#B42318' }}>That folder already exists.</p>
+      ) : null}
+      {error ? <p style={{ margin: '8px 0 0', fontSize: 14, color: '#B42318' }}>{error}</p> : null}
+      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <CapiroButton variant="primary" size="compact" loading={pending} disabled={invalid} onClick={() => void submit()}>
+          {selectedCount > 0 ? `Create and file ${selectedCount}` : 'Create folder'}
+        </CapiroButton>
+        <CapiroButton variant="secondary" size="compact" onClick={close}>
+          Cancel
+        </CapiroButton>
+      </div>
+    </CapiroModal>
+  );
+}
 
 function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   const [hover, setHover] = useState(false);
@@ -762,7 +1041,7 @@ function SortButton({ label, onClick }: { label: string; onClick: () => void }) 
   );
 }
 
-function FolderTreeRow({ folder, active, onPick }: { folder: FolderFixture; active: boolean; onPick: () => void }) {
+function FolderTreeRow({ folder, active, onPick }: { folder: FolderTreeNode; active: boolean; onPick: () => void }) {
   const [hover, setHover] = useState(false);
   const caret = folder.kids ? (folder.open ? '▾' : '▸') : '·';
   return (
@@ -800,7 +1079,11 @@ function FolderTreeRow({ folder, active, onPick }: { folder: FolderFixture; acti
       >
         {folder.label}
       </span>
-      <span style={{ flex: '0 0 auto', fontSize: 13, color: '#667085' }}>{folder.count}</span>
+      <span style={{ flex: '0 0 auto', fontSize: 13, color: '#667085' }}>
+        {/* A draft folder holds nothing yet — say so rather than show a 0 that
+            reads like an emptied folder. */}
+        {folder.draft ? 'Draft' : folder.count}
+      </span>
     </button>
   );
 }

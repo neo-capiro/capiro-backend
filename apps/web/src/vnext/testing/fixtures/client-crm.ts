@@ -34,9 +34,22 @@ export const CLIENT_CRM_VISUAL_CLIENT: Client = {
     city: 'Seattle',
     state: 'Washington',
     engagementStartDate: '2026-01-05T00:00:00.000Z',
+    // Government registration, mirroring the Figma frame's Registrations &
+    // codes card so the capture harness still diffs a populated card now that
+    // it reads the real client record instead of the CAP_CODES fixture.
+    samStatus: 'Active',
+    samExpirationDate: '2027-08-04',
+    primaryNaics: '336992 · Military Armored Vehicle and Tank Manufacturing',
+    additionalNaics: '541715 · R&D in Physical, Engineering and Life Sciences',
+    sbClassification: { sb: true },
   },
   status: 'active',
   sectorTag: null,
+  uei: 'ZQ4M8TR2LKD7',
+  cageCode: '8H4T9',
+  naicsCodes: ['336992', '541715'],
+  pscCodes: ['2350', 'A013', 'D302'],
+  setAsideCertifications: ['SBA'],
   createdAt: '2026-01-05T00:00:00.000Z',
   updatedAt: '2026-08-01T00:00:00.000Z',
 };

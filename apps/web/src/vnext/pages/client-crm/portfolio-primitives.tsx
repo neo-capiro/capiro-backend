@@ -243,6 +243,7 @@ export function PfButton({
   busy = false,
   style,
   ariaLabel,
+  title,
 }: {
   variant?: 'primary' | 'secondary' | 'link' | 'icon';
   size?: 'sm' | 'md';
@@ -253,7 +254,10 @@ export function PfButton({
   busy?: boolean;
   style?: CSSProperties;
   ariaLabel?: string;
+  /** Native tooltip — mainly to say WHY a disabled action is disabled. */
+  title?: string;
 }) {
+  const titleAttr = title ? { title } : {};
   const [hover, setHover] = useState(false);
   const height = size === 'sm' ? 36 : 40;
   const padding = size === 'sm' ? '0 14px' : '0 16px';
@@ -265,6 +269,7 @@ export function PfButton({
         aria-label={ariaLabel}
         onClick={onClick}
         disabled={disabled}
+        {...titleAttr}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
@@ -291,6 +296,7 @@ export function PfButton({
         type="button"
         onClick={onClick}
         disabled={disabled}
+        {...titleAttr}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
@@ -312,6 +318,7 @@ export function PfButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      {...titleAttr}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
