@@ -293,4 +293,105 @@ describe('EngagementPage — Meetings v2 URL state', () => {
     fireEvent.click(headerAddButton);
     expect(await screen.findByRole('dialog', { name: /add target office/i })).toBeInTheDocument();
   });
+
+  /**
+   * ?compose=meeting is what makes the post-send "Create meeting" action in
+   * Outreach a real action rather than a link to a calendar the user then has
+   * to hunt around in.
+   */
+  test('?compose=meeting opens the create-meeting window and consumes the param', async () => {
+    renderPage(['/engagement/meetings?compose=meeting']);
+
+    expect(await screen.findByRole('dialog', { name: /new meeting/i })).toBeInTheDocument();
+    // Consumed, so a refresh or Back does not re-open the composer.
+    await waitFor(() => expect(searchOf().get('compose')).toBeNull());
+  });
+
+  test('meetings without ?compose do not open the composer', async () => {
+    renderPage(['/engagement/meetings']);
+    // Wait for Meetings itself to mount, then assert the composer stayed shut.
+    await screen.findByTestId('meetings-v2-probe');
+    expect(screen.queryByRole('dialog', { name: /new meeting/i })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Reports §: a manually overridden status must be visibly distinguishable
+   * from an automatically derived one, so a reader can tell which numbers are
+   * observed and which a human asserted. `manuallyOverridden` is derived
+   * server-side (engagement.service.ts) from whether any stored status is not
+   * 'auto' — these assert the UI actually reflects that real field.
+   */
+  function reportsWithRows(rows: Array<Record<string, unknown>>) {
+    apiGetMock.mockImplementation((url: string) => {
+      if (url === '/api/engagement/reports/overview') {
+        return Promise.resolve({
+          data: {
+            cycle: { period: 'current', label: 'Current Cycle', from: null, to: null },
+            summary: {
+              targetOffices: rows.length,
+              meetingsHeld: 0,
+              outreachSent: 0,
+              submissionsFiled: 0,
+              pendingActions: 0,
+            },
+            rows,
+          },
+        });
+      }
+      return routeGet(url);
+    });
+  }
+
+  function reportRow(overrides: Record<string, unknown> = {}) {
+    return {
+      clientId: null,
+      clientName: 'Acme Health',
+      scopeKey: 's1',
+      officeKey: 'o1',
+      memberPrincipal: 'Rep. Dana Reed',
+      committee: 'Appropriations',
+      staffer: null,
+      building: 'Rayburn',
+      leadOwner: null,
+      meetingsHeld: 2,
+      outreachSent: 1,
+      pendingActions: 0,
+      prepStatus: 'complete',
+      outreachStatus: 'complete',
+      submissionStatus: 'complete',
+      source: 'auto',
+      manuallyOverridden: false,
+      meetings: [],
+      ...overrides,
+    };
+  }
+
+  test('a manually overridden report row is marked as such', async () => {
+    reportsWithRows([reportRow({ manuallyOverridden: true })]);
+    renderPage(['/engagement/reports']);
+
+    await waitFor(() => expect(screen.getByText('Rep. Dana Reed')).toBeInTheDocument());
+    expect(screen.getByText(/manual override/i)).toBeInTheDocument();
+  });
+
+  test('an automatically derived row carries no override marker', async () => {
+    reportsWithRows([reportRow({ manuallyOverridden: false })]);
+    renderPage(['/engagement/reports']);
+
+    await waitFor(() => expect(screen.getByText('Rep. Dana Reed')).toBeInTheDocument());
+    expect(screen.queryByText(/manual override/i)).not.toBeInTheDocument();
+  });
+
+  test('the marker follows the individual row, not the whole table', async () => {
+    reportsWithRows([
+      reportRow({ memberPrincipal: 'Rep. Auto Only', manuallyOverridden: false, officeKey: 'o1' }),
+      reportRow({ memberPrincipal: 'Rep. Overridden', manuallyOverridden: true, officeKey: 'o2' }),
+    ]);
+    renderPage(['/engagement/reports']);
+
+    await waitFor(() => expect(screen.getByText('Rep. Overridden')).toBeInTheDocument());
+    expect(screen.getByText('Rep. Auto Only')).toBeInTheDocument();
+    // Exactly one marker across two rows.
+    expect(screen.getAllByText(/manual override/i)).toHaveLength(1);
+  });
 });
