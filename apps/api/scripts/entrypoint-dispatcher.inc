@@ -138,8 +138,10 @@ case "${1:-serve}" in
   drain-mailbox-knowledge)
     shift
     # Claim durable mailbox knowledge jobs and create immutable KnowledgeEvents.
-    # Queue messages carry only IDs/revision identifiers; the worker reloads the
-    # tenant-scoped mail_messages row from Postgres. Exits non-zero if any
+    # Also drains the Phase 6 extraction outbox and the always-on Phase 7
+    # episode projection outbox. Queue messages carry only IDs/revision
+    # identifiers; the worker reloads the tenant-scoped source row from
+    # Postgres. Exits non-zero if any
     # claimed job failed.
     echo "Running drain-mailbox-knowledge $*"
     exec ./node_modules/.bin/tsx scripts/drain-mailbox-knowledge.ts "$@"

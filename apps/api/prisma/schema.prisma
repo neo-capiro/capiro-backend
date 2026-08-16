@@ -284,6 +284,11 @@ model Tenant {
   knowledgeEvidence    KnowledgeEvidence[]
   knowledgeMailboxJobs KnowledgeMailboxJob[]
   knowledgeMailboxExtractionJobs KnowledgeMailboxExtractionJob[]
+  knowledgeEpisodes            KnowledgeEpisode[]
+  knowledgeEpisodeEvents       KnowledgeEpisodeEvent[]
+  knowledgeEpisodeAssertions   KnowledgeEpisodeAssertion[]
+  knowledgeEpisodeEntities     KnowledgeEpisodeEntity[]
+  knowledgeEpisodeProjectionJobs KnowledgeEpisodeProjectionJob[]
 
   canonicalEntities                  CanonicalEntity[]
   canonicalEntityMerges              CanonicalEntityMerge[]
@@ -323,6 +328,7 @@ model CanonicalEntity {
   selectedResolutions EntityResolution[]     @relation("EntityResolutionSelectedEntity")
   mergeSources        CanonicalEntityMerge?  @relation("CanonicalEntityMergeSource")
   mergeTargets        CanonicalEntityMerge[] @relation("CanonicalEntityMergeTarget")
+  episodeMemberships  KnowledgeEpisodeEntity[]
 
   @@index([entityType, normalizedName, identityScope, tenantId, status], map: "canonical_entities_visible_name_idx")
   // SQL-owned partial index: tenant_id IS NOT NULL.
@@ -10405,6 +10411,9 @@ model KnowledgeEvent {
   evidence    KnowledgeEvidence[]   @relation("KnowledgeEvidenceEvent")
   mailboxJobs KnowledgeMailboxJob[]
   mailboxExtractionJobs KnowledgeMailboxExtractionJob[]
+  episodeMemberships    KnowledgeEpisodeEvent[]
+  episodeAssertionOrigins KnowledgeEpisodeAssertion[]
+  episodeProjectionJobs KnowledgeEpisodeProjectionJob[]
 
   @@unique([tenantId, id], map: "knowledge_events_tenant_identity_unique")
   @@unique([tenantId, idempotencyKey], map: "knowledge_events_idempotency_unique")
@@ -10455,6 +10464,7 @@ model KnowledgeAssertion {
 
   contradicts    KnowledgeAssertion?  @relation("KnowledgeAssertionContradiction", fields: [contradictsAssertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_assertions_contradicts_fkey")
   contradictedBy KnowledgeAssertion[] @relation("KnowledgeAssertionContradiction")
+  episodeMemberships KnowledgeEpisodeAssertion[]
 
   @@unique([tenantId, id], map: "knowledge_assertions_tenant_identity_unique")
   @@unique([tenantId, idempotencyKey], map: "knowledge_assertions_idempotency_unique")
@@ -10561,4 +10571,128 @@ model KnowledgeMailboxExtractionJob {
   @@index([tenantId, mailMessageId, createdAt(sort: Desc)], map: "knowledge_mailbox_extraction_jobs_tenant_message_idx")
   @@index([tenantId, eventId], map: "knowledge_mailbox_extraction_jobs_tenant_event_idx")
   @@map("knowledge_mailbox_extraction_jobs")
+}
+
+// Enterprise Context Plane — Phase 7 derived/materialized episode grouping.
+// Episodes are NOT a new source of truth: they group KnowledgeEvent /
+// KnowledgeAssertion / canonical-entity rows that Phase 1-6 already wrote.
+// The first grouping strategy is deterministic mailbox-thread identity.
+model KnowledgeEpisode {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  strategy       String   @db.VarChar(32)
+  identityKey    String   @map("identity_key") @db.VarChar(64)
+  status         String   @default("open") @db.VarChar(16)
+  sensitivity    String   @db.VarChar(96)
+  accessScope    Json     @map("access_scope")
+  clientRefs     Json     @default("[]") @map("client_refs")
+  groupingKey    Json     @map("grouping_key")
+  eventCount     Int      @default(0) @map("event_count")
+  assertionCount Int      @default(0) @map("assertion_count")
+  entityCount    Int      @default(0) @map("entity_count")
+  firstEventAt   DateTime @map("first_event_at") @db.Timestamptz(6)
+  lastEventAt    DateTime @map("last_event_at") @db.Timestamptz(6)
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant                         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episodes_tenant_fkey")
+  events      KnowledgeEpisodeEvent[]
+  assertions  KnowledgeEpisodeAssertion[]
+  entities    KnowledgeEpisodeEntity[]
+  projectionJobs KnowledgeEpisodeProjectionJob[]
+
+  @@unique([tenantId, strategy, identityKey], map: "knowledge_episodes_identity_unique")
+  @@index([tenantId, lastEventAt(sort: Desc), id(sort: Desc)], map: "knowledge_episodes_tenant_last_event_idx")
+  @@index([clientRefs], type: Gin, map: "knowledge_episodes_client_refs_gin")
+  @@map("knowledge_episodes")
+}
+
+// Phase 7 — append-only KnowledgeEvent membership in an episode.
+model KnowledgeEpisodeEvent {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  episodeId  String   @map("episode_id") @db.Uuid
+  eventId    String   @map("event_id") @db.Uuid
+  occurredAt DateTime @map("occurred_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_events_tenant_fkey")
+  episode KnowledgeEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_events_episode_fkey")
+  event   KnowledgeEvent   @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_events_event_fkey")
+
+  @@unique([tenantId, episodeId, eventId], map: "knowledge_episode_events_membership_unique")
+  @@unique([tenantId, eventId], map: "knowledge_episode_events_event_unique")
+  @@index([tenantId, episodeId, occurredAt(sort: Desc)], map: "knowledge_episode_events_episode_idx")
+  @@map("knowledge_episode_events")
+}
+
+// Phase 7 — append-only KnowledgeAssertion membership in an episode.
+model KnowledgeEpisodeAssertion {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  episodeId     String   @map("episode_id") @db.Uuid
+  assertionId   String   @map("assertion_id") @db.Uuid
+  originEventId String   @map("origin_event_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_assertions_tenant_fkey")
+  episode     KnowledgeEpisode   @relation(fields: [episodeId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_assertions_episode_fkey")
+  assertion   KnowledgeAssertion @relation(fields: [assertionId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_assertions_assertion_fkey")
+  originEvent KnowledgeEvent     @relation(fields: [originEventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_assertions_origin_event_fkey")
+
+  @@unique([tenantId, episodeId, assertionId], map: "knowledge_episode_assertions_membership_unique")
+  @@unique([tenantId, assertionId], map: "knowledge_episode_assertions_assertion_unique")
+  @@index([tenantId, episodeId, createdAt(sort: Desc)], map: "knowledge_episode_assertions_episode_idx")
+  @@index([tenantId, originEventId], map: "knowledge_episode_assertions_origin_event_idx")
+  @@map("knowledge_episode_assertions")
+}
+
+// Phase 7 — append-only canonical entity membership in an episode. Reuses
+// Phase 5 canonical_entities; performs no resolution of its own.
+model KnowledgeEpisodeEntity {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  episodeId         String   @map("episode_id") @db.Uuid
+  canonicalEntityId String   @map("canonical_entity_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_entities_tenant_fkey")
+  episode KnowledgeEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_entities_episode_fkey")
+  entity  CanonicalEntity  @relation(fields: [canonicalEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_entities_entity_fkey")
+
+  @@unique([tenantId, episodeId, canonicalEntityId], map: "knowledge_episode_entities_membership_unique")
+  @@index([tenantId, episodeId], map: "knowledge_episode_entities_episode_idx")
+  @@index([tenantId, canonicalEntityId], map: "knowledge_episode_entities_entity_idx")
+  @@map("knowledge_episode_entities")
+}
+
+// Phase 7 — durable, tenant-scoped queue projecting live active
+// KnowledgeEvents into episodes. Runtime queue operations intentionally use
+// the tenant-aware raw SQL boundary because the SQL migration owns RLS,
+// trigger, and operational-state checks (same pattern as Phase 6).
+model KnowledgeEpisodeProjectionJob {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  eventId      String    @map("event_id") @db.Uuid
+  status       String    @default("pending") @db.VarChar(24)
+  attemptCount Int       @default(0) @map("attempt_count")
+  availableAt  DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
+  lockedAt     DateTime? @map("locked_at") @db.Timestamptz(6)
+  lockedBy     String?   @map("locked_by") @db.VarChar(160)
+  lastError    String?   @map("last_error") @db.Text
+  episodeId    String?   @map("episode_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_projection_jobs_tenant_fkey")
+  event   KnowledgeEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_episode_projection_jobs_event_fkey")
+  episode KnowledgeEpisode? @relation(fields: [episodeId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "knowledge_episode_projection_jobs_episode_fkey")
+
+  @@unique([tenantId, eventId], map: "knowledge_episode_projection_jobs_event_unique")
+  @@index([tenantId, eventId], map: "knowledge_episode_projection_jobs_tenant_event_idx")
+  // The due index is partial (pending/failed/processing) and is created by
+  // the SQL migration; Prisma cannot represent its WHERE predicate without
+  // changing the index semantics.
+  @@map("knowledge_episode_projection_jobs")
 }
