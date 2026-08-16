@@ -35,12 +35,43 @@ const KIND_LABEL: Record<string, string> = {
   risk: 'Risk',
 };
 
+// Step-kind → pill tone (design handoff "Pill tone table" + "Step-kind table";
+// strategies-tokens.css's purple note). `gate` has no modifier — the base
+// `.st-pill` already IS the tone table's "gray" row. `decision` isn't in the
+// handoff's step-kind table at all (strategies-tokens.css: it "keeps mapping
+// to the accent-focus shade under the new ramp, same relative role it had
+// under navy") and there's no dedicated pill bucket for it, so it shares
+// Action's brand/accent tone rather than inventing a new one.
+const KIND_PILL_TONE: Record<string, string> = {
+  action: 'st-pill--accent',
+  gate: '',
+  milestone: 'st-pill--purple',
+  decision: 'st-pill--accent',
+  risk: 'st-pill--error',
+};
+
 const STATUS_LABEL: Record<string, string> = {
   draft: 'Draft',
   in_progress: 'In progress',
   internal_review: 'Internal review',
   active: 'Active',
   suggested: 'Suggested',
+};
+
+// Status → pill tone. The design fixture varies its state-pill tone per
+// literal fixture string ("In progress" reads brand, "Monitoring"/"Proposed"
+// read warning, "Not started"/"Staged" read gray) rather than by our actual
+// five-value NodeStatus enum, so this reapplies that same pattern onto the
+// real enum: in-progress mirrors the fixture's brand "In progress", suggested
+// (an unreviewed AI proposal) and internal_review (a pending gate) read as
+// warning like the fixture's "Proposed"/"Monitoring" states, active reads
+// success, and draft is the tone table's default gray.
+const STATUS_PILL_TONE: Record<string, string> = {
+  draft: '',
+  in_progress: 'st-pill--accent',
+  internal_review: 'st-pill--warning',
+  active: 'st-pill--success',
+  suggested: 'st-pill--warning',
 };
 
 export function StepInspector({
@@ -128,8 +159,12 @@ function StepTab({
   return (
     <div className="st-inspector__body">
       <div className="st-inspector__pills">
-        <span className={`st-pill st-step__kind--${step.kind}`}>{KIND_LABEL[step.kind] ?? step.kind}</span>
-        <span className="st-pill st-pill--accent">{STATUS_LABEL[step.status] ?? step.status}</span>
+        <span className={`st-pill${KIND_PILL_TONE[step.kind] ? ` ${KIND_PILL_TONE[step.kind]}` : ''}`}>
+          {KIND_LABEL[step.kind] ?? step.kind}
+        </span>
+        <span className={`st-pill${STATUS_PILL_TONE[step.status] ? ` ${STATUS_PILL_TONE[step.status]}` : ''}`}>
+          {STATUS_LABEL[step.status] ?? step.status}
+        </span>
       </div>
 
       {step.note ? (

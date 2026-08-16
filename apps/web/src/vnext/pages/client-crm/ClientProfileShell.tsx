@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { UIcon, PfButton, GRADIENT_DARK, GRADIENT_DARK_HOVER, PILL } from './portfolio-primitives.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
+import { openMeriWorkspaceWithContext } from '../../../components/chat/meri-window.js';
 import { CRM_TAB_LABELS, type CrmSurface, type CrmView } from './client-crm-routing.js';
 
 /**
@@ -427,7 +428,20 @@ function OverflowMenu({ client, onDataHealth }: { client: Client; onDataHealth: 
   }, [open]);
 
   const items: Array<{ label: string; danger?: boolean; onSelect: () => void }> = [
-    { label: 'Ask Meri about this client', onSelect: () => setOpen(false) },
+    {
+      // Item 18 (wire-audit "2 Wire existing APIs"): opens the real Meriv3
+      // workspace scoped to this client. The prompt is required — Meri's own
+      // `readContextRequest()` drops a clientId that arrives without one — so
+      // it carries the client by name rather than being left blank.
+      label: 'Ask Meri about this client',
+      onSelect: () => {
+        setOpen(false);
+        openMeriWorkspaceWithContext({
+          prompt: `What should I know about ${client.name} right now?`,
+          clientId: client.id,
+        });
+      },
+    },
     { label: 'Profile & source health', onSelect: () => { setOpen(false); onDataHealth(); } },
     { label: 'Export client profile', onSelect: () => setOpen(false) },
     { label: 'Archive client', danger: true, onSelect: () => setOpen(false) },

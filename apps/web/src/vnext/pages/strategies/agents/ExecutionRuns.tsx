@@ -17,6 +17,11 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../../components/feedback/index.js';
+import {
+  CapiroBellIcon,
+  CapiroFileTextIcon,
+  CapiroSafetyCertificateIcon,
+} from '../../../components/icons/index.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
 import {
   clientName,
@@ -123,6 +128,16 @@ const TASK_TYPE_LABEL: Record<ExecutionTask['type'], string> = {
   workspace_draft: 'Workspace draft',
   outreach_record: 'Outreach record',
   await_send_approval: 'Send approval',
+};
+
+/* Task icon tile glyph (design handoff — "a 32px tinted icon tile"), by task
+ * TYPE. The tile's tint reuses the SAME tone already computed for the task's
+ * own status pill (TASK_STATUS_PILL) — real, already-fetched data — rather
+ * than inventing a second, type-based color scheme. */
+const TASK_TYPE_ICON: Record<ExecutionTask['type'], typeof CapiroFileTextIcon> = {
+  workspace_draft: CapiroFileTextIcon,
+  outreach_record: CapiroBellIcon,
+  await_send_approval: CapiroSafetyCertificateIcon,
 };
 
 function RunPill({ state }: { state: RunState }) {
@@ -271,6 +286,7 @@ export function ExecutionRuns() {
             <h2 className="st-card__title">Security control</h2>
           </div>
           <div className="st-card__body">
+            <p className="st-agents__security-headline">No direct send action is available.</p>
             <p className="st-agents__security-copy">
               No direct send action exists on this surface. Outreach artifacts are staged for human
               review, and external send stays disabled until the Stage H security review clears it.
@@ -379,7 +395,15 @@ function RunCard({
           </span>
         </div>
 
-        {run.summary && <p className="st-agents__summary">{run.summary}</p>}
+        {/* Plan well (design handoff — a labeled #F9FAFB box). The reference
+            also shows an "Operator · Name" line, but no such field exists on
+            ExecutionRun — omitted rather than fabricated. */}
+        {run.summary && (
+          <div className="st-agents__plan-well">
+            <span className="st-agents__plan-well-label">Plan</span>
+            <p className="st-agents__summary">{run.summary}</p>
+          </div>
+        )}
 
         {/* Every failure state surfaces its reason — a failed run is never
             hidden behind a bare pill (§7.9 must-not). */}
@@ -563,11 +587,15 @@ function RunCard({
   );
 }
 
-/** One numbered task: index, type label, title, per-task state pill, blocked reason. */
+/** One numbered task: icon tile, index, type label, title, per-task state pill, blocked reason. */
 function TaskRow({ task, index }: { task: ExecutionTask; index: number }) {
   const status = TASK_STATUS_PILL[task.status] ?? { label: task.status, tone: '' };
+  const Icon = TASK_TYPE_ICON[task.type] ?? CapiroFileTextIcon;
   return (
     <li className="st-agents__task">
+      <span className={`st-agents__task-icon ${status.tone}`.trim()} aria-hidden="true">
+        <Icon size={0.9} />
+      </span>
       <span className="st-mono st-agents__task-index">{index}.</span>
       <div className="st-agents__task-body">
         <span className="st-agents__task-title">

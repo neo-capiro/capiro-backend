@@ -110,6 +110,12 @@ export function ResolveConflictOverlay() {
     !resolve.isPending &&
     !dismiss.isPending;
 
+  /* Live "Resulting states" preview (README "Modals" → resolve conflict) —
+   * both facts are already loaded on `conflict`, so this is a real preview
+   * of what resolving now would do, not a fabricated one. */
+  const pickedFact = pick === 'A' ? conflict?.factA ?? null : pick === 'B' ? conflict?.factB ?? null : null;
+  const otherFact = pick === 'A' ? conflict?.factB ?? null : pick === 'B' ? conflict?.factA ?? null : null;
+
   const submit = () => {
     if (!canSubmit || !conflict) return;
     resolve.mutate(
@@ -152,7 +158,7 @@ export function ResolveConflictOverlay() {
       title="Resolve the conflict"
       subtitle="Pick the fact that controls going forward and say why. The losing fact is superseded — no source document is edited."
       closeTo="/strategies/context/steward"
-      size="lg"
+      maxWidth={900}
       dirty={Boolean((pick || note.trim()) && !busy)}
       primaryLabel="Resolve conflict"
       onPrimary={isOpen ? submit : undefined}
@@ -213,18 +219,45 @@ export function ResolveConflictOverlay() {
 
           {isOpen ? (
             <>
-              <label className="capiro-field">
-                <span className="capiro-field__label">Decision note · Required</span>
-                <textarea
-                  className="st-textarea"
-                  value={note}
-                  onChange={(event) => setNote(event.target.value)}
-                  placeholder="Why does the controlling fact win? (e.g. newer as_of date, higher authority, client-approved source.)"
-                />
-              </label>
-              <div className="st-rationale-foot">
-                <span>The note is recorded with the decision.</span>
-                <span>{note.trim().length > 0 ? `${note.trim().length} characters` : 'Required'}</span>
+              <div className="st-cols st-cols--even">
+                <div className="st-panel">
+                  <label className="capiro-field">
+                    <span className="capiro-field__label">Decision note · Required</span>
+                    <textarea
+                      className="st-textarea"
+                      value={note}
+                      onChange={(event) => setNote(event.target.value)}
+                      placeholder="Why does the controlling fact win? (e.g. newer as_of date, higher authority, client-approved source.)"
+                    />
+                  </label>
+                  <div className="st-rationale-foot">
+                    <span>The note is recorded with the decision.</span>
+                    <span>{note.trim().length > 0 ? `${note.trim().length} characters` : 'Required'}</span>
+                  </div>
+                </div>
+
+                <div className="st-dark-panel">
+                  <p className="st-dark-panel__label">Resulting states</p>
+                  {pickedFact ? (
+                    <>
+                      <p className="st-dark-panel__title" style={{ fontSize: 18, letterSpacing: 0 }}>
+                        {pickedFact.fact}
+                      </p>
+                      <span className="st-pill st-pill--success">Active</span>
+                      <p className="st-dark-panel__text" style={{ margin: '6px 0 12px' }}>
+                        This fact becomes controlling for every strategy and agent that cites it.
+                      </p>
+                      <span className="st-pill st-pill--danger">Superseded</span>
+                      <p className="st-dark-panel__text" style={{ margin: '6px 0 0' }}>
+                        {otherFact
+                          ? `"${otherFact.fact}" remains queryable in history.`
+                          : 'The other fact remains queryable in history.'}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="st-dark-panel__text">Choose Fact A or Fact B above to preview the result.</p>
+                  )}
+                </div>
               </div>
 
               <div className="st-audit">

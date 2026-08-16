@@ -23,6 +23,11 @@ vi.mock('./tabs/WorkTab.js', () => ({ ClientCrmWorkProto: () => <div>work</div> 
 vi.mock('./tabs/IntelligenceTab.js', () => ({ ClientCrmIntelligenceProto: () => <div>intelligence</div> }));
 vi.mock('./tabs/FilesTab.js', () => ({ ClientCrmFilesProto: () => <div>files</div> }));
 
+const openMeriMock = vi.hoisted(() => vi.fn());
+vi.mock('../../../components/chat/meri-window.js', () => ({
+  openMeriWorkspaceWithContext: openMeriMock,
+}));
+
 const getMock = vi.hoisted(() => vi.fn());
 const postMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../lib/use-api.js', () => ({
@@ -134,5 +139,18 @@ describe('ClientCrmPage header wiring', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Clients' }));
     expect(screen.getByTestId('location')).toHaveTextContent('/clients');
+  });
+
+  it('opens the real Meri workspace scoped to this client from the overflow menu (item 18)', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: /more/i }));
+    fireEvent.click(screen.getByText('Ask Meri about this client'));
+
+    // clientId must be carried, and a prompt must be present — Meri's own
+    // readContextRequest() drops a clientId that arrives without one.
+    expect(openMeriMock).toHaveBeenCalledWith(
+      expect.objectContaining({ clientId: 'client-1', prompt: expect.stringContaining('Overland AI') }),
+    );
   });
 });

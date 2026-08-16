@@ -75,7 +75,7 @@
   align-items: center;
   gap: 6px;
   height: 24px;
-  padding: 0 10px;
+  padding: 0 10px 0 8px;
   border-radius: 999px;
   font-size: 12px;
   line-height: 18px;
@@ -101,6 +101,9 @@
 .capiro-vnext-root .capiro-strategies .st-pill--warning::before { background: var(--st-warning-dot); }
 .capiro-vnext-root .capiro-strategies .st-pill--error { background: var(--st-error-bg); box-shadow: inset 0 0 0 1px var(--st-error-ring); color: var(--st-error-fg); }
 .capiro-vnext-root .capiro-strategies .st-pill--error::before { background: var(--st-error-dot); }
+/* Purple — Milestone kind only (see strategies-tokens.css). */
+.capiro-vnext-root .capiro-strategies .st-pill--purple { background: var(--st-purple-bg); box-shadow: inset 0 0 0 1px var(--st-purple-ring); color: var(--st-purple-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--purple::before { background: var(--st-purple-dot); }
 
 /* ---- dark governance banner (policy copy, §7.8/§7.9) ---- */
 .capiro-vnext-root .capiro-strategies .st-dark-banner {
