@@ -45,7 +45,11 @@ import { NODES, UPCOMING } from '../portfolio-fixtures.js';
  *    risks all bind to those real records.
  *  - While loading, on error, or when the client has no strategies, the
  *    design's fixtures render so the surface stays pixel-reviewable (flagged
- *    UI-only in the ship report).
+ *    UI-only in the ship report). The one exception is the stat band when the
+ *    strategy DETAILS fail to load: a client that demonstrably has strategies
+ *    is not a pixel-review case, so those cells show a dash rather than
+ *    fixture figures that would read as this client's real numbers
+ *    (wire-audit "3 Compose extend" item 13).
  *  - The `On track` pill and the secondary readiness percentages have no
  *    honest backing signal (the Strategy API has no completion state — see
  *    useClientCrmOverviewModel) and are design elements in every mode.
@@ -341,6 +345,21 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
   const members = membersQuery.data;
 
   const loaded = details.map((query) => query.data).filter((d): d is StrategyDetail => Boolean(d));
+  /**
+   * Item 13 (wire-audit "3 Compose extend"). The band is computed from real
+   * strategies already — the hole was what happens when the DETAIL fetches
+   * fail: `loaded` stays empty, `real` stays false, and because the client
+   * does have strategies `genuinelyEmpty` is false too, so BAND_FIXTURE
+   * rendered forever and read as this client's real figures.
+   *
+   * A source that failed is not zero and is not a fixture — it is unknown, so
+   * the band shows a dash. And when only SOME details fail, the counts below
+   * are real but short, which the strip states rather than quietly
+   * under-reporting.
+   */
+  const detailErrors = details.filter((query) => query.isError).length;
+  const detailsSettled = details.every((query) => !query.isPending);
+  const allDetailsFailed = mine.length > 0 && detailsSettled && loaded.length === 0;
   const real = list.data !== undefined && !list.isError && mine.length > 0 && loaded.length > 0;
   // The list itself (not each strategy's detail) is enough to know honestly
   // that this client has zero strategies — no need to wait on detail queries
@@ -364,7 +383,11 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
       ]
     : genuinelyEmpty
       ? ['0', '0', '0', '0', '0']
-      : BAND_FIXTURE;
+      : allDetailsFailed
+        ? // Strategy count is still known from the list itself; everything
+          // else lives in the details that did not answer.
+          [String(mine.length), '—', '—', '—', '—']
+        : BAND_FIXTURE;
 
   const featured: FeaturedModel | null = useMemo(() => {
     const first = loaded[0];
@@ -504,7 +527,14 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
         ))}
         <span style={{ flex: 1, minWidth: 12 }} />
         <span style={{ flex: '0 0 auto', maxWidth: 220, fontSize: 13, color: '#98A2B3', textWrap: 'pretty' }}>
-          No separate CRM tasks are created here.
+          {/* A partly-read portfolio produces real but SHORT figures. Saying so
+              is the difference between a number that is low and a number that
+              is wrong. */}
+          {allDetailsFailed
+            ? `${mine.length} strateg${mine.length === 1 ? 'y' : 'ies'} could not be read.`
+            : real && detailErrors > 0
+              ? `${detailErrors} of ${mine.length} strategies could not be read — figures below exclude them.`
+              : 'No separate CRM tasks are created here.'}
         </span>
       </section>
 

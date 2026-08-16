@@ -165,7 +165,16 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
     });
   }, [entries, filter, query]);
 
-  const openCommitments = useMemo(() => all.filter((item) => item.dueAt && !item.settledAt), [all]);
+  /**
+   * Item 8 (wire-audit "3 Compose extend"). An open commitment is anything the
+   * client is still owed: a recorded row with a due date, OR one logged as a
+   * commitment at all — a commitment with no date is still outstanding, and
+   * dropping it hid real obligations from the rail.
+   */
+  const openCommitments = useMemo(
+    () => all.filter((item) => (item.dueAt || item.kind === 'commitment') && !item.settledAt),
+    [all],
+  );
   const pinnedNote = useMemo(
     () => all.find((item) => item.pinned && item.kind === 'note') ?? all.find((item) => item.pinned),
     [all],
@@ -221,9 +230,17 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
         />
         <ControlsCard
           commitments={openCommitments}
-          fallbackCommitments={all.length === 0}
+          // Fixture only while the fetch is still in flight or errored. Once
+          // it genuinely resolves to nothing, "Nothing outstanding" is the
+          // truthful answer — this used to fall back on `all.length === 0`,
+          // which showed the fixture during every load and for every client
+          // that really had no activity.
+          fallbackCommitments={!loaded}
           pinnedText={pinnedNote ? (pinnedNote.body ?? pinnedNote.title) : null}
+          pinnedLoaded={loaded}
           onQuickAdd={(kind) => setAdding(kind)}
+          onSettle={(id) => mutate.mutate({ id, settled: true })}
+          settlingId={mutate.isPending ? (mutate.variables?.id ?? null) : null}
         />
       </div>
 
@@ -426,18 +443,26 @@ interface CommitmentRow {
   label: string;
   when: string;
   tone: PillTone;
+  /** Real rows the API will accept a settle for (it requires a due date). */
+  settleable?: boolean;
 }
 
 function ControlsCard({
   commitments,
   fallbackCommitments,
   pinnedText,
+  pinnedLoaded,
   onQuickAdd,
+  onSettle,
+  settlingId,
 }: {
   commitments: ActivityItem[];
   fallbackCommitments: boolean;
   pinnedText: string | null;
+  pinnedLoaded: boolean;
   onQuickAdd: (kind: ActivityKind) => void;
+  onSettle: (id: string) => void;
+  settlingId: string | null;
 }) {
   const rows: CommitmentRow[] = fallbackCommitments
     ? // Design fixture (UI-only): attention items shaped as open commitments.
@@ -450,8 +475,14 @@ function ControlsCard({
     : commitments.map((item) => ({
         id: item.id,
         label: item.title,
-        when: item.dueAt ? formatDay(item.dueAt) : '—',
+        // A commitment with no due date is still open — it just has no date to
+        // show, which is different from being overdue.
+        when: item.dueAt ? formatDay(item.dueAt) : 'No due date',
         tone: commitmentTone(item.dueAt),
+        // The API refuses to settle a row without a dueAt ("Only a commitment
+        // or request can be settled"), so the action is only offered where the
+        // write would actually succeed.
+        settleable: Boolean(item.dueAt),
       }));
 
   return (
@@ -471,7 +502,14 @@ function ControlsCard({
             {rows.length === 0 ? (
               <span style={{ fontSize: 14, color: '#667085' }}>Nothing outstanding.</span>
             ) : (
-              rows.map((cm) => <CommitmentLine key={cm.id} row={cm} />)
+              rows.map((cm) => (
+                <CommitmentLine
+                  key={cm.id}
+                  row={cm}
+                  settling={settlingId === cm.id}
+                  {...(!fallbackCommitments && cm.settleable ? { onSettle: () => onSettle(cm.id) } : {})}
+                />
+              ))
             )}
           </div>
         </div>
@@ -479,7 +517,13 @@ function ControlsCard({
         <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #EAECF0' }}>
           <Eyebrow>Pinned account note</Eyebrow>
           <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
-            {pinnedText ?? 'Client prefers concise written updates before live strategy discussions.'}
+            {/* The old fallback was a sentence of invented client preference
+                that read exactly like a real pinned note. Once the fetch has
+                settled, the honest answer is that there isn't one. */}
+            {pinnedText ??
+              (pinnedLoaded
+                ? 'No pinned note yet — pin an activity to keep it here.'
+                : 'Client prefers concise written updates before live strategy discussions.')}
           </p>
         </div>
       </div>
@@ -514,12 +558,46 @@ function QuickAddRow({ label, onClick }: { label: string; onClick: () => void })
   );
 }
 
-function CommitmentLine({ row: cm }: { row: CommitmentRow }) {
+function CommitmentLine({
+  row: cm,
+  onSettle,
+  settling = false,
+}: {
+  row: CommitmentRow;
+  onSettle?: () => void;
+  settling?: boolean;
+}) {
   const [, , , dot] = PILL[cm.tone];
+  const [hover, setHover] = useState(false);
   return (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <span
+      style={{ display: 'flex', alignItems: 'center', gap: 10 }}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: dot, flex: '0 0 auto' }} aria-hidden />
       <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#344054', textWrap: 'pretty' }}>{cm.label}</span>
+      {/* Settling writes `settledAt` through the same activity PATCH the pin
+          action uses, which is what takes the row off this rail for good. */}
+      {onSettle ? (
+        <button
+          type="button"
+          onClick={onSettle}
+          disabled={settling}
+          aria-label={`Settle ${cm.label}`}
+          style={{
+            flex: '0 0 auto',
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: '.03em',
+            textTransform: 'uppercase',
+            color: settling ? '#98A2B3' : hover ? '#101828' : '#667085',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {settling ? 'Settling…' : 'Settle'}
+        </button>
+      ) : null}
       <Pill tone={cm.tone} size="lg" dotless style={{ flex: '0 0 auto' }}>
         {cm.when}
       </Pill>
