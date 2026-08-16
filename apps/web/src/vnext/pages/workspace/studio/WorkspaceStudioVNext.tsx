@@ -175,9 +175,42 @@ function BlueprintList() {
     [navigate],
   );
 
-  // "New blueprint" is firm-admin only. We surface the button but signal that
-  // the permission is required — the actual gating is server-side.
-  const canCreate = false; // TODO: wire to firm-admin role check.
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const handleCreateBlueprint = useCallback(async () => {
+    if (creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const stamp = Date.now().toString(36);
+      const created = await api.createBlueprint({
+        slug: `blueprint-${stamp}`,
+        name: 'Untitled blueprint',
+        product: 'General',
+        description: '',
+        scope: 'firm',
+      });
+      // API returns the Prisma row (`id`); the list view uses `blueprintId`.
+      const blueprintId =
+        (created as { blueprintId?: string; id?: string }).blueprintId ??
+        (created as { id?: string }).id;
+      if (!blueprintId) {
+        throw new Error('Blueprint was created but no id was returned');
+      }
+      const version = await api.createBlueprintVersion(blueprintId, {});
+      const versionId =
+        (version as { versionId?: string; id?: string }).versionId ??
+        (version as { id?: string }).id;
+      if (!versionId) {
+        throw new Error('Draft version was created but no id was returned');
+      }
+      navigate(`/workspace/studio/${blueprintId}/${versionId}`);
+    } catch (e) {
+      setCreateError((e as Error).message ?? 'Failed to create blueprint');
+      setCreating(false);
+    }
+  }, [creating, navigate]);
 
   return (
     <div className="ws-vnext-studio">
@@ -193,17 +226,17 @@ function BlueprintList() {
           <button
             type="button"
             className="ws-vnext-studio__btn ws-vnext-studio__btn--primary"
-            disabled={!canCreate}
-            title={canCreate ? undefined : 'Firm-admin permission required'}
+            disabled={creating}
+            onClick={() => void handleCreateBlueprint()}
           >
-            New blueprint
+            {creating ? 'Creating…' : 'New blueprint'}
           </button>
         </div>
       </div>
 
-      {!canCreate && (
-        <div className="ws-vnext-studio__permission-note">
-          “New blueprint” requires firm-admin permission. Ask a firm admin to create one.
+      {createError && (
+        <div className="ws-vnext-studio__permission-note" role="alert">
+          {createError}
         </div>
       )}
 
