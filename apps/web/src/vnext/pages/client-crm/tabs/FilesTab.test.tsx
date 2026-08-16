@@ -5,6 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClientCrmFilesProto } from './FilesTab.js';
 import type { Client, ClientAttachment } from '../../../../pages/clients/clientTypes.js';
 
+const openMeriMock = vi.hoisted(() => vi.fn());
+vi.mock('../../../../components/chat/meri-window.js', () => ({
+  openMeriWorkspaceWithContext: openMeriMock,
+}));
+
 const getMock = vi.hoisted(() => vi.fn());
 const postMock = vi.hoisted(() => vi.fn());
 const patchMock = vi.hoisted(() => vi.fn());
@@ -278,5 +283,34 @@ describe('ClientCrmFilesProto', () => {
 
     expect(screen.getByText('That folder already exists.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create folder' })).toBeDisabled();
+  });
+});
+
+/* ── "4 New capability" rows 3-4 ──────────────────────────────────────────── */
+
+describe('ClientCrmFilesProto — Meri and link health', () => {
+  it('opens the real Meri workspace scoped to this client (row 4)', async () => {
+    openMeriMock.mockReset();
+    mockApi({ attachments: [attachment()] });
+    renderFiles();
+
+    await screen.findByText('Budget Memo');
+    fireEvent.click(screen.getByRole('button', { name: 'Create with Meri' }));
+
+    // clientId must be carried AND a prompt must be present — Meri drops a
+    // clientId that arrives without one.
+    expect(openMeriMock).toHaveBeenCalledWith(
+      expect.objectContaining({ clientId: 'client-1', prompt: expect.stringContaining('Overland AI') }),
+    );
+  });
+
+  it('no longer claims all source links are healthy (row 3)', async () => {
+    mockApi({ attachments: [attachment()] });
+    renderFiles();
+
+    await screen.findByText('Budget Memo');
+    // Nothing checks whether a smart link still resolves, so the pill asserted
+    // a health it never measured.
+    expect(screen.queryByText('All source links healthy')).not.toBeInTheDocument();
   });
 });

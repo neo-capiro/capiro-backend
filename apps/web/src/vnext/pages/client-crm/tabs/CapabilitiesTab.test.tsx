@@ -111,3 +111,67 @@ describe('ClientCrmCapabilitiesProto', () => {
     expect(screen.queryByText('ZQ4M8TR2LKD7')).not.toBeInTheDocument();
   });
 });
+
+/* ── §7.3 past performance + capability evidence ("4 New capability") ────── */
+
+const CAPABILITY = { id: 'cap-1', name: 'Autonomy stack', type: 'platform', tags: [], peNumbers: [] };
+
+/** Routes capabilities vs. per-capability submission history. */
+function mockCapabilityApi(history: unknown[]) {
+  getMock.mockImplementation((url: string) => {
+    if (url.endsWith('/history')) return Promise.resolve({ data: history });
+    if (url.endsWith('/capabilities')) return Promise.resolve({ data: [CAPABILITY] });
+    return Promise.resolve({ data: [] });
+  });
+}
+
+describe('ClientCrmCapabilitiesProto — past performance (row 12)', () => {
+  it('renders the real submission history instead of the CAP_PERF fixture', async () => {
+    mockCapabilityApi([
+      {
+        id: 'sub-1',
+        clientId: 'client-1',
+        capabilityId: 'cap-1',
+        fiscalYear: 'FY28',
+        // Absent from portfolio-fixtures.ts, so this cannot pass against CAP_PERF.
+        title: 'Ground autonomy retrofit line',
+        meta: 'Submitted to SASC professional staff',
+        outcome: 'Included +$4M',
+        outcomeType: 'success',
+        notes: null,
+        createdAt: '2026-03-01T00:00:00.000Z',
+        updatedAt: '2026-03-01T00:00:00.000Z',
+      },
+    ]);
+    renderCapabilities();
+
+    expect(await screen.findByText('Ground autonomy retrofit line')).toBeInTheDocument();
+    expect(screen.getByText('Included +$4M')).toBeInTheDocument();
+    // Real count, not the design's hardcoded "View all 14".
+    expect(screen.getByText('1 record')).toBeInTheDocument();
+    expect(screen.queryByText('View all 14')).not.toBeInTheDocument();
+    // The CAP_PERF fixture must not leak through as if real.
+    expect(screen.queryByText('ULTRA autonomy integration')).not.toBeInTheDocument();
+    expect(screen.queryByText('GPS-denied navigation study')).not.toBeInTheDocument();
+  });
+
+  it('shows a real empty state when the client has no submissions', async () => {
+    mockCapabilityApi([]);
+    renderCapabilities();
+
+    expect(
+      await screen.findByText("No submissions recorded against this client's capabilities yet."),
+    ).toBeInTheDocument();
+  });
+
+  it('renders no invented matches count or evidence tier on a real capability (row 2)', async () => {
+    mockCapabilityApi([]);
+    renderCapabilities();
+
+    await screen.findByText('Autonomy stack');
+    // The CAP_AREAS fixture used to supply these by index, stamping invented
+    // provenance onto a real capability record.
+    expect(screen.queryByText('Matches')).not.toBeInTheDocument();
+    expect(screen.queryByText('SAM.gov')).not.toBeInTheDocument();
+  });
+});

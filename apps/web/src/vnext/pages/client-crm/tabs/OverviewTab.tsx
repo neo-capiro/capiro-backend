@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Avatar,
   Card,
@@ -16,6 +17,20 @@ import {
   type PillTone,
 } from '../portfolio-primitives.js';
 import { ADVOCACY, FOOT_STATS, LIFE } from '../portfolio-fixtures.js';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useApi } from '../../../../lib/use-api.js';
+import { CapiroButton } from '../../../components/actions/index.js';
+import { CapiroModal } from '../../../components/overlays/index.js';
+import type { Capability } from '../../../../pages/clients/CapabilityDrawer.js';
+import {
+  createCapabilityHistory,
+  submissionHistoryKeys,
+  OUTCOME_TONE,
+  OUTCOME_TYPE_LABEL,
+  type CreateSubmissionHistoryInput,
+  type SubmissionOutcomeType,
+} from '../../../../pages/clients/submission-history-api.js';
+import { useClientSubmissions, type SubmissionWithCapability } from '../client-submissions.js';
 import {
   useClientCrmOverviewModel,
   type ClientCrmOverviewModel,
@@ -64,7 +79,7 @@ export function ClientCrmOverviewProto({
       <FederalFootprintCard onOpen={onOpenFederalFootprint} />
 
       {/* advocacy history (§6.3) */}
-      <AdvocacyHistoryCard />
+      <AdvocacyHistoryCard client={client} />
 
       {/* work + intelligence pulse (§6.4) */}
       <div className="cap-pf-grid-2">
@@ -180,12 +195,21 @@ function ProfileCard({ model, onEditProfile }: { model: ClientCrmOverviewModel; 
 /* ── §6.1 Account ─────────────────────────────────────────────────────────── */
 
 function AccountCard({ model, client }: { model: ClientCrmOverviewModel; client: Client }) {
+  const navigate = useNavigate();
   const { account } = model;
   const briefLabel = account.briefState === 'ready' ? 'Brief ready' : account.briefState === 'none' ? 'No brief yet' : 'No meeting scheduled';
   const contactEmail = client.primaryContactEmail;
   return (
     <Card>
-      <CardHead title="Account" action={<LinkBtn>Manage team</LinkBtn>} />
+      {/* Row 7, wire-audit "4 New capability": there is no per-client
+          account-team roster API — `accountTeam` is hardcoded empty in the
+          overview model. The real, existing destination is the firm's team
+          settings, so the link says that rather than implying a client roster
+          this product does not store. */}
+      <CardHead
+        title="Account"
+        action={<LinkBtn onClick={() => navigate('/settings/team')}>Firm team settings</LinkBtn>}
+      />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px', padding: 24 }}>
         <Field label="Account owner" value={account.accountOwner ?? 'Not tracked'} empty={!account.accountOwner} />
         <Field
@@ -297,39 +321,319 @@ const ADV_TIER: Record<string, 'Public record' | 'Client-verified' | 'Inferred'>
   inferred: 'Inferred',
 };
 
-function AdvocacyHistoryCard() {
+/**
+ * §6.3 Advocacy history.
+ *
+ * What is real (wire-audit "4 New capability" row 6): the client's
+ * `ClientSubmissionHistory` rows — fiscal year, title, meta, outcome and its
+ * coarse type — and "Log a submission", which POSTs a new one against a
+ * capability. When those rows exist they replace the ADVOCACY fixture.
+ *
+ * What is NOT real, and is therefore never rendered against live records (rows
+ * 1 and 5): the lifecycle/milestone track and the evidence taxonomy
+ * (public-record / client-verified / inferred). Neither has any field, table or
+ * endpoint in this codebase — `ClientSubmissionHistory` carries no vehicle, no
+ * activity type, no evidence class and no per-step timeline. The design's
+ * accordion, its LIFE tracks and its "6 records · 3 public · 2 client-verified
+ * · 1 inferred" footer render only in the fixture state.
+ */
+function AdvocacyHistoryCard({ client }: { client: Client }) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const { rows, capabilities, settled, failed } = useClientSubmissions(client.id);
+  const [logging, setLogging] = useState(false);
   // Default open record: FY27 · Autonomous logistics pilot (v2). §6.3 accordion.
   const [openId, setOpenId] = useState<string | null>('v2');
+
+  const showFixture = !settled || failed;
+  const genuinelyEmpty = settled && !failed && rows.length === 0;
+
+  const create = useMutation({
+    mutationFn: ({ capabilityId, ...input }: { capabilityId: string } & CreateSubmissionHistoryInput) =>
+      createCapabilityHistory(api, client.id, capabilityId, input),
+    onSuccess: (_created, variables) => {
+      setLogging(false);
+      void qc.invalidateQueries({
+        queryKey: submissionHistoryKeys.forCapability(client.id, variables.capabilityId),
+      });
+    },
+  });
 
   return (
     <Card>
       <CardHead
         withDesc
         title="Advocacy history"
-        description="What this client asked for, the vehicle it moved through, and what happened. Open a record to see its evidence trail."
-        action={<SecondaryBtn>Log a submission</SecondaryBtn>}
+        description="What this client asked for, and what happened. Submissions are recorded against the capability they support."
+        action={
+          <SecondaryBtn
+            onClick={() => setLogging(true)}
+            disabled={capabilities.length === 0}
+          >
+            Log a submission
+          </SecondaryBtn>
+        }
       />
       <div style={{ padding: '2px 24px 8px' }}>
-        {ADVOCACY.map((rec, i) => {
-          const open = openId === rec.id;
-          const steps = (LIFE as Record<string, Array<{ label: string; date: string; st: string }>>)[rec.id] ?? [];
-          const live = rec.outcome === 'Pending' || steps.some((s) => s.st === 'current');
-          return (
-            <AdvocacyRow
-              key={rec.id}
-              rec={rec}
-              steps={steps}
-              open={open}
-              live={live}
-              first={i === 0}
-              last={i === ADVOCACY.length - 1}
-              onToggle={() => setOpenId(open ? null : rec.id)}
-            />
-          );
-        })}
+        {genuinelyEmpty ? (
+          <p style={{ margin: 0, padding: '10px 0 16px', fontSize: 14, color: '#667085' }}>
+            {capabilities.length === 0
+              ? 'No submissions recorded yet. Add a capability first — a submission is recorded against one.'
+              : 'No submissions recorded for this client yet.'}
+          </p>
+        ) : showFixture ? (
+          ADVOCACY.map((rec, i) => {
+            const open = openId === rec.id;
+            const steps = (LIFE as Record<string, Array<{ label: string; date: string; st: string }>>)[rec.id] ?? [];
+            const live = rec.outcome === 'Pending' || steps.some((s) => s.st === 'current');
+            return (
+              <AdvocacyRow
+                key={rec.id}
+                rec={rec}
+                steps={steps}
+                open={open}
+                live={live}
+                first={i === 0}
+                last={i === ADVOCACY.length - 1}
+                onToggle={() => setOpenId(open ? null : rec.id)}
+              />
+            );
+          })
+        ) : (
+          rows.map((row) => <SubmissionHistoryRowView key={row.id} row={row} />)
+        )}
       </div>
-      <CardFoot left="6 records · 3 public · 2 client-verified · 1 inferred" right={<LinkBtn>Evidence classes and full history →</LinkBtn>} />
+      {/* The evidence-class breakdown is a fixture statistic — a submission has
+          no evidence class — so it is shown only alongside the fixture, never
+          as a claim about the client's real rows. */}
+      {showFixture ? (
+        <CardFoot left="6 records · 3 public · 2 client-verified · 1 inferred" right={<span />} />
+      ) : rows.length > 0 ? (
+        <CardFoot left={`${rows.length} submission${rows.length === 1 ? '' : 's'} on file`} right={<span />} />
+      ) : null}
+
+      {logging ? (
+        <LogSubmissionModal
+          capabilities={capabilities}
+          pending={create.isPending}
+          error={create.error}
+          onClose={() => setLogging(false)}
+          onSubmit={(values) => create.mutate(values)}
+        />
+      ) : null}
     </Card>
+  );
+}
+
+/** One real submission. No lifecycle track and no evidence chip — see above. */
+function SubmissionHistoryRowView({ row }: { row: SubmissionWithCapability }) {
+  const tone = (OUTCOME_TONE[row.outcomeType] ?? 'gray') as PillTone;
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '14px 0', borderTop: '1px solid #F2F4F7' }}>
+      <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, fontWeight: 600, color: '#101828' }}>
+        {row.fiscalYear}
+      </span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>
+          {row.title}
+        </span>
+        <span style={{ display: 'block', marginTop: 3, fontSize: 13, color: '#667085', textWrap: 'pretty' }}>
+          {[row.capabilityName, row.meta].filter(Boolean).join(' · ') || 'No detail recorded'}
+        </span>
+        {row.notes ? (
+          <span style={{ display: 'block', marginTop: 6, fontSize: 13, lineHeight: '19px', color: '#475467', textWrap: 'pretty' }}>
+            {row.notes}
+          </span>
+        ) : null}
+      </span>
+      <span style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+        <Pill tone={tone}>{OUTCOME_TYPE_LABEL[row.outcomeType] ?? row.outcomeType}</Pill>
+        {row.outcome ? (
+          <span style={{ fontSize: 12, color: '#667085', whiteSpace: 'nowrap' }}>{row.outcome}</span>
+        ) : null}
+      </span>
+    </div>
+  );
+}
+
+const OUTCOME_TYPE_OPTIONS: Array<{ value: SubmissionOutcomeType; label: string }> = [
+  { value: 'in_progress', label: 'In progress' },
+  { value: 'success', label: 'Succeeded' },
+  { value: 'partial', label: 'Partial' },
+  { value: 'failed', label: 'Not included' },
+];
+
+const LOG_FIELD = {
+  display: 'block',
+  width: '100%',
+  marginTop: 6,
+  height: 40,
+  padding: '0 12px',
+  borderRadius: 8,
+  border: 0,
+  outline: 'none',
+  background: '#ffffff',
+  boxShadow: 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+  fontSize: 14,
+  color: '#101828',
+} as const;
+
+const LOG_LABEL = {
+  display: 'block',
+  fontSize: 12,
+  fontWeight: 600,
+  letterSpacing: '.04em',
+  textTransform: 'uppercase',
+  color: '#667085',
+} as const;
+
+/**
+ * Log a submission. Every field here exists on `ClientSubmissionHistory`; the
+ * capability picker is required because the API attaches the row to one
+ * (`POST /clients/:id/capabilities/:capId/history` 404s without a real one).
+ */
+function LogSubmissionModal({
+  capabilities,
+  pending,
+  error,
+  onClose,
+  onSubmit,
+}: {
+  capabilities: Capability[];
+  pending: boolean;
+  error: unknown;
+  onClose: () => void;
+  onSubmit: (values: { capabilityId: string } & CreateSubmissionHistoryInput) => void;
+}) {
+  const [capabilityId, setCapabilityId] = useState(capabilities[0]?.id ?? '');
+  const [fiscalYear, setFiscalYear] = useState('');
+  const [title, setTitle] = useState('');
+  const [meta, setMeta] = useState('');
+  const [outcome, setOutcome] = useState('');
+  const [outcomeType, setOutcomeType] = useState<SubmissionOutcomeType>('in_progress');
+  const [notes, setNotes] = useState('');
+
+  const ready = Boolean(capabilityId && fiscalYear.trim() && title.trim());
+
+  return (
+    <CapiroModal open title="Log a submission" onClose={onClose}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <label>
+          <span style={LOG_LABEL}>Capability</span>
+          <select
+            value={capabilityId}
+            aria-label="Capability"
+            onChange={(e) => setCapabilityId(e.target.value)}
+            style={LOG_FIELD}
+          >
+            {capabilities.map((capability) => (
+              <option key={capability.id} value={capability.id}>
+                {capability.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <label style={{ flex: '0 0 120px' }}>
+            <span style={LOG_LABEL}>Fiscal year</span>
+            <input
+              value={fiscalYear}
+              aria-label="Fiscal year"
+              onChange={(e) => setFiscalYear(e.target.value)}
+              placeholder="FY27"
+              style={LOG_FIELD}
+            />
+          </label>
+          <label style={{ flex: 1, minWidth: 0 }}>
+            <span style={LOG_LABEL}>Title</span>
+            <input
+              value={title}
+              aria-label="Title"
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="What was asked for"
+              style={LOG_FIELD}
+            />
+          </label>
+        </div>
+        <label>
+          <span style={LOG_LABEL}>Detail</span>
+          <input
+            value={meta}
+            aria-label="Detail"
+            onChange={(e) => setMeta(e.target.value)}
+            placeholder="Vehicle, committee, who it went to"
+            style={LOG_FIELD}
+          />
+        </label>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <label style={{ flex: 1, minWidth: 0 }}>
+            <span style={LOG_LABEL}>Outcome</span>
+            <input
+              value={outcome}
+              aria-label="Outcome"
+              onChange={(e) => setOutcome(e.target.value)}
+              placeholder="e.g. Included +$8M"
+              style={LOG_FIELD}
+            />
+          </label>
+          <label style={{ flex: '0 0 160px' }}>
+            <span style={LOG_LABEL}>Status</span>
+            <select
+              value={outcomeType}
+              aria-label="Status"
+              onChange={(e) => setOutcomeType(e.target.value as SubmissionOutcomeType)}
+              style={LOG_FIELD}
+            >
+              {OUTCOME_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <label>
+          <span style={LOG_LABEL}>Notes</span>
+          <textarea
+            value={notes}
+            aria-label="Notes"
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            placeholder="Provenance — what is on file for this"
+            style={{ ...LOG_FIELD, height: 'auto', padding: '10px 12px', resize: 'vertical' }}
+          />
+        </label>
+        {error ? (
+          <p style={{ margin: 0, fontSize: 14, color: '#B42318' }}>
+            {error instanceof Error ? error.message : 'Could not log that submission'}
+          </p>
+        ) : null}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <CapiroButton
+            variant="primary"
+            size="compact"
+            loading={pending}
+            disabled={!ready}
+            onClick={() =>
+              onSubmit({
+                capabilityId,
+                fiscalYear: fiscalYear.trim(),
+                title: title.trim(),
+                ...(meta.trim() ? { meta: meta.trim() } : {}),
+                ...(outcome.trim() ? { outcome: outcome.trim() } : {}),
+                outcomeType,
+                ...(notes.trim() ? { notes: notes.trim() } : {}),
+              })
+            }
+          >
+            Log submission
+          </CapiroButton>
+          <CapiroButton variant="secondary" size="compact" onClick={onClose}>
+            Cancel
+          </CapiroButton>
+        </div>
+      </div>
+    </CapiroModal>
   );
 }
 

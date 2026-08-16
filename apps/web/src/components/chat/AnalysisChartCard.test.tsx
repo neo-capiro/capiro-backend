@@ -117,7 +117,13 @@ describe('AnalysisChartCard', () => {
     expect(screen.getByText('18 ROWS')).toBeTruthy();
     expect(screen.getByText('SOURCES · SEE MERI CITATIONS')).toBeTruthy();
     expect(screen.getByTestId('recharts-line-chart')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Request/ })).toHaveAttribute('aria-pressed', 'true');
+    // `visibleSeries` starts as an empty Set and is filled by an effect once
+    // the spec arrives, so aria-pressed is false for a tick after the claim
+    // text appears. Asserting it synchronously made this flaky under a heavier
+    // suite — wait for the effect rather than for the machine to be fast.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Request/ })).toHaveAttribute('aria-pressed', 'true'),
+    );
     expect(mocks.get).toHaveBeenCalledWith('/api/clio/analysis-artifacts/chart-1');
     expect(mocks.get).toHaveBeenCalledWith('/api/clio/analysis-artifacts/chart-1/image', {
       responseType: 'blob',

@@ -187,3 +187,33 @@ describe('ClientCrmWorkProto — stat band', () => {
     expect(screen.queryByText('1 strategy could not be read.')).not.toBeInTheDocument();
   });
 });
+
+/* ── "4 New capability" rows 8-9 ──────────────────────────────────────────── */
+
+describe('ClientCrmWorkProto — unbacked status signals', () => {
+  it('renders no "On track" pill or readiness meter over real strategies', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/strategy-api/strategies') return Promise.resolve({ data: [listItem] });
+      if (url === `/strategy-api/strategies/${STRATEGY_ID}`) return Promise.resolve({ data: detail });
+      return Promise.reject(new Error(`unexpected get ${url}`));
+    });
+    renderWork();
+
+    await screen.findByText(REAL_TITLE);
+    // The Strategy API carries no completion or readiness state, so neither
+    // may appear beside a real strategy name.
+    expect(screen.queryByText('On track')).not.toBeInTheDocument();
+    expect(screen.queryByText('54% ready')).not.toBeInTheDocument();
+    expect(screen.queryByText('38% ready')).not.toBeInTheDocument();
+  });
+
+  it('keeps the design pill over the fixture, which is what it describes', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/strategy-api/strategies') return new Promise(() => {}); // never resolves
+      return new Promise(() => {});
+    });
+    renderWork();
+
+    expect(await screen.findByText('On track')).toBeInTheDocument();
+  });
+});

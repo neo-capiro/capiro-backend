@@ -13,10 +13,15 @@ import {
   type EvidenceTier,
   type PillTone,
 } from '../portfolio-primitives.js';
-import { CAP_AREAS, CAP_FIT, CAP_PERF } from '../portfolio-fixtures.js';
+import { CAP_FIT, CAP_PERF } from '../portfolio-fixtures.js';
 import { useApi } from '../../../../lib/use-api.js';
 import { CapabilityDrawer, type Capability } from '../../../../pages/clients/CapabilityDrawer.js';
 import { readClientRegistrations } from '../../../../pages/clients/client-registrations.js';
+import {
+  OUTCOME_TONE,
+  OUTCOME_TYPE_LABEL,
+} from '../../../../pages/clients/submission-history-api.js';
+import { useClientSubmissions, type SubmissionWithCapability } from '../client-submissions.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
@@ -28,13 +33,16 @@ import { CapiroModal } from '../../../components/overlays/index.js';
  * Data: §7.1 capability areas bind to the real capabilities endpoint when it
  * returns records (`GET /api/clients/:id/capabilities`, same query key as the
  * canonical profile surface, so both share one cache) — maturity derives from
- * TRL, program line from peNumbers, tags from tags. Fields the backend does
- * not carry (matches count, evidence tier/source) come from the design
- * fixture at the same index. §7.2 registrations & codes is real — it reads the
+ * TRL, program line from peNumbers, tags from tags. **The design's per-area
+ * "matches" count and evidence tier/source have NO field on the capability
+ * model** — they used to be read off the CAP_AREAS fixture at the same index,
+ * which stamped invented match counts and provenance tiers onto real client
+ * capabilities. They are now omitted on live records (wire-audit "4 New
+ * capability" row 2). §7.2 registrations & codes is real — it reads the
  * government identifiers the Company Info wizard writes (see
- * `readClientRegistrations`). §7.2 capability-fit rows and §7.3 past
- * performance have no per-client backend — they render the design's fixtures
- * (UI-only).
+ * `readClientRegistrations`). §7.3 past performance is real: it reads the
+ * client's `ClientSubmissionHistory` rows across its capabilities (row 12).
+ * §7.2 capability-fit rows have no per-client backend and stay fixture.
  *
  * The canonical CapabilityDrawer stays mounted for all editing: the header
  * "Add capability" action opens it blank, and clicking a live capability area
@@ -72,7 +80,7 @@ export function ClientCrmCapabilitiesProto({
   const refresh = () => void qc.invalidateQueries({ queryKey: ['client-capabilities', client.id] });
 
   const live = capabilities.data ?? [];
-  const areas: CapabilityAreaView[] = live.map((cap, i) => toLiveAreaView(cap, i));
+  const areas: CapabilityAreaView[] = live.map((cap) => toLiveAreaView(cap));
 
   return (
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -102,7 +110,7 @@ export function ClientCrmCapabilitiesProto({
       </div>
 
       {/* §7.3 Past performance */}
-      <PastPerformanceCard />
+      <PastPerformanceCard client={client} />
 
       {(editing || creating) && (
         <CapabilityDrawer
@@ -237,9 +245,15 @@ interface CapabilityAreaView {
   body: string;
   tags: string[];
   pe: string;
-  matches: string;
-  tier: EvidenceTier;
-  source: string;
+  /**
+   * Row 2, wire-audit "4 New capability": there is no matches count and no
+   * evidence tier/source on `ClientCapability`, so a live card carries none.
+   * Reading them off the design fixture put an invented "8 matches · Tier A ·
+   * SAM.gov" under a real capability name, which reads as this client's data.
+   */
+  matches?: string;
+  tier?: EvidenceTier;
+  source?: string;
   /** Present only when the card is backed by a real capability record. */
   capability?: Capability;
 }
@@ -247,13 +261,13 @@ interface CapabilityAreaView {
 /**
  * The backend carries no maturity field — derive the design's bands from TRL:
  * ≥7 Fielded (success), 4–6 Prototype (blue), otherwise Research (warning).
- * Matches/evidence have no backend: the fixture at the same index supplies them.
+ *
+ * Nothing else is invented. Matches and evidence tier/source have no field on
+ * the capability model, so a live card simply does not render them.
  */
-function toLiveAreaView(cap: Capability, i: number): CapabilityAreaView {
+function toLiveAreaView(cap: Capability): CapabilityAreaView {
   const maturity = cap.trl != null && cap.trl >= 7 ? 'Fielded' : cap.trl != null && cap.trl >= 4 ? 'Prototype' : 'Research';
   const tone: PillTone = maturity === 'Fielded' ? 'success' : maturity === 'Prototype' ? 'blue' : 'warning';
-  // i % length is always in range for the fixed 4-entry fixture.
-  const fixture = CAP_AREAS[i % CAP_AREAS.length]!;
   const pe = cap.peNumbers[0] ?? cap.peNumber;
   return {
     key: cap.id,
@@ -266,9 +280,6 @@ function toLiveAreaView(cap: Capability, i: number): CapabilityAreaView {
         'No description recorded yet.'),
     tags: cap.tags,
     pe: pe ? `PE ${pe}` : 'Not yet mapped',
-    matches: fixture.matches,
-    tier: fixture.tier as EvidenceTier,
-    source: fixture.source,
     capability: cap,
   };
 }
@@ -399,14 +410,17 @@ function CapabilityAreaCard({ area, onOpen }: { area: CapabilityAreaView; onOpen
           </span>
           <span style={{ fontSize: 13, color: '#101828' }}>{area.pe}</span>
         </span>
-        <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
-            Matches
+        {/* Rendered only when a source exists for them — see CapabilityAreaView. */}
+        {area.matches ? (
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
+              Matches
+            </span>
+            <span style={{ fontSize: 13, color: '#101828' }}>{area.matches}</span>
           </span>
-          <span style={{ fontSize: 13, color: '#101828' }}>{area.matches}</span>
-        </span>
+        ) : null}
         <span style={{ flex: 1, minWidth: 8 }} />
-        <EvidenceChip tier={area.tier} label={area.source} />
+        {area.tier ? <EvidenceChip tier={area.tier} label={area.source ?? ''} /> : null}
       </div>
     </>
   );
@@ -569,46 +583,142 @@ function FitRow({ fit }: { fit: (typeof CAP_FIT)[number] }) {
 
 /* ── §7.3 Past performance ────────────────────────────────────────────────── */
 
-function PastPerformanceCard() {
+/**
+ * §7.3 Past performance — real (wire-audit "4 New capability" row 12).
+ *
+ * Reads the client's `ClientSubmissionHistory` rows across its capabilities.
+ * The columns differ from the design's on purpose: that table wanted Agency /
+ * Value / Period / Role, and this store carries none of those — it holds
+ * fiscal year, title, free-text meta, an outcome and its coarse type. Inventing
+ * a dollar value or a prime/sub role beside a real submission title would read
+ * as award data the product does not have, so the table shows what is stored.
+ * "View all N" is the real row count, not the design's 14.
+ */
+function PastPerformanceCard({ client }: { client: Client }) {
+  const { rows, settled, failed } = useClientSubmissions(client.id);
+  // Fixture only while the reads are in flight or errored — never as a
+  // stand-in for a client with no recorded history.
+  const showFixture = !settled || failed;
+  const genuinelyEmpty = settled && !failed && rows.length === 0;
+
   return (
     <Card>
       <CardHead
         withDesc
         title="Past performance"
-        description="Prime and subcontract history behind the capability claims, drawn from award data and client records."
-        action={<LinkBtn>View all 14</LinkBtn>}
+        description="Submissions recorded against this client's capabilities, and what happened to each."
+        action={
+          showFixture || rows.length === 0 ? null : (
+            <span style={{ fontSize: 13, color: '#667085', whiteSpace: 'nowrap' }}>
+              {`${rows.length} record${rows.length === 1 ? '' : 's'}`}
+            </span>
+          )
+        }
       />
-      <div style={{ width: '100%', overflowX: 'auto' }}>
-        <div style={{ minWidth: 900 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 16,
-              padding: '10px 24px',
-              background: '#F9FAFB',
-              borderTop: '1px solid #EAECF0',
-              borderBottom: '1px solid #EAECF0',
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: '.04em',
-              textTransform: 'uppercase',
-              color: '#667085',
-            }}
-          >
-            <span style={{ flex: 1, minWidth: 0 }}>Award</span>
-            <span style={{ flex: '0 0 auto', width: 188 }}>Agency</span>
-            <span style={{ flex: '0 0 auto', width: 96, textAlign: 'right' }}>Value</span>
-            <span style={{ flex: '0 0 auto', width: 132 }}>Period</span>
-            <span style={{ flex: '0 0 auto', width: 88 }}>Role</span>
-            <span style={{ flex: '0 0 auto', width: 112 }}>Status</span>
+      {genuinelyEmpty ? (
+        <p style={{ margin: 0, padding: '4px 24px 20px', fontSize: 14, color: '#667085' }}>
+          No submissions recorded against this client&apos;s capabilities yet.
+        </p>
+      ) : (
+        <div style={{ width: '100%', overflowX: 'auto' }}>
+          <div style={{ minWidth: showFixture ? 900 : 720 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 16,
+                padding: '10px 24px',
+                background: '#F9FAFB',
+                borderTop: '1px solid #EAECF0',
+                borderBottom: '1px solid #EAECF0',
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: '.04em',
+                textTransform: 'uppercase',
+                color: '#667085',
+              }}
+            >
+              {showFixture ? (
+                <>
+                  <span style={{ flex: 1, minWidth: 0 }}>Award</span>
+                  <span style={{ flex: '0 0 auto', width: 188 }}>Agency</span>
+                  <span style={{ flex: '0 0 auto', width: 96, textAlign: 'right' }}>Value</span>
+                  <span style={{ flex: '0 0 auto', width: 132 }}>Period</span>
+                  <span style={{ flex: '0 0 auto', width: 88 }}>Role</span>
+                  <span style={{ flex: '0 0 auto', width: 112 }}>Status</span>
+                </>
+              ) : (
+                <>
+                  <span style={{ flex: '0 0 auto', width: 72 }}>FY</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>Submission</span>
+                  <span style={{ flex: '0 0 auto', width: 188 }}>Capability</span>
+                  <span style={{ flex: '0 0 auto', width: 132 }}>Outcome</span>
+                  <span style={{ flex: '0 0 auto', width: 112 }}>Status</span>
+                </>
+              )}
+            </div>
+            {showFixture
+              ? CAP_PERF.map((p) => <PerfRow key={p.title} perf={p} />)
+              : rows.map((row) => <SubmissionRow key={row.id} row={row} />)}
           </div>
-          {CAP_PERF.map((p) => (
-            <PerfRow key={p.title} perf={p} />
-          ))}
         </div>
-      </div>
+      )}
     </Card>
+  );
+}
+
+function SubmissionRow({ row }: { row: SubmissionWithCapability }) {
+  const [hover, setHover] = useState(false);
+  const tone = (OUTCOME_TONE[row.outcomeType] ?? 'gray') as PillTone;
+  return (
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: 'flex',
+        width: '100%',
+        alignItems: 'center',
+        gap: 16,
+        padding: '13px 24px',
+        borderBottom: '1px solid #F2F4F7',
+        textAlign: 'left',
+        background: hover ? '#F9FAFB' : 'transparent',
+      }}
+    >
+      <span style={{ flex: '0 0 auto', width: 72, fontSize: 13, fontWeight: 600, color: '#101828' }}>
+        {row.fiscalYear}
+      </span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>
+          {row.title}
+        </span>
+        {row.meta ? (
+          <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085', textWrap: 'pretty' }}>
+            {row.meta}
+          </span>
+        ) : null}
+      </span>
+      <span
+        style={{
+          flex: '0 0 auto',
+          width: 188,
+          fontSize: 13,
+          color: '#475467',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {row.capabilityName ?? '—'}
+      </span>
+      <span style={{ flex: '0 0 auto', width: 132, fontSize: 13, color: '#475467', textWrap: 'pretty' }}>
+        {/* The free-text outcome when there is one; the coarse type is the pill. */}
+        {row.outcome ?? '—'}
+      </span>
+      <span style={{ flex: '0 0 auto', width: 112 }}>
+        <Pill tone={tone}>{OUTCOME_TYPE_LABEL[row.outcomeType] ?? row.outcomeType}</Pill>
+      </span>
+    </div>
   );
 }
 
