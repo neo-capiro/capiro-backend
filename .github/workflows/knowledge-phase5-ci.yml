@@ -1,0 +1,212 @@
+name: Knowledge Plane Phase 5 CI
+
+on:
+  push:
+    branches:
+      - feat/phase-5-universal-entity-resolution
+      - feat/phase-5-governance-evals
+      - feat/phase-5-meri-compat-adjustments
+    paths: &phase5_paths
+      - 'apps/api/src/knowledge/entities/**'
+      - 'apps/api/src/knowledge/knowledge.module.ts'
+      - 'apps/api/src/common/web-search.helpers.ts'
+      - 'apps/api/src/ai-credentials/**'
+      - 'apps/api/src/engagement/llm-completion.service.ts'
+      - 'apps/api/prisma/schema.prisma'
+      - 'apps/api/prisma/migrations/20261120100000_universal_entity_resolution/**'
+      - 'apps/api/prisma/migrations/20261120110000_universal_entity_resolution_hardening/**'
+      - 'apps/api/prisma/migrations/20261120120000_canonical_entity_merge_ledger/**'
+      - 'apps/api/prisma/migrations/20261120130000_canonical_entity_terminal_lifecycle/**'
+      - 'apps/api/prisma/migrations/20261120140000_entity_identity_governance/**'
+      - 'apps/api/prisma/migrations/20261120141000_entity_governance_concurrency/**'
+      - 'apps/api/prisma/migrations/20261120142000_resolution_governance_projection/**'
+      - 'apps/api/prisma/migrations/20261120143000_canonical_entity_backfill_checkpoints/**'
+      - 'apps/api/scripts/backfill-canonical-entities.ts'
+      - 'apps/api/scripts/backfill-canonical-public-references.ts'
+      - 'apps/api/scripts/eval-canonical-entity-resolution.ts'
+      - 'apps/api/scripts/verify-canonical-backfill-replay.ts'
+      - 'apps/api/scripts/verify-canonical-backfill-checkpoint-resume.ts'
+      - 'apps/api/scripts/verify-phase5-db-backed-harness.ts'
+      - 'scripts/verify-entity-resolution-migration.sh'
+      - 'scripts/verify-entity-governance-migration.sh'
+      - '.github/workflows/knowledge-phase5-ci.yml'
+  pull_request:
+    branches: [main]
+    paths: *phase5_paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: capiro
+          POSTGRES_PASSWORD: capiro
+          POSTGRES_DB: capiro_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U capiro -d capiro_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro_ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check patch hygiene
+        run: git diff --check HEAD^
+
+      - name: Rehearse Phase 5 entity-resolution migrations
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          bash scripts/verify-entity-resolution-migration.sh
+          bash scripts/verify-entity-governance-migration.sh
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Validate and generate Prisma client
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Test entity-resolution foundation
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/knowledge/entities
+
+      - name: Test the rest of the Knowledge Plane (mailbox, evidence, assertions)
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/knowledge
+
+      - name: Test the shared web-search transport and its non-Meri consumer
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/common/web-search.helpers.spec.ts src/clients/client-profile-fill.service.spec.ts
+
+      - name: Reject Phase 5 TypeScript errors
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @capiro/api exec tsc --noEmit --pretty false > /tmp/api-tsc.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/api-tsc.log
+          if grep -E 'src/knowledge/|src/common/web-search|src/ai-credentials/|scripts/(backfill-canonical|eval-canonical-entity-resolution|verify-canonical-backfill|verify-phase5)' /tmp/api-tsc.log; then
+            echo "Phase 5 introduced TypeScript errors." >&2
+            exit 1
+          fi
+          echo "Full API typecheck exit: $status (known unrelated baseline errors are tracked separately)."
+
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Full-schema gates: the real DB-backed golden/Meri-compat acceptance
+    # harness and the checkpoint crash/resume verifier, both against a real
+    # `prisma migrate deploy` of the entire migration chain (not the scoped
+    # rehearsal fixtures the `verify` job above exercises). pgvector is
+    # required because 20260501000000_init_identity_tenancy depends on it;
+    # the database MUST be named `capiro`, not `capiro_ci` —
+    # 20260502020000_capiro_app_role hardcodes `GRANT ... ON DATABASE capiro`.
+    # No external API credentials are used or required: public_web and
+    # model_candidate_reconciliation both run against the repo's existing
+    # test-only Meri-compatibility fixture providers for this deterministic
+    # corpus (see verify-phase5-db-backed-harness.ts's header), never the real
+    # network/model transport.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: capiro
+          POSTGRES_PASSWORD: capiro
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Deploy the full Prisma migration chain
+        run: |
+          set -o pipefail
+          pnpm --filter @capiro/api exec prisma migrate deploy 2>&1 | tee /tmp/migrate-deploy.log
+          grep -q '20261120143000_canonical_entity_backfill_checkpoints' /tmp/migrate-deploy.log || {
+            echo "::error::canonical_entity_backfill_checkpoints migration was not applied" >&2
+            exit 1
+          }
+      - run: pnpm --filter @capiro/api exec prisma generate
+
+      - name: Real DB-backed Phase 5 acceptance harness (golden corpus + Meri compatibility)
+        run: pnpm --filter @capiro/api exec tsx scripts/verify-phase5-db-backed-harness.ts
+
+      - name: Canonical entity backfill checkpoint crash/resume verification
+        run: pnpm --filter @capiro/api exec tsx scripts/verify-canonical-backfill-checkpoint-resume.ts
+
+      - name: Seed a data-bearing cohort for the replay verifier
+        run: |
+          PGPASSWORD=capiro psql -h localhost -U capiro -d capiro <<'SQL'
+          INSERT INTO tenants (id, slug, name, status)
+          VALUES ('ffffffff-4444-4444-8444-444444444444'::uuid, 'phase5-ci-replay', 'Phase 5 CI Replay', 'active')
+          ON CONFLICT (id) DO NOTHING;
+          INSERT INTO clients (tenant_id, name)
+          VALUES
+            ('ffffffff-4444-4444-8444-444444444444'::uuid, 'Phase 5 CI Replay Client A'),
+            ('ffffffff-4444-4444-8444-444444444444'::uuid, 'Phase 5 CI Replay Client B');
+          SQL
+
+      - name: Canonical entity backfill replay/idempotency verification
+        run: |
+          pnpm --filter @capiro/api exec tsx scripts/verify-canonical-backfill-replay.ts \
+            --tenant ffffffff-4444-4444-8444-444444444444 --source client --limit 10
+
+      - name: Clean up the replay verifier cohort
+        if: always()
+        run: |
+          PGPASSWORD=capiro psql -h localhost -U capiro -d capiro <<'SQL'
+          ALTER TABLE entity_resolutions DISABLE TRIGGER USER;
+          DELETE FROM entity_resolutions WHERE tenant_id = 'ffffffff-4444-4444-8444-444444444444'::uuid;
+          DELETE FROM entity_aliases WHERE entity_id IN (
+            SELECT id FROM canonical_entities WHERE tenant_id = 'ffffffff-4444-4444-8444-444444444444'::uuid
+          );
+          DELETE FROM entity_identifiers WHERE entity_id IN (
+            SELECT id FROM canonical_entities WHERE tenant_id = 'ffffffff-4444-4444-8444-444444444444'::uuid
+          );
+          DELETE FROM canonical_entities WHERE tenant_id = 'ffffffff-4444-4444-8444-444444444444'::uuid;
+          DELETE FROM clients WHERE tenant_id = 'ffffffff-4444-4444-8444-444444444444'::uuid;
+          DELETE FROM tenants WHERE id = 'ffffffff-4444-4444-8444-444444444444'::uuid;
+          ALTER TABLE entity_resolutions ENABLE TRIGGER USER;
+          SQL

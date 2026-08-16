@@ -167,7 +167,12 @@ describe('syncMailIncremental orchestration (Phase F apply loop)', () => {
     ).syncMailIncremental('t1', connection, mailState, 'token');
 
     expect(patch.gmailGet).toHaveBeenCalledWith('token', 'm1');
-    expect(patch.persistGmailMessage).toHaveBeenCalledWith('t1', 'conn-1', { id: 'm1', labelIds: ['INBOX'] });
+    expect(patch.persistGmailMessage).toHaveBeenCalledWith(
+      't1',
+      'conn-1',
+      { id: 'm1', labelIds: ['INBOX'] },
+      'incremental',
+    );
     expect(patch.markGmailMessageRemoved).not.toHaveBeenCalled();
     expect(stats.matched).toBe(1);
   });

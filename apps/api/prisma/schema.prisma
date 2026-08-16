@@ -279,7 +279,196 @@ model Tenant {
   assuranceFeedbackCandidates        AssuranceFeedbackCandidate[]
   assuranceEvalFixtures              AssuranceEvalFixture[]
 
+  knowledgeEvents      KnowledgeEvent[]
+  knowledgeAssertions  KnowledgeAssertion[]
+  knowledgeEvidence    KnowledgeEvidence[]
+  knowledgeMailboxJobs KnowledgeMailboxJob[]
+
+  canonicalEntities                  CanonicalEntity[]
+  canonicalEntityMerges              CanonicalEntityMerge[]
+  entityAliases                      EntityAlias[]
+  entityIdentifiers                  EntityIdentifier[]
+  entityResolutions                  EntityResolution[]
+  entityIdentityGovernanceEvents     EntityIdentityGovernanceEvent[]
+  canonicalEntityBackfillCheckpoints CanonicalEntityBackfillCheckpoint[]
+
   @@map("tenants")
+}
+
+/// Universal canonical identity registry. The SQL migrations remain the source
+/// of truth for RLS, partial uniqueness, triggers, SECURITY DEFINER functions,
+/// append-only rules, and terminal-state invariants; this model makes the table
+/// reachable through Prisma without generating a replacement migration.
+model CanonicalEntity {
+  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId             String?  @map("tenant_id") @db.Uuid
+  identityScope        String   @map("identity_scope") @db.VarChar(24)
+  entityType           String   @map("entity_type") @db.VarChar(64)
+  canonicalName        String   @map("canonical_name")
+  normalizedName       String   @map("normalized_name")
+  status               String   @default("active") @db.VarChar(24)
+  resolutionConfidence Decimal  @default(1.0) @map("resolution_confidence") @db.Decimal(5, 4)
+  resolutionMethod     String   @map("resolution_method") @db.VarChar(64)
+  metadata             Json     @default("{}")
+  mergedIntoEntityId   String?  @map("merged_into_entity_id") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant              Tenant?                @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "canonical_entities_tenant_fkey")
+  mergedInto          CanonicalEntity?       @relation("CanonicalEntityMergeTarget", fields: [mergedIntoEntityId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "canonical_entities_merged_into_fkey")
+  mergedSources       CanonicalEntity[]      @relation("CanonicalEntityMergeTarget")
+  aliases             EntityAlias[]
+  identifiers         EntityIdentifier[]
+  selectedResolutions EntityResolution[]     @relation("EntityResolutionSelectedEntity")
+  mergeSources        CanonicalEntityMerge?  @relation("CanonicalEntityMergeSource")
+  mergeTargets        CanonicalEntityMerge[] @relation("CanonicalEntityMergeTarget")
+
+  @@index([entityType, normalizedName, identityScope, tenantId, status], map: "canonical_entities_visible_name_idx")
+  // SQL-owned partial index: tenant_id IS NOT NULL.
+  // SQL-owned partial index: merged_into_entity_id IS NOT NULL.
+  @@map("canonical_entities")
+}
+
+model EntityAlias {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  entityId        String    @map("entity_id") @db.Uuid
+  tenantId        String?   @map("tenant_id") @db.Uuid
+  identityScope   String    @map("identity_scope") @db.VarChar(24)
+  alias           String
+  normalizedAlias String    @map("normalized_alias")
+  sourceType      String    @map("source_type") @db.VarChar(64)
+  sourceId        String?   @map("source_id") @db.VarChar(512)
+  confidence      Decimal   @default(1.0) @db.Decimal(5, 4)
+  verifiedAt      DateTime? @map("verified_at") @db.Timestamptz(6)
+  status          String    @default("active") @db.VarChar(24)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  entity CanonicalEntity @relation(fields: [entityId], references: [id], onDelete: Restrict, map: "entity_aliases_entity_fkey")
+  tenant Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "entity_aliases_tenant_fkey")
+
+  // All uniqueness and lookup indexes are SQL-owned partial indexes because
+  // withdrawn links must remain in history without blocking replacements.
+  @@map("entity_aliases")
+}
+
+model EntityIdentifier {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  entityId        String    @map("entity_id") @db.Uuid
+  tenantId        String?   @map("tenant_id") @db.Uuid
+  identityScope   String    @map("identity_scope") @db.VarChar(24)
+  identifierType  String    @map("identifier_type") @db.VarChar(64)
+  identifierValue String    @map("identifier_value")
+  normalizedValue String    @map("normalized_value")
+  sourceType      String    @map("source_type") @db.VarChar(64)
+  sourceId        String?   @map("source_id") @db.VarChar(512)
+  confidence      Decimal   @default(1.0) @db.Decimal(5, 4)
+  verifiedAt      DateTime? @map("verified_at") @db.Timestamptz(6)
+  status          String    @default("active") @db.VarChar(24)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  entity CanonicalEntity @relation(fields: [entityId], references: [id], onDelete: Restrict, map: "entity_identifiers_entity_fkey")
+  tenant Tenant?         @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "entity_identifiers_tenant_fkey")
+
+  @@index([entityId, identifierType, status], map: "entity_identifiers_entity_idx")
+  // Scope/status uniqueness is SQL-owned and partial so withdrawals remain
+  // append-only and replacement links can be added safely.
+  @@map("entity_identifiers")
+}
+
+model EntityResolution {
+  id                       String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId                 String   @map("tenant_id") @db.Uuid
+  idempotencyKey           String   @map("idempotency_key") @db.VarChar(64)
+  actorUserId              String?  @map("actor_user_id") @db.Uuid
+  rawInput                 String   @map("raw_input")
+  normalizedInput          String   @map("normalized_input")
+  entityTypeHint           String?  @map("entity_type_hint") @db.VarChar(64)
+  candidateEntityIds       Json     @default("[]") @map("candidate_entity_ids")
+  selectedEntityId         String?  @map("selected_entity_id") @db.Uuid
+  status                   String   @db.VarChar(24)
+  confidence               Decimal  @db.Decimal(5, 4)
+  resolutionMethod         String   @map("resolution_method") @db.VarChar(64)
+  provenance               Json     @default("[]")
+  correctionOfResolutionId String?  @map("correction_of_resolution_id") @db.Uuid
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "entity_resolutions_tenant_fkey")
+  selectedEntity CanonicalEntity?   @relation("EntityResolutionSelectedEntity", fields: [selectedEntityId], references: [id], onDelete: Restrict, map: "entity_resolutions_selected_entity_fkey")
+  correctionOf   EntityResolution?  @relation("EntityResolutionCorrection", fields: [correctionOfResolutionId], references: [id], onDelete: Restrict, map: "entity_resolutions_correction_fkey")
+  corrections    EntityResolution[] @relation("EntityResolutionCorrection")
+
+  @@unique([tenantId, idempotencyKey], map: "entity_resolutions_identity_unique")
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)], map: "entity_resolutions_tenant_created_idx")
+  // selected_entity and correction indexes are SQL-owned partial indexes.
+  @@map("entity_resolutions")
+}
+
+model CanonicalEntityMerge {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  sourceEntityId String   @unique(map: "canonical_entity_merges_source_unique") @map("source_entity_id") @db.Uuid
+  targetEntityId String   @map("target_entity_id") @db.Uuid
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  reasonCode     String   @map("reason_code") @db.VarChar(64)
+  reason         String?
+  provenance     Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "canonical_entity_merges_tenant_fkey")
+  source CanonicalEntity @relation("CanonicalEntityMergeSource", fields: [sourceEntityId], references: [id], onDelete: Restrict, map: "canonical_entity_merges_source_fkey")
+  target CanonicalEntity @relation("CanonicalEntityMergeTarget", fields: [targetEntityId], references: [id], onDelete: Restrict, map: "canonical_entity_merges_target_fkey")
+
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)], map: "canonical_entity_merges_tenant_created_idx")
+  @@index([tenantId, targetEntityId, createdAt(sort: Desc)], map: "canonical_entity_merges_target_idx")
+  @@map("canonical_entity_merges")
+}
+
+model EntityIdentityGovernanceEvent {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  idempotencyKey String   @map("idempotency_key") @db.VarChar(64)
+  actionType     String   @map("action_type") @db.VarChar(40)
+  subjectType    String   @map("subject_type") @db.VarChar(24)
+  subjectId      String   @map("subject_id") @db.Uuid
+  entityId       String?  @map("entity_id") @db.Uuid
+  actorUserId    String   @map("actor_user_id") @db.Uuid
+  reasonCode     String   @map("reason_code") @db.VarChar(64)
+  reason         String?
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "entity_identity_governance_events_tenant_fkey")
+
+  @@unique([tenantId, idempotencyKey], map: "entity_identity_governance_events_identity_unique")
+  @@index([tenantId, subjectType, subjectId, createdAt(sort: Desc)], map: "entity_identity_governance_events_subject_idx")
+  @@index([tenantId, actorUserId, createdAt(sort: Desc)], map: "entity_identity_governance_events_actor_idx")
+  // entity_idx is SQL-owned partial because entity_id is nullable.
+  @@map("entity_identity_governance_events")
+}
+
+model CanonicalEntityBackfillCheckpoint {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantId    String?   @map("tenant_id") @db.Uuid
+  source      String    @db.VarChar(64)
+  cursor      String?   @map("source_cursor")
+  status      String    @default("running") @db.VarChar(24)
+  scanned     Int       @default(0)
+  created     Int       @default(0)
+  linked      Int       @default(0)
+  ambiguous   Int       @default(0)
+  skipped     Int       @default(0)
+  failed      Int       @default(0)
+  lastError   String?   @map("last_error")
+  startedAt   DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade, map: "canonical_entity_backfill_checkpoints_tenant_fkey")
+
+  // Scope uniqueness and terminal-state checks are SQL-owned in the additive
+  // checkpoint migration. NULL tenant_id denotes a global public source.
+  @@index([tenantId, status, updatedAt(sort: Desc)], map: "canonical_entity_backfill_checkpoints_tenant_status_idx")
+  @@map("canonical_entity_backfill_checkpoints")
 }
 
 model User {
@@ -915,10 +1104,11 @@ model MailMessage {
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tenant      Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  thread      MailThread             @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  connection  IntegrationConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
-  attachments EngagementAttachment[]
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  thread        MailThread             @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  connection    IntegrationConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  attachments   EngagementAttachment[]
+  knowledgeJobs KnowledgeMailboxJob[]
 
   @@unique([tenantId, source, externalId], map: "mail_messages_tenant_source_external_key")
   @@index([tenantId, fromEmail], map: "mail_messages_tenant_from_idx")
@@ -2752,7 +2942,7 @@ model ClientPerson {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  reportsTo    ClientPerson?  @relation("ClientPersonReportsTo", fields: [reportsToPersonId], references: [id], onDelete: SetNull, map: "client_people_reports_to_prisma_fk")
+  reportsTo     ClientPerson?  @relation("ClientPersonReportsTo", fields: [reportsToPersonId], references: [id], onDelete: SetNull, map: "client_people_reports_to_prisma_fk")
   directReports ClientPerson[] @relation("ClientPersonReportsTo")
 
   @@index([tenantId, clientId], map: "client_people_tenant_client_idx")
@@ -7322,7 +7512,7 @@ model TangoSbirSolicitation {
   /// The provider's own flag for a cycle outside the normal schedule.
   outOfCycle Boolean? @map("out_of_cycle")
 
-  activity String?
+  activity           String?
   /// The provider's own lifecycle word, stored as stated. Never rewritten into
   /// "open"/"closed", and never derived from endDate.
   solicitationStatus String? @map("solicitation_status")
@@ -7396,7 +7586,7 @@ model TangoSbirTopic {
   openDate    DateTime? @map("open_date") @db.Date
   closeDate   DateTime? @map("close_date") @db.Date
 
-  activity String?
+  activity           String?
   /// The provider's own lifecycle word for the parent solicitation, stored as
   /// stated. A closed topic is still stored - P42's acceptance is that it stays
   /// REFERENCE-ONLY, which is a rule about what may pursue it, not a reason to
@@ -9692,25 +9882,25 @@ model DefenseBudgetPromotionPlan {
 /// exclusive storage modes; a DB CHECK enforces exactly one, so a family whose
 /// plans outgrow a row can move to object storage without a schema change.
 model DefenseBudgetProjectionPlan {
-  id                   String   @id @default(uuid()) @db.Uuid
-  projectionPlanId     String   @unique(map: "defense_budget_projection_plan_identity_unique") @map("projection_plan_id")
-  recordSchemaVersion  String   @map("record_schema_version")
-  schemaVersion        String   @map("schema_version")
-  family               String
-  cycleId              String   @map("cycle_id")
-  fiscalYear           Int      @map("fiscal_year")
-  contentSha256        String   @map("content_sha256") @db.Char(64)
-  producerVersion      String   @map("producer_version")
-  certificationId      String?  @map("certification_id")
-  certificationSha256  String   @map("certification_sha256") @db.Char(64)
-  artifactSetSha256    String   @map("artifact_set_sha256") @db.Char(64)
-  status               String   @db.VarChar(32)
-  conflictCount        Int      @map("conflict_count")
-  unsupportedCount     Int      @map("unsupported_count")
-  planDocument         Json?    @map("plan_document")
-  planLocator          String?  @map("plan_locator")
-  planByteSha256       String?  @map("plan_byte_sha256") @db.Char(64)
-  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                  String   @id @default(uuid()) @db.Uuid
+  projectionPlanId    String   @unique(map: "defense_budget_projection_plan_identity_unique") @map("projection_plan_id")
+  recordSchemaVersion String   @map("record_schema_version")
+  schemaVersion       String   @map("schema_version")
+  family              String
+  cycleId             String   @map("cycle_id")
+  fiscalYear          Int      @map("fiscal_year")
+  contentSha256       String   @map("content_sha256") @db.Char(64)
+  producerVersion     String   @map("producer_version")
+  certificationId     String?  @map("certification_id")
+  certificationSha256 String   @map("certification_sha256") @db.Char(64)
+  artifactSetSha256   String   @map("artifact_set_sha256") @db.Char(64)
+  status              String   @db.VarChar(32)
+  conflictCount       Int      @map("conflict_count")
+  unsupportedCount    Int      @map("unsupported_count")
+  planDocument        Json?    @map("plan_document")
+  planLocator         String?  @map("plan_locator")
+  planByteSha256      String?  @map("plan_byte_sha256") @db.Char(64)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([cycleId, family, fiscalYear], map: "defense_budget_projection_plan_scope_idx")
   @@index([contentSha256], map: "defense_budget_projection_plan_content_idx")
@@ -10133,20 +10323,20 @@ model XTrackedAccount {
 /// out to subscribers by the feed endpoint. Retention-limited: expired or
 /// deleted posts are pruned by the service.
 model XPostCache {
-  id            String    @id @default(uuid()) @db.Uuid
-  accountId     String    @map("account_id") @db.Uuid
-  xPostId       String    @map("x_post_id") @db.VarChar(64)
-  text          String    @db.Text
-  createdAtX    DateTime  @map("created_at_x") @db.Timestamptz(6)
+  id          String   @id @default(uuid()) @db.Uuid
+  accountId   String   @map("account_id") @db.Uuid
+  xPostId     String   @map("x_post_id") @db.VarChar(64)
+  text        String   @db.Text
+  createdAtX  DateTime @map("created_at_x") @db.Timestamptz(6)
   /// JSON media metadata from the X API response (urls, types, preview_image_url).
-  media         Json      @default("[]")
+  media       Json     @default("[]")
   /// JSON public_metrics from the X API response (retweet_count, reply_count, like_count, quote_count).
-  metrics       Json      @default("{}")
+  metrics     Json     @default("{}")
   /// Provider raw metadata, stored only where useful for rendering. Minimal.
-  rawMeta       Json      @default("{}") @map("raw_meta")
+  rawMeta     Json     @default("{}") @map("raw_meta")
   /// Marks posts that have been deleted on X or are otherwise unavailable.
-  unavailable   Boolean   @default(false)
-  fetchedAt     DateTime  @default(now()) @map("fetched_at") @db.Timestamptz(6)
+  unavailable Boolean  @default(false)
+  fetchedAt   DateTime @default(now()) @map("fetched_at") @db.Timestamptz(6)
 
   account XTrackedAccount @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -10160,14 +10350,14 @@ model XPostCache {
 /// Protected by RLS (see migration). A user can subscribe to at most 25
 /// accounts (enforced in service layer).
 model XFeedSubscription {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @map("tenant_id") @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  accountId   String   @map("account_id") @db.Uuid
-  enabled     Boolean  @default(true)
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  accountId String   @map("account_id") @db.Uuid
+  enabled   Boolean  @default(true)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   account XTrackedAccount @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -10175,4 +10365,156 @@ model XFeedSubscription {
   @@index([tenantId, userId], map: "x_feed_subscription_tenant_user_idx")
   @@index([tenantId, userId, enabled], map: "x_feed_subscription_enabled_idx")
   @@map("x_feed_subscription")
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Enterprise Context Plane — Phase 1/2 knowledge substrate
+//
+// KnowledgeEvent is immutable source evidence. KnowledgeAssertion is an
+// atomic temporal interpretation anchored to that evidence. Governed
+// memory_items remain the curated human-readable projection.
+// ─────────────────────────────────────────────────────────────────────────
+
+model KnowledgeEvent {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  idempotencyKey    String   @map("idempotency_key") @db.VarChar(64)
+  sourceType        String   @map("source_type") @db.VarChar(96)
+  sourceId          String   @map("source_id") @db.VarChar(512)
+  sourceVersion     String?  @map("source_version") @db.VarChar(160)
+  sourceContentHash String   @map("source_content_hash") @db.VarChar(64)
+  eventType         String   @map("event_type") @db.VarChar(96)
+  occurredAt        DateTime @map("occurred_at") @db.Timestamptz(6)
+  observedAt        DateTime @map("observed_at") @db.Timestamptz(6)
+  ingestedAt        DateTime @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  actorRefs         Json     @default("[]") @map("actor_refs")
+  entityRefs        Json     @default("[]") @map("entity_refs")
+  clientRefs        Json     @default("[]") @map("client_refs")
+  sensitivity       String   @default("normal") @db.VarChar(96)
+  accessScope       Json     @default("{\"kind\":\"tenant\"}") @map("access_scope")
+  evidenceLocator   Json     @map("evidence_locator")
+  metadata          Json     @default("{}")
+  originTraceId     String?  @map("origin_trace_id") @db.VarChar(160)
+  status            String   @default("active") @db.VarChar(24)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_events_tenant_fkey")
+  assertions  KnowledgeAssertion[]  @relation("KnowledgeAssertionOriginEvent")
+  evidence    KnowledgeEvidence[]   @relation("KnowledgeEvidenceEvent")
+  mailboxJobs KnowledgeMailboxJob[]
+
+  @@unique([tenantId, id], map: "knowledge_events_tenant_identity_unique")
+  @@unique([tenantId, idempotencyKey], map: "knowledge_events_idempotency_unique")
+  @@index([tenantId, occurredAt(sort: Desc), id(sort: Desc)], map: "knowledge_events_tenant_occurred_idx")
+  @@index([tenantId, sourceType, sourceId, sourceVersion], map: "knowledge_events_tenant_source_idx")
+  @@index([tenantId, eventType, observedAt(sort: Desc)], map: "knowledge_events_tenant_type_observed_idx")
+  @@index([actorRefs], type: Gin, map: "knowledge_events_actor_refs_gin")
+  @@index([entityRefs], type: Gin, map: "knowledge_events_entity_refs_gin")
+  @@index([clientRefs], type: Gin, map: "knowledge_events_client_refs_gin")
+  @@map("knowledge_events")
+}
+
+model KnowledgeAssertion {
+  id                     String    @id @default(uuid()) @db.Uuid
+  tenantId               String    @map("tenant_id") @db.Uuid
+  idempotencyKey         String    @map("idempotency_key") @db.VarChar(64)
+  originEventId          String    @map("origin_event_id") @db.Uuid
+  subjectType            String    @map("subject_type") @db.VarChar(96)
+  subjectId              String    @map("subject_id") @db.VarChar(512)
+  predicate              String    @db.VarChar(96)
+  objectType             String    @map("object_type") @db.VarChar(96)
+  objectId               String?   @map("object_id") @db.VarChar(512)
+  objectValue            Json?     @map("object_value")
+  assertionClass         String    @map("assertion_class") @db.VarChar(32)
+  confidence             Decimal   @db.Decimal(5, 4)
+  authority              String    @db.VarChar(32)
+  observedAt             DateTime  @map("observed_at") @db.Timestamptz(6)
+  validFrom              DateTime  @map("valid_from") @db.Timestamptz(6)
+  validUntil             DateTime? @map("valid_until") @db.Timestamptz(6)
+  status                 String    @default("active") @db.VarChar(24)
+  conflictStatus         String    @default("none") @map("conflict_status") @db.VarChar(24)
+  conflictGroupId        String?   @map("conflict_group_id") @db.Uuid
+  supersedesAssertionId  String?   @map("supersedes_assertion_id") @db.Uuid
+  contradictsAssertionId String?   @map("contradicts_assertion_id") @db.Uuid
+  sensitivity            String    @default("normal") @db.VarChar(96)
+  accessScope            Json      @default("{\"kind\":\"tenant\"}") @map("access_scope")
+  createdBy              String?   @map("created_by") @db.Uuid
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_assertions_tenant_fkey")
+  originEvent KnowledgeEvent      @relation("KnowledgeAssertionOriginEvent", fields: [originEventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_assertions_origin_event_fkey")
+  // Note: No relation to User on createdBy to ensure ON DELETE SET NULL never mutates immutable assertions
+  // The User may be deleted, but createdBy retains the historical UUID.
+  evidence    KnowledgeEvidence[] @relation("KnowledgeEvidenceAssertion")
+
+  supersedes   KnowledgeAssertion?  @relation("KnowledgeAssertionSupersession", fields: [supersedesAssertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_assertions_supersedes_fkey")
+  supersededBy KnowledgeAssertion[] @relation("KnowledgeAssertionSupersession")
+
+  contradicts    KnowledgeAssertion?  @relation("KnowledgeAssertionContradiction", fields: [contradictsAssertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_assertions_contradicts_fkey")
+  contradictedBy KnowledgeAssertion[] @relation("KnowledgeAssertionContradiction")
+
+  @@unique([tenantId, id], map: "knowledge_assertions_tenant_identity_unique")
+  @@unique([tenantId, idempotencyKey], map: "knowledge_assertions_idempotency_unique")
+  @@index([tenantId, subjectType, subjectId, predicate, validFrom(sort: Desc)], map: "knowledge_assertions_tenant_subject_idx")
+  @@index([tenantId, objectType, objectId], map: "knowledge_assertions_tenant_object_idx")
+  @@index([tenantId, assertionClass, observedAt(sort: Desc)], map: "knowledge_assertions_tenant_class_idx")
+  @@index([tenantId, originEventId], map: "knowledge_assertions_origin_event_idx")
+  @@index([tenantId, conflictGroupId], map: "knowledge_assertions_conflict_group_idx")
+  @@index([tenantId, validFrom(sort: Desc), validUntil], map: "knowledge_assertions_temporal_idx")
+  @@index([objectValue], type: Gin, map: "knowledge_assertions_object_value_gin")
+  @@map("knowledge_assertions")
+}
+
+// Enterprise Context Plane — Phase 3 immutable excerpt-level provenance.
+model KnowledgeEvidence {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  assertionId String   @map("assertion_id") @db.Uuid
+  eventId     String   @map("event_id") @db.Uuid
+  sourceType  String   @map("source_type") @db.VarChar(96)
+  sourceId    String   @map("source_id") @db.VarChar(512)
+  excerpt     String   @db.Text
+  startOffset Int      @map("start_offset")
+  endOffset   Int      @map("end_offset")
+  contentHash String   @map("content_hash") @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_evidence_tenant_fkey")
+  assertion KnowledgeAssertion @relation("KnowledgeEvidenceAssertion", fields: [assertionId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_evidence_assertion_fkey")
+  event     KnowledgeEvent     @relation("KnowledgeEvidenceEvent", fields: [eventId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "knowledge_evidence_event_fkey")
+
+  @@unique([tenantId, assertionId, eventId, contentHash, startOffset, endOffset], map: "knowledge_evidence_identity_unique")
+  @@index([tenantId, assertionId, createdAt, id], map: "knowledge_evidence_assertion_idx")
+  @@index([tenantId, eventId, createdAt, id], map: "knowledge_evidence_event_idx")
+  @@index([tenantId, sourceType, sourceId], map: "knowledge_evidence_source_idx")
+  @@map("knowledge_evidence")
+}
+
+// Enterprise Context Plane — Phase 4 asynchronous mailbox ingestion outbox.
+model KnowledgeMailboxJob {
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenantId             String    @map("tenant_id") @db.Uuid
+  mailMessageId        String    @map("mail_message_id") @db.Uuid
+  sourceRevision       String    @map("source_revision") @db.VarChar(64)
+  status               String    @default("pending") @db.VarChar(24)
+  attemptCount         Int       @default(0) @map("attempt_count")
+  availableAt          DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
+  lockedAt             DateTime? @map("locked_at") @db.Timestamptz(6)
+  lockedBy             String?   @map("locked_by") @db.VarChar(160)
+  lastError            String?   @map("last_error") @db.Text
+  relevance            Json?
+  resultEventId        String?   @map("result_event_id") @db.Uuid
+  processedContentHash String?   @map("processed_content_hash") @db.VarChar(64)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_tenant_fkey")
+  mailMessage MailMessage     @relation(fields: [mailMessageId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_message_fkey")
+  resultEvent KnowledgeEvent? @relation(fields: [resultEventId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "knowledge_mailbox_jobs_event_fkey")
+
+  @@unique([tenantId, mailMessageId, sourceRevision], map: "knowledge_mailbox_jobs_identity_unique")
+  @@index([tenantId, mailMessageId, createdAt(sort: Desc)], map: "knowledge_mailbox_jobs_tenant_message_idx")
+  // Partial operational indexes are created by the SQL migration because Prisma
+  // cannot represent WHERE predicates on indexes without changing their meaning.
+  @@map("knowledge_mailbox_jobs")
 }

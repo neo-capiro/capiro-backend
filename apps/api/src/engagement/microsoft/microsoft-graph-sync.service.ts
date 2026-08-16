@@ -202,12 +202,18 @@ interface GraphEvent {
   '@removed'?: { reason?: string };
 }
 
+interface GraphItemBody {
+  contentType?: string | null;
+  content?: string | null;
+}
+
 interface GraphMessage {
   id?: string;
   conversationId?: string | null;
   internetMessageId?: string | null;
   subject?: string | null;
   bodyPreview?: string | null;
+  body?: GraphItemBody | null;
   webLink?: string | null;
   isRead?: boolean | null;
   hasAttachments?: boolean | null;
@@ -942,7 +948,8 @@ export class MicrosoftGraphSyncService {
               tenantId,
               connection.id,
               folder.displayPath,
-              message,
+              await this.hydrateGraphMessageBody(accessToken, message),
+              usedStoredCursor ? 'incremental' : 'backfill',
             );
             stats.matched += outcome === 'matched' ? 1 : 0;
             stats.skipped += outcome === 'skipped' ? 1 : 0;
@@ -1305,6 +1312,13 @@ export class MicrosoftGraphSyncService {
     connectionId: string,
     folder: string,
     message: GraphMessage,
+    /**
+     * Explicit mailbox sync mode from the caller. A fresh delta window (no
+     * stored cursor) is backfill; a continuation of a stored delta/next link
+     * is incremental. Stamped into metadata so the knowledge outbox trigger
+     * can refuse backfill rows without a date heuristic.
+     */
+    syncMode: MailboxSyncMode,
   ): Promise<'matched' | 'skipped' | 'removed'> {
     if (!message.id) return 'skipped';
     if (message['@removed']) {
@@ -1327,6 +1341,8 @@ export class MicrosoftGraphSyncService {
     const toRecipients = recipients(message.toRecipients);
     const ccRecipients = recipients(message.ccRecipients);
     const bccRecipients = recipients(message.bccRecipients);
+    const authoritative = resolveGraphAuthoritativeBody(message);
+    const storedRaw = stripGraphMessageBodyContent(message);
     const participantEmails = [
       fromEmail ?? '',
       ...toRecipients.map((recipient) => recipient.email),
@@ -1416,7 +1432,7 @@ export class MicrosoftGraphSyncService {
                 snippet: clean(message.bodyPreview),
                 participants: participantJson as Prisma.InputJsonValue,
                 lastMessageAt,
-                raw: message as Prisma.InputJsonValue,
+                raw: storedRaw as Prisma.InputJsonValue,
                 metadata: {
                   webLink: message.webLink ?? null,
                   folders: unique([folder, ...readFolders(existingThread)]),
@@ -1439,7 +1455,7 @@ export class MicrosoftGraphSyncService {
                 snippet: clean(message.bodyPreview),
                 participants: participantJson as Prisma.InputJsonValue,
                 lastMessageAt,
-                raw: message as Prisma.InputJsonValue,
+                raw: storedRaw as Prisma.InputJsonValue,
                 metadata: {
                   webLink: message.webLink ?? null,
                   folders: [folder],
@@ -1470,16 +1486,19 @@ export class MicrosoftGraphSyncService {
             bccRecipients: bccRecipients as Prisma.InputJsonValue,
             sentAt: parseGraphDateTime(message.sentDateTime),
             receivedAt: parseGraphDateTime(message.receivedDateTime),
-            bodyText: clean(message.bodyPreview),
+            bodyText: authoritative.bodyText,
             hasAttachments: Boolean(message.hasAttachments),
             removedAt: null,
             removedReason: null,
-            raw: message as Prisma.InputJsonValue,
+            raw: storedRaw as Prisma.InputJsonValue,
             metadata: {
               folder,
               webLink: message.webLink ?? null,
               internetMessageId: message.internetMessageId ?? null,
               isRead: message.isRead ?? null,
+              bodyCompleteness: authoritative.bodyCompleteness,
+              bodyContentType: authoritative.bodyContentType,
+              mailboxSyncMode: syncMode,
             } as Prisma.InputJsonValue,
           },
           create: {
@@ -1496,16 +1515,19 @@ export class MicrosoftGraphSyncService {
             bccRecipients: bccRecipients as Prisma.InputJsonValue,
             sentAt: parseGraphDateTime(message.sentDateTime),
             receivedAt: parseGraphDateTime(message.receivedDateTime),
-            bodyText: clean(message.bodyPreview),
+            bodyText: authoritative.bodyText,
             hasAttachments: Boolean(message.hasAttachments),
             removedAt: null,
             removedReason: null,
-            raw: message as Prisma.InputJsonValue,
+            raw: storedRaw as Prisma.InputJsonValue,
             metadata: {
               folder,
               webLink: message.webLink ?? null,
               internetMessageId: message.internetMessageId ?? null,
               isRead: message.isRead ?? null,
+              bodyCompleteness: authoritative.bodyCompleteness,
+              bodyContentType: authoritative.bodyContentType,
+              mailboxSyncMode: syncMode,
             } as Prisma.InputJsonValue,
           },
         });
@@ -1525,6 +1547,32 @@ export class MicrosoftGraphSyncService {
       },
       { timeoutMs: GRAPH_SYNC_TX_TIMEOUT_MS },
     );
+  }
+
+  /**
+   * Delta payloads keep bodyPreview for listing/association. The Knowledge
+   * Plane needs the complete Graph `body` and existing Mail.Read already
+   * permits that GET. A gone message stays preview-only so the existing
+   * persist/skip path can handle it without aborting the delta cursor.
+   */
+  private async hydrateGraphMessageBody(
+    accessToken: string,
+    message: GraphMessage,
+  ): Promise<GraphMessage> {
+    if (!message.id || message['@removed']) return message;
+    if (resolveGraphAuthoritativeBody(message).bodyCompleteness === 'full') {
+      return message;
+    }
+    try {
+      const detailed = await this.graphGet<Pick<GraphMessage, 'id' | 'body'>>(
+        `/me/messages/${encodeURIComponent(message.id)}?$select=id,body`,
+        accessToken,
+      );
+      return { ...message, body: detailed.body ?? message.body };
+    } catch (err) {
+      if (isMessageGoneError(err)) return message;
+      throw err;
+    }
   }
 
   private async loadConnection(tenantId: string, connectionId: string) {
@@ -2170,6 +2218,111 @@ function laterDate(left: Date | null, right: Date | null): Date | null {
 function clean(value?: string | null): string | null {
   const text = value?.trim();
   return text ? text : null;
+}
+
+const GRAPH_BODY_MAX_CHARS = 100_000;
+const GRAPH_BODY_TRUNCATION_MARKER = '\n\n[truncated]';
+
+/** Three-valued body completeness stamped into mail_messages.metadata. */
+export type MailBodyCompleteness = 'full' | 'truncated' | 'preview';
+
+/** Explicit provider sync mode stamped into mail_messages.metadata. */
+export type MailboxSyncMode = 'incremental' | 'backfill';
+
+export interface GraphAuthoritativeBody {
+  bodyText: string | null;
+  bodyCompleteness: MailBodyCompleteness;
+  bodyContentType: 'text' | 'html' | null;
+}
+
+/**
+ * Preview is never evidence. Only a non-empty Graph `body.content` is the
+ * complete authoritative source. HTML is stripped to text so Phase 3
+ * evidence offsets bind to canonical provider text.
+ *
+ * Bodies that exceed the 100k storage cap are truncated and stamped
+ * `truncated` — never `full`. Knowledge ingestion accepts only explicit `full`.
+ */
+export function resolveGraphAuthoritativeBody(
+  message: Pick<GraphMessage, 'body' | 'bodyPreview'>,
+): GraphAuthoritativeBody {
+  const contentType = normalizeGraphBodyContentType(message.body?.contentType);
+  const rawContent = typeof message.body?.content === 'string' ? message.body.content : '';
+  const fullText = contentType === 'html' ? graphHtmlToText(rawContent) : rawContent.trim();
+  if (fullText.length > 0) {
+    const capped = truncateGraphBody(fullText);
+    return {
+      bodyText: capped.text,
+      bodyCompleteness: capped.truncated ? 'truncated' : 'full',
+      bodyContentType: contentType ?? 'text',
+    };
+  }
+  return {
+    bodyText: clean(message.bodyPreview),
+    bodyCompleteness: 'preview',
+    bodyContentType: contentType,
+  };
+}
+
+export function stripGraphMessageBodyContent(message: GraphMessage): GraphMessage {
+  if (!message.body) return message;
+  return {
+    ...message,
+    body: {
+      contentType: message.body.contentType ?? null,
+      content: undefined,
+    },
+  };
+}
+
+function normalizeGraphBodyContentType(value?: string | null): 'text' | 'html' | null {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'html' || normalized.includes('html')) return 'html';
+  if (normalized === 'text' || normalized.includes('text')) return 'text';
+  return null;
+}
+
+function truncateGraphBody(text: string): { text: string; truncated: boolean } {
+  if (text.length <= GRAPH_BODY_MAX_CHARS) {
+    return { text, truncated: false };
+  }
+  return {
+    text: text.slice(0, GRAPH_BODY_MAX_CHARS) + GRAPH_BODY_TRUNCATION_MARKER,
+    truncated: true,
+  };
+}
+
+function graphHtmlToText(html: string): string {
+  const withoutTags = html
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<(script|style|head|svg|canvas|template)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<img\b[^>]*>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(?:p|div|li|tr|h[1-6]|blockquote|section|article)>/gi, '\n')
+    .replace(/<li\b[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, '');
+  const named: Record<string, string> = {
+    amp: '&',
+    apos: "'",
+    gt: '>',
+    lt: '<',
+    nbsp: ' ',
+    quot: '"',
+  };
+  const decoded = withoutTags.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (match, entity: string) => {
+    if (entity.startsWith('#')) {
+      const hexadecimal = entity[1]?.toLowerCase() === 'x';
+      const digits = entity.slice(hexadecimal ? 2 : 1);
+      const codePoint = Number.parseInt(digits, hexadecimal ? 16 : 10);
+      if (Number.isFinite(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff) {
+        return String.fromCodePoint(codePoint);
+      }
+      return match;
+    }
+    return named[entity.toLowerCase()] ?? match;
+  });
+  return decoded.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
 }
 
 function normalizeEmail(value?: string | null): string | null {

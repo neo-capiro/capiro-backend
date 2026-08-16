@@ -715,6 +715,18 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
       'Funding Opportunities: SBIR/STTR full reconciliation (Sun 13:30 UTC) — catches topic amendments the publication-date window cannot',
     enabled: false,
   },
+  // Knowledge Plane Phase 4: Mailbox ingestion out-of-band drain.
+  // Enqueues bodies from Gmail/Microsoft webhooks, drains slowly to limit LLM burst.
+  // Left default-dark (enabled: false) per phase 1-4 release gates.
+  {
+    id: 'drain-mailbox-knowledge',
+    command: ['drain-mailbox-knowledge'],
+    description: 'Knowledge Plane Phase 4: drain mailbox jobs into event assertions',
+    enabled: false,
+    cron: { minute: '0', hour: '*' }, // Arbitrary drain interval while dark
+    tier: 'derived',
+  },
+  
   // Funding Opportunities P48: drain verified webhook deliveries into client
   // alerts. DISABLED, and it must stay that way until P50's controlled
   // enablement — P48's own ship note requires a manual two-pass quiet test

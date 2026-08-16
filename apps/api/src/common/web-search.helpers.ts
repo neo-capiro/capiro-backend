@@ -1,10 +1,12 @@
 /**
- * Pure helpers for Meri's public web search (search_public_web provider
- * upgrade). No I/O here — request construction and response normalization are
- * pure so they unit-test under the repo's standard `src/**.spec.ts` matcher.
- * meri-tools.service.ts performs the fetch, picks the provider from
- * CLIO_WEB_SEARCH_PROVIDER + key presence, and falls back to DuckDuckGo news
- * when no key is configured or the provider call fails.
+ * Shared public web-search transport helpers (Tavily/Serper request shaping +
+ * response normalization). No I/O here — request construction and response
+ * normalization are pure so they unit-test under the repo's standard
+ * `src/**.spec.ts` matcher. Callers (meri-tools.service.ts's search_public_web
+ * tool, the Knowledge Plane public_web entity-resolution provider, and
+ * client-profile-fill.service.ts) perform the actual fetch, pick the provider
+ * from CLIO_WEB_SEARCH_PROVIDER + key presence, and own their own fallback
+ * behavior when no key is configured or the provider call fails.
  */
 
 export type WebSearchProvider = 'duckduckgo' | 'tavily' | 'serper';

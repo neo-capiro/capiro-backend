@@ -1,6 +1,6 @@
-import { buildWebSearchRequest, normalizeWebResults } from './meri-websearch.helpers.js';
+import { buildWebSearchRequest, normalizeWebResults } from './web-search.helpers.js';
 
-describe('meri-websearch.helpers', () => {
+describe('web-search.helpers', () => {
   describe('buildWebSearchRequest', () => {
     it('builds a Tavily POST with bearer auth and max_results', () => {
       const req = buildWebSearchRequest('tavily', 'defense appropriations', 5, 'tvly-key');
