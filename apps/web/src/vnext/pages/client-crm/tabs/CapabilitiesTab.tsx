@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Card,
@@ -12,9 +13,10 @@ import {
   type EvidenceTier,
   type PillTone,
 } from '../portfolio-primitives.js';
-import { CAP_AREAS, CAP_CODES, CAP_FIT, CAP_PERF } from '../portfolio-fixtures.js';
+import { CAP_AREAS, CAP_FIT, CAP_PERF } from '../portfolio-fixtures.js';
 import { useApi } from '../../../../lib/use-api.js';
 import { CapabilityDrawer, type Capability } from '../../../../pages/clients/CapabilityDrawer.js';
+import { readClientRegistrations } from '../../../../pages/clients/client-registrations.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
@@ -28,9 +30,11 @@ import { CapiroModal } from '../../../components/overlays/index.js';
  * canonical profile surface, so both share one cache) — maturity derives from
  * TRL, program line from peNumbers, tags from tags. Fields the backend does
  * not carry (matches count, evidence tier/source) come from the design
- * fixture at the same index. §7.2 registrations/codes and capability-fit rows
- * and §7.3 past performance have no per-client backend — they render the
- * design's fixtures (UI-only).
+ * fixture at the same index. §7.2 registrations & codes is real — it reads the
+ * government identifiers the Company Info wizard writes (see
+ * `readClientRegistrations`). §7.2 capability-fit rows and §7.3 past
+ * performance have no per-client backend — they render the design's fixtures
+ * (UI-only).
  *
  * The canonical CapabilityDrawer stays mounted for all editing: the header
  * "Add capability" action opens it blank, and clicking a live capability area
@@ -93,7 +97,7 @@ export function ClientCrmCapabilitiesProto({
 
       {/* §7.2 Registrations & codes · Where capabilities create fit (two-up) */}
       <div className="cap-pf-grid-2">
-        <RegistrationsCard />
+        <RegistrationsCard client={client} />
         <CapabilityFitCard />
       </div>
 
@@ -423,17 +427,57 @@ function CapabilityAreaCard({ area, onOpen }: { area: CapabilityAreaView; onOpen
 
 /* ── §7.2 Registrations & codes ───────────────────────────────────────────── */
 
-function RegistrationsCard() {
+/** Stored SAM dates are date-only strings; render them without a timezone shift. */
+function formatRegDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  const date = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * Real registrations (wire-audit "3 Compose extend" item 1). Every row comes
+ * from the client record the Company Info wizard writes — see
+ * `readClientRegistrations`. `client` is already loaded (it is a prop, not a
+ * query), so "no rows" is genuinely no data and gets a real empty state; the
+ * CAP_CODES fixture is not a stand-in for an unregistered client.
+ *
+ * The header's "verified <date>" stamp is the recorded SAM.gov status and
+ * expiration, not a sync timestamp — nothing in this product verifies against
+ * SAM.gov on a schedule, so it never claims a verification it did not perform.
+ */
+function RegistrationsCard({ client }: { client: Client }) {
+  const navigate = useNavigate();
+  const { rows, samStatus, samExpiration } = readClientRegistrations(client);
   return (
     <Card>
       <CardHead
         title="Registrations & codes"
         action={
-          <span style={{ fontSize: 13, color: '#667085', whiteSpace: 'nowrap' }}>SAM.gov · verified Aug 04</span>
+          samStatus ? (
+            <span style={{ fontSize: 13, color: '#667085', whiteSpace: 'nowrap' }}>
+              {`SAM.gov · ${samStatus}${samExpiration ? ` · expires ${formatRegDate(samExpiration)}` : ''}`}
+            </span>
+          ) : null
         }
       />
       <div style={{ padding: '6px 24px 20px' }}>
-        {CAP_CODES.map((c) => (
+        {rows.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12, padding: '8px 0 4px' }}>
+            <p style={{ margin: 0, fontSize: 14, color: '#667085' }}>
+              No registrations or codes recorded for this client yet.
+            </p>
+            {/* The Company Info wizard has no deep link of its own — it opens
+                from the canonical profile page, so that is where this goes. */}
+            <SecondaryBtn onClick={() => navigate(`/clients?clientId=${client.id}`)}>
+              Edit client profile
+            </SecondaryBtn>
+          </div>
+        ) : null}
+        {rows.map((c) => (
           <div
             key={c.label}
             style={{

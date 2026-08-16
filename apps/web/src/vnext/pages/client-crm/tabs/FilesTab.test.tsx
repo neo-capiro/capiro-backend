@@ -46,8 +46,6 @@ function attachment(overrides: Partial<ClientAttachment> = {}): ClientAttachment
     indexedAt: null,
     uploadedByUserId: 'user-1',
     uploadedByName: 'Neo Martinez',
-    // Matches the tab's default folder view ('fy27' → "FY27 Strategy") so the
-    // row is visible without first navigating the (unrelated) folder tree.
     folder: 'FY27 Strategy',
     ...overrides,
   };
@@ -64,6 +62,34 @@ function renderFiles() {
   );
 }
 
+/**
+ * The tab now issues two GETs — attachments and the real folder tree
+ * (`/files/folders`). Route by URL so a folders response is never mistaken for
+ * an attachments response (a single mockResolvedValue would answer both).
+ */
+function mockApi({
+  attachments = [],
+  folders,
+}: {
+  attachments?: ClientAttachment[];
+  folders?: Array<{ folder: string | null; count: number }>;
+}) {
+  const groups =
+    folders ??
+    Object.entries(
+      attachments.reduce<Record<string, number>>((acc, file) => {
+        const key = file.folder?.trim() ? file.folder.trim() : '';
+        acc[key] = (acc[key] ?? 0) + 1;
+        return acc;
+      }, {}),
+    ).map(([folder, count]) => ({ folder: folder === '' ? null : folder, count }));
+
+  getMock.mockImplementation((url: string) => {
+    if (url.endsWith('/files/folders')) return Promise.resolve({ data: groups });
+    return Promise.resolve({ data: attachments });
+  });
+}
+
 beforeEach(() => {
   getMock.mockReset();
   postMock.mockReset();
@@ -73,7 +99,7 @@ beforeEach(() => {
 
 describe('ClientCrmFilesProto', () => {
   it('shows a real empty state instead of the design fixture when the client has no files', async () => {
-    getMock.mockResolvedValue({ data: [] });
+    mockApi({ attachments: [] });
     renderFiles();
 
     await waitFor(() => expect(screen.getByText('No files uploaded yet.')).toBeInTheDocument());
@@ -82,7 +108,7 @@ describe('ClientCrmFilesProto', () => {
   });
 
   it('opens the attachment download URL when a real row is clicked', async () => {
-    getMock.mockResolvedValue({ data: [attachment()] });
+    mockApi({ attachments: [attachment()] });
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
     renderFiles();
 
@@ -94,7 +120,7 @@ describe('ClientCrmFilesProto', () => {
   });
 
   it('deletes a file via the row menu and the confirm dialog', async () => {
-    getMock.mockResolvedValue({ data: [attachment()] });
+    mockApi({ attachments: [attachment()] });
     deleteMock.mockResolvedValue({ data: { id: 'att-1' } });
     renderFiles();
 
@@ -113,7 +139,7 @@ describe('ClientCrmFilesProto', () => {
   });
 
   it('moves selected files to a folder via the selection bar', async () => {
-    getMock.mockResolvedValue({ data: [attachment()] });
+    mockApi({ attachments: [attachment()] });
     patchMock.mockResolvedValue({ data: { id: 'att-1' } });
     renderFiles();
 
@@ -129,7 +155,7 @@ describe('ClientCrmFilesProto', () => {
   });
 
   it('uploads a file through the toolbar Upload button', async () => {
-    getMock.mockResolvedValue({ data: [] });
+    mockApi({ attachments: [] });
     postMock.mockImplementation((url: string) => {
       if (url === '/api/engagement/attachments/upload-url') {
         return Promise.resolve({ data: { url: 'https://s3.example.com/upload', fields: {}, s3Key: 'tenants/t/engagement/f' } });
@@ -154,5 +180,103 @@ describe('ClientCrmFilesProto', () => {
     );
     expect(fetchSpy).toHaveBeenCalledWith('https://s3.example.com/upload', expect.objectContaining({ method: 'POST' }));
     fetchSpy.mockRestore();
+  });
+
+  /* ── folder tree + New folder ("3 Compose extend" items 2-3) ───────────── */
+
+  it('builds the folder tree from the real folders endpoint, not the FOLDERS fixture', async () => {
+    // None of these labels exist in portfolio-fixtures.ts, so the assertions
+    // cannot pass against the fixture tree.
+    mockApi({
+      attachments: [attachment({ folder: 'Hill Submissions' })],
+      folders: [
+        { folder: 'Hill Submissions', count: 4 },
+        { folder: 'Award Docs', count: 2 },
+        { folder: null, count: 3 },
+      ],
+    });
+    renderFiles();
+
+    // Root is the client, counted across every folder including unfiled.
+    expect(await screen.findByRole('button', { name: /Overland AI\s*9/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Award Docs\s*2/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Hill Submissions\s*4/ })).toBeInTheDocument();
+    // Unfiled appears because files are genuinely unfiled.
+    expect(screen.getByRole('button', { name: /Unfiled\s*3/ })).toBeInTheDocument();
+    // The fixture's invented hierarchy must be gone.
+    expect(screen.queryByText('FY27 Strategy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Deliverables')).not.toBeInTheDocument();
+  });
+
+  it('omits Unfiled when every file is filed', async () => {
+    mockApi({ folders: [{ folder: 'Award Docs', count: 2 }], attachments: [attachment({ folder: 'Award Docs' })] });
+    renderFiles();
+
+    await screen.findByRole('button', { name: /Award Docs\s*2/ });
+    expect(screen.queryByText('Unfiled')).not.toBeInTheDocument();
+  });
+
+  it('scopes the file list to the selected real folder', async () => {
+    mockApi({
+      attachments: [
+        attachment({ id: 'att-1', fileName: 'Hill Ask.pdf', folder: 'Hill Submissions' }),
+        attachment({ id: 'att-2', fileName: 'Award Notice.pdf', folder: 'Award Docs' }),
+      ],
+    });
+    renderFiles();
+
+    // Root shows both.
+    expect(await screen.findByText('Hill Ask')).toBeInTheDocument();
+    expect(screen.getByText('Award Notice')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Award Docs\s*1/ }));
+    await waitFor(() => expect(screen.queryByText('Hill Ask')).not.toBeInTheDocument());
+    expect(screen.getByText('Award Notice')).toBeInTheDocument();
+  });
+
+  it('creates a folder by filing the current selection into it', async () => {
+    mockApi({ attachments: [attachment()] });
+    patchMock.mockResolvedValue({ data: { id: 'att-1' } });
+    renderFiles();
+
+    await screen.findByText('Budget Memo');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Budget Memo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New folder' }));
+
+    fireEvent.change(screen.getByLabelText('Folder name'), { target: { value: 'Hill Submissions' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create and file 1' }));
+
+    await waitFor(() => expect(patchMock).toHaveBeenCalledTimes(1));
+    expect(patchMock.mock.calls[0]?.[0]).toBe('/api/clients/client-1/files/att-1/folder');
+    expect(patchMock.mock.calls[0]?.[1]).toEqual({ folder: 'Hill Submissions' });
+  });
+
+  it('opens a draft folder — and writes nothing — when nothing is selected', async () => {
+    mockApi({ attachments: [attachment()] });
+    renderFiles();
+
+    await screen.findByText('Budget Memo');
+    fireEvent.click(screen.getByRole('button', { name: 'New folder' }));
+    fireEvent.change(screen.getByLabelText('Folder name'), { target: { value: 'Hill Submissions' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create folder' }));
+
+    // Shown as a draft, and no move was issued — there is no create endpoint,
+    // and inventing a request that 404s would be worse than saying "draft".
+    expect(await screen.findByRole('button', { name: /Hill Submissions\s*Draft/ })).toBeInTheDocument();
+    expect(patchMock).not.toHaveBeenCalled();
+    expect(screen.getByText('Draft folder · upload or move a file here to create it')).toBeInTheDocument();
+  });
+
+  it('refuses a folder name that already exists', async () => {
+    mockApi({ attachments: [attachment({ folder: 'Award Docs' })] });
+    renderFiles();
+
+    await screen.findByText('Budget Memo');
+    fireEvent.click(screen.getByRole('button', { name: 'New folder' }));
+    // Case-insensitive: "award docs" is the same folder to a human.
+    fireEvent.change(screen.getByLabelText('Folder name'), { target: { value: 'award docs' } });
+
+    expect(screen.getByText('That folder already exists.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create folder' })).toBeDisabled();
   });
 });
