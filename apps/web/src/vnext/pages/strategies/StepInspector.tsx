@@ -13,7 +13,7 @@
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CapiroButton } from '../../components/actions/index.js';
+import { CapiroButton, CapiroIconButton } from '../../components/actions/index.js';
 import { CapiroInput } from '../../components/fields/index.js';
 import { CapiroSkeleton } from '../../components/feedback/index.js';
 import {
@@ -74,6 +74,45 @@ const STATUS_PILL_TONE: Record<string, string> = {
   suggested: 'st-pill--warning',
 };
 
+/*
+ * Local "send" glyph (composer send action). The shared icon set
+ * (../../components/icons/index.tsx) has no send/paper-plane entry, and
+ * adding one there is out of scope for this pass — that file may be touched
+ * by another concurrent Strategies agent. Mirrors StrategiesModalShell.tsx's
+ * own CloseGlyph precedent for the identical situation: a small,
+ * self-contained, view-local glyph matching the shared set's stroke
+ * conventions (24x24 viewBox, currentColor, 1.75 stroke, round caps/joins).
+ */
+function SendGlyph() {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 12h15.5M13 5.5L19.5 12 13 18.5" />
+    </svg>
+  );
+}
+
+/*
+ * Grounded-prompt suggestion chips (§7.4 spec: a small set of suggested
+ * prompts near the composer). Generic and step-agnostic by design so the
+ * same three read sensibly whether a step is open or this is the
+ * strategy-level thread.
+ */
+const SUGGESTED_PROMPTS = [
+  'What evidence is missing before the next gate?',
+  'Which steps still need an owner?',
+  'Draft the next update from approved facts only.',
+];
+
 export function StepInspector({
   strategyId,
   step,
@@ -90,6 +129,27 @@ export function StepInspector({
   const [tab, setTab] = useState<'step' | 'meri'>(initialTab);
   const strategy = useStrategy(strategyId);
   const members = useTenantMembers();
+
+  // Composer (input + send + its draft state), lifted out of MeriTab so it
+  // stays mounted — and the draft survives — across Step/Meri tab switches.
+  // Previously this lived entirely inside MeriTab: switching to the Step tab
+  // unmounted it, and switching back remounted a fresh, empty draft (a real
+  // behavioral regression, not just a visual one).
+  const nodeId = step?.id ?? null;
+  const assistant = useAssistant(strategyId);
+  const [draft, setDraft] = useState('');
+
+  const send = (text?: string) => {
+    const instruction = (text ?? draft).trim();
+    if (!instruction) return;
+    assistant.mutate({
+      scope: nodeId ? 'node' : 'strategy',
+      nodeId: nodeId ?? undefined,
+      instruction,
+      clientMessageId: `vnext-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    });
+    setDraft('');
+  };
 
   return (
     <aside className="st-inspector" aria-label="Step inspector">
@@ -132,6 +192,51 @@ export function StepInspector({
       ) : (
         <MeriTab strategyId={strategyId} step={step} />
       )}
+
+      {/* Composer pinned across tabs: rendered once, outside the tab ternary
+          above, so it never unmounts on a tab switch. Sticky to the bottom of
+          the inspector's own scrollport (step-inspector.css: .st-inspector is
+          the overflow-y:auto element). */}
+      <div className="st-inspector__composer">
+        <div className="st-meri-chips" role="group" aria-label="Suggested prompts">
+          {SUGGESTED_PROMPTS.map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              className="st-meri-chip"
+              onClick={() => send(prompt)}
+              disabled={assistant.isPending}
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+        <div className="st-meri-composer">
+          <CapiroInput
+            label="Ask Meri"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={`Ask Meri about this ${nodeId ? 'step' : 'strategy'}…`}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+          />
+          <CapiroIconButton
+            label="Send"
+            icon={<SendGlyph />}
+            className="st-meri-send"
+            onClick={() => send()}
+            disabled={!draft.trim() || assistant.isPending}
+            aria-busy={assistant.isPending || undefined}
+          />
+        </div>
+        <p className="st-meri-hint">
+          Meri proposes; a person approves. Nothing changes the plan from this panel.
+        </p>
+      </div>
     </aside>
   );
 }
@@ -149,6 +254,7 @@ function StepTab({
   isNew: boolean;
   ownerName: string;
 }) {
+  const navigate = useNavigate();
   if (isNew) {
     return <NewStepForm strategyId={strategyId} />;
   }
@@ -193,12 +299,43 @@ function StepTab({
         <p className="st-inspector__empty">No linked evidence. Link a context document, Workspace draft, or outreach record to ground this step.</p>
       ) : (
         <ul className="st-inspector__evidence">
-          {evidence.map((s, i) => (
-            <li key={`${s.section}-${i}`}>
-              <span className="st-inspector__evidence-title">{s.section}</span>
-              {s.ref ? <span className="st-mono st-inspector__evidence-ref">{s.ref}</span> : null}
-            </li>
-          ))}
+          {evidence.map((s, i) => {
+            // Stage E citation format (api-strategy meri.types.ts: Meri is
+            // instructed to cite grounded steps with ref 'fact:<id>'). That's
+            // the only shape with somewhere real to go — the Steward review's
+            // existing ?fact=<id> deep-link (StewardReviewVNext.tsx) already
+            // highlights the row and surfaces its source document, the same
+            // mapping the canonical app's NodeRail.tsx uses for this identical
+            // data shape. A non-fact ref (or none at all) has no id to
+            // navigate to, so it stays inert, same as NodeRail's fallback.
+            const factId = s.ref?.startsWith('fact:') ? s.ref.slice(5) : null;
+            const open = () => {
+              if (factId) navigate(`/strategies/context/steward?fact=${encodeURIComponent(factId)}`);
+            };
+            return (
+              <li
+                key={`${s.section}-${i}`}
+                className={factId ? 'st-inspector__evidence-link' : undefined}
+                onClick={factId ? open : undefined}
+                onKeyDown={
+                  factId
+                    ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          open();
+                        }
+                      }
+                    : undefined
+                }
+                tabIndex={factId ? 0 : undefined}
+                role={factId ? 'link' : undefined}
+                aria-label={factId ? `Open ${s.section} in Steward review` : undefined}
+              >
+                <span className="st-inspector__evidence-title">{s.section}</span>
+                {s.ref ? <span className="st-mono st-inspector__evidence-ref">{s.ref}</span> : null}
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -275,23 +412,12 @@ function MeriSuggestionCard({ strategyId, step }: { strategyId: string; step: St
 function MeriTab({ strategyId, step }: { strategyId: string; step: StrategyNode | null }) {
   const nodeId = step?.id ?? null;
   const conversation = useStrategyConversation(strategyId, nodeId);
-  const assistant = useAssistant(strategyId);
-  const [draft, setDraft] = useState('');
-
   const messages = useMemo(() => conversation.data ?? [], [conversation.data]);
 
-  const send = () => {
-    const instruction = draft.trim();
-    if (!instruction) return;
-    assistant.mutate({
-      scope: nodeId ? 'node' : 'strategy',
-      nodeId: nodeId ?? undefined,
-      instruction,
-      clientMessageId: `vnext-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    });
-    setDraft('');
-  };
-
+  // The composer (input, send, its draft state, and the governance hint) now
+  // lives in the parent StepInspector, pinned across both tabs — see the
+  // "Composer pinned across tabs" comment there. This tab renders only the
+  // thread itself.
   return (
     <div className="st-inspector__body st-meri-tab">
       <div className="st-meri-thread" aria-live="polite">
@@ -310,26 +436,6 @@ function MeriTab({ strategyId, step }: { strategyId: string; step: StrategyNode 
           ))
         )}
       </div>
-      <div className="st-meri-composer">
-        <CapiroInput
-          label="Ask Meri"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={`Ask Meri about this ${nodeId ? 'step' : 'strategy'}…`}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-        />
-        <CapiroButton variant="primary" loading={assistant.isPending} onClick={send} disabled={!draft.trim()}>
-          Send
-        </CapiroButton>
-      </div>
-      <p className="st-meri-hint">
-        Meri proposes; a person approves. Nothing changes the plan from this panel.
-      </p>
     </div>
   );
 }

@@ -119,17 +119,27 @@
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: var(--st-gray-400);
+  background: var(--st-gray-500);
   flex: none;
 }
-.capiro-vnext-root .capiro-strategies .st-pill--accent { background: var(--st-info-bg); box-shadow: inset 0 0 0 1px var(--st-info-ring); color: var(--st-info-fg); }
-.capiro-vnext-root .capiro-strategies .st-pill--accent::before { background: var(--st-info-dot); }
+/* `--info` is an alias of `--accent` (the `--st-info-*` tokens already ARE
+   the indigo/accent family) and `--danger` is an alias of `--error` (same
+   red tone) — added so the two names modal-shell.css's overlay bodies used
+   to get from a second, parallel `.st-pill` system now resolve here instead.
+   That duplicate block has been deleted; this is the one tone source of
+   truth for every pill, page-level or inside a modal. */
+.capiro-vnext-root .capiro-strategies .st-pill--accent,
+.capiro-vnext-root .capiro-strategies .st-pill--info { background: var(--st-info-bg); box-shadow: inset 0 0 0 1px var(--st-info-ring); color: var(--st-info-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--accent::before,
+.capiro-vnext-root .capiro-strategies .st-pill--info::before { background: var(--st-info-dot); }
 .capiro-vnext-root .capiro-strategies .st-pill--success { background: var(--st-success-bg); box-shadow: inset 0 0 0 1px var(--st-success-ring); color: var(--st-success-fg); }
 .capiro-vnext-root .capiro-strategies .st-pill--success::before { background: var(--st-success-dot); }
 .capiro-vnext-root .capiro-strategies .st-pill--warning { background: var(--st-warning-bg); box-shadow: inset 0 0 0 1px var(--st-warning-ring); color: var(--st-warning-fg); }
 .capiro-vnext-root .capiro-strategies .st-pill--warning::before { background: var(--st-warning-dot); }
-.capiro-vnext-root .capiro-strategies .st-pill--error { background: var(--st-error-bg); box-shadow: inset 0 0 0 1px var(--st-error-ring); color: var(--st-error-fg); }
-.capiro-vnext-root .capiro-strategies .st-pill--error::before { background: var(--st-error-dot); }
+.capiro-vnext-root .capiro-strategies .st-pill--error,
+.capiro-vnext-root .capiro-strategies .st-pill--danger { background: var(--st-error-bg); box-shadow: inset 0 0 0 1px var(--st-error-ring); color: var(--st-error-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--error::before,
+.capiro-vnext-root .capiro-strategies .st-pill--danger::before { background: var(--st-error-dot); }
 /* Purple — Milestone kind only (see strategies-tokens.css). */
 .capiro-vnext-root .capiro-strategies .st-pill--purple { background: var(--st-purple-bg); box-shadow: inset 0 0 0 1px var(--st-purple-ring); color: var(--st-purple-fg); }
 .capiro-vnext-root .capiro-strategies .st-pill--purple::before { background: var(--st-purple-dot); }

@@ -30,6 +30,12 @@ import {
   useStrategy,
   useTenantMembers,
 } from './strategies-api.js';
+// Friendly StrategyType labels ("Regulatory / Policy", not the raw "regulatory"
+// slug) — shared with the library table's identical Type column so both views
+// agree on wording for the same field. Owned by StrategyLibraryVNext.tsx;
+// both are already statically imported side-by-side by
+// VNextStrategiesRoutes.tsx, so this adds no new circular-import risk.
+import { TYPE_LABEL } from './StrategyLibraryVNext.js';
 import { computePlanHealth } from './lib/plan-health.js';
 import {
   assignLanes,
@@ -174,7 +180,7 @@ export function StrategyEditorVNext() {
     );
   }
 
-  const objective = detail.type;
+  const objective = TYPE_LABEL[detail.type] ?? detail.type;
   const eyebrow = `${clientName(clients.data, detail.clientId)} · ${objective}`.toUpperCase();
   const openStep = detail.nodes.find((n) => n.id === openStepId) ?? null;
 
@@ -479,6 +485,12 @@ function Timeline({
   const today = new Date();
   const todayPos = axisPosition(axis, today) * 100;
   const showToday = todayPos > 0 && todayPos < 100;
+  // MonthCell.year/.month (lib/timeline.ts buildFiscalAxis) are computed off
+  // Date.UTC — compare against today in the same UTC frame so the current-month
+  // highlight can never land a cell off from the marker's own axisPosition (which
+  // also compares raw UTC-based epoch ms), e.g. right at a month boundary.
+  const todayYear = today.getUTCFullYear();
+  const todayMonth = today.getUTCMonth() + 1;
 
   const fiscalYears = useMemo(() => {
     const years: Array<{ fy: number; span: number }> = [];
@@ -517,17 +529,35 @@ function Timeline({
           } as React.CSSProperties
         }
       >
+        {/* TODAY marker: a direct child of .st-tl__grid (which is position:relative,
+            see strategy-editor.css) rather than nested inside the FY row's
+            .st-tl-fy, so top:0/bottom:0 spans the FULL timeline — month row,
+            every reference lane, and the steps lane below — not just the 34px FY
+            band it used to be clipped to (a confirmed regression: the CSS's own
+            comment on .st-tl-today already says "full height"). Horizontal
+            position now has to account for the label gutter (--st-tl-label-w):
+            todayPos is a 0–100 fraction of the TRACK only (axisPosition/
+            barGeometry's frame, same as every bar), but this element's
+            containing block is the whole grid (gutter + track), so `left`
+            resolves against the full grid width instead. The calc below adds
+            the gutter back, then applies the fraction to only the remaining
+            (100% − gutter) track width, so the line still lines up with the
+            same calendar date it always did. */}
+        {showToday ? (
+          <span
+            className="st-tl-today"
+            style={{ left: `calc(var(--st-tl-label-w) + (100% - var(--st-tl-label-w)) * ${todayPos / 100})` }}
+          >
+            <span className="st-tl-today__pill">
+              <span className="st-tl-today__dot" aria-hidden="true" />
+              Today
+            </span>
+          </span>
+        ) : null}
+
         {/* Row 1: fiscal window headers + month ticks. */}
         <TimelineRow label={windowLabel} className="st-tl-row--header">
           <div className="st-tl-fy">
-            {showToday ? (
-              <span className="st-tl-today" style={{ left: `${todayPos}%` }}>
-                <span className="st-tl-today__pill">
-                  <span className="st-tl-today__dot" aria-hidden="true" />
-                  Today
-                </span>
-              </span>
-            ) : null}
             {fiscalYears.map((y) => (
               <div key={y.fy} className="st-tl-fy__cell" style={{ flex: `${y.span} 1 0` }}>
                 FY{String(y.fy).slice(2)}
@@ -535,11 +565,20 @@ function Timeline({
             ))}
           </div>
           <div className="st-tl-months">
-            {axis.cells.map((c) => (
-              <div key={c.index} className={`st-tl-month${c.fiscalYearStart ? ' st-tl-month--fy' : ''}`}>
-                {c.label}
-              </div>
-            ))}
+            {axis.cells.map((c) => {
+              // Distinct from st-tl-month--fy (marks each FY's first month, i.e.
+              // October) — this marks the one cell that is the ACTUAL current
+              // month, independent of any fiscal-year boundary.
+              const isCurrentMonth = c.year === todayYear && c.month === todayMonth;
+              return (
+                <div
+                  key={c.index}
+                  className={`st-tl-month${c.fiscalYearStart ? ' st-tl-month--fy' : ''}${isCurrentMonth ? ' st-tl-month--current' : ''}`}
+                >
+                  {c.label}
+                </div>
+              );
+            })}
           </div>
         </TimelineRow>
 

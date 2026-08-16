@@ -156,6 +156,10 @@ export function ExecutionRuns() {
   const runs = useExecutionRuns(strategyFilter, true);
   const strategies = useStrategies();
   const clients = useClientsLite();
+  /* "View Stage H criteria" — purely a local expand/collapse over the SAME
+   * static criteria text already in the security card below; no fetch, no
+   * mutation, no navigation (§11 rule 7 stays intact). */
+  const [stageHOpen, setStageHOpen] = useState(false);
 
   const strategyLabel = (strategyId: string | null): { title: string; client: string } => {
     if (!strategyId) return { title: 'Firm-level', client: '' };
@@ -324,13 +328,62 @@ export function ExecutionRuns() {
                     invalidates it.
                   </li>
                 </ul>
+                {/* The single most safety-emphasized control in the design
+                    handoff — solid red (`--st-error-fg`, the same #B42318
+                    token this file already uses for error states elsewhere).
+                    Purely informational: it only expands the SAME static
+                    criteria text above into a focused view. No mutation, no
+                    external link, nothing that sends/approves/transmits
+                    anything (§11 rule 7 stays intact). */}
+                <button
+                  type="button"
+                  className="st-agents__stageh-btn"
+                  onClick={() => setStageHOpen(true)}
+                >
+                  View Stage H criteria
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Read-only expanded view of the SAME criteria rendered in the card
+          above — never a second, divergent copy of the policy text. */}
+      <CapiroModal
+        open={stageHOpen}
+        title="Stage H security criteria"
+        onClose={() => setStageHOpen(false)}
+      >
+        <p className="st-agents__modal-copy">
+          No direct send action exists on this surface. Outreach artifacts are staged for human
+          review, and external send stays disabled until the Stage H security review clears it.
+        </p>
+        <ul className="st-agents__modal-list">
+          <li>Stage H security evals pass before any send path ships.</li>
+          <li>The send grant is enabled server-side only — no client control can turn it on.</li>
+          <li>When it ships, approval binds to the exact staged content hash; any edit invalidates it.</li>
+        </ul>
+      </CapiroModal>
     </div>
   );
+}
+
+/*
+ * run.trigger (agent-utils.ts normalizeRun: `str(item.trigger) ?? 'manual'`)
+ * carries the same real values as the AgentRun union it is projected from —
+ * 'manual' | 'scheduled' | 'event' — though ExecutionRun's own field type
+ * stays a bare `string` for forward compatibility, so any other server value
+ * still renders (verbatim) rather than being hidden.
+ */
+const TRIGGER_LABEL: Record<string, string> = {
+  manual: 'Triggered manually',
+  scheduled: 'Triggered on schedule',
+  event: 'Triggered by an event',
+};
+
+function triggerLabel(trigger: string): string {
+  return TRIGGER_LABEL[trigger] ?? `Trigger: ${trigger}`;
 }
 
 /**
@@ -416,6 +469,8 @@ function RunCard({
           )}
           <span className="st-agents__spacer" />
           <span className="st-agents__meta">
+            {triggerLabel(run.trigger)}
+            {' · '}
             run{' '}
             <span className="st-mono" title={run.id}>
               {shortId(run.id)}
@@ -529,7 +584,10 @@ function RunCard({
           </div>
         )}
 
-        {/* State-appropriate affordances — no send control anywhere. */}
+        {/* State-appropriate affordances — no send control anywhere. Order
+            (design handoff): Cancel (ghost) → Edit plan (secondary) → the
+            row's primary CTA, which is pushed to the far right via
+            `.st-agents__run-actions-primary` (margin-left:auto). */}
         {(run.state === 'ready_for_review' ||
           run.state === 'failed_recoverable' ||
           run.state === 'queued' ||
@@ -538,16 +596,9 @@ function RunCard({
           run.state === 'approved' ||
           (run.state === 'waiting_for_input' && !awaitingSend)) && (
           <div className="st-agents__run-actions">
-            {run.state === 'ready_for_review' && (
-              <CapiroButton variant="primary" size="compact" disabled={busy} onClick={onExecute}>
-                {execute.isPending ? 'Executing…' : 'Execute plan'}
-              </CapiroButton>
-            )}
-            {run.state === 'failed_recoverable' && (
-              <CapiroButton variant="primary" size="compact" disabled={busy} onClick={onResume}>
-                {resume.isPending ? 'Resuming…' : 'Resume run'}
-              </CapiroButton>
-            )}
+            <CapiroButton variant="quiet" size="compact" disabled={busy} onClick={() => setConfirm('cancel')}>
+              Cancel
+            </CapiroButton>
             {(run.state === 'ready_for_review' || run.state === 'approved') && (
               <>
                 <CapiroButton
@@ -560,9 +611,28 @@ function RunCard({
                 <span className="st-agents__meta">Editing the plan invalidates prior approval.</span>
               </>
             )}
-            <CapiroButton size="compact" disabled={busy} onClick={() => setConfirm('cancel')}>
-              Cancel
-            </CapiroButton>
+            {run.state === 'ready_for_review' && (
+              <CapiroButton
+                variant="primary"
+                size="compact"
+                className="st-agents__run-actions-primary"
+                disabled={busy}
+                onClick={onExecute}
+              >
+                {execute.isPending ? 'Executing…' : 'Execute plan'}
+              </CapiroButton>
+            )}
+            {run.state === 'failed_recoverable' && (
+              <CapiroButton
+                variant="primary"
+                size="compact"
+                className="st-agents__run-actions-primary"
+                disabled={busy}
+                onClick={onResume}
+              >
+                {resume.isPending ? 'Resuming…' : 'Resume run'}
+              </CapiroButton>
+            )}
           </div>
         )}
       </div>
@@ -626,7 +696,7 @@ function TaskRow({ task, index }: { task: ExecutionTask; index: number }) {
       <span className={`st-agents__task-icon ${status.tone}`.trim()} aria-hidden="true">
         <Icon size={0.9} />
       </span>
-      <span className="st-mono st-agents__task-index">{index}.</span>
+      <span className="st-mono st-agents__task-index">{String(index).padStart(2, '0')}.</span>
       <div className="st-agents__task-body">
         <span className="st-agents__task-title">
           <span className="st-agents__task-type">{TASK_TYPE_LABEL[task.type] ?? task.type}</span>

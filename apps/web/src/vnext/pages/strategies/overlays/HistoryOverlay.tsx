@@ -13,7 +13,7 @@
  * banner text is product policy). Focus trap / Escape / dirty guard / route
  * sync live in StrategiesModalShell.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type RefObject } from 'react';
 import { useParams } from 'react-router-dom';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../../components/feedback/index.js';
@@ -60,13 +60,37 @@ export function HistoryOverlay() {
 
   const items = useMemo(() => (versions.data ?? []).flatMap((page) => page.items), [versions.data]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = items.find((v) => v.id === selectedId) ?? items[0] ?? null;
+  const [authorFilter, setAuthorFilter] = useState<'all' | 'meri'>('all');
+  const visibleItems = useMemo(
+    () => (authorFilter === 'meri' ? items.filter((v) => v.authorKind === 'meri') : items),
+    [items, authorFilter],
+  );
+  const selected = items.find((v) => v.id === selectedId) ?? visibleItems[0] ?? items[0] ?? null;
   const selectedIndex = selected ? items.findIndex((v) => v.id === selected.id) : -1;
   const isCurrent = selectedIndex === 0;
 
   const impact = useRestoreImpact(strategyId ?? null, selected?.id ?? null);
   const [confirming, setConfirming] = useState(false);
   const [restoredNote, setRestoredNote] = useState<string | null>(null);
+  /* Item 10 — "Compare to current": RestoreImpactChangedNode carries only
+   * `changedFields: string[]`, no before/after values (confirmed by a prior
+   * audit), so a real side-by-side diff view isn't buildable from the data
+   * this endpoint returns. The honest minimal action is to bring the
+   * already-rendered impact/changed-fields section for the selected
+   * revision into view rather than fabricate a comparison the data can't
+   * support. */
+  const changedSectionRef = useRef<HTMLDivElement>(null);
+  const compareAvailable = Boolean(selected && !isCurrent && impact.data && !impact.isError);
+  const scrollToChanges = () => {
+    changedSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const resetFilter = (next: 'all' | 'meri') => {
+    setAuthorFilter(next);
+    setSelectedId(null);
+    setConfirming(false);
+    setRestoredNote(null);
+  };
 
   const authorOf = (version: StrategyVersion) =>
     version.authorKind === 'meri'
@@ -102,8 +126,8 @@ export function HistoryOverlay() {
           <span className="st-pill st-pill--info">Current · {relativeTime(items[0].createdAt)}</span>
         ) : null
       }
-      primaryLabel="Close"
-      onPrimary={undefined}
+      primaryLabel="Compare to current"
+      onPrimary={compareAvailable ? scrollToChanges : undefined}
       cancelLabel="Close"
       footerNote="Meri's edits are logged for AI-use disclosure."
     >
@@ -132,51 +156,82 @@ export function HistoryOverlay() {
         />
       ) : (
         <div className="st-history">
-          <div className="st-history__list" role="listbox" aria-label="Versions, newest first">
-            {items.map((version, index) => {
-              const isSelected = selected?.id === version.id;
-              return (
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  key={version.id}
-                  className={`st-rev-item${isSelected ? ' is-selected' : ''}`}
-                  onClick={() => {
-                    setSelectedId(version.id);
-                    setConfirming(false);
-                    setRestoredNote(null);
-                  }}
-                >
-                  <span className="st-rev-item__num">{index + 1}</span>
-                  <span style={{ minWidth: 0 }}>
-                    <span className="st-rev-item__title">{version.note || 'Plan revision'}</span>
-                    <span className="st-rev-item__meta" style={{ display: 'block' }}>
-                      {authorOf(version)} · {relativeTime(version.createdAt)}
-                    </span>
-                    <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {index === 0 ? <span className="st-pill st-pill--success">Current</span> : null}
-                      {version.authorKind === 'meri' ? (
-                        <span className="st-pill st-pill--info">Meri</span>
-                      ) : null}
-                      {version.restoredFromVersionId ? (
-                        <span className="st-pill">Restore</span>
-                      ) : null}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-            {versions.hasNextPage ? (
-              <CapiroButton
-                variant="quiet"
-                size="compact"
-                onClick={() => void versions.fetchNextPage()}
-                disabled={versions.isFetchingNextPage}
+          <div className="st-history__list">
+            <p className="st-panel__label" style={{ margin: '0 0 8px' }}>
+              Revisions
+            </p>
+            <div className="st-seg" role="tablist" aria-label="Filter revisions by author">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={authorFilter === 'all'}
+                onClick={() => resetFilter('all')}
               >
-                {versions.isFetchingNextPage ? 'Loading…' : 'Load older versions'}
-              </CapiroButton>
-            ) : null}
+                All changes
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={authorFilter === 'meri'}
+                onClick={() => resetFilter('meri')}
+              >
+                Meri only
+              </button>
+            </div>
+            <div role="listbox" aria-label="Versions, newest first" style={{ display: 'grid', gap: 6 }}>
+              {visibleItems.length === 0 ? (
+                <p style={{ fontSize: 12, color: 'var(--st-gray-400)', padding: '4px 2px' }}>
+                  No revisions match this filter.
+                </p>
+              ) : (
+                visibleItems.map((version) => {
+                  const index = items.findIndex((v) => v.id === version.id);
+                  const isSelected = selected?.id === version.id;
+                  const isTrueCurrent = index === 0;
+                  return (
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={isSelected}
+                      key={version.id}
+                      className={`st-rev-item${isSelected ? ' is-selected' : ''}`}
+                      onClick={() => {
+                        setSelectedId(version.id);
+                        setConfirming(false);
+                        setRestoredNote(null);
+                      }}
+                    >
+                      <span className="st-rev-item__num">{index + 1}</span>
+                      <span style={{ minWidth: 0 }}>
+                        <span className="st-rev-item__title">{version.note || 'Plan revision'}</span>
+                        <span className="st-rev-item__meta" style={{ display: 'block' }}>
+                          {authorOf(version)} · {relativeTime(version.createdAt)}
+                        </span>
+                        <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {isTrueCurrent ? <span className="st-pill st-pill--success">Current</span> : null}
+                          {version.authorKind === 'meri' ? (
+                            <span className="st-pill st-pill--info">Meri</span>
+                          ) : null}
+                          {version.restoredFromVersionId ? (
+                            <span className="st-pill">Restore</span>
+                          ) : null}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+              {versions.hasNextPage ? (
+                <CapiroButton
+                  variant="quiet"
+                  size="compact"
+                  onClick={() => void versions.fetchNextPage()}
+                  disabled={versions.isFetchingNextPage}
+                >
+                  {versions.isFetchingNextPage ? 'Loading…' : 'Load older versions'}
+                </CapiroButton>
+              ) : null}
+            </div>
           </div>
 
           <div className="st-history__detail">
@@ -215,7 +270,7 @@ export function HistoryOverlay() {
                     onRetry={() => void impact.refetch()}
                   />
                 ) : (
-                  <RestoreImpactPreview data={impact.data} />
+                  <RestoreImpactPreview data={impact.data} changedSectionRef={changedSectionRef} />
                 )}
 
                 {confirming && !isCurrent ? (
@@ -262,7 +317,14 @@ export function HistoryOverlay() {
  * the same summary, the same banner copy (product policy), the same change
  * lists — with vNext classes. */
 
-function RestoreImpactPreview({ data }: { data: RestoreImpact }) {
+function RestoreImpactPreview({
+  data,
+  changedSectionRef,
+}: {
+  data: RestoreImpact;
+  /** Item 10 scroll target for the footer's "Compare to current" action. */
+  changedSectionRef?: RefObject<HTMLDivElement>;
+}) {
   const cells: Array<{ label: string; value: number }> = [
     { label: 'Steps archived', value: data.nodes.removed.length },
     { label: 'Steps restored', value: data.nodes.added.length },
@@ -338,7 +400,9 @@ function RestoreImpactPreview({ data }: { data: RestoreImpact }) {
         nodes={data.nodes.revived}
         empty="No archived steps come back."
       />
-      <ImpactChangedList nodes={data.nodes.changed} />
+      <div ref={changedSectionRef}>
+        <ImpactChangedList nodes={data.nodes.changed} />
+      </div>
     </div>
   );
 }
@@ -367,7 +431,15 @@ function ImpactNodeList({
           {nodes.map((node) => (
             <div className="st-change-row" key={node.id}>
               <span className="st-change-row__field">{node.kind}</span>
-              <span className="st-change-chip st-change-chip--after">{node.title}</span>
+              {/* Bug fix: this used to hardcode `--after` (green) for every
+               * node regardless of `tone`, so a danger-toned list (e.g.
+               * "Archived (kept in history)") showed a green title chip next
+               * to its own red pill above — inverting the before/after
+               * semantic. `--before` (red) / `--after` (green) both already
+               * exist in modal-shell.css; pick from `tone` instead. */}
+              <span className={`st-change-chip st-change-chip--${tone === 'danger' ? 'before' : 'after'}`}>
+                {node.title}
+              </span>
               <span style={{ fontSize: 12, color: 'var(--st-gray-500)' }}>{node.subject}</span>
               <span />
             </div>

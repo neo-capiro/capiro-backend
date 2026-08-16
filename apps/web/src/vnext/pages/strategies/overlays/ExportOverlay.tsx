@@ -15,6 +15,7 @@
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { CapiroSkeleton } from '../../../components/feedback/index.js';
+import { CapiroFileTextIcon } from '../../../components/icons/index.js';
 import { useCurrentPlanExport, useStrategy } from '../strategies-api.js';
 import { StrategiesModalShell } from './StrategiesModalShell.js';
 
@@ -116,6 +117,9 @@ export function ExportOverlay() {
             aria-disabled="true"
             style={{ cursor: 'not-allowed', opacity: 0.72 }}
           >
+            <span className="st-format-card__icon" aria-hidden="true">
+              <CapiroFileTextIcon style={{ width: 16, height: 16 }} />
+            </span>
             <span className="st-option-card__head">
               {format.name}
               <span className="st-pill st-pill--warning">Not yet available</span>
@@ -141,6 +145,9 @@ export function ExportOverlay() {
           onClick={download}
           disabled={!strategyId || downloading}
         >
+          <span className="st-format-card__icon" aria-hidden="true">
+            <CapiroFileTextIcon style={{ width: 16, height: 16 }} />
+          </span>
           <span className="st-option-card__head">
             Markdown · current plan
             <span className="st-pill st-pill--success">Available now</span>

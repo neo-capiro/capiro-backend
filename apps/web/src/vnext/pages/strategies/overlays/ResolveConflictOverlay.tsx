@@ -52,7 +52,7 @@ function FactEvidence({ factId }: { factId: string | null }) {
 
   if (!factId) return null;
   if (full?.citation) {
-    return <div className="st-quote">{full.citation}</div>;
+    return <div className="st-quote st-mono">{full.citation}</div>;
   }
   if (locate.isLoading) {
     return (
@@ -65,7 +65,7 @@ function FactEvidence({ factId }: { factId: string | null }) {
   if (locate.data?.lines?.length) {
     const { startLine, lines } = locate.data;
     return (
-      <div className="st-quote">
+      <div className="st-quote st-mono">
         {startLine !== null ? (
           <span className="st-mono" style={{ display: 'block', color: 'var(--st-gray-400)' }}>
             L{startLine}–{locate.data.endLine ?? startLine + lines.length - 1}
@@ -141,7 +141,7 @@ export function ResolveConflictOverlay() {
       style={{ textAlign: 'left' }}
     >
       <span className="st-option-card__head">
-        Fact {key}
+        <span className="st-pill st-mono">Fact {key}</span>
         {pick === key ? <span className="st-pill st-pill--success">Controlling</span> : null}
       </span>
       <span className="st-candidate__value" style={{ display: 'block', fontSize: 14, fontWeight: 650 }}>
@@ -202,6 +202,13 @@ export function ResolveConflictOverlay() {
             </p>
           ) : null}
 
+          {/* Item 17: a small red monospace header specifically above the two
+           * candidate cards — separate from the modal shell's own eyebrow
+           * ("Steward review") and title ("Resolve the conflict"), which stay
+           * as-is; this is new body copy, not a change to the shell chrome. */}
+          <p className="st-panel__label st-mono" style={{ color: 'var(--st-error-fg)' }}>
+            Choose authoritative value
+          </p>
           <div className="st-candidates">
             {candidate('A', conflict.factA, conflict.factAId)}
             {candidate('B', conflict.factB, conflict.factBId)}
@@ -235,6 +242,9 @@ export function ResolveConflictOverlay() {
                     <span>The note is recorded with the decision.</span>
                     <span>{note.trim().length > 0 ? `${note.trim().length} characters` : 'Required'}</span>
                   </div>
+                  <p style={{ margin: '10px 0 0' }}>
+                    <span className="st-pill st-pill--danger st-mono">No source content is edited</span>
+                  </p>
                 </div>
 
                 <div className="st-dark-panel">
@@ -261,42 +271,50 @@ export function ResolveConflictOverlay() {
                 </div>
               </div>
 
-              <div className="st-audit">
-                <span aria-hidden="true">i</span>
+              <div className="st-audit st-audit--danger">
+                <span className="st-audit__icon-tile" aria-hidden="true">
+                  !
+                </span>
                 <span>
+                  <strong style={{ display: 'block', marginBottom: 4 }}>
+                    This decision creates a durable steward record.
+                  </strong>
                   Resolving supersedes the losing fact across every strategy that cites it.{' '}
                   <strong>No source document is edited</strong> — the decision is recorded on the
                   conflict itself.
                 </span>
-                {confirmingDismiss ? (
-                  <span style={{ display: 'flex', gap: 8 }}>
+                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                  <span className="st-pill st-pill--danger st-mono">AUDIT-SAFE</span>
+                  {confirmingDismiss ? (
+                    <span style={{ display: 'flex', gap: 8 }}>
+                      <CapiroButton
+                        size="compact"
+                        variant="quiet"
+                        disabled={busy}
+                        onClick={() => setConfirmingDismiss(false)}
+                      >
+                        Keep
+                      </CapiroButton>
+                      <CapiroButton
+                        size="compact"
+                        variant="secondary"
+                        loading={dismiss.isPending}
+                        onClick={doDismiss}
+                      >
+                        Confirm dismiss
+                      </CapiroButton>
+                    </span>
+                  ) : (
                     <CapiroButton
                       size="compact"
                       variant="quiet"
                       disabled={busy}
-                      onClick={() => setConfirmingDismiss(false)}
+                      onClick={() => setConfirmingDismiss(true)}
                     >
-                      Keep
+                      Dismiss — not a real conflict
                     </CapiroButton>
-                    <CapiroButton
-                      size="compact"
-                      variant="secondary"
-                      loading={dismiss.isPending}
-                      onClick={doDismiss}
-                    >
-                      Confirm dismiss
-                    </CapiroButton>
-                  </span>
-                ) : (
-                  <CapiroButton
-                    size="compact"
-                    variant="quiet"
-                    disabled={busy}
-                    onClick={() => setConfirmingDismiss(true)}
-                  >
-                    Dismiss — not a real conflict
-                  </CapiroButton>
-                )}
+                  )}
+                </span>
               </div>
             </>
           ) : null}

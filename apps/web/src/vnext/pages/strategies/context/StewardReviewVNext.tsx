@@ -140,6 +140,10 @@ export function StewardReviewVNext() {
   const [confirming, setConfirming] = useState<{ kind: 'reject' | 'dismiss'; id: string } | null>(
     null,
   );
+  /* "Open only" conflicts filter — defaults ON (the original design intent).
+   * Purely a client-side view over already-fetched conflicts: resolved and
+   * dismissed rows are never discarded, only hidden while this is on. */
+  const [openOnly, setOpenOnly] = useState(true);
   const highlightRowRef = useRef<HTMLTableRowElement | null>(null);
 
   const healthClientId = clientFilter !== 'all' && clientFilter !== 'firm' ? clientFilter : null;
@@ -251,8 +255,10 @@ export function StewardReviewVNext() {
   }, [facts.data, stateFilter, clientFilter, query]);
 
   /* Conflicts: open first, then newest; the client filter rides the conflict's
-   * derived clientId (a conflict with no client info always stays visible). */
-  const visibleConflicts = useMemo(() => {
+   * derived clientId (a conflict with no client info always stays visible).
+   * This is the full client-scoped set — independent of the "Open only"
+   * toggle below — so the section summary can always report a real total. */
+  const clientScopedConflicts = useMemo(() => {
     const rows = (conflicts.data ?? []).filter((conflict) =>
       conflict.clientId === null ? true : matchesClient(conflict.clientId),
     );
@@ -263,7 +269,16 @@ export function StewardReviewVNext() {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conflicts.data, clientFilter]);
-  const openConflictCount = visibleConflicts.filter((conflict) => conflict.state === 'open').length;
+  const openConflictCount = clientScopedConflicts.filter((conflict) => conflict.state === 'open').length;
+  /* What actually renders below: the client-scoped set, further narrowed to
+   * open-only when the toggle is on. */
+  const visibleConflicts = useMemo(
+    () =>
+      openOnly
+        ? clientScopedConflicts.filter((conflict) => conflict.state === 'open')
+        : clientScopedConflicts,
+    [clientScopedConflicts, openOnly],
+  );
 
   /* Candidate provenance joins: the conflict row embeds display fields only;
    * the ledger carries documentId / sourceRef / confidence for the same fact. */
@@ -312,7 +327,7 @@ export function StewardReviewVNext() {
         </Link>
         <div className="st-steward__title-row">
           <div className="st-steward__title-block">
-            <div className="st-steward__eyebrow">Grounded agent context</div>
+            <div className="st-steward__eyebrow">Context governance</div>
             <h1 className="st-steward__title">Steward review</h1>
             <p className="st-steward__lede">
               Facts the Context Steward extracted from your context documents, with every
@@ -442,9 +457,18 @@ export function StewardReviewVNext() {
               <span className={`st-steward__section-count${openConflictCount > 0 ? ' is-alert' : ''}`}>
                 {conflicts.isError
                   ? 'Unavailable'
-                  : `${openConflictCount} open · ${visibleConflicts.length} total`}
+                  : `${openConflictCount} open · ${clientScopedConflicts.length} total`}
               </span>
             </span>
+            <span className="st-steward__section-spacer" />
+            <button
+              type="button"
+              className={`st-steward__filter-toggle${openOnly ? ' is-active' : ''}`}
+              aria-pressed={openOnly}
+              onClick={() => setOpenOnly((value) => !value)}
+            >
+              Open only
+            </button>
           </div>
 
           {conflicts.isRefetchError && conflicts.data ? (
@@ -482,14 +506,18 @@ export function StewardReviewVNext() {
           ) : visibleConflicts.length === 0 ? (
             <CapiroEmptyState
               title={
-                (conflicts.data?.length ?? 0) > 0
-                  ? 'No conflicts match this filter'
-                  : 'No open conflicts'
+                clientScopedConflicts.length > 0
+                  ? 'No open conflicts match this filter'
+                  : (conflicts.data?.length ?? 0) > 0
+                    ? 'No conflicts match this filter'
+                    : 'No open conflicts'
               }
               description={
-                (conflicts.data?.length ?? 0) > 0
-                  ? 'Try another client filter — the context agrees with itself here.'
-                  : 'Resolved decisions stay queryable in history.'
+                clientScopedConflicts.length > 0
+                  ? 'Resolved and dismissed conflicts are hidden — turn off "Open only" to see them.'
+                  : (conflicts.data?.length ?? 0) > 0
+                    ? 'Try another client filter — the context agrees with itself here.'
+                    : 'Resolved decisions stay queryable in history.'
               }
             />
           ) : (
@@ -686,14 +714,14 @@ function CandidateView({
   if (!candidate) {
     return (
       <div className="st-steward__candidate is-missing">
-        <span className="st-steward__candidate-label">{label}</span>
+        <span className="st-pill st-mono">{label}</span>
         <p>This side of the conflict is no longer available — the fact may have been removed.</p>
       </div>
     );
   }
   return (
     <div className="st-steward__candidate">
-      <span className="st-steward__candidate-label">{label}</span>
+      <span className="st-pill st-mono">{label}</span>
       <p className="st-steward__candidate-text">{candidate.fact}</p>
       <dl className="st-steward__candidate-meta">
         <div>
@@ -891,7 +919,11 @@ function FactRow({
         {fact.sourceRef ? <span className="st-mono st-steward__ref">{fact.sourceRef}</span> : '—'}
       </CapiroTableCell>
       <CapiroTableCell>
-        {fact.authority ? fact.authority.replace(/_/g, ' ') : 'unattributed'}
+        {fact.authority ? (
+          <span className="st-pill">{fact.authority.replace(/_/g, ' ')}</span>
+        ) : (
+          'unattributed'
+        )}
       </CapiroTableCell>
       <CapiroTableCell className="st-steward__nowrap">
         {fact.asOf ? (fmtDay(fact.asOf) ?? fact.asOf.slice(0, 10)) : 'undated'}

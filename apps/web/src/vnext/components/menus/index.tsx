@@ -7,11 +7,16 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
+import { CapiroBadge, type CapiroBadgeTone } from '../badges/index.js';
 
 export interface CapiroTabItem {
   id: string;
   label: string;
   disabled?: boolean;
+  /** Optional trailing count badge (e.g. a pending-review count). Omitted
+   *  entirely when absent — a purely additive, backward-compatible field, so
+   *  every existing CapiroTabs caller renders exactly as before. */
+  badge?: { count: number; tone?: CapiroBadgeTone };
 }
 
 export function CapiroTabs({
@@ -66,6 +71,7 @@ export function CapiroTabs({
             onKeyDown={moveFocus}
           >
             {item.label}
+            {item.badge ? <CapiroBadge tone={item.badge.tone}>{item.badge.count}</CapiroBadge> : null}
           </button>
         );
       })}
