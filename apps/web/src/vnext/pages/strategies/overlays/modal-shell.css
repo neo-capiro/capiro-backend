@@ -34,6 +34,27 @@
   padding: 32px 24px;
   overflow-y: auto;
   background: rgba(12, 17, 29, 0.6);
+  /* Backdrop fade-in (reference: the backdrop layer carries `animation:uiFade
+     .16s ease` independent of the panel's own uiPop entrance). This element
+     both IS the backdrop (its own background-color) and the flex frame, so
+     animating it reproduces the reference's separate-layer fade without a
+     second DOM node. */
+  animation: stOverlayFade 0.16s ease;
+}
+
+@keyframes stOverlayFade {
+  from {
+    background-color: rgba(12, 17, 29, 0);
+  }
+  to {
+    background-color: rgba(12, 17, 29, 0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capiro-strategies .st-overlay {
+    animation: none;
+  }
 }
 
 .capiro-strategies .st-modal {
@@ -131,6 +152,11 @@
 
 .capiro-strategies .st-modal__body {
   flex: 1;
+  /* Literal reference: `flex:1;min-height:0;overflow-y:auto`. Without this,
+     flex's default `min-height:auto` lets the body refuse to shrink below its
+     content size, so a tall body pushes the panel past `max-height` and the
+     panel's own `overflow:hidden` clips it with no scrollbar at all. */
+  min-height: 0;
   overflow-y: auto;
   padding: 22px 24px;
 }
@@ -169,7 +195,9 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px 16px;
+  /* Literal reference footer: `gap:16px` (single value — row and column both
+     16px), not a smaller row-gap. */
+  gap: 16px;
   padding: 18px 24px;
   background: var(--st-white);
   border-top: 1px solid var(--st-gray-200);
@@ -191,6 +219,26 @@
   gap: 8px 10px;
   flex: none;
   margin-left: auto;
+}
+
+/* Resolve-conflict is the one modal whose primary is solid red, not the dark
+   gradient (`modalVals` meta.conflict.bg: '#B42318' — literally `--st-error-fg`).
+   Every other modal keeps `CapiroButton variant="primary"`'s gradient (already
+   resolved, README "Two divergences" §2), so this overrides only the one
+   call site via an extra class rather than adding a variant to the shared
+   CapiroButton (components/actions/index.tsx is not owned by this pass). */
+.capiro-strategies .capiro-button--primary.st-modal__primary--danger {
+  background-image: none;
+  background-color: var(--st-error-fg);
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+}
+.capiro-strategies .capiro-button--primary.st-modal__primary--danger:hover:not(:disabled) {
+  background-color: var(--st-error-fg);
+  filter: brightness(1.08);
+}
+.capiro-strategies .capiro-button--primary.st-modal__primary--danger:active:not(:disabled) {
+  background-color: var(--st-error-fg);
+  filter: brightness(0.96);
 }
 
 .capiro-strategies .st-modal__alert {
@@ -433,12 +481,17 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 9px 12px;
+  /* Literal `exportToggles` row: `padding:10px 12px`. */
+  padding: 10px 12px;
   background: var(--st-white);
   border: 1px solid var(--st-gray-200);
   border-radius: 8px;
   font-size: 13px;
   color: var(--st-gray-700);
+}
+
+.capiro-strategies .st-toggle-row:hover {
+  border-color: var(--st-accent-tint-border);
 }
 
 /* Segmented tabs (Upload: file vs paste). */
@@ -468,7 +521,9 @@
   background: var(--st-white);
   border-color: var(--st-accent-tint-border);
   color: var(--st-accent);
-  box-shadow: var(--st-shadow-card);
+  /* Reference: `0px 1px 2px rgba(16,24,40,.06), inset 0 0 0 1px #E4E7EC` — the
+     light card weight, not the heavy multi-layer elevation. */
+  box-shadow: var(--st-shadow-card-sm);
 }
 
 /* Selectable option card (starting point, export format, conflict candidate). */
@@ -670,11 +725,19 @@
 }
 
 .capiro-strategies .st-preview-bar {
-  background: rgba(255, 255, 255, 0.12);
+  /* Literal: `display:flex;align-items:center;height:26px;padding:0
+     10px;background:rgba(255,255,255,.10);color:#E4E7EC;font-weight:500` —
+     a fixed-height centered row, 0.10 (not 0.12) opacity fill, and gray-200
+     text (not white). */
+  display: flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
   border-radius: 6px;
-  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.1);
   font-size: 12px;
-  color: var(--st-white);
+  font-weight: 500;
+  color: var(--st-gray-200);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -693,7 +756,8 @@
   display: grid;
   min-width: 0;
   grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
-  gap: 10px;
+  /* Literal `formatCols` row: `gap:12px`. */
+  gap: 12px;
   margin-bottom: 16px;
 }
 
@@ -701,13 +765,17 @@
   margin-top: 8px;
 }
 
+/* Literal structure (5 stacked pieces, exact per-element spacing — no uniform
+   grid gap): a 60x8 dark "logo" bar, two gray-200 text-line bars (100% then
+   80% width), a 3-up row of gray-100 blocks, then one wide gray-100 block.
+   `align-content:start` keeps the stack pinned to the top of the min-height
+   220px page instead of stretching. */
 .capiro-strategies .st-preview-page {
   background: var(--st-white);
-  border-radius: 8px;
+  border-radius: 10px;
   min-height: 220px;
   padding: 16px;
   display: grid;
-  gap: 10px;
   align-content: start;
 }
 
@@ -717,24 +785,43 @@
   height: 14px;
 }
 
-.capiro-strategies .st-preview-block--hero {
-  height: 22px;
-  width: 55%;
+.capiro-strategies .st-preview-block--logo {
+  width: 60px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--st-gray-900);
+}
+
+.capiro-strategies .st-preview-block--line {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
   background: var(--st-gray-200);
+  margin-top: 12px;
+}
+
+.capiro-strategies .st-preview-block--line-short {
+  width: 80%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--st-gray-200);
+  margin-top: 6px;
 }
 
 .capiro-strategies .st-preview-block--wide {
-  height: 64px;
+  height: 52px;
+  margin-top: 10px;
 }
 
 .capiro-strategies .st-preview-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  margin-top: 14px;
 }
 
 .capiro-strategies .st-preview-row .st-preview-block {
-  height: 40px;
+  height: 34px;
 }
 
 .capiro-strategies .st-preview-meta {
@@ -1002,11 +1089,14 @@
   word-break: break-word;
 }
 
+/* No vertical padding here: the reference's check rows carry no per-row
+   padding at all — vertical rhythm comes entirely from the wrapping list's
+   own `gap` (10px for the Rules panel, 12px for Upload's Validation panel;
+   see each caller). A built-in padding here would double up on top of that. */
 .capiro-strategies .st-check {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
   gap: 10px;
-  padding: 7px 0;
   align-items: start;
 }
 

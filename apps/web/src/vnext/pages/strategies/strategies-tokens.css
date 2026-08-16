@@ -87,7 +87,7 @@
   --st-watch-bg: #fffaeb;
   --st-watch-ring: #fedf89;
   --st-watch-label: #b54708;
-  --st-step-h: 86px;
+  --st-step-h: 72px;
   --st-step-radius: 8px;
   --st-step-ring: #e4e7ec;
   --st-step-selected: #3e4784;
@@ -100,8 +100,13 @@
   --st-kind-decision: #4e5ba6;
   --st-kind-risk: #f04438;
 
-  /* Elevation. */
+  /* Elevation. The reference file draws two distinct card weights, not one:
+     primary section cards (Working timeline, library table, document source)
+     get the heavier 3-layer shadow; smaller secondary cards (Next 30 days,
+     Plan health) get a lighter 2-layer one. `.st-card` keeps the heavy
+     default; secondary cards override to `-sm` at their own class. */
   --st-shadow-card: 0 0 0 1px var(--st-gray-200), 0 1px 3px rgba(16, 24, 40, 0.1), 0 1px 2px rgba(16, 24, 40, 0.06);
+  --st-shadow-card-sm: 0 0 0 1px var(--st-gray-200), 0 1px 2px rgba(16, 24, 40, 0.05);
   --st-shadow-focus: 0 0 0 2px var(--st-white), 0 0 0 4px var(--st-accent-focus);
 
   color: var(--st-gray-900);

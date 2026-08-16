@@ -198,15 +198,15 @@ export function ExportOverlay() {
         <aside className="st-dark-panel" style={{ minWidth: 0 }}>
           <p className="st-dark-panel__label">Client-ready preview</p>
           <div className="st-preview-page" aria-hidden="true" style={{ marginTop: 12 }}>
-            <div className="st-preview-block st-preview-block--hero" />
-            <div className="st-preview-block" />
-            <div className="st-preview-block st-preview-block--wide" />
+            <div className="st-preview-block--logo" />
+            <div className="st-preview-block--line" />
+            <div className="st-preview-block--line-short" />
             <div className="st-preview-row">
               <div className="st-preview-block" />
               <div className="st-preview-block" />
               <div className="st-preview-block" />
             </div>
-            <div className="st-preview-block" />
+            <div className="st-preview-block st-preview-block--wide" />
           </div>
           <div className="st-preview-meta">
             <span>Markdown · current plan</span>

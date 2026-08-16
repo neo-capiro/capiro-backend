@@ -441,7 +441,9 @@ export function UploadContextOverlay() {
           <p className="st-dark-panel__label">Validation</p>
           <p className="st-dark-panel__title">{validationHeadline}</p>
           {content.trim() ? (
-            <div style={{ display: 'grid', gap: 2, marginTop: 12 }}>
+            /* Literal `uploadChecks` wrapper: `gap:12px` between rows (the
+               rows themselves carry no padding — see `.st-check`). */
+            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
               {checks.map((checkResult) => (
                 <div className="st-check" key={checkResult.key}>
                   <span className={`st-check__icon st-check__icon--${checkResult.status}`} aria-hidden="true">

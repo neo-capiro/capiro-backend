@@ -7,6 +7,35 @@
   background: var(--st-gray-50);
 }
 
+/*
+ * Every view in the design handoff draws two distinct bands, not one flat
+ * page (`.dc.html` per-view sections; README "Layout" diagram: "VIEW HERO
+ * white, 1px bottom border" / "VIEW BODY canvas, 24px padding"):
+ *   .st-hero    full-bleed white strip, border-bottom, its own padding
+ *   .st-canvas  the gray-canvas body below it, max-width 1440px, 24px padding
+ * `.st-page` (below) is kept ONLY for the two loading/error skeleton returns
+ * that render before a view's real hero exists — a real view's success path
+ * should use `.st-hero` + `.st-canvas` directly, not `.st-page`.
+ */
+.capiro-vnext-root .capiro-strategies .st-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 28px 24px 24px;
+  background: var(--st-white);
+  border-bottom: 1px solid var(--st-gray-200);
+}
+.capiro-vnext-root .capiro-strategies .st-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+}
+
 /* ---- module header (eyebrow / title / purpose / actions) ---- */
 .capiro-vnext-root .capiro-strategies .st-page {
   padding: 24px 32px 32px;
@@ -165,7 +194,6 @@
   min-width: 0;
   grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
   gap: 16px;
-  margin-bottom: 24px;
 }
 .capiro-vnext-root .capiro-strategies .st-stat {
   background: var(--st-white);

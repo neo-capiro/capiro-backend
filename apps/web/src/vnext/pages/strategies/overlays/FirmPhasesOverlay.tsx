@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CapiroButton, CapiroIconButton } from '../../../components/actions/index.js';
 import { CapiroErrorState, CapiroSkeleton } from '../../../components/feedback/index.js';
+import { CapiroPlusIcon } from '../../../components/icons/index.js';
 import { relativeTime } from '../../../../pages/strategy/constants.js';
 import type { FirmPhase, FirmPhaseInput } from '../../../../pages/strategy/types.js';
 import { memberName, useFirmPhases, usePutFirmPhases, useTenantMembers } from '../strategies-api.js';
@@ -20,6 +21,28 @@ import { StrategiesModalShell } from './StrategiesModalShell.js';
 
 const MIN_PHASES = 3;
 const MAX_PHASES = 12;
+
+/** Local `XClose` glyph (design handoff: `x-import ... name="XClose" size="14"`
+ * on the remove-phase button). Same rationale/convention as the shell's own
+ * copy of this glyph (StrategiesModalShell.tsx) — the shared icon set has no
+ * close/X entry, so this stays a self-contained, file-local glyph. */
+function CloseGlyph({ size = 14 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
 
 type Row = FirmPhaseInput & { _key: string };
 
@@ -294,7 +317,7 @@ export function FirmPhasesOverlay() {
                     <span className="st-phase-row__actions">
                       <CapiroIconButton
                         label={`Remove phase ${index + 1}`}
-                        icon="×"
+                        icon={<CloseGlyph size={14} />}
                         disabled={rows.length <= MIN_PHASES}
                         onClick={() => removeRow(row._key)}
                       />
@@ -310,6 +333,9 @@ export function FirmPhasesOverlay() {
                 size="compact"
                 disabled={rows.length >= MAX_PHASES}
                 onClick={addRow}
+                leadingIcon={
+                  <CapiroPlusIcon style={{ width: 16, height: 16, color: 'var(--st-gray-500)' }} />
+                }
               >
                 Add phase
               </CapiroButton>
@@ -348,7 +374,9 @@ export function FirmPhasesOverlay() {
 
             <div className="st-panel">
               <p className="st-panel__label">Rules</p>
-              <div style={{ display: 'grid', gap: 2 }}>
+              {/* Literal `phaseRules` wrapper: `gap:10px` between rows (the
+                  rows themselves carry no padding — see `.st-check`). */}
+              <div style={{ display: 'grid', gap: 10 }}>
                 {rules.map((rule) => (
                   <div className="st-check" key={rule.key}>
                     <span

@@ -53,7 +53,7 @@ import type {
   RunFinding,
   StrategyNode,
 } from '../../../../pages/strategy/types.js';
-import { fmtRelative, isForbidden, shortId, StaleNote, staleOrError } from './agents-shared.js';
+import { BannerGovernanceGlyph, fmtRelative, isForbidden, shortId, StaleNote, staleOrError } from './agents-shared.js';
 
 /** spStrategy.id is a UUID column; anything else is a malformed link, not a query. */
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -169,7 +169,10 @@ export function ProposalsQueue() {
   return (
     <div className="st-agents">
       {/* Policy copy — do not reword (§7.8, BUILD-CONTRACT). */}
-      <div className="st-dark-banner">
+      <div className="st-dark-banner st-dark-banner--agents">
+        <span className="st-dark-banner__icon" aria-hidden="true">
+          <BannerGovernanceGlyph />
+        </span>
         <div>
           <p className="st-dark-banner__title">Human approval is the control plane.</p>
           <p className="st-dark-banner__sub">
@@ -203,10 +206,18 @@ export function ProposalsQueue() {
 
       {/* ---- Awaiting review ------------------------------------------------- */}
       <div className="st-agents__section">
-        <div className="st-agents__section-head">
+        {/* Design handoff — label stacked above a real summary line ("N
+            change-sets awaiting review across M strategies"), not the small
+            inline mono count this used to show; both numbers are the same
+            already-fetched real data (openCount / groups.length), never a
+            fabricated total. */}
+        <div className="st-agents__section-head st-agents__section-head--stack">
           <h2 className="st-section-label">Awaiting review</h2>
           {!queueLoading && queueState === null && (
-            <span className="st-mono st-agents__count">{openCount} open</span>
+            <span className="st-agents__section-summary">
+              {openCount} change-set{openCount === 1 ? '' : 's'} awaiting review across{' '}
+              {groups.length} strateg{groups.length === 1 ? 'y' : 'ies'}
+            </span>
           )}
         </div>
 
@@ -367,11 +378,11 @@ function FirmChecks({ runs }: { runs: ReturnType<typeof useFirmReviewRuns> }) {
           description="Calendar baseline, firm phase model and outreach guardrail checks land here when a firm review run needs attention."
         />
       ) : (
-        <div className="st-agents__list">
+        <div className="st-agents__list st-agents__firm-list">
           {rows.map((run) => {
             const findings = extractRunFindings(run.findings);
             return (
-              <div key={run.id} className="st-card">
+              <div key={run.id} className="st-card st-agents__firm-card">
                 <div className="st-card__body">
                   <div className="st-agents__card-head">
                     <RiskPill risk={runRiskLevel(run.findings)} />
@@ -648,6 +659,10 @@ function ChangeSetCard({
             <span className="st-section-label">Selected operations</span>
             <span className="st-agents__cs-panel-count">
               {isProposed ? selected.size : displayOps.length}
+            </span>
+            {/* Static product copy from the design handoff — not reworded. */}
+            <span className="st-agents__cs-panel-note">
+              Reviewing only changes that preserve source grounding and external-send controls.
             </span>
           </div>
 

@@ -183,7 +183,7 @@ export function StrategyLibraryVNext() {
   return (
     <>
       <ScopeBar clientLabel="PORTFOLIO" status={status} />
-      <div className="st-page">
+      <div className="st-hero">
         <div className="st-page-header">
           <div>
             <p className="st-eyebrow">Strategy operating system</p>
@@ -206,7 +206,8 @@ export function StrategyLibraryVNext() {
             </CapiroButton>
           </div>
         </div>
-
+      </div>
+      <div className="st-canvas">
         {/* Firm phases banner (§7.1) — setup prompt when unconfigured, never an empty card.
             40px icon tile per the design handoff ("View: Strategy library"); the fy range
             in the configured copy is computed from the real FirmPhase rows (see

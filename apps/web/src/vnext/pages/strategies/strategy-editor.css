@@ -5,21 +5,32 @@
   align-items: flex-start;
   min-height: 100%;
 }
-.capiro-vnext-root .capiro-strategies .st-editor__main {
+/* Column holding the hero + canvas, sibling to the step-inspector aside
+   (design handoff line ~345: the hero and the timeline/cards column sit
+   together on the left of the inspector, not spread across the whole
+   `.st-editor` flex row). */
+.capiro-vnext-root .capiro-strategies .st-editor__col {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 24px 32px 32px;
+  display: flex;
+  flex-direction: column;
+}
+/* Canvas body — literal reference padding:24px (not this module's other
+   views' 24/32/32), gap:20px between the timeline card and the bottom cards. */
+.capiro-vnext-root .capiro-strategies .st-editor__main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
 }
 
-.capiro-vnext-root .capiro-strategies .st-editor-header {
-  display: flex;
-  align-items: flex-start;
+/* Base flex/gap/wrap/padding/background/border all come from `.st-hero`
+   (strategies.css) — this only adds the editor's deltas: `justify-content`
+   (hero's own default has none) and the literal reference's narrower
+   24/24/20 padding (library's hero is 28/24/24). */
+.capiro-vnext-root .capiro-strategies .st-hero--editor {
   justify-content: space-between;
-  /* wrap: only __right wrapped internally, which does not help — the header
-     itself was one unbreakable row of title-block + layer toggles + 4 actions. */
-  flex-wrap: wrap;
-  gap: 16px 24px;
-  margin-bottom: 20px;
+  padding: 24px 24px 20px;
 }
 .capiro-vnext-root .capiro-strategies .st-editor-header__left { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
 /* min-width:0 has to reach the title block itself, not just its flex parent. */
@@ -307,20 +318,24 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* Bottom cards */
+/* Bottom cards — reference (`.dc.html` line ~414-437): lighter 2-layer
+   shadow than the timeline card's, not the shared heavy `.st-card` default. */
+.capiro-vnext-root .capiro-strategies .st-next30,
+.capiro-vnext-root .capiro-strategies .st-planhealth {
+  box-shadow: var(--st-shadow-card-sm);
+}
 .capiro-vnext-root .capiro-strategies .st-editor-cards {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
-  margin-top: 16px;
 }
-.capiro-vnext-root .capiro-strategies .st-next30__title { font-size: 15px; font-weight: 600; color: var(--st-gray-900); margin: 0 0 10px; }
+.capiro-vnext-root .capiro-strategies .st-next30__title { font-size: 16px; line-height: 24px; font-weight: 400; color: var(--st-gray-900); margin: 0 0 10px; }
 .capiro-vnext-root .capiro-strategies .st-next30__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 14px; }
 .capiro-vnext-root .capiro-strategies .st-next30__owner { font-size: 13px; color: var(--st-gray-600); }
 
 .capiro-vnext-root .capiro-strategies .st-planhealth__body { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; }
 .capiro-vnext-root .capiro-strategies .st-planhealth__score {
-  font-size: 40px; font-weight: 600; letter-spacing: -0.02em; color: var(--st-gray-900);
+  font-size: 36px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em; color: var(--st-gray-900);
 }
 .capiro-vnext-root .capiro-strategies .st-planhealth__facts p { margin: 0; font-size: 13px; color: var(--st-gray-600); }
 .capiro-vnext-root .capiro-strategies .st-planhealth__body .capiro-button { margin-left: auto; }

@@ -53,3 +53,31 @@ export function staleOrError(q: Pick<UseQueryResult<unknown>, 'isError' | 'data'
   if (!q.isError) return null;
   return q.data !== undefined ? 'stale' : 'error';
 }
+
+/*
+ * Dark-banner icon tiles (design handoff — "a 36px icon tile" on both Agent
+ * review banners; `agBannerIcon` varies per tab: a governance/approval glyph
+ * on the proposals queue, a lock on execution runs). The shared icon set
+ * (../../components/icons/index.tsx) has no match for either, and that file
+ * may be touched by another concurrent Strategies agent — self-contained,
+ * view-local glyphs instead (same stroke convention as StrategyLibraryVNext's
+ * local glyphs: 24x24 viewBox, currentColor, 1.75 stroke). Purely decorative
+ * (aria-hidden) — no behavior, so out of scope for the "no new actions" rule.
+ */
+export function BannerGovernanceGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3 20 7v6c0 4.5-3.4 7.2-8 8-4.6-.8-8-3.5-8-8V7l8-4Z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+export function BannerLockGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V7.5a4 4 0 0 1 8 0V11" />
+    </svg>
+  );
+}

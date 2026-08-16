@@ -14,22 +14,24 @@
 .capiro-vnext-root .capiro-strategies .st-steward__header {
   background: var(--st-white);
   border-bottom: 1px solid var(--st-gray-200);
-  padding: 14px 28px 20px;
+  padding: 20px 24px 24px;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__back {
-  display: inline-block;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--st-gray-600);
+  color: var(--st-accent);
   text-decoration: none;
-  margin-bottom: 10px;
 }
-.capiro-vnext-root .capiro-strategies .st-steward__back:hover { color: var(--st-accent); }
+.capiro-vnext-root .capiro-strategies .st-steward__back:hover { color: var(--st-accent-hover); }
 .capiro-vnext-root .capiro-strategies .st-steward__title-row {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   flex-wrap: wrap;
-  gap: 14px 28px;
+  gap: 24px;
+  margin-top: 14px;
 }
 /* A real flex-basis (not 0) is what makes the row wrap instead of squeezing:
    with basis 0 the line never overflows, so the picker beside it just ate the
@@ -37,47 +39,54 @@
    takes the slack, picker stays at 200px — is unchanged. */
 .capiro-vnext-root .capiro-strategies .st-steward__title-block {
   flex: 1 1 260px;
-  min-width: 0;
+  min-width: 300px;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__eyebrow {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--st-gray-500);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__title {
-  margin: 2px 0 0;
-  font-size: 26px;
-  font-weight: 700;
+  margin: 6px 0 0;
+  font-size: 30px;
+  line-height: 38px;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--st-gray-900);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__lede {
-  margin: 6px 0 0;
-  max-width: 680px;
-  font-size: 13px;
-  line-height: 1.5;
+  margin: 8px 0 0;
+  max-width: 620px;
+  font-size: 16px;
+  line-height: 24px;
   color: var(--st-gray-600);
 }
 /* The client picker was unshrinkable at 200px, which left the title block ~74px
-   of a 302px header. It now takes a row of its own before that happens. */
+   of a 302px header. It now takes a row of its own before that happens. The
+   design handoff's own header slot here is a static client chip (padding-top
+   22px, matching the actions slot on the other Strategies headers) — this
+   page keeps it as a real filter control instead (a client picker is a
+   genuine, already-considered product need this view has and the fixture's
+   static chip does not model), but aligns it to the same vertical rhythm. */
 .capiro-vnext-root .capiro-strategies .st-steward__title-row .capiro-field {
   flex: 0 1 200px;
+  padding-top: 22px;
 }
 
 /* ---- body ---------------------------------------------------------------- */
 .capiro-vnext-root .capiro-strategies .st-steward__body {
-  padding: 22px 28px 48px;
+  padding: 24px;
   display: grid;
-  gap: 26px;
+  gap: 20px;
 }
 
 /* ---- dark health band ----------------------------------------------------- */
 .capiro-vnext-root .capiro-strategies .st-steward__band {
   background: var(--st-accent-deep);
   border-radius: 12px;
-  padding: 16px 20px;
+  padding: 22px 24px;
   color: var(--st-white);
   display: grid;
   gap: 12px;
@@ -89,15 +98,15 @@
   gap: 12px;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__band-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--st-accent-deep-eyebrow);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__band-head strong {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__band-metrics {
   display: flex;
@@ -110,8 +119,8 @@
   gap: 2px;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__band-value {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__band-value.is-unavailable {
@@ -121,9 +130,9 @@
   color: var(--st-error-dot);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__band-metric-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--st-accent-deep-eyebrow);
 }
@@ -177,17 +186,36 @@
   flex-wrap: wrap;
   gap: 12px;
 }
+/* "Conflicts" / "Facts" (design handoff: a small eyebrow over a prominent
+   summary value — NOT a bold section heading over a small count). */
+.capiro-vnext-root .capiro-strategies .st-steward__section-headcol {
+  display: block;
+  flex: 1 1 160px;
+  min-width: 160px;
+}
 .capiro-vnext-root .capiro-strategies .st-steward__section-title {
+  display: block;
   margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--st-gray-900);
+  color: var(--st-gray-500);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__section-count {
-  font-size: 12px;
-  color: var(--st-gray-500);
+  display: block;
+  margin-top: 2px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--st-gray-900);
+}
+.capiro-vnext-root .capiro-strategies .st-steward__section-count.is-alert { color: var(--st-warning-fg); }
+.capiro-vnext-root .capiro-strategies .st-steward__section-summary {
+  display: block;
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--st-gray-900);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__section-spacer { flex: 1; }
 .capiro-vnext-root .capiro-strategies .st-steward__note {
@@ -215,26 +243,26 @@
 .capiro-vnext-root .capiro-strategies .st-steward__search {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 12px;
-  height: 34px;
+  gap: 8px;
+  padding: 0 10px;
+  height: 36px;
   background: var(--st-white);
-  border: 1px solid var(--st-gray-200);
-  border-radius: 9px;
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--st-gray-300);
+  border-radius: 8px;
   color: var(--st-gray-400);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__search:focus-within {
-  border-color: var(--st-accent-focus);
-  box-shadow: var(--st-shadow-focus);
+  box-shadow: inset 0 0 0 1px var(--st-accent-focus), var(--st-shadow-focus);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__search input {
   border: 0;
   outline: none;
   background: transparent;
-  font-size: 12px;
+  font-size: 14px;
   font-family: var(--st-font-sans);
   color: var(--st-gray-900);
-  width: 160px;
+  width: 140px;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__search input::placeholder {
   color: var(--st-gray-400);
@@ -251,15 +279,15 @@
 .capiro-vnext-root .capiro-strategies .st-steward__conflict {
   background: var(--st-white);
   border-radius: 12px;
-  box-shadow: var(--st-shadow-card);
-  padding: 18px 20px;
+  box-shadow: 0 0 0 1px var(--st-gray-200), 0px 1px 2px rgba(16, 24, 40, 0.05);
+  padding: 22px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 20px;
   align-items: start;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__conflict.is-open {
-  box-shadow: var(--st-shadow-card), inset 3px 0 0 var(--st-warning-dot);
+  box-shadow: 0 0 0 1px var(--st-warning-ring), 0px 1px 2px rgba(16, 24, 40, 0.05);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__conflict-main {
   display: grid;
@@ -311,7 +339,7 @@
 }
 .capiro-vnext-root .capiro-strategies .st-steward__conflict-question {
   margin: 0;
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--st-gray-900);
 }
@@ -328,7 +356,7 @@
 .capiro-vnext-root .capiro-strategies .st-steward__candidate {
   border: 1px solid var(--st-gray-200);
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 14px;
   display: grid;
   gap: 8px;
   align-content: start;
@@ -348,9 +376,9 @@
 }
 .capiro-vnext-root .capiro-strategies .st-steward__candidate-text {
   margin: 0;
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 600;
-  line-height: 1.4;
+  line-height: 1.3;
   color: var(--st-gray-900);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__candidate-meta {
