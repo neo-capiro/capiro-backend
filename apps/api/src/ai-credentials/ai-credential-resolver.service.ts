@@ -99,6 +99,18 @@ export class AiCredentialResolverService implements OnModuleInit {
 
   async resolveOrder(ctx: TenantContext | null | undefined): Promise<ResolvedAiCredential[]> {
     this.assertCredentialAccess();
+    return this.resolveOrderUnchecked(ctx);
+  }
+
+  /** Dedicated, feature-gated credential lookup for governed Outreach V3 generation. */
+  async resolveOrderForOutreachV3Generation(ctx: TenantContext): Promise<ResolvedAiCredential[]> {
+    this.runtimePolicy?.assertExternalAction('outreach_v3_generate');
+    return this.resolveOrderUnchecked(ctx);
+  }
+
+  private async resolveOrderUnchecked(
+    ctx: TenantContext | null | undefined,
+  ): Promise<ResolvedAiCredential[]> {
     const providers: AiProvider[] = [];
     const add = (provider: AiProvider) => {
       if (!providers.includes(provider)) providers.push(provider);

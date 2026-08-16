@@ -11,6 +11,8 @@ import type { GaAudience } from './government-affairs-policy.registry.js';
 import type { PlanValidationIssue } from './message-plan.schema.js';
 
 export interface GenerationRequest {
+  /** Exact runtime authority for provider and credential boundaries. */
+  runtimeAction?: 'outreach_generate' | 'outreach_v3_generate';
   surface: GenerationSurface;
   clientId: string | null;
   /** Phase 0 parent record (required for outreach_email). */
@@ -123,7 +125,13 @@ export interface GenerationSourceManifest {
   criticalFailures: SourceFailure[];
   oldestSourceAt: string | null;
   newestSourceAt: string | null;
-  policy: { policyId: string; version: string; label: string; jurisdiction: string; audienceType: string };
+  policy: {
+    policyId: string;
+    version: string;
+    label: string;
+    jurisdiction: string;
+    audienceType: string;
+  };
   provider: string | null;
   model: string | null;
   planModel: string | null;

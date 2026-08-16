@@ -24,6 +24,8 @@ import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
 export type LlmProvider = 'openai' | 'anthropic';
 
 export interface LlmCompletionRequest {
+  /** Runtime authority asserted immediately before the provider request. */
+  runtimeAction?: 'outreach_generate' | 'outreach_v3_generate';
   provider: LlmProvider;
   apiKey: string;
   model: string;
@@ -90,7 +92,7 @@ export interface LlmCompletionServiceOptions {
    * creating an AbortController or fetch request.
    */
   runtimePolicy?: {
-    assertExternalAction(action: 'outreach_generate'): void;
+    assertExternalAction(action: 'outreach_generate' | 'outreach_v3_generate'): void;
   };
 }
 
@@ -98,7 +100,9 @@ export class LlmCompletionService {
   private readonly fetchImpl: typeof fetch;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly logger: Pick<Logger, 'warn'>;
-  private readonly runtimePolicy?: { assertExternalAction(action: 'outreach_generate'): void };
+  private readonly runtimePolicy?: {
+    assertExternalAction(action: 'outreach_generate' | 'outreach_v3_generate'): void;
+  };
 
   constructor(opts: LlmCompletionServiceOptions = {}) {
     this.fetchImpl = opts.fetchImpl ?? fetch;
@@ -108,8 +112,8 @@ export class LlmCompletionService {
   }
 
   async complete(req: LlmCompletionRequest): Promise<LlmCompletionResult> {
-    // Engagement API Phase 1 — assert outreach_generate before any network call.
-    this.runtimePolicy?.assertExternalAction('outreach_generate');
+    // Assert the exact caller authority before any network call.
+    this.runtimePolicy?.assertExternalAction(req.runtimeAction ?? 'outreach_generate');
     const maxRetries = req.maxRetries ?? DEFAULT_MAX_RETRIES;
     let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {

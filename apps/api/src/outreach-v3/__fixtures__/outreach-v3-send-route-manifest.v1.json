@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "runtime": "engagement-api",
+  "requiresStateFlag": "OUTREACH_V3_STATE_ENABLED",
+  "featureFlag": "OUTREACH_V3_SEND_ENABLED",
+  "disabledBehavior": 404,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/send/settings",
+      "handler": "getSettings"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/send/settings",
+      "handler": "saveSettings",
+      "humanDecisionOnly": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/send/preflight",
+      "handler": "preflight"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/send/test",
+      "handler": "testSend",
+      "humanDecisionOnly": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/send/intent",
+      "handler": "createIntent",
+      "humanDecisionOnly": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId",
+      "handler": "getIntent"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId/refresh",
+      "handler": "refreshIntent"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/send/intents/:intentId/cancel",
+      "handler": "cancelIntent",
+      "humanDecisionOnly": true
+    }
+  ],
+  "authority": {
+    "serverPreflight": true,
+    "exactImmutableVersions": true,
+    "durableIntentBeforeProvider": true,
+    "testSendSenderOnly": true,
+    "automaticUnknownRetry": false,
+    "rawBodySend": false,
+    "memoryCommit": false
+  }
+}

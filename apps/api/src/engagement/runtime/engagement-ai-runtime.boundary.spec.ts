@@ -53,7 +53,11 @@ function providerCapablePublicMethods(): string[] {
           continue;
         }
         const name = member.name.text;
-        if (name.startsWith('generate') || name === 'resolveOutreachCredentials') {
+        // Any credential-resolving entry point is provider-capable, not just the
+        // classic one: Outreach V3 added resolveOutreachV3Credentials, and a
+        // prefix match means a future variant must be guarded too rather than
+        // silently escaping this coverage check.
+        if (name.startsWith('generate') || name.startsWith('resolveOutreach')) {
           methods.push(name);
         }
       }

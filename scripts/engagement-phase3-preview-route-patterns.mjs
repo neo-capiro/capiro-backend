@@ -37,6 +37,15 @@ const ADDITIVE_ROUTE_MANIFEST_PATHS = [
     ROOT,
     'apps/api/src/outreach-v3/__fixtures__/outreach-v3-context-route-manifest.v1.json',
   ),
+  path.join(
+    ROOT,
+    'apps/api/src/outreach-v3/__fixtures__/outreach-v3-generation-route-manifest.v1.json',
+  ),
+  path.join(
+    ROOT,
+    'apps/api/src/outreach-v3/__fixtures__/outreach-v3-drafts-route-manifest.v1.json',
+  ),
+  path.join(ROOT, 'apps/api/src/outreach-v3/__fixtures__/outreach-v3-send-route-manifest.v1.json'),
 ];
 const GENERATED_PATH = path.join(
   ROOT,
@@ -144,16 +153,11 @@ function main() {
   const mode = process.argv.includes('--write') ? 'write' : 'check';
   const primary = readManifest(PRIMARY_ROUTE_MANIFEST_PATH);
   const additive = ADDITIVE_ROUTE_MANIFEST_PATHS.map(readManifest);
-  const primaryManifestSha256 = createHash('sha256')
-    .update(primary.raw, 'utf8')
-    .digest('hex');
+  const primaryManifestSha256 = createHash('sha256').update(primary.raw, 'utf8').digest('hex');
 
   const combinedManifest = {
     ...primary.manifest,
-    routes: [
-      ...primary.manifest.routes,
-      ...additive.flatMap((entry) => entry.manifest.routes),
-    ],
+    routes: [...primary.manifest.routes, ...additive.flatMap((entry) => entry.manifest.routes)],
   };
   const built = buildPatterns(combinedManifest);
 

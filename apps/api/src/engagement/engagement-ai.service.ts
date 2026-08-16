@@ -914,6 +914,12 @@ export class EngagementAiService {
     return this.applyPreferredProvider(creds, this.outreachProvider);
   }
 
+  /** Credential order for V3 generation under the dedicated runtime action. */
+  async resolveOutreachV3Credentials(ctx: TenantContext): Promise<ResolvedAiCredential[]> {
+    const creds = await this.credentials.resolveOrderForOutreachV3Generation(ctx);
+    return this.applyPreferredProvider(creds, this.outreachProvider);
+  }
+
   async generateMeetingDebrief(
     input: MeetingDebriefDraftInput,
     ctx?: TenantContext | null,

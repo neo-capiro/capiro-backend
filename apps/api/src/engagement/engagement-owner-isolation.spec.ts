@@ -64,22 +64,38 @@ function baseRecord(overrides: Record<string, unknown> = {}): Record<string, unk
 }
 
 /**
- * Faithful-enough Prisma `where` matcher for the predicate shapes these
- * methods actually issue against a single in-memory row: plain equality, and
- * `{ not: value }`. A predicate naming a field the row doesn't satisfy matches
- * nothing — exactly like a real `createdByUserId` column comparison.
+ * Faithful-enough Prisma `where` matcher for the predicate shapes these methods
+ * actually issue against a single in-memory row: plain equality, `{ not }`,
+ * `{ notIn }`, and a nested `AND` array. A predicate naming a field the row
+ * doesn't satisfy matches nothing — exactly like a real `createdByUserId`
+ * column comparison.
+ *
+ * `AND` and `notIn` are required because ownOutreachRecordWhere now also
+ * excludes the reserved internal outreach roots (type=outreach_v3) that exist
+ * only to reuse the immutable draft/send FK graph. Without them this matcher
+ * would silently reject every row and the owner-positive cases would fail for a
+ * reason that has nothing to do with ownership.
  */
 function matchesWhere(row: Record<string, unknown>, where: Record<string, unknown>): boolean {
   for (const [key, value] of Object.entries(where)) {
-    if (
-      value !== null &&
-      typeof value === 'object' &&
-      'not' in (value as Record<string, unknown>)
-    ) {
-      if (row[key] === (value as { not: unknown }).not) return false;
-    } else if (row[key] !== value) {
-      return false;
+    if (key === 'AND') {
+      const clauses = (Array.isArray(value) ? value : [value]) as Array<Record<string, unknown>>;
+      if (!clauses.every((clause) => matchesWhere(row, clause))) return false;
+      continue;
     }
+    if (value !== null && typeof value === 'object') {
+      const operators = value as Record<string, unknown>;
+      if ('not' in operators) {
+        if (row[key] === operators.not) return false;
+        continue;
+      }
+      if ('notIn' in operators) {
+        const excluded = operators.notIn as unknown[];
+        if (excluded.includes(row[key])) return false;
+        continue;
+      }
+    }
+    if (row[key] !== value) return false;
   }
   return true;
 }
@@ -149,6 +165,33 @@ describe('listOutreachRecords owner isolation (§3.a2)', () => {
     const h = makeOwnerHarness([baseRecord()]);
     await h.service.listOutreachRecords(userA, {});
     expect(h.findManyWheres[0]).toMatchObject({ createdByUserId: 'user-a', tenantId: 't1' });
+  });
+
+  /**
+   * Outreach V3 reuses the mature immutable draft/send FK graph by creating a
+   * reserved parent OutreachRecord. That root is not a Classic campaign and must
+   * never surface through Classic Outreach, even to the user who owns it.
+   */
+  test('the reserved Outreach V3 root never appears in Classic Outreach', async () => {
+    const h = makeOwnerHarness([baseRecord({ type: 'outreach_v3' })]);
+    const rows = await h.service.listOutreachRecords(userA, {});
+    expect(rows).toHaveLength(0);
+  });
+
+  test('a crafted type=outreach_v3 filter is refused outright', async () => {
+    const h = makeOwnerHarness([baseRecord({ type: 'outreach_v3' })]);
+    // Defense in depth: the reserved type is rejected at input validation, so a
+    // caller cannot even express the filter — and the AND-scoped predicate
+    // exclusion still stands behind it if that validation ever loosens.
+    // The guard rejects synchronously, so normalise to a rejection either way.
+    await expect(
+      (async () => h.service.listOutreachRecords(userA, { type: 'outreach_v3' } as never))(),
+    ).rejects.toThrow(/type must be/i);
+  });
+
+  test('Classic campaigns are unaffected by that exclusion', async () => {
+    const h = makeOwnerHarness([baseRecord({ type: 'follow_up' })]);
+    expect(await h.service.listOutreachRecords(userA, {})).toHaveLength(1);
   });
 });
 

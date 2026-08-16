@@ -3,14 +3,17 @@ import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { TemplateStudioService } from './template-studio.service.js';
-import type {
+// Value imports (not `import type`) — Nest ValidationPipe needs the runtime
+// class constructors for @Body() metatype. `import type` erases them and
+// forbidNonWhitelisted then rejects every legitimate field as unknown.
+import {
   CloneBlueprintDto,
-  CompareVersionsResult,
   CreateBlueprintDto,
   CreateVersionDto,
   TestVersionDto,
   UpdateVersionDto,
 } from './dto/template-studio.dto.js';
+import type { CompareVersionsResult } from './dto/template-studio.dto.js';
 
 /**
  * Template Studio REST surface. Every route is tenant-scoped via TenantGuard

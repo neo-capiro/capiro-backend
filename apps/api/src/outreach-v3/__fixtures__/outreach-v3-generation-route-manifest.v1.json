@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "runtime": "engagement-api",
+  "requiresStateFlag": "OUTREACH_V3_STATE_ENABLED",
+  "featureFlag": "OUTREACH_V3_GENERATION_ENABLED",
+  "fullGenerationFlag": "OUTREACH_V3_FULL_GENERATION_ENABLED",
+  "disabledBehavior": 404,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/plan",
+      "handler": "plan"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/samples",
+      "handler": "generateSamples",
+      "maxSlots": 3
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/approach-approval",
+      "handler": "getApproachApproval"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/approach-approval",
+      "handler": "approveApproach",
+      "humanDecisionOnly": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/full",
+      "handler": "startFullGeneration",
+      "asyncOnly": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId",
+      "handler": "getFullGenerationJob"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId/cancel",
+      "handler": "cancelFullGenerationJob"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId/items/:itemId/retry",
+      "handler": "retryFullGenerationItem",
+      "failedItemsOnly": true
+    }
+  ],
+  "authority": {
+    "modelCall": true,
+    "representativeSamples": true,
+    "draftWrite": true,
+    "approachApproval": true,
+    "fullGeneration": true,
+    "fullGenerationAsyncOnly": true,
+    "preflight": false,
+    "sendIntent": false,
+    "mailProviderAction": false,
+    "memoryCommit": false
+  }
+}

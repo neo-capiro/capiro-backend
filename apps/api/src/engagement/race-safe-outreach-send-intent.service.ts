@@ -45,8 +45,8 @@ export class RaceSafeOutreachSendIntentService extends OutreachSendIntentService
 
   override onModuleDestroy(): void {}
 
-  runWorkerSweep(): Promise<void> {
-    return super.runSweep();
+  runWorkerSweep(v3Only = false): Promise<void> {
+    return super.runSweep(v3Only);
   }
 
   override createIntent(

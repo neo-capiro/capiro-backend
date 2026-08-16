@@ -10,6 +10,7 @@ import {
 import { Empty, MeriGlyph, SendMeriButton, eligibleForMeri } from './meetings-ui.js';
 import { GeneratingState } from './tab-kit.js';
 import type { Meeting, MeetingNote } from './meetings-types.js';
+import { EngagementDialog } from './EngagementDialog.js';
 
 /**
  * Phase 2 §3.e/§3.j — Draft/Edited/Approved/Shared status pill, distinct from
@@ -36,6 +37,7 @@ function NoteRow({ meetingId, note }: { meetingId: string; note: MeetingNote }) 
   const save = async () => {
     try {
       await update.mutateAsync({ meetingId, noteId: note.id, body: draft });
+      message.success('Meeting notes updated.');
       setEditing(false);
     } catch {
       message.error('Could not save the note.');
@@ -46,19 +48,17 @@ function NoteRow({ meetingId, note }: { meetingId: string; note: MeetingNote }) 
     <div style={{ margin: '0 0 18px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
         {noteStatusPill(note)}
-        {!editing && (
-          <button
-            type="button"
-            className="btn sm"
-            onClick={() => {
-              setDraft(note.body ?? '');
-              setEditing(true);
-            }}
-          >
-            Edit
-          </button>
-        )}
-        {!editing && note.status !== 'approved' && (
+        <button
+          type="button"
+          className="btn sm"
+          onClick={() => {
+            setDraft(note.body ?? '');
+            setEditing(true);
+          }}
+        >
+          Edit
+        </button>
+        {note.status !== 'approved' && (
           <button
             type="button"
             className="btn sm btn-accent"
@@ -66,6 +66,7 @@ function NoteRow({ meetingId, note }: { meetingId: string; note: MeetingNote }) 
             onClick={() =>
               approve
                 .mutateAsync({ meetingId, noteId: note.id })
+                .then(() => message.success('Meeting notes approved.'))
                 .catch(() => message.error('Could not approve the note.'))
             }
           >
@@ -73,49 +74,59 @@ function NoteRow({ meetingId, note }: { meetingId: string; note: MeetingNote }) 
           </button>
         )}
       </div>
-      {editing ? (
-        <div>
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={4}
-            style={{
-              width: '100%',
-              fontSize: 13,
-              lineHeight: 1.65,
-              padding: 8,
-              borderRadius: 6,
-              border: '1px solid var(--border-2)',
-              resize: 'vertical',
-            }}
-          />
-          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-            <button type="button" className="btn sm" onClick={() => setEditing(false)}>
+      <p
+        style={{
+          fontSize: 13,
+          lineHeight: 1.65,
+          color: 'var(--ink-1)',
+          margin: 0,
+          whiteSpace: 'pre-wrap',
+        }}
+      >
+        {note.body}
+      </p>
+      <EngagementDialog
+        open={editing}
+        eyebrow="Meeting · secondary actions"
+        title="Edit meeting notes"
+        description="Saving creates the current editable note state. Approval remains a separate action."
+        width={660}
+        busy={update.isPending}
+        busyLabel="Saving notes…"
+        error={update.isError ? 'Could not save the note. Your edits are still here.' : null}
+        dirty={draft !== (note.body ?? '')}
+        onClose={() => setEditing(false)}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn"
+              disabled={update.isPending}
+              onClick={() => setEditing(false)}
+            >
               Cancel
             </button>
             <button
               type="button"
-              className="btn sm btn-accent"
+              className="btn btn-accent"
               disabled={update.isPending || !draft.trim()}
-              onClick={save}
+              onClick={() => void save()}
             >
-              Save
+              {update.isPending ? 'Saving…' : 'Save'}
             </button>
-          </div>
-        </div>
-      ) : (
-        <p
-          style={{
-            fontSize: 13,
-            lineHeight: 1.65,
-            color: 'var(--ink-1)',
-            margin: 0,
-            whiteSpace: 'pre-wrap',
-          }}
-        >
-          {note.body}
-        </p>
-      )}
+          </>
+        }
+      >
+        <label className="engagement-dialog__field">
+          Meeting notes
+          <textarea
+            autoFocus
+            rows={14}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+          />
+        </label>
+      </EngagementDialog>
     </div>
   );
 }
@@ -183,10 +194,7 @@ export function NotesTab({
       <Empty
         icon={<AlertTriangle size={20} />}
         title="Meri couldn't capture this meeting"
-        body={
-          m.meriError ??
-          'Meri was sent to this meeting but was unable to take notes.'
-        }
+        body={m.meriError ?? 'Meri was sent to this meeting but was unable to take notes.'}
         action={<SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />}
       />
     );

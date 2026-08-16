@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "runtime": "engagement-api",
+  "requiresStateFlag": "OUTREACH_V3_STATE_ENABLED",
+  "featureFlag": "OUTREACH_V3_DRAFTS_ENABLED",
+  "disabledBehavior": 404,
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/drafts",
+      "handler": "list"
+    },
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId",
+      "handler": "getVersion"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/versions",
+      "handler": "revise",
+      "humanDecisionOnly": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId/approval",
+      "handler": "approveVersion",
+      "humanDecisionOnly": true
+    }
+  ],
+  "authority": {
+    "appendOnlyDraftMutation": true,
+    "exactVersionAuthorApproval": true,
+    "preflight": false,
+    "sendIntent": false,
+    "mailProviderAction": false,
+    "memoryCommit": false
+  }
+}

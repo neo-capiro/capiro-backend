@@ -9,6 +9,7 @@ const AI_ACTION_BY_METHOD: Readonly<Record<string, EngagementExternalAction>> = 
   generateTalkingPoints: 'outreach_generate',
   generateCampaignEmail: 'outreach_generate',
   resolveOutreachCredentials: 'outreach_generate',
+  resolveOutreachV3Credentials: 'outreach_v3_generate',
 };
 
 /**
@@ -38,8 +39,6 @@ export function guardEngagementAiService(
   });
 }
 
-export function guardedEngagementAiMethods(): Readonly<
-  Record<string, EngagementExternalAction>
-> {
+export function guardedEngagementAiMethods(): Readonly<Record<string, EngagementExternalAction>> {
   return AI_ACTION_BY_METHOD;
 }

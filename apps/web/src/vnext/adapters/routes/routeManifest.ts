@@ -30,6 +30,32 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
     label: 'Engagement Manager',
     path: '/engagement',
     availability: 'existing',
+    children: [
+      {
+        id: 'engagement-meetings',
+        label: 'Meetings',
+        path: '/engagement/meetings',
+        availability: 'existing',
+      },
+      {
+        id: 'engagement-library',
+        label: 'Meeting Library',
+        path: '/engagement/meeting-library',
+        availability: 'existing',
+      },
+      {
+        id: 'engagement-outreach',
+        label: 'Outreach',
+        path: '/engagement/outreach',
+        availability: 'existing',
+      },
+      {
+        id: 'engagement-reports',
+        label: 'Reports',
+        path: '/engagement/reports',
+        availability: 'existing',
+      },
+    ],
   },
   { id: 'workspace', label: 'Workspace', path: '/workspace', availability: 'existing' },
   {
@@ -122,8 +148,9 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
   { id: 'settings', label: 'Settings', path: '/settings', availability: 'existing' },
 ];
 
-export const VNEXT_ROUTE_GAPS = VNEXT_ROUTE_MANIFEST.flatMap((route) => route.children ?? [])
-  .filter((route) => route.availability === 'gap');
+export const VNEXT_ROUTE_GAPS = VNEXT_ROUTE_MANIFEST.flatMap(
+  (route) => route.children ?? [],
+).filter((route) => route.availability === 'gap');
 
 /**
  * Applies the same deny-by-default feature-gate behavior used by the canonical
@@ -138,9 +165,7 @@ export function visibleVNextRoutes(
     if (route.featureFlag && !context.featureFlags?.[route.featureFlag]) return [];
     if (route.meFeature && !context.meFeatures?.[route.meFeature]) return [];
 
-    const children = route.children
-      ? visibleVNextRoutes(route.children, context)
-      : undefined;
+    const children = route.children ? visibleVNextRoutes(route.children, context) : undefined;
 
     return [{ ...route, ...(children ? { children } : {}) }];
   });

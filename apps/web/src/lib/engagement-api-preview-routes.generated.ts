@@ -8,6 +8,9 @@
  *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-reasoning-route-manifest.v1.json
  *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-target-route-manifest.v1.json
  *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-context-route-manifest.v1.json
+ *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-generation-route-manifest.v1.json
+ *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-drafts-route-manifest.v1.json
+ *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-send-route-manifest.v1.json
  * Generator: scripts/engagement-phase3-preview-route-patterns.mjs
  * Regenerate: node scripts/engagement-phase3-preview-route-patterns.mjs --write
  *
@@ -30,7 +33,7 @@ export const ENGAGEMENT_ROUTE_MANIFEST_SHA256 =
 export const ENGAGEMENT_ROUTE_MANIFEST_SCHEMA_VERSION = 1;
 
 /** Distinct primary + additive manifest paths covered below. */
-export const ENGAGEMENT_PREVIEW_ROUTE_COUNT = 111;
+export const ENGAGEMENT_PREVIEW_ROUTE_COUNT = 129;
 
 export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/associations/override$',
@@ -98,11 +101,29 @@ export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/outreach-v3/sessions/[^/]+/context/memory/search$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/context/review$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/context/strategy$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/drafts$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/drafts/[^/]+/versions$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/drafts/[^/]+$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/drafts/[^/]+/approval$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/events$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/generation/approach-approval$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/generation/full$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/generation/jobs/[^/]+$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/generation/jobs/[^/]+/cancel$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/generation/jobs/[^/]+/items/[^/]+/retry$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/generation/plan$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/generation/samples$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/proposals$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/proposals/[^/]+/apply$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/proposals/[^/]+/reject$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/reasoning/conversations$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/send/intent$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/send/intents/[^/]+$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/send/intents/[^/]+/cancel$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/send/intents/[^/]+/refresh$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/send/preflight$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/send/settings$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/send/test$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/targets/coverage$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/targets/profile$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/targets/relationships$',

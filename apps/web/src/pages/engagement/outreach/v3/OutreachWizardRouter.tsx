@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { isVNextSurface } from '../../../../env.js';
 import { isEngagementPreviewActive } from '../../../../lib/engagement-api-preview.js';
 import type { Client } from '../../../clients/clientTypes.js';
 import type { OutreachRecord } from '../../OutreachView.js';
@@ -7,7 +8,7 @@ import {
   NewOutreachWizard as ClassicOutreachWizard,
   type OutreachSenderInbox,
 } from '../v2/NewOutreachWizard.js';
-import { OutreachV3Route } from './OutreachV3Route.js';
+import { OutreachV3CompleteRoute } from './OutreachV3CompleteRoute.js';
 import {
   clearOutreachV3Preview,
   consumeOutreachV3PreviewActivation,
@@ -28,18 +29,21 @@ export interface OutreachWizardRouterProps {
 }
 
 /**
- * Classic Outreach remains the default and the semantic owner of every v2
- * draft. The final V3 workspace is mounted only when both explicit preview
- * switches are active and the user is starting or resuming a native V3 session.
+ * Classic Outreach remains the semantic owner of every v2 draft. New
+ * campaigns use V3 automatically on the vNext presentation; the canonical app
+ * still requires both explicit preview switches. A user can deliberately fall
+ * back to Classic without changing any existing draft ownership.
  */
 export function OutreachWizardRouter(props: OutreachWizardRouterProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [previewMode, setPreviewMode] = useState(readOutreachV3PreviewMode);
+  const [forceClassic, setForceClassic] = useState(false);
 
   useEffect(() => {
     const result = consumeOutreachV3PreviewActivation(location.search);
     setPreviewMode(result.mode);
+    if (result.changed) setForceClassic(result.mode === 'off');
     if (!result.changed) return;
     navigate(
       {
@@ -53,21 +57,28 @@ export function OutreachWizardRouter(props: OutreachWizardRouterProps) {
 
   const hasClassicDraft = Boolean(props.initialRecord || props.initialDraftId);
   const v3Enabled =
-    previewMode === 'v3' && isEngagementPreviewActive() && !hasClassicDraft;
+    !forceClassic &&
+    !hasClassicDraft &&
+    (isVNextSurface || (previewMode === 'v3' && isEngagementPreviewActive()));
 
   if (!v3Enabled) {
     return <ClassicOutreachWizard {...props} />;
   }
 
   return (
-    <OutreachV3Route
+    <OutreachV3CompleteRoute
       clients={props.clients}
       selectedClientId={props.selectedClientId}
+      aiConfigured={props.aiConfigured}
+      emailConnected={props.emailConnected}
+      sendFrom={props.sendFrom}
+      sendableInboxes={props.sendableInboxes}
       onCancel={props.onCancel}
       onComplete={props.onComplete}
       onOpenClassic={() => {
         clearOutreachV3Preview();
         setPreviewMode('off');
+        setForceClassic(true);
       }}
     />
   );

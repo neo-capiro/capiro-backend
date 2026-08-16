@@ -38,6 +38,37 @@ const ROUTE_MANIFEST = JSON.parse(
   ),
 ) as { routes: RouteEntry[] };
 
+/**
+ * Outreach V3 controllers are not part of the Phase 0 Engagement route manifest
+ * (its generator has an explicit seven-controller list). They carry their own
+ * frozen per-module manifests instead, so resolve registry entries for those
+ * controllers against those manifests rather than exempting them — an orphaned
+ * or mistyped V3 registry entry must still be caught here.
+ */
+const V3_MANIFESTS: ReadonlyArray<{ controller: string; fixture: string }> = [
+  {
+    controller: 'OutreachV3GenerationController',
+    fixture: 'outreach-v3-generation-route-manifest.v1.json',
+  },
+  {
+    controller: 'OutreachV3DraftsController',
+    fixture: 'outreach-v3-drafts-route-manifest.v1.json',
+  },
+  { controller: 'OutreachV3SendController', fixture: 'outreach-v3-send-route-manifest.v1.json' },
+];
+
+const V3_ROUTE_KEYS = new Set(
+  V3_MANIFESTS.flatMap(({ controller, fixture }) => {
+    const manifest = JSON.parse(
+      readFileSync(
+        path.join(REPO_ROOT, 'apps/api/src/outreach-v3/__fixtures__', fixture),
+        'utf8',
+      ),
+    ) as { routes: Array<{ handler: string }> };
+    return manifest.routes.map((route) => `${controller}.${route.handler}`);
+  }),
+);
+
 const LOCAL_SAFE_GENERATION_HANDLERS = new Set([
   'listDraftArtifacts',
   'getDraftVersion',
@@ -170,8 +201,9 @@ function validateRegistry(registry: EngagementRuntimeRoutePolicy): string[] {
   }
 
   for (const entry of registryEntries(registry)) {
-    if (!routeKeys.has(`${entry.controller}.${entry.handler}`)) {
-      findings.push(`registry entry has no manifest route: ${entry.controller}.${entry.handler}`);
+    const key = `${entry.controller}.${entry.handler}`;
+    if (!routeKeys.has(key) && !V3_ROUTE_KEYS.has(key)) {
+      findings.push(`registry entry has no manifest route: ${key}`);
     }
   }
   return findings;

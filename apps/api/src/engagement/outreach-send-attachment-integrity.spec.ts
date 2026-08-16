@@ -314,7 +314,12 @@ function makeDeliverHarness(opts: {
   let providerCalls = 0;
 
   const tx = {
-    $queryRaw: async () => {
+    $queryRaw: async (strings?: TemplateStringsArray) => {
+      // Worker ownership is now split: isOutreachV3Session probes
+      // outreach_events to decide whether the classic or the V3 worker owns an
+      // intent. These delivery tests cover the CLASSIC path.
+      const sql = Array.isArray(strings) ? strings.join(' ') : '';
+      if (sql.includes('outreach_events')) return [];
       if (state.claimed) return [];
       state.claimed = true;
       return [
@@ -351,6 +356,9 @@ function makeDeliverHarness(opts: {
         outreachRecordId: 'rec-1',
         senderConnection: { id: 'conn-1', provider: 'google_workspace' },
       }),
+      // findRunnableIntentId now reads a bounded batch and picks the first
+      // intent this worker owns, rather than the single oldest row.
+      findMany: async () => [{ id: 'intent-1', tenantId: 't1', outreachRecordId: 'rec-1' }],
       updateMany: async () => ({ count: 1 }),
     },
     outreachRecord: { updateMany: async () => ({ count: 1 }) },

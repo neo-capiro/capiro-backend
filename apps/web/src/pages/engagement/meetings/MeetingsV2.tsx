@@ -188,7 +188,9 @@ export function MeetingsV2({
   const bodyKeys =
     viewMode === 'day'
       ? [dayKey(cursor)]
-      : weekDays.map(dayKey).filter((k) => list.some((m) => meetingDayKey(m.startsAt, m.endsAt) === k));
+      : weekDays
+          .map(dayKey)
+          .filter((k) => list.some((m) => meetingDayKey(m.startsAt, m.endsAt) === k));
 
   const panel = (
     <>
@@ -256,6 +258,7 @@ export function MeetingsV2({
     return (
       <div
         ref={contentRef}
+        className="engagement-meetings-v2 engagement-meetings-v2--library"
         style={{
           position: 'relative',
           // Clips MeetingDetailPanel when closed: it's translateX(100%)'d by its
@@ -283,6 +286,7 @@ export function MeetingsV2({
   return (
     <div
       ref={contentRef}
+      className="engagement-meetings-v2"
       style={{
         position: 'relative',
         // Clips MeetingDetailPanel when closed: it's translateX(100%)'d by its
@@ -518,7 +522,16 @@ export function MeetingsV2({
             }}
           >
             {meetings.isError ? (
-              <Empty icon={<CalendarCheck size={20} />} title="Couldn't load meetings." />
+              <Empty
+                icon={<CalendarCheck size={20} />}
+                title="Couldn't load meetings."
+                body="The rest of Engagement is still available. Retry this calendar window."
+                action={
+                  <button type="button" className="btn sm" onClick={() => void meetings.refetch()}>
+                    Retry calendar
+                  </button>
+                }
+              />
             ) : bodyKeys.length === 0 ? (
               <Empty
                 icon={<CalendarCheck size={20} />}

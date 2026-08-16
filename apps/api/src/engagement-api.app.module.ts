@@ -1,9 +1,4 @@
-import {
-  MiddlewareConsumer,
-  Module,
-  NestModule,
-  RequestMethod,
-} from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -23,6 +18,9 @@ import { OutreachV3StateModule } from './outreach-v3/api/outreach-v3-state.modul
 import { OutreachV3TargetsModule } from './outreach-v3/targets/outreach-v3-targets.module.js';
 import { OutreachV3ContextModule } from './outreach-v3/context/outreach-v3-context.module.js';
 import { OutreachV3ReasoningModule } from './outreach-v3/reasoning/outreach-v3-reasoning.module.js';
+import { OutreachV3GenerationModule } from './outreach-v3/generation/outreach-v3-generation.module.js';
+import { OutreachV3DraftsModule } from './outreach-v3/drafts/outreach-v3-drafts.module.js';
+import { OutreachV3SendModule } from './outreach-v3/send/outreach-v3-send.module.js';
 import { EngagementRuntimeGuard } from './engagement/runtime/engagement-runtime.guard.js';
 import { EngagementApiHealthController } from './engagement-api/engagement-api-health.controller.js';
 
@@ -50,6 +48,9 @@ import { EngagementApiHealthController } from './engagement-api/engagement-api-h
     OutreachV3TargetsModule,
     OutreachV3ContextModule,
     OutreachV3ReasoningModule,
+    OutreachV3GenerationModule,
+    OutreachV3DraftsModule,
+    OutreachV3SendModule,
   ],
   controllers: [EngagementApiHealthController],
   providers: [

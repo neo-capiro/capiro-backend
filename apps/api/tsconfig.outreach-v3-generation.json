@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.outreach-v3-phase5.json",
+  "include": [
+    "src/capabilities/**/*.ts",
+    "src/search/**/*.ts",
+    "src/outreach-v3/state/**/*.ts",
+    "src/outreach-v3/commands/**/*.ts",
+    "src/outreach-v3/persistence/**/*.ts",
+    "src/outreach-v3/services/**/*.ts",
+    "src/outreach-v3/api/**/*.ts",
+    "src/outreach-v3/reasoning/**/*.ts",
+    "src/outreach-v3/targets/**/*.ts",
+    "src/outreach-v3/context/**/*.ts",
+    "src/outreach-v3/generation/**/*.ts",
+    "src/outreach-v3/drafts/**/*.ts",
+    "src/outreach-v3/preflight/**/*.ts",
+    "src/engagement/generation/**/*.ts",
+    "src/engagement/engagement-access.helpers.ts",
+    "src/engagement/outreach-draft.service.ts",
+    "src/engagement/outreach-draft.types.ts",
+    "src/engagement/outreach-send-intent.service.ts",
+    "src/engagement/engagement.module.ts",
+    "src/engagement-workers/outreach-v3-full-generation-worker.service.ts",
+    "src/engagement-workers/engagement-workers.module.ts",
+    "src/engagement-api.app.module.ts"
+  ]
+}

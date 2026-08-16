@@ -20,6 +20,7 @@
  * preview header; `scripts/verify-engagement-web-no-preview-header.mjs` keeps
  * every other file honest.
  */
+import { isVNextSurface } from '../env.js';
 import { ENGAGEMENT_PREVIEW_ROUTE_PATTERNS } from './engagement-api-preview-routes.generated.js';
 
 export type EngagementApiPreviewMode = 'off' | 'v3';
@@ -173,6 +174,19 @@ export function isEngagementApiRequest(url: string | undefined, baseUrl?: string
 }
 
 /**
+ * Exact V3-only routing for os.capiro.ai. This deliberately does not activate
+ * the rest of Engagement: Meetings and Reports keep using the canonical API.
+ */
+export function isOutreachV3ApiRequest(url: string | undefined, baseUrl?: string): boolean {
+  const pathname = resolveRequestPath(url, baseUrl);
+  if (!pathname) return false;
+  const normalized =
+    pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  if (!normalized.startsWith('/api/engagement/outreach-v3/')) return false;
+  return COMPILED_ROUTE_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+/**
  * The header pair to attach, or null. Returns null whenever the mode is off or
  * the request is not an accepted Engagement route, so callers never have to
  * decide.
@@ -181,7 +195,9 @@ export function engagementPreviewHeader(
   url: string | undefined,
   baseUrl?: string,
 ): { name: string; value: string } | null {
-  if (!isEngagementPreviewActive()) return null;
+  const explicitlyPreviewed = isEngagementPreviewActive();
+  const vNextOutreach = isVNextSurface && isOutreachV3ApiRequest(url, baseUrl);
+  if (!explicitlyPreviewed && !vNextOutreach) return null;
   if (!isEngagementApiRequest(url, baseUrl)) return null;
   return { name: ENGAGEMENT_PREVIEW_HEADER, value: ENGAGEMENT_PREVIEW_HEADER_VALUE };
 }

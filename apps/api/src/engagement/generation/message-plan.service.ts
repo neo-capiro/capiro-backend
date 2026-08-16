@@ -52,6 +52,7 @@ export function supportsStrictJson(model: string): boolean {
 }
 
 export interface BuildPlanRequest {
+  runtimeAction?: 'outreach_generate' | 'outreach_v3_generate';
   packet: EvidencePacketV2;
   policy: GaPolicy;
   /** The ordered, already-PINNED credential list for this operation. */
@@ -110,6 +111,7 @@ export class MessagePlanService {
     const { system, user } = this.renderPlanPrompt(request);
 
     const result = await this.llm.complete({
+      runtimeAction: request.runtimeAction,
       provider: cred.provider,
       apiKey: cred.apiKey,
       model: planModel,
@@ -281,7 +283,8 @@ export class MessagePlanService {
         if (needsDate && !claim.asOf?.trim()) {
           issues.push({
             code: 'CLAIM_MISSING_AS_OF',
-            message: 'A legislative or funding claim has no as-of date, which this audience requires.',
+            message:
+              'A legislative or funding claim has no as-of date, which this audience requires.',
             subject: claim.claim,
           });
         }
@@ -362,7 +365,9 @@ export class MessagePlanService {
       request.audienceKind === 'group'
         ? `AUDIENCE SHAPE: ONE shared message to a GROUP of ${request.groupMemberCount ?? 'several'} recipients. Only facts common to EVERY member may be planned.`
         : 'AUDIENCE SHAPE: a single recipient.',
-      request.clientName ? `CLIENT REPRESENTED: ${request.clientName}` : 'No client is represented.',
+      request.clientName
+        ? `CLIENT REPRESENTED: ${request.clientName}`
+        : 'No client is represented.',
       renderPolicyForPlanner(policy),
       directiveLines.length
         ? `USER DIRECTIVES (authoritative — these define the task):\n${directiveLines.join('\n')}`
@@ -397,5 +402,9 @@ function renderPolicyForPlanner(policy: GaPolicy): string {
 }
 
 function normalize(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
