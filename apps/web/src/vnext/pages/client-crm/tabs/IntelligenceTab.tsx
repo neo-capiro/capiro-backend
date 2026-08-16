@@ -32,8 +32,15 @@ import {
 import { DistrictNexusMap } from '../DistrictNexusMap.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import type { IntelligenceView } from '../client-crm-routing.js';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
+import {
+  trackerKeys,
+  trackerPaths,
+  type RecommendationBill,
+  type RecommendationsResponse,
+} from '../../../../pages/clients/tracker/tracker-api.js';
+import { intelTrackerPaths } from '../../../../pages/clients/tracker/intel-tracker-api.js';
 import {
   getClientFacilities,
   formatFacilityDistrict,
@@ -43,6 +50,7 @@ import {
   getClientDistrictNexus,
   type DistrictNexusRow,
 } from '../../../../pages/clients/intelligence-v1/district-nexus-api.js';
+import { getClientLdaFilings } from '../../../../pages/clients/intelligence-v1/lda-filings-api.js';
 import {
   getClientRepresentation,
   type RepresentationResult,
@@ -96,10 +104,10 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
       <TabPageHead title={domain.title} sub={domain.sub} actions={actions} />
       {view !== 'overview' ? <DomainStatsStrip view={view} /> : null}
       {view === 'overview' ? <IntelOverview /> : null}
-      {view === 'legislative' ? <LegislativePanel /> : null}
+      {view === 'legislative' ? <LegislativePanel client={client} /> : null}
       {view === 'regulatory' ? <RegulatoryPanel /> : null}
       {view === 'funding' ? <FundingPanel client={client} /> : null}
-      {view === 'footprint' ? <FootprintPanel /> : null}
+      {view === 'footprint' ? <FootprintPanel client={client} /> : null}
       {view === 'district' ? <DistrictPanel client={client} /> : null}
     </div>
   );
@@ -287,10 +295,43 @@ const LEG_NESTED = [
   { key: 'hearings', label: 'Hearings' },
 ];
 
-function LegislativePanel() {
+function LegislativePanel({ client }: { client: Client }) {
+  const api = useApi();
+  const qc = useQueryClient();
   const navigate = useNavigate();
   const [nested, setNested] = useState('tracked');
   const [boardView, setBoardView] = useState(true);
+
+  // Item 6: Track bill. Same tracker_v2 feature-detection dance as the
+  // dead-code ClientCrmIntelligence.tsx's LegislativeView and the real,
+  // currently-live TrackerTab.tsx (the source this mirrors).
+  const { enabled: trackerV2, ready } = useIntelFeature('tracker_v2');
+  const recsQ = useQuery<RecommendationsResponse>({
+    queryKey: trackerKeys.recommendations(client.id),
+    queryFn: async () =>
+      (
+        await api.get<RecommendationsResponse>(
+          trackerV2 ? intelTrackerPaths.recommendations(client.id) : trackerPaths.recommendations(client.id),
+        )
+      ).data,
+    enabled: ready,
+    staleTime: 60_000,
+  });
+  const realRecs = ready && recsQ.isSuccess ? recsQ.data.recommendations.slice(0, 5) : null;
+
+  const trackMutation = useMutation({
+    mutationFn: (billId: string) =>
+      api.post(trackerV2 ? intelTrackerPaths.track(client.id) : trackerPaths.track(client.id), {
+        billId,
+        source: 'recommended',
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: trackerKeys.recommendations(client.id) });
+      qc.invalidateQueries({ queryKey: trackerKeys.summary(client.id) });
+      qc.invalidateQueries({ queryKey: trackerKeys.board(client.id) });
+    },
+  });
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div style={{ alignSelf: 'flex-start' }}>
@@ -317,12 +358,27 @@ function LegislativePanel() {
                 New matches generated from capabilities, committees, districts, and Strategy targets.
               </span>
             </span>
-            <LinkBtn>View all</LinkBtn>
+            <LinkBtn onClick={() => navigate('/legiwatch?tab=watchlist')}>View all</LinkBtn>
           </div>
           <div style={{ padding: '0 16px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {RECS.map((r) => (
-              <RecCard key={r.number} r={r} />
-            ))}
+            {realRecs ? (
+              realRecs.length ? (
+                realRecs.map((r) => (
+                  <RealRecCard
+                    key={r.billId}
+                    r={r}
+                    tracking={trackMutation.isPending && trackMutation.variables === r.billId}
+                    onTrack={() => trackMutation.mutate(r.billId)}
+                  />
+                ))
+              ) : (
+                <p style={{ margin: '4px 8px 8px', fontSize: 14, color: '#475467' }}>
+                  No new bill recommendations clear the relevance floor right now.
+                </p>
+              )
+            ) : (
+              RECS.map((r) => <RecCard key={r.number} r={r} />)
+            )}
           </div>
           <div style={{ marginTop: 10, padding: '14px 24px 20px', borderTop: '1px solid #EAECF0' }}>
             <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Upcoming hearing</div>
@@ -331,6 +387,32 @@ function LegislativePanel() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function RealRecCard({ r, onTrack, tracking }: { r: RecommendationBill; onTrack: () => void; tracking: boolean }) {
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 14, borderRadius: 10, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#101828' }}>{r.displayNum}</span>
+        <Pill tone="success" dotless>{Math.round(r.fit * 100)}%</Pill>
+      </span>
+      <span style={{ fontSize: 14, color: '#344054', textWrap: 'pretty' }}>{r.title}</span>
+      <span style={{ fontSize: 12, color: '#667085', textWrap: 'pretty' }}>{r.why}</span>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 6 }}>
+        <button
+          type="button"
+          onClick={onTrack}
+          disabled={tracking}
+          style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#101828', opacity: tracking ? 0.6 : 1 }}
+        >
+          {tracking ? 'Tracking…' : 'Track'}
+        </button>
+        <button type="button" style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#667085' }}>
+          Dismiss
+        </button>
+      </span>
+    </span>
   );
 }
 
@@ -771,46 +853,131 @@ function ProgramCard({ p }: { p: (typeof PROGRAMS)[number] }) {
 
 /* ══════════════════════════ §10.5 Federal Footprint ════════════════════════ */
 
-function FootprintPanel() {
+function FootprintPanel({ client }: { client: Client }) {
+  const api = useApi();
+  const navigate = useNavigate();
+
+  const ldaQ = useQuery({
+    queryKey: ['client-lda-filings', client.id],
+    queryFn: () => getClientLdaFilings(api, client.id),
+    staleTime: 2 * 60_000,
+  });
+  const realLda = ldaQ.isSuccess ? ldaQ.data : null;
+  const ldaAmount = realLda ? realLda.filings.reduce((sum, f) => sum + f.amount, 0) : null;
+  const ldaYoy = useMemo(() => {
+    if (!realLda || realLda.byYear.length < 2) return null;
+    const sorted = [...realLda.byYear].sort((a, b) => a.year - b.year);
+    const latest = sorted[sorted.length - 1]!;
+    const prior = sorted[sorted.length - 2]!;
+    const priorTotal = prior.income + prior.expenses;
+    if (priorTotal <= 0) return null;
+    const latestTotal = latest.income + latest.expenses;
+    return Math.round(((latestTotal - priorTotal) / priorTotal) * 100);
+  }, [realLda]);
+
+  // Same real district-nexus query DistrictPanel already fetches under this
+  // exact key — react-query dedupes rather than double-fetching.
+  const nexusQ = useQuery({
+    queryKey: ['client-district-nexus', client.id],
+    queryFn: () => getClientDistrictNexus(api, client.id),
+    staleTime: 2 * 60_000,
+  });
+  const realNexus = nexusQ.isSuccess && nexusQ.data.linked ? nexusQ.data : null;
+
+  const intelHref = `/clients?clientId=${encodeURIComponent(client.id)}&tab=intelligence#financial-footprint`;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div className="cap-pf-grid-3">
         {/* Lobbying activity */}
-        <FootCard title="Lobbying activity" action={<LinkBtn>Open LDA</LinkBtn>}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$1.8M</span>
-            <Pill tone="success">▲ 18% YoY</Pill>
-          </div>
-          <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Trailing 12 months</div>
-          <Sparkline />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12, color: '#667085' }}>
-            <span>Q3 24</span><span>Q4 24</span><span>Q1 25</span><span>Q2 25</span>
-          </div>
+        <FootCard title="Lobbying activity" action={<LinkBtn onClick={() => navigate(intelHref)}>Open LDA</LinkBtn>}>
+          {realLda ? (
+            realLda.matched && realLda.totalFilings > 0 ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>
+                    ${(ldaAmount ?? 0).toLocaleString()}
+                  </span>
+                  {ldaYoy != null ? (
+                    <Pill tone={ldaYoy >= 0 ? 'success' : 'error'}>{ldaYoy >= 0 ? '▲' : '▼'} {Math.abs(ldaYoy)}% YoY</Pill>
+                  ) : null}
+                </div>
+                <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+                  {realLda.totalFilings} filing{realLda.totalFilings === 1 ? '' : 's'}
+                  {realLda.firstFilingYear ? ` · ${realLda.firstFilingYear}–${realLda.latestFilingYear}` : ''}
+                </div>
+              </>
+            ) : (
+              <p style={{ margin: '16px 0 0', fontSize: 14, color: '#475467' }}>
+                No LDA filings are on record for this client. Absent filings are not the same as no federal
+                lobbying activity.
+              </p>
+            )
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$1.8M</span>
+                <Pill tone="success">▲ 18% YoY</Pill>
+              </div>
+              <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Trailing 12 months</div>
+              <Sparkline />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 12, color: '#667085' }}>
+                <span>Q3 24</span><span>Q4 24</span><span>Q1 25</span><span>Q2 25</span>
+              </div>
+            </>
+          )}
         </FootCard>
 
         {/* Federal awards */}
-        <FootCard title="Federal awards" action={<LinkBtn>View awards</LinkBtn>}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$84.2M</span>
-            <Pill tone="gray" dotless>14 awards</Pill>
-          </div>
-          <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Obligations · trailing 12 months</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
-            {([['Army', '$51.4M', '86%'], ['Navy · ONR', '$18.6M', '31%'], ['DARPA', '$14.2M', '24%']] as const).map(([label, value, w]) => (
-              <span key={label} style={{ display: 'block' }}>
-                <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: 14 }}>
-                  <span style={{ color: '#344054' }}>{label}</span>
-                  <span style={{ fontWeight: 600, color: '#101828' }}>{value}</span>
+        <FootCard
+          title="Federal awards"
+          action={<LinkBtn onClick={() => navigate(`/intelligence/federal-spending?tab=contracts&clientId=${client.id}`)}>View awards</LinkBtn>}
+        >
+          {realNexus ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>
+                  ${realNexus.totalAmount.toLocaleString()}
                 </span>
-                <span style={{ display: 'block', marginTop: 6, height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
-                  <span style={{ display: 'block', height: 8, width: w, borderRadius: 4, background: GRADIENT_DARK }} />
-                </span>
-              </span>
-            ))}
-          </div>
+                <Pill tone="gray" dotless>{realNexus.totalAwards} award{realNexus.totalAwards === 1 ? '' : 's'}</Pill>
+              </div>
+              <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+                Confirmed contractor mapping · {realNexus.districtCount} district{realNexus.districtCount === 1 ? '' : 's'}
+              </div>
+              {/* No real per-agency breakdown source exists yet — dropped rather than fabricated (was Army/Navy/DARPA %). */}
+            </>
+          ) : nexusQ.isSuccess ? (
+            <p style={{ margin: '16px 0 0', fontSize: 14, color: '#475467' }}>
+              No confirmed contractor mapping exists for this client, so federal award totals cannot be attributed yet.
+            </p>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$84.2M</span>
+                <Pill tone="gray" dotless>14 awards</Pill>
+              </div>
+              <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Obligations · trailing 12 months</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 20 }}>
+                {([['Army', '$51.4M', '86%'], ['Navy · ONR', '$18.6M', '31%'], ['DARPA', '$14.2M', '24%']] as const).map(([label, value, w]) => (
+                  <span key={label} style={{ display: 'block' }}>
+                    <span style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', fontSize: 14 }}>
+                      <span style={{ color: '#344054' }}>{label}</span>
+                      <span style={{ fontWeight: 600, color: '#101828' }}>{value}</span>
+                    </span>
+                    <span style={{ display: 'block', marginTop: 6, height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
+                      <span style={{ display: 'block', height: 8, width: w, borderRadius: 4, background: GRADIENT_DARK }} />
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </FootCard>
 
-        {/* Political giving */}
+        {/* Political giving — no dedicated real API surface exists yet (see
+            memory: getFecMoneyFlow/pacGiving reach the frontend type layer via
+            intelligence-v1/mappers.ts but no component consumes them anywhere).
+            Left on the design fixture rather than a hollow partial wire. */}
         <FootCard title="Political giving" action={<LinkBtn>Open FEC / PAC</LinkBtn>}>
           <div style={{ marginTop: 16, fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>$380K</div>
           <div style={{ marginTop: 2, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>PAC disbursements · current cycle</div>
@@ -832,7 +999,7 @@ function FootprintPanel() {
 
       {/* Lobbying disclosure history */}
       <Card>
-        <CardHead title="Lobbying disclosure history" action={<LinkBtn>View all filings</LinkBtn>} />
+        <CardHead title="Lobbying disclosure history" action={<LinkBtn onClick={() => navigate(intelHref)}>View all filings</LinkBtn>} />
         <div style={{ width: '100%', overflowX: 'auto' }}>
           <div style={{ minWidth: 880 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '10px 24px', background: '#F9FAFB', borderBottom: '1px solid #EAECF0', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
@@ -844,17 +1011,43 @@ function FootprintPanel() {
               <span style={{ flex: '0 0 auto', width: 196 }}>Entities contacted</span>
               <span style={{ flex: '0 0 auto', width: 56 }}>Source</span>
             </div>
-            {LDA.map((r) => (
-              <div key={`${r.period}-${r.registrant}`} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '13px 24px', borderBottom: '1px solid #EAECF0' }}>
-                <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 500, color: '#101828' }}>{r.period}</span>
-                <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, color: '#475467' }}>{r.type}</span>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.registrant}</span>
-                <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 600, color: '#101828', textAlign: 'right' }}>{r.amount}</span>
-                <span style={{ flex: '0 0 auto', width: 148, fontSize: 13, color: '#475467' }}>{r.issues}</span>
-                <span style={{ flex: '0 0 auto', width: 196, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.entities}</span>
-                <button type="button" style={{ flex: '0 0 auto', width: 56, fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#101828' }}>View</button>
-              </div>
-            ))}
+            {realLda
+              ? realLda.filings.map((r) => (
+                  <div key={r.filingUuid} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '13px 24px', borderBottom: '1px solid #EAECF0' }}>
+                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 500, color: '#101828' }}>{r.filingPeriod ?? r.filingYear}</span>
+                    <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, color: '#475467' }}>{r.filingType}</span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.registrantName}</span>
+                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 600, color: '#101828', textAlign: 'right' }}>${r.amount.toLocaleString()}</span>
+                    <span style={{ flex: '0 0 auto', width: 148, fontSize: 13, color: '#475467' }}>{r.issueCodes.join(' · ') || '—'}</span>
+                    <span style={{ flex: '0 0 auto', width: 196, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.governmentEntities.join(' · ') || '—'}</span>
+                    {r.documentUrl ? (
+                      <a
+                        href={r.documentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ flex: '0 0 auto', width: 56, fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#101828' }}
+                      >
+                        View
+                      </a>
+                    ) : (
+                      <span style={{ flex: '0 0 auto', width: 56, fontSize: 13, color: '#98A2B3' }}>—</span>
+                    )}
+                  </div>
+                ))
+              : LDA.map((r) => (
+                  <div key={`${r.period}-${r.registrant}`} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '13px 24px', borderBottom: '1px solid #EAECF0' }}>
+                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 500, color: '#101828' }}>{r.period}</span>
+                    <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, color: '#475467' }}>{r.type}</span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.registrant}</span>
+                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 600, color: '#101828', textAlign: 'right' }}>{r.amount}</span>
+                    <span style={{ flex: '0 0 auto', width: 148, fontSize: 13, color: '#475467' }}>{r.issues}</span>
+                    <span style={{ flex: '0 0 auto', width: 196, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.entities}</span>
+                    <button type="button" style={{ flex: '0 0 auto', width: 56, fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#101828' }}>View</button>
+                  </div>
+                ))}
+            {realLda && realLda.filings.length === 0 ? (
+              <p style={{ margin: 0, padding: '16px 24px', fontSize: 14, color: '#475467' }}>No LDA filings on record.</p>
+            ) : null}
           </div>
         </div>
       </Card>

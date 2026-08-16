@@ -24,7 +24,7 @@ import { useActionsList } from '../../../pages/actions/actions-api.js';
 import { useMeetings } from '../../../pages/engagement/meetings/meetings-api.js';
 import type { Meeting } from '../../../pages/engagement/meetings/meetings-types.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
-import type { ClientFacility } from '../../../pages/clients/facilities-api.js';
+import { formatFacilityDistrict, type ClientFacility } from '../../../pages/clients/facilities-api.js';
 import {
   CLOSED_ACTION_STATUSES,
   daysUntil,
@@ -176,6 +176,32 @@ function shortWhen(iso: string | null | undefined): string {
   return date
     .toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
     .toUpperCase();
+}
+
+/** Bounded window, unlike `future()` below — used only where the UI's own
+ * label promises a specific horizon (Work pulse's "Next 30 days"). */
+function withinDays(iso: string | null, days: number): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return false;
+  const now = Date.now();
+  return t >= now && t <= now + days * 86_400_000;
+}
+
+/** Most recent successful fetch among the given queries, or null if none have settled yet. */
+function latestDataUpdatedAt(...queries: Array<{ dataUpdatedAt: number }>): number | null {
+  const timestamps = queries.map((q) => q.dataUpdatedAt).filter((t) => t > 0);
+  return timestamps.length ? Math.max(...timestamps) : null;
+}
+
+/** "3 minutes ago" / "2 hours ago" / "Aug 16" — matches this file's `shortWhen` precedent. */
+function relativeRefresh(ms: number): string {
+  const minutes = Math.max(0, Math.round((Date.now() - ms) / 60_000));
+  if (minutes < 1) return 'moments ago';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function statusOf(query: { isLoading: boolean; isError: boolean; error?: unknown; refetch: () => unknown }): RegionStatus {
@@ -405,7 +431,14 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
     const committed = nodes.filter((node) => node.status !== 'suggested' && node.status !== 'draft');
     const future = (iso: string | null) => !!iso && new Date(iso).getTime() >= Date.now();
 
-    const milestones = committed.filter((node) => node.kind === 'milestone' && (node.openEnded || future(node.endsOn)));
+    // "Next 30 days" (the UI's own label — OverviewTab.tsx's MetricCell for
+    // this field) is a bounded window. An open-ended milestone has no end
+    // date to check against that window, so — unlike the previous
+    // `node.openEnded || future(node.endsOn)` — it is no longer counted
+    // unconditionally here; that produced a false "always in the next 30
+    // days" claim for milestones that may be months out. `future()` keeps
+    // its unbounded meaning for `nextByDate` below, which carries no such label.
+    const milestones = committed.filter((node) => node.kind === 'milestone' && withinDays(node.endsOn, 30));
     const nextByDate = [...committed]
       .filter((node) => future(node.endsOn) || future(node.startsOn))
       .sort(
@@ -440,12 +473,23 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
     const clientScoped = alertRows.filter((row) => row.clientId === clientId);
     const alertsAreClientScoped = alertRows.length === 0 || alertRows.some((row) => 'clientId' in row);
 
+    // A facility ROW is not a district — two facilities can share one
+    // district, and a client's real district footprint is the distinct
+    // "ST-NN" set, not the facility count (that undercounts nothing but
+    // overcounts any client with more than one facility per district).
+    const distinctDistrictCount = new Set(
+      (facilities.data ?? [])
+        .map((f) => formatFacilityDistrict(f.state, f.congressionalDistrict))
+        .filter(Boolean),
+    ).size;
+
     const signals: string[] = [];
     const urgent = attentionAll.filter((row) => row.urgent).length;
     if (urgent > 0) signals.push(`${urgent} HIGH-PRIORITY CHANGE${urgent === 1 ? '' : 'S'}`);
     if (nextMeeting) signals.push(`NEXT MEETING ${shortWhen(nextMeeting.startsAt)}`);
-    const facilityCount = facilities.data?.length ?? 0;
-    if (facilityCount > 0) signals.push(`${facilityCount} DISTRICT${facilityCount === 1 ? '' : 'S'} MAPPED`);
+    if (distinctDistrictCount > 0) signals.push(`${distinctDistrictCount} DISTRICT${distinctDistrictCount === 1 ? '' : 'S'} MAPPED`);
+
+    const lastRefreshAt = latestDataUpdatedAt(trackerSummary, opportunities, facilities, alerts);
 
     return {
       trackedBills: trackerSummary.data
@@ -456,15 +500,27 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
           ? unavailable('Opportunity summary unavailable')
           : value(opportunityCount, crmHref(clientId, 'intelligence', 'funding')),
       districts: facilities.data
-        ? value(facilities.data.length, crmHref(clientId, 'intelligence', 'district'))
+        ? value(distinctDistrictCount, crmHref(clientId, 'intelligence', 'district'))
         : unavailable('Facilities unavailable'),
       regulatoryMatters: alertsAreClientScoped
         ? value(clientScoped.length, crmHref(clientId, 'intelligence', 'regulatory'))
         : unavailable('Regulatory alerts are not client-scoped'),
       signals,
-      lastRefresh: null,
+      lastRefresh: lastRefreshAt == null ? null : relativeRefresh(lastRefreshAt),
     };
-  }, [opportunities.data, alerts.data, facilities.data, trackerSummary.data, attentionAll, nextMeeting, clientId]);
+  }, [
+    opportunities.data,
+    opportunities.dataUpdatedAt,
+    alerts.data,
+    alerts.dataUpdatedAt,
+    facilities.data,
+    facilities.dataUpdatedAt,
+    trackerSummary.data,
+    trackerSummary.dataUpdatedAt,
+    attentionAll,
+    nextMeeting,
+    clientId,
+  ]);
 
   return {
     profile,

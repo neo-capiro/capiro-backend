@@ -6,8 +6,9 @@ import { ClientCrmIntelligenceProto } from './IntelligenceTab.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 
 const getMock = vi.hoisted(() => vi.fn());
+const postMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: getMock }),
+  useApi: () => ({ get: getMock, post: postMock }),
 }));
 
 const client: Client = {
@@ -40,21 +41,24 @@ function LocationProbe() {
 
 describe('ClientCrmIntelligenceProto — legislative panel', () => {
   it('navigates to LegiWatch when "Open full board" is clicked', () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
-      <MemoryRouter initialEntries={['/clients']}>
-        <Routes>
-          <Route
-            path="/clients"
-            element={
-              <>
-                <ClientCrmIntelligenceProto client={client} view="legislative" />
-                <LocationProbe />
-              </>
-            }
-          />
-          <Route path="/legiwatch" element={<LocationProbe />} />
-        </Routes>
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/clients']}>
+          <Routes>
+            <Route
+              path="/clients"
+              element={
+                <>
+                  <ClientCrmIntelligenceProto client={client} view="legislative" />
+                  <LocationProbe />
+                </>
+              }
+            />
+            <Route path="/legiwatch" element={<LocationProbe />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
 
     fireEvent.click(screen.getByText('Open full board →'));
@@ -341,5 +345,205 @@ describe('ClientCrmIntelligenceProto — funding panel (items 4-5, wire-audit)',
         screen.getByText('No program elements scored above the relevance threshold for this client.'),
       ).toBeInTheDocument(),
     );
+  });
+});
+
+function renderLegislative() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <ClientCrmIntelligenceProto client={client} view="legislative" />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+const RECOMMENDATION_BILL = {
+  billId: 'bill-4471',
+  displayNum: 'S. 4471',
+  title: 'Unmanned Ground Systems Interoperability Act',
+  stage: 'introduced',
+  probability: 0.4,
+  fit: 0.91,
+  belowFloor: false,
+  matchedTags: [],
+  matchReasons: [],
+  whyKind: 'capability',
+  why: 'Real relevance-engine explanation, not the design fixture copy',
+  latestAction: null,
+  latestActionDate: null,
+  sponsorName: null,
+  sponsorParty: null,
+  cosponsorsCount: 0,
+};
+
+function mockLegislativeApis(overrides: { flags?: unknown; recommendations?: unknown } = {}) {
+  const flags = overrides.flags ?? {};
+  const recommendations = overrides.recommendations ?? {
+    recommendations: [RECOMMENDATION_BILL],
+    aboveFloorCount: 1,
+    total: 1,
+    floor: 0.5,
+  };
+  getMock.mockImplementation((url: string) => {
+    if (url === '/intel-api/feature-flags') return Promise.resolve({ data: flags });
+    if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
+      return Promise.resolve({ data: recommendations });
+    }
+    return Promise.reject(new Error(`unexpected GET ${url}`));
+  });
+  postMock.mockResolvedValue({ data: {} });
+}
+
+describe('ClientCrmIntelligenceProto — legislative recommendations (item 6, wire-audit)', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    postMock.mockReset();
+  });
+
+  it('renders real bill recommendations (0-1 fit scale rendered as a percent) instead of the RECS fixture', async () => {
+    mockLegislativeApis();
+    renderLegislative();
+
+    await waitFor(() => expect(screen.getByText('Unmanned Ground Systems Interoperability Act')).toBeInTheDocument());
+    // "91%" also coincides with the domain stats strip's own "Watchlist coverage" fixture cell.
+    expect(screen.getAllByText('91%').length).toBeGreaterThan(0);
+    expect(screen.getByText('Real relevance-engine explanation, not the design fixture copy')).toBeInTheDocument();
+    // The fixture's own recommendations must not leak through as if real.
+    expect(screen.queryByText('Defense Autonomy Test Range Act')).not.toBeInTheDocument();
+    expect(screen.queryByText('Robotics Acquisition Reform Act')).not.toBeInTheDocument();
+  });
+
+  it('calls the real tracker "track" mutation with the real billId when Track is clicked', async () => {
+    mockLegislativeApis();
+    renderLegislative();
+
+    await waitFor(() => expect(screen.getByText('Unmanned Ground Systems Interoperability Act')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Track'));
+
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith('/api/intelligence/clients/client-1/tracker/track', {
+        billId: 'bill-4471',
+        source: 'recommended',
+      }),
+    );
+  });
+
+  it('keeps the RECS design fixture while the recommendations query is loading or errored', () => {
+    getMock.mockImplementation(() => new Promise(() => {})); // never resolves
+    renderLegislative();
+
+    expect(screen.getByText('Defense Autonomy Test Range Act')).toBeInTheDocument();
+  });
+});
+
+function renderFootprint() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/clients']}>
+        <Routes>
+          <Route
+            path="/clients"
+            element={
+              <>
+                <ClientCrmIntelligenceProto client={client} view="footprint" />
+                <LocationProbe />
+              </>
+            }
+          />
+          <Route path="*" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+const LDA_FILING = {
+  filingUuid: 'lda-1',
+  filingType: 'LD-2',
+  filingYear: 2026,
+  filingPeriod: '2026 Q2',
+  income: 480_000,
+  expenses: 0,
+  amount: 480_000,
+  postedAt: '2026-07-01T00:00:00.000Z',
+  registrantName: 'Capitol Strategies Group',
+  clientName: 'Overland AI',
+  issueCodes: ['DEF', 'HOM'],
+  governmentEntities: ['DoD', 'Army'],
+  lobbyists: [],
+  documentUrl: 'https://lda.senate.gov/filings/lda-1',
+};
+
+const LDA_FILINGS_REAL = {
+  matched: true,
+  ldaClientIds: [123],
+  totalFilings: 1,
+  totalIncome: 480_000,
+  totalExpenses: 0,
+  firstFilingYear: 2026,
+  latestFilingYear: 2026,
+  registrants: [{ name: 'Capitol Strategies Group', filings: 1, income: 480_000 }],
+  byYear: [{ year: 2026, income: 480_000, expenses: 0, filings: 1 }],
+  filings: [LDA_FILING],
+};
+
+function mockFootprintApis(overrides: { lda?: unknown; nexus?: unknown } = {}) {
+  const lda = overrides.lda ?? LDA_FILINGS_REAL;
+  const nexus = overrides.nexus ?? {
+    linked: true,
+    contractorNames: ['Overland AI Inc'],
+    totalAwards: 3,
+    totalAmount: 12_000_000,
+    districtCount: 1,
+    unmappedAmount: 0,
+    districts: [],
+    disclaimer: 'Figures reflect confirmed contractor mappings only.',
+  };
+  getMock.mockImplementation((url: string) => {
+    if (url === '/api/intelligence/clients/client-1/lda-filings') return Promise.resolve({ data: lda });
+    if (url === '/api/intelligence/clients/client-1/district-nexus-spend') return Promise.resolve({ data: nexus });
+    return Promise.reject(new Error(`unexpected GET ${url}`));
+  });
+}
+
+describe('ClientCrmIntelligenceProto — footprint panel (item 7, wire-audit)', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+  });
+
+  it('binds the lobbying disclosure table and headline to real LDA filings', async () => {
+    mockFootprintApis();
+    renderFootprint();
+
+    await waitFor(() => expect(screen.getByText('Capitol Strategies Group')).toBeInTheDocument());
+    // Headline (sum of filings) and the single row's amount coincide at $480,000 with only one mock filing.
+    expect(screen.getAllByText('$480,000').length).toBeGreaterThan(0);
+    expect(screen.getByText('DEF · HOM')).toBeInTheDocument();
+    // The fixture's own registrant must not leak through as if real.
+    expect(screen.queryByText('Northwest Government Affairs')).not.toBeInTheDocument();
+  });
+
+  it('binds the federal awards headline to the real district-nexus total and wires "View awards"', async () => {
+    mockFootprintApis();
+    renderFootprint();
+
+    await waitFor(() => expect(screen.getByText('$12,000,000')).toBeInTheDocument());
+    expect(screen.getByText('3 awards')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('View awards'));
+    expect(screen.getByTestId('location')).toHaveTextContent('/intelligence/federal-spending?tab=contracts&clientId=client-1');
+  });
+
+  it('keeps the design fixture on screen while footprint queries are loading or errored', () => {
+    getMock.mockImplementation(() => new Promise(() => {}));
+    renderFootprint();
+
+    // "$1.8M"/"$84.2M" also appear in the domain stats strip's own fixture cells.
+    expect(screen.getAllByText('$1.8M').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('$84.2M').length).toBeGreaterThan(0);
+    expect(screen.getByText('Northwest Government Affairs')).toBeInTheDocument();
   });
 });
