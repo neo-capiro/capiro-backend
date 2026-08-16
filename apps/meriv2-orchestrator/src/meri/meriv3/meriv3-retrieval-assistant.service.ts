@@ -17,6 +17,7 @@ import {
   meriResearchSynthesisInstructions,
 } from '../retrieval/meri-research-director.js';
 import { appendMeriCoverageDisclosure } from '../retrieval/meri-retrieval-coverage.js';
+import { canonicalizeMeriCompanyResearchPlan } from '../retrieval/meri-retrieval-canonicalization.js';
 import { MeriRetrievalCoordinator } from '../retrieval/meri-retrieval-coordinator.js';
 import {
   classifyMeriRetrievalIntent,
@@ -30,6 +31,7 @@ import { compactMeriRetrievalRecipeResult } from '../retrieval/meri-retrieval-re
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
 import { ApiVisualAnalysisRepo } from './api-visual-analysis.repo.js';
 import { MeriV3AssistantService, type MeriV3RunOptions } from './meriv3-assistant.service.js';
+import { MeriSemanticToolGateway } from './meri-semantic-tool-gateway.js';
 import { MeriV3ManagedMcpAssistantService } from './meriv3-managed-mcp-assistant.service.js';
 import {
   executeMeriExternalEntityResolution,
@@ -38,6 +40,8 @@ import {
   MERI_RETRIEVAL_TOOL_SCHEMAS,
 } from './meriv3-retrieval-recipes.js';
 import { MeriV3ResearchRuntimeStore } from './meriv3-research-runtime.store.js';
+import { MeriV3SemanticCompatibilityTools } from './meriv3-semantic-compatibility-tools.js';
+import { MeriV3SemanticRuntimeStore } from './meriv3-semantic-runtime.store.js';
 import { OpenAiResponsesClient } from './openai-responses.client.js';
 import type {
   MeriV3ChatInput,
@@ -79,11 +83,25 @@ const RECIPE_LABELS: Record<string, string> = {
   query_portfolio_overlap: 'Comparing portfolio overlap',
 };
 
+const SEMANTIC_COMPATIBILITY_LABELS: Record<string, string> = {
+  analyze_funding_opportunity: 'Collecting funding evidence',
+  create_artifact: 'Creating artifact',
+};
+
 function latestUserText(dto: MeriV3ChatInput): string {
   const message = [...(dto.messages ?? [])]
     .reverse()
     .find((candidate) => candidate?.role === 'user' && typeof candidate.text === 'string');
   return typeof message?.text === 'string' ? message.text : '';
+}
+
+function recentUserContext(dto: MeriV3ChatInput): string {
+  return (dto.messages ?? [])
+    .filter((message) => message?.role === 'user')
+    .slice(-3)
+    .flatMap((message) => (typeof message.text === 'string' ? [message.text.trim()] : []))
+    .filter(Boolean)
+    .join('\n');
 }
 
 function priorUserTargetHint(dto: MeriV3ChatInput): string | null {
@@ -138,6 +156,8 @@ function enhancedDescription(schema: ToolSchema): ToolSchema {
 @Injectable()
 export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantService {
   private readonly retrievalLogger = new Logger(MeriV3RetrievalAssistantService.name);
+  private readonly semanticGateway: MeriSemanticToolGateway;
+  private readonly semanticCompatibility: MeriV3SemanticCompatibilityTools;
 
   constructor(
     registryService: MeriRegistryService,
@@ -158,6 +178,8 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
       managedMcp,
       visualAnalysis,
     );
+    this.semanticGateway = new MeriSemanticToolGateway(config);
+    this.semanticCompatibility = new MeriV3SemanticCompatibilityTools(config);
 
     const internals = this as unknown as AssistantInternals;
     const nativeFetch = internals.fetchToolSchemas.bind(this);
@@ -167,7 +189,22 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
       const native = (await nativeFetch()).map(enhancedDescription);
       const seen = new Set(native.map((schema) => schema.name));
       const recipes = MERI_RETRIEVAL_TOOL_SCHEMAS.filter((schema) => !seen.has(schema.name));
-      return [...native, ...recipes];
+      const merged = [...native, ...recipes];
+      const semanticRuntime = MeriV3SemanticRuntimeStore.current();
+      if (!semanticRuntime) return merged;
+      const compatible = this.semanticCompatibility.prepareSchemas(
+        merged,
+        semanticRuntime.tenantId,
+      );
+      const selection = this.semanticGateway.select({
+        schemas: compatible,
+        tenantId: semanticRuntime.tenantId,
+        request: semanticRuntime.request,
+        recentUserContext: semanticRuntime.recentUserContext,
+        plan: semanticRuntime.plan,
+      });
+      MeriV3SemanticRuntimeStore.recordDecision(selection.decision);
+      return selection.schemas;
     };
 
     const invokeObserved = async (args: InvokeArgs): Promise<unknown> => {
@@ -183,15 +220,59 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
           ...args,
           name,
           input,
-          // The high-level recipe supplies exact authorized client refs where
-          // needed. Never carry an outer schema violation into an independent
-          // read that has its own validation and tenant wall.
+          // The high-level recipe or semantic wrapper supplies exact authorized
+          // refs where needed. Never carry an outer schema violation into an
+          // independent call that has its own validation and tenant wall.
           scopeViolation: undefined,
         });
 
     internals.invokeTool = async (args: InvokeArgs): Promise<unknown> => {
       const plan = this.retrieval.currentPlan();
       this.retrieval.recordModelTool(args.name);
+
+      if (this.semanticCompatibility.isEnabledTool(args.name, args.ctx.tenantId)) {
+        const startedAt = Date.now();
+        const label = SEMANTIC_COMPATIBILITY_LABELS[args.name] ?? toolLabel(args.name);
+        args.emit({ type: 'tool_call', tool: args.name, label });
+        if (args.scopeViolation) {
+          const blocked = { error: args.scopeViolation, blocked: true };
+          args.steps.push({
+            tool: args.name,
+            label,
+            status: 'blocked',
+            detail: args.scopeViolation,
+          });
+          args.emit({
+            type: 'tool_done',
+            tool: args.name,
+            label,
+            status: 'blocked',
+            detail: args.scopeViolation,
+          });
+          this.retrieval.observe(args.name, args.input, blocked, Date.now() - startedAt);
+          return blocked;
+        }
+        try {
+          const result = await this.semanticCompatibility.execute(
+            args.name,
+            args.input,
+            invokeUnderlying(args),
+          );
+          this.retrieval.observe(args.name, args.input, result, Date.now() - startedAt);
+          args.steps.push({ tool: args.name, label, status: 'done' });
+          args.emit({ type: 'tool_done', tool: args.name, label, status: 'done' });
+          return result;
+        } catch (error) {
+          const detail =
+            error instanceof Error ? error.message.slice(0, 240) : 'Semantic tool failed';
+          const failed = { error: detail };
+          this.retrieval.observe(args.name, args.input, failed, Date.now() - startedAt);
+          args.steps.push({ tool: args.name, label, status: 'error', detail });
+          args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
+          return failed;
+        }
+      }
+
       if (plan && isMeriRetrievalRecipeTool(args.name)) {
         const recipeStartedAt = Date.now();
         const label = RECIPE_LABELS[args.name] ?? toolLabel(args.name);
@@ -278,11 +359,15 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
     const request = latestUserText(dto);
     const selectedClientId = dto.clientId;
     const retrievalIntent = classifyMeriRetrievalIntent(request, selectedClientId);
-    const retrievalPlan = buildMeriRetrievalPlan(
+    const baseRetrievalPlan = buildMeriRetrievalPlan(
       request,
       retrievalIntent,
       ctx,
       priorUserTargetHint(dto),
+    );
+    const retrievalPlan = canonicalizeMeriCompanyResearchPlan(
+      baseRetrievalPlan,
+      this.semanticGateway.canonicalResearchDirectorEnabled(ctx.tenantId),
     );
     const comprehensiveResearch =
       retrievalPlan.recipeTool === 'research_federal_market_strategy';
@@ -318,89 +403,118 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
       comprehensiveResearch,
     );
 
-    return this.retrieval.run(retrievalPlan, async () => {
-      const originalOnEvent = opts.onEvent;
-      let textEventSeen = false;
-      const runAssistant = () =>
-        super.run(
-          scopedCtx,
-          {
-            ...scopedDto,
-            reasoningMode: effectiveReasoningMode,
-            skillAddendum: [dto.skillAddendum, retrievalSteering]
-              .filter(Boolean)
-              .join('\n\n'),
-          },
-          {
-            ...opts,
-            onEvent: originalOnEvent
-              ? (event) => {
-                  if (event.type === 'text') {
-                    textEventSeen = true;
-                    return;
-                  }
-                  originalOnEvent(event);
-                }
-              : undefined,
-          },
-        );
+    return MeriV3SemanticRuntimeStore.run(
+      {
+        tenantId: ctx.tenantId,
+        request,
+        recentUserContext: recentUserContext(dto),
+        plan: retrievalPlan,
+      },
+      () =>
+        this.retrieval.run(retrievalPlan, async () => {
+          const originalOnEvent = opts.onEvent;
+          let textEventSeen = false;
+          const runAssistant = () =>
+            super.run(
+              scopedCtx,
+              {
+                ...scopedDto,
+                reasoningMode: effectiveReasoningMode,
+                skillAddendum: [dto.skillAddendum, retrievalSteering]
+                  .filter(Boolean)
+                  .join('\n\n'),
+              },
+              {
+                ...opts,
+                onEvent: originalOnEvent
+                  ? (event) => {
+                      if (event.type === 'text') {
+                        textEventSeen = true;
+                        return;
+                      }
+                      originalOnEvent(event);
+                    }
+                  : undefined,
+              },
+            );
 
-      const result = researchDirectorPlan
-        ? await MeriV3ResearchRuntimeStore.run(
-            {
-              forcedFirstTool: 'research_federal_market_strategy',
-              criticInstructions: meriResearchCriticInstructions(researchDirectorPlan),
-              synthesisInstructions: meriResearchSynthesisInstructions(researchDirectorPlan),
+          const result = researchDirectorPlan
+            ? await MeriV3ResearchRuntimeStore.run(
+                {
+                  forcedFirstTool: 'research_federal_market_strategy',
+                  criticInstructions: meriResearchCriticInstructions(researchDirectorPlan),
+                  synthesisInstructions: meriResearchSynthesisInstructions(researchDirectorPlan),
+                },
+                runAssistant,
+              )
+            : await runAssistant();
+          const coverage = this.retrieval.coverage();
+          const trace = this.retrieval.trace();
+          const semantic = MeriV3SemanticRuntimeStore.current()?.decision;
+          const modelToolSet = new Set(trace.modelTools);
+          const proposedToolSet = new Set(semantic?.proposedNames ?? []);
+          const missingToolFromSemanticSet = trace.modelTools.filter(
+            (name) => !proposedToolSet.has(name),
+          );
+          const schemasExposedButUnused = (semantic?.exposedNames ?? []).filter(
+            (name) => !modelToolSet.has(name),
+          );
+          const reply = appendMeriCoverageDisclosure(result.reply, retrievalPlan, coverage);
+          if (originalOnEvent && textEventSeen && !opts.signal?.aborted) {
+            originalOnEvent({ type: 'text', text: reply });
+          }
+          this.retrievalLogger.log(
+            JSON.stringify({
+              event: 'meri.retrieval',
+              tenantId: ctx.tenantId,
+              queryClass: retrievalPlan.queryClass,
+              subjectScope: retrievalPlan.subjectScope,
+              recipeTool: retrievalPlan.recipeTool,
+              researchDirector: comprehensiveResearch,
+              effectiveReasoningMode,
+              complete: coverage.complete,
+              missingDomains: coverage.missingDomains,
+              partialDomains: coverage.partialDomains,
+              durationMs: trace.durationMs,
+              cumulativeToolMs: trace.cumulativeToolMs,
+              observedToolCalls: trace.observedToolCalls,
+              modelTools: trace.modelTools,
+              recipeFirst: trace.recipeFirst,
+              outOfPlanModelTools: trace.outOfPlanModelTools,
+              paginationDebt: trace.paginationDebt,
+              semanticGatewayMode: semantic?.mode ?? 'legacy',
+              semanticToolsAvailable: semantic?.legacyNames ?? [],
+              semanticToolsProposed: semantic?.proposedNames ?? [],
+              semanticToolsExposed: semantic?.exposedNames ?? [],
+              schemasExposedButUnused,
+              missingToolFromSemanticSet,
+              semanticFallbackToLegacy: semantic?.fallbackToLegacy ?? false,
+              semanticFallbackReason: semantic?.fallbackReason ?? null,
+              canonicalResearchDirector: semantic?.canonicalResearchDirector ?? false,
+              fundingSemanticTools: this.semanticCompatibility.fundingEnabled(ctx.tenantId),
+              artifactToolV2: this.semanticCompatibility.artifactEnabled(ctx.tenantId),
+            }),
+          );
+          return {
+            ...result,
+            reply,
+            retrieval: {
+              plan: {
+                version: retrievalPlan.version,
+                queryClass: retrievalPlan.queryClass,
+                subjectScope: retrievalPlan.subjectScope,
+                targetHint: retrievalPlan.targetHint,
+                recipeTool: retrievalPlan.recipeTool,
+                requireCompleteCoverage: retrievalPlan.requireCompleteCoverage,
+                requiredDomains: retrievalPlan.requiredDomains,
+                timeWindow: retrievalPlan.timeWindow,
+              },
+              coverage,
+              trace,
             },
-            runAssistant,
-          )
-        : await runAssistant();
-      const coverage = this.retrieval.coverage();
-      const trace = this.retrieval.trace();
-      const reply = appendMeriCoverageDisclosure(result.reply, retrievalPlan, coverage);
-      if (originalOnEvent && textEventSeen && !opts.signal?.aborted) {
-        originalOnEvent({ type: 'text', text: reply });
-      }
-      this.retrievalLogger.log(
-        JSON.stringify({
-          event: 'meri.retrieval',
-          tenantId: ctx.tenantId,
-          queryClass: retrievalPlan.queryClass,
-          subjectScope: retrievalPlan.subjectScope,
-          recipeTool: retrievalPlan.recipeTool,
-          researchDirector: comprehensiveResearch,
-          effectiveReasoningMode,
-          complete: coverage.complete,
-          missingDomains: coverage.missingDomains,
-          partialDomains: coverage.partialDomains,
-          durationMs: trace.durationMs,
-          cumulativeToolMs: trace.cumulativeToolMs,
-          observedToolCalls: trace.observedToolCalls,
-          modelTools: trace.modelTools,
-          recipeFirst: trace.recipeFirst,
-          outOfPlanModelTools: trace.outOfPlanModelTools,
-          paginationDebt: trace.paginationDebt,
+          };
         }),
-      );
-      return {
-        ...result,
-        reply,
-        retrieval: {
-          plan: {
-            version: retrievalPlan.version,
-            queryClass: retrievalPlan.queryClass,
-            subjectScope: retrievalPlan.subjectScope,
-            targetHint: retrievalPlan.targetHint,
-            recipeTool: retrievalPlan.recipeTool,
-            requireCompleteCoverage: retrievalPlan.requireCompleteCoverage,
-            requiredDomains: retrievalPlan.requiredDomains,
-            timeWindow: retrievalPlan.timeWindow,
-          },
-          coverage,
-          trace,
-        },
-      };
-    });
+    );
   }
 }
 

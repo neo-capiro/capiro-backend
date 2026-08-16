@@ -9,6 +9,26 @@ import {
 
 const CACHE_TTL_MS = 60_000;
 
+export const MERI_QUICK_ACTION_SKILLS_FLAG = 'meriv3.quickActionSkills' as const;
+
+export function meriQuickActionSkillsEnvironmentEnabled(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return env.MERI_QUICK_ACTION_SKILLS_ENABLED === 'true';
+}
+
+export function meriQuickActionSkillsTenantSlugs(
+  env: NodeJS.ProcessEnv = process.env,
+): Set<string> {
+  const raw = env.MERI_QUICK_ACTION_SKILLS_TENANTS?.trim() || 'capiro-internal';
+  return new Set(
+    raw
+      .split(',')
+      .map((slug) => slug.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
 /**
  * Per-tenant Meri feature flags (settings_jsonb.clioFeatureFlags) with a
  * 60-second cache so flag flips land within a minute and the chat hot path
@@ -58,5 +78,18 @@ export class MeriFeatureFlagsService {
     if (!meriV3EnvironmentEnabled()) return false;
     if (!meriV3CanaryTenantSlugs().has(tenantSlug.trim().toLowerCase())) return false;
     return this.isEnabled(tenantId, MERIV3_CHAT_FLAG, false);
+  }
+
+  /**
+   * User-facing Quick Actions are independently reversible from the MeriV3
+   * runtime. The global environment switch is the emergency off, the slug
+   * allowlist controls the rollout cohort, and an explicit tenant false can
+   * carve one tenant back out without a deploy.
+   */
+  async isMeriQuickActionSkillsEnabled(tenantId: string, tenantSlug: string): Promise<boolean> {
+    if (!meriQuickActionSkillsEnvironmentEnabled()) return false;
+    const slug = tenantSlug.trim().toLowerCase();
+    if (!slug || !meriQuickActionSkillsTenantSlugs().has(slug)) return false;
+    return this.isEnabled(tenantId, MERI_QUICK_ACTION_SKILLS_FLAG, true);
   }
 }

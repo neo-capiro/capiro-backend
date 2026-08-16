@@ -14,10 +14,15 @@ import {
   type StagedAttachment,
 } from './ChatInput.js';
 import { ManagedComposerPlus } from './ManagedComposerPlus.js';
+import {
+  MeriQuickActionsPanel,
+  type MeriQuickActionSelection,
+} from './MeriQuickActionsPanel.js';
 import { MeriCanvas } from './MeriCanvas.js';
 import { ResearchClarifyForm } from './ResearchClarifyForm.js';
 import { WorkPerformed } from './WorkPerformed.js';
 import { config } from '../../env.js';
+import { useApi } from '../../lib/use-api.js';
 import type { MeriChatController } from './useMeriChatController.js';
 
 const ATTACH_ACCEPT = '.pdf,.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
@@ -56,6 +61,18 @@ function stagedAttachmentFailed(attachment: StagedAttachment): boolean {
   );
 }
 
+function quickActionSubjectScope(
+  skillId: string,
+  hasClient: boolean,
+): 'general' | 'client' | 'portfolio' | 'external_entity' {
+  if (hasClient) return 'client';
+  if (skillId === 'portfolio_changes' || skillId === 'portfolio_overlap') return 'portfolio';
+  if (skillId === 'research_company' || skillId === 'relationship_brief') {
+    return 'external_entity';
+  }
+  return 'general';
+}
+
 export function MeriWorkspaceConversation({
   controller,
   userLabel,
@@ -67,10 +84,12 @@ export function MeriWorkspaceConversation({
   greetingName: string;
   tenantName: string;
 }) {
+  const api = useApi();
   const [draft, setDraft] = useState('');
   const [focused, setFocused] = useState(false);
   const [scopeOpen, setScopeOpen] = useState(false);
   const [libraryPage, setLibraryPage] = useState(0);
+  const [selectedQuickActionId, setSelectedQuickActionId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scopeRef = useRef<HTMLDivElement>(null);
@@ -141,11 +160,39 @@ export function MeriWorkspaceConversation({
     if (!hasThread) textareaRef.current?.focus();
   }, [hasThread]);
 
+  const insertQuickAction = ({ skillId, prompt }: MeriQuickActionSelection) => {
+    setSelectedQuickActionId(skillId);
+    setDraft(prompt);
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      textarea.setSelectionRange(prompt.length, prompt.length);
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+    });
+  };
+
   const submit = (forced?: string) => {
     const content = (forced ?? draft).trim();
     if (!content || isStreaming || uploadsInFlight) return;
+
+    const quickActionId = forced ? null : selectedQuickActionId;
+    if (quickActionId) {
+      void api
+        .post('/api/clio/v3/skills/telemetry', {
+          skillId: quickActionId,
+          clientId: selectedClientValue || null,
+          subjectScope: quickActionSubjectScope(quickActionId, Boolean(selectedClientValue)),
+        })
+        .catch(() => {
+          // Telemetry is fail-open and must never prevent a user turn.
+        });
+    }
+
     void sendMessage(content);
     setDraft('');
+    setSelectedQuickActionId(null);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
 
@@ -350,6 +397,11 @@ export function MeriWorkspaceConversation({
             ))}
           </div>
         </div>
+        <MeriQuickActionsPanel
+          clientName={selectedClient?.name}
+          hasThread={false}
+          onSelect={insertQuickAction}
+        />
       </div>
     );
   }
@@ -505,6 +557,11 @@ export function MeriWorkspaceConversation({
       </div>
 
       <div className="meri-v3-thread-composer">{composer}</div>
+      <MeriQuickActionsPanel
+        clientName={selectedClient?.name}
+        hasThread
+        onSelect={insertQuickAction}
+      />
 
       {activeArtifact ? (
         <MeriCanvas

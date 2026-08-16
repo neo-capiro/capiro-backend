@@ -34,6 +34,12 @@
       "require": "./dist/pe-source-coverage.js",
       "import": "./dist/pe-source-coverage.js",
       "default": "./dist/pe-source-coverage.js"
+    },
+    "./meri-skills": {
+      "types": "./dist/meri-skills.d.ts",
+      "require": "./dist/meri-skills.js",
+      "import": "./dist/meri-skills.js",
+      "default": "./dist/meri-skills.js"
     }
   },
   "scripts": {
