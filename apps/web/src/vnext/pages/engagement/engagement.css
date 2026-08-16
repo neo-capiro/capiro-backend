@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
-
 .capiro-vnext-root .engagement-vnext {
   --eng-bg: #f9fafb;
   --eng-surface: #ffffff;
@@ -12,10 +10,17 @@
   --eng-ink-3: #667085;
   --eng-ink-4: #98a2b3;
   --eng-primary: #101828;
-  --eng-accent: #294e68;
-  --eng-accent-hover: #1f3d52;
-  --eng-accent-soft: #edf3f7;
-  --eng-accent-border: #c3d5e1;
+  /* Engagement previously hardcoded a local navy ramp (#294e68) that exists on
+     no other screen. The design handoff calls this out as a real inconsistency
+     rather than an intentional per-screen theme, says not to hardcode it either
+     way, and recommends adopting the shell ramp - which is also what the
+     closeout requires ("reuse existing tokens"). These now resolve to the
+     shell's brand tokens, with the handoff's own option-1 values as fallbacks. */
+  --eng-accent: var(--uui-brand-solid, #3e4784);
+  --eng-accent-hover: var(--uui-brand-deep, #293056);
+  --eng-accent-soft: var(--uui-brand-100, #f5f6fa);
+  --eng-accent-border: var(--uui-brand-200, #dcdfec);
+  --eng-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
   --eng-warning: #b54708;
   --eng-warning-deep: #93370d;
   --eng-warning-dot: #dc6803;
@@ -50,7 +55,7 @@
 .capiro-vnext-root .engagement-vnext select:focus-visible,
 .capiro-vnext-root .engagement-vnext textarea:focus-visible,
 .capiro-vnext-root .engagement-vnext a:focus-visible {
-  outline: 2px solid #4a7a9b;
+  outline: 2px solid var(--uui-focus-ring, #4e5ba6);
   outline-offset: 2px;
 }
 
@@ -68,7 +73,7 @@
 .capiro-vnext-root .uui-client-scope span,
 .capiro-vnext-root .uui-report-status-trigger,
 .capiro-vnext-root .uui-report-pending {
-  font-family: 'IBM Plex Mono', var(--uui-font-mono, monospace);
+  font-family: var(--eng-font-mono);
 }
 
 .capiro-vnext-root .uui-engagement-page-header {
@@ -386,7 +391,7 @@
 }
 .capiro-vnext-root .uui-mtg-weekstrip button span,
 .capiro-vnext-root .uui-mtg-weekstrip button small {
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 11px;
   color: var(--eng-ink-4);
 }
@@ -569,7 +574,7 @@
   padding: 8px;
   background: var(--eng-muted);
   color: var(--eng-ink-4);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 10px;
   text-align: center;
   text-transform: uppercase;
@@ -605,7 +610,7 @@
   border-radius: 9999px;
   background: var(--eng-accent-soft);
   color: var(--eng-accent);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 10px;
   white-space: nowrap;
   overflow: hidden;
@@ -767,7 +772,7 @@
   padding: 10px 20px;
   background: var(--eng-muted);
   color: var(--eng-ink-4);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 10px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -920,7 +925,7 @@
   padding: 0 18px;
   background: var(--eng-muted);
   color: var(--eng-ink-4);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 9px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1094,7 +1099,7 @@
   align-items: center;
   gap: 8px;
   color: var(--eng-accent);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1105,7 +1110,7 @@
   border-radius: 9999px;
   background: var(--eng-muted);
   color: var(--eng-ink-2);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 10px;
   line-height: 26px;
   letter-spacing: 0.05em;
@@ -1138,7 +1143,7 @@
 }
 .capiro-vnext-root .uui-outreach-transcript article > span {
   color: var(--eng-ink-4);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 10px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1286,7 +1291,7 @@
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--eng-ink-4);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 10px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1467,7 +1472,7 @@
 }
 .capiro-vnext-root .uui-strategy-card dt {
   color: var(--eng-ink-4);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 9px;
   text-transform: uppercase;
 }
@@ -1579,7 +1584,7 @@
   border-radius: 9999px;
   background: var(--eng-muted);
   color: var(--eng-ink-2);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 10px;
   line-height: 26px;
   text-transform: uppercase;
@@ -1680,7 +1685,7 @@
 }
 .capiro-vnext-root .uui-draft-preview dt {
   color: var(--eng-ink-4);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 10px;
   text-transform: uppercase;
 }
@@ -2280,7 +2285,7 @@
   background: var(--eng-surface);
   box-shadow: 0 0 0 1px var(--eng-border);
   color: var(--eng-ink-3);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--eng-font-mono);
   font-size: 11px;
 }
 .capiro-vnext-root .uui-overview-flow i {

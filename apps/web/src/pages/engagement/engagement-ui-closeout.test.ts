@@ -79,7 +79,9 @@ describe('Engagement UI closeout contract', () => {
 
   it('acknowledging held recipients never claims to unblock them', () => {
     const workspace = source('src/vnext/pages/engagement/VNextOutreachWorkspace.tsx');
-    expect(workspace).toContain('This acknowledgment does not remove their blockers or send to them.');
+    expect(workspace).toContain(
+      'This acknowledgment does not remove their blockers or send to them.',
+    );
   });
 
   it('has no dead post-send next actions', () => {
@@ -114,6 +116,31 @@ describe('Engagement UI closeout contract', () => {
       'src/pages/engagement/meetings/DebriefTab.tsx',
     ]) {
       expect(source(file)).toMatch(/error=\{[a-zA-Z]+\.isError/);
+    }
+  });
+
+  it('resolves the Engagement accent through the shell tokens, not a local navy ramp', () => {
+    const css = source('src/vnext/pages/engagement/engagement.css');
+    // The design handoff flags Engagement's #294e68 navy as a real
+    // cross-screen inconsistency and says not to hardcode it either way.
+    expect(css).toContain('--eng-accent: var(--uui-brand-solid');
+    expect(css).toContain('--eng-accent-hover: var(--uui-brand-deep');
+    expect(css).toContain('--uui-focus-ring');
+    expect(css).not.toMatch(/--eng-accent:\s*#294e68/i);
+  });
+
+  it('ships no runtime webfont dependency from Engagement', () => {
+    // Repo precedent (chat-fonts.css): faces are self-hosted, explicitly to
+    // avoid a runtime fonts.googleapis.com dependency for CSP + offline.
+    for (const file of [
+      'src/vnext/pages/engagement/engagement.css',
+      'src/pages/engagement/meetings/engagement-dialog.css',
+      'src/pages/engagement/engagement-ui-closeout.css',
+      'src/vnext/pages/engagement/engagement-ui-closeout.css',
+    ]) {
+      expect(source(file)).not.toContain('fonts.googleapis.com');
+      // Naming a face the app never ships just yields a silent fallback.
+      expect(source(file)).not.toContain('IBM Plex Mono');
     }
   });
 
