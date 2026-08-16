@@ -23,7 +23,10 @@ const DASH_V2_VARS = {
   '--dash-link-hover': '#293056',
   '--dash-brand': '#3E4784',
   '--dash-brand-tint': '#EAECF5',
-  '--dash-brand-ring': '#B3B8DB',
+  // v3 corrected from #B3B8DB to the ramp's exact 5th stop, matching the
+  // same fix applied to --uui-brand-ring in untitled-ui-tokens.css — this
+  // local copy predates that shared token and had drifted from it.
+  '--dash-brand-ring': '#B3BADD',
   '--dash-brand-mid': '#717BBC',
   '--dash-focus': '#4E5BA6',
   '--dash-focus-outer': '#D5D9EB',
@@ -233,13 +236,13 @@ function TriageTile({ item, selected, clearing, onSelect, onAction }: { item: At
 
 function ChronologicalSpine({ model, selectedAttentionId, onSelectAttention }: { model: DashboardVNextModel; selectedAttentionId: string | null; onSelectAttention: (id: string | null) => void }) {
   const groups = groupEvents(model.today.events);
-  const todayCount = groups.today.length;
-  const aheadCount = groups.tomorrow.length + groups.later.length;
   return (
     <section className="dashv2-card dashv2-spine" aria-label="Today and coming up">
+      {/* v3: no count pill in the card header — the TODAY/TOMORROW/LATER
+          groupings below already carry that context; a single header action
+          stays, per the handoff's card restraint rule. */}
       <header className="dashv2-card__head dashv2-spine__head">
         <h2>Today &amp; Coming Up</h2>
-        <span className="dashv2-pill dashv2-pill--gray">{todayCount} today · {aheadCount} ahead</span>
         <span className="dashv2-triage__spacer" />
         <Link className="dashv2-link" to="/engagement">Open calendar</Link>
       </header>
@@ -292,7 +295,9 @@ function WorkQueue({ model }: { model: DashboardVNextModel }) {
   const rows = model.workQueue.items.slice(0, limit);
   return (
     <section className="dashv2-card dashv2-work" aria-label="Work queue">
-      <header className="dashv2-card__head dashv2-work__head"><h2>Work Queue</h2><span className="dashv2-pill dashv2-pill--gray">{model.workQueue.total}</span><span className="dashv2-triage__spacer"/><Link className="dashv2-link" to="/workspace">View all</Link></header>
+      {/* v3: no header count pill — the total folds into the "View all"
+          link text instead, matching the handoff's card restraint rule. */}
+      <header className="dashv2-card__head dashv2-work__head"><h2>Work Queue</h2><span className="dashv2-triage__spacer"/><Link className="dashv2-link" to="/workspace">View all {model.workQueue.total}</Link></header>
       {rows.length === 0 ? <div className="dashv2-empty">No open drafts</div> : rows.map((item) => (
         <Link key={item.id} className="dashv2-work-row" to={item.href}>
           <span className="dashv2-work-row__kind">{item.kind}</span>
@@ -316,7 +321,12 @@ function Wire({ model, filter, onFilter, items, windowItems, onManage, onRefresh
       : ([xKnown ? `${xCount} posts` : null, newsKnown ? `${newsCount} stories` : null].filter(Boolean).join(' · ') || 'Sources updating');
   return (
     <aside className="dashv2-card dashv2-wire" aria-label="The Wire">
-      <header className="dashv2-wire__head"><h2>The Wire</h2><span className="dashv2-pill dashv2-pill--gray">{countLabel}</span><span className="dashv2-triage__spacer"/><span className="dashv2-wire__window"><span className="dashv2-wire__desktop">Last </span>24 hours</span></header>
+      {/* v3: no header count pill. countLabel is kept (still real, still
+          honors sourceCountKnown so an unavailable source never reads as
+          zero) as a hover title rather than a visible pill — the two
+          SourceBanners below already state "temporarily unavailable" in
+          full when a source is down. */}
+      <header className="dashv2-wire__head"><h2 title={countLabel}>The Wire</h2><span className="dashv2-triage__spacer"/><span className="dashv2-wire__window"><span className="dashv2-wire__desktop">Last </span>24 hours</span></header>
       <div className="dashv2-wire__filters"><div className="dashv2-segmented">{(['all','x','news'] as const).map((value)=><button key={value} type="button" data-selected={filter===value||undefined} onClick={()=>onFilter(value)}>{value==='all'?'All':value==='x'?'X':'News'}</button>)}</div><button type="button" className="dashv2-link" onClick={onManage}>Manage accounts</button></div>
       <div className="dashv2-wire__list">
         {filter !== 'news' ? <SourceBanner source="x" status={model.xFeed.status.state} hasSubscriptions={model.xFeed.subscriptions.some((sub) => sub.enabled)} onCustomize={onManage} onRetry={onRefresh} /> : null}
