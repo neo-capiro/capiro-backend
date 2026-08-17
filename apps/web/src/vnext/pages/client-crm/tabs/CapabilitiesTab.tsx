@@ -5,7 +5,6 @@ import {
   Card,
   CardHead,
   EvidenceChip,
-  FitChip,
   Pill,
   TabPageHead,
   GRADIENT_DARK,
@@ -13,7 +12,7 @@ import {
   type EvidenceTier,
   type PillTone,
 } from '../portfolio-primitives.js';
-import { CAP_FIT, CAP_PERF } from '../portfolio-fixtures.js';
+import { CAP_PERF } from '../portfolio-fixtures.js';
 import { useApi } from '../../../../lib/use-api.js';
 import { CapabilityDrawer, type Capability } from '../../../../pages/clients/CapabilityDrawer.js';
 import { readClientRegistrations } from '../../../../pages/clients/client-registrations.js';
@@ -525,6 +524,14 @@ function RegistrationsCard({ client }: { client: Client }) {
 
 /* ── §7.2 Where capabilities create fit ───────────────────────────────────── */
 
+/**
+ * Wire-audit "4 New capability" item 3 (client-profile Excel row 45):
+ * Capability fit recommendations have no backend — "Needs PE/FO matching
+ * scored against capabilities" is a Hard/L gap. The CAP_FIT fixture (bill/PE
+ * targets with invented fit scores) implied real matches the product cannot
+ * produce. The honest treatment is an explicit empty state that names the gap,
+ * the same pattern used by the NetworkCard and the advocacy evidence footer.
+ */
 function CapabilityFitCard() {
   return (
     <Card>
@@ -533,51 +540,13 @@ function CapabilityFitCard() {
         title="Where capabilities create fit"
         description="The matches Capiro draws from this record, and the reason behind each one."
       />
-      <div>
-        {CAP_FIT.map((f) => (
-          <FitRow key={f.target} fit={f} />
-        ))}
+      <div style={{ padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>No fit matches yet</span>
+        <span style={{ fontSize: 13, color: '#98A2B3', textAlign: 'center', maxWidth: 340, textWrap: 'pretty' }}>
+          Capability-to-PE and capability-to-bill matching is not available yet. Recorded capabilities above show what this client can do.
+        </span>
       </div>
     </Card>
-  );
-}
-
-function FitRow({ fit }: { fit: (typeof CAP_FIT)[number] }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      type="button"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'center',
-        gap: 14,
-        padding: '13px 24px',
-        borderTop: '1px solid #F2F4F7',
-        textAlign: 'left',
-        background: hover ? '#F9FAFB' : 'transparent',
-      }}
-    >
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span
-          style={{
-            display: 'block',
-            fontSize: 14,
-            fontWeight: 500,
-            color: '#101828',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {fit.target}
-        </span>
-        <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085', textWrap: 'pretty' }}>{fit.why}</span>
-      </span>
-      <FitChip score={fit.fit} style={{ flex: '0 0 auto' }} />
-    </button>
   );
 }
 

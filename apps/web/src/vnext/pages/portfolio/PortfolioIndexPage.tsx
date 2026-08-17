@@ -115,22 +115,24 @@ function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) 
   const loading =
     summary.isLoading ||
     clients.isLoading ||
-    model.strategies.isLoading ||
     model.meetings.isLoading ||
     model.accountOwners.isLoading;
-  const figures = useMemo(() => {
+  const figures = useMemo<{ label: string; value: number | null; prefix?: string }[]>(() => {
     const clientCount = clients.data?.filter((c) => (c.status ?? '').toLowerCase() !== 'archived').length;
     const s = summary.data;
     return [
       { label: 'Clients', value: clientCount ?? null },
       { label: 'Need attention', value: s?.needAttention ?? null },
-      { label: 'Active strategies', value: model.strategies.data?.length ?? null },
+      { label: 'Active strategies', value: s?.activeStrategies ?? null },
       { label: 'Meetings this week', value: s?.meetingsThisWeek ?? null },
       { label: 'Tracked bills', value: s?.billsTracked ?? null },
       { label: 'Active regulations', value: s?.activeRegulations ?? null },
-      { label: 'LDA spend QTD', value: s?.ldaSpendQtd != null ? `$${s.ldaSpendQtd.toLocaleString()}` : null },
+      // LDA spend is a numeric dollar amount; keep it as a number so the
+      // render path's toLocaleString formats it exactly once (avoid string
+      // → toLocaleString double-format). The `$` prefix is applied at render.
+      { label: 'LDA spend QTD', value: s?.ldaSpendQtd ?? null, prefix: '$' },
     ];
-  }, [summary.data, clients.data, model.strategies.data, model.meetings.data]);
+  }, [summary.data, clients.data]);
 
   const refreshLabel = useMemo(
     () => refreshedAgo(freshestUpdatedAt(model)),
@@ -148,7 +150,7 @@ function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) 
           <div className="capiro-portfolio-pulse__error" role="status">Portfolio aggregates are unavailable right now; the client list below is intact.</div>
         ) : figures.map((f) => (
           <div className="capiro-portfolio-pulse__stat" key={f.label}>
-            <span className={`capiro-portfolio-pulse__value${f.value == null ? ' is-missing' : ''}`}>{f.value == null ? '—' : f.value.toLocaleString()}</span>
+            <span className={`capiro-portfolio-pulse__value${f.value == null ? ' is-missing' : ''}`}>{f.value == null ? '—' : `${f.prefix ?? ''}${f.value.toLocaleString()}`}</span>
             <span className="capiro-portfolio-pulse__label">{f.label}</span>
           </div>
         ))}

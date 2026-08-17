@@ -53,6 +53,7 @@ const summary = {
   billsTracked: 12,
   activeRegulations: 4,
   meetingsThisWeek: 2,
+  activeStrategies: 5,
 };
 
 function makeApi(overrides: { clientsError?: boolean; summaryError?: boolean } = {}) {

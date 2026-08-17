@@ -43,8 +43,11 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
  * advocacy history → work+intelligence pulse. §16: NO "Needs attention" card.
  *
  * Data: profile/account/work/intel pulse bind to the real overview model.
- * Federal footprint and the advocacy lifecycle have no per-client backend
- * lifecycle records — they render the design's fixtures (flagged UI-only).
+ * Federal footprint reads from the real client-profile endpoint (LDA spend,
+ * filings, awards, trajectory) via the overview model's `federalFootprint`.
+ * The advocacy lifecycle has no per-client backend lifecycle records — it
+ * renders real submission history when available, and the design's fixtures
+ * only while loading or on error (flagged UI-only).
  */
 
 export function ClientCrmOverviewProto({

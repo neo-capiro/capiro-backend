@@ -28,6 +28,8 @@ export interface PortfolioSummary {
   activeRegulations: number;
   /** G1: folded into the summary endpoint so the pulse reads one call. */
   meetingsThisWeek: number;
+  /** G1 remainder: active strategies count from sp_strategy. */
+  activeStrategies: number;
 }
 
 /** Coming-up feed item shape (GET /api/intelligence/coming-up). */

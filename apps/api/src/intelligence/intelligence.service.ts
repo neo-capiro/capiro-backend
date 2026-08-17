@@ -6670,16 +6670,16 @@ export class IntelligenceService {
   }
 
   /**
-   * Portfolio summary, six numbers for the Portfolio list stat strip.
+   * Portfolio summary, seven numbers for the Portfolio list stat strip.
    * All cheap counts; LDA spend is summed across clients with confirmed
    * mappings using current-quarter filings.
    *
-   * G1 (wire-audit "3 Compose extend" item 2): `meetingsThisWeek` is now
-   * folded into this endpoint so the pulse band reads one summary instead
-   * of composing a separate meetings query. Strategies live in a separate
-   * service (apps/api-strategy) and cannot be joined here; the frontend
-   * still composes that one figure separately — non-blocking, logged in
-   * GAPS.md.
+   * G1 (wire-audit "3 Compose extend" item 2): `meetingsThisWeek` and
+   * `activeStrategies` are now folded into this endpoint so the pulse band
+   * reads one summary instead of composing separate meetings/strategies
+   * queries. Strategies live in a separate service (apps/api-strategy) but
+   * share the same Postgres database, so we count non-archived `sp_strategy`
+   * rows via $queryRaw — no cross-service HTTP call needed.
    */
   async getPortfolioSummary(tenantId: string) {
     const now = new Date();
@@ -6720,7 +6720,7 @@ export class IntelligenceService {
     sunday.setDate(monday.getDate() + 6);
     sunday.setHours(23, 59, 59, 999);
 
-    const [ldaSpendRows, billsTracked, regulationsTracked, meetingsThisWeek] = await Promise.all([
+    const [ldaSpendRows, billsTracked, regulationsTracked, meetingsThisWeek, activeStrategies] = await Promise.all([
       tenantLdaIds.length
         ? this.prisma.$queryRaw<Array<{ total: string | null }>>`
             SELECT COALESCE(SUM(income), 0)::text AS total
@@ -6769,6 +6769,17 @@ export class IntelligenceService {
           },
         }),
       ),
+      // G1: active strategies count — sp_strategy lives in the same Postgres
+      // database (apps/api-strategy shares DATABASE_URL). Count non-archived
+      // rows for this tenant via $queryRaw since the SpStrategy model is not
+      // in this service's Prisma schema. Wrapped in .catch so a missing table
+      // or query error degrades to 0 rather than failing the entire summary.
+      this.prisma.$queryRaw<Array<{ count: bigint }>>`
+        SELECT COUNT(*)::bigint AS count
+        FROM sp_strategy
+        WHERE tenant_id = ${tenantId}::uuid
+          AND archived_at IS NULL
+      `.catch(() => [{ count: 0n }]),
     ]);
 
     // LDA `income` is stored as Decimal dollars (not cents); SUM returns a
@@ -6783,6 +6794,7 @@ export class IntelligenceService {
       billsTracked: billsTrackedCount,
       activeRegulations: regulationsTracked,
       meetingsThisWeek,
+      activeStrategies: Number(activeStrategies[0]?.count ?? 0n),
     };
   }
 
