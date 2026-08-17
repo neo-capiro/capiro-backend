@@ -63,7 +63,7 @@ describe('Engagement UI closeout contract', () => {
     expect(workspace).not.toContain('forcedState');
     expect(workspace).not.toContain('StateInspector');
     expect(workspace).not.toContain('System states');
-    expect(workspace).toContain('preflight.checks.map');
+    expect(workspace).toContain('buildHonestPreflightRows(preflight.checks).map');
     expect(workspace).toContain('14 deterministic checks');
   });
 
@@ -114,7 +114,6 @@ describe('Engagement UI closeout contract', () => {
     expect(workspace).not.toContain('href="/mailbox"');
     // Next actions navigate in-app instead of full-reloading the SPA.
     expect(workspace).not.toMatch(/<a className="uui-button" href=/);
-    expect(workspace).toContain("navigate('/engagement/outreach')");
     expect(workspace).toContain("navigate('/engagement/meetings?compose=meeting')");
     // ...and the composer deep link is actually honoured by canonical Engagement.
     const engagement = source('src/pages/engagement/EngagementPage.tsx');

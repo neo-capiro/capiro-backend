@@ -255,7 +255,7 @@ export function attachmentTone(
 }
 
 /** Client-only row state for preflight rows with no real backend signal. */
-type HonestCheckState = OutreachV3CheckState | 'unavailable';
+type HonestCheckState = OutreachV3CheckState;
 
 interface HonestPreflightRow {
   key: string;
@@ -264,7 +264,6 @@ interface HonestPreflightRow {
   state: HonestCheckState;
 }
 
-const NO_AUTOMATED_CHECK_DETAIL = 'No automated check yet — verify manually.';
 
 /**
  * Reshapes the server's 14 real named checks into the mockup's row
@@ -273,13 +272,11 @@ const NO_AUTOMATED_CHECK_DETAIL = 'No automated check yet — verify manually.';
  * "Stale or dirty draft"; `emails` -> the email-format row + "Duplicate
  * recipients"): both rows in a pair always read the SAME live state/detail
  * from the ONE real check — never two independent booleans invented for one
- * signal. Three rows ("Role policy", "Shared visibility", "Context checks")
- * have no real backend check at all and render with state 'unavailable' — a
- * client-only tone that intentionally does not exist in OutreachV3CheckState,
- * so it can never be confused with a real pass. `preflight.eligible` (the
+ * signal. The three former placeholder rows ("Role policy", "Shared visibility",
+ * "Context checks") had no real backend check and were removed — the preflight
+ * table only shows real server checks now. `preflight.eligible` (the
  * only thing that actually gates sending) comes straight from the server and
- * is never touched by this function, so these three rows can never
- * contribute to send-enablement. The remaining real checks (audit /
+ * is never touched by this function. The remaining real checks (audit /
  * recipients / intent) are kept as trailing rows rather than dropped: hiding
  * a real, currently-gating check purely to hit an exact row count was judged
  * less safe than showing a few extra honest rows (see report). `scope` and
@@ -299,12 +296,6 @@ export function buildHonestPreflightRows(
       state: source?.state ?? 'review',
     };
   };
-  const gap = (key: string, label: string): HonestPreflightRow => ({
-    key,
-    label,
-    detail: NO_AUTOMATED_CHECK_DETAIL,
-    state: 'unavailable',
-  });
   const versions = byKey.get('versions');
   const emails = byKey.get('emails');
   const versionsPairRow = (key: string, label: string): HonestPreflightRow => ({
@@ -323,7 +314,6 @@ export function buildHonestPreflightRows(
     real('signature', 'Signature'),
     versionsPairRow('versions-stale', 'Stale or dirty draft'),
     real('attachments', 'Attachments'),
-    gap('role-policy', 'Role policy'),
     {
       key: 'emails-format',
       label: 'Recipient email',
@@ -341,9 +331,7 @@ export function buildHonestPreflightRows(
       detail: emailsDetail,
       state: emails?.state ?? 'review',
     },
-    gap('shared-visibility', 'Shared visibility'),
     real('drafts', 'Draft coverage'),
-    gap('context-checks', 'Context checks'),
     real('approval', 'Author approval'),
     real('audit', 'Assurance review'),
     real('recipients', 'Recipient snapshots'),
@@ -1255,13 +1243,6 @@ function SendPanel({
             <button
               type="button"
               className="uui-button"
-              onClick={() => navigate('/engagement/outreach')}
-            >
-              Schedule follow-up
-            </button>
-            <button
-              type="button"
-              className="uui-button"
               onClick={() => navigate('/engagement/meetings?compose=meeting')}
             >
               Create meeting
@@ -1702,7 +1683,7 @@ function PreflightRow({ check }: { check: HonestPreflightRow }) {
       <span>{check.detail}</span>
       <em>
         <i />
-        {check.state === 'unavailable' ? 'not available' : check.state}
+        {check.state}
       </em>
     </div>
   );

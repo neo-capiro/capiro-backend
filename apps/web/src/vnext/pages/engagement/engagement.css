@@ -2354,19 +2354,6 @@
 .capiro-vnext-root .uui-preflight-row[data-state='blocked'] em i {
   background: var(--eng-error-dot);
 }
-/* Client-only "no real check" row state — the 3 backend-gap preflight rows
-   (Role policy / Shared visibility / Context checks). Deliberately gray/
-   neutral, never navy/warn/err, so it can never read as a real pass or a
-   real blocker. See buildHonestPreflightRows in VNextOutreachWorkspace.tsx. */
-.capiro-vnext-root .uui-preflight-row[data-state='unavailable'] {
-  background: var(--eng-muted);
-}
-.capiro-vnext-root .uui-preflight-row[data-state='unavailable'] em {
-  color: var(--eng-ink-3);
-}
-.capiro-vnext-root .uui-preflight-row[data-state='unavailable'] em i {
-  background: var(--eng-ink-4);
-}
 /* Dedicated sponsor-scope-blocked panel — literal mockup hex values used
    verbatim (not the generic --eng-error-bg/border tokens, which are a
    slightly different shade) since this is a specific, named design element,

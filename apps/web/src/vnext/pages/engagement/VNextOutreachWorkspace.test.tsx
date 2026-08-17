@@ -622,13 +622,13 @@ describe('VNextOutreachWorkspace', () => {
     it('places the mockup row vocabulary at the documented row numbers', () => {
       const rows = buildHonestPreflightRows(ALL_REAL_CHECKS);
       // 1-indexed mockup row numbers from the phase brief -> 0-indexed here.
+      // The three placeholder rows (Role policy, Shared visibility, Context checks)
+      // were removed — only real server checks remain.
       expect(rows[1]!.label).toBe('Exact draft versions'); // row 2
       expect(rows[5]!.label).toBe('Stale or dirty draft'); // row 6
-      expect(rows[7]!.label).toBe('Role policy'); // row 8
-      expect(rows[8]!.label).toBe('Recipient email'); // row 9
-      expect(rows[9]!.label).toBe('Duplicate recipients'); // row 10
-      expect(rows[10]!.label).toBe('Shared visibility'); // row 11
-      expect(rows[12]!.label).toBe('Context checks'); // row 13
+      expect(rows[7]!.label).toBe('Recipient email'); // was row 9, shifted after Role policy removed
+      expect(rows[8]!.label).toBe('Duplicate recipients'); // was row 10, shifted
+      expect(rows[9]!.label).toBe('Draft coverage'); // was row 12, shifted after Shared visibility removed
     });
 
     it('gives both "versions" rows the exact same live state/detail from the one real check — never two independent booleans', () => {
@@ -650,21 +650,19 @@ describe('VNextOutreachWorkspace', () => {
       expect(format.detail).toMatch(/not independently verified/i);
     });
 
-    it('renders the 3 backend-gap rows with a client-only "unavailable" state that can never be confused with a real pass/review/blocked verdict', () => {
-      const rows = buildHonestPreflightRows(ALL_REAL_CHECKS);
-      for (const label of ['Role policy', 'Shared visibility', 'Context checks']) {
-        const row = rows.find((entry) => entry.label === label)!;
-        expect(row.state).toBe('unavailable');
-        expect(['pass', 'review', 'blocked']).not.toContain(row.state);
-        expect(row.detail).toMatch(/no automated check/i);
-      }
-    });
 
     it('does not drop the real audit/recipients/intent checks just because the mockup has no named row for them', () => {
       const rows = buildHonestPreflightRows(ALL_REAL_CHECKS);
       expect(rows.some((row) => row.label === 'Assurance review')).toBe(true);
       expect(rows.some((row) => row.label === 'Recipient snapshots')).toBe(true);
       expect(rows.some((row) => row.label === 'Send intent')).toBe(true);
+    });
+
+    it('does not include removed placeholder rows (Role policy, Shared visibility, Context checks)', () => {
+      const rows = buildHonestPreflightRows(ALL_REAL_CHECKS);
+      expect(rows.some((row) => row.label === 'Role policy')).toBe(false);
+      expect(rows.some((row) => row.label === 'Shared visibility')).toBe(false);
+      expect(rows.some((row) => row.label === 'Context checks')).toBe(false);
     });
   });
 
@@ -727,11 +725,12 @@ describe('VNextOutreachWorkspace', () => {
       );
       expect(within(workbench()).getByText(/4 evaluated/)).toBeInTheDocument();
 
-      // (C) — the 14-row table renders the 3 honest, non-gating gap rows
-      // right alongside everything else.
-      expect(within(workbench()).getByText('Role policy')).toBeInTheDocument();
-      expect(within(workbench()).getByText('Shared visibility')).toBeInTheDocument();
-      expect(within(workbench()).getByText('Context checks')).toBeInTheDocument();
+      // (C) — the preflight table only renders real server checks; the 3
+      // placeholder rows (Role policy, Shared visibility, Context checks)
+      // were removed because they had no real backend check.
+      expect(within(workbench()).queryByText('Role policy')).not.toBeInTheDocument();
+      expect(within(workbench()).queryByText('Shared visibility')).not.toBeInTheDocument();
+      expect(within(workbench()).queryByText('Context checks')).not.toBeInTheDocument();
 
       // (D) — no send button anywhere in the workbench; only the closing note.
       expect(
