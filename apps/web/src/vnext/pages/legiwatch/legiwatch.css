@@ -25,22 +25,44 @@
    decoration.
 
    Content width actually available to this module, after shell chrome:
-       >=1180px:  min(vw - 272 - 64, 1280)   ->   844 .. 1280
+       >=1180px:  min(vw - 272 - 64, 1560)   ->   844 .. 1560
        780-1179:  vw - 80 - 64               ->   636 .. 1035
        <=779:     vw - 32                    ->     ~ .. 747
 
    Note the inversion at the seam: crossing 1179 -> 1180 SHRINKS the content
    box from 1035 to 844, because the rail grows by 192px. So a "desktop"
-   composition here must survive 844px, not 1280px. Every fixed column count
+   composition here must survive 844px, not 1560px. Every fixed column count
    that could not has been replaced with an intrinsic auto-fit track using the
    minmax(min(Npx, 100%), 1fr) idiom, which also removed the need for the old
    1099 middle step — there is no third composition band in this file.
+
+   The ceiling above used to be 1280 — the shell's own .uui-content cap
+   (foundations/untitled-ui-tokens.css) — which silently capped this module's
+   content below the 1560px width `.lw-body`/`.lw-liveroom` were already
+   declaring further down this file. The escape-hatch rule just below this
+   comment block (`.uui-content:has(.lw)`) removes that shell cap for this
+   module, so 1560 is now genuinely this module's own ceiling rather than a
+   number that always lost to something narrower. The 844 floor is untouched:
+   it comes from the rail+gutter subtraction at the narrow end of the band,
+   never from the ceiling.
    ========================================================================== */
 
+/* LegiWatch owns its own 1560px canvas — the pagehead/tab-strip/sub-nav bands
+   below are centered via the calc-padding trick, .lw-body/.lw-liveroom via
+   max-width+margin:auto — same pattern as Dashboard (dashboard.css:4) and
+   Strategies (strategies.css:10): the generic vNext content wrapper normally
+   caps every page at 1280px and adds 32px padding; escape that here so this
+   module's own wider max-width actually takes effect instead of always
+   losing to the shell's narrower cap. */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.lw) { max-width: none; padding: 0; margin: 0; }
+
 .capiro-vnext-root .lw {
-  /* Module gutter. The shell's .uui-content already owns the horizontal page
-     gutter (32px, 16px below 780), so below 780 this module contributes none —
-     doubling it spent a fifth of a 390px screen on empty margin. */
+  /* Module gutter. Used to lean on the shell's .uui-content for its own
+     horizontal page gutter (32px, 16px below 780) and contribute none itself
+     below 780 — doubling it spent a fifth of a 390px screen on empty margin.
+     The module-wide escape rule above now removes the shell's gutter
+     unconditionally, so this module owns its gutter at every width; the
+     779px block below restates the mobile figure as 16px instead of 0. */
   --lw-gutter: 24px;
 
   /* A.1 type */
@@ -224,7 +246,10 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 0 var(--lw-gutter);
+  /* Full-bleed background/border, centered content: same calc-padding trick as
+     .lw-pagehead and .lw-tabs below, so all three stacked chrome rows line up
+     on the same left edge once the module escapes the shell's 1280px cap. */
+  padding: 0 calc(var(--lw-gutter) + max(0px, (100% - 1560px) / 2));
   height: 44px;
   border-bottom: 1px solid var(--lw-line);
   background: var(--lw-surface);
@@ -266,7 +291,14 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px var(--lw-gutter) 16px;
+  /* Full-bleed white band (background/border must span the whole escaped
+     .uui-content), so its content can't use the plain max-width+margin:auto
+     trick .lw-body uses below (that would box the white band itself to
+     1560px and stop it reaching the edges). Instead the horizontal padding
+     grows to keep the content centered/capped at 1560 once the viewport
+     exceeds it, the same computation Dashboard/Strategies use for their own
+     full-bleed hero bands. */
+  padding: 20px calc(var(--lw-gutter) + max(0px, (100% - 1560px) / 2)) 16px;
   border-bottom: 1px solid var(--lw-line);
   background: var(--lw-surface);
   flex-wrap: wrap;
@@ -303,7 +335,8 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 0 var(--lw-gutter);
+  /* Same calc-padding centering as .lw-subnav/.lw-pagehead above. */
+  padding: 0 calc(var(--lw-gutter) + max(0px, (100% - 1560px) / 2));
   border-bottom: 1px solid var(--lw-line);
   background: var(--lw-surface);
   min-width: 0;
@@ -342,6 +375,8 @@
   gap: 16px;
   padding: 20px var(--lw-gutter) 28px;
   max-width: 1560px;
+  width: 100%;
+  margin: 0 auto;
   min-width: 0;
   animation: lwFade .16s ease;
 }
@@ -1298,7 +1333,7 @@
 @media (max-width: 779px) { .capiro-vnext-root .lw .lw-toast { bottom: 84px; max-width: calc(100% - 32px); } }
 
 /* live room replaces module chrome — full width route */
-.capiro-vnext-root .lw .lw-liveroom { padding: 16px var(--lw-gutter) 28px; display: flex; flex-direction: column; gap: 16px; max-width: 1560px; min-width: 0; }
+.capiro-vnext-root .lw .lw-liveroom { padding: 16px var(--lw-gutter) 28px; display: flex; flex-direction: column; gap: 16px; max-width: 1560px; width: 100%; margin: 0 auto; min-width: 0; }
 .capiro-vnext-root .lw .lw-liveroom__bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
 
 /* ============================================================================
@@ -1398,8 +1433,16 @@
 }
 
 @media (max-width: 779px) {
-  /* The shell's .uui-content already owns the 16px page gutter here. */
-  .capiro-vnext-root .lw { --lw-gutter: 0px; }
+  /* The shell's .uui-content used to own the 16px page gutter here, so this
+     module contributed none. Now that the module-wide escape rule above
+     removes the shell's gutter unconditionally (at every viewport, not just
+     desktop — so LegiWatch's own bands can reach past the old 1280px cap on
+     wide screens), this needs its own real mobile gutter or every chrome row
+     (sub-nav, pagehead, tabs, body, live room) would run edge-to-edge with no
+     breathing room — 16px, the same mobile figure Dashboard (dashboard.css:262)
+     and Strategies (strategies.css:367) use everywhere they own their own
+     gutter. */
+  .capiro-vnext-root .lw { --lw-gutter: 16px; }
   /* Long bill numbers, committee names and evidence strings are unbreakable
      mono runs; they wrap rather than set the width of the page. */
   .capiro-vnext-root .lw .lw-mono,

@@ -1,14 +1,21 @@
 /* Portfolio index (PORTFOLIO-HANDOFF §7.1). Consumes the shared vNext token
    layer — no hard-coded hex for the accent; every value references a token. */
 
-/* Adopts .capiro-page (foundations/responsive.css §2). The shell's .uui-content
-   already owns the horizontal gutter — 32px, 16px below 780 — so this page must
-   not add its own. It used to add 32px (20px below 1200) on top of it, which
-   spent ~18% of a 390px viewport on doubled gutters and squeezed the very
-   scroller the 720px clients table has to live in. Vertical rhythm is handed to
-   .capiro-page through its custom properties.
-   The old `max-width: 1360px; margin: 0 auto` never bound: .uui-content already
-   caps at --uui-content-max-w (1280px) and centres itself. */
+/* Portfolio has no hero-band-vs-canvas-body split — one flat page, single
+   consistent width throughout — so it escapes the shell's 1280px cap
+   (shell-uui.css:377) on itself directly, the same way Dashboard/Strategies
+   do for their own root, then re-applies the sitewide 1440px canvas
+   convention (32px gutter, 16px below 780) to itself instead of to a
+   separate inner wrapper. */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.capiro-portfolio) { max-width: none; padding: 0; margin: 0; }
+
+/* Adopts .capiro-page (foundations/responsive.css §2) for vertical rhythm via
+   its custom properties. .capiro-page also owns the horizontal gutter now
+   (via --capiro-page-gutter, foundations/responsive.css:86) since the shell
+   escape above means .uui-content no longer contributes one. max-width and
+   margin here must match .capiro-page.capiro-portfolio's specificity
+   (.capiro-vnext-root + 2 classes) to beat .capiro-page's own
+   `max-width: 100%` (responsive.css:82-88) on this same element. */
 .capiro-portfolio {
   display: flex;
   flex-direction: column;
@@ -16,6 +23,16 @@
   --capiro-page-block-start: 32px;
   --capiro-page-block-end: 48px;
   --capiro-page-block-end-mobile: 32px;
+  --capiro-page-gutter: 32px;
+}
+.capiro-vnext-root .capiro-page.capiro-portfolio {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+@media (max-width: 779px) {
+  .capiro-portfolio {
+    --capiro-page-gutter: 16px;
+  }
 }
 
 .capiro-portfolio__surface {

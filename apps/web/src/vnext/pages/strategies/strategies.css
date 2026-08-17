@@ -1,5 +1,14 @@
 /* Strategies module — module-scoped layout + shared chrome (§5, §6, §9). */
 
+/* Strategies owns its own 1440px canvas (all 6 views), same pattern as
+   Dashboard (dashboard.css:4): the generic vNext content wrapper normally caps
+   every page at 1280px and adds 32px padding — escape that here so this
+   module's own per-section max-widths below (.st-hero/.st-canvas here,
+   .st-editor in strategy-editor.css, .st-ctxlib__body/.st-ctxdoc__main/
+   .st-steward__body in the context views) are the ones that actually take
+   effect instead of always losing to the shell's narrower cap. */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.capiro-strategies) { max-width: none; padding: 0; margin: 0; }
+
 .capiro-strategies {
   min-height: 100%;
   display: flex;
@@ -17,12 +26,23 @@
  * that render before a view's real hero exists — a real view's success path
  * should use `.st-hero` + `.st-canvas` directly, not `.st-page`.
  */
+/* .st-hero is full-bleed (background/border must span the whole escaped
+   .uui-content, not just 1440px) — so its CONTENT can't use the plain
+   max-width+margin:auto trick .st-canvas uses below (that would box the white
+   band itself to 1440px and stop it reaching the edges). Instead its own
+   horizontal padding is computed the same way Dashboard's nested max-width+
+   padding pair (dashboard.css:35 .dashv2-console > .dashv2-head) resolves in
+   practice — 32px floor below 1440px content width, growing to keep content
+   centered/capped at 1440 beyond that — without needing a second wrapper
+   element. .st-page-header (the hero's sole content) then just fills that
+   already-inset box, so its content lines up with .st-canvas below it, which
+   sits inside the same 1440-wide column via the ordinary mechanism. */
 .capiro-vnext-root .capiro-strategies .st-hero {
   display: flex;
   align-items: flex-start;
   gap: 24px;
   flex-wrap: wrap;
-  padding: 28px 24px 24px;
+  padding: 28px calc(32px + max(0px, (100% - 1440px) / 2)) 24px;
   background: var(--st-white);
   border-bottom: 1px solid var(--st-gray-200);
 }
@@ -33,7 +53,7 @@
   max-width: 1440px;
   width: 100%;
   margin: 0 auto;
-  padding: 24px;
+  padding: 24px 32px;
 }
 
 /* ---- module header (eyebrow / title / purpose / actions) ---- */
@@ -334,9 +354,17 @@
    * content box becomes 358px. Vertical rhythm is kept (the shell contributes
    * none), and the shell already reserves 64px at the page bottom for the
    * fixed bottom nav, so no extra bottom inset is needed here.
+   *
+   * NOTE: this used to drop to 0 horizontal, relying on the shell's own
+   * .uui-content gutter to still apply below it. Now that the module-wide
+   * escape rule above removes the shell's gutter unconditionally (at every
+   * viewport, not just desktop), this needs its own real mobile gutter or
+   * the loading/error skeleton would run edge-to-edge with no breathing
+   * room — 16px, the same mobile figure Dashboard uses everywhere it owns
+   * its own gutter (e.g. dashboard.css's 779px block).
    */
   .capiro-vnext-root .capiro-strategies .st-page {
-    padding: 16px 0 24px;
+    padding: 16px 16px 24px;
   }
   .capiro-vnext-root .capiro-strategies .st-page-header {
     align-items: flex-start;

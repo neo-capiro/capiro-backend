@@ -14,11 +14,17 @@
 }
 
 /* ---- header -------------------------------------------------------------- */
+/* Full-bleed white band (same reasoning as .st-ctxlib__header in
+   context-library.css): horizontal padding computed via calc()/max() instead
+   of a max-width+margin:auto on this element, so the white background still
+   reaches the edges of the escaped .uui-content while the back-link +
+   title-row content inside is capped/centered at 1440px, matching
+   Dashboard's .dashv2-console > .dashv2-head split (dashboard.css:4,35). */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__header {
   background: var(--st-white);
   /* No border here — the meta strip below supplies its own border-top, per
      the design handoff (this view's header has none of its own). */
-  padding: 20px 24px 0;
+  padding: 20px calc(32px + max(0px, (100% - 1440px) / 2)) 0;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__state-page {
   padding: 24px;
@@ -162,12 +168,15 @@
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__note a { color: inherit; font-weight: 600; }
 
 /* ---- meta strip (design handoff "View: Document viewer" section) --------- */
+/* Also full-bleed (its border-top/bottom are meant to run edge to edge, same
+   as the header above it) — same calc()/max() padding trick so its chips stay
+   aligned under the header's title-row rather than under a narrower band. */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__metastrip {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px 24px;
+  padding: 10px calc(32px + max(0px, (100% - 1440px) / 2));
   background: var(--st-gray-50);
   border-top: 1px solid var(--st-gray-200);
   border-bottom: 1px solid var(--st-gray-200);
@@ -181,12 +190,20 @@
 }
 
 /* ---- main: viewer + rail ------------------------------------------------- */
+/* No background of its own (shows .st-ctxdoc's gray-50 through), so the
+   ordinary max-width+margin:auto is safe directly here — this view's
+   equivalent of Dashboard's .dashv2-grid (dashboard.css:104). Horizontal
+   padding was flat 24px; now 32px to match the header/metastrip above so the
+   source viewer + rail line up with the title-row and chips. */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__main {
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 20px;
-  padding: 24px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 32px;
   align-items: start;
   min-height: 0;
 }
