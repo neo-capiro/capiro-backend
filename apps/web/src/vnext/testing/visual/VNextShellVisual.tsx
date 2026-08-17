@@ -3,6 +3,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { VNEXT_ROUTE_MANIFEST } from '../../adapters/routes/routeManifest.js';
 import { AppShellUuiView } from '../../shell/AppShellUui/index.js';
 import { DashboardVNextView } from '../../pages/dashboard/DashboardVNext.js';
+import { StrategyLibraryVNext } from '../../pages/strategies/StrategyLibraryVNext.js';
+// Normally imported once by VNextStrategiesRoutes (the module root, per that
+// folder's BUILD-CONTRACT.md) — imported here too since the harness mounts
+// the view directly and skips that router.
+import '../../pages/strategies/strategies-tokens.css';
 import { CongressionalStaffVNextView } from '../../pages/directory/CongressionalStaffVNext.js';
 import { FOUNDATION_MAILBOX_STATES } from '../fixtures/foundation.js';
 import { DASHBOARD_VISUAL_FIXTURE, DASHBOARD_STATE_FIXTURES } from '../fixtures/dashboard.js';
@@ -87,7 +92,9 @@ export type VNextVisualScreen =
   | 'dashboard'
   | 'client-crm'
   | 'congressional-staff'
-  | 'congressional-staff-empty';
+  | 'congressional-staff-empty'
+  | 'strategies'
+  | 'strategies-empty';
 
 /**
  * Each screen renders at the route it actually ships on, so the sidebar's
@@ -103,6 +110,8 @@ const SCREEN_ROUTES: Record<VNextVisualScreen, string> = {
   'client-crm': '/clients?clientId=visual-fixture',
   'congressional-staff': DIRECTORY_ROUTES.congressionalStaff,
   'congressional-staff-empty': DIRECTORY_ROUTES.congressionalStaff,
+  strategies: '/strategies',
+  'strategies-empty': '/strategies',
 };
 
 export function VNextShellVisual({
@@ -192,6 +201,13 @@ export function VNextShellVisual({
             <CongressionalStaffVNextView model={CONGRESSIONAL_STAFF_VISUAL_FIXTURE} />
           ) : screen === 'congressional-staff-empty' ? (
             <CongressionalStaffVNextView model={CONGRESSIONAL_STAFF_EMPTY_FIXTURE} />
+          ) : screen === 'strategies' || screen === 'strategies-empty' ? (
+            // .capiro-strategies normally comes from VNextStrategiesRoutes' wrapper
+            // div, not StrategyLibraryVNext itself — reproduced here since the
+            // harness mounts the view directly, skipping that route shell.
+            <div className="capiro-strategies" data-module="strategies">
+              <StrategyLibraryVNext />
+            </div>
           ) : (
             <div className="capiro-vnext-foundation-banner" style={{ margin: 20 }}>
               shell baseline · product screens intentionally absent
