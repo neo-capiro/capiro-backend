@@ -501,23 +501,21 @@
 .capiro-vnext-root .vmtg-panel .uui-eyebrow {
   margin-bottom: 2px;
 }
-.capiro-vnext-root .vmtg-drawer-host {
-  padding: 20px;
+/* Hosts the real MeetingDetailPanel (canonical) — a self-positioning
+ * slide-over (position:absolute; top/right/bottom:0; width:min(680px,92%)).
+ * This viewport is what gives it a sized, position:relative/overflow:hidden
+ * containing block to resolve against, so it renders scoped to this side
+ * rail's own width/height instead of the nearest OTHER positioned ancestor.
+ * Height mirrors .vmtg-side's own sticky offset (top: 86px) plus the
+ * workspace's bottom padding budget, so the panel fills the rail rather than
+ * collapsing to its (otherwise auto, content-driven) height. */
+.capiro-vnext-root .vmtg-drawer-viewport {
+  position: relative;
+  overflow: hidden;
+  height: calc(100vh - 86px - 40px);
   border-radius: 12px;
   background: var(--eng-surface);
   box-shadow: 0 0 0 1px var(--eng-accent-border);
-}
-.capiro-vnext-root .vmtg-drawer-host__title {
-  margin: 6px 0 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--eng-ink);
-}
-.capiro-vnext-root .vmtg-drawer-host__note {
-  margin: 6px 0 0;
-  color: var(--eng-ink-3);
-  font-size: 12px;
-  line-height: 18px;
 }
 
 @media (max-width: 1179px) {

@@ -34,12 +34,15 @@
  * PROTOTYPE's own template-runtime variable names, which the README
  * explicitly says not to port; the already-shipped, tested code contract
  * uses `meeting`, so this file follows the code, not the prototype's naming).
- * `tab` is read and passed through unchanged on every URL write — this phase
- * doesn't own it, but the next phase's drawer will, so a stray `?tab=notes`
- * on a deep link must survive untouched rather than being stripped.
+ * `tab` rounds through the same contract, now owned here: the drawer phase
+ * mounts the real MeetingDetailPanel (canonical, reused — not forked; see
+ * drawer-vnext.css for the CSS-only navy retheme and PrepTab/NotesTab/
+ * DebriefTab/tab-kit.tsx for the structural completions) and this component
+ * is what actually reads/writes `tab` now, same "only serialize non-default"
+ * minimalism the canonical EngagementPage.tsx uses for its own `detail` param.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -54,11 +57,16 @@ import {
 } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
+import { MeetingDetailPanel } from '../../../pages/engagement/meetings/MeetingDetailPanel.js';
+import { SendMeriModal } from '../../../pages/engagement/meetings/SendMeriModal.js';
+import { ShareConfirmation } from '../../../pages/engagement/meetings/ShareConfirmation.js';
 import { meetingsListKey, useMeeting, useMeetings } from '../../../pages/engagement/meetings/meetings-api.js';
+import { meetingStatus } from '../../../pages/engagement/meetings/meetings-ui.js';
 import {
   approvedDebrief,
   completedDebrief,
   completedPrep,
+  type DetailTab,
   type Meeting,
   type MeetingViewMode,
 } from '../../../pages/engagement/meetings/meetings-types.js';
@@ -81,6 +89,7 @@ import {
   startOfWeek,
 } from '../../../pages/engagement/meetings/meetings-format.js';
 import './meetings-vnext.css';
+import './drawer-vnext.css';
 
 export interface VNextMeetingsWorkspaceProps {
   clientId: string | null;
@@ -101,6 +110,30 @@ const MAX_HISTORY_BATCHES = 6;
 
 function parseViewMode(raw: string | null): MeetingViewMode | null {
   return raw === 'day' || raw === 'list' || raw === 'month' ? raw : null;
+}
+
+function parseDetailTab(raw: string | null): DetailTab | null {
+  return raw === 'prep' || raw === 'notes' || raw === 'debrief' ? raw : null;
+}
+
+/** The best default detail tab for a freshly opened meeting — ported from the
+ *  canonical MeetingsV2.tsx's own bestDetailTab() (not exported there, so
+ *  duplicated here rather than reaching into a sibling app's private helper):
+ *  debrief if already done, else notes if captured, else prep. Only applied
+ *  when a genuinely NEW meeting is opened (see selectMeeting below) — it
+ *  never clobbers an explicit `?tab=` deep link or a manual tab change. */
+function bestDetailTab(m: Meeting): DetailTab {
+  const status = meetingStatus(m);
+  if (status.debrief) return 'debrief';
+  if (
+    m.notesApproved ||
+    m.meri === 'done' ||
+    m.meri === 'attended' ||
+    (m.notes && m.notes.length > 0)
+  ) {
+    return 'notes';
+  }
+  return 'prep';
 }
 
 /** Naive local Y-M-D + H:M composer for the minimal New Meeting form — same
@@ -437,8 +470,32 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
   const [viewMode, setViewMode] = useState<MeetingViewMode>('day');
   const [cursor, setCursor] = useState<Date>(() => new Date());
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+  // The drawer's active tab — owned here (not by MeetingDetailPanel, which is
+  // fully controlled) and round-tripped through the `tab` URL param, the same
+  // contract `meeting`/`view`/`date` already use. Phase 1a read this param
+  // only to pass it through untouched on writes; this phase is the one that
+  // actually owns it now that the real drawer is mounted.
+  const [activeTab, setActiveTab] = useState<DetailTab>('prep');
   const [historyBatch, setHistoryBatch] = useState(0);
   const [newMeetingOpen, setNewMeetingOpen] = useState(false);
+  // Targets for the drawer's two sibling modals — same pattern as the
+  // canonical MeetingsV2.tsx: MeetingDetailPanel only calls onSendMeri /
+  // onRequestShare, it doesn't own either modal itself.
+  const [sendMeriTarget, setSendMeriTarget] = useState<Meeting | null>(null);
+  const [shareTarget, setShareTarget] = useState<Meeting | null>(null);
+
+  // Same capabilities probe as the canonical EngagementPage.tsx (identical
+  // query key, so the two pages share one cache entry) — the drawer's
+  // Generate/Regenerate controls need to know whether AI is actually
+  // configured rather than assuming it always is.
+  const capabilities = useQuery<{ ai: { activeProvider: 'openai' | 'anthropic' | null } }>({
+    queryKey: ['engagement-capabilities'],
+    queryFn: async () =>
+      (await api.get<{ ai: { activeProvider: 'openai' | 'anthropic' | null } }>(
+        '/api/engagement/capabilities',
+      )).data,
+  });
+  const aiConfigured = Boolean(capabilities.data?.ai?.activeProvider);
 
   // Same durable URL⇄state pattern as the canonical EngagementPage.tsx (two
   // guarded effects: URL→state and state→URL, each skipping the other's own
@@ -454,18 +511,21 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
     const nextView = parseViewMode(searchParams.get('view'));
     const nextDateKey = searchParams.get('date');
     const nextMeeting = searchParams.get('meeting');
+    const nextTab = parseDetailTab(searchParams.get('tab'));
     const currentCursorKey = dayKey(cursor);
 
     const hasChange =
       (nextView !== null && nextView !== viewMode) ||
       (nextDateKey !== null && nextDateKey !== currentCursorKey) ||
-      (nextMeeting ?? null) !== selectedMeetingId;
+      (nextMeeting ?? null) !== selectedMeetingId ||
+      (nextTab !== null && nextTab !== activeTab);
     if (!hasChange) return;
 
     syncingFromUrlRef.current = true;
     if (nextView) setViewMode(nextView);
     if (nextDateKey) setCursor(localDateFromKey(nextDateKey));
     setSelectedMeetingId(nextMeeting ?? null);
+    setActiveTab(nextTab ?? 'prep');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -477,12 +537,13 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
     const params = new URLSearchParams();
     if (viewMode !== 'day') params.set('view', viewMode);
     params.set('date', dayKey(cursor));
-    if (selectedMeetingId) params.set('meeting', selectedMeetingId);
-    // `tab` belongs to the next phase's drawer — this component never reads
-    // it for its own logic, but a deep link carrying it must round-trip
-    // untouched instead of being silently dropped on the next URL write.
-    const existingTab = searchParams.get('tab');
-    if (existingTab) params.set('tab', existingTab);
+    // `tab` only means anything alongside a selected meeting, and only when
+    // it's not the default — same "only serialize non-default" minimalism
+    // the canonical EngagementPage.tsx uses for its own `detail` param.
+    if (selectedMeetingId) {
+      params.set('meeting', selectedMeetingId);
+      if (activeTab !== 'prep') params.set('tab', activeTab);
+    }
 
     const nextSearch = params.toString();
     if (nextSearch === searchParams.toString()) return;
@@ -493,7 +554,7 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
       { replace: true },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, cursor, selectedMeetingId, navigate]);
+  }, [viewMode, cursor, selectedMeetingId, activeTab, navigate]);
 
   const range = useMemo(() => {
     if (viewMode === 'month') {
@@ -611,8 +672,15 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
     setViewMode('day');
   }
 
+  // Opening a genuinely new meeting jumps to its best tab (bestDetailTab) —
+  // mirrors the canonical MeetingsV2.tsx's openMeeting(). Re-clicking the
+  // already-open meeting (or a deep link that already set both `meeting` and
+  // `tab`) must NOT clobber a manual tab change, so this only fires the
+  // heuristic when the id is actually changing.
   function selectMeeting(m: Meeting) {
+    const isNewMeeting = m.id !== selectedMeetingId;
     setSelectedMeetingId(m.id);
+    if (isNewMeeting) setActiveTab(bestDetailTab(m));
   }
 
   function clearSelection() {
@@ -862,12 +930,23 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
             </button>
           </div>
         ) : selectedMeeting ? (
-          <div className="vmtg-drawer-host">
-            <span className="uui-eyebrow">Selected meeting</span>
-            <p className="vmtg-drawer-host__title">{selectedMeeting.subject}</p>
-            <p className="vmtg-drawer-host__note">
-              Prep, Meeting Notes and Debrief mount here in the next phase of this reskin.
-            </p>
+          // MeetingDetailPanel (canonical) is a self-positioning slide-over
+          // (position:absolute, top/right/bottom:0) — this viewport gives it
+          // the sized, position:relative/overflow:hidden ancestor it needs,
+          // same role the canonical MeetingsV2.tsx's own wrapping div plays.
+          // Its own `min(680px,92%)` width rule then naturally resolves
+          // against THIS narrower side rail rather than the full workspace.
+          <div className="vmtg-drawer-viewport">
+            <MeetingDetailPanel
+              meeting={selectedMeeting}
+              open
+              onClose={clearSelection}
+              aiConfigured={aiConfigured}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onSendMeri={(m) => setSendMeriTarget(m)}
+              onRequestShare={(m) => setShareTarget(m)}
+            />
           </div>
         ) : (
           <div className="vmtg-panel">
@@ -884,6 +963,16 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
         error={createMeeting.isError ? 'Could not save the meeting. Try again.' : null}
         onClose={() => setNewMeetingOpen(false)}
         onSave={(input) => createMeeting.mutate(input)}
+      />
+      <SendMeriModal
+        meeting={sendMeriTarget}
+        open={Boolean(sendMeriTarget)}
+        onClose={() => setSendMeriTarget(null)}
+      />
+      <ShareConfirmation
+        meeting={shareTarget}
+        open={Boolean(shareTarget)}
+        onClose={() => setShareTarget(null)}
       />
     </div>
   );

@@ -14,23 +14,45 @@ import type { Meeting } from '../../../pages/engagement/meetings/meetings-types.
  * same way ClientCrmPage.test.tsx and MeetingsV2.test.tsx already do, so
  * these tests isolate this component's own toolbar/state/calendar-state
  * wiring rather than exercising the real network layer.
+ *
+ * The drawer phase mounts the REAL canonical MeetingDetailPanel (reused, not
+ * forked) once a meeting is selected, so meetings-api.js can no longer be
+ * replaced wholesale the way it was in Phase 1a — that would leave every
+ * OTHER hook the drawer's tree imports (useGeneratePrep, useMeetingDebriefs,
+ * useMeetingNotes, useClientOptions, etc.) undefined and throw the moment a
+ * meeting is selected. Spreading the real module and overriding only
+ * useMeetings/useMeeting (the two THIS component calls directly) keeps this
+ * file's own calendar-state control while letting the drawer's hooks run for
+ * real against the mocked useApi below — same convention NotesTab.test.tsx /
+ * DebriefTab.test.tsx already use for the real components they exercise.
  */
 
 const useMeetingsMock = vi.fn();
 const useMeetingMock = vi.fn();
-vi.mock('../../../pages/engagement/meetings/meetings-api.js', () => ({
-  meetingsListKey: 'meetings-v2',
-  useMeetings: (...args: unknown[]) => useMeetingsMock(...args),
-  useMeeting: (...args: unknown[]) => useMeetingMock(...args),
-}));
+vi.mock('../../../pages/engagement/meetings/meetings-api.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../pages/engagement/meetings/meetings-api.js')>();
+  return {
+    ...actual,
+    meetingsListKey: 'meetings-v2',
+    useMeetings: (...args: unknown[]) => useMeetingsMock(...args),
+    useMeeting: (...args: unknown[]) => useMeetingMock(...args),
+  };
+});
 
 // useApi pulls in Clerk's useAuth, which throws without a ClerkProvider — same
 // mock shape ClientCrmPage.test.tsx already uses for the identical reason.
+// `get` is a blanket empty-list/empty-object response for whichever endpoint
+// asks (calendar, capabilities, client options, notes, debriefs — none of the
+// stage-pill fixtures below need a populated one); `patch` was added for the
+// drawer's real useUpdatePrep/useUpdateNote/useSaveDebrief, unused by
+// Phase 1a's own tests but now reachable once a meeting is selected.
 vi.mock('../../../lib/use-api.js', () => ({
   useApi: () => ({
     get: () => Promise.resolve({ data: [] }),
     post: () => Promise.resolve({ data: { id: 'created-1', startsAt: new Date().toISOString() } }),
     put: () => Promise.resolve({ data: {} }),
+    patch: () => Promise.resolve({ data: {} }),
     delete: () => Promise.resolve({ data: {} }),
   }),
 }));
@@ -350,7 +372,7 @@ describe('VNextMeetingsWorkspace', () => {
       expect(locationSearch()).not.toContain('meeting=');
     });
 
-    test('a selected id outside the fetched range still resolves via useMeeting and renders the drawer host placeholder', () => {
+    test('a selected id outside the fetched range still resolves via useMeeting and mounts the real drawer', () => {
       const fallback = makeMeeting({ id: 'outside-range', subject: 'Deep-linked meeting' });
       useMeetingMock.mockReturnValue({
         data: fallback,
@@ -361,8 +383,81 @@ describe('VNextMeetingsWorkspace', () => {
       renderWorkspace('/engagement/meetings?date=2026-08-19&meeting=outside-range');
 
       expect(useMeetingMock).toHaveBeenCalledWith('outside-range');
-      expect(screen.getByText('Deep-linked meeting')).toBeInTheDocument();
-      expect(screen.getByText(/mount here in the next phase/i)).toBeInTheDocument();
+      // The real MeetingDetailPanel (canonical, reused) now mounts in place of
+      // the Phase 1a placeholder — its own header renders the subject as an
+      // <h1>, and (since this meeting has no preps yet) Prep's real
+      // "Not started" stage pill, confirming the actual drawer is live, not a
+      // stand-in.
+      expect(screen.getByRole('heading', { name: 'Deep-linked meeting' })).toBeInTheDocument();
+      expect(screen.getByText('Not started')).toBeInTheDocument();
+    });
+  });
+
+  describe('drawer mount (real MeetingDetailPanel, reused from the canonical Meetings module)', () => {
+    test('Prep tab: a meeting with no preps yet shows the real "Not started" stage pill', () => {
+      const meeting = makeMeeting({ id: 'prep-fixture', preps: [] });
+      useMeetingsMock.mockReturnValue({
+        data: [meeting],
+        isLoading: false,
+        isError: false,
+        isFetching: false,
+        refetch: vi.fn(),
+      });
+      renderWorkspace('/engagement/meetings?date=2026-08-19&meeting=prep-fixture');
+
+      expect(screen.getByRole('heading', { name: 'Kickoff call' })).toBeInTheDocument();
+      expect(screen.getByText('Not started')).toBeInTheDocument();
+      expect(screen.getByText('No prep generated yet')).toBeInTheDocument();
+    });
+
+    test('Notes tab: a non-virtual meeting with no notes shows the real "Unavailable" stage pill', () => {
+      const meeting = makeMeeting({
+        id: 'notes-fixture',
+        isVirtual: false,
+        joinLink: null,
+        meri: null,
+      });
+      useMeetingsMock.mockReturnValue({
+        data: [meeting],
+        isLoading: false,
+        isError: false,
+        isFetching: false,
+        refetch: vi.fn(),
+      });
+      // `tab=notes` deep-links straight onto the tab — the URL→state sync
+      // effect applies an explicit `tab` param even for a meeting selected in
+      // the same URL write (bestDetailTab's auto-jump only fires on an
+      // in-app row/chip click, per selectMeeting's own comment).
+      renderWorkspace('/engagement/meetings?date=2026-08-19&meeting=notes-fixture&tab=notes');
+
+      expect(screen.getByText('Unavailable')).toBeInTheDocument();
+      expect(screen.getByText('Notes unavailable')).toBeInTheDocument();
+    });
+
+    test('Debrief tab: an ended meeting with no debrief yet shows the real "Not started" stage pill and the source picker', async () => {
+      // Ended (endsAt in the past) so Debrief is unlocked and its own tab
+      // button is clickable — a still-locked meeting would auto-redirect
+      // straight back to Prep (MeetingDetailPanel's own debriefLocked guard,
+      // covered by MeetingDetailPanel.test.tsx), so it can't stably show
+      // anything on Debrief to assert against here.
+      const meeting = makeMeeting({
+        id: 'debrief-fixture',
+        startsAt: new Date(2020, 0, 1, 10, 0).toISOString(),
+        endsAt: new Date(2020, 0, 1, 10, 30).toISOString(),
+        meri: 'done',
+      });
+      useMeetingsMock.mockReturnValue({
+        data: [meeting],
+        isLoading: false,
+        isError: false,
+        isFetching: false,
+        refetch: vi.fn(),
+      });
+      renderWorkspace('/engagement/meetings?date=2026-08-19&meeting=debrief-fixture');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Debrief' }));
+      await screen.findByText('Not started');
+      expect(screen.getByText(/choose a source for this meeting's debrief/i)).toBeInTheDocument();
     });
   });
 
