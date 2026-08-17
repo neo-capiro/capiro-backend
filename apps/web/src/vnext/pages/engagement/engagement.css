@@ -117,7 +117,12 @@
 .capiro-vnext-root .uui-state-pill,
 .capiro-vnext-root .uui-version-pill,
 .capiro-vnext-root .uui-preflight-row em,
-.capiro-vnext-root .uui-client-scope span,
+/* `:first-child` (not a bare `span`): the scope control now holds TWO spans —
+   the mono CLIENT eyebrow and the value. Matching every span here made the
+   value inherit the mono face, and the sibling `> span` rule below then also
+   gave it 11px/uppercase/#98A2B3, so the control rendered "CLIENT ALL
+   CLIENTS" as one eyebrow instead of a label plus a 14px/600 value. */
+.capiro-vnext-root .uui-client-scope > span:first-child,
 .capiro-vnext-root .uui-report-status-trigger,
 .capiro-vnext-root .uui-report-pending {
   font-family: var(--eng-font-mono);
@@ -173,7 +178,7 @@
   outline: 2px solid #4a7a9b;
   outline-offset: 2px;
 }
-.capiro-vnext-root .uui-client-scope > span {
+.capiro-vnext-root .uui-client-scope > span:first-child {
   font-size: 11px;
   font-weight: 500;
   line-height: 1;
