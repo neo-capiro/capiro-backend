@@ -1,17 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  ownMailMessageWhere,
+  ownMeetingWhere,
+  ownOutreachRecordWhere,
+} from '../../engagement/engagement-access.helpers.js';
 import type { KnowledgeJsonObject } from '../../knowledge/knowledge.types.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import type { RetrievalSourceAdapter } from '../retrieval-source.adapter.js';
 import type {
   RetrievalDomain,
   RetrievalRecord,
   RetrievalRequest,
   RetrievalSourceResult,
+  RetrievalSourceStatus,
   SemanticDatasetDescriptor,
 } from '../retrieval-v2.types.js';
 
 const MAX_PAGE_SIZE = 100;
+const MAILBOX_PROVIDERS = ['microsoft_365', 'google_workspace', 'imap_caldav'] as const;
 
 type CoreDomain = 'clients' | 'contacts' | 'mail' | 'meetings' | 'tasks' | 'outreach';
 
@@ -21,6 +28,7 @@ interface PageResult {
   hasMore: boolean;
   nextCursor?: string;
   lastSyncAt?: Date;
+  sourceStatus?: RetrievalSourceStatus;
   degradedReason?: string;
 }
 
@@ -87,7 +95,7 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
         pageSize,
         cursor,
       );
-      const sourceStatus = page.degradedReason ? 'degraded' : 'healthy';
+      const sourceStatus = page.sourceStatus ?? (page.degradedReason ? 'degraded' : 'healthy');
       const paginationComplete = !page.hasMore;
       const coverageComplete = sourceStatus === 'healthy' && paginationComplete;
 
@@ -325,9 +333,9 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
             }
           : undefined;
     const where: Prisma.MailMessageWhereInput = {
-      removedAt: null,
       AND: [
         threadScope,
+        ownMailMessageWhere(request.caller.userId),
         ...(temporalScope ? [temporalScope] : []),
         ...(query
           ? [
@@ -343,7 +351,7 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
           : []),
       ],
     };
-    const [total, rows, sync] = await Promise.all([
+    const [total, rows, mailboxConnections] = await Promise.all([
       tx.mailMessage.count({ where }),
       tx.mailMessage.findMany({
         where,
@@ -368,10 +376,13 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
           thread: { select: { clientId: true, subject: true } },
         },
       }),
-      tx.integrationConnection.findFirst({
-        where: { status: 'connected' },
-        orderBy: { lastSyncAt: 'desc' },
-        select: { lastSyncAt: true },
+      tx.integrationConnection.findMany({
+        where: {
+          createdByUserId: request.caller.userId,
+          provider: { in: [...MAILBOX_PROVIDERS] },
+        },
+        orderBy: { id: 'asc' },
+        select: { id: true, status: true, lastSyncAt: true },
       }),
     ]);
     const result = this.page('mail', rows, total, pageSize, (row) => ({
@@ -386,7 +397,32 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
       }),
       provenance: { source: 'mail_messages', recordId: row.id },
     }));
-    result.lastSyncAt = sync?.lastSyncAt ?? undefined;
+
+    const connectedMailboxes = mailboxConnections.filter(
+      (connection) => connection.status === 'connected',
+    );
+    const completedSyncs = connectedMailboxes
+      .map((connection) => connection.lastSyncAt)
+      .filter((value): value is Date => value !== null);
+    result.lastSyncAt = completedSyncs.reduce<Date | undefined>(
+      (oldest, value) => (!oldest || value < oldest ? value : oldest),
+      undefined,
+    );
+
+    if (mailboxConnections.length === 0) {
+      result.sourceStatus = 'unavailable';
+      result.degradedReason = 'authorized_mailbox_connection_not_found';
+    } else if (connectedMailboxes.length === 0) {
+      result.sourceStatus = 'unavailable';
+      result.degradedReason = 'authorized_mailbox_not_connected';
+    } else if (connectedMailboxes.length !== mailboxConnections.length) {
+      result.sourceStatus = 'degraded';
+      result.degradedReason = 'one_or_more_authorized_mailboxes_not_connected';
+    } else if (connectedMailboxes.some((connection) => connection.lastSyncAt === null)) {
+      result.sourceStatus = 'degraded';
+      result.degradedReason = 'one_or_more_authorized_mailbox_syncs_incomplete';
+    }
+
     return result;
   }
 
@@ -415,7 +451,7 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
     const where: Prisma.MeetingWhereInput = {
       AND: [
         clientScope,
-        { OR: [{ createdByUserId: request.caller.userId }, { sharedAt: { not: null } }] },
+        ownMeetingWhere(request.caller.userId),
         ...(temporalScope ? [temporalScope] : []),
         ...(query
           ? [
@@ -458,7 +494,11 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
         },
       }),
       tx.integrationConnection.findFirst({
-        where: { status: 'connected' },
+        where: {
+          createdByUserId: request.caller.userId,
+          provider: { in: [...MAILBOX_PROVIDERS] },
+          status: 'connected',
+        },
         orderBy: { lastSyncAt: 'desc' },
         select: { lastSyncAt: true },
       }),
@@ -568,6 +608,7 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
       deletedAt: null,
       AND: [
         clientScope,
+        ownOutreachRecordWhere(request.caller.userId),
         ...(temporalScope ? [temporalScope] : []),
         ...(query
           ? [

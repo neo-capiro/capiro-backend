@@ -15,8 +15,9 @@ Callers provide an explicit `exactLexical` kind and value. Retrieval V2 never gu
 - Canonical names, aliases, and identifiers reuse the Phase 5 canonical entity registry and its existing exact alias/identifier indexes.
 - Canonical identity lookup uses `UniversalEntityResolutionService.preview()` so retrieval is read-only and cannot create or merge identity.
 - Client UEI/CAGE/appropriation/PE matching reads tenant CRM tables and retains the existing ethical-wall visibility rule.
+- Exact client-domain lookup walks the full authorized client set in bounded pages and applies the shared domain normalizer to every stored website. It does not cap a broad substring prefilter and then falsely claim completion.
 - PE codes read `program_element` directly and exclude soft-retired rows.
-- Program names reuse `program` + `program_alias` and the established `alias_normalized` convention.
+- Program names reuse `program` + `program_alias` and the established `alias_normalized` convention. Canonical program-name lookup uses the same normalized SQL expression as `program_canonical_name_exact_idx`.
 - Federal bill IDs read `congress_bill`.
 - Contract opportunity IDs read `sam_opportunity`.
 - Federal award IDs/PIID/FAIN/recipient UEI read `federal_award`.
@@ -43,6 +44,7 @@ New indexes cover only query shapes that were missing efficient exact lookup, in
 - Walled clients are visible only with an explicit `ClientMemoryAccess` grant.
 - If a caller explicitly supplies client IDs and any requested client is unauthorized, the entire scoped retrieval fails closed.
 - A completed exact authoritative scan may truthfully return zero records with `coverageComplete=true`.
+- A source failure is returned as explicit `error` coverage for that domain. Healthy requested domains are preserved; one failed source cannot discard the full response or masquerade as a complete empty scan.
 - Unsupported domain/kind combinations are explicit `unsupported` coverage, never silently broadened to fuzzy/semantic matching.
 - Exact scans are capped at 500 returned matches. Hitting the cap is `degraded`, `truncated`, and incomplete rather than pretending exhaustive coverage.
 

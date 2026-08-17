@@ -3,6 +3,8 @@ import { SemanticDataCatalogService } from '../data-catalog/semantic-data-catalo
 import type { RetrievalRequest } from '../retrieval-v2.types.js';
 import { CorePrismaRetrievalAdapter } from './core-prisma-retrieval.adapter.js';
 
+const DEFAULT_MAIL_SYNC = new Date('2026-08-16T12:00:00.000Z');
+
 const request = (overrides: Partial<RetrievalRequest> = {}): RetrievalRequest => ({
   queryClass: 'lookup',
   requestedDomains: ['clients'],
@@ -41,7 +43,14 @@ function setup(txOverrides: Record<string, unknown> = {}) {
       count: jest.fn().mockResolvedValue(0),
     },
     integrationConnection: {
-      findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([
+        {
+          id: 'mail-connection-1',
+          status: 'connected',
+          lastSyncAt: DEFAULT_MAIL_SYNC,
+        },
+      ]),
+      findFirst: jest.fn().mockResolvedValue({ lastSyncAt: DEFAULT_MAIL_SYNC }),
     },
     ...txOverrides,
   };
@@ -117,7 +126,7 @@ describe('CorePrismaRetrievalAdapter', () => {
     expect(tx.mailMessage.count).not.toHaveBeenCalled();
   });
 
-  it('scopes a client-specific meeting retrieval exactly to visible clients and only user-owned or explicitly shared meetings', async () => {
+  it('scopes meeting retrieval to the established owner predicate and excludes deleted meetings', async () => {
     const { adapter, catalog, tx } = setup();
 
     const result = await adapter.retrieve(
@@ -129,9 +138,24 @@ describe('CorePrismaRetrievalAdapter', () => {
       where: {
         AND: [
           { clientId: { in: ['client-visible'] } },
-          { OR: [{ createdByUserId: 'user-1' }, { sharedAt: { not: null } }] },
+          {
+            OR: [
+              { createdByUserId: 'user-1' },
+              { connection: { createdByUserId: 'user-1' } },
+            ],
+            status: { not: 'deleted' },
+          },
         ],
       },
+    });
+    expect(tx.integrationConnection.findFirst).toHaveBeenCalledWith({
+      where: {
+        createdByUserId: 'user-1',
+        provider: { in: ['microsoft_365', 'google_workspace', 'imap_caldav'] },
+        status: 'connected',
+      },
+      orderBy: { lastSyncAt: 'desc' },
+      select: { lastSyncAt: true },
     });
     expect(result).toMatchObject({
       sourceStatus: 'degraded',
@@ -140,20 +164,78 @@ describe('CorePrismaRetrievalAdapter', () => {
     });
   });
 
-  it('keeps removed mail out and excludes unassigned mail from an explicit client scope', async () => {
+  it('keeps removed and foreign-owner mail out of an explicit client scope', async () => {
     const { adapter, catalog, tx } = setup();
 
     await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
 
     expect(tx.mailMessage.count).toHaveBeenCalledWith({
       where: {
-        removedAt: null,
-        AND: [{ thread: { clientId: { in: ['client-visible'] } } }],
+        AND: [
+          { thread: { clientId: { in: ['client-visible'] } } },
+          { connection: { createdByUserId: 'user-1' }, removedAt: null },
+        ],
       },
+    });
+    expect(tx.integrationConnection.findMany).toHaveBeenCalledWith({
+      where: {
+        createdByUserId: 'user-1',
+        provider: { in: ['microsoft_365', 'google_workspace', 'imap_caldav'] },
+      },
+      orderBy: { id: 'asc' },
+      select: { id: true, status: true, lastSyncAt: true },
     });
   });
 
-  it('keeps soft-deleted outreach out and excludes unassigned outreach from an explicit client scope', async () => {
+  it('does not report a complete empty mail scan when the caller has no authorized mailbox connection', async () => {
+    const { adapter, catalog, tx } = setup();
+    tx.integrationConnection.findMany.mockReset().mockResolvedValue([]);
+
+    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+
+    expect(result).toMatchObject({
+      returned: 0,
+      sourceStatus: 'unavailable',
+      paginationComplete: true,
+      coverageComplete: false,
+      stopReason: 'authorized_mailbox_connection_not_found',
+    });
+  });
+
+  it('marks mail coverage degraded when one authorized mailbox is not connected', async () => {
+    const { adapter, catalog, tx } = setup();
+    tx.integrationConnection.findMany.mockReset().mockResolvedValue([
+      { id: 'mail-1', status: 'connected', lastSyncAt: DEFAULT_MAIL_SYNC },
+      { id: 'mail-2', status: 'error', lastSyncAt: null },
+    ]);
+
+    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+
+    expect(result).toMatchObject({
+      sourceStatus: 'degraded',
+      coverageComplete: false,
+      stopReason: 'one_or_more_authorized_mailboxes_not_connected',
+    });
+  });
+
+  it('reports the stalest completed authorized mailbox sync rather than a fresher unrelated connection', async () => {
+    const { adapter, catalog, tx } = setup();
+    const older = new Date('2026-08-10T12:00:00.000Z');
+    tx.integrationConnection.findMany.mockReset().mockResolvedValue([
+      { id: 'mail-1', status: 'connected', lastSyncAt: DEFAULT_MAIL_SYNC },
+      { id: 'mail-2', status: 'connected', lastSyncAt: older },
+    ]);
+
+    const result = await adapter.retrieve(catalog.get('mail'), request({ requestedDomains: ['mail'] }));
+
+    expect(result).toMatchObject({
+      sourceStatus: 'healthy',
+      coverageComplete: true,
+      lastSyncAt: older,
+    });
+  });
+
+  it('keeps soft-deleted, foreign-owner, and reserved internal outreach out', async () => {
     const { adapter, catalog, tx } = setup();
 
     await adapter.retrieve(
@@ -164,7 +246,13 @@ describe('CorePrismaRetrievalAdapter', () => {
     expect(tx.outreachRecord.count).toHaveBeenCalledWith({
       where: {
         deletedAt: null,
-        AND: [{ clientId: { in: ['client-visible'] } }],
+        AND: [
+          { clientId: { in: ['client-visible'] } },
+          {
+            createdByUserId: 'user-1',
+            AND: [{ type: { notIn: ['outreach_v3'] } }],
+          },
+        ],
       },
     });
   });
@@ -182,9 +270,9 @@ describe('CorePrismaRetrievalAdapter', () => {
 
     expect(tx.mailMessage.count).toHaveBeenCalledWith({
       where: {
-        removedAt: null,
         AND: [
           { thread: { OR: [{ clientId: null }, { clientId: { in: ['client-visible'] } }] } },
+          { connection: { createdByUserId: 'user-1' }, removedAt: null },
         ],
       },
     });
@@ -241,9 +329,9 @@ describe('CorePrismaRetrievalAdapter', () => {
 
     expect(tx.mailMessage.count).toHaveBeenCalledWith({
       where: {
-        removedAt: null,
         AND: [
           { thread: { clientId: { in: ['client-visible'] } } },
+          { connection: { createdByUserId: 'user-1' }, removedAt: null },
           {
             OR: [
               { receivedAt: { gte: windowStart, lt: windowEnd } },

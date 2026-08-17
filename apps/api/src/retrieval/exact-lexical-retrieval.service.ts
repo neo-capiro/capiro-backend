@@ -21,6 +21,7 @@ import type {
 } from './retrieval-v2.types.js';
 
 const MAX_EXACT_MATCHES = 500;
+const CLIENT_DOMAIN_SCAN_PAGE_SIZE = 250;
 
 export type NormalizedExactLexicalQuery =
   | { kind: 'canonical_name'; value: string; normalizedText: string }
@@ -45,6 +46,14 @@ interface PublicRow {
   record_id: string;
   payload: unknown;
   updated_at: Date | null;
+}
+
+interface ProgramExactRow {
+  id: string;
+  canonical_name: string;
+  component: string | null;
+  mdap_code: string | null;
+  updated_at: Date;
 }
 
 function jsonObject(value: unknown): KnowledgeJsonObject {
@@ -77,7 +86,18 @@ export class ExactLexicalRetrievalService {
 
     const exact = normalizeExactLexicalQuery(request.exactLexical);
     const domains = [...new Set(request.requestedDomains)];
-    return Promise.all(domains.map((domain) => this.retrieveDomain(domain, exact, request)));
+    return Promise.all(
+      domains.map(async (domain) => {
+        try {
+          return await this.retrieveDomain(domain, exact, request);
+        } catch {
+          // A failed authoritative source must remain visible in CoverageManifest.
+          // Do not let one database/provider failure discard healthy exact results
+          // from the other requested domains or masquerade as a complete empty scan.
+          return this.failed(domain, request, 'exact_lexical_source_failed');
+        }
+      }),
+    );
   }
 
   private retrieveDomain(
@@ -146,6 +166,10 @@ export class ExactLexicalRetrievalService {
         return this.retrieveClientCapabilities(tx, exact, request, requestedClientIds);
       }
 
+      if (exact.kind === 'domain') {
+        return this.retrieveClientsByDomain(tx, exact, request, requestedClientIds);
+      }
+
       const candidates = await tx.client.findMany({
         where: {
           ...(requestedClientIds.length > 0 ? { id: { in: requestedClientIds } } : {}),
@@ -165,24 +189,9 @@ export class ExactLexicalRetrievalService {
         take: MAX_EXACT_MATCHES + 1,
       });
 
-      // Website is not stored as a normalized domain column, so the DB narrows
-      // candidates by contains and the shared domain normalizer performs the
-      // final equality check. No guessed subdomain/root-domain broadening.
-      const exactCandidates =
-        exact.kind === 'domain'
-          ? candidates.filter((client) => {
-              if (!client.website) return false;
-              try {
-                return normalizeDomain(client.website) === exact.normalizedIdentifier;
-              } catch {
-                return false;
-              }
-            })
-          : candidates;
-
       return this.boundedResult(
         'clients',
-        exactCandidates.map((client) => ({
+        candidates.map((client) => ({
           domain: 'clients',
           recordId: client.id,
           updatedAt: client.updatedAt,
@@ -205,6 +214,88 @@ export class ExactLexicalRetrievalService {
         requestedClientIds.length,
       );
     });
+  }
+
+  private async retrieveClientsByDomain(
+    tx: Prisma.TransactionClient,
+    exact: Extract<NormalizedExactLexicalQuery, { kind: 'domain' }>,
+    request: RetrievalRequest,
+    requestedClientIds: string[],
+  ): Promise<RetrievalSourceResult> {
+    const exactCandidates: RetrievalRecord[] = [];
+    let recordsEvaluated = 0;
+    let pagesRead = 0;
+    let cursor: string | undefined;
+
+    // `contains(domain)` followed by a 501-row cap can be exhausted by
+    // subdomains or unrelated URLs before the real exact domain is seen. Walk
+    // the authorized client set in bounded pages and normalize every website so
+    // completion means the full permitted set was actually checked.
+    while (true) {
+      const candidates = await tx.client.findMany({
+        where: {
+          ...(requestedClientIds.length > 0 ? { id: { in: requestedClientIds } } : {}),
+          OR: clientWallVisibility(request.caller.userId),
+          website: { not: null },
+        },
+        select: {
+          id: true,
+          name: true,
+          website: true,
+          uei: true,
+          cageCode: true,
+          status: true,
+          updatedAt: true,
+        },
+        orderBy: { id: 'asc' },
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+        take: CLIENT_DOMAIN_SCAN_PAGE_SIZE,
+      });
+
+      pagesRead += 1;
+      recordsEvaluated += candidates.length;
+      for (const client of candidates) {
+        if (!client.website) continue;
+        try {
+          if (normalizeDomain(client.website) !== exact.normalizedIdentifier) continue;
+        } catch {
+          continue;
+        }
+        exactCandidates.push({
+          domain: 'clients',
+          recordId: client.id,
+          updatedAt: client.updatedAt,
+          payload: jsonObject({
+            id: client.id,
+            name: client.name,
+            website: client.website,
+            uei: client.uei,
+            cageCode: client.cageCode,
+            status: client.status,
+            exactMatchKind: exact.kind,
+          }),
+          provenance: {
+            sourceType: 'clients',
+            sourceId: client.id,
+            matchKind: exact.kind,
+          },
+        });
+      }
+
+      if (exactCandidates.length > MAX_EXACT_MATCHES) break;
+      if (candidates.length < CLIENT_DOMAIN_SCAN_PAGE_SIZE) break;
+      cursor = candidates.at(-1)?.id;
+      if (!cursor) break;
+    }
+
+    return this.boundedResult(
+      'clients',
+      exactCandidates,
+      requestedClientIds.length,
+      requestedClientIds.length > 0 ? requestedClientIds.length : recordsEvaluated,
+      recordsEvaluated,
+      pagesRead,
+    );
   }
 
   private async retrieveClientCapabilities(
@@ -370,17 +461,18 @@ export class ExactLexicalRetrievalService {
 
     const aliasKey = normalizeProgramAlias(exact.value);
     const [canonicalRows, aliasRows] = await Promise.all([
-      this.prisma.program.findMany({
-        where: { status: 'active', canonicalName: { equals: exact.value, mode: 'insensitive' } },
-        select: {
-          id: true,
-          canonicalName: true,
-          component: true,
-          mdapCode: true,
-          updatedAt: true,
-        },
-        take: MAX_EXACT_MATCHES + 1,
-      }),
+      this.prisma.$queryRaw<ProgramExactRow[]>`
+        SELECT id::text AS id,
+               canonical_name,
+               component,
+               mdap_code,
+               updated_at
+        FROM program
+        WHERE status = 'active'
+          AND btrim(upper(regexp_replace(btrim(canonical_name), '[^[:alnum:]]+', ' ', 'g'))) = ${aliasKey}
+        ORDER BY id
+        LIMIT ${MAX_EXACT_MATCHES + 1}
+      `,
       this.prisma.programAlias.findMany({
         where: {
           aliasNormalized: aliasKey,
@@ -413,7 +505,16 @@ export class ExactLexicalRetrievalService {
         matchedAlias: string | null;
       }
     >();
-    for (const row of canonicalRows) byId.set(row.id, { ...row, matchedAlias: null });
+    for (const row of canonicalRows) {
+      byId.set(row.id, {
+        id: row.id,
+        canonicalName: row.canonical_name,
+        component: row.component,
+        mdapCode: row.mdap_code,
+        updatedAt: row.updated_at,
+        matchedAlias: null,
+      });
+    }
     for (const row of aliasRows) {
       if (!byId.has(row.program.id)) {
         byId.set(row.program.id, { ...row.program, matchedAlias: row.alias });
@@ -622,16 +723,19 @@ export class ExactLexicalRetrievalService {
     candidateRecords: RetrievalRecord[],
     requestedEntityCount: number,
     searchedEntityCount: number,
+    recordsEvaluated = candidateRecords.length,
+    pagesRead = 1,
   ): RetrievalSourceResult {
     const truncated = candidateRecords.length > MAX_EXACT_MATCHES;
     const records = candidateRecords.slice(0, MAX_EXACT_MATCHES);
     return this.result(
       domain,
       records,
-      candidateRecords.length,
+      recordsEvaluated,
       requestedEntityCount,
       searchedEntityCount,
       truncated,
+      pagesRead,
     );
   }
 
@@ -659,6 +763,7 @@ export class ExactLexicalRetrievalService {
     requestedEntityCount: number,
     searchedEntityCount: number,
     truncated: boolean,
+    pagesRead = 1,
   ): RetrievalSourceResult {
     return {
       domain,
@@ -671,7 +776,7 @@ export class ExactLexicalRetrievalService {
       recordsEvaluated,
       requestedEntityCount,
       searchedEntityCount,
-      pagesRead: 1,
+      pagesRead,
       paginationComplete: !truncated,
       coverageComplete: !truncated,
       stopReason: truncated
@@ -724,6 +829,28 @@ export class ExactLexicalRetrievalService {
       stopReason,
     };
   }
+
+  private failed(
+    domain: RetrievalDomain,
+    request: RetrievalRequest,
+    stopReason: string,
+  ): RetrievalSourceResult {
+    return {
+      domain,
+      records: [],
+      returned: 0,
+      hasMore: false,
+      truncated: false,
+      sourceStatus: 'error',
+      recordsEvaluated: 0,
+      requestedEntityCount: new Set(request.caller.clientIds ?? []).size,
+      searchedEntityCount: 0,
+      pagesRead: 0,
+      paginationComplete: false,
+      coverageComplete: false,
+      stopReason,
+    };
+  }
 }
 
 function clientWallVisibility(userId: string): Prisma.ClientWhereInput[] {
@@ -737,8 +864,6 @@ function clientExactWhere(exact: NormalizedExactLexicalQuery): Prisma.ClientWher
   switch (exact.kind) {
     case 'canonical_name':
       return { name: { equals: exact.value, mode: 'insensitive' } };
-    case 'domain':
-      return { website: { contains: exact.normalizedIdentifier, mode: 'insensitive' } };
     case 'uei':
       return { uei: { equals: exact.normalizedIdentifier, mode: 'insensitive' } };
     case 'cage':
