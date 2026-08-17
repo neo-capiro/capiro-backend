@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { EmbeddingsService } from './embeddings.service.js';
 import { ClientKbService } from './client-kb.service.js';
+import { EMBEDDING_PROVIDER } from './embedding-provider.js';
+import { getDefaultEmbeddingProvider } from './embedding-provider.factory.js';
 
 /**
  * Embeddings module, provides EmbeddingsService for on-write hooks in
@@ -8,11 +10,19 @@ import { ClientKbService } from './client-kb.service.js';
  * ClientKbService — the client knowledge-base indexer/retriever (F5) — for
  * lifecycle hooks (clients, engagement) and Meri retrieval.
  *
- * Imports nothing because PrismaService is exposed globally by PrismaModule
- * in AppModule. Exports the services so other feature modules can inject them.
+ * Provider selection is centralized here and in the same process-wide factory
+ * used by standalone sync/backfill code. Feature modules must not construct
+ * provider-specific clients of their own.
  */
 @Module({
-  providers: [EmbeddingsService, ClientKbService],
-  exports: [EmbeddingsService, ClientKbService],
+  providers: [
+    {
+      provide: EMBEDDING_PROVIDER,
+      useFactory: getDefaultEmbeddingProvider,
+    },
+    EmbeddingsService,
+    ClientKbService,
+  ],
+  exports: [EMBEDDING_PROVIDER, EmbeddingsService, ClientKbService],
 })
 export class EmbeddingsModule {}
