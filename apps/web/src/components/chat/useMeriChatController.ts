@@ -57,6 +57,7 @@ import {
   meriEffectiveIdentityKey,
   type ScopePersistStatus,
 } from './meri-route-guards.js';
+import { formatMeriHttpError } from './meri-http-error.js';
 import { isUsableAttachment, type StagedAttachment } from './ChatInput.js';
 import type { TrustStep } from './WorkPerformed.js';
 import type { CanvasArtifact } from './MeriCanvas.js';
@@ -1486,7 +1487,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
 
         if (!res.ok) {
           const text = await res.text().catch(() => '');
-          updateChatMessage(assistantId, `Error ${res.status}: ${text || res.statusText}`);
+          updateChatMessage(assistantId, formatMeriHttpError(res.status, text, res.statusText));
           return;
         }
 

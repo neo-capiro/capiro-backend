@@ -24,7 +24,7 @@ import {
   type MailboxSyncViewModel,
 } from '../../adapters/legacy/useMailboxSyncStatus.js';
 import { ShellOverlayProvider, useShellOverlay } from '../overlay-manager.js';
-import { openMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
+import { openVNextMeriWorkspaceWindow } from '../../../components/chat/meri-window.js';
 import { Icon, NAV_ICON_BY_ROUTE_ID } from './icons.js';
 import './shell-uui.css';
 
@@ -239,12 +239,12 @@ export function AppShellUuiView({
   const sectionLabel = topbarSectionLabel(location.pathname, navigation.primary);
 
   // Same MERI contract VNextShellChrome enforces (730:2574): Ctrl+J opens the
-  // separate workspace window.
+  // separate workspace window on the canonical /meri launcher.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'j') {
         event.preventDefault();
-        openMeriWorkspaceWindow();
+        openVNextMeriWorkspaceWindow();
       }
     };
     window.addEventListener('keydown', onKeyDown);

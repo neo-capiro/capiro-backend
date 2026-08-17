@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Logger,
   Param,
   Patch,
   Post,
@@ -45,6 +46,7 @@ import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
 import { renderReportToBrowserHtml, renderReportToWordHtml } from './meri-research.helpers.js';
+import { runMeriStreamWithSetupGuard } from './meri-stream-preflight.helpers.js';
 
 class CreateMeriConversationDto {
   @IsOptional()
@@ -181,6 +183,8 @@ class ResolveAttachmentTextDto {
 @UseGuards(RolesGuard)
 @Roles('standard_user')
 export class MeriController {
+  private readonly logger = new Logger(MeriController.name);
+
   constructor(
     private readonly service: MeriService,
     private readonly tools: MeriToolsService,
@@ -258,10 +262,6 @@ export class MeriController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no');
     // Cancel the model stream when the client disconnects or hits Stop, so we
     // stop burning tokens for an answer no one is reading (P0-4).
     const abort = new AbortController();
@@ -287,18 +287,33 @@ export class MeriController {
         : undefined;
     const bearerMatch = (req.headers.authorization ?? '').match(/^Bearer\s+(.+)$/i);
     const bearerToken = bearerMatch?.[1]?.trim() || undefined;
-    await this.service.streamMessage(
-      ctx,
-      id,
-      body.body,
+    // SSE headers stay deferred until the first frame. A pre-stream failure
+    // (provider credentials, conversation-store mismatch) must remain a
+    // classified JSON response — not Nest's generic HTTP 500 after the
+    // response has already been promoted to text/event-stream.
+    await runMeriStreamWithSetupGuard({
       res,
-      abort.signal,
-      body.mode ?? 'new',
-      body.attachmentIds ?? [],
-      bearerToken,
-      impersonateTenantId,
-    );
-    res.end();
+      stream: (sse) =>
+        this.service.streamMessage(
+          ctx,
+          id,
+          body.body,
+          sse,
+          abort.signal,
+          body.mode ?? 'new',
+          body.attachmentIds ?? [],
+          bearerToken,
+          impersonateTenantId,
+        ),
+      onError: (classified, err) => {
+        this.logger.error(
+          `Meri stream setup failed [${classified.code}] conversation=${id}: ${
+            err instanceof Error ? err.message : classified.message
+          }`,
+          err instanceof Error ? err.stack : undefined,
+        );
+      },
+    });
   }
 
   @Get('tools')

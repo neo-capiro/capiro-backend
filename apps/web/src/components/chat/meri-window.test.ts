@@ -122,4 +122,20 @@ describe('MeriV3 browser window', () => {
     } as Pick<Window, 'open' | 'screenX' | 'screenY' | 'outerWidth' | 'outerHeight'>;
     expect(openMeriWorkspaceWindow(opener, 'https://app.capiro.test')).toBeNull();
   });
+
+  test('navigates the current tab to /meri when the vNext popup is blocked', () => {
+    const assign = vi.fn();
+    const opener = {
+      open: vi.fn(() => null),
+      screenX: 0,
+      screenY: 0,
+      outerWidth: 1280,
+      outerHeight: 800,
+      location: { assign } as unknown as Location,
+    } as Pick<Window, 'open' | 'screenX' | 'screenY' | 'outerWidth' | 'outerHeight' | 'location'>;
+
+    const popup = openVNextMeriWorkspaceWindow(opener, 'https://os.capiro.test');
+    expect(popup).toBeNull();
+    expect(assign).toHaveBeenCalledWith(meriVNextWorkspaceUrl('https://os.capiro.test'));
+  });
 });

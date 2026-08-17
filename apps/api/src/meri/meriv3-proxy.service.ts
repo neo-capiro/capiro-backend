@@ -24,6 +24,7 @@ import {
 } from './meri-compliance.helpers.js';
 import { detectDeliverableReportRequest } from './meri-research-promote.helpers.js';
 import { planTurnRerun } from './meri-turn.helpers.js';
+import { meriProviderConfigurationError } from './meri-stream-preflight.helpers.js';
 import { classifyToolAction, isSideEffectingTool } from './meri-actions.helpers.js';
 import { MeriV3ChatClient, type MeriV3ChatStreamEvent } from './meriv3-chat.client.js';
 import { reasoningModeFromConversationMetadata } from './meriv3-conversation.helpers.js';
@@ -186,7 +187,12 @@ export class MeriV3ProxyService {
       conversation.summaryUpToMessageId ?? null,
     );
     const reasoningMode = reasoningModeFromConversationMetadata(conversation.metadata);
-    const aiProvider = await this.aiCredentials.resolveProvider(ctx, 'openai');
+    let aiProvider: Awaited<ReturnType<AiCredentialResolverService['resolveProvider']>>;
+    try {
+      aiProvider = await this.aiCredentials.resolveProvider(ctx, 'openai');
+    } catch (err) {
+      throw meriProviderConfigurationError(err);
+    }
     let clientKbSnapshot: string | undefined;
     if (conversation.clientId) {
       clientKbSnapshot =

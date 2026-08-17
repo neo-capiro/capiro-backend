@@ -113,6 +113,7 @@ import {
 import { confidenceLevel } from './meri-confidence.helpers.js';
 import { classifyToolAction, isSideEffectingTool } from './meri-actions.helpers.js';
 import { detectDeliverableReportRequest } from './meri-research-promote.helpers.js';
+import { meriProviderConfigurationError } from './meri-stream-preflight.helpers.js';
 import { buildMeriGroundingStatement } from './meri-grounding-statement.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import {
@@ -1070,8 +1071,13 @@ export class MeriService {
       // should change it. So: use the resolved key always, but keep CLIO_MODEL
       // as the model unless the call ran on a tenant key that carried an override.
       const meriModel = this.config.get('CLIO_MODEL', { infer: true });
-      const resolved = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
-      if (!resolved) throw new Error('ANTHROPIC_API_KEY not configured');
+      let resolved: Awaited<ReturnType<AiCredentialResolverService['resolveProvider']>>;
+      try {
+        resolved = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
+      } catch (err) {
+        throw meriProviderConfigurationError(err);
+      }
+      if (!resolved) throw meriProviderConfigurationError();
       const anthropicKey = resolved.apiKey;
       usedTenantKey = resolved.usedTenantKey;
       // A tenant key with its own modelOverride drives the model; otherwise
@@ -2033,7 +2039,12 @@ export class MeriService {
 
     // BYOK: resolve the tenant credential here (apps/api owns the store) and
     // forward it per-invocation — same pattern as the in-editor proxy.
-    const aiProvider = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
+    let aiProvider: Awaited<ReturnType<AiCredentialResolverService['resolveProvider']>>;
+    try {
+      aiProvider = await this.aiCredentials.resolveProvider(ctx, 'anthropic');
+    } catch (err) {
+      throw meriProviderConfigurationError(err);
+    }
 
     // Memory pre-warm (legacy parity): the orchestrator has no access to the
     // clio_memory store, so recall the same lines the legacy loop injects and

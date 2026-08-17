@@ -48,10 +48,14 @@ export function meriVNextWorkspaceUrl(
   return url.toString();
 }
 
-function openWorkspaceUrl(
-  url: string,
-  opener: Pick<Window, 'open' | 'screenX' | 'screenY' | 'outerWidth' | 'outerHeight'>,
-): Window | null {
+type MeriWindowOpener = Pick<
+  Window,
+  'open' | 'screenX' | 'screenY' | 'outerWidth' | 'outerHeight'
+> & {
+  location?: Pick<Location, 'assign'>;
+};
+
+function openWorkspaceUrl(url: string, opener: MeriWindowOpener): Window | null {
   const width = Math.max(980, Math.min(1480, Math.round(opener.outerWidth * 0.86)));
   const height = Math.max(720, Math.min(980, Math.round(opener.outerHeight * 0.9)));
   const left = Math.max(0, Math.round(opener.screenX + (opener.outerWidth - width) / 2));
@@ -70,6 +74,14 @@ function openWorkspaceUrl(
   return popup;
 }
 
+function navigateFallback(url: string, opener: MeriWindowOpener): void {
+  try {
+    opener.location?.assign(url);
+  } catch {
+    // A blocked navigation must not throw out of a click/hotkey handler.
+  }
+}
+
 /**
  * A real top-level browser window, not an element dragged inside Capiro. The OS
  * can move it to another monitor, resize it, maximize it and keep it beside the
@@ -77,7 +89,7 @@ function openWorkspaceUrl(
  * the same Meri workspace instead of multiplying sessions.
  */
 export function openMeriWorkspaceWindow(
-  opener: Pick<Window, 'open' | 'screenX' | 'screenY' | 'outerWidth' | 'outerHeight'> = window,
+  opener: MeriWindowOpener = window,
   origin = window.location.origin,
   context?: MeriWorkspaceContextRequest,
 ): Window | null {
@@ -86,11 +98,17 @@ export function openMeriWorkspaceWindow(
 
 /** Open the canonical vNext Meri route in the same reusable browser-window shell. */
 export function openVNextMeriWorkspaceWindow(
-  opener: Pick<Window, 'open' | 'screenX' | 'screenY' | 'outerWidth' | 'outerHeight'> = window,
+  opener: MeriWindowOpener = window,
   origin = window.location.origin,
   context?: MeriWorkspaceContextRequest,
 ): Window | null {
-  return openWorkspaceUrl(meriVNextWorkspaceUrl(origin, context), opener);
+  const url = meriVNextWorkspaceUrl(origin, context);
+  const popup = openWorkspaceUrl(url, opener);
+  if (popup) return popup;
+  // Popup blockers return null with no error. Fall back to same-tab /meri so
+  // the launcher never appears to do nothing.
+  navigateFallback(url, opener);
+  return null;
 }
 
 /**
@@ -100,7 +118,7 @@ export function openVNextMeriWorkspaceWindow(
  */
 export function openMeriWorkspaceWithContext(
   context: MeriWorkspaceContextRequest,
-  opener: Pick<Window, 'open' | 'screenX' | 'screenY' | 'outerWidth' | 'outerHeight'> = window,
+  opener: MeriWindowOpener = window,
   origin = window.location.origin,
 ): Window | null {
   return openMeriWorkspaceWindow(opener, origin, context);
