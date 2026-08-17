@@ -20,6 +20,14 @@ export default mergeConfig(base, {
       '@clerk/clerk-react': fileURLToPath(
         new URL('./src/vnext/testing/visual/clerk-stub.tsx', import.meta.url),
       ),
+      // Strategies is a container component (calls its data hooks directly,
+      // no fixture-injection prop) — alias matches the literal relative
+      // specifier every file in pages/strategies/ imports it by (Vite alias
+      // matching is a raw-specifier string match, not a resolved-path one),
+      // so the 'strategies' screen renders without touching production code.
+      './strategies-api.js': fileURLToPath(
+        new URL('./src/vnext/testing/visual/strategies-api-stub.ts', import.meta.url),
+      ),
     },
   },
 });

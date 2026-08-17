@@ -14,6 +14,8 @@ const SCREENS: readonly VNextVisualScreen[] = [
   'client-crm',
   'congressional-staff',
   'congressional-staff-empty',
+  'strategies',
+  'strategies-empty',
 ];
 
 const requested = params.get('screen');
