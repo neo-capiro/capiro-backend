@@ -31,7 +31,7 @@ function threadMeta(conversation: MeriConversation): string {
   const scope = (conversation.client?.name || 'General').toUpperCase();
   if (!Number.isFinite(date.getTime())) return `${scope} · DATE UNKNOWN`;
   const when = sameLocalDay(conversation.updatedAt)
-    ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+    ? date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
     : date.toLocaleDateString([], { month: 'short', day: 'numeric' }).toUpperCase();
   return `${scope} · ${when}`;
 }
@@ -232,7 +232,7 @@ export function VNextMeriThreadRail({
       <div className="vnext-meri__rail-left-top">
         <button type="button" className="vnext-meri__new-chat-btn" onClick={onNewChat}>
           <MeriIcon name="Plus" size={16} color="#ffffff" />
-          New chat
+          New thread
         </button>
       </div>
 
@@ -294,8 +294,8 @@ export function VNextMeriThreadRail({
               value={searchQuery}
               onChange={(event) => onSearchQueryChange(event.target.value)}
               onKeyDown={handleSearchKey}
-              placeholder="Search chats…"
-              aria-label="Search chats"
+              placeholder="Search chats and messages…"
+              aria-label="Search chats and messages"
             />
             {searchQuery ? (
               <button
@@ -320,6 +320,12 @@ export function VNextMeriThreadRail({
                 RETRY
               </button>
             </div>
+          ) : searchActive && search.isLoading ? (
+            <div className="vnext-meri__thread-skeleton-list" aria-label="Loading threads">
+              {[1, 2, 3, 4, 5].map((key) => (
+                <div key={key} className="vnext-meri__thread-skeleton" />
+              ))}
+            </div>
           ) : visible.length === 0 && searchQuery.trim() ? (
             <div className="vnext-meri__thread-empty">
               <div className="vnext-meri__thread-empty-body">
@@ -333,8 +339,8 @@ export function VNextMeriThreadRail({
             <div className="vnext-meri__thread-empty">
               <div className="vnext-meri__thread-empty-label">NO THREADS YET</div>
               <div className="vnext-meri__thread-empty-body">
-                Your first question starts the history. Threads can be scoped to a client and stay
-                in this workspace.
+                Ask Meri something, or start from a saved prompt. Threads are grouped by the
+                client they are scoped to.
               </div>
             </div>
           ) : (
@@ -451,6 +457,16 @@ export function VNextMeriThreadRail({
                               role="menuitem"
                               className="vnext-meri__row-menu-item"
                               disabled
+                              title="Moving threads between workspaces is not available yet."
+                            >
+                              <MeriIcon name="SwitchHorizontal01" size={14} color="#344054" />
+                              Move to workspace
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="vnext-meri__row-menu-item"
+                              disabled
                               title="Duplicate context is not available yet."
                             >
                               <MeriIcon name="Copy01" size={14} color="#344054" />
@@ -466,8 +482,8 @@ export function VNextMeriThreadRail({
                                 setConfirmFor(conversation);
                               }}
                             >
-                              <MeriIcon name="Trash01" size={14} color="#B42318" />
-                              Delete chat
+                              <MeriIcon name="Archive" size={14} color="#B42318" />
+                              Archive chat
                             </button>
                           </div>
                         ) : null}
@@ -510,10 +526,10 @@ export function VNextMeriThreadRail({
             aria-describedby="meri-delete-body"
           >
             <span className="vnext-meri__confirm-icon">
-              <MeriIcon name="AlertTriangle" size={17} color="#B42318" />
+              <MeriIcon name="Archive" size={17} color="#B42318" />
             </span>
             <div id="meri-delete-title" className="vnext-meri__confirm-title">
-              Delete this chat?
+              Archive this chat?
             </div>
             <div id="meri-delete-body" className="vnext-meri__confirm-body">
               “{displayThreadTitle(confirmFor.title, confirmFor.latestMessage?.body)}” is removed
@@ -534,7 +550,7 @@ export function VNextMeriThreadRail({
                 Cancel
               </button>
               <button type="button" className="vnext-meri__confirm-delete" onClick={() => void confirmDelete()}>
-                Delete chat
+                Archive chat
               </button>
             </div>
           </div>

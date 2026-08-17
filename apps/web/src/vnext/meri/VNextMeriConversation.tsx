@@ -7,6 +7,7 @@ import { MERI_LOGO_SRC, dayDividerLabel, localDayKey, threadKindIcon, threadScop
 import { VNextMeriMessage } from './VNextMeriMessage.js';
 import { VNextMeriComposer } from './VNextMeriComposer.js';
 import { VNextMeriReasoningControl } from './VNextMeriReasoningControl.js';
+import { MeriStartWork } from './MeriStartWork.js';
 
 const PROMPT_LIBRARY = [
   { text: 'What changed across my clients this week?', tag: 'PORTFOLIO · ALL CLIENTS' },
@@ -203,48 +204,14 @@ export function VNextMeriConversation({
                   onOpenIntegrations={onOpenIntegrations}
                 />
 
-                <div className="vnext-meri__prompt-library-head">
-                  <span className="vnext-meri__section-label">PROMPT LIBRARY</span>
-                  <span className="vnext-meri__prompt-library-rule" />
-                  <span className="vnext-meri__prompt-library-page">
-                    {libraryPage + 1} / {promptPages}
-                  </span>
-                  <div className="vnext-meri__prompt-library-nav">
-                    <button
-                      type="button"
-                      className="vnext-meri__prompt-nav-btn"
-                      disabled={libraryPage === 0}
-                      onClick={() => setLibraryPage((page) => Math.max(0, page - 1))}
-                      aria-label="Previous prompts"
-                    >
-                      <MeriIcon name="ChevronLeft" size={14} color="#98A2B3" />
-                    </button>
-                    <button
-                      type="button"
-                      className="vnext-meri__prompt-nav-btn"
-                      disabled={libraryPage >= promptPages - 1}
-                      onClick={() => setLibraryPage((page) => Math.min(promptPages - 1, page + 1))}
-                      aria-label="More prompts"
-                    >
-                      <MeriIcon name="ChevronRight" size={14} color="#98A2B3" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="vnext-meri__prompt-grid">
-                  {prompts.map((prompt) => (
-                    <button
-                      type="button"
-                      key={prompt.text}
-                      className="vnext-meri__prompt-card"
-                      disabled={isStreaming}
-                      onClick={() => submit(prompt.text)}
-                    >
-                      <span className="vnext-meri__prompt-card-text">{prompt.text}</span>
-                      <span className="vnext-meri__prompt-card-tag">{prompt.tag}</span>
-                    </button>
-                  ))}
-                </div>
+                <MeriStartWork
+                  controller={controller}
+                  onFillIntent={(text) => {
+                    // Fill the composer draft — the composer owns the send.
+                    // We dispatch a custom event the composer listens to.
+                    window.dispatchEvent(new CustomEvent('meri-fill-draft', { detail: text }));
+                  }}
+                />
               </div>
             ) : (
               <>

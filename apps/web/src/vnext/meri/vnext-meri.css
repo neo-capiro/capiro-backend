@@ -11,29 +11,138 @@
 
 .capiro-vnext-root .vnext-meri-page,
 .capiro-vnext-root .vnext-meri {
-  /* ── Module-specific design tokens (from the pixel-parity spec) ────────── */
-  --m-page-backdrop: #E7ECF1;
-  --m-surface: #ffffff;
-  --m-canvas-standard: #ffffff;
-  --m-canvas-busy: #F9FAFB;
-  --m-border: #EAECF0;
-  --m-border-strong: #D0D5DD;
-  --m-hairline: #F2F4F7;
-  --m-hover: #F9FAFB;
-  --m-text: #101828;
-  --m-text-body: #344054;
-  --m-text-muted: #475467;
-  --m-text-meta: #667085;
-  --m-text-faint: #98A2B3;
-  --m-metal-bg: linear-gradient(180deg, #39424F 0%, #1B2430 46%, #0E141C 100%);
+  /* ── Design tokens — Meri v4 standalone handoff (design_handoff_meri/README.md)
+     Values below are the literal handoff values. The neutral ramp and semantic
+     states are the Untitled UI set the prototype is built from; the older
+     --meri-* aliases at the bottom are kept pointing at the same literals so
+     existing consumers inherit the handoff values without edits. ─────────── */
+
+  /* Colour — neutrals (README §Design tokens › neutrals) */
+  --m-gray-900: #101828; /* primary text, primary fills, active icon */
+  --m-gray-800: #1D2939; /* dark-surface dividers, progress track on dark */
+  --m-gray-700: #344054; /* secondary text, button label on light */
+  --m-gray-600: #475467; /* body copy at rest */
+  --m-gray-500: #667085; /* meta text, mono eyebrows */
+  --m-gray-400: #98A2B3; /* tertiary meta, disabled icon, scrollbar-adjacent */
+  --m-gray-300: #D0D5DD; /* input border, strong divider, secondary button ring */
+  --m-gray-200: #EAECF0; /* standard border and divider */
+  --m-gray-100: #F2F4F7; /* selected row, chip fill, avatar fill */
+  --m-gray-50: #F9FAFB;  /* subtle panel fill, hover fill */
+  --m-white: #FFFFFF;    /* surfaces */
+  /* canvas #E7ECF1 and nav-900 #0C1118 exist in the handoff for the design
+     doc's desk/index rail only — they are NOT part of the app. */
+
+  /* Legacy token aliases (pre-v4 names) → handoff literals */
+  --m-page-backdrop: var(--m-white);
+  --m-surface: var(--m-white);
+  --m-canvas-standard: var(--m-white);
+  --m-canvas-busy: var(--m-gray-50);
+  --m-border: var(--m-gray-200);
+  --m-border-strong: var(--m-gray-300);
+  --m-hairline: var(--m-gray-100);
+  --m-hover: var(--m-gray-50);
+  --m-text: var(--m-gray-900);
+  --m-text-body: var(--m-gray-700);
+  --m-text-muted: var(--m-gray-600);
+  --m-text-meta: var(--m-gray-500);
+  --m-text-faint: var(--m-gray-400);
+  --m-accent-tint: var(--m-gray-100);
+  --m-focus-ring: var(--m-gray-700);
+
+  /* Colour — primary action gradient (README §Colour › primary action).
+     Used for primary buttons, New thread, send, badge counters, dark banners,
+     toast and avatar tiles. The inset top highlight is part of the treatment. */
+  --m-gradient-primary: linear-gradient(180deg, #39424F 0%, #1B2430 46%, #0E141C 100%);
+  --m-gradient-primary-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --m-gradient-primary-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
+  --m-metal-bg: var(--m-gradient-primary);
   --m-metal-bg-hover: linear-gradient(180deg, #4A5462 0%, #252F3C 46%, #161D26 100%);
   --m-metal-bg-active: linear-gradient(180deg, #2B3340 0%, #141A22 46%, #080C11 100%);
-  --m-metal-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  --m-metal-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
-  --m-surface-deep: linear-gradient(180deg, #39424F 0%, #1B2430 46%, #0E141C 100%);
+  --m-metal-sheen: var(--m-gradient-primary-sheen);
+  --m-metal-shadow: var(--m-gradient-primary-shadow);
+  --m-surface-deep: var(--m-gradient-primary);
   --m-surface-deep-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  --m-accent-tint: #F2F4F7;
-  --m-focus-ring: #344054;
+
+  /* Colour — semantic states (README §Colour › semantic). No state is ever
+     communicated by colour alone: every status also carries a text label. */
+  --m-success-bg: #ECFDF3;
+  --m-success-border: #ABEFC6;
+  --m-success-text: #027A48;
+  --m-success-dot: #12B76A;
+  --m-warning-bg: #FFFAEB;
+  --m-warning-border: #FEDF89;
+  --m-warning-text: #B54708;
+  --m-warning-dot: #F79009;
+  --m-error-bg: #FEF3F2;
+  --m-error-border: #FECDCA;
+  --m-error-text: #B42318;
+  --m-error-dot: #F04438;
+  --m-neutral-bg: #F9FAFB;
+  --m-neutral-border: #EAECF0;
+  --m-neutral-text: #344054;
+  --m-neutral-dot: #667085;
+
+  /* Radius (README §Radius) */
+  --m-radius-xs: 5px;   /* inline citation, tiny tag (4–5px) */
+  --m-radius-sm: 7px;   /* chip, small pill, icon tile, toggle button (6–7px) */
+  --m-radius-md: 8px;   /* button, input, menu item */
+  --m-radius-lg: 10px;  /* card, list row, callout (9–10px) */
+  --m-radius-xl: 12px;  /* answer card, panel card, menu (11–12px) */
+  --m-radius-2xl: 14px; /* modal, window frame */
+  --m-radius-full: 9999px; /* avatar, dot, scope chip, mode pill, progress, toggle */
+  --m-radius-user-bubble: 12px 12px 4px 12px; /* asymmetric user message bubble */
+
+  /* Elevation (README §Elevation) */
+  --m-shadow-hairline: 0 0 0 1px #EAECF0;
+  --m-shadow-hairline-lift: 0 0 0 1px #EAECF0, 0 1px 2px rgba(16, 24, 40, 0.05);
+  --m-shadow-answer-card: 0 0 0 1px #EAECF0, 0 1px 3px rgba(16, 24, 40, 0.06);
+  --m-shadow-inset-ring: inset 0 0 0 1px #D0D5DD;
+  --m-shadow-input-focus: inset 0 0 0 1px #98A2B3, 0 0 0 4px #F2F4F7;
+  --m-shadow-dropdown: 0 0 0 1px #EAECF0, 0 12px 16px -4px rgba(16, 24, 40, 0.08);
+  --m-shadow-popover-lg: 0 0 0 1px #EAECF0, 0 20px 24px -4px rgba(16, 24, 40, 0.12),
+    0 8px 8px -4px rgba(16, 24, 40, 0.04);
+  --m-shadow-modal: 0 24px 48px -12px rgba(16, 24, 40, 0.3);
+  --m-shadow-toast: 0 12px 16px -4px rgba(16, 24, 40, 0.2);
+  --m-scrim: rgba(12, 17, 29, 0.55);
+
+  /* Typography (README §Typography). Inter for prose, headings and button
+     labels; IBM Plex Mono for every label, eyebrow, status pill, metadata
+     line, numeric figure, identifier and locator. */
+  --m-font-sans: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --m-font-mono: 'IBM Plex Mono', monospace;
+  --m-type-greeting-size: 29px;
+  --m-type-greeting-line: 36px;
+  --m-type-greeting-tracking: -0.02em;
+  --m-type-screen-title-size: 21px;
+  --m-type-screen-title-line: 28px;
+  --m-type-screen-title-tracking: -0.01em;
+  --m-type-eyebrow-size: 10px;
+  --m-type-eyebrow-tracking: 0.1em;
+  --m-type-meta-size: 10px;
+  --m-type-meta-tracking: 0.06em;
+
+  /* Shell geometry (README §Application shell › geometry) */
+  --meri-topbar-height: 64px;
+  --meri-rail-left-width: 300px;
+  --meri-rail-right-width: 400px;          /* context · memory */
+  --meri-rail-right-width-source: 460px;   /* source detail · manage context */
+  --meri-rail-right-width-artifact: 520px; /* artifact canvas */
+  --meri-rail-right-collapsed: 66px;
+  --meri-conversation-min: 700px;  /* nothing compresses below reading width */
+  --meri-conversation-max: 820px;  /* thread content column */
+  --meri-conversation-max-home: 760px; /* home content column */
+  --meri-radius: var(--m-radius-xl);
+  --meri-radius-sm: var(--m-radius-md);
+  --meri-radius-lg: var(--m-radius-2xl);
+
+  /* z-index ramp (README §shell: title bar 30 · menus 45–60 · modals 80 · toast 90) */
+  --meri-z-topbar: 30;
+  --meri-z-menu: 45;
+  --meri-z-popover: 60;
+  --meri-z-modal: 80;
+  --meri-z-toast: 90;
+
+  /* Legacy --meri-* aliases → handoff literals (kept for existing consumers) */
   --meri-surface: var(--m-surface);
   --meri-surface-2: var(--m-hover);
   --meri-surface-subtle: var(--m-hairline);
@@ -60,47 +169,43 @@
   --meri-dark-2: var(--capiro-color-bg-dark-2);
   --meri-dark-ink: var(--capiro-color-bg-interactive-primary);
 
-  /* Status */
-  --meri-success: var(--capiro-color-success);
-  --meri-success-dot: var(--capiro-color-success);
-  --meri-warning: var(--capiro-color-warning);
-  --meri-danger: var(--capiro-color-text-destructive);
-  --meri-info: var(--capiro-color-info);
+  /* Status → handoff semantic literals */
+  --meri-success: var(--m-success-text);
+  --meri-success-dot: var(--m-success-dot);
+  --meri-warning: var(--m-warning-dot);
+  --meri-warning-text: var(--m-warning-text);
+  --meri-danger: var(--m-error-text);
+  --meri-info: var(--m-neutral-text);
 
-  --meri-font-sans: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-  --meri-font-mono: 'IBM Plex Mono', monospace;
+  --meri-font-sans: var(--m-font-sans);
+  --meri-font-mono: var(--m-font-mono);
 
-  /* Geometry */
-  --meri-topbar-height: 64px;
-  --meri-rail-left-width: 300px;
-  --meri-rail-right-width: 400px;
-  --meri-rail-right-collapsed: 66px;
-  --meri-conversation-max: 820px;
-  --meri-radius: 12px;
-  --meri-radius-sm: 8px;
-  --meri-radius-lg: 14px;
-
-  /* Shadows */
-  --meri-shadow-window: 0px 24px 48px -12px var(--capiro-primitive-shadow-deep),
-    0 0 0 1px var(--capiro-primitive-overlay-ink-16);
-  --meri-shadow-card: 0 0 0 1px var(--capiro-color-border-quiet),
-    0px 1px 3px var(--capiro-primitive-shadow-widget);
-  --meri-shadow-chip: inset 0 0 0 1px var(--capiro-color-border-quiet);
-  --meri-shadow-popover: 0 0 0 1px var(--capiro-color-border-quiet),
-    0px 12px 16px -4px var(--capiro-primitive-shadow-deep);
-  --meri-shadow-composer: inset 0 0 0 1px var(--capiro-color-border-control);
-  --meri-shadow-composer-focus: inset 0 0 0 1px var(--meri-accent-light),
-    0 0 0 4px var(--meri-accent-soft);
-  --meri-shadow-button: 0px 1px 2px var(--capiro-primitive-overlay-ink-16);
+  /* Shadows → handoff elevation literals. `--meri-shadow-chip` is the INSET
+     hairline the handoff uses on controls (scope pill, icon buttons, rail
+     search: `inset 0 0 0 1px #EAECF0`); `--m-shadow-inset-ring` (#D0D5DD) is
+     the stronger input-ring variant. */
+  --meri-shadow-window: var(--m-shadow-modal);
+  --meri-shadow-card: var(--m-shadow-answer-card);
+  --meri-shadow-chip: inset 0 0 0 1px #EAECF0;
+  --meri-shadow-popover: var(--m-shadow-dropdown);
+  --meri-shadow-composer: inset 0 0 0 1px #D0D5DD, 0 1px 2px rgba(16, 24, 40, 0.05);
+  --meri-shadow-composer-focus: var(--m-shadow-input-focus);
+  --meri-shadow-button: 0 1px 2px rgba(16, 24, 40, 0.12);
 }
 
+/* Shell — the standalone handoff is a full-bleed application: it fills the
+   viewport on a white ground with no grey desk, no window chrome and no
+   corner radius (README §Application shell › geometry). The windowed
+   presentation from the earlier handoff (grey #E7ECF1 desk, floating rounded
+   window) is the design-doc canvas, explicitly NOT part of the app. */
 .capiro-vnext-root .vnext-meri-page {
   min-height: 100vh;
-  background: var(--m-page-backdrop);
+  min-height: 100dvh;
+  background: var(--m-white);
   display: flex;
   align-items: stretch;
   justify-content: center;
-  padding: 20px;
+  padding: 0;
 }
 
 .capiro-vnext-root .vnext-meri-page.is-maximized {
@@ -110,8 +215,9 @@
 .capiro-vnext-root .vnext-meri {
   position: relative;
   width: 100%;
-  max-width: 1560px;
-  height: min(940px, calc(100vh - 40px));
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
   background: var(--m-surface);
   display: flex;
   flex-direction: column;
@@ -124,13 +230,14 @@
   font-variant-ligatures: contextual;
   font-kerning: normal;
   text-rendering: optimizeLegibility;
-  border-radius: 14px;
-  box-shadow: 0px 24px 48px -12px rgba(16, 24, 40, 0.18), 0 0 0 1px rgba(16, 24, 40, 0.06);
 }
 
+/* Kept for the chrome-state class the shell still toggles; in the standalone
+   presentation every state is already full-viewport. */
 .capiro-vnext-root .vnext-meri-page.is-maximized .vnext-meri {
-  max-width: 100%;
+  max-width: none;
   height: 100vh;
+  height: 100dvh;
   border-radius: 0;
 }
 
@@ -146,17 +253,28 @@
   font: inherit;
 }
 
-.capiro-vnext-root .vnext-meri button:focus-visible,
-.capiro-vnext-root .vnext-meri input:focus-visible,
-.capiro-vnext-root .vnext-meri textarea:focus-visible {
+/* Focus — the handoff's ring applies to every focusable element:
+   `:focus-visible { outline: 2px solid #344054; outline-offset: 2px;
+   border-radius: 8px; }` (README §Focus and scrollbars). Borderless inputs
+   whose wrapper owns the focus treatment (composer textarea, rail search)
+   are excluded below so the ring does not double. */
+.capiro-vnext-root .vnext-meri :focus-visible {
   outline: 2px solid #344054;
   outline-offset: 2px;
   border-radius: 8px;
 }
 
-/* ── Top bar ──────────────────────────────────────────────────────────── */
+.capiro-vnext-root .vnext-meri__composer-textarea:focus-visible,
+.capiro-vnext-root .vnext-meri__rail-search input:focus-visible {
+  outline: none;
+}
+
+/* ── Top bar ────────────────────────────────────────────────────────────
+   Handoff §1: 64px, padding 0 18px, white, 1px #EAECF0 bottom, z-index 30,
+   position:relative (anchors its popovers). */
 
 .capiro-vnext-root .vnext-meri__topbar {
+  position: relative;
   flex: 0 0 auto;
   height: var(--meri-topbar-height);
   padding: 0 18px;
@@ -165,7 +283,7 @@
   gap: 16px;
   background: var(--meri-surface);
   border-bottom: 1px solid var(--meri-border);
-  z-index: var(--capiro-z-sticky);
+  z-index: var(--meri-z-topbar);
 }
 
 .capiro-vnext-root .vnext-meri__brand {
@@ -768,12 +886,14 @@
 
 .capiro-vnext-root .vnext-meri__main {
   flex: 1;
-  /* Must be 0, not a 700px floor: with rail-left (300) + rail-right (400) both
-     `flex: 0 0 auto`, a 700px floor made `.vnext-meri__body` 1400px wide at
-     every viewport and turned its `overflow-x: auto` into a horizontal scroll
-     canvas below 1400. The conversation is already capped and centred by
-     --meri-conversation-max, so the floor bought nothing. */
-  min-width: 0;
+  /* Handoff §Application shell › geometry: the conversation is
+     `flex:1; min-width:700px` and the shell carries a computed minimum width
+     of rail (300 or 0) + 700 + panel (400/460/520 or 66). Below that the whole
+     app pans horizontally — `.vnext-meri__body` already has `overflow-x:auto`,
+     so the floor produces the handoff's pan. Nothing compresses below reading
+     width. The floor lifts again inside the <=779px restack (see Responsive),
+     where the columns stack vertically and 700px would force sideways scroll. */
+  min-width: var(--meri-conversation-min);
   display: flex;
   flex-direction: column;
   background: var(--meri-surface);

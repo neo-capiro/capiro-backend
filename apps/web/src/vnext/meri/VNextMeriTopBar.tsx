@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MeResponse } from '../../lib/me.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { IdentityMark, identityInitials } from '../components/identity/index.js';
@@ -45,6 +45,7 @@ export function VNextMeriTopBar({
   onClose,
 }: VNextMeriTopBarProps) {
   const [scopeOpen, setScopeOpen] = useState(false);
+  const [scopeQuery, setScopeQuery] = useState('');
   const [tipOpen, setTipOpen] = useState(false);
   const scopeRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -52,6 +53,19 @@ export function VNextMeriTopBar({
   const { clients, selectedClientValue, changeSessionClient } = controller;
   const selectedClient = clients.find((client) => client.id === selectedClientValue) ?? null;
   const scopeLabel = selectedClient ? selectedClient.name.toUpperCase() : 'ALL CLIENTS';
+  const scopeMeta = selectedClient ? 'CLIENT' : `${clients.length} IN SCOPE`;
+
+  const filteredClients = useMemo(() => {
+    const query = scopeQuery.trim().toLowerCase();
+    if (!query) return clients;
+    return clients.filter((client) => client.name.toLowerCase().includes(query));
+  }, [clients, scopeQuery]);
+
+  const showAllClients = useMemo(() => {
+    const query = scopeQuery.trim().toLowerCase();
+    if (!query) return true;
+    return 'all clients · portfolio'.includes(query) || 'portfolio'.includes(query);
+  }, [scopeQuery]);
 
   const firstName = me?.user.firstName?.trim() ?? '';
   const lastName = me?.user.lastName?.trim() ?? '';
@@ -65,6 +79,10 @@ export function VNextMeriTopBar({
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [scopeOpen]);
+
+  useEffect(() => {
+    if (!scopeOpen) setScopeQuery('');
   }, [scopeOpen]);
 
   useEffect(() => {
@@ -111,15 +129,28 @@ export function VNextMeriTopBar({
           onClick={() => setScopeOpen((open) => !open)}
           aria-haspopup="menu"
           aria-expanded={scopeOpen}
+          title="Conversation scope"
         >
-          <MeriIcon name="Building01" size={14} color="#101828" />
+          <MeriIcon name={selectedClient ? 'Building01' : 'Grid01'} size={14} color="#101828" />
           <span className="vnext-meri__scope-label">{scopeLabel}</span>
+          <span className="vnext-meri__scope-divider" />
+          <span className="vnext-meri__scope-meta">{scopeMeta}</span>
           <MeriIcon name="ChevronDown" size={14} color="#98A2B3" />
         </button>
         {scopeOpen ? (
           <div className="vnext-meri__scope-menu" role="menu" aria-label="Conversation scope">
             <div className="vnext-meri__scope-menu-eyebrow">CONVERSATION SCOPE</div>
-            {clients.map((client) => (
+            <div className="vnext-meri__scope-menu-search">
+              <MeriIcon name="SearchLg" size={14} color="#98A2B3" />
+              <input
+                type="search"
+                value={scopeQuery}
+                onChange={(event) => setScopeQuery(event.target.value)}
+                placeholder="Search clients…"
+                aria-label="Search clients"
+              />
+            </div>
+            {filteredClients.map((client) => (
               <button
                 type="button"
                 role="menuitem"
@@ -132,26 +163,43 @@ export function VNextMeriTopBar({
                   void changeSessionClient(client.id);
                 }}
               >
-                <span className="vnext-meri__scope-menu-item-label">{client.name}</span>
-                <span className="vnext-meri__scope-menu-item-meta">CLIENT</span>
+                <span className="vnext-meri__scope-menu-item-body">
+                  <span className="vnext-meri__scope-menu-item-label">{client.name}</span>
+                  <span className="vnext-meri__scope-menu-item-meta">CLIENT</span>
+                </span>
+                {client.id === selectedClientValue ? (
+                  <MeriIcon name="Check" size={15} color="#101828" />
+                ) : null}
               </button>
             ))}
-            <button
-              type="button"
-              role="menuitem"
-              className={`vnext-meri__scope-menu-item${
-                !selectedClientValue ? ' is-selected' : ''
-              }`}
-              onClick={() => {
-                setScopeOpen(false);
-                void changeSessionClient('');
-              }}
-            >
-              <span className="vnext-meri__scope-menu-item-label">All clients</span>
-              <span className="vnext-meri__scope-menu-item-meta">
-                PORTFOLIO · {clients.length} CLIENTS
-              </span>
-            </button>
+            {showAllClients ? (
+              <button
+                type="button"
+                role="menuitem"
+                className={`vnext-meri__scope-menu-item${
+                  !selectedClientValue ? ' is-selected' : ''
+                }`}
+                onClick={() => {
+                  setScopeOpen(false);
+                  void changeSessionClient('');
+                }}
+              >
+                <span className="vnext-meri__scope-menu-item-body">
+                  <span className="vnext-meri__scope-menu-item-label">
+                    All clients · Portfolio
+                  </span>
+                  <span className="vnext-meri__scope-menu-item-meta">
+                    {clients.length} CLIENTS
+                  </span>
+                </span>
+                {!selectedClientValue ? (
+                  <MeriIcon name="Check" size={15} color="#101828" />
+                ) : null}
+              </button>
+            ) : null}
+            <div className="vnext-meri__scope-menu-footnote">
+              Scope is durable conversation context, not a filter. It changes what Meri may read.
+            </div>
           </div>
         ) : null}
       </div>
@@ -160,7 +208,7 @@ export function VNextMeriTopBar({
         <button
           type="button"
           className="vnext-meri__icon-btn"
-          title="Search threads — ⌘K"
+          title="Search — ⌘K"
           aria-label="Search threads"
           onClick={onSearch}
         >
@@ -169,20 +217,11 @@ export function VNextMeriTopBar({
         <button
           type="button"
           className="vnext-meri__icon-btn"
-          title="New chat"
-          aria-label="Start a new chat"
+          title="New thread"
+          aria-label="Start a new thread"
           onClick={onNewChat}
         >
           <MeriIcon name="Plus" size={17} color="#475467" />
-        </button>
-        <button
-          type="button"
-          className="vnext-meri__icon-btn"
-          title="Meri help"
-          aria-label="Open Meri help"
-          onClick={() => setTipOpen(true)}
-        >
-          <MeriIcon name="HelpCircle" size={17} color="#475467" />
         </button>
 
         <span className="vnext-meri__protip" ref={tipRef}>
@@ -194,13 +233,13 @@ export function VNextMeriTopBar({
             aria-expanded={tipOpen}
           >
             <MeriIcon name="Lightbulb02" size={15} />
-            PRO TIP
+            WHAT MERI CAN DO
           </button>
           {tipOpen ? (
             <div
               className="vnext-meri__protip-panel"
               role="dialog"
-              aria-label="Get more out of Meri"
+              aria-label="What Meri can do"
             >
               <div className="vnext-meri__protip-header">
                 <span className="vnext-meri__protip-title">GET MORE OUT OF MERI</span>
@@ -238,7 +277,6 @@ export function VNextMeriTopBar({
             name={fullName}
             initials={initials === '—' ? 'NM' : initials}
           />
-          <span className="vnext-meri__avatar-status" aria-hidden="true" />
         </span>
 
         <span className="vnext-meri__topbar-divider" />

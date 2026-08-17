@@ -14,6 +14,7 @@ import type { MeriChatController } from '../../components/chat/useMeriChatContro
 import { maySend } from '../../components/chat/meri-route-guards.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import { MeriIcon } from './meri-icons.js';
+import { MeriTaskModePicker } from './MeriTaskModePicker.js';
 
 const ATTACH_ACCEPT = '.pdf,.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
 
@@ -76,6 +77,19 @@ export function VNextMeriComposer({
   useEffect(() => {
     if (!hasThread) textareaRef.current?.focus();
   }, [hasThread]);
+
+  // Listen for intent fills from MeriStartWork cards.
+  useEffect(() => {
+    const onFill = (event: Event) => {
+      const text = (event as CustomEvent<string>).detail;
+      if (typeof text === 'string' && text.trim()) {
+        setDraft(text);
+        window.setTimeout(() => textareaRef.current?.focus(), 0);
+      }
+    };
+    window.addEventListener('meri-fill-draft', onFill);
+    return () => window.removeEventListener('meri-fill-draft', onFill);
+  }, []);
 
   useEffect(() => {
     if (!addOpen) return;
@@ -340,6 +354,8 @@ export function VNextMeriComposer({
         </div>
 
         <div className="vnext-meri__composer-toolbar">
+          <MeriTaskModePicker controller={controller} disabled={busy} />
+
           <span className="vnext-meri__composer-context-label">
             <MeriIcon name="Attachment01" size={13} color="#101828" />
             {contextLabel}

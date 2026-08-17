@@ -16,6 +16,7 @@ import { VNextMeriTopBar } from './VNextMeriTopBar.js';
 import { VNextMeriThreadRail } from './VNextMeriThreadRail.js';
 import { VNextMeriConversation } from './VNextMeriConversation.js';
 import { VNextMeriContextRail } from './VNextMeriContextRail.js';
+import { MeriCommandPalette } from './MeriCommandPalette.js';
 import './vnext-meri.css';
 
 interface VNextMeriShellProps {
@@ -68,6 +69,7 @@ export function VNextMeriShell({
   const [railCollapsed, setRailCollapsed] = useState(storedRail.collapsed);
   const [openSection, setOpenSection] = useState<MeriContextSection | null>(storedRail.openSection);
   const [threadSearch, setThreadSearch] = useState('');
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const threadSearchRef = useRef<HTMLInputElement>(null);
 
   const isTabletDown = useMatchesWidth('(max-width: 1179px)');
@@ -102,7 +104,7 @@ export function VNextMeriShell({
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        threadSearchRef.current?.focus();
+        setPaletteOpen((open) => !open);
       }
     };
     document.addEventListener('keydown', onKeyDown);
@@ -155,7 +157,7 @@ export function VNextMeriShell({
             me={me.data}
             windowChrome={windowChrome}
             onNewChat={handleNewChat}
-            onSearch={() => threadSearchRef.current?.focus()}
+            onSearch={() => setPaletteOpen(true)}
             onDock={() => setWindowChrome('docked')}
             onToggleMaximize={() =>
               setWindowChrome((current) => (current === 'maximized' ? 'undocked' : 'maximized'))
@@ -176,7 +178,7 @@ export function VNextMeriShell({
               searchQuery={threadSearch}
               onSearchQueryChange={setThreadSearch}
               searchInputRef={threadSearchRef}
-              onOpenPalette={() => threadSearchRef.current?.focus()}
+              onOpenPalette={() => setPaletteOpen(true)}
             />
 
             <VNextMeriConversation
@@ -198,6 +200,11 @@ export function VNextMeriShell({
           </div>
         </div>
       </div>
+      <MeriCommandPalette
+        controller={controller}
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+      />
     </ManagedMcpAppsProvider>
   );
 }
