@@ -3,7 +3,6 @@ import {
   normalizeJsonObject,
   normalizeRefs,
   requireDate,
-  requireText,
   requireToken,
   requireUuid,
 } from '../knowledge.helpers.js';
