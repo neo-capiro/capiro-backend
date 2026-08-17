@@ -7,7 +7,64 @@ import { safeOutreachV3Error } from './outreach-v3-api.js';
 export type GoalDecisionSurfaceProps = Pick<
   DecisionSurfacesProps,
   'session' | 'busy' | 'applyCommands'
->;
+> &
+  Pick<Partial<DecisionSurfacesProps>, 'goalVariant'>;
+
+/**
+ * Read-only confirmation body for the goal step — UI-parity §7.
+ *
+ * Keys are Topic / Outcome / Ask / Sponsor, taken from the prototype's own
+ * `readBack` array (`Capiro Engagement - Untitled UI.dc.html`, the
+ * `readBack:[['Topic',…],['Outcome',…],['Ask',…],['Sponsor',…]]` literal).
+ * The parity doc's §7 prose lists "Client, Audience, Ask, Sponsor" instead,
+ * but the doc states every value is transcribed from the prototype, and the
+ * prototype is the authority where the two disagree. These four also map 1:1
+ * onto real campaign-spec fields, where Client/Audience would not: audience
+ * is not a field on the spec at all, and the sponsor's client refs are
+ * already carried by the Sponsor row.
+ */
+function GoalReadBack({ session }: { session: GoalDecisionSurfaceProps['session'] }) {
+  const { goal, sponsor } = session.spec;
+  const askValue =
+    goal.ask.mode === 'none'
+      ? 'No formal ask'
+      : goal.ask.mode === 'explicit'
+        ? goal.ask.text
+        : null;
+  // "Capiro · firm" in the prototype — label, then the resolved kind. An
+  // undecided kind contributes nothing rather than printing "undecided".
+  const sponsorValue = sponsor.label
+    ? sponsor.kind && sponsor.kind !== 'undecided'
+      ? `${sponsor.label} · ${sponsor.kind.replace(/_/g, ' ')}`
+      : sponsor.label
+    : null;
+
+  const rows: Array<[string, string | null]> = [
+    ['Topic', goal.topic],
+    ['Outcome', goal.desiredOutcome],
+    ['Ask', askValue],
+    ['Sponsor', sponsorValue],
+  ];
+
+  return (
+    <div className="ov3-goal-readback">
+      <div className="ov3-goal-readback__goal">
+        {goal.goal ?? 'No goal captured yet. Tell Meri what this campaign should accomplish.'}
+      </div>
+      <span className="ov3-goal-readback__label">Meri read-back</span>
+      <div className="ov3-goal-readback__rows">
+        {rows.map(([key, value]) => (
+          <div className="ov3-goal-readback__row" key={key}>
+            <span>{key}</span>
+            {/* Never invented: an unset field reads as "Not set", it does not
+                borrow a placeholder or a neighbouring value. */}
+            <span data-empty={value ? undefined : true}>{value ?? 'Not set'}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const OUTCOMES = [
   ['Request a meeting', 'Ask the office for a focused staff briefing.'],
@@ -60,6 +117,7 @@ export function GoalDecisionSurface({
   session,
   busy,
   applyCommands,
+  goalVariant = 'form',
 }: GoalDecisionSurfaceProps) {
   const goal = session.spec.goal;
   const [draft, setDraft] = useState<GoalDraft>({
@@ -95,6 +153,14 @@ export function GoalDecisionSurface({
       setError(safeOutreachV3Error(caught));
     }
   };
+
+  // UI-parity §7: the confirmation surface. Single-column, full width — no
+  // panel header, no outcome cards, no canonical fields and no explainer
+  // rail; the explainer copy lives in Meri's turn in the chat rail and the
+  // fields behind the brief bar's Edit.
+  if (goalVariant === 'readback') {
+    return <GoalReadBack session={session} />;
+  }
 
   return (
     <form className="ov3-decision-panel" onSubmit={submit}>

@@ -337,31 +337,80 @@ export function SendMeriButton({
 export function JoinButton({
   m,
   size = 'md',
+  variant = 'solid',
 }: {
   m: { isVirtual?: boolean; joinLink?: string | null };
   size?: 'sm' | 'md';
+  /**
+   * `solid` (default) keeps the historical dark fill for app.capiro.ai's
+   * canonical Meetings surfaces. `secondary` is the vNext Engagement drawer
+   * treatment (UI-parity §5.3): white with a ring and a #344054 label —
+   * "Send Meri" is the only primary in that action row. In `secondary` the
+   * control also RENDERS when there is no join link, dimmed via opacity,
+   * instead of disappearing; the same section calls for that affordance.
+   */
+  variant?: 'solid' | 'secondary';
 }) {
-  if (!(m.isVirtual && m.joinLink)) return null;
+  const joinable = Boolean(m.isVirtual && m.joinLink);
+  if (!joinable && variant !== 'secondary') return null;
   const pad = size === 'sm' ? '6px 12px' : '8px 14px';
+  const shared = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: 8,
+    padding: pad,
+    fontFamily: 'var(--font-sans)',
+    fontSize: size === 'sm' ? 12.5 : 13.5,
+    fontWeight: 600,
+    letterSpacing: '-0.005em',
+    whiteSpace: 'nowrap',
+    textDecoration: 'none',
+  } as const;
+
+  if (variant === 'secondary') {
+    const body = (
+      <>
+        <Video size={size === 'sm' ? 14 : 16} style={{ color: '#667085' }} />
+        Join
+      </>
+    );
+    const style = {
+      ...shared,
+      background: '#ffffff',
+      boxShadow: '0 0 0 1px #E4E7EC',
+      color: '#344054',
+      opacity: joinable ? 1 : 0.45,
+    };
+    if (!joinable) {
+      return (
+        <span style={{ ...style, cursor: 'not-allowed' }} aria-disabled="true" title="No join link">
+          {body}
+        </span>
+      );
+    }
+    return (
+      <a
+        href={m.joinLink ?? undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        style={style}
+      >
+        {body}
+      </a>
+    );
+  }
+
   return (
     <a
-      href={m.joinLink}
+      href={m.joinLink ?? undefined}
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
       style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 7,
-        borderRadius: 8,
-        padding: pad,
-        fontFamily: 'var(--font-sans)',
-        fontSize: size === 'sm' ? 12.5 : 13.5,
-        fontWeight: 600,
-        letterSpacing: '-0.005em',
-        whiteSpace: 'nowrap',
-        textDecoration: 'none',
+        ...shared,
         background: '#0C1A38',
         color: '#F5F2EB',
       }}

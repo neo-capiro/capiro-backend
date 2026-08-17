@@ -183,8 +183,25 @@ function meetingLifecycleStatus(m: Meeting): LifecycleStatus {
   return { label: 'Needs prep', tone: 'warn' };
 }
 
-function metaLine(m: Meeting): string {
+/**
+ * Row/when-line clock — UI-parity §4.4: "the format is `8:30` / `11:00`, no
+ * meridiem", because the meridiem does not fit the 58px time column and wraps
+ * it to two lines. Deliberately NOT a change to the shared `formatTime` in
+ * meetings-format.ts: that helper is app.capiro.ai's canonical Meetings page
+ * too, and this format is a vNext presentation choice, not a shared one.
+ * Dropping the meridiem makes the clock 24h — 1pm reads `13:00` — otherwise
+ * 1:00 and 13:00 would be indistinguishable.
+ */
+export function formatRowTime(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** UI-parity §4.4: `Client · Place · N attendees`. The client segment comes
+ *  from the Meeting payload's own `client` ref — never inferred. */
+function metaLine(m: Meeting, clientName?: string | null): string {
   const parts: string[] = [];
+  if (clientName) parts.push(clientName);
   if (m.location) parts.push(m.location);
   if (m.isVirtual) {
     const label = providerLabel(m.provider);
@@ -243,8 +260,9 @@ function WeekStrip({
           >
             <span className="vmtg-weekstrip__dow">{formatWeekdayShort(d)}</span>
             <span className="vmtg-weekstrip__date">{d.getDate()}</span>
+            {/* UI-parity §4.3: the zero glyph is a middot, not an em dash. */}
             <span className="vmtg-weekstrip__count" data-has-meetings={count > 0 || undefined}>
-              {count > 0 ? count : '—'}
+              {count > 0 ? count : '·'}
             </span>
           </button>
         );
@@ -352,11 +370,15 @@ function MeetingRowCard({
       onClick={() => onSelect(meeting)}
     >
       <span className="vmtg-row__time">
-        {isAllDayMeeting(meeting.startsAt, meeting.endsAt) ? 'All day' : formatTime(meeting.startsAt)}
+        {isAllDayMeeting(meeting.startsAt, meeting.endsAt)
+          ? 'All day'
+          : formatRowTime(meeting.startsAt)}
       </span>
       <span className="vmtg-row__main">
         <span className="vmtg-row__title">{meeting.subject}</span>
-        <span className="vmtg-row__meta">{metaLine(meeting) || '—'}</span>
+        <span className="vmtg-row__meta">
+          {metaLine(meeting, meeting.client?.name) || '—'}
+        </span>
       </span>
       <StatusPill meeting={meeting} />
     </button>
@@ -603,6 +625,10 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
     !listMeeting &&
     !fallbackQuery.isLoading &&
     (fallbackQuery.isError || (fallbackQuery.isFetched && !fallbackQuery.data));
+  /** True only when the real drawer (MeetingDetailPanel) is on screen — the
+   *  placeholder/not-found/loading panels are cards on the page ground, not
+   *  the drawer, and must not take its white column chrome (UI-parity §5.1). */
+  const drawerOpen = Boolean(selectedMeetingId) && !notFound && Boolean(selectedMeeting);
 
   const periodLabel = useMemo(() => {
     if (viewMode === 'month') return formatMonthTitle(cursor);
@@ -722,7 +748,9 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
 
   return (
     <div className="vmtg-workspace">
-      <div className="vmtg-main">
+      {/* Below 760px the open drawer REPLACES the list rather than overlapping
+          it (UI-parity §5.1) — driven by this attribute, not by an overlay. */}
+      <div className="vmtg-main" data-drawer-open={drawerOpen || undefined}>
         <div className="vmtg-toolbar">
           <h2 className="vmtg-title">Meetings</h2>
           <div className="vmtg-period">
@@ -909,7 +937,7 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
         )}
       </div>
 
-      <div className="vmtg-side">
+      <aside className="vmtg-side" data-open={drawerOpen || undefined}>
         {selectedMeetingId === null ? (
           <div className="vmtg-panel">
             <span className="uui-eyebrow">Selected meeting</span>
@@ -934,12 +962,10 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
             </button>
           </div>
         ) : selectedMeeting ? (
-          // MeetingDetailPanel (canonical) is a self-positioning slide-over
-          // (position:absolute, top/right/bottom:0) — this viewport gives it
-          // the sized, position:relative/overflow:hidden ancestor it needs,
-          // same role the canonical MeetingsV2.tsx's own wrapping div plays.
-          // Its own `min(680px,92%)` width rule then naturally resolves
-          // against THIS narrower side rail rather than the full workspace.
+          // With `layout="inline"` the canonical panel renders as an ordinary
+          // in-flow block (no absolute positioning, no scrim, no transform),
+          // so this wrapper no longer needs to be a clipped, sized containing
+          // block — the <aside> above owns the sticky column and its scroll.
           <div className="vmtg-drawer-viewport">
             <MeetingDetailPanel
               meeting={selectedMeeting}
@@ -950,6 +976,9 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
               onTabChange={setActiveTab}
               onSendMeri={(m) => setSendMeriTarget(m)}
               onRequestShare={(m) => setShareTarget(m)}
+              // UI-parity §5.1: an in-flow column, not an overlay. The
+              // canonical Meetings page keeps the default `overlay`.
+              layout="inline"
             />
           </div>
         ) : (
@@ -958,7 +987,7 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
             <h3>Loading…</h3>
           </div>
         )}
-      </div>
+      </aside>
 
       <NewMeetingModal
         open={newMeetingOpen}

@@ -11,7 +11,12 @@ import {
   useUnshareArtifacts,
   type ShareArtifactRef,
 } from './meetings-api.js';
-import { formatDayTitle, formatTimeRange, isAllDayMeeting } from './meetings-format.js';
+import {
+  formatDayTitle,
+  formatTimeRange,
+  formatTimeRange24,
+  isAllDayMeeting,
+} from './meetings-format.js';
 import {
   Ava,
   JoinButton,
@@ -229,6 +234,7 @@ export function MeetingDetailPanel({
   onTabChange,
   onSendMeri,
   onRequestShare,
+  layout = 'overlay',
 }: {
   meeting: Meeting | null;
   open: boolean;
@@ -240,7 +246,22 @@ export function MeetingDetailPanel({
   onTabChange: (tab: DetailTab) => void;
   onSendMeri: (m: Meeting) => void;
   onRequestShare: (m: Meeting) => void;
+  /**
+   * How the panel positions itself.
+   *
+   * `overlay` (the default, and what app.capiro.ai's canonical Meetings page
+   * keeps) is the historical behaviour: an absolutely-positioned slide-over
+   * with a scrim, a drop shadow and a translateX transition.
+   *
+   * `inline` is the vNext Engagement treatment (UI-parity §5.1): the panel is
+   * an ordinary in-flow block that fills its container, with no scrim, no
+   * shadow, no radius and no transform — its parent `<aside>` owns the
+   * sticky positioning and scrolling. Passing it also switches the header to
+   * the mono when-line and 22px title the same section specifies.
+   */
+  layout?: 'overlay' | 'inline';
 }) {
+  const inline = layout === 'inline';
   const [attOpen, setAttOpen] = useState(false);
 
   const status: MeetingStatus = m
@@ -294,33 +315,45 @@ export function MeetingDetailPanel({
 
   return (
     <>
-      {/* Overlay (scoped to the meetings content region) */}
-      <div
-        onClick={onClose}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(12,26,56,0.34)',
-          zIndex: 40,
-          opacity: open ? 1 : 0,
-          pointerEvents: open ? 'auto' : 'none',
-          transition: 'opacity 0.2s',
-        }}
-      />
+      {/* Overlay (scoped to the meetings content region). The inline layout has
+          no scrim at all — UI-parity §5.1: "No backdrop, no scrim". */}
+      {!inline && (
+        <div
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(12,26,56,0.34)',
+            zIndex: 40,
+            opacity: open ? 1 : 0,
+            pointerEvents: open ? 'auto' : 'none',
+            transition: 'opacity 0.2s',
+          }}
+        />
+      )}
       {/* Panel */}
       <div
         style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: 'min(680px,92%)',
+          ...(inline
+            ? {
+                position: 'static',
+                width: '100%',
+                // The <aside> owns sticky/scroll; the panel just fills it.
+                minHeight: '100%',
+              }
+            : {
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 'min(680px,92%)',
+                zIndex: 50,
+                borderLeft: '1px solid var(--border-1)',
+                boxShadow: '-8px 0 44px rgba(12,26,56,0.16)',
+                transform: open ? 'translateX(0)' : 'translateX(100%)',
+                transition: 'transform 0.26s cubic-bezier(0.22,1,0.36,1)',
+              }),
           background: 'var(--bg-surface)',
-          zIndex: 50,
-          borderLeft: '1px solid var(--border-1)',
-          boxShadow: '-8px 0 44px rgba(12,26,56,0.16)',
-          transform: open ? 'translateX(0)' : 'translateX(100%)',
-          transition: 'transform 0.26s cubic-bezier(0.22,1,0.36,1)',
           display: 'flex',
           flexDirection: 'column',
           fontFamily: 'var(--font-sans)',
@@ -345,14 +378,24 @@ export function MeetingDetailPanel({
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: 11.5,
-                  color: 'var(--ink-3)',
-                  fontVariantNumeric: 'tabular-nums',
                   // Reskin phase: the design's meta/time-date lines are mono
                   // (IBM Plex Mono on os.capiro.ai via the vNext retheme's
                   // --font-mono mapping); this is the one such line in the
                   // panel's own header (as opposed to inside a tab body).
+                  // Inline layout takes the full mono LABEL treatment —
+                  // UI-parity §5.2 renders this line as 11px uppercase, not
+                  // 11.5px sentence case.
                   fontFamily: 'var(--font-mono)',
+                  fontVariantNumeric: 'tabular-nums',
+                  ...(inline
+                    ? {
+                        fontSize: 11,
+                        fontWeight: 500,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase' as const,
+                        color: '#98A2B3',
+                      }
+                    : { fontSize: 11.5, color: 'var(--ink-3)' }),
                   marginBottom: 6,
                   display: 'flex',
                   alignItems: 'center',
@@ -364,25 +407,42 @@ export function MeetingDetailPanel({
                   {formatDayTitle(new Date(m.startsAt))} ·{' '}
                   {isAllDayMeeting(m.startsAt, m.endsAt)
                     ? 'All day'
-                    : formatTimeRange(m.startsAt, m.endsAt)}
+                    : inline
+                      ? formatTimeRange24(m.startsAt, m.endsAt)
+                      : formatTimeRange(m.startsAt, m.endsAt)}
                 </span>
-                <span
-                  style={{
-                    width: 3,
-                    height: 3,
-                    borderRadius: '50%',
-                    background: 'var(--border-strong)',
-                  }}
-                />
+                {inline ? (
+                  <span aria-hidden="true">·</span>
+                ) : (
+                  <span
+                    style={{
+                      width: 3,
+                      height: 3,
+                      borderRadius: '50%',
+                      background: 'var(--border-strong)',
+                    }}
+                  />
+                )}
                 <ProviderTag m={m} />
               </div>
               <h1
                 style={{
-                  fontSize: 19,
-                  fontWeight: 700,
-                  letterSpacing: '-0.015em',
-                  margin: '0 0 10px',
-                  lineHeight: 1.28,
+                  // UI-parity §5.2: 22/30/600/-.01em in the inline drawer.
+                  ...(inline
+                    ? {
+                        fontSize: 22,
+                        lineHeight: '30px',
+                        fontWeight: 600,
+                        letterSpacing: '-0.01em',
+                        margin: '6px 0 10px',
+                      }
+                    : {
+                        fontSize: 19,
+                        lineHeight: 1.28,
+                        fontWeight: 700,
+                        letterSpacing: '-0.015em',
+                        margin: '0 0 10px',
+                      }),
                   color: 'var(--ink-1)',
                 }}
               >
@@ -394,46 +454,111 @@ export function MeetingDetailPanel({
               onClick={onClose}
               aria-label="Close"
               className="btn sm btn-ghost"
-              style={{ padding: 6, flexShrink: 0 }}
+              style={
+                inline
+                  ? {
+                      // UI-parity §5.2: a 28x28 quiet icon button.
+                      display: 'inline-grid',
+                      placeItems: 'center',
+                      width: 28,
+                      height: 28,
+                      padding: 0,
+                      flexShrink: 0,
+                      borderRadius: 6,
+                      color: '#667085',
+                    }
+                  : { padding: 6, flexShrink: 0 }
+              }
             >
               <X size={16} />
             </button>
           </div>
 
-          {(showSendMeri(m) || (m.isVirtual && m.joinLink)) && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              {showSendMeri(m) && <SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />}
-              <JoinButton m={m} size="sm" />
-            </div>
+          {/* UI-parity §5.3/§5.4 collapse the overlay layout's three header
+              rows into two: an action row (Send Meri · Join · spacer · client)
+              and a meta row (Attendees ‹-› Share artifacts). The overlay
+              layout keeps its original three-row order untouched. */}
+          {inline ? (
+            <>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  flexWrap: 'wrap',
+                  marginTop: 14,
+                  marginBottom: 14,
+                }}
+              >
+                {showSendMeri(m) && (
+                  <SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />
+                )}
+                <JoinButton m={m} size="sm" variant="secondary" />
+                <div style={{ flex: 1, minWidth: 12 }} />
+                <ClientAssign key={m.id} meeting={m} />
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  marginBottom: 14,
+                }}
+              >
+                <button
+                  type="button"
+                  className="engagement-disclosure-button"
+                  onClick={() => setAttOpen(true)}
+                >
+                  <Users size={16} />
+                  Attendees · {m.attendees.length}
+                  <span aria-hidden="true">›</span>
+                </button>
+                <ShareArtifactsControl m={m} onOpenShare={() => onRequestShare(m)} />
+              </div>
+            </>
+          ) : (
+            <>
+              {(showSendMeri(m) || (m.isVirtual && m.joinLink)) && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  {showSendMeri(m) && (
+                    <SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />
+                  )}
+                  <JoinButton m={m} size="sm" />
+                </div>
+              )}
+
+              {/* client + share */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  marginBottom: 14,
+                }}
+              >
+                <ClientAssign key={m.id} meeting={m} />
+                <div style={{ flex: 1, minWidth: 12 }} />
+                <ShareArtifactsControl m={m} onOpenShare={() => onRequestShare(m)} />
+              </div>
+
+              {/* Attendees window */}
+              <div style={{ marginBottom: 14 }}>
+                <button
+                  type="button"
+                  className="engagement-disclosure-button"
+                  onClick={() => setAttOpen(true)}
+                >
+                  <Users size={15} />
+                  Attendees · {m.attendees.length}
+                  <span aria-hidden="true">›</span>
+                </button>
+              </div>
+            </>
           )}
-
-          {/* client + share */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              flexWrap: 'wrap',
-              marginBottom: 14,
-            }}
-          >
-            <ClientAssign key={m.id} meeting={m} />
-            <div style={{ flex: 1, minWidth: 12 }} />
-            <ShareArtifactsControl m={m} onOpenShare={() => onRequestShare(m)} />
-          </div>
-
-          {/* Attendees window */}
-          <div style={{ marginBottom: 14 }}>
-            <button
-              type="button"
-              className="engagement-disclosure-button"
-              onClick={() => setAttOpen(true)}
-            >
-              <Users size={15} />
-              Attendees · {m.attendees.length}
-              <span aria-hidden="true">›</span>
-            </button>
-          </div>
           <EngagementDialog
             open={attOpen}
             eyebrow="Meeting · people"
@@ -515,8 +640,11 @@ export function MeetingDetailPanel({
                     gap: 7,
                     border: 'none',
                     background: 'none',
-                    padding: '11px 0 12px',
-                    marginRight: 24,
+                    // UI-parity §5.5: 10px/12px padding on a 2px gap strip,
+                    // rather than the overlay layout's 24px right margin.
+                    ...(inline
+                      ? { padding: '10px 12px', marginRight: 2 }
+                      : { padding: '11px 0 12px', marginRight: 24 }),
                     cursor: t.disabled ? 'not-allowed' : 'pointer',
                     opacity: t.disabled ? 0.5 : 1,
                     fontFamily: 'var(--font-sans)',
@@ -526,8 +654,8 @@ export function MeetingDetailPanel({
                 >
                   <span
                     style={{
-                      fontSize: 13.5,
-                      fontWeight: on ? 700 : 500,
+                      fontSize: inline ? 14 : 13.5,
+                      fontWeight: on ? (inline ? 600 : 700) : 500,
                       color: on ? 'var(--ink-1)' : 'var(--ink-3)',
                     }}
                   >

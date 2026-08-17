@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { CurrentDecisionSurface } from '../../../pages/engagement/outreach/v3/CurrentDecisionSurface.js';
+import { GoalDecisionSurface } from '../../../pages/engagement/outreach/v3/GoalDecisionSurface.js';
 import type {
   OutreachV3Stage,
   OutreachV3TranscriptTurn,
@@ -1714,6 +1715,9 @@ export function VNextOutreachWorkspace({
   const qc = useQueryClient();
   const controller = useOutreachV3Session({ title: 'New outreach campaign' });
   const [composer, setComposer] = useState('');
+  /** Campaign brief → Edit opens the canonical goal fields in a modal
+   *  (UI-parity §7); the goal card itself is read-only. */
+  const [briefEditOpen, setBriefEditOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Set<EngagementOutreachStep>>(new Set([step]));
   const [editingDraft, setEditingDraft] = useState<OutreachV3DraftArtifact | null>(null);
   const [generationJobId, setGenerationJobId] = useState<string | null>(null);
@@ -2064,10 +2068,31 @@ export function VNextOutreachWorkspace({
         <div className="uui-campaign-brief">
           <span className="uui-eyebrow">Campaign brief</span>
           <p>{campaignBrief(session, currentDrafts)}</p>
-          <button type="button" onClick={() => selectStep('goal')}>
+          {/* UI-parity §7: the canonical goal fields are reachable from here,
+              in a modal — not inline in the goal card, which is now the
+              read-only confirmation surface. */}
+          <button type="button" onClick={() => setBriefEditOpen(true)}>
             Edit
           </button>
         </div>
+        <EngagementDialog
+          open={briefEditOpen}
+          eyebrow="Campaign brief"
+          title="Edit campaign goal"
+          description="These fields are the canonical campaign state. They stay available when Meri's reasoning is offline."
+          width={720}
+          onClose={() => setBriefEditOpen(false)}
+        >
+          <GoalDecisionSurface
+            session={session}
+            busy={controller.applyingCommands}
+            applyCommands={async (commands) => {
+              const result = await controller.applyCommands(commands);
+              setBriefEditOpen(false);
+              return result;
+            }}
+          />
+        </EngagementDialog>
         <nav className="uui-outreach-step-strip" aria-label="Campaign steps">
           {USER_STEPS.map((candidate, index) => (
             <button
@@ -2233,6 +2258,13 @@ export function VNextOutreachWorkspace({
                         strategy={controller.strategy}
                         strategyPending={controller.strategyPending}
                         strategyError={controller.strategyError}
+                        // UI-parity §7: in vNext the goal card is the
+                        // confirmation surface, not a wizard. The canonical
+                        // fields live behind the brief bar's Edit below.
+                        goalVariant="readback"
+                        // UI-parity §8: source tabs + one query field; the
+                        // target profile is a full-width card below the list.
+                        targetsVariant="compact"
                         onFinish={() => undefined}
                         onSelectStage={(stage) => {
                           const target: EngagementOutreachStep =
