@@ -117,6 +117,7 @@ export class PatchContextItemDto {
 
 /** Resolve one source conflict explicitly. */
 export class ResolveContextConflictDto {
+  @IsString() @MinLength(1) conflictId!: string;
   @IsInt() @Min(0) expectedRevision!: number;
   @IsString() @MinLength(1) resolution!: string;
   @IsOptional() @IsString() keptItemId?: string;

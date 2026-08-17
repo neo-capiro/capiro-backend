@@ -39,6 +39,7 @@ import {
   RetryGenerationDto,
   CancelGenerationDto,
   FixIssueDto,
+  ResolveContextConflictDto,
 } from './dto/document-agent.dto.js';
 
 /**
@@ -181,6 +182,22 @@ export class DocumentAgentController {
     @Body() dto: ApproveContextDto,
   ) {
     return this.agent.approveContext(ctx.tenantId, draftId, ctx.clerkUserId, dto.expectedRevision);
+  }
+
+  @Post('context/resolve')
+  resolveContextConflict(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+    @Body() dto: ResolveContextConflictDto,
+  ) {
+    return this.agent.resolveContextConflict(
+      ctx.tenantId,
+      draftId,
+      ctx.clerkUserId,
+      dto.conflictId,
+      dto,
+      dto.expectedRevision,
+    );
   }
 
   // ── Outline ───────────────────────────────────────────────────────────

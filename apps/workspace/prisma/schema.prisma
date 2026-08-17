@@ -608,3 +608,76 @@ model WsGenerationRun {
   @@index([status, leaseExpiresAt])
   @@map("ws_generation_run")
 }
+
+// ── Document Themes: versioned, immutable published themes (GAPS §15) ──────
+// Mirrors the blueprint versioning pattern: a theme has draft/published/retired
+// versions. A published version is immutable. The theme settings (page size,
+// margins, paper color, font families, letterhead) are stored as JSON on the
+// version's `settings` field.
+
+enum WsThemeVersionStatus {
+  draft
+  published
+  retired
+
+  @@map("ws_theme_version_status")
+}
+
+model WsTheme {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  slug        String
+  name        String
+  description String?
+  ownerId     String   @map("owner_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  versions WsThemeVersion[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@map("ws_theme")
+}
+
+model WsThemeVersion {
+  id          String               @id @default(uuid()) @db.Uuid
+  tenantId    String               @map("tenant_id") @db.Uuid
+  themeId     String               @map("theme_id") @db.Uuid
+  version     Int
+  status      WsThemeVersionStatus @default(draft)
+  // Theme settings: { pageSize, margins, paperColor, fontFamilies, letterhead, ... }
+  settings    Json                 @default("{}")
+  settingsHash String              @map("settings_hash")
+  createdById String               @map("created_by_id")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  publishedAt DateTime?            @map("published_at")
+  retiredAt   DateTime?            @map("retired_at")
+
+  theme WsTheme @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@unique([themeId, version])
+  @@index([tenantId, status])
+  @@map("ws_theme_version")
+}
+
+// ── Brand Assets: firm logos and marks uploaded for theme letterheads (GAPS §16)
+model WsBrandAsset {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  uploadedById String   @map("uploaded_by_id")
+  // S3 object key (the upload pipeline stores the object; we keep the key).
+  objectKey   String   @map("object_key")
+  // Original filename for display.
+  filename    String
+  // MIME type (image/png, image/svg+xml, etc.)
+  mimeType    String   @map("mime_type")
+  // Size in bytes.
+  sizeBytes   Int      @map("size_bytes")
+  // Public-facing URL (presigned or CDN) for the asset.
+  url         String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@map("ws_brand_asset")
+}

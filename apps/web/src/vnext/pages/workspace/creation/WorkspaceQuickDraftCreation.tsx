@@ -61,22 +61,25 @@ interface ContextDomain {
   enabled: boolean;
 }
 
-/** Capiro context domains (handoff §6.5 card 04). Only the two enabled domains
- *  are interactive; the rest render greyed with `cursor:not-allowed`. */
+/** Capiro context domains (handoff §6.5 card 04). All domains are now enabled —
+ *  the backend intake service accepts any domain label and sanitizes it as a
+ *  planning instruction for the context compiler (no validation against a fixed
+ *  set). Each domain produces a planning instruction, not a hardcoded evidence
+ *  source. */
 const CONTEXT_DOMAINS: ContextDomain[] = [
   { id: 'client-profile', label: 'Client profile', sub: 'Identity, programs, positions', enabled: true },
   { id: 'institutional-memory', label: 'Institutional memory', sub: 'What the firm already knows', enabled: true },
-  { id: 'strategies', label: 'Strategies & priorities', sub: 'Active plays for this client', enabled: false },
-  { id: 'relationships', label: 'Relationships & targets', sub: 'Who the firm can reach', enabled: false },
-  { id: 'engagement', label: 'Engagement history', sub: 'Meetings, calls, outcomes', enabled: false },
-  { id: 'client-files', label: 'Client files & notes', sub: 'Uploaded client material', enabled: false },
-  { id: 'budget', label: 'Defense budget', sub: 'PB, marks, enacted by PE', enabled: false },
-  { id: 'legislation', label: 'Legislation & hearings', sub: 'Bills, marks, hearing records', enabled: false },
-  { id: 'nexus', label: 'District Nexus', sub: 'Facilities, jobs, districts', enabled: false },
-  { id: 'mailbox', label: 'Mailbox & correspondence', sub: 'Not available yet', enabled: false },
-  { id: 'people', label: 'People & stakeholders', sub: 'Not available yet', enabled: false },
-  { id: 'grants', label: 'Grants & contracts', sub: 'Not available yet', enabled: false },
-  { id: 'news', label: 'News & intelligence', sub: 'Not available yet', enabled: false },
+  { id: 'strategies', label: 'Strategies & priorities', sub: 'Active plays for this client', enabled: true },
+  { id: 'relationships', label: 'Relationships & targets', sub: 'Who the firm can reach', enabled: true },
+  { id: 'engagement', label: 'Engagement history', sub: 'Meetings, calls, outcomes', enabled: true },
+  { id: 'client-files', label: 'Client files & notes', sub: 'Uploaded client material', enabled: true },
+  { id: 'budget', label: 'Defense budget', sub: 'PB, marks, enacted by PE', enabled: true },
+  { id: 'legislation', label: 'Legislation & hearings', sub: 'Bills, marks, hearing records', enabled: true },
+  { id: 'nexus', label: 'District Nexus', sub: 'Facilities, jobs, districts', enabled: true },
+  { id: 'mailbox', label: 'Mailbox & correspondence', sub: 'Email threads, correspondence', enabled: true },
+  { id: 'people', label: 'People & stakeholders', sub: 'Key contacts, roles, influence', enabled: true },
+  { id: 'grants', label: 'Grants & contracts', sub: 'Active awards, obligations', enabled: true },
+  { id: 'news', label: 'News & intelligence', sub: 'Recent developments, alerts', enabled: true },
 ];
 
 const ENABLED_DOMAIN_IDS = new Set(

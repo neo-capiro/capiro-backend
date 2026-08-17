@@ -585,3 +585,41 @@ export interface EditLock {
   acquiredAt: string | null;
   staleAfterMs?: number;
 }
+
+// ── Theme CRUD (GAPS §15) ───────────────────────────────────────────────────
+
+export interface ThemeSummary {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
+  versions?: ThemeVersion[];
+}
+
+export interface ThemeVersion {
+  id: string;
+  themeId: string;
+  version: number;
+  status: 'draft' | 'published' | 'retired';
+  settings: Record<string, unknown>;
+  settingsHash: string;
+  createdById: string;
+  createdAt: string;
+  publishedAt?: string;
+  retiredAt?: string;
+}
+
+// ── Brand Assets (GAPS §16) ─────────────────────────────────────────────────
+
+export interface BrandAsset {
+  id: string;
+  objectKey: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+  createdAt: string;
+}

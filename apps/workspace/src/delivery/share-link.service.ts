@@ -228,6 +228,57 @@ export class ShareLinkService {
   }
 
   /**
+   * List all share links across all drafts in the tenant (tenant-wide index
+   * for the /workspace/shares page). Returns non-revoked links with the
+   * associated draft title and guest-comment count.
+   */
+  async listShares(tenantId: string): Promise<{
+    shares: Array<{
+      id: string;
+      draftId: string;
+      draftTitle: string;
+      label: string | null;
+      createdAt: string;
+      expiresAt: string | null;
+      guestCommentCount: number;
+    }>;
+  }> {
+    const links = await this.prisma.wsShareLink.findMany({
+      where: { tenantId, revokedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (links.length === 0) return { shares: [] };
+
+    const draftIds = [...new Set(links.map((l) => l.draftId))];
+    const drafts = await this.prisma.wsDraft.findMany({
+      where: { id: { in: draftIds }, tenantId },
+      select: { id: true, docTitle: true },
+    });
+    const draftMap = new Map(drafts.map((d) => [d.id, d.docTitle]));
+
+    const commentCounts = await this.prisma.wsGuestComment.groupBy({
+      by: ['shareLinkId'],
+      where: { tenantId, shareLinkId: { in: links.map((l) => l.id) } },
+      _count: { _all: true },
+    });
+    const commentMap = new Map(
+      commentCounts.map((c) => [c.shareLinkId, c._count._all]),
+    );
+
+    return {
+      shares: links.map((link) => ({
+        id: link.id,
+        draftId: link.draftId,
+        draftTitle: draftMap.get(link.draftId) ?? 'Untitled',
+        label: link.label,
+        createdAt: link.createdAt.toISOString(),
+        expiresAt: link.expiresAt?.toISOString() ?? null,
+        guestCommentCount: commentMap.get(link.id) ?? 0,
+      })),
+    };
+  }
+
+  /**
    * Sanitize text: strip HTML, max 2000 chars.
    */
   sanitize(text: string): string {

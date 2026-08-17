@@ -359,7 +359,7 @@ export function ContextLibraryVNext() {
                       : 'No steward decision required'
                 }
                 tone={
-                  (scopeClientId ? healthOpenConflicts ?? 0 : openConflicts.length) > 0
+                  (scopeClientId ? healthOpenConflicts : openConflicts.length) > 0
                     ? 'error'
                     : 'default'
                 }

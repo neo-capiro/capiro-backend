@@ -12,6 +12,7 @@ import type {
   AgentStateResponse,
   BlueprintSummary,
   BlueprintVersion,
+  BrandAsset,
   CatalogResponse,
   Collaborator,
   ContextItem,
@@ -31,6 +32,8 @@ import type {
   SendMessageRequest,
   SendMessageResponse,
   ShareLinkResponse,
+  ThemeSummary,
+  ThemeVersion,
   WorkspaceComment,
   AgentError,
 } from '../types/agent.js';
@@ -206,6 +209,22 @@ export const api = {
   ): Promise<AgentStateResponse> =>
     post<AgentStateResponse>(`/drafts/${draftId}/agent/context/approve`, {
       expectedRevision,
+    }),
+
+  resolveContextConflict: (
+    draftId: string,
+    conflictId: string,
+    expectedRevision: number,
+    resolution: string,
+    keptItemId?: string,
+    excludedItemIds?: string[],
+  ): Promise<AgentStateResponse> =>
+    post<AgentStateResponse>(`/drafts/${draftId}/agent/context/resolve`, {
+      conflictId,
+      expectedRevision,
+      resolution,
+      keptItemId,
+      excludedItemIds,
     }),
 
   patchContextItem: (
@@ -388,6 +407,29 @@ export const api = {
     apiFetch<{ comments: GuestComment[] }>(
       `/drafts/${draftId}/delivery/guest-comments`,
     ),
+
+  listShares: (): Promise<{
+    shares: Array<{
+      id: string;
+      draftId: string;
+      draftTitle: string;
+      label: string | null;
+      createdAt: string;
+      expiresAt: string | null;
+      guestCommentCount: number;
+    }>;
+  }> =>
+    apiFetch<{
+      shares: Array<{
+        id: string;
+        draftId: string;
+        draftTitle: string;
+        label: string | null;
+        createdAt: string;
+        expiresAt: string | null;
+        guestCommentCount: number;
+      }>;
+    }>('/shares'),
 
   getPublicShare: (token: string): Promise<PublicShareDocument> =>
     apiFetch<PublicShareDocument>(
@@ -655,4 +697,75 @@ export const api = {
 
   promoteToMemory: (draftId: string): Promise<unknown> =>
     post<unknown>(`/drafts/${draftId}/promote-memory`),
+
+  // ── Theme CRUD (GAPS §15) ──────────────────────────────────────────────
+
+  listThemes: (): Promise<{ themes: Array<ThemeSummary> }> =>
+    apiFetch<{ themes: Array<ThemeSummary> }>('/template-studio/themes'),
+
+  getTheme: (
+    themeId: string,
+  ): Promise<ThemeSummary & { versions: ThemeVersion[] }> =>
+    apiFetch<ThemeSummary & { versions: ThemeVersion[] }>(
+      `/template-studio/themes/${themeId}`,
+    ),
+
+  createTheme: (data: {
+    slug: string;
+    name: string;
+    description?: string;
+  }): Promise<ThemeSummary & { versions: ThemeVersion[] }> =>
+    post<ThemeSummary & { versions: ThemeVersion[] }>(
+      '/template-studio/themes',
+      data,
+    ),
+
+  createThemeVersion: (
+    themeId: string,
+    data?: { settings?: Record<string, unknown> },
+  ): Promise<ThemeVersion> =>
+    post<ThemeVersion>(`/template-studio/themes/${themeId}/versions`, data),
+
+  saveThemeDraft: (
+    themeId: string,
+    versionId: string,
+    settings: Record<string, unknown>,
+  ): Promise<ThemeVersion> =>
+    patch<ThemeVersion>(
+      `/template-studio/themes/${themeId}/versions/${versionId}`,
+      { settings },
+    ),
+
+  publishTheme: (
+    themeId: string,
+    versionId: string,
+  ): Promise<ThemeVersion> =>
+    post<ThemeVersion>(
+      `/template-studio/themes/${themeId}/versions/${versionId}/publish`,
+    ),
+
+  retireTheme: (
+    themeId: string,
+    versionId: string,
+  ): Promise<ThemeVersion> =>
+    post<ThemeVersion>(
+      `/template-studio/themes/${themeId}/versions/${versionId}/retire`,
+    ),
+
+  // ── Brand Assets (GAPS §16) ─────────────────────────────────────────────
+
+  listBrandAssets: (): Promise<{ assets: BrandAsset[] }> =>
+    apiFetch<{ assets: BrandAsset[] }>('/template-studio/assets'),
+
+  registerBrandAsset: (data: {
+    objectKey: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+    url: string;
+  }): Promise<BrandAsset> =>
+    post<BrandAsset>('/template-studio/assets', data),
+
+  deleteBrandAsset: (assetId: string): Promise<unknown> =>
+    del<unknown>(`/template-studio/assets/${assetId}`),
 };

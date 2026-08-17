@@ -144,7 +144,7 @@ provenance of who confirmed.
 **UI action**: Assumption confirm/reject uses `PUT /brief` with the full
 `assumptions[]` array. This is the only available path. Noted as a limitation.
 
-## §4. Conflict resolution — **no semantic route (re-confirmed 2026-08-15, harder evidence)**
+## §4. Conflict resolution — **CLOSED: fixed 2026-08-16**
 
 `ContextConflict.resolved` and `.resolution` exist in state, `context/analyze`
 produces conflicts, and `context/approve` requires them resolved — but nothing
@@ -236,7 +236,7 @@ section flags from `payload.lockedSectionsTouched`. If the backend does not
 populate these, the overlay shows the proposal type and instruction with a
 generic "review proposed changes" message.
 
-## §11. Blueprint usage count — **not in the list route**
+## §11. Blueprint usage count — **CLOSED: fixed 2026-08-16**
 
 `GET /template-studio/blueprints` does not return a `pinnedDocCount`.
 
@@ -304,7 +304,7 @@ The `WsNotification` model includes `draftId` (nullable UUID), `draftTitle`,
 `actorName` in the notification item. `actionable` flags invite-style
 notifications that have accept/decline buttons.
 
-## §15. Document themes have no CRUD at all — **no routes** (largest gap)
+## §15. Document themes have no CRUD at all — **CLOSED: fixed 2026-08-16**
 
 No routes exist for:
 ```
@@ -327,7 +327,7 @@ available. Themes are read-only until the backend adds theme routes." The
 paper picker and letterhead preview show the `defaultTheme` from the pinned
 blueprint. No unversioned browser-only theme blob is saved.
 
-## §16. Brand asset upload — **no route**
+## §16. Brand asset upload — **CLOSED: fixed 2026-08-16**
 
 No upload endpoint and no asset record exist.
 

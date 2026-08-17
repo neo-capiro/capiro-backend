@@ -75,13 +75,50 @@ export class TemplateStudioService {
 
   // ── Blueprint CRUD ─────────────────────────────────────────────────────
 
-  /** List blueprints visible to this tenant: capiro-global + the firm's own. */
-  async listBlueprints(tenantId: string): Promise<WsBlueprint[]> {
-    return this.prisma.wsBlueprint.findMany({
+  /**
+   * List blueprints visible to this tenant: capiro-global + the firm's own.
+   * Includes `pinnedDocCount`: the number of drafts in this tenant whose
+   * `config.documentAgent.blueprintPin.blueprintId` matches the blueprint.
+   * (GAPS §11 — the list route previously did not return this count.)
+   */
+  async listBlueprints(
+    tenantId: string,
+  ): Promise<Array<WsBlueprint & { pinnedDocCount: number }>> {
+    const blueprints = (await this.prisma.wsBlueprint.findMany({
       where: { OR: [{ tenantId: null }, { tenantId }] },
       orderBy: [{ product: 'asc' }, { name: 'asc' }],
       include: { versions: { orderBy: { version: 'desc' }, take: 1 } },
-    }) as Promise<WsBlueprint[]>;
+    })) as WsBlueprint[];
+
+    if (blueprints.length === 0) return [];
+
+    // Count drafts pinned to each blueprint. The blueprintPin lives at
+    // config.documentAgent.blueprintPin.blueprintId on WsDraft. We query
+    // all tenant drafts and match in-memory to avoid a raw SQL JSONB join
+    // (the config column is JSONB, not a promoted column). The tenant's
+    // draft count is bounded (this is a per-tenant list), so the in-memory
+    // scan is efficient.
+    const drafts = await this.prisma.wsDraft.findMany({
+      where: { tenantId },
+      select: { config: true },
+    });
+    const pinCounts = new Map<string, number>();
+    for (const draft of drafts) {
+      const cfg = draft.config as Record<string, unknown> | null;
+      if (!cfg) continue;
+      const agent = cfg.documentAgent as
+        | { blueprintPin?: { blueprintId?: string } }
+        | undefined;
+      const bpId = agent?.blueprintPin?.blueprintId;
+      if (bpId) {
+        pinCounts.set(bpId, (pinCounts.get(bpId) ?? 0) + 1);
+      }
+    }
+
+    return blueprints.map((bp) => ({
+      ...bp,
+      pinnedDocCount: pinCounts.get(bp.id) ?? 0,
+    }));
   }
 
   /** Get one blueprint (global or tenant-owned). */

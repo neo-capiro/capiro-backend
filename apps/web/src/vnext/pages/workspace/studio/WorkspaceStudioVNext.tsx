@@ -16,10 +16,9 @@
  *      409 BLUEPRINT_IMMUTABLE for any mutation, so we never send one.
  *
  *   3. Document themes (?view=themes)
- *      Read-only cards with paper miniatures. The theme editor preview is
- *      live, but Save draft / Publish theme are DISABLED because theme CRUD
- *      endpoints don't exist (GAPS §15). The firm-mark drop target is also
- *      disabled (GAPS §16).
+ *      Theme CRUD with versioned, immutable published versions (GAPS §15
+ *      and §16 resolved). Create, edit, save draft, publish, and manage
+ *      brand assets.
  *
  *   4. Compare versions (?view=compare)
  *      Side-by-side comparison from api.compareVersions(blueprintId).
@@ -29,6 +28,7 @@
  * version, only "Clone to new draft version".
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import '../styles/workspace.css';
@@ -284,7 +284,6 @@ function BlueprintList() {
                   <td>{bp.documentType ?? '—'}</td>
                   <td>{rollupStatus(bp.versions)}</td>
                   <td>
-                    {/* GAPS §11: list route does not return pinnedDocCount. */}
                     {bp.pinnedDocCount == null ? '—' : String(bp.pinnedDocCount)}
                   </td>
                   <td>{formatDate(bp.updatedAt)}</td>
@@ -1359,41 +1358,33 @@ function TestPublishStep({
 function DocumentThemes() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [themes, setThemes] = useState<{ id: string; name: string; settings?: ThemeSettings }[]>(
-    [],
-  );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const themesQuery = useQuery({
+    queryKey: ['ws-vnext', 'themes'],
+    queryFn: async () => (await api.listThemes()).themes,
+    staleTime: 30_000,
+  });
   const [selectedTheme, setSelectedTheme] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [newThemeName, setNewThemeName] = useState('');
+  const queryClient = useQueryClient();
 
-  // Themes aren't a first-class list endpoint (GAPS §15). We surface any
-  // default themes attached to blueprints as a best-effort read-only view.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await api.listBlueprints();
-        const collected: { id: string; name: string; settings?: ThemeSettings }[] = [];
-        for (const bp of res.blueprints ?? []) {
-          if (bp.versions?.length) {
-            // We only have summary versions here; themes come from the full
-            // version fetch. Skip — the read-only surface stays empty until
-            // theme routes exist.
-          }
-        }
-        if (!cancelled) setThemes(collected);
-      } catch (e) {
-        if (!cancelled) setError((e as Error).message ?? 'Failed to load themes');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const themes = themesQuery.data ?? [];
+
+  const handleCreate = async () => {
+    if (!newThemeName.trim()) return;
+    setCreating(true);
+    try {
+      const slug = newThemeName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const theme = await api.createTheme({ slug, name: newThemeName.trim() });
+      await queryClient.invalidateQueries({ queryKey: ['ws-vnext', 'themes'] });
+      setSelectedTheme(theme.id);
+      setNewThemeName('');
+    } catch (e) {
+      // Error is visible via query refetch
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const active = themes.find((t) => t.id === selectedTheme) ?? null;
 
@@ -1403,7 +1394,7 @@ function DocumentThemes() {
         <div>
           <h1>Document themes</h1>
           <p className="ws-vnext-studio__subtitle">
-            Read-only. Theme CRUD endpoints are not available (GAPS §15).
+            Versioned, immutable published themes for your firm.
           </p>
         </div>
         <div className="ws-vnext-studio__header-actions">
@@ -1411,43 +1402,52 @@ function DocumentThemes() {
         </div>
       </div>
 
-      <div className="ws-vnext-studio__themes-note">
-        Themes are read-only until the backend adds theme routes. “Save draft” and
-        “Publish theme” are disabled.
-      </div>
-
-      {loading && <Spinner label="Loading themes…" />}
-      {error && <ErrorState message={error} />}
+      {themesQuery.isLoading && <Spinner label="Loading themes…" />}
+      {themesQuery.error && <ErrorState message={(themesQuery.error as Error).message} />}
 
       <div className="ws-vnext-studio__theme-grid">
-        <button
-          type="button"
-          className="ws-vnext-studio__theme-tile ws-vnext-studio__theme-tile--new"
-          disabled
-          title="Theme CRUD endpoints not available (GAPS §15)"
-        >
-          + New document theme
-        </button>
-        {themes.length === 0 && !loading && !error && (
+        <div className="ws-vnext-studio__theme-tile ws-vnext-studio__theme-tile--new">
+          <input
+            type="text"
+            className="ws-vnext-studio__input"
+            placeholder="New theme name…"
+            value={newThemeName}
+            onChange={(e) => setNewThemeName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void handleCreate(); }}
+          />
+          <button
+            type="button"
+            className="ws-vnext-studio__btn ws-vnext-studio__btn--primary"
+            disabled={!newThemeName.trim() || creating}
+            onClick={() => void handleCreate()}
+          >
+            {creating ? 'Creating…' : '+ New document theme'}
+          </button>
+        </div>
+        {themes.length === 0 && !themesQuery.isLoading && !themesQuery.error && (
           <div className="ws-vnext-studio__theme-empty">
-            No themes surfaced. Theme list endpoints are not available yet.
+            No themes yet. Create one above.
           </div>
         )}
-        {themes.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className="ws-vnext-blueprint-card ws-vnext-studio__theme-card"
-            onClick={() => setSelectedTheme(t.id)}
-          >
-            <PaperMiniature color={t.settings?.paperColor} />
-            <div className="ws-vnext-studio__theme-name">{t.name}</div>
-            <ScopeBadge scope="firm" />
-            <div className="ws-vnext-studio__theme-usage">
-              {t.settings ? `${Object.keys(t.settings).length} settings` : 'No settings'}
-            </div>
-          </button>
-        ))}
+        {themes.map((t) => {
+          const latestVersion = t.versions?.[0];
+          const settings = latestVersion?.settings as ThemeSettings | undefined;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              className="ws-vnext-blueprint-card ws-vnext-studio__theme-card"
+              onClick={() => setSelectedTheme(t.id)}
+            >
+              <PaperMiniature color={settings?.paperColor} />
+              <div className="ws-vnext-studio__theme-name">{t.name}</div>
+              <ScopeBadge scope="firm" />
+              <div className="ws-vnext-studio__theme-usage">
+                {latestVersion ? `v${latestVersion.version} · ${latestVersion.status}` : 'No versions'}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {active && (
@@ -1469,18 +1469,64 @@ function ThemeEditor({
   theme,
   onClose,
 }: {
-  theme: { id: string; name: string; settings?: ThemeSettings };
+  theme: { id: string; name: string; settings?: ThemeSettings; versions?: Array<{ id: string; version: number; status: string; settings: Record<string, unknown> }> };
   onClose: () => void;
 }) {
-  const [paper, setPaper] = useState<string>(theme.settings?.paperColor ?? 'ivory');
-  const [headingFont, setHeadingFont] = useState(theme.settings?.headingFont ?? 'serif');
-  const [bodyFont, setBodyFont] = useState(theme.settings?.bodyFont ?? 'serif');
-  const [pageSize, setPageSize] = useState<'letter' | 'a4'>(theme.settings?.pageSize ?? 'letter');
-  const [margins, setMargins] = useState(theme.settings?.margins ?? '1in');
+  const queryClient = useQueryClient();
+  const latestVersion = theme.versions?.[0];
+  const versionId = latestVersion?.id ?? '';
+  const versionStatus = latestVersion?.status ?? 'draft';
+  const initialSettings = (latestVersion?.settings ?? theme.settings ?? {}) as ThemeSettings;
+  const [paper, setPaper] = useState<string>(initialSettings.paperColor ?? 'ivory');
+  const [headingFont, setHeadingFont] = useState(initialSettings.headingFont ?? 'serif');
+  const [bodyFont, setBodyFont] = useState(initialSettings.bodyFont ?? 'serif');
+  const [pageSize, setPageSize] = useState<'letter' | 'a4'>(initialSettings.pageSize ?? 'letter');
+  const [margins, setMargins] = useState(initialSettings.margins ?? '1in');
   const [markPlacement, setMarkPlacement] = useState<'left' | 'centered' | 'none'>(
-    theme.settings?.markPlacement ?? 'none',
+    initialSettings.markPlacement ?? 'none',
   );
-
+  const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [brandAssets, setBrandAssets] = useState<Array<{ id: string; filename: string; url: string }>>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.listBrandAssets();
+        if (!cancelled) setBrandAssets(res.assets ?? []);
+      } catch { /* no assets yet */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  const isDraft = versionStatus === 'draft';
+  const handleSaveDraft = async () => {
+    if (!isDraft || !versionId) return;
+    setSaving(true);
+    try {
+      await api.saveThemeDraft(theme.id, versionId, {
+        paperColor: paper, headingFont, bodyFont, pageSize, margins, markPlacement,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['ws-vnext', 'themes'] });
+    } finally {
+      setSaving(false);
+    }
+  };
+  const handlePublish = async () => {
+    if (!versionId) return;
+    setPublishing(true);
+    try {
+      if (isDraft) {
+        await api.saveThemeDraft(theme.id, versionId, {
+          paperColor: paper, headingFont, bodyFont, pageSize, margins, markPlacement,
+        });
+      }
+      await api.publishTheme(theme.id, versionId);
+      await queryClient.invalidateQueries({ queryKey: ['ws-vnext', 'themes'] });
+      onClose();
+    } finally {
+      setPublishing(false);
+    }
+  };
   return (
     <div className="ws-vnext-studio__theme-editor">
       <div className="ws-vnext-studio__theme-editor-head">
@@ -1570,30 +1616,46 @@ function ThemeEditor({
             </select>
           </Field>
           <Field label="Firm mark">
-            <div
-              className="ws-vnext-studio__drop-target"
-              aria-disabled="true"
-              title="Brand asset upload not available (GAPS §16)"
-            >
-              Brand asset upload not available.
+            <div className="ws-vnext-studio__drop-target">
+              {brandAssets.length > 0 ? (
+                <div className="ws-vnext-studio__brand-assets">
+                  {brandAssets.map((asset) => (
+                    <div key={asset.id} className="ws-vnext-studio__brand-asset">
+                      <img src={asset.url} alt={asset.filename} style={{ maxHeight: '40px' }} />
+                      <span>{asset.filename}</span>
+                      <button
+                        type="button"
+                        onClick={() => void (async () => {
+                          await api.deleteBrandAsset(asset.id);
+                          setBrandAssets((prev) => prev.filter((a) => a.id !== asset.id));
+                        })()}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span>Upload a firm mark via the asset pipeline, then register it here.</span>
+              )}
             </div>
           </Field>
           <div className="ws-vnext-studio__theme-actions">
             <button
               type="button"
               className="ws-vnext-studio__btn"
-              disabled
-              title="Theme CRUD endpoints not available (GAPS §15)"
+              disabled={!isDraft || saving}
+              onClick={() => void handleSaveDraft()}
             >
-              Save draft
+              {saving ? 'Saving…' : 'Save draft'}
             </button>
             <button
               type="button"
               className="ws-vnext-studio__btn ws-vnext-studio__btn--primary"
-              disabled
-              title="Theme CRUD endpoints not available (GAPS §15)"
+              disabled={publishing}
+              onClick={() => void handlePublish()}
             >
-              Publish theme
+              {publishing ? 'Publishing…' : 'Publish theme'}
             </button>
           </div>
         </div>

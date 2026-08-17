@@ -628,6 +628,47 @@ export class DocumentAgentService {
   }
 
   /**
+   * POST /drafts/:draftId/agent/context/resolve — resolve a single context
+   * conflict by marking it resolved with the user's resolution text. This is
+   * the semantic route GAPS §4 identified as missing: the DTO was defined but
+   * had zero references. Now resolves the conflict in the agent state JSONB.
+   */
+  async resolveContextConflict(
+    tenantId: string,
+    draftId: string,
+    actorId: string,
+    conflictId: string,
+    dto: { resolution: string; keptItemId?: string; excludedItemIds?: string[] },
+    expectedRevision: number,
+  ): Promise<{ state: DocumentAgentState }> {
+    return this.withMutationLock(tenantId, draftId, actorId, canEdit, expectedRevision, (s) => {
+      const conflict = s.contextPlan.conflicts.find((c) => c.id === conflictId);
+      if (!conflict) {
+        throw new NotFoundException('Context conflict not found');
+      }
+      if (conflict.resolved) {
+        throw new ConflictException('Conflict is already resolved');
+      }
+      conflict.resolved = true;
+      conflict.resolution = dto.resolution;
+      // Remove excluded items from the included set so the approved plan
+      // reflects the user's resolution choice.
+      if (dto.excludedItemIds && dto.excludedItemIds.length > 0) {
+        const excluded = new Set(dto.excludedItemIds);
+        s.contextPlan.includedItemIds = s.contextPlan.includedItemIds.filter(
+          (id) => !excluded.has(id),
+        );
+        for (const itemId of dto.excludedItemIds) {
+          s.contextPlan.excludedItems.push({
+            itemId,
+            reason: `Excluded during conflict resolution: ${dto.resolution}`,
+          });
+        }
+      }
+    });
+  }
+
+  /**
    * PATCH /drafts/:draftId/context/:itemId — extend a context item's payload.
    * This extends WsContextItem.payload, not replacing the model.
    */

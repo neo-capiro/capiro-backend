@@ -15,6 +15,8 @@ import {
 } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
+import { useQuery } from '@tanstack/react-query';
+import { api } from './api/client.js';
 import { installWorkspaceTransportBridge } from './api/transport-bridge.js';
 import { getTwoStepDraftCapability } from './creation/intake-client.js';
 import './styles/workspace.css';
@@ -106,28 +108,67 @@ function WorkspaceLoading() {
 }
 
 function SharesIndex() {
+  const sharesQuery = useSharesQuery();
+  const shares = sharesQuery.data?.shares ?? [];
+
   return (
     <div className="ws-vnext-library">
       <header className="ws-vnext-library__header">
         <div className="ws-vnext-library__title-block">
           <h1>Client shares</h1>
-          <p>
-            Share management is available from a document after delivery
-            preflight.
-          </p>
+          <p>All active share links across your documents.</p>
         </div>
       </header>
-      <div className="ws-vnext-attention-card">
-        <div className="ws-vnext-attention-card__label">
-          Open a document to manage its client links
+      {sharesQuery.isLoading && <div className="ws-vnext-empty">Loading shares…</div>}
+      {sharesQuery.error && <div className="ws-vnext-empty">Failed to load shares.</div>}
+      {!sharesQuery.isLoading && shares.length === 0 && (
+        <div className="ws-vnext-attention-card">
+          <div className="ws-vnext-attention-card__label">No active shares</div>
+          <div className="ws-vnext-attention-card__desc">
+            Create a share link from a document after delivery preflight.
+          </div>
         </div>
-        <div className="ws-vnext-attention-card__desc">
-          Workspace does not yet expose a tenant-wide share-link listing route.
-          Existing links remain revocable from the document that created them.
+      )}
+      {shares.length > 0 && (
+        <div className="ws-vnext-table-wrap">
+          <table className="ws-vnext-table">
+            <thead>
+              <tr>
+                <th>Document</th>
+                <th>Label</th>
+                <th>Created</th>
+                <th>Expires</th>
+                <th>Guest comments</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shares.map((share) => (
+                <tr
+                  key={share.id}
+                  onClick={() => { window.location.href = `/workspace/${share.draftId}`; }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <td>{share.draftTitle}</td>
+                  <td>{share.label ?? '—'}</td>
+                  <td>{new Date(share.createdAt).toLocaleDateString()}</td>
+                  <td>{share.expiresAt ? new Date(share.expiresAt).toLocaleDateString() : 'Never'}</td>
+                  <td>{share.guestCommentCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
+      )}
     </div>
   );
+}
+
+function useSharesQuery() {
+  return useQuery({
+    queryKey: ['ws-vnext', 'shares'],
+    queryFn: async () => api.listShares(),
+    staleTime: 30_000,
+  });
 }
 
 function CreationRoute() {

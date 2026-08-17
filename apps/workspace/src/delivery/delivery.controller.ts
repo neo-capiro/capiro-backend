@@ -96,6 +96,21 @@ export class DeliveryController {
 }
 
 /**
+ * Shares index controller — tenant-wide share-link listing for the
+ * /workspace/shares page. Mounted at /workspace-api/shares (no draftId prefix).
+ */
+@Controller('shares')
+@UseGuards(TenantGuard)
+export class SharesController {
+  constructor(private readonly shareLink: ShareLinkService) {}
+
+  @Get()
+  listShares(@CurrentTenant() ctx: WorkspaceTenantContext) {
+    return this.shareLink.listShares(ctx.tenantId);
+  }
+}
+
+/**
  * Public share controller — NO TenantGuard. Accessible by anyone with the token.
  */
 @Controller('public/workspace-share')
