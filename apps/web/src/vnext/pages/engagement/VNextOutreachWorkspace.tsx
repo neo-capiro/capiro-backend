@@ -66,6 +66,7 @@ import {
   type OutreachV3SendIntentView,
   type OutreachV3ServerPreflight,
 } from './engagement-api.js';
+import { safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import '../../../pages/engagement/outreach/v3/outreach-v3.css';
 import '../../../pages/engagement/outreach/v3/planning-surfaces.css';
 // Re-themes the shared ov3-root component tree (Goal/Targets/Delivery step
@@ -555,6 +556,7 @@ function DraftPanel({
   drafts,
   approvalCurrent,
   generationBusy,
+  generationError,
   job,
   onGenerateSamples,
   onApproveApproach,
@@ -570,6 +572,7 @@ function DraftPanel({
   drafts: OutreachV3DraftArtifact[];
   approvalCurrent: boolean;
   generationBusy: boolean;
+  generationError: unknown;
   job: {
     status: string;
     totals: Record<string, number> | null;
@@ -632,6 +635,9 @@ function DraftPanel({
             {generationBusy ? <Loader2 className="uui-spin" size={16} /> : <Sparkles size={16} />}{' '}
             Generate samples
           </button>
+          {generationError ? (
+            <p className="uui-field-error">{safeOutreachV3Error(generationError)}</p>
+          ) : null}
         </div>
       ) : !approvalCurrent ? (
         <div className="uui-approach-grid">
@@ -782,6 +788,9 @@ function DraftPanel({
               >
                 {generationBusy ? 'Starting…' : 'Generate remaining drafts'}
               </button>
+              {generationError ? (
+                <p className="uui-field-error">{safeOutreachV3Error(generationError)}</p>
+              ) : null}
             </div>
           ) : null}
 
@@ -1667,7 +1676,7 @@ function SendPanel({
           </div>
           {sendError || testSend.error ? (
             <p className="uui-field-error">
-              {safeError(sendError || testSend.error, 'The send action could not be completed.')}
+              {safeOutreachV3Error(sendError || testSend.error)}
             </p>
           ) : null}
         </aside>
@@ -2021,6 +2030,7 @@ export function VNextOutreachWorkspace({
             sendError={realSend.error}
             onSend={() => realSend.mutate()}
             onSuggested={(value) => void sendComposer(value)}
+            generationError={sampleMutation.error || fullGeneration.error}
             onGenerateSamples={() => sampleMutation.mutate()}
             onApproveApproach={() => approachMutation.mutate(sampleVersions)}
             onGenerateRemaining={() => fullGeneration.mutate()}
@@ -2292,6 +2302,7 @@ export function VNextOutreachWorkspace({
                         drafts={currentDrafts}
                         approvalCurrent={Boolean(approach.data)}
                         generationBusy={sampleMutation.isPending || fullGeneration.isPending}
+                        generationError={sampleMutation.error || fullGeneration.error}
                         job={generationJob.data ?? null}
                         onGenerateSamples={() => sampleMutation.mutate()}
                         onApproveApproach={() => approachMutation.mutate(sampleVersions)}
@@ -2433,6 +2444,7 @@ function InlineActions({
   onGenerateSamples,
   onApproveApproach,
   onGenerateRemaining,
+  generationError,
   onGoToPreflight,
 }: {
   step: EngagementOutreachStep;
@@ -2450,6 +2462,7 @@ function InlineActions({
   onGenerateSamples: () => void;
   onApproveApproach: () => void;
   onGenerateRemaining: () => void;
+  generationError: unknown;
   onGoToPreflight: () => void;
 }) {
   if (step === 'goal' && controllerStage === 'goal')
@@ -2495,6 +2508,9 @@ function InlineActions({
         <button type="button" onClick={onGenerateRemaining}>
           Generate remaining drafts
         </button>
+        {generationError ? (
+          <p className="uui-field-error">{safeOutreachV3Error(generationError)}</p>
+        ) : null}
       </div>
     );
   if (!preflight)
@@ -2554,7 +2570,7 @@ function InlineActions({
       </button>
       {sendError ? (
         <p className="uui-field-error">
-          {safeError(sendError, 'The send action could not be completed.')}
+          {safeOutreachV3Error(sendError)}
         </p>
       ) : null}
     </div>
