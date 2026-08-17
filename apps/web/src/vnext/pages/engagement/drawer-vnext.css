@@ -13,7 +13,7 @@
  * risk to app.capiro.ai (which never has this ancestor).
  *
  * Source of truth for the navy ramp: engagement-tones.css's --eng-tone-* /
- * engagement.css's --eng-accent*/--eng-ink*/--eng-warning*/--eng-error*
+ * engagement.css's --eng-accent* / --eng-ink* / --eng-warning* / --eng-error*
  * tokens (the same navy already used for the Meetings toolbar/calendar/rows
  * built in the prior phase) — no new literal colors invented here.
  *
