@@ -14,7 +14,13 @@ export interface ClientAccountOwnerAssignment {
   accountOwner: ClientAccountOwner | null;
 }
 
-type OwnerRow = ClientAccountOwner & { accountOwnerUserId?: string | null };
+type OwnerRow = {
+  accountOwnerUserId: string | null;
+  id: string | null;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+};
 
 @Injectable()
 export class ClientAccountOwnerService {
@@ -55,8 +61,8 @@ export class ClientAccountOwnerService {
       const row = rows[0];
       if (!row) throw new NotFoundException('Client not found');
       return {
-        accountOwnerUserId: row.accountOwnerUserId ?? null,
-        accountOwner: row.id
+        accountOwnerUserId: row.accountOwnerUserId,
+        accountOwner: row.id && row.email
           ? { id: row.id, email: row.email, firstName: row.firstName, lastName: row.lastName }
           : null,
       };
