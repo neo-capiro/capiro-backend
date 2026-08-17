@@ -154,16 +154,16 @@ BEGIN
   IF p_as_of IS NULL THEN
     RAISE EXCEPTION 'kg_temporal_walk_bounded: p_as_of is mandatory';
   END IF;
-  IF p_direction NOT IN ('out', 'in', 'both') THEN
+  IF p_direction IS NULL OR p_direction NOT IN ('out', 'in', 'both') THEN
     RAISE EXCEPTION 'kg_temporal_walk_bounded: p_direction must be out, in, or both';
   END IF;
 
   SELECT COALESCE(ARRAY_AGG(k ORDER BY k), '{}'::text[])
   INTO v_client_ref_keys
   FROM (
-    SELECT DISTINCT BTRIM(value) AS k
-    FROM unnest(p_client_ref_keys) value
-    WHERE NULLIF(BTRIM(value), '') IS NOT NULL
+    SELECT DISTINCT BTRIM(refs.value) AS k
+    FROM unnest(p_client_ref_keys) AS refs(value)
+    WHERE NULLIF(BTRIM(refs.value), '') IS NOT NULL
   ) normalized;
 
   RETURN QUERY
@@ -340,16 +340,16 @@ BEGIN
   IF p_window_end <= p_window_start THEN
     RAISE EXCEPTION 'kg_temporal_relation_history: window_end must be after window_start';
   END IF;
-  IF p_direction NOT IN ('out', 'in', 'both') THEN
+  IF p_direction IS NULL OR p_direction NOT IN ('out', 'in', 'both') THEN
     RAISE EXCEPTION 'kg_temporal_relation_history: p_direction must be out, in, or both';
   END IF;
 
   SELECT COALESCE(ARRAY_AGG(k ORDER BY k), '{}'::text[])
   INTO v_client_ref_keys
   FROM (
-    SELECT DISTINCT BTRIM(value) AS k
-    FROM unnest(p_client_ref_keys) value
-    WHERE NULLIF(BTRIM(value), '') IS NOT NULL
+    SELECT DISTINCT BTRIM(refs.value) AS k
+    FROM unnest(p_client_ref_keys) AS refs(value)
+    WHERE NULLIF(BTRIM(refs.value), '') IS NOT NULL
   ) normalized;
 
   RETURN QUERY
