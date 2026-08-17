@@ -14,9 +14,7 @@ export class PrismaService
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
-    super({
-      log: ['error', 'warn'],
-    });
+    super({ log: ['error', 'warn'] });
   }
 
   async onModuleInit(): Promise<void> {
@@ -28,22 +26,26 @@ export class PrismaService
     await this.$disconnect();
   }
 
-  // No withSystem()/app.bypass_rls escape hatch here. That would let any
-  // future caller run arbitrary raw SQL under a generic RLS bypass, which
-  // defeats the least-privilege HTTP boundary this service exists to hold.
-  // The one place that previously needed it (resolving a tenant before
-  // app.current_tenant is known) now calls the three narrow SECURITY DEFINER
-  // functions granted to capiro_defense_serve
-  // (see org-tenant-resolver.provider.ts and migration
-  // 20261120200000_phase8_defense_runtime_roles) instead of bypassing RLS
-  // from application code.
-
+  // No generic system-query or RLS-bypass escape hatch. Bootstrap tenant resolution
+  // and actor resolution use fixed-shape SECURITY DEFINER functions.
   async withTenant<T>(
     tenantId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
     return this.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
+      return fn(tx);
+    });
+  }
+
+  async withTenantActor<T>(
+    tenantId: string,
+    userId: string,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    return this.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.current_tenant', ${tenantId}, true)`;
+      await tx.$executeRaw`SELECT set_config('app.current_user', ${userId}, true)`;
       return fn(tx);
     });
   }
