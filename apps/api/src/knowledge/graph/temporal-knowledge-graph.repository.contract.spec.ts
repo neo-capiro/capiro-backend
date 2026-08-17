@@ -26,6 +26,13 @@ describe('TemporalKnowledgeGraphRepository contract', () => {
     expect((source.match(/textArray\(input\.clientRefKeys\)/g) ?? []).length).toBe(2);
   });
 
+  test('every temporal graph call sets the real caller-side statement timeout', () => {
+    expect(
+      (source.match(/SET LOCAL statement_timeout = '3s'/g) ?? []).length,
+    ).toBe(2);
+    expect(source).toContain('function-level statement_timeout cannot re-arm');
+  });
+
   test('repository uses only sanctioned temporal graph functions', () => {
     expect(source).toContain('FROM kg_temporal_walk_bounded(');
     expect(source).toContain('FROM kg_temporal_relation_history(');
