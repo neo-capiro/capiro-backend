@@ -62,6 +62,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Build workspace packages consumed by @capiro/api
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
       - name: Validate and generate Prisma client
         run: |
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
