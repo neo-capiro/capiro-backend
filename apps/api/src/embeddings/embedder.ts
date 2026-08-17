@@ -1,47 +1,28 @@
 /**
  * Pure (no-Nest) functions that produce + persist embeddings into
- * context_embeddings. Used by both the standalone embed-backfill script and
- * the EmbeddingsService Nest provider, so the logic for normalization,
- * hashing, Bedrock invocation and the pgvector upsert lives in exactly one
- * place.
+ * context_embeddings. Used by both the standalone embed-backfill/sync paths
+ * and the EmbeddingsService Nest provider, so normalization, hashing and the
+ * pgvector upsert live in exactly one place.
  *
- * Why not put everything in the Nest service:
- *   * Sync scripts (apps/api/scripts/sync-*.ts) run outside the Nest app
- *     container and can't dependency-inject. They `import { embedAndUpsert }`
- *     directly.
- *   * The backfill script runs in a one-shot ECS task that also doesn't boot
- *     the Nest container.
- *
- * The Nest service wraps these and adds: PrismaService injection, async
- * fire-and-forget for write paths, and convenience helpers for the typed
- * Prisma models.
+ * Provider-specific invocation is intentionally outside this file. Both Nest
+ * and standalone processes resolve the same EmbeddingProvider contract via
+ * getDefaultEmbeddingProvider().
  */
 
 import { createHash } from 'node:crypto';
-import {
-  BedrockRuntimeClient,
-  InvokeModelCommand,
-} from '@aws-sdk/client-bedrock-runtime';
 import type { PrismaClient } from '@prisma/client';
+import type { EmbeddingProvider, EmbeddingProviderMetadata } from './embedding-provider.js';
+import { getDefaultEmbeddingProvider } from './embedding-provider.factory.js';
 
-export const EMBEDDING_MODEL =
-  process.env.EMBEDDINGS_MODEL ?? 'amazon.titan-embed-text-v2:0';
+/** Existing context_embeddings vector width. Phase 12 does not migrate it. */
 export const EMBEDDING_DIM = 1024;
-const REGION = process.env.AWS_REGION_DEFAULT ?? 'us-east-1';
+/** Backwards-compatible model metadata for callers that only need the current default id. */
+export const EMBEDDING_MODEL = getDefaultEmbeddingProvider().metadata.model;
 
-// Soft cap on input characters per Bedrock call. Titan v2 hard limit is 50K
-// characters; we cap lower so a single absurdly long source row doesn't blow
-// the token budget. Truncation is fine for retrieval, the most important
-// signal is the lead paragraphs.
+// Soft cap on input characters per embedding call. Titan v2's current adapter
+// can accept more, but we keep the existing cap so Phase 12 cannot change
+// retrieval output merely by changing input length.
 export const MAX_INPUT_CHARS = 8000;
-
-let cachedBedrock: BedrockRuntimeClient | null = null;
-function getBedrock(): BedrockRuntimeClient {
-  if (!cachedBedrock) {
-    cachedBedrock = new BedrockRuntimeClient({ region: REGION });
-  }
-  return cachedBedrock;
-}
 
 /** Hash the normalized text so we can skip re-embed when nothing changed. */
 export function sha256(text: string): string {
@@ -50,7 +31,7 @@ export function sha256(text: string): string {
 
 /** Trim, collapse whitespace, cap to MAX_INPUT_CHARS. Identical input ⇒
  *  identical hash, so this is the function the worker MUST use both when
- *  computing the hash and when sending to Bedrock. */
+ *  computing the hash and when sending to the embedding provider. */
 export function normalize(text: string): string {
   return text.replace(/\s+/g, ' ').trim().slice(0, MAX_INPUT_CHARS);
 }
@@ -62,30 +43,39 @@ export function vectorLiteral(v: readonly number[]): string {
   return `[${v.join(',')}]`;
 }
 
-/** One Bedrock InvokeModel call against Titan Text Embeddings v2. Returns
- *  the 1024-dim vector. Throws on bad responses so callers can decide
- *  whether to swallow or surface the error. */
-export async function embedText(text: string): Promise<number[]> {
-  const cmd = new InvokeModelCommand({
-    modelId: EMBEDDING_MODEL,
-    contentType: 'application/json',
-    accept: 'application/json',
-    body: JSON.stringify({
-      inputText: text,
-      dimensions: EMBEDDING_DIM,
-      normalize: true,
-    }),
-  });
-  const res = await getBedrock().send(cmd);
-  const parsed = JSON.parse(new TextDecoder().decode(res.body)) as {
-    embedding?: number[];
-  };
-  if (!Array.isArray(parsed.embedding) || parsed.embedding.length !== EMBEDDING_DIM) {
+/** Observable provider/model metadata without exposing provider internals. */
+export function embeddingProviderMetadata(
+  provider: EmbeddingProvider = getDefaultEmbeddingProvider(),
+): EmbeddingProviderMetadata {
+  return provider.metadata;
+}
+
+/**
+ * Phase 12 intentionally freezes the existing pgvector dimension. A future
+ * model migration must be explicit rather than silently writing incompatible
+ * vectors into context_embeddings.
+ */
+export function assertEmbeddingStorageCompatibility(provider: EmbeddingProvider): void {
+  if (provider.metadata.dimensions !== EMBEDDING_DIM) {
     throw new Error(
-      `Titan returned a bad embedding (len=${parsed.embedding?.length ?? 'none'})`,
+      `Embedding provider dimension ${provider.metadata.dimensions} does not match context_embeddings dimension ${EMBEDDING_DIM}`,
     );
   }
-  return parsed.embedding;
+}
+
+/** Provider-neutral single-input embed used by retrieval and standalone jobs. */
+export async function embedText(
+  text: string,
+  provider: EmbeddingProvider = getDefaultEmbeddingProvider(),
+): Promise<number[]> {
+  assertEmbeddingStorageCompatibility(provider);
+  const vector = await provider.embed(text);
+  if (vector.length !== provider.metadata.dimensions) {
+    throw new Error(
+      `Embedding provider returned ${vector.length} dimensions; expected ${provider.metadata.dimensions}`,
+    );
+  }
+  return vector;
 }
 
 export interface EmbedAndUpsertArgs {
@@ -105,7 +95,7 @@ export interface EmbedAndUpsertArgs {
   /** Source row id (string, may be UUID or composite like '119-hr-1234'). */
   sourceId: string;
   /** Already-normalized text. The caller is responsible for calling
-   *  normalize() so the hash matches the text Bedrock saw. */
+   *  normalize() so the hash matches the text the provider saw. */
   text: string;
   /** Set RLS bypass for the write. Required for inserts into NULL-tenant
    *  rows; harmless when tenantId is set to current_tenant_id. The backfill
@@ -118,7 +108,7 @@ export type EmbedOutcome = 'inserted' | 'updated' | 'skipped';
 
 /**
  * Embed + upsert one row. Returns 'skipped' when the stored content_hash
- * already matches, no Bedrock call burned, no DB write performed.
+ * already matches, no provider call burned, no DB write performed.
  *
  * Caller passes either a PrismaClient or a tx; both have $transaction +
  * $executeRawUnsafe + $queryRawUnsafe.
@@ -126,10 +116,13 @@ export type EmbedOutcome = 'inserted' | 'updated' | 'skipped';
 export async function embedAndUpsert(
   prisma: PrismaClient,
   args: EmbedAndUpsertArgs,
+  provider: EmbeddingProvider = getDefaultEmbeddingProvider(),
 ): Promise<EmbedOutcome> {
   const text = args.text;
   if (!text || text.length < 10) return 'skipped';
   const hash = sha256(text);
+  const model = provider.metadata.model;
+  assertEmbeddingStorageCompatibility(provider);
 
   // Step 1 (no transaction): peek at the stored hash for this row. A simple
   // SELECT, quick, no lock, no transaction needed. RLS is enforced on
@@ -142,29 +135,21 @@ export async function embedAndUpsert(
        LIMIT 1`,
     args.sourceType,
     args.sourceId,
-    EMBEDDING_MODEL,
+    model,
     args.tenantId,
   );
   if (existing[0]?.content_hash === hash) {
     return 'skipped';
   }
 
-  // Step 2 (no transaction): call Bedrock. This is the slow part, typical
-  // p50 ~400ms, p95 ~2s, occasional cold-start spikes past 5s. Used to be
-  // inside the prisma.$transaction below, which caused
-  //   "Transaction already closed: ... however 6220 ms passed since the
-  //    start of the transaction. Consider ... doing less work in the
-  //    transaction."
-  // every time Bedrock took >5s. The default interactive-transaction
-  // timeout is 5000 ms and there's no upside to holding a transaction
-  // open across a network call to an external service.
-  const vector = await embedText(text);
+  // Step 2 (no transaction): call the embedding provider. This is the slow
+  // network step and deliberately remains outside the interactive transaction.
+  const vector = await embedText(text, provider);
   const literal = vectorLiteral(vector);
 
   // Step 3 (short transaction): the write itself. SET LOCAL app.bypass_rls
-  // must run in the same transaction as the write, that's the whole
-  // reason we wrap. Keep this block fast (< 100ms) and free of any
-  // external calls.
+  // must run in the same transaction as the write. Keep this block fast and
+  // free of any external provider calls.
   return prisma.$transaction(async (tx) => {
     if (args.bypassRls) {
       await tx.$executeRawUnsafe(`SET LOCAL app.bypass_rls = 'on'`);
@@ -185,7 +170,7 @@ export async function embedAndUpsert(
         args.ownerUserId ?? null,
         args.sourceType,
         args.sourceId,
-        EMBEDDING_MODEL,
+        model,
         text,
         hash,
       );
@@ -203,7 +188,7 @@ export async function embedAndUpsert(
       hash,
       args.sourceType,
       args.sourceId,
-      EMBEDDING_MODEL,
+      model,
       args.tenantId,
       args.ownerUserId ?? null,
     );
