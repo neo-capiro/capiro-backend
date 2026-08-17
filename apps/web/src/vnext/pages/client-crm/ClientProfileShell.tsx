@@ -7,6 +7,7 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
 import { openMeriWorkspaceWithContext } from '../../../components/chat/meri-window.js';
 import { CRM_TAB_LABELS, type CrmSurface, type CrmView } from './client-crm-routing.js';
+import { useClientAccountOwner } from './useClientAccountOwner.js';
 
 /**
  * Responsive breakpoint flags (spec §1.6): narrow = w<1200, tight = w<1024,
@@ -248,17 +249,7 @@ export function ClientProfileShell({
 
           {/* Right cluster */}
           <div className="cap-pf-identity-right" style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 16 }}>
-            {/* Row 11, wire-audit "4 New capability": this read "Sarah
-                Martinez" for every client in every tenant — a fabricated human
-                name presented as the account owner. There is no owner column on
-                Client and no assignment UI, so it states the absence. The
-                Overview tab's Account card already did exactly this. */}
-            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-                Account owner
-              </span>
-              <span style={{ fontSize: 14, fontWeight: 600, color: '#98A2B3', whiteSpace: 'nowrap' }}>Not tracked</span>
-            </span>
+            <AccountOwnerControl clientId={client.id} canAssign={canEditFocus} />
             <FillButton busy={fillBusy} label={fillLabel} onClick={onFillWithMeri} />
             <OverflowMenu client={client} onDataHealth={onDataHealth} canArchive={canArchive} onArchive={onArchive} />
           </div>
@@ -303,6 +294,59 @@ function CrumbButton({ label, strong = false, onClick }: { label: string; strong
     >
       {label}
     </button>
+  );
+}
+
+function AccountOwnerControl({ clientId, canAssign }: { clientId: string; canAssign: boolean }) {
+  const owner = useClientAccountOwner(clientId, canAssign);
+  const currentMissing =
+    owner.owner != null && !owner.options.some((option) => option.id === owner.owner?.id);
+  const display = owner.isLoading ? 'Loading…' : owner.ownerLabel ?? 'Unassigned';
+
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+      <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+        Account owner
+      </span>
+      {canAssign ? (
+        <select
+          aria-label="Account owner"
+          value={owner.assignment?.accountOwnerUserId ?? ''}
+          disabled={owner.isLoading || owner.isAssigning}
+          onChange={(event) => owner.setOwner(event.target.value || null)}
+          title={owner.error instanceof Error ? owner.error.message : undefined}
+          style={{
+            height: 28,
+            maxWidth: 190,
+            border: 0,
+            borderRadius: 7,
+            padding: '0 24px 0 8px',
+            background: '#F9FAFB',
+            boxShadow: 'inset 0 0 0 1px #EAECF0',
+            color: owner.error ? '#B42318' : '#344054',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: owner.isLoading || owner.isAssigning ? 'wait' : 'pointer',
+          }}
+        >
+          <option value="">Unassigned</option>
+          {currentMissing && owner.owner ? (
+            <option value={owner.owner.id}>{`${owner.ownerLabel ?? owner.owner.email} (inactive)`}</option>
+          ) : null}
+          {owner.options.map((option) => {
+            const name = [option.firstName, option.lastName].filter(Boolean).join(' ').trim() || option.email;
+            return <option key={option.id} value={option.id}>{name}</option>;
+          })}
+        </select>
+      ) : (
+        <span
+          title={owner.error instanceof Error ? owner.error.message : undefined}
+          style={{ fontSize: 14, fontWeight: 600, color: owner.ownerLabel ? '#344054' : '#98A2B3', whiteSpace: 'nowrap' }}
+        >
+          {owner.error ? 'Unavailable' : display}
+        </span>
+      )}
+    </label>
   );
 }
 

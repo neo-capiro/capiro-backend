@@ -38,6 +38,7 @@ import {
 } from '../../../pages/clients/tracker/tracker-api.js';
 import { intelTrackerPaths } from '../../../pages/clients/tracker/intel-tracker-api.js';
 import type { StrategyDetail, StrategyListItem } from '../../../pages/strategy/types.js';
+import { useClientAccountOwner } from '../../pages/client-crm/useClientAccountOwner.js';
 
 /* ────────────────────────────── metric algebra ───────────────────────────── */
 
@@ -80,7 +81,6 @@ export interface ClientProfileCard {
 }
 
 export interface AccountCard {
-  /** No owner column exists on `Client` — see the contract audit. */
   accountOwner: string | null;
   primaryContact: string | null;
   nextMeeting: { id: string; label: string; startsAt: string } | null;
@@ -229,6 +229,7 @@ const crmHref = (clientId: string, tab: string, view?: string) =>
 export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewModel {
   const api = useApi();
   const clientId = client.id;
+  const accountOwner = useClientAccountOwner(clientId);
 
   /* Account ------------------------------------------------------------- */
   const dateRange = useMemo(() => {
@@ -330,9 +331,7 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
   const account = useMemo<AccountCard>(() => {
     const intake = toRecord(client.intakeData);
     return {
-      // No owner/team columns exist on the Client model. Rendering a name here
-      // would be inventing product logic from placeholder copy.
-      accountOwner: null,
+      accountOwner: accountOwner.ownerLabel,
       primaryContact: client.primaryContactName ?? readText(intake, ['pocName']) ?? null,
       nextMeeting: nextMeeting
         ? {
@@ -350,7 +349,7 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
       accountTeam: [],
       accountTeamAvailable: false,
     };
-  }, [client, nextMeeting]);
+  }, [client, nextMeeting, accountOwner.ownerLabel]);
 
   const openActions = useMemo(
     () => (actionQuery.data?.data ?? []).filter((action) => !CLOSED_ACTION_STATUSES.has(action.status)),

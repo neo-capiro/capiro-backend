@@ -596,10 +596,13 @@ function FitRow({ fit }: { fit: (typeof CAP_FIT)[number] }) {
  */
 function PastPerformanceCard({ client }: { client: Client }) {
   const { rows, settled, failed } = useClientSubmissions(client.id);
+  const [showAll, setShowAll] = useState(false);
   // Fixture only while the reads are in flight or errored — never as a
   // stand-in for a client with no recorded history.
   const showFixture = !settled || failed;
   const genuinelyEmpty = settled && !failed && rows.length === 0;
+  const hasMore = !showFixture && rows.length > 3;
+  const visibleRows = hasMore && !showAll ? rows.slice(0, 3) : rows;
 
   return (
     <Card>
@@ -608,7 +611,11 @@ function PastPerformanceCard({ client }: { client: Client }) {
         title="Past performance"
         description="Submissions recorded against this client's capabilities, and what happened to each."
         action={
-          showFixture || rows.length === 0 ? null : (
+          showFixture || rows.length === 0 ? null : hasMore ? (
+            <LinkBtn onClick={() => setShowAll((current) => !current)}>
+              {showAll ? 'Show recent' : `View all ${rows.length}`}
+            </LinkBtn>
+          ) : (
             <span style={{ fontSize: 13, color: '#667085', whiteSpace: 'nowrap' }}>
               {`${rows.length} record${rows.length === 1 ? '' : 's'}`}
             </span>
@@ -659,7 +666,7 @@ function PastPerformanceCard({ client }: { client: Client }) {
             </div>
             {showFixture
               ? CAP_PERF.map((p) => <PerfRow key={p.title} perf={p} />)
-              : rows.map((row) => <SubmissionRow key={row.id} row={row} />)}
+              : visibleRows.map((row) => <SubmissionRow key={row.id} row={row} />)}
           </div>
         </div>
       )}

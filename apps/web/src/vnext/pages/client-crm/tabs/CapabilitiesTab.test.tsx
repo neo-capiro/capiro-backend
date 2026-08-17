@@ -155,6 +155,37 @@ describe('ClientCrmCapabilitiesProto — past performance (row 12)', () => {
     expect(screen.queryByText('GPS-denied navigation study')).not.toBeInTheDocument();
   });
 
+  it('expands View all using the live submission count and can collapse again', async () => {
+    mockCapabilityApi(
+      ['One', 'Two', 'Three', 'Four'].map((title, index) => ({
+        id: `sub-${index + 1}`,
+        clientId: 'client-1',
+        capabilityId: 'cap-1',
+        fiscalYear: `FY${27 + index}`,
+        title: `Submission ${title}`,
+        meta: null,
+        outcome: null,
+        outcomeType: 'pending',
+        notes: null,
+        createdAt: '2026-03-01T00:00:00.000Z',
+        updatedAt: '2026-03-01T00:00:00.000Z',
+      })),
+    );
+    renderCapabilities();
+
+    const viewAll = await screen.findByRole('button', { name: 'View all 4' });
+    expect(screen.getByText('Submission One')).toBeInTheDocument();
+    expect(screen.getByText('Submission Three')).toBeInTheDocument();
+    expect(screen.queryByText('Submission Four')).not.toBeInTheDocument();
+
+    fireEvent.click(viewAll);
+    expect(await screen.findByText('Submission Four')).toBeInTheDocument();
+    const collapse = screen.getByRole('button', { name: 'Show recent' });
+
+    fireEvent.click(collapse);
+    await waitFor(() => expect(screen.queryByText('Submission Four')).not.toBeInTheDocument());
+  });
+
   it('shows a real empty state when the client has no submissions', async () => {
     mockCapabilityApi([]);
     renderCapabilities();
