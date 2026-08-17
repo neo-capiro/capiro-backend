@@ -591,7 +591,7 @@ export class ExactLexicalRetrievalService {
                      ) AS payload,
                      last_synced_at AS updated_at
               FROM federal_award
-              WHERE pe_code = ${exact.normalizedIdentifier}
+              WHERE pe_code = ${'normalizedIdentifier' in exact ? exact.normalizedIdentifier : exact.value}
               ORDER BY id
               LIMIT ${MAX_EXACT_MATCHES + 1}
             `;

@@ -7184,14 +7184,14 @@ export class IntelligenceService {
       if (!name) continue;
       // Check both peNumber (single) and peNumbers (array).
       if (cap.peNumber && peCodes.includes(cap.peNumber)) {
-        if (!peAttribution[cap.peNumber].includes(name)) {
-          peAttribution[cap.peNumber].push(name);
+        if (!peAttribution[cap.peNumber]!.includes(name)) {
+          peAttribution[cap.peNumber]!.push(name);
         }
       }
       if (Array.isArray(cap.peNumbers)) {
         for (const pe of cap.peNumbers) {
-          if (peCodes.includes(pe) && !peAttribution[pe].includes(name)) {
-            peAttribution[pe].push(name);
+          if (peCodes.includes(pe) && !peAttribution[pe]!.includes(name)) {
+            peAttribution[pe]!.push(name);
           }
         }
       }
