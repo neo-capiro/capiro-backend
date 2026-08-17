@@ -190,3 +190,37 @@
   background: var(--ws-green-bg, rgba(16, 185, 129, 0.08));
   color: var(--ws-green, #10b981);
 }
+
+/* ── Guest feedback list (GAPS §13) ────────────────────────────────── */
+
+.ws-audit-guest-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.ws-audit-guest-comment {
+  border: 1px solid var(--ws-line, #e4e7ec);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.ws-audit-guest-comment__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.ws-audit-guest-comment__meta strong {
+  font-size: 12px;
+  color: var(--ws-ink, #1d2939);
+}
+.ws-audit-guest-comment__meta span {
+  font-size: 11px;
+  color: var(--ws-muted, #667085);
+}
+.ws-audit-guest-comment p {
+  font-size: 13px;
+  color: var(--ws-body, #475467);
+  margin: 0;
+  line-height: 1.4;
+}

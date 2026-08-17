@@ -75,11 +75,11 @@ const publicWorkspaceApi = {
     normalizePublicDocument(
       await publicRequest<unknown>('GET', `/public/workspace-share/${encodeURIComponent(token)}`),
     ),
-  addComment: (token: string, text: string) =>
+  addComment: (token: string, text: string, name?: string) =>
     publicRequest<unknown>(
       'POST',
       `/public/workspace-share/${encodeURIComponent(token)}/comments`,
-      { text },
+      name ? { text, name } : { text },
     ),
 };
 
@@ -108,6 +108,7 @@ export function WorkspaceShareView({ token }: WorkspaceShareViewProps) {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [document, setDocument] = useState<PublicShareDocument | null>(null);
   const [comment, setComment] = useState('');
+  const [guestName, setGuestName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [commentSent, setCommentSent] = useState(false);
@@ -141,8 +142,9 @@ export function WorkspaceShareView({ token }: WorkspaceShareViewProps) {
       setCommentError(null);
       setCommentSent(false);
       try {
-        await publicWorkspaceApi.addComment(token, text);
+        await publicWorkspaceApi.addComment(token, text, guestName.trim() || undefined);
         setComment('');
+        setGuestName('');
         setCommentSent(true);
       } catch (error) {
         const status = (error as { statusCode?: number } | null)?.statusCode ?? 0;
@@ -155,7 +157,7 @@ export function WorkspaceShareView({ token }: WorkspaceShareViewProps) {
         setSubmitting(false);
       }
     },
-    [comment, submitting, token],
+    [comment, guestName, submitting, token],
   );
 
   const paperColor =
@@ -236,6 +238,19 @@ export function WorkspaceShareView({ token }: WorkspaceShareViewProps) {
             up to ten comments every five minutes.
           </span>
           <form onSubmit={submitComment}>
+            <input
+              type="text"
+              value={guestName}
+              onChange={(event) => {
+                setGuestName(event.target.value.slice(0, 200));
+                setCommentError(null);
+              }}
+              maxLength={200}
+              placeholder="Your name (optional)"
+              aria-label="Guest name"
+              disabled={submitting}
+              className="ws-share__comment-name"
+            />
             <textarea
               value={comment}
               onChange={(event) => {

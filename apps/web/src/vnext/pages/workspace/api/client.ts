@@ -22,6 +22,7 @@ import type {
   EditLock,
   GenerationMode,
   GenerationStatusResponse,
+  GuestComment,
   OutlineSection,
   PreflightResponse,
   PublicShareDocument,
@@ -380,6 +381,13 @@ export const api = {
     shareLinkId: string,
   ): Promise<unknown> =>
     del<unknown>(`/drafts/${draftId}/delivery/share-links/${shareLinkId}`),
+
+  listGuestComments: (
+    draftId: string,
+  ): Promise<{ comments: GuestComment[] }> =>
+    apiFetch<{ comments: GuestComment[] }>(
+      `/drafts/${draftId}/delivery/guest-comments`,
+    ),
 
   getPublicShare: (token: string): Promise<PublicShareDocument> =>
     apiFetch<PublicShareDocument>(

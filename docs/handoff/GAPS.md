@@ -169,15 +169,18 @@ conflict is displayed, counted, and blocks approval — but the UI cannot
 write a resolution. This is honest rather than faking resolution via a
 whole-contextPlan PATCH.
 
-## §5. Library list projection — **shape unconfirmed, N+1 risk**
+## §5. Library list projection — **CLOSED: fixed 2026-08-16**
 
-`GET /drafts` is a legacy list route. It does not project
-`config.documentAgent.{phase,status}` or a cached quality score. The library
-would need one `GET /agent` per row to show phase/status/quality.
+`GET /drafts` now projects `config.documentAgent.{phase,status}` and
+`config.documentAgent.quality.score` from the config JSONB onto each
+returned row. The list response is wrapped as `{ drafts: [...] }` (was a
+bare array — the frontend expected `{ drafts }` all along). No N+1
+fan-out: the library renders phase/status/quality from the list response
+directly.
 
-**UI action**: Phase, status, and quality columns render `—` (em dash) for
-all library rows. No N+1 fan-out. The columns are present but show unknown
-until the list endpoint projects these fields.
+**Fix**: `drafts.service.ts` `list()` maps each Prisma row through
+`config.documentAgent` projection before returning. The frontend
+`DraftSummary` type already had `phase?`, `status?`, `qualityScore?` fields.
 
 ## §6. Global search over documents — **no route**
 
@@ -278,12 +281,12 @@ the 2000-char cap was silent truncation, not validation.
 - Added `GET /drafts/:draftId/delivery/guest-comments` (authenticated,
   `canRead`-gated) so the internal team can actually retrieve guest feedback.
 
-**Remaining gap (not closed)**: no frontend panel renders the new
-`guest-comments` endpoint yet — the Delivery overlay does not yet show a
-"Guest feedback" list. The backend half of "persist somewhere the internal
-team can actually see" is done (an authenticated, real endpoint exists); the
-UI half was out of this session's scope. Follow-up: add a simple read-only
-list in the Delivery inspector tab, query-keyed `['ws','guest-comments',draftId]`.
+**Remaining gap (CLOSED 2026-08-16)**: the frontend Delivery overlay now
+renders a "Guest feedback" list. The `api.listGuestComments(draftId)` method
+queries `GET /drafts/:draftId/delivery/guest-comments` and the DeliveryOverlay
+displays each comment with guest name (or "Anonymous") and timestamp. The
+public share view's comment form now includes an optional "Your name" field,
+passed as `name` to the `POST .../comments` endpoint.
 
 ## §14. Notification deep links — **CLOSED: draftId present**
 
@@ -334,24 +337,21 @@ or similar.
 **UI action**: The firm mark drop target in the theme editor is disabled with
 "Brand asset upload not available."
 
-## §17. Exports must honour the theme — **PARTIALLY CLOSED**
+## §17. Exports must honour the theme — **CLOSED: fixed 2026-08-16**
 
-`export.service.ts` reads `cfg.letterhead` from the draft's `config` blob (not
-from a theme model). It honors: `letterhead.custom` (boolean), `letterhead.logoDataUrl`
-(PNG/JPEG data URL), `letterhead.firmName`, `letterhead.firmAddr`. Both DOCX and
-PDF exports render the letterhead. The draft-level `config.letterhead` IS used.
+`export.service.ts` now reads theme settings from
+`config.documentAgent.theme.settings` (the Document Agent's theme selection,
+persisted via `PATCH /agent`). Both DOCX and PDF exports honor:
+- `pageSize` (`'letter'` or `'a4'`) — page dimensions in DOCX, PDFDocument size
+- `margins` (numeric string, 36–144 range) — section margins in DOCX, PDFDocument margins
+- `paperColor` (hex string) — full-page background fill in PDF
 
-However, there are no theme CRUD routes (§15) and no theme model — so the new
-Design tab's theme/paper picker has no persistent backend target. The legacy
-draft-level letterhead config is separate from the vNext theme system.
+The legacy draft-level `config.letterhead` (firm name, address, logo) is
+still honored as before — it is separate from the theme model and controls
+letterhead rendering, not page geometry.
 
-**Evidence**: `export.service.ts` line 447: `const cfg = draft.config as
-Record<string, unknown>` and line 452: `const letterhead = cfg.letterhead as …`.
-Both `buildDocx()` (line 447) and `buildPdf()` (line 661) read `cfg.letterhead`.
-
-**UI action**: Export is available. The export overlay notes: "Export includes
-the document's letterhead (firm name, address, logo) from the draft config.
-Theme paper/margin settings are not reflected in the export."
+This does NOT require theme CRUD (§15) — the theme is already persisted on
+the draft's config blob via `PATCH /agent` with `{ theme: { ... } }`.
 
 ## §18. Feature flag off — **coherent degradation**
 

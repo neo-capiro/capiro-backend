@@ -494,6 +494,14 @@ export interface PublicShareDocument {
   theme?: AgentTheme;
 }
 
+export interface GuestComment {
+  id: string;
+  draftId: string;
+  body: string;
+  guestName?: string | null;
+  createdAt: string;
+}
+
 // ── Errors ──────────────────────────────────────────────────────────────────
 
 export type AgentErrorCode =

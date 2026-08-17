@@ -134,11 +134,34 @@ export class DraftsService {
     } else {
       where.OR = [{ ownerId }, { id: { in: sharedIds } }];
     }
-    return this.prisma.wsDraft.findMany({
+    const rows = await this.prisma.wsDraft.findMany({
       where: where as never,
       orderBy: { updatedAt: 'desc' },
       include: { documents: { select: { id: true } } },
     });
+
+    // Project agent-state fields from the config JSONB so the library list
+    // can show phase / status / quality without an N+1 fan-out to GET /agent
+    // per row (GAPS §5). The agent state lives at
+    // config.documentAgent.{phase,status,quality.score}.
+    const drafts = rows.map((row) => {
+      const cfg = row.config as Record<string, unknown>;
+      const agent = cfg.documentAgent as
+        | {
+            phase?: string;
+            status?: string;
+            quality?: { score?: number };
+          }
+        | undefined;
+      return {
+        ...row,
+        phase: agent?.phase ?? undefined,
+        status: agent?.status ?? undefined,
+        qualityScore: agent?.quality?.score ?? null,
+      };
+    });
+
+    return { drafts };
   }
 
   /**

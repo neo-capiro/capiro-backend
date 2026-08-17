@@ -453,6 +453,26 @@ export class ExportService {
       | { custom?: boolean; firmName?: string; firmAddr?: string; logoDataUrl?: string }
       | undefined;
 
+    // Theme settings from the Document Agent state (GAPS §17). The agent
+    // stores its theme selection at config.documentAgent.theme.settings.
+    // When present, paperColor / margins / pageSize are honored by the
+    // export. This does NOT require theme CRUD (§15) — the theme is already
+    // persisted on the draft's config blob via PATCH /agent.
+    const agentTheme = (cfg.documentAgent as
+      | { theme?: { settings?: Record<string, unknown> } }
+      | undefined)?.theme?.settings;
+    const themePageSize = agentTheme?.pageSize === 'a4' ? 'A4' : 'LETTER';
+    const themeMargins = (() => {
+      const m = agentTheme?.margins;
+      if (typeof m === 'string') {
+        const parsed = parseInt(m, 10);
+        if (!Number.isNaN(parsed) && parsed >= 36 && parsed <= 144) {
+          return { top: parsed, bottom: parsed, left: parsed, right: parsed };
+        }
+      }
+      return undefined;
+    })();
+
     // Anonymize behavior honors the review modal's choices (cfg.anonymizeMap):
     //  - exportMode 'original' → export the real names even when the flag is on.
     //  - a reviewed redaction map → use the approved terms/replacements.
@@ -577,7 +597,29 @@ export class ExportService {
       pushMain(docs.length > 0);
     }
 
-    const doc = new Document({ sections: [{ children }] });
+    const doc = new Document({
+      sections: [
+        {
+          properties: {
+            page: {
+              size:
+                themePageSize === 'A4'
+                  ? { width: 11906, height: 16838 }
+                  : { width: 12240, height: 15840 },
+              margin: themeMargins
+                ? {
+                    top: themeMargins.top * 72,
+                    bottom: themeMargins.bottom * 72,
+                    left: themeMargins.left * 72,
+                    right: themeMargins.right * 72,
+                  }
+                : undefined,
+            },
+          },
+          children,
+        },
+      ],
+    });
     const buffer = await Packer.toBuffer(doc);
     const safeTitle = (draft.docTitle || 'document')
       .replace(/[^a-z0-9]+/gi, '-')
@@ -667,6 +709,27 @@ export class ExportService {
       | { custom?: boolean; firmName?: string; firmAddr?: string; logoDataUrl?: string }
       | undefined;
 
+    // Theme settings from the Document Agent state (GAPS §17).
+    const agentTheme = (cfg.documentAgent as
+      | { theme?: { settings?: Record<string, unknown> } }
+      | undefined)?.theme?.settings;
+    const themePageSize = agentTheme?.pageSize === 'a4' ? 'A4' : 'LETTER';
+    const themeMargins = (() => {
+      const m = agentTheme?.margins;
+      if (typeof m === 'string') {
+        const parsed = parseInt(m, 10);
+        if (!Number.isNaN(parsed) && parsed >= 36 && parsed <= 144) {
+          return { top: parsed, bottom: parsed, left: parsed, right: parsed };
+        }
+      }
+      return undefined;
+    })();
+    const paperColor = (() => {
+      const c = agentTheme?.paperColor;
+      if (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c)) return c;
+      return undefined;
+    })();
+
     const anonymizeMap = cfg.anonymizeMap as
       | { redactions?: Array<{ from: string; to: string }>; exportMode?: 'anonymized' | 'original' }
       | undefined;
@@ -680,8 +743,8 @@ export class ExportService {
     };
 
     const doc = new PDFDocument({
-      size: 'LETTER',
-      margins: { top: 72, bottom: 72, left: 72, right: 72 },
+      size: themePageSize,
+      margins: themeMargins ?? { top: 72, bottom: 72, left: 72, right: 72 },
       autoFirstPage: true,
     });
     const chunks: Buffer[] = [];
@@ -694,6 +757,12 @@ export class ExportService {
     const left = doc.page.margins.left;
     const contentWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
     const bottom = doc.page.height - doc.page.margins.bottom;
+
+    // Apply theme paper color as a full-page background fill (GAPS §17).
+    if (paperColor) {
+      doc.rect(0, 0, doc.page.width, doc.page.height).fill(paperColor);
+      doc.fillColor('#000000');
+    }
 
     // Firm letterhead (only when the user opted into a custom letterhead;
     // rendered once at the top of whichever file is being generated).
