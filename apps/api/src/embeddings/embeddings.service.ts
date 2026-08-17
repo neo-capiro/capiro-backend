@@ -9,6 +9,7 @@ import {
   EMBEDDING_PROVIDER,
   type EmbeddingProvider,
 } from './embedding-provider.js';
+import { getDefaultEmbeddingProvider } from './embedding-provider.factory.js';
 
 /**
  * Nest-side embeddings facade for on-write code paths in the API container.
@@ -33,7 +34,7 @@ export class EmbeddingsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(EMBEDDING_PROVIDER)
-    private readonly embeddingProvider: EmbeddingProvider,
+    private readonly embeddingProvider: EmbeddingProvider = getDefaultEmbeddingProvider(),
   ) {}
 
   async embedCapabilityImmediate(capabilityId: string): Promise<EmbedOutcome> {
