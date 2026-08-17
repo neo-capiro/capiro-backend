@@ -22,9 +22,9 @@ interface VNextMeriShellProps {
   controller: MeriChatController;
   historyError: string | null;
   onRetryHistory: () => void;
-  onArchiveThread: (conversationId: string) => Promise<void>;
+  onArchiveThread: (conversationId: string) => Promise<boolean>;
   onRenameThread: (conversationId: string, title: string) => Promise<void>;
-  onRestoreThread: (conversationId: string) => Promise<void>;
+  onRestoreThread: (conversationId: string) => Promise<boolean>;
 }
 
 function displayName(me: ReturnType<typeof useMe>['data']): string {

@@ -14,7 +14,9 @@ import { useClientFilter } from '../../state/client-filter.js';
 import { useImpersonation } from '../../state/impersonation.js';
 import {
   appendChatMessage,
+  claimMeriIdentity,
   getChatStateSnapshot,
+  meriIdentityOwner,
   replaceChatSession,
   setActiveConversation,
   setChatSession,
@@ -32,9 +34,11 @@ import {
 import { VNextMeriIntegrations } from './VNextMeriIntegrations.js';
 import { VNextMeriShell } from './VNextMeriShell.js';
 import {
+  mayApplyIdentityResult,
   mayApplyRecordFreeCreation,
   mayDispatchPendingRecordFreeSend,
   mayCommitRouteHydration,
+  meriEffectiveIdentityKey,
   shouldDiscardStagedAttachmentsForScopeChange,
   ownsFirstSend,
   type FirstSendToken,
@@ -106,8 +110,9 @@ function errorMessage(error: unknown, fallback: string): string {
  */
 export function VNextMeriWorkspace() {
   const me = useMe();
-  const { getToken } = useAuth();
+  const { getToken, orgId, userId } = useAuth();
   const { actAsTenantSlug } = useImpersonation();
+  const identityKey = meriEffectiveIdentityKey(actAsTenantSlug, orgId, userId);
   const { selectedClientId, setSelectedClientId } = useClientFilter();
   const location = useLocation();
   const navigate = useNavigate();
@@ -140,6 +145,50 @@ export function VNextMeriWorkspace() {
   const handledContextRef = useRef<string | null>(null);
   const bootSequenceRef = useRef(0);
   const previousRoutePathRef = useRef<string | null>(null);
+  const previousIdentityKeyRef = useRef<string | null>(null);
+  const identityKeyRef = useRef(identityKey);
+  identityKeyRef.current = identityKey;
+
+  // Captured during render, before any layout effect claims the store. The
+  // controller's claim may run before this route's, so its return value cannot
+  // tell this route whether it mounted onto another identity's state.
+  const storeOwnerAtMountRef = useRef<string | null | undefined>(undefined);
+  if (storeOwnerAtMountRef.current === undefined) {
+    storeOwnerAtMountRef.current = meriIdentityOwner();
+  }
+
+  // This is deliberately a layout effect: a tenant/user switch must clear the
+  // shared transcript and rail before this route paints. Updating the bootstrap
+  // sequence makes every old tenant's in-flight client/history request a no-op.
+  useLayoutEffect(() => {
+    const previousIdentityKey = previousIdentityKeyRef.current;
+    if (previousIdentityKey === identityKey) return;
+    previousIdentityKeyRef.current = identityKey;
+    claimMeriIdentity(identityKey);
+
+    // A first mount onto a cold store, or one this identity already owns, is
+    // ordinary navigation into Meri rather than a tenant switch. The route
+    // inherits the app-wide client filter there — `createRecordFreeSession`
+    // scopes the first durable thread with it — so clearing it would silently
+    // unscope it. A store owned by someone else is a real boundary.
+    const storeOwnerAtMount = storeOwnerAtMountRef.current ?? null;
+    const mountedOntoForeignState = storeOwnerAtMount !== null && storeOwnerAtMount !== identityKey;
+    if (previousIdentityKey === null && !mountedOntoForeignState) return;
+
+    bootSequenceRef.current += 1;
+    firstSendEpochRef.current += 1;
+    pendingSendRef.current = null;
+    pendingSendEpochRef.current = null;
+    pendingSendSessionIdRef.current = null;
+    activeFirstSendTokenRef.current = null;
+    setIsCreatingThread(false);
+    setRouteClients([]);
+    setSelectedClientId(null);
+    setRouteClientsError(null);
+    setRouteError(null);
+    setHistoryError(null);
+    setRouteReady(false);
+  }, [identityKey, setSelectedClientId]);
 
   // This runs at the route boundary, before the asynchronous client/history
   // bootstrap begins. Waiting for that bootstrap left a window where an old SSE
@@ -303,11 +352,18 @@ export function VNextMeriWorkspace() {
    */
   const createRecordFreeSession = useCallback(async (token: FirstSendToken): Promise<string | null> => {
     const firstSendEpoch = firstSendEpochRef.current;
+    // The body carries the app-wide selected client. Capture it with the
+    // identity: a switch during authHeaders() would otherwise create the new
+    // tenant's first durable thread scoped to the previous tenant's client.
+    const requestIdentityKey = identityKeyRef.current;
+    const requestClientId = selectedClientId || undefined;
+    const headers = await authHeaders();
+    if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return null;
     const response = await fetch(`${config.apiBaseUrl}/api/clio/conversations`, {
       method: 'POST',
-      headers: await authHeaders(),
+      headers,
       body: JSON.stringify({
-        clientId: selectedClientId || undefined,
+        clientId: requestClientId,
         title: 'Chat session',
       }),
     });
@@ -336,7 +392,9 @@ export function VNextMeriWorkspace() {
         firstSendEpoch,
         firstSendEpochRef.current,
         window.location.pathname,
-      ) || !ownsFirstSend(token, activeFirstSendTokenRef.current)
+      ) ||
+      !ownsFirstSend(token, activeFirstSendTokenRef.current) ||
+      !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)
     ) {
       return null;
     }
@@ -530,6 +588,7 @@ export function VNextMeriWorkspace() {
     navigate,
     requestedThreadId,
     historyEpoch,
+    identityKey,
   ]);
 
   // First Send is the durable creation boundary for `/meri/new`. A synchronous
@@ -731,46 +790,65 @@ export function VNextMeriWorkspace() {
     await prepareRecordFreeNewThread(false);
   }, [prepareRecordFreeNewThread]);
 
-  const archiveConversation = useCallback(async () => {
+  const archiveConversation = useCallback(async (): Promise<boolean> => {
+    const requestIdentityKey = identityKeyRef.current;
     setMeriSurfaceMode('closed');
-    await controller.archiveConversation();
+    const archived = await controller.archiveConversation();
+    if (!archived || !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
     await prepareRecordFreeNewThread(true);
+    return true;
   }, [controller.archiveConversation, prepareRecordFreeNewThread]);
 
+  // These three rail mutations share one rule: capture the identity, re-check it
+  // once authHeaders() resolves so the request is never dispatched under a newly
+  // authenticated tenant, and re-check again before touching route/shared state.
   const archiveThread = useCallback(
-    async (conversationId: string) => {
+    async (conversationId: string): Promise<boolean> => {
+      const requestIdentityKey = identityKeyRef.current;
+      const headers = await authHeaders();
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
       const response = await fetch(
         `${config.apiBaseUrl}/api/clio/conversations/${encodeURIComponent(conversationId)}/archive`,
-        { method: 'PATCH', headers: await authHeaders() },
+        { method: 'PATCH', headers },
       );
       if (!response.ok) throw new Error(`Archive failed (${response.status}).`);
+      return mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current);
     },
     [authHeaders],
   );
 
   const restoreThread = useCallback(
-    async (conversationId: string) => {
+    async (conversationId: string): Promise<boolean> => {
+      const requestIdentityKey = identityKeyRef.current;
+      const headers = await authHeaders();
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
       const response = await fetch(
         `${config.apiBaseUrl}/api/clio/conversations/${encodeURIComponent(conversationId)}/restore`,
-        { method: 'PATCH', headers: await authHeaders() },
+        { method: 'PATCH', headers },
       );
       if (!response.ok) throw new Error(`Restore failed (${response.status}).`);
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
       setHistoryEpoch((value) => value + 1);
+      return true;
     },
     [authHeaders],
   );
 
   const renameThread = useCallback(
     async (conversationId: string, title: string) => {
+      const requestIdentityKey = identityKeyRef.current;
+      const headers = await authHeaders();
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
       const response = await fetch(
         `${config.apiBaseUrl}/api/clio/conversations/${encodeURIComponent(conversationId)}`,
         {
           method: 'PATCH',
-          headers: await authHeaders(),
+          headers,
           body: JSON.stringify({ title }),
         },
       );
       if (!response.ok) throw new Error(`Rename failed (${response.status}).`);
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
       const existing = conversations.find((conversation) => conversation.id === conversationId);
       if (existing) upsertConversation({ ...existing, title });
       if (conversationId === activeConversationId) controller.setSessionTitle(title);
@@ -917,6 +995,7 @@ export function VNextMeriWorkspace() {
     <>
       {routeError ? <div className="vnext-meri__route-error" role="alert">{routeError}</div> : null}
       <VNextMeriShell
+        key={identityKey}
         controller={vnextController}
         historyError={historyError}
         onRetryHistory={() => setHistoryEpoch((value) => value + 1)}

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -22,6 +23,7 @@ import { useImpersonation } from '../../state/impersonation.js';
 import {
   addChatMessageChartArtifact,
   appendChatMessage,
+  claimMeriIdentity,
   clearChatSession,
   MeriSourceAttribution,
   type ChatMessageRetrieval,
@@ -49,7 +51,12 @@ import {
   useChatStore,
 } from './chat-store.js';
 import { MERI_CONTEXT_PROMPT_EVENT, type MeriContextPromptRequest } from './meri-prompt.js';
-import { mayApplyApprovalResult, type ScopePersistStatus } from './meri-route-guards.js';
+import {
+  mayApplyApprovalResult,
+  mayApplyIdentityResult,
+  meriEffectiveIdentityKey,
+  type ScopePersistStatus,
+} from './meri-route-guards.js';
 import { isUsableAttachment, type StagedAttachment } from './ChatInput.js';
 import type { TrustStep } from './WorkPerformed.js';
 import type { CanvasArtifact } from './MeriCanvas.js';
@@ -364,9 +371,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // Only undismissed briefings are ever rendered. dismissAlert removes items from
   // the store outright, so this also makes them vanish on click without a refetch.
   const pendingAlerts = alerts.filter((a) => a.status === 'pending');
-  const { getToken } = useAuth();
+  const { getToken, orgId, userId } = useAuth();
   const api = useApi();
   const { actAsTenantSlug } = useImpersonation();
+  const identityKey = meriEffectiveIdentityKey(actAsTenantSlug, orgId, userId);
   const { selectedClientId } = useClientFilter();
   const location = useLocation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -381,6 +389,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const routeEpochRef = useRef(0);
   const currentSessionRef = useRef<string | null>(sessionId);
   currentSessionRef.current = sessionId;
+  const previousIdentityKeyRef = useRef<string | null>(null);
+  // Always points to the identity currently rendering; asynchronous responses
+  // compare their captured request identity to this before writing UI state.
+  const identityKeyRef = useRef(identityKey);
+  identityKeyRef.current = identityKey;
 
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -508,20 +521,26 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // Load alerts on mount so the closed launcher can show its pending badge;
   // recheck when Meri opens in case a scheduled briefing arrived meanwhile.
   useEffect(() => {
+    const requestIdentityKey = identityKey;
+    let cancelled = false;
     void (async () => {
       try {
         const res = await fetch(`${config.apiBaseUrl}/api/clio/alerts`, {
           headers: await authHeaders(),
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) setAlerts(data);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) && Array.isArray(data)) {
+          setAlerts(data);
         }
       } catch {
         /* ignore */
       }
     })();
-  }, [isOpen, authHeaders]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, authHeaders, identityKey]);
 
   // Dismiss (mark read) a delivered alert — optimistic store update + persist.
   const handleDismissAlert = useCallback(
@@ -553,6 +572,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
 
   useEffect(() => {
     if (!isOpen) return;
+    const requestIdentityKey = identityKey;
+    let cancelled = false;
     void (async () => {
       try {
         const res = await fetch(`${config.apiBaseUrl}/api/clients`, {
@@ -560,7 +581,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         });
         if (!res.ok) return;
         const data = await res.json();
-        if (Array.isArray(data)) {
+        if (!cancelled && mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) && Array.isArray(data)) {
           const options = data
             .map((client) => ({ id: String(client.id ?? ''), name: String(client.name ?? '') }))
             .filter((client) => Boolean(client.id && client.name));
@@ -570,7 +591,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         // ignore
       }
     })();
-  }, [isOpen, authHeaders]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, authHeaders, identityKey]);
 
   useEffect(() => {
     const active =
@@ -601,9 +625,15 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
 
   const saveConversationMeta = useCallback(async () => {
     if (!activeConversationId || isSavingMeta) return;
+    const requestIdentityKey = identityKeyRef.current;
     setIsSavingMeta(true);
     setMetaError(null);
     try {
+      // PRE-DISPATCH: authHeaders() is async, so an identity switch can resolve
+      // between capture and send. Without this the PATCH would carry the new
+      // tenant's credentials to the previous tenant's conversation id.
+      const headers = await authHeaders();
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
       const payload: Record<string, unknown> = {};
       const trimmedTitle = sessionTitle.trim();
       if (trimmedTitle) payload.title = trimmedTitle;
@@ -613,7 +643,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         `${config.apiBaseUrl}/api/clio/conversations/${activeConversationId}`,
         {
           method: 'PATCH',
-          headers: await authHeaders(),
+          headers,
           body: JSON.stringify(payload),
         },
       );
@@ -624,6 +654,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       }
 
       const updated = await res.json();
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
       if (updated && typeof updated.id === 'string') {
         upsertConversation({
           id: updated.id,
@@ -638,9 +669,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         });
       }
     } catch (err) {
-      setMetaError(err instanceof Error ? err.message : 'Failed to save conversation settings');
+      if (mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) {
+        setMetaError(err instanceof Error ? err.message : 'Failed to save conversation settings');
+      }
     } finally {
-      setIsSavingMeta(false);
+      if (mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) setIsSavingMeta(false);
     }
   }, [activeConversationId, authHeaders, isSavingMeta, selectedClientValue, sessionTitle]);
 
@@ -664,6 +697,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
    */
   const changeSessionClient = useCallback(
     async (clientId: string) => {
+      const requestIdentityKey = identityKeyRef.current;
       const previous = persistedClientId;
       const nextClientId = clientId || null;
       if (nextClientId === previous) return;
@@ -681,11 +715,15 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       setMetaError(null);
       setIsSavingMeta(true);
       try {
+        // PRE-DISPATCH: never scope the previous tenant's conversation using
+        // the identity that authenticated while authHeaders() was pending.
+        const headers = await authHeaders();
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         const res = await fetch(
           `${config.apiBaseUrl}/api/clio/conversations/${activeConversationId}`,
           {
             method: 'PATCH',
-            headers: await authHeaders(),
+            headers,
             body: JSON.stringify({ clientId: clientId || null }),
           },
         );
@@ -698,7 +736,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         // PATCH (B) was in flight, B must NOT overwrite C's state. Do not
         // commit persistedClientId, do not clear the pending status, do
         // not upsert the conversation.
-        if (intent !== scopeIntentRef.current) {
+        if (
+          intent !== scopeIntentRef.current ||
+          !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)
+        ) {
           return;
         }
         if (updated && typeof updated.id === 'string') {
@@ -718,7 +759,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         setScopePersistStatus('idle');
       } catch (err) {
         // INTENT CHECK: only the newest scope intent may revert UI on failure.
-        if (intent !== scopeIntentRef.current) {
+        if (
+          intent !== scopeIntentRef.current ||
+          !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)
+        ) {
           return;
         }
         setSessionClientId(previous ?? '');
@@ -730,7 +774,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         );
       } finally {
         // INTENT CHECK: only the newest intent may clear the saving flag.
-        if (intent === scopeIntentRef.current) {
+        if (
+          intent === scopeIntentRef.current &&
+          mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)
+        ) {
           setIsSavingMeta(false);
         }
       }
@@ -738,35 +785,55 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     [activeConversationId, authHeaders, persistedClientId],
   );
 
-  const archiveConversation = useCallback(async () => {
-    if (!activeConversationId) return;
+  const archiveConversation = useCallback(async (): Promise<boolean> => {
+    if (!activeConversationId) return false;
+    const requestIdentityKey = identityKeyRef.current;
+    const conversationId = activeConversationId;
     try {
+      // PRE-DISPATCH: an archive is a durable server mutation. Do not issue the
+      // previous tenant's archive under the identity that just authenticated.
+      const headers = await authHeaders();
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
       const res = await fetch(
-        `${config.apiBaseUrl}/api/clio/conversations/${activeConversationId}/archive`,
+        `${config.apiBaseUrl}/api/clio/conversations/${conversationId}/archive`,
         {
           method: 'PATCH',
-          headers: await authHeaders(),
+          headers,
         },
       );
       if (!res.ok) {
         const text = await res.text().catch(() => '');
         throw new Error(text || `HTTP ${res.status}`);
       }
-      removeConversation(activeConversationId);
+      // The server mutation belongs to the identity that issued it, but its
+      // delayed completion must never clear a newly authenticated identity.
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
+      removeConversation(conversationId);
       clearChatSession();
       setTrustSteps([]);
+      return true;
     } catch (err) {
-      setMetaError(err instanceof Error ? err.message : 'Failed to archive conversation');
+      if (mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) {
+        setMetaError(err instanceof Error ? err.message : 'Failed to archive conversation');
+      }
+      return false;
     }
   }, [activeConversationId, authHeaders]);
 
   const doCreateSession = useCallback(async (): Promise<string | null> => {
+    const requestIdentityKey = identityKeyRef.current;
+    // The body carries the globally selected client id. Capture it with the
+    // identity so a switch during authHeaders() cannot post one tenant's client
+    // scope into a conversation created for the next one.
+    const requestClientId = selectedClientId || undefined;
     try {
+      const headers = await authHeaders();
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return null;
       const res = await fetch(`${config.apiBaseUrl}/api/clio/conversations`, {
         method: 'POST',
-        headers: await authHeaders(),
+        headers,
         body: JSON.stringify({
-          clientId: selectedClientId || undefined,
+          clientId: requestClientId,
           title: 'Chat session',
         }),
       });
@@ -777,6 +844,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           clientId?: string | null;
           updatedAt?: string;
         };
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return null;
         // Register the row so the header's scope selector reads the session's
         // REAL assignment. Previously nothing was stored, so the selector fell
         // back to the global client filter and could name a client the
@@ -1732,6 +1800,49 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     setLastRetrieval(null);
   }, [invalidateRouteStream]);
 
+  // The shared store is claimed at the controller boundary as well as the vNext
+  // route. This covers any other Meri surface that mounts the same controller.
+  // Route-level bootstrap will reload durable data after this synchronous clear.
+  useLayoutEffect(() => {
+    const previousIdentityKey = previousIdentityKeyRef.current;
+    if (previousIdentityKey === identityKey) return;
+    previousIdentityKeyRef.current = identityKey;
+    claimMeriIdentity(identityKey);
+
+    // Claiming the shared store is the whole job on a first mount: every value
+    // reset below is controller-local `useState`, already fresh at mount, so
+    // there is nothing of another identity's here to discard. Running the reset
+    // anyway would abort a live stream and drop staged attachments belonging to
+    // a surface that merely remounted under its own identity.
+    if (previousIdentityKey === null) return;
+
+    // Scope writes use a separate intent sequence; advance it here so an
+    // old-identity PATCH completion cannot overwrite the freshly cleared scope.
+    scopeIntentRef.current += 1;
+    discardRouteState();
+    setClients([]);
+    setAlertsOpen(false);
+    setSessionTitle('');
+    setSessionClientId('');
+    setPersistedClientId(null);
+    setScopePersistStatus('idle');
+    setIsSavingMeta(false);
+    setMetaError(null);
+    setWriteMode(false);
+    setResearchMode(false);
+    setResearchAwaitingAnswers(false);
+    setResearchQuestions([]);
+    researchSessionRef.current = null;
+    setResearchReports({});
+    for (const timer of forgetTimersRef.current.values()) window.clearTimeout(timer);
+    forgetTimersRef.current.clear();
+    setLearnedMemories([]);
+    setForgottenMemories([]);
+    setLearnedExpanded(false);
+    setEditingMessageId(null);
+    setEditingText('');
+  }, [discardRouteState, identityKey]);
+
   const handleStop = useCallback(() => {
     abortRef.current?.abort();
     setStreaming(false);
@@ -1991,16 +2102,26 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // cards must survive a page reload, not just live in memory for one tab.
   useEffect(() => {
     if (!sessionId) return;
+    const requestIdentityKey = identityKey;
     let cancelled = false;
     void (async () => {
       try {
+        // authHeaders() is async — an identity switch can land while it is
+        // pending, which would send THIS tenant's conversation id under the
+        // next tenant's credentials. Fence the dispatch, not just the commit.
+        const headers = await authHeaders();
+        if (cancelled || !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         const res = await fetch(
           `${config.apiBaseUrl}/api/clio/action-proposals?conversationId=${encodeURIComponent(sessionId)}`,
-          { headers: await authHeaders() },
+          { headers },
         );
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as PendingApproval[];
-        if (!cancelled && Array.isArray(data)) setPendingApprovals(data);
+        // Approval cards authorize real server-side actions. A prior identity's
+        // recovery must never restore them under a newly authenticated one.
+        if (!cancelled && mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) && Array.isArray(data)) {
+          setPendingApprovals(data);
+        }
       } catch {
         /* best-effort recovery; live SSE pending_approval events still work */
       }
@@ -2008,7 +2129,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, authHeaders]);
+  }, [sessionId, authHeaders, identityKey]);
 
   // Held-approval cards belong to ONE conversation — switching sessions must
   // not carry them over (approving would re-run the WRONG conversation's
@@ -2036,13 +2157,14 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   );
 
   const fetchLearnedMemories = useCallback(async () => {
+    const requestIdentityKey = identityKeyRef.current;
     try {
       const res = await fetch(`${config.apiBaseUrl}/api/clio/memory/recent?limit=5`, {
         headers: await authHeaders(),
       });
       if (!res.ok) return;
       const data = await res.json();
-      if (Array.isArray(data)) {
+      if (mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current) && Array.isArray(data)) {
         setLearnedMemories(
           data
             .filter((m) => m && typeof m.id === 'string')
@@ -2134,10 +2256,12 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     (id: string) => {
       const memory = learnedMemories.find((item) => item.id === id);
       if (!memory || forgetTimersRef.current.has(id)) return;
+      const requestIdentityKey = identityKeyRef.current;
       setLearnedMemories((prev) => prev.filter((item) => item.id !== id));
       setForgottenMemories((prev) => [...prev.filter((item) => item.id !== id), memory]);
       const timer = window.setTimeout(() => {
         forgetTimersRef.current.delete(id);
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         setForgottenMemories((prev) => prev.filter((item) => item.id !== id));
         void (async () => {
           try {
@@ -2146,9 +2270,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
               headers: await authHeaders(),
             });
           } catch {
-            setLearnedMemories((prev) =>
-              prev.some((item) => item.id === id) ? prev : [...prev, memory],
-            );
+            if (mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) {
+              setLearnedMemories((prev) =>
+                prev.some((item) => item.id === id) ? prev : [...prev, memory],
+              );
+            }
           }
         })();
       }, 6000);

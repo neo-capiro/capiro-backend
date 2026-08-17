@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   mayApplyApprovalResult,
+  mayApplyIdentityResult,
   mayApplyRecordFreeCreation,
   mayDispatchPendingRecordFreeSend,
   mayCommitRouteHydration,
@@ -39,6 +40,11 @@ describe('Meri route commit guards', () => {
 
   test('accepts an approval result only for its initiating session and epoch', () => {
     expect(mayApplyApprovalResult('thread-a', 'thread-a', 5, 5)).toBe(true);
+  });
+
+  test('rejects a result created before an identity switch', () => {
+    expect(mayApplyIdentityResult('tenant-a:user-a', 'tenant-b:user-a')).toBe(false);
+    expect(mayApplyIdentityResult('tenant-b:user-a', 'tenant-b:user-a')).toBe(true);
   });
 
   test('requires staged attachments to be dropped when client scope changes', () => {

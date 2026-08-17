@@ -172,6 +172,7 @@ const initialState: ChatState = {
 let state: ChatState = { ...initialState };
 
 let activeDraft: ActiveDraftContext | null = null;
+let activeMeriIdentityKey: string | null = null;
 let listeners: Array<() => void> = [];
 
 function notify(): void {
@@ -335,6 +336,57 @@ export function clearChatSession(): void {
   notify();
 }
 
+/** Clears every tenant/user-owned value from the shared Meri store. */
+function clearMeriIdentityState(): void {
+  state = {
+    ...state,
+    isOpen: false,
+    surfaceMode: 'closed',
+    maximized: false,
+    dragging: false,
+    resizing: false,
+    messages: [],
+    sessionId: null,
+    isStreaming: false,
+    conversations: [],
+    activeConversationId: null,
+    alerts: [],
+    alertsBadge: 0,
+  };
+  activeDraft = null;
+  notify();
+}
+
+/**
+ * The identity that currently owns the shared store, or null before any claim.
+ *
+ * Read this during render — claims happen in layout effects, so a render-time
+ * read sees the owner as it stood before this commit's claims, whichever
+ * surface's effect happens to run first.
+ */
+export function meriIdentityOwner(): string | null {
+  return activeMeriIdentityKey;
+}
+
+/**
+ * Claims the shared Meri store for the effective tenant/user identity, clearing
+ * every tenant-private value when the claim displaces a DIFFERENT identity.
+ * Returns true exactly when that clearing happened.
+ *
+ * The first claim on a cold store does not clear. Only Meri surfaces write
+ * conversation state here and each one claims before it can write, so an
+ * unclaimed store holds nothing belonging to another identity — while clearing
+ * it would discard the state the mounting surface itself just seeded.
+ */
+export function claimMeriIdentity(identityKey: string): boolean {
+  if (activeMeriIdentityKey === identityKey) return false;
+  const displacedIdentityKey = activeMeriIdentityKey;
+  activeMeriIdentityKey = identityKey;
+  if (displacedIdentityKey === null) return false;
+  clearMeriIdentityState();
+  return true;
+}
+
 /**
  * Atomically clear messages AND set the new session id in a single store
  * update. This prevents a render where sessionId is null while isOpen is
@@ -419,6 +471,7 @@ export function resetChatStoreForTests(): void {
     alerts: [],
   };
   activeDraft = null;
+  activeMeriIdentityKey = null;
   notify();
 }
 

@@ -4,6 +4,26 @@ export interface RouteHydrationToken {
 }
 
 /**
+ * Meri state must never bridge organizations, user identities, or an active
+ * tenant impersonation. Impersonation deliberately wins over the Clerk org.
+ */
+export function meriEffectiveIdentityKey(
+  impersonatedTenantSlug: string | null | undefined,
+  orgId: string | null | undefined,
+  userId: string | null | undefined,
+): string {
+  return `${impersonatedTenantSlug ?? orgId ?? 'no-org'}:${userId ?? 'anonymous'}`;
+}
+
+/** A request started under a prior effective identity may never update the UI. */
+export function mayApplyIdentityResult(
+  requestIdentityKey: string,
+  currentIdentityKey: string,
+): boolean {
+  return requestIdentityKey === currentIdentityKey;
+}
+
+/**
  * A hydration result may commit only if it still belongs to the latest route
  * bootstrap and the URL still names that same durable thread.
  */

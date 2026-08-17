@@ -1,24 +1,31 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
+  appendChatMessage,
+  claimMeriIdentity,
   getChatStateSnapshot,
   resetChatStoreForTests,
   setActiveConversation,
   setChatSession,
+  setConversations,
+  setStreaming,
 } from '../../components/chat/chat-store.js';
 
 const mocks = vi.hoisted(() => ({
   getToken: vi.fn(async () => 'token'),
+  orgId: 'org-a' as string | null,
+  userId: 'user-a' as string | null,
+  impersonatedTenantSlug: null as string | null,
   api: { post: vi.fn() },
 }));
 
 vi.mock('@clerk/clerk-react', () => ({
-  useAuth: () => ({ getToken: mocks.getToken }),
+  useAuth: () => ({ getToken: mocks.getToken, orgId: mocks.orgId, userId: mocks.userId }),
 }));
 vi.mock('../../env.js', () => ({ config: { apiBaseUrl: 'https://api.test' } }));
 vi.mock('../../lib/use-api.js', () => ({ useApi: () => mocks.api }));
 vi.mock('../../state/impersonation.js', () => ({
-  useImpersonation: () => ({ actAsTenantSlug: null }),
+  useImpersonation: () => ({ actAsTenantSlug: mocks.impersonatedTenantSlug }),
 }));
 vi.mock('../../state/client-filter.js', () => ({
   useClientFilter: () => ({ selectedClientId: null }),
@@ -32,13 +39,407 @@ import { useMeriChatController } from '../../components/chat/useMeriChatControll
 describe('Meri route isolation', () => {
   beforeEach(() => {
     resetChatStoreForTests();
+    claimMeriIdentity('org-a:user-a');
     setChatSession('thread-a');
     setActiveConversation('thread-a');
     mocks.api.post.mockReset();
+    // Tests that gate the token with mockImplementationOnce must not leak an
+    // unconsumed one-shot into the next test.
+    mocks.getToken.mockReset();
+    mocks.getToken.mockImplementation(async () => 'token');
   });
 
   afterEach(() => {
+    mocks.orgId = 'org-a';
+    mocks.userId = 'user-a';
+    mocks.impersonatedTenantSlug = null;
     vi.unstubAllGlobals();
+  });
+
+  test('identity switch clears shared tenant A transcript and controller-local state before paint', async () => {
+    setConversations([
+      {
+        id: 'thread-a',
+        title: 'Tenant A thread',
+        clientId: null,
+        client: null,
+        latestMessage: null,
+        updatedAt: '2026-08-17T00:00:00.000Z',
+      },
+    ]);
+    appendChatMessage({
+      id: 'message-a',
+      role: 'assistant',
+      content: 'Tenant A only',
+      createdAt: new Date('2026-08-17T00:00:00.000Z'),
+    });
+
+    const { result, rerender } = renderHook(() => useMeriChatController({ selectedClientName: null }));
+    await act(async () => {
+      mocks.impersonatedTenantSlug = 'tenant-b';
+      rerender();
+    });
+
+    expect(getChatStateSnapshot()).toMatchObject({
+      sessionId: null,
+      activeConversationId: null,
+      messages: [],
+      conversations: [],
+      alerts: [],
+      isStreaming: false,
+    });
+    expect(result.current.clients).toEqual([]);
+    expect(result.current.pendingApprovals).toEqual([]);
+    expect(result.current.researchOffers).toEqual({});
+  });
+
+  test('identity switch makes a delayed archive completion leave the new session intact', async () => {
+    let resolveArchive: ((value: unknown) => void) | null = null;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url.endsWith('/api/clio/conversations/thread-a/archive')) {
+          return new Promise((resolve) => {
+            resolveArchive = resolve;
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => [] });
+      }),
+    );
+    setConversations([
+      {
+        id: 'thread-a',
+        title: 'Tenant A thread',
+        clientId: null,
+        client: null,
+        latestMessage: null,
+        updatedAt: '2026-08-17T00:00:00.000Z',
+      },
+    ]);
+
+    const { result, rerender } = renderHook(() => useMeriChatController({ selectedClientName: null }));
+    const archive = result.current.archiveConversation();
+    await waitFor(() => expect(resolveArchive).not.toBeNull());
+
+    await act(async () => {
+      mocks.impersonatedTenantSlug = 'tenant-b';
+      rerender();
+    });
+    // Let the identity layout effect finish before the new identity's bootstrap
+    // publishes its durable thread. The next act represents that bootstrap.
+    await act(async () => {
+      setChatSession('thread-b');
+      setActiveConversation('thread-b');
+      setConversations([
+        {
+          id: 'thread-b',
+          title: 'Tenant B thread',
+          clientId: null,
+          client: null,
+          latestMessage: null,
+          updatedAt: '2026-08-17T00:00:00.000Z',
+        },
+      ]);
+    });
+    await act(async () => {
+      resolveArchive!({ ok: true, json: async () => ({}) });
+      await archive;
+    });
+
+    expect(getChatStateSnapshot()).toMatchObject({
+      sessionId: 'thread-b',
+      activeConversationId: 'thread-b',
+      conversations: [expect.objectContaining({ id: 'thread-b' })],
+    });
+  });
+
+  test('identity switch makes a delayed client-scope PATCH leave the new session intact', async () => {
+    let resolveScopePatch: ((value: unknown) => void) | null = null;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url.endsWith('/api/clio/conversations/thread-a')) {
+          return new Promise((resolve) => {
+            resolveScopePatch = resolve;
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => [] });
+      }),
+    );
+    setConversations([
+      {
+        id: 'thread-a',
+        title: 'Tenant A thread',
+        clientId: null,
+        client: null,
+        latestMessage: null,
+        updatedAt: '2026-08-17T00:00:00.000Z',
+      },
+    ]);
+
+    const { result, rerender } = renderHook(() => useMeriChatController({ selectedClientName: null }));
+    let scopeChange: Promise<void> | null = null;
+    await act(async () => {
+      scopeChange = result.current.changeSessionClient('tenant-a-client');
+    });
+    await waitFor(() => expect(resolveScopePatch).not.toBeNull());
+
+    await act(async () => {
+      mocks.impersonatedTenantSlug = 'tenant-b';
+      rerender();
+    });
+    await act(async () => {
+      setChatSession('thread-b');
+      setActiveConversation('thread-b');
+      setConversations([
+        {
+          id: 'thread-b',
+          title: 'Tenant B thread',
+          clientId: null,
+          client: null,
+          latestMessage: null,
+          updatedAt: '2026-08-17T00:00:00.000Z',
+        },
+      ]);
+    });
+    await act(async () => {
+      resolveScopePatch!({
+        ok: true,
+        json: async () => ({
+          id: 'thread-a',
+          title: 'Tenant A thread',
+          clientId: 'tenant-a-client',
+          client: { id: 'tenant-a-client', name: 'Tenant A Client' },
+          updatedAt: '2026-08-17T00:00:01.000Z',
+        }),
+      });
+      await scopeChange!;
+    });
+
+    expect(getChatStateSnapshot()).toMatchObject({
+      sessionId: 'thread-b',
+      activeConversationId: 'thread-b',
+      conversations: [expect.objectContaining({ id: 'thread-b' })],
+    });
+    expect(result.current.persistedClientId).toBeNull();
+  });
+
+  test('identity switch makes a delayed session creation leave the new session intact', async () => {
+    let resolveCreation: ((value: unknown) => void) | null = null;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url.endsWith('/api/clio/conversations')) {
+          return new Promise((resolve) => {
+            resolveCreation = resolve;
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => [] });
+      }),
+    );
+
+    const { result, rerender } = renderHook(() => useMeriChatController({ selectedClientName: null }));
+    let creation: Promise<void> | null = null;
+    await act(async () => {
+      creation = result.current.handleNewSession();
+    });
+    await waitFor(() => expect(resolveCreation).not.toBeNull());
+
+    await act(async () => {
+      mocks.impersonatedTenantSlug = 'tenant-b';
+      rerender();
+    });
+    await act(async () => {
+      setChatSession('thread-b');
+      setActiveConversation('thread-b');
+      setConversations([
+        {
+          id: 'thread-b',
+          title: 'Tenant B thread',
+          clientId: null,
+          client: null,
+          latestMessage: null,
+          updatedAt: '2026-08-17T00:00:00.000Z',
+        },
+      ]);
+    });
+    await act(async () => {
+      resolveCreation!({
+        ok: true,
+        json: async () => ({
+          id: 'thread-a-created',
+          title: 'Tenant A thread',
+          clientId: null,
+          updatedAt: '2026-08-17T00:00:00.000Z',
+        }),
+      });
+      await creation!;
+    });
+
+    expect(getChatStateSnapshot()).toMatchObject({
+      sessionId: 'thread-b',
+      activeConversationId: 'thread-b',
+      conversations: [expect.objectContaining({ id: 'thread-b' })],
+    });
+  });
+
+  test('identity switch makes a delayed proposal recovery leave the new identity without cards', async () => {
+    let resolveRecovery: ((value: unknown) => void) | null = null;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((url: string) => {
+        if (url.includes('/api/clio/action-proposals?conversationId=thread-a')) {
+          return new Promise((resolve) => {
+            resolveRecovery = resolve;
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => [] });
+      }),
+    );
+
+    const { result, rerender } = renderHook(() => useMeriChatController({ selectedClientName: null }));
+    await waitFor(() => expect(resolveRecovery).not.toBeNull());
+
+    await act(async () => {
+      mocks.impersonatedTenantSlug = 'tenant-b';
+      rerender();
+    });
+    await act(async () => {
+      setChatSession('thread-b');
+      setActiveConversation('thread-b');
+    });
+
+    // Approval cards authorize real server-side actions against tenant A's
+    // records. Recovering them under tenant B would offer to execute them.
+    // Two independent guards must hold for this: the identity fence in the
+    // recovery effect, and the session-scoped cancellation the store clear
+    // triggers. The assertion is on the behaviour, not on which one fires.
+    await act(async () => {
+      resolveRecovery!({
+        ok: true,
+        json: async () => [
+          {
+            proposalId: 'proposal-a',
+            status: 'proposed',
+            summary: 'Tenant A action',
+            actions: [],
+          },
+        ],
+      });
+    });
+
+    expect(result.current.pendingApprovals).toEqual([]);
+  });
+
+  test('identity switch during token acquisition never dispatches the prior archive', async () => {
+    const fetchMock = vi.fn((_url: string, _init?: RequestInit) =>
+      Promise.resolve({ ok: true, json: async () => ({}) }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    setConversations([
+      {
+        id: 'thread-a',
+        title: 'Tenant A thread',
+        clientId: null,
+        client: null,
+        latestMessage: null,
+        updatedAt: '2026-08-17T00:00:00.000Z',
+      },
+    ]);
+
+    const { result, rerender } = renderHook(() => useMeriChatController({ selectedClientName: null }));
+    // Let the mount-time token calls settle so the gate below belongs to the
+    // archive request and nothing else.
+    await act(async () => {});
+
+    let releaseToken: (() => void) | null = null;
+    mocks.getToken.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          releaseToken = () => resolve('token');
+        }),
+    );
+
+    let archive: Promise<boolean> | null = null;
+    await act(async () => {
+      archive = result.current.archiveConversation();
+    });
+    await waitFor(() => expect(releaseToken).not.toBeNull());
+
+    await act(async () => {
+      mocks.impersonatedTenantSlug = 'tenant-b';
+      rerender();
+    });
+
+    let archived: boolean | null = null;
+    await act(async () => {
+      releaseToken!();
+      archived = await archive!;
+    });
+
+    // The token that resolved belongs to tenant B. Sending tenant A's archive
+    // with it is a cross-identity write, not merely a stale UI update.
+    expect(archived).toBe(false);
+    expect(
+      fetchMock.mock.calls.filter(([url]) => String(url).includes('/archive')),
+    ).toHaveLength(0);
+  });
+
+  test('identity switch during token acquisition never dispatches the prior conversation creation', async () => {
+    const fetchMock = vi.fn((_url: string, _init?: RequestInit) =>
+      Promise.resolve({ ok: true, json: async () => ({}) }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result, rerender } = renderHook(() => useMeriChatController({ selectedClientName: null }));
+    await act(async () => {});
+
+    let releaseToken: (() => void) | null = null;
+    mocks.getToken.mockImplementationOnce(
+      () =>
+        new Promise<string>((resolve) => {
+          releaseToken = () => resolve('token');
+        }),
+    );
+
+    let creation: Promise<void> | null = null;
+    await act(async () => {
+      creation = result.current.handleNewSession();
+    });
+    await waitFor(() => expect(releaseToken).not.toBeNull());
+
+    await act(async () => {
+      mocks.impersonatedTenantSlug = 'tenant-b';
+      rerender();
+    });
+    await act(async () => {
+      releaseToken!();
+      await creation!;
+    });
+
+    expect(
+      fetchMock.mock.calls.filter(
+        ([url, init]) =>
+          String(url).endsWith('/api/clio/conversations') &&
+          (init as RequestInit | undefined)?.method === 'POST',
+      ),
+    ).toHaveLength(0);
+    expect(getChatStateSnapshot()).toMatchObject({ sessionId: null, activeConversationId: null });
+  });
+
+  test('mounting a second surface under the already-claimed identity keeps its live turn', async () => {
+    // The identity boundary is an ownership change, not a mount. A remount that
+    // finds the store already owned by this same identity must not abort the
+    // stream or discard the turn state the first surface is still showing.
+    setStreaming(true);
+
+    renderHook(() => useMeriChatController({ selectedClientName: null }));
+
+    expect(getChatStateSnapshot()).toMatchObject({
+      sessionId: 'thread-a',
+      activeConversationId: 'thread-a',
+      isStreaming: true,
+    });
   });
 
   test('route transition clears staged attachments before another thread can send', async () => {

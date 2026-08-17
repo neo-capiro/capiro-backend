@@ -8,6 +8,10 @@ import {
   useChatStore,
   type MeriConversation,
 } from '../../components/chat/chat-store.js';
+import {
+  mayApplyIdentityResult,
+  meriEffectiveIdentityKey,
+} from '../../components/chat/meri-route-guards.js';
 import { useApi } from '../../lib/use-api.js';
 import { useImpersonation } from '../../state/impersonation.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
@@ -64,9 +68,9 @@ interface VNextMeriThreadRailProps {
   onRetryHistory: () => void;
   onNewChat: () => void;
   onOpenIntegrations: () => void;
-  onArchiveThread: (conversationId: string) => Promise<void>;
+  onArchiveThread: (conversationId: string) => Promise<boolean>;
   onRenameThread: (conversationId: string, title: string) => Promise<void>;
-  onRestoreThread: (conversationId: string) => Promise<void>;
+  onRestoreThread: (conversationId: string) => Promise<boolean>;
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   searchInputRef: { current: HTMLInputElement | null };
@@ -92,7 +96,7 @@ export function VNextMeriThreadRail({
   const { orgId, userId } = useAuth();
   const { actAsTenantSlug } = useImpersonation();
   const queryClient = useQueryClient();
-  const identityKey = `${actAsTenantSlug ?? orgId ?? 'no-org'}:${userId ?? 'anonymous'}`;
+  const identityKey = meriEffectiveIdentityKey(actAsTenantSlug, orgId, userId);
   const toast = useCapiroToast();
   const { conversations, activeConversationId } = useChatStore();
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -128,17 +132,29 @@ export function VNextMeriThreadRail({
   const previousIdentityKeyRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     const previousIdentityKey = previousIdentityKeyRef.current;
-    if (previousIdentityKey === null) {
-      previousIdentityKeyRef.current = identityKey;
-      return;
-    }
     if (previousIdentityKey === identityKey) return;
     previousIdentityKeyRef.current = identityKey;
-    // Search must retain its canonical key, so remove its old identity's cached
-    // result before paint. Library keys are identity-scoped; only discard the
-    // prior identity rather than the new active query.
+    // Search must retain its canonical key, so remove stale results rather than
+    // adding identity to it. Reset every local dialog/selection that can retain
+    // a prior tenant's title or workspace choice before the rail paints.
     queryClient.removeQueries({ queryKey: ['meri-conversation-search'] });
-    queryClient.removeQueries({ queryKey: ['meri-vnext', previousIdentityKey] });
+    // Evict by predicate rather than by the previous key: the route remounts
+    // this rail on an identity change, so `previousIdentityKey` is null exactly
+    // when another tenant's library cache is the thing still sitting in memory.
+    queryClient.removeQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === 'meri-vnext' &&
+        query.queryKey[1] !== identityKey,
+    });
+    setDebouncedQuery('');
+    setMenuFor(null);
+    setConfirmFor(null);
+    setRenaming(null);
+    setUndoTarget(null);
+    setMoveFor(null);
+    setWorkspaceDialogOpen(false);
+    setNewWorkspaceName('');
   }, [identityKey, queryClient]);
 
   const savedPrompts = useQuery({
@@ -264,7 +280,8 @@ export function VNextMeriThreadRail({
     setConfirmFor(null);
     removeConversation(target.id);
     try {
-      await onArchiveThread(target.id);
+      const archived = await onArchiveThread(target.id);
+      if (!archived) return;
       setUndoTarget(target);
       toast.success('Chat archived. It stays in the audit trail.');
       const remaining = conversations.filter((conversation) => conversation.id !== target.id);
@@ -659,7 +676,8 @@ export function VNextMeriThreadRail({
             type="button"
             onClick={() => {
               void onRestoreThread(undoTarget.id)
-                .then(() => {
+                .then((restored) => {
+                  if (!restored) return;
                   upsertConversation(undoTarget);
                   setUndoTarget(null);
                   toast.success('Chat restored.');

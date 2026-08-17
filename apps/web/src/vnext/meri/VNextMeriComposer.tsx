@@ -135,6 +135,7 @@ export function VNextMeriComposer({
     }
     if (previousWorkspaceIdentityKeyRef.current === workspaceIdentityKey) return;
     previousWorkspaceIdentityKeyRef.current = workspaceIdentityKey;
+    setDraft('');
     setWorkspaceImportOpen(false);
     setWorkspaceDrafts([]);
     setWorkspaceDocuments({});

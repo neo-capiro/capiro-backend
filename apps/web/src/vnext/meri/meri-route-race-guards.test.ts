@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
+  claimMeriIdentity,
   getChatStateSnapshot,
   resetChatStoreForTests,
   setActiveConversation,
@@ -65,8 +66,11 @@ const mocks = vi.hoisted(() => ({
   api: { post: vi.fn() },
 }));
 
+// The org/user must match the identity claimed in `beforeEach`. If they do not,
+// the controller's identity boundary treats mount as a tenant switch and clears
+// the shared session these route/approval tests operate on.
 vi.mock('@clerk/clerk-react', () => ({
-  useAuth: () => ({ getToken: mocks.getToken }),
+  useAuth: () => ({ getToken: mocks.getToken, orgId: 'org-a', userId: 'user-a' }),
 }));
 vi.mock('../../env.js', () => ({ config: { apiBaseUrl: 'https://api.test' } }));
 vi.mock('../../lib/use-api.js', () => ({ useApi: () => mocks.api }));
@@ -91,6 +95,7 @@ import { useMeriChatController } from '../../components/chat/useMeriChatControll
 describe('Meri race guards — controller-level', () => {
   beforeEach(() => {
     resetChatStoreForTests();
+    claimMeriIdentity('org-a:user-a');
     setChatSession('thread-a');
     setActiveConversation('thread-a');
     mocks.api.post.mockReset();
