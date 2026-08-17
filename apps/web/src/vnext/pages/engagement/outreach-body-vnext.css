@@ -85,3 +85,43 @@
 .capiro-vnext-root .engagement-vnext .ov3-root .ov3-target-criteria__controls > button.is-selected:hover {
   background: var(--uui-btn-metal-face-hover, linear-gradient(180deg, #4a5462, #161d26));
 }
+
+/*
+ * Step 4 (Context) — verified by reading context-review-surface.css and
+ * grepping every --ov3-* reference in outreach-v3.css in full: Context's own
+ * stylesheet only consumes --ov3-subtle/border/surface/secondary/muted/
+ * accent, and every one of those is ALREADY remapped by the .ov3-root block
+ * above. No new custom property was needed for Context specifically.
+ *
+ * What WAS missed by that token remap: context-review-surface.css's class
+ * guide cards and context cards (is-guidance/is-evidence/is-target(-specific)
+ * /is-conflict) use hardcoded literal pastel hex colors (purple/blue/green/
+ * amber), not CSS custom properties at all — so no --ov3-* remap could ever
+ * reach them, and left alone they would sit as off-brand hued cards inside an
+ * otherwise navy/mono surface. Remapped here using the SAME
+ * highly-specific-selector mechanism as the rest of this file, onto
+ * engagement's own existing gray/navy/warning tokens (never a new hue):
+ * guidance -> neutral gray (it's style, not evidence, so it gets the
+ * "quieter" tone); evidence/target-specific -> navy (real, scoped campaign
+ * facts); excluded/conflict -> warning amber (a real cautionary state,
+ * consistent with how "excluded"/"held" is colored everywhere else in this
+ * module).
+ */
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-class-guide article.is-guidance,
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-card.is-guidance {
+  background: var(--eng-muted, #f2f4f7);
+  border-color: var(--eng-border-strong, #acb7c6);
+}
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-class-guide article.is-evidence,
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-card.is-evidence {
+  border-color: var(--eng-accent-border, #c3d5e1);
+}
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-class-guide article.is-target,
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-card.is-target-specific {
+  background: var(--eng-accent-soft, #edf3f7);
+  border-color: var(--eng-accent-border, #c3d5e1);
+}
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-card.is-conflict {
+  background: var(--eng-warning-bg, #fffaeb);
+  border-color: var(--eng-warning-border, #fedf89);
+}

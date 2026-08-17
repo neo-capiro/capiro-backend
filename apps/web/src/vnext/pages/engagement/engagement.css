@@ -1083,6 +1083,21 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+/* Informational (non-clickable) variant of the chat inline-actions row — used
+   when the real send trigger is present but not yet enabled (sponsor-scope
+   blocked, held-out unacknowledged, or other preflight blockers), so the
+   chat pane always shows an honest, specific reason rather than a dead
+   disabled button with no context. */
+.capiro-vnext-root .uui-chat-actions--note p {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--eng-warning-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-warning-border);
+  color: var(--eng-warning);
+  font-size: 12px;
+  line-height: 17px;
+}
 .capiro-vnext-root .uui-chat-actions button {
   min-height: 34px;
   padding: 0 14px;
@@ -1816,6 +1831,15 @@
   font-size: 11px;
   box-shadow: inset 0 0 0 1px var(--eng-border);
 }
+/* Attachment lifecycle/scan-status marker — real data (OutreachAttachment
+   .lifecycleStatus/.scanStatus) that is enforced at send time but was never
+   shown until it blocked a send. Compact variant of the shared state pill so
+   it fits inline inside a chip. */
+.capiro-vnext-root .uui-attachment-chip .uui-state-pill {
+  min-height: 18px;
+  padding: 0 6px;
+  font-size: 8px;
+}
 .capiro-vnext-root .uui-attachment-chip button {
   display: grid;
   place-items: center;
@@ -1884,6 +1908,115 @@
 }
 .capiro-vnext-root .uui-preflight-row[data-state='blocked'] em i {
   background: var(--eng-error-dot);
+}
+/* Client-only "no real check" row state — the 3 backend-gap preflight rows
+   (Role policy / Shared visibility / Context checks). Deliberately gray/
+   neutral, never navy/warn/err, so it can never read as a real pass or a
+   real blocker. See buildHonestPreflightRows in VNextOutreachWorkspace.tsx. */
+.capiro-vnext-root .uui-preflight-row[data-state='unavailable'] {
+  background: var(--eng-muted);
+}
+.capiro-vnext-root .uui-preflight-row[data-state='unavailable'] em {
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .uui-preflight-row[data-state='unavailable'] em i {
+  background: var(--eng-ink-4);
+}
+/* Dedicated sponsor-scope-blocked panel — literal mockup hex values used
+   verbatim (not the generic --eng-error-bg/border tokens, which are a
+   slightly different shade) since this is a specific, named design element,
+   not a generic recovery/error panel. */
+.capiro-vnext-root .uui-sponsor-scope-blocked {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: #fffbfa;
+  box-shadow: inset 0 0 0 1px #fecdca;
+  color: var(--eng-error);
+}
+.capiro-vnext-root .uui-sponsor-scope-blocked p {
+  margin: 4px 0 10px;
+  color: var(--eng-ink-2);
+  font-size: 13px;
+  line-height: 19px;
+}
+.capiro-vnext-root .uui-sponsor-scope-blocked button[disabled] {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+/* Per-recipient hold-out toggle rows (the held-out fix's interactive part —
+   see item A in this phase's report). */
+.capiro-vnext-root .uui-recipient-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.capiro-vnext-root .uui-recipient-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--eng-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+}
+.capiro-vnext-root .uui-recipient-status-row[data-blocked] {
+  background: var(--eng-error-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-error-border);
+}
+.capiro-vnext-root .uui-recipient-status-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.capiro-vnext-root .uui-recipient-status-row strong {
+  font-size: 13px;
+}
+.capiro-vnext-root .uui-recipient-status-row > div span {
+  color: var(--eng-ink-3);
+  font-size: 11px;
+}
+.capiro-vnext-root .uui-recipient-status-row[data-blocked] > div span {
+  color: var(--eng-error);
+}
+.capiro-vnext-root .uui-hold-out-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--eng-ink-2);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.capiro-vnext-root .uui-hold-out-toggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--eng-accent);
+}
+/* Workbench Send step's closing note, replacing the send button that moved
+   to the chat pane — see item D in this phase's report. */
+.capiro-vnext-root .uui-send-relocated-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px;
+  border-radius: 10px;
+  background: var(--eng-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+  color: var(--eng-accent);
+}
+.capiro-vnext-root .uui-send-relocated-note p {
+  margin: 4px 0 0;
+  color: var(--eng-ink-2);
+  font-size: 12px;
+  line-height: 18px;
 }
 .capiro-vnext-root .uui-send-summary {
   display: flex;
@@ -1966,6 +2099,19 @@
 .capiro-vnext-root .uui-delivery-stats span {
   color: var(--eng-ink-3);
   font-size: 12px;
+}
+/* Mockup-consistent visual styling on the REAL tiles only — tone-coded
+   numbers. Labels stay Sent/Failed/Unknown/Skipped/Held; see
+   DELIVERY_STAT_TONE in VNextOutreachWorkspace.tsx for why the mockup's
+   Delivered/Bounced/Replied concepts are not used here. */
+.capiro-vnext-root .uui-delivery-stats article[data-tone='navy'] strong {
+  color: var(--eng-accent);
+}
+.capiro-vnext-root .uui-delivery-stats article[data-tone='error'] strong {
+  color: var(--eng-error);
+}
+.capiro-vnext-root .uui-delivery-stats article[data-tone='warning'] strong {
+  color: var(--eng-warning);
 }
 .capiro-vnext-root .uui-delivery-records article,
 .capiro-vnext-root .uui-next-actions article {
