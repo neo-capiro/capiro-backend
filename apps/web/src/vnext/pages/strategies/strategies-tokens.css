@@ -72,7 +72,7 @@
   --st-purple-bg: #f4f3ff;  --st-purple-ring: #d9d6fe;  --st-purple-fg: #6941c6;  --st-purple-dot: #7a5af8;
 
   /* Type — inherit the vNext sans; monospace helper for §5.1 identifiers. */
-  --st-font-sans: var(--capiro-type-family-sans, 'Inter', ui-sans-serif, system-ui, sans-serif);
+  --st-font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --st-font-mono: var(--capiro-type-family-mono, ui-monospace, 'SFMono-Regular', Consolas, monospace);
 
   /* Timeline geometry (§5.3). */

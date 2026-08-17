@@ -238,6 +238,9 @@
   display: block;
 }
 .capiro-vnext-root .capiro-strategies .st-stat:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
+.capiro-vnext-root .capiro-strategies .st-stat--attention {
+  box-shadow: 0 0 0 1px var(--st-warning-ring), var(--st-shadow-card);
+}
 .capiro-vnext-root .capiro-strategies .st-stat__value {
   font-size: 28px;
   line-height: 34px;

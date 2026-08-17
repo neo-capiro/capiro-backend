@@ -261,7 +261,7 @@ export function StrategyLibraryVNext() {
             <p className="st-stat__label">Active strategies</p>
             <p className="st-stat__hint">Across {clientCount} {clientCount === 1 ? 'client' : 'clients'}</p>
           </button>
-          <button type="button" className="st-stat" onClick={() => navigate('/strategies/agents/proposals')}>
+          <button type="button" className={needsReview > 0 ? 'st-stat st-stat--attention' : 'st-stat'} onClick={() => navigate('/strategies/agents/proposals')}>
             <p className="st-stat__value">{needsReview}</p>
             <p className="st-stat__label">Needs review</p>
             <p className="st-stat__hint">Watcher proposals</p>
