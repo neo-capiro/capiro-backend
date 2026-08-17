@@ -32,6 +32,11 @@ interface PageResult {
   degradedReason?: string;
 }
 
+interface VisibleClientScope {
+  visibleClientIds: string[];
+  authorizationMismatch: boolean;
+}
+
 function jsonObject(value: unknown): KnowledgeJsonObject {
   return JSON.parse(JSON.stringify(value)) as KnowledgeJsonObject;
 }
@@ -64,11 +69,8 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
     const pageSize = Math.min(Math.max(request.pageSize ?? 50, 1), MAX_PAGE_SIZE);
 
     return this.prisma.withTenant(request.caller.tenantId, async (tx) => {
-      const visibleClientIds = await this.resolveVisibleClientIds(tx, request);
-      if (
-        this.hasExplicitClientScope(request) &&
-        visibleClientIds.length !== requestedEntityCount
-      ) {
+      const clientScope = await this.resolveVisibleClientScope(tx, request);
+      if (clientScope.authorizationMismatch) {
         return {
           domain: dataset.domain,
           records: [],
@@ -78,8 +80,9 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
           truncated: false,
           sourceStatus: 'unauthorized',
           recordsEvaluated: 0,
-          requestedEntityCount,
-          searchedEntityCount: visibleClientIds.length,
+          requestedEntityCount:
+            requestedEntityCount || new Set(request.caller.authorizedClientIds ?? []).size,
+          searchedEntityCount: clientScope.visibleClientIds.length,
           pagesRead: 1,
           paginationComplete: false,
           coverageComplete: false,
@@ -91,7 +94,7 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
         dataset.domain as CoreDomain,
         tx,
         request,
-        visibleClientIds,
+        clientScope.visibleClientIds,
         pageSize,
         cursor,
       );
@@ -111,7 +114,7 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
         lastSyncAt: page.lastSyncAt,
         recordsEvaluated: page.records.length + (page.hasMore ? 1 : 0),
         requestedEntityCount,
-        searchedEntityCount: visibleClientIds.length,
+        searchedEntityCount: clientScope.visibleClientIds.length,
         pagesRead: 1,
         paginationComplete,
         coverageComplete,
@@ -139,17 +142,30 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
   }
 
   private hasExplicitClientScope(request: RetrievalRequest): boolean {
-    return (request.caller.clientIds?.length ?? 0) > 0;
+    return (
+      (request.caller.clientIds?.length ?? 0) > 0 ||
+      request.caller.authorizedClientIds !== undefined
+    );
   }
 
-  private async resolveVisibleClientIds(
+  private async resolveVisibleClientScope(
     tx: Prisma.TransactionClient,
     request: RetrievalRequest,
-  ): Promise<string[]> {
-    const requested = request.caller.clientIds ? [...new Set(request.caller.clientIds)] : undefined;
+  ): Promise<VisibleClientScope> {
+    const requested = uniqueStrings(request.caller.clientIds ?? []);
+    const authorizationWasSpecified = request.caller.authorizedClientIds !== undefined;
+    const authorized = uniqueStrings(request.caller.authorizedClientIds ?? []);
+    const requestedOutsideEnvelope =
+      authorizationWasSpecified && requested.some((id) => !authorized.includes(id));
+    const envelope = authorizationWasSpecified
+      ? authorized
+      : requested.length > 0
+        ? requested
+        : undefined;
+
     const clients = await tx.client.findMany({
       where: {
-        ...(requested && requested.length > 0 ? { id: { in: requested } } : {}),
+        ...(envelope !== undefined ? { id: { in: envelope } } : {}),
         OR: [
           { memoryWall: false },
           { memoryAccessGrants: { some: { userId: request.caller.userId } } },
@@ -158,7 +174,15 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
       select: { id: true },
       orderBy: { id: 'asc' },
     });
-    return clients.map((client) => client.id);
+    const visibleEnvelopeIds = clients.map((client) => client.id);
+    const authorizationMismatch =
+      requestedOutsideEnvelope ||
+      (authorizationWasSpecified && visibleEnvelopeIds.length !== authorized.length) ||
+      (!authorizationWasSpecified && requested.length > 0 && visibleEnvelopeIds.length !== requested.length);
+    const visibleClientIds = requested.length > 0
+      ? visibleEnvelopeIds.filter((id) => requested.includes(id))
+      : visibleEnvelopeIds;
+    return { visibleClientIds, authorizationMismatch };
   }
 
   private retrievePage(
@@ -317,6 +341,31 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
     pageSize: number,
     cursor?: string,
   ): Promise<PageResult> {
+    const mailboxScopeWasSpecified =
+      request.caller.authorizedMailboxConnectionIds !== undefined;
+    const authorizedMailboxIds = uniqueStrings(
+      request.caller.authorizedMailboxConnectionIds ?? [],
+    );
+    if (mailboxScopeWasSpecified && authorizedMailboxIds.length === 0) {
+      return this.unauthorizedPage('authorized_mailbox_scope_empty');
+    }
+
+    const mailboxConnections = await tx.integrationConnection.findMany({
+      where: {
+        createdByUserId: request.caller.userId,
+        provider: { in: [...MAILBOX_PROVIDERS] },
+        ...(mailboxScopeWasSpecified ? { id: { in: authorizedMailboxIds } } : {}),
+      },
+      orderBy: { id: 'asc' },
+      select: { id: true, status: true, lastSyncAt: true },
+    });
+    if (
+      mailboxScopeWasSpecified &&
+      mailboxConnections.length !== authorizedMailboxIds.length
+    ) {
+      return this.unauthorizedPage('requested_mailbox_scope_not_fully_authorized');
+    }
+
     const query = request.query?.trim();
     const threadScope: Prisma.MailMessageWhereInput = this.hasExplicitClientScope(request)
       ? { thread: { clientId: { in: visibleClientIds } } }
@@ -336,6 +385,9 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
       AND: [
         threadScope,
         ownMailMessageWhere(request.caller.userId),
+        ...(mailboxScopeWasSpecified
+          ? [{ connectionId: { in: authorizedMailboxIds } }]
+          : []),
         ...(temporalScope ? [temporalScope] : []),
         ...(query
           ? [
@@ -351,7 +403,7 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
           : []),
       ],
     };
-    const [total, rows, mailboxConnections] = await Promise.all([
+    const [total, rows] = await Promise.all([
       tx.mailMessage.count({ where }),
       tx.mailMessage.findMany({
         where,
@@ -360,6 +412,7 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
         take: pageSize + 1,
         select: {
           id: true,
+          connectionId: true,
           threadId: true,
           source: true,
           subject: true,
@@ -375,14 +428,6 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
           updatedAt: true,
           thread: { select: { clientId: true, subject: true } },
         },
-      }),
-      tx.integrationConnection.findMany({
-        where: {
-          createdByUserId: request.caller.userId,
-          provider: { in: [...MAILBOX_PROVIDERS] },
-        },
-        orderBy: { id: 'asc' },
-        select: { id: true, status: true, lastSyncAt: true },
       }),
     ]);
     const result = this.page('mail', rows, total, pageSize, (row) => ({
@@ -683,6 +728,16 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
     };
   }
 
+  private unauthorizedPage(stopReason: string): PageResult {
+    return {
+      records: [],
+      total: 0,
+      hasMore: false,
+      sourceStatus: 'unauthorized',
+      degradedReason: stopReason,
+    };
+  }
+
   private unsupported(
     domain: RetrievalDomain,
     stopReason: string,
@@ -704,4 +759,8 @@ export class CorePrismaRetrievalAdapter implements RetrievalSourceAdapter {
       stopReason,
     };
   }
+}
+
+function uniqueStrings(values: readonly string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
 }

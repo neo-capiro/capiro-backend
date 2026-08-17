@@ -1,0 +1,97 @@
+name: Knowledge Plane Phase 15 CI
+
+on:
+  push:
+    branches:
+      - agent/knowledge-plane-phase-15-universal-context-resolver
+    paths:
+      - 'apps/api/src/context/**'
+      - 'apps/api/src/retrieval/**'
+      - 'docs/knowledge-plane/phase-15-universal-context-resolver.md'
+      - '.github/workflows/knowledge-phase15-ci.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/api/src/context/**'
+      - 'apps/api/src/retrieval/**'
+      - 'docs/knowledge-plane/phase-15-universal-context-resolver.md'
+      - '.github/workflows/knowledge-phase15-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch hygiene
+        run: git diff --check origin/main...HEAD
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages consumed by API
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Validate and generate Prisma client
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Phase 15 resolver and security contracts
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/context/context-resolver.service.spec.ts \
+            src/context/context-resolver-architecture.contract.spec.ts \
+            src/retrieval/adapters/core-prisma-security-scope.spec.ts \
+            src/retrieval/adapters/core-prisma-retrieval.adapter.spec.ts
+
+      - name: Existing Context Plane and entity-resolution regressions
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/context/context-compiler.service.spec.ts \
+            src/context/context-compiler-v2.service.spec.ts \
+            src/context/context-persistence-boundary.spec.ts \
+            src/knowledge/entities/universal-entity-resolution-orchestrator.service.spec.ts
+
+      - name: Retrieval, coverage, scoring and reranking regressions
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/retrieval/retrieval-v2.service.spec.ts \
+            src/retrieval/retrieval-v2-exact-lexical.spec.ts \
+            src/retrieval/retrieval-v2-scoring.spec.ts \
+            src/retrieval/retrieval-v2-reranking.spec.ts \
+            src/retrieval/coverage-manifest.spec.ts \
+            src/retrieval/vector-storage-architecture.contract.spec.ts
+
+      - name: Reject Phase 15 TypeScript errors
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @capiro/api exec tsc --noEmit --pretty false > /tmp/api-tsc.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/api-tsc.log
+          if grep -E 'src/context/context-resolver|src/context/context\.module|src/retrieval/adapters/core-prisma|src/retrieval/retrieval-v2\.types' /tmp/api-tsc.log; then
+            echo "Phase 15 introduced TypeScript errors." >&2
+            exit 1
+          fi
+          echo "Full API typecheck exit: $status (unrelated baseline errors, if any, are not attributed to Phase 15)."

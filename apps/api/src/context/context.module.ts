@@ -1,25 +1,33 @@
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { KnowledgeModule } from '../knowledge/knowledge.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { RetrievalModule } from '../retrieval/retrieval.module.js';
 import { ContextCompilerService } from './context-compiler.service.js';
 import { ContextPersistenceBoundaryInterceptor } from './context-persistence-boundary.interceptor.js';
 import { ContextPersistenceBoundaryService } from './context-persistence-boundary.service.js';
+import { ContextResolverService } from './context-resolver.service.js';
 
 /**
- * One Context Compiler plus one request-local release boundary for every apps/api
- * Meri surface. The boundary is global so a legacy fail-soft caller cannot hide a
- * required Context Packet persistence failure and still release a deliverable.
+ * One shared Context Plane module. The existing compiler/persistence boundary
+ * remains unchanged; Phase 15 adds the pre-retrieval resolver that separates
+ * SecurityScope, SubjectScope, and FocusEntities before Retrieval V2 runs.
  */
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, KnowledgeModule, RetrievalModule],
   providers: [
     ContextPersistenceBoundaryService,
     ContextCompilerService,
+    ContextResolverService,
     {
       provide: APP_INTERCEPTOR,
       useClass: ContextPersistenceBoundaryInterceptor,
     },
   ],
-  exports: [ContextCompilerService, ContextPersistenceBoundaryService],
+  exports: [
+    ContextCompilerService,
+    ContextPersistenceBoundaryService,
+    ContextResolverService,
+  ],
 })
 export class ContextModule {}

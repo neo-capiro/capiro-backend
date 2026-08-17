@@ -104,19 +104,19 @@ export interface SemanticDatasetDescriptor {
 }
 
 /**
- * Phase 9 caller context only. This is deliberately not the future universal
- * ContextResolver SecurityScope/SubjectScope abstraction. It carries the
- * minimum authorization and exact graph-partition inputs required to keep
- * Retrieval V2 fail-closed today.
+ * Retrieval caller context after Phase 15 scope resolution.
+ *
+ * `authorized*` fields are explicit SecurityScope envelopes. They never grant
+ * access: adapters must intersect them with tenant/RLS/ownership/ethical-wall
+ * rules and fail closed on a mismatch. `clientIds` remains SubjectScope—the
+ * subset the question is about—and must never be inferred from UI selection.
  */
 export interface RetrievalCallerContext {
   tenantId: string;
   userId: string;
-  /**
-   * Optional client subset already selected by the caller. Adapters still
-   * enforce tenant isolation and ethical-wall visibility; this is never an
-   * authorization bypass.
-   */
+  authorizedClientIds?: readonly string[];
+  authorizedMailboxConnectionIds?: readonly string[];
+  /** Optional client subset selected by explicit SubjectScope. */
   clientIds?: readonly string[];
   /** Exact already-authorized Phase 8 graph partitions. */
   graphPartitions?: readonly TemporalKnowledgeGraphPartition[];
