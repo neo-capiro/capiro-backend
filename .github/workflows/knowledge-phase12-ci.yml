@@ -7,6 +7,8 @@ on:
     paths:
       - 'apps/api/src/embeddings/**'
       - 'apps/api/src/memory/**'
+      - 'apps/api/src/meri/**'
+      - 'apps/api/src/retrieval/**'
       - 'apps/api/scripts/embed-backfill.ts'
       - 'apps/api/scripts/backfill-client-kb.ts'
       - 'apps/api/scripts/sync-congress.ts'
@@ -22,6 +24,8 @@ on:
     paths:
       - 'apps/api/src/embeddings/**'
       - 'apps/api/src/memory/**'
+      - 'apps/api/src/meri/**'
+      - 'apps/api/src/retrieval/**'
       - 'apps/api/scripts/embed-backfill.ts'
       - 'apps/api/scripts/backfill-client-kb.ts'
       - 'apps/api/scripts/sync-congress.ts'
@@ -53,7 +57,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -68,23 +72,24 @@ jobs:
           pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
           pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
 
-      - name: Reject duplicate Titan embedding implementations
+      - name: Reject duplicate shared-provider implementations
         shell: bash
         run: |
           set -euo pipefail
 
-          literal_hits=$(git grep -n -E 'amazon\.titan-embed-text-v2:0' -- \
+          titan_literal_hits=$(git grep -n -E 'amazon\.titan-embed-text-v2:0' -- \
             'apps/**' 'packages/**' 'scripts/**' \
             ':!apps/api/src/embeddings/titan-embedding.provider.ts' || true)
-          if [ -n "$literal_hits" ]; then
+          if [ -n "$titan_literal_hits" ]; then
             echo "Titan embedding model is coupled outside the provider adapter:" >&2
-            echo "$literal_hits" >&2
+            echo "$titan_literal_hits" >&2
             exit 1
           fi
 
-          direct_sdk_hits=$(git grep -n -E '@aws-sdk/client-bedrock-runtime|new BedrockRuntimeClient|InvokeModelCommand' -- \
+          direct_bedrock_hits=$(git grep -n -E '@aws-sdk/client-bedrock-runtime|new BedrockRuntimeClient|InvokeModelCommand' -- \
             'apps/api/src/embeddings/**' \
             'apps/api/src/memory/**' \
+            'apps/api/src/meri/**' \
             'apps/api/src/retrieval/**' \
             'apps/api/scripts/embed-backfill.ts' \
             'apps/api/scripts/backfill-client-kb.ts' \
@@ -92,9 +97,24 @@ jobs:
             'apps/api/scripts/sync-lda.ts' \
             ':!apps/api/src/embeddings/titan-embedding.provider.ts' \
             ':!apps/api/src/embeddings/embedding-provider.contract.spec.ts' || true)
-          if [ -n "$direct_sdk_hits" ]; then
-            echo "Direct Bedrock embedding SDK coupling remains in a shared embedding/retrieval/indexing path:" >&2
-            echo "$direct_sdk_hits" >&2
+          if [ -n "$direct_bedrock_hits" ]; then
+            echo "Direct Bedrock embedding coupling remains outside the shared provider adapter:" >&2
+            echo "$direct_bedrock_hits" >&2
+            exit 1
+          fi
+
+          # Phase-12 audited legacy compatibility island: clio_memory.embedding is
+          # a pre-existing 1536-dimension OpenAI space. Migrating/removing it here
+          # would violate the no-re-embed/no-dimension-change acceptance rule and
+          # alter default Meri recall. Freeze it to the two inherited runtime call
+          # sites (+ config declaration) so no new direct provider coupling spreads.
+          legacy_openai_hits=$(git grep -n -E 'api\.openai\.com/v1/embeddings|text-embedding-3-small' -- \
+            'apps/api/src/**' 'apps/api/scripts/**' || true)
+          unexpected_legacy_hits=$(printf '%s\n' "$legacy_openai_hits" | grep -v -E \
+            '^(apps/api/src/meri/meri\.service\.ts|apps/api/src/memory/memory-candidate\.service\.ts|apps/api/src/config/config\.schema\.ts):' || true)
+          if [ -n "$unexpected_legacy_hits" ]; then
+            echo "New direct legacy OpenAI embedding coupling was introduced outside the grandfathered compatibility island:" >&2
+            echo "$unexpected_legacy_hits" >&2
             exit 1
           fi
 
