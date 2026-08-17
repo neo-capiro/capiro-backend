@@ -153,6 +153,13 @@ function baseController(overrides: Record<string, unknown> = {}) {
     strategyPending: false,
     strategyError: null,
     startNewSession: vi.fn(),
+    startingNewSession: false,
+    ownedSessions: [],
+    sessionsLoading: false,
+    sessionsError: null,
+    refreshSessions: vi.fn(),
+    openSession: vi.fn(),
+    archiveSessionById: vi.fn(),
     ...overrides,
   };
 }
@@ -399,6 +406,59 @@ describe('VNextOutreachWorkspace', () => {
 
       fireEvent.click(retry);
       expect(retryReasoning).toHaveBeenCalledTimes(1);
+    });
+
+    it('surfaces the real OpenAI/runtime error message in the outage banner', () => {
+      useOutreachV3SessionMock.mockReturnValue(
+        baseController({
+          reasoningUnavailable: true,
+          reasoningErrorMessage:
+            'OpenAI reasoning is not available for this Capiro environment. (OUTREACH_REASONING_PROVIDER_UNAVAILABLE)',
+        }),
+      );
+      renderWorkspace('targets');
+      expect(
+        screen.getByText(/OpenAI reasoning is not available for this Capiro environment/i),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe('campaign list (wire existing APIs item 1)', () => {
+    it('lists owned V3 sessions and opens a non-current campaign', () => {
+      const openSession = vi.fn();
+      const archiveSessionById = vi.fn(async () => undefined);
+      useOutreachV3SessionMock.mockReturnValue(
+        baseController({
+          ownedSessions: [
+            {
+              id: 'session-1',
+              title: 'Ground Robotics',
+              status: 'active',
+              currentStateVersion: 2,
+              updatedAt: '2026-08-17T12:00:00.000Z',
+            },
+            {
+              id: 'session-2',
+              title: 'FY27 mark-up',
+              status: 'active',
+              currentStateVersion: 4,
+              updatedAt: '2026-08-16T09:00:00.000Z',
+            },
+          ],
+          openSession,
+          archiveSessionById,
+        }),
+      );
+      renderWorkspace('targets');
+
+      // Collapsed by default — expand.
+      fireEvent.click(screen.getByRole('button', { name: /Campaigns/i }));
+      expect(screen.getByText('FY27 mark-up')).toBeInTheDocument();
+      const list = screen.getByLabelText('Your campaigns');
+      expect(within(list).getByText(/Current ·/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('FY27 mark-up').closest('button')!);
+      expect(openSession).toHaveBeenCalledWith('session-2');
     });
   });
 

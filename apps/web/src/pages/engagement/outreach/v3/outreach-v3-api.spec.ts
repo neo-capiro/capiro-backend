@@ -5,6 +5,8 @@ import {
   getOutreachV3Strategy,
   getOutreachV3TargetRelationships,
   listOutreachV3Proposals,
+  listOutreachV3Sessions,
+  safeOutreachV3Error,
 } from './outreach-v3-api.js';
 
 function apiMock(input: {
@@ -128,5 +130,63 @@ describe('Outreach V3 browser wire normalization', () => {
       recommendedPattern: 'uniform_separate',
       recommendedPersonalization: 'light',
     });
+  });
+
+  it('lists owned sessions from GET /sessions', async () => {
+    const api = apiMock({
+      get: [
+        {
+          id: 'session-1',
+          status: 'active',
+          currentStateVersion: 3,
+          title: 'Ground Robotics',
+          updatedAt: '2026-08-17T12:00:00.000Z',
+        },
+      ],
+    });
+    const sessions = await listOutreachV3Sessions(api, { limit: 25 });
+    expect(sessions).toEqual([
+      {
+        id: 'session-1',
+        status: 'active',
+        currentStateVersion: 3,
+        title: 'Ground Robotics',
+        updatedAt: '2026-08-17T12:00:00.000Z',
+      },
+    ]);
+    expect(api.get).toHaveBeenCalledWith('/api/engagement/outreach-v3/sessions?limit=25');
+  });
+
+  it('prefers server code/message over generic 503 wrap for OpenAI and shadow denials', () => {
+    expect(
+      safeOutreachV3Error({
+        response: {
+          status: 503,
+          data: {
+            code: 'OUTREACH_REASONING_PROVIDER_UNAVAILABLE',
+            message: 'OpenAI reasoning is not available for this Capiro environment.',
+          },
+        },
+      }),
+    ).toMatch(/OpenAI reasoning is not available/i);
+
+    expect(
+      safeOutreachV3Error({
+        response: {
+          status: 503,
+          data: {
+            code: 'ENGAGEMENT_EXTERNAL_ACTION_DISABLED',
+            message: 'This action is disabled in the engagement-api shadow runtime.',
+          },
+        },
+      }),
+    ).toMatch(/shadow runtime/i);
+
+    // Bare 503 with no body still gets a diagnosable fallback.
+    expect(
+      safeOutreachV3Error({
+        response: { status: 503, data: {} },
+      }),
+    ).toMatch(/OpenAI on engagement-api/i);
   });
 });

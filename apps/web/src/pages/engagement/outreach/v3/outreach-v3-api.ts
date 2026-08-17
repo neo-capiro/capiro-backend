@@ -72,6 +72,49 @@ export async function archiveOutreachV3Session(
   await api.post(`${outreachV3SessionPath(sessionId)}/archive`);
 }
 
+export interface OutreachV3SessionSummary {
+  id: string;
+  tenantId?: string;
+  createdByUserId?: string;
+  status: 'active' | 'completed' | 'archived' | string;
+  currentStateVersion: number;
+  title: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  archivedAt?: string | null;
+  [key: string]: unknown;
+}
+
+/**
+ * GET /api/engagement/outreach-v3/sessions — owned campaign list.
+ * Backend returns a bare array of session rows (not an envelope).
+ */
+export async function listOutreachV3Sessions(
+  api: AxiosInstance,
+  input: { limit?: number; offset?: number; includeArchived?: boolean } = {},
+): Promise<OutreachV3SessionSummary[]> {
+  const params = new URLSearchParams();
+  if (input.limit != null) params.set('limit', String(input.limit));
+  if (input.offset != null) params.set('offset', String(input.offset));
+  if (input.includeArchived != null) {
+    params.set('includeArchived', input.includeArchived ? 'true' : 'false');
+  }
+  const query = params.toString();
+  const data = (
+    await api.get<OutreachV3SessionSummary[] | { items?: OutreachV3SessionSummary[] }>(
+      `${ROOT}/sessions${query ? `?${query}` : ''}`,
+    )
+  ).data;
+  const rows = Array.isArray(data) ? data : (data.items ?? []);
+  return rows.map((row) => ({
+    ...row,
+    id: String(row.id),
+    status: String(row.status ?? 'active'),
+    currentStateVersion: Number(row.currentStateVersion ?? 1),
+    title: typeof row.title === 'string' ? row.title : row.title ?? null,
+  }));
+}
+
 export async function applyOutreachV3Commands(
   api: AxiosInstance,
   sessionId: string,
@@ -324,27 +367,110 @@ export function targetCandidateToLocator(
   return candidate.locator;
 }
 
-export function safeOutreachV3Error(error: unknown): string {
+function extractOutreachV3ErrorParts(error: unknown): {
+  status: number | null;
+  code: string | null;
+  message: string | null;
+} {
   const response = (error as {
-    response?: { status?: number; data?: { message?: unknown; code?: unknown } };
+    response?: { status?: number; data?: unknown };
     message?: unknown;
   })?.response;
-  const raw = response?.data?.message;
-  if (typeof raw === 'string' && raw.trim()) return raw;
-  if (Array.isArray(raw) && typeof raw[0] === 'string') return raw[0];
-  if (response?.status === 404) {
+  const data = response?.data;
+  let code: string | null = null;
+  let message: string | null = null;
+
+  if (data && typeof data === 'object') {
+    const record = data as Record<string, unknown>;
+    if (typeof record.code === 'string' && record.code.trim()) code = record.code.trim();
+
+    const raw = record.message;
+    if (typeof raw === 'string' && raw.trim()) {
+      message = raw.trim();
+    } else if (Array.isArray(raw) && typeof raw[0] === 'string' && raw[0].trim()) {
+      message = raw[0].trim();
+    } else if (raw && typeof raw === 'object') {
+      const nested = raw as Record<string, unknown>;
+      if (typeof nested.message === 'string' && nested.message.trim()) {
+        message = nested.message.trim();
+      }
+      if (!code && typeof nested.code === 'string' && nested.code.trim()) {
+        code = nested.code.trim();
+      }
+    }
+
+    // Nest sometimes nests the whole payload under `error` or flattens only statusCode.
+    if (!message && typeof record.error === 'string' && record.error.trim()) {
+      message = record.error.trim();
+    }
+  }
+
+  if (!message) {
+    const top = (error as { message?: unknown })?.message;
+    if (typeof top === 'string' && top.trim() && !top.startsWith('Request failed with status')) {
+      message = top.trim();
+    }
+  }
+
+  return {
+    status: response?.status ?? null,
+    code,
+    message,
+  };
+}
+
+/**
+ * Prefer the server's real code/message over a generic 503 wrap so Meri/OpenAI
+ * and shadow-runtime denials stay diagnosable in the UI (audit OpenAI sheet).
+ */
+export function safeOutreachV3Error(error: unknown): string {
+  const { status, code, message } = extractOutreachV3ErrorParts(error);
+
+  if (code === 'ENGAGEMENT_EXTERNAL_ACTION_DISABLED') {
+    return (
+      message ||
+      'This action is disabled in the engagement-api shadow runtime. Dedicated Outreach V3 flags must be armed on that process.'
+    );
+  }
+  if (code === 'OUTREACH_REASONING_PROVIDER_UNAVAILABLE') {
+    return (
+      message ||
+      'OpenAI reasoning is not configured/available for this Capiro environment. Meri chat is OpenAI-only (Anthropic cannot serve it). Set OPENAI_API_KEY or tenant OpenAI BYOK, and a valid OUTREACH_V3_REASONING_MODEL / OPENAI_MODEL.'
+    );
+  }
+  if (code === 'OUTREACH_REASONING_PROVIDER_STATE_DISABLED') {
+    return (
+      message ||
+      'Provider-managed Outreach conversation state is not enabled for this environment.'
+    );
+  }
+  if (code === 'OUTREACH_V3_FULL_GENERATION_WORKER_DISABLED') {
+    return message || 'The Outreach V3 full-generation worker is disabled on this runtime.';
+  }
+  if (code === 'OUTREACH_V3_SEND_WORKER_DISABLED') {
+    return message || 'The Outreach V3 send-intent worker is disabled on this runtime.';
+  }
+
+  if (message) {
+    // Keep the server sentence; append code only when it adds diagnosis value.
+    if (code && !message.includes(code)) return `${message} (${code})`;
+    return message;
+  }
+
+  if (status === 404) {
     return 'Outreach V3 is not enabled for this preview runtime.';
   }
-  if (response?.status === 409) {
+  if (status === 409) {
     return 'The campaign changed. Refresh before applying this action.';
   }
-  if (response?.status === 503) {
-    return 'This Outreach capability is temporarily unavailable. Deterministic controls remain safe.';
+  if (status === 503) {
+    return 'This Outreach capability is temporarily unavailable. Deterministic controls remain safe. Check Network response code/message — Meri chat needs OpenAI on engagement-api, and generate/send need OUTREACH_V3_* flags.';
   }
-  const message = (error as { message?: unknown })?.message;
-  return typeof message === 'string' && message.trim()
-    ? message
-    : 'Outreach could not complete that action.';
+  return 'Outreach could not complete that action.';
+}
+
+export function outreachV3ErrorCode(error: unknown): string | null {
+  return extractOutreachV3ErrorParts(error).code;
 }
 
 function normalizeProposal(row: OutreachV3ProposalWire): OutreachV3Proposal {

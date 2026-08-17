@@ -34,6 +34,7 @@ import {
   getOutreachV3TargetCoverage,
   getOutreachV3TargetProfile,
   listOutreachV3Proposals,
+  listOutreachV3Sessions,
   listOutreachV3Turns,
   rejectOutreachV3Proposal,
   safeOutreachV3Error,
@@ -41,6 +42,7 @@ import {
   searchOutreachV3Memory,
   searchOutreachV3Targets,
   sendOutreachV3Turn,
+  type OutreachV3SessionSummary,
 } from './outreach-v3-api.js';
 
 const ACTIVE_SESSION_KEY = 'capiro.outreach-v3.active-session';
@@ -248,7 +250,17 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     if (!id || sessionId) return;
     writeSessionStorage(ACTIVE_SESSION_KEY, id);
     setSessionId(id);
-  }, [bootstrap.data, sessionId]);
+    void queryClient.invalidateQueries({ queryKey: ['outreach-v3', 'sessions'] });
+  }, [bootstrap.data, queryClient, sessionId]);
+
+  // Owned campaign list — GET /api/engagement/outreach-v3/sessions (already on backend).
+  // Enables resume without mounting classic OutreachView on os.
+  const sessionsQuery = useQuery({
+    queryKey: ['outreach-v3', 'sessions'],
+    queryFn: () => listOutreachV3Sessions(api, { limit: 50, includeArchived: false }),
+    staleTime: 30_000,
+    retry: false,
+  });
 
   const sessionQuery = useQuery({
     queryKey: ['outreach-v3', 'session', sessionId],
@@ -495,7 +507,18 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
       if (priorId) writeSessionStorage(conversationKey(priorId), null);
       setTransientTurns([]);
       setSessionId(null);
-      queryClient.removeQueries({ queryKey: ['outreach-v3'] });
+      // Keep the sessions list cache; only drop session-scoped queries.
+      queryClient.removeQueries({
+        predicate: (query) => {
+          const key = query.queryKey;
+          return (
+            Array.isArray(key) &&
+            key[0] === 'outreach-v3' &&
+            key[1] !== 'sessions'
+          );
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: ['outreach-v3', 'sessions'] });
     } catch (error) {
       setLifecycleError(safeOutreachV3Error(error));
       throw error;
@@ -503,6 +526,50 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
       setStartingNewSession(false);
     }
   }, [api, queryClient, sessionId, startingNewSession]);
+
+  const openSession = useCallback(
+    (nextSessionId: string) => {
+      const id = nextSessionId.trim();
+      if (!id || id === sessionId) return;
+      setLifecycleError(null);
+      setTransientTurns([]);
+      writeSessionStorage(ACTIVE_SESSION_KEY, id);
+      setSessionId(id);
+    },
+    [sessionId],
+  );
+
+  const archiveSessionById = useCallback(
+    async (targetSessionId: string) => {
+      const id = targetSessionId.trim();
+      if (!id) return;
+      setLifecycleError(null);
+      try {
+        await archiveOutreachV3Session(api, id);
+        if (id === sessionId) {
+          writeSessionStorage(ACTIVE_SESSION_KEY, null);
+          writeSessionStorage(conversationKey(id), null);
+          setTransientTurns([]);
+          setSessionId(null);
+          queryClient.removeQueries({
+            predicate: (query) => {
+              const key = query.queryKey;
+              return (
+                Array.isArray(key) &&
+                key[0] === 'outreach-v3' &&
+                key[1] !== 'sessions'
+              );
+            },
+          });
+        }
+        await queryClient.invalidateQueries({ queryKey: ['outreach-v3', 'sessions'] });
+      } catch (error) {
+        setLifecycleError(safeOutreachV3Error(error));
+        throw error;
+      }
+    },
+    [api, queryClient, sessionId],
+  );
 
   const serverTurns = useMemo(
     () => normalizeTurns(turnsQuery.data ?? []),
@@ -541,6 +608,12 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     applyProposalMutation.error ??
     rejectProposalMutation.error ??
     null;
+
+  const ownedSessions = useMemo<OutreachV3SessionSummary[]>(() => {
+    const rows = sessionsQuery.data ?? [];
+    // Prefer non-archived; backend already filters unless includeArchived.
+    return rows.filter((row) => row.status !== 'archived');
+  }, [sessionsQuery.data]);
 
   return {
     sessionId,
@@ -595,5 +668,13 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     strategyPending: strategyQuery.isFetching,
     strategyError: strategyQuery.error ? safeOutreachV3Error(strategyQuery.error) : null,
     startNewSession,
+    // Campaign list / resume (wire-existing-apis item 1)
+    ownedSessions,
+    sessionsLoading: sessionsQuery.isLoading || sessionsQuery.isFetching,
+    sessionsError: sessionsQuery.error ? safeOutreachV3Error(sessionsQuery.error) : null,
+    refreshSessions: () =>
+      queryClient.invalidateQueries({ queryKey: ['outreach-v3', 'sessions'] }),
+    openSession,
+    archiveSessionById,
   };
 }

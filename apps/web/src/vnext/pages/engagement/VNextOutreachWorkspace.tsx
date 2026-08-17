@@ -11,6 +11,7 @@ import {
   ChevronUp,
   CircleAlert,
   FileClock,
+  FolderOpen,
   Loader2,
   Paperclip,
   RotateCcw,
@@ -1738,6 +1739,8 @@ export function VNextOutreachWorkspace({
   // it is actually excluded from the required set).
   const [heldOutReasons, setHeldOutReasons] = useState<Map<string, string[]>>(new Map());
   const [acknowledgeHeldOut, setAcknowledgeHeldOut] = useState(false);
+  const [campaignsOpen, setCampaignsOpen] = useState(false);
+  const [archivingSessionId, setArchivingSessionId] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const sessionId = controller.sessionId;
@@ -2088,6 +2091,122 @@ export function VNextOutreachWorkspace({
             Edit
           </button>
         </div>
+        {/* Wire-existing-apis item 1: real V3 session list (GET …/sessions),
+            not classic OutreachView. Resume + archive without leaving os. */}
+        <section className="uui-campaign-list" aria-label="Your campaigns">
+          <header className="uui-campaign-list__header">
+            <button
+              type="button"
+              className="uui-campaign-list__toggle"
+              aria-expanded={campaignsOpen}
+              onClick={() => setCampaignsOpen((open) => !open)}
+            >
+              <FolderOpen size={14} />
+              <strong>Campaigns</strong>
+              <span className="uui-campaign-list__count">
+                {controller.sessionsLoading
+                  ? '…'
+                  : String(controller.ownedSessions?.length ?? 0)}
+              </span>
+              {campaignsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            <div className="uui-campaign-list__actions">
+              <button
+                type="button"
+                className="uui-button"
+                disabled={controller.sessionsLoading}
+                onClick={() => void controller.refreshSessions?.()}
+                title="Refresh campaign list"
+              >
+                Refresh
+              </button>
+              <button
+                type="button"
+                className="uui-button"
+                disabled={controller.startingNewSession}
+                onClick={() => void controller.startNewSession()}
+                title="Archive the current session and start a new campaign"
+              >
+                New campaign
+              </button>
+            </div>
+          </header>
+          {campaignsOpen ? (
+            <div className="uui-campaign-list__body">
+              {controller.sessionsError ? (
+                <p className="uui-campaign-list__error">{controller.sessionsError}</p>
+              ) : null}
+              {controller.sessionsLoading && !(controller.ownedSessions?.length) ? (
+                <p className="uui-campaign-list__empty">Loading campaigns…</p>
+              ) : null}
+              {!controller.sessionsLoading && !(controller.ownedSessions?.length) ? (
+                <p className="uui-campaign-list__empty">
+                  No other active campaigns. This session is the current campaign.
+                </p>
+              ) : null}
+              <ul className="uui-campaign-list__rows">
+                {(controller.ownedSessions ?? []).map((row) => {
+                  const active = row.id === sessionId;
+                  const label = row.title?.trim() || 'Untitled campaign';
+                  const updated =
+                    typeof row.updatedAt === 'string'
+                      ? new Date(row.updatedAt).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })
+                      : null;
+                  return (
+                    <li
+                      key={row.id}
+                      className="uui-campaign-list__row"
+                      data-active={active || undefined}
+                    >
+                      <button
+                        type="button"
+                        className="uui-campaign-list__open"
+                        disabled={active}
+                        onClick={() => controller.openSession?.(row.id)}
+                        title={active ? 'Current campaign' : `Open ${label}`}
+                      >
+                        <span className="uui-campaign-list__title">{label}</span>
+                        <span className="uui-campaign-list__meta">
+                          {active ? 'Current · ' : ''}
+                          v{row.currentStateVersion}
+                          {updated ? ` · ${updated}` : ''}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="uui-button uui-campaign-list__archive"
+                        disabled={archivingSessionId === row.id || controller.startingNewSession}
+                        title={
+                          active
+                            ? 'Archive this campaign and start a new one'
+                            : 'Archive this campaign'
+                        }
+                        onClick={() => {
+                          if (active) {
+                            void controller.startNewSession();
+                            return;
+                          }
+                          setArchivingSessionId(row.id);
+                          void Promise.resolve(controller.archiveSessionById?.(row.id)).finally(
+                            () => setArchivingSessionId(null),
+                          );
+                        }}
+                      >
+                        <Archive size={13} />
+                        {archivingSessionId === row.id ? '…' : 'Archive'}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
+        </section>
         <EngagementDialog
           open={briefEditOpen}
           eyebrow="Campaign brief"
