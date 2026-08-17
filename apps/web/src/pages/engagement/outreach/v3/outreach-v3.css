@@ -2109,3 +2109,59 @@
     animation: none;
   }
 }
+
+/* ── Goal read-back (UI-parity §7) ─────────────────────────────────────────
+   Rendered only by <GoalDecisionSurface goalVariant="readback">, which is
+   opt-in and off by default — these selectors emit nothing on the canonical
+   wizard path. Single column, full width: the two-column card layout and the
+   explainer rail do not exist in this variant. */
+.ov3-goal-readback {
+  display: block;
+}
+.ov3-goal-readback__goal {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #f9fafb;
+  box-shadow: inset 0 0 0 1px #e4e7ec;
+  font-size: 14px;
+  line-height: 21px;
+  color: #101828;
+  text-wrap: pretty;
+}
+.ov3-goal-readback__label {
+  display: block;
+  margin: 16px 0 8px;
+  font-family: var(--ov3-font-mono, 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #98a2b3;
+}
+.ov3-goal-readback__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.ov3-goal-readback__row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+.ov3-goal-readback__row > span:first-child {
+  font-family: var(--ov3-font-mono, 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #98a2b3;
+}
+.ov3-goal-readback__row > span:last-child {
+  font-size: 14px;
+  color: #101828;
+  text-wrap: pretty;
+}
+.ov3-goal-readback__row > span[data-empty] {
+  color: #98a2b3;
+}

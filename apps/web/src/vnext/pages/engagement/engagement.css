@@ -1,9 +1,29 @@
+/* Full-bleed escape — UI-parity §2.3. The prototype has no inset page card:
+   <main> fills the space right of the rail, the header band and tab strip run
+   edge-to-edge white, and only the content area below sits on the page gray.
+   The shell's `.uui-content` otherwise spends a 32px gutter and caps at
+   1280px, which is what rendered the module as a rounded sheet floating on a
+   light background. Same `:has()` escape Dashboard (dashboard.css:4),
+   Directory (directory.css:22) and Client CRM (client-crm.css:37) already
+   use — not a new mechanism. */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.engagement-vnext) {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
 .capiro-vnext-root .engagement-vnext {
+  /* Surfaces (UI-parity §1.2). `--eng-page` is the module's own page ground —
+     the light gray the content area sits on. `--eng-bg` stays the INSET
+     surface (fields, tinted blocks, hover on a white control); before the
+     parity pass both roles shared one #f9fafb token, which is why the page
+     ground read a full step too light. */
+  --eng-page: #eff1f5;
   --eng-bg: #f9fafb;
   --eng-surface: #ffffff;
   --eng-recessed: #fcfcfd;
   --eng-muted: #f2f4f7;
-  --eng-border: #eaecf0;
+  --eng-border: #e4e7ec;
   --eng-border-strong: #d0d5dd;
   --eng-ink: #101828;
   --eng-ink-2: #475467;
@@ -22,7 +42,22 @@
   --eng-accent: #294E68;
   --eng-accent-hover: #1F3D52;
   --eng-accent-soft: #EDF3F7;
+  --eng-accent-soft-hover: #DCE8F0;
   --eng-accent-border: #C3D5E1;
+  /* Outlines are box-shadow rings, never `border` (UI-parity §1.1) — a border
+     changes box height and breaks every fixed control height in this design.
+     The only borders in the module are structural dividers (tab strips, rail /
+     drawer / chat-panel edges) and the 2px tab underline. */
+  --eng-ring: 0 0 0 1px var(--eng-border);
+  --eng-ring-lift: 0 0 0 1px var(--eng-border), 0 1px 2px rgba(16, 24, 40, 0.05);
+  --eng-ring-inset: inset 0 0 0 1px var(--eng-border);
+  --eng-ring-hover: 0 0 0 1px var(--eng-border-strong), 0 1px 2px rgba(16, 24, 40, 0.05);
+  /* The dark gradient is the ONLY primary fill in this design (UI-parity
+     §1.5) — solid #101828 is never a button background. `--eng-primary` stays
+     the ink/underline token (active tab, step-strip underline). */
+  --eng-primary-fill: linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%);
+  --eng-primary-fill-hover: linear-gradient(180deg, #4a5462 0%, #252f3c 46%, #161d26 100%);
+  --eng-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px rgba(16, 24, 40, 0.12);
   /* IBM Plex Mono loads once, globally, via the shared Google Fonts <link> in
      index.html — the same mechanism Workspace, Program Elements, LegiWatch,
      Client CRM and Meri already rely on. No new font-loading infrastructure
@@ -39,9 +74,13 @@
   --eng-error-bg: #fef3f2;
   --eng-error-border: #fecdca;
   min-height: 100%;
-  background: var(--eng-bg);
+  background: var(--eng-page);
   color: var(--eng-ink);
   font-family: Inter, var(--uui-font-sans, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-ligatures: contextual;
+  font-kerning: normal;
 }
 
 .capiro-vnext-root .engagement-vnext *,
@@ -62,8 +101,12 @@
 .capiro-vnext-root .engagement-vnext select:focus-visible,
 .capiro-vnext-root .engagement-vnext textarea:focus-visible,
 .capiro-vnext-root .engagement-vnext a:focus-visible {
-  outline: 2px solid var(--uui-focus-ring, #4e5ba6);
+  /* UI-parity §1.6: the module's focus ring is the navy #4A7A9B, not the
+     shell's indigo — the same per-module navy exception documented on
+     `--eng-accent` above. */
+  outline: 2px solid #4a7a9b;
   outline-offset: 2px;
+  border-radius: 8px;
 }
 
 .capiro-vnext-root .uui-eyebrow,
@@ -84,6 +127,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 24px;
   padding: 26px 24px 0;
   background: var(--eng-surface);
@@ -96,45 +140,74 @@
   letter-spacing: -0.02em;
 }
 .capiro-vnext-root .uui-engagement-page-header p {
-  margin: 2px 0 0;
+  margin: 4px 0 0;
+  max-width: 760px;
   font-size: 14px;
   line-height: 20px;
   color: var(--eng-ink-2);
   text-wrap: pretty;
 }
+/* Client scope — UI-parity §3.1: a CONTENT-WIDTH control, not a fixed-width
+   box, with the chevron sitting immediately after the value rather than
+   pushed to a far right edge. A native <select> can't be content-width (it
+   sizes to its widest option), so the real select is laid over the control
+   at zero opacity and the current value is painted by
+   `.uui-client-scope__value`. Keyboard, screen-reader and form semantics all
+   still come from the real select, which the <label> wraps. */
 .capiro-vnext-root .uui-client-scope {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 10px;
-  min-width: 176px;
-  height: 42px;
-  padding: 0 38px 0 14px;
-  border-radius: 10px;
-  box-shadow: inset 0 0 0 1px var(--eng-border);
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  box-shadow: var(--eng-ring-lift);
   background: var(--eng-surface);
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-client-scope:hover {
+  box-shadow: var(--eng-ring-hover);
+}
+.capiro-vnext-root .uui-client-scope:focus-within {
+  outline: 2px solid #4a7a9b;
+  outline-offset: 2px;
 }
 .capiro-vnext-root .uui-client-scope > span {
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 500;
   line-height: 1;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--eng-ink-4);
+  white-space: nowrap;
 }
-.capiro-vnext-root .uui-client-scope select {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  appearance: none;
-  background: transparent;
+.capiro-vnext-root .uui-client-scope__value {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--eng-ink);
   font-size: 14px;
   font-weight: 600;
+  /* Not the mono eyebrow — this is the value, in the UI face. */
+  font-family: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.capiro-vnext-root .uui-client-scope select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  opacity: 0;
+  appearance: none;
+  cursor: pointer;
 }
 .capiro-vnext-root .uui-client-scope svg {
-  position: absolute;
-  right: 14px;
+  flex: 0 0 auto;
   color: var(--eng-ink-3);
   pointer-events: none;
 }
@@ -144,7 +217,6 @@
   justify-content: space-between;
   align-items: flex-end;
   gap: 20px;
-  min-height: 62px;
   padding: 14px 24px 0;
   border-bottom: 1px solid var(--eng-border);
   background: var(--eng-surface);
@@ -152,23 +224,28 @@
 .capiro-vnext-root .uui-engagement-tabs nav {
   display: flex;
   align-items: flex-end;
-  gap: 2px;
+  gap: 4px;
   overflow-x: auto;
   scrollbar-width: none;
 }
 .capiro-vnext-root .uui-engagement-tabs nav::-webkit-scrollbar {
   display: none;
 }
+/* UI-parity §3.2: 15px with 12px side padding — the strip previously ran
+   14px on a fixed 42px height. */
 .capiro-vnext-root .uui-engagement-tabs nav button {
-  height: 42px;
-  padding: 0 12px;
+  padding: 10px 12px;
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--eng-ink-3);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
+}
+.capiro-vnext-root .uui-engagement-tabs nav button:hover {
+  color: var(--eng-primary);
 }
 .capiro-vnext-root .uui-engagement-tabs nav button[data-active] {
   border-bottom-color: var(--eng-primary);
@@ -176,12 +253,13 @@
   font-weight: 600;
 }
 .capiro-vnext-root .uui-state-control {
-  height: 42px;
+  padding: 10px 0;
   border: 0;
   background: transparent;
   color: var(--eng-ink-3);
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
   white-space: nowrap;
@@ -212,10 +290,10 @@
   font-size: 12px;
 }
 
+/* Button kinds — UI-parity §1.5. */
 .capiro-vnext-root .uui-button,
 .capiro-vnext-root .uui-icon-button {
   border: 0;
-  box-shadow: 0 0 0 1px var(--eng-border);
   background: var(--eng-surface);
   color: #344054;
   cursor: pointer;
@@ -224,6 +302,7 @@
     color 140ms ease,
     box-shadow 140ms ease;
 }
+/* Secondary (the default `.uui-button`): white with a ring. */
 .capiro-vnext-root .uui-button {
   display: inline-flex;
   align-items: center;
@@ -232,30 +311,66 @@
   min-height: 36px;
   padding: 0 14px;
   border-radius: 8px;
+  box-shadow: var(--eng-ring);
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
   text-decoration: none;
 }
+.capiro-vnext-root .uui-button:hover:not(:disabled) {
+  background: var(--eng-bg);
+}
+/* Small secondary: 32px in a toolbar, 30px/13px inside a card. */
+.capiro-vnext-root .uui-button--sm {
+  min-height: 32px;
+}
+.capiro-vnext-root .uui-button--xs {
+  min-height: 30px;
+  font-size: 13px;
+}
+/* Icon: no ring and no fill until hover. The calendar toolbar's 32x32 ringed
+   variant is `.uui-icon-button--ring` (see meetings-vnext.css). */
 .capiro-vnext-root .uui-icon-button {
   display: inline-grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   border-radius: 8px;
+  background: transparent;
+  color: var(--eng-ink-3);
 }
-.capiro-vnext-root .uui-button:hover:not(:disabled),
 .capiro-vnext-root .uui-icon-button:hover:not(:disabled) {
   background: var(--eng-bg);
+  color: #344054;
 }
+.capiro-vnext-root .uui-icon-button--ring {
+  width: 32px;
+  height: 32px;
+  background: var(--eng-surface);
+  box-shadow: var(--eng-ring);
+}
+/* Primary: the dark gradient, the only primary fill in the design. */
 .capiro-vnext-root .uui-button--primary {
-  background: var(--eng-primary);
-  color: white;
-  box-shadow: none;
+  background: var(--eng-primary-fill);
+  padding: 0 16px;
+  color: #fff;
+  box-shadow: var(--eng-primary-shadow);
 }
 .capiro-vnext-root .uui-button--primary:hover:not(:disabled) {
-  background: var(--eng-accent);
+  background: var(--eng-primary-fill-hover);
+}
+/* Link: label only, no chrome. */
+.capiro-vnext-root .uui-button--link {
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--eng-accent);
+}
+.capiro-vnext-root .uui-button--link:hover:not(:disabled) {
+  background: transparent;
+  color: var(--eng-accent-hover);
 }
 .capiro-vnext-root .uui-button:disabled,
 .capiro-vnext-root .uui-icon-button:disabled {
@@ -303,12 +418,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
   width: fit-content;
   min-height: 24px;
   padding: 0 10px;
   border-radius: 9999px;
-  font-size: 10px;
+  /* UI-parity §1.4: mono 11px/500. Never 10px — the mono label has one size
+     in this design. */
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -353,6 +470,8 @@
    `.uui-empty-panel is-compact`). Was previously comma-joined with the dead
    `.uui-mtg-empty` scaffold rule removed from this file; restored standalone
    with identical styling. */
+/* UI-parity §9.2: a white card with the standard OUTER ring, left-aligned,
+   16px/600 title over 14/20 body capped at 520px. */
 .capiro-vnext-root .uui-empty-panel {
   display: flex;
   flex-direction: column;
@@ -361,11 +480,17 @@
   padding: 28px;
   border-radius: 12px;
   background: var(--eng-surface);
-  box-shadow: inset 0 0 0 1px var(--eng-border);
+  box-shadow: var(--eng-ring);
+}
+.capiro-vnext-root .uui-empty-panel h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
 }
 .capiro-vnext-root .uui-empty-panel p {
   margin: 0 0 6px;
-  color: var(--eng-ink-3);
+  max-width: 520px;
+  color: var(--eng-ink-2);
   font-size: 14px;
   line-height: 20px;
 }
@@ -450,11 +575,14 @@
 .capiro-vnext-root .uui-modal-fields textarea,
 .capiro-vnext-root .uui-draft-editor-fields input,
 .capiro-vnext-root .uui-draft-editor-fields textarea {
+  /* UI-parity §1.6: no bare inputs anywhere — every field is a 40px inset
+     surface with an inset ring, never a border. */
   min-height: 40px;
   border: 0;
   border-radius: 8px;
   background: var(--eng-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-border);
+  box-shadow: var(--eng-ring-inset);
+  font-size: 14px;
   color: var(--eng-ink);
 }
 .capiro-vnext-root .uui-send-settings select,
@@ -464,7 +592,22 @@
 .capiro-vnext-root .uui-modal-fields textarea,
 .capiro-vnext-root .uui-draft-editor-fields input,
 .capiro-vnext-root .uui-draft-editor-fields textarea {
-  padding: 0 13px;
+  padding: 0 14px;
+}
+.capiro-vnext-root .uui-select-control::placeholder,
+.capiro-vnext-root .uui-modal-fields input::placeholder,
+.capiro-vnext-root .uui-modal-fields textarea::placeholder,
+.capiro-vnext-root .uui-draft-editor-fields input::placeholder,
+.capiro-vnext-root .uui-draft-editor-fields textarea::placeholder {
+  color: var(--eng-ink-3);
+}
+/* Textareas take the filled inset + a taller radius and real line-height. */
+.capiro-vnext-root .uui-modal-fields textarea,
+.capiro-vnext-root .uui-draft-editor-fields textarea {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--eng-muted);
+  line-height: 20px;
 }
 /* Search field — its own precise rule (previously shared with the
    modal/select fields above, which use a different recessed/inset-border
@@ -1092,18 +1235,26 @@
 /* Outreach */
 .capiro-vnext-root .uui-outreach-workspace {
   display: flex;
+  align-items: stretch;
+  flex: 1;
   min-height: calc(100vh - 214px);
-  background: var(--eng-bg);
+  background: var(--eng-page);
 }
+/* Meri rail — 380px compact, 440px at >=1180px (UI-parity §6.1). */
 .capiro-vnext-root .uui-outreach-chat {
   position: sticky;
-  top: 72px;
+  top: 64px;
   display: flex;
-  flex: 0 0 440px;
+  flex: 0 0 380px;
   flex-direction: column;
-  max-height: calc(100vh - 72px);
+  max-height: calc(100vh - 64px);
   border-right: 1px solid var(--eng-border);
   background: var(--eng-surface);
+}
+@media (min-width: 1180px) {
+  .capiro-vnext-root .uui-outreach-chat {
+    flex-basis: 440px;
+  }
 }
 .capiro-vnext-root .uui-outreach-chat > header {
   display: flex;
@@ -1120,18 +1271,20 @@
   color: var(--eng-accent);
   font-family: var(--eng-font-mono);
   font-size: 11px;
-  letter-spacing: 0.04em;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .capiro-vnext-root .uui-outreach-chat > header > span {
-  height: 26px;
-  padding: 0 11px;
+  height: 24px;
+  padding: 0 10px;
   border-radius: 9999px;
   background: var(--eng-muted);
   color: var(--eng-ink-2);
   font-family: var(--eng-font-mono);
-  font-size: 10px;
-  line-height: 26px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 24px;
   letter-spacing: 0.05em;
 }
 .capiro-vnext-root .uui-live-dot {
@@ -1163,8 +1316,9 @@
 .capiro-vnext-root .uui-outreach-transcript article > span {
   color: var(--eng-ink-4);
   font-family: var(--eng-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .capiro-vnext-root .uui-outreach-transcript article > div {
@@ -1177,11 +1331,13 @@
   line-height: 21px;
   white-space: pre-wrap;
 }
+/* UI-parity §6.1: user turns are the dark gradient with white text, not a
+   navy tint — the tint reads as another Meri surface. */
 .capiro-vnext-root .uui-outreach-transcript article[data-role='user'] > div {
   border-radius: 12px 12px 4px 12px;
-  background: var(--eng-accent-soft);
-  color: #1a3448;
-  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+  background: var(--eng-primary-fill);
+  color: #fff;
+  box-shadow: var(--eng-primary-shadow);
 }
 .capiro-vnext-root .uui-chat-actions {
   display: flex;
@@ -1216,7 +1372,8 @@
   cursor: pointer;
 }
 .capiro-vnext-root .uui-outreach-chat > footer {
-  padding: 15px 20px 18px;
+  flex: 0 0 auto;
+  padding: 14px 20px 18px;
   border-top: 1px solid var(--eng-border);
   background: var(--eng-surface);
 }
@@ -1237,14 +1394,23 @@
 }
 .capiro-vnext-root .uui-outreach-chat > footer form button {
   display: grid;
+  flex: 0 0 auto;
   place-items: center;
   width: 40px;
   height: 40px;
   border: 0;
   border-radius: 8px;
-  background: var(--eng-primary);
+  background: var(--eng-primary-fill);
+  box-shadow: var(--eng-primary-shadow);
   color: white;
   cursor: pointer;
+}
+.capiro-vnext-root .uui-outreach-chat > footer form button:hover:not(:disabled) {
+  background: var(--eng-primary-fill-hover);
+}
+.capiro-vnext-root .uui-outreach-chat > footer form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 .capiro-vnext-root .uui-outreach-chat > footer p {
   margin: 8px 0 0;
@@ -1290,17 +1456,17 @@
 .capiro-vnext-root .uui-outreach-canvas {
   flex: 1;
   min-width: 0;
-  padding: 20px 24px 48px;
+  padding: 20px 24px 40px;
 }
 .capiro-vnext-root .uui-campaign-brief {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
-  min-height: 48px;
-  padding: 0 18px;
+  padding: 13px 18px;
   border-radius: 12px;
   background: var(--eng-surface);
-  box-shadow: 0 0 0 1px var(--eng-border);
+  box-shadow: var(--eng-ring);
 }
 .capiro-vnext-root .uui-campaign-brief p {
   flex: 1;
@@ -1310,20 +1476,28 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #344054;
-  font-size: 13px;
+  font-size: 14px;
 }
 .capiro-vnext-root .uui-campaign-brief button {
   border: 0;
   background: transparent;
   color: var(--eng-accent);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
+.capiro-vnext-root .uui-campaign-brief button:hover {
+  color: var(--eng-accent-hover);
+}
+/* Step strip — UI-parity §6.2. `flex:1` on each step is what distributes the
+   six labels evenly so SEND is never clipped at the right edge; the strip
+   still scrolls rather than overflowing once min-width wins. */
 .capiro-vnext-root .uui-outreach-step-strip {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(94px, 1fr));
-  margin: 12px 4px 16px;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin: 14px 0 0;
+  padding: 0 4px;
   border-bottom: 1px solid var(--eng-border);
   overflow-x: auto;
   scrollbar-width: none;
@@ -1332,23 +1506,30 @@
   display: none;
 }
 .capiro-vnext-root .uui-outreach-step-strip button {
-  min-width: 94px;
-  height: 38px;
+  flex: 1;
+  min-width: 96px;
+  padding: 10px 4px 9px;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-bottom: 2px solid var(--eng-border);
   background: transparent;
   color: var(--eng-ink-4);
   font-family: var(--eng-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
 }
 .capiro-vnext-root .uui-outreach-step-strip button[data-reached] {
-  color: var(--eng-ink-3);
+  color: var(--eng-ink-2);
 }
 .capiro-vnext-root .uui-outreach-step-strip button[data-active] {
   border-bottom-color: var(--eng-primary);
+  color: var(--eng-primary);
+  font-weight: 600;
+}
+.capiro-vnext-root .uui-outreach-step-strip button:hover:not(:disabled) {
   color: var(--eng-primary);
 }
 .capiro-vnext-root .uui-outreach-step-strip button:disabled {
@@ -1375,8 +1556,9 @@
   cursor: pointer;
 }
 .capiro-vnext-root .uui-outreach-step-dots button[data-active] {
-  background: var(--eng-primary);
+  background: var(--eng-primary-fill);
   color: #fff;
+  box-shadow: var(--eng-primary-shadow);
 }
 .capiro-vnext-root .uui-outreach-step-dots button:disabled {
   cursor: default;
@@ -1424,14 +1606,17 @@
 }
 .capiro-vnext-root .uui-outreach-section__number {
   color: var(--eng-ink-4);
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
 }
 .capiro-vnext-root .uui-outreach-section-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   color: var(--eng-ink-4);
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 500;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -1455,7 +1640,7 @@
 }
 .capiro-vnext-root .uui-outreach-section__body {
   padding: 0 18px 18px;
-  animation: uiFade 140ms ease both;
+  animation: uiFade 160ms ease both;
 }
 
 /* Canonical planning surfaces inside the vNext canvas. */
@@ -1480,10 +1665,11 @@
   border-radius: 8px;
 }
 .capiro-vnext-root .engagement-vnext .ov3-button.is-primary {
-  background: var(--eng-primary);
+  background: var(--eng-primary-fill);
+  box-shadow: var(--eng-primary-shadow);
 }
 .capiro-vnext-root .engagement-vnext .ov3-button.is-primary:hover {
-  background: var(--eng-accent);
+  background: var(--eng-primary-fill-hover);
 }
 
 .capiro-vnext-root .uui-generation-start {
@@ -1548,12 +1734,14 @@
 .capiro-vnext-root .uui-strategy-card dt {
   color: var(--eng-ink-4);
   font-family: var(--eng-font-mono);
-  font-size: 9px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .capiro-vnext-root .uui-strategy-card dd {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 .capiro-vnext-root .uui-sample-list > header,
@@ -2648,19 +2836,39 @@
   }
 }
 
-@media (max-width: 1319px) {
-  .capiro-vnext-root .uui-outreach-chat {
-    flex-basis: 440px;
+/* UI-parity §9.4 lists uiSlideIn as one of the module's allowed animations,
+   but it was never defined — the meeting drawer is its first real consumer
+   (meetings-vnext.css, `.vmtg-side[data-open]`). */
+@keyframes uiSlideIn {
+  from {
+    transform: translateX(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
 }
 
-@media (max-width: 1179px) {
+/* The 1319px rail step is gone: the prototype branches at 1180px only, and
+   the rail's own `min-width: 1180px` rule (see `.uui-outreach-chat` above)
+   already sets 440px there and 380px below it (UI-parity §0/§6.1). */
+
+/* Touch-target floor. Scoped to COARSE POINTERS, not to width alone: the
+   prototype's compact desktop layout at ~1066px keeps its 30/32px toolbar and
+   chip heights (UI-parity §0, §4.1, §8.1), and a width-only rule was
+   inflating every one of them to 44px in a narrow desktop window. On an
+   actual touch device the 44px floor still applies. */
+@media (max-width: 1179px) and (pointer: coarse) {
   .capiro-vnext-root .engagement-vnext button,
   .capiro-vnext-root .engagement-vnext a,
   .capiro-vnext-root .engagement-vnext input,
   .capiro-vnext-root .engagement-vnext select {
     min-height: 44px;
   }
+}
+
+@media (max-width: 1179px) {
   .capiro-vnext-root .uui-outreach-chat {
     flex-basis: 380px;
   }
@@ -2883,12 +3091,15 @@
 .capiro-vnext-root .uui-learning-proposal__form select,
 .capiro-vnext-root .uui-learning-proposal__form textarea {
   width: 100%;
-  border: 1px solid var(--eng-border);
+  /* UI-parity §1.1/§1.6: inset ring, not a border — the border was adding a
+     pixel to the control height and leaving the field bare-white. */
+  border: 0;
   border-radius: 8px;
-  background: #fff;
+  background: var(--eng-bg);
+  box-shadow: var(--eng-ring-inset);
   color: var(--eng-ink);
   font: inherit;
-  padding: 10px 12px;
+  padding: 10px 14px;
 }
 
 .capiro-vnext-root .uui-learning-proposal__form textarea {

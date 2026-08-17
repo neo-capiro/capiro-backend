@@ -161,8 +161,21 @@ describe('Engagement UI closeout contract', () => {
       expect(css).toMatch(/--eng-accent-border:\s*#c3d5e1/i);
       expect(css).not.toMatch(/--eng-accent:\s*var\(--uui-brand-solid/i);
     }
-    // Focus rings stay shell-consistent regardless of the accent decision.
-    expect(source('src/vnext/pages/engagement/engagement.css')).toContain('--uui-focus-ring');
+    // Focus ring — SUPERSEDED 2026-08-17 by ENGAGEMENT-UI-PARITY.md §1.6,
+    // which specifies `:focus-visible { outline: 2px solid #4A7A9B }` for
+    // this module. The previous contract here was "focus rings stay
+    // shell-consistent" (i.e. `var(--uui-focus-ring)`, the shell's #4E5BA6
+    // indigo). That is the same mockup-navy-vs-shell-indigo call the accent
+    // ramp above already resolved in the mockup's favour for Engagement
+    // specifically, so the ring now follows the accent rather than splitting
+    // from it. Locked to the literal so a silent revert to the shell token is
+    // still caught.
+    expect(source('src/vnext/pages/engagement/engagement.css')).toMatch(
+      /outline:\s*2px solid #4a7a9b/i,
+    );
+    expect(source('src/vnext/pages/engagement/engagement.css')).not.toMatch(
+      /outline:\s*2px solid var\(--uui-focus-ring/i,
+    );
   });
 
   it('wires Engagement mono type through the shared IBM Plex Mono token', () => {

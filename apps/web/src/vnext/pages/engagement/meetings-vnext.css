@@ -16,24 +16,49 @@
  * other module's classes.
  */
 
+/* UI-parity §5.1: list column and drawer are in-flow siblings in a
+   `align-items:stretch` flex row with NO gap — the drawer's left border is
+   the divider. The workspace's own padding therefore moves onto the list
+   column, so the drawer can reach the right edge of the viewport. */
 .capiro-vnext-root .vmtg-workspace {
   display: flex;
-  align-items: flex-start;
-  gap: 20px;
+  align-items: stretch;
+  gap: 0;
   min-height: calc(100vh - 214px);
-  padding: 22px 24px 40px;
-  background: var(--eng-recessed);
+  /* UI-parity §1.2/§2.3: the content area below the tab strip sits on the
+     page ground, not on the near-white recessed tone. */
+  background: var(--eng-page);
 }
 
 .capiro-vnext-root .vmtg-main {
   flex: 1;
   min-width: 0;
+  padding: 22px 24px 40px;
 }
 
+/* The rail only takes the drawer's white-column chrome when the real drawer
+   is open; the "no meeting selected" / not-found / loading panels stay cards
+   sitting on the page ground. */
 .capiro-vnext-root .vmtg-side {
-  flex: 0 0 420px;
+  flex: 0 0 auto;
+  width: 420px;
   position: sticky;
-  top: 86px;
+  top: 64px;
+  align-self: flex-start;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 22px 24px 40px;
+}
+.capiro-vnext-root .vmtg-side[data-open] {
+  background: var(--eng-surface);
+  border-left: 1px solid var(--eng-border);
+  padding: 20px 22px 40px;
+  animation: uiSlideIn 200ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+@media (min-width: 1180px) {
+  .capiro-vnext-root .vmtg-side {
+    width: 520px;
+  }
 }
 
 /* ── Toolbar (§6.1) ───────────────────────────────────────────────────── */
@@ -55,7 +80,8 @@
 .capiro-vnext-root .vmtg-period {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  margin-left: 6px;
 }
 .capiro-vnext-root .vmtg-period__step {
   display: grid;
@@ -65,7 +91,9 @@
   border: 0;
   border-radius: 8px;
   background: var(--eng-surface);
-  box-shadow: inset 0 0 0 1px var(--eng-tone-gray-ring);
+  /* Raised control on a page → outer ring (UI-parity §1.1); an inset ring is
+     for fields and tinted blocks. */
+  box-shadow: var(--eng-ring);
   color: var(--eng-ink-2);
   cursor: pointer;
 }
@@ -81,12 +109,13 @@
 }
 .capiro-vnext-root .vmtg-today {
   height: 32px;
+  margin-left: 4px;
   padding: 0 14px;
   border: 0;
   border-radius: 8px;
   background: var(--eng-surface);
-  box-shadow: inset 0 0 0 1px var(--eng-tone-gray-ring);
-  color: var(--eng-ink-2);
+  box-shadow: var(--eng-ring);
+  color: #344054;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -116,14 +145,13 @@
   font-weight: 600;
   cursor: pointer;
 }
-/* Selected uses the shell's dark-metal gradient token — same token
-   `.uui-button--primary` resolves to inside .engagement-vnext (see
-   engagement-ui-closeout.css) — not a new gradient invented for this
-   control. Confirmed unimplemented anywhere else before this file. */
+/* Selected uses the module's own primary gradient (UI-parity §4.2 — the
+   gradient fill, not a flat #101828), the same `--eng-primary-fill` token
+   `.uui-button--primary` resolves to. */
 .capiro-vnext-root .vmtg-view-toggle button[data-active] {
-  background: var(--uui-btn-metal-face, linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%));
+  background: var(--eng-primary-fill);
   color: #fff;
-  box-shadow: var(--uui-btn-metal-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px rgba(16, 24, 40, 0.12));
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
 }
 
 /* ── Four calendar states (§6.2) ──────────────────────────────────────── */
@@ -160,10 +188,11 @@
   border-radius: 12px;
   background: #fffbfa;
   box-shadow: inset 0 0 0 1px #fecdca;
+  animation: uiRise 180ms ease both;
 }
 .capiro-vnext-root .vmtg-error__icon {
   flex-shrink: 0;
-  color: var(--eng-error-dot);
+  color: var(--eng-error);
 }
 .capiro-vnext-root .vmtg-error h3 {
   margin: 0;
@@ -174,22 +203,24 @@
 .capiro-vnext-root .vmtg-error p {
   margin: 6px 0 12px;
   color: var(--eng-error);
-  font-size: 13px;
-  line-height: 19px;
+  font-size: 14px;
+  line-height: 20px;
   max-width: 560px;
 }
+/* UI-parity §9.1: a white SECONDARY button with the error-red label — not a
+   red-ringed one. */
 .capiro-vnext-root .vmtg-retry {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 34px;
+  height: 36px;
   padding: 0 14px;
   border: 0;
   border-radius: 8px;
   background: var(--eng-surface);
-  box-shadow: inset 0 0 0 1px #fda29b;
+  box-shadow: var(--eng-ring);
   color: var(--eng-error);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -205,7 +236,7 @@
   padding: 34px;
   border-radius: 12px;
   background: var(--eng-surface);
-  box-shadow: inset 0 0 0 1px var(--eng-tone-gray-ring);
+  box-shadow: var(--eng-ring);
 }
 .capiro-vnext-root .vmtg-empty__tile {
   display: grid;
@@ -217,18 +248,20 @@
   background: var(--eng-bg);
   color: var(--eng-ink-3);
 }
+/* UI-parity §9.2: 16px/600 title over 14/20 body capped at 520px, all
+   left-aligned. */
 .capiro-vnext-root .vmtg-empty h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--eng-ink);
 }
 .capiro-vnext-root .vmtg-empty p {
   margin: 0 0 6px;
   max-width: 520px;
-  color: var(--eng-ink-3);
-  font-size: 13px;
-  line-height: 19px;
+  color: var(--eng-ink-2);
+  font-size: 14px;
+  line-height: 20px;
 }
 .capiro-vnext-root .vmtg-empty__actions {
   display: flex;
@@ -279,10 +312,12 @@
 .capiro-vnext-root .vmtg-weekstrip button[data-selected] .vmtg-weekstrip__date {
   color: var(--eng-accent);
 }
+/* UI-parity §4.3: navy when non-zero, #D0D5DD when zero (the middot). */
 .capiro-vnext-root .vmtg-weekstrip__count {
   font-family: var(--eng-font-mono);
   font-size: 11px;
-  color: var(--eng-ink-4);
+  font-weight: 500;
+  color: var(--eng-border-strong);
 }
 .capiro-vnext-root .vmtg-weekstrip__count[data-has-meetings] {
   color: var(--eng-accent);
@@ -501,36 +536,35 @@
 .capiro-vnext-root .vmtg-panel .uui-eyebrow {
   margin-bottom: 2px;
 }
-/* Hosts the real MeetingDetailPanel (canonical) — a self-positioning
- * slide-over (position:absolute; top/right/bottom:0; width:min(680px,92%)).
- * This viewport is what gives it a sized, position:relative/overflow:hidden
- * containing block to resolve against, so it renders scoped to this side
- * rail's own width/height instead of the nearest OTHER positioned ancestor.
- * Height mirrors .vmtg-side's own sticky offset (top: 86px) plus the
- * workspace's bottom padding budget, so the panel fills the rail rather than
- * collapsing to its (otherwise auto, content-driven) height. */
+/* Hosts the real MeetingDetailPanel, which is passed `layout="inline"` here
+ * and so renders as an ordinary in-flow block. UI-parity §5.1: "No backdrop,
+ * no scrim, no shadow, no border radius, and nothing clipping its right
+ * edge" — hence no overflow:hidden, no ring and no fixed height on this
+ * wrapper; the <aside> owns the sticky column and its scroll. */
 .capiro-vnext-root .vmtg-drawer-viewport {
-  position: relative;
-  overflow: hidden;
-  height: calc(100vh - 86px - 40px);
-  border-radius: 12px;
-  background: var(--eng-surface);
-  box-shadow: 0 0 0 1px var(--eng-accent-border);
-}
-
-@media (max-width: 1179px) {
-  .capiro-vnext-root .vmtg-workspace {
-    flex-direction: column;
-  }
-  .capiro-vnext-root .vmtg-side {
-    flex-basis: auto;
-    width: 100%;
-    position: static;
-  }
+  min-height: 100%;
 }
 
 @media (max-width: 759px) {
+  /* Mobile branch: the drawer REPLACES the list instead of overlapping it. */
   .capiro-vnext-root .vmtg-workspace {
+    flex-direction: column;
+  }
+  .capiro-vnext-root .vmtg-main {
+    padding: 18px 16px 36px;
+  }
+  .capiro-vnext-root .vmtg-main[data-drawer-open] {
+    display: none;
+  }
+  .capiro-vnext-root .vmtg-side {
+    width: 100%;
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+    padding: 18px 16px 36px;
+  }
+  .capiro-vnext-root .vmtg-side[data-open] {
+    border-left: 0;
     padding: 18px 16px 36px;
   }
   .capiro-vnext-root .vmtg-period__label {

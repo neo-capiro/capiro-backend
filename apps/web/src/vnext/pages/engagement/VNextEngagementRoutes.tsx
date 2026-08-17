@@ -130,6 +130,10 @@ export function VNextEngagementRoutes() {
     [clients.data],
   );
 
+  const scopeLabel =
+    activeClients.find((client) => client.id === clientFilter.selectedClientId)?.name ??
+    'All clients';
+
   const navigateTab = (tab: 'meetings' | 'outreach' | 'reports') => {
     if (tab === 'meetings') navigate('/engagement/meetings');
     else if (tab === 'reports') navigate('/engagement/reports?period=current');
@@ -172,8 +176,14 @@ export function VNextEngagementRoutes() {
             <h1>Engagement</h1>
             <p>{subline(destination)}</p>
           </div>
+          {/* Content-width scope control (UI-parity §3.1). The visible value
+              is painted by the span so the box hugs its content; the real
+              <select> is laid over the control at zero opacity and still
+              owns keyboard/AT behaviour. */}
           <label className="uui-client-scope">
             <span>Client</span>
+            <span className="uui-client-scope__value">{scopeLabel}</span>
+            <ChevronDown size={16} />
             <select
               value={clientFilter.selectedClientId ?? ''}
               onChange={(event) => clientFilter.setSelectedClientId(event.target.value || null)}
@@ -185,7 +195,6 @@ export function VNextEngagementRoutes() {
                 </option>
               ))}
             </select>
-            <ChevronDown size={15} />
           </label>
         </header>
         <div className="uui-engagement-tabs">

@@ -100,6 +100,40 @@ export interface DecisionSurfacesProps {
   strategyPending: boolean;
   strategyError?: string | null;
   onFinish: () => void;
+  /**
+   * Presentation of the goal step's body.
+   *
+   * `form` (the default) is the canonical wizard: the outcome cards plus the
+   * Campaign goal / Topic / Objective / Desired outcome fields. app.capiro.ai
+   * keeps this.
+   *
+   * `readback` is the vNext Engagement treatment (UI-parity §7): the goal is
+   * stated to Meri in the chat rail and this card becomes the confirmation
+   * surface — the captured goal as a read-only block, then the MERI READ-BACK
+   * grid. The canonical fields stay reachable through the campaign brief
+   * bar's `Edit`, which opens them in a modal.
+   */
+  goalVariant?: 'form' | 'readback';
+  /**
+   * Presentation of the targets step's body.
+   *
+   * `full` (the default) is what app.capiro.ai keeps: a two-column layout
+   * with the target profile in a narrow right rail, plus the standalone
+   * Search submit button, the Staff / Principals chips and the Relationship
+   * preference select.
+   *
+   * `compact` is the vNext Engagement treatment (UI-parity §8): filtering is
+   * by source tab and query only, and the target profile is a full-width card
+   * below the list.
+   *
+   * CAPABILITY NOTE — the three removed controls are not decorative. They
+   * write `targeting.criteria.includeStaff`, `.includePrincipals` and
+   * `.relationshipPreference` into the campaign spec. Under `compact` those
+   * three fields keep whatever the session already holds (defaulting to
+   * staff+principals included, relationship preference "any") and cannot be
+   * changed from this surface, because the prototype has no control for them.
+   */
+  targetsVariant?: 'full' | 'compact';
 }
 
 const STAGE_META: Record<

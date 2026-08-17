@@ -66,7 +66,8 @@ export type TargetWorkspaceProps = Pick<
   | 'targetProfilePending'
   | 'coverage'
   | 'coveragePending'
->;
+> &
+  Pick<Partial<DecisionSurfacesProps>, 'targetsVariant'>;
 
 type TargetSourceKey =
   | 'recommended'
@@ -365,7 +366,9 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
     targetProfilePending,
     coverage,
     coveragePending,
+    targetsVariant = 'full',
   } = props;
+  const compact = targetsVariant === 'compact';
   const api = useApi();
   const selected = session.spec.targeting.selectedTargetRefs;
   const sponsorClientId =
@@ -597,7 +600,9 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
     coverage?.coverage.sendReadyCount ?? selected.filter((target) => Boolean(target.email)).length;
 
   return (
-    <section className="ov3-decision-panel ov3-target-workspace">
+    <section
+      className={`ov3-decision-panel ov3-target-workspace${compact ? ' is-compact' : ''}`}
+    >
       <PanelHeader selectedCount={selected.length} />
 
       <div className="ov3-tab-row" role="tablist" aria-label="Target sources">
@@ -630,53 +635,71 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
             aria-label="Search targets"
             disabled={source === 'selected' || source === 'manual' || source === 'saved'}
           />
-          <button
-            className="ov3-button is-secondary"
-            type="submit"
-            disabled={
-              targetSearchPending ||
-              source === 'selected' ||
-              source === 'manual' ||
-              source === 'saved'
-            }
-          >
-            {targetSearchPending ? <Loader2 className="ov3-spin" size={16} /> : null}
-            Search
-          </button>
-        </form>
-        <div className="ov3-target-criteria__controls" aria-label="Target criteria">
-          <button
-            type="button"
-            className={includeStaff ? 'is-selected' : ''}
-            aria-pressed={includeStaff}
-            onClick={() => setIncludeStaff((value) => !value)}
-          >
-            Staff
-          </button>
-          <button
-            type="button"
-            className={includePrincipals ? 'is-selected' : ''}
-            aria-pressed={includePrincipals}
-            onClick={() => setIncludePrincipals((value) => !value)}
-          >
-            Principals
-          </button>
-          <label>
-            <span className="sr-only">Relationship preference</span>
-            <select
-              value={relationshipPreference}
-              onChange={(event) =>
-                setRelationshipPreference(
-                  event.target.value as 'any' | 'existing' | 'new' | 'mixed',
-                )
+          {/* UI-parity §8.2: the compact variant has no standalone Search
+              button — the field alone is the control, submitted with Enter,
+              and the pending spinner moves inside it. */}
+          {compact ? (
+            targetSearchPending ? (
+              <Loader2 className="ov3-spin" size={16} aria-label="Searching" />
+            ) : null
+          ) : (
+            <button
+              className="ov3-button is-secondary"
+              type="submit"
+              disabled={
+                targetSearchPending ||
+                source === 'selected' ||
+                source === 'manual' ||
+                source === 'saved'
               }
             >
-              <option value="any">Any relationship</option>
-              <option value="existing">Existing relationships</option>
-              <option value="new">New relationships</option>
-              <option value="mixed">Mixed audience</option>
-            </select>
-          </label>
+              {targetSearchPending ? <Loader2 className="ov3-spin" size={16} /> : null}
+              Search
+            </button>
+          )}
+        </form>
+        <div className="ov3-target-criteria__controls" aria-label="Target criteria">
+          {/* UI-parity §8.2: Staff / Principals / Relationship preference do
+              not exist in the prototype — filtering is by source tab and
+              query. Under `compact` the spec's includeStaff /
+              includePrincipals / relationshipPreference keep their current
+              session values and are not editable from this surface. */}
+          {!compact && (
+            <>
+              <button
+                type="button"
+                className={includeStaff ? 'is-selected' : ''}
+                aria-pressed={includeStaff}
+                onClick={() => setIncludeStaff((value) => !value)}
+              >
+                Staff
+              </button>
+              <button
+                type="button"
+                className={includePrincipals ? 'is-selected' : ''}
+                aria-pressed={includePrincipals}
+                onClick={() => setIncludePrincipals((value) => !value)}
+              >
+                Principals
+              </button>
+              <label>
+                <span className="sr-only">Relationship preference</span>
+                <select
+                  value={relationshipPreference}
+                  onChange={(event) =>
+                    setRelationshipPreference(
+                      event.target.value as 'any' | 'existing' | 'new' | 'mixed',
+                    )
+                  }
+                >
+                  <option value="any">Any relationship</option>
+                  <option value="existing">Existing relationships</option>
+                  <option value="new">New relationships</option>
+                  <option value="mixed">Mixed audience</option>
+                </select>
+              </label>
+            </>
+          )}
           {source === 'recommended' && highConfidence.length > 0 ? (
             <button
               type="button"
@@ -690,6 +713,9 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
         </div>
       </div>
 
+      {/* UI-parity §8.4: under `compact` this stacks to a single column so the
+          target profile becomes a full-width card BELOW the list, rather than
+          a narrow right rail beside it. */}
       <div className="ov3-work-grid is-targets">
         <div className="ov3-target-column">
           {source === 'manual' ? (

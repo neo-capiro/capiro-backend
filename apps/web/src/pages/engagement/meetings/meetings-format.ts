@@ -87,6 +87,24 @@ export function formatTimeRange(startIso: string, endIso: string): string {
   return `${formatTime(startIso)}–${formatTime(endIso)}`;
 }
 
+/**
+ * "8:30" / "14:00" — no meridiem. Additive: `formatTime` above is unchanged,
+ * so app.capiro.ai's canonical Meetings page keeps its 12-hour clock. The
+ * vNext Engagement surfaces use this one because the meridiem does not fit
+ * the design's 58px row time column or its mono drawer when-line (UI-parity
+ * §4.4/§5.2). Dropping the meridiem necessarily makes it a 24-hour clock —
+ * otherwise 1:00 and 13:00 would be indistinguishable.
+ */
+export function formatTime24(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** "11:00–12:00" */
+export function formatTimeRange24(startIso: string, endIso: string): string {
+  return `${formatTime24(startIso)}–${formatTime24(endIso)}`;
+}
+
 const WEEKDAY_LONG = new Intl.DateTimeFormat(undefined, {
   weekday: 'long',
   month: 'long',

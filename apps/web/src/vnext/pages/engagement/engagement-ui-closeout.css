@@ -4,7 +4,13 @@
   --eng-surface: var(--uui-white, #fff);
   --eng-recessed: var(--uui-gray-25, #fdfdfd);
   --eng-muted: var(--uui-gray-100, #f2f4f7);
-  --eng-border: var(--uui-gray-200, #eaecf0);
+  /* Hardcoded, NOT `var(--uui-gray-200)`: the shell's gray-200 is #EAECF0 and
+     this module's ring is #E4E7EC (UI-parity §1.1). Routing through the shell
+     token would silently resolve back to #EAECF0 — the fallback only applies
+     when the variable is undefined, and it isn't. engagement-tones.css had
+     already forked this same value locally for the pill rings; this is the
+     single source of truth now. */
+  --eng-border: #e4e7ec;
   --eng-border-strong: var(--uui-gray-300, #d0d5dd);
   --eng-ink: var(--uui-gray-900, #101828);
   --eng-ink-2: var(--uui-gray-600, #475467);
@@ -21,20 +27,23 @@
   --eng-accent-border: #C3D5E1;
   font-family: var(--uui-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
 }
+/* Primary fill — the three-stop mockup gradient from engagement.css, not the
+   shell's two-stop metal face, so Engagement's primary reads identically
+   wherever it appears (UI-parity §1.5). */
 .capiro-vnext-root .engagement-vnext .uui-button--primary,
 .capiro-vnext-root .outreach-v3-route-toolbar__primary {
-  border-color: var(--uui-btn-metal-edge, #0e141c);
-  background: var(--uui-btn-metal-face, linear-gradient(180deg, #39424f, #0e141c));
-  color: var(--uui-btn-metal-fg, #fff);
-  box-shadow: var(--uui-btn-metal-shadow);
+  border: 0;
+  background: var(--eng-primary-fill);
+  color: #fff;
+  box-shadow: var(--eng-primary-shadow);
 }
 .capiro-vnext-root .engagement-vnext .uui-button--primary:hover:not(:disabled),
 .capiro-vnext-root .outreach-v3-route-toolbar__primary:hover:not(:disabled) {
-  background: var(--uui-btn-metal-face-hover, linear-gradient(180deg, #4a5462, #161d26));
+  background: var(--eng-primary-fill-hover);
 }
 .outreach-v3-complete-host {
   min-width: 0;
-  background: var(--uui-gray-50, #f9fafb);
+  background: #eff1f5;
 }
 .outreach-v3-route-toolbar {
   min-height: 58px;
@@ -42,7 +51,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 20px;
-  border-bottom: 1px solid var(--uui-gray-200, #eaecf0);
+  border-bottom: 1px solid #e4e7ec;
   background: var(--uui-white, #fff);
 }
 .outreach-v3-route-toolbar__back,
@@ -65,9 +74,12 @@
 .outreach-v3-route-toolbar__secondary {
   background: var(--uui-white, #fff);
   color: var(--uui-gray-700, #344054);
-  box-shadow:
-    inset 0 0 0 1px var(--uui-gray-300, #d0d5dd),
-    var(--uui-shadow-button);
+  /* Secondary = white with the standard outer ring (UI-parity §1.5). */
+  box-shadow: 0 0 0 1px #e4e7ec;
+}
+.outreach-v3-route-toolbar__back:hover,
+.outreach-v3-route-toolbar__secondary:hover {
+  background: #f9fafb;
 }
 .outreach-v3-route-toolbar__copy {
   min-width: 0;
@@ -134,11 +146,18 @@
   text-decoration: none;
 }
 
-@media (max-width: 1180px) {
+/* The prototype branches at two widths only — compact below 1180px and mobile
+   below 760px (UI-parity §0). Between them the Meri rail stays a real 380px
+   side column; it only stacks full-width at the mobile branch. This block
+   previously stacked it at 1180px, which is why the compact capture showed no
+   side-by-side layout at ~1066px. */
+@media (max-width: 760px) {
   .capiro-vnext-root .uui-outreach-workspace {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
   .capiro-vnext-root .uui-outreach-chat {
+    position: static;
+    flex: 0 0 auto;
     min-height: 420px;
     max-height: 560px;
     border-right: 0;

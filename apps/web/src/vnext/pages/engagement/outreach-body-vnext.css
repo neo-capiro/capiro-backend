@@ -37,6 +37,28 @@
  * on this), so there is nothing real to map it to — inventing one would be
  * exactly the kind of fabricated-value shortcut to avoid.
  */
+/*
+ * IMPORTANT (fixed during the UI-parity pass): the token block below was
+ * originally scoped ONLY to `.capiro-vnext-root .engagement-vnext .ov3-root`.
+ * But `.ov3-root` is applied by exactly one component — OutreachV3Route, the
+ * canonical standalone route. VNextOutreachWorkspace renders
+ * `CurrentDecisionSurface` straight into `.uui-outreach-section__body` with
+ * no `.ov3-root` ancestor at all, so on the main vNext Outreach workspace
+ * this entire remap resolved to nothing and the Goal/Targets/Delivery bodies
+ * fell back to the shared file's default cobalt/slate palette.
+ *
+ * The fix is to ALSO declare the tokens on the module wrapper itself. Custom
+ * properties inherit, so they reach the ov3 subtree wherever it is mounted;
+ * they affect nothing that does not consume `--ov3-*`. The `.ov3-root` copy
+ * is kept because a direct declaration on that element beats a value
+ * inherited from an ancestor, so the complete-route path still needs its own.
+ *
+ * Deliberately NOT done: adding `ov3-root` to the vNext section body. That
+ * class is a whole standalone panel in outreach-v3.css — gradient canvas,
+ * 16px radius, 1px border, a large drop shadow, `min-height: 900px` and its
+ * own font stack — i.e. exactly the inset page card UI-parity §2.3 removes.
+ */
+.capiro-vnext-root .engagement-vnext,
 .capiro-vnext-root .engagement-vnext .ov3-root {
   /* Surfaces */
   --ov3-canvas: var(--eng-bg, #f9fafb);
@@ -55,8 +77,8 @@
   --ov3-active: var(--eng-accent, #294e68);
 
   /* Borders */
-  --ov3-border: var(--eng-border, #eaecf0);
-  --ov3-border-quiet: var(--eng-border, #eaecf0);
+  --ov3-border: var(--eng-border, #e4e7ec);
+  --ov3-border-quiet: var(--eng-border, #e4e7ec);
   --ov3-border-strong: var(--eng-accent-border, #c3d5e1);
 
   /* Status — warning/danger align with engagement's own amber/red; success
@@ -76,14 +98,14 @@
  */
 .capiro-vnext-root .engagement-vnext .ov3-root .ov3-tab-row button.is-selected,
 .capiro-vnext-root .engagement-vnext .ov3-root .ov3-target-criteria__controls > button.is-selected {
-  background: var(--uui-btn-metal-face, linear-gradient(180deg, #39424f, #0e141c));
-  border-color: var(--uui-btn-metal-edge, #0e141c);
-  box-shadow: var(--uui-btn-metal-shadow);
-  color: var(--uui-btn-metal-fg, #fff);
+  background: var(--eng-primary-fill);
+  border-color: transparent;
+  box-shadow: var(--eng-primary-shadow);
+  color: #fff;
 }
 .capiro-vnext-root .engagement-vnext .ov3-root .ov3-tab-row button.is-selected:hover,
 .capiro-vnext-root .engagement-vnext .ov3-root .ov3-target-criteria__controls > button.is-selected:hover {
-  background: var(--uui-btn-metal-face-hover, linear-gradient(180deg, #4a5462, #161d26));
+  background: var(--eng-primary-fill-hover);
 }
 
 /*
