@@ -41,7 +41,7 @@ permissions:
 jobs:
   runtime-boundary:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -88,6 +88,13 @@ jobs:
           pnpm --filter @capiro/api exec tsc -p tsconfig.budget-parser-router.json --noEmit
           pnpm --filter @capiro/api exec tsc -p tsconfig.phase6.json --noEmit
           pnpm --filter @capiro/api typecheck:phase7
+
+      - name: Build dark image and prove source mirror is absent
+        run: |
+          docker build -f apps/defense-api/Dockerfile -t capiro-defense-api:phase8-session4 .
+          test "$(docker run --rm --entrypoint id capiro-defense-api:phase8-session4 -u)" = '1001'
+          docker run --rm --entrypoint sh capiro-defense-api:phase8-session4 -lc \
+            'test ! -e /app/apps/defense-api/runtime-source && ! find /app -type f -name "canonical-promotion-service-v1.ts" -print -quit | grep -q .'
 
       - name: Diff hygiene
         run: git diff --check origin/${{ github.base_ref || 'main' }}...HEAD

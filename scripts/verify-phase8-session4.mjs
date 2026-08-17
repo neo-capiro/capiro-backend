@@ -100,6 +100,23 @@ if (packageJson.scripts?.['verify:session4'] !== 'node ../../scripts/verify-phas
   fail('defense-api package is missing the Session 4 verifier script');
 }
 
+const dockerfile = read('apps/defense-api/Dockerfile');
+const runtimeStageStart = dockerfile.indexOf(' AS runtime');
+if (runtimeStageStart < 0) {
+  fail('defense-api Dockerfile has no named runtime stage');
+} else {
+  const runtimeStage = dockerfile.slice(runtimeStageStart);
+  if (runtimeStage.includes('runtime-source')) {
+    fail('Final defense-api image copies the trusted source mirror');
+  }
+  if (!runtimeStage.includes('/workspace/apps/defense-api/dist')) {
+    fail('Final defense-api image does not copy the compiled dist boundary');
+  }
+  if (!runtimeStage.includes('USER capiro')) {
+    fail('Final defense-api image is not explicitly non-root');
+  }
+}
+
 if (!exists('apps/api/src/defense-budget')) {
   fail('Legacy source was removed before shadow/canary/decommission acceptance');
 }
