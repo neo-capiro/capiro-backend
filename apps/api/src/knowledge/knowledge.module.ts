@@ -38,6 +38,8 @@ import { KnowledgeEventService } from './events/knowledge-event.service.js';
 import { KnowledgeEpisodeWorkerConfigService } from './episodes/knowledge-episode-worker-config.service.js';
 import { KnowledgeEpisodeRepository } from './episodes/knowledge-episode.repository.js';
 import { KnowledgeEpisodeProjectionConsumer } from './episodes/knowledge-episode.consumer.js';
+import { TemporalKnowledgeGraphRepository } from './graph/temporal-knowledge-graph.repository.js';
+import { TemporalKnowledgeGraphService } from './graph/temporal-knowledge-graph.service.js';
 import { MailboxKnowledgeConsumer } from './mailbox/mailbox-knowledge.consumer.js';
 import { MailboxKnowledgeExtractionConsumer } from './mailbox/mailbox-knowledge-extraction.consumer.js';
 import { MailboxKnowledgeExtractionRepository } from './mailbox/mailbox-knowledge-extraction.repository.js';
@@ -119,6 +121,8 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     KnowledgeEpisodeWorkerConfigService,
     KnowledgeEpisodeRepository,
     KnowledgeEpisodeProjectionConsumer,
+    TemporalKnowledgeGraphRepository,
+    TemporalKnowledgeGraphService,
   ],
   exports: [
     KnowledgeEventService,
@@ -139,6 +143,7 @@ import { MailboxThreadService } from './mailbox/mailbox-thread.service.js';
     MailboxKnowledgeConsumer,
     MailboxKnowledgeExtractionConsumer,
     KnowledgeEpisodeProjectionConsumer,
+    TemporalKnowledgeGraphService,
   ],
 })
 export class KnowledgeModule {}
