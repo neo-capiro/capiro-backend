@@ -365,6 +365,34 @@ export function engagementAuthorExampleAnalysisEnabled(settings: unknown): boole
 }
 
 /**
+ * Engagement vNext reskin (Meetings/Library/Outreach/Reports on
+ * os.capiro.ai) — TENANT ACCESS gate. The reskin shipped with all four
+ * destinations claimed unconditionally by VNextRouter as soon as
+ * ENGAGEMENT_DESTINATION_READY marked them ready (engagement-route-state.ts),
+ * with no per-tenant access control at all — every os.capiro.ai user on every
+ * tenant saw it. THIS flag is the separate, orthogonal concern: which tenants
+ * may see ANY of the four destinations, regardless of how many of them have a
+ * vNext body. Dogfooding canary: capiro-internal only for now (see
+ * CAPIRO_INTERNAL_SLUG in auth/clerk-role.util.ts and the meriV3/notetaker
+ * canary precedent in meriv3-flags.ts); widening later is just flipping this
+ * flag for more tenants via set-tenant-flag.ts — no code change required.
+ *
+ * Like meetingsV2 / strategyPlanner this is a PURE presentation swap — no
+ * external processor, no compliance risk — so it deliberately has NO env
+ * kill-switch. Per-tenant flag alone, default OFF (fails closed exactly like
+ * the others), flipped via settings_jsonb.clioFeatureFlags. Surfaced to the
+ * web via GET /me so VNextRouter can gate the actual component it renders —
+ * NOT the nav-visibility-only `meFeature` mechanism in routeManifest.ts,
+ * which hides a rail link but does not stop the route from resolving.
+ */
+export const ENGAGEMENT_VNEXT_FLAG = 'engagementVNext.enabled' as const;
+
+/** Whether a tenant is on the Engagement vNext reskin (per-tenant, default OFF). */
+export function engagementVNextEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, ENGAGEMENT_VNEXT_FLAG, false);
+}
+
+/**
  * Effective feature entitlements for a tenant (Phase 5, §5.1). The tier map
  * (resolveEntitlements) sets the baseline; a per-tenant boolean override at
  * settings_jsonb.clioFeatureFlags['entitlement.<feature>'] can flip a single

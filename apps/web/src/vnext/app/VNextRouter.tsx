@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { useMe } from '../../lib/me.js';
 import { DashboardVNext } from '../pages/dashboard/DashboardVNext.js';
 import { VNextStrategiesRoutes } from '../pages/strategies/VNextStrategiesRoutes.js';
 import {
@@ -43,12 +44,16 @@ const VNextClientCrmRoute = lazy(async () => ({
  * previously — see git history on this file if reviving it. Everything else
  * falls through to the canonical page via Outlet.
  *
- * Engagement claims only Outreach today (VNextOutreachWorkspace, on the
- * mockup's literal navy palette) — Meetings, Meeting Library and Reports
- * keep rendering through the canonical EngagementPage on both domains until
- * they get their own vNext bodies in later phases; see
- * ENGAGEMENT_DESTINATION_READY in engagement-route-state.ts for the
- * one-flip-per-destination switch.
+ * Engagement's four destinations (Meetings, Library, Outreach, Reports) all
+ * have native vNext bodies now (ENGAGEMENT_DESTINATION_READY in
+ * engagement-route-state.ts), but the module is gated to a per-tenant access
+ * flag ON TOP of that — see the `engagementVNextEnabled` check below. That
+ * flag is a SEPARATE, orthogonal concern from destination-readiness: it
+ * governs which TENANTS may see any vNext Engagement surface at all (a
+ * dogfood canary on capiro-internal today), not which destinations exist.
+ * Tenants without the flag — including while it is still loading — keep
+ * rendering through the canonical EngagementPage on both domains, exactly as
+ * if isVNextEngagementPath had returned false.
  *
  * Screens that have an approved vNext presentation are substituted at their
  * existing URL — the route itself is still the canonical one, so deep links,
@@ -56,6 +61,17 @@ const VNextClientCrmRoute = lazy(async () => ({
  */
 export function VNextRouter() {
   const location = useLocation();
+  const me = useMe();
+  // Engagement vNext tenant access gate (dogfood canary): GET /me's
+  // features.engagementVNext is the REAL per-tenant switch, wired all the
+  // way through to which component renders — unlike routeManifest.ts's
+  // `meFeature`, which only hides a rail nav link while the route underneath
+  // keeps resolving to whatever it always resolved to. `me.data` is
+  // `undefined` both while the query is loading and if it ever errors, so
+  // both cases fall through to the exact same false here — the safe default
+  // is "not yet enabled", never a flash of the new UI before the flag is
+  // confirmed true.
+  const engagementVNextEnabledForTenant = me.data?.features?.engagementVNext === true;
 
   // Portfolio: the client CRM profile at /clients?clientId=<id> and, with no
   // clientId, the Portfolio index (PORTFOLIO-HANDOFF §7.1). vNext owns /clients
@@ -110,12 +126,12 @@ export function VNextRouter() {
     return <WorkspaceVNextRoutes />;
   }
 
-  // Engagement: claims only Outreach today (VNextOutreachWorkspace, on the
-  // mockup's literal navy palette). Meetings, Meeting Library and Reports
-  // stay on canonical EngagementPage until they get their own vNext bodies in
-  // later phases — see ENGAGEMENT_DESTINATION_READY in
-  // engagement-route-state.ts for the one-line-per-destination switch.
-  if (isVNextEngagementPath(location.pathname)) {
+  // Engagement: all four destinations have vNext bodies now, but only for
+  // tenants with the engagementVNext access flag (dogfood canary today —
+  // capiro-internal). Every other tenant, and any tenant while /me is still
+  // loading, falls through to canonical EngagementPage below exactly as if
+  // isVNextEngagementPath had returned false.
+  if (isVNextEngagementPath(location.pathname) && engagementVNextEnabledForTenant) {
     return <VNextEngagementRoutes />;
   }
 

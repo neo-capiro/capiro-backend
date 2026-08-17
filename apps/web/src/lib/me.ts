@@ -37,6 +37,15 @@ export interface MeResponse {
     agenticMeri?: boolean;
     contextSteward?: boolean;
     strategyWatcher?: boolean;
+    /**
+     * Engagement vNext tenant access gate (dogfood canary, capiro-internal
+     * only for now — see tenant-flags.ts's engagementVNextEnabled). REAL
+     * route gating, not the nav-visibility-only `meFeature` mechanism in
+     * routeManifest.ts: VNextRouter reads this to decide whether it renders
+     * VNextEngagementRoutes at all. Optional so an older cached /me shape
+     * (or a still-loading query) fails back to the canonical EngagementPage.
+     */
+    engagementVNext?: boolean;
   };
 }
 
