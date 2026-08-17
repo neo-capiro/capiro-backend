@@ -48,7 +48,11 @@ COPY apps/api/scripts apps/api/scripts
 RUN pnpm --filter @capiro/shared build
 RUN pnpm --filter @capiro/meriv2-core build
 RUN pnpm --filter @capiro/api exec prisma generate
-RUN pnpm --filter @capiro/api build
+# V8's default old-space heuristic under QEMU cross-arch emulation (e.g. building
+# linux/arm64 on an amd64 host) misreads emulated /proc/meminfo and picks a heap
+# ceiling far below the host's real available memory, OOM-killing `nest build` on
+# this codebase's current size. Pin an explicit ceiling for this step only.
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @capiro/api build
 
 # Prune dev dependencies in place (keeps the .pnpm store with the generated
 # Prisma client intact).
