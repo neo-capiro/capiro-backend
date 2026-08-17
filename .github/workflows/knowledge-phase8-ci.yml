@@ -8,6 +8,7 @@ on:
       - 'apps/api/src/knowledge/graph/**'
       - 'apps/api/prisma/migrations/20261120170000_temporal_knowledge_graph/**'
       - 'apps/api/prisma/migrations/20261120180000_temporal_knowledge_graph_merge_continuity/**'
+      - 'apps/api/prisma/migrations/20261120181000_temporal_knowledge_graph_canonical_input_continuity/**'
       - 'scripts/verify-phase8-temporal-graph-merge-continuity.sh'
       - '.github/workflows/knowledge-phase8-ci.yml'
   pull_request:
@@ -17,6 +18,7 @@ on:
       - 'apps/api/src/knowledge/graph/**'
       - 'apps/api/prisma/migrations/20261120170000_temporal_knowledge_graph/**'
       - 'apps/api/prisma/migrations/20261120180000_temporal_knowledge_graph_merge_continuity/**'
+      - 'apps/api/prisma/migrations/20261120181000_temporal_knowledge_graph_canonical_input_continuity/**'
       - 'scripts/verify-phase8-temporal-graph-merge-continuity.sh'
       - '.github/workflows/knowledge-phase8-ci.yml'
   workflow_dispatch:
@@ -96,6 +98,10 @@ jobs:
           pnpm --filter @capiro/api exec prisma migrate deploy 2>&1 | tee /tmp/phase8-migrate.log
           grep -q '20261120180000_temporal_knowledge_graph_merge_continuity' /tmp/phase8-migrate.log || {
             echo "::error::Phase 8 merge-continuity migration was not applied" >&2
+            exit 1
+          }
+          grep -q '20261120181000_temporal_knowledge_graph_canonical_input_continuity' /tmp/phase8-migrate.log || {
+            echo "::error::Phase 8 canonical query-root migration was not applied" >&2
             exit 1
           }
 
