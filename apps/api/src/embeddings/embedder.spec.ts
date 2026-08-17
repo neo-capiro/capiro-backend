@@ -52,7 +52,7 @@ describe('provider-neutral embedder', () => {
     const p = provider();
     const transaction = jest.fn();
     const prisma = {
-      $queryRawUnsafe: jest.fn(async () => [{ content_hash: sha256(text) }]),
+      $queryRawUnsafe: jest.fn(async (..._args: unknown[]) => [{ content_hash: sha256(text) }]),
       $transaction: transaction,
     } as unknown as PrismaClient;
 
@@ -76,9 +76,9 @@ describe('provider-neutral embedder', () => {
 
   test('persists provider model metadata while preserving tenant/client scope', async () => {
     const p = provider();
-    const executeRaw = jest.fn(async () => 1);
+    const executeRaw = jest.fn(async (..._args: unknown[]) => 1);
     const tx = { $executeRawUnsafe: executeRaw };
-    const queryRaw = jest.fn(async () => []);
+    const queryRaw = jest.fn(async (..._args: unknown[]) => []);
     const transaction = jest.fn(async (fn: (value: typeof tx) => Promise<unknown>) => fn(tx));
     const prisma = {
       $queryRawUnsafe: queryRaw,
@@ -124,10 +124,10 @@ describe('provider-neutral embedder', () => {
 
   test('bypassRls still remains an explicit persistence concern, not a provider concern', async () => {
     const p = provider();
-    const executeRaw = jest.fn(async () => 1);
+    const executeRaw = jest.fn(async (..._args: unknown[]) => 1);
     const tx = { $executeRawUnsafe: executeRaw };
     const prisma = {
-      $queryRawUnsafe: jest.fn(async () => []),
+      $queryRawUnsafe: jest.fn(async (..._args: unknown[]) => []),
       $transaction: jest.fn(async (fn: (value: typeof tx) => Promise<unknown>) => fn(tx)),
     } as unknown as PrismaClient;
 
