@@ -14,6 +14,7 @@ import {
   agenticMeriActive,
   contextStewardActive,
   strategyWatcherActive,
+  engagementVNextEnabled,
   entitlementsForTenant,
 } from '../common/tenant-flags.js';
 import { meriV3ChatActive } from '../common/meriv3-flags.js';
@@ -127,6 +128,10 @@ export class UsersController {
         meriDockUndockUi: meriDockUndockUiEnabled(profile.tenant?.settings) || meriv3Chat,
         meriv3Chat,
         strategyPlanner: strategyPlannerEnabled(profile.tenant?.settings),
+        // Engagement vNext tenant access gate (dogfood canary, capiro-internal
+        // only for now) — VNextRouter reads this to decide which component
+        // actually renders, not just nav visibility. See tenant-flags.ts.
+        engagementVNext: engagementVNextEnabled(profile.tenant?.settings),
         strategyPlannerMeri: strategyMeriActive(profile.tenant?.settings),
         agenticMeri: agenticMeriActive(profile.tenant?.settings),
         contextSteward: contextStewardActive(profile.tenant?.settings),
@@ -220,6 +225,10 @@ export class UsersController {
         meriDockUndockUi: meriDockUndockUiEnabled(profile.tenant?.settings) || meriv3Chat,
         meriv3Chat,
         strategyPlanner: strategyPlannerEnabled(profile.tenant?.settings),
+        // Engagement vNext tenant access gate (dogfood canary, capiro-internal
+        // only for now) — VNextRouter reads this to decide which component
+        // actually renders, not just nav visibility. See tenant-flags.ts.
+        engagementVNext: engagementVNextEnabled(profile.tenant?.settings),
         strategyPlannerMeri: strategyMeriActive(profile.tenant?.settings),
         agenticMeri: agenticMeriActive(profile.tenant?.settings),
         contextSteward: contextStewardActive(profile.tenant?.settings),

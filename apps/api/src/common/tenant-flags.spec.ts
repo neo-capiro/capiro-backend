@@ -31,6 +31,7 @@ import {
   strategyWatcherEnabled,
   strategyWatcherActive,
   STRATEGY_WATCHER_FLAG,
+  engagementVNextEnabled,
 } from './tenant-flags.js';
 
 describe('tenantFeatureEnabled', () => {
@@ -382,5 +383,22 @@ describe('strategyWatcherActive (Stage F: agentic env kill-switch AND per-tenant
   test('dormant by default — both conditions default OFF', () => {
     expect(strategyWatcherActive({}, envOff)).toBe(false);
     expect(strategyWatcherActive({}, envOn)).toBe(false); // tenant flag still absent/default-off
+  });
+});
+
+describe('engagementVNextEnabled (Engagement vNext tenant access gate, no env kill-switch, default OFF)', () => {
+  test('per-tenant opt-in, default off, malformed settings fail closed', () => {
+    expect(
+      engagementVNextEnabled({ clioFeatureFlags: { 'engagementVNext.enabled': true } }),
+    ).toBe(true);
+    expect(engagementVNextEnabled({})).toBe(false);
+    expect(engagementVNextEnabled(null)).toBe(false);
+    expect(engagementVNextEnabled({ clioFeatureFlags: 'oops' })).toBe(false);
+  });
+
+  test('an explicit false is indistinguishable from unset — both stay off', () => {
+    expect(
+      engagementVNextEnabled({ clioFeatureFlags: { 'engagementVNext.enabled': false } }),
+    ).toBe(false);
   });
 });
