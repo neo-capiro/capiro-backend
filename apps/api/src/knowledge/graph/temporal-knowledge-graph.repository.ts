@@ -42,6 +42,10 @@ export class TemporalKnowledgeGraphRepository {
     input: NormalizedTemporalKnowledgeGraphWalkInput,
   ): Promise<TemporalKnowledgeGraphEdge[]> {
     return this.prisma.withTenant(input.tenantId, async (tx) => {
+      // A function-level statement_timeout cannot re-arm the already-running
+      // invoking statement. Match the hardened Track B graph path: SET LOCAL in
+      // the caller transaction is the real pooled-connection starvation guard.
+      await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '3s'`);
       const rows = await tx.$queryRaw<TemporalGraphRow[]>(Prisma.sql`
         SELECT *
         FROM kg_temporal_walk_bounded(
@@ -66,6 +70,7 @@ export class TemporalKnowledgeGraphRepository {
     input: NormalizedTemporalKnowledgeGraphHistoryInput,
   ): Promise<TemporalKnowledgeGraphEdge[]> {
     return this.prisma.withTenant(input.tenantId, async (tx) => {
+      await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = '3s'`);
       const rows = await tx.$queryRaw<TemporalGraphRow[]>(Prisma.sql`
         SELECT *
         FROM kg_temporal_relation_history(
@@ -90,7 +95,7 @@ export class TemporalKnowledgeGraphRepository {
 function textArray(values: readonly string[]): Prisma.Sql {
   return values.length === 0
     ? Prisma.sql`ARRAY[]::text[]`
-    : Prisma.sql`ARRAY[${Prisma.join(values)}]::text[]`;
+    : Prisma.sql`ARRAY[${Prisma.join([...values])}]::text[]`;
 }
 
 function nullableTextArray(values: readonly string[] | null): Prisma.Sql {
