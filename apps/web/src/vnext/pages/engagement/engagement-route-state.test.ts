@@ -6,19 +6,21 @@ import {
 } from './engagement-route-state.js';
 
 describe('vNext Engagement route state', () => {
-  it('claims Outreach and Meetings — the two destinations with a shipped vNext component — and nothing else yet', () => {
+  it('claims Outreach, Meetings and Library — the three destinations with a shipped vNext component — and nothing else yet', () => {
     expect(isVNextEngagementPath('/engagement/outreach')).toBe(true);
     expect(isVNextEngagementPath('/engagement/outreach/draft/123')).toBe(true);
-    // Meetings shipped this phase (VNextMeetingsWorkspace) — the bare module
-    // root and the meetings path itself are both now claimed.
+    // Meetings shipped in an earlier phase (VNextMeetingsWorkspace) — the
+    // bare module root and the meetings path itself are both claimed.
     expect(isVNextEngagementPath('/engagement')).toBe(true);
     expect(isVNextEngagementPath('/engagement/meetings')).toBe(true);
 
-    // Library and Reports stay canonical until their own vNext components
-    // ship in later phases — see ENGAGEMENT_DESTINATION_READY. Note the real
-    // Library route is the flat `/engagement/meeting-library`, not nested
-    // under `/engagement/meetings/` (see LIBRARY_PATH's comment).
-    expect(isVNextEngagementPath('/engagement/meeting-library')).toBe(false);
+    // Library shipped this phase (VNextMeetingLibrary). Note the real Library
+    // route is the flat `/engagement/meeting-library`, not nested under
+    // `/engagement/meetings/` (see LIBRARY_PATH's comment).
+    expect(isVNextEngagementPath('/engagement/meeting-library')).toBe(true);
+
+    // Reports stays canonical until its own vNext component ships in a later
+    // phase — see ENGAGEMENT_DESTINATION_READY.
     expect(isVNextEngagementPath('/engagement/reports')).toBe(false);
 
     // Unrelated paths are never claimed.

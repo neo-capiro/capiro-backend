@@ -1,5 +1,5 @@
 /**
- * vNext Engagement module router — STAGED ROLLOUT (Meetings phase,
+ * vNext Engagement module router — STAGED ROLLOUT (Library phase,
  * 2026-08-16).
  *
  * Adapted from `origin/agent/engagement-complete-gpt56`'s
@@ -7,8 +7,8 @@
  * which rendered a fully-forked alternate Engagement shell (its own New
  * Meeting modal, a hidden Overview, and a debug "State Inspector") over four
  * destinations that all already had native vNext bodies. On this branch,
- * Outreach and Meetings do — Meeting Library/Reports keep their real work
- * for later phases of this reskin.
+ * Outreach, Meetings and now Library do — Reports keeps its real work for a
+ * later phase of this reskin.
  * Deliberately NOT ported from the reference:
  *   - The reference's own New Meeting modal / hidden Overview — this phase's
  *     VNextMeetingsWorkspace brings its own minimal New Meeting composer
@@ -26,13 +26,13 @@
  * dropping them would be a real regression, not a simplification.
  *
  * `VNextRouter` only mounts this component when `isVNextEngagementPath`
- * returns true (currently: Outreach and Meetings — see
+ * returns true (currently: Outreach, Meetings and Library — see
  * `ENGAGEMENT_DESTINATION_READY` in engagement-route-state.ts), so the
- * `library` / `reports` cases below are unreachable today. They exist so the
- * render switch stays exhaustive and so promoting a destination later is
- * additive: build the real component, import it here, add its case, flip its
- * flag in engagement-route-state.ts. No other routing change, and no change
- * to VNextRouter.tsx, is required.
+ * `reports` case below is unreachable today. It exists so the render switch
+ * stays exhaustive and so promoting Reports later is additive: build the
+ * real component, import it here, add its case, flip its flag in
+ * engagement-route-state.ts. No other routing change, and no change to
+ * VNextRouter.tsx, is required.
  */
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -50,6 +50,7 @@ import {
 } from './engagement-route-state.js';
 import { VNextOutreachWorkspace, type EngagementOutreachStep } from './VNextOutreachWorkspace.js';
 import { VNextMeetingsWorkspace } from './VNextMeetingsWorkspace.js';
+import { VNextMeetingLibrary } from './VNextMeetingLibrary.js';
 import './engagement.css';
 import './engagement-ui-closeout.css';
 // Tone table (eng-pill classes) — established in the foundations commit but
@@ -77,7 +78,12 @@ function subline(destination: EngagementDestination): string {
     return 'Auto-populated activity with explicit manual status overrides and CSV export.';
   }
   if (destination === 'library') {
-    return 'Approved prep, notes, debriefs, and shared attachments across clients.';
+    // Literal design-doc copy (design README §8 / the mockup's own per-route
+    // paragraph) — NOT the same text `heroSubs.library` uses in
+    // `Capiro Engagement - Untitled UI.dc.html`, which is stale/wrong (it
+    // still reads "Approved prep, notes, debriefs, and shared attachments
+    // across clients.", not this route's own real subline).
+    return 'Only approved or saved materials appear here. Searchable by client, date, artifact type, and visibility.';
   }
   if (destination === 'meetings') {
     return 'Calendar-synced meetings with prep, notes, Meri join, and client context.';
@@ -145,13 +151,18 @@ export function VNextEngagementRoutes() {
       body = <VNextMeetingsWorkspace clientId={clientFilter.selectedClientId} />;
       break;
     case 'library':
+      // Library owns its own client/type/visibility filters (each with a
+      // real dropdown-button + URL-persisted state — see
+      // VNextMeetingLibrary.tsx), independent of the shell's client-scope
+      // selector above, so it takes no props.
+      body = <VNextMeetingLibrary />;
+      break;
     case 'reports':
       // Pending — see the staged-rollout comment above and
       // ENGAGEMENT_DESTINATION_READY in engagement-route-state.ts.
-      // Unreachable today: isVNextEngagementPath only claims Outreach and
-      // Meetings, so VNextRouter falls through to the canonical
-      // EngagementPage (still inside this same vNext shell) for these two
-      // destinations.
+      // Unreachable today: isVNextEngagementPath only claims Outreach,
+      // Meetings and Library, so VNextRouter falls through to the canonical
+      // EngagementPage (still inside this same vNext shell) for Reports.
       body = null;
       break;
   }

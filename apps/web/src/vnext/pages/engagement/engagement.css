@@ -69,7 +69,6 @@
 .capiro-vnext-root .uui-eyebrow,
 .capiro-vnext-root .uui-state-control,
 .capiro-vnext-root .uui-library-date,
-.capiro-vnext-root .uui-library-visibility,
 .capiro-vnext-root .uui-outreach-section__number,
 .capiro-vnext-root .uui-outreach-section-status,
 .capiro-vnext-root .uui-state-pill,
@@ -371,61 +370,78 @@
   line-height: 20px;
 }
 
-/* Library */
+/* Library (design README §8 / `Capiro Engagement - Untitled UI.dc.html`'s
+   `isLibrary` block / screenshots/05-meeting-library.png — verified rule by
+   rule against that source; several values below had drifted from an earlier
+   abandoned attempt, same situation Phase 1a found with `.uui-mtg-*`). */
 .capiro-vnext-root .uui-library-page,
 .capiro-vnext-root .uui-reports-page {
   padding: 22px 24px 48px;
 }
+/* Breadcrumb — mono 11px/.06em/uppercase: a "Meetings" button in --eng-ink-4
+   (hover navy), a "/" separator (inherits the container's own ink-4), then
+   "Library" in --eng-ink-2. No icon — the canonical MeetingLibraryView.tsx
+   incorrectly adds an ArrowLeft; not carried over here. */
 .capiro-vnext-root .uui-library-breadcrumb {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
-  color: var(--eng-ink-3);
-  font-size: 13px;
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--eng-ink-4);
 }
 .capiro-vnext-root .uui-library-breadcrumb button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
   border: 0;
+  padding: 0;
   background: transparent;
-  color: var(--eng-ink-2);
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
   cursor: pointer;
 }
-.capiro-vnext-root .uui-library-count {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 120px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--eng-surface);
-  box-shadow: 0 0 0 1px var(--eng-border);
+.capiro-vnext-root .uui-library-breadcrumb button:hover {
+  color: var(--eng-accent);
 }
-.capiro-vnext-root .uui-library-count strong {
-  font-size: 18px;
+.capiro-vnext-root .uui-library-breadcrumb > span:last-child {
+  color: var(--eng-ink-2);
 }
-.capiro-vnext-root .uui-library-count span {
-  color: var(--eng-ink-3);
-  font-size: 12px;
+.capiro-vnext-root .uui-library-heading {
+  margin: 10px 0 0;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--eng-ink);
 }
-.capiro-vnext-root .uui-library-card,
+.capiro-vnext-root .uui-library-subline {
+  margin: 4px 0 0;
+  max-width: 720px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--eng-ink-2);
+  text-wrap: pretty;
+}
 .capiro-vnext-root .uui-report-card {
   overflow: visible;
   border-radius: 12px;
   background: var(--eng-surface);
   box-shadow: 0 0 0 1px var(--eng-border);
 }
+/* Filter row — a flex row (the mockup's own row is
+   `display:flex;flex-wrap:wrap`, NOT the grid this scaffold previously
+   assumed), sitting directly in the page flow rather than nested inside a
+   bordered card. */
 .capiro-vnext-root .uui-library-filters {
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) 180px 180px 160px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--eng-border);
+  margin-top: 18px;
 }
-.capiro-vnext-root .uui-library-filters select,
-.capiro-vnext-root .uui-search-field,
 .capiro-vnext-root .uui-select-control,
 .capiro-vnext-root .uui-send-settings select,
 .capiro-vnext-root .uui-test-send select,
@@ -441,7 +457,6 @@
   box-shadow: inset 0 0 0 1px var(--eng-border);
   color: var(--eng-ink);
 }
-.capiro-vnext-root .uui-library-filters select,
 .capiro-vnext-root .uui-send-settings select,
 .capiro-vnext-root .uui-test-send select,
 .capiro-vnext-root .uui-modal-fields input,
@@ -451,12 +466,27 @@
 .capiro-vnext-root .uui-draft-editor-fields textarea {
   padding: 0 13px;
 }
+/* Search field — its own precise rule (previously shared with the
+   modal/select fields above, which use a different recessed/inset-border
+   treatment; the mockup's search field is a distinct white pill: `#ffffff`
+   background, non-recessed ring). Zero .tsx consumers before this phase, so
+   redefining it here doesn't disturb anything else. */
 .capiro-vnext-root .uui-search-field {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 13px;
+  gap: 8px;
+  flex: 1;
+  min-width: 240px;
+  max-width: 380px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
   color: var(--eng-ink-3);
+}
+.capiro-vnext-root .uui-search-field svg {
+  flex-shrink: 0;
 }
 .capiro-vnext-root .uui-search-field input {
   flex: 1;
@@ -464,6 +494,131 @@
   border: 0;
   outline: 0;
   background: transparent;
+  font-size: 14px;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .uui-search-field input::placeholder {
+  color: var(--eng-ink-3);
+}
+/* Dropdown-button filters — a real button + floating menu, explicitly NOT a
+   native <select> and NOT a segmented toggle (design README §8's three
+   filter buttons are decorative no-ops in the mockup itself; this phase
+   makes them genuinely functional — see VNextMeetingLibrary.tsx). Same
+   elevated-menu visual language as the Reports status menu further below
+   (box-shadow elevation + gray-ring, rounded hover/selected rows). */
+.capiro-vnext-root .uui-library-dropdown {
+  position: relative;
+}
+.capiro-vnext-root .uui-library-dropdown__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
+  color: #344054;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-library-dropdown__trigger:hover {
+  background: var(--eng-bg);
+}
+.capiro-vnext-root .uui-library-dropdown__trigger svg {
+  flex-shrink: 0;
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .uui-library-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  max-height: 280px;
+  padding: 5px;
+  border-radius: 10px;
+  overflow-y: auto;
+  background: var(--eng-surface);
+  box-shadow:
+    0 12px 30px rgba(16, 24, 40, 0.16),
+    0 0 0 1px var(--eng-tone-gray-ring);
+}
+.capiro-vnext-root .uui-library-dropdown__menu button {
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--eng-ink-2);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.capiro-vnext-root .uui-library-dropdown__menu button:hover,
+.capiro-vnext-root .uui-library-dropdown__menu button[data-selected] {
+  background: var(--eng-muted);
+}
+.capiro-vnext-root .uui-library-dropdown__menu button[data-selected] {
+  color: var(--eng-accent);
+  font-weight: 600;
+}
+/* Real controls the mockup gives no visual treatment to (date range +
+   pagination) — see VNextMeetingLibrary.tsx's file header for the placement
+   rationale (an always-visible secondary row; a footer below the table). */
+.capiro-vnext-root .uui-library-daterow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.capiro-vnext-root .uui-library-daterow label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
+  color: var(--eng-ink-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+.capiro-vnext-root .uui-library-daterow input[type='date'] {
+  border: 0;
+  background: transparent;
+  color: var(--eng-ink);
+  font-size: 12px;
+}
+.capiro-vnext-root .uui-library-daterow button {
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
+  color: var(--eng-ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-library-daterow button:hover {
+  background: var(--eng-bg);
+}
+.capiro-vnext-root .uui-library-card {
+  margin-top: 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
 }
 .capiro-vnext-root .uui-library-table__head,
 .capiro-vnext-root .uui-library-row {
@@ -473,17 +628,18 @@
   gap: 16px;
 }
 .capiro-vnext-root .uui-library-table__head {
-  padding: 10px 20px;
-  background: var(--eng-muted);
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--eng-tone-gray-ring);
+  background: var(--eng-recessed);
   color: var(--eng-ink-4);
   font-family: var(--eng-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .capiro-vnext-root .uui-library-row {
   width: 100%;
-  min-height: 76px;
   padding: 16px 20px;
   border: 0;
   border-bottom: 1px solid var(--eng-muted);
@@ -491,8 +647,14 @@
   text-align: left;
   cursor: pointer;
 }
+.capiro-vnext-root .uui-library-row:last-child {
+  border-bottom: 0;
+}
 .capiro-vnext-root .uui-library-row:hover {
   background: var(--eng-bg);
+}
+.capiro-vnext-root .uui-library-row .eng-pill {
+  justify-self: start;
 }
 .capiro-vnext-root .uui-library-date {
   font-size: 13px;
@@ -502,40 +664,88 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 3px;
+  gap: 2px;
 }
 .capiro-vnext-root .uui-library-title strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--eng-ink);
   font-size: 15px;
+  font-weight: 600;
 }
-.capiro-vnext-root .uui-library-title small,
-.capiro-vnext-root .uui-library-materials {
+.capiro-vnext-root .uui-library-title small {
   color: var(--eng-ink-3);
   font-size: 13px;
 }
-.capiro-vnext-root .uui-library-visibility {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  justify-self: start;
-  height: 24px;
-  padding: 0 9px;
-  border-radius: 9999px;
-  background: var(--eng-muted);
+.capiro-vnext-root .uui-library-materials {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--eng-ink-2);
-  font-size: 10px;
-  text-transform: uppercase;
+  font-size: 14px;
 }
-.capiro-vnext-root .uui-library-visibility[data-shared] {
-  background: var(--eng-accent-soft);
-  color: var(--eng-accent);
+.capiro-vnext-root .uui-library-empty {
+  padding: 34px 20px;
+  text-align: center;
+  color: var(--eng-ink-2);
+  font-size: 14px;
 }
-.capiro-vnext-root .uui-library-note {
-  padding: 14px 20px;
+.capiro-vnext-root .uui-library-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  color: var(--eng-error);
+  font-size: 14px;
+}
+.capiro-vnext-root .uui-library-error button {
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--eng-error-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-error-border);
+  color: var(--eng-error);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.capiro-vnext-root .uui-library-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
   color: var(--eng-ink-3);
   font-size: 12px;
+}
+.capiro-vnext-root .uui-library-pagination button {
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
+  color: var(--eng-ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-library-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.capiro-vnext-root .uui-library-pagination button:hover:not(:disabled) {
+  background: var(--eng-bg);
+}
+.capiro-vnext-root .uui-library-note {
+  margin: 14px 2px 0;
+  color: var(--eng-ink-3);
+  font-size: 13px;
+  text-wrap: pretty;
 }
 
 /* Reports */
@@ -2152,9 +2362,6 @@
   .capiro-vnext-root .uui-outreach-chat {
     flex-basis: 380px;
   }
-  .capiro-vnext-root .uui-library-filters {
-    grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(140px, 0.6fr));
-  }
   .capiro-vnext-root .uui-draft-layout {
     grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1.5fr);
   }
@@ -2193,8 +2400,16 @@
     padding: 18px 16px 36px;
   }
   .capiro-vnext-root .uui-library-filters {
-    grid-template-columns: 1fr;
-    padding: 14px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .capiro-vnext-root .uui-search-field {
+    min-width: 0;
+    max-width: none;
+  }
+  .capiro-vnext-root .uui-library-dropdown,
+  .capiro-vnext-root .uui-library-dropdown__trigger {
+    width: 100%;
   }
   .capiro-vnext-root .uui-library-table__head {
     display: none;
@@ -2205,7 +2420,7 @@
     padding: 14px;
   }
   .capiro-vnext-root .uui-library-materials,
-  .capiro-vnext-root .uui-library-visibility {
+  .capiro-vnext-root .uui-library-row .eng-pill {
     grid-column: 2;
   }
   .capiro-vnext-root .uui-report-toolbar {
