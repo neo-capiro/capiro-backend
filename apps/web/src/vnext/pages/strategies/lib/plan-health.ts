@@ -84,3 +84,35 @@ export function computePlanHealth(
 
   return { score, totalSteps, ownedSteps, totalGates, groundedGates, datedSteps, overdueSteps };
 }
+
+/**
+ * Lightweight plan-health proxy from a StrategyListItem's `nodeCount` — the
+ * only field the list endpoint carries that bears on plan health. Returns a
+ * partial summary with `totalSteps` populated and all other dimensions null
+ * (unknown, not zero). The library uses this to show a "steps" indicator
+ * instead of a bare "—" and to sort by plan complexity as a first-pass
+ * proxy until a server-side fleet aggregate endpoint lands.
+ */
+export interface PlanHealthSummary {
+  totalSteps: number;
+  /** null = unknown (requires per-node detail from StrategyDetail) */
+  ownedSteps: number | null;
+  totalGates: number | null;
+  groundedGates: number | null;
+  datedSteps: number | null;
+  overdueSteps: number | null;
+  /** null = cannot compute a score without per-node detail */
+  score: number | null;
+}
+
+export function planHealthFromSummary(nodeCount: number): PlanHealthSummary {
+  return {
+    totalSteps: nodeCount,
+    ownedSteps: null,
+    totalGates: null,
+    groundedGates: null,
+    datedSteps: null,
+    overdueSteps: null,
+    score: null,
+  };
+}

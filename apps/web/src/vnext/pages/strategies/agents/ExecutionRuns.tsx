@@ -150,16 +150,32 @@ function RunPill({ state }: { state: RunState }) {
 }
 
 export function ExecutionRuns() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   /* The filter is a URL (?strategyId=…) — back/forward works (§6). */
   const strategyFilter = params.get('strategyId');
+  /* Stage-H criteria deep link: ?stage-h=1 auto-opens the criteria modal so
+   * the security card's handoff link is a shareable, bookmarkable target
+   * rather than a click-only affordance. The param is consumed once on mount. */
+  const [stageHOpen, setStageHOpen] = useState(params.get('stage-h') === '1');
+  const openStageH = () => {
+    setStageHOpen(true);
+    const next = new URLSearchParams(params);
+    next.set('stage-h', '1');
+    setParams(next, { replace: true });
+  };
+  const closeStageH = () => {
+    setStageHOpen(false);
+    const next = new URLSearchParams(params);
+    next.delete('stage-h');
+    setParams(next, { replace: true });
+  };
   const runs = useExecutionRuns(strategyFilter, true);
   const strategies = useStrategies();
   const clients = useClientsLite();
   /* "View Stage H criteria" — purely a local expand/collapse over the SAME
    * static criteria text already in the security card below; no fetch, no
-   * mutation, no navigation (§11 rule 7 stays intact). */
-  const [stageHOpen, setStageHOpen] = useState(false);
+   * mutation, no navigation (§11 rule 7 stays intact). The URL param
+   * ?stage-h=1 is the deep-link target (see openStageH/closeStageH above). */
 
   const strategyLabel = (strategyId: string | null): { title: string; client: string } => {
     if (!strategyId) return { title: 'Firm-level', client: '' };
@@ -305,9 +321,10 @@ export function ExecutionRuns() {
           )}
 
           {/* ---- Security control (§7.9/§11 rule 9) — NOT decorative ------
-            GAP (logged): the handoff links this card to the Stage-H criteria,
-            but no criteria route/document exists yet — the criteria render
-            inline here instead of as a dead link. */}
+            The handoff links this card to the Stage-H criteria via the
+            ?stage-h=1 URL param (deep-linkable, bookmarkable). The criteria
+            also render inline in the modal as a read-only expansion of the
+            same static text. */}
           <div className="st-agents__section">
             <div className="st-card st-agents__security">
               <div className="st-card__header">
@@ -338,7 +355,7 @@ export function ExecutionRuns() {
                 <button
                   type="button"
                   className="st-agents__stageh-btn"
-                  onClick={() => setStageHOpen(true)}
+                  onClick={openStageH}
                 >
                   View Stage H criteria
                 </button>
@@ -353,7 +370,7 @@ export function ExecutionRuns() {
       <CapiroModal
         open={stageHOpen}
         title="Stage H security criteria"
-        onClose={() => setStageHOpen(false)}
+        onClose={closeStageH}
       >
         <p className="st-agents__modal-copy">
           No direct send action exists on this surface. Outreach artifacts are staged for human

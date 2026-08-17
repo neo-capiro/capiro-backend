@@ -368,11 +368,28 @@ export function StewardReviewVNext() {
                 <span>
                   {isForbidden(health.error)
                     ? 'You don’t have access to this client’s context health.'
-                    : 'Context health could not be loaded.'}
+                    : 'Context health could not be loaded — showing available data below.'}
                 </span>
                 <CapiroButton variant="quiet" size="compact" onClick={() => void health.refetch()}>
                   Retry
                 </CapiroButton>
+                {/* Health endpoint failed but facts/conflicts are still real —
+                 * surface the available dimensions so the band never goes empty. */}
+                <div className="st-steward__band-metrics" style={{ marginTop: 12 }}>
+                  <BandMetric
+                    value={(facts.data ?? []).filter((f) => f.clientId === healthClientId && f.state === 'active').length}
+                    label="Active facts (derived)"
+                    loading={facts.isLoading}
+                    failed={facts.isError}
+                  />
+                  <BandMetric
+                    value={(conflicts.data ?? []).filter((c) => c.clientId === healthClientId && c.state === 'open').length}
+                    label="Open conflicts (derived)"
+                    loading={conflicts.isLoading}
+                    failed={conflicts.isError}
+                    alert={openConflictCount > 0}
+                  />
+                </div>
               </div>
             ) : health.data ? (
               <>

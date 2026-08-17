@@ -67,7 +67,7 @@ describe('StrategyLibraryVNext — Needs review stat attention ring', () => {
   it('never applies the attention modifier to the other three stat cards', () => {
     pendingWatchCounts = { 'strategy-a': 2 };
     renderLibrary();
-    for (const label of ['Active strategies', 'Approaching gates', 'Plan coverage']) {
+    for (const label of ['Active strategies', 'Plan steps', 'Plan coverage']) {
       const button = screen.getByText(label).closest('button');
       expect(button).not.toHaveClass('st-stat--attention');
     }

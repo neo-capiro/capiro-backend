@@ -101,9 +101,14 @@ const RUN_STATES: readonly RunState[] = [
   'waiting_for_input',
   'executing',
   'ready_for_review',
+  'approved',
+  'staged',
   'completed',
   'failed',
+  'failed_recoverable',
+  'failed_terminal',
   'canceled',
+  'superseded',
 ];
 
 function opsArray(v: unknown): ChangeSetOp[] {

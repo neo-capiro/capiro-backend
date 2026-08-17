@@ -210,7 +210,11 @@ export function ContextDocumentVNext() {
     return counts;
   }, [docFacts]);
 
-  /* Supersession provenance from the shared library list (same query key). */
+  /* Supersession provenance — derived from the shared library list (same
+   * query key). The server carries `supersedesId` on the document row; the
+   * reverse direction (supersededBy) is derived by scanning the list for a
+   * row whose `supersedesId` points at this document. This is the
+   * authoritative derivation — the server has no "supersededBy" endpoint. */
   const supersededBy = useMemo(
     () => (documents.data ?? []).find((row) => row.supersedesId === documentId) ?? null,
     [documents.data, documentId],
@@ -298,12 +302,19 @@ export function ContextDocumentVNext() {
   const validUntil = d.validUntil ?? fmScalar(d.frontmatter, 'valid_until');
 
   /* §7.6: Extract is disabled once the current version is extracted (reason in
-   * the tooltip); hidden entirely when the flags/state can never succeed. */
+   * the tooltip); hidden entirely when the flags/state can never succeed.
+   * extractDisabledReason is client-derived from the shared facts ledger
+   * (same query key as the steward) — the server has no single "is extracted"
+   * scalar, so this is the authoritative derivation. */
   const showExtract = canExtractContextFacts(me.data?.features, d.state);
   const alreadyExtracted = facts.isSuccess && docFacts.length > 0;
   const extractDisabledReason = alreadyExtracted
     ? `Already extracted — ${docFacts.length} fact${docFacts.length === 1 ? '' : 's'} from this document ${docFacts.length === 1 ? 'is' : 'are'} in the steward ledger.`
-    : null;
+    : d.state === 'superseded'
+      ? 'This document has been superseded — extract from the current version instead.'
+      : d.state === 'archived'
+        ? 'This document is archived and cannot be extracted.'
+        : null;
 
   /* §7.6 must-not: while active facts reference this document, archive needs a
    * steward decision — say so instead of archiving. */

@@ -167,7 +167,7 @@ export function ExportOverlay() {
         <div style={{ minWidth: 0 }}>
           <p className="st-panel__label">Contents</p>
           <div className="st-field-stack">
-            <div className="st-toggle-row">
+            <div className="st-toggle-row st-toggle-row--disabled" aria-disabled="true">
               <span>Include internal notes</span>
               <button
                 type="button"
@@ -175,10 +175,12 @@ export function ExportOverlay() {
                 role="switch"
                 aria-checked={includeInternalNotes}
                 aria-label="Include internal notes"
-                onClick={() => setIncludeInternalNotes((v) => !v)}
+                aria-disabled="true"
+                disabled
+                title="Applies to generated formats (PDF, DOCX, slides, image) — not yet available"
               />
             </div>
-            <div className="st-toggle-row">
+            <div className="st-toggle-row st-toggle-row--disabled" aria-disabled="true">
               <span>Include agent history</span>
               <button
                 type="button"
@@ -186,12 +188,15 @@ export function ExportOverlay() {
                 role="switch"
                 aria-checked={includeAgentHistory}
                 aria-label="Include agent history"
-                onClick={() => setIncludeAgentHistory((v) => !v)}
+                aria-disabled="true"
+                disabled
+                title="Applies to generated formats (PDF, DOCX, slides, image) — not yet available"
               />
             </div>
             <p className="st-ns__note">
               Content options apply to generated formats (PDF, DOCX, slides, image) only — they do
               not change the Markdown export, which is the current plan as the server renders it.
+              The toggles are disabled because no generated format is available yet.
             </p>
             {strategy.isLoading ? (
               <div className="st-skel-stack">

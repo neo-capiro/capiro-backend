@@ -198,11 +198,20 @@ export function ContextLibraryVNext() {
   const clientName = (id: string | null) =>
     id === null ? 'Firm' : (clients.data?.find((client) => client.id === id)?.name ?? 'Client');
 
-  /* Library-wide stats describe the WHOLE library, not the current filter. */
+  /* Library-wide stats describe the WHOLE library, not the current filter.
+   * When a client is scoped and health is available, the stale-documents and
+   * missing-required metrics come from the server's ContextHealth payload
+   * (useContextHealth) rather than a client-side re-derivation. */
   const activeDocuments = (docs.data ?? []).filter((doc) => doc.state === 'active');
   const activeFacts = (facts.data ?? []).filter((fact) => fact.state === 'active');
   const staleFactCount = (facts.data ?? []).filter((fact) => fact.state === 'stale').length;
   const openConflicts = (conflicts.data ?? []).filter((conflict) => conflict.state === 'open');
+  /* Server-side health dimensions for the scoped client — these are the real
+   * backend counts, not client-derived aggregates. Used to enrich the stats
+   * band when the health endpoint is available. */
+  const healthStaleDocs = health.data?.staleDocuments;
+  const healthMissingRequired = health.data?.missingRequired.length;
+  const healthOpenConflicts = health.data?.openMaterialConflicts.length;
 
   /* Scoped fact count backing the ScopeBar pill — active facts for the
    * selected client only, never a cross-client sum. */
@@ -314,24 +323,47 @@ export function ContextLibraryVNext() {
                 failed={docs.isError}
                 value={activeDocuments.length}
                 label="Active documents"
-                detail="Across firm + clients"
+                detail={
+                  scopeClientId && healthStaleDocs !== undefined
+                    ? `${healthStaleDocs} stale (server health)`
+                    : 'Across firm + clients'
+                }
                 onClick={() => setParam('state', 'active')}
               />
               <StatCard
                 loading={statsLoading}
                 failed={facts.isError}
                 value={activeFacts.length}
+                detail={
+                  scopeClientId && healthMissingRequired !== undefined
+                    ? `${healthMissingRequired} missing required (server health)`
+                    : `${activeFacts.length} active · ${staleFactCount} stale`
+                }
                 label="Extracted facts"
-                detail={`${activeFacts.length} active · ${staleFactCount} stale`}
                 onClick={() => navigate('/strategies/context/steward')}
               />
               <StatCard
                 loading={statsLoading}
                 failed={conflicts.isError}
-                value={openConflicts.length}
+                value={
+                  scopeClientId && healthOpenConflicts !== undefined
+                    ? healthOpenConflicts
+                    : openConflicts.length
+                }
                 label="Open conflicts"
-                detail={openConflicts.length > 0 ? 'Steward decision required' : 'No steward decision required'}
-                tone={openConflicts.length > 0 ? 'error' : 'default'}
+                detail={
+                  scopeClientId && healthOpenConflicts !== undefined
+                    ? 'From server health (material only)'
+                    : openConflicts.length > 0
+                      ? 'Steward decision required'
+                      : 'No steward decision required'
+                }
+                tone={
+                  (scopeClientId ? healthOpenConflicts : openConflicts.length) > 0
+                    ? 'error'
+                    : 'default'
+                }
+                data-source={scopeClientId && health.data ? 'live' : 'derived'}
                 onClick={() => navigate('/strategies/context/steward')}
               />
             </section>
@@ -511,6 +543,7 @@ function StatCard({
   loading,
   failed,
   onClick,
+  ...rest
 }: {
   value: number;
   label: string;
@@ -519,12 +552,14 @@ function StatCard({
   loading: boolean;
   failed: boolean;
   onClick: () => void;
+  'data-source'?: string;
 }) {
   return (
     <button
       type="button"
       className={`st-ctxlib__stat${tone === 'error' ? ' is-error' : ''}`}
       onClick={onClick}
+      {...rest}
     >
       <span className="st-ctxlib__stat-top">
         {loading ? (

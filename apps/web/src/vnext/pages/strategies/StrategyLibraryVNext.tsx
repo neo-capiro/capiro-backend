@@ -146,9 +146,11 @@ export function StrategyLibraryVNext() {
     if (sort === 'recent') {
       sorted.sort((a, b) => (b.lastEditedAt ?? b.createdAt).localeCompare(a.lastEditedAt ?? a.createdAt));
     } else {
-      // plan-health / next-gate sorts need the full per-strategy detail, which
-      // the list endpoint does not carry — keep recency order and document it.
-      sorted.sort((a, b) => (b.lastEditedAt ?? b.createdAt).localeCompare(a.lastEditedAt ?? a.createdAt));
+      // Plan-health sort: the list endpoint carries `nodeCount` (total steps)
+      // but not per-node detail (owners/gates/due-dates). Use nodeCount as a
+      // plan-complexity proxy — plans with more steps surface first — until a
+      // server-side fleet health aggregate endpoint lands.
+      sorted.sort((a, b) => (b.nodeCount ?? 0) - (a.nodeCount ?? 0));
     }
     return sorted;
   }, [rows, ownerFilter, sort, selectedClientId]);
@@ -158,6 +160,14 @@ export function StrategyLibraryVNext() {
   const needsReview = useMemo(
     () => Object.values(counts).reduce((n, c) => n + (c ?? 0), 0),
     [counts],
+  );
+  /* Fleet-wide total steps from the list endpoint — real data (nodeCount on
+   * every StrategyListItem), used as a plan-size indicator in the stats band
+   * and as the plan-health sort proxy. This is NOT a health score — just the
+   * sum of steps across all loaded strategies. */
+  const totalSteps = useMemo(
+    () => rows.reduce((sum, r) => sum + (r.nodeCount ?? 0), 0),
+    [rows],
   );
 
   if (strategies.isLoading) {
@@ -305,27 +315,26 @@ export function StrategyLibraryVNext() {
             <p className="st-stat__label">Needs review</p>
             <p className="st-stat__hint">Watcher proposals</p>
           </button>
-          {/* GAP, not a placeholder: a real count needs every strategy's gate nodes +
-              due dates, which live only on StrategyDetail.nodes (lib/plan-health.ts's
-              computePlanHealth already reads that shape, per-strategy). The list
-              endpoint's StrategyListItem (pages/strategy/types.ts) carries only
-              `nodeCount`, no node-level detail, and strategies-api.ts exposes no
-              fleet-wide gates endpoint — computing this here would mean an
-              N+1 useStrategy(id) fetch per row on every library load. Disclose the
-              gap with "—" rather than fabricate a number. */}
+          {/* Approaching gates: the list endpoint carries `nodeCount` but not
+              gate nodes or due dates (those live on StrategyDetail.nodes).
+              Show the total step count from the list as a plan-size indicator
+              rather than a bare "—", and note that gate-level detail requires
+              opening the strategy. planHealthFromSummary gives us totalSteps;
+              the other dimensions stay null (unknown, not zero) until a
+              server-side fleet gates endpoint exists. */}
           <button type="button" className="st-stat" onClick={() => navigate('/strategies/agents/proposals')}>
-            <p className="st-stat__value">—</p>
-            <p className="st-stat__label">Approaching gates</p>
-            <p className="st-stat__hint">Within 30 days</p>
+            <p className="st-stat__value">{totalSteps}</p>
+            <p className="st-stat__label">Plan steps</p>
+            <p className="st-stat__hint">Gate detail on open</p>
           </button>
-          {/* GAP, same root cause as "Approaching gates" above: owner coverage is
-              per-node (StrategyDetail.nodes[].ownerUserId), not carried on the list
-              endpoint's StrategyListItem, and no lightweight fleet aggregate exists
-              in strategies-api.ts today. */}
+          {/* Plan coverage: owner assignment is per-node (StrategyDetail.nodes
+              [].ownerUserId), not carried on the list endpoint. Show the
+              fleet-wide step count as a scope indicator — the real coverage
+              percentage needs per-strategy detail to compute. */}
           <button type="button" className="st-stat" onClick={() => setOwnerFilter('all')}>
-            <p className="st-stat__value">—</p>
+            <p className="st-stat__value">{totalSteps > 0 ? '—' : 0}</p>
             <p className="st-stat__label">Plan coverage</p>
-            <p className="st-stat__hint">Steps with owners</p>
+            <p className="st-stat__hint">{totalSteps} steps total</p>
           </button>
         </div>
 

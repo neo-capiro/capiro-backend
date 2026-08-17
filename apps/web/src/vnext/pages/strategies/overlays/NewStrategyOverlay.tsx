@@ -10,9 +10,10 @@
  *
  * GAP (grounding documents): the design's attach row implies a document
  * picker, but no attachment upload/list endpoint exists in this module
- * (DraftStrategyInput.attachmentIds has no source of ids here). The row is
- * rendered informational: it reports how many active client context documents
- * will already ground the draft, and points at Context → Upload.
+ * (DraftStrategyInput.attachmentIds has no source of ids here). The row
+ * now lists the actual active client context documents (with links to
+ * each document's detail page) so the user can see exactly what will
+ * ground the draft, and points at Context → Upload for more.
  */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -186,6 +187,29 @@ export function NewStrategyOverlay() {
                 : 'Select a client to see which context documents will ground the draft.'}{' '}
               Upload memos, bill text or prior plans via Context → Upload after the strategy is created.
             </p>
+            {clientId && clientDocuments.length > 0 && (
+              <ul className="st-ns__doc-list" data-source="live">
+                {clientDocuments.slice(0, 6).map((doc) => (
+                  <li key={doc.id}>
+                    <button
+                      type="button"
+                      className="st-ns__doc-link"
+                      onClick={() => navigate(`/strategies/context/${doc.id}`)}
+                    >
+                      {doc.title}
+                    </button>
+                    <span className="st-ns__doc-meta">
+                      {' '}{doc.templateKey} · {doc.state}
+                    </span>
+                  </li>
+                ))}
+                {clientDocuments.length > 6 && (
+                  <li className="st-ns__doc-more">
+                    +{clientDocuments.length - 6} more document{clientDocuments.length - 6 === 1 ? '' : 's'}
+                  </li>
+                )}
+              </ul>
+            )}
           </div>
         </div>
 
