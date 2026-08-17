@@ -14,6 +14,7 @@ import {
   consumeOutreachV3PreviewActivation,
   readOutreachV3PreviewMode,
 } from './outreach-v3-preview.js';
+import { activateEngagementPreview, clearEngagementPreview } from '../../../../lib/engagement-api-preview.js';
 
 export interface OutreachWizardRouterProps {
   clients: Client[];
@@ -44,6 +45,15 @@ export function OutreachWizardRouter(props: OutreachWizardRouterProps) {
     const result = consumeOutreachV3PreviewActivation(location.search);
     setPreviewMode(result.mode);
     if (result.changed) setForceClassic(result.mode === 'off');
+
+    // Couple: activating outreach-v3-preview also activates engagement-api-preview,
+    // so V3 outreach requests route through the dark engagement-api. Deactivating
+    // also clears it. On vNext both are auto-on — this only affects canonical.
+    if (result.changed) {
+      if (result.mode === 'v3') activateEngagementPreview();
+      else if (result.mode === 'off') clearEngagementPreview();
+    }
+
     if (!result.changed) return;
     navigate(
       {

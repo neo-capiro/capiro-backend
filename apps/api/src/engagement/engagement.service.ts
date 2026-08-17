@@ -6462,6 +6462,20 @@ export class EngagementService {
   }
 
   async generateMeetingPrep(ctx: TenantContext, meetingId: string, additionalContext?: string) {
+    // Mark any existing preps for this meeting as stale before generating a new one.
+    // This ensures preps generated with outdated timezone formatting or before
+    // context changes are visually flagged in the UI as needing review.
+    await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.meetingPrep.updateMany({
+        where: {
+          meetingId,
+          tenantId: ctx.tenantId,
+          status: { in: ['generated', 'edited'] },
+        },
+        data: { status: 'stale' },
+      }),
+    );
+
     const context = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const meeting = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
@@ -6621,6 +6635,10 @@ export class EngagementService {
             congressionalDirectoryContactIds: directoryProfiles.map(
               (profile) => profile.directoryContactId,
             ),
+            // Capture the timezone used for prep logistics so the UI and
+            // downstream consumers can detect preps generated with the bare-UTC
+            // fallback and offer to regenerate with the correct zone.
+            timeZone: (context.meeting as Record<string, unknown>).timeZone ?? null,
           },
         },
       }),

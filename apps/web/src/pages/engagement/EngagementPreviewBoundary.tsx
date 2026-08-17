@@ -5,6 +5,7 @@ import {
   consumePreviewActivation,
   readEngagementPreviewMode,
 } from '../../lib/engagement-api-preview.js';
+import { activateOutreachV3Preview, clearOutreachV3Preview } from './outreach/v3/outreach-v3-preview.js';
 import { clearEngagementPreviewQueries } from '../../lib/engagement-preview-cache.js';
 import { EngagementApiPreviewIndicator } from './EngagementApiPreviewIndicator.js';
 
@@ -34,6 +35,13 @@ export function EngagementPreviewBoundary() {
     const before = readEngagementPreviewMode();
     const result = consumePreviewActivation(search);
     if (!result.changed) return;
+
+    // Couple the two preview switches: activating engagement-api-preview also
+    // activates outreach-v3-preview, and deactivating also clears it. This
+    // ensures users on the canonical app get V3 outreach when they opt into
+    // the preview, without needing to manually activate two separate URL params.
+    if (result.mode === 'v3') activateOutreachV3Preview();
+    else if (result.mode === 'off') clearOutreachV3Preview();
 
     const finish = () =>
       navigate(

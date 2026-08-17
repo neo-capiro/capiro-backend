@@ -11,6 +11,7 @@ import {
   MailOutlined,
   PlusOutlined,
   RobotOutlined,
+  SyncOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import { Library } from 'lucide-react';
@@ -37,6 +38,7 @@ import { useClientFilter } from '../../state/client-filter.js';
 import type { Client } from '../clients/clientTypes.js';
 import { meetingsListKey } from './meetings/meetings-api.js';
 import { MeetingsV2 } from './meetings/MeetingsV2.js';
+import { OverviewTab } from './OverviewTab.js';
 import type { DetailTab, MeetingViewMode } from './meetings/meetings-types.js';
 import { OutreachView } from './OutreachView.js';
 import {
@@ -52,6 +54,18 @@ interface EngagementCapabilities {
   ai: { activeProvider: 'openai' | 'anthropic' | null };
   notes: { encryptedNotesConfigured: boolean };
   attachments: { s3Configured: boolean; maxBytes: number };
+  runtime?: {
+    serviceName: string;
+    processMode: string;
+    backgroundOwner: string;
+    externalActions: string;
+    callbacksEnabled: boolean;
+    recallWebhookEnabled: boolean;
+    externalActionsEnabled: boolean;
+    backgroundWorkersEnabled: boolean;
+    outreachV3FullGenerationEnabled: boolean;
+    outreachV3SendIntentEnabled: boolean;
+  };
 }
 
 interface MeetingAttendee {
@@ -440,13 +454,12 @@ export function EngagementPage() {
     const segments = location.pathname.split('/').filter(Boolean);
     const rawSection = segments[0] === 'engagement' ? (segments[1] ?? 'meetings') : null;
     const isMeetingLibraryRoute = rawSection === 'meeting-library';
-    // Overview is hidden for now — redirect any /engagement/overview (old default
-    // or existing bookmarks) to Meetings. Meeting Library is a first-class
+    // Overview is a first-class tab. Meeting Library is a first-class
     // route, but it still belongs to the shared Meetings tab.
-    const section = rawSection === 'overview' || isMeetingLibraryRoute ? 'meetings' : rawSection;
+    const section = isMeetingLibraryRoute ? 'meetings' : rawSection;
     const nextTab =
-      section && ['meetings', 'outreach', 'reports'].includes(section)
-        ? (section as 'meetings' | 'outreach' | 'reports')
+      section && ['overview', 'meetings', 'outreach', 'reports'].includes(section)
+        ? (section as 'overview' | 'meetings' | 'outreach' | 'reports')
         : null;
     const nextMeetingId =
       nextTab === 'meetings' && !isMeetingLibraryRoute && segments[2]
@@ -531,10 +544,12 @@ export function EngagementPage() {
     }
 
     const nextParams = new URLSearchParams();
-    // Overview hidden — Meetings is the default landing tab.
+    // Overview is a first-class tab. Meetings is the default landing tab.
     let nextPath = '/engagement/meetings';
 
-    if (activeEngagementTab === 'meetings') {
+    if (activeEngagementTab === 'overview') {
+      nextPath = '/engagement/overview';
+    } else if (activeEngagementTab === 'meetings') {
       if (meetingsV2Enabled && meetingsLibraryOpen) {
         nextPath = '/engagement/meeting-library';
       } else {
@@ -623,6 +638,38 @@ export function EngagementPage() {
     queryKey: ['engagement-capabilities'],
     queryFn: async () =>
       (await api.get<EngagementCapabilities>('/api/engagement/capabilities')).data,
+  });
+
+  // Integrations query — used to populate the "Sync now" button on the Meetings tab.
+  // The button triggers a manual calendar+mail sync for each connected integration.
+  const integrations = useQuery<
+    Array<{ id: string; provider: string; status: string; accountEmail?: string | null }>
+  >({
+    queryKey: ['engagement-integrations'],
+    queryFn: async () =>
+      (await api.get('/api/engagement/integrations')).data,
+    staleTime: 60_000,
+  });
+  const connectedIntegrations = useMemo(
+    () => (integrations.data ?? []).filter((i) => i.status === 'connected'),
+    [integrations.data],
+  );
+
+  const syncIntegration = useMutation({
+    mutationFn: async (integration: { id: string; provider: string }) => {
+      const basePath =
+        integration.provider === 'microsoft_365'
+          ? '/api/engagement/integrations/microsoft'
+          : '/api/engagement/integrations/google';
+      await api.post(`${basePath}/${integration.id}/sync`);
+    },
+    onSuccess: () => {
+      message.success('Calendar sync started — new meetings will appear shortly');
+      void qc.invalidateQueries({ queryKey: ['engagement-meetings'] });
+    },
+    onError: () => {
+      message.error('Sync failed — check your connection in Settings → Integrations');
+    },
   });
 
   const meetings = useQuery<Meeting[]>({
@@ -1249,6 +1296,19 @@ export function EngagementPage() {
                       <Library size={15} />
                       Meeting Library
                     </button>
+                    {connectedIntegrations.length > 0 && (
+                      <Button
+                        icon={<SyncOutlined spin={syncIntegration.isPending} />}
+                        loading={syncIntegration.isPending}
+                        onClick={() =>
+                          connectedIntegrations.forEach((i) =>
+                            syncIntegration.mutate({ id: i.id, provider: i.provider }),
+                          )
+                        }
+                      >
+                        Sync now
+                      </Button>
+                    )}
                   </Space>
                 ) : (
                   <Space size={10} wrap className="engagement-tab-actions">
@@ -1259,15 +1319,40 @@ export function EngagementPage() {
                     >
                       Meeting
                     </Button>
+                    {connectedIntegrations.length > 0 && (
+                      <Button
+                        icon={<SyncOutlined spin={syncIntegration.isPending} />}
+                        loading={syncIntegration.isPending}
+                        onClick={() =>
+                          connectedIntegrations.forEach((i) =>
+                            syncIntegration.mutate({ id: i.id, provider: i.provider }),
+                          )
+                        }
+                      >
+                        Sync now
+                      </Button>
+                    )}
                   </Space>
                 ),
               }
             : undefined
         }
-        // Overview tab is hidden for now — only Meetings, Outreach, and Reports
-        // are shown. To restore it, re-add the { key: 'overview', … } entry here
-        // (and the OverviewTab import); the tab implementation is left intact.
+        // Overview tab — landing/orientation surface with navigation to other tabs.
         items={[
+          {
+            key: 'overview',
+            label: 'Overview',
+            children: (
+              <OverviewTab
+                onNavigate={(tab) => handleTabChange(tab)}
+                stats={{
+                  meetingsThisWeek: meetings.data?.length ?? 0,
+                  debriefsPending: 0,
+                  draftsOpen: 0,
+                }}
+              />
+            ),
+          },
           {
             key: 'meetings',
             label: 'Meetings',

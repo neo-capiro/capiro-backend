@@ -12,6 +12,8 @@ vi.mock('../../../../env.js', () => ({
 
 vi.mock('../../../../lib/engagement-api-preview.js', () => ({
   isEngagementPreviewActive: () => preview.engagement,
+  activateEngagementPreview: () => { preview.engagement = true; },
+  clearEngagementPreview: () => { preview.engagement = false; },
 }));
 
 vi.mock('../v2/NewOutreachWizard.js', () => ({
@@ -75,9 +77,12 @@ describe('OutreachWizardRouter', () => {
     expect(await screen.findByText('Classic Outreach test surface')).toBeInTheDocument();
   });
 
-  it('fails closed when only the V3 UI preview is requested', async () => {
+  it('couples V3 UI preview with engagement-api preview, rendering V3 when either is activated', async () => {
+    // With the coupling fix, activating outreach-v3-preview also activates
+    // engagement-api-preview, so V3 renders even when the user only sets
+    // one of the two switches.
     renderRouter('/engagement?outreach-v3-preview=v3');
-    expect(await screen.findByText('Classic Outreach test surface')).toBeInTheDocument();
+    expect(await screen.findByText('Outreach V3 test surface')).toBeInTheDocument();
   });
 
   it('renders V3 only when both preview modes are active on the canonical app', async () => {
