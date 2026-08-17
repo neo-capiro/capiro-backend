@@ -821,42 +821,26 @@
   flex: 1;
   min-width: 12px;
 }
-/* Filter/Sort — real native <select>s dressed as `.uui-button` (icon +
-   select filling the button box), not decorative labels: the canonical
-   ReportsView already makes these functional (client-side status filter +
-   multi-key sort — EngagementPage.tsx's own ReportsView), so there's real
-   behavior to wire, same as Library's dropdown-button phase. Each option's
-   own label already carries the "Filter: " / "Sort: " prefix, so the
-   closed-state text is always correct with no separate display label. */
-.capiro-vnext-root .uui-report-select {
-  position: relative;
-  gap: 8px;
-}
-.capiro-vnext-root .uui-report-select select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  padding: 0 14px;
-  padding-left: 34px;
-  border: 0;
-  appearance: none;
-  background: transparent;
-  color: #344054;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-report-select svg {
-  position: relative;
-  z-index: 0;
-  pointer-events: none;
-}
+/* Filter/Sort corrected (2026-08-16 follow-up): the first committed pass
+   used real native <select>s dressed as `.uui-button` — functional, but the
+   phase brief is explicit that these two controls must be "real dropdown-
+   button-with-menu controls (not native <select>)," matching the same
+   `.uui-library-dropdown` pattern Library's own three filter buttons already
+   established (see VNextMeetingLibrary.tsx's `LibraryDropdown`) — a real
+   button trigger + an absolute-positioned floating menu, not a browser-native
+   control. Reusing `.uui-library-dropdown` / `__trigger` / `__menu` directly
+   (declared once, in the Library section above) rather than re-declaring an
+   equivalent Reports-specific class family — this file's own prior comment
+   on `.uui-library-dropdown__menu` already anticipated exactly this reuse
+   ("Same elevated-menu visual language as the Reports status menu"). The
+   now-unused native-<select>-dressed-as-button rules this replaced are
+   removed rather than left as dead CSS, matching the Meetings phase's own
+   "verified zero consumers, then deleted" precedent. */
 .capiro-vnext-root .uui-report-card {
   overflow: visible;
   border-radius: 12px;
   background: var(--eng-surface);
-  box-shadow: 0 0 0 1px var(--eng-border);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
   margin-top: 16px;
 }
 .capiro-vnext-root .uui-report-scroll {
@@ -943,8 +927,7 @@
   filter: brightness(0.97);
 }
 .capiro-vnext-root .uui-report-status-trigger i,
-.capiro-vnext-root .uui-report-status-menu button i,
-.capiro-vnext-root .uui-report-legend i {
+.capiro-vnext-root .uui-report-status-menu button i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -956,8 +939,7 @@
   color: var(--eng-accent);
 }
 .capiro-vnext-root .uui-report-status-trigger[data-state='complete'] i,
-.capiro-vnext-root .uui-report-status-menu button[data-state='complete'] i,
-.capiro-vnext-root .uui-report-legend i.complete {
+.capiro-vnext-root .uui-report-status-menu button[data-state='complete'] i {
   background: var(--eng-accent);
 }
 .capiro-vnext-root .uui-report-status-trigger[data-state='in_progress'] {
@@ -965,7 +947,23 @@
   color: var(--eng-warning);
 }
 .capiro-vnext-root .uui-report-status-trigger[data-state='in_progress'] i,
-.capiro-vnext-root .uui-report-status-menu button[data-state='in_progress'] i,
+.capiro-vnext-root .uui-report-status-menu button[data-state='in_progress'] i {
+  background: var(--eng-warning-dot);
+}
+/* Legend dots are their OWN 8px size (the mockup's literal legend markup:
+   `width:8px;height:8px`), distinct from the 6px dot inside the pill/menu —
+   splitting this out of the combined selector above rather than shrinking
+   the legend to match, since 8px is what the source actually specifies. */
+.capiro-vnext-root .uui-report-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--eng-ink-4);
+  flex-shrink: 0;
+}
+.capiro-vnext-root .uui-report-legend i.complete {
+  background: var(--eng-accent);
+}
 .capiro-vnext-root .uui-report-legend i.in-progress {
   background: var(--eng-warning-dot);
 }
@@ -995,7 +993,7 @@
   background: var(--eng-surface);
   box-shadow:
     0 12px 16px -4px rgba(16, 24, 40, 0.1),
-    0 0 0 1px var(--eng-border);
+    0 0 0 1px var(--eng-tone-gray-ring);
 }
 .capiro-vnext-root .uui-report-status-menu button {
   display: flex;
@@ -2737,8 +2735,11 @@
     flex: 1;
   }
   .capiro-vnext-root .uui-report-toolbar-row > .uui-button,
-  .capiro-vnext-root .uui-report-toolbar-row > .uui-report-select {
+  .capiro-vnext-root .uui-report-toolbar-row > .uui-library-dropdown {
     flex: 1 1 150px;
+  }
+  .capiro-vnext-root .uui-report-toolbar-row .uui-library-dropdown__trigger {
+    width: 100%;
   }
   .capiro-vnext-root .uui-report-legend p {
     flex-basis: 100%;

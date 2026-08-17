@@ -228,10 +228,15 @@ describe('VNextReportsTracker', () => {
     await screen.findByText('Rep. Jane Smith (D-CA-12)');
     expect(screen.getByText('Sen. Mark Reyes (R-TX)')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Filter by status'), { target: { value: 'not_started' } });
+    // A real dropdown-button + menu, not a native <select> (per the phase
+    // brief) — open the trigger, then click the option.
+    fireEvent.click(screen.getByLabelText('Filter by status'));
+    fireEvent.click(screen.getByText('Filter: Not started'));
 
     expect(screen.queryByText('Rep. Jane Smith (D-CA-12)')).not.toBeInTheDocument();
     expect(screen.getByText('Sen. Mark Reyes (R-TX)')).toBeInTheDocument();
+    // The trigger itself now reflects the selected filter, not the default.
+    expect(screen.getByLabelText('Filter by status')).toHaveTextContent('Filter: Not started');
   });
 
   test('sort control reorders rows by the chosen key', async () => {
@@ -242,10 +247,20 @@ describe('VNextReportsTracker', () => {
     const { container } = renderTracker();
     await screen.findByText('Rep. Jane Smith (D-CA-12)');
 
-    fireEvent.change(screen.getByLabelText('Sort'), { target: { value: 'meetings-desc' } });
+    fireEvent.click(screen.getByLabelText('Sort'));
+    fireEvent.click(screen.getByText('Sort: Meetings held'));
 
     const memberCells = container.querySelectorAll('.uui-report-table__row > :first-child');
     expect(memberCells[0]!.textContent).toBe('Sen. Mark Reyes (R-TX)');
+  });
+
+  test('Filter and Sort are real dropdown-button-with-menu controls, not native selects', async () => {
+    mockGetFor([makeRow()]);
+    const { container } = renderTracker();
+    await screen.findByText('Rep. Jane Smith (D-CA-12)');
+    expect(container.querySelector('.uui-report-toolbar-row select')).toBeNull();
+    expect(screen.getByLabelText('Filter by status').tagName).toBe('BUTTON');
+    expect(screen.getByLabelText('Sort').tagName).toBe('BUTTON');
   });
 
   test('period control persists to the URL, matching the canonical contract', async () => {
@@ -333,6 +348,50 @@ describe('VNextReportsTracker', () => {
 
     expect(clickSpy).toHaveBeenCalled();
     expect(await screen.findByText(/CSV export queued · current cycle · 1 office/)).toBeInTheDocument();
+    clickSpy.mockRestore();
+  });
+
+  test('Export CSV produces the correct escaped CSV content for a fixture', async () => {
+    mockGetFor([
+      makeRow({
+        memberPrincipal: 'Rep. Ana Lopez (D-WA-07)',
+        clientName: 'Overland, "Prime" AI', // comma + embedded quotes
+        committee: 'HAC-D',
+        pendingActions: 3,
+      }),
+    ]);
+    renderTracker();
+    await screen.findByText('Rep. Ana Lopez (D-WA-07)');
+
+    const blobs: Blob[] = [];
+    const createUrl = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockImplementation((blob: Blob | MediaSource) => {
+        blobs.push(blob as Blob);
+        return 'blob:csv';
+      });
+    const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    fireEvent.click(screen.getByRole('button', { name: /export csv/i }));
+
+    const text = await blobs[0]!.text();
+    const [header, ...rows] = text.split('\n');
+    // Canonical's own longer column labels (EngagementPage.tsx's
+    // exportEngagementReportCsv), NOT the shorter on-screen table headers —
+    // the CSV is a stable export contract, independent of the visual reskin.
+    expect(header).toBe(
+      'Member / Principal,Client,Committee,Staffer,Building,Lead,Meetings Held,Prep Done,Outreach Sent,Submission Filed,Pending Actions',
+    );
+    expect(rows[0]).toContain('Rep. Ana Lopez (D-WA-07)');
+    // A field holding a comma and quotes is quoted and its quotes doubled, or
+    // the row silently gains columns / breaks in a spreadsheet.
+    expect(rows[0]).toContain('"Overland, ""Prime"" AI"');
+    expect(rows[0]).toContain('Complete'); // prepStatus label, not the raw enum value
+    expect(rows[0]).toMatch(/,3$/); // pendingActions is the last column
+
+    createUrl.mockRestore();
+    revokeUrl.mockRestore();
     clickSpy.mockRestore();
   });
 

@@ -19,7 +19,19 @@ describe('Engagement UI closeout contract', () => {
 
     const router = source('src/vnext/app/VNextRouter.tsx');
     expect(router).not.toContain('VNextMeetingsWorkspace');
+    // Reports phase (2026-08-16): VNextReportsTracker now ships for real —
+    // wired deliberately into VNextEngagementRoutes.tsx (below), never into
+    // VNextRouter.tsx directly, same architectural boundary every other
+    // per-destination vNext component (VNextMeetingsWorkspace,
+    // VNextMeetingLibrary, VNextOutreachWorkspace) already respects. This
+    // assertion originally existed to catch an *accidental* premature/
+    // bypassing wire-up before Reports had a real component; now that the
+    // wire-up is real and deliberate, it continues to guard the same
+    // boundary (VNextRouter.tsx only ever knows about VNextEngagementRoutes
+    // as a whole) rather than blocking the shipped feature.
     expect(router).not.toContain('VNextReportsTracker');
+    const engagementRoutes = source('src/vnext/pages/engagement/VNextEngagementRoutes.tsx');
+    expect(engagementRoutes).toContain('VNextReportsTracker');
   });
 
   it('ships the complete production window inventory through one dialog shell', () => {

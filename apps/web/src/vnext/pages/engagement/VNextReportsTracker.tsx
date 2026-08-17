@@ -27,14 +27,17 @@
  * for the canonical ReportsView's own single "Manual override" tag) — a
  * pure addition, nothing removed or renamed.
  *
- * Filter/Sort: real native `<select>`s dressed as `.uui-button` (see
- * engagement.css's `.uui-report-select` — each option's own label already
- * carries the "Filter: "/"Sort: " prefix, so the closed-state text is always
- * correct with no separate display label), wired to the exact same
- * client-side filter/sort logic the canonical ReportsView already runs
- * (EngagementPage.tsx) — real behavior, not the mockup's own decorative,
- * handler-less buttons (same "make it real since real data already backs
- * it" call the Library phase made for ITS three dropdown filters).
+ * Filter/Sort: real dropdown-button-with-menu controls (`ReportsDropdown`,
+ * below — NOT a native `<select>`, matching the phase brief's explicit
+ * requirement), reusing the same `.uui-library-dropdown` class family
+ * VNextMeetingLibrary.tsx's own `LibraryDropdown` already established for
+ * this pattern. Each option's own label already carries the "Filter: "/
+ * "Sort: " prefix, so the closed-state text is always correct with no
+ * separate display label. Wired to the exact same client-side filter/sort
+ * logic the canonical ReportsView already runs (EngagementPage.tsx) — real
+ * behavior, not the mockup's own decorative, handler-less buttons (same
+ * "make it real since real data already backs it" call the Library phase
+ * made for ITS three dropdown filters).
  *
  * URL contract: only `period` is URL-owned, matching the canonical
  * ReportsView exactly (EngagementPage.tsx's own URL-sync effect never
@@ -47,10 +50,10 @@
  * needs no separate endpoint — `report.rows[].meetings` already arrives
  * embedded per row from the real API.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Filter, ChevronsUpDown, Plus } from 'lucide-react';
+import { ChevronDown, ChevronsUpDown, Download, Filter, Plus } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { useClientOptions } from '../../../pages/engagement/meetings/meetings-api.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
@@ -136,9 +139,14 @@ function csvEscape(value: string | number | null | undefined): string {
 }
 
 /** Real client-side export matching the visible (filtered + sorted) table —
- *  same column set the canonical ReportsView's own CSV export uses
- *  (EngagementPage.tsx's exportEngagementReportCsv), reimplemented locally
- *  rather than importing from that non-exporting, non-vNext file. */
+ *  same column set AND same column labels the canonical ReportsView's own
+ *  CSV export uses (EngagementPage.tsx's exportEngagementReportCsv),
+ *  reimplemented locally rather than importing from that non-exporting,
+ *  non-vNext file. Deliberately NOT the shorter mockup table-header labels
+ *  ("Prep"/"Outreach"/"Submission") the on-screen `<thead>` above uses: the
+ *  CSV is a stable data-export contract a downstream spreadsheet may already
+ *  depend on, independent of the visual reskin, so it keeps canonical's own
+ *  "Prep Done"/"Outreach Sent"/"Submission Filed" wording verbatim. */
 function downloadReportCsv(rows: ReportRow[], period: ReportPeriod) {
   const header = [
     'Member / Principal',
@@ -148,9 +156,9 @@ function downloadReportCsv(rows: ReportRow[], period: ReportPeriod) {
     'Building',
     'Lead',
     'Meetings Held',
-    'Prep',
-    'Outreach',
-    'Submission',
+    'Prep Done',
+    'Outreach Sent',
+    'Submission Filed',
     'Pending Actions',
   ];
   const lines = rows.map((row) =>
@@ -219,7 +227,7 @@ function StatusCell({
       >
         <i />
         {STATUS_LABEL[status]}
-        <ChevronsUpDown size={12} />
+        <ChevronDown size={12} />
       </button>
       {overridden && <span className="uui-report-override-marker" aria-label="Manually overridden" />}
       {open && (
@@ -240,6 +248,106 @@ function StatusCell({
         </span>
       )}
     </span>
+  );
+}
+
+const FILTER_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
+  { value: 'all', label: 'Filter: All statuses' },
+  { value: 'complete', label: 'Filter: Complete' },
+  { value: 'in_progress', label: 'Filter: In progress' },
+  { value: 'not_started', label: 'Filter: Not started' },
+];
+
+const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
+  { value: 'member-asc', label: 'Sort: Member A–Z' },
+  { value: 'member-desc', label: 'Sort: Member Z–A' },
+  { value: 'meetings-desc', label: 'Sort: Meetings held' },
+  { value: 'outreach-desc', label: 'Sort: Outreach sent' },
+  { value: 'pending-desc', label: 'Sort: Pending actions' },
+];
+
+/**
+ * A real dropdown-button + floating menu — explicitly NOT a native `<select>`
+ * per the phase brief ("real dropdown-button-with-menu controls (not native
+ * <select>)"). Reuses the exact `.uui-library-dropdown` class family
+ * VNextMeetingLibrary.tsx's own `LibraryDropdown` already established for
+ * this identical pattern (trigger button + absolute-positioned menu,
+ * outside-click/Escape to close) rather than declaring a parallel Reports-
+ * specific one. Simpler than `LibraryDropdown` in one respect: every option
+ * here (including "All statuses") already carries its own full "Filter: "/
+ * "Sort: " prefix — matching the canonical ReportsView's own AntD `Select`
+ * options exactly — so the trigger always just shows the CURRENTLY selected
+ * option's label, with no separate default-vs-selected label to track (every
+ * one of these five sort keys, and all four status filters, is a real,
+ * always-fully-labeled selection — unlike Library's filters, none of these
+ * has a bare "no value chosen yet" state to special-case).
+ */
+function ReportsDropdown<T extends string>({
+  ariaLabel,
+  icon,
+  options,
+  value,
+  onSelect,
+}: {
+  ariaLabel: string;
+  icon: ReactNode;
+  options: Array<{ value: T; label: string }>;
+  value: T;
+  onSelect: (value: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(event: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? ariaLabel;
+
+  return (
+    <div className="uui-library-dropdown" ref={rootRef}>
+      <button
+        type="button"
+        className="uui-library-dropdown__trigger"
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        {icon}
+        <span>{selectedLabel}</span>
+        <ChevronDown size={16} />
+      </button>
+      {open && (
+        <div className="uui-library-dropdown__menu">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              data-selected={option.value === value || undefined}
+              onClick={() => {
+                onSelect(option.value);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -439,29 +547,20 @@ export function VNextReportsTracker({ clientId }: { clientId?: string | null }) 
           <Plus size={16} />
           Add target office
         </button>
-        <div className="uui-button uui-report-select">
-          <Filter size={16} />
-          <select
-            aria-label="Filter by status"
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-          >
-            <option value="all">Filter: All statuses</option>
-            <option value="complete">Filter: Complete</option>
-            <option value="in_progress">Filter: In progress</option>
-            <option value="not_started">Filter: Not started</option>
-          </select>
-        </div>
-        <div className="uui-button uui-report-select">
-          <ChevronsUpDown size={16} />
-          <select aria-label="Sort" value={sort} onChange={(event) => setSort(event.target.value as SortKey)}>
-            <option value="member-asc">Sort: Member A–Z</option>
-            <option value="member-desc">Sort: Member Z–A</option>
-            <option value="meetings-desc">Sort: Meetings held</option>
-            <option value="outreach-desc">Sort: Outreach sent</option>
-            <option value="pending-desc">Sort: Pending actions</option>
-          </select>
-        </div>
+        <ReportsDropdown<StatusFilter>
+          ariaLabel="Filter by status"
+          icon={<Filter size={16} />}
+          options={FILTER_OPTIONS}
+          value={statusFilter}
+          onSelect={setStatusFilter}
+        />
+        <ReportsDropdown<SortKey>
+          ariaLabel="Sort"
+          icon={<ChevronsUpDown size={16} />}
+          options={SORT_OPTIONS}
+          value={sort}
+          onSelect={setSort}
+        />
         <button
           type="button"
           className="uui-button"
