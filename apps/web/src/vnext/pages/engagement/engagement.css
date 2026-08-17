@@ -748,78 +748,120 @@
   text-wrap: pretty;
 }
 
-/* Reports */
-.capiro-vnext-root .uui-report-toolbar {
+/* Reports (design README §10 / `Capiro Engagement - Untitled UI.dc.html`'s
+   `isReports` block / screenshots/07-reports-tracker.png — verified rule by
+   rule against that source, same treatment the Library phase gave its own
+   scaffold. The ORIGINAL ported CSS below had drifted in several real ways:
+   a segmented pill-group period control where the mockup uses individually-
+   ringed buttons with NO shared pill background; a plain white "selected"
+   period state instead of the dark metal gradient (§1.3: the gradient is
+   also this screen's selection state); a 9px/17px header and pill font where
+   the spec calls for 11px/15px; and an amber override-marker dot where the
+   spec is explicit: "a 7px #101828 dot" (near-black, not a status color —
+   see README §10.2). Fixed below; VNextReportsTracker.tsx is this CSS's
+   first real consumer. */
+.capiro-vnext-root .uui-reports-heading {
+  margin: 10px 0 0;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .uui-reports-subline {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--eng-ink-2);
+}
+.capiro-vnext-root .uui-reports-tracker-heading {
+  margin: 22px 0 0;
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .uui-report-toolbar-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--eng-border);
-}
-.capiro-vnext-root .uui-report-toolbar > div:first-child {
-  margin-right: auto;
-}
-.capiro-vnext-root .uui-report-toolbar h3 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 600;
-}
-.capiro-vnext-root .uui-report-toolbar p {
-  margin: 3px 0 0;
-  color: var(--eng-ink-3);
-  font-size: 12px;
+  gap: 10px;
+  margin-top: 14px;
 }
 .capiro-vnext-root .uui-report-periods {
-  display: inline-flex;
-  padding: 3px;
-  border-radius: 9px;
-  background: var(--eng-muted);
-}
-.capiro-vnext-root .uui-report-periods button {
-  height: 32px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--eng-ink-2);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-report-periods button[data-active] {
-  background: var(--eng-surface);
-  color: var(--eng-ink);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
-}
-.capiro-vnext-root .uui-report-actions {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
-.capiro-vnext-root .uui-select-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 9px;
-  color: var(--eng-ink-3);
-}
-.capiro-vnext-root .uui-select-control select {
+.capiro-vnext-root .uui-report-periods button {
+  height: 38px;
+  padding: 0 16px;
   border: 0;
-  outline: 0;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
+  color: #344054;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-report-periods button:hover:not([data-active]) {
+  background: var(--eng-bg);
+}
+/* Selected period uses the shell's dark-metal gradient token — same pattern
+   vmtg-view-toggle (meetings-vnext.css) already established for this same
+   "gradient is a selection state" rule; not a new gradient literal here. */
+.capiro-vnext-root .uui-report-periods button[data-active] {
+  background: var(--uui-btn-metal-face, linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%));
+  box-shadow: var(--uui-btn-metal-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px rgba(16, 24, 40, 0.12));
+  color: #fff;
+}
+.capiro-vnext-root .uui-report-toolbar-spacer {
+  flex: 1;
+  min-width: 12px;
+}
+/* Filter/Sort — real native <select>s dressed as `.uui-button` (icon +
+   select filling the button box), not decorative labels: the canonical
+   ReportsView already makes these functional (client-side status filter +
+   multi-key sort — EngagementPage.tsx's own ReportsView), so there's real
+   behavior to wire, same as Library's dropdown-button phase. Each option's
+   own label already carries the "Filter: " / "Sort: " prefix, so the
+   closed-state text is always correct with no separate display label. */
+.capiro-vnext-root .uui-report-select {
+  position: relative;
+  gap: 8px;
+}
+.capiro-vnext-root .uui-report-select select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0 14px;
+  padding-left: 34px;
+  border: 0;
+  appearance: none;
   background: transparent;
-  color: var(--eng-ink-2);
-  font-size: 12px;
+  color: #344054;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-report-select svg {
+  position: relative;
+  z-index: 0;
+  pointer-events: none;
+}
+.capiro-vnext-root .uui-report-card {
+  overflow: visible;
+  border-radius: 12px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-border);
+  margin-top: 16px;
 }
 .capiro-vnext-root .uui-report-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.capiro-vnext-root .uui-report-scroll::-webkit-scrollbar {
-  display: none;
 }
 .capiro-vnext-root .uui-report-table {
   min-width: 1120px;
@@ -832,45 +874,49 @@
   gap: 12px;
 }
 .capiro-vnext-root .uui-report-table__head {
-  position: sticky;
-  top: 0;
-  z-index: 2;
   min-height: 42px;
-  padding: 0 18px;
-  background: var(--eng-muted);
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--eng-border);
+  border-radius: 12px 12px 0 0;
+  background: var(--eng-recessed);
   color: var(--eng-ink-4);
   font-family: var(--eng-font-mono);
-  font-size: 9px;
-  letter-spacing: 0.05em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .capiro-vnext-root .uui-report-table__row {
   min-height: 68px;
-  padding: 0 18px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--eng-muted);
-  font-size: 13px;
+  background: var(--eng-surface);
+  color: var(--eng-ink-2);
+  font-size: 14px;
 }
-.capiro-vnext-root .uui-report-table__head > :first-child,
-.capiro-vnext-root .uui-report-table__row > :first-child {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  background: inherit;
+.capiro-vnext-root .uui-report-table__row:last-child {
+  border-bottom: 0;
+  border-radius: 0 0 12px 12px;
 }
 .capiro-vnext-root .uui-report-table__row > :first-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  color: var(--eng-ink);
+  font-size: 15px;
+  font-weight: 600;
 }
 .capiro-vnext-root .uui-report-meetings-link {
   border: 0;
   background: transparent;
   color: var(--eng-accent);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   text-align: left;
+}
+.capiro-vnext-root .uui-report-meetings-link:hover {
+  color: var(--eng-accent-hover);
 }
 .capiro-vnext-root .uui-report-status-cell {
   position: relative;
@@ -879,44 +925,53 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   height: 26px;
   padding: 0 10px;
   border: 0;
   border-radius: 9999px;
   background: var(--eng-muted);
   color: var(--eng-ink-2);
-  font-size: 9px;
-  letter-spacing: 0.03em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
 }
+.capiro-vnext-root .uui-report-status-trigger:hover {
+  filter: brightness(0.97);
+}
 .capiro-vnext-root .uui-report-status-trigger i,
-.capiro-vnext-root .uui-report-status-menu i,
+.capiro-vnext-root .uui-report-status-menu button i,
 .capiro-vnext-root .uui-report-legend i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--eng-ink-4);
-}
-.capiro-vnext-root [data-state='complete'] > i,
-.capiro-vnext-root .uui-report-status-trigger[data-state='complete'] i,
-.capiro-vnext-root .uui-report-status-menu button[data-state='complete'] i {
-  background: var(--eng-accent);
+  flex-shrink: 0;
 }
 .capiro-vnext-root .uui-report-status-trigger[data-state='complete'] {
   background: var(--eng-accent-soft);
   color: var(--eng-accent);
 }
-.capiro-vnext-root [data-state='in_progress'] > i,
-.capiro-vnext-root .uui-report-status-trigger[data-state='in_progress'] i,
-.capiro-vnext-root .uui-report-status-menu button[data-state='in_progress'] i {
-  background: var(--eng-warning-dot);
+.capiro-vnext-root .uui-report-status-trigger[data-state='complete'] i,
+.capiro-vnext-root .uui-report-status-menu button[data-state='complete'] i,
+.capiro-vnext-root .uui-report-legend i.complete {
+  background: var(--eng-accent);
 }
 .capiro-vnext-root .uui-report-status-trigger[data-state='in_progress'] {
   background: var(--eng-warning-bg);
   color: var(--eng-warning);
 }
+.capiro-vnext-root .uui-report-status-trigger[data-state='in_progress'] i,
+.capiro-vnext-root .uui-report-status-menu button[data-state='in_progress'] i,
+.capiro-vnext-root .uui-report-legend i.in-progress {
+  background: var(--eng-warning-dot);
+}
+/* README §10.2: "a 7px #101828 dot ... ringed in white" — a distinct
+   near-black marker, deliberately NOT tone-colored (it flags "manually
+   overridden," independent of whichever status tone the cell resolved to). */
 .capiro-vnext-root .uui-report-override-marker {
   position: absolute;
   top: -3px;
@@ -924,8 +979,8 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--eng-warning-dot);
-  box-shadow: 0 0 0 2px white;
+  background: var(--eng-ink);
+  box-shadow: 0 0 0 2px var(--eng-surface);
 }
 .capiro-vnext-root .uui-report-status-menu {
   position: absolute;
@@ -939,7 +994,7 @@
   border-radius: 10px;
   background: var(--eng-surface);
   box-shadow:
-    0 12px 30px rgba(16, 24, 40, 0.16),
+    0 12px 16px -4px rgba(16, 24, 40, 0.1),
     0 0 0 1px var(--eng-border);
 }
 .capiro-vnext-root .uui-report-status-menu button {
@@ -952,36 +1007,88 @@
   border-radius: 6px;
   background: transparent;
   color: var(--eng-ink-2);
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
   cursor: pointer;
 }
-.capiro-vnext-root .uui-report-status-menu button:hover,
+.capiro-vnext-root .uui-report-status-menu button:hover {
+  background: var(--eng-bg);
+}
 .capiro-vnext-root .uui-report-status-menu button[data-selected] {
-  background: var(--eng-muted);
+  color: var(--eng-ink);
+  font-weight: 600;
 }
 .capiro-vnext-root .uui-report-pending {
-  font-size: 12px;
+  font-family: var(--eng-font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--eng-ink-4);
+}
+.capiro-vnext-root .uui-report-pending[data-nonzero] {
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .uui-report-empty {
+  padding: 34px 20px;
+  text-align: center;
+  color: var(--eng-ink-2);
+  font-size: 14px;
 }
 .capiro-vnext-root .uui-report-legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
-  padding: 14px 20px;
-  color: var(--eng-ink-3);
-  font-size: 12px;
+  gap: 18px;
+  margin-top: 14px;
+  padding: 0 2px;
+  color: var(--eng-ink-2);
+  font-size: 13px;
 }
 .capiro-vnext-root .uui-report-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+}
+.capiro-vnext-root .uui-report-legend i.not-started {
+  box-shadow: inset 0 0 0 1.5px var(--eng-ink-4);
+  background: transparent;
 }
 .capiro-vnext-root .uui-report-legend p {
   flex: 1;
   min-width: 280px;
   margin: 0;
-  text-align: right;
+  color: var(--eng-ink-3);
+}
+
+/* Toast (design README §13) — see engagement-toast.tsx for why this is a
+   dedicated component/CSS pair rather than a retheme of an existing one. */
+.capiro-vnext-root .uui-eng-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 65;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--eng-primary);
+  color: #ffffff;
+  box-shadow: 0px 12px 16px -4px rgba(16, 24, 40, 0.24);
+  font-size: 14px;
+  font-weight: 500;
+  animation: uiToastRise 0.18s ease;
+}
+.capiro-vnext-root .uui-eng-toast button {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--eng-ink-4);
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-eng-toast button:hover {
+  color: #ffffff;
 }
 
 /* Outreach */
@@ -2510,6 +2617,16 @@
     transform: scale(1);
   }
 }
+@keyframes uiToastRise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
 @keyframes uiSpin {
   to {
     transform: rotate(360deg);
@@ -2610,18 +2727,17 @@
   .capiro-vnext-root .uui-library-row .eng-pill {
     grid-column: 2;
   }
-  .capiro-vnext-root .uui-report-toolbar {
+  .capiro-vnext-root .uui-report-toolbar-row {
     align-items: stretch;
   }
-  .capiro-vnext-root .uui-report-toolbar > div:first-child,
-  .capiro-vnext-root .uui-report-periods,
-  .capiro-vnext-root .uui-report-actions {
+  .capiro-vnext-root .uui-report-periods {
     width: 100%;
   }
   .capiro-vnext-root .uui-report-periods button {
     flex: 1;
   }
-  .capiro-vnext-root .uui-report-actions > * {
+  .capiro-vnext-root .uui-report-toolbar-row > .uui-button,
+  .capiro-vnext-root .uui-report-toolbar-row > .uui-report-select {
     flex: 1 1 150px;
   }
   .capiro-vnext-root .uui-report-legend p {

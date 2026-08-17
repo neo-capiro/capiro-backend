@@ -6,7 +6,7 @@ import {
 } from './engagement-route-state.js';
 
 describe('vNext Engagement route state', () => {
-  it('claims Outreach, Meetings and Library — the three destinations with a shipped vNext component — and nothing else yet', () => {
+  it('claims all four Engagement destinations — every one now has a shipped vNext component — and nothing else', () => {
     expect(isVNextEngagementPath('/engagement/outreach')).toBe(true);
     expect(isVNextEngagementPath('/engagement/outreach/draft/123')).toBe(true);
     // Meetings shipped in an earlier phase (VNextMeetingsWorkspace) — the
@@ -19,9 +19,9 @@ describe('vNext Engagement route state', () => {
     // `/engagement/meetings/` (see LIBRARY_PATH's comment).
     expect(isVNextEngagementPath('/engagement/meeting-library')).toBe(true);
 
-    // Reports stays canonical until its own vNext component ships in a later
-    // phase — see ENGAGEMENT_DESTINATION_READY.
-    expect(isVNextEngagementPath('/engagement/reports')).toBe(false);
+    // Reports shipped this phase (VNextReportsTracker) — the last of the
+    // four destinations to get its own vNext body.
+    expect(isVNextEngagementPath('/engagement/reports')).toBe(true);
 
     // Unrelated paths are never claimed.
     expect(isVNextEngagementPath('/engagements')).toBe(false);

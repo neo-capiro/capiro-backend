@@ -51,6 +51,8 @@ import {
 import { VNextOutreachWorkspace, type EngagementOutreachStep } from './VNextOutreachWorkspace.js';
 import { VNextMeetingsWorkspace } from './VNextMeetingsWorkspace.js';
 import { VNextMeetingLibrary } from './VNextMeetingLibrary.js';
+import { VNextReportsTracker } from './VNextReportsTracker.js';
+import { EngagementToastProvider } from './engagement-toast.js';
 import './engagement.css';
 import './engagement-ui-closeout.css';
 // Tone table (eng-pill classes) — established in the foundations commit but
@@ -158,65 +160,62 @@ export function VNextEngagementRoutes() {
       body = <VNextMeetingLibrary />;
       break;
     case 'reports':
-      // Pending — see the staged-rollout comment above and
-      // ENGAGEMENT_DESTINATION_READY in engagement-route-state.ts.
-      // Unreachable today: isVNextEngagementPath only claims Outreach,
-      // Meetings and Library, so VNextRouter falls through to the canonical
-      // EngagementPage (still inside this same vNext shell) for Reports.
-      body = null;
+      body = <VNextReportsTracker clientId={clientFilter.selectedClientId} />;
       break;
   }
 
   return (
-    <div className="engagement-vnext" data-destination={destination}>
-      <header className="uui-engagement-page-header">
-        <div>
-          <h1>Engagement</h1>
-          <p>{subline(destination)}</p>
+    <EngagementToastProvider>
+      <div className="engagement-vnext" data-destination={destination}>
+        <header className="uui-engagement-page-header">
+          <div>
+            <h1>Engagement</h1>
+            <p>{subline(destination)}</p>
+          </div>
+          <label className="uui-client-scope">
+            <span>Client</span>
+            <select
+              value={clientFilter.selectedClientId ?? ''}
+              onChange={(event) => clientFilter.setSelectedClientId(event.target.value || null)}
+            >
+              <option value="">All clients</option>
+              {activeClients.map((client) => (
+                <option value={client.id} key={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={15} />
+          </label>
+        </header>
+        <div className="uui-engagement-tabs">
+          <nav aria-label="Engagement destinations">
+            <button
+              type="button"
+              data-active={destination === 'meetings' || destination === 'library' || undefined}
+              onClick={() => navigateTab('meetings')}
+            >
+              Meetings
+            </button>
+            <button
+              type="button"
+              data-active={destination === 'outreach' || undefined}
+              onClick={() => navigateTab('outreach')}
+            >
+              Outreach
+            </button>
+            <button
+              type="button"
+              data-active={destination === 'reports' || undefined}
+              onClick={() => navigateTab('reports')}
+            >
+              Reports
+            </button>
+          </nav>
         </div>
-        <label className="uui-client-scope">
-          <span>Client</span>
-          <select
-            value={clientFilter.selectedClientId ?? ''}
-            onChange={(event) => clientFilter.setSelectedClientId(event.target.value || null)}
-          >
-            <option value="">All clients</option>
-            {activeClients.map((client) => (
-              <option value={client.id} key={client.id}>
-                {client.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={15} />
-        </label>
-      </header>
-      <div className="uui-engagement-tabs">
-        <nav aria-label="Engagement destinations">
-          <button
-            type="button"
-            data-active={destination === 'meetings' || destination === 'library' || undefined}
-            onClick={() => navigateTab('meetings')}
-          >
-            Meetings
-          </button>
-          <button
-            type="button"
-            data-active={destination === 'outreach' || undefined}
-            onClick={() => navigateTab('outreach')}
-          >
-            Outreach
-          </button>
-          <button
-            type="button"
-            data-active={destination === 'reports' || undefined}
-            onClick={() => navigateTab('reports')}
-          >
-            Reports
-          </button>
-        </nav>
-      </div>
 
-      {body}
-    </div>
+        {body}
+      </div>
+    </EngagementToastProvider>
   );
 }

@@ -44,14 +44,13 @@ const LIBRARY_PATH = '/engagement/meeting-library';
  *   - outreach: LIVE — VNextOutreachWorkspace (shipped before this phase).
  *   - meetings: LIVE — VNextMeetingsWorkspace (Meetings phase, 2026-08-16).
  *   - library: LIVE — VNextMeetingLibrary (Library phase, 2026-08-16).
- *   - reports: PENDING — canonical EngagementPage keeps rendering it on both
- *     domains until it gets its own vNext body.
+ *   - reports: LIVE — VNextReportsTracker (Reports phase, 2026-08-16).
  */
 const ENGAGEMENT_DESTINATION_READY: Record<EngagementDestination, boolean> = {
   meetings: true,
   library: true,
   outreach: true,
-  reports: false,
+  reports: true,
 };
 
 /**
