@@ -1,11 +1,12 @@
 /**
- * Drain durable mailbox KnowledgeEvent work, then (when separately armed)
- * drain the Phase 6 post-event extraction outbox.
+ * Drain durable mailbox KnowledgeEvent work, then the Phase 6 post-event
+ * extraction outbox, then the Phase 7 episode projection outbox.
  *
- * Phase 4 remains an out-of-band deterministic worker. Phase 6 is a distinct
- * durable queue/consumer and is disabled unless MAILBOX_KNOWLEDGE_EXTRACTION_ENABLED
- * is explicitly true. The shared ECS verb is retained so no second scheduler or
- * deployment path is introduced.
+ * Phase 4 remains an out-of-band deterministic worker. Phase 6 retains its
+ * private-text extraction control. Phase 7 is a normal Knowledge Plane
+ * projection consumer: it has operational batch/retry tuning only and is
+ * not feature-flagged or tenant-allowlisted. The shared ECS verb is retained
+ * so no second scheduler or deployment path is introduced.
  *
  * Usage:
  *   drain-mailbox-knowledge [batch-size]
@@ -17,6 +18,7 @@ import { PrismaClient, type Prisma } from '@prisma/client';
 import { KnowledgeEventRepository } from '../src/knowledge/events/knowledge-event.repository.js';
 import { KnowledgeEventService } from '../src/knowledge/events/knowledge-event.service.js';
 import { KnowledgeModule } from '../src/knowledge/knowledge.module.js';
+import { KnowledgeEpisodeProjectionConsumer } from '../src/knowledge/episodes/knowledge-episode.consumer.js';
 import { MailboxKnowledgeConsumer } from '../src/knowledge/mailbox/mailbox-knowledge.consumer.js';
 import { MailboxKnowledgeExtractionConsumer } from '../src/knowledge/mailbox/mailbox-knowledge-extraction.consumer.js';
 import { MailboxKnowledgeFlagsService } from '../src/knowledge/mailbox/mailbox-knowledge-flags.service.js';
@@ -100,12 +102,22 @@ async function drainPhase6() {
     return { claimed: 0, succeeded: 0, skipped: 0, failed: 0 };
   }
 
-  const app = await NestFactory.createApplicationContext(
-    MailboxKnowledgeExtractionWorkerModule,
-    { logger: ['error', 'warn'] },
-  );
+  const app = await NestFactory.createApplicationContext(MailboxKnowledgeExtractionWorkerModule, {
+    logger: ['error', 'warn'],
+  });
   try {
     return await app.get(MailboxKnowledgeExtractionConsumer).drainOnce();
+  } finally {
+    await app.close();
+  }
+}
+
+async function drainPhase7() {
+  const app = await NestFactory.createApplicationContext(MailboxKnowledgeExtractionWorkerModule, {
+    logger: ['error', 'warn'],
+  });
+  try {
+    return await app.get(KnowledgeEpisodeProjectionConsumer).drainOnce();
   } finally {
     await app.close();
   }
@@ -119,11 +131,16 @@ async function main(): Promise<void> {
   const phase6 = await drainPhase6();
   console.log(JSON.stringify({ event: 'mailbox_knowledge_extraction_worker.drain', ...phase6 }));
 
-  if (phase4.failed > 0 || phase6.failed > 0) process.exitCode = 1;
+  const phase7 = await drainPhase7();
+  console.log(JSON.stringify({ event: 'knowledge_episode_projection_worker.drain', ...phase7 }));
+
+  if (phase4.failed > 0 || phase6.failed > 0 || phase7.failed > 0) process.exitCode = 1;
 }
 
 main().catch((error: unknown) => {
   const errorName = error instanceof Error ? error.name : 'WorkerError';
-  console.error(JSON.stringify({ event: 'mailbox_knowledge_worker.crashed', error_code: errorName }));
+  console.error(
+    JSON.stringify({ event: 'mailbox_knowledge_worker.crashed', error_code: errorName }),
+  );
   process.exit(1);
 });

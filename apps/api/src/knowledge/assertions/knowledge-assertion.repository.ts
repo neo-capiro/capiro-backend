@@ -132,6 +132,54 @@ export class KnowledgeAssertionRepository {
     });
   }
 
+  /**
+   * All active assertions whose immutable originEventId is this event.
+   * Used by Phase 7 projection to derive assertion/canonical-entity episode
+   * membership without performing any new resolution — it only reads
+   * bindings Phase 6 already wrote.
+   */
+  async findByOriginEvent(
+    tenantId: string,
+    originEventId: string,
+  ): Promise<KnowledgeAssertionRecord[]> {
+    return this.prisma.withTenant(tenantId, async (tx) => {
+      const rows = await tx.$queryRaw<KnowledgeAssertionRow[]>`
+        SELECT
+          id,
+          tenant_id,
+          idempotency_key,
+          origin_event_id,
+          subject_type,
+          subject_id,
+          predicate,
+          object_type,
+          object_id,
+          object_value,
+          assertion_class,
+          confidence,
+          authority,
+          observed_at,
+          valid_from,
+          valid_until,
+          status,
+          conflict_status,
+          conflict_group_id,
+          supersedes_assertion_id,
+          contradicts_assertion_id,
+          sensitivity,
+          access_scope,
+          created_by,
+          created_at
+        FROM knowledge_assertions
+        WHERE tenant_id = ${tenantId}::uuid
+          AND origin_event_id = ${originEventId}::uuid
+          AND status = 'active'
+        ORDER BY created_at ASC, id ASC
+      `;
+      return rows.map(mapAssertion);
+    });
+  }
+
   private async insertOrFind(
     tx: Prisma.TransactionClient,
     tenantId: string,
