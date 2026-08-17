@@ -371,6 +371,15 @@ export class IntelligenceController {
     });
   }
 
+  /**
+   * G3 portfolio rollup (wire-audit "4 New capability" items 1-4).
+   * Per-client attention/intel/next-touch aggregates in one bounded call.
+   */
+  @Get('portfolio-rollup')
+  getPortfolioRollup(@CurrentTenant() ctx: TenantContext) {
+    return this.service.getPortfolioRollup(ctx.tenantId);
+  }
+
   @Get('live-ticker')
   getLiveTicker(@CurrentTenant() ctx: TenantContext) {
     return this.service.getLiveTicker(ctx.tenantId);

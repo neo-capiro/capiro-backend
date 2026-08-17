@@ -92,6 +92,7 @@ function freshestUpdatedAt(model: ReturnType<typeof usePortfolioIndexModel>): nu
     model.strategies.dataUpdatedAt,
     model.meetings.dataUpdatedAt,
     model.accountOwners.dataUpdatedAt,
+    model.rollup.dataUpdatedAt,
   );
 }
 
@@ -158,6 +159,10 @@ function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) 
 function ClientRow({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) {
   const focus = row.focusTags.slice(0, 2);
   const status = <CapiroBadge tone={STATUS_TONE[row.status]} dot={<span className="capiro-portfolio__dot" />}>{STATUS_LABEL[row.status]}</CapiroBadge>;
+  // G3 rollup: next-touch date label (wire-audit "4 New capability" item 4).
+  const nextTouchLabel = row.nextTouch
+    ? new Date(row.nextTouch.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    : null;
   return (
     <tr className="capiro-portfolio__tr" onClick={onOpen}>
       <td>
@@ -173,9 +178,10 @@ function ClientRow({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) {
       <td>{focus.length ? <div className="capiro-portfolio__tags">{focus.map((t) => <span className="capiro-portfolio__tag" key={t}>{t}</span>)}</div> : <span className="capiro-portfolio__meta">—</span>}</td>
       <td>{row.ownerName ? <div className="capiro-portfolio__owner"><span className="capiro-portfolio__avatar" aria-hidden>{initialsFor(row.ownerName)}</span><span>{row.ownerName}</span></div> : <span className="capiro-portfolio__meta">—</span>}</td>
       <td><span className="capiro-portfolio__work-value">—</span><span className="capiro-portfolio__track" aria-hidden><span /></span></td>
-      <td><span className="capiro-portfolio__meta">—</span></td>
-      <td><span className="capiro-portfolio__attention">—</span></td>
-      <td><span className="capiro-portfolio__meta">—</span></td>
+      {/* G3 rollup (wire-audit "4 New capability" items 2-4): real intel/attention/next-touch */}
+      <td>{row.intelCount != null ? <span className="capiro-portfolio__meta">{row.intelCount}</span> : <span className="capiro-portfolio__meta">—</span>}</td>
+      <td>{row.attentionCount != null ? <span className={`capiro-portfolio__attention${row.attentionCount > 0 ? ' has-attention' : ''}`}>{row.attentionCount}</span> : <span className="capiro-portfolio__attention">—</span>}</td>
+      <td>{nextTouchLabel ? <span className="capiro-portfolio__meta">{nextTouchLabel}</span> : <span className="capiro-portfolio__meta">—</span>}</td>
     </tr>
   );
 }
@@ -183,6 +189,10 @@ function ClientRow({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) {
 function ClientCard({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) {
   const focus = row.focusTags.slice(0, 2);
   const status = <CapiroBadge tone={STATUS_TONE[row.status]} dot={<span className="capiro-portfolio__dot" />}>{STATUS_LABEL[row.status]}</CapiroBadge>;
+  // G3 rollup: next-touch date label (wire-audit "4 New capability" item 1 + 4).
+  const nextTouchLabel = row.nextTouch
+    ? new Date(row.nextTouch.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    : null;
   return (
     <button type="button" className="capiro-portfolio__clientcard" onClick={onOpen}>
       <div className="capiro-portfolio__card-main">
@@ -194,7 +204,12 @@ function ClientCard({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) 
             <div className="capiro-portfolio__meta">{[row.sector, row.location].filter(Boolean).join(' · ') || '—'}</div>
           </div>
         </div>
-        <span className="capiro-portfolio__attention">—</span>
+        {/* G3 rollup (item 1): attention count instead of fixture — */}
+        {row.attentionCount != null ? (
+          <span className={`capiro-portfolio__attention${row.attentionCount > 0 ? ' has-attention' : ''}`}>{row.attentionCount}</span>
+        ) : (
+          <span className="capiro-portfolio__attention">—</span>
+        )}
       </div>
       <div className="capiro-portfolio__card-focus">
         {focus.length ? focus.map((tag) => <span className="capiro-portfolio__tag" key={tag}>{tag}</span>) : <span className="capiro-portfolio__meta">—</span>}
@@ -202,7 +217,8 @@ function ClientCard({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) 
       <div className="capiro-portfolio__card-work"><span className="capiro-portfolio__work-value">—</span><span className="capiro-portfolio__track" aria-hidden><span /></span></div>
       <div className="capiro-portfolio__card-foot">
         {row.ownerName ? <div className="capiro-portfolio__owner"><span className="capiro-portfolio__avatar" aria-hidden>{initialsFor(row.ownerName)}</span><span>{row.ownerName}</span></div> : <span className="capiro-portfolio__meta">—</span>}
-        <span className="capiro-portfolio__meta">—</span>
+        {/* G3 rollup (item 1): next-touch date in card foot */}
+        {nextTouchLabel ? <span className="capiro-portfolio__meta">{nextTouchLabel}</span> : <span className="capiro-portfolio__meta">—</span>}
       </div>
     </button>
   );
@@ -302,6 +318,7 @@ export function PortfolioIndexPage() {
       void queryClient.invalidateQueries({ queryKey: ['clients'] });
       void queryClient.invalidateQueries({ queryKey: ['client-account-owners'] });
       void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-summary'] });
+      void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-rollup'] });
       setCreateOpen(false);
       const next = new URLSearchParams(searchParams);
       next.delete('new');
@@ -321,6 +338,7 @@ export function PortfolioIndexPage() {
     void queryClient.invalidateQueries({ queryKey: ['clients'] });
     void queryClient.invalidateQueries({ queryKey: ['client-account-owners'] });
     void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-summary'] });
+    void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-rollup'] });
     void queryClient.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
     void queryClient.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
     void queryClient.invalidateQueries({ queryKey: ['program-element-finder', 'portfolio-watch'] });

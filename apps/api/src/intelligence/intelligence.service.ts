@@ -6954,6 +6954,104 @@ export class IntelligenceService {
   }
 
   /**
+   * G3 portfolio rollup (wire-audit "4 New capability" items 1-4).
+   *
+   * Returns per-client aggregates keyed by clientId so the portfolio index
+   * table can render the Work, Intelligence, Attention, and Next-touch
+   * columns without N+1 per-client fan-out. Three bounded queries:
+   *
+   *  - attention: open engagement tasks grouped by clientId
+   *  - intel: tracked bills grouped by clientId
+   *  - nextTouch: earliest future shared meeting per clientId
+   *
+   * All are portfolio-wide reads, not per-client calls.
+   */
+  async getPortfolioRollup(tenantId: string): Promise<{
+    rollup: Record<
+      string,
+      {
+        attentionCount: number;
+        intelCount: number;
+        nextTouch: { id: string; startsAt: string; subject: string } | null;
+      }
+    >;
+  }> {
+    const now = new Date();
+
+    const [taskCounts, billCounts, meetings] = await Promise.all([
+      // Attention: open (non-done/canceled) engagement tasks per client.
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.engagementTask.groupBy({
+          by: ['clientId'],
+          where: {
+            status: { in: ['todo', 'in_progress', 'blocked'] },
+            clientId: { not: null },
+          },
+          _count: { id: true },
+        }),
+      ),
+      // Intelligence: tracked bills per client.
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.trackedBill.groupBy({
+          by: ['clientId'],
+          _count: { id: true },
+        }),
+      ),
+      // Next touch: earliest future shared meeting per client.
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.meeting.findMany({
+          where: {
+            startsAt: { gte: now },
+            visibility: 'shared',
+            status: { not: 'cancelled' },
+            clientId: { not: null },
+          },
+          select: { id: true, clientId: true, startsAt: true, subject: true },
+          orderBy: { startsAt: 'asc' },
+        }),
+      ),
+    ]);
+
+    const rollup: Record<
+      string,
+      {
+        attentionCount: number;
+        intelCount: number;
+        nextTouch: { id: string; startsAt: string; subject: string } | null;
+      }
+    > = {};
+
+    // Initialize from task counts (these have the client set).
+    for (const row of taskCounts) {
+      const cid = row.clientId as string;
+      rollup[cid] = { attentionCount: row._count.id, intelCount: 0, nextTouch: null };
+    }
+
+    // Merge in bill counts.
+    for (const row of billCounts) {
+      const cid = row.clientId;
+      if (!rollup[cid]) rollup[cid] = { attentionCount: 0, intelCount: 0, nextTouch: null };
+      rollup[cid].intelCount = row._count.id;
+    }
+
+    // Merge in earliest meeting per client (meetings are ordered by startsAt asc,
+    // so the first one we encounter for each client is the earliest).
+    for (const meeting of meetings) {
+      const cid = meeting.clientId as string;
+      if (!rollup[cid]) rollup[cid] = { attentionCount: 0, intelCount: 0, nextTouch: null };
+      if (!rollup[cid].nextTouch) {
+        rollup[cid].nextTouch = {
+          id: meeting.id,
+          startsAt: meeting.startsAt.toISOString(),
+          subject: meeting.subject,
+        };
+      }
+    }
+
+    return { rollup };
+  }
+
+  /**
    * Build 8-quarter ROI series for the quarter bar chart.
    * Lobbying values come from real LDA quarterly filings.
    * Obligations values are derived from annual contractor data (÷4 per quarter).

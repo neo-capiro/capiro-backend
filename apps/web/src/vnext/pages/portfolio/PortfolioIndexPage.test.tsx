@@ -69,6 +69,17 @@ function makeApi(overrides: { clientsError?: boolean; summaryError?: boolean } =
       if (path === '/api/client-account-owners') {
         return { data: { 'c-1': { accountOwnerUserId: 'u-1', accountOwner: { id: 'u-1', email: 'owner@test.com', firstName: 'Test', lastName: 'Owner' } } } };
       }
+      if (path === '/api/intelligence/portfolio-rollup') {
+        return {
+          data: {
+            rollup: {
+              'c-1': { attentionCount: 3, intelCount: 5, nextTouch: { id: 'm-1', startsAt: '2026-08-20T15:00:00.000Z', subject: 'HASC briefing' } },
+              'c-2': { attentionCount: 0, intelCount: 2, nextTouch: null },
+              'c-3': { attentionCount: 1, intelCount: 0, nextTouch: null },
+            },
+          },
+        };
+      }
       if (path === '/strategy-api/strategies') return { data: [] };
       if (path === '/api/engagement/meetings') return { data: [] };
       if (path === '/api/intelligence/coming-up') {

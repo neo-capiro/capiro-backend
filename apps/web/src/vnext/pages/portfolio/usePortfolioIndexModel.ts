@@ -70,6 +70,21 @@ export interface PortfolioAlertsResponse {
   generatedAt: string;
 }
 
+/**
+ * G3 portfolio rollup (wire-audit "4 New capability" items 1-4).
+ * Per-client aggregates returned by GET /api/intelligence/portfolio-rollup.
+ * One bounded call — no N+1 per-client fan-out.
+ */
+export interface PortfolioRollupEntry {
+  attentionCount: number;
+  intelCount: number;
+  nextTouch: { id: string; startsAt: string; subject: string } | null;
+}
+
+export interface PortfolioRollupResponse {
+  rollup: Record<string, PortfolioRollupEntry>;
+}
+
 function weekBounds(now: Date): { from: string; to: string } {
   const day = now.getDay();
   const monday = new Date(now);
@@ -90,6 +105,12 @@ export interface PortfolioRow {
   location: string | null;
   focusTags: string[];
   ownerName: string | null;
+  /** G3 rollup: open engagement tasks (attention column). */
+  attentionCount: number | null;
+  /** G3 rollup: tracked bills (intelligence column). */
+  intelCount: number | null;
+  /** G3 rollup: earliest future meeting (next touch column). */
+  nextTouch: { id: string; startsAt: string; subject: string } | null;
 }
 
 function classify(client: Client): Exclude<PortfolioStatus, 'all'> {
@@ -183,26 +204,44 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     retry: 1,
   });
 
+  // G3 portfolio rollup (wire-audit "4 New capability" items 1-4): per-client
+  // attention/intel/next-touch aggregates in one bounded call. No N+1.
+  const rollup = useQuery<PortfolioRollupResponse>({
+    queryKey: ['intelligence', 'portfolio-rollup'],
+    queryFn: async () =>
+      (await api.get<PortfolioRollupResponse>('/api/intelligence/portfolio-rollup')).data,
+    staleTime: 60_000,
+  });
+
   const rows = useMemo<PortfolioRow[]>(() => {
     const all = (clients.data ?? []).filter((c) => (c.status ?? '').toLowerCase() !== 'archived');
     const ownerMap = accountOwners.data ?? {};
-    return all.map((client) => ({
-      client,
-      status: classify(client),
-      name: client.name,
-      sector: client.sectorTag ?? null,
-      location: locationOf(client),
-      focusTags: focusTagsOf(client),
-      // Wire-audit "3 Compose extend" item 1: use the real account owner
-      // from the batch endpoint, not primaryContactName. Falls back to
-      // primaryContactName only when the batch hasn't loaded yet, so the
-      // column is never empty during initial load.
-      ownerName:
-        clientAccountOwnerLabel(ownerMap[client.id]?.accountOwner) ??
-        client.primaryContactName ??
-        null,
-    }));
-  }, [clients.data, accountOwners.data]);
+    const rollupMap = rollup.data?.rollup ?? {};
+    return all.map((client) => {
+      const entry = rollupMap[client.id];
+      return {
+        client,
+        status: classify(client),
+        name: client.name,
+        sector: client.sectorTag ?? null,
+        location: locationOf(client),
+        focusTags: focusTagsOf(client),
+        // Wire-audit "3 Compose extend" item 1: use the real account owner
+        // from the batch endpoint, not primaryContactName. Falls back to
+        // primaryContactName only when the batch hasn't loaded yet, so the
+        // column is never empty during initial load.
+        ownerName:
+          clientAccountOwnerLabel(ownerMap[client.id]?.accountOwner) ??
+          client.primaryContactName ??
+          null,
+        // G3 rollup fields — null while the rollup hasn't loaded yet so the
+        // UI can distinguish "loading" from "zero".
+        attentionCount: entry ? entry.attentionCount : null,
+        intelCount: entry ? entry.intelCount : null,
+        nextTouch: entry ? entry.nextTouch : null,
+      };
+    });
+  }, [clients.data, accountOwners.data, rollup.data]);
 
   const counts = useMemo(() => {
     const by: Record<PortfolioStatus, number> = { all: rows.length, active: 0, 'at-risk': 0, prospect: 0 };
@@ -238,5 +277,5 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     return sorted;
   }, [rows, route]);
 
-  return { clients, accountOwners, summary, strategies, meetings, comingUp, alerts, rows, counts, visible };
+  return { clients, accountOwners, summary, strategies, meetings, comingUp, alerts, rollup, rows, counts, visible };
 }
