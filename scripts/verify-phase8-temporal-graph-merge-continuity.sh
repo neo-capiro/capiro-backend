@@ -66,6 +66,47 @@ INSERT INTO knowledge_evidence (
   'mail', 'phase8-message', 'works with', 0, 10, repeat('a', 64)
 );
 
+-- A second, wholly separate tenant's own assertion touching the same
+-- global-public entity as tenant A. Used to prove tenant B's private graph
+-- data is invisible to tenant A even though the canonical entity is shared.
+INSERT INTO knowledge_events (
+  id, tenant_id, idempotency_key, source_type, source_id, source_content_hash,
+  event_type, occurred_at, observed_at, actor_refs, entity_refs, client_refs,
+  sensitivity, access_scope, evidence_locator, metadata, status
+) VALUES (
+  'f8200000-0000-4000-8000-000000000002',
+  'f8000000-0000-4000-8000-000000000002',
+  repeat('3', 64), 'mail', 'phase8-message-b', repeat('b', 64), 'relationship_observed',
+  '2026-08-01T12:00:00Z', '2026-08-01T12:00:00Z', '[]', '[]', '[]',
+  'normal', '{"kind":"tenant"}', '{"kind":"message","id":"phase8-message-b"}', '{}', 'active'
+);
+
+INSERT INTO knowledge_assertions (
+  id, tenant_id, idempotency_key, origin_event_id, subject_type, subject_id,
+  predicate, object_type, object_id, assertion_class, confidence, authority,
+  observed_at, valid_from, status, conflict_status, sensitivity, access_scope
+) VALUES (
+  'f8300000-0000-4000-8000-000000000002',
+  'f8000000-0000-4000-8000-000000000002',
+  repeat('4', 64), 'f8200000-0000-4000-8000-000000000002',
+  'canonical_entity', 'f8100000-0000-4000-8000-000000000005',
+  'affiliated_with', 'canonical_entity', 'f8100000-0000-4000-8000-000000000006',
+  'relationship', 0.95, 'source_reported',
+  '2026-08-01T12:00:00Z', '2026-08-01T12:00:00Z',
+  'active', 'none', 'normal', '{"kind":"tenant"}'
+);
+
+INSERT INTO knowledge_evidence (
+  id, tenant_id, assertion_id, event_id, source_type, source_id, excerpt,
+  start_offset, end_offset, content_hash
+) VALUES (
+  'f8400000-0000-4000-8000-000000000002',
+  'f8000000-0000-4000-8000-000000000002',
+  'f8300000-0000-4000-8000-000000000002',
+  'f8200000-0000-4000-8000-000000000002',
+  'mail', 'phase8-message-b', 'affiliated with', 0, 15, repeat('b', 64)
+);
+
 -- A -> B -> C multi-hop convergence using the real Phase 5 ledger contract.
 INSERT INTO canonical_entity_merges (
   tenant_id, source_entity_id, target_entity_id, reason_code, reason, provenance
@@ -232,6 +273,153 @@ BEGIN
   );
   IF v_count <> 0 THEN
     RAISE EXCEPTION 'kg_temporal_walk_bounded did not fail closed on a foreign-tenant query root';
+  END IF;
+
+  -- Bitemporal safety: a fact must not be visible before the system actually
+  -- observed it, even though its valid_from predates that instant. Prevents
+  -- hindsight leakage into historical reasoning.
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_walk_bounded(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000001'::uuid,
+    '2026-07-01T00:00:00Z'::timestamptz, -- before observed_at (2026-08-01)
+    2, NULL, 25, 500, 'both'
+  );
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'walkAsOf leaked a fact before its observed_at instant (hindsight leakage): got % rows', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_relation_history(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000001'::uuid,
+    '2026-08-01T00:00:00Z'::timestamptz,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    '2026-07-01T00:00:00Z'::timestamptz, -- observedThrough before observed_at
+    NULL, 500, 'both'
+  );
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'relationHistory leaked a fact before observedThrough (hindsight leakage): got % rows', v_count;
+  END IF;
+END $$;
+
+-- Tenant isolation: tenant B has its own assertion touching a shared
+-- global-public entity. Tenant A must not see it even though the entity is
+-- visible to both, and tenant B must see it under its own tenant_id.
+DO $$
+DECLARE
+  v_count int;
+BEGIN
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_walk_bounded(
+    'f8000000-0000-4000-8000-000000000001'::uuid, -- tenant A
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000006'::uuid, -- Global G (shared identity)
+    '2026-08-02T00:00:00Z'::timestamptz,
+    2, NULL, 25, 500, 'both'
+  );
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'tenant A saw tenant B private graph edges through a shared global-public entity: got % rows', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_walk_bounded(
+    'f8000000-0000-4000-8000-000000000002'::uuid, -- tenant B, its own data
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000006'::uuid,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    2, NULL, 25, 500, 'both'
+  );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'tenant B could not see its own graph edge through its own tenant_id: got % rows', v_count;
+  END IF;
+
+  -- Wrong sensitivity, wrong access_scope, and wrong client_ref_keys must each
+  -- independently yield zero rows against tenant A's own real, correctly
+  -- scoped assertion (terminal node, so this isolates the partition check from
+  -- merge continuity).
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_walk_bounded(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'restricted', -- wrong sensitivity; real value is 'normal'
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000003'::uuid,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    2, NULL, 25, 500, 'both'
+  );
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'wrong sensitivity partition returned cross-partition data: got % rows', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_walk_bounded(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"other"}'::jsonb, -- wrong access_scope; real value is {"kind":"tenant"}
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000003'::uuid,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    2, NULL, 25, 500, 'both'
+  );
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'wrong access_scope partition returned cross-partition data: got % rows', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_walk_bounded(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY['bogus:key'], -- wrong client_ref_keys; real value is {} (no client refs)
+    'f8100000-0000-4000-8000-000000000003'::uuid,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    2, NULL, 25, 500, 'both'
+  );
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'wrong client_ref_keys partition returned cross-partition data: got % rows', v_count;
+  END IF;
+END $$;
+
+-- Defense in depth: the SQL layer must clamp depth/fanout/row-budget itself
+-- (LEAST/GREATEST) even if a caller bypasses the TypeScript-layer validation
+-- and passes wildly out-of-range values directly to the function.
+DO $$
+DECLARE
+  v_count int;
+  v_started timestamptz := clock_timestamp();
+  v_elapsed_ms double precision;
+BEGIN
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_walk_bounded(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000003'::uuid,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    999999,   -- absurd depth; must clamp to 5
+    NULL,
+    999999,   -- absurd fanout; must clamp to 100
+    999999999, -- absurd row budget; must clamp to 5000
+    'both'
+  );
+  v_elapsed_ms := extract(epoch FROM clock_timestamp() - v_started) * 1000;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'out-of-range traversal parameters produced an unexpected row count: got %', v_count;
+  END IF;
+  IF v_elapsed_ms > 3000 THEN
+    RAISE EXCEPTION 'out-of-range traversal parameters were not bounded: took % ms', v_elapsed_ms;
   END IF;
 END $$;
 
