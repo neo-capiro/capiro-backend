@@ -49,6 +49,14 @@ const model = {
   workStatus: ready,
   intelligenceStatus: ready,
   attentionStatus: ready,
+  federalFootprint: {
+    ldaSpend: { kind: 'unavailable', reason: 'No LDA match for this client' },
+    ldaFilings: { kind: 'unavailable', reason: 'No LDA match for this client' },
+    federalAwards: { kind: 'unavailable', reason: 'No federal award match for this client' },
+    lobbyingTrajectory: { kind: 'unavailable', reason: 'No lobbying intel match for this client' },
+    ready: true,
+    registrantsLabel: null,
+  },
 } satisfies ClientCrmOverviewModel;
 
 describe('ClientCrmOverviewView', () => {

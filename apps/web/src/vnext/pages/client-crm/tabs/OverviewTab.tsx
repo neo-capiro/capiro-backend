@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Avatar,
   Card,
   CardFoot,
   CardHead,
@@ -16,7 +15,7 @@ import {
   type MilestoneState,
   type PillTone,
 } from '../portfolio-primitives.js';
-import { ADVOCACY, FOOT_STATS, LIFE } from '../portfolio-fixtures.js';
+import { ADVOCACY, LIFE } from '../portfolio-fixtures.js';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { CapiroButton } from '../../../components/actions/index.js';
@@ -35,6 +34,7 @@ import {
   useClientCrmOverviewModel,
   type ClientCrmOverviewModel,
   type Metric,
+  type FederalFootprint,
 } from '../../../adapters/legacy/useClientCrmOverviewModel.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 
@@ -76,7 +76,7 @@ export function ClientCrmOverviewProto({
       </div>
 
       {/* federal footprint (§6.2) */}
-      <FederalFootprintCard onOpen={onOpenFederalFootprint} />
+      <FederalFootprintCard model={model} onOpen={onOpenFederalFootprint} />
 
       {/* advocacy history (§6.3) */}
       <AdvocacyHistoryCard client={client} />
@@ -222,11 +222,11 @@ function AccountCard({ model, client }: { model: ClientCrmOverviewModel; client:
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Account team</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-            <span style={{ display: 'flex' }}>
-              {['SM', 'JC', 'AR'].map((init, i) => (
-                <Avatar key={init} initials={init} size={28} overlap={i > 0} dark />
-              ))}
-            </span>
+            {/* Wire-audit "3 Compose extend" item 3: no per-client team roster
+                exists, so the hardcoded fixture avatars (SM, JC, AR) are
+                replaced with an honest empty state that links to the real
+                team settings. */}
+            <span style={{ fontSize: 14, color: '#98A2B3' }}>No roster</span>
             <Pill tone="success">{briefLabel}</Pill>
           </div>
         </div>
@@ -258,7 +258,45 @@ function Field({ label, value, empty = false, href }: { label: string; value: st
 
 /* ── §6.2 Federal footprint ───────────────────────────────────────────────── */
 
-function FederalFootprintCard({ onOpen }: { onOpen?: () => void }) {
+/**
+ * Wire-audit "3 Compose extend" item 3: federal footprint now reads from the
+ * real client-profile endpoint (LDA spend, filings, federal awards, lobbying
+ * trajectory) via the overview model's `federalFootprint`. Each slot is a
+ * `Metric` — real value or `unavailable` — so missing data renders as `—`
+ * rather than a fixture number.
+ */
+function FootCell({ metric, label }: { metric: Metric; label: string }) {
+  const display =
+    metric.kind === 'value'
+      ? label === 'Lobbying · TTM'
+        ? `$${metric.value.toLocaleString()}`
+        : metric.value.toLocaleString()
+      : '—';
+  return (
+    <>
+      <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <span
+          style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', color: metric.kind === 'value' ? '#101828' : '#98A2B3', lineHeight: 1.2 }}
+          title={metric.kind === 'unavailable' ? metric.reason : undefined}
+        >
+          {display}
+        </span>
+      </span>
+      <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', textWrap: 'pretty' }}>
+        {label}
+      </span>
+    </>
+  );
+}
+
+function FederalFootprintCard({ model, onOpen }: { model: ClientCrmOverviewModel; onOpen?: () => void }) {
+  const fp: FederalFootprint = model.federalFootprint;
+  const stats = [
+    { metric: fp.ldaSpend, label: 'Lobbying · TTM' },
+    { metric: fp.ldaFilings, label: 'LD-2 filings' },
+    { metric: fp.federalAwards, label: 'Federal awards' },
+    { metric: fp.lobbyingTrajectory, label: 'Lobbying trajectory' },
+  ];
   return (
     <Card>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '20px 24px 18px', borderBottom: '1px solid #EAECF0', flexWrap: 'wrap' }}>
@@ -271,9 +309,9 @@ function FederalFootprintCard({ onOpen }: { onOpen?: () => void }) {
         <LinkBtn onClick={onOpen}>Open federal footprint →</LinkBtn>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-        {FOOT_STATS.map((f, i) => (
+        {stats.map((s, i) => (
           <span
-            key={f.label}
+            key={s.label}
             style={{
               flex: 1,
               minWidth: 172,
@@ -284,21 +322,13 @@ function FederalFootprintCard({ onOpen }: { onOpen?: () => void }) {
               gap: 3,
             }}
           >
-            <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828', lineHeight: 1.2 }}>{f.value}</span>
-              {f.delta ? (
-                <span style={{ fontSize: 12, fontWeight: 600, color: f.up ? '#027A48' : '#667085', whiteSpace: 'nowrap' }}>{f.delta}</span>
-              ) : null}
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', textWrap: 'pretty' }}>
-              {f.label}
-            </span>
+            <FootCell metric={s.metric} label={s.label} />
           </span>
         ))}
       </div>
       <CardFoot
-        left="3 active registrants · latest filing 2026 Q2 · LD-2"
-        right="8 districts mapped · WA-07 and WA-08 strongest"
+        left={fp.registrantsLabel ?? 'No LDA registrants matched'}
+        right="District mapping via facilities"
       />
     </Card>
   );

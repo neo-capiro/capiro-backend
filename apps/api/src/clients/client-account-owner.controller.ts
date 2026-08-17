@@ -23,6 +23,17 @@ export class ClientAccountOwnerController {
     return this.service.listOptions(ctx);
   }
 
+  /**
+   * Batch lookup: returns account owner assignments for all clients in the
+   * tenant. Used by the portfolio index to display the real account owner
+   * (not `primaryContactName`) without N+1 per-client calls.
+   * (Wire-audit "3 Compose extend" item 1.)
+   */
+  @Get()
+  listAll(@CurrentTenant() ctx: TenantContext) {
+    return this.service.listAll(ctx);
+  }
+
   @Get(':clientId')
   get(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
     return this.service.get(ctx, clientId);

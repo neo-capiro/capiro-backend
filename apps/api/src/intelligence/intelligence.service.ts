@@ -6673,6 +6673,13 @@ export class IntelligenceService {
    * Portfolio summary, six numbers for the Portfolio list stat strip.
    * All cheap counts; LDA spend is summed across clients with confirmed
    * mappings using current-quarter filings.
+   *
+   * G1 (wire-audit "3 Compose extend" item 2): `meetingsThisWeek` is now
+   * folded into this endpoint so the pulse band reads one summary instead
+   * of composing a separate meetings query. Strategies live in a separate
+   * service (apps/api-strategy) and cannot be joined here; the frontend
+   * still composes that one figure separately — non-blocking, logged in
+   * GAPS.md.
    */
   async getPortfolioSummary(tenantId: string) {
     const now = new Date();
@@ -6703,7 +6710,17 @@ export class IntelligenceService {
       (c) => c.profileStatus === 'PAUSED' || c.profileStatus === 'MONITORING',
     ).length;
 
-    const [ldaSpendRows, billsTracked, regulationsTracked] = await Promise.all([
+    // G1: meetings this week — same weekBounds logic the frontend used, but
+    // computed server-side so the pulse reads one summary endpoint.
+    const day = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + (day === 0 ? -6 : 1 - day));
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    const [ldaSpendRows, billsTracked, regulationsTracked, meetingsThisWeek] = await Promise.all([
       tenantLdaIds.length
         ? this.prisma.$queryRaw<Array<{ total: string | null }>>`
             SELECT COALESCE(SUM(income), 0)::text AS total
@@ -6743,6 +6760,15 @@ export class IntelligenceService {
           commentEndDate: { gt: now },
         },
       }),
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.meeting.count({
+          where: {
+            startsAt: { gte: monday, lte: sunday },
+            visibility: 'shared',
+            status: { not: 'cancelled' },
+          },
+        }),
+      ),
     ]);
 
     // LDA `income` is stored as Decimal dollars (not cents); SUM returns a
@@ -6756,6 +6782,7 @@ export class IntelligenceService {
       ldaSpendQtd: ldaSpendDollars,
       billsTracked: billsTrackedCount,
       activeRegulations: regulationsTracked,
+      meetingsThisWeek,
     };
   }
 

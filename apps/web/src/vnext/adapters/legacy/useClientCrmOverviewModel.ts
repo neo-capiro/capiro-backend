@@ -39,6 +39,7 @@ import {
 import { intelTrackerPaths } from '../../../pages/clients/tracker/intel-tracker-api.js';
 import type { StrategyDetail, StrategyListItem } from '../../../pages/strategy/types.js';
 import { useClientAccountOwner } from '../../pages/client-crm/useClientAccountOwner.js';
+import type { ClientIntelProfile } from '../../../pages/intelligence/types.js';
 
 /* ────────────────────────────── metric algebra ───────────────────────────── */
 
@@ -126,6 +127,23 @@ export interface IntelligencePulse {
   lastRefresh: string | null;
 }
 
+/**
+ * Federal footprint figures for the Overview tab (wire-audit "3 Compose
+ * extend" item 3). Each slot is a `Metric` — a real value when the
+ * client-profile endpoint returned it, or `unavailable` when the source
+ * did not match or the query failed.
+ */
+export interface FederalFootprint {
+  ldaSpend: Metric;
+  ldaFilings: Metric;
+  federalAwards: Metric;
+  lobbyingTrajectory: Metric;
+  /** Whether the underlying client-profile query has settled. */
+  ready: boolean;
+  /** Display label for the footer's registrant count. */
+  registrantsLabel: string | null;
+}
+
 export interface ClientCrmOverviewModel {
   profile: ClientProfileCard;
   account: AccountCard;
@@ -137,6 +155,7 @@ export interface ClientCrmOverviewModel {
   workStatus: RegionStatus;
   intelligence: IntelligencePulse;
   intelligenceStatus: RegionStatus;
+  federalFootprint: FederalFootprint;
 }
 
 /* ──────────────────────────────── helpers ───────────────────────────────── */
@@ -297,6 +316,18 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
     queryFn: async () =>
       (await api.get<{ alerts: Array<Record<string, unknown>> }>('/api/intelligence/comment-alerts')).data,
     staleTime: 5 * 60 * 1000,
+  });
+
+  /* Federal footprint (wire-audit "3 Compose extend" item 3) — the real
+   * LDA spend, filing count, federal award total, and lobbying trajectory
+   * from the client-profile endpoint. Replaces the hardcoded FOOT_STATS
+   * fixture in OverviewTab. */
+  const clientProfile = useQuery<ClientIntelProfile>({
+    queryKey: ['client-intel-profile', clientId],
+    queryFn: async () =>
+      (await api.get<ClientIntelProfile>(`/api/intelligence/client-profile/${clientId}`)).data,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 
   /* ── Derivations ────────────────────────────────────────────────────── */
@@ -521,6 +552,35 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
     clientId,
   ]);
 
+  const federalFootprint = useMemo<FederalFootprint>(() => {
+    const p = clientProfile.data;
+    const ready = !clientProfile.isLoading && !clientProfile.isError;
+    return {
+      ldaSpend: p?.lda?.matched
+        ? (p.lda.totalSpending != null
+          ? value(p.lda.totalSpending)
+          : unavailable('LDA spend not reported'))
+        : unavailable('No LDA match for this client'),
+      ldaFilings: p?.lda?.matched
+        ? value(p.lda.totalFilings)
+        : unavailable('No LDA match for this client'),
+      federalAwards: p?.contracting?.matched
+        ? (p.contracting.totalContracts != null
+          ? value(p.contracting.totalContracts)
+          : unavailable('Contract data not reported'))
+        : unavailable('No federal award match for this client'),
+      lobbyingTrajectory: p?.lobbyIntel?.matched
+        ? (p.lobbyIntel.trajectory != null
+          ? value(p.lobbyIntel.growthRate ?? 0)
+          : unavailable('Lobbying trajectory not reported'))
+        : unavailable('No lobbying intel match for this client'),
+      ready,
+      registrantsLabel: p?.lda?.matched
+        ? `${p.lda.totalFilings} LD-2 filing${p.lda.totalFilings === 1 ? '' : 's'}`
+        : null,
+    };
+  }, [clientProfile.data, clientProfile.isLoading, clientProfile.isError]);
+
   return {
     profile,
     account,
@@ -547,5 +607,6 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
       statusOf(facilities),
       statusOf(alerts),
     ),
+    federalFootprint,
   };
 }

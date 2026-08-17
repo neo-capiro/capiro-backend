@@ -142,4 +142,12 @@ export const CLIENT_CRM_VISUAL_FIXTURE: ClientCrmOverviewModel = {
     lastRefresh: '2 hours ago',
   },
   intelligenceStatus: ready,
+  federalFootprint: {
+    ldaSpend: { kind: 'value', value: 1800000 },
+    ldaFilings: { kind: 'value', value: 8 },
+    federalAwards: { kind: 'value', value: 14 },
+    lobbyingTrajectory: { kind: 'value', value: 18 },
+    ready: true,
+    registrantsLabel: '8 LD-2 filings',
+  },
 };

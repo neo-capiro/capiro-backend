@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { DIRECTORY_ROUTES } from '../../directory/directory-routes.js';
 import {
-  Avatar,
   Card,
   CardHead,
   Eyebrow,
@@ -856,16 +855,16 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
 
 /* ── Relationship network card ────────────────────────────────────────────── */
 
-/** UI-only fixture: active access paths around the client (spec §8.2). */
-const NETWORK_TOP = [
-  { init: 'JD', name: 'Rep. Jane Doe', path: 'HASC · member path via Sarah Martinez' },
-  { init: 'G8', name: 'Army G-8', path: 'Resourcing path via Jordan Clayton' },
-];
-const NETWORK_BOTTOM = [
-  { init: 'SA', name: 'Senate Armed Services', path: 'Authorization path via Jordan Clayton' },
-  { init: 'ONR', name: 'Office of Naval Research', path: 'Agency path via Sarah Martinez' },
-];
-
+/**
+ * Wire-audit "3 Compose extend" item 4: the relationship network card was a
+ * pure fixture (NETWORK_TOP / NETWORK_BOTTOM hardcoded names + "access path
+ * via <person>" text). No backing record exists for "access paths" — this
+ * product has no such table. The honest treatment is an explicit empty state
+ * that names the gap, rather than fixture names that imply real relationships.
+ *
+ * The targets table (real ClientTargets) IS wired and renders in the table
+ * above; this card is the only fixture-only piece on this tab.
+ */
 function NetworkCard({ client }: { client: Client }) {
   return (
     <Card>
@@ -884,78 +883,15 @@ function NetworkCard({ client }: { client: Client }) {
             Active access paths around the client
           </span>
         </span>
-        <PfButton variant="link">Expand</PfButton>
       </div>
 
-      <div style={{ padding: '22px 20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 0 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {NETWORK_TOP.map((n) => (
-            <NetworkNode key={n.name} node={n} />
-          ))}
-        </div>
-
-        <span style={{ display: 'block', height: 22, width: 1, background: '#EAECF0', margin: '0 auto' }} aria-hidden />
-
-        <span
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            padding: '14px 16px',
-            borderRadius: 10,
-            background: '#F2F4F7',
-            boxShadow: 'inset 0 0 0 1px #D0D5DD',
-          }}
-        >
-          <Tile initials={initialsFor(client.name)} size={44} dark />
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#101828' }}>{client.name}</span>
-            <span style={{ display: 'block', fontSize: 12, color: '#101828' }}>3 active target paths</span>
-          </span>
+      <div style={{ padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+        <Tile initials={initialsFor(client.name)} size={44} dark />
+        <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{client.name}</span>
+        <span style={{ fontSize: 13, color: '#98A2B3', textAlign: 'center', maxWidth: 320, textWrap: 'pretty' }}>
+          Access-path mapping is not available yet. Tracked targets above show the real relationships this client has on file.
         </span>
-
-        <span style={{ display: 'block', height: 22, width: 1, background: '#EAECF0', margin: '0 auto' }} aria-hidden />
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {NETWORK_BOTTOM.map((n) => (
-            <NetworkNode key={n.name} node={n} />
-          ))}
-        </div>
       </div>
     </Card>
-  );
-}
-
-function NetworkNode({ node: n }: { node: { init: string; name: string; path: string } }) {
-  return (
-    <span
-      style={{
-        display: 'flex',
-        gap: 10,
-        padding: '10px 12px',
-        borderRadius: 8,
-        background: '#F9FAFB',
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
-        minWidth: 0,
-      }}
-    >
-      <Avatar initials={n.init} size={32} />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span
-          style={{
-            display: 'block',
-            fontSize: 13,
-            fontWeight: 600,
-            color: '#101828',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {n.name}
-        </span>
-        <span style={{ display: 'block', fontSize: 12, color: '#667085', textWrap: 'pretty' }}>{n.path}</span>
-      </span>
-    </span>
   );
 }

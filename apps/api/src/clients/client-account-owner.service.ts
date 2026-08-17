@@ -69,6 +69,39 @@ export class ClientAccountOwnerService {
     });
   }
 
+  /**
+   * Batch lookup: returns account owner assignments for ALL clients in the
+   * tenant in one query. Used by the portfolio index to avoid N+1 per-client
+   * calls to `get`. (Wire-audit "3 Compose extend" item 1.)
+   */
+  async listAll(ctx: TenantContext): Promise<Record<string, ClientAccountOwnerAssignment>> {
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const rows = await tx.$queryRaw<Array<{ clientId: string } & OwnerRow>>`
+        SELECT
+          c.id::text AS "clientId",
+          c.account_owner_user_id::text AS "accountOwnerUserId",
+          u.id::text AS "id",
+          u.email::text AS "email",
+          u.first_name AS "firstName",
+          u.last_name AS "lastName"
+        FROM clients c
+        LEFT JOIN users u ON u.id = c.account_owner_user_id
+        WHERE c.tenant_id = CAST(${ctx.tenantId} AS uuid)
+          AND c.status != 'archived'
+      `;
+      const map: Record<string, ClientAccountOwnerAssignment> = {};
+      for (const row of rows) {
+        map[row.clientId] = {
+          accountOwnerUserId: row.accountOwnerUserId,
+          accountOwner: row.id && row.email
+            ? { id: row.id, email: row.email, firstName: row.firstName, lastName: row.lastName }
+            : null,
+        };
+      }
+      return map;
+    });
+  }
+
   async update(
     ctx: TenantContext,
     clientId: string,

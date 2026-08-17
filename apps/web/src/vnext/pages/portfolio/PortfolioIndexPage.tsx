@@ -91,6 +91,7 @@ function freshestUpdatedAt(model: ReturnType<typeof usePortfolioIndexModel>): nu
     model.clients.dataUpdatedAt,
     model.strategies.dataUpdatedAt,
     model.meetings.dataUpdatedAt,
+    model.accountOwners.dataUpdatedAt,
   );
 }
 
@@ -113,7 +114,8 @@ function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) 
     summary.isLoading ||
     clients.isLoading ||
     model.strategies.isLoading ||
-    model.meetings.isLoading;
+    model.meetings.isLoading ||
+    model.accountOwners.isLoading;
   const figures = useMemo(() => {
     const clientCount = clients.data?.filter((c) => (c.status ?? '').toLowerCase() !== 'archived').length;
     const s = summary.data;
@@ -121,7 +123,7 @@ function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) 
       { label: 'Clients', value: clientCount ?? null },
       { label: 'Need attention', value: s?.needAttention ?? null },
       { label: 'Active strategies', value: model.strategies.data?.length ?? null },
-      { label: 'Meetings this week', value: model.meetings.data?.length ?? null },
+      { label: 'Meetings this week', value: s?.meetingsThisWeek ?? null },
       { label: 'Tracked bills', value: s?.billsTracked ?? null },
       { label: 'Active regulations', value: s?.activeRegulations ?? null },
       { label: 'LDA spend QTD', value: s?.ldaSpendQtd != null ? `$${s.ldaSpendQtd.toLocaleString()}` : null },
@@ -298,6 +300,7 @@ export function PortfolioIndexPage() {
     },
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: ['clients'] });
+      void queryClient.invalidateQueries({ queryKey: ['client-account-owners'] });
       void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-summary'] });
       setCreateOpen(false);
       const next = new URLSearchParams(searchParams);
@@ -316,6 +319,7 @@ export function PortfolioIndexPage() {
   };
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['clients'] });
+    void queryClient.invalidateQueries({ queryKey: ['client-account-owners'] });
     void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-summary'] });
     void queryClient.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
     void queryClient.invalidateQueries({ queryKey: ['engagement-meetings-week'] });

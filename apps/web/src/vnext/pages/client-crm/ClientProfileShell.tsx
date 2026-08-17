@@ -631,7 +631,9 @@ function OverflowMenu({
   canArchive?: boolean;
   onArchive?: () => void;
 }) {
+  const api = useApi();
   const [open, setOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -650,6 +652,44 @@ function OverflowMenu({
     };
   }, [open]);
 
+  /**
+   * Wire-audit "3 Compose extend" item 5: Export client profile. There is no
+   * server-side export-pack endpoint, so the export composes from the two
+   * existing endpoints already called by the profile (client record +
+   * intelligence profile) into a downloadable JSON file. The data is real —
+   * no fixture is generated. A dedicated PDF/printable pack would be a new
+   * capability (L); this composition closes the UNWIRED menu item honestly.
+   */
+  const exportProfile = async () => {
+    setExporting(true);
+    try {
+      const [clientRec, intelProfile] = await Promise.all([
+        api.get<Client>(`/api/clients/${client.id}`),
+        api.get(`/api/intelligence/client-profile/${client.id}`).catch(() => null),
+      ]);
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        client: clientRec.data,
+        intelligence: intelProfile?.data ?? null,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${client.name.replace(/[^a-zA-Z0-9_-]+/g, '_')}-profile.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setOpen(false);
+    } catch {
+      // Keep the menu open so the user sees it didn't work; the error is
+      // transient (network/permissions) and doesn't need a persistent banner.
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const items: Array<{ label: string; danger?: boolean; onSelect: () => void }> = [
     {
       // Item 18 (wire-audit "2 Wire existing APIs"): opens the real Meriv3
@@ -666,7 +706,7 @@ function OverflowMenu({
       },
     },
     { label: 'Profile & source health', onSelect: () => { setOpen(false); onDataHealth(); } },
-    { label: 'Export client profile', onSelect: () => setOpen(false) },
+    { label: exporting ? 'Exporting…' : 'Export client profile', onSelect: exportProfile },
   ];
 
   // Item 9: only offered to users the API would actually let archive

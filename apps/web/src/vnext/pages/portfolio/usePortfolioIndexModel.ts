@@ -5,6 +5,8 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
 import type { Meeting } from '../../../pages/engagement/meetings/meetings-types.js';
 import type { StrategyListItem } from '../../../pages/strategy/types.js';
 import type { PortfolioRoute, PortfolioStatus, PortfolioSort } from './portfolio-routing.js';
+import type { ClientAccountOwnerAssignment } from '../client-crm/useClientAccountOwner.js';
+import { clientAccountOwnerLabel } from '../client-crm/useClientAccountOwner.js';
 
 /**
  * Data model for the Portfolio index (PORTFOLIO-HANDOFF §7.1).
@@ -24,6 +26,8 @@ export interface PortfolioSummary {
   ldaSpendQtd: number;
   billsTracked: number;
   activeRegulations: number;
+  /** G1: folded into the summary endpoint so the pulse reads one call. */
+  meetingsThisWeek: number;
 }
 
 /** Coming-up feed item shape (GET /api/intelligence/coming-up). */
@@ -122,6 +126,18 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     queryFn: async () => (await api.get<Client[]>('/api/clients')).data,
   });
 
+  // Batch account-owner lookup for ALL clients in one call (wire-audit
+  // "3 Compose extend" item 1). Avoids N+1 per-client calls to
+  // /api/client-account-owners/:clientId; the index reads the real
+  // accountOwnerName from this map instead of falling back to
+  // primaryContactName.
+  const accountOwners = useQuery<Record<string, ClientAccountOwnerAssignment>>({
+    queryKey: ['client-account-owners'],
+    queryFn: async () =>
+      (await api.get<Record<string, ClientAccountOwnerAssignment>>('/api/client-account-owners')).data,
+    staleTime: 60_000,
+  });
+
   const summary = useQuery<PortfolioSummary>({
     queryKey: ['intelligence', 'portfolio-summary'],
     queryFn: async () =>
@@ -169,6 +185,7 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
 
   const rows = useMemo<PortfolioRow[]>(() => {
     const all = (clients.data ?? []).filter((c) => (c.status ?? '').toLowerCase() !== 'archived');
+    const ownerMap = accountOwners.data ?? {};
     return all.map((client) => ({
       client,
       status: classify(client),
@@ -176,9 +193,16 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
       sector: client.sectorTag ?? null,
       location: locationOf(client),
       focusTags: focusTagsOf(client),
-      ownerName: client.primaryContactName ?? null,
+      // Wire-audit "3 Compose extend" item 1: use the real account owner
+      // from the batch endpoint, not primaryContactName. Falls back to
+      // primaryContactName only when the batch hasn't loaded yet, so the
+      // column is never empty during initial load.
+      ownerName:
+        clientAccountOwnerLabel(ownerMap[client.id]?.accountOwner) ??
+        client.primaryContactName ??
+        null,
     }));
-  }, [clients.data]);
+  }, [clients.data, accountOwners.data]);
 
   const counts = useMemo(() => {
     const by: Record<PortfolioStatus, number> = { all: rows.length, active: 0, 'at-risk': 0, prospect: 0 };
@@ -214,5 +238,5 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     return sorted;
   }, [rows, route]);
 
-  return { clients, summary, strategies, meetings, comingUp, alerts, rows, counts, visible };
+  return { clients, accountOwners, summary, strategies, meetings, comingUp, alerts, rows, counts, visible };
 }

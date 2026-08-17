@@ -52,6 +52,7 @@ const summary = {
   ldaSpendQtd: 1800000,
   billsTracked: 12,
   activeRegulations: 4,
+  meetingsThisWeek: 2,
 };
 
 function makeApi(overrides: { clientsError?: boolean; summaryError?: boolean } = {}) {
@@ -64,6 +65,9 @@ function makeApi(overrides: { clientsError?: boolean; summaryError?: boolean } =
       if (path === '/api/intelligence/portfolio-summary') {
         if (overrides.summaryError) throw new Error('summary boom');
         return { data: summary };
+      }
+      if (path === '/api/client-account-owners') {
+        return { data: { 'c-1': { accountOwnerUserId: 'u-1', accountOwner: { id: 'u-1', email: 'owner@test.com', firstName: 'Test', lastName: 'Owner' } } } };
       }
       if (path === '/strategy-api/strategies') return { data: [] };
       if (path === '/api/engagement/meetings') return { data: [] };
