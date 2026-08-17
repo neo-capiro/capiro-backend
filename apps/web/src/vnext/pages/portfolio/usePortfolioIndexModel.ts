@@ -26,6 +26,46 @@ export interface PortfolioSummary {
   activeRegulations: number;
 }
 
+/** Coming-up feed item shape (GET /api/intelligence/coming-up). */
+export interface ComingUpItem {
+  id: string;
+  kind: 'hearing' | 'markup' | 'deadline' | 'meeting';
+  label: string;
+  title: string;
+  detail: string | null;
+  severity: 'info' | 'notable' | 'critical';
+  date: string;
+  time: string | null;
+  href: string | null;
+}
+
+export interface ComingUpResponse {
+  items: ComingUpItem[];
+  totalThisWeek: number;
+}
+
+/** Portfolio-alerts feed item shape (GET /api/intelligence/portfolio-alerts). */
+export interface PortfolioAlert {
+  id: string;
+  clientId: string;
+  clientName: string;
+  severity: string;
+  title: string;
+  body?: string;
+  kind?: string;
+  countdownDays?: number;
+  when?: string;
+  canonicalComplete?: boolean;
+  canonicalMissingFields?: string[];
+}
+
+export interface PortfolioAlertsResponse {
+  alerts: PortfolioAlert[];
+  total: number;
+  clientCount: number;
+  generatedAt: string;
+}
+
 function weekBounds(now: Date): { from: string; to: string } {
   const day = now.getDay();
   const monday = new Date(now);
@@ -105,6 +145,28 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     staleTime: 60_000,
   });
 
+  // Coming-up feed — hearings, deadlines, and meetings in the next 7 days.
+  // Same endpoint the command dashboard uses; shared cache key.
+  const comingUp = useQuery<ComingUpResponse>({
+    queryKey: ['intelligence', 'coming-up'],
+    queryFn: async () =>
+      (await api.get<ComingUpResponse>('/api/intelligence/coming-up')).data,
+    staleTime: 5 * 60_000,
+  });
+
+  // Cross-client "Needs attention" alerts — same endpoint the dashboard uses.
+  // Expensive (per-client profile-v1 fan-out), so it has a 2-min TTL cache
+  // server-side and we use a generous staleTime.
+  const alerts = useQuery<PortfolioAlertsResponse>({
+    queryKey: ['intelligence', 'portfolio-alerts'],
+    queryFn: async () =>
+      (await api.get<PortfolioAlertsResponse>('/api/intelligence/portfolio-alerts', {
+        params: { limit: 8 },
+      })).data,
+    staleTime: 2 * 60_000,
+    retry: 1,
+  });
+
   const rows = useMemo<PortfolioRow[]>(() => {
     const all = (clients.data ?? []).filter((c) => (c.status ?? '').toLowerCase() !== 'archived');
     return all.map((client) => ({
@@ -152,5 +214,5 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     return sorted;
   }, [rows, route]);
 
-  return { clients, summary, strategies, meetings, rows, counts, visible };
+  return { clients, summary, strategies, meetings, comingUp, alerts, rows, counts, visible };
 }

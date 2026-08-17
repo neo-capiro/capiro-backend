@@ -95,6 +95,7 @@ const INTEL_TONE: Record<string, PillTone> = {
 
 export function ClientCrmIntelligenceProto({ client, view }: { client: Client; view: IntelligenceView }) {
   const navigate = useNavigate();
+  const api = useApi();
   const domain = DOMAIN_META[view] ?? DOMAIN_META.overview!;
   // Actions that need the client are computed here rather than in the static
   // map below: District's "Manage facilities" (item 3, wire-audit "2 Wire
@@ -122,10 +123,16 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
     ) : (
       domain.actions
     );
+
+  // Compute real domain-stats-strip values from the queries each panel
+  // already runs. react-query dedupes by key — these are the exact same
+  // queries the panels below issue, so no extra network requests.
+  const realStats = useDomainStats(client, view, api);
+
   return (
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <TabPageHead title={domain.title} sub={domain.sub} actions={actions} />
-      {view !== 'overview' ? <DomainStatsStrip view={view} /> : null}
+      {view !== 'overview' ? <DomainStatsStrip view={view} realValues={realStats} /> : null}
       {view === 'overview' ? <IntelOverview client={client} /> : null}
       {view === 'legislative' ? <LegislativePanel client={client} /> : null}
       {view === 'regulatory' ? <RegulatoryPanel client={client} /> : null}
@@ -134,6 +141,160 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
       {view === 'district' ? <DistrictPanel client={client} /> : null}
     </div>
   );
+}
+
+/**
+ * Resolve real domain-stats-strip cells from live queries, falling back to
+ * null (which makes DomainStatsStrip render the fixture) when a query is not
+ * ready or not applicable. Each case reuses the same query key the panel
+ * below uses so cache is shared — zero extra network calls.
+ */
+function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<typeof useApi>): Array<[string, string]> | undefined {
+  const { enabled: trackerV2, ready: trackerReady } = useIntelFeature('tracker_v2');
+  const boardQ = useQuery<BoardResponse>({
+    queryKey: trackerKeys.board(client.id),
+    queryFn: async () => {
+      if (trackerV2) {
+        const raw = (await api.get<Parameters<typeof adaptBoard>[0]>(intelTrackerPaths.board(client.id))).data;
+        return adaptBoard(raw);
+      }
+      return (await api.get<BoardResponse>(trackerPaths.board(client.id))).data;
+    },
+    enabled: trackerReady && view === 'legislative',
+    staleTime: 60_000,
+  });
+  const recsQ = useQuery<RecommendationsResponse>({
+    queryKey: trackerKeys.recommendations(client.id),
+    queryFn: async () =>
+      (await api.get<RecommendationsResponse>(
+        trackerV2 ? intelTrackerPaths.recommendations(client.id) : trackerPaths.recommendations(client.id),
+      )).data,
+    enabled: trackerReady && view === 'legislative',
+    staleTime: 60_000,
+  });
+
+  const aggQ = useQuery<ClientProfileV1>({
+    queryKey: ['client-intel-v1-aggregate', client.id],
+    queryFn: async () =>
+      (await api.get<ClientProfileV1>(`/api/intelligence/clients/${client.id}/profile-v1`)).data,
+    enabled: view === 'regulatory',
+    staleTime: 2 * 60_000,
+    retry: 1,
+  });
+
+  const { enabled: foEnabled, ready: foReady } = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
+  const oppsQ = useQuery<ClientFundingOpportunitySummary>({
+    queryKey: ['client-funding-opportunities', client.id],
+    queryFn: async () =>
+      (await api.get<ClientFundingOpportunitySummary>(
+        `/api/intelligence/clients/${client.id}/opportunities/summary`,
+      )).data,
+    enabled: Boolean(client.id) && foReady && foEnabled && view === 'funding',
+    staleTime: 2 * 60_000,
+    retry: 1,
+  });
+  const pesQ = useQuery({
+    queryKey: ['client-pe-relevance', client.id, { minScore: 0.5 }],
+    queryFn: () => getRelevantPesForClient(api, client.id, { minScore: 0.5, limit: 12 }),
+    enabled: view === 'funding',
+    staleTime: 60_000,
+  });
+
+  const ldaQ = useQuery({
+    queryKey: ['client-lda-filings', client.id],
+    queryFn: () => getClientLdaFilings(api, client.id),
+    enabled: view === 'footprint',
+    staleTime: 2 * 60_000,
+  });
+  const nexusQ = useQuery({
+    queryKey: ['client-district-nexus', client.id],
+    queryFn: () => getClientDistrictNexus(api, client.id),
+    enabled: view === 'footprint' || view === 'district',
+    staleTime: 2 * 60_000,
+  });
+  const fecQ = useQuery({
+    queryKey: ['client-fec-money-flow', client.id],
+    queryFn: () => getClientFecMoneyFlow(api, client.id),
+    enabled: view === 'footprint',
+    staleTime: 5 * 60_000,
+  });
+  const facilitiesQ = useQuery({
+    queryKey: ['client-facilities', client.id],
+    queryFn: () => getClientFacilities(api, client.id),
+    enabled: view === 'district',
+    staleTime: 60_000,
+  });
+
+  if (view === 'legislative' && trackerReady && boardQ.isSuccess && recsQ.isSuccess) {
+    const board = boardQ.data;
+    const highFit = recsQ.data.recommendations.filter((r) => r.fit >= 0.85).length;
+    return [
+      [String(board.total), 'Tracked bills'],
+      ['—', 'Material changes'],
+      ['—', 'Upcoming hearings'],
+      [String(highFit), 'High-fit recommendations'],
+      ['—', 'Watchlist coverage'],
+    ];
+  }
+
+  if (view === 'regulatory' && aggQ.isSuccess) {
+    const rails = aggQ.data.sections.legislativeRegulatory.regulatoryLifecycle?.rails ?? [];
+    const now = Date.now();
+    const soon = rails.filter((r) => {
+      if (!r.deadline) return false;
+      const on = deadlineDay(r.deadline);
+      if (!on) return false;
+      return Math.ceil((on.getTime() - now) / 86_400_000) <= 14;
+    }).length;
+    return [
+      [String(rails.length), 'Active matters'],
+      [String(soon), 'Deadline < 14 days'],
+      ['—', 'Linked bills'],
+      ['—', 'Agencies'],
+      ['—', 'Days to next deadline'],
+    ];
+  }
+
+  if (view === 'funding' && foReady && foEnabled && oppsQ.isSuccess && pesQ.isSuccess) {
+    const c = oppsQ.data.counts;
+    const pursuing = oppsQ.data.topGrants.filter((o) => o.workflow?.status === 'pursuing').length
+      + oppsQ.data.topContracts.filter((o) => o.workflow?.status === 'pursuing').length;
+    return [
+      [String(c.activeGrants + c.activeContracts), 'Active opportunities'],
+      [String(pursuing), 'Pursuing'],
+      ['—', 'Largest ceiling'],
+      [String(pesQ.data.data.length), 'Relevant programs'],
+      ['—', 'Next deadline'],
+    ];
+  }
+
+  if (view === 'footprint' && ldaQ.isSuccess && nexusQ.isSuccess && fecQ.isSuccess) {
+    const lda = ldaQ.data;
+    const ldaAmount = lda.matched ? lda.filings.reduce((s, f) => s + f.amount, 0) : 0;
+    const pac = fecQ.data.pacGiving;
+    return [
+      [lda.matched ? String(lda.totalFilings) : '0', 'LDA filings'],
+      lda.matched ? [`$${(ldaAmount / 1000).toFixed(0)}K`, 'Lobbying · TTM'] : ['—', 'Lobbying · TTM'],
+      nexusQ.data.linked ? [`$${(nexusQ.data.totalAmount / 1_000_000).toFixed(1)}M`, 'Federal awards · TTM'] : ['—', 'Federal awards · TTM'],
+      pac?.tracked && pac.summary ? [`$${(pac.summary.totalAmount / 1000).toFixed(0)}K`, 'PAC disbursements'] : ['—', 'PAC disbursements'],
+      [lda.matched ? String(lda.registrants.length) : '0', 'Registrants'],
+    ];
+  }
+
+  if (view === 'district' && facilitiesQ.isSuccess && nexusQ.isSuccess) {
+    const linkedNexus = nexusQ.data.linked ? nexusQ.data.districts.length : 0;
+    const totalAmount = nexusQ.data.linked ? nexusQ.data.districts.reduce((s, d) => s + d.totalAmount, 0) : 0;
+    const empCount = facilitiesQ.data.reduce((s, f) => s + (f.employeeCount ?? 0), 0);
+    return [
+      [String(linkedNexus), 'Districts'],
+      [`$${(totalAmount / 1_000_000).toFixed(1)}M`, 'Contract obligations'],
+      ['—', 'Grant obligations'],
+      [String(empCount), 'Employees mapped'],
+      ['—', 'Coverage'],
+    ];
+  }
+
+  return undefined; // fall back to fixture
 }
 
 const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactNode }> = {
@@ -212,10 +373,17 @@ function LinkBtn({
 
 /* ── Domain stats strip (§10 — all domains except Overview) ──────────────── */
 
-function DomainStatsStrip({ view }: { view: IntelligenceView }) {
-  const cells = (DOMAIN_STATS as unknown as Record<string, Array<[string, string]>>)[view] ?? [];
+/**
+ * The strip renders five summary cells per domain. Where a real query is
+ * already running in the panel below, the live count overrides the fixture.
+ * Fixture cells are flagged with a `data-source="fixture"` attribute so the
+ * distinction is inspectable.
+ */
+function DomainStatsStrip({ view, realValues }: { view: IntelligenceView; realValues?: Array<[string, string]> }) {
+  const fixtureCells = (DOMAIN_STATS as unknown as Record<string, Array<[string, string]>>)[view] ?? [];
+  const cells = realValues && realValues.length > 0 ? realValues : fixtureCells;
   return (
-    <section style={{ background: '#ffffff', borderRadius: 12, boxShadow: '0 0 0 1px #EAECF0,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}>
+    <section style={{ background: '#ffffff', borderRadius: 12, boxShadow: '0 0 0 1px #EAECF0,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }} data-source={realValues ? 'live' : 'fixture'}>
       {cells.map(([value, label], i) => (
         <span key={label} style={{ flex: 1, minWidth: 168, padding: '20px 24px', boxShadow: i === 0 ? 'none' : 'inset 1px 0 0 #EAECF0', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828', lineHeight: 1.2 }}>{value}</span>
@@ -230,21 +398,116 @@ function DomainStatsStrip({ view }: { view: IntelligenceView }) {
 
 function IntelOverview({ client }: { client: Client }) {
   const navigate = useNavigate();
+  const api = useApi();
+
+  /**
+   * The overview's pulse band figures are real where an endpoint exists and
+   * render `—` where one does not (same convention as every other panel).
+   * The four figures shown here come from three real queries:
+   *   - tracked bills   → tracker board (same key the Legislative panel uses)
+   *   - funding matches → opportunities summary (same key Funding panel uses)
+   *   - districts       → district nexus (same key District panel uses)
+   *   - deadlines <14d  → regulatory lifecycle rails (same key Regulatory uses)
+   * Sharing keys means the cache is shared with those panels and invalidations
+   * propagate — no parallel model.
+   */
+  const { enabled: trackerV2, ready: trackerReady } = useIntelFeature('tracker_v2');
+  const boardQ = useQuery<BoardResponse>({
+    queryKey: trackerKeys.board(client.id),
+    queryFn: async () => {
+      if (trackerV2) {
+        const raw = (
+          await api.get<Parameters<typeof adaptBoard>[0]>(intelTrackerPaths.board(client.id))
+        ).data;
+        return adaptBoard(raw);
+      }
+      return (await api.get<BoardResponse>(trackerPaths.board(client.id))).data;
+    },
+    enabled: trackerReady,
+    staleTime: 60_000,
+  });
+  const trackedBills = trackerReady && boardQ.isSuccess ? boardQ.data.total : null;
+
+  const { enabled: foEnabled, ready: foReady } = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
+  const oppsQ = useQuery<ClientFundingOpportunitySummary>({
+    queryKey: ['client-funding-opportunities', client.id],
+    queryFn: async () =>
+      (await api.get<ClientFundingOpportunitySummary>(
+        `/api/intelligence/clients/${client.id}/opportunities/summary`,
+      )).data,
+    enabled: Boolean(client.id) && foReady && foEnabled,
+    staleTime: 2 * 60_000,
+    retry: 1,
+  });
+  const fundingMatches = foReady && foEnabled && oppsQ.isSuccess
+    ? oppsQ.data.counts.activeGrants + oppsQ.data.counts.activeContracts
+    : null;
+
+  const nexusQ = useQuery({
+    queryKey: ['client-district-nexus', client.id],
+    queryFn: () => getClientDistrictNexus(api, client.id),
+    staleTime: 2 * 60_000,
+  });
+  const districtCount = nexusQ.isSuccess && nexusQ.data.linked ? nexusQ.data.districts.length : null;
+
+  const aggregateQ = useQuery<ClientProfileV1>({
+    queryKey: ['client-intel-v1-aggregate', client.id],
+    queryFn: async () =>
+      (await api.get<ClientProfileV1>(`/api/intelligence/clients/${client.id}/profile-v1`)).data,
+    staleTime: 2 * 60_000,
+    retry: 1,
+  });
+  const rails = aggregateQ.data?.sections.legislativeRegulatory.regulatoryLifecycle?.rails ?? [];
+  const deadlinesSoon = useMemo(() => {
+    const now = Date.now();
+    return rails.filter((r) => {
+      if (!r.deadline) return false;
+      const on = deadlineDay(r.deadline);
+      if (!on) return false;
+      return Math.ceil((on.getTime() - now) / 86_400_000) <= 14;
+    }).length;
+  }, [rails]);
+
+  /** Freshest dataUpdatedAt for a real "Refreshed Xh ago" stamp. */
+  const refreshLabel = useMemo(() => {
+    const ts = Math.max(
+      boardQ.dataUpdatedAt,
+      oppsQ.dataUpdatedAt,
+      nexusQ.dataUpdatedAt,
+      aggregateQ.dataUpdatedAt,
+    );
+    const elapsed = Date.now() - ts;
+    if (elapsed < 0) return 'just now';
+    const minutes = Math.floor(elapsed / 60_000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  }, [boardQ.dataUpdatedAt, oppsQ.dataUpdatedAt, nexusQ.dataUpdatedAt, aggregateQ.dataUpdatedAt]);
+
+  const pulseFigures: Array<[string, string | null]> = [
+    ['Tracked bills', trackedBills != null ? String(trackedBills) : null],
+    ['Funding matches', fundingMatches != null ? String(fundingMatches) : null],
+    ['Districts', districtCount != null ? String(districtCount) : null],
+    ['Deadlines < 14 days', deadlinesSoon > 0 ? String(deadlinesSoon) : deadlinesSoon === 0 ? '0' : null],
+  ];
+
   return (
     <>
       {/* Client intelligence pulse — deep band */}
       <div style={{ background: GRADIENT_DARK, borderRadius: 12, padding: '22px 28px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3', flex: '0 0 auto' }}>Client intelligence pulse</span>
-        {[['12', 'Tracked bills'], ['7', 'Funding matches'], ['8', 'Districts'], ['2', 'Deadlines < 14 days']].map(([v, l]) => (
+        {pulseFigures.map(([v, l]) => (
           <span key={l} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#ffffff', lineHeight: 1.2 }}>{v}</span>
+            <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#ffffff', lineHeight: 1.2 }}>{v ?? '—'}</span>
             <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>{l}</span>
           </span>
         ))}
         <span style={{ flex: 1, minWidth: 12 }} />
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto', fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>
           <span className="cap-pf-anim-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: '#32D583' }} />
-          Refreshed 2h ago
+          Refreshed {refreshLabel}
         </span>
       </div>
 

@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
+import { hasAtLeast } from '@capiro/shared';
+import { message } from 'antd';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
+import { useApi } from '../../../lib/use-api.js';
+import type { MeResponse } from '../../../lib/me.js';
+import type { AxiosInstance } from 'axios';
+import type { Client, ClientFormSubmit } from '../../../pages/clients/clientTypes.js';
+import { ClientFormModal } from '../../../pages/clients/ClientFormModal.js';
 import { ImportWithLdaModal } from './ImportWithLdaModal.js';
 import { PortfolioProgramElements } from './PortfolioProgramElements.js';
 import {
@@ -12,8 +19,59 @@ import {
   applyPortfolioRoute,
   resolvePortfolioRoute,
 } from './portfolio-routing.js';
-import { usePortfolioIndexModel, type PortfolioRow } from './usePortfolioIndexModel.js';
+import { usePortfolioIndexModel, type PortfolioRow, type PortfolioAlert, type ComingUpItem } from './usePortfolioIndexModel.js';
 import './portfolio.css';
+
+/* ── S3 upload helpers (mirror ClientWorkspacePage exactly) ───────────────── */
+
+async function uploadToS3(presigned: { url: string; fields: Record<string, string> }, file: File) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(presigned.fields)) form.append(key, value);
+  form.append('file', file);
+  const response = await fetch(presigned.url, { method: 'POST', body: form });
+  if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
+}
+
+async function uploadClientLogo(api: AxiosInstance, clientId: string, file: File) {
+  const presigned = (
+    await api.post<{ url: string; fields: Record<string, string>; s3Key: string }>(
+      `/api/clients/${clientId}/logo/upload-url`,
+      { contentType: file.type, contentLength: file.size },
+    )
+  ).data;
+  await uploadToS3(presigned, file);
+  await api.post(`/api/clients/${clientId}/logo/confirm`, {
+    s3Key: presigned.s3Key,
+    contentType: file.type,
+  });
+}
+
+async function uploadClientDocuments(api: AxiosInstance, clientId: string, files: File[]) {
+  for (const file of files) {
+    const presigned = (
+      await api.post<{ url: string; fields: Record<string, string>; s3Key: string }>(
+        '/api/engagement/attachments/upload-url',
+        { clientId, contentType: file.type, contentLength: file.size },
+      )
+    ).data;
+    await uploadToS3(presigned, file);
+    await api.post('/api/engagement/attachments/confirm', {
+      s3Key: presigned.s3Key,
+      clientId,
+      contentType: file.type,
+      filename: file.name,
+    });
+  }
+}
+
+function errorMessage(error: unknown): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const data = (error as { response?: { data?: { message?: unknown } } }).response?.data;
+    if (typeof data?.message === 'string') return data.message;
+    if (Array.isArray(data?.message)) return data.message.join(', ');
+  }
+  return error instanceof Error ? error.message : 'Request failed';
+}
 
 const STATUS_TONE: Record<PortfolioRow['status'], 'success' | 'warning' | 'info'> = {
   active: 'success',
@@ -25,6 +83,29 @@ const STATUS_LABEL: Record<PortfolioRow['status'], string> = {
   'at-risk': 'At risk',
   prospect: 'Prospect',
 };
+
+/** Freshest dataUpdatedAt across the queries the pulse band reads. */
+function freshestUpdatedAt(model: ReturnType<typeof usePortfolioIndexModel>): number {
+  return Math.max(
+    model.summary.dataUpdatedAt,
+    model.clients.dataUpdatedAt,
+    model.strategies.dataUpdatedAt,
+    model.meetings.dataUpdatedAt,
+  );
+}
+
+/** Human "Xh ago" / "Xm ago" label from a epoch-ms timestamp. */
+function refreshedAgo(updatedAt: number): string {
+  const elapsed = Date.now() - updatedAt;
+  if (elapsed < 0) return 'just now';
+  const minutes = Math.floor(elapsed / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) {
   const { summary, clients } = model;
@@ -42,14 +123,21 @@ function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) 
       { label: 'Active strategies', value: model.strategies.data?.length ?? null },
       { label: 'Meetings this week', value: model.meetings.data?.length ?? null },
       { label: 'Tracked bills', value: s?.billsTracked ?? null },
+      { label: 'Active regulations', value: s?.activeRegulations ?? null },
+      { label: 'LDA spend QTD', value: s?.ldaSpendQtd != null ? `$${s.ldaSpendQtd.toLocaleString()}` : null },
     ];
   }, [summary.data, clients.data, model.strategies.data, model.meetings.data]);
+
+  const refreshLabel = useMemo(
+    () => refreshedAgo(freshestUpdatedAt(model)),
+    [model, loading], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   return (
     <section className="capiro-portfolio-pulse capiro-portfolio__surface" aria-label="Portfolio pulse">
       <div className="capiro-portfolio-pulse__head">
         <span className="capiro-portfolio__eyebrow">Portfolio pulse</span>
-        <span className="capiro-portfolio-pulse__refresh"><span className="capiro-portfolio-pulse__refresh-dot" /> Refreshed 2 hours ago</span>
+        <span className="capiro-portfolio-pulse__refresh"><span className="capiro-portfolio-pulse__refresh-dot" /> Refreshed {refreshLabel}</span>
       </div>
       <div className="capiro-portfolio-pulse__band">
         {loading ? figures.map((f) => <div className="capiro-portfolio-pulse__stat-skel" key={f.label} />) : summary.isError ? (
@@ -118,15 +206,108 @@ function ClientCard({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) 
   );
 }
 
+/* ── Feed rows (WA2 coming-up, WA3 portfolio-alerts) ───────────────────────── */
+
+const SEVERITY_DOT: Record<string, string> = {
+  critical: '#F04438',
+  notable: '#F79009',
+  info: '#344054',
+};
+
+function AlertRow({ alert, onOpen }: { alert: PortfolioAlert; onOpen: () => void }) {
+  const dot = SEVERITY_DOT[String(alert.severity).toLowerCase()] ?? '#667085';
+  return (
+    <button type="button" className="capiro-portfolio__feed-row" onClick={onOpen}>
+      <span className="capiro-portfolio__feed-dot" style={{ background: dot }} />
+      <span className="capiro-portfolio__feed-copy">
+        <span className="capiro-portfolio__feed-title">{alert.title}</span>
+        <span className="capiro-portfolio__feed-meta">{alert.clientName}{alert.kind ? ` · ${alert.kind}` : ''}</span>
+      </span>
+      {alert.countdownDays != null ? (
+        <span className="capiro-portfolio__feed-due">{alert.countdownDays <= 0 ? 'Today' : `${alert.countdownDays}d`}</span>
+      ) : null}
+      <span className="capiro-portfolio__feed-open">Open →</span>
+    </button>
+  );
+}
+
+function ComingUpRow({ item }: { item: ComingUpItem }) {
+  const date = new Date(item.date);
+  const dateLabel = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return (
+    <a
+      className="capiro-portfolio__feed-row"
+      href={item.href ?? '#'}
+      target={item.href ? '_blank' : undefined}
+      rel={item.href ? 'noreferrer' : undefined}
+    >
+      <span className="capiro-portfolio__feed-label">{item.label}</span>
+      <span className="capiro-portfolio__feed-copy">
+        <span className="capiro-portfolio__feed-title">{item.title}</span>
+        {item.detail ? <span className="capiro-portfolio__feed-meta">{item.detail}</span> : null}
+      </span>
+      <span className="capiro-portfolio__feed-due">{dateLabel}{item.time ? ` · ${item.time}` : ''}</span>
+    </a>
+  );
+}
+
 export function PortfolioIndexPage() {
   const navigate = useNavigate();
+  const api = useApi();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const route = resolvePortfolioRoute(searchParams);
   const model = usePortfolioIndexModel(route);
   const [importOpen, setImportOpen] = useState(searchParams.get('modal') === 'import-lda');
+  const [createOpen, setCreateOpen] = useState(searchParams.get('new') === '1');
   const setRoute = (patch: Parameters<typeof applyPortfolioRoute>[1]) => setSearchParams(applyPortfolioRoute(searchParams, patch), { replace: true });
   const openClient = (id: string) => navigate(`/clients?clientId=${encodeURIComponent(id)}`);
+
+  // Role-gate the create button (same rule as the canonical workspace).
+  const me = useQuery<MeResponse>({
+    queryKey: ['me'],
+    queryFn: async () => (await api.get<MeResponse>('/api/me')).data,
+    staleTime: 30_000,
+    retry: false,
+  });
+  const canCreateClients = Boolean(me.data && hasAtLeast(me.data.role, 'standard_user'));
+
+  const openCreate = () => {
+    if (!canCreateClients) return;
+    setCreateOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.set('new', '1');
+    setSearchParams(next, { replace: true });
+  };
+  const closeCreate = () => {
+    setCreateOpen(false);
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  };
+
+  // Create-client mutation — mirrors ClientWorkspacePage.createClient exactly:
+  // POST the payload, upload the logo + documents, then refetch the full
+  // client record so the redirect opens the profile with all fields populated.
+  const createClient = useMutation({
+    mutationFn: async (submission: ClientFormSubmit) => {
+      const created = (await api.post<Client>('/api/clients', submission.payload)).data;
+      if (submission.logo) await uploadClientLogo(api, created.id, submission.logo);
+      if (submission.documents.length) await uploadClientDocuments(api, created.id, submission.documents);
+      return (await api.get<Client>(`/api/clients/${created.id}`)).data;
+    },
+    onSuccess: (created) => {
+      void queryClient.invalidateQueries({ queryKey: ['clients'] });
+      void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-summary'] });
+      setCreateOpen(false);
+      const next = new URLSearchParams(searchParams);
+      next.delete('new');
+      setSearchParams(next, { replace: true });
+      navigate(`/clients?clientId=${encodeURIComponent(created.id)}`);
+    },
+    onError: (err) => message.error(errorMessage(err)),
+  });
+
   const openImport = (open: boolean) => {
     setImportOpen(open);
     const next = new URLSearchParams(searchParams);
@@ -139,6 +320,8 @@ export function PortfolioIndexPage() {
     void queryClient.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
     void queryClient.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
     void queryClient.invalidateQueries({ queryKey: ['program-element-finder', 'portfolio-watch'] });
+    void queryClient.invalidateQueries({ queryKey: ['intelligence', 'coming-up'] });
+    void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-alerts'] });
   };
   const { clients } = model;
   const showEmpty = !clients.isLoading && !clients.isError && model.visible.length === 0;
@@ -152,10 +335,38 @@ export function PortfolioIndexPage() {
         <span className="capiro-portfolio__head-spacer" />
         <CapiroButton variant="secondary" size="standard" onClick={refresh}>Sources refreshed just now</CapiroButton>
         <CapiroButton variant="secondary" size="standard" onClick={() => openImport(true)}>Import with LDA</CapiroButton>
-        <CapiroButton variant="primary" size="standard" onClick={() => navigate('/clients?new=1')}>New client</CapiroButton>
+        <CapiroButton variant="primary" size="standard" disabled={!canCreateClients} onClick={openCreate}>New client</CapiroButton>
       </header>
 
       <Pulse model={model} />
+
+      {(model.alerts.data?.alerts.length || model.comingUp.data?.items.length) ? (
+        <div className="capiro-portfolio__feeds">
+          {model.alerts.data && model.alerts.data.alerts.length > 0 ? (
+            <section className="capiro-portfolio__surface capiro-portfolio__feed" aria-label="Needs attention">
+              <div className="capiro-portfolio__feed-head">
+                <h2 className="capiro-portfolio__section-title">Needs attention</h2>
+                <span className="capiro-portfolio__count">{model.alerts.data.total} alert{model.alerts.data.total === 1 ? '' : 's'}</span>
+              </div>
+              <div className="capiro-portfolio__feed-body">
+                {model.alerts.data.alerts.map((a) => <AlertRow key={a.id} alert={a} onOpen={() => openClient(a.clientId)} />)}
+              </div>
+            </section>
+          ) : null}
+
+          {model.comingUp.data && model.comingUp.data.items.length > 0 ? (
+            <section className="capiro-portfolio__surface capiro-portfolio__feed" aria-label="Coming up">
+              <div className="capiro-portfolio__feed-head">
+                <h2 className="capiro-portfolio__section-title">Coming up</h2>
+                <span className="capiro-portfolio__count">{model.comingUp.data.items.length} this week</span>
+              </div>
+              <div className="capiro-portfolio__feed-body">
+                {model.comingUp.data.items.map((item) => <ComingUpRow key={item.id} item={item} />)}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
 
       <section className="capiro-portfolio__clients capiro-portfolio__surface" aria-labelledby="capiro-portfolio-clients">
         <div className="capiro-portfolio__clients-toolbar">
@@ -179,6 +390,13 @@ export function PortfolioIndexPage() {
 
       <PortfolioProgramElements />
       <ImportWithLdaModal open={importOpen} onClose={() => openImport(false)} />
+      <ClientFormModal
+        open={createOpen}
+        mode="create"
+        submitting={createClient.isPending}
+        onCancel={closeCreate}
+        onSubmit={(submission) => createClient.mutate(submission)}
+      />
     </div>
   );
 }

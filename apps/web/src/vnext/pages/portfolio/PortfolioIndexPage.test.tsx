@@ -67,6 +67,28 @@ function makeApi(overrides: { clientsError?: boolean; summaryError?: boolean } =
       }
       if (path === '/strategy-api/strategies') return { data: [] };
       if (path === '/api/engagement/meetings') return { data: [] };
+      if (path === '/api/intelligence/coming-up') {
+        return {
+          data: {
+            items: [
+              { id: 'h1', kind: 'hearing', label: 'HEARING', title: 'HASC · Autonomous Systems', detail: null, severity: 'notable', date: '2026-08-20T00:00:00.000Z', time: null, href: null },
+            ],
+            totalThisWeek: 1,
+          },
+        };
+      }
+      if (path === '/api/intelligence/portfolio-alerts') {
+        return {
+          data: {
+            alerts: [
+              { id: 'a1', clientId: 'c-1', clientName: 'Overland AI', severity: 'critical', title: 'Ground Robotics mark reduced', kind: 'Funding', countdownDays: 0 },
+            ],
+            total: 1,
+            clientCount: 3,
+            generatedAt: '2026-08-16T00:00:00.000Z',
+          },
+        };
+      }
       if (path === '/api/firm/registrant') {
         return { data: { ldaRegistrantId: null, ldaRegistrantName: null } };
       }
@@ -201,5 +223,25 @@ describe('PortfolioIndexPage', () => {
     await waitFor(() =>
       expect(screen.getByRole('dialog', { name: 'Find your firm in LDA filings' })).toBeInTheDocument(),
     );
+  });
+
+  it('renders the coming-up and needs-attention feeds from live data', async () => {
+    apiOverride = makeApi();
+    renderIndex();
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    // Coming-up feed
+    expect(screen.getByText('Coming up')).toBeInTheDocument();
+    expect(screen.getByText('HASC · Autonomous Systems')).toBeInTheDocument();
+    // Needs-attention feed
+    expect(screen.getByText('Needs attention')).toBeInTheDocument();
+    expect(screen.getByText('Ground Robotics mark reduced')).toBeInTheDocument();
+  });
+
+  it('renders the active-regulations and LDA spend pulse figures from summary', async () => {
+    apiOverride = makeApi();
+    renderIndex();
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    expect(screen.getByText('Active regulations')).toBeInTheDocument();
+    expect(screen.getByText('LDA spend QTD')).toBeInTheDocument();
   });
 });

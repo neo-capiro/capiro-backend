@@ -85,7 +85,7 @@
 /* ── 2 · Pulse band ──────────────────────────────────────────────────── */
 .capiro-portfolio-pulse__band {
   display: grid;
-  grid-template-columns: repeat(5, minmax(104px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
   gap: 0;
   padding: 0 24px 20px;
   background: var(--capiro-color-bg-surface);
@@ -691,3 +691,64 @@
     min-height: var(--capiro-hit-size, 44px);
   }
 }
+
+/* ── Feeds (Needs attention + Coming up) ────────────────────────────── */
+.capiro-portfolio__feeds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 1199px) {
+  .capiro-portfolio__feeds { grid-template-columns: 1fr; }
+}
+.capiro-portfolio__feed {
+  display: flex;
+  flex-direction: column;
+}
+.capiro-portfolio__feed-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 24px 8px;
+}
+.capiro-portfolio__feed-body { display: flex; flex-direction: column; }
+.capiro-portfolio__feed-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  cursor: pointer;
+}
+.capiro-portfolio__feed-row:hover { background: var(--capiro-color-bg-subtle); }
+.capiro-portfolio__feed-row:last-child { border-bottom: none; }
+.capiro-portfolio__feed-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.capiro-portfolio__feed-label {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--capiro-color-bg-subtle);
+}
+.capiro-portfolio__feed-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.capiro-portfolio__feed-title { font-size: 14px; font-weight: 500; color: var(--capiro-color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capiro-portfolio__feed-meta { font-size: 13px; color: var(--capiro-color-text-muted); }
+.capiro-portfolio__feed-due { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--capiro-color-text-muted); white-space: nowrap; }
+.capiro-portfolio__feed-open { flex: 0 0 auto; font-size: 13px; font-weight: 600; color: var(--capiro-color-text-primary); white-space: nowrap; }
