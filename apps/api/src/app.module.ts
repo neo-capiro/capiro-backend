@@ -48,6 +48,7 @@ import { AcquisitionPersonnelModule } from './acquisition-personnel/acquisition-
 import { AiUsageModule } from './ai-usage/ai-usage.module.js';
 import { BillingModule } from './billing/billing.module.js';
 import { MemoryModule } from './memory/memory.module.js';
+import { RetrievalModule } from './retrieval/retrieval.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
 import { InternalOnboardingModule } from './internal-onboarding/internal-onboarding.module.js';
 import { BudgetPackagesModule } from './budget-packages/budget-packages.module.js';
@@ -111,6 +112,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     AiUsageModule,
     BillingModule,
     MemoryModule,
+    RetrievalModule,
     ReviewsModule,
     InternalOnboardingModule,
     BudgetPackagesModule,
