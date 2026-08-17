@@ -180,10 +180,17 @@ export function VNextMeriWorkspace() {
     // `useMe()` is cached under the identity-agnostic key ['me'] on an app-wide
     // QueryClient. The shell remounts on `key={identityKey}` and would otherwise
     // paint the PREVIOUS tenant's name and feature flags immediately, with
-    // `isLoading` false because cached data exists. Dropping the entry before
-    // paint makes the route's `me.isLoading` gate hold until /api/me re-answers
-    // for the identity that is actually authenticated.
-    queryClient.removeQueries({ queryKey: ['me'] });
+    // `isLoading` false because cached data exists.
+    //
+    // resetQueries (not removeQueries): removeQueries destroys the Query object
+    // without notifying its observers, so any useMe() consumer that does not
+    // itself re-render in this commit stays bound to the destroyed query and is
+    // orphaned from every future write to ['me'] (Settings' invalidate, the
+    // admin impersonation-start invalidate). resetQueries calls query.reset(),
+    // which notifies observers in place before the shared refetch runs — this
+    // is correct regardless of what else happens to be mounted alongside Meri,
+    // not merely because /meri currently renders outside the app shell.
+    queryClient.resetQueries({ queryKey: ['me'] });
 
     bootSequenceRef.current += 1;
     firstSendEpochRef.current += 1;
