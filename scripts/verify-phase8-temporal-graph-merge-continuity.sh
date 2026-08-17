@@ -136,6 +136,196 @@ BEGIN
   END IF;
 END $$;
 
+-- A resolved edge existing in the view is not sufficient: a caller that still
+-- holds the pre-merge UUID must reach the surviving node through the actual
+-- sanctioned entry points (kg_temporal_walk_bounded / kg_temporal_relation_history),
+-- not merely through the internal resolver or a direct view read.
+DO $$
+DECLARE
+  v_src uuid;
+  v_dst uuid;
+  v_assertion uuid;
+  v_event uuid;
+  v_evidence uuid;
+  v_hash text;
+  v_start int;
+  v_end int;
+  v_count int;
+BEGIN
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_walk_bounded(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000001'::uuid, -- OLD pre-merge query root (Historical A)
+    '2026-08-02T00:00:00Z'::timestamptz,
+    2, NULL, 25, 500, 'both'
+  );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'walkAsOf(oldMergedUuid) did not reach exactly one edge from the surviving terminal node: got %', v_count;
+  END IF;
+
+  SELECT src_canonical_entity_id, dst_canonical_entity_id, assertion_id, event_id, evidence_id,
+         evidence_content_hash, evidence_start_offset, evidence_end_offset
+    INTO v_src, v_dst, v_assertion, v_event, v_evidence, v_hash, v_start, v_end
+  FROM kg_temporal_walk_bounded(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000001'::uuid,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    2, NULL, 25, 500, 'both'
+  );
+
+  IF v_src IS DISTINCT FROM 'f8100000-0000-4000-8000-000000000003'::uuid THEN
+    RAISE EXCEPTION 'walkAsOf(oldMergedUuid) did not project the surviving terminal canonical node as src: %', v_src;
+  END IF;
+  IF v_dst IS DISTINCT FROM 'f8100000-0000-4000-8000-000000000004'::uuid THEN
+    RAISE EXCEPTION 'walkAsOf(oldMergedUuid) resolved an unexpected dst node: %', v_dst;
+  END IF;
+  IF v_assertion IS DISTINCT FROM 'f8300000-0000-4000-8000-000000000001'::uuid
+     OR v_event IS DISTINCT FROM 'f8200000-0000-4000-8000-000000000001'::uuid
+     OR v_evidence IS DISTINCT FROM 'f8400000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'walkAsOf(oldMergedUuid) altered historical assertion/event/evidence provenance';
+  END IF;
+  IF v_hash IS DISTINCT FROM repeat('a', 64) OR v_start IS DISTINCT FROM 0 OR v_end IS DISTINCT FROM 10 THEN
+    RAISE EXCEPTION 'walkAsOf(oldMergedUuid) altered evidence content hash or offsets: hash=%, start=%, end=%', v_hash, v_start, v_end;
+  END IF;
+
+  -- Same continuity proof for relationHistory, the other sanctioned query root.
+  SELECT src_canonical_entity_id, dst_canonical_entity_id, assertion_id, event_id, evidence_id
+    INTO v_src, v_dst, v_assertion, v_event, v_evidence
+  FROM kg_temporal_relation_history(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000001'::uuid, -- OLD pre-merge query root
+    '2026-08-01T00:00:00Z'::timestamptz,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    NULL, 500, 'both'
+  );
+
+  IF v_src IS DISTINCT FROM 'f8100000-0000-4000-8000-000000000003'::uuid THEN
+    RAISE EXCEPTION 'relationHistory(oldMergedUuid) did not project the surviving terminal canonical node as src: %', v_src;
+  END IF;
+  IF v_assertion IS DISTINCT FROM 'f8300000-0000-4000-8000-000000000001'::uuid
+     OR v_event IS DISTINCT FROM 'f8200000-0000-4000-8000-000000000001'::uuid
+     OR v_evidence IS DISTINCT FROM 'f8400000-0000-4000-8000-000000000001'::uuid THEN
+    RAISE EXCEPTION 'relationHistory(oldMergedUuid) altered historical assertion/event/evidence provenance';
+  END IF;
+
+  -- A malformed/cyclic/foreign-tenant query root must fail closed through the
+  -- sanctioned entry point too, not only through the internal resolver.
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_walk_bounded(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000005'::uuid, -- foreign tenant-private entity
+    '2026-08-02T00:00:00Z'::timestamptz,
+    2, NULL, 25, 500, 'both'
+  );
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'kg_temporal_walk_bounded did not fail closed on a foreign-tenant query root';
+  END IF;
+END $$;
+
+-- The sanctioned wrapper functions must actually work when invoked as the real
+-- tenant application role, and the internal resolver / unresolved primitives
+-- must remain inaccessible to that same role. Grepping migration text for
+-- GRANT/REVOKE statements proves intent; this proves the runtime contract.
+SET ROLE capiro_app;
+
+DO $$
+DECLARE
+  v_count int;
+BEGIN
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_walk_bounded(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000001'::uuid,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    2, NULL, 25, 500, 'both'
+  );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'capiro_app could not use the sanctioned kg_temporal_walk_bounded entry point: got % rows', v_count;
+  END IF;
+
+  SELECT count(*) INTO v_count
+  FROM kg_temporal_relation_history(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000001'::uuid,
+    '2026-08-01T00:00:00Z'::timestamptz,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    NULL, 500, 'both'
+  );
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'capiro_app could not use the sanctioned kg_temporal_relation_history entry point: got % rows', v_count;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  PERFORM kg_resolve_terminal_canonical_entity(
+    'f8100000-0000-4000-8000-000000000001'::uuid,
+    'f8000000-0000-4000-8000-000000000001'::uuid
+  );
+  RAISE EXCEPTION 'capiro_app was able to execute the internal kg_resolve_terminal_canonical_entity resolver directly';
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    NULL; -- expected: capiro_app has no EXECUTE grant on this internal function
+END $$;
+
+DO $$
+BEGIN
+  PERFORM kg_temporal_walk_bounded_unresolved(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000003'::uuid,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    2, NULL, 25, 500, 'both'
+  );
+  RAISE EXCEPTION 'capiro_app was able to execute the internal kg_temporal_walk_bounded_unresolved function directly';
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    NULL; -- expected
+END $$;
+
+DO $$
+BEGIN
+  PERFORM kg_temporal_relation_history_unresolved(
+    'f8000000-0000-4000-8000-000000000001'::uuid,
+    'normal',
+    '{"kind":"tenant"}'::jsonb,
+    ARRAY[]::text[],
+    'f8100000-0000-4000-8000-000000000003'::uuid,
+    '2026-08-01T00:00:00Z'::timestamptz,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    '2026-08-02T00:00:00Z'::timestamptz,
+    NULL, 500, 'both'
+  );
+  RAISE EXCEPTION 'capiro_app was able to execute the internal kg_temporal_relation_history_unresolved function directly';
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    NULL; -- expected
+END $$;
+
+RESET ROLE;
+
 -- Build deliberately malformed chains with governance triggers disabled to
 -- prove the read path fails closed even if privileged maintenance corrupts data.
 ALTER TABLE canonical_entity_merges DISABLE TRIGGER USER;
