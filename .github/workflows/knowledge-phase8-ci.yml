@@ -1,0 +1,103 @@
+name: Knowledge Plane Phase 8 CI
+
+on:
+  push:
+    branches:
+      - agent/knowledge-plane-phase-8-temporal-knowledge-graph
+    paths:
+      - 'apps/api/src/knowledge/graph/**'
+      - 'apps/api/prisma/migrations/20261120170000_temporal_knowledge_graph/**'
+      - 'apps/api/prisma/migrations/20261120180000_temporal_knowledge_graph_merge_continuity/**'
+      - 'scripts/verify-phase8-temporal-graph-merge-continuity.sh'
+      - '.github/workflows/knowledge-phase8-ci.yml'
+  pull_request:
+    branches:
+      - agent/knowledge-plane-phase-7-knowledge-episodes-v2
+    paths:
+      - 'apps/api/src/knowledge/graph/**'
+      - 'apps/api/prisma/migrations/20261120170000_temporal_knowledge_graph/**'
+      - 'apps/api/prisma/migrations/20261120180000_temporal_knowledge_graph_merge_continuity/**'
+      - 'scripts/verify-phase8-temporal-graph-merge-continuity.sh'
+      - '.github/workflows/knowledge-phase8-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: capiro
+          POSTGRES_PASSWORD: capiro
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch hygiene
+        run: git diff --check HEAD^
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Validate and generate Prisma client
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Focused Phase 8 tests
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/knowledge/graph/temporal-knowledge-graph.helpers.spec.ts \
+            src/knowledge/graph/temporal-knowledge-graph-migration.contract.spec.ts \
+            src/knowledge/graph/temporal-knowledge-graph-merge-continuity.contract.spec.ts \
+            src/knowledge/graph/temporal-knowledge-graph.repository.contract.spec.ts
+
+      - name: Full Knowledge Plane tests
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/knowledge
+
+      - name: Reject Phase 8 TypeScript errors
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @capiro/api exec tsc --noEmit --pretty false > /tmp/api-tsc.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/api-tsc.log
+          if grep -E 'src/knowledge/graph/' /tmp/api-tsc.log; then
+            echo "Phase 8 introduced TypeScript errors." >&2
+            exit 1
+          fi
+          echo "Full API typecheck exit: $status (unrelated baseline errors, if any, are not attributed to Phase 8)."
+
+      - name: Deploy full Prisma migration chain to disposable pgvector/Postgres
+        run: |
+          set -o pipefail
+          pnpm --filter @capiro/api exec prisma migrate deploy 2>&1 | tee /tmp/phase8-migrate.log
+          grep -q '20261120180000_temporal_knowledge_graph_merge_continuity' /tmp/phase8-migrate.log || {
+            echo "::error::Phase 8 merge-continuity migration was not applied" >&2
+            exit 1
+          }
+
+      - name: DB-backed merge continuity, scope, provenance, and raw-view gates
+        run: bash scripts/verify-phase8-temporal-graph-merge-continuity.sh
