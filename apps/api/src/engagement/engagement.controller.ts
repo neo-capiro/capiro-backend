@@ -47,6 +47,7 @@ import { NotetakerService } from './notetaker/notetaker.service.js';
 import { OutreachDraftService } from './outreach-draft.service.js';
 import { OutreachSendIntentService } from './outreach-send-intent.service.js';
 import { EngagementRuntimeAction } from './runtime/engagement-runtime-action.decorator.js';
+import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 
 /**
  * Coerce empty/whitespace-only strings to `undefined` BEFORE validation runs.
@@ -1647,6 +1648,7 @@ export class EngagementController {
     private readonly outreachJobs: OutreachJobService,
     private readonly drafts: OutreachDraftService,
     private readonly sendIntents: OutreachSendIntentService,
+    private readonly runtimePolicy: EngagementRuntimePolicyService,
   ) {}
 
   @Get('capabilities')
@@ -1654,9 +1656,27 @@ export class EngagementController {
     // Phase 0 §3.i1: the web app must know whether versioned outreach and the
     // v2 send gate are on, so it can pick the right send path. Booleans only —
     // no secrets, and the raw auditor mode is never exposed.
+    //
+    // Runtime policy snapshot: exposes the live engagement-api runtime posture
+    // (shadow vs armed, external actions, background workers) so the UI can
+    // honestly report whether V3 send/generation are enabled in this environment.
+    const snapshot = this.runtimePolicy.snapshot();
     return {
       ...this.service.capabilities(),
       ...this.service.engagementTrustBoundaryCapabilities(),
+      runtime: {
+        serviceName: snapshot.serviceName,
+        processMode: snapshot.processMode,
+        backgroundOwner: snapshot.backgroundOwner,
+        externalActions: snapshot.externalActions,
+        callbacksEnabled: snapshot.callbacksEnabled,
+        recallWebhookEnabled: snapshot.recallWebhookEnabled,
+        // Convenience booleans for the UI
+        externalActionsEnabled: snapshot.externalActions === 'enabled',
+        backgroundWorkersEnabled: this.runtimePolicy.backgroundWorkersEnabled(),
+        outreachV3FullGenerationEnabled: this.runtimePolicy.outreachV3FullGenerationWorkerEnabled(),
+        outreachV3SendIntentEnabled: this.runtimePolicy.outreachV3SendIntentWorkerEnabled(),
+      },
     };
   }
 
