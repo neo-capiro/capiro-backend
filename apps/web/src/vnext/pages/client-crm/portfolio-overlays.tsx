@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Pill, Tile, Avatar, UIcon, GRADIENT_DARK, GRADIENT_DARK_HOVER } from './portfolio-primitives.js';
 import { SOURCES, LEVELS } from './portfolio-fixtures.js';
 
@@ -7,7 +7,55 @@ import { SOURCES, LEVELS } from './portfolio-fixtures.js';
  * §2.17) + the toast (§2.18). Focus is trapped, Escape and scrim close a clean
  * overlay, the shell behind stays visible. Geometry is transcribed from the
  * prototype's inline styles (lines 1792–2141 of the DOM dump).
+ *
+ * Layering: the legacy Capiro overlays sit at z-index 200, so the Pf layers
+ * sit ABOVE them (drawer 210, modal 220, toast 230) — a Pf modal opened from
+ * inside a Capiro surface must never be buried under it.
  */
+
+const SCRIM = 'rgba(16,24,40,0.5)';
+
+/**
+ * Minimal focus containment for the overlay shells: focus the panel on mount
+ * (unless something inside it — e.g. an autofocused input — already holds
+ * focus), keep Tab cycling within the panel, and hand focus back to whatever
+ * had it when the overlay closes.
+ */
+function useFocusTrap<T extends HTMLElement>() {
+  const panelRef = useRef<T | null>(null);
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const previous = document.activeElement as HTMLElement | null;
+    if (!panel.contains(document.activeElement)) panel.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const focusables = panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusables.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+      const current = document.activeElement;
+      if (event.shiftKey && (current === first || current === panel)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && current === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    panel.addEventListener('keydown', onKey);
+    return () => {
+      panel.removeEventListener('keydown', onKey);
+      previous?.focus?.();
+    };
+  }, []);
+  return panelRef;
+}
 
 /* ── Drawer shell (§2.16) ────────────────────────────────────────────────── */
 
@@ -31,15 +79,19 @@ export function PfDrawer({
   children: ReactNode;
 }) {
   useEscape(onClose);
+  const panelRef = useFocusTrap<HTMLElement>();
   const w = narrow ? 480 : width;
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 60 }} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : eyebrow}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 210 }} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : eyebrow}>
       <div
         onClick={onClose}
-        style={{ position: 'absolute', inset: 0, background: 'rgba(12,17,29,.55)', animation: 'capPfFade .16s ease' }}
+        style={{ position: 'absolute', inset: 0, background: SCRIM, animation: 'capPfFade .16s ease' }}
       />
       <aside
+        ref={panelRef}
+        tabIndex={-1}
         style={{
+          outline: 'none',
           position: 'absolute',
           top: 0,
           right: 0,
@@ -95,11 +147,15 @@ export function PfModal({
   children: ReactNode;
 }) {
   useEscape(onClose);
+  const panelRef = useFocusTrap<HTMLDivElement>();
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : eyebrow}>
-      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(12,17,29,.55)', animation: 'capPfFade .16s ease' }} />
+    <div style={{ position: 'fixed', inset: 0, zIndex: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32 }} role="dialog" aria-modal="true" aria-label={typeof title === 'string' ? title : eyebrow}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: SCRIM, animation: 'capPfFade .16s ease' }} />
       <div
+        ref={panelRef}
+        tabIndex={-1}
         style={{
+          outline: 'none',
           position: 'relative',
           width: '100%',
           maxWidth,
@@ -136,7 +192,22 @@ export function PfModal({
 
 /* ── Toast (§2.18) — dark pill, bottom-centre, 2400ms ───────────────────── */
 
-export function PfToast({ message, onDone }: { message: string; onDone: () => void }) {
+export function PfToast({
+  message,
+  tone,
+  onDone,
+}: {
+  message: string;
+  /**
+   * Dot colour. When absent, inferred from the message text: a message that
+   * reports something "unavailable" is a warning, not a success. (The caller
+   * that sets the sync message — ClientCrmPage — is not ours to edit, so the
+   * inference keeps existing call sites honest without touching them.)
+   */
+  tone?: 'success' | 'warning';
+  onDone: () => void;
+}) {
+  const resolvedTone = tone ?? (/unavailable/i.test(message) ? 'warning' : 'success');
   useEffect(() => {
     const t = setTimeout(onDone, 2400);
     return () => clearTimeout(t);
@@ -149,7 +220,7 @@ export function PfToast({ message, onDone }: { message: string; onDone: () => vo
         left: '50%',
         bottom: 28,
         transform: 'translateX(-50%)',
-        zIndex: 80,
+        zIndex: 230,
         display: 'flex',
         alignItems: 'center',
         gap: 12,
@@ -164,7 +235,7 @@ export function PfToast({ message, onDone }: { message: string; onDone: () => vo
         whiteSpace: 'nowrap',
       }}
     >
-      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#12B76A' }} />
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: resolvedTone === 'warning' ? '#F79009' : '#12B76A' }} />
       {message}
     </div>
   );
@@ -209,12 +280,34 @@ function CloseButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function PrimaryFooterBtn({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+export function PrimaryFooterBtn({
+  children,
+  onClick,
+  disabled = false,
+  busy = false,
+  danger = false,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  /** In-flight state: blocks the button and swaps the label for "Working…". */
+  busy?: boolean;
+  danger?: boolean;
+}) {
   const [hover, setHover] = useState(false);
+  const blocked = disabled || busy;
+  const background = danger
+    ? hover && !blocked
+      ? '#912018'
+      : '#B42318'
+    : hover && !blocked
+      ? GRADIENT_DARK_HOVER
+      : GRADIENT_DARK;
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={blocked}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -224,20 +317,22 @@ function PrimaryFooterBtn({ children, onClick }: { children: ReactNode; onClick?
         height: 40,
         padding: '0 16px',
         borderRadius: 8,
-        background: hover ? GRADIENT_DARK_HOVER : GRADIENT_DARK,
+        background,
         color: '#ffffff',
         fontSize: 14,
         fontWeight: 600,
         whiteSpace: 'nowrap',
         boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
+        opacity: blocked ? 0.5 : 1,
+        cursor: blocked ? 'not-allowed' : 'pointer',
       }}
     >
-      {children}
+      {busy ? 'Working…' : children}
     </button>
   );
 }
 
-function GhostFooterBtn({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+export function GhostFooterBtn({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -264,6 +359,15 @@ function GhostFooterBtn({ children, onClick }: { children: ReactNode; onClick?: 
 }
 
 function UpperLink({ children, danger = false, onClick }: { children: ReactNode; danger?: boolean; onClick?: () => void }) {
+  // A label with nothing behind it must not look like a control: without an
+  // onClick this renders as plain muted text, not a dead link.
+  if (!onClick) {
+    return (
+      <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#98A2B3' }}>
+        {children}
+      </span>
+    );
+  }
   return (
     <button
       type="button"
@@ -857,17 +961,34 @@ export interface FolderNode {
 export function MoveToFolderModal({
   count,
   folders,
+  initial,
+  error,
+  pending = false,
   onClose,
   onMove,
 }: {
   count: number;
   folders: FolderNode[];
+  /** Preselected destination: a real folder label, or `null` for Unfiled. */
+  initial?: string | null;
+  /** Move failure to surface inline — the modal stays open so nothing is lost. */
+  error?: string;
+  /** Move in flight: the primary is blocked so it cannot double-fire. */
+  pending?: boolean;
   onClose: () => void;
-  onMove?: (dest: string) => void;
+  /** `null` destination = Unfiled (the mutation clears the folder label). */
+  onMove?: (dest: string | null) => void;
 }) {
-  const [selected, setSelected] = useState<string>(folders[1]?.label ?? folders[0]?.label ?? '');
+  // `null` selects Unfiled. The default is the caller's `initial` when it is a
+  // real destination, else the first folder in the list.
+  const [selected, setSelected] = useState<string | null>(() => {
+    if (initial === null) return null;
+    if (initial !== undefined && folders.some((f) => f.label === initial)) return initial;
+    return folders[0]?.label ?? null;
+  });
   const [query, setQuery] = useState('');
   const shown = folders.filter((f) => f.label.toLowerCase().includes(query.toLowerCase()));
+  const showUnfiled = 'unfiled'.includes(query.trim().toLowerCase()) || query.trim() === '';
   return (
     <PfModal
       eyebrow="File organization"
@@ -878,7 +999,9 @@ export function MoveToFolderModal({
       footer={
         <>
           <GhostFooterBtn onClick={onClose}>Cancel</GhostFooterBtn>
-          <PrimaryFooterBtn onClick={() => onMove?.(selected)}>Move {count} item{count === 1 ? '' : 's'}</PrimaryFooterBtn>
+          <PrimaryFooterBtn busy={pending} onClick={() => onMove?.(selected)}>
+            Move {count} item{count === 1 ? '' : 's'}
+          </PrimaryFooterBtn>
         </>
       }
     >
@@ -897,6 +1020,15 @@ export function MoveToFolderModal({
           {shown.map((f) => (
             <FolderRow key={f.label} folder={f} selected={selected === f.label} onSelect={() => setSelected(f.label)} />
           ))}
+          {/* Unfiled is a real destination — the mutation accepts a null folder,
+              which is exactly what "unfiled" is server-side. */}
+          {showUnfiled ? (
+            <FolderRow
+              folder={{ label: 'Unfiled', depth: 0 }}
+              selected={selected === null}
+              onSelect={() => setSelected(null)}
+            />
+          ) : null}
         </div>
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Destination</div>
@@ -918,15 +1050,74 @@ export function MoveToFolderModal({
             }}
           >
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: GRADIENT_DARK }} />
-            {selected}
+            {selected ?? 'Unfiled'}
           </span>
         </div>
+        {error ? (
+          <p style={{ margin: 0, fontSize: 14, color: '#B42318' }} role="alert">
+            {error}
+          </p>
+        ) : null}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 16px', borderRadius: 8, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
           <span style={{ flex: '0 0 auto', marginTop: 5, width: 6, height: 6, borderRadius: '50%', background: '#667085' }} />
           <span style={{ flex: 1, minWidth: 0, fontSize: 13, lineHeight: '19px', color: '#475467', textWrap: 'pretty' }}>
             No physical copy is created for smart-linked Strategy, meeting, or Outreach artifacts.
           </span>
         </div>
+      </div>
+    </PfModal>
+  );
+}
+
+/* ═══════════════════════ Small confirm modal ════════════════════════════════ */
+
+/**
+ * Generic small confirmation on the Pf shell — one design system per tab, so
+ * the Files tab's delete confirm is no longer a CapiroModal beside PfModals.
+ */
+export function PfConfirmModal({
+  eyebrow = 'Confirm',
+  title,
+  confirmLabel,
+  danger = false,
+  pending = false,
+  error,
+  onConfirm,
+  onClose,
+  children,
+}: {
+  eyebrow?: string;
+  title: string;
+  confirmLabel: string;
+  danger?: boolean;
+  pending?: boolean;
+  error?: string;
+  onConfirm: () => void;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <PfModal
+      eyebrow={eyebrow}
+      title={title}
+      maxWidth={480}
+      onClose={onClose}
+      footer={
+        <>
+          <GhostFooterBtn onClick={onClose}>Cancel</GhostFooterBtn>
+          <PrimaryFooterBtn danger={danger} busy={pending} onClick={onConfirm}>
+            {confirmLabel}
+          </PrimaryFooterBtn>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {children}
+        {error ? (
+          <p style={{ margin: 0, fontSize: 14, color: '#B42318' }} role="alert">
+            {error}
+          </p>
+        ) : null}
       </div>
     </PfModal>
   );

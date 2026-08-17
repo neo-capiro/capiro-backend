@@ -141,7 +141,7 @@ describe('ClientCrmWorkProto', () => {
 const SECOND_ID = '22222222-2222-4222-8222-222222222222';
 
 describe('ClientCrmWorkProto — stat band', () => {
-  it('dashes the band instead of showing fixture figures when the details cannot be read', async () => {
+  it('says the details failed — with a Retry — instead of showing fixture figures', async () => {
     getMock.mockImplementation((url: string) => {
       if (url === '/strategy-api/strategies') return Promise.resolve({ data: [listItem] });
       // The client demonstrably HAS a strategy; only its detail fails.
@@ -149,14 +149,17 @@ describe('ClientCrmWorkProto — stat band', () => {
     });
     renderWork();
 
-    await waitFor(() => expect(screen.getByText('1 strategy could not be read.')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Some strategy details failed to load')).toBeInTheDocument(),
+    );
     // The strategy count is still known from the list itself.
     expect(screen.getByText('1')).toBeInTheDocument();
     // BAND_FIXTURE's figures must not stand in for this client's real numbers.
     expect(screen.queryByText('12')).not.toBeInTheDocument();
     expect(screen.queryByText('9')).not.toBeInTheDocument();
-    // Unavailable is not zero, and never renders as one.
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(4);
+    // The failure state offers a way out, not a dash farm.
+    expect(screen.getAllByRole('button', { name: 'Retry' }).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Strategy details could not be read')).toBeInTheDocument();
   });
 
   it('states how many strategies were left out when only some details fail', async () => {
@@ -207,13 +210,17 @@ describe('ClientCrmWorkProto — unbacked status signals', () => {
     expect(screen.queryByText('38% ready')).not.toBeInTheDocument();
   });
 
-  it('keeps the design pill over the fixture, which is what it describes', async () => {
+  it('renders skeletons while loading — never the design fixture or its "On track" pill', async () => {
     getMock.mockImplementation((url: string) => {
       if (url === '/strategy-api/strategies') return new Promise(() => {}); // never resolves
       return new Promise(() => {});
     });
     renderWork();
 
-    expect(await screen.findByText('On track')).toBeInTheDocument();
+    // The fixture strategy must not masquerade as this client's data while
+    // the list is still in flight — and "On track" is an assertion nothing
+    // in the Strategy API can back.
+    expect(screen.queryByText('FY27 Ground Robotics Funding')).not.toBeInTheDocument();
+    expect(screen.queryByText('On track')).not.toBeInTheDocument();
   });
 });

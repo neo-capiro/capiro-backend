@@ -299,6 +299,17 @@ export class ClientCapabilitiesController {
     return this.service.deleteCapability(ctx, clientId, id);
   }
 
+  /**
+   * Client-wide submission history in ONE read. The profile UI previously had
+   * to fan out one `capabilities/:capId/history` request per capability (14+
+   * parallel GETs on profile load), which drove the API to 503s. Same rows,
+   * same tenancy checks, one query.
+   */
+  @Get('submission-history')
+  listClientHistory(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    return this.service.listClientHistory(ctx, clientId, 200);
+  }
+
   @Get('capabilities/:capId/history')
   listHistory(
     @CurrentTenant() ctx: TenantContext,

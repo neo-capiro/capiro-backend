@@ -156,8 +156,9 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
     mockDistrictApis();
     renderDistrict();
 
-    await waitFor(() => expect(screen.getByText('Rep. Jamie Rivera (D) · House')).toBeInTheDocument());
-    expect(screen.getByText('$12,000,000')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Rep. Jamie Rivera (Democrat) · House')).toBeInTheDocument());
+    // Compact money is the app-wide convention (district-nexus-format).
+    expect(screen.getAllByText('$12.0M').length).toBeGreaterThan(0);
     expect(screen.getAllByText('WA-07').length).toBeGreaterThan(0);
 
     // The design fixture's own facility/rep must not leak through as if real.
@@ -184,12 +185,14 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
     expect(screen.queryByText('Seattle headquarters')).not.toBeInTheDocument();
   });
 
-  it('keeps the design fixture on screen while the facilities query is still loading', () => {
+  it('shows a skeleton while loading — never the design fixture masquerading as data', () => {
     getMock.mockImplementation(() => new Promise(() => {})); // never resolves
     renderDistrict();
 
-    expect(screen.getByText('8 districts · 92% coverage')).toBeInTheDocument();
-    expect(screen.getByText('Seattle headquarters')).toBeInTheDocument();
+    // The invented "8 districts · 92% coverage" fixture must not stand in for
+    // a real client while queries are in flight.
+    expect(screen.queryByText('8 districts · 92% coverage')).not.toBeInTheDocument();
+    expect(screen.queryByText('Seattle headquarters')).not.toBeInTheDocument();
   });
 
   it('wires "Manage facilities" to the real canonical Facilities tab (item 3, wire-audit)', () => {

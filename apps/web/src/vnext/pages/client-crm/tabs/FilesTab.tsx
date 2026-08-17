@@ -74,6 +74,8 @@ interface FileRowModel {
   ext: string;
   name: string;
   smart: boolean;
+  /** True for Meri-generated artifacts (memo/generated sources). */
+  generated: boolean;
   linked: string;
   modified: string;
   modifiedTs: number;
@@ -181,6 +183,7 @@ function fixtureRow(f: (typeof FILES)[number] & { smart?: boolean }): FileRowMod
     ext: f.ext,
     name: f.name,
     smart: Boolean(f.smart),
+    generated: f.owner === 'Meri',
     linked: f.linked,
     modified: f.modified,
     modifiedTs: 0,
@@ -240,11 +243,15 @@ function shortDate(iso: string | null | undefined): string {
 function attachmentRow(file: ClientAttachment): FileRowModel {
   const smart = isSmartSource(file.source);
   const folder = file.folder?.trim() ? file.folder.trim() : null;
+  const sourceValue = (file.source ?? '').toLowerCase();
   return {
     id: file.id,
     ext: extOf(file.fileName),
     name: baseOf(file.fileName),
     smart,
+    // Meri-generated artifacts are the real discriminator behind the "Meri
+    // artifacts" filter chip — owner names never carry this fact.
+    generated: /memo|generated/.test(sourceValue),
     linked: smart ? sourceLabel(file.source) : (folder ?? 'Unfiled'),
     modified: shortDate(file.createdAt),
     modifiedTs: Date.parse(file.createdAt) || 0,
@@ -335,9 +342,20 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => (await api.delete(`/api/engagement/attachments/${id}`)).data,
-    onSuccess: () => {
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/engagement/attachments/${id}`);
+      return id;
+    },
+    onSuccess: (id) => {
       setDeletingId(null);
+      // Prune the deleted id from the selection — a stale selected id would
+      // make the next bulk move PATCH a file that no longer exists.
+      setSelected((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       void qc.invalidateQueries({ queryKey: attachmentsKey });
       void qc.invalidateQueries({ queryKey: foldersKey });
     },
@@ -431,8 +449,10 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
   );
 
   const allRows: FileRowModel[] = useMemo(
-    () => (real ? (filesQuery.data ?? []).map(attachmentRow) : genuinelyEmpty ? [] : FILES.map(fixtureRow)),
-    [real, genuinelyEmpty, filesQuery.data],
+    // Loading and error render their own states below — the FILES design
+    // fixture never stands in for a client's real file room.
+    () => (loaded ? (filesQuery.data ?? []).map(attachmentRow) : []),
+    [loaded, filesQuery.data],
   );
 
   const rows = useMemo(() => {
@@ -445,8 +465,8 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
       : allRows.filter(inCurrentFolder);
     if (filter === 'documents') shown = shown.filter((row) => !row.smart);
     else if (filter === 'smart') shown = shown.filter((row) => row.smart);
-    else if (filter === 'client') shown = shown.filter((row) => row.owner === 'Client');
-    else if (filter === 'meri') shown = shown.filter((row) => row.owner === 'Meri');
+    else if (filter === 'client') shown = shown.filter((row) => !row.smart && !row.generated);
+    else if (filter === 'meri') shown = shown.filter((row) => row.generated);
     if (sort === 'name') shown = [...shown].sort((a, b) => a.name.localeCompare(b.name));
     else if (sort === 'owner') shown = [...shown].sort((a, b) => a.owner.localeCompare(b.owner));
     else if (real) shown = [...shown].sort((a, b) => b.modifiedTs - a.modifiedTs);
@@ -749,7 +769,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                 The fixture branch keeps the design's exact geometry — it is
                 what the offline capture harness diffs against the Figma frame,
                 and it is a loading placeholder, never a claim about a client. */}
-            {real ? (
+            {loaded ? (
               <>
                 <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: storageOver ? '#B54708' : '#101828' }}>
                   {`${formatBytes(storedBytes)} of ${formatBytes(CLIENT_STORAGE_QUOTA_BYTES)}`}
@@ -775,10 +795,12 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
               </>
             ) : (
               <>
-                <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: '#101828' }}>1.8 GB of 10 GB</div>
-                <span style={{ display: 'block', marginTop: 8, height: 6, borderRadius: 3, background: '#F2F4F7', overflow: 'hidden' }}>
-                  <span style={{ display: 'block', height: 6, width: '18%', borderRadius: 3, background: GRADIENT_DARK }} />
-                </span>
+                {/* Loading/error: no invented "1.8 GB of 10 GB" — an empty track
+                    until the real total is known. */}
+                <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: '#98A2B3' }} aria-busy={filesQuery.isPending}>
+                  {filesQuery.isPending ? 'Measuring…' : 'Storage unavailable'}
+                </div>
+                <span style={{ display: 'block', marginTop: 8, height: 6, borderRadius: 3, background: '#F2F4F7' }} />
               </>
             )}
             <p style={{ margin: '12px 0 0', fontSize: 13, lineHeight: '19px', color: '#667085', textWrap: 'pretty' }}>
@@ -863,7 +885,22 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                 <span style={{ flex: '0 0 auto', width: 28 }} />
               </div>
 
-              {rows.length === 0 ? (
+              {filesQuery.isPending ? (
+                <div style={{ padding: '24px', fontSize: 14, color: '#667085' }} aria-busy="true">
+                  Loading files…
+                </div>
+              ) : filesQuery.isError ? (
+                <div style={{ padding: '24px', fontSize: 14 }}>
+                  <span style={{ color: '#B42318' }}>Files could not be loaded.</span>{' '}
+                  <button
+                    type="button"
+                    onClick={() => void filesQuery.refetch()}
+                    style={{ fontWeight: 600, color: '#101828', textDecoration: 'underline', cursor: 'pointer' }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : rows.length === 0 ? (
                 <div style={{ padding: '24px', fontSize: 14, color: '#667085' }}>
                   {allRows.length === 0 ? 'No files uploaded yet.' : 'No files match this view.'}
                 </div>
@@ -918,7 +955,20 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
         <MoveToFolderModal
           count={moving.count}
           folders={folderNodes}
-          onClose={() => setMoving(null)}
+          initial={current.folder !== undefined && current.id !== 'root' ? current.folder : undefined}
+          pending={move.isPending}
+          {...(move.isError
+            ? {
+                error:
+                  move.error instanceof Error
+                    ? `The move failed — nothing was changed. ${move.error.message}`
+                    : 'The move failed — nothing was changed.',
+              }
+            : {})}
+          onClose={() => {
+            move.reset();
+            setMoving(null);
+          }}
           onMove={(dest) => move.mutate({ ids: moving.ids, folder: dest })}
         />
       ) : null}

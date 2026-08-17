@@ -5,6 +5,7 @@ import { useApi } from '../../../lib/use-api.js';
 import { UIcon, PfButton, GRADIENT_DARK, GRADIENT_DARK_HOVER, PILL } from './portfolio-primitives.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
+import { sectorLabel } from '../../lib/labels.js';
 import { openMeriWorkspaceWithContext } from '../../../components/chat/meri-window.js';
 import { CRM_TAB_LABELS, type CrmSurface, type CrmView } from './client-crm-routing.js';
 import { useClientAccountOwner } from './useClientAccountOwner.js';
@@ -64,12 +65,24 @@ export interface ProfileShellProps {
   children: ReactNode;
 }
 
-/** Focus chips come from the client's own intake vocabulary. */
+/** Focus chips come from the client's own intake vocabulary. The form writes
+ * `intakeData.sectors` (multi-select); `portfolio`/`tags` are legacy keys that
+ * are usually absent, which left the header's FOCUS row empty while the
+ * Overview card showed a sector. The primary `sectorTag` seeds the row when
+ * nothing else does, humanized so no raw SNAKE_CASE token renders. */
 function focusChipsFor(client: Client): string[] {
   const intake = (client.intakeData ?? {}) as Record<string, unknown>;
   const portfolio = Array.isArray(intake.portfolio) ? (intake.portfolio as string[]) : [];
   const tags = Array.isArray(intake.tags) ? (intake.tags as string[]) : [];
-  return [...portfolio, ...tags].map((e) => String(e).trim()).filter(Boolean).slice(0, 4);
+  const sectors = Array.isArray(intake.sectors) ? (intake.sectors as string[]) : [];
+  const chips = [...portfolio, ...tags, ...sectors]
+    .map((e) => sectorLabel(String(e)) ?? '')
+    .filter(Boolean);
+  if (chips.length === 0) {
+    const primary = sectorLabel(client.sectorTag);
+    if (primary) chips.push(primary);
+  }
+  return [...new Set(chips)].slice(0, 4);
 }
 
 export function ClientProfileShell({

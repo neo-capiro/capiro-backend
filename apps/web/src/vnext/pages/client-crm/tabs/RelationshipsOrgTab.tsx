@@ -5,6 +5,7 @@ import {
   CardHead,
   Eyebrow,
   PfButton,
+  PfSkeleton,
   Pill,
   TabPageHead,
 } from '../portfolio-primitives.js';
@@ -46,15 +47,6 @@ export function ClientCrmOrganizationProto({ client }: { client: Client }) {
   const [configuring, setConfiguring] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  // Fixture-only fallback path: the design's people are not real records, so a
-  // click can only resolve to a real contact of the same name (and silently
-  // does nothing when there is none). The real chart below passes the record
-  // itself and never needs this.
-  const openFixturePerson = (name: string) => {
-    const real = model.people.find((p) => p.name.trim().toLowerCase() === name.trim().toLowerCase());
-    if (real) setPerson(real);
-  };
-
   return (
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <TabPageHead
@@ -73,7 +65,7 @@ export function ClientCrmOrganizationProto({ client }: { client: Client }) {
       />
 
       <div className="cap-pf-grid-side-340">
-        <OrgChartCard model={model} onOpen={openFixturePerson} onOpenReal={setPerson} onAdd={() => setCreating(true)} />
+        <OrgChartCard model={model} onOpenReal={setPerson} onAdd={() => setCreating(true)} />
         <HierarchySettingsCard model={model} onEdit={() => setConfiguring(true)} />
       </div>
 
@@ -126,6 +118,10 @@ function rowsByDepth(roots: OrgNode[]): ClientPerson[][] {
 
 function RealPersonCard({ person, onOpen }: { person: ClientPerson; onOpen: () => void }) {
   const [hover, setHover] = useState(false);
+  // An unplaced card drops the per-card eyebrow and the "Unplaced · No title
+  // match" footer: its group header already says "Not placed", so repeating it
+  // on every card turned a large unplaced roster into a wall of the same word.
+  const placed = Boolean(person.hierarchyLevel);
   return (
     <button
       type="button"
@@ -148,7 +144,7 @@ function RealPersonCard({ person, onOpen }: { person: ClientPerson; onOpen: () =
             : 'inset 0 0 0 1px #EAECF0',
       }}
     >
-      <Eyebrow tight>{person.hierarchyLevel ? LEVEL_META[person.hierarchyLevel].label : 'Unplaced'}</Eyebrow>
+      {person.hierarchyLevel ? <Eyebrow tight>{LEVEL_META[person.hierarchyLevel].label}</Eyebrow> : null}
       <span style={{ marginTop: 10, display: 'flex' }}>
         <Avatar initials={initialsFor(person.name)} size={32} />
       </span>
@@ -158,12 +154,14 @@ function RealPersonCard({ person, onOpen }: { person: ClientPerson; onOpen: () =
       <span style={{ display: 'block', marginTop: 2, maxWidth: '100%', fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {person.title ?? 'Open role'}
       </span>
-      <span style={{ display: 'block', marginTop: 8, maxWidth: '100%', fontSize: 12, color: '#667085', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {placementLabel(person)}
-      </span>
+      {placed ? (
+        <span style={{ display: 'block', marginTop: 8, maxWidth: '100%', fontSize: 12, color: '#667085', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {placementLabel(person)}
+        </span>
+      ) : null}
       {person.reviewRequired ? (
         <span style={{ marginTop: 8 }}>
-          <Pill tone="warning">Review</Pill>
+          <Pill tone="warning">{placed ? 'Review' : 'Needs review'}</Pill>
         </span>
       ) : null}
     </button>
@@ -203,27 +201,26 @@ function LoosePeopleGroup({
 
 function OrgChartCard({
   model,
-  onOpen,
   onOpenReal,
   onAdd,
 }: {
   model: OrganizationModel;
-  onOpen: (name: string) => void;
   onOpenReal: (person: ClientPerson) => void;
   onAdd: () => void;
 }) {
-  // Real counters when the roster is loaded; the design's strip copy otherwise.
+  // Strip counters always come from the real model — the fixture's
+  // "7 contacts placed · 1 title needs review" / "92% mapped" copy must never
+  // render for a real client. While the roster loads, a skeleton is the honest
+  // state; the fixture chart below stays pixel-reviewable regardless.
   const loaded = model.people.length > 0;
-  const sub = loaded
-    ? `${model.placedCount} contact${model.placedCount === 1 ? '' : 's'} placed${
-        model.needsReview.length > 0
-          ? ` · ${model.needsReview.length} title${model.needsReview.length === 1 ? '' : 's'} need${
-              model.needsReview.length === 1 ? 's' : ''
-            } review`
-          : ''
-      }`
-    : '7 contacts placed · 1 title needs review';
-  const mapped = model.mappedShare == null ? '92% mapped' : `${Math.round(model.mappedShare * 100)}% mapped`;
+  const sub = `${model.placedCount} contact${model.placedCount === 1 ? '' : 's'} placed${
+    model.needsReview.length > 0
+      ? ` · ${model.needsReview.length} title${model.needsReview.length === 1 ? '' : 's'} need${
+          model.needsReview.length === 1 ? 's' : ''
+        } review`
+      : ''
+  }`;
+  const mappedPct = model.mappedShare == null ? null : Math.round(model.mappedShare * 100);
   const depthRows = loaded ? rowsByDepth(model.roots) : [];
 
   return (
@@ -232,12 +229,19 @@ function OrgChartCard({
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '20px 24px 16px', flexWrap: 'wrap' }}>
         <span style={{ flex: 1, minWidth: 240 }}>
           <Eyebrow>Automatic title-based roster</Eyebrow>
-          <span style={{ display: 'block', marginTop: 3, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>{sub}</span>
+          {model.isLoading ? (
+            <span style={{ display: 'block', marginTop: 6, maxWidth: 260 }}>
+              <PfSkeleton />
+            </span>
+          ) : (
+            <span style={{ display: 'block', marginTop: 3, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>{sub}</span>
+          )}
         </span>
-        {/* Coverage, not a score: an empty roster reports nothing, not 0%. */}
-        {loaded && model.mappedShare == null ? null : (
+        {/* Coverage, not a score: an empty or still-loading roster reports
+            nothing, not 0% and never the fixture's 92%. */}
+        {model.isLoading || mappedPct == null ? null : (
           <Pill tone="success" size="lg">
-            {mapped}
+            {mappedPct}% mapped
           </Pill>
         )}
       </div>
@@ -283,7 +287,7 @@ function OrgChartCard({
             ))}
             <LoosePeopleGroup
               title="Not placed"
-              hint="No title match yet — open a contact to place it."
+              hint="Open a contact to place it, or fix its title."
               people={model.unplaced}
               onOpen={onOpenReal}
             />
@@ -306,7 +310,7 @@ function OrgChartCard({
                   'ghost' in p && p.ghost ? (
                     <GhostPersonCard key={p.id} person={p} />
                   ) : (
-                    <PersonCard key={p.id} person={p} onOpen={() => onOpen(p.name)} />
+                    <PersonCard key={p.id} person={p} />
                   ),
                 )}
               </span>
@@ -328,14 +332,12 @@ type OrgPerson = {
   ghost?: boolean;
 };
 
-function PersonCard({ person, onOpen }: { person: OrgPerson; onOpen: () => void }) {
-  const [hover, setHover] = useState(false);
+/** Fixture-only card, rendered while the roster loads. Non-interactive on
+ *  purpose: a click used to try to resolve the fixture name against the real
+ *  roster and silently no-op on a miss — a button that mostly did nothing. */
+function PersonCard({ person }: { person: OrgPerson }) {
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+    <span
       style={{
         flex: '0 0 auto',
         width: 196,
@@ -344,8 +346,8 @@ function PersonCard({ person, onOpen }: { person: OrgPerson; onOpen: () => void 
         alignItems: 'center',
         padding: '14px 12px',
         borderRadius: 10,
-        background: hover ? '#FCFCFD' : '#ffffff',
-        boxShadow: hover ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0',
+        background: '#ffffff',
+        boxShadow: 'inset 0 0 0 1px #EAECF0',
       }}
     >
       <Eyebrow tight>{person.level}</Eyebrow>
@@ -395,7 +397,7 @@ function PersonCard({ person, onOpen }: { person: OrgPerson; onOpen: () => void 
       >
         {person.meta}
       </span>
-    </button>
+    </span>
   );
 }
 
@@ -444,9 +446,10 @@ function GhostPersonCard({ person }: { person: OrgPerson }) {
 /* ── Hierarchy settings card ──────────────────────────────────────────────── */
 
 function HierarchySettingsCard({ model, onEdit }: { model: OrganizationModel; onEdit: () => void }) {
-  const loaded = model.people.length > 0;
-  const overrides = loaded ? model.manualOverrides.length : 2;
-  const review = loaded ? model.needsReview.length : 1;
+  // Always the real model — the old `overrides=2 / review=1` fixture fallback
+  // rendered invented roster-quality numbers for every loading or empty client.
+  const overrides = model.manualOverrides.length;
+  const review = model.needsReview.length;
 
   return (
     <Card>
@@ -499,12 +502,20 @@ function HierarchySettingsCard({ model, onEdit }: { model: OrganizationModel; on
         <div style={{ marginTop: 18 }}>
           <Eyebrow>Roster quality</Eyebrow>
           <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-            <Pill tone="gray" size="lg" dotless>
-              {overrides} manual override{overrides === 1 ? '' : 's'}
-            </Pill>
-            <Pill tone="warning" size="lg">
-              {review} title{review === 1 ? '' : 's'} to review
-            </Pill>
+            {model.isLoading ? (
+              <span style={{ display: 'block', width: 220 }}>
+                <PfSkeleton />
+              </span>
+            ) : (
+              <>
+                <Pill tone="gray" size="lg" dotless>
+                  {overrides} manual override{overrides === 1 ? '' : 's'}
+                </Pill>
+                <Pill tone={review > 0 ? 'warning' : 'gray'} size="lg">
+                  {review} title{review === 1 ? '' : 's'} to review
+                </Pill>
+              </>
+            )}
           </div>
         </div>
       </div>

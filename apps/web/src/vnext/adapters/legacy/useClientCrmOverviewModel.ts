@@ -17,7 +17,7 @@
  */
 import { useMemo } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { SECTOR_LABELS } from '@capiro/shared';
+import { sectorLabel } from '../../lib/labels.js';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import { useActionsList } from '../../../pages/actions/actions-api.js';
@@ -51,12 +51,36 @@ import type { ClientIntelProfile } from '../../../pages/intelligence/types.js';
  * single error both the Program Elements and LegiWatch handoff frames forbid
  * independently, so it is treated here as a product-wide invariant.
  */
+/** How a value renders — decided where the value's meaning is known (here),
+ * never re-derived downstream by string-matching a display label. */
+export type MetricFormat = 'currency' | 'count' | 'ratio';
+
 export type Metric =
-  | { kind: 'value'; value: number; href?: string }
+  | { kind: 'value'; value: number; href?: string; format?: MetricFormat }
   | { kind: 'unavailable'; reason: string };
 
-export const unavailable = (reason: string): Metric => ({ kind: 'unavailable', reason });
-export const value = (n: number, href?: string): Metric => ({ kind: 'value', value: n, href });
+/** Narrow return type on purpose: assignable to both Metric and TrajectoryMetric. */
+export const unavailable = (reason: string): { kind: 'unavailable'; reason: string } => ({
+  kind: 'unavailable',
+  reason,
+});
+export const value = (n: number, href?: string, format?: MetricFormat): Metric => ({
+  kind: 'value',
+  value: n,
+  href,
+  format,
+});
+
+/**
+ * Lobbying trajectory is a LABELED direction, not a bare number. The source
+ * reports both a human label ("Contracting"/"Growing") and a growth rate
+ * (-0.376 = down 37.6% YoY); rendering the raw rate as the stat was the bug
+ * this type exists to prevent. `growthRate` may be null — the label alone is
+ * still a real fact and renders without a delta.
+ */
+export type TrajectoryMetric =
+  | { kind: 'value'; trajectoryLabel: string; growthRate: number | null }
+  | { kind: 'unavailable'; reason: string };
 
 /** Per-region async state, so one failed domain does not blank the page (§7 PARTIAL). */
 export type RegionState = 'loading' | 'ready' | 'error';
@@ -137,9 +161,13 @@ export interface FederalFootprint {
   ldaSpend: Metric;
   ldaFilings: Metric;
   federalAwards: Metric;
-  lobbyingTrajectory: Metric;
-  /** Whether the underlying client-profile query has settled. */
+  lobbyingTrajectory: TrajectoryMetric;
+  /** False while the client-profile query is in flight or errored — the card
+   * renders skeletons then, never four fake em dashes or zeros. */
   ready: boolean;
+  /** Present when the client-profile read failed outright; pairs with `retry`. */
+  error?: string | null;
+  retry?: () => void;
   /** Display label for the footer's registrant count. */
   registrantsLabel: string | null;
 }
@@ -339,9 +367,9 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
       initials: initialsFor(client.name),
       logoUrl: client.logoUrl ?? null,
       description: client.description ?? client.productDescription ?? null,
-      sectorLabel: client.sectorTag
-        ? ((SECTOR_LABELS as Record<string, string>)[client.sectorTag] ?? client.sectorTag)
-        : null,
+      // The shared humanizer tolerates the mixed sectorTag vocabulary (enum
+      // value, enum-shaped artifact, free text) — see labels.ts.
+      sectorLabel: sectorLabel(client.sectorTag),
       website: client.website ?? null,
       location: locationOf(client),
       // engagementStartDate is the relationship start; createdAt is only when
@@ -558,28 +586,35 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
     return {
       ldaSpend: p?.lda?.matched
         ? (p.lda.totalSpending != null
-          ? value(p.lda.totalSpending)
+          ? value(p.lda.totalSpending, undefined, 'currency')
           : unavailable('LDA spend not reported'))
         : unavailable('No LDA match for this client'),
       ldaFilings: p?.lda?.matched
-        ? value(p.lda.totalFilings)
+        ? value(p.lda.totalFilings, undefined, 'count')
         : unavailable('No LDA match for this client'),
       federalAwards: p?.contracting?.matched
         ? (p.contracting.totalContracts != null
-          ? value(p.contracting.totalContracts)
+          ? value(p.contracting.totalContracts, undefined, 'count')
           : unavailable('Contract data not reported'))
         : unavailable('No federal award match for this client'),
+      // Both facts travel: the human label ("Contracting") and the YoY rate.
+      // Rendering the raw growthRate as the stat (-0.376) was the bug here.
       lobbyingTrajectory: p?.lobbyIntel?.matched
         ? (p.lobbyIntel.trajectory != null
-          ? value(p.lobbyIntel.growthRate ?? 0)
+          ? { kind: 'value' as const, trajectoryLabel: p.lobbyIntel.trajectory, growthRate: p.lobbyIntel.growthRate ?? null }
           : unavailable('Lobbying trajectory not reported'))
         : unavailable('No lobbying intel match for this client'),
       ready,
+      error: clientProfile.isError
+        ? (clientProfile.error instanceof Error ? clientProfile.error.message : 'Could not load the federal footprint')
+        : null,
+      retry: () => void clientProfile.refetch(),
       registrantsLabel: p?.lda?.matched
         ? `${p.lda.totalFilings} LD-2 filing${p.lda.totalFilings === 1 ? '' : 's'}`
         : null,
     };
-  }, [clientProfile.data, clientProfile.isLoading, clientProfile.isError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch is stable
+  }, [clientProfile.data, clientProfile.isLoading, clientProfile.isError, clientProfile.error]);
 
   return {
     profile,

@@ -128,6 +128,66 @@ describe('ClientCrmOrganizationProto — real hierarchy (item 17)', () => {
   });
 });
 
+describe('ClientCrmOrganizationProto — real strip counters (polish items 9/11)', () => {
+  it('computes placed / review / mapped / override counts from the model, never the fixture numbers', async () => {
+    mockPeople([
+      person({ id: 'p1', name: 'Alex Rivera' }),
+      person({
+        id: 'p2',
+        name: 'Priya Raman',
+        title: 'VP Engineering',
+        hierarchyLevel: 'leadership',
+        reportsToPersonId: 'p1',
+        placementSource: 'manual',
+      }),
+      person({
+        id: 'p3',
+        name: 'Sam Unplaced',
+        title: null,
+        hierarchyLevel: null,
+        reportsToPersonId: null,
+        reviewRequired: true,
+      }),
+    ]);
+    renderOrg();
+
+    await waitFor(() => expect(screen.getByText('Alex Rivera')).toBeInTheDocument());
+    // 2 of 3 placed, 1 flagged for review, 1 manual placement.
+    expect(screen.getByText('2 contacts placed · 1 title needs review')).toBeInTheDocument();
+    expect(screen.getByText('67% mapped')).toBeInTheDocument();
+    expect(screen.getByText('1 manual override')).toBeInTheDocument();
+    expect(screen.getByText('1 title to review')).toBeInTheDocument();
+    // The fixture's hardcoded strip numbers must never render for a real client.
+    expect(screen.queryByText('92% mapped')).not.toBeInTheDocument();
+    expect(screen.queryByText('7 contacts placed · 1 title needs review')).not.toBeInTheDocument();
+    expect(screen.queryByText('2 manual overrides')).not.toBeInTheDocument();
+  });
+
+  it('shows the unplaced group header with its hint and no per-card Unplaced eyebrow (polish item 8)', async () => {
+    mockPeople([
+      person({ id: 'p1', name: 'Alex Rivera' }),
+      person({
+        id: 'p3',
+        name: 'Sam Unplaced',
+        title: 'Freelance Wizard',
+        hierarchyLevel: null,
+        reportsToPersonId: null,
+        reviewRequired: true,
+      }),
+    ]);
+    renderOrg();
+
+    await waitFor(() => expect(screen.getByText('Sam Unplaced')).toBeInTheDocument());
+    expect(screen.getByText('Not placed · 1')).toBeInTheDocument();
+    expect(screen.getByText('Open a contact to place it, or fix its title.')).toBeInTheDocument();
+    // The group header carries "Not placed"; the card repeats neither an
+    // "Unplaced" eyebrow nor the "Unplaced · No title match" footer.
+    expect(screen.queryByText('Unplaced')).not.toBeInTheDocument();
+    expect(screen.queryByText('Unplaced · No title match')).not.toBeInTheDocument();
+    expect(screen.getByText('Needs review')).toBeInTheDocument();
+  });
+});
+
 describe('ClientCrmOrganizationProto — Add contact (item 15)', () => {
   it('opens the real person drawer in create mode', async () => {
     mockPeople([person({})]);

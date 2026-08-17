@@ -29,7 +29,8 @@ const clients: Array<Partial<Client>> = [
     name: 'Acme Robotics',
     status: 'active',
     profileStatus: 'MONITORING',
-    sectorTag: null,
+    // Enum-shaped import artifact — must render humanized, never raw.
+    sectorTag: 'GOVERNMENT_AFFAIRS',
     website: null,
     primaryContactName: null,
     intakeData: null,
@@ -56,11 +57,20 @@ const summary = {
   activeStrategies: 5,
 };
 
-function makeApi(overrides: { clientsError?: boolean; summaryError?: boolean } = {}) {
+function makeApi(
+  overrides: { clientsError?: boolean; summaryError?: boolean; clientsArchivedOnly?: boolean } = {},
+) {
   return {
     get: async (path: string) => {
       if (path === '/api/clients') {
         if (overrides.clientsError) throw new Error('clients boom');
+        if (overrides.clientsArchivedOnly) {
+          return {
+            data: [
+              { id: 'c-9', name: 'Old Co', status: 'archived', profileStatus: 'ACTIVE', sectorTag: null, website: null, primaryContactName: null, intakeData: null },
+            ],
+          };
+        }
         return { data: clients };
       }
       if (path === '/api/intelligence/portfolio-summary') {
@@ -92,28 +102,6 @@ function makeApi(overrides: { clientsError?: boolean; summaryError?: boolean } =
       }
       if (path === '/strategy-api/strategies') return { data: [] };
       if (path === '/api/engagement/meetings') return { data: [] };
-      if (path === '/api/intelligence/coming-up') {
-        return {
-          data: {
-            items: [
-              { id: 'h1', kind: 'hearing', label: 'HEARING', title: 'HASC · Autonomous Systems', detail: null, severity: 'notable', date: '2026-08-20T00:00:00.000Z', time: null, href: null },
-            ],
-            totalThisWeek: 1,
-          },
-        };
-      }
-      if (path === '/api/intelligence/portfolio-alerts') {
-        return {
-          data: {
-            alerts: [
-              { id: 'a1', clientId: 'c-1', clientName: 'Overland AI', severity: 'critical', title: 'Ground Robotics mark reduced', kind: 'Funding', countdownDays: 0 },
-            ],
-            total: 1,
-            clientCount: 3,
-            generatedAt: '2026-08-16T00:00:00.000Z',
-          },
-        };
-      }
       if (path === '/api/firm/registrant') {
         return { data: { ldaRegistrantId: null, ldaRegistrantName: null } };
       }
@@ -280,5 +268,69 @@ describe('PortfolioIndexPage', () => {
     await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
     expect(screen.getByText('Active regulations')).toBeInTheDocument();
     expect(screen.getByText('LDA spend QTD')).toBeInTheDocument();
+    // Money goes through the shared compact formatter, not '$' + toLocaleString.
+    expect(screen.getByText('$1.8M')).toBeInTheDocument();
+  });
+
+  it('humanizes enum-shaped sector values — no raw SNAKE_CASE reaches the user', async () => {
+    apiOverride = makeApi();
+    renderIndex();
+    await waitFor(() => expect(screen.getByText('Acme Robotics')).toBeInTheDocument());
+    // c-2's sectorTag GOVERNMENT_AFFAIRS renders as a humanized FOCUS chip.
+    expect(screen.getByText('Government Affairs')).toBeInTheDocument();
+    expect(screen.queryByText('GOVERNMENT_AFFAIRS')).not.toBeInTheDocument();
+  });
+
+  it('drops the sector from the subtitle when FOCUS chips are present (no duplication)', async () => {
+    apiOverride = makeApi();
+    renderIndex();
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    // Overland has focus chips (autonomy, robotics) → subtitle is location only.
+    expect(screen.getByText('Seattle, WA')).toBeInTheDocument();
+    expect(screen.queryByText(/Defense · Seattle/)).not.toBeInTheDocument();
+  });
+
+  it('shows the no-clients-yet empty state (not the filter one) when every client is archived', async () => {
+    apiOverride = makeApi({ clientsArchivedOnly: true });
+    renderIndex();
+    await waitFor(() => expect(screen.getByText(/No clients yet/)).toBeInTheDocument());
+    expect(screen.queryByText('Clear search and filters')).not.toBeInTheDocument();
+  });
+
+  it('renders honest rollup values: zeros as 0, next touch as a dated tooltip or "None scheduled"', async () => {
+    apiOverride = makeApi();
+    renderIndex();
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    // Overland's next touch: real date with the meeting subject as the tooltip.
+    await waitFor(() => expect(screen.getByTitle('HASC briefing')).toBeInTheDocument());
+    expect(screen.getByTitle('HASC briefing').textContent).toContain('Aug 20');
+    // c-2 and c-3 have no next touch → "None scheduled", never a bare em dash.
+    expect(screen.getAllByText('None scheduled')).toHaveLength(2);
+    // Acme (c-2) resolved with workCount 0 → the honest zero renders.
+    const rows = screen.getAllByRole('row').slice(1);
+    const acmeRow = rows.find((r) => r.textContent?.includes('Acme Robotics'));
+    expect(acmeRow!.textContent).toContain('0');
+  });
+
+  it('makes the row keyboard-accessible: the client name is a real button', async () => {
+    apiOverride = makeApi();
+    renderIndex();
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Overland AI' })).toBeInTheDocument();
+  });
+
+  it('labels the header refresh control "Refresh", not a hardcoded freshness claim', async () => {
+    apiOverride = makeApi();
+    renderIndex();
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    expect(screen.getByText('Refresh')).toBeInTheDocument();
+    expect(screen.queryByText('Sources refreshed just now')).not.toBeInTheDocument();
+  });
+
+  it('shows the footer count line in the cards layout too', async () => {
+    apiOverride = makeApi();
+    renderIndex('?layout=cards');
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    expect(screen.getByText(/Showing 3 of 3 clients/)).toBeInTheDocument();
   });
 });

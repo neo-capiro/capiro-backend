@@ -119,6 +119,9 @@ const CAPABILITY = { id: 'cap-1', name: 'Autonomy stack', type: 'platform', tags
 /** Routes capabilities vs. per-capability submission history. */
 function mockCapabilityApi(history: unknown[]) {
   getMock.mockImplementation((url: string) => {
+    // The client-wide read is the primary path (one request, primes the
+    // per-capability caches); the per-capability stub covers the fallback.
+    if (url.endsWith('/submission-history')) return Promise.resolve({ data: history });
     if (url.endsWith('/history')) return Promise.resolve({ data: history });
     if (url.endsWith('/capabilities')) return Promise.resolve({ data: [CAPABILITY] });
     return Promise.resolve({ data: [] });
@@ -174,16 +177,18 @@ describe('ClientCrmCapabilitiesProto — past performance (row 12)', () => {
     renderCapabilities();
 
     const viewAll = await screen.findByRole('button', { name: 'View all 4' });
-    expect(screen.getByText('Submission One')).toBeInTheDocument();
-    expect(screen.getByText('Submission Three')).toBeInTheDocument();
-    expect(screen.queryByText('Submission Four')).not.toBeInTheDocument();
+    // Collapsed = the three most RECENT fiscal years (FY30–FY28) — that is
+    // what the "Show recent" toggle label promises. FY27 waits behind View all.
+    expect(screen.getByText('Submission Four')).toBeInTheDocument();
+    expect(screen.getByText('Submission Two')).toBeInTheDocument();
+    expect(screen.queryByText('Submission One')).not.toBeInTheDocument();
 
     fireEvent.click(viewAll);
-    expect(await screen.findByText('Submission Four')).toBeInTheDocument();
+    expect(await screen.findByText('Submission One')).toBeInTheDocument();
     const collapse = screen.getByRole('button', { name: 'Show recent' });
 
     fireEvent.click(collapse);
-    await waitFor(() => expect(screen.queryByText('Submission Four')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Submission One')).not.toBeInTheDocument());
   });
 
   it('shows a real empty state when the client has no submissions', async () => {

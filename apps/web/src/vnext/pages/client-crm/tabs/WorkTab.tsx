@@ -24,11 +24,12 @@ import {
   GRADIENT_DARK,
   PILL,
   PfButton,
+  PfSkeleton,
   Pill,
   TabPageHead,
   type PillTone,
 } from '../portfolio-primitives.js';
-import { NODES, UPCOMING } from '../portfolio-fixtures.js';
+import { formatDateShort, formatNumber, humanizeEnumToken } from '../../../lib/labels.js';
 
 /**
  * Work tab (spec §9, Figma geometry from `dom-tab-work.txt`).
@@ -39,26 +40,21 @@ import { NODES, UPCOMING } from '../portfolio-fixtures.js';
  * `['strategy','strategy',id]`, `['strategy','tenant-members']`), so an edit
  * in Strategies is the same cache entry seen here.
  *
- * Data binding:
- *  - When the Strategies service returns rows for this client, the band
- *    figures, featured card, node list, secondary cards, upcoming rail and
- *    risks all bind to those real records.
- *  - While loading, on error, or when the client has no strategies, the
- *    design's fixtures render so the surface stays pixel-reviewable (flagged
- *    UI-only in the ship report). The one exception is the stat band when the
- *    strategy DETAILS fail to load: a client that demonstrably has strategies
- *    is not a pixel-review case, so those cells show a dash rather than
- *    fixture figures that would read as this client's real numbers
- *    (wire-audit "3 Compose extend" item 13).
+ * Data binding — every rendered figure is one of four honest states, and the
+ * design fixtures NEVER render for a real client:
+ *  - loading   → skeleton band + skeleton cards
+ *  - error     → an error card with Retry (the fixture used to render here
+ *                forever, which put "FY27 Ground Robotics Funding" and
+ *                "Sarah Martinez" on screen as if they were this client's)
+ *  - empty     → a real empty state ("No strategies yet for this client")
+ *  - loaded    → the client's real strategies
  *  - The `On track` pill and the secondary readiness percentages have no
  *    honest backing signal — the Strategy API carries no completion state (see
- *    useClientCrmOverviewModel). They are therefore design elements of the
- *    FIXTURE only: a real strategy card renders neither, rather than showing a
- *    status and a "54% ready" meter nothing measured (wire-audit "4 New
- *    capability" rows 8-9).
+ *    useClientCrmOverviewModel) — so neither renders anywhere (wire-audit
+ *    "4 New capability" rows 8-9).
  */
 
-/* ── fixture view-models (design literals; used when no real data) ────────── */
+/* ── view-models ──────────────────────────────────────────────────────────── */
 
 interface NodeRowModel {
   id: string;
@@ -90,15 +86,10 @@ interface SecondaryModel {
   body: string;
   owner: string;
   init: string;
-  /**
-   * Row 9, wire-audit "4 New capability": the Strategy API has NO completion
-   * or readiness signal, so a real card carries no percentage. It used to take
-   * one from a two-entry constant by index, which put "54% ready" under a real
-   * strategy name. Present only on the design fixture.
-   */
-  pct?: string;
-  target: string;
-  next: string;
+  /** Null when the strategy has no target date — rendered as "No target date". */
+  target: string | null;
+  /** Null when nothing is scheduled — rendered as "Nothing scheduled". */
+  next: string | null;
 }
 
 interface UpcomingModel {
@@ -107,6 +98,8 @@ interface UpcomingModel {
   title: string;
   strategy: string;
   init: string;
+  /** Human status label — the colour dot alone is not an accessible status. */
+  status: string;
   tone: PillTone;
 }
 
@@ -116,78 +109,6 @@ interface RiskModel {
   body: string;
 }
 
-const TONE_OF: Record<string, PillTone> = {
-  gray: 'gray',
-  brand: 'brand',
-  blue: 'blue',
-  error: 'error',
-  warning: 'warning',
-  success: 'success',
-};
-const toneOf = (ui: string): PillTone => TONE_OF[ui] ?? 'gray';
-
-const FEATURED_FIXTURE: FeaturedModel = {
-  id: null,
-  eyebrow: 'Appropriations · drafted with Meri',
-  title: 'FY27 Ground Robotics Funding',
-  body: 'Protect Ground Robotics funding through FY27 appropriations and prepare a conference-stage advocacy path.',
-  owner: 'Sarah Martinez',
-  init: 'SM',
-  target: 'Sep 30',
-  nodes: NODES.map((n) => ({
-    id: `fx-${n.mark}-${n.title}`,
-    mark: n.mark,
-    kind: n.kind,
-    title: n.title,
-    init: n.init,
-    owner: n.owner,
-    date: n.date,
-    status: n.status,
-    tone: toneOf(n.ui),
-  })),
-};
-
-/* Prototype literals (portfolio-extracted.html `otherStrategies`). The
- * readiness pct is a designed element — the Strategy API has no completion
- * signal, so no honest percentage exists. */
-const SECONDARY_FIXTURES: SecondaryModel[] = [
-  {
-    id: 'fx-army',
-    title: 'Army Procurement Positioning',
-    type: 'Procurement',
-    body: 'Position ULTRA for an Army procurement pathway and validate resourcing offices.',
-    owner: 'Jordan Clayton',
-    init: 'JC',
-    pct: '54%',
-    target: 'Oct 15',
-    next: 'Army G-8 meeting · Aug 25',
-  },
-  {
-    id: 'fx-reg',
-    title: 'Autonomous Systems Regulatory Readiness',
-    type: 'Regulatory',
-    body: 'Track rulemaking and prepare a coordinated comment strategy for autonomy standards.',
-    owner: 'Sarah Martinez',
-    init: 'SM',
-    pct: '38%',
-    target: 'Nov 01',
-    next: 'Comment draft · Sep 10',
-  },
-];
-
-const RISK_FIXTURES: RiskModel[] = [
-  {
-    id: 'fx-risk-1',
-    title: 'Conference timing remains uncertain',
-    body: 'Open-ended Strategy risk · owner Jordan Clayton',
-  },
-  {
-    id: 'fx-risk-2',
-    title: 'Committee outreach milestone is due',
-    body: 'Strategy milestone · due Aug 14 · owner Sarah Martinez',
-  },
-];
-
 const BAND_LABELS = [
   'Current strategies',
   'Live plan steps',
@@ -195,8 +116,6 @@ const BAND_LABELS = [
   'Open risks',
   'Linked artifacts',
 ] as const;
-/** Design fixture figures (spec §9.1). */
-const BAND_FIXTURE = ['3', '12', '4', '2', '9'];
 
 
 
@@ -229,13 +148,17 @@ const STATUS_PILL: Record<NodeStatus, [string, PillTone]> = {
   active: ['Active', 'success'],
 };
 
-function shortDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? '—'
-    : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
+/* A new server enum value must degrade to a readable label, never blank the
+ * tab (C17): every lookup falls back to a humanized token / gray tone. */
+const typeLabel = (type: StrategyType): string =>
+  (TYPE_LABEL as Record<string, string>)[type] ?? humanizeEnumToken(String(type));
+const kindLabel = (kind: NodeKind): string =>
+  (KIND_LABEL as Record<string, string>)[kind] ?? humanizeEnumToken(String(kind));
+const statusPill = (status: NodeStatus): [string, PillTone] =>
+  (STATUS_PILL as Record<string, [string, PillTone]>)[status] ?? [
+    humanizeEnumToken(String(status)),
+    'gray',
+  ];
 
 function dateOf(node: StrategyNode): number {
   const time = new Date(node.endsOn ?? node.startsOn).getTime();
@@ -258,15 +181,16 @@ function nodeRowOf(
   fallbackOwner: string | null,
 ): NodeRowModel {
   const owner = memberName(members, node.ownerUserId ?? fallbackOwner, 'Team member');
-  const [status, tone] = STATUS_PILL[node.status];
+  const kind = kindLabel(node.kind);
+  const [status, tone] = statusPill(node.status);
   return {
     id: node.id,
-    mark: KIND_LABEL[node.kind].charAt(0),
-    kind: KIND_LABEL[node.kind],
+    mark: kind.charAt(0),
+    kind,
     title: node.title,
     init: initialsOf(owner),
     owner,
-    date: shortDate(node.endsOn ?? node.startsOn),
+    date: formatDateShort(node.endsOn ?? node.startsOn) ?? '—',
     status,
     tone,
   };
@@ -277,21 +201,19 @@ function featuredOf(detail: StrategyDetail, members: TenantMember[] | undefined)
   const committed = detail.nodes.filter(isCommitted).sort((a, b) => dateOf(a) - dateOf(b));
   return {
     id: detail.id,
-    eyebrow: `${TYPE_LABEL[detail.type]}${detail.draftedByMeri ? ' · drafted with Meri' : ''}`,
+    eyebrow: `${typeLabel(detail.type)}${detail.draftedByMeri ? ' · drafted with Meri' : ''}`,
     title: detail.title,
     body: detail.goal ?? '',
     owner,
     init: initialsOf(owner),
-    target: detail.targetDate ? shortDate(detail.targetDate) : '—',
+    // "No target date" over an uppercase dash: a dash reads as broken data,
+    // while an absent target is a real, common state.
+    target: formatDateShort(detail.targetDate) ?? 'No target date',
     nodes: committed.slice(0, 3).map((node) => nodeRowOf(node, members, detail.ownerUserId)),
   };
 }
 
-function secondaryOf(
-  detail: StrategyDetail,
-  members: TenantMember[] | undefined,
-  index: number,
-): SecondaryModel {
+function secondaryOf(detail: StrategyDetail, members: TenantMember[] | undefined): SecondaryModel {
   const owner = memberName(members, detail.ownerUserId, 'Team member');
   const next = detail.nodes
     .filter(isCommitted)
@@ -300,12 +222,12 @@ function secondaryOf(
   return {
     id: detail.id,
     title: detail.title,
-    type: TYPE_LABEL[detail.type],
+    type: typeLabel(detail.type),
     body: detail.goal ?? '',
     owner,
     init: initialsOf(owner),
-    target: detail.targetDate ? shortDate(detail.targetDate) : '—',
-    next: next ? `${next.title} · ${shortDate(next.endsOn ?? next.startsOn)}` : '—',
+    target: formatDateShort(detail.targetDate),
+    next: next ? `${next.title} · ${formatDateShort(next.endsOn ?? next.startsOn) ?? '—'}` : null,
   };
 }
 
@@ -353,16 +275,15 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
 
   const loaded = details.map((query) => query.data).filter((d): d is StrategyDetail => Boolean(d));
   /**
-   * Item 13 (wire-audit "3 Compose extend"). The band is computed from real
-   * strategies already — the hole was what happens when the DETAIL fetches
-   * fail: `loaded` stays empty, `real` stays false, and because the client
-   * does have strategies `genuinelyEmpty` is false too, so BAND_FIXTURE
-   * rendered forever and read as this client's real figures.
+   * Honest state machine (C1 + item 13, wire-audit "3 Compose extend"):
+   * loading → skeletons, error → error card with Retry, empty → real empty
+   * state, loaded → real figures. The design fixtures used to render on
+   * loading AND on error — forever, for a real client — which put
+   * "FY27 Ground Robotics Funding" and "Sarah Martinez" on screen as if real.
    *
-   * A source that failed is not zero and is not a fixture — it is unknown, so
-   * the band shows a dash. And when only SOME details fail, the counts below
-   * are real but short, which the strip states rather than quietly
-   * under-reporting.
+   * A source that failed is not zero and is not a fixture — it is unknown. And
+   * when only SOME details fail, the counts below are real but short, which
+   * the strip states rather than quietly under-reporting.
    */
   const detailErrors = details.filter((query) => query.isError).length;
   const detailsSettled = details.every((query) => !query.isPending);
@@ -373,6 +294,15 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
   // that will never exist to fetch.
   const listLoaded = list.data !== undefined && !list.isError;
   const genuinelyEmpty = listLoaded && mine.length === 0;
+  const listError = list.isError;
+  const loading = list.isPending || (listLoaded && mine.length > 0 && !detailsSettled);
+
+  const retry = () => {
+    if (list.isError) void list.refetch();
+    details.forEach((query) => {
+      if (query.isError) void query.refetch();
+    });
+  };
 
   const detailNodes = loaded.flatMap((detail) => detail.nodes.map((node) => ({ detail, node })));
   const committed = detailNodes.filter(({ node }) => isCommitted(node));
@@ -380,35 +310,22 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
   const riskNodes = committed.filter(({ node }) => node.kind === 'risk');
   const artifactCount = loaded.reduce((total, d) => total + d.artifacts.length, 0);
 
-  const band = real
-    ? [
-        String(mine.length),
-        String(committed.length),
-        String(next30.length),
-        String(riskNodes.length),
-        String(artifactCount),
-      ]
-    : genuinelyEmpty
-      ? ['0', '0', '0', '0', '0']
-      : allDetailsFailed
-        ? // Strategy count is still known from the list itself; everything
-          // else lives in the details that did not answer.
-          [String(mine.length), '—', '—', '—', '—']
-        : BAND_FIXTURE;
+  const band = [
+    formatNumber(mine.length),
+    formatNumber(committed.length),
+    formatNumber(next30.length),
+    formatNumber(riskNodes.length),
+    formatNumber(artifactCount),
+  ];
 
   const featured: FeaturedModel | null = useMemo(() => {
     const first = loaded[0];
     if (real && first) return featuredOf(first, members);
-    if (genuinelyEmpty) return null;
-    return FEATURED_FIXTURE;
+    return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [real, genuinelyEmpty, loaded, members]);
+  }, [real, loaded, members]);
 
-  const secondaries: SecondaryModel[] = real
-    ? loaded.slice(1, 3).map((d, i) => secondaryOf(d, members, i))
-    : genuinelyEmpty
-      ? []
-      : SECONDARY_FIXTURES;
+  const secondaries: SecondaryModel[] = real ? loaded.slice(1, 3).map((d) => secondaryOf(d, members)) : [];
 
   const upcoming: UpcomingModel[] = real
     ? committed
@@ -417,25 +334,18 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
         .slice(0, 5)
         .map(({ detail, node }) => {
           const owner = memberName(members, node.ownerUserId ?? detail.ownerUserId, 'Team member');
+          const [status, tone] = statusPill(node.status);
           return {
             id: node.id,
-            date: shortDate(node.endsOn ?? node.startsOn),
+            date: formatDateShort(node.endsOn ?? node.startsOn) ?? '—',
             title: node.title,
             strategy: detail.title,
             init: initialsOf(owner),
-            tone: STATUS_PILL[node.status][1],
+            status,
+            tone,
           };
         })
-    : genuinelyEmpty
-      ? []
-      : UPCOMING.map((u) => ({
-          id: `fx-${u.date}-${u.title}`,
-          date: u.date,
-          title: u.title,
-          strategy: u.strategy,
-          init: u.init,
-          tone: toneOf(u.ui),
-        }));
+    : [];
 
   const risks: RiskModel[] = real
     ? riskNodes.slice(0, 2).map(({ node }) => ({
@@ -443,9 +353,7 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
         title: node.title,
         body: `${node.openEnded ? 'Open-ended Strategy risk' : 'Strategy risk'} · owner ${memberName(members, node.ownerUserId, 'Team member')}`,
       }))
-    : genuinelyEmpty
-      ? []
-      : RISK_FIXTURES;
+    : [];
 
   const openStrategy = (id: string | null) => {
     if (id && UUID_RE.test(id)) navigate(`/strategies/${id}`);
@@ -483,7 +391,10 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
             <PfButton variant="secondary" onClick={() => navigate('/strategies')}>
               Open Strategies
             </PfButton>
-            <PfButton variant="primary" onClick={() => navigate('/strategies')}>
+            {/* `?new=1` at least states the intent — the Strategies module
+                ignores unknown params safely, so this differentiates "create"
+                from "browse" until a real create route exists. */}
+            <PfButton variant="primary" onClick={() => navigate('/strategies?new=1')}>
               New strategy
             </PfButton>
           </>
@@ -514,38 +425,125 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
         >
           Client strategy portfolio
         </span>
-        {BAND_LABELS.map((label, i) => (
-          <span key={label} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#ffffff', lineHeight: 1.2 }}>
-              {band[i] ?? '—'}
+        {loading ? (
+          BAND_LABELS.map((label) => (
+            <span key={label} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <PfSkeleton style={{ width: 40, height: 28 }} />
+              <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>
+                {label}
+              </span>
             </span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                letterSpacing: '.04em',
-                textTransform: 'uppercase',
-                color: '#98A2B3',
-              }}
-            >
-              {label}
-            </span>
+          ))
+        ) : genuinelyEmpty || listError ? (
+          // A client with no work yet gets one honest sentence, not a row of
+          // five zeros; an unread list gets the error treatment below.
+          <span style={{ flex: '0 0 auto', fontSize: 13, color: '#98A2B3', textWrap: 'pretty' }}>
+            {listError
+              ? 'Strategies could not be loaded.'
+              : 'No strategies yet — the stat band appears once work is planned.'}
           </span>
-        ))}
+        ) : allDetailsFailed ? (
+          <>
+            <span style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#ffffff', lineHeight: 1.2 }}>
+                {formatNumber(mine.length)}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>
+                {BAND_LABELS[0]}
+              </span>
+            </span>
+            {/* Unknown is not zero and is not a dash farm: the strategy count
+                is known from the list; everything else lives in details that
+                did not answer, which the strip says in words, with a Retry
+                right where the reader is looking. */}
+            <span style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#FEDF89' }}>
+              Some strategy details failed to load
+              <PfButton variant="link" style={{ color: '#ffffff', fontSize: 13 }} onClick={retry}>
+                Retry
+              </PfButton>
+            </span>
+          </>
+        ) : (
+          BAND_LABELS.map((label, i) => (
+            <span key={label} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#ffffff', lineHeight: 1.2 }}>
+                {band[i] ?? '—'}
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  letterSpacing: '.04em',
+                  textTransform: 'uppercase',
+                  color: '#98A2B3',
+                }}
+              >
+                {label}
+              </span>
+            </span>
+          ))
+        )}
         <span style={{ flex: 1, minWidth: 12 }} />
-        <span style={{ flex: '0 0 auto', maxWidth: 220, fontSize: 13, color: '#98A2B3', textWrap: 'pretty' }}>
-          {/* A partly-read portfolio produces real but SHORT figures. Saying so
-              is the difference between a number that is low and a number that
-              is wrong. */}
-          {allDetailsFailed
-            ? `${mine.length} strateg${mine.length === 1 ? 'y' : 'ies'} could not be read.`
-            : real && detailErrors > 0
+        {!loading && real ? (
+          <span style={{ flex: '0 0 auto', maxWidth: 260, fontSize: 13, color: '#98A2B3', textWrap: 'pretty', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+            {/* A partly-read portfolio produces real but SHORT figures. Saying
+                so is the difference between a number that is low and a number
+                that is wrong. */}
+            {detailErrors > 0
               ? `${detailErrors} of ${mine.length} strategies could not be read — figures below exclude them.`
-              : 'No separate CRM tasks are created here.'}
-        </span>
+              : 'Live view of Strategies — edits sync both ways.'}
+            {detailErrors > 0 ? (
+              <PfButton variant="link" style={{ color: '#ffffff', fontSize: 13 }} onClick={retry}>
+                Retry
+              </PfButton>
+            ) : null}
+          </span>
+        ) : null}
       </section>
 
       {/* §9.2 + §9.3 */}
+      {listError ? (
+        <Card style={{ padding: '32px 24px' }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>
+            Strategies could not be loaded
+          </h3>
+          <p style={{ margin: '8px 0 16px', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+            {list.error instanceof Error ? list.error.message : 'The Strategies service did not answer.'}
+          </p>
+          <PfButton variant="primary" onClick={retry}>
+            Retry
+          </PfButton>
+        </Card>
+      ) : loading ? (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: narrow ? 'minmax(0,1fr)' : 'minmax(0,1.55fr) minmax(0,1fr)',
+            gap: 24,
+            alignItems: 'start',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+            <Card style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <PfSkeleton style={{ width: '40%', height: 14 }} />
+              <PfSkeleton style={{ width: '70%', height: 24 }} />
+              <PfSkeleton style={{ width: '100%', height: 40 }} />
+              <PfSkeleton style={{ width: '100%', height: 40 }} />
+            </Card>
+            <Card style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <PfSkeleton style={{ width: '55%', height: 18 }} />
+              <PfSkeleton style={{ width: '100%', height: 36 }} />
+            </Card>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+            <Card style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <PfSkeleton style={{ width: '45%', height: 18 }} />
+              <PfSkeleton style={{ width: '100%', height: 32 }} />
+              <PfSkeleton style={{ width: '100%', height: 32 }} />
+            </Card>
+          </div>
+        </div>
+      ) : (
       <div
         style={{
           display: 'grid',
@@ -556,7 +554,19 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
           {/* featured strategy — selected-card ring §1.5 */}
-          {featured ? (
+          {allDetailsFailed ? (
+            <Card style={{ padding: '32px 24px' }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>
+                Strategy details could not be read
+              </h3>
+              <p style={{ margin: '8px 0 16px', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+                {`This client has ${mine.length} strateg${mine.length === 1 ? 'y' : 'ies'}, but none of the details answered.`}
+              </p>
+              <PfButton variant="primary" onClick={retry}>
+                Retry
+              </PfButton>
+            </Card>
+          ) : featured ? (
             <section style={{ background: '#ffffff', borderRadius: 12, boxShadow: '0 0 0 1.5px #101828', overflow: 'hidden' }}>
               <div style={{ padding: '22px 24px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -671,18 +681,7 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 18, flexWrap: 'wrap' }}>
                 {/* No readiness meter on a real strategy — nothing measures it. */}
-                {st.pct ? (
-                  <>
-                    <span style={{ flex: 1, minWidth: 180, display: 'block', height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
-                      <span style={{ display: 'block', height: 8, width: st.pct, borderRadius: 4, background: GRADIENT_DARK }} />
-                    </span>
-                    <span style={{ flex: '0 0 auto', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#344054' }}>
-                      {`${st.pct} ready`}
-                    </span>
-                  </>
-                ) : (
-                  <span style={{ flex: 1, minWidth: 180 }} />
-                )}
+                <span style={{ flex: 1, minWidth: 180 }} />
                 <span style={{ flex: '0 0 auto', fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
                   {`Target ${st.target}`}
                 </span>
@@ -737,6 +736,7 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
           </Card>
         </div>
       </div>
+      )}
     </div>
   );
 }

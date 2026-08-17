@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
@@ -23,14 +23,24 @@ import './client-crm.css';
 export function VNextClientCrmRoute() {
   const [searchParams] = useSearchParams();
   const api = useApi();
+  const queryClient = useQueryClient();
   const clientId = searchParams.get('clientId');
 
   // Same query key as ClientWorkspacePage, so switching between the canonical
   // and vNext surfaces is a cache hit and an edit invalidates both.
+  //
+  // `networkMode: 'always'` because react-query's default 'online' mode trusts
+  // `navigator.onLine`, which reports false through VPN flips, sleep/wake and
+  // captive portals while the API is perfectly reachable. In that state the
+  // query sits `paused` (isPending, NOT isFetching), `refetch()` re-pauses
+  // without a single network request, and the old `isLoading`/`!data` gates
+  // rendered a dead-Retry error card. Attempting the fetch and failing honestly
+  // is strictly better than refusing to try.
   const client = useQuery<Client>({
     queryKey: ['client', clientId],
     queryFn: async () => (await api.get<Client>(`/api/clients/${clientId}`)).data,
     enabled: Boolean(clientId),
+    networkMode: 'always',
   });
 
   // No client chosen yet — the Portfolio index (PORTFOLIO-HANDOFF §7.1). It
@@ -39,7 +49,9 @@ export function VNextClientCrmRoute() {
   // the index and the profile.
   if (!clientId) return <PortfolioIndexPage />;
 
-  if (client.isLoading) {
+  // `isPending` (no data yet) covers both fetching AND paused — a paused query
+  // must read as loading, never as failed.
+  if (client.isPending && !client.isPaused) {
     return (
       <div className="capiro-crm" aria-busy="true">
         {/* Skeleton mirrors the 120px header + first card row so the real
@@ -56,18 +68,29 @@ export function VNextClientCrmRoute() {
   }
 
   if (client.isError || !client.data) {
+    // `resetQueries` (not `refetch`) so Retry escapes every stuck state —
+    // including a query the retryer refuses to start — by putting it back to
+    // pending and issuing a fresh fetch.
+    const retry = () => void queryClient.resetQueries({ queryKey: ['client', clientId], exact: true });
+    const offline = client.isPaused;
     return (
       <div className="capiro-crm">
         <div className="capiro-crm__body">
-          <div className="capiro-crm__card">
+          <div className="capiro-crm__card" role="alert">
             <div className="capiro-crm__card-head">
-              <h2 className="capiro-crm__card-title">This client could not be loaded</h2>
+              <h2 className="capiro-crm__card-title">
+                {offline ? 'You appear to be offline' : 'This client could not be loaded'}
+              </h2>
             </div>
             <p className="capiro-crm__foot">
-              {client.error instanceof Error ? client.error.message : 'The request failed.'}
+              {offline
+                ? 'The browser reports no network connection. The profile will load as soon as one returns.'
+                : client.error instanceof Error
+                  ? client.error.message
+                  : 'The request failed.'}
             </p>
             <div style={{ marginTop: 12 }}>
-              <CapiroButton variant="secondary" size="compact" onClick={() => void client.refetch()}>
+              <CapiroButton variant="secondary" size="compact" onClick={retry}>
                 Retry
               </CapiroButton>
             </div>

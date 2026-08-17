@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { PORTFOLIO_ICON_DATA } from './portfolio-icon-data.js';
 
 /**
@@ -261,6 +261,11 @@ export function PfButton({
   const [hover, setHover] = useState(false);
   const height = size === 'sm' ? 36 : 40;
   const padding = size === 'sm' ? '0 14px' : '0 16px';
+  // A disabled button must LOOK disabled: dimmed, not-allowed cursor, and no
+  // hover shift (browsers do not fire mouse events on a disabled button, but
+  // jsdom does — and `hover` may already be true when `disabled` flips on).
+  const hovered = hover && !disabled;
+  const disabledStyle: CSSProperties = disabled ? { opacity: 0.5, cursor: 'not-allowed' } : {};
 
   if (variant === 'icon') {
     return (
@@ -281,7 +286,8 @@ export function PfButton({
           borderRadius: 8,
           boxShadow: 'inset 0 0 0 1px #D0D5DD',
           color: '#475467',
-          background: hover ? '#F9FAFB' : 'transparent',
+          background: hovered ? '#F9FAFB' : 'transparent',
+          ...disabledStyle,
           ...style,
         }}
       >
@@ -302,8 +308,9 @@ export function PfButton({
         style={{
           fontSize: 14,
           fontWeight: 600,
-          color: hover ? '#0E141C' : '#101828',
+          color: hovered ? '#0E141C' : '#101828',
           whiteSpace: 'nowrap',
+          ...disabledStyle,
           ...style,
         }}
       >
@@ -329,8 +336,8 @@ export function PfButton({
         height,
         padding,
         borderRadius: 8,
-        background: primary ? (hover ? GRADIENT_DARK_HOVER : GRADIENT_DARK) : hover ? '#F9FAFB' : '#ffffff',
-        color: primary ? '#ffffff' : hover ? '#101828' : '#344054',
+        background: primary ? (hovered ? GRADIENT_DARK_HOVER : GRADIENT_DARK) : hovered ? '#F9FAFB' : '#ffffff',
+        color: primary ? '#ffffff' : hovered ? '#101828' : '#344054',
         fontSize: 14,
         fontWeight: 600,
         lineHeight: '20px',
@@ -338,12 +345,87 @@ export function PfButton({
         boxShadow: primary
           ? '0px 1px 2px rgba(16,24,40,.05)'
           : 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+        ...disabledStyle,
         ...style,
       }}
     >
       {icon ? <UIcon name={icon} size={14} /> : null}
       {busy ? '…' : children}
     </button>
+  );
+}
+
+/* ── Skeleton (loading placeholder) ──────────────────────────────────────── */
+
+/** True when the OS asked for less motion. jsdom has no matchMedia — static there. */
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window === 'undefined' ||
+    typeof window.matchMedia !== 'function' ||
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
+/**
+ * Loading placeholder bar. Reuses the existing capPfPulse keyframes (§1.7)
+ * when motion is allowed; inline styles cannot carry a media query, so the
+ * reduced-motion check happens here and falls back to a static muted block.
+ */
+export function PfSkeleton({
+  width = '100%',
+  height = 14,
+  style,
+}: {
+  width?: number | string;
+  height?: number | string;
+  style?: CSSProperties;
+}) {
+  return (
+    <span
+      aria-hidden
+      data-testid="pf-skeleton"
+      className={prefersReducedMotion() ? undefined : 'cap-pf-anim-pulse'}
+      style={{
+        display: 'inline-block',
+        width,
+        height,
+        borderRadius: 6,
+        background: '#F2F4F7',
+        ...style,
+      }}
+    />
+  );
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+
+/** Centered, muted empty state with consistent paddings across cards. */
+export function PfEmptyState({
+  title,
+  hint,
+  action,
+}: {
+  title: ReactNode;
+  hint?: ReactNode;
+  action?: ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 8,
+        padding: '32px 24px',
+        textAlign: 'center',
+      }}
+    >
+      <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{title}</span>
+      {hint ? (
+        <span style={{ fontSize: 13, color: '#98A2B3', maxWidth: 360, textWrap: 'pretty' }}>{hint}</span>
+      ) : null}
+      {action ? <span style={{ marginTop: 4 }}>{action}</span> : null}
+    </div>
   );
 }
 
@@ -540,6 +622,22 @@ export function SegmentedTabs<V extends string>({
   onChange: (v: V) => void;
   ariaLabel: string;
 }) {
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  // Roving-tabindex keyboard contract: one tab stop (the selected tab), and
+  // ArrowLeft/ArrowRight move focus AND selection, wrapping at both ends.
+  // No aria-controls — these bars have no addressable panel ids.
+  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const last = options.length - 1;
+    let next: number | null = null;
+    if (event.key === 'ArrowRight') next = index === last ? 0 : index + 1;
+    else if (event.key === 'ArrowLeft') next = index === 0 ? last : index - 1;
+    if (next == null) return;
+    event.preventDefault();
+    const target = options[next];
+    if (!target) return;
+    itemRefs.current[next]?.focus();
+    onChange(target.key);
+  };
   return (
     <div
       role="tablist"
@@ -553,21 +651,45 @@ export function SegmentedTabs<V extends string>({
         boxShadow: '0 0 0 1px #EAECF0',
       }}
     >
-      {options.map((opt) => (
-        <SegmentedItem key={opt.key} active={value === opt.key} label={opt.label} onClick={() => onChange(opt.key)} />
+      {options.map((opt, index) => (
+        <SegmentedItem
+          key={opt.key}
+          active={value === opt.key}
+          label={opt.label}
+          onClick={() => onChange(opt.key)}
+          onKeyDown={(event) => onKeyDown(event, index)}
+          refCb={(node) => {
+            itemRefs.current[index] = node;
+          }}
+        />
       ))}
     </div>
   );
 }
 
-function SegmentedItem({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+function SegmentedItem({
+  active,
+  label,
+  onClick,
+  onKeyDown,
+  refCb,
+}: {
+  active: boolean;
+  label: string;
+  onClick: () => void;
+  onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void;
+  refCb: (node: HTMLButtonElement | null) => void;
+}) {
   const [hover, setHover] = useState(false);
   return (
     <button
+      ref={refCb}
       type="button"
       role="tab"
       aria-selected={active}
+      tabIndex={active ? 0 : -1}
       onClick={onClick}
+      onKeyDown={onKeyDown}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
@@ -605,6 +727,13 @@ export function Card({ children, style }: { children: ReactNode; style?: CSSProp
   );
 }
 
+const CARD_HEAD_TITLE: CSSProperties = { margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' };
+
+/**
+ * Both variants share the same padding and bottom border, and the title is
+ * always a real <h3> — a card heading that is sometimes a heading and
+ * sometimes a styled span is invisible to assistive tech half the time.
+ */
 export function CardHead({
   title,
   description,
@@ -618,20 +747,29 @@ export function CardHead({
 }) {
   if (withDesc || description) {
     return (
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '20px 24px 16px', flexWrap: 'wrap' }}>
-        <span style={{ flex: 1, minWidth: 240 }}>
-          <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>{title}</span>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 16,
+          padding: '20px 24px',
+          borderBottom: '1px solid #EAECF0',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <h3 style={CARD_HEAD_TITLE}>{title}</h3>
           {description ? (
             <span style={{ display: 'block', marginTop: 4, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>{description}</span>
           ) : null}
-        </span>
+        </div>
         {action}
       </div>
     );
   }
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px', borderBottom: '1px solid #EAECF0' }}>
-      <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>{title}</h3>
+      <h3 style={CARD_HEAD_TITLE}>{title}</h3>
       <span style={{ flex: 1 }} />
       {action}
     </div>

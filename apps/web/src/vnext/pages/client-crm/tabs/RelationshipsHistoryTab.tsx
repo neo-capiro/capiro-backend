@@ -8,6 +8,7 @@ import {
   Eyebrow,
   GRADIENT_DARK,
   PfButton,
+  PfSkeleton,
   Pill,
   PILL,
   TabPageHead,
@@ -15,6 +16,7 @@ import {
   type PillTone,
 } from '../portfolio-primitives.js';
 import { OV_ATTN, TIMELINE } from '../portfolio-fixtures.js';
+import { formatDateShort } from '../../../lib/labels.js';
 import {
   LogActivityModal,
   type ActivityItem,
@@ -142,7 +144,9 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
         kind: view.label,
         group: view.group,
         title: item.title,
-        body: item.body,
+        // Synced meeting rows can carry a raw join URL (with an embedded
+        // password) as their body — mask it to a platform name before render.
+        body: maskJoinUrls(item.body),
         meta: provenance(item),
         action: recorded ? (item.pinned ? 'Pinned' : 'Pin') : view.action,
         onAction: recorded
@@ -211,6 +215,7 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            aria-label="Search history"
             placeholder="Search history"
             style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontSize: 14, color: '#101828' }}
           />
@@ -219,7 +224,9 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
           <FilterChip key={g} label={g} active={filter === g} onClick={() => setFilter(g)} />
         ))}
         <span style={{ flex: 1 }} />
-        <Eyebrow style={{ whiteSpace: 'nowrap' }}>Last 90 days</Eyebrow>
+        {/* The query is `limit: 200`, not a date window — "Last 90 days"
+            described a filter that does not exist. */}
+        <Eyebrow style={{ whiteSpace: 'nowrap' }}>Recent activity</Eyebrow>
       </div>
 
       <div className="cap-pf-grid-side-380">
@@ -236,7 +243,7 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
           // which showed the fixture during every load and for every client
           // that really had no activity.
           fallbackCommitments={!loaded}
-          pinnedText={pinnedNote ? (pinnedNote.body ?? pinnedNote.title) : null}
+          pinnedText={pinnedNote ? maskJoinUrls(pinnedNote.body ?? pinnedNote.title) : null}
           pinnedLoaded={loaded}
           onQuickAdd={(kind) => setAdding(kind)}
           onSettle={(id) => mutate.mutate({ id, settled: true })}
@@ -412,15 +419,19 @@ function TimelineEntry({ entry: e }: { entry: HistEntry }) {
         <span style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
           <Eyebrow tight>{e.kind}</Eyebrow>
           <span style={{ flex: 1 }} />
-          <button
-            type="button"
-            onClick={e.onAction}
-            onMouseEnter={() => setActionHover(true)}
-            onMouseLeave={() => setActionHover(false)}
-            style={{ fontSize: 13, fontWeight: 600, color: actionHover ? '#0E141C' : '#101828', whiteSpace: 'nowrap' }}
-          >
-            {e.action}
-          </button>
+          {/* No handler, no button: a dead "Open thread" that did nothing on
+              click was worse than showing nothing. */}
+          {e.onAction ? (
+            <button
+              type="button"
+              onClick={e.onAction}
+              onMouseEnter={() => setActionHover(true)}
+              onMouseLeave={() => setActionHover(false)}
+              style={{ fontSize: 13, fontWeight: 600, color: actionHover ? '#0E141C' : '#101828', whiteSpace: 'nowrap' }}
+            >
+              {e.action}
+            </button>
+          ) : null}
         </span>
         <span style={{ display: 'block', marginTop: 4, fontSize: 16, fontWeight: 600, color: '#101828', textWrap: 'pretty' }}>
           {e.title}
@@ -516,15 +527,19 @@ function ControlsCard({
 
         <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #EAECF0' }}>
           <Eyebrow>Pinned account note</Eyebrow>
-          <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
-            {/* The old fallback was a sentence of invented client preference
-                that read exactly like a real pinned note. Once the fetch has
-                settled, the honest answer is that there isn't one. */}
-            {pinnedText ??
-              (pinnedLoaded
-                ? 'No pinned note yet — pin an activity to keep it here.'
-                : 'Client prefers concise written updates before live strategy discussions.')}
-          </p>
+          {/* While loading, a skeleton — the old fixture fallback was a
+              sentence of invented client preference that read exactly like a
+              real pinned note. Once the fetch settles with nothing, the honest
+              answer is that there isn't one. */}
+          {pinnedLoaded ? (
+            <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+              {pinnedText ?? 'No pinned note yet — pin an activity to keep it here.'}
+            </p>
+          ) : (
+            <div style={{ marginTop: 10, maxWidth: 280 }}>
+              <PfSkeleton />
+            </div>
+          )}
         </div>
       </div>
     </Card>
@@ -569,13 +584,21 @@ function CommitmentLine({
 }) {
   const [, , , dot] = PILL[cm.tone];
   const [hover, setHover] = useState(false);
+  const toneTitle = TONE_TITLE[cm.tone];
   return (
     <span
       style={{ display: 'flex', alignItems: 'center', gap: 10 }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: dot, flex: '0 0 auto' }} aria-hidden />
+      {/* The dot was color-only — a named title/label carries the urgency for
+          anyone who cannot rely on the color. */}
+      <span
+        role="img"
+        aria-label={toneTitle}
+        title={toneTitle}
+        style={{ width: 6, height: 6, borderRadius: '50%', background: dot, flex: '0 0 auto' }}
+      />
       <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#344054', textWrap: 'pretty' }}>{cm.label}</span>
       {/* Settling writes `settledAt` through the same activity PATCH the pin
           action uses, which is what takes the row off this rail for good. */}
@@ -610,6 +633,7 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -632,6 +656,37 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
 
 /* ── helpers ──────────────────────────────────────────────────────────────── */
 
+/** Commitment-dot urgency, spelled out — the color alone carried it before. */
+const TONE_TITLE: Record<PillTone, string> = {
+  error: 'Overdue',
+  warning: 'Due soon',
+  gray: 'Not due soon',
+  blue: 'Upcoming',
+  success: 'On track',
+  brand: 'Priority',
+};
+
+/**
+ * Meeting join URLs (Zoom/Teams links, often carrying `pwd=` in the query)
+ * must never render as timeline copy. Any URL found in a subtitle is replaced
+ * with its platform name; text without URLs passes through untouched.
+ */
+function maskJoinUrls(text: string | null): string | null {
+  if (!text) return text;
+  return text.replace(/https?:\/\/[^\s"'<>)\]]+/gi, (url) => {
+    let host = '';
+    try {
+      host = new URL(url).hostname.toLowerCase();
+    } catch {
+      return 'Meeting link';
+    }
+    if (host === 'zoom.us' || host.endsWith('.zoom.us')) return 'Zoom meeting';
+    if (host === 'teams.microsoft.com' || host === 'teams.live.com' || host.endsWith('.teams.microsoft.com'))
+      return 'Teams meeting';
+    return 'Meeting link';
+  });
+}
+
 function provenance(item: ActivityItem): string {
   if (item.origin === 'recorded') return item.pinned ? 'Logged by your firm · Pinned' : 'Logged by your firm';
   if (item.sourceType === 'meeting') return 'Meeting record · notes and debrief available';
@@ -650,8 +705,8 @@ function commitmentTone(dueAt: string | null): PillTone {
   return 'gray';
 }
 
+/** Shared short date (adds the year when it is not the current one, so old
+ *  activity is not mistaken for this year's). Invalid dates say so. */
 function formatDay(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return formatDateShort(iso) ?? 'Undated';
 }

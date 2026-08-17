@@ -350,12 +350,13 @@ describe('ClientCrmFilesProto — client storage', () => {
     expect(await screen.findByText(/Over the 10\.0 GB allowance/)).toBeInTheDocument();
   });
 
-  it('keeps the design figure and bar while the file list is still loading', () => {
+  it('shows an honest measuring state while loading — never the invented 1.8 GB figure', () => {
     getMock.mockImplementation(() => new Promise(() => {})); // never resolves
     renderFiles();
 
-    // The fixture branch is what the capture harness diffs against Figma, and
-    // it is a loading placeholder — never a claim about a real client.
-    expect(screen.getByText('1.8 GB of 10 GB')).toBeInTheDocument();
+    // "1.8 GB of 10 GB" was fabricated storage attributed to whatever client
+    // happened to be loading. The meter now says it is measuring instead.
+    expect(screen.queryByText('1.8 GB of 10 GB')).not.toBeInTheDocument();
+    expect(screen.getByText('Measuring…')).toBeInTheDocument();
   });
 });

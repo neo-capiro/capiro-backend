@@ -7,6 +7,7 @@ import type { StrategyListItem } from '../../../pages/strategy/types.js';
 import type { PortfolioRoute, PortfolioStatus, PortfolioSort } from './portfolio-routing.js';
 import type { ClientAccountOwnerAssignment } from '../client-crm/useClientAccountOwner.js';
 import { clientAccountOwnerLabel } from '../client-crm/useClientAccountOwner.js';
+import { sectorLabel } from '../../lib/labels.js';
 
 /**
  * Data model for the Portfolio index (PORTFOLIO-HANDOFF §7.1).
@@ -30,46 +31,6 @@ export interface PortfolioSummary {
   meetingsThisWeek: number;
   /** G1 remainder: active strategies count from sp_strategy. */
   activeStrategies: number;
-}
-
-/** Coming-up feed item shape (GET /api/intelligence/coming-up). */
-export interface ComingUpItem {
-  id: string;
-  kind: 'hearing' | 'markup' | 'deadline' | 'meeting';
-  label: string;
-  title: string;
-  detail: string | null;
-  severity: 'info' | 'notable' | 'critical';
-  date: string;
-  time: string | null;
-  href: string | null;
-}
-
-export interface ComingUpResponse {
-  items: ComingUpItem[];
-  totalThisWeek: number;
-}
-
-/** Portfolio-alerts feed item shape (GET /api/intelligence/portfolio-alerts). */
-export interface PortfolioAlert {
-  id: string;
-  clientId: string;
-  clientName: string;
-  severity: string;
-  title: string;
-  body?: string;
-  kind?: string;
-  countdownDays?: number;
-  when?: string;
-  canonicalComplete?: boolean;
-  canonicalMissingFields?: string[];
-}
-
-export interface PortfolioAlertsResponse {
-  alerts: PortfolioAlert[];
-  total: number;
-  clientCount: number;
-  generatedAt: string;
 }
 
 /**
@@ -149,10 +110,25 @@ function locationOf(client: Client): string | null {
 }
 
 function focusTagsOf(client: Client): string[] {
+  // The intake wizard writes `intakeData.sectors` (multi-select) — read it
+  // first. Older records carry `intakeData.tags`; the controlled sectorTag is
+  // the last resort. Everything renders through sectorLabel so no raw
+  // SNAKE_CASE token reaches the FOCUS chips.
+  const sectors = client.intakeData?.sectors;
   const tags = client.intakeData?.tags;
-  if (Array.isArray(tags)) return tags.filter((t): t is string => typeof t === 'string').slice(0, 2);
-  if (client.sectorTag) return [client.sectorTag];
-  return [];
+  const source: string[] =
+    Array.isArray(sectors) && sectors.length > 0
+      ? sectors
+      : Array.isArray(tags) && tags.length > 0
+        ? tags
+        : client.sectorTag
+          ? [client.sectorTag]
+          : [];
+  return source
+    .filter((t): t is string => typeof t === 'string')
+    .map((t) => sectorLabel(t))
+    .filter((t): t is string => t != null)
+    .slice(0, 2);
 }
 
 export function usePortfolioIndexModel(route: PortfolioRoute) {
@@ -199,28 +175,6 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     staleTime: 60_000,
   });
 
-  // Coming-up feed — hearings, deadlines, and meetings in the next 7 days.
-  // Same endpoint the command dashboard uses; shared cache key.
-  const comingUp = useQuery<ComingUpResponse>({
-    queryKey: ['intelligence', 'coming-up'],
-    queryFn: async () =>
-      (await api.get<ComingUpResponse>('/api/intelligence/coming-up')).data,
-    staleTime: 5 * 60_000,
-  });
-
-  // Cross-client "Needs attention" alerts — same endpoint the dashboard uses.
-  // Expensive (per-client profile-v1 fan-out), so it has a 2-min TTL cache
-  // server-side and we use a generous staleTime.
-  const alerts = useQuery<PortfolioAlertsResponse>({
-    queryKey: ['intelligence', 'portfolio-alerts'],
-    queryFn: async () =>
-      (await api.get<PortfolioAlertsResponse>('/api/intelligence/portfolio-alerts', {
-        params: { limit: 8 },
-      })).data,
-    staleTime: 2 * 60_000,
-    retry: 1,
-  });
-
   // G3 portfolio rollup (wire-audit "4 New capability" items 1-5): per-client
   // attention/intel/next-touch/work aggregates in one bounded call. No N+1.
   const rollup = useQuery<PortfolioRollupResponse>({
@@ -243,13 +197,17 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     const all = (clients.data ?? []).filter((c) => (c.status ?? '').toLowerCase() !== 'archived');
     const ownerMap = accountOwners.data ?? {};
     const rollupMap = rollup.data?.rollup ?? {};
+    // Once the rollup has resolved, a client with no entry genuinely has zero
+    // of everything — render honest zeros, not '—'. Null only while loading
+    // (or after an error), so the UI can tell the states apart.
+    const rollupReady = rollup.isSuccess;
     return all.map((client) => {
       const entry = rollupMap[client.id];
       return {
         client,
         status: classify(client),
         name: client.name,
-        sector: client.sectorTag ?? null,
+        sector: sectorLabel(client.sectorTag ?? null),
         location: locationOf(client),
         focusTags: focusTagsOf(client),
         // Wire-audit "3 Compose extend" item 1: use the real account owner
@@ -262,13 +220,13 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
           null,
         // G3 rollup fields — null while the rollup hasn't loaded yet so the
         // UI can distinguish "loading" from "zero".
-        attentionCount: entry ? entry.attentionCount : null,
-        intelCount: entry ? entry.intelCount : null,
-        nextTouch: entry ? entry.nextTouch : null,
-        workCount: entry ? entry.workCount : null,
+        attentionCount: entry?.attentionCount ?? (rollupReady ? 0 : null),
+        intelCount: entry?.intelCount ?? (rollupReady ? 0 : null),
+        nextTouch: entry?.nextTouch ?? null,
+        workCount: entry?.workCount ?? (rollupReady ? 0 : null),
       };
     });
-  }, [clients.data, accountOwners.data, rollup.data]);
+  }, [clients.data, accountOwners.data, rollup.data, rollup.isSuccess]);
 
   const counts = useMemo(() => {
     const by: Record<PortfolioStatus, number> = { all: rows.length, active: 0, 'at-risk': 0, prospect: 0 };
@@ -315,5 +273,5 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     return sorted;
   }, [rows, route]);
 
-  return { clients, accountOwners, summary, strategies, meetings, comingUp, alerts, rollup, peSummary, rows, counts, visible };
+  return { clients, accountOwners, summary, strategies, meetings, rollup, peSummary, rows, counts, visible };
 }

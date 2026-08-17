@@ -146,7 +146,7 @@ export const CLIENT_CRM_VISUAL_FIXTURE: ClientCrmOverviewModel = {
     ldaSpend: { kind: 'value', value: 1800000 },
     ldaFilings: { kind: 'value', value: 8 },
     federalAwards: { kind: 'value', value: 14 },
-    lobbyingTrajectory: { kind: 'value', value: 18 },
+    lobbyingTrajectory: { kind: 'value', trajectoryLabel: 'Growing', growthRate: 0.18 },
     ready: true,
     registrantsLabel: '8 LD-2 filings',
   },

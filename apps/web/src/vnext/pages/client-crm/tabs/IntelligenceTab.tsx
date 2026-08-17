@@ -29,6 +29,17 @@ import {
   FACILITIES,
   SPARK,
 } from '../portfolio-fixtures.js';
+import { lazy, Suspense } from 'react';
+import { formatDateShort, formatMoney, formatNumber, ldaPeriodLabel, partyLabel, titleCaseName } from '../../../lib/labels.js';
+import {
+  bandOf,
+  type ScoreBand,
+} from '../../../../pages/intelligence/district-nexus/district-nexus-format.js';
+import {
+  getClientDistrictNexusV2,
+  type ClientDistrictNexusV2,
+  type DistrictNexusDistrictDetail,
+} from '../../../../pages/clients/intelligence-v1/district-nexus-api.js';
 import { DistrictNexusMap } from '../DistrictNexusMap.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import type { IntelligenceView } from '../client-crm-routing.js';
@@ -92,6 +103,37 @@ import {
 const INTEL_TONE: Record<string, PillTone> = {
   gray: 'gray', brand: 'brand', blue: 'blue', error: 'error', warning: 'warning', success: 'success',
 };
+
+/** MapLibre choropleth, lazy so the WebGL engine stays out of this chunk (see
+ * bundle-boundaries.test.ts) for users who never open the District subtab. */
+const DistrictNexusMapLibreLazy = lazy(() => import('../DistrictNexusMapLibre.js'));
+
+/**
+ * District Nexus v2 — the scored, district-keyed model the canonical
+ * District Nexus module renders. Deliberately NOT the legacy widget's
+ * `['client-district-nexus-v2']` key: this query resolves a 404 to `null`
+ * (fall back to v1) while that one throws, and two contracts must not share
+ * one cache entry. `null` data = the endpoint is dark for this tenant.
+ */
+function useDistrictNexusV2(client: Client, active: boolean) {
+  const api = useApi();
+  const { enabled, ready } = useIntelFeature('district_nexus_v2');
+  return useQuery<ClientDistrictNexusV2 | null>({
+    queryKey: ['pf-district-nexus-v2', client.id],
+    queryFn: async () => {
+      try {
+        return await getClientDistrictNexusV2(api, client.id);
+      } catch (error) {
+        const status = (error as { response?: { status?: number } } | null)?.response?.status;
+        if (status === 404) return null; // configuration answer, not an outage
+        throw error;
+      }
+    },
+    enabled: active && ready && enabled && Boolean(client.id),
+    staleTime: 2 * 60_000,
+    retry: false,
+  });
+}
 
 export function ClientCrmIntelligenceProto({ client, view }: { client: Client; view: IntelligenceView }) {
   const navigate = useNavigate();
@@ -224,6 +266,7 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
     enabled: view === 'district',
     staleTime: 60_000,
   });
+  const nexusV2Q = useDistrictNexusV2(client, view === 'district');
 
   if (view === 'legislative' && trackerReady && boardQ.isSuccess && recsQ.isSuccess) {
     const board = boardQ.data;
@@ -270,31 +313,53 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
 
   if (view === 'footprint' && ldaQ.isSuccess && nexusQ.isSuccess && fecQ.isSuccess) {
     const lda = ldaQ.data;
-    const ldaAmount = lda.matched ? lda.filings.reduce((s, f) => s + f.amount, 0) : 0;
+    const ldaAmount = lda.matched ? lda.filings.reduce((s, f) => s + f.amount, 0) : null;
     const pac = fecQ.data.pacGiving;
     return [
-      [lda.matched ? String(lda.totalFilings) : '0', 'LDA filings'],
-      lda.matched ? [`$${(ldaAmount / 1000).toFixed(0)}K`, 'Lobbying · TTM'] : ['—', 'Lobbying · TTM'],
-      nexusQ.data.linked ? [`$${(nexusQ.data.totalAmount / 1_000_000).toFixed(1)}M`, 'Federal awards · TTM'] : ['—', 'Federal awards · TTM'],
-      pac?.tracked && pac.summary ? [`$${(pac.summary.totalAmount / 1000).toFixed(0)}K`, 'PAC disbursements'] : ['—', 'PAC disbursements'],
-      [lda.matched ? String(lda.registrants.length) : '0', 'Registrants'],
+      [lda.matched ? formatNumber(lda.totalFilings) : '0', 'LDA filings'],
+      [formatMoney(ldaAmount), 'Lobbying · TTM'],
+      // Unlinked is "no confirmed mapping", never $0 — formatMoney(null) = '—'.
+      [formatMoney(nexusQ.data.linked ? nexusQ.data.totalAmount : null), 'Federal awards · TTM'],
+      [formatMoney(pac?.tracked && pac.summary ? pac.summary.totalAmount : null), 'PAC disbursements'],
+      [lda.matched ? formatNumber(lda.registrants.length) : '0', 'Registrants'],
     ];
   }
 
-  if (view === 'district' && facilitiesQ.isSuccess && nexusQ.isSuccess) {
+  // District — prefer the scored v2 model (real districtKeys, real coverage);
+  // fall back to the v1 facility view when v2 is dark for this tenant.
+  if (view === 'district' && nexusV2Q.data) {
+    const v2 = nexusV2Q.data;
+    return [
+      [formatNumber(v2.districts.length), 'Districts'],
+      [formatMoney(v2.awarded.contractObligations), 'Contract obligations'],
+      [formatMoney(v2.awarded.grantObligations), 'Grant obligations'],
+      // employeeCount null = no facility reported a headcount. NEVER render 0.
+      [v2.facilityFootprint.employeeCount != null ? formatNumber(v2.facilityFootprint.employeeCount) : '—', 'Employees mapped'],
+      [`${Math.round(v2.coveragePercent)}%`, 'Coverage'],
+    ];
+  }
+  if (
+    view === 'district' &&
+    facilitiesQ.isSuccess &&
+    nexusQ.isSuccess &&
+    (nexusV2Q.data === null || nexusV2Q.isError)
+  ) {
     const linkedNexus = nexusQ.data.linked ? nexusQ.data.districts.length : 0;
-    const totalAmount = nexusQ.data.linked ? nexusQ.data.districts.reduce((s, d) => s + d.totalAmount, 0) : 0;
-    const empCount = facilitiesQ.data.reduce((s, f) => s + (f.employeeCount ?? 0), 0);
+    const totalAmount = nexusQ.data.linked
+      ? nexusQ.data.districts.reduce((s, d) => s + d.totalAmount, 0)
+      : null;
+    const knownEmployees = facilitiesQ.data.filter((f) => f.employeeCount != null);
+    const empCount = knownEmployees.reduce((s, f) => s + (f.employeeCount ?? 0), 0);
     return [
       [String(linkedNexus), 'Districts'],
-      [`$${(totalAmount / 1_000_000).toFixed(1)}M`, 'Contract obligations'],
+      [formatMoney(totalAmount), 'Contract obligations'],
       ['—', 'Grant obligations'],
-      [String(empCount), 'Employees mapped'],
+      [knownEmployees.length ? formatNumber(empCount) : '—', 'Employees mapped'],
       ['—', 'Coverage'],
     ];
   }
 
-  return undefined; // fall back to fixture
+  return undefined; // still loading — the strip renders dashes, never a fixture
 }
 
 const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactNode }> = {
@@ -374,19 +439,25 @@ function LinkBtn({
 /* ── Domain stats strip (§10 — all domains except Overview) ──────────────── */
 
 /**
- * The strip renders five summary cells per domain. Where a real query is
- * already running in the panel below, the live count overrides the fixture.
- * Fixture cells are flagged with a `data-source="fixture"` attribute so the
- * distinction is inspectable.
+ * The strip renders five summary cells per domain. Until the real queries
+ * answer, the value slots hold muted dashes under the domain's real labels —
+ * the design fixture's invented figures ("8 districts · 92% coverage") never
+ * stand in for a client's numbers.
  */
 function DomainStatsStrip({ view, realValues }: { view: IntelligenceView; realValues?: Array<[string, string]> }) {
-  const fixtureCells = (DOMAIN_STATS as unknown as Record<string, Array<[string, string]>>)[view] ?? [];
-  const cells = realValues && realValues.length > 0 ? realValues : fixtureCells;
+  const labelSource = (DOMAIN_STATS as unknown as Record<string, Array<[string, string]>>)[view] ?? [];
+  const cells: Array<[string, string]> =
+    realValues && realValues.length > 0 ? realValues : labelSource.map(([, label]) => ['—', label]);
+  const loading = !realValues || realValues.length === 0;
   return (
-    <section style={{ background: '#ffffff', borderRadius: 12, boxShadow: '0 0 0 1px #EAECF0,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }} data-source={realValues ? 'live' : 'fixture'}>
+    <section
+      style={{ background: '#ffffff', borderRadius: 12, boxShadow: '0 0 0 1px #EAECF0,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)', display: 'flex', flexWrap: 'wrap', overflow: 'hidden' }}
+      data-source={loading ? 'loading' : 'live'}
+      aria-busy={loading}
+    >
       {cells.map(([value, label], i) => (
         <span key={label} style={{ flex: 1, minWidth: 168, padding: '20px 24px', boxShadow: i === 0 ? 'none' : 'inset 1px 0 0 #EAECF0', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828', lineHeight: 1.2 }}>{value}</span>
+          <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: loading ? '#98A2B3' : '#101828', lineHeight: 1.2 }}>{value}</span>
           <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', textWrap: 'pretty' }}>{label}</span>
         </span>
       ))}
@@ -458,25 +529,29 @@ function IntelOverview({ client }: { client: Client }) {
     retry: 1,
   });
   const rails = aggregateQ.data?.sections.legislativeRegulatory.regulatoryLifecycle?.rails ?? [];
-  const deadlinesSoon = useMemo(() => {
+  const soonRails = useMemo(() => {
     const now = Date.now();
     return rails.filter((r) => {
       if (!r.deadline) return false;
       const on = deadlineDay(r.deadline);
       if (!on) return false;
       return Math.ceil((on.getTime() - now) / 86_400_000) <= 14;
-    }).length;
+    });
   }, [rails]);
+  const deadlinesSoon = soonRails.length;
 
-  /** Freshest dataUpdatedAt for a real "Refreshed Xh ago" stamp. */
+  /** Freshest dataUpdatedAt for a real "Refreshed Xh ago" stamp. Unresolved
+   * queries report dataUpdatedAt 0 — including them made a loading page claim
+   * "Refreshed 20776d ago". */
   const refreshLabel = useMemo(() => {
-    const ts = Math.max(
+    const stamps = [
       boardQ.dataUpdatedAt,
       oppsQ.dataUpdatedAt,
       nexusQ.dataUpdatedAt,
       aggregateQ.dataUpdatedAt,
-    );
-    const elapsed = Date.now() - ts;
+    ].filter((ts) => ts > 0);
+    if (stamps.length === 0) return null;
+    const elapsed = Date.now() - Math.max(...stamps);
     if (elapsed < 0) return 'just now';
     const minutes = Math.floor(elapsed / 60_000);
     if (minutes < 1) return 'just now';
@@ -486,11 +561,13 @@ function IntelOverview({ client }: { client: Client }) {
     return `${Math.floor(hours / 24)}d ago`;
   }, [boardQ.dataUpdatedAt, oppsQ.dataUpdatedAt, nexusQ.dataUpdatedAt, aggregateQ.dataUpdatedAt]);
 
-  const pulseFigures: Array<[string, string | null]> = [
-    ['Tracked bills', trackedBills != null ? String(trackedBills) : null],
-    ['Funding matches', fundingMatches != null ? String(fundingMatches) : null],
-    ['Districts', districtCount != null ? String(districtCount) : null],
-    ['Deadlines < 14 days', deadlinesSoon > 0 ? String(deadlinesSoon) : deadlinesSoon === 0 ? '0' : null],
+  // A figure is null until its source has answered — "0" is only ever printed
+  // once the query that could contradict it has resolved.
+  const pulseFigures: Array<{ label: string; value: string | null }> = [
+    { label: 'Tracked bills', value: trackedBills != null ? String(trackedBills) : null },
+    { label: 'Funding matches', value: fundingMatches != null ? String(fundingMatches) : null },
+    { label: 'Districts', value: districtCount != null ? String(districtCount) : null },
+    { label: 'Deadlines < 14 days', value: aggregateQ.isSuccess ? String(deadlinesSoon) : null },
   ];
 
   return (
@@ -498,21 +575,25 @@ function IntelOverview({ client }: { client: Client }) {
       {/* Client intelligence pulse — deep band */}
       <div style={{ background: GRADIENT_DARK, borderRadius: 12, padding: '22px 28px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3', flex: '0 0 auto' }}>Client intelligence pulse</span>
-        {pulseFigures.map(([v, l]) => (
-          <span key={l} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#ffffff', lineHeight: 1.2 }}>{v ?? '—'}</span>
-            <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>{l}</span>
+        {pulseFigures.map(({ label, value: figure }) => (
+          <span key={label} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#ffffff', lineHeight: 1.2 }}>{figure ?? '—'}</span>
+            <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>{label}</span>
           </span>
         ))}
         <span style={{ flex: 1, minWidth: 12 }} />
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto', fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>
-          <span className="cap-pf-anim-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: '#32D583' }} />
-          Refreshed {refreshLabel}
-        </span>
+        {refreshLabel ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto', fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>
+            <span className="cap-pf-anim-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: '#32D583' }} />
+            Refreshed {refreshLabel}
+          </span>
+        ) : null}
       </div>
 
       <div className="cap-pf-grid-intel">
-        {/* Needs attention */}
+        {/* Needs attention — real regulatory deadlines inside 14 days. The
+            design's invented alert list (INTEL_ATTN) never renders for a real
+            client: fabricated urgency is worse than an honest quiet state. */}
         <Card>
           {/* Item 6: the unified feed is the Changes Inbox. This is the exact
               href the API itself hands out for this client (`links.changesInbox`
@@ -527,22 +608,71 @@ function IntelOverview({ client }: { client: Client }) {
             }
           />
           <div>
-            {INTEL_ATTN.map((a) => (
-              <AttentionRow key={a.title} a={a} />
-            ))}
+            {!aggregateQ.isSuccess ? (
+              <p style={{ margin: 0, padding: '18px 24px', fontSize: 14, color: '#667085' }} aria-busy={aggregateQ.isPending}>
+                {aggregateQ.isPending ? 'Checking deadlines…' : 'Deadline sources did not answer — see the unified feed.'}
+              </p>
+            ) : soonRails.length === 0 ? (
+              <p style={{ margin: 0, padding: '18px 24px', fontSize: 14, color: '#667085' }}>
+                No client deadlines inside 14 days. The unified feed carries everything else.
+              </p>
+            ) : (
+              soonRails.map((rail) => (
+                <button
+                  key={rail.documentNumber}
+                  type="button"
+                  onClick={() => navigate(`/clients?clientId=${client.id}&tab=intelligence&view=regulatory`)}
+                  style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 16, padding: '15px 24px', borderBottom: '1px solid #EAECF0', textAlign: 'left' }}
+                >
+                  <span style={{ flex: '0 0 auto', width: 8, height: 8, borderRadius: '50%', background: '#F79009' }} aria-hidden />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>{rail.title}</span>
+                    <span style={{ display: 'block', marginTop: 3, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+                      {rail.deadline
+                        ? `Comment deadline · ${formatDateShort(rail.deadline) ?? String(rail.deadline)}`
+                        : 'Deadline inside 14 days'}
+                    </span>
+                  </span>
+                  <span style={{ flex: '0 0 auto', fontSize: 14, fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>Open →</span>
+                </button>
+              ))
+            )}
           </div>
         </Card>
 
-        {/* Intelligence domains */}
+        {/* Intelligence domains — the same real figures the pulse band and the
+            per-domain strips read, one row per domain, each a real link. */}
         <Card>
           <CardHead title="Intelligence domains" />
           <div style={{ padding: 12 }}>
-            {DOMAINS.map((d) => (
-              <DomainRow key={d.id} d={d} />
+            {(
+              [
+                { view: 'legislative', label: 'Legislative', sub: 'Tracked bills and client-fit recommendations', figure: trackedBills != null ? String(trackedBills) : '—', unit: 'tracked' },
+                { view: 'regulatory', label: 'Regulatory', sub: 'Lifecycle rails with client deadlines', figure: aggregateQ.isSuccess ? String(rails.length) : '—', unit: 'matters' },
+                { view: 'funding', label: 'Funding & Budget', sub: 'Opportunities and relevant budget programs', figure: fundingMatches != null ? String(fundingMatches) : '—', unit: 'matches' },
+                { view: 'footprint', label: 'Federal Footprint', sub: 'Lobbying, awards, and political giving', figure: nexusQ.isSuccess && nexusQ.data.linked ? formatMoney(nexusQ.data.districts.reduce((s, d) => s + d.totalAmount, 0)) : '—', unit: 'awards' },
+                { view: 'district', label: 'District Nexus', sub: 'The footprint by congressional district', figure: districtCount != null ? String(districtCount) : '—', unit: 'districts' },
+              ] as const
+            ).map((d) => (
+              <button
+                key={d.view}
+                type="button"
+                onClick={() => navigate(`/clients?clientId=${client.id}&tab=intelligence&view=${d.view}`)}
+                style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 10, background: '#F9FAFB', marginBottom: 6, textAlign: 'left' }}
+              >
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 15, fontWeight: 600, color: '#101828' }}>{d.label}</span>
+                  <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085', textWrap: 'pretty' }}>{d.sub}</span>
+                </span>
+                <span style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                  <span style={{ fontSize: 17, fontWeight: 600, color: '#101828' }}>{d.figure}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{d.unit}</span>
+                </span>
+                <span style={{ flex: '0 0 auto', color: '#98A2B3' }}>
+                  <UIcon name="ChevronRight" size={20} />
+                </span>
+              </button>
             ))}
-            <p style={{ margin: '10px 6px 6px', fontSize: 13, lineHeight: '19px', color: '#667085', textWrap: 'pretty' }}>
-              Source mapping is complete for LDA, contracts, grants, and FEC/PAC. One facility needs an employee count.
-            </p>
           </div>
         </Card>
       </div>
@@ -550,60 +680,12 @@ function IntelOverview({ client }: { client: Client }) {
   );
 }
 
-function AttentionRow({ a }: { a: (typeof INTEL_ATTN)[number] }) {
-  const [hover, setHover] = useState(false);
-  const tone = INTEL_TONE[a.ui] ?? 'gray';
-  return (
-    <button type="button" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 16, padding: '15px 24px', borderBottom: '1px solid #EAECF0', background: hover ? '#F9FAFB' : 'transparent', textAlign: 'left' }}>
-      <span style={{ flex: '0 0 auto', width: 8, height: 8, borderRadius: '50%', background: tone === 'error' ? '#F04438' : tone === 'warning' ? '#F79009' : tone === 'success' ? '#12B76A' : tone === 'blue' ? '#344054' : '#667085' }} />
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>{a.title}</span>
-        <span style={{ display: 'block', marginTop: 3, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>{a.body}</span>
-      </span>
-      <span style={{ flex: '0 0 auto', width: 116, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
-        <Pill tone={tone} dotless>{a.kind}</Pill>
-        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>{a.due}</span>
-      </span>
-      <span style={{ flex: '0 0 auto', fontSize: 14, fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>Open →</span>
-    </button>
-  );
-}
-
-function DomainRow({ d }: { d: (typeof DOMAINS)[number] }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button type="button" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 10, background: hover ? '#F2F4F7' : '#F9FAFB', marginBottom: 6, textAlign: 'left' }}>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 15, fontWeight: 600, color: '#101828' }}>{d.label}</span>
-        <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085', textWrap: 'pretty' }}>{d.sub}</span>
-      </span>
-      <span style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
-        <span style={{ fontSize: 17, fontWeight: 600, color: '#101828' }}>{d.value}</span>
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{d.unit}</span>
-      </span>
-      <span style={{ flex: '0 0 auto', color: '#98A2B3' }}>
-        <UIcon name="ChevronRight" size={20} />
-      </span>
-    </button>
-  );
-}
-
 /* ═══════════════════════════ §10.2 Legislative ═════════════════════════════ */
-
-const LEG_NESTED = [
-  { key: 'tracked', label: 'Tracked' },
-  { key: 'recommendations', label: 'Recommendations' },
-  { key: 'activity', label: 'Activity' },
-  { key: 'hearings', label: 'Hearings' },
-];
 
 function LegislativePanel({ client }: { client: Client }) {
   const api = useApi();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [nested, setNested] = useState('tracked');
   const [boardView, setBoardView] = useState(true);
 
   // Item 6: Track bill. Same tracker_v2 feature-detection dance as the
@@ -696,13 +778,13 @@ function LegislativePanel({ client }: { client: Client }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ alignSelf: 'flex-start' }}>
-        <SegmentedTabs ariaLabel="Legislative views" options={LEG_NESTED} value={nested} onChange={setNested} />
-      </div>
+      {/* The nested Tracked/Recommendations/Activity/Hearings bar is gone: only
+          "Tracked" ever changed anything, and the other three printed their raw
+          route key as a card title. One honest surface beats four fake tabs. */}
       <div className="cap-pf-grid-intel">
         {/* Board card */}
         <Card>
-          <CardHead title={nested === 'tracked' ? 'Tracked bills' : nested} action={<LinkBtn onClick={() => setBoardView((v) => !v)}>{boardView ? 'Table view' : 'Board view'}</LinkBtn>} />
+          <CardHead title="Tracked bills" action={<LinkBtn onClick={() => setBoardView((v) => !v)}>{boardView ? 'Table view' : 'Board view'}</LinkBtn>} />
           {realBoard ? (
             realBoard.total === 0 ? (
               <p style={{ margin: 0, padding: '4px 24px 16px', fontSize: 14, color: '#475467' }}>
@@ -1258,13 +1340,6 @@ function MatterRail({ steps }: { steps: Array<[string, string]> }) {
 
 /* ══════════════════════════ §10.4 Funding & Budget ═════════════════════════ */
 
-const FUND_NESTED = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'opportunities', label: 'Opportunities' },
-  { key: 'programs', label: 'Budget programs' },
-  { key: 'pursuits', label: 'Pursuits' },
-];
-
 /** Workflow status → pill presentation. Reads the real `OpportunityWorkflow.status`
  * enum directly; `null` means no workflow row exists yet (nothing decided either way). */
 function workflowStatusPill(status: OpportunityWorkflowStatus | null): { label: string; tone: PillTone; dotless: boolean } {
@@ -1291,7 +1366,6 @@ function workflowStatusPill(status: OpportunityWorkflowStatus | null): { label: 
 function FundingPanel({ client }: { client: Client }) {
   const api = useApi();
   const navigate = useNavigate();
-  const [nested, setNested] = useState('opportunities');
 
   // Item 5: Opportunities list. Same endpoint + feature gate as the established
   // legacy widget (FundingOpportunitiesSection.tsx) — a disabled flag is an
@@ -1327,9 +1401,9 @@ function FundingPanel({ client }: { client: Client }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ alignSelf: 'flex-start' }}>
-        <SegmentedTabs ariaLabel="Funding views" options={FUND_NESTED} value={nested} onChange={setNested} />
-      </div>
+      {/* The nested Overview/Opportunities/Programs/Pursuits bar is gone: its
+          state was never read — all four options rendered these same two
+          cards. Dead chrome that promises filtering is worse than none. */}
       <div className="cap-pf-grid-intel">
         {/* Opportunities */}
         <Card>
@@ -1732,10 +1806,12 @@ function FootprintPanel({ client }: { client: Client }) {
             {realLda
               ? realLda.filings.map((r) => (
                   <div key={r.filingUuid} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '13px 24px', borderBottom: '1px solid #EAECF0' }}>
-                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 500, color: '#101828' }}>{r.filingPeriod ?? r.filingYear}</span>
-                    <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, color: '#475467' }}>{r.filingType}</span>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.registrantName}</span>
-                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 600, color: '#101828', textAlign: 'right' }}>${r.amount.toLocaleString()}</span>
+                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 500, color: '#101828' }}>
+                      {[ldaPeriodLabel(r.filingPeriod), r.filingYear].filter(Boolean).join(' ') || '—'}
+                    </span>
+                    <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, color: '#475467' }}>{r.filingType ? String(r.filingType).toUpperCase() : '—'}</span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{titleCaseName(r.registrantName)}</span>
+                    <span style={{ flex: '0 0 auto', width: 84, fontSize: 14, fontWeight: 600, color: '#101828', textAlign: 'right' }}>{formatMoney(r.amount)}</span>
                     <span style={{ flex: '0 0 auto', width: 148, fontSize: 13, color: '#475467' }}>{r.issueCodes.join(' · ') || '—'}</span>
                     <span style={{ flex: '0 0 auto', width: 196, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.governmentEntities.join(' · ') || '—'}</span>
                     {r.documentUrl ? (
@@ -1914,6 +1990,7 @@ function DistrictPanel({ client }: { client: Client }) {
   const api = useApi();
   const [selected, setSelected] = useState<string | null>(null);
 
+  const v2Q = useDistrictNexusV2(client, true);
   const facilitiesQ = useQuery({
     queryKey: ['client-facilities', client.id],
     queryFn: () => getClientFacilities(api, client.id),
@@ -1931,8 +2008,8 @@ function DistrictPanel({ client }: { client: Client }) {
   });
 
   const facilitiesLoaded = facilitiesQ.data !== undefined && !facilitiesQ.isError;
-  const genuinelyEmpty = facilitiesLoaded && facilitiesQ.data!.length === 0;
-  const real = facilitiesLoaded && facilitiesQ.data!.length > 0;
+  const v2 = v2Q.data ?? null;
+  const v2Settled = v2Q.data !== undefined || v2Q.isError || !v2Q.isLoading;
 
   const nexusByDistrict = useMemo(() => {
     const map = new Map<string, DistrictNexusRow>();
@@ -1943,14 +2020,164 @@ function DistrictPanel({ client }: { client: Client }) {
     () => new Map((representationQ.data ?? []).map((r) => [r.facility.id, r.representation])),
     [representationQ.data],
   );
-  const list = useMemo(
-    () => (real ? buildRealDistricts(facilitiesQ.data!, nexusByDistrict, repByFacilityId) : []),
-    [real, facilitiesQ.data, nexusByDistrict, repByFacilityId],
+  const v1List = useMemo(
+    () =>
+      facilitiesLoaded && facilitiesQ.data!.length > 0
+        ? buildRealDistricts(facilitiesQ.data!, nexusByDistrict, repByFacilityId)
+        : [],
+    [facilitiesLoaded, facilitiesQ.data, nexusByDistrict, repByFacilityId],
   );
-  const ungeocodedCount = real
+  const ungeocodedCount = facilitiesLoaded
     ? facilitiesQ.data!.filter((f) => f.latitude == null || f.longitude == null).length
     : 0;
 
+  /** House rep for a v2 districtKey, resolved through the facility pipeline. */
+  const repForDistrict = useMemo(() => {
+    const out = new Map<string, { name: string; party: string | null }>();
+    for (const facility of facilitiesQ.data ?? []) {
+      const code = formatFacilityDistrict(facility.state, facility.congressionalDistrict);
+      if (!code) continue;
+      const [state, no] = code.split('-');
+      const key = `${state}-${(no ?? '').padStart(2, '0')}`;
+      if (out.has(key)) continue;
+      const rep = repByFacilityId.get(facility.id);
+      if (rep && !rep.unresolved && rep.federal.house) {
+        out.set(key, { name: rep.federal.house.fullName, party: rep.federal.house.party });
+      }
+    }
+    return out;
+  }, [facilitiesQ.data, repByFacilityId]);
+
+  // ── loading / error / empty gates (no design fixture, ever) ──────────────
+  if (!v2Settled || (!v2 && !facilitiesLoaded && !facilitiesQ.isError)) {
+    return (
+      <Card>
+        <div style={{ padding: '20px 24px' }} aria-busy="true">
+          <div style={{ height: 18, width: 220, borderRadius: 6, background: '#F2F4F7' }} />
+          <div style={{ marginTop: 16, height: 380, borderRadius: 10, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }} />
+        </div>
+      </Card>
+    );
+  }
+
+  if (!v2 && facilitiesQ.isError) {
+    return (
+      <Card>
+        <div style={{ padding: '32px 24px' }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>District data could not be loaded</h3>
+          <p style={{ margin: '8px 0 16px', fontSize: 14, lineHeight: '20px', color: '#475467' }}>
+            {facilitiesQ.error instanceof Error ? facilitiesQ.error.message : 'The facilities service did not answer.'}
+          </p>
+          <SecondaryBtn onClick={() => void facilitiesQ.refetch()}>Retry</SecondaryBtn>
+        </div>
+      </Card>
+    );
+  }
+
+  const v2Districts = v2 ? [...v2.districts].sort((a, b) => (b.score ?? -1) - (a.score ?? -1)) : [];
+
+  if (v2 && v2Districts.length > 0) {
+    const effectiveSelected =
+      selected && v2Districts.some((d) => d.districtKey === selected)
+        ? selected
+        : (v2.bestDistrictKey ?? v2Districts[0]!.districtKey);
+    const sel = v2Districts.find((d) => d.districtKey === effectiveSelected) ?? null;
+    const selBand = sel ? bandOf(sel.score) : null;
+    const selRep = sel ? repForDistrict.get(sel.districtKey) : undefined;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '20px 24px 16px', flexWrap: 'wrap' }}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>District footprint</span>
+              <span style={{ display: 'block', marginTop: 4, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+                Verified client footprint, public funding, and representation by congressional district — the same scoring District Nexus uses. Select a district on the map or in the list.
+              </span>
+            </span>
+            <Pill tone="gray" dotless>
+              {v2Districts.length} district{v2Districts.length === 1 ? '' : 's'} · {Math.round(v2.coveragePercent)}% coverage
+            </Pill>
+          </div>
+          <div className="cap-pf-map-cols">
+            <div className="cap-pf-map-frame">
+              <Suspense fallback={<div className="cap-pf-dn-loading" aria-busy="true" aria-label="Loading map" />}>
+                <DistrictNexusMapLibreLazy
+                  districts={v2Districts}
+                  selectedDistrictKey={effectiveSelected}
+                  onSelectDistrict={setSelected}
+                />
+              </Suspense>
+            </div>
+            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {v2Districts.map((d) => (
+                <V2DistrictRailRow
+                  key={d.districtKey}
+                  d={d}
+                  selected={effectiveSelected === d.districtKey}
+                  onSelect={() => setSelected(d.districtKey)}
+                />
+              ))}
+            </div>
+          </div>
+          {ungeocodedCount > 0 ? (
+            <p style={{ margin: 0, padding: '14px 24px 18px', fontSize: 13, color: '#667085' }}>
+              {ungeocodedCount} facilit{ungeocodedCount === 1 ? 'y is' : 'ies are'} recorded but not yet geocoded — the map shows district evidence, not facility pins.
+            </p>
+          ) : null}
+        </Card>
+
+        {sel ? (
+          <div className="cap-pf-grid-dist">
+            <Card>
+              <CardHead title="Selected district" />
+              <div style={{ padding: '20px 24px 22px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>{sel.districtKey}</span>
+                  {selBand ? (
+                    <Pill tone={selBand.id === 'strong' ? 'success' : selBand.id === 'moderate' ? 'blue' : 'gray'} size="lg">
+                      {selBand.label} nexus · {sel.score}
+                    </Pill>
+                  ) : (
+                    <Pill tone="gray" size="lg" dotless>
+                      Unscored — below the coverage floor
+                    </Pill>
+                  )}
+                </div>
+                <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Federal representative</div>
+                <div style={{ marginTop: 3, fontSize: 16, color: '#101828' }}>
+                  {selRep ? `${selRep.name}${partyLabel(selRep.party) ? ` (${partyLabel(selRep.party)})` : ''} · House` : 'Not yet resolved'}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(96px,1fr))', gap: 10, marginTop: 18 }}>
+                  {(
+                    [
+                      ['Contract obligations', formatMoney(sel.awarded.contractObligations)],
+                      ['Grant obligations', formatMoney(sel.awarded.grantObligations)],
+                      ['Employees', sel.employeeCount != null ? formatNumber(sel.employeeCount) : sel.employeesUnreported ? 'Not reported' : '—'],
+                      ['Evidence coverage', `${Math.round(sel.coveragePercent)}%`],
+                    ] as const
+                  ).map(([label, tileValue]) => (
+                    <span key={label} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 10px', borderRadius: 8, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{label}</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{tileValue}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </Card>
+
+            <FacilitiesRepresentationCard
+              facilities={facilitiesQ.data ?? []}
+              repByFacilityId={repByFacilityId}
+            />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  // ── v2 present but empty, or v2 dark — the v1 facility view ──────────────
+  const genuinelyEmpty = facilitiesLoaded && facilitiesQ.data!.length === 0;
   if (genuinelyEmpty) {
     return (
       <Card>
@@ -1965,12 +2192,8 @@ function DistrictPanel({ client }: { client: Client }) {
     );
   }
 
-  // Loading or errored — the original design fixture stays pixel-reviewable
-  // rather than showing a spinner, matching every other Proto tab (§9 Work).
-  if (!real) return <DistrictPanelFixture />;
-
-  const effectiveSelected = selected && list.some((d) => d.code === selected) ? selected : (list[0]?.code ?? null);
-  const sel = list.find((d) => d.code === effectiveSelected) ?? null;
+  const effectiveSelected = selected && v1List.some((d) => d.code === selected) ? selected : (v1List[0]?.code ?? null);
+  const sel = v1List.find((d) => d.code === effectiveSelected) ?? null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -1982,9 +2205,9 @@ function DistrictPanel({ client }: { client: Client }) {
               Real facility locations and confirmed federal award activity by congressional district. Select a district on the map or in the list.
             </span>
           </span>
-          <Pill tone="gray" dotless>{list.length} district{list.length === 1 ? '' : 's'}</Pill>
+          <Pill tone="gray" dotless>{v1List.length} district{v1List.length === 1 ? '' : 's'}</Pill>
         </div>
-        {list.length === 0 ? (
+        {v1List.length === 0 ? (
           <p style={{ margin: 0, padding: '0 24px 20px', fontSize: 14, color: '#475467' }}>
             {ungeocodedCount > 0
               ? `${ungeocodedCount} facilit${ungeocodedCount === 1 ? 'y is' : 'ies are'} recorded but not yet geocoded, so no district can be plotted yet.`
@@ -1994,19 +2217,19 @@ function DistrictPanel({ client }: { client: Client }) {
           <div className="cap-pf-map-cols">
             <div className="cap-pf-map-frame">
               <DistrictNexusMap
-                districts={list.map((d) => ({ code: d.code, score: d.score, lat: d.lat, lon: d.lon }))}
+                districts={v1List.map((d) => ({ code: d.code, score: d.score, lat: d.lat, lon: d.lon }))}
                 selected={effectiveSelected ?? ''}
                 onSelect={setSelected}
               />
             </div>
             <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {list.map((d) => (
+              {v1List.map((d) => (
                 <RealDistrictRailRow key={d.code} d={d} selected={effectiveSelected === d.code} onSelect={() => setSelected(d.code)} />
               ))}
             </div>
           </div>
         )}
-        {ungeocodedCount > 0 && list.length > 0 ? (
+        {ungeocodedCount > 0 && v1List.length > 0 ? (
           <p style={{ margin: 0, padding: '0 24px 18px', fontSize: 13, color: '#667085' }}>
             {ungeocodedCount} more facilit{ungeocodedCount === 1 ? 'y is' : 'ies are'} recorded but not yet geocoded.
           </p>
@@ -2027,47 +2250,30 @@ function DistrictPanel({ client }: { client: Client }) {
               </div>
               <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Federal representative</div>
               <div style={{ marginTop: 3, fontSize: 16, color: '#101828' }}>
-                {sel.repName ? `${sel.repName}${sel.repParty ? ` (${sel.repParty})` : ''} · ${sel.repChamber}` : 'Not yet resolved'}
+                {sel.repName ? `${sel.repName}${partyLabel(sel.repParty) ? ` (${partyLabel(sel.repParty)})` : ''} · ${sel.repChamber}` : 'Not yet resolved'}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(96px,1fr))', gap: 10, marginTop: 18 }}>
                 {(
                   [
                     ['Facilities', sel.facilityNames.join(', ') || '—'],
-                    ['Employees', sel.employeeCount != null ? String(sel.employeeCount) : 'Needs count'],
-                    ['Federal awards', sel.totalAmount != null ? `$${sel.totalAmount.toLocaleString()}` : 'No confirmed awards'],
-                    ['Awards on record', sel.awardCount != null ? String(sel.awardCount) : '—'],
+                    ['Employees', sel.employeeCount != null ? formatNumber(sel.employeeCount) : 'Needs count'],
+                    ['Federal awards', sel.totalAmount != null ? formatMoney(sel.totalAmount) : 'No confirmed awards'],
+                    ['Awards on record', sel.awardCount != null ? formatNumber(sel.awardCount) : '—'],
                   ] as const
-                ).map(([label, value]) => (
+                ).map(([label, tileValue]) => (
                   <span key={label} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 10px', borderRadius: 8, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
                     <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{label}</span>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{value}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{tileValue}</span>
                   </span>
                 ))}
               </div>
             </div>
           </Card>
 
-          <Card>
-            <CardHead title="Facilities & representation" />
-            <div>
-              {facilitiesQ.data!.map((f) => {
-                const representation = repByFacilityId.get(f.id);
-                const { label, tone } = facilityStatus(f, representation);
-                const repName = representation && !representation.unresolved ? representation.federal.house?.fullName : null;
-                return (
-                  <button key={f.id} type="button" style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 12, padding: '13px 24px', borderBottom: '1px solid #F2F4F7', textAlign: 'left' }}>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
-                    <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, color: '#475467' }}>{formatFacilityDistrict(f.state, f.congressionalDistrict) || 'Not geocoded'}</span>
-                    <span style={{ flex: '0 0 auto', width: 40, fontSize: 13, color: '#475467', textAlign: 'right' }}>{f.employeeCount ?? 'Needs count'}</span>
-                    <span style={{ flex: '0 0 auto', width: 118, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{repName ?? 'Not resolved'}</span>
-                    <span style={{ flex: '0 0 auto', width: 140, display: 'flex', justifyContent: 'flex-end' }}>
-                      <Pill tone={tone}>{label}</Pill>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </Card>
+          <FacilitiesRepresentationCard
+            facilities={facilitiesQ.data ?? []}
+            repByFacilityId={repByFacilityId}
+          />
         </div>
       ) : null}
     </div>
@@ -2083,6 +2289,7 @@ function RealDistrictRailRow({ d, selected, onSelect }: { d: RealDistrictModel; 
       onClick={onSelect}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      aria-pressed={selected}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -2104,107 +2311,33 @@ function RealDistrictRailRow({ d, selected, onSelect }: { d: RealDistrictModel; 
           </span>
         </span>
         <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: '#667085' }}>
-          {d.totalAmount != null ? `$${d.totalAmount.toLocaleString()}` : 'No confirmed awards'}
-          {d.employeeCount != null ? ` · ${d.employeeCount} employees` : ''}
+          {d.totalAmount != null ? formatMoney(d.totalAmount) : 'No confirmed awards'}
+          {d.employeeCount != null ? ` · ${formatNumber(d.employeeCount)} employees` : ''}
         </span>
       </span>
     </button>
   );
 }
 
-/** Original design fixture — rendered while the real facilities query is loading or errored, and as a
- * pixel-review surface, matching the established convention (see §9 Work). */
-function DistrictPanelFixture() {
-  const [selected, setSelected] = useState('WA-07');
-  const sel = (DISTRICTS as any[]).find((d) => d.code === selected) ?? (DISTRICTS as any[])[0];
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* District footprint (map + rail) */}
-      <Card>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '20px 24px 16px', flexWrap: 'wrap' }}>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>District footprint</span>
-            <span style={{ display: 'block', marginTop: 4, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
-              Nexus score combines facilities, employees, contracts, grants, partners, and policy context. Select a district on the map or in the list.
-            </span>
-          </span>
-          <Pill tone="gray" dotless>8 districts · 92% coverage</Pill>
-        </div>
-        <div className="cap-pf-map-cols">
-          <div className="cap-pf-map-frame">
-            <DistrictNexusMap
-              districts={DISTRICTS as any}
-              selected={selected}
-              onSelect={setSelected}
-            />
-          </div>
-          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {(DISTRICTS as any[]).map((d) => (
-              <DistrictRailRow key={d.code} d={d} selected={selected === d.code} onSelect={() => setSelected(d.code)} />
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      <div className="cap-pf-grid-dist">
-        {/* Selected district */}
-        <Card>
-          <CardHead title="Selected district" action={<LinkBtn>Open {sel.code}</LinkBtn>} />
-          <div style={{ padding: '20px 24px 22px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>{sel.code}</span>
-              <Pill tone={INTEL_TONE[sel.ui] ?? 'gray'} size="lg">{sel.strength} nexus</Pill>
-            </div>
-            <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Federal representative</div>
-            <div style={{ marginTop: 3, fontSize: 16, color: '#101828' }}>{sel.rep} · {sel.chamber}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(96px,1fr))', gap: 10, marginTop: 18 }}>
-              {sel.tiles.map(([label, value]: [string, string]) => (
-                <span key={label} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 10px', borderRadius: 8, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{label}</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{value}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        </Card>
-
-        {/* Facilities & representation */}
-        <Card>
-          <CardHead title="Facilities & representation" action={<LinkBtn>View all</LinkBtn>} />
-          <div>
-            {FACILITIES.map((f) => (
-              <button key={f.name} type="button" style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 12, padding: '13px 24px', borderBottom: '1px solid #F2F4F7', textAlign: 'left' }}>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
-                <span style={{ flex: '0 0 auto', width: 60, fontSize: 13, color: '#475467' }}>{f.district}</span>
-                <span style={{ flex: '0 0 auto', width: 40, fontSize: 13, color: '#475467', textAlign: 'right' }}>{f.employees}</span>
-                <span style={{ flex: '0 0 auto', width: 118, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.rep}</span>
-                <span style={{ flex: '0 0 auto', width: 118, display: 'flex', justifyContent: 'flex-end' }}>
-                  <Pill tone={INTEL_TONE[f.ui] ?? 'gray'}>{f.status}</Pill>
-                </span>
-              </button>
-            ))}
-          </div>
-          <div style={{ padding: '14px 24px 18px' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>Reviewed grant relationship</div>
-            <p style={{ margin: '6px 0 0', fontSize: 13, lineHeight: '19px', color: '#475467', textWrap: 'pretty' }}>
-              ONR autonomy award · Direct recipient · $4.2M attributable · External-use approved.
-            </p>
-          </div>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-function DistrictRailRow({ d, selected, onSelect }: { d: any; selected: boolean; onSelect: () => void }) {
+/** Rail row for a v2 (scored) district — band-colored dot, real obligations. */
+function V2DistrictRailRow({
+  d,
+  selected,
+  onSelect,
+}: {
+  d: DistrictNexusDistrictDetail;
+  selected: boolean;
+  onSelect: () => void;
+}) {
   const [hover, setHover] = useState(false);
-  const dot = d.score >= 80 ? '#101828' : d.score >= 60 ? '#475467' : '#98A2B3';
+  const band: ScoreBand | null = bandOf(d.score);
   return (
     <button
       type="button"
       onClick={onSelect}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      aria-pressed={selected}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -2216,18 +2349,62 @@ function DistrictRailRow({ d, selected, onSelect }: { d: any; selected: boolean;
         boxShadow: selected ? 'inset 0 0 0 1.5px #101828' : hover ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0',
       }}
     >
-      <span style={{ flex: '0 0 auto', width: 8, height: 8, borderRadius: '50%', background: dot }} />
+      <span
+        title={band ? `${band.label} nexus` : 'Unscored'}
+        style={{ flex: '0 0 auto', width: 8, height: 8, borderRadius: '50%', background: band?.color ?? '#D0D5DD' }}
+      />
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '.02em', color: '#101828' }}>{d.code}</span>
-          <span style={{ fontSize: 13, color: '#667085', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.label}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: '.02em', color: '#101828' }}>{d.districtKey}</span>
+          <span style={{ fontSize: 13, color: '#667085', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {band ? band.label : 'Unscored'}
+          </span>
         </span>
-        <span style={{ display: 'block', marginTop: 4, height: 5, borderRadius: 3, background: '#F2F4F7', overflow: 'hidden' }}>
-          <span style={{ display: 'block', height: 5, width: `${d.score}%`, borderRadius: 3, background: GRADIENT_DARK }} />
+        <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: '#667085' }}>
+          {d.awarded.contractObligations != null || d.awarded.grantObligations != null
+            ? `${formatMoney(d.awarded.contractObligations)} contracts · ${formatMoney(d.awarded.grantObligations)} grants`
+            : 'No confirmed awards'}
+          {d.employeeCount != null ? ` · ${formatNumber(d.employeeCount)} employees` : ''}
         </span>
-        <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: '#667085' }}>{d.meta}</span>
       </span>
-      <span style={{ flex: '0 0 auto', fontSize: 14, fontWeight: 600, color: '#101828' }}>{d.score}</span>
+      <span style={{ flex: '0 0 auto', fontSize: 14, fontWeight: 600, color: '#101828' }}>{d.score ?? '—'}</span>
     </button>
+  );
+}
+
+/** Facilities table shared by the v1 and v2 layouts — always real rows. */
+function FacilitiesRepresentationCard({
+  facilities,
+  repByFacilityId,
+}: {
+  facilities: ClientFacility[];
+  repByFacilityId: Map<string, RepresentationResult>;
+}) {
+  return (
+    <Card>
+      <CardHead title="Facilities & representation" />
+      <div>
+        {facilities.length === 0 ? (
+          <p style={{ margin: 0, padding: '18px 24px', fontSize: 14, color: '#667085' }}>No facilities recorded.</p>
+        ) : (
+          facilities.map((f) => {
+            const representation = repByFacilityId.get(f.id);
+            const { label, tone } = facilityStatus(f, representation);
+            const repName = representation && !representation.unresolved ? representation.federal.house?.fullName : null;
+            return (
+              <div key={f.id} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 12, padding: '13px 24px', borderBottom: '1px solid #F2F4F7', textAlign: 'left' }}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
+                <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, color: '#475467' }}>{formatFacilityDistrict(f.state, f.congressionalDistrict) || 'Not geocoded'}</span>
+                <span style={{ flex: '0 0 auto', minWidth: 40, fontSize: 13, color: '#475467', textAlign: 'right' }}>{f.employeeCount != null ? formatNumber(f.employeeCount) : 'Needs count'}</span>
+                <span style={{ flex: '0 0 auto', width: 118, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{repName ?? 'Not resolved'}</span>
+                <span style={{ flex: '0 0 auto', width: 140, display: 'flex', justifyContent: 'flex-end' }}>
+                  <Pill tone={tone}>{label}</Pill>
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </Card>
   );
 }

@@ -403,12 +403,18 @@ function CapabilityAreaCard({ area, onOpen }: { area: CapabilityAreaView; onOpen
           flexWrap: 'wrap',
         }}
       >
-        <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
-            Program line
+        {area.pe === 'Not yet mapped' ? (
+          // One quiet line instead of a full labeled block — a roster where
+          // every card shouts PROGRAM LINE / Not yet mapped is noise, not data.
+          <span style={{ fontSize: 12, color: '#98A2B3' }}>No program line mapped yet</span>
+        ) : (
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
+              Program line
+            </span>
+            <span style={{ fontSize: 13, color: '#101828' }}>{area.pe}</span>
           </span>
-          <span style={{ fontSize: 13, color: '#101828' }}>{area.pe}</span>
-        </span>
+        )}
         {/* Rendered only when a source exists for them — see CapabilityAreaView. */}
         {area.matches ? (
           <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

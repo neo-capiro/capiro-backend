@@ -304,6 +304,8 @@ function ClientCrmSurface({
         client={client}
         onEditProfile={onEditProfile}
         onOpenFederalFootprint={() => onNavigate('intelligence', 'footprint')}
+        onOpenWork={() => onNavigate('work')}
+        onOpenIntelligence={() => onNavigate('intelligence')}
       />
     );
   if (route.tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} onFillWithMeri={onFillWithMeri} />;

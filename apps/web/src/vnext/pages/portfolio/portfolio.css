@@ -207,20 +207,6 @@
   font-size: 12px;
   color: var(--capiro-color-text-faint);
 }
-.capiro-portfolio__sort {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.capiro-portfolio__sort select {
-  height: 36px;
-  padding: 0 8px;
-  border-radius: 8px;
-  border: 1px solid var(--capiro-color-border-control);
-  background: var(--capiro-color-bg-surface);
-  font-size: 14px;
-  color: var(--capiro-color-text-primary);
-}
 .capiro-portfolio__layout {
   display: flex;
   gap: 2px;
@@ -328,13 +314,38 @@
   height: 40px;
   font-size: 14px;
 }
-.capiro-portfolio__tile.is-dark { background: linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%); color: #fff; }
 .capiro-portfolio__tile-logo { object-fit: contain; padding: 4px; }
 .capiro-portfolio__client-copy { min-width: 0; }
 .capiro-portfolio__client-status { margin-top: 2px; }
+/* The table row's keyboard entry point: a real button styled as the plain
+   client-name text. Its own outline is suppressed because the visible focus
+   ring is the row-level .capiro-portfolio__tr:focus-within outline above. */
+.capiro-portfolio__name-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.capiro-portfolio__name-btn:focus { outline: none; }
 .capiro-portfolio__work-value { display: block; color: var(--capiro-color-text-secondary); font-size: 14px; }
-.capiro-portfolio__track { display: block; width: 96px; height: 6px; margin-top: 6px; border-radius: 3px; background: var(--capiro-color-bg-subtle); }
-.capiro-portfolio__track span { display: block; width: 0; height: 100%; border-radius: 3px; background: linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%); }
+/* Rollup cell while GET /api/intelligence/portfolio-rollup is in flight —
+   distinct from '—' (rollup unavailable) and '0' (honest zero). */
+.capiro-portfolio__cell-skel {
+  display: inline-block;
+  width: 40px;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--capiro-color-bg-surface-2);
+  animation: capiro-portfolio-pulse 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .capiro-portfolio__cell-skel { animation: none; }
+}
 .capiro-portfolio__attention { color: var(--capiro-color-text-muted); font-size: 14px; }
 .capiro-portfolio__footer { padding: 14px 24px; border-top: 1px solid var(--capiro-color-border-quiet); background: var(--capiro-color-bg-surface-2); color: var(--capiro-color-text-secondary); font-size: 14px; }
 .capiro-portfolio__avatar {
@@ -495,7 +506,11 @@
   gap: 16px;
   padding: 0 24px 24px;
 }
-.capiro-portfolio-pe__net { color: var(--capiro-color-text-destructive); font-size: 12px; font-weight: 600; }
+/* Neutral until the direction is known — red/green come only from the
+   explicit --up/--down modifiers, never from the default. */
+.capiro-portfolio-pe__net { color: var(--capiro-color-text-muted); font-size: 12px; font-weight: 600; }
+.capiro-portfolio-pe__net--up { color: var(--capiro-color-text-success); }
+.capiro-portfolio-pe__net--down { color: var(--capiro-color-text-destructive); }
 /* Collapses to one column in the Responsive section at the bottom of this file,
    on the canonical 1179px boundary. */
 .capiro-portfolio-pe__card {
@@ -577,6 +592,12 @@
 .capiro-portfolio-pe__service {
   font-size: 13px;
   color: var(--capiro-color-text-faint);
+  /* Attribution can list a dozen client names; the visible line truncates and
+     the full list lives in the title attribute. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .capiro-portfolio-pe__delta {
   font-size: 12px;
@@ -600,23 +621,20 @@
 }
 
 /* ── Import with LDA ─────────────────────────────────────────────────── */
+/* No max-height/overflow here: the list grows with its content and the modal
+   scrolls as one surface, instead of a nested scrollbar inside the dialog. */
 .capiro-portfolio-lda__list {
   list-style: none;
   margin: 12px 0;
   padding: 0;
-  max-height: 320px;
-  overflow-y: auto;
   border: 1px solid var(--capiro-color-border-quiet);
   border-radius: 10px;
 }
 /* The firm step puts a CapiroButton ("This is us") in this row, and .capiro-button
    carries a hard `min-width: var(--capiro-control-min-width-button)` = 120px that
    flex-shrink cannot cross. With the registrant name and the city/clients/filings
-   meta beside it the row has no slack left at phone width, and because
-   .capiro-portfolio-lda__list sets overflow-y: auto its overflow-x computes to
-   auto — so anything that does not fit hides behind a nested scrollbar inside the
-   modal instead of being visible. Wrapping drops the CTA onto its own line, still
-   right-aligned by its inline margin-left: auto. */
+   meta beside it the row has no slack left at phone width. Wrapping drops the CTA
+   onto its own line, still right-aligned by its inline margin-left: auto. */
 .capiro-portfolio-lda__row {
   display: flex;
   align-items: center;
@@ -632,6 +650,22 @@
 }
 .capiro-portfolio-lda__row:hover {
   background: var(--capiro-color-bg-surface-2);
+}
+/* Already-imported candidates: shown (the docblock promise) but locked. */
+.capiro-portfolio-lda__row.is-locked { cursor: default; }
+.capiro-portfolio-lda__row.is-locked:hover { background: transparent; }
+.capiro-portfolio-lda__row.is-locked .capiro-portfolio-lda__name { color: var(--capiro-color-text-muted); }
+.capiro-portfolio-lda__imported {
+  margin-left: auto;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--capiro-color-bg-surface-2);
+  border: 1px solid var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-muted);
+  white-space: nowrap;
 }
 .capiro-portfolio-lda__name {
   font-weight: 600;
@@ -679,9 +713,6 @@
   .capiro-portfolio__filter {
     height: var(--capiro-hit-size, 44px);
   }
-  .capiro-portfolio__sort select {
-    height: var(--capiro-hit-size, 44px);
-  }
   .capiro-portfolio__layout-btn {
     width: var(--capiro-hit-size, 44px);
     height: var(--capiro-hit-size, 44px);
@@ -692,64 +723,3 @@
     min-height: var(--capiro-hit-size, 44px);
   }
 }
-
-/* ── Feeds (Needs attention + Coming up) ────────────────────────────── */
-.capiro-portfolio__feeds {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-@media (max-width: 1199px) {
-  .capiro-portfolio__feeds { grid-template-columns: 1fr; }
-}
-.capiro-portfolio__feed {
-  display: flex;
-  flex-direction: column;
-}
-.capiro-portfolio__feed-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 18px 24px 8px;
-}
-.capiro-portfolio__feed-body { display: flex; flex-direction: column; }
-.capiro-portfolio__feed-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 14px 24px;
-  border-bottom: 1px solid var(--capiro-color-border-quiet);
-  text-align: left;
-  text-decoration: none;
-  color: inherit;
-  background: transparent;
-  border-left: none;
-  border-right: none;
-  border-top: none;
-  cursor: pointer;
-}
-.capiro-portfolio__feed-row:hover { background: var(--capiro-color-bg-subtle); }
-.capiro-portfolio__feed-row:last-child { border-bottom: none; }
-.capiro-portfolio__feed-dot {
-  flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-.capiro-portfolio__feed-label {
-  flex: 0 0 auto;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  color: var(--capiro-color-text-muted);
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--capiro-color-bg-subtle);
-}
-.capiro-portfolio__feed-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.capiro-portfolio__feed-title { font-size: 14px; font-weight: 500; color: var(--capiro-color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.capiro-portfolio__feed-meta { font-size: 13px; color: var(--capiro-color-text-muted); }
-.capiro-portfolio__feed-due { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--capiro-color-text-muted); white-space: nowrap; }
-.capiro-portfolio__feed-open { flex: 0 0 auto; font-size: 13px; font-weight: 600; color: var(--capiro-color-text-primary); white-space: nowrap; }

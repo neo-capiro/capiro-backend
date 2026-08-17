@@ -49,9 +49,28 @@ export class ClientPeopleService {
         select: { id: true },
       });
       if (!client) throw new NotFoundException('Client not found');
-      return tx.clientPerson.findMany({
+      const people = await tx.clientPerson.findMany({
         where: { tenantId: ctx.tenantId, clientId },
         orderBy: { createdAt: 'asc' },
+      });
+      // Read-time heal for rows created before the import path ran inference:
+      // those rows carry the column DEFAULTS (`auto_title`, level NULL,
+      // reviewRequired false) — a real inference miss would have flagged
+      // `reviewRequired`. Overlaying here (not persisting) keeps GET pure and
+      // is idempotent; the next title edit persists the real thing.
+      return people.map((person) => {
+        const neverInferred =
+          person.placementSource === 'auto_title' &&
+          person.hierarchyLevel == null &&
+          !person.reviewRequired;
+        if (!neverInferred) return person;
+        const inferred = inferPlacementFromTitle(person.title);
+        return {
+          ...person,
+          hierarchyLevel: inferred.level,
+          placementConfidence: inferred.confidence,
+          reviewRequired: inferred.reviewRequired,
+        };
       });
     });
   }
@@ -196,6 +215,10 @@ export class ClientPeopleService {
 
       const lastContact = input.lastContact ? new Date(input.lastContact) : null;
       if (!existing) {
+        // Imported contacts get the same title inference as hand-created ones —
+        // this path skipping it is why whole imported rosters sat "Unplaced ·
+        // No title match" with titles the rules matched perfectly.
+        const inferred = inferPlacementFromTitle(input.title);
         const created = await tx.clientPerson.create({
           data: {
             tenantId: ctx.tenantId,
@@ -207,6 +230,10 @@ export class ClientPeopleService {
             role: input.role ?? null,
             lastContact,
             notes: input.notes ?? null,
+            hierarchyLevel: inferred.level,
+            placementConfidence: inferred.confidence,
+            reviewRequired: inferred.reviewRequired,
+            placementSource: 'auto_title',
           },
         });
         return { person: created, created: true };
@@ -220,15 +247,31 @@ export class ClientPeopleService {
         lastContact && (!existing.lastContact || lastContact > existing.lastContact)
           ? lastContact
           : undefined;
+      // An import that fills a previously-blank title re-runs inference for a
+      // still-automatic placement, same as a human title edit would. Manual
+      // placement always wins and is never touched here.
+      const filledTitle = fill(existing.title, input.title);
+      const reinfer =
+        typeof filledTitle === 'string' && existing.placementSource !== 'manual'
+          ? inferPlacementFromTitle(filledTitle)
+          : null;
       const updated = await tx.clientPerson.update({
         where: { id: existing.id },
         data: {
-          title: fill(existing.title, input.title),
+          title: filledTitle,
           email: fill(existing.email, email),
           phone: fill(existing.phone, input.phone),
           role: fill(existing.role, input.role),
           notes: fill(existing.notes, input.notes),
           ...(advanced ? { lastContact: advanced } : {}),
+          ...(reinfer
+            ? {
+                hierarchyLevel: reinfer.level,
+                placementConfidence: reinfer.confidence,
+                reviewRequired: reinfer.reviewRequired,
+                placementSource: 'auto_title',
+              }
+            : {}),
         },
       });
       return { person: updated, created: false };

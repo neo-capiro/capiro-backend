@@ -153,3 +153,77 @@ describe('upsertPersonForImport', () => {
     });
   });
 });
+
+/**
+ * Title inference on the import path — the fix for whole imported rosters
+ * sitting "Unplaced · No title match" (e.g. a literal "President" unplaced)
+ * because only the hand-create path ever ran `inferPlacementFromTitle`.
+ */
+describe('upsertPersonForImport placement inference', () => {
+  it('infers a level for a newly imported contact with a matchable title', async () => {
+    const { service, create } = makeService(null);
+    await service.upsertPersonForImport(CTX, CLIENT, {
+      name: 'Brian D. Ballard',
+      title: 'President',
+    });
+    const data = create.mock.calls[0]?.[0]?.data as Record<string, unknown>;
+    expect(data.hierarchyLevel).toBe('executive');
+    expect(data.placementSource).toBe('auto_title');
+    expect(data.reviewRequired).toBe(false);
+  });
+
+  it('flags an unmatched title for review rather than silently unplacing it', async () => {
+    const { service, create } = makeService(null);
+    await service.upsertPersonForImport(CTX, CLIENT, {
+      name: 'Pat Doe',
+      title: 'Chief Vibes Wrangler of Nothing Recognizable',
+    });
+    const data = create.mock.calls[0]?.[0]?.data as Record<string, unknown>;
+    expect(data.hierarchyLevel).toBeNull();
+    expect(data.reviewRequired).toBe(true);
+  });
+
+  it('re-infers when a merge fills a blank title on an automatic placement', async () => {
+    const { service, update } = makeService({
+      id: 'p-1',
+      name: 'Jason Hay',
+      email: 'jason@brycetech.com',
+      title: null,
+      phone: null,
+      role: null,
+      notes: null,
+      lastContact: null,
+      placementSource: 'auto_title',
+    });
+    await service.upsertPersonForImport(CTX, CLIENT, {
+      name: 'Jason Hay',
+      email: 'jason@brycetech.com',
+      title: 'VP, Space Programs',
+    });
+    const data = update.mock.calls[0]?.[0]?.data as Record<string, unknown>;
+    expect(data.hierarchyLevel).toBe('leadership');
+    expect(data.placementSource).toBe('auto_title');
+  });
+
+  it('never touches a manual placement when a merge fills the title', async () => {
+    const { service, update } = makeService({
+      id: 'p-1',
+      name: 'Jason Hay',
+      email: 'jason@brycetech.com',
+      title: null,
+      phone: null,
+      role: null,
+      notes: null,
+      lastContact: null,
+      placementSource: 'manual',
+    });
+    await service.upsertPersonForImport(CTX, CLIENT, {
+      name: 'Jason Hay',
+      email: 'jason@brycetech.com',
+      title: 'VP, Space Programs',
+    });
+    const data = update.mock.calls[0]?.[0]?.data as Record<string, unknown>;
+    expect(data.hierarchyLevel).toBeUndefined();
+    expect(data.placementSource).toBeUndefined();
+  });
+});

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
@@ -19,7 +19,8 @@ import {
   applyPortfolioRoute,
   resolvePortfolioRoute,
 } from './portfolio-routing.js';
-import { usePortfolioIndexModel, type PortfolioRow, type PortfolioAlert, type ComingUpItem } from './usePortfolioIndexModel.js';
+import { usePortfolioIndexModel, type PortfolioRow } from './usePortfolioIndexModel.js';
+import { formatDateShort, formatMoney, formatNumber } from '../../lib/labels.js';
 import './portfolio.css';
 
 /* ── S3 upload helpers (mirror ClientWorkspacePage exactly) ───────────────── */
@@ -84,9 +85,14 @@ const STATUS_LABEL: Record<PortfolioRow['status'], string> = {
   prospect: 'Prospect',
 };
 
-/** Freshest dataUpdatedAt across the queries the pulse band reads. */
+/**
+ * Freshest dataUpdatedAt across the queries the pulse band reads.
+ * `dataUpdatedAt` is 0 until a query first resolves — that zero means
+ * "never", not the epoch, so it is skipped rather than fed to the max.
+ * Returns 0 when nothing has resolved yet.
+ */
 function freshestUpdatedAt(model: ReturnType<typeof usePortfolioIndexModel>): number {
-  return Math.max(
+  const stamps = [
     model.summary.dataUpdatedAt,
     model.clients.dataUpdatedAt,
     model.strategies.dataUpdatedAt,
@@ -94,7 +100,8 @@ function freshestUpdatedAt(model: ReturnType<typeof usePortfolioIndexModel>): nu
     model.accountOwners.dataUpdatedAt,
     model.rollup.dataUpdatedAt,
     model.peSummary.dataUpdatedAt,
-  );
+  ].filter((t) => t > 0);
+  return stamps.length ? Math.max(...stamps) : 0;
 }
 
 /** Human "Xh ago" / "Xm ago" label from a epoch-ms timestamp. */
@@ -117,7 +124,7 @@ function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) 
     clients.isLoading ||
     model.meetings.isLoading ||
     model.accountOwners.isLoading;
-  const figures = useMemo<{ label: string; value: number | null; prefix?: string }[]>(() => {
+  const figures = useMemo<{ label: string; value: number | null; money?: boolean }[]>(() => {
     const clientCount = clients.data?.filter((c) => (c.status ?? '').toLowerCase() !== 'archived').length;
     const s = summary.data;
     return [
@@ -126,30 +133,35 @@ function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) 
       { label: 'Meetings this week', value: s?.meetingsThisWeek ?? null },
       { label: 'Tracked bills', value: s?.billsTracked ?? null },
       { label: 'Active regulations', value: s?.activeRegulations ?? null },
-      // LDA spend is a numeric dollar amount; keep it as a number so the
-      // render path's toLocaleString formats it exactly once (avoid string
-      // → toLocaleString double-format). The `$` prefix is applied at render.
-      { label: 'LDA spend QTD', value: s?.ldaSpendQtd ?? null, prefix: '$' },
+      // LDA spend is a dollar amount — rendered via the shared null-safe
+      // compact-money helper ($1.8M), not '$' + toLocaleString.
+      { label: 'LDA spend QTD', value: s?.ldaSpendQtd ?? null, money: true },
     ];
   }, [summary.data, clients.data]);
 
-  const refreshLabel = useMemo(
-    () => refreshedAgo(freshestUpdatedAt(model)),
-    [model, loading], // eslint-disable-line react-hooks/exhaustive-deps
-  );
+  // Re-render on a 30s tick so the "Refreshed Xm ago" label stays honest
+  // instead of freezing at whatever it said when the data last changed.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  const updatedAt = freshestUpdatedAt(model);
 
   return (
     <section className="capiro-portfolio-pulse capiro-portfolio__surface" aria-label="Portfolio pulse">
       <div className="capiro-portfolio-pulse__head">
         <span className="capiro-portfolio__eyebrow">Portfolio pulse</span>
-        <span className="capiro-portfolio-pulse__refresh"><span className="capiro-portfolio-pulse__refresh-dot" /> Refreshed {refreshLabel}</span>
+        {updatedAt > 0 ? (
+          <span className="capiro-portfolio-pulse__refresh"><span className="capiro-portfolio-pulse__refresh-dot" /> Refreshed {refreshedAgo(updatedAt)}</span>
+        ) : null}
       </div>
       <div className="capiro-portfolio-pulse__band">
         {loading ? figures.map((f) => <div className="capiro-portfolio-pulse__stat-skel" key={f.label} />) : summary.isError ? (
           <div className="capiro-portfolio-pulse__error" role="status">Portfolio aggregates are unavailable right now; the client list below is intact.</div>
         ) : figures.map((f) => (
           <div className="capiro-portfolio-pulse__stat" key={f.label}>
-            <span className={`capiro-portfolio-pulse__value${f.value == null ? ' is-missing' : ''}`}>{f.value == null ? '—' : `${f.prefix ?? ''}${f.value.toLocaleString()}`}</span>
+            <span className={`capiro-portfolio-pulse__value${f.value == null ? ' is-missing' : ''}`}>{f.value == null ? '—' : f.money ? formatMoney(f.value) : formatNumber(f.value)}</span>
             <span className="capiro-portfolio-pulse__label">{f.label}</span>
           </div>
         ))}
@@ -158,125 +170,129 @@ function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) 
   );
 }
 
-function ClientRow({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) {
+/* ── Rollup-driven cells ───────────────────────────────────────────────────
+   Three honest states: loading → skeleton bar, error → '—' with an
+   explanation, resolved → the real number (0 included) or "None scheduled". */
+
+type RollupState = 'loading' | 'error' | 'ready';
+
+function RollupCount({
+  state,
+  value,
+  className,
+  describe,
+}: {
+  state: RollupState;
+  value: number | null;
+  className: string;
+  describe?: (n: number) => string;
+}) {
+  if (state === 'loading') return <span className="capiro-portfolio__cell-skel" aria-hidden />;
+  if (state === 'error' || value == null) return <span className={className} title="Rollup unavailable">—</span>;
+  const label = describe?.(value);
+  return <span className={className} aria-label={label} title={label}>{value}</span>;
+}
+
+function NextTouchCell({ state, nextTouch }: { state: RollupState; nextTouch: PortfolioRow['nextTouch'] }) {
+  if (state === 'loading') return <span className="capiro-portfolio__cell-skel" aria-hidden />;
+  if (state === 'error') return <span className="capiro-portfolio__meta" title="Rollup unavailable">—</span>;
+  if (!nextTouch) return <span className="capiro-portfolio__meta">None scheduled</span>;
+  return (
+    <span className="capiro-portfolio__meta" title={nextTouch.subject}>
+      {formatDateShort(nextTouch.startsAt) ?? '—'}
+    </span>
+  );
+}
+
+function attentionClass(count: number | null): string {
+  return `capiro-portfolio__attention${count != null && count > 0 ? ' has-attention' : ''}`;
+}
+
+/**
+ * Client tile + name + status + meta line — one component for both layouts.
+ * In the table layout `onOpen` renders the name as a real button (the row's
+ * keyboard entry point); the card layout is itself a button, so it omits it.
+ */
+function ClientIdentity({ row, onOpen }: { row: PortfolioRow; onOpen?: () => void }) {
+  // With FOCUS chips present the sector already shows there — the meta line
+  // carries only the location. Without chips, the (humanized) sector may show.
+  const subtitle = (row.focusTags.length ? [row.location] : [row.sector, row.location])
+    .filter(Boolean)
+    .join(' · ') || '—';
+  return (
+    <div className="capiro-portfolio__client">
+      {row.client.logoUrl ? (
+        <img className="capiro-portfolio__tile capiro-portfolio__tile-logo" src={row.client.logoUrl} alt="" aria-hidden />
+      ) : (
+        <span className="capiro-portfolio__tile" aria-hidden>{initialsFor(row.name)}</span>
+      )}
+      <div className="capiro-portfolio__client-copy">
+        <div className="capiro-portfolio__client-name">
+          {onOpen ? (
+            <button
+              type="button"
+              className="capiro-portfolio__name-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen();
+              }}
+            >
+              {row.name}
+            </button>
+          ) : (
+            row.name
+          )}
+        </div>
+        <div className="capiro-portfolio__client-status">
+          <CapiroBadge tone={STATUS_TONE[row.status]} dot={<span className="capiro-portfolio__dot" />}>{STATUS_LABEL[row.status]}</CapiroBadge>
+        </div>
+        <div className="capiro-portfolio__meta">{subtitle}</div>
+      </div>
+    </div>
+  );
+}
+
+function ClientRow({ row, rollupState, onOpen }: { row: PortfolioRow; rollupState: RollupState; onOpen: () => void }) {
   const focus = row.focusTags.slice(0, 2);
-  const status = <CapiroBadge tone={STATUS_TONE[row.status]} dot={<span className="capiro-portfolio__dot" />}>{STATUS_LABEL[row.status]}</CapiroBadge>;
-  // G3 rollup: next-touch date label (wire-audit "4 New capability" item 4).
-  const nextTouchLabel = row.nextTouch
-    ? new Date(row.nextTouch.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-    : null;
   return (
     <tr className="capiro-portfolio__tr" onClick={onOpen}>
-      <td>
-        <div className="capiro-portfolio__client">
-          {row.client.logoUrl ? (
-            <img className="capiro-portfolio__tile capiro-portfolio__tile-logo" src={row.client.logoUrl} alt="" aria-hidden />
-          ) : (
-            <span className={`capiro-portfolio__tile${row.name === 'Overland AI' ? ' is-dark' : ''}`} aria-hidden>{initialsFor(row.name)}</span>
-          )}
-          <div className="capiro-portfolio__client-copy">
-            <div className="capiro-portfolio__client-name">{row.name}</div>
-            <div className="capiro-portfolio__client-status">{status}</div>
-            <div className="capiro-portfolio__meta">{[row.sector, row.location].filter(Boolean).join(' · ') || '—'}</div>
-          </div>
-        </div>
-      </td>
+      <td><ClientIdentity row={row} onOpen={onOpen} /></td>
       <td>{focus.length ? <div className="capiro-portfolio__tags">{focus.map((t) => <span className="capiro-portfolio__tag" key={t}>{t}</span>)}</div> : <span className="capiro-portfolio__meta">—</span>}</td>
       <td>{row.ownerName ? <div className="capiro-portfolio__owner"><span className="capiro-portfolio__avatar" aria-hidden>{initialsFor(row.ownerName)}</span><span>{row.ownerName}</span></div> : <span className="capiro-portfolio__meta">—</span>}</td>
       {/* G3 rollup (item 5): real in_progress task count in the Work column */}
-      <td>{row.workCount != null ? <span className="capiro-portfolio__work-value">{row.workCount}</span> : <span className="capiro-portfolio__work-value">—</span>}<span className="capiro-portfolio__track" aria-hidden><span /></span></td>
+      <td><RollupCount state={rollupState} value={row.workCount} className="capiro-portfolio__work-value" /></td>
       {/* G3 rollup (wire-audit "4 New capability" items 2-4): real intel/attention/next-touch */}
-      <td>{row.intelCount != null ? <span className="capiro-portfolio__meta">{row.intelCount}</span> : <span className="capiro-portfolio__meta">—</span>}</td>
-      <td>{row.attentionCount != null ? <span className={`capiro-portfolio__attention${row.attentionCount > 0 ? ' has-attention' : ''}`}>{row.attentionCount}</span> : <span className="capiro-portfolio__attention">—</span>}</td>
-      <td>{nextTouchLabel ? <span className="capiro-portfolio__meta">{nextTouchLabel}</span> : <span className="capiro-portfolio__meta">—</span>}</td>
+      <td><RollupCount state={rollupState} value={row.intelCount} className="capiro-portfolio__meta" /></td>
+      <td><RollupCount state={rollupState} value={row.attentionCount} className={attentionClass(row.attentionCount)} /></td>
+      <td><NextTouchCell state={rollupState} nextTouch={row.nextTouch} /></td>
     </tr>
   );
 }
 
-function ClientCard({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) {
+function ClientCard({ row, rollupState, onOpen }: { row: PortfolioRow; rollupState: RollupState; onOpen: () => void }) {
   const focus = row.focusTags.slice(0, 2);
-  const status = <CapiroBadge tone={STATUS_TONE[row.status]} dot={<span className="capiro-portfolio__dot" />}>{STATUS_LABEL[row.status]}</CapiroBadge>;
-  // G3 rollup: next-touch date label (wire-audit "4 New capability" item 1 + 4).
-  const nextTouchLabel = row.nextTouch
-    ? new Date(row.nextTouch.startsAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-    : null;
   return (
     <button type="button" className="capiro-portfolio__clientcard" onClick={onOpen}>
       <div className="capiro-portfolio__card-main">
-        <div className="capiro-portfolio__client">
-          {row.client.logoUrl ? (
-            <img className="capiro-portfolio__tile capiro-portfolio__tile-logo" src={row.client.logoUrl} alt="" aria-hidden />
-          ) : (
-            <span className={`capiro-portfolio__tile${row.name === 'Overland AI' ? ' is-dark' : ''}`} aria-hidden>{initialsFor(row.name)}</span>
-          )}
-          <div className="capiro-portfolio__client-copy">
-            <div className="capiro-portfolio__client-name">{row.name}</div>
-            <div className="capiro-portfolio__client-status">{status}</div>
-            <div className="capiro-portfolio__meta">{[row.sector, row.location].filter(Boolean).join(' · ') || '—'}</div>
-          </div>
-        </div>
-        {/* G3 rollup (item 1): attention count instead of fixture — */}
-        {row.attentionCount != null ? (
-          <span className={`capiro-portfolio__attention${row.attentionCount > 0 ? ' has-attention' : ''}`}>{row.attentionCount}</span>
-        ) : (
-          <span className="capiro-portfolio__attention">—</span>
-        )}
+        <ClientIdentity row={row} />
+        {/* G3 rollup (item 1): attention count instead of fixture */}
+        <RollupCount
+          state={rollupState}
+          value={row.attentionCount}
+          className={attentionClass(row.attentionCount)}
+          describe={(n) => `${n} open attention item${n === 1 ? '' : 's'}`}
+        />
       </div>
       <div className="capiro-portfolio__card-focus">
         {focus.length ? focus.map((tag) => <span className="capiro-portfolio__tag" key={tag}>{tag}</span>) : <span className="capiro-portfolio__meta">—</span>}
       </div>
-      <div className="capiro-portfolio__card-work">{row.workCount != null ? <span className="capiro-portfolio__work-value">{row.workCount}</span> : <span className="capiro-portfolio__work-value">—</span>}<span className="capiro-portfolio__track" aria-hidden><span /></span></div>
+      <div className="capiro-portfolio__card-work"><RollupCount state={rollupState} value={row.workCount} className="capiro-portfolio__work-value" /></div>
       <div className="capiro-portfolio__card-foot">
         {row.ownerName ? <div className="capiro-portfolio__owner"><span className="capiro-portfolio__avatar" aria-hidden>{initialsFor(row.ownerName)}</span><span>{row.ownerName}</span></div> : <span className="capiro-portfolio__meta">—</span>}
         {/* G3 rollup (item 1): next-touch date in card foot */}
-        {nextTouchLabel ? <span className="capiro-portfolio__meta">{nextTouchLabel}</span> : <span className="capiro-portfolio__meta">—</span>}
+        <NextTouchCell state={rollupState} nextTouch={row.nextTouch} />
       </div>
     </button>
-  );
-}
-
-/* ── Feed rows (WA2 coming-up, WA3 portfolio-alerts) ───────────────────────── */
-
-const SEVERITY_DOT: Record<string, string> = {
-  critical: '#F04438',
-  notable: '#F79009',
-  info: '#344054',
-};
-
-function AlertRow({ alert, onOpen }: { alert: PortfolioAlert; onOpen: () => void }) {
-  const dot = SEVERITY_DOT[String(alert.severity).toLowerCase()] ?? '#667085';
-  return (
-    <button type="button" className="capiro-portfolio__feed-row" onClick={onOpen}>
-      <span className="capiro-portfolio__feed-dot" style={{ background: dot }} />
-      <span className="capiro-portfolio__feed-copy">
-        <span className="capiro-portfolio__feed-title">{alert.title}</span>
-        <span className="capiro-portfolio__feed-meta">{alert.clientName}{alert.kind ? ` · ${alert.kind}` : ''}</span>
-      </span>
-      {alert.countdownDays != null ? (
-        <span className="capiro-portfolio__feed-due">{alert.countdownDays <= 0 ? 'Today' : `${alert.countdownDays}d`}</span>
-      ) : null}
-      <span className="capiro-portfolio__feed-open">Open →</span>
-    </button>
-  );
-}
-
-function ComingUpRow({ item }: { item: ComingUpItem }) {
-  const date = new Date(item.date);
-  const dateLabel = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  return (
-    <a
-      className="capiro-portfolio__feed-row"
-      href={item.href ?? '#'}
-      target={item.href ? '_blank' : undefined}
-      rel={item.href ? 'noreferrer' : undefined}
-    >
-      <span className="capiro-portfolio__feed-label">{item.label}</span>
-      <span className="capiro-portfolio__feed-copy">
-        <span className="capiro-portfolio__feed-title">{item.title}</span>
-        {item.detail ? <span className="capiro-portfolio__feed-meta">{item.detail}</span> : null}
-      </span>
-      <span className="capiro-portfolio__feed-due">{dateLabel}{item.time ? ` · ${item.time}` : ''}</span>
-    </a>
   );
 }
 
@@ -355,12 +371,13 @@ export function PortfolioIndexPage() {
     void queryClient.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
     void queryClient.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
     void queryClient.invalidateQueries({ queryKey: ['program-element-finder', 'portfolio-watch'] });
-    void queryClient.invalidateQueries({ queryKey: ['intelligence', 'coming-up'] });
-    void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-alerts'] });
   };
   const { clients } = model;
+  const rollupState: RollupState = model.rollup.isLoading ? 'loading' : model.rollup.isError ? 'error' : 'ready';
   const showEmpty = !clients.isLoading && !clients.isError && model.visible.length === 0;
-  const emptyIsFilter = (clients.data?.length ?? 0) > 0;
+  // rows (not clients.data) — an all-archived tenant has data but no rows,
+  // and must see the "no clients yet" state, not "no clients match filters".
+  const emptyIsFilter = model.rows.length > 0;
   const statusCounts = PORTFOLIO_STATUS_LABELS.map((s) => `${s.label} ${model.counts[s.key]}`).join(' · ');
 
   return (
@@ -368,7 +385,7 @@ export function PortfolioIndexPage() {
       <header className="capiro-portfolio__head">
         <div><h1 className="capiro-portfolio__title">Portfolio</h1><p className="capiro-portfolio__sub">Every client account, the work in flight, and the outside signals moving against them.</p></div>
         <span className="capiro-portfolio__head-spacer" />
-        <CapiroButton variant="secondary" size="standard" onClick={refresh}>Sources refreshed just now</CapiroButton>
+        <CapiroButton variant="secondary" size="standard" onClick={refresh}>Refresh</CapiroButton>
         <CapiroButton variant="secondary" size="standard" onClick={() => openImport(true)}>Import with LDA</CapiroButton>
         <CapiroButton variant="primary" size="standard" disabled={!canCreateClients} onClick={openCreate}>New client</CapiroButton>
       </header>
@@ -380,18 +397,21 @@ export function PortfolioIndexPage() {
           <div className="capiro-portfolio__title-row"><h2 className="capiro-portfolio__section-title" id="capiro-portfolio-clients">Clients</h2><span className="capiro-portfolio__count">{model.rows.length} accounts</span></div>
           <span className="capiro-portfolio__toolbar-spacer" />
           <input className="capiro-portfolio__search" placeholder="Search clients" aria-label="Search clients" value={route.q} onChange={(e) => setRoute({ q: e.target.value })} />
-          <div className="capiro-portfolio__layout" role="group" aria-label="Layout"><button type="button" className={`capiro-portfolio__layout-btn${route.layout === 'list' ? ' is-active' : ''}`} onClick={() => setRoute({ layout: 'list' })} aria-label="List view">☰</button><button type="button" className={`capiro-portfolio__layout-btn${route.layout === 'cards' ? ' is-active' : ''}`} onClick={() => setRoute({ layout: 'cards' })} aria-label="Card view">▦</button></div>
+          <div className="capiro-portfolio__layout" role="group" aria-label="Layout"><button type="button" className={`capiro-portfolio__layout-btn${route.layout === 'list' ? ' is-active' : ''}`} onClick={() => setRoute({ layout: 'list' })} aria-label="List view" aria-pressed={route.layout === 'list'}>☰</button><button type="button" className={`capiro-portfolio__layout-btn${route.layout === 'cards' ? ' is-active' : ''}`} onClick={() => setRoute({ layout: 'cards' })} aria-label="Card view" aria-pressed={route.layout === 'cards'}>▦</button></div>
         </div>
         <div className="capiro-portfolio__filter-row">
-          <div className="capiro-portfolio__filters" role="group" aria-label={`Status filter: ${statusCounts}`}>{PORTFOLIO_STATUS_LABELS.map((s) => <button key={s.key} type="button" className={`capiro-portfolio__filter${route.status === s.key ? ' is-active' : ''}`} onClick={() => setRoute({ status: s.key })}>{s.label}<span className="capiro-portfolio__filter-count">{model.counts[s.key]}</span></button>)}</div>
+          <div className="capiro-portfolio__filters" role="group" aria-label={`Status filter: ${statusCounts}`}>{PORTFOLIO_STATUS_LABELS.map((s) => <button key={s.key} type="button" className={`capiro-portfolio__filter${route.status === s.key ? ' is-active' : ''}`} onClick={() => setRoute({ status: s.key })} aria-pressed={route.status === s.key}>{s.label}<span className="capiro-portfolio__filter-count">{model.counts[s.key]}</span></button>)}</div>
           <span className="capiro-portfolio__toolbar-spacer" /><span className="capiro-portfolio__eyebrow">Sort</span>
-          {PORTFOLIO_SORT_LABELS.map((s) => <button key={s.key} type="button" className={`capiro-portfolio__sort-chip${route.sort === s.key ? ' is-active' : ''}`} onClick={() => setRoute({ sort: s.key })}>{s.label}</button>)}
+          {PORTFOLIO_SORT_LABELS.map((s) => <button key={s.key} type="button" className={`capiro-portfolio__sort-chip${route.sort === s.key ? ' is-active' : ''}`} onClick={() => setRoute({ sort: s.key })} aria-pressed={route.sort === s.key}>{s.label}</button>)}
         </div>
 
         {clients.isLoading ? <div aria-busy="true"><div className="capiro-portfolio__skeleton" style={{ height: 320 }} /></div> : clients.isError ? <div className="capiro-portfolio__state capiro-portfolio__state--error" role="status"><span>Clients could not be loaded.{clients.error instanceof Error ? ` (${clients.error.message})` : ''}</span><CapiroButton variant="quiet" size="compact" onClick={() => void clients.refetch()}>Retry</CapiroButton></div> : showEmpty ? <div className="capiro-portfolio__state" role="status">{emptyIsFilter ? <><span>No clients match the current search and filters.</span><button type="button" className="capiro-portfolio__linkbtn" onClick={() => setRoute({ q: '', status: 'all' })}>Clear search and filters</button></> : 'No clients yet. Add one with New client, or import several with Import with LDA.'}</div> : route.layout === 'list' ? (
-          <div className="capiro-portfolio__table-wrap"><table className="capiro-portfolio__table"><thead><tr><th>Client</th><th>Focus</th><th>Owner</th><th>Work</th><th>Intelligence</th><th>Attention</th><th>Next touch</th></tr></thead><tbody>{model.visible.map((row) => <ClientRow key={row.client.id} row={row} onOpen={() => openClient(row.client.id)} />)}</tbody></table><div className="capiro-portfolio__footer">Showing {model.visible.length} of {model.rows.length} clients · sorted by {route.sort}</div></div>
+          <div className="capiro-portfolio__table-wrap"><table className="capiro-portfolio__table"><thead><tr><th>Client</th><th>Focus</th><th>Owner</th><th>Work</th><th>Intelligence</th><th>Attention</th><th>Next touch</th></tr></thead><tbody>{model.visible.map((row) => <ClientRow key={row.client.id} row={row} rollupState={rollupState} onOpen={() => openClient(row.client.id)} />)}</tbody></table><div className="capiro-portfolio__footer">Showing {model.visible.length} of {model.rows.length} clients · sorted by {route.sort}</div></div>
         ) : (
-          <div className="capiro-portfolio__cards">{model.visible.map((row) => <ClientCard key={row.client.id} row={row} onOpen={() => openClient(row.client.id)} />)}</div>
+          <>
+            <div className="capiro-portfolio__cards">{model.visible.map((row) => <ClientCard key={row.client.id} row={row} rollupState={rollupState} onOpen={() => openClient(row.client.id)} />)}</div>
+            <div className="capiro-portfolio__footer">Showing {model.visible.length} of {model.rows.length} clients · sorted by {route.sort}</div>
+          </>
         )}
       </section>
 

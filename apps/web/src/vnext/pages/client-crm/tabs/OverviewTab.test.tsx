@@ -149,6 +149,7 @@ describe('ClientCrmOverviewProto — advocacy history', () => {
   it('logs a submission against a real capability through the real endpoint', async () => {
     modelMock.mockReturnValue(baseModel());
     getMock.mockImplementation((url: string) => {
+      if (url.endsWith('/submission-history')) return Promise.resolve({ data: [] });
       if (url.endsWith('/history')) return Promise.resolve({ data: [] });
       if (url.endsWith('/capabilities')) return Promise.resolve({ data: [CAPABILITY] });
       return Promise.resolve({ data: [] });
@@ -174,25 +175,24 @@ describe('ClientCrmOverviewProto — advocacy history', () => {
 
   it('renders real submissions instead of the ADVOCACY fixture, with no invented evidence class', async () => {
     modelMock.mockReturnValue(baseModel());
+    const submissionRows = [
+      {
+        id: 'sub-9',
+        clientId: 'client-1',
+        capabilityId: 'cap-9',
+        fiscalYear: 'FY28',
+        title: 'Retrofit line request',
+        meta: 'SASC professional staff',
+        outcome: 'Included +$4M',
+        outcomeType: 'success',
+        notes: null,
+        createdAt: '2026-03-01T00:00:00.000Z',
+        updatedAt: '2026-03-01T00:00:00.000Z',
+      },
+    ];
     getMock.mockImplementation((url: string) => {
-      if (url.endsWith('/history'))
-        return Promise.resolve({
-          data: [
-            {
-              id: 'sub-9',
-              clientId: 'client-1',
-              capabilityId: 'cap-9',
-              fiscalYear: 'FY28',
-              title: 'Retrofit line request',
-              meta: 'SASC professional staff',
-              outcome: 'Included +$4M',
-              outcomeType: 'success',
-              notes: null,
-              createdAt: '2026-03-01T00:00:00.000Z',
-              updatedAt: '2026-03-01T00:00:00.000Z',
-            },
-          ],
-        });
+      if (url.endsWith('/submission-history')) return Promise.resolve({ data: submissionRows });
+      if (url.endsWith('/history')) return Promise.resolve({ data: submissionRows });
       if (url.endsWith('/capabilities')) return Promise.resolve({ data: [CAPABILITY] });
       return Promise.resolve({ data: [] });
     });

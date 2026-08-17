@@ -4,6 +4,7 @@ import { useApi } from '../../../lib/use-api.js';
 import { getProgramElementsList } from '../../../pages/program-element/api.js';
 import type { ProgramElementListItem } from '../../../pages/program-element/types.js';
 import { CapiroButton } from '../../components/actions/index.js';
+import { formatMoney } from '../../lib/labels.js';
 import type { PortfolioPeSummaryResponse } from './usePortfolioIndexModel.js';
 
 /**
@@ -22,16 +23,15 @@ import type { PortfolioPeSummaryResponse } from './usePortfolioIndexModel.js';
  * "Client attribution unavailable" placeholder.
  */
 
-const CURRENCY = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 1,
-  notation: 'compact',
-});
-
+/**
+ * PE stage figures arrive in $M. Scale to raw dollars and let the shared
+ * compact-money helper pick the unit — 44.3 → "$44.3M", 1234 → "$1.23B".
+ * (The old compact-notation formatter + hardcoded "M" suffix produced
+ * "$1.2KM" once a value crossed $1B.)
+ */
 function formatMillions(value: number | null | undefined): string | null {
   if (value == null || !Number.isFinite(value)) return null;
-  return `${CURRENCY.format(value)}M`;
+  return formatMoney(value * 1e6);
 }
 
 function stage(value: number | null | undefined, label: string) {
@@ -78,18 +78,25 @@ function PeCard({
       </div>
       <div className="capiro-portfolio-pe__progression">
         {stage(pe.latestRequest, 'PB')}
-        <span className="capiro-portfolio-pe__arrow" aria-hidden>—</span>
+        <span className="capiro-portfolio-pe__arrow" aria-hidden>→</span>
         {stage(pe.latestCurrent ?? pe.latestEnacted, 'Auth')}
-        <span className="capiro-portfolio-pe__arrow" aria-hidden>—</span>
+        <span className="capiro-portfolio-pe__arrow" aria-hidden>→</span>
         {stage(pe.latestEnacted, 'Approp')}
       </div>
       <div className="capiro-portfolio-pe__foot">
-        <span className="capiro-portfolio-pe__service">{attributionLabel}</span>
+        <span
+          className="capiro-portfolio-pe__service"
+          title={attribution.length > 0 ? attribution.join(', ') : undefined}
+        >
+          {attributionLabel}
+        </span>
         {hasDelta ? (
           <span
             className={`capiro-portfolio-pe__delta ${
               down ? 'capiro-portfolio-pe__delta--down' : 'capiro-portfolio-pe__delta--up'
             }`}
+            role="img"
+            aria-label={`${down ? 'down' : 'up'} ${Math.abs(delta as number).toFixed(1)} percent`}
           >
             {down ? '▼' : '▲'} {Math.abs(delta as number).toFixed(1)}%
           </span>
@@ -148,10 +155,16 @@ export function PortfolioProgramElements({
           className={`capiro-portfolio-pe__net${
             hasNetDelta
               ? netDown
-                ? ' capiro-portfolio-pe__delta--down'
-                : ' capiro-portfolio-pe__delta--up'
+                ? ' capiro-portfolio-pe__net--down'
+                : ' capiro-portfolio-pe__net--up'
               : ''
           }`}
+          role={hasNetDelta ? 'img' : undefined}
+          aria-label={
+            hasNetDelta
+              ? `${netDown ? 'down' : 'up'} ${Math.abs(netDeltaPct).toFixed(1)} percent net`
+              : undefined
+          }
         >
           {netLabel}
         </span>

@@ -15,6 +15,7 @@ import {
   type PillTone,
 } from '../portfolio-primitives.js';
 import { GOV_ROWS, TARGETS } from '../portfolio-fixtures.js';
+import { formatDateShort, humanizeEnumToken } from '../../../lib/labels.js';
 import { initialsFor } from '../../../adapters/legacy/useClientCrmOverviewModel.js';
 import { useApi } from '../../../../lib/use-api.js';
 import {
@@ -125,7 +126,7 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
       />
 
       {realTargets ? (
-        <RealCurrentTargetsPanel targets={realTargets} onOpen={setDrawerTarget} onAdd={openAddRelationship} />
+        <RealCurrentTargetsPanel targets={realTargets} onOpen={setDrawerTarget} />
       ) : (
         <CurrentTargetsPanel />
       )}
@@ -155,11 +156,9 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
 function RealCurrentTargetsPanel({
   targets,
   onOpen,
-  onAdd,
 }: {
   targets: ClientTarget[];
   onOpen: (t: ClientTarget) => void;
-  onAdd: () => void;
 }) {
   // Tiered targets first (1 is highest), untiered last; stable by name after.
   const ordered = useMemo(
@@ -192,14 +191,11 @@ function RealCurrentTargetsPanel({
 
       {ordered.length === 0 ? (
         <div style={{ padding: '18px 4px 6px' }}>
+          {/* The page header already carries the one "Add relationship" button —
+              a second one here was a duplicate call to the same action. */}
           <p style={{ margin: 0, fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
-            No government targets have been added for this client yet.
+            No government targets yet — add one from the header.
           </p>
-          <div style={{ marginTop: 12 }}>
-            <PfButton variant="primary" onClick={onAdd}>
-              Add relationship
-            </PfButton>
-          </div>
         </div>
       ) : (
         <div className="cap-pf-grid-targets">
@@ -288,7 +284,12 @@ function RealTargetCard({
               : 'No facility in this district'
           }
         />
-        <TargetField label="Added" value={`${t.source === 'meri' ? 'Meri' : 'Manual'} · ${new Date(t.addedAt).toLocaleDateString()}`} />
+        {/* Unknown source tokens are humanized, not silently collapsed to
+            "Manual"; the date carries its year when it is not the current one. */}
+        <TargetField
+          label="Added"
+          value={`${t.source === 'meri' ? 'Meri' : humanizeEnumToken(t.source)} · ${formatDateShort(t.addedAt) ?? '—'}`}
+        />
       </div>
 
       <PfButton variant="link" style={{ alignSelf: 'flex-end' }} onClick={onOpen}>
@@ -326,6 +327,7 @@ function RealRelationshipsTableCard({
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const rows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const filterActive = filter !== 'All' || query.trim() !== '';
 
   return (
     <Card>
@@ -360,6 +362,7 @@ function RealRelationshipsTableCard({
               setQuery(event.target.value);
               setPage(0);
             }}
+            aria-label="Search relationships"
             placeholder="Search targets by name, chamber, state or committee"
             style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontSize: 14, color: '#101828' }}
           />
@@ -413,29 +416,93 @@ function RealRelationshipsTableCard({
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px' }}>
-        <span style={{ fontSize: 14, color: '#475467' }}>
-          Showing {rows.length} of {targets.length} relationship{targets.length === 1 ? '' : 's'}
-        </span>
-        <span style={{ flex: 1 }} />
-        <PfButton
-          variant="link"
-          disabled={safePage === 0}
-          onClick={() => setPage((p) => Math.max(0, p - 1))}
-          style={{ color: safePage === 0 ? '#98A2B3' : undefined }}
-        >
-          ← Previous
-        </PfButton>
-        <PfButton
-          variant="link"
-          disabled={safePage >= pageCount - 1}
-          onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-          style={{ color: safePage >= pageCount - 1 ? '#98A2B3' : undefined }}
-        >
-          Next →
-        </PfButton>
-      </div>
+      <TableFooter
+        shown={rows.length}
+        filteredCount={filtered.length}
+        totalCount={targets.length}
+        filterActive={filterActive}
+        page={safePage}
+        pageCount={pageCount}
+        onPrev={() => setPage((p) => Math.max(0, p - 1))}
+        onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+      />
     </Card>
+  );
+}
+
+/**
+ * Shared table footer (real + fixture tables). "Showing N of M" counts the
+ * FILTERED set — "Showing 3 of 47" while a filter hid 44 rows was a lie; the
+ * unfiltered total moves into an explicit "filtered from" suffix. Pagination
+ * disappears entirely when there is nothing to page.
+ */
+function TableFooter({
+  shown,
+  filteredCount,
+  totalCount,
+  filterActive,
+  page,
+  pageCount,
+  onPrev,
+  onNext,
+}: {
+  shown: number;
+  filteredCount: number;
+  totalCount: number;
+  filterActive: boolean;
+  page: number;
+  pageCount: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px' }}>
+      <span style={{ fontSize: 14, color: '#475467' }}>
+        Showing {shown} of {filteredCount} relationship{filteredCount === 1 ? '' : 's'}
+        {filterActive && filteredCount !== totalCount ? ` · filtered from ${totalCount}` : ''}
+      </span>
+      <span style={{ flex: 1 }} />
+      {shown > 0 ? (
+        <>
+          <PagerLink label="← Previous" ariaLabel="Previous page" disabled={page === 0} onClick={onPrev} />
+          <PagerLink label="Next →" ariaLabel="Next page" disabled={page >= pageCount - 1} onClick={onNext} />
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/** Link-styled pager button. Local because the primitive's link variant does
+ *  not forward `ariaLabel`, and these arrows need accessible names. */
+function PagerLink({
+  label,
+  ariaLabel,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  ariaLabel: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        fontSize: 14,
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+        color: disabled ? '#98A2B3' : hover ? '#0E141C' : '#101828',
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -462,8 +529,16 @@ function RealGovRow({ target: t, onOpen }: { target: ClientTarget; onOpen: () =>
         {targetName(t)}
       </span>
       <span style={{ flex: '0 0 auto', width: 124, fontSize: 13, color: '#475467' }}>{DIRECTORY_LABEL[t.sourceDirectory]}</span>
-      <span style={{ flex: '0 0 auto', width: 104, fontSize: 13, color: '#475467' }}>{t.state ?? '—'}</span>
-      <span style={{ flex: '0 0 auto', width: 148, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <span
+        title={t.state ? undefined : 'Not on file'}
+        style={{ flex: '0 0 auto', width: 104, fontSize: 13, color: '#475467' }}
+      >
+        {t.state ?? '—'}
+      </span>
+      <span
+        title={t.committee ? undefined : 'Not on file'}
+        style={{ flex: '0 0 auto', width: 148, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+      >
         {t.committee ?? '—'}
       </span>
       <span style={{ flex: '0 0 auto', width: 112 }}>
@@ -538,6 +613,8 @@ function TargetCard({ target: t, slot }: { target: (typeof TARGETS)[number]; slo
   );
 }
 
+/** Fixture-only mini card. Non-interactive on purpose: the design's people
+ *  are not records, so a button here promised a drawer that never opened. */
 function TargetMiniCard({
   target: t,
   dispFg,
@@ -547,12 +624,8 @@ function TargetMiniCard({
   dispFg: string;
   dispDot: string;
 }) {
-  const [hover, setHover] = useState(false);
   return (
-    <button
-      type="button"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+    <span
       style={{
         flex: 1,
         minWidth: 0,
@@ -561,8 +634,7 @@ function TargetMiniCard({
         padding: 10,
         borderRadius: 8,
         textAlign: 'left',
-        background: hover ? '#F9FAFB' : 'transparent',
-        boxShadow: hover ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0',
+        boxShadow: 'inset 0 0 0 1px #EAECF0',
       }}
     >
       <Tile initials={t.init} size={40} dark round={t.kind === 'person'} />
@@ -622,7 +694,7 @@ function TargetMiniCard({
           {t.confirm}
         </span>
       </span>
-    </button>
+    </span>
   );
 }
 
@@ -709,6 +781,7 @@ function RelationshipsTableCard() {
               setQuery(event.target.value);
               setPage(0);
             }}
+            aria-label="Search relationships"
             placeholder="Search officials, committees, offices"
             style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontSize: 14, color: '#101828' }}
           />
@@ -750,37 +823,25 @@ function RelationshipsTableCard() {
       </div>
 
       {/* footer */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px' }}>
-        <span style={{ fontSize: 14, color: '#475467' }}>Showing {rows.length} of {GOV_ROWS.length} relationships</span>
-        <span style={{ flex: 1 }} />
-        <PfButton
-          variant="link"
-          disabled={safePage === 0}
-          onClick={() => setPage((p) => Math.max(0, p - 1))}
-          style={{ color: safePage === 0 ? '#98A2B3' : undefined }}
-        >
-          ← Previous
-        </PfButton>
-        <PfButton
-          variant="link"
-          disabled={safePage >= pageCount - 1}
-          onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-          style={{ color: safePage >= pageCount - 1 ? '#98A2B3' : undefined }}
-        >
-          Next →
-        </PfButton>
-      </div>
+      <TableFooter
+        shown={rows.length}
+        filteredCount={filtered.length}
+        totalCount={GOV_ROWS.length}
+        filterActive={filter !== 'All' || query.trim() !== ''}
+        page={safePage}
+        pageCount={pageCount}
+        onPrev={() => setPage((p) => Math.max(0, p - 1))}
+        onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+      />
     </Card>
   );
 }
 
+/** Fixture-only row. Non-interactive on purpose: it had button semantics and a
+ *  pointer cursor but no handler — a click promise the row could not keep. */
 function GovRow({ row: r }: { row: (typeof GOV_ROWS)[number] }) {
-  const [hover, setHover] = useState(false);
   return (
-    <button
-      type="button"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
+    <div
       style={{
         display: 'flex',
         width: '100%',
@@ -789,7 +850,6 @@ function GovRow({ row: r }: { row: (typeof GOV_ROWS)[number] }) {
         padding: '13px 24px',
         borderBottom: '1px solid #EAECF0',
         textAlign: 'left',
-        background: hover ? '#F9FAFB' : 'transparent',
       }}
     >
       <span
@@ -824,7 +884,7 @@ function GovRow({ row: r }: { row: (typeof GOV_ROWS)[number] }) {
       <span style={{ flex: '0 0 auto', width: 112 }}>
         <Pill tone={r.target === 'Current' ? 'brand' : 'gray'}>{r.target}</Pill>
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -833,6 +893,7 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}

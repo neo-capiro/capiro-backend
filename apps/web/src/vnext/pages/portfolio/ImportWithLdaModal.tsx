@@ -5,6 +5,7 @@ import { useMe } from '../../../lib/me.js';
 import { hasAtLeast } from '@capiro/shared';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroModal } from '../../components/overlays/index.js';
+import { formatMoney, titleCaseName } from '../../lib/labels.js';
 
 /**
  * Import with LDA (PORTFOLIO-HANDOFF §7.1.1).
@@ -59,12 +60,6 @@ interface ImportResult {
 }
 
 type Stage = 'firm' | 'select';
-
-const CURRENCY = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  maximumFractionDigits: 0,
-});
 
 export function ImportWithLdaModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const api = useApi();
@@ -146,10 +141,20 @@ export function ImportWithLdaModal({ open, onClose }: { open: boolean; onClose: 
     if (hasAnchor) setStage('select');
   }, [open, didInitStage, registrant.isLoading, hasAnchor]);
 
-  const pending = useMemo(
-    () => (candidates.data?.candidates ?? []).filter((c) => c.onboardedAs == null),
-    [candidates.data],
-  );
+  // Docblock promise: "with spend + recency" — biggest spend first, most
+  // recent filing year breaking ties.
+  const sorted = useMemo(() => {
+    const list = [...(candidates.data?.candidates ?? [])];
+    list.sort(
+      (a, b) =>
+        (b.totalSpend ?? 0) - (a.totalSpend ?? 0) ||
+        (b.latestFilingYear ?? 0) - (a.latestFilingYear ?? 0),
+    );
+    return list;
+  }, [candidates.data]);
+
+  // Importable subset — already-imported candidates render locked, not hidden.
+  const pending = useMemo(() => sorted.filter((c) => c.onboardedAs == null), [sorted]);
 
   const toggle = (id: number) =>
     setSelected((current) => {
@@ -186,6 +191,7 @@ export function ImportWithLdaModal({ open, onClose }: { open: boolean; onClose: 
         <input
           className="capiro-input"
           placeholder="Search your firm's name (e.g. Maven Advocacy)"
+          aria-label="Search firms"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => {
@@ -226,7 +232,7 @@ export function ImportWithLdaModal({ open, onClose }: { open: boolean; onClose: 
               {(registrantSearch.data ?? []).map((r) => (
                 <li key={r.id}>
                   <div className="capiro-portfolio-lda__row" style={{ cursor: 'default' }}>
-                    <span className="capiro-portfolio-lda__name">{r.name}</span>
+                    <span className="capiro-portfolio-lda__name">{titleCaseName(r.name)}</span>
                     <span className="capiro-portfolio__meta">
                       {[r.city, r.state].filter(Boolean).join(', ') || '—'} · {r.totalClients}{' '}
                       client{r.totalClients === 1 ? '' : 's'} · {r.totalFilings} filing
@@ -371,23 +377,30 @@ export function ImportWithLdaModal({ open, onClose }: { open: boolean; onClose: 
           </div>
         ) : null}
         <ul className="capiro-portfolio-lda__list">
-          {pending.map((c) => (
-            <li key={c.ldaClientId}>
-              <label className="capiro-portfolio-lda__row">
-                <input
-                  type="checkbox"
-                  checked={selected.has(c.ldaClientId)}
-                  onChange={() => toggle(c.ldaClientId)}
-                />
-                <span className="capiro-portfolio-lda__name">{c.name}</span>
-                <span className="capiro-portfolio__meta">
-                  {c.filings} filing{c.filings === 1 ? '' : 's'}
-                  {c.latestFilingYear ? ` · latest ${c.latestFilingYear}` : ''} ·{' '}
-                  {CURRENCY.format(c.totalSpend)}
-                </span>
-              </label>
-            </li>
-          ))}
+          {sorted.map((c) => {
+            const locked = c.onboardedAs != null;
+            return (
+              <li key={c.ldaClientId}>
+                <label className={`capiro-portfolio-lda__row${locked ? ' is-locked' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(c.ldaClientId)}
+                    disabled={locked}
+                    onChange={() => toggle(c.ldaClientId)}
+                  />
+                  <span className="capiro-portfolio-lda__name">{titleCaseName(c.name)}</span>
+                  <span className="capiro-portfolio__meta">
+                    {c.filings} filing{c.filings === 1 ? '' : 's'}
+                    {c.latestFilingYear ? ` · latest ${c.latestFilingYear}` : ''} ·{' '}
+                    {formatMoney(c.totalSpend ?? null)}
+                  </span>
+                  {locked ? (
+                    <span className="capiro-portfolio-lda__imported">Already imported</span>
+                  ) : null}
+                </label>
+              </li>
+            );
+          })}
         </ul>
         <div className="capiro-portfolio-lda__foot">
           <CapiroButton variant="quiet" size="compact" onClick={handleClose}>
@@ -400,7 +413,7 @@ export function ImportWithLdaModal({ open, onClose }: { open: boolean; onClose: 
             loading={apply.isPending}
             onClick={() => apply.mutate(Array.from(selected))}
           >
-            Import {selected.size > 0 ? selected.size : ''} client{selected.size === 1 ? '' : 's'}
+            Import {selected.size > 0 ? `${selected.size} ` : ''}client{selected.size === 1 ? '' : 's'}
           </CapiroButton>
         </div>
       </>
