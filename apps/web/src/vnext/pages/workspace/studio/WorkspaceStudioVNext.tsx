@@ -376,6 +376,7 @@ function BlueprintEditor({ blueprintId, versionId }: { blueprintId: string; vers
   const [testing, setTesting] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [cloning, setCloning] = useState(false);
+  const [retiring, setRetiring] = useState(false);
   const [testResult, setTestResult] = useState<unknown | null>(null);
   const [immutableError, setImmutableError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState<string | null>(null);
@@ -495,6 +496,22 @@ function BlueprintEditor({ blueprintId, versionId }: { blueprintId: string; vers
     }
   }, [blueprintId, navigate]);
 
+  // Retire → api.retireVersion. Only available on published versions.
+  const handleRetire = useCallback(async () => {
+    if (!isPublished) return;
+    if (!window.confirm('Retire this published version? New documents will not pin to it. Existing pinned documents are unaffected.')) return;
+    setRetiring(true);
+    setImmutableError(null);
+    try {
+      const updated = await api.retireVersion(blueprintId, versionId);
+      setVersion(updated);
+    } catch (e) {
+      setError((e as Error).message ?? 'Retire failed');
+    } finally {
+      setRetiring(false);
+    }
+  }, [blueprintId, versionId, isPublished]);
+
   if (loading) return <Spinner label="Loading blueprint version…" />;
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!version || !def) return <ErrorState message="No version data." onRetry={load} />;
@@ -575,6 +592,17 @@ function BlueprintEditor({ blueprintId, versionId }: { blueprintId: string; vers
           >
             {cloning ? 'Cloning…' : 'Clone to new draft version'}
           </button>
+          {isPublished && (
+            <button
+              type="button"
+              className="ws-vnext-studio__btn"
+              disabled={retiring}
+              onClick={handleRetire}
+              title="Retire this published version so new documents will not pin to it"
+            >
+              {retiring ? 'Retiring…' : 'Retire version'}
+            </button>
+          )}
         </div>
       )}
 

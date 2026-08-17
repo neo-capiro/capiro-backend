@@ -124,3 +124,69 @@
   .ws-audit-creation__footer { grid-template-columns: 1fr 1fr; }
   .ws-audit-creation__footer > span { display: none; }
 }
+
+
+/* ── Wire-fix additions ─────────────────────────────────────────────── */
+
+.ws-audit-share-revoke {
+  background: none;
+  border: 1px solid var(--ws-red, #c0392b);
+  color: var(--ws-red, #c0392b);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ws-audit-share-revoke:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ws-audit-approval-pending {
+  background: var(--ws-amber-bg, rgba(245, 158, 11, 0.08));
+  border: 1px solid var(--ws-amber, #f59e0b);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 12px 0;
+}
+.ws-audit-approval-pending p {
+  font-size: 13px;
+  color: var(--ws-body, #475467);
+  margin: 4px 0 8px;
+}
+
+.ws-audit-version-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+.ws-audit-version-tool {
+  border: 1px solid var(--ws-line, #e4e7ec);
+  border-radius: 8px;
+  padding: 12px;
+}
+.ws-audit-version-tool strong {
+  font-size: 13px;
+  color: var(--ws-ink, #1d2939);
+}
+.ws-audit-version-tool p {
+  font-size: 12px;
+  color: var(--ws-muted, #667085);
+  margin: 4px 0 8px;
+}
+.ws-audit-version-tool__result {
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  background: var(--ws-sunken, #f9fafb);
+}
+.ws-audit-version-tool__result[data-detected="true"] {
+  background: var(--ws-red-bg, rgba(192, 57, 43, 0.08));
+  color: var(--ws-red, #c0392b);
+}
+.ws-audit-version-tool__result[data-detected="false"] {
+  background: var(--ws-green-bg, rgba(16, 185, 129, 0.08));
+  color: var(--ws-green, #10b981);
+}

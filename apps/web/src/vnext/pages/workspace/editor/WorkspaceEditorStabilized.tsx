@@ -277,15 +277,18 @@ function GenerationPanel({
   busy,
   onStart,
   onRetry,
+  onCancel,
 }: {
   state: AgentState;
   run: GenerationStatusResponse | null | undefined;
   busy: boolean;
   onStart: () => void;
   onRetry: () => void;
+  onCancel: () => void;
 }) {
   const stages = normalizeGenerationStages(run);
   const canStart = state.status === 'ready' && !run;
+  const canCancel = run?.status === 'active';
   const retryable = run?.status === 'partial' || run?.status === 'failed';
 
   return (
@@ -300,15 +303,22 @@ function GenerationPanel({
               : 'The approved brief, context, and outline are ready.'}
           </p>
         </div>
-        {canStart ? (
-          <CapiroButton variant="primary" loading={busy} onClick={onStart}>
-            Generate document
-          </CapiroButton>
-        ) : retryable ? (
-          <CapiroButton variant="primary" loading={busy} onClick={onRetry}>
-            Retry failed sections
-          </CapiroButton>
-        ) : null}
+        <div className="ws-audit-actions">
+          {canStart ? (
+            <CapiroButton variant="primary" loading={busy} onClick={onStart}>
+              Generate document
+            </CapiroButton>
+          ) : retryable ? (
+            <CapiroButton variant="primary" loading={busy} onClick={onRetry}>
+              Retry failed sections
+            </CapiroButton>
+          ) : null}
+          {canCancel ? (
+            <CapiroButton variant="secondary" loading={busy} onClick={onCancel}>
+              Cancel run
+            </CapiroButton>
+          ) : null}
+        </div>
       </div>
 
       {run ? (
@@ -344,8 +354,7 @@ function GenerationPanel({
       ) : null}
 
       <div className="ws-audit-generation-panel__note">
-        Cancellation is unavailable because the current provider request is not
-        cooperatively abortable. Closing the page does not mark the run complete.
+        Cancelled runs are partial, not complete. Retry regenerates only failed sections.
       </div>
     </div>
   );
@@ -493,6 +502,9 @@ export function WorkspaceEditorStabilized({ draftId, isRunView = false }: Worksp
   const [inviteRole, setInviteRole] = useState<WsAssignableRole>('viewer');
   const [shareResult, setShareResult] = useState<ShareLinkResponse | null>(null);
   const [preflight, setPreflight] = useState<Awaited<ReturnType<typeof api.preflight>> | null>(null);
+  const [anonymizeResult, setAnonymizeResult] = useState<{ detected: boolean; details?: string } | null>(null);
+  const [memoryPromoted, setMemoryPromoted] = useState(false);
+  const [pendingApprovalId, setPendingApprovalId] = useState<string | null>(null);
 
   const dirtyMain = useRef(false);
   const dirtyPackets = useRef<Set<string>>(new Set());
@@ -791,6 +803,55 @@ export function WorkspaceEditorStabilized({ draftId, isRunView = false }: Worksp
     });
   };
 
+  const cancelGeneration = async () => {
+    await mutateAgent('cancel-generation', (revision) => api.cancelGeneration(draftId, revision), async () => {
+      await generationQuery.refetch();
+      await queryClient.invalidateQueries({ queryKey: ['ws', 'draft', draftId] });
+    });
+  };
+
+  const detectAnonymize = async () => {
+    setBusyAction('anonymize');
+    setAnonymizeResult(null);
+    try {
+      const result = await api.detectAnonymize(draftId) as { detected?: boolean; details?: string };
+      setAnonymizeResult({ detected: Boolean(result?.detected), details: result?.details });
+    } catch (error) {
+      handleAgentError(error, 'Could not run anonymize detection.');
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const promoteToMemory = async () => {
+    if (!window.confirm('Promote this document to institutional memory? This makes its content available as context for future documents.')) return;
+    setBusyAction('promote-memory');
+    try {
+      await api.promoteToMemory(draftId);
+      setMemoryPromoted(true);
+      setBanner({ tone: 'blue', message: 'Document promoted to institutional memory.' });
+    } catch (error) {
+      handleAgentError(error, 'Could not promote to memory.');
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const decideApproval = async (requestId: string, decision: 'approved' | 'rejected') => {
+    setBusyAction(`approval-${decision}`);
+    try {
+      const note = decision === 'rejected' ? window.prompt('Reason for rejection (optional)') ?? undefined : undefined;
+      await api.decideApproval(draftId, requestId, decision, note);
+      setPendingApprovalId(null);
+      setBanner({ tone: 'blue', message: `Approval ${decision}.` });
+      await queryClient.invalidateQueries({ queryKey: ['ws', 'draft', draftId] });
+    } catch (error) {
+      handleAgentError(error, `Could not ${decision} the approval request.`);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const addPacketDocument = async () => {
     const name = window.prompt('Document name')?.trim();
     if (!name) return;
@@ -972,7 +1033,7 @@ export function WorkspaceEditorStabilized({ draftId, isRunView = false }: Worksp
           <div className="ws-audit-provenance-strip">{generated ? `AS GENERATED · OUTLINE V${state.outline.version} · ${state.contextPlan.includedItemIds.length} SOURCES · QUALITY ${quality?.score == null ? '—' : `${quality.score}%`}` : `NOT GENERATED · BLUEPRINT V${state.blueprintPin?.version ?? '—'} · ${state.outline.sections.length} SECTIONS PLANNED`}<button type="button" onClick={() => setInspectorTab('context')}>Context used</button></div>
 
           {state.phase === 'generate' || isRunView ? (
-            <GenerationPanel state={state} run={run} busy={busyAction === 'generate' || busyAction === 'retry-generation'} onStart={() => void startGeneration()} onRetry={() => void retryGeneration()} />
+            <GenerationPanel state={state} run={run} busy={busyAction === 'generate' || busyAction === 'retry-generation' || busyAction === 'cancel-generation'} onStart={() => void startGeneration()} onRetry={() => void retryGeneration()} onCancel={() => void cancelGeneration()} />
           ) : (
             <div className="ws-audit-canvas__body" onMouseUp={captureSelection}>
               {activeTab === MAIN_TAB ? (
@@ -1010,9 +1071,9 @@ export function WorkspaceEditorStabilized({ draftId, isRunView = false }: Worksp
       </div>
 
       {overlay === 'proposal' && activeProposal ? <ModalShell kicker="AGENT PROPOSAL" title="Review proposed change" onClose={() => setOverlay(null)}><ProposalReview proposal={activeProposal} busy={busyAction === 'proposal'} onReject={() => void mutateAgent('proposal', (revision) => api.rejectProposal(draftId, activeProposal.id, revision), async () => { setOverlay(null); await proposalsQuery.refetch(); })} onAccept={() => void mutateAgent('proposal', (revision) => api.acceptProposal(draftId, activeProposal.id, revision), async () => { setOverlay(null); await proposalsQuery.refetch(); await queryClient.invalidateQueries({ queryKey: ['ws', 'draft', draftId] }); })} /></ModalShell> : null}
-      {overlay === 'versions' ? <VersionsOverlay versions={versionsQuery.data ?? []} busy={createVersion.isPending || restoreVersion.isPending} onClose={() => setOverlay(null)} onCreate={() => void createVersion.mutateAsync({ label: 'Manual checkpoint', authorKind: 'person' })} onRestore={(versionId) => { if (window.confirm('Restore this version as the live draft?')) void restoreVersion.mutateAsync(versionId); }} onCollaborators={() => setOverlay('collaborators')} /> : null}
+      {overlay === 'versions' ? <VersionsOverlay versions={versionsQuery.data ?? []} busy={createVersion.isPending || restoreVersion.isPending || busyAction === 'anonymize' || busyAction === 'promote-memory'} anonymizeResult={anonymizeResult} memoryPromoted={memoryPromoted} onClose={() => setOverlay(null)} onCreate={() => void createVersion.mutateAsync({ label: 'Manual checkpoint', authorKind: 'person' })} onRestore={(versionId) => { if (window.confirm('Restore this version as the live draft?')) void restoreVersion.mutateAsync(versionId); }} onCollaborators={() => setOverlay('collaborators')} onAnonymize={() => void detectAnonymize()} onPromoteMemory={() => void promoteToMemory()} /> : null}
       {overlay === 'collaborators' ? <CollaboratorsOverlay collaborators={collaboratorsQuery.data ?? []} members={tenantMembersQuery.data ?? []} email={inviteEmail} role={inviteRole} busy={inviteCollaborator.isPending || updateCollaborator.isPending || removeCollaborator.isPending} onEmail={setInviteEmail} onRole={setInviteRole} onInvite={async () => { if (!inviteEmail.trim()) return; await inviteCollaborator.mutateAsync({ email: inviteEmail.trim(), name: inviteEmail.trim(), role: inviteRole, inviterName: selfName }); setInviteEmail(''); }} onUpdate={(id, role) => void updateCollaborator.mutateAsync({ id, role })} onRemove={(id) => void removeCollaborator.mutateAsync(id)} onClose={() => setOverlay(null)} /> : null}
-      {overlay === 'delivery' ? <DeliveryOverlay state={state} preflight={preflight} shareResult={shareResult} busy={Boolean(busyAction) || createVersion.isPending || exportDocx.isPending || exportPdf.isPending} onClose={() => setOverlay(null)} onPreflight={async () => { setBusyAction('preflight'); try { const result = await api.preflight(draftId); setPreflight(result); } catch (error) { handleAgentError(error, 'Delivery preflight failed.'); } finally { setBusyAction(null); } }} onRequestApproval={async () => { setBusyAction('approval'); try { await api.createApprovalRequest(draftId, { idempotencyKey: requestId() }); setBanner({ tone: 'blue', message: 'Approval requested.' }); } catch (error) { handleAgentError(error, 'Could not request approval.'); } finally { setBusyAction(null); } }} onCreateShare={async () => { setBusyAction('share'); try { const version = await createVersion.mutateAsync({ label: 'Client share snapshot', authorKind: 'person' }); const result = await api.createShareLink(draftId, { versionId: version.id, expiresInDays: 7, idempotencyKey: requestId() }); setShareResult(result); } catch (error) { handleAgentError(error, 'Could not create the share link.'); } finally { setBusyAction(null); } }} onDocx={() => void exportDocx.mutateAsync({ filenameHint: draft.docTitle, part: 'all' })} onPdf={() => void exportPdf.mutateAsync({ filenameHint: draft.docTitle, part: 'all' })} /> : null}
+      {overlay === 'delivery' ? <DeliveryOverlay state={state} preflight={preflight} shareResult={shareResult} pendingApprovalId={pendingApprovalId} busy={Boolean(busyAction) || createVersion.isPending || exportDocx.isPending || exportPdf.isPending} onClose={() => setOverlay(null)} onPreflight={async () => { setBusyAction('preflight'); try { const result = await api.preflight(draftId); setPreflight(result); } catch (error) { handleAgentError(error, 'Delivery preflight failed.'); } finally { setBusyAction(null); } }} onRequestApproval={async () => { setBusyAction('approval'); try { const result = await api.createApprovalRequest(draftId, { idempotencyKey: requestId() }) as { requestId?: string }; if (result?.requestId) setPendingApprovalId(result.requestId); setBanner({ tone: 'blue', message: 'Approval requested.' }); } catch (error) { handleAgentError(error, 'Could not request approval.'); } finally { setBusyAction(null); } }} onDecideApproval={(reqId, decision) => void decideApproval(reqId, decision)} onCreateShare={async () => { setBusyAction('share'); try { const version = await createVersion.mutateAsync({ label: 'Client share snapshot', authorKind: 'person' }); const result = await api.createShareLink(draftId, { versionId: version.id, expiresInDays: 7, idempotencyKey: requestId() }); setShareResult(result); } catch (error) { handleAgentError(error, 'Could not create the share link.'); } finally { setBusyAction(null); } }} onRevokeShare={async () => { if (!shareResult) return; if (!window.confirm('Revoke this share link? The link will stop working immediately.')) return; setBusyAction('revoke-share'); try { await api.revokeShareLink(draftId, shareResult.shareId); setShareResult(null); setBanner({ tone: 'blue', message: 'Share link revoked.' }); } catch (error) { handleAgentError(error, 'Could not revoke the share link.'); } finally { setBusyAction(null); } }} onDocx={() => void exportDocx.mutateAsync({ filenameHint: draft.docTitle, part: 'all' })} onPdf={() => void exportPdf.mutateAsync({ filenameHint: draft.docTitle, part: 'all' })} /> : null}
     </div>
   );
 }
@@ -1044,18 +1105,18 @@ function QualityInspector({ state, quality, busy, onRefresh, onFix, onPreflight 
   return <div className="ws-audit-inspector-stack"><div className="ws-audit-quality-score"><strong>{quality.score == null ? '—' : quality.score}</strong><span>{quality.readiness}</span></div>{quality.blockers.map((blocker) => <div className="ws-audit-quality-item" data-status="error" key={blocker}><strong>Blocker</strong><p>{blocker}</p></div>)}{quality.recommendations.map((recommendation) => <div className="ws-audit-quality-item" data-status="warning" key={recommendation}><strong>Recommendation</strong><p>{recommendation}</p></div>)}{quality.checks.map((check) => <div className="ws-audit-quality-item" data-status={check.status} key={check.id}><div><strong>{check.label}</strong><span>{check.status}</span></div><code>{check.id}</code><p>{check.detail}</p>{check.fixable ? <button type="button" disabled={busy === `fix-${check.id}`} onClick={() => void onFix(check.id)}>Fix with Meri</button> : null}</div>)}<CapiroButton variant="primary" disabled={state.phase === 'generate'} onClick={onPreflight}>Run delivery preflight</CapiroButton></div>;
 }
 
-function VersionsOverlay({ versions, busy, onClose, onCreate, onRestore, onCollaborators }: { versions: WsDocVersion[]; busy: boolean; onClose: () => void; onCreate: () => void; onRestore: (id: string) => void; onCollaborators: () => void }) {
-  return <ModalShell kicker="VERSION HISTORY" title="Document versions" onClose={onClose} footer={<><CapiroButton variant="secondary" onClick={onCollaborators}>Collaborators</CapiroButton><CapiroButton variant="primary" loading={busy} onClick={onCreate}>Create version</CapiroButton></>}><div className="ws-audit-version-list">{versions.length ? versions.map((version) => <div key={version.id}><div><strong>{version.label || 'Saved version'}</strong><span>{formatTimestamp(version.createdAt)} · {version.authorKind}</span></div><button type="button" disabled={busy} onClick={() => onRestore(version.id)}>Restore</button></div>) : <div className="ws-vnext-empty__desc">No saved versions yet.</div>}</div></ModalShell>;
+function VersionsOverlay({ versions, busy, anonymizeResult, memoryPromoted, onClose, onCreate, onRestore, onCollaborators, onAnonymize, onPromoteMemory }: { versions: WsDocVersion[]; busy: boolean; anonymizeResult: { detected: boolean; details?: string } | null; memoryPromoted: boolean; onClose: () => void; onCreate: () => void; onRestore: (id: string) => void; onCollaborators: () => void; onAnonymize: () => void; onPromoteMemory: () => void }) {
+  return <ModalShell kicker="VERSION HISTORY" title="Document versions" onClose={onClose} footer={<><CapiroButton variant="secondary" onClick={onCollaborators}>Collaborators</CapiroButton><CapiroButton variant="primary" loading={busy} onClick={onCreate}>Create version</CapiroButton></>}><div className="ws-audit-version-list">{versions.length ? versions.map((version) => <div key={version.id}><div><strong>{version.label || 'Saved version'}</strong><span>{formatTimestamp(version.createdAt)} · {version.authorKind}</span></div><button type="button" disabled={busy} onClick={() => onRestore(version.id)}>Restore</button></div>) : <div className="ws-vnext-empty__desc">No saved versions yet.</div>}</div><hr /><div className="ws-audit-eyebrow">DOCUMENT TOOLS</div><div className="ws-audit-version-tools"><div className="ws-audit-version-tool"><strong>Anonymize detect</strong><p>Scan this document for content that may need anonymization before client delivery.</p>{anonymizeResult ? <div className="ws-audit-version-tool__result" data-detected={anonymizeResult.detected}>{anonymizeResult.detected ? 'Potentially sensitive content detected.' : 'No sensitive content detected.'}{anonymizeResult.details ? <span> {anonymizeResult.details}</span> : null}</div> : null}<CapiroButton variant="secondary" size="compact" loading={busy} onClick={onAnonymize}>Detect</CapiroButton></div><div className="ws-audit-version-tool"><strong>Promote to memory</strong><p>Make this document available as institutional-memory context for future documents.</p>{memoryPromoted ? <div className="ws-audit-version-tool__result" data-detected={false}>Promoted to institutional memory.</div> : null}<CapiroButton variant="secondary" size="compact" disabled={memoryPromoted} loading={busy} onClick={onPromoteMemory}>{memoryPromoted ? 'Promoted' : 'Promote to memory'}</CapiroButton></div></div></ModalShell>;
 }
 
 function CollaboratorsOverlay({ collaborators, members, email, role, busy, onEmail, onRole, onInvite, onUpdate, onRemove, onClose }: { collaborators: NonNullable<ReturnType<typeof useCollaborators>['data']>; members: NonNullable<ReturnType<typeof useTenantMembers>['data']>; email: string; role: WsAssignableRole; busy: boolean; onEmail: (value: string) => void; onRole: (value: WsAssignableRole) => void; onInvite: () => Promise<void>; onUpdate: (id: string, role: WsAssignableRole) => void; onRemove: (id: string) => void; onClose: () => void }) {
   return <ModalShell kicker="COLLABORATION" title="People with access" onClose={onClose}><form className="ws-audit-invite-form" onSubmit={(event) => { event.preventDefault(); void onInvite(); }}><input list="workspace-members" value={email} onChange={(event) => onEmail(event.target.value)} placeholder="Email or teammate" /><datalist id="workspace-members">{members.map((member) => <option key={member.id} value={member.email}>{member.name}</option>)}</datalist><select value={role} onChange={(event) => onRole(event.target.value as WsAssignableRole)}><option value="editor">Editor</option><option value="reviewer">Reviewer</option><option value="commenter">Commenter</option><option value="viewer">Viewer</option></select><CapiroButton variant="primary" size="compact" loading={busy} disabled={!email.trim()}>Invite</CapiroButton></form><div className="ws-audit-collaborator-list">{collaborators.map((collaborator) => <div key={collaborator.id}><span>{initials(collaborator.name || collaborator.email || 'Owner')}</span><div><strong>{collaborator.name || collaborator.email || 'Owner'}</strong><em>{collaborator.status}</em></div>{collaborator.isOwner ? <b>Owner</b> : <><select value={collaborator.role} disabled={busy} onChange={(event) => onUpdate(collaborator.id, event.target.value as WsAssignableRole)}><option value="editor">Editor</option><option value="reviewer">Reviewer</option><option value="commenter">Commenter</option><option value="viewer">Viewer</option></select><button type="button" onClick={() => onRemove(collaborator.id)} aria-label="Remove collaborator"><Icon name="Trash2" size={15} /></button></>}</div>)}</div></ModalShell>;
 }
 
-function DeliveryOverlay({ state, preflight, shareResult, busy, onClose, onPreflight, onRequestApproval, onCreateShare, onDocx, onPdf }: { state: AgentState; preflight: Awaited<ReturnType<typeof api.preflight>> | null; shareResult: ShareLinkResponse | null; busy: boolean; onClose: () => void; onPreflight: () => Promise<void>; onRequestApproval: () => Promise<void>; onCreateShare: () => Promise<void>; onDocx: () => void; onPdf: () => void }) {
+function DeliveryOverlay({ state, preflight, shareResult, pendingApprovalId, busy, onClose, onPreflight, onRequestApproval, onDecideApproval, onCreateShare, onRevokeShare, onDocx, onPdf }: { state: AgentState; preflight: Awaited<ReturnType<typeof api.preflight>> | null; shareResult: ShareLinkResponse | null; pendingApprovalId: string | null; busy: boolean; onClose: () => void; onPreflight: () => Promise<void>; onRequestApproval: () => Promise<void>; onDecideApproval: (requestId: string, decision: 'approved' | 'rejected') => void; onCreateShare: () => Promise<void>; onRevokeShare: () => Promise<void>; onDocx: () => void; onPdf: () => void }) {
   const canShare = Boolean(preflight && !preflight.isStale && (!preflight.requiresApproval || !preflight.approvalPolicy.clientFacingApprovalRequired));
   const publicUrl = shareResult ? `${window.location.origin}/share/${shareResult.token}` : '';
-  return <ModalShell kicker="DELIVERY" title="Prepare client delivery" onClose={onClose}><div className="ws-audit-delivery"><div className="ws-audit-delivery__status"><strong>{preflight ? preflight.isStale ? 'Approval is stale' : preflight.requiresApproval ? 'Approval required' : 'Preflight passed' : 'Run preflight before client delivery'}</strong><p>Client-facing sharing is gated. Internal DOCX and PDF exports remain available.</p></div><div className="ws-audit-actions"><CapiroButton variant="secondary" loading={busy} onClick={() => void onPreflight()}>Run preflight</CapiroButton>{preflight?.requiresApproval ? <CapiroButton variant="secondary" loading={busy} onClick={() => void onRequestApproval()}>Request approval</CapiroButton> : null}</div><hr /><div className="ws-audit-eyebrow">INTERNAL EXPORT</div><div className="ws-audit-actions"><CapiroButton variant="secondary" loading={busy} onClick={onDocx}>Download DOCX</CapiroButton><CapiroButton variant="secondary" loading={busy} onClick={onPdf}>Download PDF</CapiroButton></div><hr /><div className="ws-audit-eyebrow">CLIENT SHARE</div>{shareResult ? <div className="ws-audit-share-result"><input readOnly value={publicUrl} /><button type="button" onClick={() => void navigator.clipboard.writeText(publicUrl)}>Copy</button><span>Expires {formatTimestamp(shareResult.expiresAt)}</span></div> : <CapiroButton variant="primary" disabled={!canShare || state.phase === 'generate'} loading={busy} onClick={() => void onCreateShare()}>Create frozen share link</CapiroButton>}</div></ModalShell>;
+  return <ModalShell kicker="DELIVERY" title="Prepare client delivery" onClose={onClose}><div className="ws-audit-delivery"><div className="ws-audit-delivery__status"><strong>{preflight ? preflight.isStale ? 'Approval is stale' : preflight.requiresApproval ? 'Approval required' : 'Preflight passed' : 'Run preflight before client delivery'}</strong><p>Client-facing sharing is gated. Internal DOCX and PDF exports remain available.</p></div><div className="ws-audit-actions"><CapiroButton variant="secondary" loading={busy} onClick={() => void onPreflight()}>Run preflight</CapiroButton>{preflight?.requiresApproval && !pendingApprovalId ? <CapiroButton variant="secondary" loading={busy} onClick={() => void onRequestApproval()}>Request approval</CapiroButton> : null}</div>{pendingApprovalId ? <div className="ws-audit-approval-pending"><div className="ws-audit-eyebrow">PENDING APPROVAL</div><p>An approval request is pending. Approve or reject to proceed with client delivery.</p><div className="ws-audit-actions"><CapiroButton variant="primary" loading={busy} onClick={() => onDecideApproval(pendingApprovalId, 'approved')}>Approve</CapiroButton><CapiroButton variant="secondary" loading={busy} onClick={() => onDecideApproval(pendingApprovalId, 'rejected')}>Reject</CapiroButton></div></div> : null}<hr /><div className="ws-audit-eyebrow">INTERNAL EXPORT</div><div className="ws-audit-actions"><CapiroButton variant="secondary" loading={busy} onClick={onDocx}>Download DOCX</CapiroButton><CapiroButton variant="secondary" loading={busy} onClick={onPdf}>Download PDF</CapiroButton></div><hr /><div className="ws-audit-eyebrow">CLIENT SHARE</div>{shareResult ? <div className="ws-audit-share-result"><input readOnly value={publicUrl} /><button type="button" onClick={() => void navigator.clipboard.writeText(publicUrl)}>Copy</button><span>Expires {formatTimestamp(shareResult.expiresAt)}</span><button type="button" className="ws-audit-share-revoke" disabled={busy} onClick={() => void onRevokeShare()}>Revoke</button></div> : <CapiroButton variant="primary" disabled={!canShare || state.phase === 'generate'} loading={busy} onClick={() => void onCreateShare()}>Create frozen share link</CapiroButton>}</div></ModalShell>;
 }
 
 export default WorkspaceEditorStabilized;
