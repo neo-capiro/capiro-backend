@@ -15,7 +15,12 @@ const migration = readFileSync(
   ),
   'utf8',
 );
-
+const queryRootMigration = readFileSync(
+  repositoryPath(
+    'prisma/migrations/20261120181000_temporal_knowledge_graph_canonical_input_continuity/migration.sql',
+  ),
+  'utf8',
+);
 const phase5Merge = readFileSync(
   repositoryPath('prisma/migrations/20261120120000_canonical_entity_merge_ledger/migration.sql'),
   'utf8',
@@ -58,13 +63,26 @@ describe('Knowledge Plane Phase 8 canonical merge continuity contract', () => {
     expect(migration).toContain('IF NOT FOUND THEN');
   });
 
-  test('keeps the internal resolver inaccessible to tenant application paths', () => {
+  test('sanctioned walk/history functions canonicalize historical query roots', () => {
+    expect(queryRootMigration).toContain('RENAME TO kg_temporal_walk_bounded_unresolved');
+    expect(queryRootMigration).toContain('RENAME TO kg_temporal_relation_history_unresolved');
+    expect((queryRootMigration.match(/kg_resolve_terminal_canonical_entity\(/g) ?? []).length).toBe(2);
+    expect(queryRootMigration).toContain('v_terminal_entity_id');
+    expect(queryRootMigration).toContain('kg_temporal_walk_bounded_unresolved(');
+    expect(queryRootMigration).toContain('kg_temporal_relation_history_unresolved(');
+  });
+
+  test('keeps all internal resolution/raw graph functions inaccessible to tenant application paths', () => {
     expect(migration).toContain(
       'REVOKE ALL ON FUNCTION kg_resolve_terminal_canonical_entity(uuid, uuid) FROM PUBLIC',
     );
     expect(migration).toContain(
       'REVOKE ALL ON FUNCTION kg_resolve_terminal_canonical_entity(uuid, uuid) FROM capiro_app',
     );
+    expect(queryRootMigration).toContain('REVOKE ALL ON FUNCTION kg_temporal_walk_bounded_unresolved');
+    expect(queryRootMigration).toContain('REVOKE ALL ON FUNCTION kg_temporal_relation_history_unresolved');
+    expect(queryRootMigration).toContain('GRANT EXECUTE ON FUNCTION kg_temporal_walk_bounded(');
+    expect(queryRootMigration).toContain('GRANT EXECUTE ON FUNCTION kg_temporal_relation_history(');
   });
 
   test('preserves original assertion, event, and evidence provenance on projected edges', () => {
@@ -77,7 +95,8 @@ describe('Knowledge Plane Phase 8 canonical merge continuity contract', () => {
 
   test('does not introduce a second graph or canonical mapping table', () => {
     expect(migration).not.toMatch(/CREATE\s+TABLE/i);
-    expect(migration).not.toContain('projection_queue');
-    expect(migration).not.toContain('canonical_mapping');
+    expect(queryRootMigration).not.toMatch(/CREATE\s+TABLE/i);
+    expect(`${migration}\n${queryRootMigration}`).not.toContain('projection_queue');
+    expect(`${migration}\n${queryRootMigration}`).not.toContain('canonical_mapping');
   });
 });
