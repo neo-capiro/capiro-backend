@@ -26,7 +26,7 @@ import {
   type MeriWorkStep,
 } from './MeriEvidenceTray.js';
 import { evidenceContextPacket } from './meri-context-packet.js';
-import { deleteMeriResearch, fetchLatestMeriContextPacket } from './meri-vnext-api.js';
+import { deleteMeriResearch, fetchMeriContextPacket } from './meri-vnext-api.js';
 import { useApi } from '../../lib/use-api.js';
 
 interface VNextMeriMessageProps {
@@ -78,7 +78,7 @@ function VNextMeriAssistantMessage({
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [deletedResearch, setDeletedResearch] = useState(false);
-  const [contextPacket, setContextPacket] = useState<Awaited<ReturnType<typeof fetchLatestMeriContextPacket>> | null>(null);
+  const [contextPacket, setContextPacket] = useState<Awaited<ReturnType<typeof fetchMeriContextPacket>> | null>(null);
   const [activeCitation, setActiveCitation] = useState<MeriCitation | null>(null);
   const citations = message.citations ?? [];
   const visibleCitations = sourcesExpanded ? citations : citations.slice(0, 3);
@@ -114,10 +114,10 @@ function VNextMeriAssistantMessage({
         : null;
 
   useEffect(() => {
-    if (!evidenceOpen || !controller.activeConversationId) return;
+    if (!evidenceOpen || !message.contextPacketId) return;
     let cancelled = false;
     setContextPacket(null);
-    void fetchLatestMeriContextPacket(api, controller.activeConversationId)
+    void fetchMeriContextPacket(api, message.contextPacketId)
       .then((packet) => {
         if (!cancelled) setContextPacket(packet);
       })
@@ -127,7 +127,7 @@ function VNextMeriAssistantMessage({
     return () => {
       cancelled = true;
     };
-  }, [api, controller.activeConversationId, evidenceOpen]);
+  }, [api, evidenceOpen, message.contextPacketId]);
 
   const evidenceSources: MeriEvidenceSource[] = citations.map((citation) => ({
     icon: 'File05',

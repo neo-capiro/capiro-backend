@@ -89,6 +89,8 @@ export interface ChatMessage {
   chartArtifacts?: ChatMessageChartArtifact[];
   /** Server-computed grounding posture for this assistant turn. */
   groundingStatement?: string;
+  /** Immutable server context packet that grounded this specific assistant turn. */
+  contextPacketId?: string;
   /** Backend retrieval plan for this assistant turn (absent on legacy turns). */
   retrieval?: ChatMessageRetrieval;
 }
@@ -269,6 +271,13 @@ export function setChatMessageGroundingCaveat(id: string, groundingCaveat: Groun
 
 export function setChatMessageGroundingStatement(id: string, groundingStatement: string): void {
   const messages = state.messages.map((m) => (m.id === id ? { ...m, groundingStatement } : m));
+  state = { ...state, messages };
+  notify();
+}
+
+/** Attach the immutable context packet identifier that grounded this assistant turn. */
+export function setChatMessageContextPacketId(id: string, contextPacketId: string): void {
+  const messages = state.messages.map((m) => (m.id === id ? { ...m, contextPacketId } : m));
   state = { ...state, messages };
   notify();
 }

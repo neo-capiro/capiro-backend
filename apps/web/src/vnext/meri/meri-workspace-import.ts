@@ -1,5 +1,13 @@
 const MAX_WORKSPACE_IMPORT_CHARS = 12_000;
 
+/** A delayed response may only mutate import state for its initiating identity. */
+export function mayApplyWorkspaceImportResponse(
+  requestIdentityKey: string,
+  activeIdentityKey: string,
+): boolean {
+  return requestIdentityKey === activeIdentityKey;
+}
+
 export interface MeriWorkspaceImportDraft {
   id: string;
   docTitle: string;
@@ -7,13 +15,16 @@ export interface MeriWorkspaceImportDraft {
 }
 
 /**
- * Accept only the list envelope returned by Workspace's authenticated draft
- * endpoint. The browser may select a listed item but cannot supply its body.
+ * Accepts both direct Workspace controller arrays and the vNext transport
+ * bridge's `{ drafts }` normalization. The browser selects only records the
+ * authenticated Workspace API returned; it never supplies document bodies.
  */
 export function workspaceImportDraftsResponse(value: unknown): MeriWorkspaceImportDraft[] {
-  if (!value || typeof value !== 'object') return [];
-  const drafts = (value as { drafts?: unknown }).drafts;
-  if (!Array.isArray(drafts)) return [];
+  const drafts = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object' && Array.isArray((value as { drafts?: unknown }).drafts)
+      ? (value as { drafts: unknown[] }).drafts
+      : [];
   return drafts.flatMap((draft): MeriWorkspaceImportDraft[] => {
     if (!draft || typeof draft !== 'object') return [];
     const row = draft as Record<string, unknown>;
@@ -22,9 +33,30 @@ export function workspaceImportDraftsResponse(value: unknown): MeriWorkspaceImpo
       {
         id: row.id,
         docTitle: row.docTitle,
-        clientName: typeof row.client === 'string' ? row.client : null,
+        clientName:
+          typeof row.client === 'string'
+            ? row.client
+            : typeof row.clientName === 'string'
+              ? row.clientName
+              : null,
       },
     ];
+  });
+}
+
+/** The import chooser exposes only authorized document names, never bodies. */
+export function workspaceImportDocumentsResponse(value: unknown): Array<{ id: string; name: string }> {
+  const documents = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object' && Array.isArray((value as { documents?: unknown }).documents)
+      ? (value as { documents: unknown[] }).documents
+      : [];
+  return documents.flatMap((document): Array<{ id: string; name: string }> => {
+    if (!document || typeof document !== 'object') return [];
+    const row = document as Record<string, unknown>;
+    return typeof row.id === 'string' && typeof row.name === 'string'
+      ? [{ id: row.id, name: row.name }]
+      : [];
   });
 }
 

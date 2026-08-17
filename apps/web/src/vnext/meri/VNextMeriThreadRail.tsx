@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -8,6 +9,7 @@ import {
   type MeriConversation,
 } from '../../components/chat/chat-store.js';
 import { useApi } from '../../lib/use-api.js';
+import { useImpersonation } from '../../state/impersonation.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
@@ -87,7 +89,10 @@ export function VNextMeriThreadRail({
 }: VNextMeriThreadRailProps) {
   const navigate = useNavigate();
   const api = useApi();
+  const { orgId, userId } = useAuth();
+  const { actAsTenantSlug } = useImpersonation();
   const queryClient = useQueryClient();
+  const identityKey = `${actAsTenantSlug ?? orgId ?? 'no-org'}:${userId ?? 'anonymous'}`;
   const toast = useCapiroToast();
   const { conversations, activeConversationId } = useChatStore();
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -120,13 +125,29 @@ export function VNextMeriThreadRail({
     staleTime: 30_000,
   });
 
+  const previousIdentityKeyRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    const previousIdentityKey = previousIdentityKeyRef.current;
+    if (previousIdentityKey === null) {
+      previousIdentityKeyRef.current = identityKey;
+      return;
+    }
+    if (previousIdentityKey === identityKey) return;
+    previousIdentityKeyRef.current = identityKey;
+    // Search must retain its canonical key, so remove its old identity's cached
+    // result before paint. Library keys are identity-scoped; only discard the
+    // prior identity rather than the new active query.
+    queryClient.removeQueries({ queryKey: ['meri-conversation-search'] });
+    queryClient.removeQueries({ queryKey: ['meri-vnext', previousIdentityKey] });
+  }, [identityKey, queryClient]);
+
   const savedPrompts = useQuery({
-    queryKey: ['meri-vnext', 'saved-prompts'],
+    queryKey: ['meri-vnext', identityKey, 'saved-prompts'],
     queryFn: () => listMeriSavedPrompts(api),
     staleTime: 30_000,
   });
   const workspaces = useQuery({
-    queryKey: ['meri-vnext', 'workspaces'],
+    queryKey: ['meri-vnext', identityKey, 'workspaces'],
     queryFn: () => listMeriWorkspaces(api),
     staleTime: 30_000,
   });
@@ -206,8 +227,8 @@ export function VNextMeriThreadRail({
   }, [confirmFor]);
 
   const invalidateLibrary = () => {
-    void queryClient.invalidateQueries({ queryKey: ['meri-vnext', 'saved-prompts'] });
-    void queryClient.invalidateQueries({ queryKey: ['meri-vnext', 'workspaces'] });
+    void queryClient.invalidateQueries({ queryKey: ['meri-vnext', identityKey, 'saved-prompts'] });
+    void queryClient.invalidateQueries({ queryKey: ['meri-vnext', identityKey, 'workspaces'] });
   };
 
   const handleSelect = (conversationId: string) => {

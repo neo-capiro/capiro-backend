@@ -43,6 +43,27 @@ export class DocumentsService {
   }
 
   /**
+   * Workspace-owned list for Meri's import chooser. This intentionally returns
+   * names only and applies the same parent-draft collaborator read policy as
+   * the subsequent `readForMeriImport` body fetch.
+   */
+  async listForMeriImport(tenantId: string, draftId: string, actorId: string) {
+    await this.assertDraft(tenantId, draftId);
+    await this.collaborators.assertCan(
+      tenantId,
+      draftId,
+      actorId,
+      canRead,
+      'You do not have access to this document',
+    );
+    return this.prisma.wsDocument.findMany({
+      where: { tenantId, draftId },
+      select: { id: true, name: true },
+      orderBy: { ordinal: 'asc' },
+    });
+  }
+
+  /**
    * Workspace-owned cross-surface read for Meri imports. It verifies the same
    * owner/collaborator policy as a regular document read before returning the
    * bounded document representation; callers cannot supply their own body.

@@ -43,6 +43,7 @@ import {
   mapPersistedAttachments,
   mapPersistedCharts,
   mapPersistedCitations,
+  mapPersistedContextPacketId,
   mapPersistedGroundingCaveat,
   mapPersistedRetrieval,
   mapPersistedVerification,
@@ -69,6 +70,7 @@ function historyMessage(value: unknown): ChatMessage | null {
   const citations = mapPersistedCitations(message);
   const verification = mapPersistedVerification(message);
   const groundingCaveat = mapPersistedGroundingCaveat(message);
+  const contextPacketId = mapPersistedContextPacketId(message);
   const retrieval = mapPersistedRetrieval(message);
   const groundingStatement =
     typeof message.metadata?.groundingStatement === 'string'
@@ -84,6 +86,7 @@ function historyMessage(value: unknown): ChatMessage | null {
     ...(citations.length ? { citations } : {}),
     ...(verification ? { verification } : {}),
     ...(groundingCaveat ? { groundingCaveat } : {}),
+    ...(contextPacketId ? { contextPacketId } : {}),
     ...(retrieval ? { retrieval } : {}),
     ...(groundingStatement ? { groundingStatement } : {}),
   };

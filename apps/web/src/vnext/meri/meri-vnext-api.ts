@@ -104,6 +104,13 @@ export async function saveMeriVNextPreferences(
   return (await api.put<MeriVNextPreference>('/api/clio/vnext/preferences', preference)).data;
 }
 
+export async function fetchMeriContextPacket(
+  api: AxiosInstance,
+  packetId: string,
+): Promise<MeriContextPacket> {
+  return (await api.get<MeriContextPacket>(`/api/clio/context-packets/${encodeURIComponent(packetId)}`)).data;
+}
+
 export async function fetchLatestMeriContextPacket(
   api: AxiosInstance,
   conversationId: string,

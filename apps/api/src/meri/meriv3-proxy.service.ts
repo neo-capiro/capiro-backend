@@ -378,7 +378,10 @@ export class MeriV3ProxyService {
             ? { groundingCaveat: groundingCaveat as unknown as Prisma.InputJsonValue }
             : {}),
           ...(frame?.contextPacket
-            ? { contextPacket: frame.contextPacket as unknown as Prisma.InputJsonValue }
+            ? {
+                contextPacket: frame.contextPacket as unknown as Prisma.InputJsonValue,
+                ...(frame.contextPacket.packetId ? { contextPacketId: frame.contextPacket.packetId } : {}),
+              }
             : {}),
           ...(frame?.retrieval
             ? { retrieval: frame.retrieval as unknown as Prisma.InputJsonValue }
@@ -417,6 +420,7 @@ export class MeriV3ProxyService {
     }
     emit({
       type: 'done',
+      ...(frame?.contextPacket?.packetId ? { contextPacketId: frame.contextPacket.packetId } : {}),
       ...(frame?.retrieval ? { retrieval: frame.retrieval } : {}),
     });
     this.logger.log(

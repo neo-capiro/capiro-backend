@@ -10,6 +10,7 @@ function makeService() {
     },
     wsDocument: {
       findFirst: jest.fn(async () => null),
+      findMany: jest.fn(async () => []),
     },
   };
   const collaborators = {
@@ -51,5 +52,20 @@ describe('DocumentsService Meri imports', () => {
     await expect(
       service.readForMeriImport('tenant-1', 'draft-1', 'document-missing', 'clerk-user-1'),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('requires parent-draft read access before listing document names', async () => {
+    const { service, prisma, collaborators } = makeService();
+    prisma.wsDocument.findMany.mockResolvedValue([
+      { id: 'document-1', name: 'Board memo' },
+    ] as never);
+
+    await expect(service.listForMeriImport('tenant-1', 'draft-1', 'clerk-user-1')).resolves.toEqual([
+      { id: 'document-1', name: 'Board memo' },
+    ]);
+    expect(collaborators.assertCan).toHaveBeenCalled();
+    expect(prisma.wsDocument.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { tenantId: 'tenant-1', draftId: 'draft-1' } }),
+    );
   });
 });

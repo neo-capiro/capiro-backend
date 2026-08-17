@@ -346,7 +346,7 @@ function transformRequest(
   return body;
 }
 
-function normalizeResponse(
+export function normalizeWorkspaceTransportResponse(
   pathname: string,
   method: string,
   value: unknown,
@@ -363,6 +363,28 @@ function normalizeResponse(
     /^\/workspace-api\/drafts\/[^/]+$/.test(pathname)
   ) {
     return normalizeDraft(value);
+  }
+
+  if (
+    method === 'GET' &&
+    /^\/workspace-api\/drafts\/[^/]+\/documents\/meri-import$/.test(pathname)
+  ) {
+    const rows = Array.isArray(value)
+      ? value
+      : list(object(value).documents);
+    return rows.flatMap((row) => {
+      const document = object(row);
+      return typeof document.id === 'string' && typeof document.name === 'string'
+        ? [{ id: document.id, name: document.name }]
+        : [];
+    });
+  }
+
+  if (
+    method === 'GET' &&
+    /^\/workspace-api\/drafts\/[^/]+\/documents\/[^/]+\/meri-import$/.test(pathname)
+  ) {
+    return value;
   }
 
   if (
@@ -570,7 +592,7 @@ export function installWorkspaceTransportBridge(
               : { 'Content-Type': 'application/json' },
         });
         return responseFromJson(
-          normalizeResponse(
+          normalizeWorkspaceTransportResponse(
             url.pathname,
             method,
             response.data,

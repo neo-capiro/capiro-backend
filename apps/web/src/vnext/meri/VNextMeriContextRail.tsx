@@ -175,7 +175,7 @@ export function VNextMeriContextRail({
     };
   }, [api]);
 
-  const attachedContext = useMemo(() => {
+  const pendingAttachments = useMemo(() => {
     const items = new Map<string, { id: string; title: string; kind: string }>();
     for (const attachment of controller.stagedAttachments) {
       if (UNUSABLE_ATTACHMENT_STATES.has(attachment.status)) continue;
@@ -186,25 +186,10 @@ export function VNextMeriContextRail({
         kind: attachment.status === 'uploading' ? 'UPLOADING' : String(attachment.kind || 'file').replace(/_/g, ' ').toUpperCase(),
       });
     }
-    for (const message of controller.messages) {
-      for (const attachment of message.attachments ?? []) {
-        if (UNUSABLE_ATTACHMENT_STATES.has(attachment.status)) continue;
-        items.set(attachment.id, {
-          id: attachment.id,
-          title: attachment.filename,
-          kind: String(attachment.kind || 'file').replace(/_/g, ' ').toUpperCase(),
-        });
-      }
-    }
     return [...items.values()];
-  }, [controller.messages, controller.stagedAttachments]);
+  }, [controller.stagedAttachments]);
 
-  const contextItems = useMemo(() => {
-    const items = new Map<string, { id: string; title: string; kind: string }>();
-    for (const item of activeContextLabels(packet)) items.set(item.id, item);
-    for (const item of attachedContext) items.set(item.id, item);
-    return [...items.values()];
-  }, [attachedContext, packet]);
+  const contextItems = useMemo(() => activeContextLabels(packet), [packet]);
 
   const connectedSources = managed?.apps ?? [];
   const connectedCount = connectedSources.filter((source) => source.connected).length;
@@ -289,6 +274,20 @@ export function VNextMeriContextRail({
                   ))}
                 </div>
               ) : !packetLoading && !packetError ? <div className="vnext-meri__ctx-empty">{contextPacketSummary(packet)}</div> : null}
+              {pendingAttachments.length ? (
+                <div className="vnext-meri__ctx-list" aria-label="Pending attachments">
+                  <span className="vnext-meri__section-label">PENDING ATTACHMENTS</span>
+                  {pendingAttachments.slice(0, 5).map((attachment) => (
+                    <div key={attachment.id} className="vnext-meri__ctx-item">
+                      <span className="vnext-meri__ctx-item-tile"><MeriIcon name="File05" size={14} color="#101828" /></span>
+                      <div className="vnext-meri__ctx-item-body">
+                        <span className="vnext-meri__ctx-item-title">{attachment.title}</span>
+                        <span className="vnext-meri__ctx-item-kind">{attachment.kind} · ADDED WHEN SENT</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <button type="button" className="vnext-meri__rail-action-btn" onClick={() => onOpenContext(packet, packetLoading, packetError)} disabled={!controller.activeConversationId} title={!controller.activeConversationId ? 'Create or open a thread to inspect its context.' : undefined}>
                 <MeriIcon name="Sliders02" size={14} color="#344054" />
                 Manage context

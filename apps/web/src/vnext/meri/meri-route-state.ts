@@ -159,6 +159,17 @@ export function mapPersistedVerification(message: PersistedMessage): MeriVerific
   };
 }
 
+function isUuid(value: unknown): value is string {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+export function mapPersistedContextPacketId(message: PersistedMessage): string | undefined {
+  const metadata = message.metadata;
+  if (isUuid(metadata?.contextPacketId)) return metadata.contextPacketId;
+  const packet = asRecord(metadata?.contextPacket);
+  return isUuid(packet?.packetId) ? packet.packetId : undefined;
+}
+
 export function mapPersistedGroundingCaveat(message: PersistedMessage): GroundingCaveat | undefined {
   const raw = asRecord(message.metadata?.groundingCaveat);
   const findings = Array.isArray(raw?.findings)

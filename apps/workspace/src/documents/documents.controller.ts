@@ -11,6 +11,14 @@ import { CreateDocumentDto, UpdateDocumentDto } from './dto/document.dto.js';
 export class DocumentsController {
   constructor(private readonly documents: DocumentsService) {}
 
+  @Get('meri-import')
+  listForMeriImport(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+  ) {
+    return this.documents.listForMeriImport(ctx.tenantId, draftId, ctx.clerkUserId);
+  }
+
   @Get()
   list(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
     return this.documents.list(ctx.tenantId, draftId);

@@ -39,6 +39,7 @@ import {
   setChatMessageVerification,
   setChatMessageGroundingCaveat,
   setChatMessageGroundingStatement,
+  setChatMessageContextPacketId,
   setChatMessageSuggestions,
   setChatMessageFeedback,
   setStreaming,
@@ -128,6 +129,7 @@ type SseEvent =
   // mirrors the backend's RetrievalFrame (version: 1).
   | {
       type: 'done';
+      contextPacketId?: string;
       retrieval?: {
         plan: {
           subjectScope: string;
@@ -1558,6 +1560,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                 [assistantId]: { topic: event.topic, reason: event.reason },
               }));
             } else if (event.type === 'done') {
+              // Evidence must resolve the immutable packet from this response,
+              // never whichever packet happened to be compiled most recently.
+              if (typeof event.contextPacketId === 'string' && event.contextPacketId) {
+                setChatMessageContextPacketId(assistantId, event.contextPacketId);
+              }
               // Capture the backend retrieval plan (subjectScope, coverage)
               // so the thread scope label reflects the actual retrieval scope
               // instead of always printing "Client context · <client>".

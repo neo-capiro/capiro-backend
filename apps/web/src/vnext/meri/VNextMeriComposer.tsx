@@ -1,10 +1,12 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import {
   attachmentKindIcon,
   truncateFilenameMiddle,
@@ -14,9 +16,12 @@ import type { MeriChatController } from '../../components/chat/useMeriChatContro
 import { maySend } from '../../components/chat/meri-route-guards.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import { useApi } from '../../lib/use-api.js';
+import { useImpersonation } from '../../state/impersonation.js';
 import { MeriIcon } from './meri-icons.js';
 import {
+  mayApplyWorkspaceImportResponse,
   workspaceDocumentComposerText,
+  workspaceImportDocumentsResponse,
   workspaceImportDraftsResponse,
   type MeriWorkspaceImportDraft,
 } from './meri-workspace-import.js';
@@ -48,6 +53,11 @@ export function VNextMeriComposer({
 }: VNextMeriComposerProps) {
   const toast = useCapiroToast();
   const api = useApi();
+  const { orgId, userId } = useAuth();
+  const { actAsTenantSlug } = useImpersonation();
+  const workspaceIdentityKey = `${actAsTenantSlug ?? orgId ?? 'no-org'}:${userId ?? 'anonymous'}`;
+  const workspaceIdentityKeyRef = useRef(workspaceIdentityKey);
+  workspaceIdentityKeyRef.current = workspaceIdentityKey;
   const [draft, setDraft] = useState('');
   const [focused, setFocused] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -114,14 +124,34 @@ export function VNextMeriComposer({
     [api],
   );
 
+  // Workspace drafts are tenant-private. Do not keep a prior tenant's list or
+  // selected document visible while the Clerk organization / admin impersonation
+  // changes; the next request is made only in the new authenticated context.
+  const previousWorkspaceIdentityKeyRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (previousWorkspaceIdentityKeyRef.current === null) {
+      previousWorkspaceIdentityKeyRef.current = workspaceIdentityKey;
+      return;
+    }
+    if (previousWorkspaceIdentityKeyRef.current === workspaceIdentityKey) return;
+    previousWorkspaceIdentityKeyRef.current = workspaceIdentityKey;
+    setWorkspaceImportOpen(false);
+    setWorkspaceDrafts([]);
+    setWorkspaceDocuments({});
+    setWorkspaceImportError(null);
+    setWorkspaceImportLoading(false);
+    setWorkspaceDocumentLoading(null);
+  }, [workspaceIdentityKey]);
+
   useEffect(() => {
     if (!workspaceImportOpen) return;
     let cancelled = false;
+    const requestIdentityKey = workspaceIdentityKey;
     setWorkspaceImportLoading(true);
     setWorkspaceImportError(null);
     void workspaceRequest('/workspace-api/drafts?scope=all')
       .then((data) => {
-        if (cancelled) return;
+        if (!mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current) || cancelled) return;
         setWorkspaceDrafts(workspaceImportDraftsResponse(data));
         setWorkspaceDocuments({});
       })
@@ -132,21 +162,25 @@ export function VNextMeriComposer({
         }
       })
       .finally(() => {
-        if (!cancelled) setWorkspaceImportLoading(false);
+        if (!cancelled && mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) {
+          setWorkspaceImportLoading(false);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [workspaceImportOpen, workspaceRequest]);
+  }, [workspaceIdentityKey, workspaceImportOpen, workspaceRequest]);
 
   const loadWorkspaceDocument = useCallback(
     async (draftId: string, documentId: string) => {
+      const requestIdentityKey = workspaceIdentityKeyRef.current;
       setWorkspaceDocumentLoading(documentId);
       setWorkspaceImportError(null);
       try {
         const data = await workspaceRequest(
           `/workspace-api/drafts/${encodeURIComponent(draftId)}/documents/${encodeURIComponent(documentId)}/meri-import`,
         );
+        if (!mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) return;
         const composerText = workspaceDocumentComposerText(data);
         if (!composerText) {
           setWorkspaceImportError('This workspace document has no readable text.');
@@ -156,9 +190,13 @@ export function VNextMeriComposer({
         setWorkspaceImportOpen(false);
         window.setTimeout(() => textareaRef.current?.focus(), 0);
       } catch {
-        setWorkspaceImportError('The workspace document could not be loaded.');
+        if (mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) {
+          setWorkspaceImportError('The workspace document could not be loaded.');
+        }
       } finally {
-        setWorkspaceDocumentLoading(null);
+        if (mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) {
+          setWorkspaceDocumentLoading(null);
+        }
       }
     },
     [workspaceRequest],
@@ -170,24 +208,23 @@ export function VNextMeriComposer({
         setWorkspaceDocuments((current) => ({ ...current, [draftId]: null }));
         return;
       }
+      const requestIdentityKey = workspaceIdentityKeyRef.current;
       setWorkspaceDocumentLoading(draftId);
       setWorkspaceImportError(null);
       try {
-        const data = await workspaceRequest(`/workspace-api/drafts/${encodeURIComponent(draftId)}`);
-        const documents =
-          data && typeof data === 'object' && Array.isArray((data as { documents?: unknown }).documents)
-            ? (data as { documents: Array<{ id: unknown; name: unknown }> }).documents.flatMap((document) =>
-                typeof document.id === 'string' && typeof document.name === 'string'
-                  ? [{ id: document.id, name: document.name }]
-                  : [],
-              )
-            : [];
+        const data = await workspaceRequest(`/workspace-api/drafts/${encodeURIComponent(draftId)}/documents/meri-import`);
+        if (!mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) return;
+        const documents = workspaceImportDocumentsResponse(data);
         setWorkspaceDocuments((current) => ({ ...current, [draftId]: documents }));
         if (!documents.length) setWorkspaceImportError('This workspace draft has no readable documents.');
       } catch {
-        setWorkspaceImportError('The workspace draft could not be loaded.');
+        if (mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) {
+          setWorkspaceImportError('The workspace draft could not be loaded.');
+        }
       } finally {
-        setWorkspaceDocumentLoading(null);
+        if (mayApplyWorkspaceImportResponse(requestIdentityKey, workspaceIdentityKeyRef.current)) {
+          setWorkspaceDocumentLoading(null);
+        }
       }
     },
     [workspaceDocuments, workspaceRequest],

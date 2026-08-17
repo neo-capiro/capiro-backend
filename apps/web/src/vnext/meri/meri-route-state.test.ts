@@ -3,6 +3,7 @@ import {
   legacyMeriWindowRedirect,
   mapPersistedAttachments,
   mapPersistedCharts,
+  mapPersistedContextPacketId,
   meriContextRequest,
   newestConversation,
   normalizeConversation,
@@ -83,6 +84,15 @@ describe('vNext Meri route state', () => {
     expect(older).toBeTruthy();
     expect(newer).toBeTruthy();
     expect(newestConversation([older!, newer!])?.id).toBe('newer');
+  });
+
+  test('uses only UUID-shaped response-persisted context packet ids', () => {
+    const packetId = 'de305d54-75b4-431b-adb2-eb6b9e546014';
+    expect(mapPersistedContextPacketId({ metadata: { contextPacketId: packetId } })).toBe(packetId);
+    expect(mapPersistedContextPacketId({ metadata: { contextPacket: { packetId } } })).toBe(packetId);
+    expect(mapPersistedContextPacketId({ metadata: { contextPacketId: 'not-a-uuid' } })).toBeUndefined();
+    expect(mapPersistedContextPacketId({ metadata: { contextPacket: { packetId: 42 } } })).toBeUndefined();
+    expect(mapPersistedContextPacketId({ metadata: {} })).toBeUndefined();
   });
 
   test('restores only persisted attachments and analysis chart artifacts with ids', () => {
