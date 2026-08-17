@@ -3,6 +3,16 @@
   opacity: 0.48;
 }
 
+/* Candidate signals (item 5) — real pill components instead of a plain
+   " · "-joined text line. Layout only; tone/color comes entirely from the
+   `.eng-pill--*` classes themselves. */
+.ov3-target-card__signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
 .ov3-target-criteria {
   background: var(--ov3-subtle);
   border: 1px solid var(--ov3-border);

@@ -4,9 +4,72 @@
  * banner, and the post-generation action bar (Regenerate · Edit · Export PDF ·
  * Approve). Presentational; the tabs wire the real mutations in.
  */
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, CSSProperties } from 'react';
 import { Check, Download, Pencil, RefreshCw } from 'lucide-react';
 import { MeriGlyph } from './meetings-ui.js';
+
+/**
+ * Top-of-tab stage pill — reskin phase (vNext Engagement drawer, navy design).
+ * The design reference renders a tone-driven pill immediately under the tab
+ * strip on all three tabs (prep/notes/debrief), reflecting that tab's current
+ * stage. Before this, PrepTab and DebriefTab rendered no such pill at all, and
+ * NotesTab had a partial version ("Summarized") placed mid-content instead of
+ * at the top — this component is the single shared implementation all three
+ * now use, so the tone table and shape can't drift between tabs.
+ *
+ * Uses the `.eng-pill` classes from engagement-tones.css (spec: navy/gray/
+ * warn/err, 6px dot) — these are generic pills, not vNext-exclusive, so this
+ * lives in the shared tab-kit rather than being forked per app. NOTE: as
+ * built today, engagement-tones.css's rules are all scoped under
+ * `.capiro-vnext-root` (see that file's own header: "vNext-only"), which only
+ * exists on os.capiro.ai — so on app.capiro.ai this pill currently renders as
+ * unstyled text + a bare dot (no color/shape) until that scope is relaxed.
+ * Flagged in the phase report rather than silently restructured here, since
+ * engagement-tones.css belongs to an earlier reskin phase and changing its
+ * scoping strategy is a separate decision.
+ */
+export function StagePill({
+  label,
+  tone,
+  style,
+}: {
+  label: string;
+  tone: 'navy' | 'gray' | 'warn' | 'err';
+  /** Override spacing for callers that already control gaps themselves (e.g.
+   *  a flex column with its own `gap`) — defaults to a 16px bottom margin,
+   *  which is right for the tabs' plain-`<div>` (non-gap) layouts. */
+  style?: CSSProperties;
+}) {
+  return (
+    <span className={`eng-pill eng-pill--${tone}`} style={{ marginBottom: 16, ...style }}>
+      <span className="eng-pill__dot" />
+      {label}
+    </span>
+  );
+}
+
+/**
+ * Closing rule-reinforcement sentence — small print pinned to the bottom of a
+ * populated tab body, restating the one rule specific to that artifact (e.g.
+ * "Approval never implies sharing"). Shared shell so the three tabs' copy
+ * differs but the placement/styling doesn't drift.
+ */
+export function RuleReinforcement({ children }: { children: string }) {
+  return (
+    <p
+      style={{
+        margin: '20px 0 0',
+        paddingTop: 14,
+        borderTop: '1px solid var(--border-1)',
+        fontSize: 11.5,
+        lineHeight: 1.5,
+        color: 'var(--ink-4)',
+      }}
+    >
+      {children}
+    </p>
+  );
+}
 
 export function GeneratingState({ label, sub }: { label: string; sub?: string }) {
   return (

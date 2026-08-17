@@ -205,12 +205,17 @@ function ChoiceCard({
   description,
   icon,
   onClick,
+  footerWarning,
 }: {
   selected: boolean;
   title: string;
   description: string;
   icon?: ReactNode;
   onClick: () => void;
+  /** Additive, optional: renders the mandated warning-bar treatment at the
+   *  card's foot (see the Shared thread delivery card). Every other
+   *  ChoiceCard caller omits this and is unaffected. */
+  footerWarning?: boolean;
 }) {
   return (
     <button
@@ -227,6 +232,7 @@ function ChoiceCard({
         <strong>{title}</strong>
         <small>{description}</small>
       </span>
+      {footerWarning ? <i className="ov3-choice-card__warning-bar" aria-hidden="true" /> : null}
     </button>
   );
 }
@@ -975,13 +981,45 @@ function TargetsSurface(props: DecisionSurfacesProps) {
   );
 }
 
-function DeliverySurface({ session, busy, applyCommands }: DecisionSurfacesProps) {
+// Single source of truth for the pattern's display title — used for both the
+// choice card itself and the recommendation aside below, so a recommended
+// "uniform_separate" reads as "Same message separate" in both places instead
+// of the aside falling back to a generic `sentence()` Title-Case of the raw
+// key ("Uniform Separate").
+const DELIVERY_PATTERN_TITLE: Record<Exclude<OutreachV3DeliveryPattern, 'undecided'>, string> = {
+  personalized_separate: 'Personalized separate',
+  uniform_separate: 'Same message separate',
+  shared_thread: 'Shared thread',
+};
+
+function DeliverySurface({
+  session,
+  busy,
+  applyCommands,
+  strategy,
+  strategyPending,
+  strategyError,
+}: DecisionSurfacesProps) {
   const delivery = session.spec.delivery;
   const [pattern, setPattern] = useState<OutreachV3DeliveryPattern>(delivery.pattern);
   const [personalization, setPersonalization] = useState<OutreachV3Personalization>(
     delivery.personalization,
   );
   const [error, setError] = useState<string | null>(null);
+
+  // Real, already-fetched strategy recommendation — the same capability and
+  // field shape DeliveryDecisionSurface.tsx's "accepted" contract already
+  // reads (recommendedPattern/recommendedPersonalization/rationale flat on
+  // `data`). This surface previously ignored `strategy` entirely and always
+  // showed a hardcoded "Personalized separate · light" default regardless of
+  // what Meri actually recommended for the current campaign.
+  const recommendation = strategy?.data as
+    | (OutreachV3StrategyData & {
+        recommendedPattern?: OutreachV3DeliveryPattern;
+        recommendedPersonalization?: OutreachV3Personalization;
+      })
+    | undefined;
+  const recommendedPattern = recommendation?.recommendedPattern;
 
   const submit = async () => {
     if (pattern === 'undecided' || personalization === 'undecided') {
@@ -1004,24 +1042,25 @@ function DeliverySurface({ session, busy, applyCommands }: DecisionSurfacesProps
           <span className="ov3-section-label">Delivery pattern</span>
           <ChoiceCard
             selected={pattern === 'personalized_separate'}
-            title="Personalized separate"
+            title={DELIVERY_PATTERN_TITLE.personalized_separate}
             description="Each recipient gets an independently reviewable message. Recipients are hidden from one another."
             icon={<Mail />}
             onClick={() => setPattern('personalized_separate')}
           />
           <ChoiceCard
             selected={pattern === 'uniform_separate'}
-            title="Uniform separate"
+            title={DELIVERY_PATTERN_TITLE.uniform_separate}
             description="One approved message is delivered separately to each recipient."
             icon={<Mail />}
             onClick={() => setPattern('uniform_separate')}
           />
           <ChoiceCard
             selected={pattern === 'shared_thread'}
-            title="Shared thread"
+            title={DELIVERY_PATTERN_TITLE.shared_thread}
             description="One email thread with the recipient list visible to everyone."
             icon={<UsersRound />}
             onClick={() => setPattern('shared_thread')}
+            footerWarning
           />
 
           <span className="ov3-section-label">Personalization level</span>
@@ -1051,10 +1090,26 @@ function DeliverySurface({ session, busy, applyCommands }: DecisionSurfacesProps
         <aside className="ov3-guidance-card">
           <Sparkles size={18} />
           <span className="ov3-eyebrow">Recommended default</span>
-          <h3>Personalized separate · light</h3>
+          <h3>
+            {strategyPending
+              ? 'Reviewing the current campaign'
+              : recommendedPattern && recommendedPattern !== 'undecided'
+                ? DELIVERY_PATTERN_TITLE[recommendedPattern]
+                : 'Personalized separate · light'}
+          </h3>
           <p>
             This keeps target scope independently reviewable without overusing personal details.
           </p>
+          {recommendation?.rationale?.length ? (
+            <div className="ov3-consequence-chips">
+              {recommendation.rationale.slice(0, 4).map((item) => (
+                <span key={item} className="eng-pill eng-pill--navy eng-pill--sm">
+                  <span className="eng-pill__dot" />
+                  {item}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <dl className="ov3-detail-list">
             <div><dt>Selected targets</dt><dd>{session.spec.targeting.selectedTargetRefs.length}</dd></div>
             <div><dt>Recipient visibility</dt><dd>{pattern === 'shared_thread' ? 'Visible' : 'Hidden'}</dd></div>
@@ -1062,7 +1117,7 @@ function DeliverySurface({ session, busy, applyCommands }: DecisionSurfacesProps
           </dl>
         </aside>
       </div>
-      <ErrorNotice message={error} />
+      <ErrorNotice message={error ?? strategyError} />
       <FooterActions hint="This stage chooses delivery semantics; it does not generate or send email.">
         <button type="button" className="ov3-button is-primary" onClick={() => void submit()} disabled={busy}>
           Confirm delivery

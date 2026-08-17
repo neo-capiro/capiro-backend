@@ -40,6 +40,35 @@ export interface EngagementDialogProps {
   dirty?: boolean;
   closeLabel?: string;
   onClose: () => void;
+  /**
+   * Portal target override. Defaults to auto-detecting a `.engagement-vnext`
+   * wrapper (see `defaultPortalContainer` below) and falling back to
+   * `document.body` when none is mounted — i.e. unchanged behavior on
+   * app.capiro.ai. Pass an explicit element only for tests or unusual hosts.
+   */
+  portalContainer?: HTMLElement | null;
+}
+
+/**
+ * Every vNext Engagement surface renders inside a `.capiro-vnext-root
+ * .engagement-vnext` wrapper that carries the module's navy CSS custom
+ * properties (`--eng-accent` etc. — see engagement.css / drawer-vnext.css).
+ * `EngagementDialog` previously always portaled to `document.body`, a
+ * sibling of that wrapper — every dialog it opens (Assign, Attendees, Edit
+ * Prep/Notes/Debrief, Upload, New meeting, and now Send Meri/Share) rendered
+ * OUTSIDE that scope and so silently kept the shell's default gray/indigo
+ * look on os.capiro.ai instead of navy (flagged as a known gap during the
+ * meeting-drawer phase of this reskin). Auto-targeting the nearest mounted
+ * `.engagement-vnext` fixes every current and future EngagementDialog caller
+ * at once, with no per-call-site change required. On app.capiro.ai, no such
+ * element exists, so this always falls back to `document.body` — unchanged.
+ */
+// Only called after the `typeof document === 'undefined'` guard below, so
+// `document` is always defined here.
+function defaultPortalContainer(): HTMLElement {
+  return (
+    document.querySelector<HTMLElement>('.capiro-vnext-root .engagement-vnext') ?? document.body
+  );
 }
 
 /**
@@ -61,6 +90,7 @@ export function EngagementDialog({
   dirty = false,
   closeLabel = 'Close',
   onClose,
+  portalContainer,
 }: EngagementDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
@@ -132,6 +162,8 @@ export function EngagementDialog({
     if (event.target === event.currentTarget) requestClose();
   };
 
+  const container = portalContainer ?? defaultPortalContainer();
+
   return createPortal(
     <div className="engagement-dialog-layer" role="presentation" onMouseDown={onScrimMouseDown}>
       <div
@@ -181,6 +213,6 @@ export function EngagementDialog({
         {footer ? <footer className="engagement-dialog__footer">{footer}</footer> : null}
       </div>
     </div>,
-    document.body,
+    container,
   );
 }

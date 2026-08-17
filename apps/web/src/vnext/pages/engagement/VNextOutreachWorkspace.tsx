@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowUp,
+  Ban,
   Check,
   ChevronDown,
   ChevronUp,
@@ -40,6 +41,7 @@ import {
   getOutreachV3GenerationPlan,
   getOutreachV3SendIntent,
   getOutreachV3SendSettings,
+  listOutreachAttachments,
   listOutreachV3Drafts,
   listOutreachReplyCandidates,
   proposeOutreachReplyLearning,
@@ -54,13 +56,19 @@ import {
   type OutreachV3DraftArtifact,
   type OutreachV3DraftVersion,
   type OutreachV3GenerationPlan,
+  type OutreachV3CheckState,
   type OutreachV3NamedPreflightCheck,
+  type OutreachV3PreflightDraftResult,
   type OutreachV3PreflightInput,
   type OutreachV3SendIntentView,
   type OutreachV3ServerPreflight,
 } from './engagement-api.js';
 import '../../../pages/engagement/outreach/v3/outreach-v3.css';
 import '../../../pages/engagement/outreach/v3/planning-surfaces.css';
+// Re-themes the shared ov3-root component tree (Goal/Targets/Delivery step
+// bodies) to literal navy with zero edits to those canonical files — see this
+// file's header comment for the specificity/scoping rationale.
+import './outreach-body-vnext.css';
 
 export type EngagementOutreachStep =
   | 'goal'
@@ -94,6 +102,17 @@ const USER_STEPS: Array<{ key: EngagementOutreachStep; label: string; number: st
   { key: 'drafts', label: 'Drafts', number: '05' },
   { key: 'send', label: 'Send', number: '06' },
 ];
+
+// One initial per step for the narrow-width dot rail. "Dr" (not "D") for
+// Drafts specifically because Delivery already claims the plain "D".
+const STEP_DOT_LABEL: Record<EngagementOutreachStep, string> = {
+  goal: 'G',
+  targets: 'T',
+  delivery: 'D',
+  context: 'C',
+  drafts: 'Dr',
+  send: 'S',
+};
 
 const PLANNING_STAGE_INDEX: Record<OutreachV3Stage, number> = {
   goal: 0,
@@ -146,16 +165,271 @@ function statusTone(status: string): 'navy' | 'warning' | 'neutral' | 'error' {
   return 'neutral';
 }
 
-function SectionStatus({ value }: { value: 'Waiting' | 'In progress' | 'Locked' }) {
+/**
+ * Backend preflight blocker codes (see apps/api's
+ * OUTREACH_V3_PREFLIGHT_BLOCKER_CODES) translated to short, human-readable
+ * reasons for the held-out recipient list. Falls back to a sentence-cased
+ * version of the raw code for anything unmapped, so an unrecognized future
+ * code never renders blank or throws — it just looks a little less polished
+ * until this map is extended.
+ */
+const PREFLIGHT_BLOCKER_LABEL: Record<string, string> = {
+  GENERATION_PLAN_NOT_ELIGIBLE: 'Campaign plan is not generation-eligible',
+  SENDER_REQUIRED: 'No sending mailbox selected',
+  SENDER_NOT_AUTHORIZED: 'Sending mailbox is not authorized',
+  ATTACHMENT_NOT_READY: 'An attachment is not ready',
+  EXCLUSION_NOT_IN_PLAN: 'Held-out recipient is not part of the current plan',
+  DRAFT_MISSING: 'No current draft for this recipient',
+  DRAFT_DUPLICATE: 'More than one current draft for this recipient',
+  DRAFT_NOT_EXACTLY_APPROVED: 'Exact version is not approved',
+  DRAFT_DIRTY: 'Draft changed after generation',
+  DRAFT_STALE: 'Draft is stale for the current plan',
+  DRAFT_HELD: 'Draft is held for review',
+  DRAFT_FAILED: 'Draft generation failed',
+  AUDIT_UNAVAILABLE: 'Draft has no audit verdict yet',
+  RECIPIENT_SNAPSHOT_STALE: 'Recipient changed after generation',
+  RECIPIENT_EMAIL_MISSING: 'Recipient email is missing or malformed',
+  RECIPIENT_EMAIL_COLLISION: 'Recipient email collides with another recipient',
+  TEST_SEND_REQUIRES_ONE_DRAFT: 'Test send requires exactly one draft',
+};
+
+export function humanizeBlockerCode(code: string): string {
   return (
-    <span
-      className="uui-outreach-section-status"
-      data-state={value.toLowerCase().replace(' ', '-')}
-    >
+    PREFLIGHT_BLOCKER_LABEL[code] ??
+    code
+      .toLowerCase()
+      .replaceAll('_', ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
+}
+
+/**
+ * Real tracked delivery states only (Sent/Failed/Unknown/Skipped/Held — see
+ * OutreachV3SendIntentView.totals). The mockup's Delivered/Bounced/Replied
+ * labels do not correspond to any aggregate the backend actually tracks, so
+ * they are deliberately NOT used — see this file's Send-panel notes. This
+ * map only adds tone-coded number styling to the real tiles.
+ */
+const DELIVERY_STAT_TONE: Record<string, 'navy' | 'warning' | 'neutral' | 'error'> = {
+  Sent: 'navy',
+  Failed: 'error',
+  Unknown: 'neutral',
+  Skipped: 'neutral',
+  Held: 'warning',
+};
+
+/**
+ * Client-side approximation of apps/api's AttachmentContentService.readiness,
+ * for DISPLAY ONLY. The real gate always re-runs server-side (the
+ * `attachments` named preflight check, and OUTREACH_COMMAND_BLOCKED on
+ * settings save) — this only decides which dot/tone a chip shows before
+ * that; getting a status "wrong" here cannot let an unready attachment reach
+ * send, it can only mislabel a chip.
+ */
+export function attachmentTone(
+  attachment: OutreachAttachment | undefined,
+): { tone: 'navy' | 'warning' | 'neutral' | 'error'; label: string } {
+  if (!attachment) return { tone: 'neutral', label: 'Unknown' };
+  const lifecycle = attachment.lifecycleStatus ?? 'ready';
+  const scan = attachment.scanStatus ?? null;
+  if (lifecycle === 'blocked' || scan === 'threat') return { tone: 'error', label: 'Blocked' };
+  if (lifecycle === 'delete_pending' || lifecycle === 'delete_failed') {
+    return { tone: 'error', label: 'Deleted' };
+  }
+  if (scan === 'failed' || scan === 'access_denied' || scan === 'unsupported') {
+    return { tone: 'error', label: 'Scan failed' };
+  }
+  if (
+    lifecycle === 'quarantined' ||
+    scan === 'pending' ||
+    scan == null ||
+    scan === 'scanner_not_required'
+  ) {
+    return { tone: 'warning', label: 'Processing' };
+  }
+  if (scan === 'clean') return { tone: 'navy', label: 'Ready' };
+  return { tone: 'neutral', label: 'Unknown' };
+}
+
+/** Client-only row state for preflight rows with no real backend signal. */
+type HonestCheckState = OutreachV3CheckState | 'unavailable';
+
+interface HonestPreflightRow {
+  key: string;
+  label: string;
+  detail: string;
+  state: HonestCheckState;
+}
+
+const NO_AUTOMATED_CHECK_DETAIL = 'No automated check yet — verify manually.';
+
+/**
+ * Reshapes the server's 14 real named checks into the mockup's row
+ * vocabulary — see this phase's report for full row-by-row reasoning. Two
+ * REAL checks each back two rows (`versions` -> "Exact draft versions" +
+ * "Stale or dirty draft"; `emails` -> the email-format row + "Duplicate
+ * recipients"): both rows in a pair always read the SAME live state/detail
+ * from the ONE real check — never two independent booleans invented for one
+ * signal. Three rows ("Role policy", "Shared visibility", "Context checks")
+ * have no real backend check at all and render with state 'unavailable' — a
+ * client-only tone that intentionally does not exist in OutreachV3CheckState,
+ * so it can never be confused with a real pass. `preflight.eligible` (the
+ * only thing that actually gates sending) comes straight from the server and
+ * is never touched by this function, so these three rows can never
+ * contribute to send-enablement. The remaining real checks (audit /
+ * recipients / intent) are kept as trailing rows rather than dropped: hiding
+ * a real, currently-gating check purely to hit an exact row count was judged
+ * less safe than showing a few extra honest rows (see report). `scope` and
+ * `held` are intentionally NOT repeated here — both get their own dedicated,
+ * more detailed panels elsewhere on this screen.
+ */
+export function buildHonestPreflightRows(
+  checks: OutreachV3NamedPreflightCheck[],
+): HonestPreflightRow[] {
+  const byKey = new Map(checks.map((entry) => [entry.key, entry]));
+  const real = (key: string, label: string): HonestPreflightRow => {
+    const source = byKey.get(key);
+    return {
+      key,
+      label,
+      detail: source?.detail ?? 'Not evaluated by the current preflight run.',
+      state: source?.state ?? 'review',
+    };
+  };
+  const gap = (key: string, label: string): HonestPreflightRow => ({
+    key,
+    label,
+    detail: NO_AUTOMATED_CHECK_DETAIL,
+    state: 'unavailable',
+  });
+  const versions = byKey.get('versions');
+  const emails = byKey.get('emails');
+  const versionsPairRow = (key: string, label: string): HonestPreflightRow => ({
+    key,
+    label,
+    detail: versions?.detail ?? 'Not evaluated by the current preflight run.',
+    state: versions?.state ?? 'review',
+  });
+  const emailsDetail = emails?.detail ?? 'Not evaluated by the current preflight run.';
+
+  return [
+    real('campaign', 'Campaign plan'),
+    versionsPairRow('versions-exact', 'Exact draft versions'),
+    real('sender', 'Sender'),
+    real('sender-auth', 'Sender authorization'),
+    real('signature', 'Signature'),
+    versionsPairRow('versions-stale', 'Stale or dirty draft'),
+    real('attachments', 'Attachments'),
+    gap('role-policy', 'Role policy'),
+    {
+      key: 'emails-format',
+      label: 'Recipient email',
+      // The mockup's row 9 literally reads "Verified addresses" — the real
+      // `emails` check only tests presence/format/no-collision, never actual
+      // deliverability or identity verification. Renamed away from
+      // "Verified", and the detail always says so explicitly, rather than
+      // shipping a label implying a verification step that doesn't exist.
+      detail: `${emailsDetail} Format and uniqueness only — addresses are not independently verified.`,
+      state: emails?.state ?? 'review',
+    },
+    {
+      key: 'emails-duplicate',
+      label: 'Duplicate recipients',
+      detail: emailsDetail,
+      state: emails?.state ?? 'review',
+    },
+    gap('shared-visibility', 'Shared visibility'),
+    real('drafts', 'Draft coverage'),
+    gap('context-checks', 'Context checks'),
+    real('approval', 'Author approval'),
+    real('audit', 'Assurance review'),
+    real('recipients', 'Recipient snapshots'),
+    real('intent', 'Send intent'),
+  ];
+}
+
+/**
+ * Real, already-committed per-campaign strategy text for the Drafts step's
+ * strategy card. `session.spec.strategy.campaignAngle`/`.tone` are set via
+ * StrategyDecisionSurface (SET_STRATEGY) before the campaign can reach
+ * 'ready_for_generation' — DraftPanel only renders once that stage is
+ * reached, so the primary branch below should always have real text. The
+ * fallback exists only as a safety net if that stage gate is ever loosened;
+ * it derives from other real, already-decided fields (goal, delivery
+ * pattern) rather than inventing campaign-specific copy.
+ */
+export function draftStrategyHeadline(
+  session: NonNullable<ReturnType<typeof useOutreachV3Session>['session']>,
+): { headline: string; sub: string } {
+  const angle = session.spec.strategy.campaignAngle?.trim();
+  if (angle) {
+    const tone = session.spec.strategy.tone?.trim();
+    return {
+      headline: angle,
+      sub: tone
+        ? `Tone: ${tone}. The current delivery policy and governed context determine which facts may reach each sample.`
+        : 'The current delivery policy and governed context determine which facts may reach each sample.',
+    };
+  }
+  const goal = session.spec.goal.topic || session.spec.goal.goal || 'This campaign';
+  const pattern =
+    session.spec.delivery.pattern === 'undecided'
+      ? 'an undecided delivery pattern'
+      : session.spec.delivery.pattern.replaceAll('_', ' ');
+  return {
+    headline: `${goal} — sent via ${pattern}`,
+    sub: 'No campaign angle has been confirmed yet; showing goal and delivery pattern instead.',
+  };
+}
+
+/**
+ * Tone/color key for the accordion status pill. Kept separate from the
+ * DISPLAYED label below: engagement-ui-closeout.css keys its color rules off
+ * `data-state="waiting"` (muted/gray — correct for "not yet reachable") and
+ * `data-state="locked"` (navy — correct for "answered/complete"). Those
+ * mappings are already right; only the human-readable words were swapped
+ * (see SECTION_STATUS_LABEL), so `state` intentionally keeps these exact
+ * strings unchanged to avoid touching the tone/color CSS at all.
+ */
+type SectionToneState = 'waiting' | 'in-progress' | 'locked';
+
+/**
+ * Fixes a real vocabulary bug: sections that are answered/complete used to
+ * display the literal word "Locked", and sections not yet reached displayed
+ * "Waiting" — backwards from the mockup's LOCKED (not yet reachable) /
+ * IN PROGRESS / COMPLETE (answered) vocabulary. Only the displayed text
+ * changes here; `SectionToneState` (and therefore the CSS tone it drives)
+ * stays the same.
+ */
+const SECTION_STATUS_LABEL: Record<SectionToneState, string> = {
+  waiting: 'Locked',
+  'in-progress': 'In progress',
+  locked: 'Complete',
+};
+
+function SectionStatus({ state }: { state: SectionToneState }) {
+  return (
+    <span className="uui-outreach-section-status" data-state={state}>
       <i />
-      {value}
+      {SECTION_STATUS_LABEL[state]}
     </span>
   );
+}
+
+/**
+ * Chat pane header pill. Resolves to "Sent" once a durable send intent
+ * exists, "Drafts" once the approach is approved (immutable drafts exist to
+ * review), otherwise the current step name — matching the mockup, which
+ * never shows a raw step key once the campaign has moved past planning.
+ */
+export function outreachChatStateLabel(
+  step: EngagementOutreachStep,
+  hasActiveIntent: boolean,
+  approachApproved: boolean,
+): string {
+  if (hasActiveIntent) return 'Sent';
+  if (approachApproved) return 'Drafts';
+  return step.toUpperCase();
 }
 
 function transcriptLabel(turn: OutreachV3TranscriptTurn): string {
@@ -285,6 +559,7 @@ function DraftEditModal({
 }
 
 function DraftPanel({
+  session,
   plan,
   drafts,
   approvalCurrent,
@@ -299,6 +574,7 @@ function DraftPanel({
   onApproveDraft,
   approvalBusy,
 }: {
+  session: NonNullable<ReturnType<typeof useOutreachV3Session>['session']>;
   plan: OutreachV3GenerationPlan | null;
   drafts: OutreachV3DraftArtifact[];
   approvalCurrent: boolean;
@@ -318,6 +594,8 @@ function DraftPanel({
   approvalBusy: boolean;
 }) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const strategyHeadline = draftStrategyHeadline(session);
+  const failedItems = job?.items?.filter((item) => item.status === 'failed') ?? [];
   const samples = plan
     ? drafts.filter((artifact) => plan.representativeSampleKeys.includes(artifact.generationKey))
     : [];
@@ -368,11 +646,8 @@ function DraftPanel({
         <div className="uui-approach-grid">
           <article className="uui-strategy-card">
             <span className="uui-eyebrow">Strategy</span>
-            <h3>Lead with what changed, then the recipient's most relevant open question.</h3>
-            <p>
-              The current delivery policy and governed context determine which facts may reach each
-              sample.
-            </p>
+            <h3>{strategyHeadline.headline}</h3>
+            <p>{strategyHeadline.sub}</p>
             <dl>
               <div>
                 <dt>Personalization</dt>
@@ -444,7 +719,8 @@ function DraftPanel({
         </div>
       ) : (
         <>
-          {job && !['complete', 'failed', 'canceled'].includes(job.status) ? (
+          {job &&
+          (!['complete', 'failed', 'canceled'].includes(job.status) || failedItems.length > 0) ? (
             <div className="uui-generation-progress">
               <div>
                 <span className="uui-eyebrow">Generation recovery</span>
@@ -452,19 +728,47 @@ function DraftPanel({
                   {finished} of {total || plan.slots.length} complete
                 </strong>
                 <p>
-                  Finished drafts persist as immutable versions. Retry resumes unfinished keys only.
+                  Finished drafts persist as immutable versions. Retry resumes unfinished keys only
+                  — it never re-spends on already-completed drafts.
                 </p>
               </div>
               <div className="uui-progress-track">
                 <i style={{ width: `${Math.min(100, total ? (finished / total) * 100 : 0)}%` }} />
               </div>
+              {failedItems.length ? (
+                <div className="uui-generation-failures">
+                  {failedItems.map((item) => (
+                    <div key={item.id}>
+                      <span>{item.error?.message || 'Generation failed'}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {/* Mockup wants Retry + Continue together, side by side — consolidated
+                  here from what used to be two separate UI locations (a per-item
+                  Retry that lived only in a standalone failures block, and a
+                  Continue+Cancel pair in this progress panel). Retry still calls
+                  the SAME per-item retry endpoint for each currently-failed item
+                  (never a bulk "regenerate everything"), so it only re-queues the
+                  specific failed slot(s) — completed slots are never touched. */}
               <div className="uui-generation-progress__actions">
-                <button type="button" className="uui-button" onClick={onGenerateRemaining}>
+                {failedItems.length ? (
+                  <button
+                    type="button"
+                    className="uui-button"
+                    onClick={() => failedItems.forEach((item) => onRetryItem(item.id))}
+                  >
+                    <RotateCcw size={14} /> Retry {failedItems.length} failed
+                  </button>
+                ) : null}
+                <button type="button" className="uui-button uui-button--primary" onClick={onGenerateRemaining}>
                   Continue
                 </button>
-                <button type="button" className="uui-button" onClick={onCancelGeneration}>
-                  Cancel
-                </button>
+                {!['complete', 'failed', 'canceled'].includes(job.status) ? (
+                  <button type="button" className="uui-button" onClick={onCancelGeneration}>
+                    Cancel
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : drafts.length < (plan?.slots.length ?? 0) ? (
@@ -487,25 +791,6 @@ function DraftPanel({
               >
                 {generationBusy ? 'Starting…' : 'Generate remaining drafts'}
               </button>
-            </div>
-          ) : null}
-
-          {job?.items?.some((item) => item.status === 'failed') ? (
-            <div className="uui-generation-failures">
-              {job.items
-                .filter((item) => item.status === 'failed')
-                .map((item) => (
-                  <div key={item.id}>
-                    <span>{item.error?.message || 'Generation failed'}</span>
-                    <button
-                      type="button"
-                      className="uui-button"
-                      onClick={() => onRetryItem(item.id)}
-                    >
-                      Retry
-                    </button>
-                  </div>
-                ))}
             </div>
           ) : null}
 
@@ -658,6 +943,14 @@ function SendPanel({
   drafts,
   preflight,
   activeIntent,
+  heldOutKeys,
+  heldOutReasons,
+  onToggleHeldOut,
+  acknowledgeHeldOut,
+  onAcknowledgeHeldOutChange,
+  effectiveExcludedKeys,
+  sendPending,
+  sendError,
   onPreflight,
   onIntent,
 }: {
@@ -667,6 +960,14 @@ function SendPanel({
   drafts: OutreachV3DraftArtifact[];
   preflight: OutreachV3ServerPreflight | null;
   activeIntent: OutreachV3SendIntentView | null;
+  heldOutKeys: Set<string>;
+  heldOutReasons: Map<string, string[]>;
+  onToggleHeldOut: (generationKey: string) => void;
+  acknowledgeHeldOut: boolean;
+  onAcknowledgeHeldOutChange: (value: boolean) => void;
+  effectiveExcludedKeys: string[];
+  sendPending: boolean;
+  sendError: unknown;
   onPreflight: (value: OutreachV3ServerPreflight | null) => void;
   onIntent: (intentId: string) => void;
 }) {
@@ -676,11 +977,19 @@ function SendPanel({
     queryKey: ['outreach-v3', 'send-settings', sessionId],
     queryFn: () => getOutreachV3SendSettings(api, sessionId),
   });
+  // Directory of every attachment the client can see, merged with any
+  // freshly-uploaded ones below — needed so a chip loaded from SAVED settings
+  // (which only carries an id) can still show a real lifecycleStatus/
+  // scanStatus marker, not just the freshly-uploaded ones.
+  const attachmentDirectory = useQuery({
+    queryKey: ['outreach-v3', 'attachment-directory', clientId ?? null],
+    queryFn: () => listOutreachAttachments(api, clientId),
+    staleTime: 30_000,
+  });
   const [senderConnectionId, setSenderConnectionId] = useState('');
   const [appendSignature, setAppendSignature] = useState(true);
   const [attachments, setAttachments] = useState<OutreachAttachment[]>([]);
   const [attachmentIds, setAttachmentIds] = useState<string[]>([]);
-  const [acknowledgeHeldOut, setAcknowledgeHeldOut] = useState(false);
   const [testGenerationKey, setTestGenerationKey] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [selectedReplyId, setSelectedReplyId] = useState('');
@@ -759,15 +1068,10 @@ function SendPanel({
       }),
     onSuccess: (result) => onIntent(result.intentId),
   });
-  const realSend = useMutation({
-    mutationFn: () =>
-      createOutreachV3SendIntent(api, sessionId, {
-        requestKey: `send-${crypto.randomUUID()}`,
-        excludedGenerationKeys: preflight?.excludedGenerationKeys ?? [],
-        acknowledgeHeldOut,
-      }),
-    onSuccess: (result) => onIntent(result.intentId),
-  });
+  // The real send trigger itself now lives one level up (see
+  // VNextOutreachWorkspace's own `realSend` mutation) so the chat pane can
+  // fire the exact same, single, real send code path — see item D in this
+  // phase's report. This panel only displays `sendPending`/`sendError`.
   const refreshIntent = useMutation({
     mutationFn: async () => {
       if (!activeIntent) throw new Error('No send intent is active.');
@@ -798,8 +1102,17 @@ function SendPanel({
   const runPreflight = () =>
     preflightMutation.mutate({
       acknowledgeHeldOut,
-      excludedGenerationKeys: preflight?.excludedGenerationKeys ?? [],
+      excludedGenerationKeys: effectiveExcludedKeys,
     });
+  const attachmentByIdMap = useMemo(() => {
+    const map = new Map<string, OutreachAttachment>();
+    for (const item of attachmentDirectory.data ?? []) map.set(item.id, item);
+    // Freshly-uploaded attachments in THIS session are the freshest source of
+    // truth for their own status, so they are merged in last (win over the
+    // directory listing if both somehow disagree).
+    for (const item of attachments) map.set(item.id, item);
+    return map;
+  }, [attachmentDirectory.data, attachments]);
   const upload = async (file: File) => {
     setUploading(true);
     try {
@@ -820,6 +1133,11 @@ function SendPanel({
     return (
       <div className="uui-delivery-view">
         <div className="uui-delivery-stats">
+          {/* Real tracked states only — Sent/Failed/Unknown/Skipped/Held. The
+              mockup's Delivered/Bounced/Replied labels are NOT used: those
+              aren't tracked as counts anywhere on the backend, and relabeling
+              these real tiles to fake concepts would misrepresent what this
+              data actually is. Only the tone-coded numbers below are new. */}
           {[
             ['Sent', totals.sent ?? 0],
             ['Failed', totals.failed ?? 0],
@@ -827,7 +1145,7 @@ function SendPanel({
             ['Skipped', totals.skipped ?? 0],
             ['Held', totals.held ?? 0],
           ].map(([label, value]) => (
-            <article key={String(label)}>
+            <article key={String(label)} data-tone={DELIVERY_STAT_TONE[String(label)]}>
               <strong>{value}</strong>
               <span>{label}</span>
             </article>
@@ -1084,30 +1402,45 @@ function SendPanel({
             <span>Attachments</span>
             <small>Changing attachments creates a new version and clears approval.</small>
           </div>
-          {attachments.map((attachment) => (
-            <span key={attachment.id} className="uui-attachment-chip">
-              <Paperclip size={13} />
-              {attachment.fileName}
-              <button
-                type="button"
-                aria-label={`Remove ${attachment.fileName}`}
-                onClick={() => {
-                  setAttachments((current) => current.filter((item) => item.id !== attachment.id));
-                  setAttachmentIds((current) => current.filter((id) => id !== attachment.id));
-                }}
-              >
-                <X size={12} />
-              </button>
-            </span>
-          ))}
+          {attachments.map((attachment) => {
+            const status = attachmentTone(attachment);
+            return (
+              <span key={attachment.id} className="uui-attachment-chip">
+                <Paperclip size={13} />
+                {attachment.fileName}
+                <span className="uui-state-pill" data-tone={status.tone}>
+                  {status.label}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${attachment.fileName}`}
+                  onClick={() => {
+                    setAttachments((current) =>
+                      current.filter((item) => item.id !== attachment.id),
+                    );
+                    setAttachmentIds((current) => current.filter((id) => id !== attachment.id));
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            );
+          })}
           {attachmentIds
             .filter((id) => !attachments.some((attachment) => attachment.id === id))
-            .map((id) => (
-              <span key={id} className="uui-attachment-chip">
-                <Paperclip size={13} />
-                Attached file · {id.slice(0, 8)}
-              </span>
-            ))}
+            .map((id) => {
+              const full = attachmentByIdMap.get(id);
+              const status = attachmentTone(full);
+              return (
+                <span key={id} className="uui-attachment-chip">
+                  <Paperclip size={13} />
+                  {full?.fileName ?? `Attached file · ${id.slice(0, 8)}`}
+                  <span className="uui-state-pill" data-tone={status.tone}>
+                    {status.label}
+                  </span>
+                </span>
+              );
+            })}
           <input
             ref={fileRef}
             type="file"
@@ -1163,10 +1496,30 @@ function SendPanel({
             Run preflight
           </button>
         </header>
+        {preflight?.blockers.includes('SPONSOR_SCOPE_BLOCKED') ? (
+          <div className="uui-sponsor-scope-blocked" role="alert">
+            <Ban size={18} aria-hidden="true" />
+            <div>
+              <strong>Internal-only campaigns cannot send externally</strong>
+              <p>
+                Preflight remains usable for review; external send intent is blocked until sponsor
+                scope changes.
+              </p>
+              <button
+                type="button"
+                className="uui-button"
+                disabled
+                title="Sponsor scope is a multi-field decision (client, several clients, or coalition) made from the Goal step. There is no safe one-click change from here yet — ask an admin, or edit sponsor scope from Goal."
+              >
+                Change sponsor
+              </button>
+            </div>
+          </div>
+        ) : null}
         {preflight ? (
           <div className="uui-preflight-list">
-            {preflight.checks.map((check) => (
-              <PreflightRow key={check.key} check={check} />
+            {buildHonestPreflightRows(preflight.checks).map((row) => (
+              <PreflightRow key={row.key} check={row} />
             ))}
           </div>
         ) : (
@@ -1194,17 +1547,83 @@ function SendPanel({
                 : 'No recipients are held out.'}
             </p>
           </div>
+          {/* Per-recipient hold-out controls — sourced from
+              preflight.draftResults, the real per-draft eligibility the
+              server just computed. This is what actually fixes the
+              highest-value bug in this phase: previously excludedGenerationKeys
+              only ever echoed back the server's last value (permanently []),
+              so one ineligible recipient blocked the entire send with no way
+              around it. Toggling here writes to heldOutKeys (lifted to
+              VNextOutreachWorkspace) which IS threaded into every subsequent
+              preflight/send call as `effectiveExcludedKeys`. */}
+          {preflight.draftResults.length ? (
+            <section className="uui-recipient-status-list">
+              <span className="uui-eyebrow">
+                Recipient status · {preflight.draftResults.length} evaluated
+              </span>
+              {preflight.draftResults.map((result) => {
+                const draft = drafts.find(
+                  (entry) => entry.generationKey === result.generationKey,
+                );
+                const name = draft?.current?.recipientKey || result.generationKey;
+                const isHeldOut = heldOutKeys.has(result.generationKey);
+                return (
+                  <div
+                    key={result.generationKey}
+                    className="uui-recipient-status-row"
+                    data-blocked={(!result.eligible && !isHeldOut) || undefined}
+                  >
+                    <div>
+                      <strong>{name}</strong>
+                      <span>
+                        {isHeldOut
+                          ? 'Held out by you'
+                          : result.eligible
+                            ? 'Eligible'
+                            : result.blockers.map(humanizeBlockerCode).join(' · ')}
+                      </span>
+                    </div>
+                    {!result.eligible || isHeldOut ? (
+                      <label className="uui-hold-out-toggle">
+                        <input
+                          type="checkbox"
+                          checked={isHeldOut}
+                          onChange={() => onToggleHeldOut(result.generationKey)}
+                        />
+                        Hold out this recipient
+                      </label>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {effectiveExcludedKeys.length &&
+              effectiveExcludedKeys.join(',') !==
+                [...preflight.excludedGenerationKeys].sort().join(',') ? (
+                <p className="uui-field-note">
+                  Held-out selection changed — run preflight again to apply it before sending.
+                </p>
+              ) : null}
+            </section>
+          ) : null}
           {heldOut ? (
             <section>
               <span className="uui-eyebrow">Held out · {heldOut}</span>
-              {preflight.excludedGenerationKeys.map((key) => (
-                <p key={key}>{key} · blocked by current preflight</p>
-              ))}
+              {preflight.excludedGenerationKeys.map((key) => {
+                const draft = drafts.find((entry) => entry.generationKey === key);
+                const name = draft?.current?.recipientKey || key;
+                const reasons = heldOutReasons.get(key) ?? [];
+                return (
+                  <p key={key}>
+                    <strong>{name}</strong> ·{' '}
+                    {reasons.length ? reasons.map(humanizeBlockerCode).join(', ') : 'held out by you'}
+                  </p>
+                );
+              })}
               <label className="uui-consent-row">
                 <input
                   type="checkbox"
                   checked={acknowledgeHeldOut}
-                  onChange={(event) => setAcknowledgeHeldOut(event.target.checked)}
+                  onChange={(event) => onAcknowledgeHeldOutChange(event.target.checked)}
                 />
                 <span>
                   <strong>I understand the held-out recipients</strong>
@@ -1240,25 +1659,29 @@ function SendPanel({
               {testSend.isPending ? 'Creating test…' : 'Send test'}
             </button>
           </section>
-          <button
-            type="button"
-            className="uui-button uui-button--primary uui-send-action"
-            disabled={
-              !preflight.eligible || (heldOut > 0 && !acknowledgeHeldOut) || realSend.isPending
-            }
-            onClick={() => realSend.mutate()}
-          >
-            <Send size={16} />
-            {realSend.isPending
-              ? 'Creating durable intent…'
-              : `Send ${preflight.draftVersionIds.length} approved email${preflight.draftVersionIds.length === 1 ? '' : 's'}`}
-          </button>
-          {realSend.error || testSend.error ? (
+          {/* Per the product rule "send lives in the conversation, not the
+              workbench": the real primary send trigger now lives in the chat
+              pane (see InlineActions in VNextOutreachWorkspace), reading this
+              exact same preflight/held-out/acknowledge state. This step ends
+              with an explanatory note only — there is exactly one real send
+              code path (the `realSend` mutation lifted to the parent), never
+              a second copy of the gating logic here. */}
+          <div className="uui-send-relocated-note">
+            <ShieldCheck size={16} aria-hidden="true" />
+            <div>
+              <strong>Send lives in the conversation on the left.</strong>
+              <p>
+                Every check above and the held-out acknowledgment stay live here. Once they're
+                clear, use the Send button in the chat panel to send{' '}
+                {preflight.draftVersionIds.length} approved email
+                {preflight.draftVersionIds.length === 1 ? '' : 's'}.
+                {sendPending ? ' A send is being created now…' : ''}
+              </p>
+            </div>
+          </div>
+          {sendError || testSend.error ? (
             <p className="uui-field-error">
-              {safeError(
-                realSend.error || testSend.error,
-                'The send action could not be completed.',
-              )}
+              {safeError(sendError || testSend.error, 'The send action could not be completed.')}
             </p>
           ) : null}
         </aside>
@@ -1267,14 +1690,14 @@ function SendPanel({
   );
 }
 
-function PreflightRow({ check }: { check: OutreachV3NamedPreflightCheck }) {
+function PreflightRow({ check }: { check: HonestPreflightRow }) {
   return (
     <div className="uui-preflight-row" data-state={check.state}>
       <strong>{check.label}</strong>
       <span>{check.detail}</span>
       <em>
         <i />
-        {check.state}
+        {check.state === 'unavailable' ? 'not available' : check.state}
       </em>
     </div>
   );
@@ -1296,6 +1719,18 @@ export function VNextOutreachWorkspace({
   const [generationJobId, setGenerationJobId] = useState<string | null>(null);
   const [preflight, setPreflight] = useState<OutreachV3ServerPreflight | null>(null);
   const [intentId, setIntentId] = useState<string | null>(null);
+  // Held-out state lives here (not inside SendPanel) for two reasons: it is
+  // the fix for the permanently-empty excludedGenerationKeys bug (see
+  // `effectiveExcludedKeys`/`realSend` below), and per the product rule "send
+  // lives in the conversation, not the workbench" the chat pane needs the
+  // SAME acknowledgment state SendPanel's checkbox writes to.
+  const [heldOutKeys, setHeldOutKeys] = useState<Set<string>>(new Set());
+  // Recipient-key -> blocker codes, accumulated across preflight responses so
+  // the "Held out" panel can still show a real reason after a key becomes
+  // excluded (the server stops returning a draftResults row for a key once
+  // it is actually excluded from the required set).
+  const [heldOutReasons, setHeldOutReasons] = useState<Map<string, string[]>>(new Map());
+  const [acknowledgeHeldOut, setAcknowledgeHeldOut] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const sessionId = controller.sessionId;
@@ -1354,6 +1789,20 @@ export function VNextOutreachWorkspace({
     )
       void qc.invalidateQueries({ queryKey: ['outreach-v3', 'drafts', sessionId] });
   }, [generationJob.data, qc, sessionId]);
+  useEffect(() => {
+    if (!preflight) return;
+    setHeldOutReasons((current) => {
+      let changed = false;
+      const next = new Map(current);
+      for (const result of preflight.draftResults) {
+        if (result.blockers.length) {
+          next.set(result.generationKey, result.blockers);
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [preflight]);
 
   const sampleMutation = useMutation({
     mutationFn: () => generateOutreachV3Samples(api, sessionId!),
@@ -1408,6 +1857,42 @@ export function VNextOutreachWorkspace({
   const currentDrafts = drafts.data ?? [];
   const reachedIndex = Math.max(planningIndex, currentDrafts.length ? 5 : 4);
   const activeIntent = intent.data ?? null;
+
+  // Defensively filtered against the CURRENT plan's real generation keys so a
+  // held-out choice from a since-replaced plan can never surface as the
+  // server's EXCLUSION_NOT_IN_PLAN blocker — silently dropping a stale key is
+  // safer than letting it accidentally block an otherwise-clean send.
+  const effectiveExcludedKeys = useMemo(() => {
+    const validKeys = new Set(currentDrafts.map((draft) => draft.generationKey));
+    return [...heldOutKeys].filter((key) => validKeys.has(key)).sort();
+  }, [heldOutKeys, currentDrafts]);
+
+  const toggleHeldOut = (generationKey: string) => {
+    setHeldOutKeys((current) => {
+      const next = new Set(current);
+      if (next.has(generationKey)) next.delete(generationKey);
+      else next.add(generationKey);
+      return next;
+    });
+    // Changing the held-out set invalidates any PRIOR acknowledgment — the
+    // user must explicitly re-acknowledge whatever set they just changed,
+    // never carry forward "I understand" onto a selection they never saw.
+    setAcknowledgeHeldOut(false);
+  };
+
+  // THE real send code path — see item D in this phase's report. Triggered
+  // from the chat pane (InlineActions) and read-only-displayed (pending/
+  // error) from the workbench (SendPanel); there is exactly one `.mutate()`
+  // call site for a real send in this whole file.
+  const realSend = useMutation({
+    mutationFn: () =>
+      createOutreachV3SendIntent(api, sessionId!, {
+        requestKey: `send-${crypto.randomUUID()}`,
+        excludedGenerationKeys: effectiveExcludedKeys,
+        acknowledgeHeldOut,
+      }),
+    onSuccess: (result) => setIntentId(result.intentId),
+  });
 
   const sendComposer = async (text = composer) => {
     const value = text.trim();
@@ -1484,7 +1969,7 @@ export function VNextOutreachWorkspace({
             <span className="uui-live-dot" />
             <strong>Meri · Outreach</strong>
           </div>
-          <span>{step.toUpperCase()}</span>
+          <span>{outreachChatStateLabel(step, Boolean(activeIntent), Boolean(approach.data))}</span>
         </header>
         {controller.reasoningUnavailable ? (
           <div className="uui-model-outage">
@@ -1495,7 +1980,11 @@ export function VNextOutreachWorkspace({
                 {controller.reasoningErrorMessage ||
                   'Planning controls and current campaign data remain available.'}
               </p>
-              <button type="button" onClick={() => controller.retryReasoning()}>
+              <button
+                type="button"
+                className="uui-model-outage__retry"
+                onClick={() => controller.retryReasoning()}
+              >
                 Retry Meri
               </button>
             </div>
@@ -1525,6 +2014,11 @@ export function VNextOutreachWorkspace({
             drafts={currentDrafts}
             approachCurrent={Boolean(approach.data)}
             preflight={preflight}
+            acknowledgeHeldOut={acknowledgeHeldOut}
+            hasActiveIntent={Boolean(activeIntent)}
+            sendPending={realSend.isPending}
+            sendError={realSend.error}
+            onSend={() => realSend.mutate()}
             onSuggested={(value) => void sendComposer(value)}
             onGenerateSamples={() => sampleMutation.mutate()}
             onApproveApproach={() => approachMutation.mutate(sampleVersions)}
@@ -1551,6 +2045,7 @@ export function VNextOutreachWorkspace({
             />
             <button
               type="submit"
+              className="uui-button--primary"
               aria-label="Send to Meri"
               disabled={!composer.trim() || controller.sendingTurn}
             >
@@ -1587,6 +2082,26 @@ export function VNextOutreachWorkspace({
             </button>
           ))}
         </nav>
+        {/* Narrow-width fallback: one initial per step instead of the full
+            label strip (which otherwise just becomes horizontally
+            scrollable — see engagement.css's step-strip media query). Same
+            reached/active/disabled contract as the strip above. */}
+        <nav className="uui-outreach-step-dots" aria-label="Campaign steps">
+          {USER_STEPS.map((candidate, index) => (
+            <button
+              key={candidate.key}
+              type="button"
+              data-active={candidate.key === step || undefined}
+              data-reached={index <= reachedIndex || undefined}
+              disabled={index > reachedIndex}
+              title={candidate.label}
+              aria-label={candidate.label}
+              onClick={() => selectStep(candidate.key)}
+            >
+              {STEP_DOT_LABEL[candidate.key]}
+            </button>
+          ))}
+        </nav>
         <div className="uui-outreach-sections">
           {USER_STEPS.map((candidate, index) => {
             const waiting = index > reachedIndex;
@@ -1595,15 +2110,17 @@ export function VNextOutreachWorkspace({
               index < planningIndex ||
               (candidate.key === 'drafts' && currentDrafts.length > 0 && step !== 'drafts') ||
               (candidate.key === 'send' && Boolean(activeIntent));
-            const status: 'Waiting' | 'In progress' | 'Locked' = waiting
-              ? 'Waiting'
+            // `state` drives both the tone/color (data-state, unchanged) and,
+            // via SECTION_STATUS_LABEL, the corrected displayed word.
+            const state: SectionToneState = waiting
+              ? 'waiting'
               : locked
-                ? 'Locked'
+                ? 'locked'
                 : inProgress
-                  ? 'In progress'
+                  ? 'in-progress'
                   : index < reachedIndex
-                    ? 'Locked'
-                    : 'In progress';
+                    ? 'locked'
+                    : 'in-progress';
             const open = openSections.has(candidate.key) && !waiting;
             return (
               <section
@@ -1621,17 +2138,18 @@ export function VNextOutreachWorkspace({
                   <span className="uui-outreach-section__number">{candidate.number}</span>
                   <strong>{candidate.label}</strong>
                   <small>
-                    {status === 'Locked'
+                    {state === 'locked'
                       ? summaryForStep(candidate.key, session, currentDrafts, preflight)
                       : ''}
                   </small>
-                  <SectionStatus value={status} />
+                  <SectionStatus state={state} />
                   {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
                 {open ? (
                   <div className="uui-outreach-section__body">
                     {candidate.key === 'drafts' && controller.stage === 'ready_for_generation' ? (
                       <DraftPanel
+                        session={session}
                         plan={plan.data ?? null}
                         drafts={currentDrafts}
                         approvalCurrent={Boolean(approach.data)}
@@ -1669,6 +2187,14 @@ export function VNextOutreachWorkspace({
                         drafts={currentDrafts}
                         preflight={preflight}
                         activeIntent={activeIntent}
+                        heldOutKeys={heldOutKeys}
+                        heldOutReasons={heldOutReasons}
+                        onToggleHeldOut={toggleHeldOut}
+                        acknowledgeHeldOut={acknowledgeHeldOut}
+                        onAcknowledgeHeldOutChange={setAcknowledgeHeldOut}
+                        effectiveExcludedKeys={effectiveExcludedKeys}
+                        sendPending={realSend.isPending}
+                        sendError={realSend.error}
                         onPreflight={setPreflight}
                         onIntent={setIntentId}
                       />
@@ -1752,6 +2278,11 @@ function InlineActions({
   drafts,
   approachCurrent,
   preflight,
+  acknowledgeHeldOut,
+  hasActiveIntent,
+  sendPending,
+  sendError,
+  onSend,
   onSuggested,
   onGenerateSamples,
   onApproveApproach,
@@ -1764,6 +2295,11 @@ function InlineActions({
   drafts: OutreachV3DraftArtifact[];
   approachCurrent: boolean;
   preflight: OutreachV3ServerPreflight | null;
+  acknowledgeHeldOut: boolean;
+  hasActiveIntent: boolean;
+  sendPending: boolean;
+  sendError: unknown;
+  onSend: () => void;
   onSuggested: (value: string) => void;
   onGenerateSamples: () => void;
   onApproveApproach: () => void;
@@ -1823,5 +2359,58 @@ function InlineActions({
         </button>
       </div>
     );
-  return null;
+  // Per the product rule "send lives in the conversation, not the
+  // workbench": this is the ONLY place a real send is triggered from. The
+  // 14-check table, held-out list and acknowledge checkbox still live (and
+  // stay fully interactive) in the workbench below — this just reads the
+  // same lifted preflight/acknowledge state and fires the same `realSend`
+  // mutation the parent owns.
+  if (hasActiveIntent) return null; // already sent — nothing left to trigger
+  const sponsorBlocked = preflight.blockers.includes('SPONSOR_SCOPE_BLOCKED');
+  const heldOut = preflight.excludedGenerationKeys.length;
+  const needsAcknowledge = heldOut > 0 && !acknowledgeHeldOut;
+  if (sponsorBlocked)
+    return (
+      <div className="uui-chat-actions uui-chat-actions--note">
+        <p>
+          Internal-only campaigns can&apos;t send externally. Change sponsor scope in the
+          workbench below to continue.
+        </p>
+      </div>
+    );
+  if (needsAcknowledge)
+    return (
+      <div className="uui-chat-actions uui-chat-actions--note">
+        <p>
+          {heldOut} recipient{heldOut === 1 ? '' : 's'} held out. Acknowledge them in the
+          workbench below, then send from here.
+        </p>
+      </div>
+    );
+  if (!preflight.eligible)
+    return (
+      <div className="uui-chat-actions uui-chat-actions--note">
+        <p>Preflight found blockers. Resolve them in the workbench below, then send from here.</p>
+      </div>
+    );
+  return (
+    <div className="uui-chat-actions">
+      <button
+        type="button"
+        className="uui-button uui-button--primary uui-send-action"
+        disabled={sendPending}
+        onClick={onSend}
+      >
+        <Send size={16} />
+        {sendPending
+          ? 'Creating durable intent…'
+          : `Send ${preflight.draftVersionIds.length} approved email${preflight.draftVersionIds.length === 1 ? '' : 's'}`}
+      </button>
+      {sendError ? (
+        <p className="uui-field-error">
+          {safeError(sendError, 'The send action could not be completed.')}
+        </p>
+      ) : null}
+    </div>
+  );
 }

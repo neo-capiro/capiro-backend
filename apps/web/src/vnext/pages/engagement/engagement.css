@@ -10,17 +10,24 @@
   --eng-ink-3: #667085;
   --eng-ink-4: #98a2b3;
   --eng-primary: #101828;
-  /* Engagement previously hardcoded a local navy ramp (#294e68) that exists on
-     no other screen. The design handoff calls this out as a real inconsistency
-     rather than an intentional per-screen theme, says not to hardcode it either
-     way, and recommends adopting the shell ramp - which is also what the
-     closeout requires ("reuse existing tokens"). These now resolve to the
-     shell's brand tokens, with the handoff's own option-1 values as fallbacks. */
-  --eng-accent: var(--uui-brand-solid, #3e4784);
-  --eng-accent-hover: var(--uui-brand-deep, #293056);
-  --eng-accent-soft: var(--uui-brand-100, #f5f6fa);
-  --eng-accent-border: var(--uui-brand-200, #dcdfec);
-  --eng-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  /* v3 pass (2026-08-16): the product owner has overridden the prior
+     closeout's shell-indigo resolution for Engagement specifically. Unlike
+     Strategies/Dashboard/LegiWatch — which resolved this same mockup-navy-vs-
+     shell-indigo divergence by unifying on the shell's indigo brand ramp —
+     Engagement now gets its own vNext-only fork on the mockup's literal navy
+     (#294E68). This is a confirmed, intentional per-module exception, not a
+     regression back to the handoff's original inconsistency. See
+     engagement-tones.css for this same navy value's role in the pill/dot tone
+     table used across Meetings/Library/Reports status pills. */
+  --eng-accent: #294E68;
+  --eng-accent-hover: #1F3D52;
+  --eng-accent-soft: #EDF3F7;
+  --eng-accent-border: #C3D5E1;
+  /* IBM Plex Mono loads once, globally, via the shared Google Fonts <link> in
+     index.html — the same mechanism Workspace, Program Elements, LegiWatch,
+     Client CRM and Meri already rely on. No new font-loading infrastructure
+     belongs here; just the shared token. */
+  --eng-font-mono: var(--capiro-type-family-mono);
   --eng-warning: #b54708;
   --eng-warning-deep: #93370d;
   --eng-warning-dot: #dc6803;
@@ -61,10 +68,7 @@
 
 .capiro-vnext-root .uui-eyebrow,
 .capiro-vnext-root .uui-state-control,
-.capiro-vnext-root .uui-mtg-row__time,
-.capiro-vnext-root .uui-mtg-status,
 .capiro-vnext-root .uui-library-date,
-.capiro-vnext-root .uui-library-visibility,
 .capiro-vnext-root .uui-outreach-section__number,
 .capiro-vnext-root .uui-outreach-section-status,
 .capiro-vnext-root .uui-state-pill,
@@ -288,190 +292,13 @@
   text-transform: uppercase;
 }
 
-/* Meetings */
-.capiro-vnext-root .uui-mtg-workspace {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  min-height: calc(100vh - 214px);
-  background: var(--eng-recessed);
-}
-.capiro-vnext-root .uui-mtg-card {
-  min-width: 0;
-  padding: 22px 24px 40px;
-  background: var(--eng-recessed);
-}
-.capiro-vnext-root .uui-mtg-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.capiro-vnext-root .uui-mtg-toolbar__title {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-right: 8px;
-}
-.capiro-vnext-root .uui-mtg-toolbar__title svg {
-  display: none;
-}
-.capiro-vnext-root .uui-mtg-toolbar__title h2 {
-  margin: 0;
-  font-size: 24px;
-  line-height: 32px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-.capiro-vnext-root .uui-mtg-toolbar__period {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.capiro-vnext-root .uui-mtg-toolbar__period strong {
-  min-width: 136px;
-  text-align: center;
-  font-size: 15px;
-}
-.capiro-vnext-root .uui-mtg-toolbar__views {
-  display: inline-flex;
-  align-items: center;
-  min-height: 38px;
-  padding: 3px;
-  border-radius: 9px;
-  background: var(--eng-muted);
-}
-.capiro-vnext-root .uui-mtg-toolbar__views button {
-  height: 32px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--eng-ink-2);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-mtg-toolbar__views button[data-active] {
-  background: var(--eng-primary);
-  color: white;
-}
-.capiro-vnext-root .uui-mtg-toolbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: auto;
-}
-.capiro-vnext-root .uui-mtg-weekstrip {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 1px;
-  margin-bottom: 20px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--eng-border);
-  box-shadow: 0 0 0 1px var(--eng-border);
-}
-.capiro-vnext-root .uui-mtg-weekstrip button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  min-width: 0;
-  min-height: 78px;
-  padding: 10px 4px 12px;
-  border: 0;
-  background: var(--eng-surface);
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-mtg-weekstrip button[data-selected] {
-  background: var(--eng-accent-soft);
-}
-.capiro-vnext-root .uui-mtg-weekstrip button span,
-.capiro-vnext-root .uui-mtg-weekstrip button small {
-  font-family: var(--eng-font-mono);
-  font-size: 11px;
-  color: var(--eng-ink-4);
-}
-.capiro-vnext-root .uui-mtg-weekstrip button strong {
-  font-size: 20px;
-  font-weight: 600;
-}
-.capiro-vnext-root .uui-mtg-weekstrip button[data-selected] strong {
-  color: var(--eng-accent);
-}
-.capiro-vnext-root .uui-mtg-body {
-  min-width: 0;
-}
-.capiro-vnext-root .uui-mtg-body[data-receded] {
-  background: var(--eng-recessed);
-}
-.capiro-vnext-root .uui-mtg-day-list > h3,
-.capiro-vnext-root .uui-mtg-list-groups section > h3 {
-  margin: 0 0 10px 2px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #344054;
-}
-.capiro-vnext-root .uui-mtg-list-groups {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-}
-.capiro-vnext-root .uui-mtg-list-groups section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.capiro-vnext-root .uui-mtg-row {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-  min-height: 70px;
-  margin-bottom: 8px;
-  padding: 16px 18px;
-  border: 0;
-  border-radius: 12px;
-  background: var(--eng-surface);
-  box-shadow: 0 0 0 1px var(--eng-border);
-  text-align: left;
-  cursor: pointer;
-  animation: uiRise 160ms ease both;
-}
-.capiro-vnext-root .uui-mtg-row[data-selected] {
-  background: var(--eng-accent-soft);
-  box-shadow: 0 0 0 1px var(--eng-accent-border);
-}
-.capiro-vnext-root .uui-mtg-row__time {
-  font-size: 13px;
-  font-weight: 500;
-  color: #344054;
-}
-.capiro-vnext-root .uui-mtg-row__main {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 3px;
-}
-.capiro-vnext-root .uui-mtg-row__main strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 15px;
-  font-weight: 600;
-}
-.capiro-vnext-root .uui-mtg-row__main small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--eng-ink-3);
-  font-size: 13px;
-}
-.capiro-vnext-root .uui-mtg-status,
+/* Shared state/status pill — used by Outreach (VNextOutreachWorkspace,
+   OutreachV3CompleteRoute) for section/intent/settings status. Was
+   previously comma-joined with the dead `.uui-mtg-status` scaffold rule
+   removed from this file (2026-08-16 Meetings phase); restored standalone
+   here with identical styling — see meetings-vnext.css for the Meetings
+   surface's OWN status pill, which uses `.eng-pill` from engagement-tones.css
+   instead of this class. */
 .capiro-vnext-root .uui-state-pill {
   display: inline-flex;
   align-items: center;
@@ -490,7 +317,6 @@
   color: var(--eng-ink-2);
   box-shadow: inset 0 0 0 1px var(--eng-border);
 }
-.capiro-vnext-root .uui-mtg-status i,
 .capiro-vnext-root .uui-state-pill::before {
   content: '';
   width: 6px;
@@ -498,37 +324,35 @@
   border-radius: 50%;
   background: var(--eng-ink-4);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='navy'],
 .capiro-vnext-root .uui-state-pill[data-tone='navy'] {
   background: var(--eng-accent-soft);
   color: var(--eng-accent);
   box-shadow: inset 0 0 0 1px var(--eng-accent-border);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='navy'] i,
 .capiro-vnext-root .uui-state-pill[data-tone='navy']::before {
   background: var(--eng-accent);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='warning'],
 .capiro-vnext-root .uui-state-pill[data-tone='warning'] {
   background: var(--eng-warning-bg);
   color: var(--eng-warning);
   box-shadow: inset 0 0 0 1px var(--eng-warning-border);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='warning'] i,
 .capiro-vnext-root .uui-state-pill[data-tone='warning']::before {
   background: var(--eng-warning-dot);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='error'],
 .capiro-vnext-root .uui-state-pill[data-tone='error'] {
   background: var(--eng-error-bg);
   color: var(--eng-error);
   box-shadow: inset 0 0 0 1px var(--eng-error-border);
 }
-.capiro-vnext-root .uui-mtg-status[data-tone='error'] i,
 .capiro-vnext-root .uui-state-pill[data-tone='error']::before {
   background: var(--eng-error-dot);
 }
-.capiro-vnext-root .uui-mtg-empty,
+
+/* Shared empty/recovery panel — used by Outreach (OutreachV3CompleteRoute's
+   `.uui-empty-panel is-compact`). Was previously comma-joined with the dead
+   `.uui-mtg-empty` scaffold rule removed from this file; restored standalone
+   with identical styling. */
 .capiro-vnext-root .uui-empty-panel {
   display: flex;
   flex-direction: column;
@@ -539,189 +363,85 @@
   background: var(--eng-surface);
   box-shadow: inset 0 0 0 1px var(--eng-border);
 }
-.capiro-vnext-root .uui-mtg-empty__icon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: var(--eng-accent-soft);
-  color: var(--eng-accent);
-}
-.capiro-vnext-root .uui-mtg-empty p,
 .capiro-vnext-root .uui-empty-panel p {
   margin: 0 0 6px;
   color: var(--eng-ink-3);
   font-size: 14px;
   line-height: 20px;
 }
-.capiro-vnext-root .uui-mtg-load-history {
-  margin-top: 4px;
-}
-.capiro-vnext-root .uui-mtg-month {
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 0 0 1px var(--eng-border);
-  background: var(--eng-border);
-}
-.capiro-vnext-root .uui-mtg-month__weekdays,
-.capiro-vnext-root .uui-mtg-month__grid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 1px;
-}
-.capiro-vnext-root .uui-mtg-month__weekdays span {
-  padding: 8px;
-  background: var(--eng-muted);
-  color: var(--eng-ink-4);
-  font-family: var(--eng-font-mono);
-  font-size: 10px;
-  text-align: center;
-  text-transform: uppercase;
-}
-.capiro-vnext-root .uui-mtg-month__grid button {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  min-height: 92px;
-  padding: 8px 10px;
-  border: 0;
-  background: var(--eng-surface);
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-mtg-month__grid button[data-outside] {
-  opacity: 0.45;
-}
-.capiro-vnext-root .uui-mtg-month__grid button[data-today] .uui-mtg-month__date {
-  color: var(--eng-accent);
-  font-weight: 600;
-}
-.capiro-vnext-root .uui-mtg-month__date {
-  font-size: 13px;
-  font-weight: 500;
-}
-.capiro-vnext-root .uui-mtg-month__count {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 9999px;
-  background: var(--eng-accent-soft);
-  color: var(--eng-accent);
-  font-family: var(--eng-font-mono);
-  font-size: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-}
-.capiro-vnext-root .uui-mtg-month__count i {
-  width: 6px;
-  height: 6px;
-  margin-right: 5px;
-  border-radius: 50%;
-  background: var(--eng-accent);
-}
-.capiro-vnext-root .uui-mtg-month__count em {
-  margin-left: 4px;
-  font-style: normal;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.capiro-vnext-root .uui-mtg-detail-not-found {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 55;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 520px;
-  height: 100%;
-  padding: 80px 32px;
-  border-left: 1px solid var(--eng-border);
-  background: var(--eng-surface);
-}
-.capiro-vnext-root .uui-mtg-detail-not-found__close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-}
 
-/* Force the reused canonical meeting drawer into the vNext two-column contract. */
-.capiro-vnext-root .uui-mtg-workspace > div[style*='rgba(12, 26, 56'],
-.capiro-vnext-root .uui-mtg-workspace > div[style*='rgba(12,26,56'] {
-  display: none !important;
-}
-.capiro-vnext-root .uui-mtg-workspace > div[style*='box-shadow: -8px'],
-.capiro-vnext-root .uui-mtg-workspace > div[style*='boxShadow'] {
-  width: 520px !important;
-  max-width: 520px !important;
-  box-shadow: none !important;
-}
-
-/* Library */
+/* Library (design README §8 / `Capiro Engagement - Untitled UI.dc.html`'s
+   `isLibrary` block / screenshots/05-meeting-library.png — verified rule by
+   rule against that source; several values below had drifted from an earlier
+   abandoned attempt, same situation Phase 1a found with `.uui-mtg-*`). */
 .capiro-vnext-root .uui-library-page,
 .capiro-vnext-root .uui-reports-page {
   padding: 22px 24px 48px;
 }
+/* Breadcrumb — mono 11px/.06em/uppercase: a "Meetings" button in --eng-ink-4
+   (hover navy), a "/" separator (inherits the container's own ink-4), then
+   "Library" in --eng-ink-2. No icon — the canonical MeetingLibraryView.tsx
+   incorrectly adds an ArrowLeft; not carried over here. */
 .capiro-vnext-root .uui-library-breadcrumb {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
-  color: var(--eng-ink-3);
-  font-size: 13px;
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--eng-ink-4);
 }
 .capiro-vnext-root .uui-library-breadcrumb button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
   border: 0;
+  padding: 0;
   background: transparent;
-  color: var(--eng-ink-2);
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
   cursor: pointer;
 }
-.capiro-vnext-root .uui-library-count {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 120px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--eng-surface);
-  box-shadow: 0 0 0 1px var(--eng-border);
+.capiro-vnext-root .uui-library-breadcrumb button:hover {
+  color: var(--eng-accent);
 }
-.capiro-vnext-root .uui-library-count strong {
-  font-size: 18px;
+.capiro-vnext-root .uui-library-breadcrumb > span:last-child {
+  color: var(--eng-ink-2);
 }
-.capiro-vnext-root .uui-library-count span {
-  color: var(--eng-ink-3);
-  font-size: 12px;
+.capiro-vnext-root .uui-library-heading {
+  margin: 10px 0 0;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--eng-ink);
 }
-.capiro-vnext-root .uui-library-card,
+.capiro-vnext-root .uui-library-subline {
+  margin: 4px 0 0;
+  max-width: 720px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--eng-ink-2);
+  text-wrap: pretty;
+}
 .capiro-vnext-root .uui-report-card {
   overflow: visible;
   border-radius: 12px;
   background: var(--eng-surface);
   box-shadow: 0 0 0 1px var(--eng-border);
 }
+/* Filter row — a flex row (the mockup's own row is
+   `display:flex;flex-wrap:wrap`, NOT the grid this scaffold previously
+   assumed), sitting directly in the page flow rather than nested inside a
+   bordered card. */
 .capiro-vnext-root .uui-library-filters {
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) 180px 180px 160px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--eng-border);
+  margin-top: 18px;
 }
-.capiro-vnext-root .uui-library-filters select,
-.capiro-vnext-root .uui-search-field,
 .capiro-vnext-root .uui-select-control,
 .capiro-vnext-root .uui-send-settings select,
 .capiro-vnext-root .uui-test-send select,
@@ -737,7 +457,6 @@
   box-shadow: inset 0 0 0 1px var(--eng-border);
   color: var(--eng-ink);
 }
-.capiro-vnext-root .uui-library-filters select,
 .capiro-vnext-root .uui-send-settings select,
 .capiro-vnext-root .uui-test-send select,
 .capiro-vnext-root .uui-modal-fields input,
@@ -747,12 +466,27 @@
 .capiro-vnext-root .uui-draft-editor-fields textarea {
   padding: 0 13px;
 }
+/* Search field — its own precise rule (previously shared with the
+   modal/select fields above, which use a different recessed/inset-border
+   treatment; the mockup's search field is a distinct white pill: `#ffffff`
+   background, non-recessed ring). Zero .tsx consumers before this phase, so
+   redefining it here doesn't disturb anything else. */
 .capiro-vnext-root .uui-search-field {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 13px;
+  gap: 8px;
+  flex: 1;
+  min-width: 240px;
+  max-width: 380px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
   color: var(--eng-ink-3);
+}
+.capiro-vnext-root .uui-search-field svg {
+  flex-shrink: 0;
 }
 .capiro-vnext-root .uui-search-field input {
   flex: 1;
@@ -760,6 +494,131 @@
   border: 0;
   outline: 0;
   background: transparent;
+  font-size: 14px;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .uui-search-field input::placeholder {
+  color: var(--eng-ink-3);
+}
+/* Dropdown-button filters — a real button + floating menu, explicitly NOT a
+   native <select> and NOT a segmented toggle (design README §8's three
+   filter buttons are decorative no-ops in the mockup itself; this phase
+   makes them genuinely functional — see VNextMeetingLibrary.tsx). Same
+   elevated-menu visual language as the Reports status menu further below
+   (box-shadow elevation + gray-ring, rounded hover/selected rows). */
+.capiro-vnext-root .uui-library-dropdown {
+  position: relative;
+}
+.capiro-vnext-root .uui-library-dropdown__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
+  color: #344054;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-library-dropdown__trigger:hover {
+  background: var(--eng-bg);
+}
+.capiro-vnext-root .uui-library-dropdown__trigger svg {
+  flex-shrink: 0;
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .uui-library-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  max-height: 280px;
+  padding: 5px;
+  border-radius: 10px;
+  overflow-y: auto;
+  background: var(--eng-surface);
+  box-shadow:
+    0 12px 30px rgba(16, 24, 40, 0.16),
+    0 0 0 1px var(--eng-tone-gray-ring);
+}
+.capiro-vnext-root .uui-library-dropdown__menu button {
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--eng-ink-2);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.capiro-vnext-root .uui-library-dropdown__menu button:hover,
+.capiro-vnext-root .uui-library-dropdown__menu button[data-selected] {
+  background: var(--eng-muted);
+}
+.capiro-vnext-root .uui-library-dropdown__menu button[data-selected] {
+  color: var(--eng-accent);
+  font-weight: 600;
+}
+/* Real controls the mockup gives no visual treatment to (date range +
+   pagination) — see VNextMeetingLibrary.tsx's file header for the placement
+   rationale (an always-visible secondary row; a footer below the table). */
+.capiro-vnext-root .uui-library-daterow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.capiro-vnext-root .uui-library-daterow label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
+  color: var(--eng-ink-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+.capiro-vnext-root .uui-library-daterow input[type='date'] {
+  border: 0;
+  background: transparent;
+  color: var(--eng-ink);
+  font-size: 12px;
+}
+.capiro-vnext-root .uui-library-daterow button {
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
+  color: var(--eng-ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-library-daterow button:hover {
+  background: var(--eng-bg);
+}
+.capiro-vnext-root .uui-library-card {
+  margin-top: 16px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
 }
 .capiro-vnext-root .uui-library-table__head,
 .capiro-vnext-root .uui-library-row {
@@ -769,17 +628,18 @@
   gap: 16px;
 }
 .capiro-vnext-root .uui-library-table__head {
-  padding: 10px 20px;
-  background: var(--eng-muted);
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--eng-tone-gray-ring);
+  background: var(--eng-recessed);
   color: var(--eng-ink-4);
   font-family: var(--eng-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .capiro-vnext-root .uui-library-row {
   width: 100%;
-  min-height: 76px;
   padding: 16px 20px;
   border: 0;
   border-bottom: 1px solid var(--eng-muted);
@@ -787,8 +647,14 @@
   text-align: left;
   cursor: pointer;
 }
+.capiro-vnext-root .uui-library-row:last-child {
+  border-bottom: 0;
+}
 .capiro-vnext-root .uui-library-row:hover {
   background: var(--eng-bg);
+}
+.capiro-vnext-root .uui-library-row .eng-pill {
+  justify-self: start;
 }
 .capiro-vnext-root .uui-library-date {
   font-size: 13px;
@@ -798,114 +664,188 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 3px;
+  gap: 2px;
 }
 .capiro-vnext-root .uui-library-title strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--eng-ink);
   font-size: 15px;
+  font-weight: 600;
 }
-.capiro-vnext-root .uui-library-title small,
-.capiro-vnext-root .uui-library-materials {
+.capiro-vnext-root .uui-library-title small {
   color: var(--eng-ink-3);
   font-size: 13px;
 }
-.capiro-vnext-root .uui-library-visibility {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  justify-self: start;
-  height: 24px;
-  padding: 0 9px;
-  border-radius: 9999px;
-  background: var(--eng-muted);
+.capiro-vnext-root .uui-library-materials {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--eng-ink-2);
-  font-size: 10px;
-  text-transform: uppercase;
+  font-size: 14px;
 }
-.capiro-vnext-root .uui-library-visibility[data-shared] {
-  background: var(--eng-accent-soft);
-  color: var(--eng-accent);
+.capiro-vnext-root .uui-library-empty {
+  padding: 34px 20px;
+  text-align: center;
+  color: var(--eng-ink-2);
+  font-size: 14px;
 }
-.capiro-vnext-root .uui-library-note {
-  padding: 14px 20px;
-  color: var(--eng-ink-3);
-  font-size: 12px;
-}
-
-/* Reports */
-.capiro-vnext-root .uui-report-toolbar {
+.capiro-vnext-root .uui-library-error {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--eng-border);
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  color: var(--eng-error);
+  font-size: 14px;
 }
-.capiro-vnext-root .uui-report-toolbar > div:first-child {
-  margin-right: auto;
-}
-.capiro-vnext-root .uui-report-toolbar h3 {
-  margin: 0;
-  font-size: 17px;
-  font-weight: 600;
-}
-.capiro-vnext-root .uui-report-toolbar p {
-  margin: 3px 0 0;
-  color: var(--eng-ink-3);
-  font-size: 12px;
-}
-.capiro-vnext-root .uui-report-periods {
-  display: inline-flex;
-  padding: 3px;
-  border-radius: 9px;
-  background: var(--eng-muted);
-}
-.capiro-vnext-root .uui-report-periods button {
+.capiro-vnext-root .uui-library-error button {
   height: 32px;
   padding: 0 12px;
   border: 0;
   border-radius: 7px;
-  background: transparent;
+  background: var(--eng-error-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-error-border);
+  color: var(--eng-error);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.capiro-vnext-root .uui-library-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--eng-ink-3);
+  font-size: 12px;
+}
+.capiro-vnext-root .uui-library-pagination button {
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
   color: var(--eng-ink-2);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
-.capiro-vnext-root .uui-report-periods button[data-active] {
-  background: var(--eng-surface);
-  color: var(--eng-ink);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+.capiro-vnext-root .uui-library-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
-.capiro-vnext-root .uui-report-actions {
+.capiro-vnext-root .uui-library-pagination button:hover:not(:disabled) {
+  background: var(--eng-bg);
+}
+.capiro-vnext-root .uui-library-note {
+  margin: 14px 2px 0;
+  color: var(--eng-ink-3);
+  font-size: 13px;
+  text-wrap: pretty;
+}
+
+/* Reports (design README §10 / `Capiro Engagement - Untitled UI.dc.html`'s
+   `isReports` block / screenshots/07-reports-tracker.png — verified rule by
+   rule against that source, same treatment the Library phase gave its own
+   scaffold. The ORIGINAL ported CSS below had drifted in several real ways:
+   a segmented pill-group period control where the mockup uses individually-
+   ringed buttons with NO shared pill background; a plain white "selected"
+   period state instead of the dark metal gradient (§1.3: the gradient is
+   also this screen's selection state); a 9px/17px header and pill font where
+   the spec calls for 11px/15px; and an amber override-marker dot where the
+   spec is explicit: "a 7px #101828 dot" (near-black, not a status color —
+   see README §10.2). Fixed below; VNextReportsTracker.tsx is this CSS's
+   first real consumer. */
+.capiro-vnext-root .uui-reports-heading {
+  margin: 10px 0 0;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .uui-reports-subline {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--eng-ink-2);
+}
+.capiro-vnext-root .uui-reports-tracker-heading {
+  margin: 22px 0 0;
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .uui-report-toolbar-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+.capiro-vnext-root .uui-report-periods {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
-.capiro-vnext-root .uui-select-control {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 36px;
-  padding: 0 9px;
-  color: var(--eng-ink-3);
-}
-.capiro-vnext-root .uui-select-control select {
+.capiro-vnext-root .uui-report-periods button {
+  height: 38px;
+  padding: 0 16px;
   border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--eng-ink-2);
-  font-size: 12px;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
+  color: #344054;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-report-periods button:hover:not([data-active]) {
+  background: var(--eng-bg);
+}
+/* Selected period uses the shell's dark-metal gradient token — same pattern
+   vmtg-view-toggle (meetings-vnext.css) already established for this same
+   "gradient is a selection state" rule; not a new gradient literal here. */
+.capiro-vnext-root .uui-report-periods button[data-active] {
+  background: var(--uui-btn-metal-face, linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%));
+  box-shadow: var(--uui-btn-metal-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 2px rgba(16, 24, 40, 0.12));
+  color: #fff;
+}
+.capiro-vnext-root .uui-report-toolbar-spacer {
+  flex: 1;
+  min-width: 12px;
+}
+/* Filter/Sort corrected (2026-08-16 follow-up): the first committed pass
+   used real native <select>s dressed as `.uui-button` — functional, but the
+   phase brief is explicit that these two controls must be "real dropdown-
+   button-with-menu controls (not native <select>)," matching the same
+   `.uui-library-dropdown` pattern Library's own three filter buttons already
+   established (see VNextMeetingLibrary.tsx's `LibraryDropdown`) — a real
+   button trigger + an absolute-positioned floating menu, not a browser-native
+   control. Reusing `.uui-library-dropdown` / `__trigger` / `__menu` directly
+   (declared once, in the Library section above) rather than re-declaring an
+   equivalent Reports-specific class family — this file's own prior comment
+   on `.uui-library-dropdown__menu` already anticipated exactly this reuse
+   ("Same elevated-menu visual language as the Reports status menu"). The
+   now-unused native-<select>-dressed-as-button rules this replaced are
+   removed rather than left as dead CSS, matching the Meetings phase's own
+   "verified zero consumers, then deleted" precedent. */
+.capiro-vnext-root .uui-report-card {
+  overflow: visible;
+  border-radius: 12px;
+  background: var(--eng-surface);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
+  margin-top: 16px;
 }
 .capiro-vnext-root .uui-report-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.capiro-vnext-root .uui-report-scroll::-webkit-scrollbar {
-  display: none;
 }
 .capiro-vnext-root .uui-report-table {
   min-width: 1120px;
@@ -918,45 +858,49 @@
   gap: 12px;
 }
 .capiro-vnext-root .uui-report-table__head {
-  position: sticky;
-  top: 0;
-  z-index: 2;
   min-height: 42px;
-  padding: 0 18px;
-  background: var(--eng-muted);
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--eng-border);
+  border-radius: 12px 12px 0 0;
+  background: var(--eng-recessed);
   color: var(--eng-ink-4);
   font-family: var(--eng-font-mono);
-  font-size: 9px;
-  letter-spacing: 0.05em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .capiro-vnext-root .uui-report-table__row {
   min-height: 68px;
-  padding: 0 18px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--eng-muted);
-  font-size: 13px;
+  background: var(--eng-surface);
+  color: var(--eng-ink-2);
+  font-size: 14px;
 }
-.capiro-vnext-root .uui-report-table__head > :first-child,
-.capiro-vnext-root .uui-report-table__row > :first-child {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  background: inherit;
+.capiro-vnext-root .uui-report-table__row:last-child {
+  border-bottom: 0;
+  border-radius: 0 0 12px 12px;
 }
 .capiro-vnext-root .uui-report-table__row > :first-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  color: var(--eng-ink);
+  font-size: 15px;
+  font-weight: 600;
 }
 .capiro-vnext-root .uui-report-meetings-link {
   border: 0;
   background: transparent;
   color: var(--eng-accent);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   text-align: left;
+}
+.capiro-vnext-root .uui-report-meetings-link:hover {
+  color: var(--eng-accent-hover);
 }
 .capiro-vnext-root .uui-report-status-cell {
   position: relative;
@@ -965,44 +909,67 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   height: 26px;
   padding: 0 10px;
   border: 0;
   border-radius: 9999px;
   background: var(--eng-muted);
   color: var(--eng-ink-2);
-  font-size: 9px;
-  letter-spacing: 0.03em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
 }
+.capiro-vnext-root .uui-report-status-trigger:hover {
+  filter: brightness(0.97);
+}
 .capiro-vnext-root .uui-report-status-trigger i,
-.capiro-vnext-root .uui-report-status-menu i,
-.capiro-vnext-root .uui-report-legend i {
+.capiro-vnext-root .uui-report-status-menu button i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--eng-ink-4);
-}
-.capiro-vnext-root [data-state='complete'] > i,
-.capiro-vnext-root .uui-report-status-trigger[data-state='complete'] i,
-.capiro-vnext-root .uui-report-status-menu button[data-state='complete'] i {
-  background: var(--eng-accent);
+  flex-shrink: 0;
 }
 .capiro-vnext-root .uui-report-status-trigger[data-state='complete'] {
   background: var(--eng-accent-soft);
   color: var(--eng-accent);
 }
-.capiro-vnext-root [data-state='in_progress'] > i,
-.capiro-vnext-root .uui-report-status-trigger[data-state='in_progress'] i,
-.capiro-vnext-root .uui-report-status-menu button[data-state='in_progress'] i {
-  background: var(--eng-warning-dot);
+.capiro-vnext-root .uui-report-status-trigger[data-state='complete'] i,
+.capiro-vnext-root .uui-report-status-menu button[data-state='complete'] i {
+  background: var(--eng-accent);
 }
 .capiro-vnext-root .uui-report-status-trigger[data-state='in_progress'] {
   background: var(--eng-warning-bg);
   color: var(--eng-warning);
 }
+.capiro-vnext-root .uui-report-status-trigger[data-state='in_progress'] i,
+.capiro-vnext-root .uui-report-status-menu button[data-state='in_progress'] i {
+  background: var(--eng-warning-dot);
+}
+/* Legend dots are their OWN 8px size (the mockup's literal legend markup:
+   `width:8px;height:8px`), distinct from the 6px dot inside the pill/menu —
+   splitting this out of the combined selector above rather than shrinking
+   the legend to match, since 8px is what the source actually specifies. */
+.capiro-vnext-root .uui-report-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--eng-ink-4);
+  flex-shrink: 0;
+}
+.capiro-vnext-root .uui-report-legend i.complete {
+  background: var(--eng-accent);
+}
+.capiro-vnext-root .uui-report-legend i.in-progress {
+  background: var(--eng-warning-dot);
+}
+/* README §10.2: "a 7px #101828 dot ... ringed in white" — a distinct
+   near-black marker, deliberately NOT tone-colored (it flags "manually
+   overridden," independent of whichever status tone the cell resolved to). */
 .capiro-vnext-root .uui-report-override-marker {
   position: absolute;
   top: -3px;
@@ -1010,8 +977,8 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--eng-warning-dot);
-  box-shadow: 0 0 0 2px white;
+  background: var(--eng-ink);
+  box-shadow: 0 0 0 2px var(--eng-surface);
 }
 .capiro-vnext-root .uui-report-status-menu {
   position: absolute;
@@ -1025,8 +992,8 @@
   border-radius: 10px;
   background: var(--eng-surface);
   box-shadow:
-    0 12px 30px rgba(16, 24, 40, 0.16),
-    0 0 0 1px var(--eng-border);
+    0 12px 16px -4px rgba(16, 24, 40, 0.1),
+    0 0 0 1px var(--eng-tone-gray-ring);
 }
 .capiro-vnext-root .uui-report-status-menu button {
   display: flex;
@@ -1038,36 +1005,88 @@
   border-radius: 6px;
   background: transparent;
   color: var(--eng-ink-2);
-  font-size: 12px;
+  font-size: 14px;
   text-align: left;
   cursor: pointer;
 }
-.capiro-vnext-root .uui-report-status-menu button:hover,
+.capiro-vnext-root .uui-report-status-menu button:hover {
+  background: var(--eng-bg);
+}
 .capiro-vnext-root .uui-report-status-menu button[data-selected] {
-  background: var(--eng-muted);
+  color: var(--eng-ink);
+  font-weight: 600;
 }
 .capiro-vnext-root .uui-report-pending {
-  font-size: 12px;
+  font-family: var(--eng-font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--eng-ink-4);
+}
+.capiro-vnext-root .uui-report-pending[data-nonzero] {
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .uui-report-empty {
+  padding: 34px 20px;
+  text-align: center;
+  color: var(--eng-ink-2);
+  font-size: 14px;
 }
 .capiro-vnext-root .uui-report-legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
-  padding: 14px 20px;
-  color: var(--eng-ink-3);
-  font-size: 12px;
+  gap: 18px;
+  margin-top: 14px;
+  padding: 0 2px;
+  color: var(--eng-ink-2);
+  font-size: 13px;
 }
 .capiro-vnext-root .uui-report-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+}
+.capiro-vnext-root .uui-report-legend i.not-started {
+  box-shadow: inset 0 0 0 1.5px var(--eng-ink-4);
+  background: transparent;
 }
 .capiro-vnext-root .uui-report-legend p {
   flex: 1;
   min-width: 280px;
   margin: 0;
-  text-align: right;
+  color: var(--eng-ink-3);
+}
+
+/* Toast (design README §13) — see engagement-toast.tsx for why this is a
+   dedicated component/CSS pair rather than a retheme of an existing one. */
+.capiro-vnext-root .uui-eng-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 65;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--eng-primary);
+  color: #ffffff;
+  box-shadow: 0px 12px 16px -4px rgba(16, 24, 40, 0.24);
+  font-size: 14px;
+  font-weight: 500;
+  animation: uiToastRise 0.18s ease;
+}
+.capiro-vnext-root .uui-eng-toast button {
+  display: inline-flex;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--eng-ink-4);
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-eng-toast button:hover {
+  color: #ffffff;
 }
 
 /* Outreach */
@@ -1169,6 +1188,21 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+/* Informational (non-clickable) variant of the chat inline-actions row — used
+   when the real send trigger is present but not yet enabled (sponsor-scope
+   blocked, held-out unacknowledged, or other preflight blockers), so the
+   chat pane always shows an honest, specific reason rather than a dead
+   disabled button with no context. */
+.capiro-vnext-root .uui-chat-actions--note p {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--eng-warning-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-warning-border);
+  color: var(--eng-warning);
+  font-size: 12px;
+  line-height: 17px;
+}
 .capiro-vnext-root .uui-chat-actions button {
   min-height: 34px;
   padding: 0 14px;
@@ -1217,24 +1251,37 @@
   color: var(--eng-ink-4);
   font-size: 12px;
 }
+/* The ONE deliberate solid-fill exception in the product (confirmed against
+   the canonical reference — every other warning/notice surface in this
+   module uses the light `--eng-warning-bg` tint). Model-outage is the single
+   spot that gets a solid dark-amber fill instead. */
 .capiro-vnext-root .uui-model-outage {
   display: flex;
   gap: 10px;
   margin: 12px 14px 0;
   padding: 12px;
   border-radius: 10px;
-  background: var(--eng-warning-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-warning-border);
-  color: var(--eng-warning);
+  background: var(--eng-warning-deep);
+  color: #fff;
+}
+.capiro-vnext-root .uui-model-outage > svg {
+  color: #fedf89;
 }
 .capiro-vnext-root .uui-model-outage p {
   margin: 3px 0 5px;
+  color: inherit;
   font-size: 12px;
   line-height: 18px;
 }
-.capiro-vnext-root .uui-model-outage button {
+.capiro-vnext-root .uui-model-outage__retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 13px;
   border: 0;
-  background: transparent;
+  border-radius: 8px;
+  background: #fff;
   color: var(--eng-warning-deep);
   font-size: 12px;
   font-weight: 600;
@@ -1306,6 +1353,34 @@
 }
 .capiro-vnext-root .uui-outreach-step-strip button:disabled {
   cursor: default;
+}
+/* Narrow-width fallback rail — one initial per step. Hidden by default;
+   swaps in for the full label strip under the 759px breakpoint below, where
+   the full strip today just becomes horizontally scrollable. */
+.capiro-vnext-root .uui-outreach-step-dots {
+  display: none;
+}
+.capiro-vnext-root .uui-outreach-step-dots button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--eng-muted);
+  color: var(--eng-ink-3);
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-outreach-step-dots button[data-active] {
+  background: var(--eng-primary);
+  color: #fff;
+}
+.capiro-vnext-root .uui-outreach-step-dots button:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 .capiro-vnext-root .uui-outreach-sections {
   display: flex;
@@ -1861,6 +1936,15 @@
   font-size: 11px;
   box-shadow: inset 0 0 0 1px var(--eng-border);
 }
+/* Attachment lifecycle/scan-status marker — real data (OutreachAttachment
+   .lifecycleStatus/.scanStatus) that is enforced at send time but was never
+   shown until it blocked a send. Compact variant of the shared state pill so
+   it fits inline inside a chip. */
+.capiro-vnext-root .uui-attachment-chip .uui-state-pill {
+  min-height: 18px;
+  padding: 0 6px;
+  font-size: 8px;
+}
 .capiro-vnext-root .uui-attachment-chip button {
   display: grid;
   place-items: center;
@@ -1929,6 +2013,115 @@
 }
 .capiro-vnext-root .uui-preflight-row[data-state='blocked'] em i {
   background: var(--eng-error-dot);
+}
+/* Client-only "no real check" row state — the 3 backend-gap preflight rows
+   (Role policy / Shared visibility / Context checks). Deliberately gray/
+   neutral, never navy/warn/err, so it can never read as a real pass or a
+   real blocker. See buildHonestPreflightRows in VNextOutreachWorkspace.tsx. */
+.capiro-vnext-root .uui-preflight-row[data-state='unavailable'] {
+  background: var(--eng-muted);
+}
+.capiro-vnext-root .uui-preflight-row[data-state='unavailable'] em {
+  color: var(--eng-ink-3);
+}
+.capiro-vnext-root .uui-preflight-row[data-state='unavailable'] em i {
+  background: var(--eng-ink-4);
+}
+/* Dedicated sponsor-scope-blocked panel — literal mockup hex values used
+   verbatim (not the generic --eng-error-bg/border tokens, which are a
+   slightly different shade) since this is a specific, named design element,
+   not a generic recovery/error panel. */
+.capiro-vnext-root .uui-sponsor-scope-blocked {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: #fffbfa;
+  box-shadow: inset 0 0 0 1px #fecdca;
+  color: var(--eng-error);
+}
+.capiro-vnext-root .uui-sponsor-scope-blocked p {
+  margin: 4px 0 10px;
+  color: var(--eng-ink-2);
+  font-size: 13px;
+  line-height: 19px;
+}
+.capiro-vnext-root .uui-sponsor-scope-blocked button[disabled] {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+/* Per-recipient hold-out toggle rows (the held-out fix's interactive part —
+   see item A in this phase's report). */
+.capiro-vnext-root .uui-recipient-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.capiro-vnext-root .uui-recipient-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--eng-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+}
+.capiro-vnext-root .uui-recipient-status-row[data-blocked] {
+  background: var(--eng-error-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-error-border);
+}
+.capiro-vnext-root .uui-recipient-status-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.capiro-vnext-root .uui-recipient-status-row strong {
+  font-size: 13px;
+}
+.capiro-vnext-root .uui-recipient-status-row > div span {
+  color: var(--eng-ink-3);
+  font-size: 11px;
+}
+.capiro-vnext-root .uui-recipient-status-row[data-blocked] > div span {
+  color: var(--eng-error);
+}
+.capiro-vnext-root .uui-hold-out-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--eng-ink-2);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.capiro-vnext-root .uui-hold-out-toggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--eng-accent);
+}
+/* Workbench Send step's closing note, replacing the send button that moved
+   to the chat pane — see item D in this phase's report. */
+.capiro-vnext-root .uui-send-relocated-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px;
+  border-radius: 10px;
+  background: var(--eng-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+  color: var(--eng-accent);
+}
+.capiro-vnext-root .uui-send-relocated-note p {
+  margin: 4px 0 0;
+  color: var(--eng-ink-2);
+  font-size: 12px;
+  line-height: 18px;
 }
 .capiro-vnext-root .uui-send-summary {
   display: flex;
@@ -2011,6 +2204,19 @@
 .capiro-vnext-root .uui-delivery-stats span {
   color: var(--eng-ink-3);
   font-size: 12px;
+}
+/* Mockup-consistent visual styling on the REAL tiles only — tone-coded
+   numbers. Labels stay Sent/Failed/Unknown/Skipped/Held; see
+   DELIVERY_STAT_TONE in VNextOutreachWorkspace.tsx for why the mockup's
+   Delivered/Bounced/Replied concepts are not used here. */
+.capiro-vnext-root .uui-delivery-stats article[data-tone='navy'] strong {
+  color: var(--eng-accent);
+}
+.capiro-vnext-root .uui-delivery-stats article[data-tone='error'] strong {
+  color: var(--eng-error);
+}
+.capiro-vnext-root .uui-delivery-stats article[data-tone='warning'] strong {
+  color: var(--eng-warning);
 }
 .capiro-vnext-root .uui-delivery-records article,
 .capiro-vnext-root .uui-next-actions article {
@@ -2345,7 +2551,6 @@
   animation: uiSpin 1s linear infinite;
 }
 .capiro-vnext-root .uui-table-skeleton,
-.capiro-vnext-root .uui-mtg-skeletons,
 .capiro-vnext-root .uui-outreach-loading {
   display: flex;
   flex-direction: column;
@@ -2410,6 +2615,16 @@
     transform: scale(1);
   }
 }
+@keyframes uiToastRise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
 @keyframes uiSpin {
   to {
     transform: rotate(360deg);
@@ -2446,28 +2661,8 @@
   .capiro-vnext-root .engagement-vnext select {
     min-height: 44px;
   }
-  .capiro-vnext-root .uui-mtg-toolbar {
-    align-items: flex-start;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__title {
-    flex-basis: calc(100% - 360px);
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__actions {
-    margin-left: 0;
-  }
   .capiro-vnext-root .uui-outreach-chat {
     flex-basis: 380px;
-  }
-  .capiro-vnext-root .uui-mtg-workspace > div[style*='box-shadow: -8px'],
-  .capiro-vnext-root .uui-mtg-workspace > div[style*='boxShadow'] {
-    width: 420px !important;
-    max-width: 420px !important;
-  }
-  .capiro-vnext-root .uui-mtg-detail-not-found {
-    width: 420px;
-  }
-  .capiro-vnext-root .uui-library-filters {
-    grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(140px, 0.6fr));
   }
   .capiro-vnext-root .uui-draft-layout {
     grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1.5fr);
@@ -2501,86 +2696,22 @@
   .capiro-vnext-root .uui-mailbox-banner {
     margin-inline: 16px;
   }
-  .capiro-vnext-root .uui-mtg-card,
   .capiro-vnext-root .uui-library-page,
   .capiro-vnext-root .uui-reports-page,
   .capiro-vnext-root .uui-hidden-overview {
     padding: 18px 16px 36px;
   }
-  .capiro-vnext-root .uui-mtg-toolbar__title {
-    flex-basis: 100%;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__period {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__period strong {
-    flex: 1;
-    min-width: 0;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__views {
-    flex: 1;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__views button {
-    flex: 1;
-    min-width: 64px;
-    padding-inline: 10px;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__actions {
-    width: 100%;
-  }
-  .capiro-vnext-root .uui-mtg-toolbar__actions .uui-button {
-    flex: 1;
-  }
-  .capiro-vnext-root .uui-mtg-weekstrip button {
-    min-height: 68px;
-  }
-  .capiro-vnext-root .uui-mtg-weekstrip button small {
-    font-size: 9px;
-  }
-  .capiro-vnext-root .uui-mtg-row {
-    grid-template-columns: 1fr auto;
-    gap: 8px 12px;
-  }
-  .capiro-vnext-root .uui-mtg-row__time {
-    grid-column: 1/-1;
-  }
-  .capiro-vnext-root .uui-mtg-row__main small {
-    white-space: normal;
-  }
-  .capiro-vnext-root .uui-mtg-status {
-    grid-column: 2;
-    grid-row: 2;
-  }
-  .capiro-vnext-root .uui-mtg-month__grid button {
-    min-height: 72px;
-    padding: 7px;
-  }
-  .capiro-vnext-root .uui-mtg-month__count {
-    padding-inline: 6px;
-  }
-  .capiro-vnext-root .uui-mtg-month__count em,
-  .capiro-vnext-root .uui-mtg-month__count i {
-    display: none;
-  }
-  .capiro-vnext-root .uui-mtg-workspace > div[style*='box-shadow: -8px'],
-  .capiro-vnext-root .uui-mtg-workspace > div[style*='boxShadow'] {
-    position: fixed !important;
-    top: 72px !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-  .capiro-vnext-root .uui-mtg-detail-not-found {
-    position: fixed;
-    top: 72px;
-    width: 100%;
-  }
   .capiro-vnext-root .uui-library-filters {
-    grid-template-columns: 1fr;
-    padding: 14px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .capiro-vnext-root .uui-search-field {
+    min-width: 0;
+    max-width: none;
+  }
+  .capiro-vnext-root .uui-library-dropdown,
+  .capiro-vnext-root .uui-library-dropdown__trigger {
+    width: 100%;
   }
   .capiro-vnext-root .uui-library-table__head {
     display: none;
@@ -2591,22 +2722,24 @@
     padding: 14px;
   }
   .capiro-vnext-root .uui-library-materials,
-  .capiro-vnext-root .uui-library-visibility {
+  .capiro-vnext-root .uui-library-row .eng-pill {
     grid-column: 2;
   }
-  .capiro-vnext-root .uui-report-toolbar {
+  .capiro-vnext-root .uui-report-toolbar-row {
     align-items: stretch;
   }
-  .capiro-vnext-root .uui-report-toolbar > div:first-child,
-  .capiro-vnext-root .uui-report-periods,
-  .capiro-vnext-root .uui-report-actions {
+  .capiro-vnext-root .uui-report-periods {
     width: 100%;
   }
   .capiro-vnext-root .uui-report-periods button {
     flex: 1;
   }
-  .capiro-vnext-root .uui-report-actions > * {
+  .capiro-vnext-root .uui-report-toolbar-row > .uui-button,
+  .capiro-vnext-root .uui-report-toolbar-row > .uui-library-dropdown {
     flex: 1 1 150px;
+  }
+  .capiro-vnext-root .uui-report-toolbar-row .uui-library-dropdown__trigger {
+    width: 100%;
   }
   .capiro-vnext-root .uui-report-legend p {
     flex-basis: 100%;
@@ -2640,7 +2773,12 @@
     white-space: normal;
   }
   .capiro-vnext-root .uui-outreach-step-strip {
-    grid-template-columns: repeat(6, 100px);
+    display: none;
+  }
+  .capiro-vnext-root .uui-outreach-step-dots {
+    display: flex;
+    gap: 8px;
+    margin: 12px 4px 16px;
   }
   .capiro-vnext-root .uui-outreach-section__header {
     grid-template-columns: 22px minmax(0, 1fr) auto 16px;

@@ -913,6 +913,7 @@
 }
 
 .ov3-choice-card {
+  position: relative; /* supports the optional footer warning bar below */
   align-items: center;
   background: var(--ov3-surface);
   border: 1px solid var(--ov3-border);
@@ -923,6 +924,20 @@
   min-height: 68px;
   padding: 10px 11px;
   text-align: left;
+}
+
+/* Mandated warning treatment for the "Shared thread" delivery card — a
+   literal solid #B54708 bar at the card's foot, not a color that shifts with
+   the navy re-theme (a real, spec-mandated warning color), so it is
+   hardcoded here rather than routed through a custom property. */
+.ov3-choice-card__warning-bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: #b54708;
+  border-radius: 0 0 9px 9px;
 }
 
 .ov3-choice-card:hover {
@@ -1120,6 +1135,28 @@
 
 .ov3-guidance-card.is-strategy {
   border-color: #9ebcd6;
+}
+
+/* Delivery recommendation rationale — mono, dot-marked "consequence chips"
+   (`.eng-pill`) instead of a plain bulleted list. Layout only; color/font
+   come entirely from the `.eng-pill--*` classes. Rationale strings are full
+   sentences, not short labels, so `.eng-pill`'s default `white-space:nowrap`
+   is relaxed here to let a chip wrap onto a second line instead of
+   overflowing. */
+.ov3-consequence-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ov3-consequence-chips .eng-pill {
+  height: auto;
+  min-height: 24px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
 }
 
 .ov3-panel-footer {

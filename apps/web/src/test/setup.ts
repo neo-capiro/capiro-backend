@@ -39,3 +39,11 @@ if (typeof window !== 'undefined' && !window.ResizeObserver) {
     disconnect() {}
   } as unknown as typeof ResizeObserver;
 }
+
+// JSDOM has no layout engine, so it doesn't implement scrollIntoView either.
+// Any chat/transcript view that autoscrolls to its latest turn on mount or
+// update (e.g. VNextOutreachWorkspace's chat pane) throws
+// `scrollIntoView is not a function` without this no-op stub.
+if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}

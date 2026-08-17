@@ -24,8 +24,32 @@ import {
   meetingStatus,
   showSendMeri,
 } from './meetings-ui.js';
-import type { DetailTab, Meeting } from './meetings-types.js';
+import { approvedDebrief, type DetailTab, type Meeting } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
+import { SharedMeetingsSection } from './SharedMeetingsSection.js';
+
+/**
+ * Tab-strip dot color — reskin phase (navy design), intentional behavior
+ * change, not an oversight: the dot used to mean COMPLETION (the artifact
+ * exists — see meetingStatus()/MeetingStatus above, which is unchanged and
+ * still drives OTHER completion signals like the Meetings-list P/N/D badges).
+ * The design calls for the dot on THIS tab strip specifically to mean
+ * APPROVAL instead: navy once approved, amber once something exists but
+ * isn't approved yet, gray while nothing exists yet. Reuses the same
+ * generic --accent/--notable/--ink-4 vars the rest of this file already reads
+ * (navy/amber/gray on os.capiro.ai via the vNext retheme, original tones on
+ * app.capiro.ai) rather than introducing new ones. */
+type TabDotTone = 'navy' | 'warn' | 'gray';
+function tabDotTone(exists: boolean, approved: boolean): TabDotTone {
+  if (approved) return 'navy';
+  if (exists) return 'warn';
+  return 'gray';
+}
+const TAB_DOT_COLOR: Record<TabDotTone, string> = {
+  navy: 'var(--accent)',
+  warn: 'var(--notable)',
+  gray: 'var(--ink-4)',
+};
 
 /**
  * Phase 2 §3.e — replaces the binary Private/Shared toggle (which unshared
@@ -188,6 +212,9 @@ function ClientAssign({ meeting }: { meeting: Meeting }) {
           </select>
           <small>Sharing requires a client. Internal meetings may remain unassigned.</small>
         </label>
+        {meeting.client ? (
+          <SharedMeetingsSection clientId={meeting.client.id} clientName={meeting.client.name} />
+        ) : null}
       </EngagementDialog>
     </>
   );
@@ -253,10 +280,16 @@ export function MeetingDetailPanel({
   if (!m) return null;
 
   const shared = m.visibility === 'shared';
-  const tabs: { k: DetailTab; label: string; done: boolean; disabled?: boolean }[] = [
-    { k: 'prep', label: 'Prep', done: status.prep },
-    { k: 'notes', label: 'Meeting Notes', done: status.notes },
-    { k: 'debrief', label: 'Debrief', done: status.debrief, disabled: debriefLocked },
+  const prep = m.preps[0] ?? null;
+  const tabs: { k: DetailTab; label: string; dot: TabDotTone; disabled?: boolean }[] = [
+    { k: 'prep', label: 'Prep', dot: tabDotTone(status.prep, prep?.status === 'approved') },
+    { k: 'notes', label: 'Meeting Notes', dot: tabDotTone(status.notes, m.notesApproved) },
+    {
+      k: 'debrief',
+      label: 'Debrief',
+      dot: tabDotTone(status.debrief, Boolean(approvedDebrief(m))),
+      disabled: debriefLocked,
+    },
   ];
 
   return (
@@ -315,6 +348,11 @@ export function MeetingDetailPanel({
                   fontSize: 11.5,
                   color: 'var(--ink-3)',
                   fontVariantNumeric: 'tabular-nums',
+                  // Reskin phase: the design's meta/time-date lines are mono
+                  // (IBM Plex Mono on os.capiro.ai via the vNext retheme's
+                  // --font-mono mapping); this is the one such line in the
+                  // panel's own header (as opposed to inside a tab body).
+                  fontFamily: 'var(--font-mono)',
                   marginBottom: 6,
                   display: 'flex',
                   alignItems: 'center',
@@ -496,16 +534,21 @@ export function MeetingDetailPanel({
                     {t.label}
                   </span>
                   {t.disabled && <Lock size={11} style={{ color: 'var(--ink-3)' }} />}
-                  {t.done && (
-                    <span
-                      style={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: '50%',
-                        background: 'var(--success)',
-                      }}
-                    />
-                  )}
+                  <span
+                    title={
+                      t.dot === 'navy'
+                        ? 'Approved'
+                        : t.dot === 'warn'
+                          ? 'Not yet approved'
+                          : 'Not started'
+                    }
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: TAB_DOT_COLOR[t.dot],
+                    }}
+                  />
                 </button>
               );
             })}

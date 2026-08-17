@@ -5,9 +5,29 @@ import { useApprovePrep, useGeneratePrep, useUpdatePrep } from './meetings-api.j
 import { exportArtifactPdf } from './meetings-print.js';
 import { formatDayTitle } from './meetings-format.js';
 import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
-import { ArtifactActionBar, GeneratingState } from './tab-kit.js';
+import { ArtifactActionBar, GeneratingState, RuleReinforcement, StagePill } from './tab-kit.js';
 import type { Meeting } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
+
+type PrepStageTone = 'navy' | 'gray' | 'warn' | 'err';
+
+/** The Prep tab's top-of-tab stage pill (see tab-kit.js's StagePill). Navy =
+ *  approved (a real terminal, positive state); warn = stale (needs a
+ *  regenerate); err = a failed generation; gray covers every other in-between
+ *  state (not started, currently generating, or generated/edited but not yet
+ *  approved) — approval is the one signal worth calling out in color here,
+ *  same judgment call as the tab-strip dot fix (MeetingDetailPanel.tsx). */
+function prepStage(
+  prep: Meeting['preps'][number] | null,
+  generating: boolean,
+): { label: string; tone: PrepStageTone } {
+  if (generating) return { label: 'Generating', tone: 'gray' };
+  if (!prep) return { label: 'Not started', tone: 'gray' };
+  if (prep.status === 'failed') return { label: 'Generation failed', tone: 'err' };
+  if (prep.status === 'stale') return { label: 'Stale', tone: 'warn' };
+  if (prep.status === 'approved') return { label: 'Approved', tone: 'navy' };
+  return { label: 'Draft', tone: 'gray' };
+}
 
 interface PrepEditValues {
   summary: string;
@@ -70,32 +90,68 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
 
   if (generate.isPending) {
     return (
-      <GeneratingState
-        label="Meri is drafting prep…"
-        sub="Pulling from the client profile, synced email, and any prior debriefs. Meri won't invent details."
-      />
+      <>
+        <StagePill {...prepStage(prep, true)} />
+        <GeneratingState
+          label="Meri is drafting prep…"
+          sub="Pulling from the client profile, synced email, and any prior debriefs. Meri won't invent details."
+        />
+      </>
     );
   }
 
   if (!prep) {
     return (
-      <Empty
-        icon={<FileText size={20} />}
-        title="No prep generated yet"
-        body="Meri drafts prep from the client profile, synced email, and prior debriefs."
-        action={
-          <button
-            type="button"
-            className="btn sm btn-accent"
-            style={{ marginTop: 2, gap: 6 }}
-            disabled={!aiConfigured}
-            onClick={() => runGenerate()}
-          >
-            <MeriGlyph size={15} tone="white" />
-            Generate with Meri
-          </button>
-        }
-      />
+      <>
+        <StagePill {...prepStage(null, false)} />
+        <Empty
+          icon={<FileText size={20} />}
+          title="No prep generated yet"
+          body="Meri drafts prep from the client profile, synced email, and prior debriefs."
+          action={
+            <button
+              type="button"
+              className="btn sm btn-accent"
+              style={{ marginTop: 2, gap: 6 }}
+              disabled={!aiConfigured}
+              onClick={() => runGenerate()}
+            >
+              <MeriGlyph size={15} tone="white" />
+              Generate with Meri
+            </button>
+          }
+        />
+      </>
+    );
+  }
+
+  // A prior generation attempt failed (see PrepStatus in meetings-types.ts).
+  // `prep` is still truthy here (the failed record itself), so without this
+  // branch execution falls through into the success-body render below with
+  // every optional section empty — an empty/broken-looking "successful" prep
+  // instead of a clear error. Mirrors NotesTab's `meri === 'failed'` handling.
+  if (prep.status === 'failed') {
+    return (
+      <>
+        <StagePill {...prepStage(prep, false)} />
+        <Empty
+          icon={<TriangleAlert size={20} />}
+          title="Prep generation failed"
+          body="Meri couldn't generate prep for this meeting. Try again, optionally with more context."
+          action={
+            <button
+              type="button"
+              className="btn sm btn-accent"
+              style={{ marginTop: 2, gap: 6 }}
+              disabled={!aiConfigured}
+              onClick={() => runGenerate()}
+            >
+              <MeriGlyph size={15} tone="white" />
+              Retry generation
+            </button>
+          }
+        />
+      </>
     );
   }
 
@@ -110,6 +166,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <StagePill {...prepStage(prep, false)} style={{ marginBottom: 0 }} />
       {prep.status === 'stale' ? (
         <div
           style={{
@@ -284,6 +341,10 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         }}
         approving={approve.isPending}
       />
+      <RuleReinforcement>
+        Refine, Regenerate, Export PDF and Approve are distinct controls. Approval never implies
+        sharing.
+      </RuleReinforcement>
       <EngagementDialog
         open={editOpen}
         eyebrow="Meeting · secondary actions"

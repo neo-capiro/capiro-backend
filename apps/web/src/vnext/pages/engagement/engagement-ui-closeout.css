@@ -11,10 +11,14 @@
   --eng-ink-3: var(--uui-gray-500, #667085);
   --eng-ink-4: var(--uui-gray-400, #98a2b3);
   --eng-primary: var(--uui-gray-900, #101828);
-  --eng-accent: var(--uui-brand-solid, #3e4784);
-  --eng-accent-hover: var(--uui-brand-hover, #363f72);
-  --eng-accent-soft: var(--uui-brand-tint, #eaecf5);
-  --eng-accent-border: var(--uui-brand-ring, #b3b8db);
+  /* v3 pass (2026-08-16): literal mockup navy, not the shell's indigo brand
+     tokens — see engagement.css for the full rationale. This is Engagement's
+     confirmed, intentional exception to the shell-indigo unification that
+     Strategies/Dashboard/LegiWatch use elsewhere in vNext. */
+  --eng-accent: #294E68;
+  --eng-accent-hover: #1F3D52;
+  --eng-accent-soft: #EDF3F7;
+  --eng-accent-border: #C3D5E1;
   font-family: var(--uui-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
 }
 .capiro-vnext-root .engagement-vnext .uui-button--primary,

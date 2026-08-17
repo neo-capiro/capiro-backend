@@ -5632,6 +5632,17 @@ export class EngagementService {
             row.storedPrepStatus !== 'auto' ||
             row.storedOutreachStatus !== 'auto' ||
             row.storedSubmissionStatus !== 'auto',
+          // Additive, 2026-08-16 (vNext Reports reskin): the design's per-cell
+          // override-marker dot (README §10.2 — "an override marker... shown
+          // when the cell has been manually overridden") needs to know WHICH
+          // of the three independently-tracked cells was overridden, not just
+          // whether any of them was. `manuallyOverridden` above stays exactly
+          // as-is for existing consumers (the canonical ReportsView's single
+          // "Manual override" tag) — these three booleans are new fields, not
+          // a replacement.
+          prepOverridden: row.storedPrepStatus !== 'auto',
+          outreachOverridden: row.storedOutreachStatus !== 'auto',
+          submissionOverridden: row.storedSubmissionStatus !== 'auto',
           meetings: Array.from(row.meetings.values()).sort(
             (left, right) => left.startsAt.getTime() - right.startsAt.getTime(),
           ),

@@ -1,0 +1,127 @@
+/*
+ * vNext-only re-theme of the shared Outreach V3 planning surfaces
+ * (GoalDecisionSurface / TargetWorkspace / the shared DecisionSurfaces
+ * delivery body — the ".ov3-root" component tree) — literal navy, with ZERO
+ * edits to those canonical files.
+ *
+ * How this works: outreach-v3.css defines its palette as custom properties
+ * scoped to `.ov3-root` (e.g. `--ov3-accent: var(--capiro-color-text-accent,
+ * #244f70);`), not global `:root`. The compound selector below —
+ * `.capiro-vnext-root .engagement-vnext .ov3-root` — is strictly more
+ * specific than the shared file's own bare `.ov3-root` rule, so it wins
+ * regardless of stylesheet load order. It is also scoped to markup that only
+ * exists when the shared components are mounted inside VNextOutreachWorkspace
+ * on os.capiro.ai (both the standalone `/engagement/outreach` route via
+ * VNextEngagementRoutes, and the OutreachV3CompleteRoute adapter — see that
+ * file's own `capiro-vnext-root`/`engagement-vnext` wrapper) — never on
+ * app.capiro.ai's Classic Outreach flow, which renders the ov3 tree only if
+ * it explicitly opts into the v3 preview, and even then goes through the
+ * same OutreachV3CompleteRoute wrapper, so the scoping holds either way.
+ *
+ * Every `--ov3-*` custom property below is the COMPLETE set actually defined
+ * by outreach-v3.css's `.ov3-root` block (verified by reading the file, not
+ * assumed from the phase brief) plus `--ov3-active`, which planning-surfaces.
+ * css CONSUMES (selected/hover borders on target chips, the client list, and
+ * delivery cards) but which no shared file ever defines — a pre-existing gap
+ * upstream, not something introduced here. Defining it in this vnext-scoped
+ * block only fixes it for this surface; the shared file itself is untouched.
+ *
+ * Mapping rule actually used: the module's ACCENT/brand identity (accent,
+ * cobalt, the undefined "active" tone) unifies on the one literal navy engagement
+ * already established (`--eng-accent` / `--eng-tone-navy-*`, see
+ * engagement.css / engagement-tones.css). Warning and danger align with
+ * engagement's own existing warning/error tokens (amber-to-amber, red-to-red
+ * — not forced to navy, since they're semantic status colors, not brand
+ * color). `--ov3-success` (green) is deliberately left UNCHANGED: engagement's
+ * navy tone table has no green tone at all (see drawer-vnext.css's own note
+ * on this), so there is nothing real to map it to — inventing one would be
+ * exactly the kind of fabricated-value shortcut to avoid.
+ */
+.capiro-vnext-root .engagement-vnext .ov3-root {
+  /* Surfaces */
+  --ov3-canvas: var(--eng-bg, #f9fafb);
+  --ov3-surface: var(--eng-surface, #ffffff);
+  --ov3-subtle: var(--eng-accent-soft, #edf3f7);
+  --ov3-selected: var(--eng-accent-soft, #edf3f7);
+
+  /* Text */
+  --ov3-ink: var(--eng-ink, #101828);
+  --ov3-secondary: var(--eng-ink-2, #475467);
+  --ov3-muted: var(--eng-ink-3, #667085);
+
+  /* Brand/accent identity — the module's one literal navy */
+  --ov3-accent: var(--eng-accent, #294e68);
+  --ov3-cobalt: var(--eng-accent, #294e68);
+  --ov3-active: var(--eng-accent, #294e68);
+
+  /* Borders */
+  --ov3-border: var(--eng-border, #eaecf0);
+  --ov3-border-quiet: var(--eng-border, #eaecf0);
+  --ov3-border-strong: var(--eng-accent-border, #c3d5e1);
+
+  /* Status — warning/danger align with engagement's own amber/red; success
+     (green) has no engagement-navy equivalent and is left as-is. */
+  --ov3-warning: var(--eng-warning, #b54708);
+  --ov3-danger: var(--eng-error, #b42318);
+}
+
+/*
+ * Item 7 — selected filter/target chips in the Outreach Targets step use the
+ * dark-gradient "selected" language (per design doc §1.3: "the dark
+ * gradient... as the selected chip in the Outreach target tabs"), not the
+ * shared ov3 surface's flat #121722 selection fill. Reuses the exact same
+ * metal-gradient tokens engagement-ui-closeout.css already applies to
+ * `.uui-button--primary` elsewhere in this module — same visual language,
+ * not a new one.
+ */
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-tab-row button.is-selected,
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-target-criteria__controls > button.is-selected {
+  background: var(--uui-btn-metal-face, linear-gradient(180deg, #39424f, #0e141c));
+  border-color: var(--uui-btn-metal-edge, #0e141c);
+  box-shadow: var(--uui-btn-metal-shadow);
+  color: var(--uui-btn-metal-fg, #fff);
+}
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-tab-row button.is-selected:hover,
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-target-criteria__controls > button.is-selected:hover {
+  background: var(--uui-btn-metal-face-hover, linear-gradient(180deg, #4a5462, #161d26));
+}
+
+/*
+ * Step 4 (Context) — verified by reading context-review-surface.css and
+ * grepping every --ov3-* reference in outreach-v3.css in full: Context's own
+ * stylesheet only consumes --ov3-subtle/border/surface/secondary/muted/
+ * accent, and every one of those is ALREADY remapped by the .ov3-root block
+ * above. No new custom property was needed for Context specifically.
+ *
+ * What WAS missed by that token remap: context-review-surface.css's class
+ * guide cards and context cards (is-guidance/is-evidence/is-target(-specific)
+ * /is-conflict) use hardcoded literal pastel hex colors (purple/blue/green/
+ * amber), not CSS custom properties at all — so no --ov3-* remap could ever
+ * reach them, and left alone they would sit as off-brand hued cards inside an
+ * otherwise navy/mono surface. Remapped here using the SAME
+ * highly-specific-selector mechanism as the rest of this file, onto
+ * engagement's own existing gray/navy/warning tokens (never a new hue):
+ * guidance -> neutral gray (it's style, not evidence, so it gets the
+ * "quieter" tone); evidence/target-specific -> navy (real, scoped campaign
+ * facts); excluded/conflict -> warning amber (a real cautionary state,
+ * consistent with how "excluded"/"held" is colored everywhere else in this
+ * module).
+ */
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-class-guide article.is-guidance,
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-card.is-guidance {
+  background: var(--eng-muted, #f2f4f7);
+  border-color: var(--eng-border-strong, #acb7c6);
+}
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-class-guide article.is-evidence,
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-card.is-evidence {
+  border-color: var(--eng-accent-border, #c3d5e1);
+}
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-class-guide article.is-target,
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-card.is-target-specific {
+  background: var(--eng-accent-soft, #edf3f7);
+  border-color: var(--eng-accent-border, #c3d5e1);
+}
+.capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-card.is-conflict {
+  background: var(--eng-warning-bg, #fffaeb);
+  border-color: var(--eng-warning-border, #fedf89);
+}

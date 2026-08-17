@@ -19,7 +19,19 @@ describe('Engagement UI closeout contract', () => {
 
     const router = source('src/vnext/app/VNextRouter.tsx');
     expect(router).not.toContain('VNextMeetingsWorkspace');
+    // Reports phase (2026-08-16): VNextReportsTracker now ships for real —
+    // wired deliberately into VNextEngagementRoutes.tsx (below), never into
+    // VNextRouter.tsx directly, same architectural boundary every other
+    // per-destination vNext component (VNextMeetingsWorkspace,
+    // VNextMeetingLibrary, VNextOutreachWorkspace) already respects. This
+    // assertion originally existed to catch an *accidental* premature/
+    // bypassing wire-up before Reports had a real component; now that the
+    // wire-up is real and deliberate, it continues to guard the same
+    // boundary (VNextRouter.tsx only ever knows about VNextEngagementRoutes
+    // as a whole) rather than blocking the shipped feature.
     expect(router).not.toContain('VNextReportsTracker');
+    const engagementRoutes = source('src/vnext/pages/engagement/VNextEngagementRoutes.tsx');
+    expect(engagementRoutes).toContain('VNextReportsTracker');
   });
 
   it('ships the complete production window inventory through one dialog shell', () => {
@@ -131,19 +143,43 @@ describe('Engagement UI closeout contract', () => {
     }
   });
 
-  it('resolves the Engagement accent through the shell tokens, not a local navy ramp', () => {
-    const css = source('src/vnext/pages/engagement/engagement.css');
-    // The design handoff flags Engagement's #294e68 navy as a real
-    // cross-screen inconsistency and says not to hardcode it either way.
-    expect(css).toContain('--eng-accent: var(--uui-brand-solid');
-    expect(css).toContain('--eng-accent-hover: var(--uui-brand-deep');
-    expect(css).toContain('--uui-focus-ring');
-    expect(css).not.toMatch(/--eng-accent:\s*#294e68/i);
+  it('resolves the Engagement accent through its own literal navy ramp, not the shell tokens', () => {
+    // Product override (2026-08-16): Engagement gets its own vNext-only fork
+    // on the mockup's literal navy (#294E68), unlike Strategies/Dashboard/
+    // LegiWatch, which resolved this same mockup-navy-vs-shell-indigo
+    // divergence by unifying on the shell's indigo brand tokens. This is a
+    // confirmed, intentional per-module exception — lock it in so it isn't
+    // mistaken for a regression back to the shell ramp later.
+    for (const path of [
+      'src/vnext/pages/engagement/engagement.css',
+      'src/vnext/pages/engagement/engagement-ui-closeout.css',
+    ]) {
+      const css = source(path);
+      expect(css).toMatch(/--eng-accent:\s*#294e68/i);
+      expect(css).toMatch(/--eng-accent-hover:\s*#1f3d52/i);
+      expect(css).toMatch(/--eng-accent-soft:\s*#edf3f7/i);
+      expect(css).toMatch(/--eng-accent-border:\s*#c3d5e1/i);
+      expect(css).not.toMatch(/--eng-accent:\s*var\(--uui-brand-solid/i);
+    }
+    // Focus rings stay shell-consistent regardless of the accent decision.
+    expect(source('src/vnext/pages/engagement/engagement.css')).toContain('--uui-focus-ring');
   });
 
-  it('ships no runtime webfont dependency from Engagement', () => {
-    // Repo precedent (chat-fonts.css): faces are self-hosted, explicitly to
-    // avoid a runtime fonts.googleapis.com dependency for CSP + offline.
+  it('wires Engagement mono type through the shared IBM Plex Mono token', () => {
+    // Every other reskinned vNext screen (Workspace, Program Elements,
+    // LegiWatch, Client CRM, Meri) renders IBM Plex Mono the same way: the
+    // face itself loads once, globally, via the existing <link> in
+    // index.html (fonts.googleapis.com) — no module owns its own webfont
+    // infrastructure. Engagement now follows that exact precedent instead of
+    // the bare system-mono stack it used to fall back to.
+    const css = source('src/vnext/pages/engagement/engagement.css');
+    expect(css).toContain('--eng-font-mono: var(--capiro-type-family-mono)');
+
+    const tokens = source('src/vnext/foundations/tokens.css');
+    expect(tokens).toContain("--capiro-type-family-mono: 'IBM Plex Mono'");
+
+    // Engagement itself still ships no NEW webfont-loading mechanism of its
+    // own — every file here only references the shared token above.
     for (const file of [
       'src/vnext/pages/engagement/engagement.css',
       'src/pages/engagement/meetings/engagement-dialog.css',
@@ -151,8 +187,6 @@ describe('Engagement UI closeout contract', () => {
       'src/vnext/pages/engagement/engagement-ui-closeout.css',
     ]) {
       expect(source(file)).not.toContain('fonts.googleapis.com');
-      // Naming a face the app never ships just yields a silent fallback.
-      expect(source(file)).not.toContain('IBM Plex Mono');
     }
   });
 

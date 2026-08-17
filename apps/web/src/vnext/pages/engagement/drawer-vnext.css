@@ -1,0 +1,91 @@
+/*
+ * Meeting detail drawer — navy retheme (vNext-only, Track A of the drawer
+ * phase). The drawer is the REUSED canonical component tree —
+ * MeetingDetailPanel.tsx / PrepTab.tsx / NotesTab.tsx / DebriefTab.tsx /
+ * tab-kit.tsx / meeting-actions.tsx — not a fork. Its colors, backgrounds and
+ * fonts already come from generic CSS custom properties (--accent, --ink-1,
+ * --success, --notable, --border-1, --bg-surface, --font-sans, --font-mono,
+ * etc. — see theme.css's :root for their app.capiro.ai originals). Because
+ * custom properties cascade, redefining exactly those names — scoped under
+ * `.capiro-vnext-root .engagement-vnext`, present only when this vNext
+ * Engagement module renders — retints the SAME shared markup on os.capiro.ai
+ * only, with zero edits to the shared component files themselves and zero
+ * risk to app.capiro.ai (which never has this ancestor).
+ *
+ * Source of truth for the navy ramp: engagement-tones.css's --eng-tone-* /
+ * engagement.css's --eng-accent*/--eng-ink*/--eng-warning*/--eng-error*
+ * tokens (the same navy already used for the Meetings toolbar/calendar/rows
+ * built in the prior phase) — no new literal colors invented here.
+ *
+ * Approved-as-navy: the drawer's original `--success`/`--success-soft` (a
+ * green "approved" check/pill) is remapped to the NAVY accent, not a green —
+ * this vNext tone table has no green tone at all (see engagement-tones.css's
+ * header: navy/gray/warn/err are the only four). Approval reading as navy
+ * (not green) is deliberate and consistent with the tab-strip dot fix and the
+ * tab stage pills (MeetingDetailPanel.tsx / tab-kit.tsx's StagePill), which
+ * both treat "approved" as the navy state.
+ *
+ * RESOLVED (Reports/Modals phase, 2026-08-16) — EngagementDialog portal:
+ * this used to be a known gap. EngagementDialog.tsx (the shared modal shell
+ * behind Edit Prep/Notes/Debrief, Attendees, Client Assignment, the debrief
+ * Source picker's transcript window, and — as of this phase — the migrated
+ * ShareConfirmation.tsx / SendMeriModal.tsx) always portaled to
+ * `document.body`, a SIBLING of `.capiro-vnext-root`, so this file's scoped
+ * variables never cascaded into it: buttons using the shared `.btn`/
+ * `.btn-accent` classes kept app.capiro.ai's original blue instead of navy.
+ * EngagementDialog now auto-detects a mounted `.engagement-vnext` wrapper as
+ * its portal target (falling back to `document.body` when none exists, i.e.
+ * unchanged on app.capiro.ai) — see EngagementDialog.tsx's own
+ * `defaultPortalContainer`. Every dialog it opens, including these two, now
+ * renders inside this file's scope and picks up the navy retheme for free.
+ */
+.capiro-vnext-root .engagement-vnext {
+  /* Accent (brand navy) */
+  --accent: var(--eng-accent);
+  --accent-ink: var(--eng-accent-hover);
+  --accent-soft: var(--eng-accent-soft);
+
+  /* Ink (text) */
+  --ink-1: var(--eng-ink);
+  --ink-2: var(--eng-ink-2);
+  --ink-3: var(--eng-ink-3);
+  --ink-4: var(--eng-ink-4);
+
+  /* Borders */
+  --border-1: var(--eng-tone-gray-ring);
+  --border-strong: var(--eng-border-strong);
+
+  /* Surfaces */
+  --bg-surface: var(--eng-surface);
+  --bg-canvas: var(--eng-recessed);
+  --bg-sunken: var(--eng-muted);
+
+  /* "Approved" — navy, not green (see header note) */
+  --success: var(--eng-accent);
+  --success-soft: var(--eng-accent-soft);
+
+  /* "Stale" / needs-attention — amber */
+  --notable: var(--eng-warning);
+  --notable-soft: var(--eng-warning-bg);
+
+  /* Informational tint (Debrief's "Intelligence gathered" box; also backs
+     .pill.info's fg, used by NotesTab's per-note Approved pill) */
+  --info: var(--eng-accent);
+  --info-soft: var(--eng-accent-soft);
+
+  /* Fonts — sans stays sans (Hanken Grotesk, vNext's base); mono goes to
+     IBM Plex Mono for the drawer's own explicit --font-mono spots (the Prep
+     talking-point index numerals, Ava's avatar initials in meetings-ui.tsx,
+     and the header meta/time line — see MeetingDetailPanel.tsx). NOTE: the
+     "eyebrows" / section labels (SectionLabel in meetings-ui.tsx — SUMMARY /
+     AGENDA / WATCH-OUTS / etc.) are NOT covered here: they inherit
+     --font-sans with no separate variable or class to redirect just them
+     without also flipping every other --font-sans consumer (ordinary body
+     text) to mono. Converting just those would need a small, additive
+     className/inline-style change in meetings-ui.tsx — out of this file's
+     zero-TSX-edit scope, and meetings-ui.tsx is shared beyond the drawer
+     (the dashboard Home strip too), so not changed here. Flagged, not
+     silently skipped. */
+  --font-sans: var(--capiro-type-family-sans);
+  --font-mono: var(--eng-font-mono);
+}

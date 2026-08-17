@@ -18,6 +18,10 @@ import {
   isWorkspaceVNextRoute,
   WorkspaceVNextRoutes,
 } from '../pages/workspace/WorkspaceVNextRoutes.js';
+import {
+  isVNextEngagementPath,
+  VNextEngagementRoutes,
+} from '../pages/engagement/VNextEngagementRoutes.js';
 
 const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
@@ -38,6 +42,13 @@ const VNextClientCrmRoute = lazy(async () => ({
  * profile routes fall through to canonical. LegiWatch was intercepted here
  * previously — see git history on this file if reviving it. Everything else
  * falls through to the canonical page via Outlet.
+ *
+ * Engagement claims only Outreach today (VNextOutreachWorkspace, on the
+ * mockup's literal navy palette) — Meetings, Meeting Library and Reports
+ * keep rendering through the canonical EngagementPage on both domains until
+ * they get their own vNext bodies in later phases; see
+ * ENGAGEMENT_DESTINATION_READY in engagement-route-state.ts for the
+ * one-flip-per-destination switch.
  *
  * Screens that have an approved vNext presentation are substituted at their
  * existing URL — the route itself is still the canonical one, so deep links,
@@ -97,6 +108,15 @@ export function VNextRouter() {
   // shell; the editor's three-pane layout lives inside it.
   if (isWorkspaceVNextRoute(location.pathname)) {
     return <WorkspaceVNextRoutes />;
+  }
+
+  // Engagement: claims only Outreach today (VNextOutreachWorkspace, on the
+  // mockup's literal navy palette). Meetings, Meeting Library and Reports
+  // stay on canonical EngagementPage until they get their own vNext bodies in
+  // later phases — see ENGAGEMENT_DESTINATION_READY in
+  // engagement-route-state.ts for the one-line-per-destination switch.
+  if (isVNextEngagementPath(location.pathname)) {
+    return <VNextEngagementRoutes />;
   }
 
   return <Outlet />;

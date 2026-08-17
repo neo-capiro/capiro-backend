@@ -131,11 +131,17 @@ describe('NotesTab', () => {
     await waitFor(() => expect(screen.getByText('Notes unavailable')).toBeTruthy());
   });
 
-  test('while Meri is summarizing (attended, no notes yet), shows the generating state, not an empty state', async () => {
+  // Reskin phase (navy design): "follow the prototype exactly" replaced the
+  // generating-spinner treatment with a static tone panel, matching Notes'
+  // other four blocked stages (none/attending/failed/unavailable) — same
+  // shape, just a different title/body. Still a distinct, non-empty state.
+  test('while Meri is summarizing (attended, no notes yet), shows the static summarizing panel, not an empty state', async () => {
     apiGetMock.mockResolvedValue({ data: [] });
     const qc = new QueryClient();
     render(buildTree(qc, defaultProps({ meeting: makeMeeting({ meri: 'attended' }) })));
-    expect(screen.getByText('Meri is summarizing the meeting…')).toBeTruthy();
+    expect(screen.getByText('Summarizing the transcript')).toBeTruthy();
+    expect(screen.getByText('Meeting ended; Meri is turning the transcript into notes.')).toBeTruthy();
+    expect(screen.getByText('Summarizing')).toBeTruthy(); // top-of-tab stage pill
     expect(screen.queryByText('No notes yet')).toBeNull();
   });
 

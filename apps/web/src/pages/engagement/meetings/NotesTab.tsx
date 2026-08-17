@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { App } from 'antd';
-import { AlertTriangle, CalendarClock, StickyNote } from 'lucide-react';
+import { AlertTriangle, CalendarClock, FileText, StickyNote } from 'lucide-react';
 import {
   useApproveNote,
   useCancelNotetaker,
@@ -8,9 +8,35 @@ import {
   useUpdateNote,
 } from './meetings-api.js';
 import { Empty, MeriGlyph, SendMeriButton, eligibleForMeri } from './meetings-ui.js';
-import { GeneratingState } from './tab-kit.js';
+import { GeneratingState, RuleReinforcement, StagePill } from './tab-kit.js';
 import type { Meeting, MeetingNote } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
+
+type NotesStageTone = 'navy' | 'gray' | 'warn' | 'err';
+
+/**
+ * The Notes tab's top-of-tab stage pill (see tab-kit.js's StagePill / the Prep
+ * tab's equivalent). Once notes exist, the label stays "Summarized" (the
+ * existing completion word — NotesTab.test.tsx already asserts on it) while
+ * the TONE switches to navy once `m.notesApproved` — approval is a separate,
+ * later signal from completion (spec §j / the per-note Draft/Edited/Approved/
+ * Shared pill in noteStatusPill below), same split the tab-strip dot fix
+ * (MeetingDetailPanel.tsx) now also keys off `notesApproved` for. Every other
+ * branch is a real, distinct stage rather than a single generic "empty".
+ */
+function notesStage(
+  m: Meeting,
+  hasNotes: boolean,
+  summarizing: boolean,
+  scheduled: boolean,
+): { label: string; tone: NotesStageTone } {
+  if (hasNotes) return m.notesApproved ? { label: 'Summarized', tone: 'navy' } : { label: 'Summarized', tone: 'gray' };
+  if (summarizing) return { label: 'Summarizing', tone: 'gray' };
+  if (m.meri === 'failed') return { label: 'Capture failed', tone: 'err' };
+  if (scheduled) return { label: 'Attending', tone: 'gray' };
+  if (eligibleForMeri(m)) return { label: 'Not started', tone: 'gray' };
+  return { label: 'Unavailable', tone: 'gray' };
+}
 
 /**
  * Phase 2 §3.e/§3.j — Draft/Edited/Approved/Shared status pill, distinct from
@@ -172,18 +198,30 @@ export function NotesTab({
     });
 
   // Meeting is over and Meri is turning the transcript into notes — surface this
-  // immediately on the Notes tab.
+  // immediately on the Notes tab. Static tone panel, not a spinner: "follow the
+  // prototype exactly" — the design's summarizing state is the same still-panel
+  // shape as Notes' other four blocked stages (none/attending/failed/
+  // unavailable below), not the generating spinner this used to reuse.
   if (summarizing && !hasNotes) {
     return (
-      <GeneratingState
-        label="Meri is summarizing the meeting…"
-        sub="Meri attended and is turning the transcript into meeting notes. They'll appear here in a moment."
-      />
+      <>
+        <StagePill {...notesStage(m, false, true, scheduled)} />
+        <Empty
+          icon={<FileText size={20} />}
+          title="Summarizing the transcript"
+          body="Meeting ended; Meri is turning the transcript into notes."
+        />
+      </>
     );
   }
 
   if (notes.isLoading && m.meri === 'done') {
-    return <GeneratingState label="Loading notes…" />;
+    return (
+      <>
+        <StagePill label="Loading" tone="gray" />
+        <GeneratingState label="Loading notes…" />
+      </>
+    );
   }
 
   // Meri was sent and did NOT capture the meeting (consent declined, provider
@@ -191,46 +229,58 @@ export function NotesTab({
   // quietly falling back to the same "No notes yet, Send Meri" prompt below.
   if (m.meri === 'failed' && !hasNotes) {
     return (
-      <Empty
-        icon={<AlertTriangle size={20} />}
-        title="Meri couldn't capture this meeting"
-        body={m.meriError ?? 'Meri was sent to this meeting but was unable to take notes.'}
-        action={<SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />}
-      />
+      <>
+        <StagePill {...notesStage(m, false, false, scheduled)} />
+        <Empty
+          icon={<AlertTriangle size={20} />}
+          title="Meri couldn't capture this meeting"
+          body={m.meriError ?? 'Meri was sent to this meeting but was unable to take notes.'}
+          action={<SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />}
+        />
+      </>
     );
   }
 
   if (!hasNotes) {
     if (scheduled) {
       return (
-        <Empty
-          icon={<CalendarClock size={20} />}
-          title="Meri Attending"
-          body="Meri will attend this meeting and take notes. Meeting notes will automatically populate here after Meri attends and summarizes the call."
-          action={
-            <button type="button" className="btn sm" onClick={cancelMeri}>
-              Cancel Meri
-            </button>
-          }
-        />
+        <>
+          <StagePill {...notesStage(m, false, false, true)} />
+          <Empty
+            icon={<CalendarClock size={20} />}
+            title="Meri Attending"
+            body="Meri will attend this meeting and take notes. Meeting notes will automatically populate here after Meri attends and summarizes the call."
+            action={
+              <button type="button" className="btn sm" onClick={cancelMeri}>
+                Cancel Meri
+              </button>
+            }
+          />
+        </>
       );
     }
     if (eligibleForMeri(m)) {
       return (
-        <Empty
-          icon={<StickyNote size={20} />}
-          title="No notes yet"
-          body="Meeting notes will automatically populate here after Meri attends and summarizes the call. Use Send Meri to have Meri attend."
-          action={<SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />}
-        />
+        <>
+          <StagePill {...notesStage(m, false, false, false)} />
+          <Empty
+            icon={<StickyNote size={20} />}
+            title="No notes yet"
+            body="Meeting notes will automatically populate here after Meri attends and summarizes the call. Use Send Meri to have Meri attend."
+            action={<SendMeriButton m={m} onClick={() => onSendMeri(m)} size="sm" />}
+          />
+        </>
       );
     }
     return (
-      <Empty
-        icon={<StickyNote size={20} />}
-        title="Notes unavailable"
-        body="Meri takes notes on virtual meetings with an online join link. This meeting doesn't have one, so Meri can't attend."
-      />
+      <>
+        <StagePill {...notesStage(m, false, false, false)} />
+        <Empty
+          icon={<StickyNote size={20} />}
+          title="Notes unavailable"
+          body="Meri takes notes on virtual meetings with an online join link. This meeting doesn't have one, so Meri can't attend."
+        />
+      </>
     );
   }
 
@@ -240,6 +290,7 @@ export function NotesTab({
 
   return (
     <div>
+      <StagePill {...notesStage(m, true, false, scheduled)} />
       <div
         style={{
           display: 'flex',
@@ -258,9 +309,6 @@ export function NotesTab({
         {who.length > 1 && (
           <span style={{ fontSize: 11, color: 'var(--ink-4)' }}>({who.join(', ')})</span>
         )}
-        <span className="pill success" style={{ fontSize: 10 }}>
-          Summarized
-        </span>
       </div>
 
       {noteRows.map((n) => (
@@ -275,6 +323,10 @@ export function NotesTab({
       >
         Draft a debrief from these notes
       </button>
+      <RuleReinforcement>
+        Multiple notetakers are named. Notes are one shared summary; each person&apos;s own prep
+        and debrief is retained separately.
+      </RuleReinforcement>
     </div>
   );
 }

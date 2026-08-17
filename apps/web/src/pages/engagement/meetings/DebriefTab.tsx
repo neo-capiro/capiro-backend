@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { App } from 'antd';
-import { Lock, Mic, PenLine, Sparkles, Upload } from 'lucide-react';
+import { Check, EyeOff, Lock, Mic, PenLine, Sparkles, Upload } from 'lucide-react';
 import { parseDebriefBody } from '../meeting-actions.js';
 import {
   useApproveDebrief,
@@ -13,9 +13,59 @@ import {
 import { exportArtifactPdf } from './meetings-print.js';
 import { formatDayTitle } from './meetings-format.js';
 import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
-import { ArtifactActionBar, GeneratingState } from './tab-kit.js';
+import { ArtifactActionBar, GeneratingState, RuleReinforcement, StagePill } from './tab-kit.js';
 import type { Meeting, MeetingDebriefDraft } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
+
+type DebriefStageTone = 'navy' | 'gray' | 'warn' | 'err';
+
+/**
+ * The Upload modal's pipeline explainer (design README §12 modal #9: "three
+ * pipeline step rows... a step marker... and an explanation"). These
+ * describe the REAL attachment pipeline, not invented copy:
+ *   - Upload/Extract mirror useUploadAndExtract's own real three-call
+ *     sequence (presigned S3 POST → confirm → extract-text; meetings-api.ts).
+ *   - Delete describes the real `DELETE /attachments/:id` route
+ *     (engagement.controller.ts) — a genuine backend capability with no
+ *     frontend trigger in this modal yet, so it's listed as an explainer,
+ *     not offered as an action here (nothing to wire it to would be built
+ *     ahead of an actual delete affordance).
+ */
+const UPLOAD_PIPELINE_STEPS: Array<{ key: string; copy: string }> = [
+  {
+    key: 'Upload',
+    copy: 'Requests a presigned upload URL, sends the file directly to storage, then confirms the attachment on this meeting.',
+  },
+  {
+    key: 'Extract',
+    copy: 'Extracts text from the confirmed attachment — audio and video are transcribed — so the debrief has a grounded source.',
+  },
+  {
+    key: 'Delete',
+    copy: 'Removing an attachment invalidates this meeting and calendar’s cached attachment lists so Library and Reports stay current.',
+  },
+];
+
+/** The Debrief tab's top-of-tab stage pill (see tab-kit.js's StagePill / the
+ *  Prep and Notes tabs' equivalents). Navy = approved; every blocked stage
+ *  (locked/loading/generating/restricted/not-started) is gray — none of them
+ *  are errors or need-attention states, just different reasons there's no
+ *  approved debrief to show yet. */
+function debriefStage(opts: {
+  locked: boolean;
+  loading: boolean;
+  busy: boolean;
+  hasCurrent: boolean;
+  redraft: boolean;
+  restricted: boolean;
+  approved: boolean;
+}): { label: string; tone: DebriefStageTone } {
+  if (opts.locked) return { label: 'Locked', tone: 'gray' };
+  if (opts.loading || opts.busy) return { label: 'Generating', tone: 'gray' };
+  if (opts.restricted) return { label: 'Restricted', tone: 'gray' };
+  if (!opts.hasCurrent || opts.redraft) return { label: 'Not started', tone: 'gray' };
+  return opts.approved ? { label: 'Approved', tone: 'navy' } : { label: 'Draft', tone: 'gray' };
+}
 
 function formatDebriefBody(d: MeetingDebriefDraft): string {
   return [
@@ -241,6 +291,41 @@ function SourcePicker({
             }}
           />
         </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+          {UPLOAD_PIPELINE_STEPS.map((step) => (
+            <div
+              key={step.key}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '12px 14px',
+                borderRadius: 10,
+                background: 'var(--bg-sunken)',
+              }}
+            >
+              <span
+                style={{
+                  flex: '0 0 84px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: 'var(--accent)',
+                }}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />
+                {step.key}
+              </span>
+              <span style={{ flex: 1, fontSize: 13, lineHeight: 1.45, color: 'var(--ink-2)' }}>
+                {step.copy}
+              </span>
+            </div>
+          ))}
+        </div>
       </EngagementDialog>
       <button
         type="button"
@@ -280,6 +365,15 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
   const [editOpen, setEditOpen] = useState(false);
   const [editBody, setEditBody] = useState('');
   useEffect(() => setRedraft(false), [meeting.id]);
+
+  // Action-item checkboxes are session-local only (see the interactive
+  // action-items block below) — parseDebriefBody() regex-parses these from a
+  // plain-text blob with no stable per-item id, so there's no real field to
+  // persist a checked state against yet. Keyed by index and reset whenever the
+  // underlying debrief changes so a stale check can't survive onto different
+  // content.
+  const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
+  useEffect(() => setCheckedItems({}), [current?.id]);
 
   const busy = generate.isPending || save.isPending || uploadExtract.isPending;
   // Belt-and-suspenders: the Debrief tab button is disabled while the meeting
@@ -328,21 +422,64 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
 
   if (locked) {
     return (
-      <Empty
-        icon={<Lock size={20} />}
-        title="Debrief locked"
-        body="Debrief unlocks once this meeting ends."
-      />
+      <>
+        <StagePill
+          {...debriefStage({
+            locked: true,
+            loading: false,
+            busy: false,
+            hasCurrent: false,
+            redraft: false,
+            restricted: false,
+            approved: false,
+          })}
+        />
+        <Empty
+          icon={<Lock size={20} />}
+          title="Debrief locked"
+          body="Debrief unlocks once this meeting ends."
+        />
+      </>
     );
   }
 
-  if (debriefs.isLoading) return <GeneratingState label="Loading debrief…" />;
+  if (debriefs.isLoading) {
+    return (
+      <>
+        <StagePill
+          {...debriefStage({
+            locked: false,
+            loading: true,
+            busy: false,
+            hasCurrent: false,
+            redraft: false,
+            restricted: false,
+            approved: false,
+          })}
+        />
+        <GeneratingState label="Loading debrief…" />
+      </>
+    );
+  }
   if (busy) {
     return (
-      <GeneratingState
-        label="Meri is drafting the debrief…"
-        sub="Turning your source into a recap, action items, and intelligence gathered."
-      />
+      <>
+        <StagePill
+          {...debriefStage({
+            locked: false,
+            loading: false,
+            busy: true,
+            hasCurrent: Boolean(current),
+            redraft,
+            restricted: false,
+            approved: false,
+          })}
+        />
+        <GeneratingState
+          label="Meri is drafting the debrief…"
+          sub="Turning your source into a recap, action items, and intelligence gathered."
+        />
+      </>
     );
   }
 
@@ -350,21 +487,49 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
   if (!current || redraft) {
     const hasNotes = Boolean(meriNotes);
     return (
-      <SourcePicker
-        hasNotes={hasNotes}
-        busy={busy}
-        onUseNotes={() => void draftAndSave('manual', meriNotes)}
-        onManual={(t) => void draftAndSave('manual', t)}
-        onFile={(f) => void onFile(f)}
-      />
+      <>
+        <StagePill
+          {...debriefStage({
+            locked: false,
+            loading: false,
+            busy: false,
+            hasCurrent: Boolean(current),
+            redraft,
+            restricted: false,
+            approved: false,
+          })}
+        />
+        <SourcePicker
+          hasNotes={hasNotes}
+          busy={busy}
+          onUseNotes={() => void draftAndSave('manual', meriNotes)}
+          onManual={(t) => void draftAndSave('manual', t)}
+          onFile={(f) => void onFile(f)}
+        />
+      </>
     );
   }
 
   if (current.restricted || current.body == null) {
     return (
-      <div style={{ color: 'var(--ink-3)', fontSize: 13, padding: '20px 0' }}>
-        This debrief is private to its author.
-      </div>
+      <>
+        <StagePill
+          {...debriefStage({
+            locked: false,
+            loading: false,
+            busy: false,
+            hasCurrent: true,
+            redraft: false,
+            restricted: true,
+            approved: false,
+          })}
+        />
+        <Empty
+          icon={<EyeOff size={20} />}
+          title="A private debrief by another author exists"
+          body="The record is visible but its body is not exposed. Your own debrief is authored separately from the same meeting."
+        />
+      </>
     );
   }
 
@@ -379,6 +544,17 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
 
   return (
     <div>
+      <StagePill
+        {...debriefStage({
+          locked: false,
+          loading: false,
+          busy: false,
+          hasCurrent: true,
+          redraft: false,
+          restricted: false,
+          approved: status === 'approved',
+        })}
+      />
       <div style={{ marginBottom: 20 }}>
         <SectionLabel style={{ marginBottom: 7 }}>Recap</SectionLabel>
         <p
@@ -399,36 +575,66 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
         <div style={{ marginBottom: 20 }}>
           <SectionLabel style={{ marginBottom: 9 }}>Action items</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {parsed.actionItems.map((a, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  gap: 11,
-                  padding: '10px 0',
-                  borderBottom:
-                    i < parsed.actionItems.length - 1 ? '1px solid var(--border-1)' : 'none',
-                  alignItems: 'flex-start',
-                }}
-              >
-                <span
-                  style={{
-                    width: 17,
-                    height: 17,
-                    borderRadius: 4,
-                    border: '1.5px solid var(--border-strong)',
-                    display: 'grid',
-                    placeItems: 'center',
-                    flexShrink: 0,
-                    marginTop: 1,
+            {parsed.actionItems.map((a, i) => {
+              const checked = Boolean(checkedItems[i]);
+              const toggle = () => setCheckedItems((cur) => ({ ...cur, [i]: !cur[i] }));
+              return (
+                <div
+                  key={i}
+                  role="checkbox"
+                  aria-checked={checked}
+                  tabIndex={0}
+                  onClick={toggle}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      toggle();
+                    }
                   }}
-                />
-                <div style={{ flex: 1, fontSize: 13, lineHeight: 1.5, color: 'var(--ink-1)' }}>
-                  {a}
+                  style={{
+                    display: 'flex',
+                    gap: 11,
+                    padding: '10px 0',
+                    borderBottom:
+                      i < parsed.actionItems.length - 1 ? '1px solid var(--border-1)' : 'none',
+                    alignItems: 'flex-start',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 17,
+                      height: 17,
+                      borderRadius: 4,
+                      border: `1.5px solid ${checked ? 'var(--accent)' : 'var(--border-strong)'}`,
+                      background: checked ? 'var(--accent)' : 'transparent',
+                      display: 'grid',
+                      placeItems: 'center',
+                      flexShrink: 0,
+                      marginTop: 1,
+                    }}
+                  >
+                    {checked && <Check size={12} strokeWidth={3} color="#fff" />}
+                  </span>
+                  <div
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      lineHeight: 1.5,
+                      color: checked ? 'var(--ink-3)' : 'var(--ink-1)',
+                      textDecoration: checked ? 'line-through' : 'none',
+                    }}
+                  >
+                    {a}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
+          <p style={{ margin: '8px 0 0', fontSize: 11, color: 'var(--ink-4)' }}>
+            Checking items off is for this session only — it isn&apos;t saved.
+          </p>
         </div>
       )}
       {parsed.notes && (
@@ -464,6 +670,9 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
         }}
         approving={approve.isPending}
       />
+      <RuleReinforcement>
+        Approval unlocks explicit sharing; export remains available either way.
+      </RuleReinforcement>
 
       <EngagementDialog
         open={editOpen}
