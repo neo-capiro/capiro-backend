@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react';
 import { useAuth } from '@clerk/clerk-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { config } from '../../env.js';
 import { useMe } from '../../lib/me.js';
@@ -114,6 +115,7 @@ export function VNextMeriWorkspace() {
   const { actAsTenantSlug } = useImpersonation();
   const identityKey = meriEffectiveIdentityKey(actAsTenantSlug, orgId, userId);
   const { selectedClientId, setSelectedClientId } = useClientFilter();
+  const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
   const controller = useMeriChatController({ selectedClientName: null });
@@ -175,6 +177,14 @@ export function VNextMeriWorkspace() {
     const mountedOntoForeignState = storeOwnerAtMount !== null && storeOwnerAtMount !== identityKey;
     if (previousIdentityKey === null && !mountedOntoForeignState) return;
 
+    // `useMe()` is cached under the identity-agnostic key ['me'] on an app-wide
+    // QueryClient. The shell remounts on `key={identityKey}` and would otherwise
+    // paint the PREVIOUS tenant's name and feature flags immediately, with
+    // `isLoading` false because cached data exists. Dropping the entry before
+    // paint makes the route's `me.isLoading` gate hold until /api/me re-answers
+    // for the identity that is actually authenticated.
+    queryClient.removeQueries({ queryKey: ['me'] });
+
     bootSequenceRef.current += 1;
     firstSendEpochRef.current += 1;
     pendingSendRef.current = null;
@@ -188,7 +198,7 @@ export function VNextMeriWorkspace() {
     setRouteError(null);
     setHistoryError(null);
     setRouteReady(false);
-  }, [identityKey, setSelectedClientId]);
+  }, [identityKey, queryClient, setSelectedClientId]);
 
   // This runs at the route boundary, before the asynchronous client/history
   // bootstrap begins. Waiting for that bootstrap left a window where an old SSE
@@ -302,9 +312,14 @@ export function VNextMeriWorkspace() {
       ) {
         return false;
       }
+      const requestIdentityKey = identityKeyRef.current;
+      const headers = await authHeaders();
+      // PRE-DISPATCH: reading a prior tenant's transcript with the newly
+      // authenticated token must not even be attempted.
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
       const response = await fetch(
         `${config.apiBaseUrl}/api/clio/conversations/${encodeURIComponent(conversationId)}/messages`,
-        { headers: await authHeaders() },
+        { headers },
       );
       if (!response.ok) {
         throw new Error(`This Meri thread could not be loaded (${response.status}).`);
@@ -794,9 +809,12 @@ export function VNextMeriWorkspace() {
     const requestIdentityKey = identityKeyRef.current;
     setMeriSurfaceMode('closed');
     const archived = await controller.archiveConversation();
-    if (!archived || !mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
+    // `archived === false` also covers "no active conversation" and a failed
+    // request, and those must still reset the closed surface to a draft as they
+    // did before. Only an identity switch may leave the new identity untouched.
+    if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return false;
     await prepareRecordFreeNewThread(true);
-    return true;
+    return archived;
   }, [controller.archiveConversation, prepareRecordFreeNewThread]);
 
   // These three rail mutations share one rule: capture the identity, re-check it

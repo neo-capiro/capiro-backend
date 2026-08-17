@@ -13,7 +13,7 @@ import {
   type StagedAttachment,
 } from '../../components/chat/ChatInput.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
-import { maySend } from '../../components/chat/meri-route-guards.js';
+import { maySend, meriEffectiveIdentityKey } from '../../components/chat/meri-route-guards.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import { useApi } from '../../lib/use-api.js';
 import { useImpersonation } from '../../state/impersonation.js';
@@ -55,7 +55,7 @@ export function VNextMeriComposer({
   const api = useApi();
   const { orgId, userId } = useAuth();
   const { actAsTenantSlug } = useImpersonation();
-  const workspaceIdentityKey = `${actAsTenantSlug ?? orgId ?? 'no-org'}:${userId ?? 'anonymous'}`;
+  const workspaceIdentityKey = meriEffectiveIdentityKey(actAsTenantSlug, orgId, userId);
   const workspaceIdentityKeyRef = useRef(workspaceIdentityKey);
   workspaceIdentityKeyRef.current = workspaceIdentityKey;
   const [draft, setDraft] = useState('');

@@ -891,6 +891,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // to the server's verdict (parsed/truncated/image_ready, or unusable).
   const uploadAttachment = useCallback(
     async (file: File) => {
+      // The axios request interceptor acquires the token, so the dispatch half
+      // cannot be fenced from here. Both branches below are keyed to a localId
+      // that the identity reset has already removed, but assert the identity
+      // explicitly rather than relying on that.
+      const requestIdentityKey = identityKeyRef.current;
       const localId = generateId();
       setStagedAttachments((prev) => [
         ...prev,
@@ -910,6 +915,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         const { data } = await api.post<AttachmentUploadResponse>('/api/clio/attachments', form, {
           timeout: 120_000,
         });
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         setStagedAttachments((prev) =>
           prev.map((att) =>
             att.localId === localId
@@ -928,6 +934,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         const serverMessage = axios.isAxiosError(err)
           ? (err.response?.data as { message?: string } | undefined)?.message
           : undefined;
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         setStagedAttachments((prev) =>
           prev.map((att) =>
             att.localId === localId
@@ -1019,9 +1026,14 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       onEvent: (e: ResearchSseEvent) => void,
       streamEpoch = streamEpochRef.current,
     ) => {
+      const requestIdentityKey = identityKeyRef.current;
+      const headers = await authHeaders();
+      // PRE-DISPATCH: an identity switch during authHeaders() would stream a
+      // prior tenant's research under the new tenant's credentials.
+      if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
       const res = await fetch(`${config.apiBaseUrl}${path}`, {
         method: 'POST',
-        headers: await authHeaders(),
+        headers,
         signal: controller.signal,
       });
       if (!res.ok || !res.body) {
@@ -1090,6 +1102,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
 
   const runResearch = useCallback(
     async (content: string) => {
+      const requestIdentityKey = identityKeyRef.current;
       // Echo the user's message into the conversation.
       appendChatMessage({ id: generateId(), role: 'user', content, createdAt: new Date() });
       const assistantId = generateId();
@@ -1105,10 +1118,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           setTrustSteps([]);
           setOrchestratorIntent('deep_research');
           setOrchestratorTier('deep');
+          const researchClientId = selectedClientId || undefined;
+          const createHeaders = await authHeaders();
+          if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
           const created = await fetch(`${config.apiBaseUrl}/api/clio/research`, {
             method: 'POST',
-            headers: await authHeaders(),
-            body: JSON.stringify({ topic: content, clientId: selectedClientId || undefined }),
+            headers: createHeaders,
+            body: JSON.stringify({ topic: content, clientId: researchClientId }),
           });
           if (!created.ok) throw new Error(`Could not start research (HTTP ${created.status})`);
           const { id } = (await created.json()) as { id: string };
@@ -1157,9 +1173,11 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         // ── Phase 2 (free-text fallback): a typed reply during awaiting state ──
         // The inline form is the primary path; this handles a user who just types.
         const id = researchSessionRef.current;
+        const clarifyHeaders = await authHeaders();
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         await fetch(`${config.apiBaseUrl}/api/clio/research/${id}/clarify`, {
           method: 'POST',
-          headers: await authHeaders(),
+          headers: clarifyHeaders,
           body: JSON.stringify({ answers: { '0': content } }),
         });
         setResearchAwaitingAnswers(false);
@@ -1320,10 +1338,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
       const controller = new AbortController();
       abortRef.current = controller;
       const streamEpoch = ++streamEpochRef.current;
+      const requestIdentityKey = identityKeyRef.current;
       try {
+        const headers = await authHeaders();
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         await fetch(`${config.apiBaseUrl}/api/clio/research/${id}/clarify`, {
           method: 'POST',
-          headers: await authHeaders(),
+          headers,
           body: JSON.stringify({ answers: skipped ? {} : answers }),
         });
         await executeResearchRun(controller, undefined, streamEpoch);
@@ -1340,6 +1361,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const sendMessage = useCallback(
     async (content: string, opts?: { mode?: 'regenerate' | 'resend' }) => {
       if (isStreaming) return;
+      // Every server call this turn makes belongs to the identity that typed it.
+      const requestIdentityKey = identityKeyRef.current;
 
       const mode = opts?.mode;
 
@@ -1449,9 +1472,14 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
           ? { body: outgoing, mode }
           : { body: outgoing };
         if (!mode && attachmentIds.length > 0) streamPayload.attachmentIds = attachmentIds;
+        const streamHeaders = await authHeaders();
+        // PRE-DISPATCH: authHeaders() is async, so an identity switch can land
+        // while it is pending. Never send this identity's request under the
+        // credentials of the one that just authenticated.
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         const res = await fetch(`${config.apiBaseUrl}/api/clio/conversations/${sid}/stream`, {
           method: 'POST',
-          headers: await authHeaders(),
+          headers: streamHeaders,
           body: JSON.stringify(streamPayload),
           signal: controller.signal,
         });
@@ -1734,13 +1762,16 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const submitFeedback = useCallback(
     async (messageId: string, feedback: MessageFeedbackPayload) => {
       const previous = messages.find((message) => message.id === messageId)?.feedback ?? null;
+      const requestIdentityKey = identityKeyRef.current;
       setChatMessageFeedback(messageId, feedback.rating);
       try {
+        const headers = await authHeaders();
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         const response = await fetch(
           `${config.apiBaseUrl}/api/clio/messages/${messageId}/feedback`,
           {
             method: 'POST',
-            headers: { ...(await authHeaders()), 'Content-Type': 'application/json' },
+            headers: { ...headers, 'Content-Type': 'application/json' },
             body: JSON.stringify(feedback),
           },
         );
@@ -2082,11 +2113,16 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
    */
   const handleDismissPending = useCallback(
     async (proposalId: string) => {
+      const requestIdentityKey = identityKeyRef.current;
       setPendingApprovals((prev) => prev.filter((p) => p.proposalId !== proposalId));
       try {
+        const headers = await authHeaders();
+        // A dismiss is a durable lifecycle transition on the previous tenant's
+        // proposal; never issue it with the next tenant's credentials.
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         await fetch(`${config.apiBaseUrl}/api/clio/action-proposals/${proposalId}/dismiss`, {
           method: 'POST',
-          headers: await authHeaders(),
+          headers,
           body: JSON.stringify({}),
         });
       } catch {
@@ -2302,8 +2338,13 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   // either download it or open it in a new browser tab via a blob URL.
   const fetchResearchExport = useCallback(
     async (researchId: string, kind: 'word' | 'html') => {
+      const requestIdentityKey = identityKeyRef.current;
       try {
         const token = await getToken({ template: 'capiro' });
+        // PRE-DISPATCH: this export is downloaded or opened in a tab. Requesting
+        // the previous tenant's report with the next tenant's token would put
+        // that document in front of the newly authenticated user.
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         const res = await fetch(
           `${config.apiBaseUrl}/api/clio/research/${researchId}/export/${kind}`,
           {
@@ -2315,6 +2356,9 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         );
         if (!res.ok) throw new Error(`Export failed (HTTP ${res.status})`);
         const blob = await res.blob();
+        // The download/open below is the point of no return: re-check after the
+        // body has been read, not only before the request went out.
+        if (!mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) return;
         const url = URL.createObjectURL(blob);
         if (kind === 'html') {
           window.open(url, '_blank', 'noopener,noreferrer');

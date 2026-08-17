@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
@@ -39,7 +40,6 @@ vi.mock('@clerk/clerk-react', () => ({
 }));
 vi.mock('../../env.js', () => ({ config: { apiBaseUrl: 'https://api.test' } }));
 vi.mock('../../lib/use-api.js', () => ({ useApi: () => mocks.api }));
-vi.mock('../../lib/me.js', () => ({ useMe: () => ({ data: null }) }));
 vi.mock('../../state/impersonation.js', () => ({
   useImpersonation: () => ({ actAsTenantSlug: mocks.impersonatedTenantSlug }),
 }));
@@ -64,6 +64,26 @@ vi.mock('./VNextMeriShell.js', () => ({
 }));
 
 import { VNextMeriWorkspace } from './VNextMeriWorkspace.js';
+
+let queryClient: QueryClient;
+
+/** Renders the real route inside a real QueryClient, and exposes a rerender. */
+function renderRoute() {
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <VNextMeriWorkspace />
+    </QueryClientProvider>,
+  );
+  return {
+    ...view,
+    rerenderRoute: () =>
+      view.rerender(
+        <QueryClientProvider client={queryClient}>
+          <VNextMeriWorkspace />
+        </QueryClientProvider>,
+      ),
+  };
+}
 
 const THREAD_A = {
   id: 'thread-a',
@@ -112,6 +132,13 @@ describe('vNext Meri route identity boundary', () => {
     mocks.getToken.mockImplementation(async () => 'token');
     mocks.pathname = '/meri/t/thread-a';
     mocks.shellProps = null;
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    // /api/me answers through the api mock so `useMe()` is the real query.
+    mocks.api.get.mockResolvedValue({
+      data: { tenant: { name: 'Tenant Under Test' }, features: { meriv3Chat: true } },
+    });
   });
 
   afterEach(() => {
@@ -126,7 +153,7 @@ describe('vNext Meri route identity boundary', () => {
     stubFetch(() => undefined);
 
     await act(async () => {
-      render(<VNextMeriWorkspace />);
+      renderRoute();
     });
 
     expect(mocks.setSelectedClientId).not.toHaveBeenCalled();
@@ -141,11 +168,43 @@ describe('vNext Meri route identity boundary', () => {
     stubFetch(() => undefined);
 
     await act(async () => {
-      render(<VNextMeriWorkspace />);
+      renderRoute();
     });
 
     expect(mocks.setSelectedClientId).toHaveBeenCalledWith(null);
     expect(mocks.selectedClientId).toBeNull();
+  });
+
+  test('an identity change drops the cached /api/me so no prior tenant is painted', async () => {
+    // `useMe()` is keyed ['me'] on an app-wide QueryClient with a 30s staleTime.
+    // Without eviction the remounted shell renders the previous tenant's name
+    // and feature flags immediately, because cached data means isLoading=false.
+    claimMeriIdentity('org-a:user-a');
+    stubFetch(() => undefined);
+    queryClient.setQueryData(['me'], {
+      tenant: { name: 'Tenant A' },
+      features: { meriv3Chat: true },
+    });
+
+    let rerenderRoute: (() => void) | null = null;
+    await act(async () => {
+      const view = renderRoute();
+      rerenderRoute = view.rerenderRoute;
+    });
+    expect(queryClient.getQueryData(['me'])).toBeTruthy();
+
+    await act(async () => {
+      mocks.impersonatedTenantSlug = 'tenant-b';
+      rerenderRoute!();
+    });
+
+    // Real cache state, not a spy. The mounted query refetches straight after
+    // eviction, so what matters is that tenant A's answer is no longer what
+    // ['me'] holds — the shell can never paint "Tenant A" under tenant B.
+    const cachedMe = queryClient.getQueryData(['me']) as
+      | { tenant?: { name?: string } }
+      | undefined;
+    expect(cachedMe?.tenant?.name).not.toBe('Tenant A');
   });
 
   test('an in-place identity switch clears the shared transcript and the client filter', async () => {
@@ -158,8 +217,8 @@ describe('vNext Meri route identity boundary', () => {
 
     let rerenderRoute: (() => void) | null = null;
     await act(async () => {
-      const view = render(<VNextMeriWorkspace />);
-      rerenderRoute = () => view.rerender(<VNextMeriWorkspace />);
+      const view = renderRoute();
+      rerenderRoute = view.rerenderRoute;
     });
 
     await act(async () => {
@@ -185,8 +244,8 @@ describe('vNext Meri route identity boundary', () => {
 
     let rerenderRoute: (() => void) | null = null;
     await act(async () => {
-      const view = render(<VNextMeriWorkspace />);
-      rerenderRoute = () => view.rerender(<VNextMeriWorkspace />);
+      const view = renderRoute();
+      rerenderRoute = view.rerenderRoute;
     });
     await waitFor(() => expect(mocks.shellProps).not.toBeNull());
 
@@ -235,8 +294,8 @@ describe('vNext Meri route identity boundary', () => {
 
     let rerenderRoute: (() => void) | null = null;
     await act(async () => {
-      const view = render(<VNextMeriWorkspace />);
-      rerenderRoute = () => view.rerender(<VNextMeriWorkspace />);
+      const view = renderRoute();
+      rerenderRoute = view.rerenderRoute;
     });
     await waitFor(() => expect(mocks.shellProps).not.toBeNull());
 
@@ -294,8 +353,8 @@ describe('vNext Meri route identity boundary', () => {
 
     let rerenderRoute: (() => void) | null = null;
     await act(async () => {
-      const view = render(<VNextMeriWorkspace />);
-      rerenderRoute = () => view.rerender(<VNextMeriWorkspace />);
+      const view = renderRoute();
+      rerenderRoute = view.rerenderRoute;
     });
     await waitFor(() => expect(mocks.shellProps).not.toBeNull());
 

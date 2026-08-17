@@ -5,9 +5,11 @@ import {
   getChatStateSnapshot,
   resetChatStoreForTests,
   setActiveConversation,
+  setAlerts,
   setChatOpen,
   setChatSession,
   setConversations,
+  setStreaming,
   setMeriMaximized,
   setMeriSideCollapsed,
   setMeriSurfaceMode,
@@ -65,6 +67,10 @@ describe('Meri surface state transitions', () => {
       content: 'Tenant A only',
       createdAt: new Date('2026-08-17T00:00:00.000Z'),
     });
+    setAlerts([
+      { id: 'alert-a', status: 'pending', title: 'Tenant A briefing', body: 'Tenant A only' },
+    ] as unknown as Parameters<typeof setAlerts>[0]);
+    setStreaming(true);
 
     expect(claimMeriIdentity('tenant-b:user-a')).toBe(true);
     expect(getChatStateSnapshot()).toMatchObject({

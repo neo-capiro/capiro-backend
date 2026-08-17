@@ -6,6 +6,7 @@ import {
   getChatStateSnapshot,
   resetChatStoreForTests,
   setActiveConversation,
+  setAlerts,
   setChatSession,
   setConversations,
   setStreaming,
@@ -73,6 +74,10 @@ describe('Meri route isolation', () => {
       content: 'Tenant A only',
       createdAt: new Date('2026-08-17T00:00:00.000Z'),
     });
+    setAlerts([
+      { id: 'alert-a', status: 'pending', title: 'Tenant A briefing', body: 'Tenant A only' },
+    ] as unknown as Parameters<typeof setAlerts>[0]);
+    setStreaming(true);
 
     const { result, rerender } = renderHook(() => useMeriChatController({ selectedClientName: null }));
     await act(async () => {
@@ -283,7 +288,10 @@ describe('Meri route isolation', () => {
     });
   });
 
-  test('identity switch makes a delayed proposal recovery leave the new identity without cards', async () => {
+  // NOTE: the recovery effect keys on `sessionId`, which the identity claim
+  // nulls, so its cancellation reaches the stale response before the identity
+  // fence does. This asserts the end-to-end guarantee, not that one fence.
+  test('no prior-identity approval cards survive an identity switch', async () => {
     let resolveRecovery: ((value: unknown) => void) | null = null;
     vi.stubGlobal(
       'fetch',
