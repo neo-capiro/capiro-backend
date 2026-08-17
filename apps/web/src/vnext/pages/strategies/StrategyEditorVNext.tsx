@@ -27,8 +27,11 @@ import {
   useFirmPhases,
   usePendingWatchCounts,
   useReferenceCalendars,
+  useRefAssist,
+  useRevalidateWatch,
   useStrategy,
   useTenantMembers,
+  useWatchReviewState,
 } from './strategies-api.js';
 // Friendly StrategyType labels ("Regulatory / Policy", not the raw "regulatory"
 // slug) — shared with the library table's identical Type column so both views
@@ -45,7 +48,7 @@ import {
   laneCount,
   type LaneItem,
 } from './lib/timeline.js';
-import type { FirmPhase, ReferenceRow, StrategyNode } from '../../../pages/strategy/types.js';
+import type { FirmPhase, ReferenceRow, StrategyNode, WatchProposalCard } from '../../../pages/strategy/types.js';
 import { StepInspector } from './StepInspector.js';
 import { ScopeBar, type HorizonKey } from './ScopeBar.js';
 import './strategies.css';
@@ -105,6 +108,8 @@ export function StrategyEditorVNext() {
   const [horizon, setHorizon] = useState<HorizonKey>('3fy');
   const [layers, setLayers] = useState({ congress: true, ppbe: true, watch: true });
 
+  const watchState = useWatchReviewState(validId, layers.watch);
+
   const detail = strategy.data ?? null;
   const openStepId = searchParams.get('step');
   const inspectorTab = searchParams.get('tab') === 'meri' ? 'meri' : 'step';
@@ -123,6 +128,7 @@ export function StrategyEditorVNext() {
   }, [horizon]);
 
   const watchCount = Number((validId && watchCounts.data?.[validId]) ?? 0);
+  const watchProposals = watchState.data?.proposals ?? [];
   const referenceLayerCount =
     1 + (layers.congress ? 1 : 0) + (layers.ppbe ? 1 : 0) + (layers.watch ? 1 : 0);
 
@@ -263,7 +269,7 @@ export function StrategyEditorVNext() {
                   onClick={() => setLayers((l) => ({ ...l, watch: !l.watch }))}
                 >
                   <span className="st-layer-dot" aria-hidden="true" />
-                  Watch{watchCount > 0 ? ` · ${watchCount}` : ''}
+                  Watch{watchProposals.length > 0 ? ` · ${watchProposals.length}` : watchCount > 0 ? ` · ${watchCount}` : ''}
                 </button>
               </div>
             </div>
@@ -308,6 +314,7 @@ export function StrategyEditorVNext() {
             ppbe={calendars.data?.ppbeLanes ?? []}
             members={members.data}
             selectedStepId={openStepId}
+            watchProposals={watchProposals}
             onStepClick={(id) => openInspector(id)}
             onWatchClick={() => navigate('/strategies/agents/proposals')}
             onPhaseClick={() => navigate('/strategies/phases')}
@@ -462,6 +469,7 @@ interface TimelineProps {
   ppbe: ReferenceRow[];
   members: ReturnType<typeof useTenantMembers>['data'];
   selectedStepId: string | null;
+  watchProposals: WatchProposalCard[];
   onStepClick: (id: string) => void;
   onWatchClick: () => void;
   onPhaseClick: () => void;
@@ -476,6 +484,7 @@ function Timeline({
   ppbe,
   members,
   selectedStepId,
+  watchProposals,
   onStepClick,
   onWatchClick,
   onPhaseClick,
@@ -604,7 +613,7 @@ function Timeline({
         {/* Row 5: Watch (proposed, not yet approved). */}
         {layers.watch ? (
           <TimelineRow label="Watch">
-            <WatchBars axis={axis} onWatchClick={onWatchClick} />
+            <WatchBars proposals={watchProposals} onWatchClick={onWatchClick} />
           </TimelineRow>
         ) : null}
 
@@ -659,7 +668,12 @@ function ReferenceBars({
   }));
   const laned = assignLanes(items);
   if (laned.length === 0) {
-    return <div className="st-tl-empty">No {kind === 'congress' ? 'legislative' : 'PPBE'} marks in range.</div>;
+    return (
+      <div className="st-tl-bars">
+        <div className="st-tl-empty">No {kind === 'congress' ? 'legislative' : 'PPBE'} marks in range.</div>
+        <ReferenceAssistButton kind={kind} rows={rows} />
+      </div>
+    );
   }
   // Layer-lane pitch (design handoff "Working timeline": grid-auto-rows:26px,
   // row-gap:6px) — matches --st-refbar-h (26px, strategies-tokens.css) + the
@@ -688,6 +702,98 @@ function ReferenceBars({
           </button>
         );
       })}
+      <ReferenceAssistButton kind={kind} rows={rows} />
+    </div>
+  );
+}
+
+/* POST /reference-calendars/:kind/assist — Meri edits the working rows
+ * (REF-4, not saved). The reply is shown inline; the returned rows are
+ * advisory (not persisted) so the user reviews before any save. */
+function ReferenceAssistButton({ kind, rows }: { kind: 'congress' | 'ppbe'; rows: ReferenceRow[] }) {
+  const assist = useRefAssist(kind);
+  const [instruction, setInstruction] = useState('');
+  const [reply, setReply] = useState<string | null>(null);
+  const [show, setShow] = useState(false);
+
+  const send = () => {
+    const text = instruction.trim();
+    if (!text || assist.isPending) return;
+    assist.mutate(
+      { instruction: text, rows },
+      {
+        onSuccess: (data) => {
+          setReply(data.reply ?? null);
+          setInstruction('');
+        },
+      },
+    );
+  };
+
+  if (!show) {
+    return (
+      <button
+        type="button"
+        className="st-tl-assist-toggle"
+        onClick={() => setShow(true)}
+        style={{
+          display: 'block',
+          fontSize: 11,
+          color: 'var(--st-accent, #4A6CF7)',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '2px 0',
+          marginTop: 2,
+        }}
+      >
+        Ask Meri about this calendar
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 4, padding: '6px 0' }}>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end' }}>
+        <input
+          value={instruction}
+          onChange={(e) => setInstruction(e.target.value)}
+          placeholder="Ask Meri to analyze or adjust these calendar rows…"
+          style={{ fontSize: 11, flex: 1, minWidth: 0 }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+        />
+        <CapiroButton
+          size="compact"
+          variant="secondary"
+          disabled={!instruction.trim() || assist.isPending}
+          loading={assist.isPending}
+          onClick={send}
+        >
+          Ask
+        </CapiroButton>
+        <button
+          type="button"
+          onClick={() => { setShow(false); setReply(null); }}
+          style={{ fontSize: 11, background: 'transparent', border: 'none', cursor: 'pointer' }}
+        >
+          Cancel
+        </button>
+      </div>
+      {reply ? (
+        <div className="st-gap" role="note" style={{ marginTop: 6, fontSize: 12 }}>
+          <strong>Meri:</strong> {reply}
+        </div>
+      ) : null}
+      {assist.isError ? (
+        <p className="st-modal__alert" role="alert" style={{ marginTop: 4 }}>
+          Could not get Meri's analysis. {(assist.error as Error)?.message || 'Please try again.'}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -730,15 +836,46 @@ function FirmPhaseBars({
   );
 }
 
-function WatchBars({ onWatchClick }: { axis: unknown; onWatchClick: () => void }) {
+function WatchBars({
+  proposals,
+  onWatchClick,
+}: {
+  proposals: WatchProposalCard[];
+  onWatchClick: () => void;
+}) {
   // Watch bars are proposals, not applied changes (§7.3). The per-strategy
-  // proposals come from the Watch review state; they render on the warning ramp
-  // and always say "Proposed". Clicking goes to the review queue.
+  // proposals come from the Watch review state (useWatchReviewState); they
+  // render on the warning ramp and always say "Proposed". Clicking goes to
+  // the review queue. When the review state has no proposals, the bar reads
+  // honestly as "No pending proposals" rather than hiding — the lane is
+  // visible because the user toggled it on.
+  if (proposals.length === 0) {
+    return (
+      <div className="st-tl-bars">
+        <button type="button" className="st-tl-refbar st-tl-refbar--watch" onClick={onWatchClick}>
+          No pending proposals — review queue
+        </button>
+      </div>
+    );
+  }
   return (
-    <div className="st-tl-bars">
-      <button type="button" className="st-tl-refbar st-tl-refbar--watch" onClick={onWatchClick}>
-        Proposed — review in queue
-      </button>
+    <div className="st-tl-bars" style={{ minHeight: 16 + proposals.length * (REF_LANE_H + REF_LANE_GAP) }}>
+      {proposals.map((p, i) => (
+        <button
+          key={p.id}
+          type="button"
+          className="st-tl-refbar st-tl-refbar--watch"
+          style={{ top: i * (REF_LANE_H + REF_LANE_GAP), width: 'auto', left: 0 }}
+          onClick={onWatchClick}
+          title={`${p.title}: ${p.proposal}`}
+          aria-label={`Watch proposal: ${p.title}`}
+        >
+          <span className="st-pill st-pill--warning" style={{ fontSize: 10, padding: '1px 4px' }}>
+            Proposed
+          </span>
+          {p.title}
+        </button>
+      ))}
     </div>
   );
 }

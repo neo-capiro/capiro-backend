@@ -373,6 +373,38 @@ function RestoreImpactPreview({
         </div>
       ) : null}
 
+      {/* Artifact refs that detach or re-attach — the specific steps whose
+          Workspace/Outreach links move with this restore. Shown as honest gap
+          notices (not fakes) from the real restore-impact payload. */}
+      {data.artifacts.detaching.length > 0 ? (
+        <div className="st-gap" role="note" style={{ marginBottom: 12 }}>
+          <strong>Detaching artifacts:</strong> {data.artifacts.detaching.length} link
+          {data.artifacts.detaching.length === 1 ? '' : 's'} will detach from archived steps and
+          stay listed under their step's history.
+          <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12 }}>
+            {data.artifacts.detaching.map((a, i) => (
+              <li key={`${a.nodeId}-${a.artifactType}-${i}`}>
+                {a.artifactType === 'workspace_draft' ? 'Workspace draft' : 'Outreach record'} · {a.artifactRef}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {data.artifacts.reattaching.length > 0 ? (
+        <div className="st-gap" role="note" style={{ marginBottom: 12 }}>
+          <strong>Re-attaching artifacts:</strong> {data.artifacts.reattaching.length} link
+          {data.artifacts.reattaching.length === 1 ? '' : 's'} will re-attach to restored steps.
+          <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12 }}>
+            {data.artifacts.reattaching.map((a, i) => (
+              <li key={`${a.nodeId}-${a.artifactType}-${i}`}>
+                {a.artifactType === 'workspace_draft' ? 'Workspace draft' : 'Outreach record'} · {a.artifactRef}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {data.provenance.nodesReCreatedWithoutProvenance > 0 &&
       !data.provenance.snapshotCarriesProvenance ? (
         <div className="st-gap" role="note" style={{ marginBottom: 12 }}>

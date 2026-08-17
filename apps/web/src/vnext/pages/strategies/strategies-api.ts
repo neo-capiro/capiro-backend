@@ -20,6 +20,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
  * 3 levels up from this file. Fixed so the overlay set can import these hooks. */
 import { useApi } from '../../../lib/use-api.js';
 import type {
+  AcceptAllWatchInput,
   AgentRun,
   ApproveChangeSetInput,
   AssistantInput,
@@ -33,6 +34,7 @@ import type {
   ContextHealth,
   ContextLocateResult,
   ContextSection,
+  CreateMissionInput,
   CreateNodeInput,
   CreateStrategyInput,
   DraftStrategyInput,
@@ -41,21 +43,27 @@ import type {
   FirmPhase,
   FirmPhaseInput,
   ReferenceCalendars,
+  RecordArtifactInput,
   ResolveConflictInput,
   RestoreImpact,
   ResumeRunInput,
+  RunCheckResult,
   StrategyDetail,
   StrategyListItem,
   StrategyChatMessage,
   StrategyVersion,
+  UpdateMissionInput,
   UpdateNodeInput,
   UploadContextDocumentInput,
   VersionsPage,
+  WatchAcceptResult,
   WatchReviewState,
 } from '../../../pages/strategy/types.js';
 import {
   normalizeChangeSets,
   normalizeExecutionRuns,
+  normalizeMission,
+  normalizeRunCheck,
   normalizeRuns,
 } from '../../../pages/strategy/agents/agent-utils.js';
 import {
@@ -746,5 +754,185 @@ export function useCurrentPlanExport(strategyId: string | null, enabled = false)
     queryFn: async () =>
       (await api.get<{ markdown: string }>(`${BASE}/context/strategies/${strategyId}/current-plan`))
         .data,
+  });
+}
+
+/* --------------------------------------------------- Phase 4 Watch hooks */
+/* These mirror the canonical api.ts Watch hooks so the vNext editor can
+ * surface real Watch proposal cards, not just a count. The query/mutation
+ * shapes are server-computed presentation types (types.ts) — no tolerant
+ * normalizer needed, same as the canonical surface. */
+
+function watchStateKey(strategyId: string) {
+  return ['strategy', 'watch-state', strategyId] as const;
+}
+
+function useWatchInvalidate(strategyId: string) {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'change-sets'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'missions'] });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'versions', strategyId] });
+    void qc.invalidateQueries({ queryKey: conversationKey(strategyId, null) });
+    void qc.invalidateQueries({ queryKey: ['strategy', 'watch-pending-counts'] });
+  };
+}
+
+/** POST /agents/watch/strategies/:id/revalidate — panel-open / "Check now". */
+export function useRevalidateWatch(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useWatchInvalidate(strategyId);
+  return useMutation({
+    mutationFn: async () =>
+      (await api.post<WatchReviewState>(`${BASE}/agents/watch/strategies/${strategyId}/revalidate`)).data,
+    onSuccess: (state) => {
+      qc.setQueryData(watchStateKey(strategyId), state);
+      invalidate();
+    },
+  });
+}
+
+/** POST /agents/watch/proposals/:id/accept — this call IS the approval. */
+export function useAcceptWatchProposal(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useWatchInvalidate(strategyId);
+  return useMutation({
+    mutationFn: async (proposalId: string) =>
+      (await api.post<WatchAcceptResult>(`${BASE}/agents/watch/proposals/${proposalId}/accept`)).data,
+    onSuccess: (res) => {
+      qc.setQueryData(['strategy', 'strategy', strategyId], res.strategy);
+      qc.setQueryData(watchStateKey(strategyId), res.state);
+      invalidate();
+    },
+  });
+}
+
+/** POST /agents/watch/proposals/:id/dismiss — permanent suppression. */
+export function useDismissWatchProposal(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useWatchInvalidate(strategyId);
+  return useMutation({
+    mutationFn: async (proposalId: string) =>
+      (await api.post<WatchReviewState>(`${BASE}/agents/watch/proposals/${proposalId}/dismiss`)).data,
+    onSuccess: (state) => {
+      qc.setQueryData(watchStateKey(strategyId), state);
+      invalidate();
+    },
+  });
+}
+
+/** POST /agents/watch/strategies/:id/accept-all — one dependency-ordered batch. */
+export function useAcceptAllWatchProposals(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const invalidate = useWatchInvalidate(strategyId);
+  return useMutation({
+    mutationFn: async (input: AcceptAllWatchInput) =>
+      (
+        await api.post<WatchAcceptResult>(
+          `${BASE}/agents/watch/strategies/${strategyId}/accept-all`,
+          input,
+        )
+      ).data,
+    onSuccess: (res) => {
+      qc.setQueryData(['strategy', 'strategy', strategyId], res.strategy);
+      qc.setQueryData(watchStateKey(strategyId), res.state);
+      invalidate();
+    },
+  });
+}
+
+/* ------------------------------------------------------- Mission hooks */
+/** POST /agents/missions — create a standing mission (starts draft; PATCH to activate). */
+export function useCreateMission() {
+  const api = useApi();
+  const invalidate = useAgentsInvalidate();
+  return useMutation({
+    mutationFn: async (input: CreateMissionInput) =>
+      normalizeMission((await api.post<unknown>(`${BASE}/agents/missions`, input)).data),
+    onSuccess: invalidate,
+  });
+}
+
+/** PATCH /agents/missions/:id — state moves (draft→active, active⇄paused) etc. */
+export function useUpdateMission() {
+  const api = useApi();
+  const invalidate = useAgentsInvalidate();
+  return useMutation({
+    mutationFn: async (vars: { id: string; input: UpdateMissionInput }) =>
+      normalizeMission((await api.patch<unknown>(`${BASE}/agents/missions/${vars.id}`, vars.input)).data),
+    onSuccess: invalidate,
+  });
+}
+
+/** POST /agents/missions/:id/run-check — the Stage F on-demand Watcher check. */
+export function useRunCheck() {
+  const api = useApi();
+  const invalidate = useAgentsInvalidate();
+  return useMutation({
+    mutationFn: async (missionId: string): Promise<RunCheckResult> =>
+      normalizeRunCheck(
+        (
+          await api.post<unknown>(`${BASE}/agents/missions/${missionId}/run-check`, undefined, {
+            timeout: 120_000,
+          })
+        ).data,
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/* ----------------------------------------- Reference calendar assist */
+/** POST /reference-calendars/:kind/assist — Meri edits the working rows (REF-4, not saved). */
+export function useRefAssist(kind: 'congress' | 'ppbe') {
+  const api = useApi();
+  return useMutation({
+    mutationFn: async (input: { instruction: string; rows: unknown[] }) =>
+      (
+        await api.post<{ reply?: string; rows: unknown[] }>(
+          `${BASE}/reference-calendars/${kind}/assist`,
+          input,
+          { timeout: 90_000 },
+        )
+      ).data,
+  });
+}
+
+/* --------------------------------------------- Context gap dismiss */
+/** POST /strategies/:id/conversations/context-gaps/:messageId/dismiss. */
+export function useDismissContextGap(strategyId: string) {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { messageId: string; nodeId: string | null }) =>
+      (
+        await api.post<StrategyChatMessage>(
+          `${BASE}/strategies/${strategyId}/conversations/context-gaps/${vars.messageId}/dismiss`,
+        )
+      ).data,
+    onSuccess: (_msg, vars) => {
+      void qc.invalidateQueries({ queryKey: conversationKey(strategyId, vars.nodeId) });
+    },
+  });
+}
+
+/* --------------------------------------------- Record artifact back-link */
+/** POST /strategies/:id/nodes/:nodeId/artifacts — record a node→Capiro back-link (RTE-3). */
+export function useRecordArtifact(strategyId: string) {
+  const api = useApi();
+  const onOk = useStrategyDetailWrite(strategyId);
+  return useMutation({
+    mutationFn: async (vars: { nodeId: string; input: RecordArtifactInput }) =>
+      (
+        await api.post<StrategyDetail>(
+          `${BASE}/strategies/${strategyId}/nodes/${vars.nodeId}/artifacts`,
+          vars.input,
+        )
+      ).data,
+    onSuccess: onOk,
   });
 }

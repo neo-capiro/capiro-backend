@@ -20,11 +20,13 @@ import {
   memberName,
   useAddNode,
   useAssistant,
+  useDismissContextGap,
+  useRecordArtifact,
   useStrategy,
   useStrategyConversation,
   useTenantMembers,
 } from './strategies-api.js';
-import type { StrategyNode } from '../../../pages/strategy/types.js';
+import type { ArtifactType, StrategyNode } from '../../../pages/strategy/types.js';
 import './step-inspector.css';
 
 const KIND_LABEL: Record<string, string> = {
@@ -344,6 +346,8 @@ function StepTab({
         <StageOutreachButton strategyId={strategyId} step={step} />
       </div>
 
+      <RecordArtifactSection strategyId={strategyId} step={step} />
+
       <MeriSuggestionCard strategyId={strategyId} step={step} />
     </div>
   );
@@ -388,6 +392,77 @@ function StageOutreachButton({ strategyId, step }: { strategyId: string; step: S
 
 /* ------------------------------------------------------------ Meri suggestion */
 
+function RecordArtifactSection({ strategyId, step }: { strategyId: string; step: StrategyNode }) {
+  const recordArtifact = useRecordArtifact(strategyId);
+  const [artifactType, setArtifactType] = useState<ArtifactType>('workspace_draft');
+  const [artifactRef, setArtifactRef] = useState('');
+  const [recorded, setRecorded] = useState(false);
+
+  const submit = () => {
+    const ref = artifactRef.trim();
+    if (!ref || recordArtifact.isPending) return;
+    recordArtifact.mutate(
+      { nodeId: step.id, input: { artifactType, artifactRef: ref } },
+      {
+        onSuccess: () => {
+          setArtifactRef('');
+          setRecorded(true);
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="st-inspector__artifact-section">
+      <p className="st-section-label">Record evidence artifact</p>
+      <p className="st-inspector__empty" style={{ marginBottom: 8 }}>
+        Link a Workspace draft or Outreach record to this step as a grounding back-link.
+      </p>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <label style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          Type
+          <select
+            value={artifactType}
+            onChange={(e) => setArtifactType(e.target.value as ArtifactType)}
+            style={{ fontSize: 12 }}
+          >
+            <option value="workspace_draft">Workspace draft</option>
+            <option value="outreach_record">Outreach record</option>
+          </select>
+        </label>
+        <label style={{ fontSize: 12, flex: 1, minWidth: 120, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          Reference
+          <input
+            value={artifactRef}
+            onChange={(e) => setArtifactRef(e.target.value)}
+            placeholder="Artifact reference id"
+            style={{ fontSize: 12 }}
+          />
+        </label>
+        <CapiroButton
+          size="compact"
+          variant="secondary"
+          disabled={!artifactRef.trim() || recordArtifact.isPending}
+          loading={recordArtifact.isPending}
+          onClick={submit}
+        >
+          Record
+        </CapiroButton>
+      </div>
+      {recorded ? (
+        <p className="st-inspector__empty" style={{ color: 'var(--st-success-fg, #12b76a)', marginTop: 4 }}>
+          Artifact recorded. The back-link is now on this step.
+        </p>
+      ) : null}
+      {recordArtifact.isError ? (
+        <p className="st-modal__alert" role="alert" style={{ marginTop: 4 }}>
+          Could not record artifact. {(recordArtifact.error as Error)?.message || 'Please try again.'}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function MeriSuggestionCard({ strategyId, step }: { strategyId: string; step: StrategyNode }) {
   // A Meri suggestion is a PROPOSAL. "Send to review queue" creates a change-set
   // (a proposal a human must approve + apply); it never edits the plan here.
@@ -412,7 +487,8 @@ function MeriSuggestionCard({ strategyId, step }: { strategyId: string; step: St
 function MeriTab({ strategyId, step }: { strategyId: string; step: StrategyNode | null }) {
   const nodeId = step?.id ?? null;
   const conversation = useStrategyConversation(strategyId, nodeId);
-  const messages = useMemo(() => conversation.data ?? [], [conversation.data]);
+  const dismissGap = useDismissContextGap(strategyId);
+  const messages = useMemo(() => (conversation.data ?? []).filter((m) => m.state !== 'dismissed'), [conversation.data]);
 
   // The composer (input, send, its draft state, and the governance hint) now
   // lives in the parent StepInspector, pinned across both tabs — see the
@@ -431,11 +507,33 @@ function MeriTab({ strategyId, step }: { strategyId: string; step: StrategyNode 
         ) : (
           messages.map((m) => (
             <div key={m.id} className={`st-meri-msg st-meri-msg--${m.role}`}>
-              <p className="st-meri-msg__body">{m.body}</p>
+              {m.kind === 'context_gap' ? (
+                <div className="st-meri-msg__context-gap">
+                  <p className="st-meri-msg__body">{m.body}</p>
+                  <button
+                    type="button"
+                    className="st-meri-msg__dismiss"
+                    disabled={dismissGap.isPending}
+                    onClick={() =>
+                      dismissGap.mutate({ messageId: m.id, nodeId: nodeId })
+                    }
+                    aria-label="Dismiss this context gap notice"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              ) : (
+                <p className="st-meri-msg__body">{m.body}</p>
+              )}
             </div>
           ))
         )}
       </div>
+      {dismissGap.isError ? (
+        <p className="st-modal__alert" role="alert" style={{ marginTop: 8 }}>
+          Could not dismiss. {(dismissGap.error as Error)?.message || 'Please try again.'}
+        </p>
+      ) : null}
     </div>
   );
 }

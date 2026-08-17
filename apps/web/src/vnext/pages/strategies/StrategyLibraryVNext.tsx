@@ -17,6 +17,7 @@ import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
 import { IdentityMark } from '../../components/identity/index.js';
 import { CapiroPlusIcon } from '../../components/icons/index.js';
+import { useShellClientContext } from '../../adapters/legacy/useShellClientContext.js';
 import { ScopeBar, type ScopeBarStatus } from './ScopeBar.js';
 import {
   clientName,
@@ -103,6 +104,7 @@ export function StrategyLibraryVNext() {
   const members = useTenantMembers();
   const firmPhases = useFirmPhases();
   const watchCounts = usePendingWatchCounts(true);
+  const clientContext = useShellClientContext();
 
   const [sort, setSort] = useState<SortKey>('recent');
   const [ownerFilter, setOwnerFilter] = useState<string>('all');
@@ -110,6 +112,7 @@ export function StrategyLibraryVNext() {
   const rows = strategies.data ?? [];
   const counts = watchCounts.data ?? {};
   const fyRange = useMemo(() => firmPhaseFyRange(firmPhases.data ?? []), [firmPhases.data]);
+  const selectedClientId = clientContext.selectedClientId;
 
   /* Live-status pill (design handoff, "Scope bar" section): a real react-query
    * fetch timestamp, never a fabricated "Live" claim — falls back to an
@@ -132,6 +135,12 @@ export function StrategyLibraryVNext() {
 
   const filtered = useMemo(() => {
     let list = rows;
+    /* ScopeBar client chip (§7.1): the shared cross-app client scope now
+     * actually filters the table, not just the chip label. The list endpoint
+     * already returns the full tenant set, so this is a real client-side
+     * filter over the complete loaded collection — never a server round-trip
+     * that could be mistaken for a truncated result. */
+    if (selectedClientId) list = list.filter((r) => r.clientId === selectedClientId);
     if (ownerFilter !== 'all') list = list.filter((r) => r.ownerUserId === ownerFilter);
     const sorted = [...list];
     if (sort === 'recent') {
@@ -142,9 +151,9 @@ export function StrategyLibraryVNext() {
       sorted.sort((a, b) => (b.lastEditedAt ?? b.createdAt).localeCompare(a.lastEditedAt ?? a.createdAt));
     }
     return sorted;
-  }, [rows, ownerFilter, sort]);
+  }, [rows, ownerFilter, sort, selectedClientId]);
 
-  const activeCount = rows.length;
+  const activeCount = selectedClientId ? filtered.length : rows.length;
   const clientCount = useMemo(() => new Set(rows.map((r) => r.clientId)).size, [rows]);
   const needsReview = useMemo(
     () => Object.values(counts).reduce((n, c) => n + (c ?? 0), 0),
@@ -232,6 +241,36 @@ export function StrategyLibraryVNext() {
               <CapiroButton variant="primary" onClick={() => navigate('/strategies/phases')}>
                 Set up phases
               </CapiroButton>
+            </div>
+          </div>
+        ) : firmPhases.isLoading ? (
+          <div className="st-card st-library-phases">
+            <div className="st-card__body st-library-phases__row">
+              <span className="st-library-phases__icon" aria-hidden="true">
+                <LibraryPhasesGlyph />
+              </span>
+              <div className="st-library-phases__text">
+                <h2 className="st-card__title">Loading firm phases…</h2>
+                <p className="st-purpose">
+                  The firm&rsquo;s operating phase model is loading.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : firmPhases.isError ? (
+          <div className="st-card st-library-phases">
+            <div className="st-card__body st-library-phases__row">
+              <span className="st-library-phases__icon" aria-hidden="true">
+                <LibraryPhasesGlyph />
+              </span>
+              <div className="st-library-phases__text">
+                <h2 className="st-card__title">Firm phases could not be loaded</h2>
+                <p className="st-purpose">
+                  The phase model is unavailable. Strategies can still be opened, but the
+                  reference layer and FY range will not render until this resolves.
+                </p>
+              </div>
+              <CapiroButton onClick={() => void firmPhases.refetch()}>Retry</CapiroButton>
             </div>
           </div>
         ) : (
@@ -348,7 +387,9 @@ export function StrategyLibraryVNext() {
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr className="st-library-emptyrow">
-                      <td colSpan={5}>No strategies match the current owner filter.</td>
+                      <td colSpan={5}>
+                        No strategies match the current {selectedClientId ? 'client and ' : ''}owner filter.
+                      </td>
                     </tr>
                   ) : (
                     filtered.map((s) => (
@@ -377,7 +418,14 @@ export function StrategyLibraryVNext() {
                   : `Showing ${filtered.length} of ${rows.length} strategies`}
               </span>
               {filtered.length === 0 ? (
-                <button type="button" className="st-library-clearlink" onClick={() => setOwnerFilter('all')}>
+                <button
+                  type="button"
+                  className="st-library-clearlink"
+                  onClick={() => {
+                    setOwnerFilter('all');
+                    clientContext.setSelectedClientId(null);
+                  }}
+                >
                   Clear filters
                 </button>
               ) : null}

@@ -261,16 +261,39 @@ export function NewStrategyOverlay() {
                   {phases.data?.length ?? '…'} firm phases
                 </p>
                 {health.data ? (
-                  health.data.status === 'ok' ? (
-                    <span className="st-pill st-pill--success">Healthy</span>
-                  ) : health.data.status === 'conflicted' ? (
-                    <span className="st-pill st-pill--danger">
-                      {health.data.openMaterialConflicts.length} open conflict
-                      {health.data.openMaterialConflicts.length === 1 ? '' : 's'}
-                    </span>
-                  ) : (
-                    <span className="st-pill st-pill--warning">Degraded context</span>
-                  )
+                  <>
+                    {health.data.status === 'ok' ? (
+                      <span className="st-pill st-pill--success">Healthy</span>
+                    ) : health.data.status === 'conflicted' ? (
+                      <span className="st-pill st-pill--danger">
+                        {health.data.openMaterialConflicts.length} open conflict
+                        {health.data.openMaterialConflicts.length === 1 ? '' : 's'}
+                      </span>
+                    ) : (
+                      <span className="st-pill st-pill--warning">Degraded context</span>
+                    )}
+                    {/* Surface the real health dimensions the backend already
+                        carries (types.ts ContextHealth), not a fabricated
+                        score. missingRequired and staleDocuments are honest
+                        counts from the context health endpoint. */}
+                    {health.data.missingRequired.length > 0 ? (
+                      <p className="st-ns__context-sub" style={{ marginTop: 4 }}>
+                        {health.data.missingRequired.length} missing required field
+                        {health.data.missingRequired.length === 1 ? '' : 's'}:{' '}
+                        {health.data.missingRequired.join(', ')}
+                      </p>
+                    ) : null}
+                    {health.data.staleDocuments > 0 ? (
+                      <p className="st-ns__context-sub" style={{ marginTop: 2 }}>
+                        {health.data.staleDocuments} stale document
+                        {health.data.staleDocuments === 1 ? '' : 's'} still in rotation
+                      </p>
+                    ) : null}
+                  </>
+                ) : health.isLoading ? (
+                  <span className="st-pill st-pill--info">Loading health…</span>
+                ) : health.isError ? (
+                  <span className="st-pill st-pill--warning">Health unavailable</span>
                 ) : null}
               </>
             )}
