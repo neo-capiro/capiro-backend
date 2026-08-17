@@ -1,0 +1,54 @@
+{
+  "name": "@capiro/defense-contracts",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./public": {
+      "types": "./dist/public/index.d.ts",
+      "require": "./dist/public/index.js",
+      "import": "./dist/public/index.js",
+      "default": "./dist/public/index.js"
+    },
+    "./internal": {
+      "types": "./dist/internal/index.d.ts",
+      "require": "./dist/internal/index.js",
+      "import": "./dist/internal/index.js",
+      "default": "./dist/internal/index.js"
+    },
+    "./parser": {
+      "types": "./dist/parser/index.d.ts",
+      "require": "./dist/parser/index.js",
+      "import": "./dist/parser/index.js",
+      "default": "./dist/parser/index.js"
+    },
+    "./events": {
+      "types": "./dist/events/index.d.ts",
+      "require": "./dist/events/index.js",
+      "import": "./dist/events/index.js",
+      "default": "./dist/events/index.js"
+    },
+    "./errors": {
+      "types": "./dist/errors/index.d.ts",
+      "require": "./dist/errors/index.js",
+      "import": "./dist/errors/index.js",
+      "default": "./dist/errors/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  }
+}

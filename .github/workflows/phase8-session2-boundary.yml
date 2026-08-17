@@ -1,0 +1,115 @@
+name: Phase 8 Session 2 Defense Boundary
+
+on:
+  pull_request:
+    paths:
+      - 'apps/defense-api/**'
+      - 'packages/defense-*/**'
+      - 'packages/auth/**'
+      - 'apps/api/prisma/migrations/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/verify-phase8-session2*.mjs'
+      - 'docs/defense-budget/**'
+      - 'docs/handoffs/phase-8-defense-api-session-2-handoff.md'
+      - '.github/workflows/phase8-session2-boundary.yml'
+  push:
+    paths:
+      - 'apps/defense-api/**'
+      - 'packages/defense-*/**'
+      - 'packages/auth/**'
+      - 'apps/api/prisma/migrations/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'scripts/verify-phase8-session2*.mjs'
+      - 'docs/defense-budget/**'
+      - 'docs/handoffs/phase-8-defense-api-session-2-handoff.md'
+      - '.github/workflows/phase8-session2-boundary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # prisma validate/generate require DATABASE_URL to be present in the
+      # environment to resolve the datasource block, even though this job
+      # never connects to a database — same convention as the repo's other
+      # Prisma-touching CI jobs (e.g. knowledge-phase11-ci.yml).
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
+      CLERK_SECRET_KEY: ci-placeholder-not-a-real-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @capiro/auth build
+      - run: pnpm --filter @capiro/defense-contracts build
+      - run: pnpm --filter @capiro/defense-domain build
+      - run: pnpm --filter @capiro/defense-client build
+      - run: node scripts/verify-phase8-session2.mjs
+      - run: pnpm --filter @capiro/defense-api prisma:validate
+      - run: pnpm --filter @capiro/defense-api typecheck
+      - run: pnpm --filter @capiro/defense-api test
+      - run: pnpm --filter @capiro/defense-api build
+      - name: Entrypoint negative controls
+        shell: bash
+        run: |
+          bash -n apps/defense-api/scripts/entrypoint.sh
+          for mode in migrate promote activate parse benchmark unknown; do
+            if bash apps/defense-api/scripts/entrypoint.sh "$mode"; then
+              echo "::error::entrypoint unexpectedly accepted $mode"
+              exit 1
+            fi
+          done
+
+  db-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Disposable-database migration-from-zero and role/RLS rehearsal
+        # The script manages its own disposable pgvector/pgvector:pg16
+        # container (docker is available on ubuntu-latest runners), the same
+        # convention as apps/api/scripts/pe-budget-phase7-migration-rehearsal.sh.
+        run: node scripts/verify-phase8-session2-db.mjs
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build defense-api image
+        run: docker build -f apps/defense-api/Dockerfile -t capiro-defense-api:ci .
+      - name: Non-root container smoke test
+        run: |
+          uid="$(docker run --rm --entrypoint id capiro-defense-api:ci -u)"
+          echo "container uid: $uid"
+          if [ "$uid" = "0" ]; then
+            echo "::error::defense-api container runs as root"
+            exit 1
+          fi
+      - name: Entrypoint rejection smoke test (built image)
+        run: |
+          for mode in migrate promote activate parse benchmark unknown; do
+            if docker run --rm capiro-defense-api:ci "$mode"; then
+              echo "::error::built image unexpectedly accepted $mode"
+              exit 1
+            fi
+          done

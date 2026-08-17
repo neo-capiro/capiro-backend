@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "session": 2,
+  "plan": "Phase 8 V3 — Defense API, Ephemeral NVIDIA Document Intelligence, Recurring Budget Lifecycle, Federal Funding Events, Cutover & Decommission",
+  "base": {
+    "repository": "neo-capiro/capirov2",
+    "recordedMainAtBundleTime": "a03efaa2d96a973ace36d695d079aadeda2a6d3e",
+    "closeoutBranchedFromMain": "f556e564aa459c0a2cb017ba109b4b28e8d1908c",
+    "session1Branch": "agent/phase8-session1-boundary-packages-v2",
+    "session1HeadObserved": "3d318c716e8a8eea2f7bd96874f94f52809d1658",
+    "strategy": "Session 1 packages and the Session 2 patch were applied onto current main (verified via git ls-remote at closeout time, not the recorded historical SHA above)."
+  },
+  "deploymentPosture": "dark",
+  "cutoverAuthorized": false,
+  "workstreams": {
+    "C": {
+      "status": "implemented_and_verified",
+      "deliverables": [
+        "independently bootable Nest scaffold",
+        "shared Clerk tenant authentication registration",
+        "request context and structured logging",
+        "HMAC internal-service authentication",
+        "healthz and mode-aware readyz reading the real defense_budget_active_snapshot/canonical_snapshot join",
+        "custom curated Prisma client with the corrected active-snapshot model (UUID id, domain, environment, snapshot_id, activation_id, updated_at, unique(domain, environment))",
+        "bounded body limits and graceful shutdown",
+        "non-root ARM64-compatible container",
+        "safe/refusing entrypoint modes"
+      ]
+    },
+    "D": {
+      "status": "implemented_and_db_rehearsed",
+      "deliverables": [
+        "NOLOGIN NOBYPASSRLS serve/job capability roles",
+        "conditional table and sequence grants",
+        "explicit active-snapshot activation denial",
+        "narrow SECURITY DEFINER tenant/membership functions replacing the removed withSystem()/app.bypass_rls escape hatch",
+        "comprehensive login-level role-safety check (superuser/bypassrls/createdb/createrole/schema-create/promoter-membership/active-snapshot-mutation/unexpected-direct-grants), not just capability-role membership",
+        "deterministic disposable-database harness (scripts/verify-phase8-session2-db.sh): migration-from-zero, real serve/job/main-api login rehearsal, tenant RLS positive/negative controls, table-boundary positive/negative controls, guarded main-api cutover rehearsal, parser-has-no-role check -- 36 checks, all passing",
+        "guarded future main-api cutover-revoke template, exercised only inside the disposable database",
+        "curated Prisma subset manifest"
+      ]
+    }
+  },
+  "runtimeOwnership": {
+    "publicDefenseRoutes": "apps/api until Session 3+ and later cutover",
+    "defenseApi": "dark health/auth/database-boundary scaffold only",
+    "canonicalPromotion": "existing isolated promoter task",
+    "parserGpu": "not present in defense-api; no credential or runtime dependency (verified: no capiro_defense_parser* database role exists)",
+    "schemaMigrations": "apps/api/prisma/migrations remains sole ledger; Session 2's migration is 20261120200000_phase8_defense_runtime_roles, renamed to sort after every migration it depends on (previously misnamed 20260817173000, which sorted before the Phase 7 migration that creates the tables it references)"
+  },
+  "mutations": {
+    "aws": false,
+    "sharedDatabase": false,
+    "productionData": false,
+    "routing": false,
+    "schedules": false,
+    "secrets": false,
+    "iam": false
+  },
+  "closeoutEvidence": {
+    "installFrozen": "pass",
+    "packageBuilds": "pass (@capiro/auth, @capiro/defense-contracts, @capiro/defense-domain, @capiro/defense-client)",
+    "staticBoundaryVerifier": "pass (SESSION2_BOUNDARY_PASS)",
+    "prismaValidate": "pass",
+    "typecheck": "pass",
+    "unitAndIntegrationTests": "pass (29/29, including 6 database-backed /readyz acceptance scenarios)",
+    "defenseApiBuild": "pass",
+    "disposableDbRehearsal": "pass (SESSION2_DB_REHEARSAL_PASS, 36 checks)",
+    "dockerBuild": "pass",
+    "dockerNonRootSmokeTest": "pass (uid 1001)",
+    "dockerEntrypointNegativeControls": "pass (migrate/promote/activate/parse/benchmark/unknown all refused)",
+    "gitDiffCheck": "pass"
+  },
+  "requiredExternalGates": [
+    "truth-freeze acceptance remains required before production read or ingestion cutover",
+    "production bootstrap-roles must apply the same login-level ALTER ROLE ... SET statement_timeout/lock_timeout/idle_in_transaction_session_timeout used for the rehearsal logins directly to the real capiro_defense_serve/capiro_defense_job login roles -- role-level ALTER ROLE ... SET on the NOLOGIN capability role does not propagate through membership, which the disposable-database rehearsal proves and documents",
+    "Session 3 route/mutation ownership work remains out of scope for this session"
+  ]
+}

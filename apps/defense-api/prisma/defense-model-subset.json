@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "authoritativeSchema": "apps/api/prisma/schema.prisma",
+  "generatedSchema": "apps/defense-api/prisma/schema.prisma",
+  "session": 2,
+  "typedModels": [
+    {
+      "model": "DefenseBudgetActiveSnapshot",
+      "table": "defense_budget_active_snapshot",
+      "access": "read_only",
+      "purpose": "readiness and strict-cutover active-snapshot gate",
+      "columns": ["id", "domain", "environment", "snapshot_id", "activation_id", "updated_at"],
+      "uniqueKey": ["domain", "environment"]
+    }
+  ],
+  "rawReadRelations": [
+    "tenants",
+    "users",
+    "tenant_memberships"
+  ],
+  "independentMigrationLedger": false,
+  "rule": "Shared schema changes remain owned by apps/api/prisma/migrations until the service boundary is proven."
+}

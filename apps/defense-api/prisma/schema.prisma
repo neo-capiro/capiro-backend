@@ -1,0 +1,32 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/prisma-client"
+  binaryTargets   = ["native", "linux-arm64-openssl-3.0.x"]
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector"), pg_trgm, citext, uuidOssp(map: "uuid-ossp")]
+}
+
+/// Session 2 intentionally exposes only the active-snapshot pointer as a typed
+/// model. Auth membership lookups and role probes use bounded raw SQL. Defense
+/// domain models move in Session 3 after route/mutation ownership is migrated.
+///
+/// Mirrors the authoritative table created by Phase 7
+/// (apps/api/prisma/migrations/20260822010000_pe_budget_phase7_canonical_promotion):
+/// UUID id, one row per (domain, environment), pointing at a canonical
+/// snapshot and the activation that moved the pointer there.
+model DefenseBudgetActiveSnapshot {
+  id           String   @id @default(uuid()) @db.Uuid
+  domain       String   @db.VarChar(64)
+  environment  String   @db.VarChar(32)
+  snapshotId   String   @map("snapshot_id") @db.Uuid
+  activationId String   @map("activation_id") @db.Uuid
+  updatedAt    DateTime @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([domain, environment], map: "defense_budget_active_snapshot_singleton_unique")
+  @@map("defense_budget_active_snapshot")
+}

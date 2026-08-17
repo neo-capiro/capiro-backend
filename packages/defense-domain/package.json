@@ -1,0 +1,78 @@
+{
+  "name": "@capiro/defense-domain",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./identities": {
+      "types": "./dist/identities/index.d.ts",
+      "require": "./dist/identities/index.js",
+      "import": "./dist/identities/index.js",
+      "default": "./dist/identities/index.js"
+    },
+    "./money": {
+      "types": "./dist/money/index.d.ts",
+      "require": "./dist/money/index.js",
+      "import": "./dist/money/index.js",
+      "default": "./dist/money/index.js"
+    },
+    "./funding": {
+      "types": "./dist/funding/index.d.ts",
+      "require": "./dist/funding/index.js",
+      "import": "./dist/funding/index.js",
+      "default": "./dist/funding/index.js"
+    },
+    "./extraction": {
+      "types": "./dist/extraction/index.d.ts",
+      "require": "./dist/extraction/index.js",
+      "import": "./dist/extraction/index.js",
+      "default": "./dist/extraction/index.js"
+    },
+    "./verification": {
+      "types": "./dist/verification/index.d.ts",
+      "require": "./dist/verification/index.js",
+      "import": "./dist/verification/index.js",
+      "default": "./dist/verification/index.js"
+    },
+    "./projections": {
+      "types": "./dist/projections/index.d.ts",
+      "require": "./dist/projections/index.js",
+      "import": "./dist/projections/index.js",
+      "default": "./dist/projections/index.js"
+    },
+    "./projections/pb-comparison": {
+      "types": "./dist/projections/pb-comparison.d.ts",
+      "require": "./dist/projections/pb-comparison.js",
+      "import": "./dist/projections/pb-comparison.js",
+      "default": "./dist/projections/pb-comparison.js"
+    },
+    "./snapshots": {
+      "types": "./dist/snapshots/index.d.ts",
+      "require": "./dist/snapshots/index.js",
+      "import": "./dist/snapshots/index.js",
+      "default": "./dist/snapshots/index.js"
+    },
+    "./federal-funding": {
+      "types": "./dist/federal-funding/index.d.ts",
+      "require": "./dist/federal-funding/index.js",
+      "import": "./dist/federal-funding/index.js",
+      "default": "./dist/federal-funding/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist"
+  }
+}
