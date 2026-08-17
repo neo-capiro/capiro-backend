@@ -11,8 +11,10 @@ This branch implements Workstream F's dark source/composition boundary without m
 - Repository: `neo-capiro/capirov2`
 - Branch: `agent/phase8-session4-runtime-move`
 - Base: `67f220efe3065f21676c14ec31b65ee5312d93e5`
+- Implementation commit: `44055b308e99be7c643c4c12fffa8632819ce1ed`
 - Source owner retained during strangler: `apps/api`
 - Target owner prepared dark: `apps/defense-api`
+- GitHub Actions observed for implementation commit: none returned; remote execution is not claimed
 
 ## Important prerequisite finding
 
@@ -41,6 +43,7 @@ The previously referenced Session 3 branch did not contain the claimed 49-route 
 6. A fail-closed replay-evidence contract for the real FY27 cycle.
 7. Unit tests for deterministic lineage hashing, phase ordering and malformed-artifact refusal.
 8. Machine-readable runtime ownership/status inventory.
+9. Focused CI that generates clients but never applies a migration or touches production.
 
 ## Permanent commands
 
@@ -63,6 +66,8 @@ pnpm --filter @capiro/api typecheck:phase7
 git diff --check
 ```
 
+These commands are encoded in `.github/workflows/phase8-session4-runtime.yml`. They were not executed by the connector runtime, and no remote run was returned for the implementation commit; do not reinterpret their presence as passing evidence.
+
 ## Real FY27 replay acceptance
 
 Session 4 may be marked complete only after the same immutable FY27 source inputs are executed through both the retained implementation and the moved composition boundary and an evidence file proves:
@@ -84,6 +89,8 @@ Then run:
 PHASE8_SESSION4_REPLAY_EVIDENCE=<relative-json-path> \
   node scripts/verify-phase8-session4.mjs --enforce-replay
 ```
+
+The evidence format is fixed in `docs/defense-budget/phase8-session4-replay-evidence.schema.json`.
 
 ## Open blockers
 
