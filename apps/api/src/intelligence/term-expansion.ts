@@ -41,6 +41,28 @@ export const ACRONYM_EXPANSIONS: Record<string, string> = {
   dod: 'department of defense',
   dhs: 'department of homeland security',
   cyber: 'cybersecurity',
+  // ── Expanded set: short defense/aerospace acronyms (< 4 chars) that would
+  //    be dropped by MIN_KEYWORD_TOKEN_LENGTH without expansion. Longer tags
+  //    like "hypersonics", "quantum", "darpa" are already kept as raw keyword
+  //    tokens and trigram-matched directly — they don't need acronym expansion.
+  'c-uas': 'counter unmanned aircraft systems',
+  cuas: 'counter unmanned aircraft systems',
+  bmd: 'ballistic missile defense',
+  gmd: 'ground based midcourse defense',
+  dew: 'directed energy weapons',
+  emw: 'enterprise mission owner weapons',
+  sda: 'space development agency',
+  mda: 'missile defense agency',
+  onr: 'office of naval research',
+  nrl: 'naval research laboratory',
+  ari: 'army research laboratory',
+  peo: 'program executive office',
+  pma: 'program management aircraft',
+  mse: 'mission systems engineering',
+  rmf: 'risk management framework',
+  dat: 'data analytics technology',
+  jam: 'joint advanced manufacturing',
+  rpa: 'robotic process automation',
 };
 
 /**

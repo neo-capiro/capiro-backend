@@ -34,10 +34,14 @@ import { expandTerms, isKnownAcronym, MIN_KEYWORD_TOKEN_LENGTH } from './term-ex
 /** Default minimum combined score for "relevant" filtering across the read paths. */
 export const DEFAULT_MIN_RELEVANCE_SCORE = 0.5;
 
-/** Trigram similarity floor for the capability-keyword path (mirrors the capability
- * similarity floor used by the issue-bill linker). Only keyword↔PE-text matches at or
- * above this similarity count. */
-export const KEYWORD_SIMILARITY_FLOOR = 0.65;
+/**
+ * Trigram similarity floor for the capability-keyword path. Lowered from 0.65
+ * to 0.5 to catch more partial matches (e.g. "autonomous" matching "autonomy").
+ * The final relevance result is already filtered at DEFAULT_MIN_RELEVANCE_SCORE
+ * (0.5), so the keyword path was stricter than the final threshold — now they
+ * align. Only keyword↔PE-text matches at or above this similarity count.
+ */
+export const KEYWORD_SIMILARITY_FLOOR = 0.5;
 
 /**
  * Name-similarity floor for tying a client to an award / performer by name (trigram).
