@@ -8,6 +8,14 @@ import {
 } from '../../../../vnext/pages/engagement/VNextOutreachWorkspace.js';
 import '../../../../vnext/pages/engagement/engagement.css';
 import '../../../../vnext/pages/engagement/engagement-ui-closeout.css';
+// TargetWorkspace (rendered inside VNextOutreachWorkspace below) uses
+// `.eng-pill` for signal pills and the Saved Audiences count pill; this is
+// the tone-table stylesheet that defines those classes. engagement.css and
+// engagement-ui-closeout.css were already loaded here — this one was missing,
+// which would have left those pills unstyled whenever Outreach is reached
+// through this adapter route instead of the standalone /engagement/outreach
+// page (which gets it from VNextEngagementRoutes.tsx).
+import '../../../../vnext/pages/engagement/engagement-tones.css';
 
 export interface OutreachV3CompleteRouteProps {
   clients: Client[];

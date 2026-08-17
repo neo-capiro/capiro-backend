@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   AlertTriangle,
   BadgeCheck,
@@ -29,6 +29,7 @@ import type {
   OutreachV3ResolvedTargetRef,
   OutreachV3TargetCandidate,
   OutreachV3TargetLocator,
+  OutreachV3TargetSignal,
 } from './contracts.js';
 import {
   getOutreachV3TargetRelationships,
@@ -39,6 +40,17 @@ import type {
   OutreachV3TargetProfileResponse,
   OutreachV3TargetProfileSection,
 } from './target-intelligence-contracts.js';
+// Saved Audiences (item 4): the real, already-wired read endpoint. Living in
+// vnext's engagement-api.ts rather than this folder's own outreach-v3-api.ts
+// is the shared file's existing home for it, per the phase brief — it is a
+// plain stateless (api) => Promise<SavedAudience[]> call with no vnext-only
+// coupling, so importing it here does not tie this shared component to
+// anything vnext-specific.
+import {
+  listSavedOutreachAudiences,
+  type SavedAudience,
+  type SavedAudienceMember,
+} from '../../../../vnext/pages/engagement/engagement-api.js';
 
 export type TargetWorkspaceProps = Pick<
   DecisionSurfacesProps,
@@ -65,12 +77,14 @@ type TargetSourceKey =
   | 'saved'
   | 'manual';
 
+// Order matches the mockup: Recommended · Directory · Client contacts ·
+// Saved audiences · Recent · Add manually · Selected · N (the live selected
+// count is rendered next to the "Selected" tab itself, below).
 const SOURCE_OPTIONS: Array<{
   key: TargetSourceKey;
   label: string;
   sources: string[];
   requiresClient?: boolean;
-  unavailable?: boolean;
 }> = [
   { key: 'recommended', label: 'Recommended', sources: [] },
   {
@@ -84,16 +98,62 @@ const SOURCE_OPTIONS: Array<{
     sources: ['client_person', 'client_recommendation'],
     requiresClient: true,
   },
+  { key: 'saved', label: 'Saved audiences', sources: [] },
   {
     key: 'recent',
-    label: 'Recent contacts',
+    label: 'Recent',
     sources: ['engagement_contact'],
     requiresClient: true,
   },
+  { key: 'manual', label: 'Add manually', sources: [] },
   { key: 'selected', label: 'Selected', sources: [] },
-  { key: 'saved', label: 'Saved audiences', sources: [], unavailable: true },
-  { key: 'manual', label: 'Manual', sources: [] },
 ];
+
+/**
+ * Resolves one saved-audience member into the same locator shape every other
+ * target source uses. Prefers the member's real backing source/ref (so the
+ * backend re-resolves it the same way a Directory/Client-contact pick does);
+ * falls back to a manual-style locator built from the member's own fields
+ * when it has no resolvable source ref, mirroring how the Manual tab already
+ * builds a locator for a hand-entered target.
+ */
+function savedAudienceMemberLocator(member: SavedAudienceMember): OutreachV3TargetLocator {
+  if (member.sourceRefId) {
+    return {
+      source: member.source,
+      id: member.sourceRefId,
+      name: member.name,
+      email: member.email || null,
+      title: member.title,
+      organization: member.office,
+    };
+  }
+  return {
+    source: 'manual',
+    id: member.id,
+    name: member.name || member.email,
+    email: member.email || null,
+    phone: null,
+    title: member.title ?? null,
+    organization: member.office ?? null,
+    note: null,
+  };
+}
+
+/**
+ * Best-effort tone mapping for candidate signals. The backend contract
+ * (`OutreachV3TargetSignal`) only carries `{ code, label }` — no tone hint —
+ * and `committee_match` (used in this file's own test fixture) is the only
+ * real signal code confirmed anywhere in the frontend. Everything else is a
+ * conservative keyword heuristic over `code`/`label`, defaulting to gray per
+ * the phase brief, rather than a fabricated exhaustive enum.
+ */
+function signalPillTone(signal: OutreachV3TargetSignal): 'eng-pill--navy' | 'eng-pill--warn' | 'eng-pill--gray' {
+  const key = `${signal.code} ${signal.label}`.toLowerCase();
+  if (/risk|stale|missing|gap|conflict|warn|blocker/.test(key)) return 'eng-pill--warn';
+  if (/match|relationship|existing|verified|confirmed|current/.test(key)) return 'eng-pill--navy';
+  return 'eng-pill--gray';
+}
 
 function cx(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(' ');
@@ -205,6 +265,92 @@ function ProfileSection({
   );
 }
 
+/**
+ * Item 4 — Saved Audiences is a source of targets, never a delivery mode:
+ * picking an audience just resolves its members into the same
+ * selected-target list every other source (Directory, Client contacts,
+ * manual entry) populates. Real data end to end — `listSavedOutreachAudiences`
+ * already returns actual audiences; this was previously a hard-disabled tab
+ * with no body at all.
+ */
+function SavedAudiencesPanel({
+  audiences,
+  pending,
+  error,
+  busy,
+  onAddAll,
+}: {
+  audiences: SavedAudience[];
+  pending: boolean;
+  error?: string | null;
+  busy: boolean;
+  onAddAll: (audience: SavedAudience) => void;
+}) {
+  return (
+    <div className="ov3-card-list">
+      <p className="ov3-muted-copy">
+        Reusable audiences are a source of targets, never a delivery mode. Adding an audience
+        resolves each member into the same target list.
+      </p>
+      {pending ? (
+        <div className="ov3-loading-list" aria-label="Loading saved audiences">
+          <span />
+          <span />
+        </div>
+      ) : error ? (
+        <div className="ov3-recovery is-danger" role="alert">
+          <AlertTriangle size={18} aria-hidden="true" />
+          <div>
+            <strong>Saved audiences could not load</strong>
+            <p>{error}</p>
+          </div>
+        </div>
+      ) : !audiences.length ? (
+        <div className="ov3-empty-state">
+          <UsersRound size={24} aria-hidden="true" />
+          <strong>No saved audiences yet</strong>
+          <p>Reusable audiences appear here once one is saved from a prior campaign.</p>
+        </div>
+      ) : (
+        audiences.map((audience) => {
+          // "Updated" has no real backing field on SavedAudience/
+          // SavedAudienceMember (no timestamp anywhere in the contract) — a
+          // date here would be fabricated, so this shows a real, computed
+          // line (email-ready coverage) instead. See phase report.
+          const emailReady = audience.members.filter((member) => Boolean(member.email)).length;
+          return (
+            <article key={audience.id} className="ov3-target-card">
+              <header>
+                <span className="ov3-avatar">{audience.name.slice(0, 2).toUpperCase()}</span>
+                <div>
+                  <strong>{audience.name}</strong>
+                  <p>
+                    {sentence(audience.kind)} · {emailReady} of {audience.members.length} email-ready
+                  </p>
+                </div>
+                <span className="eng-pill eng-pill--navy" aria-label={`${audience.members.length} members`}>
+                  {audience.members.length}
+                </span>
+              </header>
+              <footer>
+                <span />
+                <button
+                  type="button"
+                  className="ov3-button is-primary"
+                  disabled={busy || !audience.members.length}
+                  onClick={() => onAddAll(audience)}
+                >
+                  Add all
+                </button>
+              </footer>
+            </article>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 export function TargetWorkspace(props: TargetWorkspaceProps) {
   const {
     session,
@@ -265,12 +411,20 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
       ),
   });
 
+  // Item 4: only fetched once the Saved audiences tab is actually opened.
+  const savedAudiences = useQuery({
+    queryKey: ['outreach-v3', 'saved-audiences'],
+    queryFn: () => listSavedOutreachAudiences(api),
+    enabled: source === 'saved',
+    staleTime: 30_000,
+  });
+
   const selectedByKey = useMemo(
     () => new Map(selected.map((target) => [target.targetKey, target])),
     [selected],
   );
   const visibleCandidates = useMemo(() => {
-    if (source === 'selected') return [];
+    if (source === 'selected' || source === 'saved') return [];
     return targetCandidates;
   }, [source, targetCandidates]);
   const highConfidence = useMemo(
@@ -304,7 +458,7 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
   const runSearch = async (event?: FormEvent) => {
     event?.preventDefault();
     const option = selectedOption();
-    if (!option || option.unavailable || source === 'selected' || source === 'manual') return;
+    if (!option || source === 'selected' || source === 'manual' || source === 'saved') return;
     if (option.requiresClient && !sponsorClientId) {
       setError('This source requires one explicit client sponsor.');
       return;
@@ -390,6 +544,18 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
     }
   };
 
+  const addAudience = async (audience: SavedAudience) => {
+    if (!audience.members.length) return;
+    setError(null);
+    try {
+      await applyCommands(
+        audience.members.map((member) => addTargetCommand(savedAudienceMemberLocator(member))),
+      );
+    } catch (caught) {
+      setError(safeOutreachV3Error(caught));
+    }
+  };
+
   const addManual = async () => {
     if (!manual.name.trim()) {
       setError('Enter the target name.');
@@ -441,8 +607,6 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
             type="button"
             role="tab"
             aria-selected={source === option.key}
-            disabled={option.unavailable}
-            title={option.unavailable ? 'Saved-audience integration is not available in Phase 6.' : undefined}
             className={source === option.key ? 'is-selected' : ''}
             onClick={() => {
               setSource(option.key);
@@ -450,6 +614,7 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
             }}
           >
             {option.label}
+            {option.key === 'selected' ? ` · ${selected.length}` : ''}
           </button>
         ))}
       </div>
@@ -562,6 +727,14 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
               onProfile={openProfile}
               onRemove={removeTarget}
             />
+          ) : source === 'saved' ? (
+            <SavedAudiencesPanel
+              audiences={savedAudiences.data ?? []}
+              pending={savedAudiences.isLoading}
+              error={savedAudiences.isError ? safeOutreachV3Error(savedAudiences.error) : null}
+              busy={busy}
+              onAddAll={(audience) => void addAudience(audience)}
+            />
           ) : targetSearchPending ? (
             <div className="ov3-loading-list" aria-label="Searching targets"><span /><span /><span /></div>
           ) : visibleCandidates.length === 0 ? (
@@ -592,10 +765,20 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
                         {sentence(candidate.roleStatus)}
                       </StatusPill>
                     </header>
-                    <p className="ov3-target-card__why">
-                      {candidate.signals.map((signal) => signal.label).slice(0, 2).join(' · ') ||
-                        'Matches the current target criteria.'}
-                    </p>
+                    {candidate.signals.length ? (
+                      <div className="ov3-target-card__signals">
+                        {candidate.signals.slice(0, 2).map((signal) => (
+                          <span
+                            key={signal.code}
+                            className={cx('eng-pill', 'eng-pill--sm', signalPillTone(signal))}
+                          >
+                            {signal.label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="ov3-target-card__why">Matches the current target criteria.</p>
+                    )}
                     <div className="ov3-target-card__meta">
                       <span>{candidate.organization || candidate.jurisdiction.chamber || 'Directory'}</span>
                       <span>{candidate.emailStatus === 'available' ? 'Email ready' : 'Email missing'}</span>

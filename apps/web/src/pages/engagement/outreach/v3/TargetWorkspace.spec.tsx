@@ -3,9 +3,17 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { OutreachV3SessionEnvelope, OutreachV3TargetCandidate } from './contracts.js';
 import { TargetWorkspace, type TargetWorkspaceProps } from './TargetWorkspace.js';
+import { listSavedOutreachAudiences } from '../../../../vnext/pages/engagement/engagement-api.js';
 
 vi.mock('../../../../lib/use-api.js', () => ({
   useApi: () => ({ post: vi.fn(), get: vi.fn() }),
+}));
+
+// Item 4's real, already-wired read endpoint — mocked here the same way
+// useApi is above, so these tests control exactly what the Saved Audiences
+// tab sees without hitting the network layer.
+vi.mock('../../../../vnext/pages/engagement/engagement-api.js', () => ({
+  listSavedOutreachAudiences: vi.fn(),
 }));
 
 function session(): OutreachV3SessionEnvelope {
@@ -139,7 +147,7 @@ describe('TargetWorkspace', () => {
   it('validates manual target identity and keeps Save to Directory off', async () => {
     const value = props();
     renderWorkspace(value);
-    fireEvent.click(screen.getByRole('tab', { name: 'Manual' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Add manually' }));
 
     fireEvent.change(screen.getByLabelText(/^Name/i), { target: { value: 'Jordan Miller' } });
     fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'not-an-email' } });
@@ -166,5 +174,138 @@ describe('TargetWorkspace', () => {
       }),
     ]);
     expect(screen.getByText(/Saving to the shared Directory remains off/i)).toBeInTheDocument();
+  });
+
+  describe('signal pills (item 5)', () => {
+    it('renders candidate signals as tone-driven pill components instead of joined plain text', () => {
+      renderWorkspace(props());
+
+      const pill = screen.getByText('Committee match: HASC');
+      expect(pill.className).toContain('eng-pill');
+      // 'committee_match' matches the "obvious mapping" keyword heuristic
+      // (…match…) and renders navy; anything without an obvious mapping
+      // falls back to gray, never plain unstyled text.
+      expect(pill.className).toContain('eng-pill--navy');
+    });
+  });
+
+  describe('Saved audiences (item 4)', () => {
+    it('was previously hard-disabled', () => {
+      // Documents the bug this phase fixes: the tab used to render with
+      // `disabled` and a "not available in Phase 6" title regardless of the
+      // real listSavedOutreachAudiences data. Guards against a regression
+      // back to that state.
+      renderWorkspace(props());
+      expect(screen.getByRole('tab', { name: 'Saved audiences' })).toBeEnabled();
+    });
+
+    it('renders the rule text, the audience card list, and a navy member-count pill', async () => {
+      vi.mocked(listSavedOutreachAudiences).mockResolvedValue([
+        {
+          id: 'aud-1',
+          kind: 'list',
+          name: 'HASC Staff',
+          members: [
+            {
+              id: 'mem-1',
+              source: 'directory_staff',
+              sourceRefId: 'staff-9',
+              name: 'Jamie Lee',
+              email: 'jamie@example.test',
+              title: 'Staff Director',
+              office: 'HASC',
+            },
+            {
+              id: 'mem-2',
+              source: 'directory_staff',
+              sourceRefId: null,
+              name: 'No Email Person',
+              email: '',
+              title: null,
+              office: null,
+            },
+          ],
+        },
+      ]);
+      const value = props();
+      renderWorkspace(value);
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Saved audiences' }));
+
+      expect(
+        await screen.findByText(
+          /Reusable audiences are a source of targets, never a delivery mode/i,
+        ),
+      ).toBeInTheDocument();
+      expect(await screen.findByText('HASC Staff')).toBeInTheDocument();
+      // "Updated" has no backing field on SavedAudience/SavedAudienceMember
+      // (no timestamp anywhere in the contract) — real, computed email-ready
+      // coverage is shown instead of a fabricated date.
+      expect(screen.getByText(/1 of 2 email-ready/i)).toBeInTheDocument();
+      expect(screen.getByLabelText('2 members')).toHaveClass('eng-pill', 'eng-pill--navy');
+    });
+
+    it('shows a real empty state when no saved audiences exist yet', async () => {
+      vi.mocked(listSavedOutreachAudiences).mockResolvedValue([]);
+      renderWorkspace(props());
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Saved audiences' }));
+
+      expect(await screen.findByText('No saved audiences yet')).toBeInTheDocument();
+    });
+
+    it('"Add all" resolves every member into the same target list other sources populate', async () => {
+      vi.mocked(listSavedOutreachAudiences).mockResolvedValue([
+        {
+          id: 'aud-1',
+          kind: 'list',
+          name: 'HASC Staff',
+          members: [
+            {
+              id: 'mem-1',
+              source: 'directory_staff',
+              sourceRefId: 'staff-9',
+              name: 'Jamie Lee',
+              email: 'jamie@example.test',
+              title: 'Staff Director',
+              office: 'HASC',
+            },
+            {
+              id: 'mem-2',
+              source: 'directory_staff',
+              sourceRefId: null,
+              name: 'No Email Person',
+              email: '',
+              title: null,
+              office: null,
+            },
+          ],
+        },
+      ]);
+      const value = props();
+      renderWorkspace(value);
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Saved audiences' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Add all' }));
+
+      await waitFor(() => expect(value.applyCommands).toHaveBeenCalledTimes(1));
+      // One command per member (same ADD_TARGET_REFS shape addCandidate/
+      // addManual already use), not a distinct "audience" mutation — a
+      // resolved-into-the-same-list source, never its own delivery mode.
+      expect(value.applyCommands).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'ADD_TARGET_REFS',
+          payload: {
+            refs: [expect.objectContaining({ source: 'directory_staff', id: 'staff-9' })],
+          },
+        }),
+        expect.objectContaining({
+          type: 'ADD_TARGET_REFS',
+          payload: {
+            refs: [expect.objectContaining({ source: 'manual', id: 'mem-2', name: 'No Email Person' })],
+          },
+        }),
+      ]);
+    });
   });
 });

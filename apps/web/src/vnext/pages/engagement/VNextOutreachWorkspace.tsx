@@ -61,6 +61,10 @@ import {
 } from './engagement-api.js';
 import '../../../pages/engagement/outreach/v3/outreach-v3.css';
 import '../../../pages/engagement/outreach/v3/planning-surfaces.css';
+// Re-themes the shared ov3-root component tree (Goal/Targets/Delivery step
+// bodies) to literal navy with zero edits to those canonical files — see this
+// file's header comment for the specificity/scoping rationale.
+import './outreach-body-vnext.css';
 
 export type EngagementOutreachStep =
   | 'goal'
@@ -94,6 +98,17 @@ const USER_STEPS: Array<{ key: EngagementOutreachStep; label: string; number: st
   { key: 'drafts', label: 'Drafts', number: '05' },
   { key: 'send', label: 'Send', number: '06' },
 ];
+
+// One initial per step for the narrow-width dot rail. "Dr" (not "D") for
+// Drafts specifically because Delivery already claims the plain "D".
+const STEP_DOT_LABEL: Record<EngagementOutreachStep, string> = {
+  goal: 'G',
+  targets: 'T',
+  delivery: 'D',
+  context: 'C',
+  drafts: 'Dr',
+  send: 'S',
+};
 
 const PLANNING_STAGE_INDEX: Record<OutreachV3Stage, number> = {
   goal: 0,
@@ -146,16 +161,54 @@ function statusTone(status: string): 'navy' | 'warning' | 'neutral' | 'error' {
   return 'neutral';
 }
 
-function SectionStatus({ value }: { value: 'Waiting' | 'In progress' | 'Locked' }) {
+/**
+ * Tone/color key for the accordion status pill. Kept separate from the
+ * DISPLAYED label below: engagement-ui-closeout.css keys its color rules off
+ * `data-state="waiting"` (muted/gray — correct for "not yet reachable") and
+ * `data-state="locked"` (navy — correct for "answered/complete"). Those
+ * mappings are already right; only the human-readable words were swapped
+ * (see SECTION_STATUS_LABEL), so `state` intentionally keeps these exact
+ * strings unchanged to avoid touching the tone/color CSS at all.
+ */
+type SectionToneState = 'waiting' | 'in-progress' | 'locked';
+
+/**
+ * Fixes a real vocabulary bug: sections that are answered/complete used to
+ * display the literal word "Locked", and sections not yet reached displayed
+ * "Waiting" — backwards from the mockup's LOCKED (not yet reachable) /
+ * IN PROGRESS / COMPLETE (answered) vocabulary. Only the displayed text
+ * changes here; `SectionToneState` (and therefore the CSS tone it drives)
+ * stays the same.
+ */
+const SECTION_STATUS_LABEL: Record<SectionToneState, string> = {
+  waiting: 'Locked',
+  'in-progress': 'In progress',
+  locked: 'Complete',
+};
+
+function SectionStatus({ state }: { state: SectionToneState }) {
   return (
-    <span
-      className="uui-outreach-section-status"
-      data-state={value.toLowerCase().replace(' ', '-')}
-    >
+    <span className="uui-outreach-section-status" data-state={state}>
       <i />
-      {value}
+      {SECTION_STATUS_LABEL[state]}
     </span>
   );
+}
+
+/**
+ * Chat pane header pill. Resolves to "Sent" once a durable send intent
+ * exists, "Drafts" once the approach is approved (immutable drafts exist to
+ * review), otherwise the current step name — matching the mockup, which
+ * never shows a raw step key once the campaign has moved past planning.
+ */
+export function outreachChatStateLabel(
+  step: EngagementOutreachStep,
+  hasActiveIntent: boolean,
+  approachApproved: boolean,
+): string {
+  if (hasActiveIntent) return 'Sent';
+  if (approachApproved) return 'Drafts';
+  return step.toUpperCase();
 }
 
 function transcriptLabel(turn: OutreachV3TranscriptTurn): string {
@@ -1484,7 +1537,7 @@ export function VNextOutreachWorkspace({
             <span className="uui-live-dot" />
             <strong>Meri · Outreach</strong>
           </div>
-          <span>{step.toUpperCase()}</span>
+          <span>{outreachChatStateLabel(step, Boolean(activeIntent), Boolean(approach.data))}</span>
         </header>
         {controller.reasoningUnavailable ? (
           <div className="uui-model-outage">
@@ -1495,7 +1548,11 @@ export function VNextOutreachWorkspace({
                 {controller.reasoningErrorMessage ||
                   'Planning controls and current campaign data remain available.'}
               </p>
-              <button type="button" onClick={() => controller.retryReasoning()}>
+              <button
+                type="button"
+                className="uui-model-outage__retry"
+                onClick={() => controller.retryReasoning()}
+              >
                 Retry Meri
               </button>
             </div>
@@ -1551,6 +1608,7 @@ export function VNextOutreachWorkspace({
             />
             <button
               type="submit"
+              className="uui-button--primary"
               aria-label="Send to Meri"
               disabled={!composer.trim() || controller.sendingTurn}
             >
@@ -1587,6 +1645,26 @@ export function VNextOutreachWorkspace({
             </button>
           ))}
         </nav>
+        {/* Narrow-width fallback: one initial per step instead of the full
+            label strip (which otherwise just becomes horizontally
+            scrollable — see engagement.css's step-strip media query). Same
+            reached/active/disabled contract as the strip above. */}
+        <nav className="uui-outreach-step-dots" aria-label="Campaign steps">
+          {USER_STEPS.map((candidate, index) => (
+            <button
+              key={candidate.key}
+              type="button"
+              data-active={candidate.key === step || undefined}
+              data-reached={index <= reachedIndex || undefined}
+              disabled={index > reachedIndex}
+              title={candidate.label}
+              aria-label={candidate.label}
+              onClick={() => selectStep(candidate.key)}
+            >
+              {STEP_DOT_LABEL[candidate.key]}
+            </button>
+          ))}
+        </nav>
         <div className="uui-outreach-sections">
           {USER_STEPS.map((candidate, index) => {
             const waiting = index > reachedIndex;
@@ -1595,15 +1673,17 @@ export function VNextOutreachWorkspace({
               index < planningIndex ||
               (candidate.key === 'drafts' && currentDrafts.length > 0 && step !== 'drafts') ||
               (candidate.key === 'send' && Boolean(activeIntent));
-            const status: 'Waiting' | 'In progress' | 'Locked' = waiting
-              ? 'Waiting'
+            // `state` drives both the tone/color (data-state, unchanged) and,
+            // via SECTION_STATUS_LABEL, the corrected displayed word.
+            const state: SectionToneState = waiting
+              ? 'waiting'
               : locked
-                ? 'Locked'
+                ? 'locked'
                 : inProgress
-                  ? 'In progress'
+                  ? 'in-progress'
                   : index < reachedIndex
-                    ? 'Locked'
-                    : 'In progress';
+                    ? 'locked'
+                    : 'in-progress';
             const open = openSections.has(candidate.key) && !waiting;
             return (
               <section
@@ -1621,11 +1701,11 @@ export function VNextOutreachWorkspace({
                   <span className="uui-outreach-section__number">{candidate.number}</span>
                   <strong>{candidate.label}</strong>
                   <small>
-                    {status === 'Locked'
+                    {state === 'locked'
                       ? summaryForStep(candidate.key, session, currentDrafts, preflight)
                       : ''}
                   </small>
-                  <SectionStatus value={status} />
+                  <SectionStatus state={state} />
                   {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </button>
                 {open ? (
