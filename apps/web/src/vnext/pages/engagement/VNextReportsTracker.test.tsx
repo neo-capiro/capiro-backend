@@ -166,6 +166,29 @@ describe('VNextReportsTracker', () => {
     expect(within(row).getByText('2')).toBeInTheDocument(); // pending
   });
 
+  test('Pending is honestly color-coded — dark when nonzero, muted when zero (a real conditional, not a fixed color)', async () => {
+    mockGetFor([
+      makeRow({ officeKey: 'o-1', memberPrincipal: 'Rep. Jane Smith (D-CA-12)', pendingActions: 2 }),
+      makeRow({ officeKey: 'o-2', memberPrincipal: 'Sen. Mark Reyes (R-TX)', pendingActions: 0 }),
+    ]);
+    const { container } = renderTracker();
+    await screen.findByText('Rep. Jane Smith (D-CA-12)');
+
+    // Locate each row by its own member name rather than assuming array
+    // order, since the default sort (Member A–Z) is a real, independent
+    // behavior this test shouldn't have to also encode.
+    const rowFor = (name: string) =>
+      screen.getByText(name).closest('.uui-report-table__row') as HTMLElement;
+    const nonzeroPending = within(rowFor('Rep. Jane Smith (D-CA-12)')).getByText('2', {
+      selector: '.uui-report-pending',
+    });
+    const zeroPending = within(rowFor('Sen. Mark Reyes (R-TX)')).getByText('0', {
+      selector: '.uui-report-pending',
+    });
+    expect(nonzeroPending).toHaveAttribute('data-nonzero', 'true');
+    expect(zeroPending).not.toHaveAttribute('data-nonzero');
+  });
+
   test('empty state offers Add target office when no rows are linked yet', async () => {
     mockGetFor([]);
     renderTracker();
