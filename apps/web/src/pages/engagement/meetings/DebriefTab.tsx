@@ -19,6 +19,33 @@ import { EngagementDialog } from './EngagementDialog.js';
 
 type DebriefStageTone = 'navy' | 'gray' | 'warn' | 'err';
 
+/**
+ * The Upload modal's pipeline explainer (design README §12 modal #9: "three
+ * pipeline step rows... a step marker... and an explanation"). These
+ * describe the REAL attachment pipeline, not invented copy:
+ *   - Upload/Extract mirror useUploadAndExtract's own real three-call
+ *     sequence (presigned S3 POST → confirm → extract-text; meetings-api.ts).
+ *   - Delete describes the real `DELETE /attachments/:id` route
+ *     (engagement.controller.ts) — a genuine backend capability with no
+ *     frontend trigger in this modal yet, so it's listed as an explainer,
+ *     not offered as an action here (nothing to wire it to would be built
+ *     ahead of an actual delete affordance).
+ */
+const UPLOAD_PIPELINE_STEPS: Array<{ key: string; copy: string }> = [
+  {
+    key: 'Upload',
+    copy: 'Requests a presigned upload URL, sends the file directly to storage, then confirms the attachment on this meeting.',
+  },
+  {
+    key: 'Extract',
+    copy: 'Extracts text from the confirmed attachment — audio and video are transcribed — so the debrief has a grounded source.',
+  },
+  {
+    key: 'Delete',
+    copy: 'Removing an attachment invalidates this meeting and calendar’s cached attachment lists so Library and Reports stay current.',
+  },
+];
+
 /** The Debrief tab's top-of-tab stage pill (see tab-kit.js's StagePill / the
  *  Prep and Notes tabs' equivalents). Navy = approved; every blocked stage
  *  (locked/loading/generating/restricted/not-started) is gray — none of them
@@ -264,6 +291,41 @@ function SourcePicker({
             }}
           />
         </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+          {UPLOAD_PIPELINE_STEPS.map((step) => (
+            <div
+              key={step.key}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '12px 14px',
+                borderRadius: 10,
+                background: 'var(--bg-sunken)',
+              }}
+            >
+              <span
+                style={{
+                  flex: '0 0 84px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: 'var(--accent)',
+                }}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />
+                {step.key}
+              </span>
+              <span style={{ flex: 1, fontSize: 13, lineHeight: 1.45, color: 'var(--ink-2)' }}>
+                {step.copy}
+              </span>
+            </div>
+          ))}
+        </div>
       </EngagementDialog>
       <button
         type="button"

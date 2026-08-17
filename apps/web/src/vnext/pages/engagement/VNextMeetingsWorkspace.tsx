@@ -73,6 +73,7 @@ import {
 import {
   addDays,
   dayKey,
+  formatDateShort,
   formatDayHeader,
   formatDayTitle,
   formatMonthTitle,
@@ -88,6 +89,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from '../../../pages/engagement/meetings/meetings-format.js';
+import { useEngagementToast } from './engagement-toast.js';
 import './meetings-vnext.css';
 import './drawer-vnext.css';
 
@@ -466,6 +468,7 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const qc = useQueryClient();
+  const toast = useEngagementToast();
 
   const [viewMode, setViewMode] = useState<MeetingViewMode>('day');
   const [cursor, setCursor] = useState<Date>(() => new Date());
@@ -711,6 +714,7 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
       setNewMeetingOpen(false);
       setSelectedMeetingId(created.id);
       setCursor(new Date(created.startsAt));
+      toast.show(`Meeting created · ${formatDateShort(created.startsAt)}, ${formatTime(created.startsAt)}`);
     },
   });
 

@@ -26,6 +26,7 @@ import {
 } from './meetings-ui.js';
 import { approvedDebrief, type DetailTab, type Meeting } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
+import { SharedMeetingsSection } from './SharedMeetingsSection.js';
 
 /**
  * Tab-strip dot color — reskin phase (navy design), intentional behavior
@@ -211,6 +212,9 @@ function ClientAssign({ meeting }: { meeting: Meeting }) {
           </select>
           <small>Sharing requires a client. Internal meetings may remain unassigned.</small>
         </label>
+        {meeting.client ? (
+          <SharedMeetingsSection clientId={meeting.client.id} clientName={meeting.client.name} />
+        ) : null}
       </EngagementDialog>
     </>
   );

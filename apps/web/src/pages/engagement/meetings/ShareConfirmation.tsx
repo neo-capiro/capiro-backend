@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { App } from 'antd';
-import { createPortal } from 'react-dom';
 import { CheckCircle2, FolderOpen, Info, Lock, Users } from 'lucide-react';
 import { useMe } from '../../../lib/me.js';
 import { useShareArtifacts, type ShareArtifactRef } from './meetings-api.js';
 import type { Meeting } from './meetings-types.js';
+import { EngagementDialog } from './EngagementDialog.js';
 
 type ArtifactType = ShareArtifactRef['type'];
 
@@ -84,6 +84,16 @@ export function buildShareableItems(meeting: Meeting): ShareableItem[] {
  * inferred from "the meeting is shared." Default-selects approved,
  * not-yet-shared artifacts so a first share still feels like one click, but
  * the user sees and can deselect exactly what goes out.
+ *
+ * Migrated onto the shared EngagementDialog shell (2026-08-16, vNext
+ * Engagement reskin Phase 5) — see SendMeriModal.tsx's header comment for
+ * why (no Escape-key handling, no focus trap on the prior hand-rolled
+ * `createPortal`). The row/banner markup below is otherwise unchanged: it
+ * already read its colors from the shared `--ink-*`/`--success`/`--notable`/
+ * `--border-1` custom properties (the same ones `.btn` and the drawer's own
+ * navy retheme use — see drawer-vnext.css), so it retints navy on
+ * os.capiro.ai for free once rendered inside EngagementDialog's
+ * auto-detected `.engagement-vnext` portal target.
  */
 export function ShareConfirmation({
   meeting,
@@ -109,9 +119,8 @@ export function ShareConfirmation({
     setSelected(defaultSelected);
   }
 
-  if (!open || !meeting) return null;
-  const clientName = meeting.client?.name ?? null;
-  const coShared = Boolean(meeting.sharedBy) && meeting.sharedBy?.userId !== me.data?.user.id;
+  const clientName = meeting?.client?.name ?? null;
+  const coShared = Boolean(meeting?.sharedBy) && meeting?.sharedBy?.userId !== me.data?.user.id;
 
   const toggle = (key: string, approved: boolean) => {
     if (!approved) return; // "Approve first" — never selectable.
@@ -124,6 +133,7 @@ export function ShareConfirmation({
   };
 
   const confirm = async () => {
+    if (!meeting) return;
     const artifacts: ShareArtifactRef[] = items
       .filter((i) => selected.has(`${i.type}:${i.id}`))
       .map((i) => ({ type: i.type, id: i.id }));
@@ -137,210 +147,136 @@ export function ShareConfirmation({
     }
   };
 
-  return createPortal(
-    // className="redesign" is required here: this is a raw createPortal to
-    // document.body, so it sits OUTSIDE the page's <section className="...
-    // redesign"> DOM subtree and doesn't inherit that scope's font/antd
-    // overrides (same fix as SendMeriModal).
-    <div
-      onClick={onClose}
-      className="redesign"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(12,26,56,0.34)',
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-        backdropFilter: 'blur(1.5px)',
-        // var(--font-sans) is not a global token (it's only defined inside a
-        // handful of OTHER unrelated component scopes) — use the real one.
-        fontFamily: 'var(--font-sans-rd)',
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="card"
-        style={{
-          width: 460,
-          maxHeight: '80vh',
-          display: 'flex',
-          flexDirection: 'column',
-          borderRadius: 12,
-          padding: 0,
-          boxShadow: '0 20px 60px rgba(12,26,56,0.28)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--border-1)',
-          }}
-        >
-          <span
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              background: 'var(--success-soft)',
-              display: 'grid',
-              placeItems: 'center',
-              color: 'var(--success)',
-            }}
-          >
-            <Users size={16} />
-          </span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink-1)' }}>
-              Share artifacts with your organization?
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--ink-3)' }}>{meeting.subject}</div>
-          </div>
-        </div>
-
-        <div style={{ padding: '10px 20px 4px', overflowY: 'auto', flex: 1 }}>
-          <div
-            style={{
-              display: 'flex',
-              gap: 8,
-              fontSize: 11.5,
-              color: 'var(--ink-3)',
-              marginBottom: 8,
-            }}
-          >
-            <FolderOpen size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-            <span>
-              Selected artifacts appear in {clientName ?? 'the client'} → Documents, and your
-              firm's Meeting Library. Everyone in your organization can see them.
-            </span>
-          </div>
-
-          {items.length === 0 && (
-            <div style={{ padding: '18px 4px', fontSize: 12.5, color: 'var(--ink-3)' }}>
-              Nothing on this meeting can be shared yet.
-            </div>
-          )}
-
-          {items.map((i) => {
-            const key = `${i.type}:${i.id}`;
-            const checked = selected.has(key);
-            return (
-              <div
-                key={key}
-                onClick={() => toggle(key, i.approved)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 10,
-                  padding: '9px 6px',
-                  borderRadius: 6,
-                  cursor: i.approved ? 'pointer' : 'default',
-                  opacity: i.approved ? 1 : 0.6,
-                }}
-              >
-                <span style={{ marginTop: 2, flexShrink: 0, color: 'var(--ink-3)' }}>
-                  {i.approved ? (
-                    <CheckCircle2
-                      size={16}
-                      style={{ color: checked ? 'var(--success)' : 'var(--ink-4)' }}
-                      fill={checked ? 'var(--success)' : 'none'}
-                    />
-                  ) : (
-                    <Lock size={14} />
-                  )}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-1)' }}>
-                      {i.label}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                        color: 'var(--ink-3)',
-                      }}
-                    >
-                      {i.type}
-                    </span>
-                    {i.alreadyShared && (
-                      <span className="pill success" style={{ fontSize: 9 }}>
-                        Already shared
-                      </span>
-                    )}
-                  </div>
-                  {i.sub && (
-                    <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 1 }}>{i.sub}</div>
-                  )}
-                  {!i.approved && (
-                    <div style={{ fontSize: 11, color: 'var(--notable)', marginTop: 1 }}>
-                      Approve first — go to its tab to approve.
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {coShared && (
-          <div
-            style={{
-              margin: '4px 20px 0',
-              display: 'flex',
-              gap: 9,
-              padding: '10px 12px',
-              background: 'var(--notable-soft)',
-              border: '1px solid var(--notable)',
-              borderRadius: 8,
-              flexShrink: 0,
-            }}
-          >
-            <Info size={15} style={{ color: 'var(--notable)', marginTop: 1, flexShrink: 0 }} />
-            <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--ink-1)' }}>
-              <strong>{meeting.sharedBy?.name ?? 'A colleague'}</strong> already shared material on
-              this meeting to {clientName ?? 'this client'}. Your selection is added{' '}
-              <strong>alongside</strong> theirs — nothing already shared is affected.
-            </div>
-          </div>
-        )}
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 8,
-            padding: '13px 20px',
-            borderTop: '1px solid var(--border-1)',
-            background: 'var(--bg-surface-2)',
-            flexShrink: 0,
-          }}
-        >
-          <button type="button" onClick={onClose} className="btn sm">
+  return (
+    <EngagementDialog
+      open={open && meeting != null}
+      eyebrow="Meeting · sharing"
+      title="Share artifacts with your organization?"
+      description={meeting?.subject}
+      width={520}
+      busy={share.isPending}
+      busyLabel="Sharing…"
+      dirty={selected.size > 0}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn sm" onClick={onClose}>
             Cancel
           </button>
           <button
             type="button"
-            onClick={confirm}
-            disabled={!clientName || share.isPending || selected.size === 0}
             className="btn sm"
+            onClick={() => void confirm()}
+            disabled={!clientName || share.isPending || selected.size === 0}
             style={{ gap: 6, background: 'var(--success)', color: '#fff', border: 'none' }}
           >
             <Users size={13} />
-            {share.isPending
-              ? 'Sharing…'
-              : `Share${selected.size ? ` (${selected.size})` : ''}`}
+            {share.isPending ? 'Sharing…' : `Share${selected.size ? ` (${selected.size})` : ''}`}
           </button>
-        </div>
+        </>
+      }
+    >
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          fontSize: 11.5,
+          color: 'var(--ink-3)',
+          marginBottom: 8,
+        }}
+      >
+        <FolderOpen size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+        <span>
+          Selected artifacts appear in {clientName ?? 'the client'} → Documents, and your firm's
+          Meeting Library. Everyone in your organization can see them.
+        </span>
       </div>
-    </div>,
-    document.body,
+
+      {items.length === 0 && (
+        <div style={{ padding: '18px 4px', fontSize: 12.5, color: 'var(--ink-3)' }}>
+          Nothing on this meeting can be shared yet.
+        </div>
+      )}
+
+      {items.map((i) => {
+        const key = `${i.type}:${i.id}`;
+        const checked = selected.has(key);
+        return (
+          <div
+            key={key}
+            onClick={() => toggle(key, i.approved)}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 10,
+              padding: '9px 6px',
+              borderRadius: 6,
+              cursor: i.approved ? 'pointer' : 'default',
+              opacity: i.approved ? 1 : 0.6,
+            }}
+          >
+            <span style={{ marginTop: 2, flexShrink: 0, color: 'var(--ink-3)' }}>
+              {i.approved ? (
+                <CheckCircle2
+                  size={16}
+                  style={{ color: checked ? 'var(--success)' : 'var(--ink-4)' }}
+                  fill={checked ? 'var(--success)' : 'none'}
+                />
+              ) : (
+                <Lock size={14} />
+              )}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-1)' }}>{i.label}</span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    color: 'var(--ink-3)',
+                  }}
+                >
+                  {i.type}
+                </span>
+                {i.alreadyShared && (
+                  <span className="pill success" style={{ fontSize: 9 }}>
+                    Already shared
+                  </span>
+                )}
+              </div>
+              {i.sub && <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 1 }}>{i.sub}</div>}
+              {!i.approved && (
+                <div style={{ fontSize: 11, color: 'var(--notable)', marginTop: 1 }}>
+                  Approve first — go to its tab to approve.
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {coShared && (
+        <div
+          style={{
+            marginTop: 12,
+            display: 'flex',
+            gap: 9,
+            padding: '10px 12px',
+            background: 'var(--notable-soft)',
+            border: '1px solid var(--notable)',
+            borderRadius: 8,
+          }}
+        >
+          <Info size={15} style={{ color: 'var(--notable)', marginTop: 1, flexShrink: 0 }} />
+          <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--ink-1)' }}>
+            <strong>{meeting?.sharedBy?.name ?? 'A colleague'}</strong> already shared material on this
+            meeting to {clientName ?? 'this client'}. Your selection is added <strong>alongside</strong>{' '}
+            theirs — nothing already shared is affected.
+          </div>
+        </div>
+      )}
+    </EngagementDialog>
   );
 }

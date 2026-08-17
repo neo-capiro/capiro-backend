@@ -25,25 +25,19 @@
  * tab stage pills (MeetingDetailPanel.tsx / tab-kit.tsx's StagePill), which
  * both treat "approved" as the navy state.
  *
- * KNOWN GAP — EngagementDialog portal: EngagementDialog.tsx (the shared modal
- * shell behind Edit Prep/Notes/Debrief, Attendees, Client Assignment, the
- * debrief Source picker's transcript window, and ShareConfirmation.tsx /
- * SendMeriModal.tsx) renders via `createPortal(..., document.body)` — so its
- * DOM output is a SIBLING of `.capiro-vnext-root`, not a descendant, and this
- * file's scoped variables do not cascade into it. Concretely: buttons in
- * those sub-modals that use the shared `.btn`/`.btn-accent` classes keep
- * app.capiro.ai's original blue instead of navy; EngagementDialog's own frame
- * (header/footer/fields) is unaffected either way since it already uses its
- * own neutral --uui-gray-* tokens, not this file's tokens. This is the exact
- * same limitation the prior Meetings phase already has for its own New
- * Meeting modal (see engagement-ui-closeout.css's `.uui-button--primary`
- * rule, scoped `.capiro-vnext-root .engagement-vnext .uui-button--primary` —
- * also unreachable through this same portal). Not solved here: fixing it
- * would mean either changing EngagementDialog's portal target (a shared,
- * cross-app component, out of scope for a CSS-only retheme) or a `:has()`
- * selector keyed on `.capiro-vnext-root .engagement-vnext` being present
- * anywhere in the document — a pattern not used elsewhere in this codebase.
- * Flagged for Neo rather than silently patched or silently shipped unnoted.
+ * RESOLVED (Reports/Modals phase, 2026-08-16) — EngagementDialog portal:
+ * this used to be a known gap. EngagementDialog.tsx (the shared modal shell
+ * behind Edit Prep/Notes/Debrief, Attendees, Client Assignment, the debrief
+ * Source picker's transcript window, and — as of this phase — the migrated
+ * ShareConfirmation.tsx / SendMeriModal.tsx) always portaled to
+ * `document.body`, a SIBLING of `.capiro-vnext-root`, so this file's scoped
+ * variables never cascaded into it: buttons using the shared `.btn`/
+ * `.btn-accent` classes kept app.capiro.ai's original blue instead of navy.
+ * EngagementDialog now auto-detects a mounted `.engagement-vnext` wrapper as
+ * its portal target (falling back to `document.body` when none exists, i.e.
+ * unchanged on app.capiro.ai) — see EngagementDialog.tsx's own
+ * `defaultPortalContainer`. Every dialog it opens, including these two, now
+ * renders inside this file's scope and picks up the navy retheme for free.
  */
 .capiro-vnext-root .engagement-vnext {
   /* Accent (brand navy) */
