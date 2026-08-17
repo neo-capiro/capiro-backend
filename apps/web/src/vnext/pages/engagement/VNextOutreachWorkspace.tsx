@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
+  Archive,
   ArrowUp,
   Ban,
   Check,
@@ -954,6 +955,7 @@ function SendPanel({
   sendError,
   onPreflight,
   onIntent,
+  onNavigateToGoal,
 }: {
   sessionId: string;
   clientId: string | null;
@@ -971,6 +973,7 @@ function SendPanel({
   sendError: unknown;
   onPreflight: (value: OutreachV3ServerPreflight | null) => void;
   onIntent: (intentId: string) => void;
+  onNavigateToGoal: () => void;
 }) {
   const api = useApi();
   const qc = useQueryClient();
@@ -1509,8 +1512,8 @@ function SendPanel({
               <button
                 type="button"
                 className="uui-button"
-                disabled
-                title="Sponsor scope is a multi-field decision (client, several clients, or coalition) made from the Goal step. There is no safe one-click change from here yet — ask an admin, or edit sponsor scope from Goal."
+                onClick={onNavigateToGoal}
+                title="Sponsor scope is a multi-field decision (client, several clients, or coalition) made from the Goal step. Click to jump there."
               >
                 Change sponsor
               </button>
@@ -1974,6 +1977,16 @@ export function VNextOutreachWorkspace({
             <strong>Meri · Outreach</strong>
           </div>
           <span>{outreachChatStateLabel(step, Boolean(activeIntent), Boolean(approach.data))}</span>
+          <button
+            type="button"
+            className="uui-button uui-outreach-chat__archive"
+            disabled={controller.startingNewSession}
+            title="Archive this campaign session and start a new one"
+            onClick={() => void controller.startNewSession()}
+          >
+            <Archive size={14} />
+            {controller.startingNewSession ? 'Archiving…' : 'Archive session'}
+          </button>
         </header>
         {controller.reasoningUnavailable ? (
           <div className="uui-model-outage">
@@ -2222,6 +2235,7 @@ export function VNextOutreachWorkspace({
                         sendError={realSend.error}
                         onPreflight={setPreflight}
                         onIntent={setIntentId}
+                        onNavigateToGoal={() => { selectStep('goal'); setBriefEditOpen(true); }}
                       />
                     ) : (
                       <CurrentDecisionSurface
@@ -2265,7 +2279,7 @@ export function VNextOutreachWorkspace({
                         // UI-parity §8: source tabs + one query field; the
                         // target profile is a full-width card below the list.
                         targetsVariant="compact"
-                        onFinish={() => undefined}
+                        onFinish={() => selectStep('drafts')}
                         onSelectStage={(stage) => {
                           const target: EngagementOutreachStep =
                             stage === 'goal' || stage === 'sponsor'
@@ -2405,8 +2419,8 @@ function InlineActions({
     return (
       <div className="uui-chat-actions uui-chat-actions--note">
         <p>
-          Internal-only campaigns can&apos;t send externally. Change sponsor scope in the
-          workbench below to continue.
+          Internal-only campaigns can&apos;t send externally. Use the Change sponsor button in the
+          workbench below to jump to the Goal step and change the sponsor scope.
         </p>
       </div>
     );

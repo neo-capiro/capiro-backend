@@ -503,6 +503,22 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
   const [activeTab, setActiveTab] = useState<DetailTab>('prep');
   const [historyBatch, setHistoryBatch] = useState(0);
   const [newMeetingOpen, setNewMeetingOpen] = useState(false);
+  // `?compose=meeting` opens the create-meeting window on arrival, so the
+  // post-send "Create meeting" action in Outreach lands on a real composer
+  // instead of merely dropping the user on the calendar. The param is consumed
+  // immediately (replace, not push) so refresh and Back do not re-open it.
+  // Mirrors the canonical EngagementPage.tsx contract (line ~1213).
+  useEffect(() => {
+    if (searchParams.get('compose') !== 'meeting') return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('compose');
+    navigate(
+      { pathname: '/engagement/meetings', search: next.toString() ? `?${next.toString()}` : '' },
+      { replace: true },
+    );
+    setNewMeetingOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   // Targets for the drawer's two sibling modals — same pattern as the
   // canonical MeetingsV2.tsx: MeetingDetailPanel only calls onSendMeri /
   // onRequestShare, it doesn't own either modal itself.

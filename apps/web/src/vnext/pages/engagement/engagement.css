@@ -1287,6 +1287,17 @@
   line-height: 24px;
   letter-spacing: 0.05em;
 }
+.capiro-vnext-root .uui-outreach-chat > header .uui-outreach-chat__archive {
+  margin-left: auto;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
 .capiro-vnext-root .uui-live-dot {
   width: 7px;
   height: 7px;
@@ -2235,10 +2246,6 @@
   color: var(--eng-ink-2);
   font-size: 13px;
   line-height: 19px;
-}
-.capiro-vnext-root .uui-sponsor-scope-blocked button[disabled] {
-  opacity: 0.65;
-  cursor: not-allowed;
 }
 /* Per-recipient hold-out toggle rows (the held-out fix's interactive part —
    see item A in this phase's report). */
