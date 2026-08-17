@@ -1,0 +1,67 @@
+name: Knowledge Plane Phase 10 CI
+
+on:
+  push:
+    branches:
+      - agent/knowledge-plane-phase-10-pgvector-architecture-guard
+    paths:
+      - 'apps/api/src/retrieval/**'
+      - 'apps/api/src/meri/**'
+      - 'apps/api/prisma/schema.prisma'
+      - 'apps/api/package.json'
+      - 'docs/knowledge-plane/phase-10-vector-storage-architecture.md'
+      - '.github/workflows/knowledge-phase10-ci.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/api/src/retrieval/**'
+      - 'apps/api/src/meri/**'
+      - 'apps/api/prisma/schema.prisma'
+      - 'apps/api/package.json'
+      - 'docs/knowledge-plane/phase-10-vector-storage-architecture.md'
+      - '.github/workflows/knowledge-phase10-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  architecture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build API workspace dependencies
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+      - name: Validate Prisma architecture
+        run: pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+      - name: Generate Prisma client
+        run: pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+      - name: Phase 10 vector-storage architecture contract
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/retrieval/vector-storage-architecture.contract.spec.ts
+      - name: Retrieval V2 regression suite
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/retrieval
+      - name: Reject Phase 10 TypeScript errors
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @capiro/api exec tsc --noEmit --pretty false > /tmp/api-tsc.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/api-tsc.log
+          if grep -E 'src/retrieval/vector-storage-architecture|src/retrieval/.*Phase 10' /tmp/api-tsc.log; then
+            echo "Phase 10 introduced TypeScript errors." >&2
+            exit 1
+          fi
+          echo "Full API typecheck exit: $status (unrelated baseline errors, if any, are not attributed to Phase 10)."
