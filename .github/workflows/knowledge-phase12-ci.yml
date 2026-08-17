@@ -1,0 +1,125 @@
+name: Knowledge Plane Phase 12 CI
+
+on:
+  push:
+    branches:
+      - agent/knowledge-plane-phase-12-embedding-provider-abstraction
+    paths:
+      - 'apps/api/src/embeddings/**'
+      - 'apps/api/src/memory/**'
+      - 'apps/api/scripts/embed-backfill.ts'
+      - 'apps/api/scripts/backfill-client-kb.ts'
+      - 'apps/api/scripts/sync-congress.ts'
+      - 'apps/api/scripts/sync-lda.ts'
+      - 'apps/workspace/package.json'
+      - 'apps/meriv2-orchestrator/package.json'
+      - 'packages/meriv2-core/package.json'
+      - 'docs/knowledge-plane/phase-12-embedding-provider-abstraction.md'
+      - '.github/workflows/knowledge-phase12-ci.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/api/src/embeddings/**'
+      - 'apps/api/src/memory/**'
+      - 'apps/api/scripts/embed-backfill.ts'
+      - 'apps/api/scripts/backfill-client-kb.ts'
+      - 'apps/api/scripts/sync-congress.ts'
+      - 'apps/api/scripts/sync-lda.ts'
+      - 'apps/workspace/package.json'
+      - 'apps/meriv2-orchestrator/package.json'
+      - 'packages/meriv2-core/package.json'
+      - 'docs/knowledge-plane/phase-12-embedding-provider-abstraction.md'
+      - '.github/workflows/knowledge-phase12-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch hygiene
+        run: git diff --check HEAD^
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages consumed by @capiro/api
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Validate and generate Prisma client
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Reject duplicate Titan embedding implementations
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          literal_hits=$(git grep -n -E 'amazon\.titan-embed-text-v2:0' -- \
+            'apps/**' 'packages/**' 'scripts/**' \
+            ':!apps/api/src/embeddings/titan-embedding.provider.ts' || true)
+          if [ -n "$literal_hits" ]; then
+            echo "Titan embedding model is coupled outside the provider adapter:" >&2
+            echo "$literal_hits" >&2
+            exit 1
+          fi
+
+          direct_sdk_hits=$(git grep -n -E '@aws-sdk/client-bedrock-runtime|new BedrockRuntimeClient|InvokeModelCommand' -- \
+            'apps/api/src/embeddings/**' \
+            'apps/api/src/memory/**' \
+            'apps/api/src/retrieval/**' \
+            'apps/api/scripts/embed-backfill.ts' \
+            'apps/api/scripts/backfill-client-kb.ts' \
+            'apps/api/scripts/sync-congress.ts' \
+            'apps/api/scripts/sync-lda.ts' \
+            ':!apps/api/src/embeddings/titan-embedding.provider.ts' \
+            ':!apps/api/src/embeddings/embedding-provider.contract.spec.ts' || true)
+          if [ -n "$direct_sdk_hits" ]; then
+            echo "Direct Bedrock embedding SDK coupling remains in a shared embedding/retrieval/indexing path:" >&2
+            echo "$direct_sdk_hits" >&2
+            exit 1
+          fi
+
+      - name: Provider contract and storage regressions
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/embeddings/embedding-provider.contract.spec.ts \
+            src/embeddings/embedder.spec.ts
+
+      - name: Existing embedding and memory regressions
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/embeddings/client-kb.helpers.spec.ts \
+            src/memory/memory-ingest.helpers.spec.ts
+
+      - name: Reject Phase 12 TypeScript errors
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @capiro/api exec tsc --noEmit --pretty false > /tmp/api-tsc.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/api-tsc.log
+          if grep -E 'src/embeddings/|scripts/embed-backfill\.ts|src/memory/memory-ingest\.service\.ts' /tmp/api-tsc.log; then
+            echo "Phase 12 introduced TypeScript errors." >&2
+            exit 1
+          fi
+          echo "Full API typecheck exit: $status (unrelated baseline errors, if any, are not attributed to Phase 12)."
