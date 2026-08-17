@@ -329,6 +329,7 @@
   font-size: 14px;
 }
 .capiro-portfolio__tile.is-dark { background: linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%); color: #fff; }
+.capiro-portfolio__tile-logo { object-fit: contain; padding: 4px; }
 .capiro-portfolio__client-copy { min-width: 0; }
 .capiro-portfolio__client-status { margin-top: 2px; }
 .capiro-portfolio__work-value { display: block; color: var(--capiro-color-text-secondary); font-size: 14px; }

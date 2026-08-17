@@ -122,7 +122,6 @@ function Pulse({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) 
     const s = summary.data;
     return [
       { label: 'Clients', value: clientCount ?? null },
-      { label: 'Need attention', value: s?.needAttention ?? null },
       { label: 'Active strategies', value: s?.activeStrategies ?? null },
       { label: 'Meetings this week', value: s?.meetingsThisWeek ?? null },
       { label: 'Tracked bills', value: s?.billsTracked ?? null },
@@ -170,7 +169,11 @@ function ClientRow({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) {
     <tr className="capiro-portfolio__tr" onClick={onOpen}>
       <td>
         <div className="capiro-portfolio__client">
-          <span className={`capiro-portfolio__tile${row.name === 'Overland AI' ? ' is-dark' : ''}`} aria-hidden>{initialsFor(row.name)}</span>
+          {row.client.logoUrl ? (
+            <img className="capiro-portfolio__tile capiro-portfolio__tile-logo" src={row.client.logoUrl} alt="" aria-hidden />
+          ) : (
+            <span className={`capiro-portfolio__tile${row.name === 'Overland AI' ? ' is-dark' : ''}`} aria-hidden>{initialsFor(row.name)}</span>
+          )}
           <div className="capiro-portfolio__client-copy">
             <div className="capiro-portfolio__client-name">{row.name}</div>
             <div className="capiro-portfolio__client-status">{status}</div>
@@ -201,7 +204,11 @@ function ClientCard({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) 
     <button type="button" className="capiro-portfolio__clientcard" onClick={onOpen}>
       <div className="capiro-portfolio__card-main">
         <div className="capiro-portfolio__client">
-          <span className={`capiro-portfolio__tile${row.name === 'Overland AI' ? ' is-dark' : ''}`} aria-hidden>{initialsFor(row.name)}</span>
+          {row.client.logoUrl ? (
+            <img className="capiro-portfolio__tile capiro-portfolio__tile-logo" src={row.client.logoUrl} alt="" aria-hidden />
+          ) : (
+            <span className={`capiro-portfolio__tile${row.name === 'Overland AI' ? ' is-dark' : ''}`} aria-hidden>{initialsFor(row.name)}</span>
+          )}
           <div className="capiro-portfolio__client-copy">
             <div className="capiro-portfolio__client-name">{row.name}</div>
             <div className="capiro-portfolio__client-status">{status}</div>
@@ -367,34 +374,6 @@ export function PortfolioIndexPage() {
       </header>
 
       <Pulse model={model} />
-
-      {(model.alerts.data?.alerts.length || model.comingUp.data?.items.length) ? (
-        <div className="capiro-portfolio__feeds">
-          {model.alerts.data && model.alerts.data.alerts.length > 0 ? (
-            <section className="capiro-portfolio__surface capiro-portfolio__feed" aria-label="Needs attention">
-              <div className="capiro-portfolio__feed-head">
-                <h2 className="capiro-portfolio__section-title">Needs attention</h2>
-                <span className="capiro-portfolio__count">{model.alerts.data.total} alert{model.alerts.data.total === 1 ? '' : 's'}</span>
-              </div>
-              <div className="capiro-portfolio__feed-body">
-                {model.alerts.data.alerts.map((a) => <AlertRow key={a.id} alert={a} onOpen={() => openClient(a.clientId)} />)}
-              </div>
-            </section>
-          ) : null}
-
-          {model.comingUp.data && model.comingUp.data.items.length > 0 ? (
-            <section className="capiro-portfolio__surface capiro-portfolio__feed" aria-label="Coming up">
-              <div className="capiro-portfolio__feed-head">
-                <h2 className="capiro-portfolio__section-title">Coming up</h2>
-                <span className="capiro-portfolio__count">{model.comingUp.data.items.length} this week</span>
-              </div>
-              <div className="capiro-portfolio__feed-body">
-                {model.comingUp.data.items.map((item) => <ComingUpRow key={item.id} item={item} />)}
-              </div>
-            </section>
-          ) : null}
-        </div>
-      ) : null}
 
       <section className="capiro-portfolio__clients capiro-portfolio__surface" aria-labelledby="capiro-portfolio-clients">
         <div className="capiro-portfolio__clients-toolbar">

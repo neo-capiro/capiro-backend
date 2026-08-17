@@ -178,7 +178,6 @@ describe('PortfolioIndexPage', () => {
     expect(screen.getByText('Acme Robotics')).toBeInTheDocument();
     // Pulse figures from the summary endpoint.
     expect(screen.getByText('Tracked bills')).toBeInTheDocument();
-    expect(screen.getByText('Need attention')).toBeInTheDocument();
     expect(screen.getByText('Portfolio pulse')).toBeInTheDocument();
     expect(screen.getByText('Active strategies')).toBeInTheDocument();
     expect(screen.getByText('Meetings this week')).toBeInTheDocument();
@@ -273,18 +272,6 @@ describe('PortfolioIndexPage', () => {
     await waitFor(() =>
       expect(screen.getByRole('dialog', { name: 'Find your firm in LDA filings' })).toBeInTheDocument(),
     );
-  });
-
-  it('renders the coming-up and needs-attention feeds from live data', async () => {
-    apiOverride = makeApi();
-    renderIndex();
-    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
-    // Coming-up feed
-    expect(screen.getByText('Coming up')).toBeInTheDocument();
-    expect(screen.getByText('HASC · Autonomous Systems')).toBeInTheDocument();
-    // Needs-attention feed
-    expect(screen.getByText('Needs attention')).toBeInTheDocument();
-    expect(screen.getByText('Ground Robotics mark reduced')).toBeInTheDocument();
   });
 
   it('renders the active-regulations and LDA spend pulse figures from summary', async () => {
