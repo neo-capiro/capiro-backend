@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "schemaVersion": 1,
+  "session": "phase8-session4",
+  "workstream": "F",
+  "branch": "agent/phase8-session4-runtime-move",
+  "baseSha": "67f220efe3065f21676c14ec31b65ee5312d93e5",
+  "status": "source_mirror_and_dark_composition_implemented_replay_pending",
+  "runtimeOwnerTarget": "apps/defense-api",
+  "sourceParity": {
+    "defenseBudgetTree": "dba0990b9506e4079a9cc44c4892b063f1260d04",
+    "snapshotTree": "1092e24f909a2c279ac24da57bc144e23826aa76",
+    "sourceDocumentTree": "f1aba645832574acbdb713117a1fbdf2ec0ccef3",
+    "deltasTree": "66ea14b47d2b311080f73a15f916895a26395878",
+    "gate": "scripts/verify-phase8-session4.mjs"
+  },
+  "compiledBoundary": {
+    "module": "apps/defense-api/src/runtime/phase1-7-runtime.module.ts",
+    "coordinator": "apps/defense-api/src/runtime/phase1-7-runtime.contract.ts",
+    "mode": "inspect_only",
+    "canonicalMutationMethodExposed": false
+  },
+  "acceptance": {
+    "sourceTreeParity": "implemented",
+    "unitAndTypecheck": "ci_required",
+    "realFy27BehavioralReplay": "pending",
+    "session3RouteGate": "not_satisfied_on_observed_repository_state",
+    "productionCutover": "not_authorized"
+  },
+  "mutations": {
+    "aws": false,
+    "productionDatabase": false,
+    "productionData": false,
+    "routing": false,
+    "schedules": false,
+    "iam": false,
+    "secrets": false,
+    "snapshotActivation": false,
+    "canonicalPromotion": false
+  }
+}

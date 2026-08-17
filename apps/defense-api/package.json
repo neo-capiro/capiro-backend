@@ -10,6 +10,7 @@
     "typecheck": "pnpm prisma:generate && tsc --noEmit",
     "test": "tsx --test src/**/*.spec.ts",
     "verify:boundary": "node ../../scripts/verify-phase8-session2.mjs",
+    "verify:session4": "node ../../scripts/verify-phase8-session4.mjs",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma"
   },
