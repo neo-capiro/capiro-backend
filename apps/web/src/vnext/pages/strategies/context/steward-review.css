@@ -11,10 +11,15 @@
 }
 
 /* ---- header -------------------------------------------------------------- */
+/* Full-bleed white band, same treatment as .st-ctxlib__header /
+   .st-ctxdoc__header: calc()/max() horizontal padding keeps the back-link +
+   title-row (+ client picker) capped/centered at 1440px while the background
+   still reaches the edges of the escaped .uui-content, matching Dashboard's
+   .dashv2-console > .dashv2-head split (dashboard.css:4,35). */
 .capiro-vnext-root .capiro-strategies .st-steward__header {
   background: var(--st-white);
   border-bottom: 1px solid var(--st-gray-200);
-  padding: 20px 24px 24px;
+  padding: 20px calc(32px + max(0px, (100% - 1440px) / 2)) 24px;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__back {
   display: inline-flex;
@@ -76,8 +81,15 @@
 }
 
 /* ---- body ---------------------------------------------------------------- */
+/* No background of its own (shows .st-steward's gray-50 through), so the
+   ordinary max-width+margin:auto is safe directly here — this view's
+   equivalent of Dashboard's .dashv2-grid (dashboard.css:104). Horizontal
+   padding was flat 24px; now 32px to match the header above. */
 .capiro-vnext-root .capiro-strategies .st-steward__body {
-  padding: 24px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 32px;
   display: grid;
   gap: 20px;
 }

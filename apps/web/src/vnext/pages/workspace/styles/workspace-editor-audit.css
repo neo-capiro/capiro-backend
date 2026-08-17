@@ -16,13 +16,20 @@
   backdrop-filter: blur(10px);
 }
 
+/* Percentage side padding, clamped — same calc-centering trick Strategies
+   uses for its full-bleed hero (strategies.css:45): this bar's white
+   background must stay full-bleed (it's a sticky header, not a boxed
+   section), so its content can't use the plain max-width+margin:auto trick
+   .ws-audit-editor__grid uses below. Instead this keeps the original 18px
+   floor below 1560px and grows to keep the title row centered/capped at
+   1560px beyond that, in line with the grid below it. */
 .ws-audit-editor__title-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   min-height: 62px;
-  padding: 10px 18px;
+  padding: 10px calc(18px + max(0px, (100% - 1560px) / 2));
 }
 
 .ws-audit-editor__title-row > button:first-child,
@@ -54,6 +61,9 @@
 .ws-audit-editor__title span { display: block; margin-top: 3px; color: var(--ws-muted); font: 600 9px/1.4 var(--capiro-type-family-mono); letter-spacing: .08em; text-transform: uppercase; }
 .ws-audit-editor__header-actions { display: flex; align-items: center; gap: 8px; }
 
+/* Same calc-centering as .ws-audit-editor__title-row above, so the phase
+   spine's pill row lines up with the title row and the grid below it rather
+   than sitting edge-to-edge across the full escaped width. */
 .ws-audit-phase-spine {
   display: flex;
   align-items: center;
@@ -61,7 +71,7 @@
   gap: 4px;
   min-height: 48px;
   border-top: 1px solid var(--ws-line);
-  padding: 7px 18px;
+  padding: 7px calc(18px + max(0px, (100% - 1560px) / 2));
 }
 
 .ws-audit-phase-spine button {
@@ -95,10 +105,24 @@
 .ws-audit-phase-spine button:disabled { cursor: not-allowed; opacity: .55; }
 .ws-audit-phase-spine__mark { display: grid; place-items: center; width: 18px; height: 18px; border: 1px solid currentColor; border-radius: 50%; font: 700 9px/1 var(--capiro-type-family-mono); }
 
+/* Escaped from the shell's 1280px cap (workspace.css's :has(.ws-vnext) rule);
+   re-capped here at 1560px rather than the sitewide 1440px because this row
+   carries two fixed-width side panels (300px agent + 356px inspector = 656px
+   of chrome) on top of the reading canvas, so it earns a bit more than a
+   plain content page. The agent and inspector panels do NOT grow past their
+   --ws-agent-width/--ws-inspector-width tracks (they are fixed grid columns,
+   not fr units) — all the extra room this cap unlocks goes to the canvas
+   column (minmax(420px, 1fr)), which is exactly the outer chrome this task
+   is meant to widen. The .ws-audit-paper inside that canvas keeps its own
+   `width: min(720px, 100%)` untouched below and stays centered in the now-
+   roomier canvas, unaffected by this cap — see the note on .ws-audit-paper. */
 .ws-audit-editor__grid {
   display: grid;
   grid-template-columns: var(--ws-agent-width) minmax(420px, 1fr) var(--ws-inspector-width);
   min-height: calc(100vh - 182px);
+  max-width: 1560px;
+  width: 100%;
+  margin: 0 auto;
   overflow: hidden;
 }
 
@@ -167,6 +191,11 @@
 .ws-audit-provenance-strip { display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 36px; border-bottom: 1px solid var(--ws-line); background: rgba(255,255,255,.85); color: var(--ws-muted); padding: 6px 14px; font: 600 9px/1.4 var(--capiro-type-family-mono); letter-spacing: .08em; text-transform: uppercase; }
 .ws-audit-provenance-strip button { border: 0; background: transparent; color: var(--ws-navy); font: inherit; cursor: pointer; }
 .ws-audit-canvas__body { position: relative; height: calc(100vh - 266px); overflow: auto; padding: 32px; }
+/* DO NOT widen: 720px is the deliberate document reading-measure cap (same
+   role as workspace.css's --ws-paper-max token on the dead/unmounted editor
+   variant), kept centered in whatever canvas width .ws-audit-editor__grid
+   above now provides. Widening the surrounding chrome should never change
+   this value. */
 .ws-audit-paper { position: relative; width: min(720px, 100%); min-height: 900px; margin: 0 auto; border: 1px solid var(--ws-line); border-radius: 0; box-shadow: 0 12px 30px rgba(16,24,40,.09); padding: 68px 72px 56px; color: var(--ws-paper-body); }
 .ws-audit-paper__rule { position: absolute; top: 60px; bottom: 56px; left: 36px; width: 4px; background: var(--btn-primary-bg); }
 .ws-audit-paper > h1 { margin: 10px 0 28px; font: 500 31px/1.16 var(--capiro-type-family-serif); letter-spacing: -.015em; }

@@ -1,9 +1,23 @@
 /* Timeline editor (§7.2, §7.3, §5.3). */
 
+/* Editor owns a 1440px ceiling like every other Strategies view (strategies.css's
+   module-wide shell escape + Dashboard precedent). Unlike .st-hero/.st-canvas,
+   .st-editor has no full-bleed background of its own to preserve (its
+   background comes from .capiro-strategies, which stays unconstrained) — the
+   whole row (timeline column + the 400px step-inspector aside) is what should
+   be capped and centered, so the ordinary max-width+margin:auto is enough,
+   applied directly here rather than needing the calc()-padding trick .st-hero
+   uses. No horizontal padding added at this level: .st-hero--editor and
+   .st-editor__main already carry their own literal-reference 24px gutter
+   (see their comments below), and stacking a second 32px here would double
+   it to 56px — judgment call, flag if 32px is wanted here instead. */
 .capiro-vnext-root .capiro-strategies .st-editor {
   display: flex;
   align-items: flex-start;
   min-height: 100%;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
 }
 /* Column holding the hero + canvas, sibling to the step-inspector aside
    (design handoff line ~345: the hero and the timeline/cards column sit
@@ -417,10 +431,12 @@
 }
 
 @media (max-width: 779px) {
-  /* Same gutter correction as .st-page: the shell already owns the 16px
-     horizontal gutter below 780, and this pane doubled it. */
+  /* Same correction as .st-page's mobile rule in strategies.css: the shell's
+     own gutter is gone at every width now (module-wide escape rule), not just
+     desktop, so dropping to 0 horizontal here would run the timeline/cards
+     edge-to-edge on a phone. 16px matches Dashboard's own mobile gutter. */
   .capiro-vnext-root .capiro-strategies .st-editor__main {
-    padding: 16px 0 24px;
+    padding: 16px 16px 24px;
   }
   .capiro-vnext-root .capiro-strategies .st-editor-header__right {
     align-items: flex-start;

@@ -105,13 +105,18 @@ export function ClientProfileShell({
       data-pf-collapsed={bp.collapsed ? '1' : undefined}
     >
       {/* ── Breadcrumb bar (§5.1) ─────────────────────────────────────────── */}
+      {/* Horizontal padding lives in client-crm.css (.cap-pf-client__crumbs) —
+          it re-centers this full-bleed band now that the shell's own 1280px
+          cap is escaped for this route (see the escape rule at the top of
+          that file), and drops to 16px at 779px so a phone still gets an
+          inset instead of the shell's now-removed padding. */}
       <div
+        className="cap-pf-client__crumbs"
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: 10,
           height: 44,
-          padding: '0 32px',
           background: '#ffffff',
           borderBottom: '1px solid #EAECF0',
           flexWrap: 'nowrap',
@@ -168,7 +173,11 @@ export function ClientProfileShell({
       </div>
 
       {/* ── Identity block (§5.2) ─────────────────────────────────────────── */}
-      <div style={{ background: '#ffffff', borderBottom: '1px solid #EAECF0', padding: '20px 32px 0' }}>
+      {/* Same reasoning as the breadcrumb bar above: horizontal padding moved
+          to .cap-pf-client__identity in client-crm.css so it re-centers at
+          1440px (with a 32px floor) instead of the shell's escaped 1280px
+          cap, and drops to 16px at 779px. */}
+      <div className="cap-pf-client__identity" style={{ background: '#ffffff', borderBottom: '1px solid #EAECF0' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
           {/* 48px dark tile */}
           <span
@@ -260,11 +269,18 @@ export function ClientProfileShell({
       </div>
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, minWidth: 0, padding: '28px 32px 44px' }}>
-        <div style={{ maxWidth: 1360, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {children}
-        </div>
-      </div>
+      {/*
+       * Previously two nested divs: an outer full-bleed 32px-padding spacer
+       * and an inner `maxWidth: 1360` centering box. That 1360 was already a
+       * no-op — the shell capped `.uui-content` at 1280px, so nothing this
+       * route rendered ever reached 1360 to begin with. Now that the shell's
+       * cap is escaped (client-crm.css, `.uui-content:has(.cap-pf-client)`),
+       * the max-width takes real effect, so it is collapsed into one node and
+       * bumped to 1440 to match the sitewide Dashboard/Strategies convention
+       * (dashboard.css / strategies.css `.st-canvas`). Padding + the 779px
+       * mobile step live in `.cap-pf-client__body` (client-crm.css).
+       */}
+      <div className="cap-pf-client__body">{children}</div>
     </div>
   );
 }

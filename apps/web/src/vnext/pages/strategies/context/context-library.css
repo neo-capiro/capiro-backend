@@ -10,10 +10,18 @@
 }
 
 /* ---- header -------------------------------------------------------------- */
+/* Full-bleed white band — must reach the edges of the now-escaped
+   .uui-content (strategies.css's shell-escape rule), so it can't take a plain
+   max-width+margin:auto itself. Horizontal padding is computed instead:
+   32px floor, growing to keep the back-link + title-row centered/capped at
+   1440px total width beyond that — the same effective geometry as Dashboard's
+   nested .dashv2-console > .dashv2-head (dashboard.css:4,35), reached without
+   a second wrapper element since both direct children (.st-ctxlib__back,
+   .st-ctxlib__title-row) share this one padding uniformly. */
 .capiro-strategies .st-ctxlib__header {
   background: var(--st-white);
   border-bottom: 1px solid var(--st-gray-200);
-  padding: 20px 24px 24px;
+  padding: 20px calc(32px + max(0px, (100% - 1440px) / 2)) 24px;
 }
 .capiro-strategies .st-ctxlib__back {
   display: inline-flex;
@@ -67,8 +75,18 @@
 }
 
 /* ---- body ---------------------------------------------------------------- */
+/* No background of its own (shows the gray-50 canvas from .st-ctxlib through)
+   so — unlike the header above — the ordinary max-width+margin:auto is safe
+   directly here; this is this view's equivalent of Dashboard's .dashv2-grid
+   (dashboard.css:104). Horizontal padding was 28px (odd one out vs the
+   header's 24px); both now read 32px, matching the header above and the rest
+   of the module's gutter convention, so header/back-link content and body
+   content share the exact same left/right edge. */
 .capiro-strategies .st-ctxlib__body {
-  padding: 22px 28px 48px;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 22px 32px 48px;
 }
 
 /* stats row — left column, above the documents card */

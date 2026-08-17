@@ -16,6 +16,43 @@
  *    (`.pe-v2-ev-mark`) with a text label; this layer only re-colours.
  */
 
+/* Program Elements owns its own ~1560px canvas (workspace shell + line
+   profile), same escape pattern as Dashboard (dashboard.css:4) and Strategies
+   (strategies.css:10): the generic vNext content wrapper normally caps every
+   page at 1280px and adds 32px padding on every side — escape that here so
+   the module's own cap below (which must clear the Explore/Actions grids'
+   forced 1494px/1148px minimums — see the "Explore grid scroll band" and
+   "Actions scroll band" rules in the intrinsic-fix block further down) is the
+   one that actually takes effect, instead of always losing to the shell's
+   narrower cap. */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.pe-vnext-root) { max-width: none; padding: 0; margin: 0; }
+
+/*
+ * Outer page cap. `.pe-v2` — the shared root class for both the workspace
+ * shell (ProgramElementsV2Page.tsx:112) and the line profile
+ * (ProgramElementV2ProfilePage.tsx:112) — carries no width or
+ * horizontal-padding rule of its own in the canonical sheet: every band it
+ * contains (destination bar, page-head, toolbar, table-foot, selection bar,
+ * profile head/trust bar/tabs) already bakes its own ~20-24px left/right
+ * inset directly into pe-v2.css or the PeV2*.tsx inline styles. Those insets
+ * are already counted in the Explore/Actions forced-minimum math below, so no
+ * extra gutter is added at this level — doing so would just re-shrink the
+ * exact budget this fix exists to restore (see the intrinsic-fix block).
+ * 1560px matches the LegiWatch outer cap for sitewide consistency and clears
+ * the widest forced minimum in this module — the Explore grid scroll band's
+ * 1494px — by 66px; the Actions band's 1148px minimum clears with 412px to
+ * spare. Applying the cap to `.pe-v2` itself (rather than a narrower "canvas"
+ * div nested inside it, as Dashboard/Strategies do) is deliberate: unlike
+ * those modules' prototypes, nothing in this module's design calls for a
+ * decorative band that bleeds wider than the readable content, so every band
+ * — including the destination bar — narrows and centers together instead of
+ * needing a separate full-bleed-background-but-centered-content treatment.
+ */
+.pe-vnext-root .pe-v2 {
+  max-width: 1560px;
+  margin: 0 auto;
+}
+
 .pe-vnext-root {
   /* Module-local type + colour context, all token-backed. */
   color: var(--capiro-color-text-primary, inherit);

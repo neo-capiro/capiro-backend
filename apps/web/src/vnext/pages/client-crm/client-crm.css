@@ -12,6 +12,69 @@
  * restating the value.
  */
 
+/*
+ * Shell escape (same pattern as dashboard.css:4 / strategies.css:10): the
+ * generic vNext content wrapper caps every page at 1280px and adds its own
+ * padding, which loses to nothing here — this route (`/clients?clientId=`,
+ * root `.cap-pf.cap-pf-client` in ClientProfileShell.tsx) draws its own
+ * full-bleed breadcrumb bar and identity band plus a centered 1440px body, so
+ * the shell's narrower cap and padding are escaped in favor of those.
+ *
+ * NOTE: `.cap-pf-client` is the LIVE client-profile root. The unrelated
+ * `.capiro-crm` classes below this rule (header/tabs/grid/org-tree/etc.) style
+ * `ClientCrmOrganization.tsx` and its sibling old-generation page files
+ * (ClientCrmOverview.tsx, ClientCrmCapabilities.tsx, ...), none of which are
+ * imported by ClientCrmPage.tsx — they were superseded by `tabs/*.tsx` +
+ * `portfolio-proto.css` (the `cap-pf` system) and are dead code, confirmed by
+ * grepping for their component names across `apps/web/src`. Only the drawer/
+ * modal fragments of this file (`.capiro-crm-form*`, `.capiro-crm-fill*`,
+ * `.capiro-crm__meta`, `.capiro-crm__foot`, `.capiro-crm__level*`, ...) are
+ * still live, reused by ClientPersonDrawer/ConfigureHierarchyModal/
+ * ClientFillWithMeriDrawer/ClientDataHealthDrawer/VNextClientPicker. Those
+ * drawers render as fixed overlays, not inside `.uui-content`, so this escape
+ * does not touch them.
+ */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.cap-pf-client) { max-width: none; padding: 0; margin: 0; }
+
+/*
+ * Re-centered bands for the escaped route (ClientProfileShell.tsx). The
+ * breadcrumb bar and identity block are full-bleed white strips — like
+ * Strategies' `.st-hero` (strategies.css:40) — so their own horizontal inset
+ * is computed with the same 32px-floor/1440px-cap formula rather than being
+ * boxed to 1440px themselves (that would leave the white band short of the
+ * viewport edge). The body below reuses the plain max-width+margin:auto
+ * pattern (Strategies' `.st-canvas`) since its background does not need to
+ * reach the edge.
+ *
+ * 779px mirrors the shell's own mobile breakpoint (shell-uui.css:428, which
+ * drops `.uui-content` to a flat 16px) and Dashboard's (dashboard.css:261) —
+ * without a rule at the same width, escaping the shell's padding here would
+ * leave these three regions with NO horizontal inset at all on a phone, the
+ * exact regression the Strategies pass produced and had to fix.
+ */
+.capiro-vnext-root .cap-pf-client__crumbs {
+  padding: 0 calc(32px + max(0px, (100% - 1440px) / 2));
+}
+.capiro-vnext-root .cap-pf-client__identity {
+  padding: 20px calc(32px + max(0px, (100% - 1440px) / 2)) 0;
+}
+.capiro-vnext-root .cap-pf-client__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 32px 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+@media (max-width: 779px) {
+  .capiro-vnext-root .cap-pf-client__crumbs { padding: 0 16px; }
+  .capiro-vnext-root .cap-pf-client__identity { padding: 20px 16px 0; }
+  .capiro-vnext-root .cap-pf-client__body { padding: 28px 16px 44px; }
+}
+
 .capiro-vnext-root .capiro-crm {
   /* Figma color/border/active — the hairline on pills and chips. */
   --crm-border-pill: var(--capiro-color-text-primary);

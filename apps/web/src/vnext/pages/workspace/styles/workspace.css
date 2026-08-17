@@ -5,6 +5,25 @@
  * phase spine, and document canvas.
  */
 
+/* Workspace owns its own canvas on all four top-level screens, same pattern as
+   Dashboard (dashboard.css:4) and Strategies (strategies.css:10): the generic
+   vNext content wrapper normally caps every page at 1280px and adds 32px
+   padding — escape that here so each screen's own per-root max-width (below,
+   plus workspace-editor-audit.css's .ws-audit-editor__grid for the editor)
+   takes effect instead of always losing to the shell's narrower cap.
+   Workspace has no single shared wrapper (four separate root classes reached
+   from WorkspaceVNextRoutes.tsx), so this lists all four rather than one
+   selector. `.ws-vnext-share` is intentionally omitted — it exists in code
+   but is not mounted by any route. */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.ws-vnext-library),
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.ws-vnext-creation),
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.ws-vnext),
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.ws-vnext-studio) {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
 /* ── Workspace module roots ────────────────────────────────────────────────── */
 
 /*
@@ -73,10 +92,16 @@
 
 /* ── Library ──────────────────────────────────────────────────────────────── */
 
+/* Escaped from the shell's 1280px cap above; re-capped here at the sitewide
+   1440px convention (Dashboard/Strategies) since this is a document table +
+   attention-card canvas, not a narrow reading surface — more width is
+   genuinely useful for the table's columns and the 3-up card row below it. */
 .ws-vnext-library {
   padding: 24px 32px;
   overflow-y: auto;
   height: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
 }
 
 .ws-vnext-library__header {
@@ -1596,6 +1621,27 @@
 
 /* ── Creation flow ─────────────────────────────────────────────────────────── */
 
+/*
+ * SHELL-ESCAPE WIDENING NOTE (not changed here — flagging for review):
+ * Both live creation routes mount this class alongside their own root class
+ * (WorkspaceCreationStabilized.tsx → "ws-vnext-creation ws-audit-creation";
+ * WorkspaceQuickDraftCreation.tsx → "ws-vnext-creation ws-quick-intake"), so
+ * this max-width:900px already applies to both regardless of the shell's
+ * escaped 1280px cap above — it was already the tighter, binding constraint
+ * even before this pass, so escaping the shell changes nothing for either
+ * flow here. For the STABILIZED flow this reads as an intentional narrow
+ * wizard measure (ws-audit-creation__body further narrows to 1100px, its own
+ * panel to 780px in workspace-audit.css) and was left untouched on purpose,
+ * matching --ws-paper-max's precedent elsewhere in this module.
+ * For the QUICK-DRAFT intake flow, however, this 900px cap sits ABOVE
+ * .ws-quick-intake__header/__body/__footer's own `width: min(1380px,
+ * calc(100% - 48px))` (workspace-quick-draft.css) — a card-grid layout that
+ * reads as designed for ~1380px, not 900px. That looks like a genuine
+ * pre-existing conflict between this shared rule and the quick-intake
+ * design, predating and unrelated to the shell's 1280px cap (900 < 1280
+ * already), so it is NOT something this pass changed. Flagging for a human
+ * to confirm intent before anyone widens it.
+ */
 .ws-vnext-creation {
   padding: 24px 32px;
   overflow-y: auto;
@@ -1672,10 +1718,18 @@
 
 /* ── Template Studio ───────────────────────────────────────────────────────── */
 
+/* Escaped from the shell's 1280px cap above; re-capped here at the sitewide
+   1440px convention. Studio's blueprint table, theme tile grid
+   (.ws-vnext-studio__theme-grid, auto-fill) and compare split
+   (.ws-vnext-studio__compare-split, fr-based) all benefit from more width and
+   reflow their own column counts automatically — none of them is a
+   fixed-measure reading surface like the editor's paper. */
 .ws-vnext-studio {
   padding: 24px 32px;
   overflow-y: auto;
   height: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
 }
 
 /* Used by all three studio views. The right side carries ViewTabs (three
@@ -2565,14 +2619,23 @@
 
 @media (max-width: 779px) {
   /*
-   * The shell owns the horizontal gutter (16px here). These four page roots
-   * each add another 32px, so a 390px phone spent 96px — a quarter of the
-   * screen — on nested gutters before any content. Vertical rhythm is kept.
+   * UPDATED for the shell escape above (:has(.ws-vnext-library) etc.): the
+   * shell no longer contributes any gutter to these three roots at any width,
+   * so they now supply their own explicit 16px here instead of relying on the
+   * shell's mobile 16px padding. Previously the shell owned the horizontal
+   * gutter (16px) and these three page roots each added another 32px on top
+   * of it, so a 390px phone spent 96px — a quarter of the screen — on nested
+   * gutters before any content; zeroing this out let the shell's 16px stand
+   * alone. That shell contribution is gone now, so zeroing this out would
+   * leave these roots with NO horizontal inset at all. 16px here reproduces
+   * the old combined result exactly (see workspace-quick-draft.css's own
+   * mobile rule, which layers its 24px-narrower child width + auto-margin on
+   * top of whatever inset this root provides). Vertical rhythm is kept.
    */
   .ws-vnext-library,
   .ws-vnext-creation,
   .ws-vnext-studio {
-    padding-inline: 0;
+    padding-inline: 16px;
   }
 
   /* Four steps + three connectors is 168px of pure connector against ~358px of

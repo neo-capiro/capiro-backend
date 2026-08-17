@@ -11,6 +11,16 @@
  * nothing is clipped to a mockup's bounds.
  */
 
+/* Directory owns its own ~1368px surface (all four list surfaces + profiles),
+   same pattern as Dashboard (dashboard.css:4) and Strategies (strategies.css:10):
+   the generic vNext content wrapper normally caps every page at 1280px and
+   adds its own gutter — escape that here so `.capiro-directory-body`'s own
+   max-width below (1320 content + 24px/side gutter = 1368 surface) is the one
+   that actually takes effect, instead of always losing to the shell's
+   narrower cap. DirectoryShell (DirectoryShell.tsx) renders three top-level
+   siblings, not one wrapper, so this matches on whichever of them is present. */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.capiro-directory-header, .capiro-directory-body) { max-width: none; padding: 0; margin: 0; }
+
 /* ── Page header (937:2614) ─────────────────────────────────────────────────
    112px white band with the slim accent orientation rail. The rendered screens
    are authoritative over the prose's "dark intelligence header". */
@@ -18,7 +28,13 @@
   position: relative;
   box-sizing: border-box;
   min-height: 112px;
-  padding: 18px var(--capiro-space-06) 0;
+  /* Full-bleed background (the escape rule above strips the shell's own
+     gutter), inner copy/metrics kept aligned with .capiro-directory-body's
+     1320px content below: 24px floor below the 1368 surface width, growing
+     to stay centered/capped at 1368 beyond it — the same calc-padding trick
+     Strategies uses for .st-hero (strategies.css:45), scaled to Directory's
+     own 24px gutter and 1368px surface instead of 32px/1440px. */
+  padding: 18px calc(var(--capiro-space-06) + max(0px, (100% - 1368px) / 2)) 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -116,7 +132,8 @@
 .capiro-vnext-root .capiro-directory-tabs {
   box-sizing: border-box;
   min-height: 40px;
-  padding: 6px var(--capiro-space-06) 0;
+  /* Same full-bleed-background/centered-content trick as the header above. */
+  padding: 6px calc(var(--capiro-space-06) + max(0px, (100% - 1368px) / 2)) 0;
   display: flex;
   align-items: flex-start;
   gap: var(--capiro-space-02);
@@ -132,7 +149,11 @@
    width. Height is content-driven: the mockup's 740px is a fixture bound. */
 .capiro-vnext-root .capiro-directory-body {
   box-sizing: border-box;
+  width: 100%;
   max-width: calc(var(--capiro-layout-page-max) + (2 * var(--capiro-space-06)));
+  /* Centers the 1368px surface now that the escape rule above has stopped
+     the shell's .uui-content from centering it for us. */
+  margin: 0 auto;
   padding: var(--capiro-space-05) var(--capiro-space-06);
   display: flex;
   flex-direction: column;
