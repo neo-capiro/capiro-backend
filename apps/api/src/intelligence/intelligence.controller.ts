@@ -372,12 +372,25 @@ export class IntelligenceController {
   }
 
   /**
-   * G3 portfolio rollup (wire-audit "4 New capability" items 1-4).
-   * Per-client attention/intel/next-touch aggregates in one bounded call.
+   * G3 portfolio rollup (wire-audit "4 New capability" items 1-5).
+   * Per-client attention/intel/next-touch/work aggregates in one bounded call.
+   * Item 5 adds workCount — engagement tasks in_progress (the "Work" column +
+   * Readiness sort signal).
    */
   @Get('portfolio-rollup')
   getPortfolioRollup(@CurrentTenant() ctx: TenantContext) {
     return this.service.getPortfolioRollup(ctx.tenantId);
+  }
+
+  /**
+   * G2 portfolio PE summary (wire-audit "4 New capability" items 7-8).
+   * Returns the net portfolio delta (summed across watched PEs) and per-PE
+   * client attribution (which clients fund each watched PE via
+   * ClientCapability.peNumbers).
+   */
+  @Get('portfolio-pe-summary')
+  getPortfolioPeSummary(@CurrentTenant() ctx: TenantContext) {
+    return this.service.getPortfolioPeSummary(ctx.tenantId, ctx.userId);
   }
 
   @Get('live-ticker')

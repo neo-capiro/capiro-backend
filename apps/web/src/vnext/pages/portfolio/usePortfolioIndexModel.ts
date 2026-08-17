@@ -79,6 +79,19 @@ export interface PortfolioRollupEntry {
   attentionCount: number;
   intelCount: number;
   nextTouch: { id: string; startsAt: string; subject: string } | null;
+  /** Item 5: count of in_progress engagement tasks (work/readiness signal). */
+  workCount: number;
+}
+
+/**
+ * G2 portfolio PE summary (wire-audit "4 New capability" items 7-8).
+ * Per-PE client attribution + net portfolio delta, returned by
+ * GET /api/intelligence/portfolio-pe-summary.
+ */
+export interface PortfolioPeSummaryResponse {
+  netDeltaPct: number | null;
+  peAttribution: Record<string, string[]>;
+  watchedCount: number;
 }
 
 export interface PortfolioRollupResponse {
@@ -111,6 +124,8 @@ export interface PortfolioRow {
   intelCount: number | null;
   /** G3 rollup: earliest future meeting (next touch column). */
   nextTouch: { id: string; startsAt: string; subject: string } | null;
+  /** G3 rollup (item 5): in_progress task count (work/readiness column). */
+  workCount: number | null;
 }
 
 function classify(client: Client): Exclude<PortfolioStatus, 'all'> {
@@ -204,12 +219,21 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     retry: 1,
   });
 
-  // G3 portfolio rollup (wire-audit "4 New capability" items 1-4): per-client
-  // attention/intel/next-touch aggregates in one bounded call. No N+1.
+  // G3 portfolio rollup (wire-audit "4 New capability" items 1-5): per-client
+  // attention/intel/next-touch/work aggregates in one bounded call. No N+1.
   const rollup = useQuery<PortfolioRollupResponse>({
     queryKey: ['intelligence', 'portfolio-rollup'],
     queryFn: async () =>
       (await api.get<PortfolioRollupResponse>('/api/intelligence/portfolio-rollup')).data,
+    staleTime: 60_000,
+  });
+
+  // G2 portfolio PE summary (wire-audit "4 New capability" items 7-8): net
+  // portfolio delta + per-PE client attribution. One bounded call.
+  const peSummary = useQuery<PortfolioPeSummaryResponse>({
+    queryKey: ['intelligence', 'portfolio-pe-summary'],
+    queryFn: async () =>
+      (await api.get<PortfolioPeSummaryResponse>('/api/intelligence/portfolio-pe-summary')).data,
     staleTime: 60_000,
   });
 
@@ -239,6 +263,7 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
         attentionCount: entry ? entry.attentionCount : null,
         intelCount: entry ? entry.intelCount : null,
         nextTouch: entry ? entry.nextTouch : null,
+        workCount: entry ? entry.workCount : null,
       };
     });
   }, [clients.data, accountOwners.data, rollup.data]);
@@ -269,13 +294,24 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
       const rank = (s: PortfolioRow['status']): number =>
         s === 'at-risk' ? 0 : s === 'active' ? 1 : 2;
       sorted.sort((a, b) => rank(a.status) - rank(b.status) || a.name.localeCompare(b.name));
+    } else if (route.sort === 'readiness') {
+      // Item 6 — Readiness sort: sort by workCount descending (more in-progress
+      // work = less ready), then by attention count, then alpha within.
+      // Null (rollup not loaded) sorts last so the control never lies during
+      // initial load.
+      const workRank = (w: number | null): number =>
+        w == null ? Number.MAX_SAFE_INTEGER : -w;
+      sorted.sort((a, b) =>
+        workRank(a.workCount) - workRank(b.workCount) ||
+        (b.attentionCount ?? 0) - (a.attentionCount ?? 0) ||
+        a.name.localeCompare(b.name),
+      );
     } else {
-      // Readiness has no portfolio-scoped source yet (G3); fall back to name so the
-      // control is never a lie. Logged in GAPS.md.
+      // Unknown sort — fall back to name.
       sorted.sort((a, b) => a.name.localeCompare(b.name));
     }
     return sorted;
   }, [rows, route]);
 
-  return { clients, accountOwners, summary, strategies, meetings, comingUp, alerts, rollup, rows, counts, visible };
+  return { clients, accountOwners, summary, strategies, meetings, comingUp, alerts, rollup, peSummary, rows, counts, visible };
 }

@@ -73,10 +73,19 @@ function makeApi(overrides: { clientsError?: boolean; summaryError?: boolean } =
         return {
           data: {
             rollup: {
-              'c-1': { attentionCount: 3, intelCount: 5, nextTouch: { id: 'm-1', startsAt: '2026-08-20T15:00:00.000Z', subject: 'HASC briefing' } },
-              'c-2': { attentionCount: 0, intelCount: 2, nextTouch: null },
-              'c-3': { attentionCount: 1, intelCount: 0, nextTouch: null },
+              'c-1': { attentionCount: 3, intelCount: 5, nextTouch: { id: 'm-1', startsAt: '2026-08-20T15:00:00.000Z', subject: 'HASC briefing' }, workCount: 2 },
+              'c-2': { attentionCount: 0, intelCount: 2, nextTouch: null, workCount: 0 },
+              'c-3': { attentionCount: 1, intelCount: 0, nextTouch: null, workCount: 4 },
             },
+          },
+        };
+      }
+      if (path === '/api/intelligence/portfolio-pe-summary') {
+        return {
+          data: {
+            netDeltaPct: 3.2,
+            peAttribution: { '0603112A': ['Overland AI', 'Acme Robotics'] },
+            watchedCount: 5,
           },
         };
       }
@@ -200,6 +209,31 @@ describe('PortfolioIndexPage', () => {
     renderIndex('?status=prospect');
     await waitFor(() => expect(screen.getByText('Bluewater Dynamics')).toBeInTheDocument());
     expect(screen.queryByText('Overland AI')).not.toBeInTheDocument();
+  });
+
+  it('renders the Work column with real per-row counts from the rollup (item 5)', async () => {
+    apiOverride = makeApi();
+    renderIndex();
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    // Overland AI (c-1) has workCount=2; the cell should contain "2".
+    const rows = screen.getAllByRole('row').slice(1); // drop header
+    const overlandRow = rows.find((r) => r.textContent?.includes('Overland AI'));
+    expect(overlandRow).toBeDefined();
+    expect(overlandRow!.textContent).toContain('2');
+  });
+
+  it('sorts by readiness (item 6) — clients with more work sort first', async () => {
+    apiOverride = makeApi();
+    renderIndex('?sort=readiness');
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    const nameCells = screen
+      .getAllByRole('row')
+      .slice(1)
+      .map((r) => r.textContent ?? '');
+    // Bluewater Dynamics (c-3) has workCount=4 → first; Overland AI (c-1) workCount=2 → second; Acme Robotics (c-2) workCount=0 → third
+    expect(nameCells[0]).toContain('Bluewater Dynamics');
+    expect(nameCells[1]).toContain('Overland AI');
+    expect(nameCells[2]).toContain('Acme Robotics');
   });
 
   it('sorts by name when selected', async () => {

@@ -1,9 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
 import { getProgramElementsList } from '../../../pages/program-element/api.js';
 import type { ProgramElementListItem } from '../../../pages/program-element/types.js';
 import { CapiroButton } from '../../components/actions/index.js';
+import type { PortfolioPeSummaryResponse } from './usePortfolioIndexModel.js';
 
 /**
  * Portfolio-wide Program elements (PORTFOLIO-HANDOFF §7.1.2).
@@ -14,11 +15,11 @@ import { CapiroButton } from '../../components/actions/index.js';
  * recomputes a delta. A stage with no figure renders `—`, never `$0`, and the
  * delta chip is suppressed rather than computed from a gap (§7.1.2 Rules).
  *
- * The cross-client attribution and net-portfolio delta the design shows have no
- * portfolio-scoped endpoint (the watch list is per-PE, not joined to clients) —
- * logged as GAP G2. The cards render the real per-PE budget figures and link to
- * the program-element detail; the attribution footer is explicitly marked
- * unavailable rather than faked.
+ * Item 7 (G2): The header now shows the real net portfolio delta from the
+ * portfolio-pe-summary endpoint instead of a hardcoded "— net".
+ * Item 8 (G2): Each PE card footer now shows the real client attribution
+ * (client names joined from ClientCapability.peNumbers) instead of the
+ * "Client attribution unavailable" placeholder.
  */
 
 const CURRENCY = new Intl.NumberFormat('en-US', {
@@ -45,11 +46,24 @@ function stage(value: number | null | undefined, label: string) {
   );
 }
 
-function PeCard({ pe }: { pe: ProgramElementListItem }) {
+function PeCard({
+  pe,
+  attribution,
+}: {
+  pe: ProgramElementListItem;
+  attribution: string[];
+}) {
   const navigate = useNavigate();
   const delta = pe.deltaPct;
   const hasDelta = delta != null && Number.isFinite(delta);
   const down = hasDelta && (delta as number) < 0;
+
+  // Item 8 (G2): real client attribution from portfolio-pe-summary. Falls back
+  // to the "unavailable" message when the join returned no clients for this PE.
+  const attributionLabel =
+    attribution.length > 0
+      ? attribution.join(', ')
+      : 'Client attribution unavailable';
 
   return (
     <button
@@ -70,7 +84,7 @@ function PeCard({ pe }: { pe: ProgramElementListItem }) {
         {stage(pe.latestEnacted, 'Approp')}
       </div>
       <div className="capiro-portfolio-pe__foot">
-        <span className="capiro-portfolio-pe__service">Client attribution unavailable</span>
+        <span className="capiro-portfolio-pe__service">{attributionLabel}</span>
         {hasDelta ? (
           <span
             className={`capiro-portfolio-pe__delta ${
@@ -85,7 +99,11 @@ function PeCard({ pe }: { pe: ProgramElementListItem }) {
   );
 }
 
-export function PortfolioProgramElements() {
+export function PortfolioProgramElements({
+  peSummary,
+}: {
+  peSummary: UseQueryResult<PortfolioPeSummaryResponse>;
+}) {
   const api = useApi();
   const navigate = useNavigate();
   const monitored = useQuery({
@@ -96,6 +114,17 @@ export function PortfolioProgramElements() {
 
   const rows = monitored.data?.data ?? [];
   const total = monitored.data?.total ?? rows.length;
+
+  // Item 7 (G2): real net portfolio delta from the PE summary endpoint.
+  const netDeltaPct = peSummary.data?.netDeltaPct ?? null;
+  const hasNetDelta = netDeltaPct != null && Number.isFinite(netDeltaPct);
+  const netDown = hasNetDelta && netDeltaPct < 0;
+  const netLabel = hasNetDelta
+    ? `${netDown ? '▼' : '▲'} ${Math.abs(netDeltaPct).toFixed(1)}% net`
+    : '— net';
+
+  // Item 8 (G2): per-PE client attribution from the PE summary endpoint.
+  const peAttribution = peSummary.data?.peAttribution ?? {};
 
   return (
     <section
@@ -114,7 +143,18 @@ export function PortfolioProgramElements() {
           Defense budget lines funding client programs, across the portfolio.
         </p>
         <span className="capiro-portfolio-pe__header-spacer" />
-        <span className="capiro-portfolio-pe__net">— net</span>
+        {/* Item 7 (G2): real net portfolio delta */}
+        <span
+          className={`capiro-portfolio-pe__net${
+            hasNetDelta
+              ? netDown
+                ? ' capiro-portfolio-pe__delta--down'
+                : ' capiro-portfolio-pe__delta--up'
+              : ''
+          }`}
+        >
+          {netLabel}
+        </span>
         <CapiroButton variant="quiet" size="compact" onClick={() => navigate('/program-elements')}>
           Open budget
         </CapiroButton>
@@ -143,7 +183,11 @@ export function PortfolioProgramElements() {
       ) : (
         <div className="capiro-portfolio-pe__grid">
           {rows.map((pe) => (
-            <PeCard key={pe.peCode} pe={pe} />
+            <PeCard
+              key={pe.peCode}
+              pe={pe}
+              attribution={peAttribution[pe.peCode] ?? []}
+            />
           ))}
         </div>
       )}

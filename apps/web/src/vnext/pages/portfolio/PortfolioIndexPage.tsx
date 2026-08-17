@@ -93,6 +93,7 @@ function freshestUpdatedAt(model: ReturnType<typeof usePortfolioIndexModel>): nu
     model.meetings.dataUpdatedAt,
     model.accountOwners.dataUpdatedAt,
     model.rollup.dataUpdatedAt,
+    model.peSummary.dataUpdatedAt,
   );
 }
 
@@ -177,7 +178,8 @@ function ClientRow({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) {
       </td>
       <td>{focus.length ? <div className="capiro-portfolio__tags">{focus.map((t) => <span className="capiro-portfolio__tag" key={t}>{t}</span>)}</div> : <span className="capiro-portfolio__meta">—</span>}</td>
       <td>{row.ownerName ? <div className="capiro-portfolio__owner"><span className="capiro-portfolio__avatar" aria-hidden>{initialsFor(row.ownerName)}</span><span>{row.ownerName}</span></div> : <span className="capiro-portfolio__meta">—</span>}</td>
-      <td><span className="capiro-portfolio__work-value">—</span><span className="capiro-portfolio__track" aria-hidden><span /></span></td>
+      {/* G3 rollup (item 5): real in_progress task count in the Work column */}
+      <td>{row.workCount != null ? <span className="capiro-portfolio__work-value">{row.workCount}</span> : <span className="capiro-portfolio__work-value">—</span>}<span className="capiro-portfolio__track" aria-hidden><span /></span></td>
       {/* G3 rollup (wire-audit "4 New capability" items 2-4): real intel/attention/next-touch */}
       <td>{row.intelCount != null ? <span className="capiro-portfolio__meta">{row.intelCount}</span> : <span className="capiro-portfolio__meta">—</span>}</td>
       <td>{row.attentionCount != null ? <span className={`capiro-portfolio__attention${row.attentionCount > 0 ? ' has-attention' : ''}`}>{row.attentionCount}</span> : <span className="capiro-portfolio__attention">—</span>}</td>
@@ -214,7 +216,7 @@ function ClientCard({ row, onOpen }: { row: PortfolioRow; onOpen: () => void }) 
       <div className="capiro-portfolio__card-focus">
         {focus.length ? focus.map((tag) => <span className="capiro-portfolio__tag" key={tag}>{tag}</span>) : <span className="capiro-portfolio__meta">—</span>}
       </div>
-      <div className="capiro-portfolio__card-work"><span className="capiro-portfolio__work-value">—</span><span className="capiro-portfolio__track" aria-hidden><span /></span></div>
+      <div className="capiro-portfolio__card-work">{row.workCount != null ? <span className="capiro-portfolio__work-value">{row.workCount}</span> : <span className="capiro-portfolio__work-value">—</span>}<span className="capiro-portfolio__track" aria-hidden><span /></span></div>
       <div className="capiro-portfolio__card-foot">
         {row.ownerName ? <div className="capiro-portfolio__owner"><span className="capiro-portfolio__avatar" aria-hidden>{initialsFor(row.ownerName)}</span><span>{row.ownerName}</span></div> : <span className="capiro-portfolio__meta">—</span>}
         {/* G3 rollup (item 1): next-touch date in card foot */}
@@ -319,6 +321,7 @@ export function PortfolioIndexPage() {
       void queryClient.invalidateQueries({ queryKey: ['client-account-owners'] });
       void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-summary'] });
       void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-rollup'] });
+      void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-pe-summary'] });
       setCreateOpen(false);
       const next = new URLSearchParams(searchParams);
       next.delete('new');
@@ -339,6 +342,7 @@ export function PortfolioIndexPage() {
     void queryClient.invalidateQueries({ queryKey: ['client-account-owners'] });
     void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-summary'] });
     void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-rollup'] });
+    void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-pe-summary'] });
     void queryClient.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
     void queryClient.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
     void queryClient.invalidateQueries({ queryKey: ['program-element-finder', 'portfolio-watch'] });
@@ -410,7 +414,7 @@ export function PortfolioIndexPage() {
         )}
       </section>
 
-      <PortfolioProgramElements />
+      <PortfolioProgramElements peSummary={model.peSummary} />
       <ImportWithLdaModal open={importOpen} onClose={() => openImport(false)} />
       <ClientFormModal
         open={createOpen}
