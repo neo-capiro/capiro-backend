@@ -9,14 +9,15 @@ import { SemanticDataCatalogService } from './data-catalog/semantic-data-catalog
 import { ExactLexicalRetrievalService } from './exact-lexical-retrieval.service.js';
 import { RetrievalPlannerV2Service } from './retrieval-planner-v2.service.js';
 import { RetrievalRerankerService } from './retrieval-reranker.service.js';
+import { RetrievalScoringService } from './retrieval-scoring.service.js';
 import { RETRIEVAL_SOURCE_ADAPTERS } from './retrieval-source.adapter.js';
 import { RetrievalV2Service } from './retrieval-v2.service.js';
 
 /**
  * Shared Retrieval V2 plane. Domain systems remain authoritative; this module
- * selects/query-composes them and emits coverage proof. Phase 11 exact lexical
- * lookup and Phase 13 reranking are rails inside this same plane, not separate
- * search indexes, vector stores, graphs or feature-specific RAG stacks.
+ * selects/query-composes them and emits coverage proof. Phase 11 exact lexical,
+ * Phase 13 reranking, and Phase 14 retrieval-priority scoring are rails inside
+ * this same plane, not separate indexes, vector stores, graphs or feature RAGs.
  */
 @Module({
   imports: [PrismaModule, KnowledgeModule],
@@ -29,6 +30,7 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
       useFactory: createDefaultRerankingProvider,
     },
     RetrievalRerankerService,
+    RetrievalScoringService,
     CorePrismaRetrievalAdapter,
     InstitutionalKnowledgeRetrievalAdapter,
     {
@@ -46,6 +48,7 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
     RetrievalPlannerV2Service,
     ExactLexicalRetrievalService,
     RetrievalRerankerService,
+    RetrievalScoringService,
     RetrievalV2Service,
   ],
 })

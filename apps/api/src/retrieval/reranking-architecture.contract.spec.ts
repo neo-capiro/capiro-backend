@@ -36,12 +36,14 @@ describe('Knowledge Plane Phase 13 reranking architecture', () => {
     expect(passageFunction).toContain('record.payload');
   });
 
-  it('proves coverage before reranking and never derives coverage from rerank output', () => {
+  it('proves coverage before fusion/reranking and never derives coverage from rerank output', () => {
     const source = fs.readFileSync(retrievalPath, 'utf8');
     const coverageIndex = source.indexOf('buildCoverageManifest(requestedDomains, results)');
-    const rerankIndex = source.indexOf('this.reranker.rerank(request, baselineRecords)');
+    const scoringIndex = source.indexOf('this.scoring.score(request, baselineRecords)');
+    const rerankIndex = source.indexOf('this.reranker.rerank(request, scored.records)');
     expect(coverageIndex).toBeGreaterThan(-1);
-    expect(rerankIndex).toBeGreaterThan(coverageIndex);
+    expect(scoringIndex).toBeGreaterThan(coverageIndex);
+    expect(rerankIndex).toBeGreaterThan(scoringIndex);
 
     const afterRerank = source.slice(rerankIndex, source.indexOf('private async retrieveFromSource'));
     expect(afterRerank).not.toContain('coverage.complete =');

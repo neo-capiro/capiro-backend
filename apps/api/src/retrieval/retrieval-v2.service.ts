@@ -3,6 +3,7 @@ import { buildCoverageManifest } from './coverage-manifest.js';
 import { ExactLexicalRetrievalService } from './exact-lexical-retrieval.service.js';
 import { RetrievalPlannerV2Service } from './retrieval-planner-v2.service.js';
 import { RetrievalRerankerService } from './retrieval-reranker.service.js';
+import { RetrievalScoringService } from './retrieval-scoring.service.js';
 import {
   RETRIEVAL_SOURCE_ADAPTERS,
   type RetrievalSourceAdapter,
@@ -13,6 +14,7 @@ import type {
   RetrievalRequest,
   RetrievalResponse,
   RetrievalRerankingObservability,
+  RetrievalScoringObservability,
   RetrievalSourceResult,
   RetrievalSourceStatus,
   SemanticDatasetDescriptor,
@@ -39,6 +41,7 @@ export class RetrievalV2Service {
     adapters: readonly RetrievalSourceAdapter[],
     @Optional() private readonly exactLexical?: ExactLexicalRetrievalService,
     @Optional() private readonly reranker?: RetrievalRerankerService,
+    @Optional() private readonly scoring?: RetrievalScoringService,
   ) {
     const byKey = new Map<string, RetrievalSourceAdapter>();
     for (const adapter of adapters) {
@@ -118,20 +121,24 @@ export class RetrievalV2Service {
     requestedDomains: readonly RetrievalDomain[],
     results: readonly RetrievalSourceResult[],
   ): Promise<RetrievalResponse> {
-    // Coverage is proved from the authoritative source results BEFORE reranking.
-    // Phase 13 may reorder the candidate array only; it never feeds back into
-    // source health, pagination, availability, authority or completeness.
+    // Coverage is proved from authoritative source results BEFORE relevance
+    // ordering. Phase 14 RRF fuses candidates first; Phase 13 NVIDIA reranking
+    // remains the final learned relevance stage. Neither can alter coverage.
     const coverage = buildCoverageManifest(requestedDomains, results);
     const baselineRecords = results.flatMap((result) => result.records);
-    const reranked = this.reranker
-      ? await this.reranker.rerank(request, baselineRecords)
+    const scored = this.scoring
+      ? this.scoring.score(request, baselineRecords)
       : { records: baselineRecords, observability: undefined };
+    const reranked = this.reranker
+      ? await this.reranker.rerank(request, scored.records)
+      : { records: scored.records, observability: undefined };
     const observability = this.buildObservability(
       request,
       results,
       coverage.complete,
       coverage.stopReason,
       reranked.observability,
+      scored.observability,
     );
     return {
       records: reranked.records,
@@ -257,6 +264,7 @@ export class RetrievalV2Service {
     coverageComplete: boolean,
     stopReason: string,
     reranking?: RetrievalRerankingObservability,
+    scoring?: RetrievalScoringObservability,
   ): RetrievalObservability {
     return {
       queryClass: request.queryClass,
@@ -274,6 +282,7 @@ export class RetrievalV2Service {
       coverageComplete,
       stopReason,
       ...(reranking ? { reranking } : {}),
+      ...(scoring ? { scoring } : {}),
     };
   }
 }

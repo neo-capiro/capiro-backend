@@ -147,6 +147,21 @@ export interface RetrievalRequest {
   metadata?: KnowledgeJsonObject;
 }
 
+/**
+ * Phase 14 provider-neutral ranking hints emitted by retrieval rails. These
+ * signals are operational relevance inputs only; they are not evidence,
+ * coverage proof, source authority, or factual confidence and never belong in
+ * the durable payload/provenance body.
+ */
+export interface RetrievalRecordSignals {
+  lexicalExactness?: number;
+  semanticSimilarity?: number;
+  entityMatchConfidence?: number;
+  graphRelationshipRelevance?: number;
+  clientRelevance?: number;
+  temporalValidity?: number;
+}
+
 export interface RetrievalRecord {
   domain: RetrievalDomain;
   recordId: string;
@@ -156,6 +171,7 @@ export interface RetrievalRecord {
   updatedAt?: Date | null;
   payload: KnowledgeJsonObject;
   provenance?: KnowledgeJsonObject;
+  retrievalSignals?: RetrievalRecordSignals;
 }
 
 /**
@@ -240,6 +256,61 @@ export interface RetrievalRerankingObservability {
   };
 }
 
+export const RETRIEVAL_SCORING_SIGNALS = [
+  'lexical_exactness',
+  'semantic_similarity',
+  'entity_match_confidence',
+  'source_authority',
+  'freshness',
+  'graph_relationship_relevance',
+  'client_relevance',
+  'temporal_validity',
+] as const;
+
+export type RetrievalScoringSignal = (typeof RETRIEVAL_SCORING_SIGNALS)[number];
+
+export type RetrievalScoringSignalClass =
+  | 'relevance'
+  | 'confidence'
+  | 'authority'
+  | 'freshness'
+  | 'validity';
+
+export interface RetrievalScoringComponent {
+  signal: RetrievalScoringSignal;
+  signalClass: RetrievalScoringSignalClass;
+  /** Native value is used only to establish ordinal rank inside this signal. */
+  rawValue: number;
+  signalRank: number;
+  /** Reciprocal Rank Fusion contribution = 1 / (k + signalRank). */
+  contribution: number;
+}
+
+export interface RetrievalScoringScore {
+  domain: RetrievalDomain;
+  recordId: string;
+  baselineRank: number;
+  /** Candidate rank immediately before Phase 14 fusion. */
+  currentRank: number;
+  /** RRF-proposed rank before Phase 13 NVIDIA reranking. */
+  proposedRank: number;
+  /** Retrieval-priority score only; never factual confidence. */
+  fusedScore: number;
+  sourceAuthority: RetrievalAuthority;
+  components: RetrievalScoringComponent[];
+}
+
+export interface RetrievalScoringObservability {
+  status: 'disabled' | 'shadow' | 'applied';
+  algorithm: 'rrf';
+  rrfK: number;
+  candidateCount: number;
+  scoredCount: number;
+  applied: boolean;
+  signalsUsed: RetrievalScoringSignal[];
+  scores: RetrievalScoringScore[];
+}
+
 export interface RetrievalObservability {
   queryClass: RetrievalQueryClass;
   requestedDomains: RetrievalDomain[];
@@ -253,6 +324,8 @@ export interface RetrievalObservability {
   stopReason: string;
   /** Phase 13 relevance-order trace; omitted only by legacy/direct test construction. */
   reranking?: RetrievalRerankingObservability;
+  /** Phase 14 RRF decomposition; retrieval priority only, never source truth. */
+  scoring?: RetrievalScoringObservability;
 }
 
 export interface RetrievalResponse {

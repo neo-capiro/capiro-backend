@@ -1,0 +1,87 @@
+name: Knowledge Plane Phase 14 CI
+
+on:
+  push:
+    branches:
+      - agent/knowledge-plane-phase-14-retrieval-scoring
+    paths:
+      - 'apps/api/src/retrieval/**'
+      - 'docs/knowledge-plane/phase-14-retrieval-scoring.md'
+      - '.github/workflows/knowledge-phase14-ci.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/api/src/retrieval/**'
+      - 'docs/knowledge-plane/phase-14-retrieval-scoring.md'
+      - '.github/workflows/knowledge-phase14-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch hygiene
+        run: git diff --check origin/main...HEAD
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages consumed by API
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Validate and generate Prisma client
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Phase 14 scoring contracts
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/retrieval/retrieval-scoring.service.spec.ts \
+            src/retrieval/retrieval-scoring-signals.spec.ts \
+            src/retrieval/retrieval-v2-scoring.spec.ts \
+            src/retrieval/retrieval-scoring-architecture.contract.spec.ts
+
+      - name: Retrieval, reranking, coverage and pgvector regressions
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/retrieval/retrieval-v2.service.spec.ts \
+            src/retrieval/retrieval-v2-reranking.spec.ts \
+            src/retrieval/retrieval-v2-exact-lexical.spec.ts \
+            src/retrieval/coverage-manifest.spec.ts \
+            src/retrieval/vector-storage-architecture.contract.spec.ts \
+            src/retrieval/reranking-architecture.contract.spec.ts
+
+      - name: Reject Phase 14 TypeScript errors
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @capiro/api exec tsc --noEmit --pretty false > /tmp/api-tsc.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/api-tsc.log
+          if grep -E 'src/retrieval/retrieval-scoring|src/retrieval/retrieval-v2\.(service|types)|src/retrieval/retrieval\.module' /tmp/api-tsc.log; then
+            echo "Phase 14 introduced TypeScript errors." >&2
+            exit 1
+          fi
+          echo "Full API typecheck exit: $status (unrelated baseline errors, if any, are not attributed to Phase 14)."
