@@ -38,6 +38,7 @@ import {
   setChatMessageRetrieval,
   setChatMessageVerification,
   setChatMessageGroundingCaveat,
+  setChatMessageGroundingStatement,
   setChatMessageSuggestions,
   setChatMessageFeedback,
   setStreaming,
@@ -72,6 +73,7 @@ type SseEvent =
   | { type: 'conflict'; conflict?: { title: string; detail: string } }
   | { type: 'sources'; sources?: Array<MeriSourceAttribution & { label?: string }> }
   | { type: 'citations'; citations?: MeriCitation[] }
+  | { type: 'grounding_statement'; statement?: string }
   | {
       type: 'verification';
       title?: string;
@@ -903,6 +905,41 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     setAttachmentNotice(null);
   }, []);
 
+  useEffect(() => {
+    const stageWorkspaceImport = (event: Event) => {
+      const detail = (event as CustomEvent<{ attachmentId?: unknown; filename?: unknown }>).detail;
+      const attachmentId = typeof detail?.attachmentId === 'string' ? detail.attachmentId : '';
+      if (!attachmentId) return;
+      const filename =
+        typeof detail.filename === 'string' && detail.filename.trim()
+          ? detail.filename.trim()
+          : 'workspace-document.txt';
+      setStagedAttachments((previous) => {
+        if (previous.some((attachment) => attachment.id === attachmentId)) return previous;
+        const active = previous.filter(
+          (attachment) => attachment.status === 'uploading' || isUsableAttachment(attachment),
+        );
+        if (active.length >= MAX_ATTACHMENTS) {
+          setAttachmentNotice(`You can attach up to ${MAX_ATTACHMENTS} files per message.`);
+          return previous;
+        }
+        return [
+          ...previous,
+          {
+            localId: `workspace-import-${attachmentId}`,
+            id: attachmentId,
+            filename,
+            kind: 'text',
+            status: 'parsed',
+            reason: null,
+          },
+        ];
+      });
+    };
+    window.addEventListener('meri-stage-existing-attachment', stageWorkspaceImport);
+    return () => window.removeEventListener('meri-stage-existing-attachment', stageWorkspaceImport);
+  }, []);
+
   // ── Deep Research (in-chat) ────────────────────────────────────────────
   // Reads an SSE stream from a research endpoint, dispatching each event.
   const consumeResearchStream = useCallback(
@@ -1478,6 +1515,10 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                 assistantId,
                 Array.isArray(event.citations) ? event.citations : [],
               );
+            } else if (event.type === 'grounding_statement') {
+              if (typeof event.statement === 'string' && event.statement.trim()) {
+                setChatMessageGroundingStatement(assistantId, event.statement);
+              }
             } else if (event.type === 'verification') {
               if (event.verification)
                 setChatMessageVerification(assistantId, {

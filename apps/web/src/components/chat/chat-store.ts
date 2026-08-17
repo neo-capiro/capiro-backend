@@ -87,6 +87,8 @@ export interface ChatMessage {
   feedback?: 'up' | 'down' | null;
   attachments?: ChatMessageAttachment[];
   chartArtifacts?: ChatMessageChartArtifact[];
+  /** Server-computed grounding posture for this assistant turn. */
+  groundingStatement?: string;
   /** Backend retrieval plan for this assistant turn (absent on legacy turns). */
   retrieval?: ChatMessageRetrieval;
 }
@@ -116,6 +118,8 @@ export interface MeriConversation {
   client: { id: string; name: string } | null;
   latestMessage: { body: string; createdAt: string } | null;
   updatedAt: string;
+  workspaceId?: string | null;
+  workspace?: { id: string; name: string; clientId: string | null } | null;
 }
 
 export interface MeriSourceAttribution {
@@ -259,6 +263,12 @@ export function setChatMessageVerification(id: string, verification: MeriVerific
 
 export function setChatMessageGroundingCaveat(id: string, groundingCaveat: GroundingCaveat): void {
   const messages = state.messages.map((m) => (m.id === id ? { ...m, groundingCaveat } : m));
+  state = { ...state, messages };
+  notify();
+}
+
+export function setChatMessageGroundingStatement(id: string, groundingStatement: string): void {
+  const messages = state.messages.map((m) => (m.id === id ? { ...m, groundingStatement } : m));
   state = { ...state, messages };
   notify();
 }

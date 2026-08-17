@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
-import { canEdit } from '../collaborators/role-policy.js';
+import { canEdit, canRead } from '../collaborators/role-policy.js';
 import type { CreateDocumentDto, UpdateDocumentDto } from './dto/document.dto.js';
 
 /**
@@ -40,6 +40,28 @@ export class DocumentsService {
       where: { tenantId, draftId },
       orderBy: { ordinal: 'asc' },
     });
+  }
+
+  /**
+   * Workspace-owned cross-surface read for Meri imports. It verifies the same
+   * owner/collaborator policy as a regular document read before returning the
+   * bounded document representation; callers cannot supply their own body.
+   */
+  async readForMeriImport(tenantId: string, draftId: string, docId: string, actorId: string) {
+    await this.assertDraft(tenantId, draftId);
+    await this.collaborators.assertCan(
+      tenantId,
+      draftId,
+      actorId,
+      canRead,
+      'You do not have access to this document',
+    );
+    const document = await this.prisma.wsDocument.findFirst({
+      where: { id: docId, tenantId, draftId },
+      select: { id: true, name: true, body: true },
+    });
+    if (!document) throw new NotFoundException('Document not found');
+    return document;
   }
 
   async add(tenantId: string, draftId: string, actorId: string, dto: CreateDocumentDto) {

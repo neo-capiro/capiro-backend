@@ -27,6 +27,7 @@ import { planTurnRerun } from './meri-turn.helpers.js';
 import { classifyToolAction, isSideEffectingTool } from './meri-actions.helpers.js';
 import { MeriV3ChatClient, type MeriV3ChatStreamEvent } from './meriv3-chat.client.js';
 import { reasoningModeFromConversationMetadata } from './meriv3-conversation.helpers.js';
+import { buildMeriGroundingStatement } from './meri-grounding-statement.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -225,6 +226,7 @@ export class MeriV3ProxyService {
     // reasoningEffort metadata whenever a turn failed before the first frame.
     let runtimeEffort = 'unknown';
     let doneFrame: Extract<MeriV3ChatStreamEvent, { type: 'done' }> | null = null;
+    let groundingCaveat: { topSeverity: string | null; findings: Array<{ check: string; severity: string; detail: string }> } | null = null;
     const steps: Array<{
       tool: string;
       label: string;
@@ -281,7 +283,13 @@ export class MeriV3ProxyService {
           emit({ type: 'text', text: event.text });
           return;
         case 'page_write':
+          emit(event as unknown as Record<string, unknown>);
+          return;
         case 'grounding_caveat':
+          groundingCaveat = {
+            topSeverity: event.topSeverity,
+            findings: event.findings,
+          };
           emit(event as unknown as Record<string, unknown>);
           return;
         case 'done':
@@ -339,6 +347,12 @@ export class MeriV3ProxyService {
     if (frame?.citations?.length && !aborted) {
       emit({ type: 'citations', citations: frame.citations });
     }
+    const groundingStatement = buildMeriGroundingStatement({
+      citations: frame?.citations ?? [],
+      verification: null,
+      groundingCaveat,
+    });
+    if (!aborted) emit({ type: 'grounding_statement', statement: groundingStatement });
     if (control.traceEnabled && steps.length && !aborted) {
       emit({ type: 'exec_trace', trace: steps });
     }
@@ -359,6 +373,10 @@ export class MeriV3ProxyService {
           toolsUsed: steps.map((step) => step.tool),
           usage: frame?.usage ?? {},
           citations: (frame?.citations ?? []) as unknown as Prisma.InputJsonValue,
+          groundingStatement,
+          ...(groundingCaveat
+            ? { groundingCaveat: groundingCaveat as unknown as Prisma.InputJsonValue }
+            : {}),
           ...(frame?.contextPacket
             ? { contextPacket: frame.contextPacket as unknown as Prisma.InputJsonValue }
             : {}),

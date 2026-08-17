@@ -16,6 +16,15 @@ export class DocumentsController {
     return this.documents.list(ctx.tenantId, draftId);
   }
 
+  @Get(':docId/meri-import')
+  meriImport(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId') draftId: string,
+    @Param('docId') docId: string,
+  ) {
+    return this.documents.readForMeriImport(ctx.tenantId, draftId, docId, ctx.clerkUserId);
+  }
+
   @Post()
   add(
     @CurrentTenant() ctx: WorkspaceTenantContext,

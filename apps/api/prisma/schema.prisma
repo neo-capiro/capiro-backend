@@ -218,6 +218,9 @@ model Tenant {
   outreachJobs                       OutreachJob[]
   outreachJobItems                   OutreachJobItem[]
   clioConversations                  ClioConversation[]
+  meriSavedPrompts                   MeriSavedPrompt[]
+  meriWorkspaces                     MeriWorkspace[]
+  meriVnextPreferences               MeriVnextPreference[]
   clioMessages                       ClioMessage[]
   clioArtifacts                      ClioArtifact[]
   clioNotes                          ClioNote[]
@@ -523,6 +526,9 @@ model User {
   outreachTemplates                OutreachTemplate[]             @relation("OutreachTemplateAuthor")
   outreachAiTemplates              OutreachAiTemplate[]           @relation("OutreachAiTemplateAuthor")
   clioConversations                ClioConversation[]             @relation("ClioConversationUser")
+  meriSavedPrompts                 MeriSavedPrompt[]
+  meriWorkspaces                   MeriWorkspace[]
+  meriVnextPreferences             MeriVnextPreference[]
   clioMessages                     ClioMessage[]                  @relation("ClioMessageUser")
   clioArtifacts                    ClioArtifact[]                 @relation("ClioArtifactUser")
   clioNotes                        ClioNote[]                     @relation("ClioNoteUser")
@@ -801,6 +807,7 @@ model Client {
   engagementReportTargets EngagementReportTargetOffice[]
   outreachRecords         OutreachRecord[]
   clioConversations       ClioConversation[]
+  meriWorkspaces          MeriWorkspace[]
   clioMessages            ClioMessage[]
   clioArtifacts           ClioArtifact[]
   clioNotes               ClioNote[]
@@ -1644,6 +1651,7 @@ model ClioConversation {
   tenantId             String    @map("tenant_id") @db.Uuid
   userId               String    @map("user_id") @db.Uuid
   clientId             String?   @map("client_id") @db.Uuid
+  workspaceId          String?   @map("workspace_id") @db.Uuid
   workspaceKey         String    @default("workspace") @map("workspace_key")
   title                String
   status               String    @default("active")
@@ -1663,13 +1671,72 @@ model ClioConversation {
   tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user      User           @relation("ClioConversationUser", fields: [userId], references: [id], onDelete: Cascade)
   client    Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  workspace MeriWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   messages  ClioMessage[]
   artifacts ClioArtifact[]
   notes     ClioNote[]
 
   @@index([tenantId, userId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_updated_idx")
   @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_client_updated_idx")
+  @@index([tenantId, userId, workspaceId, updatedAt(sort: Desc)], map: "clio_conversations_tenant_user_workspace_updated_idx")
   @@map("clio_conversations")
+}
+
+/// User-owned reusable instructions for the Meri vNext workspace.
+model MeriSavedPrompt {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String   @db.VarChar(160)
+  body      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, updatedAt(sort: Desc)], map: "meri_saved_prompts_tenant_user_updated_idx")
+  @@map("meri_saved_prompts")
+}
+
+/// User-owned grouping for Meri conversations. Membership is stored on the
+/// conversation itself, preserving existing tenant/user ownership boundaries.
+model MeriWorkspace {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  clientId  String?  @map("client_id") @db.Uuid
+  name      String   @db.VarChar(120)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client        Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  conversations ClioConversation[]
+
+  @@index([tenantId, userId, updatedAt(sort: Desc)], map: "meri_workspaces_tenant_user_updated_idx")
+  @@index([tenantId, userId, clientId], map: "meri_workspaces_tenant_user_client_idx")
+  @@map("meri_workspaces")
+}
+
+/// Per-user Meri vNext chrome and rail choices. This stays separate from
+/// conversations so a display preference cannot affect shared chat semantics.
+model MeriVnextPreference {
+  id            String   @id @default(uuid()) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  windowChrome  String   @default("undocked") @map("window_chrome") @db.VarChar(16)
+  railCollapsed Boolean  @default(false) @map("rail_collapsed")
+  openSection   String?  @map("open_section") @db.VarChar(16)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId], map: "meri_vnext_preferences_tenant_user_unique")
+  @@map("meri_vnext_preferences")
 }
 
 model ClioMessage {

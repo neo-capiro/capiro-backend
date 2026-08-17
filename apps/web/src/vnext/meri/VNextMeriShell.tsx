@@ -1,22 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ManagedMcpAppsProvider } from '../../components/chat/managed-mcp-apps.js';
+import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { MERI_LOGO_SRC } from './meri-presentation.js';
-import {
-  readRailPrefs,
-  readWindowChrome,
-  writeRailPrefs,
-  writeWindowChrome,
-  type MeriContextSection,
-  type MeriWindowChrome,
-} from './meri-prefs.js';
+import type { MeriContextSection, MeriWindowChrome } from './meri-prefs.js';
 import { VNextMeriTopBar } from './VNextMeriTopBar.js';
 import { VNextMeriThreadRail } from './VNextMeriThreadRail.js';
 import { VNextMeriConversation } from './VNextMeriConversation.js';
 import { VNextMeriContextRail } from './VNextMeriContextRail.js';
-import { MeriCommandPalette } from './MeriCommandPalette.js';
+import { MeriContextSheet } from './MeriContextSheet.js';
+import {
+  getMeriVNextPreferences,
+  saveMeriVNextPreferences,
+  type MeriContextPacket,
+} from './meri-vnext-api.js';
 import './vnext-meri.css';
 
 interface VNextMeriShellProps {
@@ -63,31 +62,57 @@ export function VNextMeriShell({
   onRestoreThread,
 }: VNextMeriShellProps) {
   const me = useMe();
+  const api = useApi();
   const navigate = useNavigate();
-  const storedRail = readRailPrefs();
-  const [windowChrome, setWindowChrome] = useState<MeriWindowChrome>(() => readWindowChrome());
-  const [railCollapsed, setRailCollapsed] = useState(storedRail.collapsed);
-  const [openSection, setOpenSection] = useState<MeriContextSection | null>(storedRail.openSection);
+  const [windowChrome, setWindowChrome] = useState<MeriWindowChrome>('undocked');
+  const [railCollapsed, setRailCollapsed] = useState(false);
+  const [openSection, setOpenSection] = useState<MeriContextSection | null>(null);
+  const [preferencesHydrated, setPreferencesHydrated] = useState(false);
+  const skipInitialPreferenceSaveRef = useRef(true);
   const [threadSearch, setThreadSearch] = useState('');
-  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [contextSheet, setContextSheet] = useState<{
+    open: boolean;
+    packet: MeriContextPacket | null;
+    loading: boolean;
+    error: boolean;
+  }>({ open: false, packet: null, loading: false, error: false });
   const threadSearchRef = useRef<HTMLInputElement>(null);
 
   const isTabletDown = useMatchesWidth('(max-width: 1179px)');
   const lastBandRef = useRef<boolean | null>(null);
   useEffect(() => {
+    let cancelled = false;
+    void getMeriVNextPreferences(api)
+      .then((preferences) => {
+        if (cancelled) return;
+        setWindowChrome(preferences.windowChrome);
+        setRailCollapsed(preferences.railCollapsed);
+        setOpenSection(preferences.openSection);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setPreferencesHydrated(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
+
+  useEffect(() => {
     if (lastBandRef.current === isTabletDown) return;
     lastBandRef.current = isTabletDown;
-    if (readRailPrefs().collapsed === false && !isTabletDown) return;
-    setRailCollapsed(isTabletDown);
+    if (!isTabletDown) return;
+    setRailCollapsed(true);
   }, [isTabletDown]);
 
   useEffect(() => {
-    writeWindowChrome(windowChrome);
-  }, [windowChrome]);
-
-  useEffect(() => {
-    writeRailPrefs({ collapsed: railCollapsed, openSection });
-  }, [openSection, railCollapsed]);
+    if (!preferencesHydrated) return;
+    if (skipInitialPreferenceSaveRef.current) {
+      skipInitialPreferenceSaveRef.current = false;
+      return;
+    }
+    void saveMeriVNextPreferences(api, { windowChrome, railCollapsed, openSection }).catch(() => undefined);
+  }, [api, openSection, preferencesHydrated, railCollapsed, windowChrome]);
 
   const greetingName = shortGreetingName(me.data);
   const tenantName = me.data?.tenant.name ?? 'Capiro';
@@ -104,7 +129,8 @@ export function VNextMeriShell({
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setPaletteOpen((open) => !open);
+        setRailCollapsed(false);
+        window.setTimeout(() => threadSearchRef.current?.focus(), 0);
       }
     };
     document.addEventListener('keydown', onKeyDown);
@@ -157,7 +183,10 @@ export function VNextMeriShell({
             me={me.data}
             windowChrome={windowChrome}
             onNewChat={handleNewChat}
-            onSearch={() => setPaletteOpen(true)}
+            onSearch={() => {
+              setRailCollapsed(false);
+              window.setTimeout(() => threadSearchRef.current?.focus(), 0);
+            }}
             onDock={() => setWindowChrome('docked')}
             onToggleMaximize={() =>
               setWindowChrome((current) => (current === 'maximized' ? 'undocked' : 'maximized'))
@@ -178,7 +207,10 @@ export function VNextMeriShell({
               searchQuery={threadSearch}
               onSearchQueryChange={setThreadSearch}
               searchInputRef={threadSearchRef}
-              onOpenPalette={() => setPaletteOpen(true)}
+              onOpenPalette={() => {
+                setRailCollapsed(false);
+                window.setTimeout(() => threadSearchRef.current?.focus(), 0);
+              }}
             />
 
             <VNextMeriConversation
@@ -196,14 +228,17 @@ export function VNextMeriShell({
               onExpandSection={expandSection}
               onSectionChange={setOpenSection}
               onOpenIntegrations={handleOpenIntegrations}
+              onOpenContext={(packet, loading, error) => setContextSheet({ open: true, packet, loading, error })}
             />
           </div>
         </div>
       </div>
-      <MeriCommandPalette
-        controller={controller}
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
+      <MeriContextSheet
+        open={contextSheet.open}
+        packet={contextSheet.packet}
+        loading={contextSheet.loading}
+        error={contextSheet.error}
+        onClose={() => setContextSheet((current) => ({ ...current, open: false }))}
       />
     </ManagedMcpAppsProvider>
   );

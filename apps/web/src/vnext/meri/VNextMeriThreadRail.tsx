@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   removeConversation,
+  upsertConversation,
   useChatStore,
   type MeriConversation,
 } from '../../components/chat/chat-store.js';
@@ -10,6 +11,17 @@ import { useApi } from '../../lib/use-api.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
+import {
+  assignMeriConversationWorkspace,
+  createMeriSavedPrompt,
+  createMeriWorkspace,
+  deleteMeriSavedPrompt,
+  deleteMeriWorkspace,
+  listMeriSavedPrompts,
+  listMeriWorkspaces,
+  type MeriSavedPrompt,
+  type MeriWorkspace,
+} from './meri-vnext-api.js';
 import {
   displayThreadTitle,
   sameLocalDay,
@@ -39,9 +51,8 @@ function threadMeta(conversation: MeriConversation): string {
 function kindFor(conversation: MeriConversation): MeriIconName {
   const haystack = `${conversation.title} ${conversation.latestMessage?.body ?? ''}`.toLowerCase();
   return threadKindIcon({
-    isNew: !conversation.latestMessage,
     isResearch: /research|markup|hearing/.test(haystack),
-    hasArtifact: /memo|draft|artifact|brief/.test(haystack),
+    hasArtifact: /brief|memo|report/.test(haystack),
   });
 }
 
@@ -76,6 +87,7 @@ export function VNextMeriThreadRail({
 }: VNextMeriThreadRailProps) {
   const navigate = useNavigate();
   const api = useApi();
+  const queryClient = useQueryClient();
   const toast = useCapiroToast();
   const { conversations, activeConversationId } = useChatStore();
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -83,6 +95,9 @@ export function VNextMeriThreadRail({
   const [confirmFor, setConfirmFor] = useState<MeriConversation | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
   const [undoTarget, setUndoTarget] = useState<MeriConversation | null>(null);
+  const [moveFor, setMoveFor] = useState<MeriConversation | null>(null);
+  const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   const confirmCancelRef = useRef<HTMLButtonElement>(null);
   const rowMenuRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -102,6 +117,17 @@ export function VNextMeriThreadRail({
         })
       ).data,
     enabled: searchActive,
+    staleTime: 30_000,
+  });
+
+  const savedPrompts = useQuery({
+    queryKey: ['meri-vnext', 'saved-prompts'],
+    queryFn: () => listMeriSavedPrompts(api),
+    staleTime: 30_000,
+  });
+  const workspaces = useQuery({
+    queryKey: ['meri-vnext', 'workspaces'],
+    queryFn: () => listMeriWorkspaces(api),
     staleTime: 30_000,
   });
 
@@ -179,6 +205,11 @@ export function VNextMeriThreadRail({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [confirmFor]);
 
+  const invalidateLibrary = () => {
+    void queryClient.invalidateQueries({ queryKey: ['meri-vnext', 'saved-prompts'] });
+    void queryClient.invalidateQueries({ queryKey: ['meri-vnext', 'workspaces'] });
+  };
+
   const handleSelect = (conversationId: string) => {
     if (conversationId === activeConversationId) return;
     onSearchQueryChange('');
@@ -227,6 +258,49 @@ export function VNextMeriThreadRail({
     }
   };
 
+  const useSavedPrompt = (prompt: MeriSavedPrompt) => {
+    window.dispatchEvent(new CustomEvent('meri-fill-draft', { detail: prompt.body }));
+  };
+
+  const createSavedPrompt = async () => {
+    const title = window.prompt('Name this saved prompt:')?.trim();
+    if (!title) return;
+    const body = window.prompt('Prompt text:')?.trim();
+    if (!body) return;
+    try {
+      await createMeriSavedPrompt(api, { title, body });
+      invalidateLibrary();
+      toast.success('Saved prompt created.');
+    } catch {
+      toast.error('The prompt could not be saved.');
+    }
+  };
+
+  const createWorkspace = async () => {
+    const name = newWorkspaceName.trim();
+    if (!name) return;
+    try {
+      await createMeriWorkspace(api, { name, clientId: controller.selectedClientValue || null });
+      setNewWorkspaceName('');
+      setWorkspaceDialogOpen(false);
+      invalidateLibrary();
+      toast.success('Workspace created.');
+    } catch {
+      toast.error('The workspace could not be created.');
+    }
+  };
+
+  const assignWorkspace = async (conversation: MeriConversation, workspaceId: string | null) => {
+    try {
+      await assignMeriConversationWorkspace(api, conversation.id, workspaceId);
+      setMoveFor(null);
+      toast.success(workspaceId ? 'Chat moved to the workspace.' : 'Chat removed from the workspace.');
+      onRetryHistory();
+    } catch {
+      toast.error('The chat could not be moved.');
+    }
+  };
+
   return (
     <aside className="vnext-meri__rail-left" data-meri-thread-rail aria-label="Meri conversations">
       <div className="vnext-meri__rail-left-top">
@@ -240,13 +314,54 @@ export function VNextMeriThreadRail({
         <section data-meri-rail-section="saved-prompts">
           <div className="vnext-meri__section-label-row">
             <span className="vnext-meri__section-label">SAVED PROMPTS</span>
+            <button
+              type="button"
+              className="vnext-meri__icon-btn vnext-meri__icon-btn--tiny"
+              aria-label="Save a prompt"
+              title="Save a prompt"
+              onClick={() => void createSavedPrompt()}
+            >
+              <MeriIcon name="Plus" size={13} color="#98A2B3" />
+            </button>
           </div>
-          <div className="vnext-meri__section-empty">
-            <div className="vnext-meri__section-empty-label">NO SAVED PROMPTS</div>
-            <div className="vnext-meri__section-empty-body">
-              Saved prompts will appear here when the library is available.
+          {savedPrompts.isLoading ? (
+            <div className="vnext-meri__section-empty-body">Loading saved prompts…</div>
+          ) : savedPrompts.data?.length ? (
+            <div className="vnext-meri__saved-prompt-list">
+              {savedPrompts.data.map((prompt) => (
+                <div key={prompt.id} className="vnext-meri__saved-prompt-row">
+                  <button
+                    type="button"
+                    className="vnext-meri__saved-prompt-main"
+                    title={prompt.body}
+                    onClick={() => useSavedPrompt(prompt)}
+                  >
+                    <MeriIcon name="File05" size={13} color="#667085" />
+                    <span>{prompt.title}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="vnext-meri__saved-prompt-delete"
+                    aria-label={`Delete saved prompt ${prompt.title}`}
+                    onClick={() =>
+                      void deleteMeriSavedPrompt(api, prompt.id)
+                        .then(() => invalidateLibrary())
+                        .catch(() => toast.error('The prompt could not be deleted.'))
+                    }
+                  >
+                    <MeriIcon name="XClose" size={11} color="#98A2B3" />
+                  </button>
+                </div>
+              ))}
             </div>
-          </div>
+          ) : (
+            <div className="vnext-meri__section-empty">
+              <div className="vnext-meri__section-empty-label">NO SAVED PROMPTS</div>
+              <div className="vnext-meri__section-empty-body">
+                Save reusable instructions here and add them to the composer without sending.
+              </div>
+            </div>
+          )}
         </section>
 
         <div className="vnext-meri__divider" />
@@ -259,17 +374,60 @@ export function VNextMeriThreadRail({
               className="vnext-meri__icon-btn vnext-meri__icon-btn--tiny"
               aria-label="Add workspace"
               title="Add workspace"
-              onClick={onOpenIntegrations}
+              onClick={() => setWorkspaceDialogOpen(true)}
             >
               <MeriIcon name="Plus" size={13} color="#98A2B3" />
             </button>
           </div>
-          <div className="vnext-meri__section-empty">
-            <div className="vnext-meri__section-empty-label">NO WORKSPACES YET</div>
-            <div className="vnext-meri__section-empty-body">
-              Connected workspaces will appear here. Use the add control to open integrations.
+          {workspaces.isLoading ? (
+            <div className="vnext-meri__section-empty-body">Loading workspaces…</div>
+          ) : workspaces.data?.length ? (
+            <div className="vnext-meri__workspace-list" role="list" aria-label="Meri workspaces">
+              {workspaces.data.map((workspace) => (
+                <div key={workspace.id} className="vnext-meri__workspace-row">
+                  <button
+                    type="button"
+                    className="vnext-meri__workspace-item"
+                    onClick={() => {
+                      const first = conversations.find((conversation) => conversation.workspaceId === workspace.id);
+                      if (first) handleSelect(first.id);
+                      else toast.success('Assign a chat from its overflow menu to add it here.');
+                    }}
+                  >
+                    <span className="vnext-meri__workspace-icon">
+                      <MeriIcon name="Building01" size={13} color="#667085" />
+                    </span>
+                    <span className="vnext-meri__workspace-copy">
+                      <span className="vnext-meri__workspace-name">{workspace.name}</span>
+                      <span className="vnext-meri__workspace-meta">{workspace.clientId ? 'CLIENT' : 'GENERAL'}</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="vnext-meri__saved-prompt-delete"
+                    aria-label={`Delete workspace ${workspace.name}`}
+                    onClick={() =>
+                      void deleteMeriWorkspace(api, workspace.id)
+                        .then(() => {
+                          invalidateLibrary();
+                          onRetryHistory();
+                        })
+                        .catch(() => toast.error('The workspace could not be deleted.'))
+                    }
+                  >
+                    <MeriIcon name="XClose" size={11} color="#98A2B3" />
+                  </button>
+                </div>
+              ))}
             </div>
-          </div>
+          ) : (
+            <div className="vnext-meri__section-empty">
+              <div className="vnext-meri__section-empty-label">NO WORKSPACES YET</div>
+              <div className="vnext-meri__section-empty-body">
+                Create a workspace, then organize chats through their overflow menu.
+              </div>
+            </div>
+          )}
         </section>
 
         <div className="vnext-meri__divider" />
@@ -277,11 +435,7 @@ export function VNextMeriThreadRail({
         <section data-meri-rail-section="recent">
           <div className="vnext-meri__section-label-row">
             <span className="vnext-meri__section-label">RECENT</span>
-            <button
-              type="button"
-              className="vnext-meri__section-label-link"
-              onClick={onOpenPalette}
-            >
+            <button type="button" className="vnext-meri__section-label-link" onClick={onOpenPalette}>
               VIEW ALL
             </button>
           </div>
@@ -328,9 +482,7 @@ export function VNextMeriThreadRail({
             </div>
           ) : visible.length === 0 && searchQuery.trim() ? (
             <div className="vnext-meri__thread-empty">
-              <div className="vnext-meri__thread-empty-body">
-                No chats match “{searchQuery.trim()}”.
-              </div>
+              <div className="vnext-meri__thread-empty-body">No chats match “{searchQuery.trim()}”.</div>
               <button type="button" className="vnext-meri__search-everything" onClick={onOpenPalette}>
                 SEARCH EVERYTHING ⌘K
               </button>
@@ -339,27 +491,19 @@ export function VNextMeriThreadRail({
             <div className="vnext-meri__thread-empty">
               <div className="vnext-meri__thread-empty-label">NO THREADS YET</div>
               <div className="vnext-meri__thread-empty-body">
-                Ask Meri something, or start from a saved prompt. Threads are grouped by the
-                client they are scoped to.
+                Ask Meri something, use a saved prompt, or create a workspace for your related chats.
               </div>
             </div>
           ) : (
             <div className="vnext-meri__thread-list">
               {groups.map((group, groupIndex) => (
                 <div key={group.label}>
-                  <div
-                    className={`vnext-meri__thread-group-label${
-                      groupIndex === 0 ? ' is-first' : ''
-                    }`}
-                  >
+                  <div className={`vnext-meri__thread-group-label${groupIndex === 0 ? ' is-first' : ''}`}>
                     {group.label}
                   </div>
                   {group.items.map((conversation) => {
                     const active = conversation.id === activeConversationId;
-                    const title = displayThreadTitle(
-                      conversation.title,
-                      conversation.latestMessage?.body,
-                    );
+                    const title = displayThreadTitle(conversation.title, conversation.latestMessage?.body);
                     return (
                       <div
                         key={conversation.id}
@@ -380,9 +524,7 @@ export function VNextMeriThreadRail({
                               autoFocus
                               value={renaming.value}
                               aria-label="Rename chat"
-                              onChange={(event) =>
-                                setRenaming({ id: conversation.id, value: event.target.value })
-                              }
+                              onChange={(event) => setRenaming({ id: conversation.id, value: event.target.value })}
                               onBlur={() => void commitRename()}
                               onKeyDown={(event) => {
                                 if (event.key === 'Escape') {
@@ -400,17 +542,11 @@ export function VNextMeriThreadRail({
                             aria-current={active ? 'page' : undefined}
                           >
                             <span className="vnext-meri__thread-item-icon">
-                              <MeriIcon
-                                name={kindFor(conversation)}
-                                size={11}
-                                color={active ? '#101828' : '#667085'}
-                              />
+                              <MeriIcon name={kindFor(conversation)} size={11} color={active ? '#101828' : '#667085'} />
                             </span>
                             <span className="vnext-meri__thread-item-body">
                               <span className="vnext-meri__thread-item-title">{title}</span>
-                              <span className="vnext-meri__thread-item-meta">
-                                {threadMeta(conversation)}
-                              </span>
+                              <span className="vnext-meri__thread-item-meta">{threadMeta(conversation)}</span>
                             </span>
                           </button>
                         )}
@@ -426,20 +562,13 @@ export function VNextMeriThreadRail({
                           }}
                           onClick={(event) => {
                             event.stopPropagation();
-                            setMenuFor((current) =>
-                              current === conversation.id ? null : conversation.id,
-                            );
+                            setMenuFor((current) => (current === conversation.id ? null : conversation.id));
                           }}
                         >
                           <MeriIcon name="DotsHorizontal" size={14} color="#98A2B3" />
                         </button>
                         {menuFor === conversation.id ? (
-                          <div
-                            ref={menuRef}
-                            className="vnext-meri__row-menu"
-                            role="menu"
-                            aria-label="Chat options"
-                          >
+                          <div ref={menuRef} className="vnext-meri__row-menu" role="menu" aria-label="Chat options">
                             <button
                               type="button"
                               role="menuitem"
@@ -456,21 +585,26 @@ export function VNextMeriThreadRail({
                               type="button"
                               role="menuitem"
                               className="vnext-meri__row-menu-item"
-                              disabled
-                              title="Moving threads between workspaces is not available yet."
+                              onClick={() => {
+                                setMenuFor(null);
+                                setMoveFor(conversation);
+                              }}
                             >
-                              <MeriIcon name="SwitchHorizontal01" size={14} color="#344054" />
+                              <MeriIcon name="Building01" size={14} color="#344054" />
                               Move to workspace
                             </button>
                             <button
                               type="button"
                               role="menuitem"
                               className="vnext-meri__row-menu-item"
-                              disabled
-                              title="Duplicate context is not available yet."
+                              onClick={() => {
+                                setMenuFor(null);
+                                onNewChat();
+                                toast.success('Started a new draft. Context was not copied.');
+                              }}
                             >
                               <MeriIcon name="Copy01" size={14} color="#344054" />
-                              Duplicate context to new chat
+                              Start new draft
                             </button>
                             <span className="vnext-meri__row-menu-rule" />
                             <button
@@ -482,7 +616,7 @@ export function VNextMeriThreadRail({
                                 setConfirmFor(conversation);
                               }}
                             >
-                              <MeriIcon name="Archive" size={14} color="#B42318" />
+                              <MeriIcon name="Trash01" size={14} color="#B42318" />
                               Archive chat
                             </button>
                           </div>
@@ -498,17 +632,18 @@ export function VNextMeriThreadRail({
       </div>
 
       {undoTarget ? (
-        <div className="vnext-meri__undo-bar" role="status">
-          <span>Chat archived. It stays in the audit trail.</span>
+        <div className="vnext-meri__undo-toast" role="status">
+          <span>Chat archived.</span>
           <button
             type="button"
-            className="vnext-meri__section-label-link"
             onClick={() => {
-              const target = undoTarget;
-              setUndoTarget(null);
-              void onRestoreThread(target.id).catch(() =>
-                toast.error('The chat could not be restored.'),
-              );
+              void onRestoreThread(undoTarget.id)
+                .then(() => {
+                  upsertConversation(undoTarget);
+                  setUndoTarget(null);
+                  toast.success('Chat restored.');
+                })
+                .catch(() => toast.error('The chat could not be restored.'));
             }}
           >
             UNDO
@@ -516,42 +651,56 @@ export function VNextMeriThreadRail({
         </div>
       ) : null}
 
+      {workspaceDialogOpen ? (
+        <div className="vnext-meri__confirm-scrim" role="presentation">
+          <div className="vnext-meri__confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="meri-workspace-title">
+            <div id="meri-workspace-title" className="vnext-meri__confirm-title">Create workspace</div>
+            <div className="vnext-meri__confirm-body">Group related chats under a durable workspace.</div>
+            <input
+              autoFocus
+              value={newWorkspaceName}
+              onChange={(event) => setNewWorkspaceName(event.target.value)}
+              className="vnext-meri__workspace-input"
+              placeholder="Workspace name"
+              aria-label="Workspace name"
+            />
+            <div className="vnext-meri__confirm-actions">
+              <button type="button" className="vnext-meri__confirm-cancel" onClick={() => setWorkspaceDialogOpen(false)}>Cancel</button>
+              <button type="button" className="vnext-meri__confirm-delete" onClick={() => void createWorkspace()}>Create workspace</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {moveFor ? (
+        <div className="vnext-meri__confirm-scrim" role="presentation">
+          <div className="vnext-meri__confirm-dialog vnext-meri__move-dialog" role="dialog" aria-modal="true" aria-labelledby="meri-move-title">
+            <div id="meri-move-title" className="vnext-meri__confirm-title">Move chat to workspace</div>
+            <div className="vnext-meri__confirm-body">Choose the durable workspace that owns this chat.</div>
+            <div className="vnext-meri__move-workspace-list">
+              <button type="button" className="vnext-meri__workspace-item" onClick={() => void assignWorkspace(moveFor, null)}>
+                <span className="vnext-meri__workspace-copy"><span className="vnext-meri__workspace-name">No workspace</span><span className="vnext-meri__workspace-meta">GENERAL</span></span>
+              </button>
+              {(workspaces.data ?? []).map((workspace: MeriWorkspace) => (
+                <button type="button" key={workspace.id} className="vnext-meri__workspace-item" onClick={() => void assignWorkspace(moveFor, workspace.id)}>
+                  <span className="vnext-meri__workspace-copy"><span className="vnext-meri__workspace-name">{workspace.name}</span><span className="vnext-meri__workspace-meta">{workspace.clientId ? 'CLIENT' : 'GENERAL'}</span></span>
+                </button>
+              ))}
+            </div>
+            <div className="vnext-meri__confirm-actions"><button type="button" className="vnext-meri__confirm-cancel" onClick={() => setMoveFor(null)}>Cancel</button></div>
+          </div>
+        </div>
+      ) : null}
+
       {confirmFor ? (
         <div className="vnext-meri__confirm-scrim" role="presentation">
-          <div
-            className="vnext-meri__confirm-dialog"
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="meri-delete-title"
-            aria-describedby="meri-delete-body"
-          >
-            <span className="vnext-meri__confirm-icon">
-              <MeriIcon name="Archive" size={17} color="#B42318" />
-            </span>
-            <div id="meri-delete-title" className="vnext-meri__confirm-title">
-              Archive this chat?
-            </div>
-            <div id="meri-delete-body" className="vnext-meri__confirm-body">
-              “{displayThreadTitle(confirmFor.title, confirmFor.latestMessage?.body)}” is removed
-              from your workspace. The thread, its messages and its context history stay in the
-              audit trail.
-            </div>
+          <div className="vnext-meri__confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="meri-delete-title" aria-describedby="meri-delete-body">
+            <span className="vnext-meri__confirm-icon"><MeriIcon name="Trash01" size={17} color="#B42318" /></span>
+            <div id="meri-delete-title" className="vnext-meri__confirm-title">Archive chat?</div>
+            <div id="meri-delete-body" className="vnext-meri__confirm-body">This removes the chat from your recent list. Its messages and context remain in the audit trail and can be restored.</div>
             <div className="vnext-meri__confirm-actions">
-              <button
-                type="button"
-                className="vnext-meri__confirm-cancel"
-                ref={confirmCancelRef}
-                onClick={() => {
-                  const id = confirmFor.id;
-                  setConfirmFor(null);
-                  window.setTimeout(() => rowMenuRefs.current[id]?.focus(), 0);
-                }}
-              >
-                Cancel
-              </button>
-              <button type="button" className="vnext-meri__confirm-delete" onClick={() => void confirmDelete()}>
-                Archive chat
-              </button>
+              <button ref={confirmCancelRef} type="button" className="vnext-meri__confirm-cancel" onClick={() => setConfirmFor(null)}>Cancel</button>
+              <button type="button" className="vnext-meri__confirm-delete" onClick={() => void confirmDelete()}>Archive chat</button>
             </div>
           </div>
         </div>

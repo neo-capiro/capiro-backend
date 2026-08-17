@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCapiroToast } from '../components/feedback/toast.js';
 import { MeriCanvas } from '../../components/chat/MeriCanvas.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { config } from '../../env.js';
@@ -58,6 +59,9 @@ export function VNextMeriConversation({
   onOpenIntegrations,
 }: VNextMeriConversationProps) {
   const [libraryPage, setLibraryPage] = useState(0);
+  const [threadMenuOpen, setThreadMenuOpen] = useState(false);
+  const [pendingTitle, setPendingTitle] = useState<string | null>(null);
+  const toast = useCapiroToast();
   const { messages, isStreaming, clients } = controller;
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -129,6 +133,29 @@ export function VNextMeriConversation({
   });
   const activeConversationId = controller.activeConversationId;
 
+  useEffect(() => {
+    if (!threadMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setThreadMenuOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [threadMenuOpen]);
+
+  useEffect(() => {
+    if (pendingTitle === null || controller.isSavingMeta) return;
+    if (controller.metaError) {
+      toast.error('The thread could not be renamed.');
+      setPendingTitle(null);
+      return;
+    }
+    const notice = window.setTimeout(() => {
+      toast.success('Thread renamed.');
+      setPendingTitle(null);
+    }, 0);
+    return () => window.clearTimeout(notice);
+  }, [controller.isSavingMeta, controller.metaError, pendingTitle, toast]);
+
   return (
     <>
       <main className="vnext-meri__main">
@@ -152,12 +179,97 @@ export function VNextMeriConversation({
             {activeConversationId ? (
               <VNextMeriReasoningControl conversationId={activeConversationId} />
             ) : null}
-            <button type="button" className="vnext-meri__thread-action" aria-label="Bookmark thread" disabled title="Bookmark is not available yet.">
+            <button
+              type="button"
+              className="vnext-meri__thread-action"
+              aria-label="Copy thread link"
+              onClick={() => {
+                const copy = async () => {
+                  if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(window.location.href);
+                    return;
+                  }
+                  const input = document.createElement('textarea');
+                  input.value = window.location.href;
+                  input.setAttribute('readonly', '');
+                  input.style.position = 'fixed';
+                  input.style.opacity = '0';
+                  document.body.appendChild(input);
+                  input.select();
+                  const copied = document.execCommand('copy');
+                  input.remove();
+                  if (!copied) throw new Error('Copy is not supported');
+                };
+                void copy()
+                  .then(() => toast.success('Thread link copied.'))
+                  .catch(() => toast.error('The thread link could not be copied.'));
+              }}
+            >
               <MeriIcon name="BookmarkAdd" size={16} color="#667085" />
             </button>
-            <button type="button" className="vnext-meri__thread-action" aria-label="Thread actions" disabled title="Thread overflow is not available yet.">
-              <MeriIcon name="DotsHorizontal" size={16} color="#667085" />
-            </button>
+            <span className="vnext-meri__thread-overflow">
+              <button
+                type="button"
+                className="vnext-meri__thread-action"
+                aria-label="Thread actions"
+                aria-haspopup="menu"
+                aria-expanded={threadMenuOpen}
+                onClick={() => setThreadMenuOpen((open) => !open)}
+              >
+                <MeriIcon name="DotsHorizontal" size={16} color="#667085" />
+              </button>
+              {threadMenuOpen ? (
+                <div className="vnext-meri__row-menu" role="menu" aria-label="Thread actions">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="vnext-meri__row-menu-item"
+                    onClick={() => {
+                      const title = window.prompt('Thread title', threadTitle)?.trim();
+                      if (!title) return;
+                      setPendingTitle(title);
+                      controller.setSessionTitle(title);
+                      void controller.saveConversationMeta();
+                      setThreadMenuOpen(false);
+                    }}
+                  >
+                    <MeriIcon name="Edit01" size={14} color="#344054" />
+                    Rename thread
+                  </button>
+                  {selectedClient ? (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="vnext-meri__row-menu-item"
+                      onClick={() => {
+                        void controller.changeSessionClient('')
+                          .then(() => {
+                            setThreadMenuOpen(false);
+                            toast.success('Thread moved to all-client scope.');
+                          })
+                          .catch(() => toast.error('The thread scope could not be updated.'));
+                      }}
+                    >
+                      <MeriIcon name="Building01" size={14} color="#344054" />
+                      Move to all clients
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="vnext-meri__row-menu-item"
+                    onClick={() => {
+                      controller.handleNewSession();
+                      setThreadMenuOpen(false);
+                      toast.success('Started a new draft. Context was not copied.');
+                    }}
+                  >
+                    <MeriIcon name="Copy01" size={14} color="#344054" />
+                    Start new draft
+                  </button>
+                </div>
+              ) : null}
+            </span>
           </div>
         ) : null}
 

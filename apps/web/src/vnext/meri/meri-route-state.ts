@@ -1,4 +1,10 @@
-import type { MeriConversation } from '../../components/chat/chat-store.js';
+import type {
+  ChatMessageRetrieval,
+  GroundingCaveat,
+  MeriCitation,
+  MeriConversation,
+  MeriVerification,
+} from '../../components/chat/chat-store.js';
 import {
   MERI_WINDOW_CLIENT_QUERY,
   MERI_WINDOW_PROMPT_QUERY,
@@ -22,7 +28,7 @@ export interface PersistedMessage {
   role?: string;
   body?: string;
   createdAt?: string;
-  metadata?: { attachments?: unknown[] } | null;
+  metadata?: Record<string, unknown> | null;
   artifacts?: unknown[];
 }
 
@@ -101,6 +107,89 @@ export function mapPersistedAttachments(message: PersistedMessage): PersistedAtt
     .filter((item) => Boolean(item.id));
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+export function mapPersistedCitations(message: PersistedMessage): MeriCitation[] {
+  const raw = Array.isArray(message.metadata?.citations) ? message.metadata.citations : [];
+  return raw
+    .map(asRecord)
+    .filter((item): item is Record<string, unknown> => Boolean(item))
+    .filter((item) => typeof item.n === 'number' && typeof item.id === 'string' && typeof item.title === 'string')
+    .map((item) => ({
+      n: Number(item.n),
+      type: typeof item.type === 'string' ? item.type : 'source',
+      id: String(item.id),
+      title: String(item.title),
+      url: typeof item.url === 'string' ? item.url : null,
+      snippet: typeof item.snippet === 'string' ? item.snippet : null,
+      tool: typeof item.tool === 'string' ? item.tool : 'unknown',
+    }));
+}
+
+export function mapPersistedVerification(message: PersistedMessage): MeriVerification | undefined {
+  const raw = asRecord(message.metadata?.verification);
+  if (!raw || typeof raw.totalCount !== 'number' || typeof raw.unsupportedCount !== 'number') return undefined;
+  const claims = Array.isArray(raw.claims)
+    ? raw.claims
+        .map(asRecord)
+        .filter((claim): claim is Record<string, unknown> => Boolean(claim))
+        .filter((claim) => typeof claim.claim === 'string' && typeof claim.supported === 'boolean')
+        .map((claim) => ({
+          claim: String(claim.claim),
+          supported: Boolean(claim.supported),
+          sourceIds: Array.isArray(claim.sourceIds)
+            ? claim.sourceIds.filter((id): id is number => typeof id === 'number')
+            : [],
+        }))
+    : [];
+  const totalCount = raw.totalCount;
+  const unsupportedCount = raw.unsupportedCount;
+  return {
+    claims,
+    totalCount,
+    unsupportedCount,
+    unsupportedRatio: typeof raw.unsupportedRatio === 'number'
+      ? raw.unsupportedRatio
+      : totalCount > 0 ? unsupportedCount / totalCount : 0,
+    lowConfidence: Boolean(raw.lowConfidence),
+  };
+}
+
+export function mapPersistedGroundingCaveat(message: PersistedMessage): GroundingCaveat | undefined {
+  const raw = asRecord(message.metadata?.groundingCaveat);
+  const findings = Array.isArray(raw?.findings)
+    ? raw.findings
+        .map(asRecord)
+        .filter((finding): finding is Record<string, unknown> => Boolean(finding))
+        .filter((finding) => typeof finding.check === 'string' && typeof finding.severity === 'string' && typeof finding.detail === 'string')
+        .map((finding) => ({ check: String(finding.check), severity: String(finding.severity), detail: String(finding.detail) }))
+    : [];
+  return findings.length ? { topSeverity: typeof raw?.topSeverity === 'string' ? raw.topSeverity : null, findings } : undefined;
+}
+
+export function mapPersistedRetrieval(message: PersistedMessage): ChatMessageRetrieval | undefined {
+  const raw = asRecord(message.metadata?.retrieval);
+  const plan = asRecord(raw?.plan);
+  const coverage = asRecord(raw?.coverage);
+  if (!plan || !coverage || typeof plan.subjectScope !== 'string' || typeof coverage.complete !== 'boolean') return undefined;
+  return {
+    plan: {
+      subjectScope: plan.subjectScope,
+      targetHint: typeof plan.targetHint === 'string' ? plan.targetHint : null,
+      recipeTool: typeof plan.recipeTool === 'string' ? plan.recipeTool : null,
+      queryClass: typeof plan.queryClass === 'string' ? plan.queryClass : 'unknown',
+    },
+    coverage: {
+      complete: coverage.complete,
+      stopReason: typeof coverage.stopReason === 'string' ? coverage.stopReason : 'unknown',
+    },
+  };
+}
+
 export function mapPersistedCharts(message: PersistedMessage): PersistedChartArtifact[] {
   const raw = Array.isArray(message.artifacts) ? message.artifacts : [];
   return raw
@@ -143,6 +232,20 @@ export function normalizeConversation(value: unknown): MeriConversation | null {
     client,
     latestMessage,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : '',
+    ...(typeof raw.workspaceId === 'string' ? { workspaceId: raw.workspaceId } : {}),
+    ...(raw.workspace && typeof raw.workspace === 'object' &&
+    typeof (raw.workspace as Record<string, unknown>).id === 'string' &&
+    typeof (raw.workspace as Record<string, unknown>).name === 'string'
+      ? {
+          workspace: {
+            id: String((raw.workspace as Record<string, unknown>).id),
+            name: String((raw.workspace as Record<string, unknown>).name),
+            clientId: typeof (raw.workspace as Record<string, unknown>).clientId === 'string'
+              ? String((raw.workspace as Record<string, unknown>).clientId)
+              : null,
+          },
+        }
+      : {}),
   };
 }
 

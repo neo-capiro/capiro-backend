@@ -113,6 +113,7 @@ import {
 import { confidenceLevel } from './meri-confidence.helpers.js';
 import { classifyToolAction, isSideEffectingTool } from './meri-actions.helpers.js';
 import { detectDeliverableReportRequest } from './meri-research-promote.helpers.js';
+import { buildMeriGroundingStatement } from './meri-grounding-statement.js';
 import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import {
   MERIV2_FLAGS,
@@ -316,6 +317,7 @@ export class MeriService {
         orderBy: { updatedAt: 'desc' },
         include: {
           client: { select: { id: true, name: true, logoS3Key: true } },
+          workspace: { select: { id: true, name: true, clientId: true } },
           messages: { orderBy: { createdAt: 'desc' }, take: 1 },
           artifacts: { orderBy: { createdAt: 'desc' }, take: 4 },
         },
@@ -1709,6 +1711,10 @@ export class MeriService {
     // not get laundered into clio_memory and later resurface as uncited "firm
     // knowledge". Fail-open: stays false on any auditor error (catch below).
     let auditorFoundIssues = false;
+    let groundingCaveat: {
+      topSeverity: string | null;
+      findings: Array<{ check: string; severity: string; detail: string }>;
+    } | null = null;
     const auditorMode = (process.env.MERI_AUDITOR_MODE as AuditorMode | undefined) ?? 'off';
     if (auditorMode !== 'off' && assistantContent.trim().length > 0) {
       try {
@@ -1723,7 +1729,9 @@ export class MeriService {
           this.logger.warn(
             `[meri-auditor:${auditorMode}] chat turn — ${verdict.findings.length} finding(s), ` +
               `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
-              verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
+              verdict.findings
+                .map((f: { check: string; severity: string }) => `${f.check}/${f.severity}`)
+                .join(', '),
           );
           // Wave-5: persist findings to meri_audit_ledger (tenant-scoped, RLS) so
           // shadow-mode findings are queryable/aggregable for the lexicon tuning
@@ -1751,19 +1759,20 @@ export class MeriService {
           // SSE stream is still open (the verification frame below uses it too).
           if (auditorMode === 'enforce' || auditorMode === 'annotate') {
             const severe = verdict.findings.filter(
-              (f) => f.severity === 'high' || f.severity === 'critical',
+              (f: { check: string; severity: string; detail: string }) =>
+                f.severity === 'high' || f.severity === 'critical',
             );
             if (severe.length > 0) {
+              groundingCaveat = {
+                topSeverity: verdict.topSeverity ?? null,
+                findings: severe.map((f: { check: string; severity: string; detail: string }) => ({
+                  check: f.check,
+                  severity: f.severity,
+                  detail: f.detail,
+                })),
+              };
               sse.write(
-                `data: ${JSON.stringify({
-                  type: 'grounding_caveat',
-                  topSeverity: verdict.topSeverity ?? null,
-                  findings: severe.map((f) => ({
-                    check: f.check,
-                    severity: f.severity,
-                    detail: f.detail,
-                  })),
-                })}\n\n`,
+                `data: ${JSON.stringify({ type: 'grounding_caveat', ...groundingCaveat })}\n\n`,
               );
             }
           }
@@ -1812,6 +1821,15 @@ export class MeriService {
       sse.write(
         `data: ${JSON.stringify({ type: 'page_write', target: 'outreach_draft', subject: pageWritePayload.subject, body: pageWritePayload.body })}\n\n`,
       );
+    }
+
+    const groundingStatement = buildMeriGroundingStatement({
+      citations: finalCitations,
+      verification,
+      groundingCaveat,
+    });
+    if (!aborted) {
+      sse.write(`data: ${JSON.stringify({ type: 'grounding_statement', statement: groundingStatement })}\n\n`);
     }
 
     // Execution trace (P1-3): aggregate per-round timings/usage + tool outcomes
@@ -1869,6 +1887,10 @@ export class MeriService {
             toolsUsed,
             usage: { ...usageTotals },
             citations: finalCitations as unknown as Prisma.InputJsonValue,
+            groundingStatement,
+            ...(groundingCaveat
+              ? { groundingCaveat: groundingCaveat as unknown as Prisma.InputJsonValue }
+              : {}),
             finishReason: aborted ? 'aborted' : (loopStopReason ?? 'stop'),
             verification: verification as unknown as Prisma.InputJsonValue,
             trace: turnTrace as unknown as Prisma.InputJsonValue,

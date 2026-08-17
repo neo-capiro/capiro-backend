@@ -8,6 +8,7 @@ import {
   visibleMarkdown,
 } from './meri-presentation.js';
 import { MERI_ICON_DATA } from './meri-icons.js';
+import { normalizeMeriQuickActionCatalog } from './VNextMeriContextRail.js';
 
 const REQUIRED_ICONS = [
   'SearchLg',
@@ -120,6 +121,22 @@ describe('meri presentation helpers', () => {
     expect(visibleMarkdown(source, true)).not.toContain('```');
     expect(visibleMarkdown('**bold** and done', false)).toBe('**bold** and done');
     expect(visibleMarkdown('```js\nconst x = 1;\n```', true)).toContain('const x = 1;');
+  });
+
+  test('accepts only the enabled server-authoritative quick-action catalog', () => {
+    expect(
+      normalizeMeriQuickActionCatalog({
+        enabled: true,
+        skills: [
+          { id: 'portfolio_changes', label: 'Portfolio Changes', starterPrompt: 'What changed?', quickAction: true },
+          { id: 'not-an-action', label: 'Not an action', starterPrompt: 'Ignore me', quickAction: false },
+        ],
+      }),
+    ).toEqual([
+      expect.objectContaining({ id: 'portfolio_changes', label: 'Portfolio Changes' }),
+    ]);
+    expect(normalizeMeriQuickActionCatalog({ enabled: false, skills: [] })).toEqual([]);
+    expect(normalizeMeriQuickActionCatalog({ enabled: true, skills: [{ id: 'missing-prompt' }] })).toEqual([]);
   });
 
   test('ships every required Untitled UI icon from the purchased set', () => {

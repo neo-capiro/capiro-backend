@@ -42,6 +42,10 @@ import {
 import {
   mapPersistedAttachments,
   mapPersistedCharts,
+  mapPersistedCitations,
+  mapPersistedGroundingCaveat,
+  mapPersistedRetrieval,
+  mapPersistedVerification,
   meriContextRequest,
   newestConversation,
   normalizeConversation,
@@ -62,6 +66,14 @@ function historyMessage(value: unknown): ChatMessage | null {
   const message = value as PersistedMessage;
   const attachments = mapPersistedAttachments(message);
   const chartArtifacts = mapPersistedCharts(message);
+  const citations = mapPersistedCitations(message);
+  const verification = mapPersistedVerification(message);
+  const groundingCaveat = mapPersistedGroundingCaveat(message);
+  const retrieval = mapPersistedRetrieval(message);
+  const groundingStatement =
+    typeof message.metadata?.groundingStatement === 'string'
+      ? message.metadata.groundingStatement
+      : undefined;
   return {
     id: message.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     role: message.role === 'user' ? 'user' : 'assistant',
@@ -69,6 +81,11 @@ function historyMessage(value: unknown): ChatMessage | null {
     createdAt: message.createdAt ? new Date(message.createdAt) : new Date(),
     ...(attachments.length ? { attachments } : {}),
     ...(chartArtifacts.length ? { chartArtifacts } : {}),
+    ...(citations.length ? { citations } : {}),
+    ...(verification ? { verification } : {}),
+    ...(groundingCaveat ? { groundingCaveat } : {}),
+    ...(retrieval ? { retrieval } : {}),
+    ...(groundingStatement ? { groundingStatement } : {}),
   };
 }
 

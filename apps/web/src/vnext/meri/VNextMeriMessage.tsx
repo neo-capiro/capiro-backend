@@ -1,4 +1,4 @@
-import { Children, useMemo, useState, type ReactNode } from 'react';
+import { Children, useEffect, useMemo, useState, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
@@ -18,6 +18,16 @@ import type { MeriChatController } from '../../components/chat/useMeriChatContro
 import { MeriIcon } from './meri-icons.js';
 import { formatRecordTime, MERI_LOGO_SRC, visibleMarkdown } from './meri-presentation.js';
 import { VNextMeriSourceChip } from './VNextMeriSourceChip.js';
+import {
+  MeriEvidenceTray,
+  type MeriEvidenceClaim,
+  type MeriEvidenceSource,
+  type MeriEvidenceStat,
+  type MeriWorkStep,
+} from './MeriEvidenceTray.js';
+import { evidenceContextPacket } from './meri-context-packet.js';
+import { deleteMeriResearch, fetchLatestMeriContextPacket } from './meri-vnext-api.js';
+import { useApi } from '../../lib/use-api.js';
 
 interface VNextMeriMessageProps {
   message: ChatMessage;
@@ -64,7 +74,11 @@ function VNextMeriAssistantMessage({
   isStreaming: boolean;
   controller: MeriChatController;
 }) {
+  const api = useApi();
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [deletedResearch, setDeletedResearch] = useState(false);
+  const [contextPacket, setContextPacket] = useState<Awaited<ReturnType<typeof fetchLatestMeriContextPacket>> | null>(null);
   const [activeCitation, setActiveCitation] = useState<MeriCitation | null>(null);
   const citations = message.citations ?? [];
   const visibleCitations = sourcesExpanded ? citations : citations.slice(0, 3);
@@ -98,6 +112,48 @@ function VNextMeriAssistantMessage({
       : citations.length > 0
         ? 'GROUNDED'
         : null;
+
+  useEffect(() => {
+    if (!evidenceOpen || !controller.activeConversationId) return;
+    let cancelled = false;
+    setContextPacket(null);
+    void fetchLatestMeriContextPacket(api, controller.activeConversationId)
+      .then((packet) => {
+        if (!cancelled) setContextPacket(packet);
+      })
+      .catch(() => {
+        if (!cancelled) setContextPacket(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, controller.activeConversationId, evidenceOpen]);
+
+  const evidenceSources: MeriEvidenceSource[] = citations.map((citation) => ({
+    icon: 'File05',
+    provider: citation.tool.replace(/_/g, ' ').toUpperCase(),
+    date: 'RETRIEVED THIS TURN',
+    title: citation.title,
+    snippet: citation.snippet ?? 'No excerpt was returned for this source.',
+    locator: citation.type.toUpperCase(),
+  }));
+  const evidenceClaims: MeriEvidenceClaim[] = (message.verification?.claims ?? []).map((claim) => ({
+    state: claim.supported ? 'verified' : 'unsupported',
+    claim: claim.claim,
+  }));
+  const evidenceStats: MeriEvidenceStat[] = message.verification?.totalCount
+    ? [
+        { label: `CLAIMS CHECKED · ${message.verification.totalCount}`, tone: 'n' },
+        { label: `UNSUPPORTED · ${message.verification.unsupportedCount}`, tone: message.verification.unsupportedCount ? 'w' : 'g' },
+      ]
+    : [];
+  const evidenceSteps: MeriWorkStep[] = isLastAssistant
+    ? controller.trustSteps.map((step) => ({
+        state: step.status === 'error' ? 'failed' : step.status === 'running' ? 'running' : 'done',
+        title: step.label,
+        detail: step.detail ?? step.tool,
+      }))
+    : [];
 
   return (
     <div className="vnext-meri__assistant-message">
@@ -162,6 +218,10 @@ function VNextMeriAssistantMessage({
           </details>
         ) : null}
 
+        {message.groundingStatement ? (
+          <div className="vnext-meri__attachment-notice" role="status">{message.groundingStatement}</div>
+        ) : null}
+
         {message.groundingCaveat?.findings.length ? (
           <div className="vnext-meri__attachment-notice" role="alert">
             <strong>Meri flagged a possible grounding issue.</strong>
@@ -200,7 +260,7 @@ function VNextMeriAssistantMessage({
           </div>
         ) : null}
 
-        {researchReport ? (
+        {researchReport && !deletedResearch ? (
           <div className="vnext-meri__inline-actions">
             <button
               type="button"
@@ -215,6 +275,18 @@ function VNextMeriAssistantMessage({
               onClick={() => void controller.fetchResearchExport(researchReport, 'word')}
             >
               DOWNLOAD WORD
+            </button>
+            <button
+              type="button"
+              className="vnext-meri__inline-action-btn"
+              onClick={() => {
+                if (!window.confirm('Remove this research session? Its report will no longer be available for export.')) return;
+                void deleteMeriResearch(api, researchReport)
+                  .then(() => setDeletedResearch(true))
+                  .catch(() => undefined);
+              }}
+            >
+              DELETE RESEARCH
             </button>
           </div>
         ) : null}
@@ -233,6 +305,29 @@ function VNextMeriAssistantMessage({
               </button>
             ))}
           </div>
+        ) : null}
+
+        {!messageIsStreaming && message.content ? (
+          <div className="vnext-meri__inline-actions">
+            <button type="button" className="vnext-meri__inline-action-btn" onClick={() => setEvidenceOpen((open) => !open)}>
+              <MeriIcon name="ShieldTick" size={13} color="#344054" />
+              {evidenceOpen ? 'HIDE EVIDENCE' : 'VIEW EVIDENCE'}
+            </button>
+          </div>
+        ) : null}
+
+        {evidenceOpen ? (
+          <MeriEvidenceTray
+            sources={evidenceSources}
+            verifyStats={evidenceStats}
+            claims={evidenceClaims}
+            plan={isLastAssistant ? controller.planSteps.join(' ') : ''}
+            workStats={isLastAssistant ? [`SOURCES · ${citations.length}`, `STEPS · ${evidenceSteps.length}`] : []}
+            steps={evidenceSteps}
+            assumptions={[]}
+            context={contextPacket ? evidenceContextPacket(contextPacket) : { degraded: 'Context provenance is loading or unavailable for this answer.', included: [], excluded: [], packet: 'CONTEXT UNAVAILABLE' }}
+            onOpenSource={(_source, index) => setActiveCitation(citations[index] ?? null)}
+          />
         ) : null}
 
         {citations.length > 0 ? (

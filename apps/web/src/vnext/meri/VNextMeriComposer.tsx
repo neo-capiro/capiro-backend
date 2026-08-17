@@ -13,7 +13,13 @@ import {
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { maySend } from '../../components/chat/meri-route-guards.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
+import { useApi } from '../../lib/use-api.js';
 import { MeriIcon } from './meri-icons.js';
+import {
+  workspaceDocumentComposerText,
+  workspaceImportDraftsResponse,
+  type MeriWorkspaceImportDraft,
+} from './meri-workspace-import.js';
 import { MeriTaskModePicker } from './MeriTaskModePicker.js';
 
 const ATTACH_ACCEPT = '.pdf,.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
@@ -41,10 +47,19 @@ export function VNextMeriComposer({
   onOpenIntegrations,
 }: VNextMeriComposerProps) {
   const toast = useCapiroToast();
+  const api = useApi();
   const [draft, setDraft] = useState('');
   const [focused, setFocused] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [workspaceImportOpen, setWorkspaceImportOpen] = useState(false);
+  const [workspaceDrafts, setWorkspaceDrafts] = useState<MeriWorkspaceImportDraft[]>([]);
+  const [workspaceImportLoading, setWorkspaceImportLoading] = useState(false);
+  const [workspaceImportError, setWorkspaceImportError] = useState<string | null>(null);
+  const [workspaceDocuments, setWorkspaceDocuments] = useState<
+    Record<string, Array<{ id: string; name: string }> | null>
+  >({});
+  const [workspaceDocumentLoading, setWorkspaceDocumentLoading] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addRef = useRef<HTMLDivElement>(null);
@@ -90,6 +105,93 @@ export function VNextMeriComposer({
     window.addEventListener('meri-fill-draft', onFill);
     return () => window.removeEventListener('meri-fill-draft', onFill);
   }, []);
+
+  const workspaceRequest = useCallback(
+    async (path: string) => {
+      const { data } = await api.get(path);
+      return data as unknown;
+    },
+    [api],
+  );
+
+  useEffect(() => {
+    if (!workspaceImportOpen) return;
+    let cancelled = false;
+    setWorkspaceImportLoading(true);
+    setWorkspaceImportError(null);
+    void workspaceRequest('/workspace-api/drafts?scope=all')
+      .then((data) => {
+        if (cancelled) return;
+        setWorkspaceDrafts(workspaceImportDraftsResponse(data));
+        setWorkspaceDocuments({});
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWorkspaceDrafts([]);
+          setWorkspaceImportError('Workspace documents could not be loaded.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setWorkspaceImportLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceImportOpen, workspaceRequest]);
+
+  const loadWorkspaceDocument = useCallback(
+    async (draftId: string, documentId: string) => {
+      setWorkspaceDocumentLoading(documentId);
+      setWorkspaceImportError(null);
+      try {
+        const data = await workspaceRequest(
+          `/workspace-api/drafts/${encodeURIComponent(draftId)}/documents/${encodeURIComponent(documentId)}/meri-import`,
+        );
+        const composerText = workspaceDocumentComposerText(data);
+        if (!composerText) {
+          setWorkspaceImportError('This workspace document has no readable text.');
+          return;
+        }
+        setDraft((current) => (current.trim() ? `${current.trim()}\n\n${composerText}` : composerText));
+        setWorkspaceImportOpen(false);
+        window.setTimeout(() => textareaRef.current?.focus(), 0);
+      } catch {
+        setWorkspaceImportError('The workspace document could not be loaded.');
+      } finally {
+        setWorkspaceDocumentLoading(null);
+      }
+    },
+    [workspaceRequest],
+  );
+
+  const loadWorkspaceDraftDocuments = useCallback(
+    async (draftId: string) => {
+      if (workspaceDocuments[draftId] !== undefined) {
+        setWorkspaceDocuments((current) => ({ ...current, [draftId]: null }));
+        return;
+      }
+      setWorkspaceDocumentLoading(draftId);
+      setWorkspaceImportError(null);
+      try {
+        const data = await workspaceRequest(`/workspace-api/drafts/${encodeURIComponent(draftId)}`);
+        const documents =
+          data && typeof data === 'object' && Array.isArray((data as { documents?: unknown }).documents)
+            ? (data as { documents: Array<{ id: unknown; name: unknown }> }).documents.flatMap((document) =>
+                typeof document.id === 'string' && typeof document.name === 'string'
+                  ? [{ id: document.id, name: document.name }]
+                  : [],
+              )
+            : [];
+        setWorkspaceDocuments((current) => ({ ...current, [draftId]: documents }));
+        if (!documents.length) setWorkspaceImportError('This workspace draft has no readable documents.');
+      } catch {
+        setWorkspaceImportError('The workspace draft could not be loaded.');
+      } finally {
+        setWorkspaceDocumentLoading(null);
+      }
+    },
+    [workspaceDocuments, workspaceRequest],
+  );
 
   useEffect(() => {
     if (!addOpen) return;
@@ -184,7 +286,7 @@ export function VNextMeriComposer({
             </span>
             <span className="vnext-meri__add-popover-item-body">
               <span className="vnext-meri__add-popover-item-label">Add note</span>
-              <span className="vnext-meri__add-popover-item-desc">CAPTURE A THOUGHT OR IDEA</span>
+              <span className="vnext-meri__add-popover-item-desc">ADDS EDITABLE TEXT TO THIS MESSAGE</span>
             </span>
           </button>
           <button
@@ -238,7 +340,7 @@ export function VNextMeriComposer({
             className="vnext-meri__add-popover-item"
             onClick={() => {
               setAddOpen(false);
-              onOpenIntegrations();
+              setWorkspaceImportOpen(true);
             }}
           >
             <span className="vnext-meri__add-popover-tile">
@@ -246,7 +348,7 @@ export function VNextMeriComposer({
             </span>
             <span className="vnext-meri__add-popover-item-body">
               <span className="vnext-meri__add-popover-item-label">Import from workspace</span>
-              <span className="vnext-meri__add-popover-item-desc">REUSE CONTENT OR CHATS</span>
+              <span className="vnext-meri__add-popover-item-desc">REVIEW A DOCUMENT BEFORE ADDING IT TO THE DRAFT</span>
             </span>
           </button>
           <div className="vnext-meri__add-popover-footer">
@@ -403,13 +505,91 @@ export function VNextMeriComposer({
     </div>
   );
 
+  const workspaceImportDialog = workspaceImportOpen ? (
+    <div className="vnext-meri__confirm-scrim" role="presentation">
+      <div
+        className="vnext-meri__confirm-dialog vnext-meri__workspace-import"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="meri-workspace-import-title"
+      >
+        <div id="meri-workspace-import-title" className="vnext-meri__confirm-title">
+          Import from workspace
+        </div>
+        <div className="vnext-meri__confirm-body">
+          Select a document to add as editable text. It stays in this draft until you review and send it.
+        </div>
+        {workspaceImportLoading ? <div className="vnext-meri__ctx-empty">Loading workspace documents…</div> : null}
+        {workspaceImportError ? <div className="vnext-meri__ctx-empty">{workspaceImportError}</div> : null}
+        {!workspaceImportLoading && !workspaceImportError && workspaceDrafts.length === 0 ? (
+          <div className="vnext-meri__ctx-empty">No workspace documents are available.</div>
+        ) : null}
+        <div className="vnext-meri__move-workspace-list">
+          {workspaceDrafts.map((workspaceDraft) => {
+            const documents = workspaceDocuments[workspaceDraft.id];
+            const loading = workspaceDocumentLoading === workspaceDraft.id;
+            return (
+              <div key={workspaceDraft.id} className="vnext-meri__workspace-draft">
+                <button
+                  type="button"
+                  className="vnext-meri__workspace-item"
+                  onClick={() => void loadWorkspaceDraftDocuments(workspaceDraft.id)}
+                  aria-expanded={documents !== undefined && documents !== null}
+                >
+                  <span className="vnext-meri__workspace-copy">
+                    <span className="vnext-meri__workspace-name">{workspaceDraft.docTitle}</span>
+                    <span className="vnext-meri__workspace-meta">
+                      {workspaceDraft.clientName ?? 'Workspace draft'}
+                    </span>
+                  </span>
+                  <span className="vnext-meri__workspace-meta">{loading ? 'LOADING…' : 'VIEW DOCUMENTS'}</span>
+                </button>
+                {documents?.map((document) => (
+                  <button
+                    key={document.id}
+                    type="button"
+                    className="vnext-meri__workspace-item vnext-meri__workspace-document"
+                    disabled={workspaceDocumentLoading === document.id}
+                    onClick={() => void loadWorkspaceDocument(workspaceDraft.id, document.id)}
+                  >
+                    <span className="vnext-meri__workspace-copy">
+                      <span className="vnext-meri__workspace-name">{document.name}</span>
+                      <span className="vnext-meri__workspace-meta">ADD AS EDITABLE TEXT</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+        <div className="vnext-meri__confirm-actions">
+          <button
+            type="button"
+            className="vnext-meri__confirm-cancel"
+            onClick={() => setWorkspaceImportOpen(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   if (variant === 'landing') {
-    return <div className="vnext-meri__landing-composer">{composer}</div>;
+    return (
+      <>
+        <div className="vnext-meri__landing-composer">{composer}</div>
+        {workspaceImportDialog}
+      </>
+    );
   }
 
   return (
-    <div className="vnext-meri__composer-pinned">
-      <div className="vnext-meri__composer-pinned-inner">{composer}</div>
-    </div>
+    <>
+      <div className="vnext-meri__composer-pinned">
+        <div className="vnext-meri__composer-pinned-inner">{composer}</div>
+      </div>
+      {workspaceImportDialog}
+    </>
   );
 }

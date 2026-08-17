@@ -257,14 +257,14 @@ interface MeriEvidenceTrayProps {
 }
 
 export function MeriEvidenceTray({
-  sources = MERI_EVIDENCE_SOURCES,
-  verifyStats = MERI_VERIFY_STATS,
-  claims = MERI_CLAIMS,
-  plan = MERI_WORK_PLAN,
-  workStats = MERI_WORK_STATS,
-  steps = MERI_WORK_STEPS,
-  assumptions = MERI_ASSUMPTIONS,
-  context = MERI_CONTEXT_PACKET,
+  sources = [],
+  verifyStats = [],
+  claims = [],
+  plan = '',
+  workStats = [],
+  steps = [],
+  assumptions = [],
+  context = { degraded: 'Evidence is not available for this answer.', included: [], excluded: [], packet: 'EVIDENCE UNAVAILABLE' },
   initialTab = 'sources',
   onOpenSource,
   onReviewContext,
