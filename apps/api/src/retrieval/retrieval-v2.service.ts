@@ -2,6 +2,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { buildCoverageManifest } from './coverage-manifest.js';
 import { ExactLexicalRetrievalService } from './exact-lexical-retrieval.service.js';
 import { RetrievalPlannerV2Service } from './retrieval-planner-v2.service.js';
+import { RetrievalRerankerService } from './retrieval-reranker.service.js';
 import {
   RETRIEVAL_SOURCE_ADAPTERS,
   type RetrievalSourceAdapter,
@@ -11,6 +12,7 @@ import type {
   RetrievalObservability,
   RetrievalRequest,
   RetrievalResponse,
+  RetrievalRerankingObservability,
   RetrievalSourceResult,
   RetrievalSourceStatus,
   SemanticDatasetDescriptor,
@@ -36,6 +38,7 @@ export class RetrievalV2Service {
     @Inject(RETRIEVAL_SOURCE_ADAPTERS)
     adapters: readonly RetrievalSourceAdapter[],
     @Optional() private readonly exactLexical?: ExactLexicalRetrievalService,
+    @Optional() private readonly reranker?: RetrievalRerankerService,
   ) {
     const byKey = new Map<string, RetrievalSourceAdapter>();
     for (const adapter of adapters) {
@@ -110,15 +113,28 @@ export class RetrievalV2Service {
     return this.response(request, entries.map((entry) => entry.dataset.domain), results);
   }
 
-  private response(
+  private async response(
     request: RetrievalRequest,
     requestedDomains: readonly RetrievalDomain[],
     results: readonly RetrievalSourceResult[],
-  ): RetrievalResponse {
+  ): Promise<RetrievalResponse> {
+    // Coverage is proved from the authoritative source results BEFORE reranking.
+    // Phase 13 may reorder the candidate array only; it never feeds back into
+    // source health, pagination, availability, authority or completeness.
     const coverage = buildCoverageManifest(requestedDomains, results);
-    const observability = this.buildObservability(request, results, coverage.complete, coverage.stopReason);
+    const baselineRecords = results.flatMap((result) => result.records);
+    const reranked = this.reranker
+      ? await this.reranker.rerank(request, baselineRecords)
+      : { records: baselineRecords, observability: undefined };
+    const observability = this.buildObservability(
+      request,
+      results,
+      coverage.complete,
+      coverage.stopReason,
+      reranked.observability,
+    );
     return {
-      records: results.flatMap((result) => result.records),
+      records: reranked.records,
       coverage,
       observability,
     };
@@ -240,6 +256,7 @@ export class RetrievalV2Service {
     results: readonly RetrievalSourceResult[],
     coverageComplete: boolean,
     stopReason: string,
+    reranking?: RetrievalRerankingObservability,
   ): RetrievalObservability {
     return {
       queryClass: request.queryClass,
@@ -256,6 +273,7 @@ export class RetrievalV2Service {
       ),
       coverageComplete,
       stopReason,
+      ...(reranking ? { reranking } : {}),
     };
   }
 }

@@ -214,6 +214,32 @@ export interface CoverageManifest {
   stopReason: string;
 }
 
+export type RetrievalRerankingStatus = 'disabled' | 'skipped' | 'applied' | 'fallback';
+
+/** Score trace only. Scores are relevance signals and carry no factual authority. */
+export interface RetrievalRerankingScore {
+  domain: RetrievalDomain;
+  recordId: string;
+  originalRank: number;
+  finalRank: number;
+  score: number;
+}
+
+export interface RetrievalRerankingObservability {
+  status: RetrievalRerankingStatus;
+  provider: string | null;
+  model: string | null;
+  candidateCount: number;
+  rerankedCount: number;
+  durationMs: number;
+  scores: RetrievalRerankingScore[];
+  fallbackReason?: string;
+  usage?: {
+    promptTokens?: number;
+    totalTokens?: number;
+  };
+}
+
 export interface RetrievalObservability {
   queryClass: RetrievalQueryClass;
   requestedDomains: RetrievalDomain[];
@@ -225,6 +251,8 @@ export interface RetrievalObservability {
   freshnessByDomain: Partial<Record<RetrievalDomain, Date | null>>;
   coverageComplete: boolean;
   stopReason: string;
+  /** Phase 13 relevance-order trace; omitted only by legacy/direct test construction. */
+  reranking?: RetrievalRerankingObservability;
 }
 
 export interface RetrievalResponse {
