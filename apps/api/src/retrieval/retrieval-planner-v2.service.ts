@@ -10,17 +10,24 @@ export class RetrievalPlannerV2Service {
     if (request.requestedDomains.length === 0) {
       throw new Error('Retrieval V2 requires at least one requested domain');
     }
+    if (request.exactLexical && request.queryClass !== 'lookup') {
+      throw new Error('Phase 11 exact lexical retrieval requires queryClass=lookup');
+    }
 
     const requestedDomains = [...new Set(request.requestedDomains)];
     const entries = requestedDomains.map((domain) => {
       const dataset = this.catalog.get(domain);
-      const supported = dataset.supportedQueryClasses.includes(request.queryClass);
+      const supported = request.exactLexical
+        ? dataset.queryCapabilities.exactFiltering
+        : dataset.supportedQueryClasses.includes(request.queryClass);
       return {
         dataset,
         supported,
         reason: supported
           ? undefined
-          : `${domain} does not support query class ${request.queryClass}`,
+          : request.exactLexical
+            ? `${domain} does not support exact filtering`
+            : `${domain} does not support query class ${request.queryClass}`,
       };
     });
 

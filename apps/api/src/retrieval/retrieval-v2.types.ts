@@ -38,6 +38,33 @@ export const RETRIEVAL_DOMAINS = [
 
 export type RetrievalDomain = (typeof RETRIEVAL_DOMAINS)[number];
 
+/**
+ * Phase 11 deterministic exact-retrieval vocabulary. Callers must name the
+ * identifier/name family they intend; Retrieval V2 never guesses that an
+ * arbitrary 5/10/12-character token is CAGE/CIK/UEI.
+ */
+export const EXACT_LEXICAL_KINDS = [
+  'canonical_name',
+  'domain',
+  'uei',
+  'cage',
+  'cik',
+  'contract_id',
+  'bill_id',
+  'pe_code',
+  'program_name',
+  'appropriation_account',
+] as const;
+
+export type ExactLexicalKind = (typeof EXACT_LEXICAL_KINDS)[number];
+
+export interface ExactLexicalQuery {
+  kind: ExactLexicalKind;
+  value: string;
+  /** Optional disambiguator for display-form federal bill ids such as H.R. 8800. */
+  congress?: number;
+}
+
 export type RetrievalSourceStatus =
   | 'healthy'
   | 'degraded'
@@ -100,6 +127,8 @@ export interface RetrievalRequest {
   requestedDomains: readonly RetrievalDomain[];
   caller: RetrievalCallerContext;
   query?: string;
+  /** Phase 11 typed exact/lexical lookup. Valid only with queryClass=lookup. */
+  exactLexical?: ExactLexicalQuery;
   canonicalEntityIds?: readonly string[];
   asOf?: Date;
   windowStart?: Date;

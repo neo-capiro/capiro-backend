@@ -1,5 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { buildCoverageManifest } from './coverage-manifest.js';
+import { ExactLexicalRetrievalService } from './exact-lexical-retrieval.service.js';
 import { RetrievalPlannerV2Service } from './retrieval-planner-v2.service.js';
 import {
   RETRIEVAL_SOURCE_ADAPTERS,
@@ -34,6 +35,7 @@ export class RetrievalV2Service {
     private readonly planner: RetrievalPlannerV2Service,
     @Inject(RETRIEVAL_SOURCE_ADAPTERS)
     adapters: readonly RetrievalSourceAdapter[],
+    @Optional() private readonly exactLexical?: ExactLexicalRetrievalService,
   ) {
     const byKey = new Map<string, RetrievalSourceAdapter>();
     for (const adapter of adapters) {
@@ -45,6 +47,10 @@ export class RetrievalV2Service {
 
   async retrieve(request: RetrievalRequest): Promise<RetrievalResponse> {
     const plan = this.planner.plan(request);
+    if (request.exactLexical) {
+      return this.retrieveExact(request, plan.entries);
+    }
+
     const results = await Promise.all(
       plan.entries.map(async (entry) => {
         if (!entry.supported) {
@@ -68,9 +74,49 @@ export class RetrievalV2Service {
       }),
     );
 
-    const coverage = buildCoverageManifest(plan.requestedDomains, results);
-    const observability = this.buildObservability(request, results, coverage.complete, coverage.stopReason);
+    return this.response(request, plan.requestedDomains, results);
+  }
 
+  private async retrieveExact(
+    request: RetrievalRequest,
+    entries: ReturnType<RetrievalPlannerV2Service['plan']>['entries'],
+  ): Promise<RetrievalResponse> {
+    const supportedDomains = entries.filter((entry) => entry.supported).map((entry) => entry.dataset.domain);
+    const exactResults = this.exactLexical
+      ? await this.exactLexical.retrieve({ ...request, requestedDomains: supportedDomains })
+      : [];
+    const byDomain = new Map(exactResults.map((result) => [result.domain, result]));
+
+    const results = entries.map((entry) => {
+      if (!entry.supported) {
+        return this.unavailableResult(
+          entry.dataset,
+          request,
+          'unsupported',
+          entry.reason ?? 'exact_filtering_unsupported',
+        );
+      }
+      return (
+        byDomain.get(entry.dataset.domain) ??
+        this.unavailableResult(
+          entry.dataset,
+          request,
+          'unavailable',
+          this.exactLexical ? 'exact_lexical_domain_missing_result' : 'exact_lexical_service_not_registered',
+        )
+      );
+    });
+
+    return this.response(request, entries.map((entry) => entry.dataset.domain), results);
+  }
+
+  private response(
+    request: RetrievalRequest,
+    requestedDomains: readonly RetrievalDomain[],
+    results: readonly RetrievalSourceResult[],
+  ): RetrievalResponse {
+    const coverage = buildCoverageManifest(requestedDomains, results);
+    const observability = this.buildObservability(request, results, coverage.complete, coverage.stopReason);
     return {
       records: results.flatMap((result) => result.records),
       coverage,

@@ -1,0 +1,125 @@
+name: Knowledge Plane Phase 11 CI
+
+on:
+  push:
+    branches:
+      - agent/knowledge-plane-phase-11-exact-lexical-retrieval-final
+    paths:
+      - 'apps/api/src/retrieval/**'
+      - 'apps/api/prisma/migrations/20261120190000_retrieval_v2_exact_lexical_indexes/**'
+      - 'apps/api/src/knowledge/entities/entity-normalization.ts'
+      - 'apps/api/src/knowledge/entities/universal-entity-resolution.service.ts'
+      - 'docs/knowledge-plane/phase-11-exact-lexical-retrieval.md'
+      - '.github/workflows/knowledge-phase11-ci.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'apps/api/src/retrieval/**'
+      - 'apps/api/prisma/migrations/20261120190000_retrieval_v2_exact_lexical_indexes/**'
+      - 'apps/api/src/knowledge/entities/entity-normalization.ts'
+      - 'apps/api/src/knowledge/entities/universal-entity-resolution.service.ts'
+      - 'docs/knowledge-plane/phase-11-exact-lexical-retrieval.md'
+      - '.github/workflows/knowledge-phase11-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: capiro
+          POSTGRES_PASSWORD: capiro
+          POSTGRES_DB: capiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U capiro -d capiro"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://capiro:capiro@localhost:5432/capiro
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch hygiene
+        run: git diff --check HEAD^
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages consumed by @capiro/api
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Validate and generate Prisma client
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Focused Phase 11 Retrieval tests
+        run: pnpm --filter @capiro/api exec jest --runInBand --forceExit src/retrieval
+
+      - name: Canonical identity normalization regressions
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/knowledge/entities/entity-normalization.spec.ts \
+            src/knowledge/entities/universal-entity-resolution.preview.spec.ts \
+            src/knowledge/entities/universal-entity-resolution.service.spec.ts
+
+      - name: Reject Phase 11 TypeScript errors
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @capiro/api exec tsc --noEmit --pretty false > /tmp/api-tsc.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/api-tsc.log
+          if grep -E 'src/retrieval/|20261120190000_retrieval_v2_exact_lexical_indexes' /tmp/api-tsc.log; then
+            echo "Phase 11 introduced TypeScript errors." >&2
+            exit 1
+          fi
+          echo "Full API typecheck exit: $status (unrelated baseline errors, if any, are not attributed to Phase 11)."
+
+      - name: Deploy full migration chain to disposable pgvector/Postgres
+        run: pnpm --filter @capiro/api exec prisma migrate deploy
+
+      - name: Verify Phase 11 indexes exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            canonical_entities_global_exact_name_idx
+            canonical_entities_tenant_exact_name_idx
+            clients_tenant_uei_exact_idx
+            clients_tenant_cage_exact_idx
+            client_capabilities_appropriation_exact_idx
+            federal_award_award_unique_exact_idx
+            federal_award_piid_exact_idx
+            federal_award_fain_exact_idx
+            federal_award_recipient_uei_exact_idx
+            sam_opportunity_notice_exact_idx
+            sam_opportunity_solicitation_exact_idx
+            congress_bill_type_number_congress_exact_idx
+            program_canonical_name_exact_idx
+            sec_filing_normalized_cik_exact_idx
+          )
+          for index_name in "${required[@]}"; do
+            exists=$(psql "$DATABASE_URL" -Atc "SELECT to_regclass('public.' || '$index_name') IS NOT NULL")
+            test "$exists" = "t" || { echo "Missing Phase 11 index: $index_name" >&2; exit 1; }
+          done
