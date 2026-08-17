@@ -30,7 +30,7 @@ const REQUIRED_ICONS = [
   'ShieldTick',
   'Sliders02',
   'PuzzlePiece01',
-  'BookmarkAdd',
+  'Link03',
   'ChevronUp',
   'ChevronLeft',
   'ChevronRight',

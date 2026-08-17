@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import { MeriCanvas } from '../../components/chat/MeriCanvas.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
@@ -9,21 +9,6 @@ import { VNextMeriMessage } from './VNextMeriMessage.js';
 import { VNextMeriComposer } from './VNextMeriComposer.js';
 import { VNextMeriReasoningControl } from './VNextMeriReasoningControl.js';
 import { MeriStartWork } from './MeriStartWork.js';
-
-const PROMPT_LIBRARY = [
-  { text: 'What changed across my clients this week?', tag: 'PORTFOLIO · ALL CLIENTS' },
-  { text: "Prep me for Thursday's appropriations markup", tag: 'HEARING · APPROPRIATIONS' },
-  { text: 'Draft a client update on the highest-priority budget change', tag: 'DRAFT · CLIENT' },
-  { text: 'Which FY27 exposures need attention first?', tag: 'ANALYSIS · FY27' },
-  { text: 'Which of my asks survived from House mark to enacted last cycle, and why?', tag: 'PATTERN · PRIOR CYCLES' },
-  { text: 'Who on committee staff has moved on this program before, and what did they ask for?', tag: 'RELATIONSHIPS · STAFF' },
-  { text: 'Where do two sources disagree on a number I am about to send a client?', tag: 'CONFLICT CHECK' },
-  { text: 'Watch the most important issue in this week\u2019s hearings and tell me what moves', tag: 'WATCHLIST · LIVE' },
-  { text: 'Compare the committee report language against what we actually requested, line by line', tag: 'LANGUAGE DIFF' },
-  { text: 'What is the strongest evidence against our own position?', tag: 'RED TEAM' },
-  { text: 'Turn the latest meeting debrief into follow-ups with owners and dates', tag: 'MEETING · DEBRIEF' },
-  { text: 'Which grants is this client eligible for, and name the criteria met', tag: 'GRANTS · ELIGIBILITY' },
-] as const;
 
 function greetingFor(name: string): string {
   const hour = new Date().getHours();
@@ -58,7 +43,6 @@ export function VNextMeriConversation({
   tenantName,
   onOpenIntegrations,
 }: VNextMeriConversationProps) {
-  const [libraryPage, setLibraryPage] = useState(0);
   const [threadMenuOpen, setThreadMenuOpen] = useState(false);
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
   const toast = useCapiroToast();
@@ -68,12 +52,6 @@ export function VNextMeriConversation({
   const hasThread = messages.length > 0;
   const selectedClient =
     clients.find((client) => client.id === controller.selectedClientValue) ?? null;
-
-  const promptPages = Math.ceil(PROMPT_LIBRARY.length / 4);
-  const prompts = useMemo(
-    () => PROMPT_LIBRARY.slice(libraryPage * 4, libraryPage * 4 + 4),
-    [libraryPage],
-  );
 
   // Scroll anchoring: stick to the bottom only while the user is at the bottom.
   const stickToBottomRef = useRef(true);
@@ -205,7 +183,7 @@ export function VNextMeriConversation({
                   .catch(() => toast.error('The thread link could not be copied.'));
               }}
             >
-              <MeriIcon name="BookmarkAdd" size={16} color="#667085" />
+              <MeriIcon name="Link03" size={16} color="#667085" />
             </button>
             <span className="vnext-meri__thread-overflow">
               <button
