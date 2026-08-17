@@ -8,7 +8,7 @@ export interface EmbeddingProviderMetadata {
   model: string;
   /** Human-readable adapter/model version for logs and diagnostics. */
   modelVersion: string;
-  /** Number of floats returned for every non-empty input. */
+  /** Number of floats returned for every successful embedding. */
   dimensions: number;
 }
 
@@ -48,7 +48,7 @@ export class EmbeddingProviderError extends Error {
 export interface EmbeddingProvider {
   readonly metadata: EmbeddingProviderMetadata;
 
-  /** Embed one input. Empty/whitespace-only input returns an empty vector. */
+  /** Embed one input. Callers retain their existing normalization/empty policy. */
   embed(input: string): Promise<number[]>;
 
   /** Embed multiple inputs while preserving input order. */
