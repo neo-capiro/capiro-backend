@@ -16,7 +16,7 @@ export const TITAN_EMBEDDING_MODEL_VERSION =
 const DEFAULT_REGION = process.env.AWS_REGION_DEFAULT ?? 'us-east-1';
 
 export interface EmbeddingModelResponse {
-  body: Uint8Array;
+  body?: Uint8Array;
 }
 
 /** Test seam around Bedrock's InvokeModel transport. */
@@ -82,6 +82,14 @@ export class TitanEmbeddingProvider implements EmbeddingProvider {
     }
 
     try {
+      if (!response.body) {
+        throw new EmbeddingProviderError(
+          'invalid_provider_response',
+          'Embedding provider returned an empty response body',
+          this.metadata,
+          false,
+        );
+      }
       const parsed = JSON.parse(new TextDecoder().decode(response.body)) as {
         embedding?: number[];
       };
