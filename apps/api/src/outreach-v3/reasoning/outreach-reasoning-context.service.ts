@@ -14,6 +14,7 @@ import {
 import {
   isOutreachReasoningReadTool,
   OUTREACH_REASONING_READ_TOOLS,
+  sanitizeOutreachReasoningToolInput,
 } from './outreach-reasoning-tools.js';
 
 const IMPLEMENTED_COMMANDS = OUTREACH_COMMAND_REGISTRY.filter(
@@ -186,6 +187,11 @@ function prepareToolInput(
   campaign: ReasoningCampaignContext,
 ): unknown {
   const raw = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+  const sanitized = sanitizeOutreachReasoningToolInput(name, raw);
+  const prepared =
+    sanitized && typeof sanitized === 'object' && !Array.isArray(sanitized)
+      ? (sanitized as Record<string, unknown>)
+      : raw;
   const spec = campaign.spec as OutreachCampaignSpecV1;
   const criteria = spec.targeting.criteria ?? {
     notes: null,
@@ -201,10 +207,10 @@ function prepareToolInput(
 
   if (name === 'search_targets') {
     return {
-      query: typeof raw.query === 'string' ? raw.query : null,
-      clientId: typeof raw.clientId === 'string' ? raw.clientId : null,
-      sources: Array.isArray(raw.sources) ? raw.sources : [],
-      limit: typeof raw.limit === 'number' ? raw.limit : 20,
+      query: typeof prepared.query === 'string' ? prepared.query : null,
+      clientId: typeof prepared.clientId === 'string' ? prepared.clientId : null,
+      sources: Array.isArray(prepared.sources) ? prepared.sources : [],
+      limit: typeof prepared.limit === 'number' ? prepared.limit : 20,
       criteria: {
         governmentLevels: criteria.governmentLevels,
         chambers: criteria.chambers,
@@ -240,7 +246,7 @@ function prepareToolInput(
     return strategyInput(spec);
   }
 
-  return input;
+  return sanitized;
 }
 
 function strategyInput(spec: OutreachCampaignSpecV1) {

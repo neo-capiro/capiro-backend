@@ -447,11 +447,12 @@ function configuredStateMode(): OutreachReasoningStateMode {
 }
 
 function configuredReasoningEffort(): OutreachReasoningEffort {
-  const raw = process.env.OUTREACH_V3_REASONING_EFFORT?.trim() || 'medium';
+  const raw = process.env.OUTREACH_V3_REASONING_EFFORT?.trim().toLowerCase() || 'high';
+  if (raw === 'max') return 'high';
   if (raw === 'low' || raw === 'medium' || raw === 'high') return raw;
   throw new OutreachReasoningError(
     'OUTREACH_REASONING_PROVIDER_UNAVAILABLE',
-    'OUTREACH_V3_REASONING_EFFORT must be low, medium, or high.',
+    'OUTREACH_V3_REASONING_EFFORT must be low, medium, high, or max.',
     503,
   );
 }

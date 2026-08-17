@@ -18,8 +18,7 @@ export const OUTREACH_REASONING_READ_TOOL_NAMES = [
 export type OutreachReasoningReadToolName = (typeof OUTREACH_REASONING_READ_TOOL_NAMES)[number];
 
 const uuidSchema = { type: 'string', format: 'uuid' } as const;
-const nullableUuidSchema = { anyOf: [uuidSchema, { type: 'null' }] } as const;
-const nullableStringSchema = { anyOf: [{ type: 'string' }, { type: 'null' }] } as const;
+const emptyOrTextSchema = { type: 'string', maxLength: 500 } as const;
 const contextClassSchema = {
   type: 'string',
   enum: [
@@ -30,85 +29,38 @@ const contextClassSchema = {
     'group_safe',
   ],
 } as const;
+
+// OpenAI strict function tools reject oneOf/anyOf. Unused optional fields are
+// sent as empty strings and stripped before Capiro Zod validation.
 const contextScopeSchema = {
-  oneOf: [
-    {
-      type: 'object',
-      additionalProperties: false,
-      properties: { kind: { type: 'string', enum: ['campaign'] } },
-      required: ['kind'],
-    },
-    {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        kind: { type: 'string', enum: ['target'] },
-        targetKey: { type: 'string', minLength: 1, maxLength: 384 },
-      },
-      required: ['kind', 'targetKey'],
-    },
-    {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        kind: { type: 'string', enum: ['group'] },
-        groupRef: { type: 'string', minLength: 1, maxLength: 160 },
-      },
-      required: ['kind', 'groupRef'],
-    },
-  ],
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    kind: { type: 'string', enum: ['campaign', 'target', 'group'] },
+    targetKey: { type: 'string', maxLength: 384 },
+    groupRef: { type: 'string', maxLength: 160 },
+  },
+  required: ['kind', 'targetKey', 'groupRef'],
 } as const;
 
 const targetRefSchema = {
-  oneOf: [
-    {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', enum: ['directory_member'] },
-        id: { type: 'string', minLength: 1, maxLength: 256 },
-      },
-      required: ['source', 'id'],
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    source: {
+      type: 'string',
+      enum: [
+        'directory_member',
+        'directory_staff',
+        'state_legislator',
+        'client_person',
+        'engagement_contact',
+      ],
     },
-    {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', enum: ['directory_staff'] },
-        id: { type: 'string', minLength: 1, maxLength: 256 },
-      },
-      required: ['source', 'id'],
-    },
-    {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', enum: ['state_legislator'] },
-        id: { type: 'string', minLength: 1, maxLength: 256 },
-      },
-      required: ['source', 'id'],
-    },
-    {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', enum: ['client_person'] },
-        id: uuidSchema,
-        clientId: uuidSchema,
-      },
-      required: ['source', 'id', 'clientId'],
-    },
-    {
-      type: 'object',
-      additionalProperties: false,
-      properties: {
-        source: { type: 'string', enum: ['engagement_contact'] },
-        id: uuidSchema,
-        clientId: nullableUuidSchema,
-      },
-      required: ['source', 'id', 'clientId'],
-    },
-  ],
+    id: { type: 'string', minLength: 1, maxLength: 256 },
+    clientId: { type: 'string', maxLength: 64 },
+  },
+  required: ['source', 'id', 'clientId'],
 } as const;
 
 export const OUTREACH_REASONING_READ_TOOLS: readonly ReasoningProviderTool[] = Object.freeze([
@@ -167,8 +119,8 @@ export const OUTREACH_REASONING_READ_TOOLS: readonly ReasoningProviderTool[] = O
       type: 'object',
       additionalProperties: false,
       properties: {
-        query: nullableStringSchema,
-        clientId: nullableUuidSchema,
+        query: emptyOrTextSchema,
+        clientId: emptyOrTextSchema,
         sources: {
           type: 'array',
           maxItems: 6,
@@ -234,7 +186,7 @@ export const OUTREACH_REASONING_READ_TOOLS: readonly ReasoningProviderTool[] = O
       additionalProperties: false,
       properties: {
         targetRef: targetRefSchema,
-        clientId: nullableUuidSchema,
+        clientId: emptyOrTextSchema,
         limit: { type: 'integer', minimum: 1, maximum: 25 },
       },
       required: ['targetRef', 'clientId', 'limit'],
@@ -251,7 +203,7 @@ export const OUTREACH_REASONING_READ_TOOLS: readonly ReasoningProviderTool[] = O
       additionalProperties: false,
       properties: {
         query: { type: 'string', minLength: 2, maxLength: 500 },
-        clientId: nullableUuidSchema,
+        clientId: emptyOrTextSchema,
         intendedClass: contextClassSchema,
         scope: contextScopeSchema,
         limit: { type: 'integer', minimum: 1, maximum: 50 },
@@ -312,7 +264,7 @@ export const OUTREACH_REASONING_READ_TOOLS: readonly ReasoningProviderTool[] = O
       additionalProperties: false,
       properties: {
         documentId: uuidSchema,
-        clientId: nullableUuidSchema,
+        clientId: emptyOrTextSchema,
         intendedClass: contextClassSchema,
         scope: contextScopeSchema,
       },
@@ -333,6 +285,30 @@ const allowed = new Set<string>(OUTREACH_REASONING_READ_TOOL_NAMES);
 
 export function isOutreachReasoningReadTool(name: string): name is OutreachReasoningReadToolName {
   return allowed.has(name);
+}
+
+function blankToNull(value: unknown): unknown {
+  return value === '' || value === undefined ? null : value;
+}
+
+function compactObject(value: unknown, dropKeys: string[]): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const next: Record<string, unknown> = { ...(value as Record<string, unknown>) };
+  for (const key of dropKeys) {
+    if (next[key] === '' || next[key] === null || next[key] === undefined) delete next[key];
+  }
+  return next;
+}
+
+/** Strip OpenAI-strict empty-string placeholders before Capiro Zod validation. */
+export function sanitizeOutreachReasoningToolInput(_name: string, input: unknown): unknown {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return input;
+  const raw: Record<string, unknown> = { ...(input as Record<string, unknown>) };
+  if ('query' in raw) raw.query = blankToNull(raw.query);
+  if ('clientId' in raw) raw.clientId = blankToNull(raw.clientId);
+  if ('targetRef' in raw) raw.targetRef = compactObject(raw.targetRef, ['clientId']);
+  if ('scope' in raw) raw.scope = compactObject(raw.scope, ['targetKey', 'groupRef']);
+  return raw;
 }
 
 export function assertOutreachReasoningToolContract(): void {

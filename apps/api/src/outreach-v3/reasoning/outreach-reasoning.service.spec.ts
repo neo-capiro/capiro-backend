@@ -348,4 +348,38 @@ describe('OutreachReasoningService', () => {
     expect((h.claims.release.mock.calls[0] as unknown[] | undefined)?.[0]).toBe(ctx);
     expect((h.claims.release.mock.calls[0] as unknown[] | undefined)?.[1]).toBe(conversation.id);
   });
+
+  it('defaults new conversations to max reasoning effort', async () => {
+    const previous = process.env.OUTREACH_V3_REASONING_EFFORT;
+    delete process.env.OUTREACH_V3_REASONING_EFFORT;
+    const h = harness();
+    try {
+      await h.service.createConversation(ctx, conversation.sessionId);
+      expect(h.repository.createConversation).toHaveBeenCalledWith(
+        h.tx,
+        ctx,
+        expect.objectContaining({ reasoningEffort: 'high' }),
+      );
+    } finally {
+      if (previous === undefined) delete process.env.OUTREACH_V3_REASONING_EFFORT;
+      else process.env.OUTREACH_V3_REASONING_EFFORT = previous;
+    }
+  });
+
+  it('accepts max as an alias for high reasoning effort', async () => {
+    const previous = process.env.OUTREACH_V3_REASONING_EFFORT;
+    process.env.OUTREACH_V3_REASONING_EFFORT = 'max';
+    const h = harness();
+    try {
+      await h.service.createConversation(ctx, conversation.sessionId);
+      expect(h.repository.createConversation).toHaveBeenCalledWith(
+        h.tx,
+        ctx,
+        expect.objectContaining({ reasoningEffort: 'high' }),
+      );
+    } finally {
+      if (previous === undefined) delete process.env.OUTREACH_V3_REASONING_EFFORT;
+      else process.env.OUTREACH_V3_REASONING_EFFORT = previous;
+    }
+  });
 });
