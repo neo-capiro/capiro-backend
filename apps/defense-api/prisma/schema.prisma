@@ -11,14 +11,9 @@ datasource db {
   extensions = [pgvector(map: "vector"), pg_trgm, citext, uuidOssp(map: "uuid-ossp")]
 }
 
-/// Session 2 intentionally exposes only the active-snapshot pointer as a typed
-/// model. Auth membership lookups and role probes use bounded raw SQL. Defense
-/// domain models move in Session 3 after route/mutation ownership is migrated.
-///
-/// Mirrors the authoritative table created by Phase 7
-/// (apps/api/prisma/migrations/20260822010000_pe_budget_phase7_canonical_promotion):
-/// UUID id, one row per (domain, environment), pointing at a canonical
-/// snapshot and the activation that moved the pointer there.
+/// Curated Session 3 defense client. Only Program Elements, Programs, governed
+/// overlays and the active-snapshot pointer are modeled here. Cross-domain
+/// Congress, SAM, USAspending and capability data remain behind projection views.
 model DefenseBudgetActiveSnapshot {
   id           String   @id @default(uuid()) @db.Uuid
   domain       String   @db.VarChar(64)
@@ -29,4 +24,264 @@ model DefenseBudgetActiveSnapshot {
 
   @@unique([domain, environment], map: "defense_budget_active_snapshot_singleton_unique")
   @@map("defense_budget_active_snapshot")
+}
+
+model ProgramElement {
+  peCode            String    @id @map("pe_code") @db.VarChar(16)
+  title             String
+  service           String?
+  budgetActivity    String?   @map("budget_activity")
+  appropriationType String?   @map("appropriation_type")
+  status            String?
+  lastSyncedAt      DateTime? @map("last_synced_at") @db.Timestamptz(6)
+  retiredAt         DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  @@map("program_element")
+}
+
+model ProgramElementYear {
+  id             String   @id @default(uuid()) @db.Uuid
+  peCode         String   @map("pe_code") @db.VarChar(16)
+  fy             Int
+  request        Decimal? @db.Decimal(14, 2)
+  hascMark       Decimal? @map("hasc_mark") @db.Decimal(14, 2)
+  sascMark       Decimal? @map("sasc_mark") @db.Decimal(14, 2)
+  hacDMark       Decimal? @map("hac_d_mark") @db.Decimal(14, 2)
+  sacDMark       Decimal? @map("sac_d_mark") @db.Decimal(14, 2)
+  ndaaConference Decimal? @map("ndaa_conference") @db.Decimal(14, 2)
+  conference     Decimal? @db.Decimal(14, 2)
+  enacted        Decimal? @db.Decimal(14, 2)
+
+  @@unique([peCode, fy])
+  @@map("program_element_year")
+}
+
+model ProgramElementSource {
+  id         String  @id @default(uuid()) @db.Uuid
+  peCode     String  @map("pe_code") @db.VarChar(16)
+  fy         Int?
+  docType    String  @map("doc_type")
+  pageNumber Int?    @map("page_number")
+  sourceUrl  String? @map("source_url")
+
+  @@map("program_element_source")
+}
+
+model ProgramElementProject {
+  id          String  @id @default(uuid()) @db.Uuid
+  peCode      String  @map("pe_code") @db.VarChar(16)
+  projectCode String  @map("project_code") @db.VarChar(32)
+  projectName String? @map("project_name")
+
+  @@unique([peCode, projectCode])
+  @@map("program_element_project")
+}
+
+model ProgramElementBudgetPosition {
+  id            String  @id @default(uuid()) @db.Uuid
+  peCode        String  @map("pe_code") @db.VarChar(16)
+  positionCycle String  @map("position_cycle")
+  assertedFy    Int     @map("asserted_fy")
+  amount        Decimal @db.Decimal(14, 2)
+  valueKind     String  @map("value_kind")
+
+  @@map("program_element_budget_position")
+}
+
+model ProgramElementProjectBudgetPosition {
+  id            String  @id @default(uuid()) @db.Uuid
+  peCode        String  @map("pe_code") @db.VarChar(16)
+  projectCode   String  @map("project_code") @db.VarChar(32)
+  positionCycle String  @map("position_cycle")
+  assertedFy    Int     @map("asserted_fy")
+  amount        Decimal @db.Decimal(14, 2)
+  valueKind     String  @map("value_kind")
+
+  @@map("program_element_project_budget_position")
+}
+
+model ProgramElementDelta {
+  id               String    @id @default(uuid()) @db.Uuid
+  peCode           String    @map("pe_code") @db.VarChar(16)
+  assertedFy       Int       @map("asserted_fy")
+  deltaType        String    @map("delta_type")
+  materialityScore Float     @map("materiality_score")
+  computedAt       DateTime  @map("computed_at") @db.Timestamptz(6)
+  supersededAt     DateTime? @map("superseded_at") @db.Timestamptz(6)
+
+  @@map("program_element_delta")
+}
+
+model ProgramElementMilestone {
+  id          String    @id @default(uuid()) @db.Uuid
+  peCode      String    @map("pe_code") @db.VarChar(16)
+  plannedDate DateTime? @map("planned_date") @db.Date
+  actualDate  DateTime? @map("actual_date") @db.Date
+  createdAt   DateTime  @map("created_at") @db.Timestamptz(6)
+
+  @@map("program_element_milestone")
+}
+
+model ProgramElementProcurementLine {
+  id              String   @id @default(uuid()) @db.Uuid
+  peCode          String   @map("pe_code") @db.VarChar(16)
+  lineDescription String   @map("line_description")
+  fy              Int
+  quantity        Decimal? @db.Decimal(14, 2)
+  dollars         Decimal? @db.Decimal(18, 2)
+  unitCost        Decimal? @map("unit_cost") @db.Decimal(18, 2)
+
+  @@map("program_element_procurement_line")
+}
+
+model ProgramElementPerformer {
+  id             String   @id @default(uuid()) @db.Uuid
+  peCode         String   @map("pe_code") @db.VarChar(16)
+  performer      String
+  totalCostM     Decimal? @map("total_cost_m") @db.Decimal(18, 3)
+  isNamedCompany Boolean  @map("is_named_company")
+  sourceUrl      String?  @map("source_url")
+
+  @@map("program_element_performer")
+}
+
+model ProgramElementIntelligenceCache {
+  peCode        String   @id @map("pe_code") @db.VarChar(16)
+  lineType      String?  @map("line_type")
+  maturity      Int?
+  appropTier    String?  @map("approp_tier")
+  appropScore   Int?     @map("approp_score")
+  signalType    String?  @map("signal_type")
+  signalTone    String?  @map("signal_tone")
+  valleyOfDeath Boolean? @map("valley_of_death")
+
+  @@map("program_element_intelligence_cache")
+}
+
+model BudgetLineRelationship {
+  id         String @id @default(uuid()) @db.Uuid
+  fromPeCode String @map("from_pe_code") @db.VarChar(16)
+  toPeCode   String @map("to_pe_code") @db.VarChar(16)
+  relType    String @map("rel_type") @db.VarChar(40)
+  status     String @db.VarChar(12)
+  confidence String @db.VarChar(8)
+
+  @@map("budget_line_relationship")
+}
+
+model Program {
+  id            String   @id @default(uuid()) @db.Uuid
+  canonicalName String   @map("canonical_name")
+  mdapCode      String?  @map("mdap_code")
+  status        String
+  metadata      Json     @map("metadata_jsonb")
+  createdAt     DateTime @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @map("updated_at") @db.Timestamptz(6)
+
+  @@map("program")
+}
+
+model ProgramAlias {
+  id              String   @id @default(uuid()) @db.Uuid
+  programId       String   @map("program_id") @db.Uuid
+  alias           String
+  aliasNormalized String   @map("alias_normalized")
+  aliasType       String   @map("alias_type")
+  source          String
+  sourceUrl       String?  @map("source_url")
+  confidence      Float
+  createdAt       DateTime @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @map("updated_at") @db.Timestamptz(6)
+
+  @@map("program_alias")
+}
+
+model PeProgramMatch {
+  id               String    @id @default(uuid()) @db.Uuid
+  peCode           String    @map("pe_code") @db.VarChar(16)
+  projectCode      String?   @map("project_code") @db.VarChar(32)
+  programId        String    @map("program_id") @db.Uuid
+  status           String
+  score            Float
+  weakSignal       Boolean   @map("weak_signal")
+  resolvedByUserId String?   @map("resolved_by_user_id") @db.Uuid
+  resolvedAt       DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt        DateTime  @map("created_at") @db.Timestamptz(6)
+
+  @@map("pe_program_match")
+}
+
+model ProgramElementWatch {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  peCode    String   @map("pe_code") @db.VarChar(16)
+  createdAt DateTime @map("created_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, userId, peCode])
+  @@map("program_element_watch")
+}
+
+model ProgramElementDataIssue {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  reportedByUserId String    @map("reported_by_user_id") @db.Uuid
+  peCode           String    @map("pe_code") @db.VarChar(16)
+  fy               Int?
+  fieldName        String?   @map("field_name")
+  issueType        String    @map("issue_type")
+  description      String
+  status           String
+  resolvedByUserId String?   @map("resolved_by_user_id") @db.Uuid
+  resolvedAt       DateTime? @map("resolved_at") @db.Timestamptz(6)
+  resolutionNotes  String?   @map("resolution_notes")
+  createdAt        DateTime  @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @map("updated_at") @db.Timestamptz(6)
+
+  @@map("program_element_data_issue")
+}
+
+model PeAlertEmailPref {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  mode      String
+  createdAt DateTime @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([userId, tenantId])
+  @@map("pe_alert_email_pref")
+}
+
+model ReconciliationReviewQueue {
+  id                 String    @id @default(uuid()) @db.Uuid
+  peCode             String    @map("pe_code") @db.VarChar(16)
+  fy                 Int
+  fieldName          String    @map("field_name")
+  conflictingValue   String?   @map("conflicting_value")
+  status             String
+  proposedOverrideId String?   @map("proposed_override_id") @db.Uuid
+  queuedAt           DateTime  @map("queued_at") @db.Timestamptz(6)
+  resolvedAt         DateTime? @map("resolved_at") @db.Timestamptz(6)
+
+  @@map("reconciliation_review_queue")
+}
+
+model DefenseBudgetManualOverride {
+  overrideId          String    @id @default(uuid()) @map("override_id") @db.Uuid
+  canonicalEntity     String    @map("canonical_entity")
+  canonicalNaturalKey String    @map("canonical_natural_key")
+  fiscalYear          Int?      @map("fiscal_year")
+  fundingField        String?   @map("funding_field")
+  status              String
+  version             Int
+  priorOverrideId     String?   @map("prior_override_id") @db.Uuid
+  effectiveFrom       DateTime  @map("effective_from") @db.Timestamptz(6)
+  effectiveTo         DateTime? @map("effective_to") @db.Timestamptz(6)
+  proposedAt          DateTime  @map("proposed_at") @db.Timestamptz(6)
+  approvedAt          DateTime? @map("approved_at") @db.Timestamptz(6)
+  revokedAt           DateTime? @map("revoked_at") @db.Timestamptz(6)
+  overrideHash        String    @map("override_hash") @db.Char(64)
+
+  @@map("defense_budget_manual_override")
 }
