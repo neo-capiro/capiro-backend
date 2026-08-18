@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -32,6 +37,76 @@ export interface UpdateAliasInput {
 export interface MergeProgramsInput {
   keepProgramId: string;
   mergeProgramId: string;
+}
+
+/** `to_jsonb(program_alias)` — physical snake_case columns, as the function returns them. */
+interface AliasRowJson {
+  id: string;
+  program_id: string;
+  alias: string;
+  alias_normalized: string;
+  alias_type: string;
+  source: string;
+  source_url: string | null;
+  confidence: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Shape the governed function's raw row back into the camelCase alias contract. */
+function aliasRowToDto(row: AliasRowJson) {
+  return {
+    id: row.id,
+    programId: row.program_id,
+    alias: row.alias,
+    aliasNormalized: row.alias_normalized,
+    aliasType: row.alias_type,
+    source: row.source,
+    sourceUrl: row.source_url,
+    confidence: row.confidence,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * Map a governed-mutation database error onto the HTTP contract.
+ *
+ * The functions raise with deliberate SQLSTATEs so the application does not have
+ * to pattern-match prose: 42501 for the in-database capiro_admin recheck, 22023
+ * for an invalid argument or a refused transition, P0002 for a missing row. Each
+ * maps to the status the equivalent TypeScript guard produced, so routing the
+ * write through the database does not change what a client sees.
+ *
+ * A 42501 specifically means the application believed the caller was an admin and
+ * the database disagreed — that is a real authorization failure and is surfaced
+ * as 403, never softened.
+ */
+function translateGovernedAdminError(error: unknown): unknown {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code ?? '')
+      : '';
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (code === '42501' || /active capiro_admin membership required/i.test(message)) {
+    return new ForbiddenException('active capiro_admin membership required');
+  }
+  // Prisma surfaces the raw PostgreSQL message for $queryRaw failures, so the
+  // SQLSTATE is matched in the text as well as on the error object.
+  if (code === 'P0002' || /ERRCODE = 'P0002'/.test(message) || /\bnot found\b/i.test(message)) {
+    return new NotFoundException(extractPgMessage(message));
+  }
+  if (code === '22023' || /22023/.test(message)) {
+    return new BadRequestException(extractPgMessage(message));
+  }
+  return error;
+}
+
+/** Pull the RAISE message out of a driver error string, else return it unchanged. */
+function extractPgMessage(message: string): string {
+  const match = /(?:ERROR|error):\s*(.+?)(?:\n|$)/.exec(message);
+  return (match?.[1] ?? message).trim();
 }
 
 /**
@@ -314,41 +389,49 @@ export class ProgramsService {
       );
     }
 
-    await this.prisma.withTenantActor(ctx.tenantId, ctx.userId, async (tx) => {
-      await tx.peProgramMatch.update({
-        where: { id },
-        data: {
-          status: nextStatus,
-          // Accept clears the weak-signal flag (it is no longer "never surface");
-          // the reviewer has explicitly promoted it.
-          weakSignal: nextStatus === 'accepted' ? false : match.weakSignal,
-          resolvedByUserId: ctx.userId,
-          resolvedAt: new Date(),
-          decisionNotes: input.notes?.trim() || null,
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          tenantId: ctx.tenantId,
-          actorUserId: ctx.userId,
-          actorRole: ctx.role,
-          action: 'program.match.resolve',
-          entityType: 'pe_program_match',
-          entityId: id,
-          before: { status: match.status, score: match.score, evidenceTier: match.evidenceTier },
-          after: {
-            decision: input.decision,
-            status: nextStatus,
-            peCode: match.peCode,
-            projectCode: match.projectCode,
-            programId: match.programId,
-            notes: input.notes ?? null,
-          },
-        },
-      });
-    });
+    // GOVERNED WRITE. capiro_defense_serve holds no DML on pe_program_match, so
+    // the status change and its audit row happen inside
+    // capiro_defense_resolve_program_match, which re-checks an active
+    // capiro_admin membership in the database. The validation above stays here so
+    // the HTTP error semantics remain apps/api's; the function repeats the
+    // curated-seed refusal as defence in depth.
+    await this.governedMutation<{ resolved: boolean; id: string; status: string; decision: string }>(
+      Prisma.sql`
+        SELECT public.capiro_defense_resolve_program_match(
+          ${ctx.tenantId}::uuid, ${ctx.userId}::uuid, ${id}::uuid,
+          ${input.decision}, ${input.notes ?? null}
+        ) AS result
+      `,
+    );
 
     return { resolved: true as const, id, status: nextStatus, decision: input.decision };
+  }
+
+  /**
+   * Invoke one governed SECURITY DEFINER mutation and unwrap its jsonb result.
+   *
+   * Deliberately NOT wrapped in withTenant/withTenantActor: the function takes
+   * tenant and actor as parameters and performs its own authorization, so it needs
+   * no tenant GUC — and running it outside a transaction means the
+   * `app.bypass_rls` its admin check sets transaction-locally cannot outlive the
+   * single statement.
+   *
+   * ERRCODE 42501 from the in-database admin recheck becomes a 403. That is the
+   * case where the application believed the caller was an admin and the database
+   * disagreed, so surfacing it as anything softer would hide a real
+   * authorization failure.
+   */
+  private async governedMutation<T>(query: Prisma.Sql): Promise<T> {
+    try {
+      const rows = await this.prisma.$queryRaw<Array<{ result: T }>>(query);
+      const result = rows[0]?.result;
+      if (result === undefined || result === null) {
+        throw new Error('governed Program mutation returned no result row');
+      }
+      return result;
+    } catch (error) {
+      throw translateGovernedAdminError(error);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -427,39 +510,16 @@ export class ProgramsService {
     }
 
     const source = (input.source ?? '').trim() || 'analyst_manual';
-    return this.prisma.withTenantActor(ctx.tenantId, ctx.userId, async (tx) => {
-      const created = await tx.programAlias.create({
-        data: {
-          programId,
-          alias: aliasText,
-          aliasNormalized,
-          aliasType: input.aliasType,
-          source,
-          confidence: 1.0,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          tenantId: ctx.tenantId,
-          actorUserId: ctx.userId,
-          actorRole: ctx.role,
-          action: 'program.alias.create',
-          entityType: 'program_alias',
-          entityId: created.id,
-          before: Prisma.JsonNull,
-          after: {
-            programId,
-            alias: aliasText,
-            aliasNormalized,
-            aliasType: input.aliasType,
-            source,
-          },
-        },
-      });
-      return created;
-    });
+    // GOVERNED WRITE. `aliasNormalized` is computed above by the SHARED normalizer
+    // and passed in, so the matcher's pg_trgm index and this row always agree —
+    // the function never re-derives it.
+    const row = await this.governedMutation<AliasRowJson>(Prisma.sql`
+      SELECT public.capiro_defense_create_program_alias(
+        ${ctx.tenantId}::uuid, ${ctx.userId}::uuid, ${programId}::uuid,
+        ${aliasText}, ${aliasNormalized}, ${input.aliasType}, ${source}
+      ) AS result
+    `);
+    return aliasRowToDto(row);
   }
 
   /**
@@ -506,34 +566,14 @@ export class ProgramsService {
       );
     }
 
-    return this.prisma.withTenantActor(ctx.tenantId, ctx.userId, async (tx) => {
-      const updated = await tx.programAlias.update({
-        where: { id },
-        data: {
-          alias: nextAlias,
-          aliasNormalized: nextNormalized,
-          aliasType: nextType,
-          updatedAt: new Date(),
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          tenantId: ctx.tenantId,
-          actorUserId: ctx.userId,
-          actorRole: ctx.role,
-          action: 'program.alias.update',
-          entityType: 'program_alias',
-          entityId: id,
-          before: {
-            alias: alias.alias,
-            aliasNormalized: alias.aliasNormalized,
-            aliasType: alias.aliasType,
-          },
-          after: { alias: nextAlias, aliasNormalized: nextNormalized, aliasType: nextType },
-        },
-      });
-      return updated;
-    });
+    // GOVERNED WRITE.
+    const row = await this.governedMutation<AliasRowJson>(Prisma.sql`
+      SELECT public.capiro_defense_update_program_alias(
+        ${ctx.tenantId}::uuid, ${ctx.userId}::uuid, ${id}::uuid,
+        ${nextAlias}, ${nextNormalized}, ${nextType}
+      ) AS result
+    `);
+    return aliasRowToDto(row);
   }
 
   /**
@@ -556,26 +596,13 @@ export class ProgramsService {
       }
     }
 
-    await this.prisma.withTenantActor(ctx.tenantId, ctx.userId, async (tx) => {
-      await tx.programAlias.delete({ where: { id } });
-      await tx.auditLog.create({
-        data: {
-          tenantId: ctx.tenantId,
-          actorUserId: ctx.userId,
-          actorRole: ctx.role,
-          action: 'program.alias.delete',
-          entityType: 'program_alias',
-          entityId: id,
-          before: {
-            programId: alias.programId,
-            alias: alias.alias,
-            aliasNormalized: alias.aliasNormalized,
-            aliasType: alias.aliasType,
-          },
-          after: Prisma.JsonNull,
-        },
-      });
-    });
+    // GOVERNED WRITE. The function repeats the last-canonical-alias refusal, so
+    // the invariant holds even for a caller that reaches the database another way.
+    await this.governedMutation<{ deleted: boolean; id: string }>(Prisma.sql`
+      SELECT public.capiro_defense_delete_program_alias(
+        ${ctx.tenantId}::uuid, ${ctx.userId}::uuid, ${id}::uuid
+      ) AS result
+    `);
 
     return { deleted: true as const, id };
   }
@@ -669,180 +696,34 @@ export class ProgramsService {
       throw new BadRequestException(`Program ${mergeProgramId} is already merged.`);
     }
 
-    const result = await this.prisma.withTenantActor(ctx.tenantId, ctx.userId, async (tx) => {
-      // -- pe_program_match: key on (peCode, projectCode ?? '') --
-      const loserMatches = await tx.peProgramMatch.findMany({
-        where: { programId: mergeProgramId },
-        select: { id: true, peCode: true, projectCode: true },
-      });
-      const keeperMatches = await tx.peProgramMatch.findMany({
-        where: { programId: keepProgramId },
-        select: { peCode: true, projectCode: true },
-      });
-      const keeperMatchKeys = new Set(
-        keeperMatches.map((m) => `${m.peCode}::${m.projectCode ?? ''}`),
-      );
-      let matchesRepointed = 0;
-      let matchesDeleted = 0;
-      for (const m of loserMatches) {
-        const key = `${m.peCode}::${m.projectCode ?? ''}`;
-        if (keeperMatchKeys.has(key)) {
-          await tx.peProgramMatch.delete({ where: { id: m.id } });
-          matchesDeleted++;
-        } else {
-          await tx.peProgramMatch.update({
-            where: { id: m.id },
-            data: { programId: keepProgramId },
-          });
-          keeperMatchKeys.add(key);
-          matchesRepointed++;
-        }
-      }
-
-      // -- person_role: no unique on programId -> straight re-point --
-      const roles = await tx.personRole.updateMany({
-        where: { programId: mergeProgramId },
-        data: { programId: keepProgramId },
-      });
-      const rolesRepointed = roles.count;
-
-      // -- program_office_program_link: key on officeId --
-      const loserLinks = await tx.programOfficeProgramLink.findMany({
-        where: { programId: mergeProgramId },
-        select: { id: true, officeId: true },
-      });
-      const keeperLinks = await tx.programOfficeProgramLink.findMany({
-        where: { programId: keepProgramId },
-        select: { officeId: true },
-      });
-      const keeperOfficeIds = new Set(keeperLinks.map((l) => l.officeId));
-      let officeLinksRepointed = 0;
-      let officeLinksDeleted = 0;
-      for (const l of loserLinks) {
-        if (keeperOfficeIds.has(l.officeId)) {
-          await tx.programOfficeProgramLink.delete({ where: { id: l.id } });
-          officeLinksDeleted++;
-        } else {
-          await tx.programOfficeProgramLink.update({
-            where: { id: l.id },
-            data: { programId: keepProgramId },
-          });
-          keeperOfficeIds.add(l.officeId);
-          officeLinksRepointed++;
-        }
-      }
-
-      // -- provision_pe_link: key on (provisionId, peCode ?? '') --
-      const loserProvLinks = await tx.provisionPeLink.findMany({
-        where: { programId: mergeProgramId },
-        select: { id: true, provisionId: true, peCode: true },
-      });
-      const keeperProvLinks = await tx.provisionPeLink.findMany({
-        where: { programId: keepProgramId },
-        select: { provisionId: true, peCode: true },
-      });
-      const keeperProvKeys = new Set(
-        keeperProvLinks.map((l) => `${l.provisionId}::${l.peCode ?? ''}`),
-      );
-      let provisionLinksRepointed = 0;
-      let provisionLinksDeleted = 0;
-      for (const l of loserProvLinks) {
-        const key = `${l.provisionId}::${l.peCode ?? ''}`;
-        if (keeperProvKeys.has(key)) {
-          await tx.provisionPeLink.delete({ where: { id: l.id } });
-          provisionLinksDeleted++;
-        } else {
-          await tx.provisionPeLink.update({
-            where: { id: l.id },
-            data: { programId: keepProgramId },
-          });
-          keeperProvKeys.add(key);
-          provisionLinksRepointed++;
-        }
-      }
-
-      // -- aliases: move the loser's aliases the keeper doesn't already have --
-      const loserAliases = await tx.programAlias.findMany({
-        where: { programId: mergeProgramId },
-      });
-      const keeperAliases = await tx.programAlias.findMany({
-        where: { programId: keepProgramId },
-        select: { aliasNormalized: true, aliasType: true },
-      });
-      const keeperAliasKeys = new Set(
-        keeperAliases.map((a) => `${a.aliasNormalized}::${a.aliasType}`),
-      );
-      let aliasesCopied = 0;
-      for (const a of loserAliases) {
-        const key = `${a.aliasNormalized}::${a.aliasType}`;
-        if (keeperAliasKeys.has(key)) continue;
-        await tx.programAlias.update({ where: { id: a.id }, data: { programId: keepProgramId } });
-        keeperAliasKeys.add(key);
-        aliasesCopied++;
-      }
-
-      // -- retire the loser --
-      const mergedAt = new Date();
-      const priorMeta =
-        loser.metadata && typeof loser.metadata === 'object' && !Array.isArray(loser.metadata)
-          ? (loser.metadata as Prisma.JsonObject)
-          : {};
-      await tx.program.update({
-        where: { id: mergeProgramId },
-        data: {
-          status: 'merged',
-          metadata: { ...priorMeta, mergedInto: keepProgramId, mergedAt: mergedAt.toISOString() },
-          updatedAt: mergedAt,
-        },
-      });
-
-      const repointed = {
-        matches: matchesRepointed,
-        roles: rolesRepointed,
-        officeLinks: officeLinksRepointed,
-        provisionLinks: provisionLinksRepointed,
+    // GOVERNED WRITE. The entire graph-safe merge -- collision-delete then
+    // re-point for pe_program_match / program_office_program_link /
+    // provision_pe_link, straight re-point for person_role, move only
+    // non-colliding aliases, retire (never delete) the loser, and the audit row --
+    // executes inside capiro_defense_merge_programs as ONE atomic statement that
+    // re-checks capiro_admin in the database.
+    //
+    // Semantics are identical to the gated TypeScript implementation this
+    // replaces, including that a colliding alias STAYS with the retired loser
+    // (apps/api's behaviour). The DB-backed regression test in
+    // programs.service.integration.spec.ts pins every one of those outcomes, so
+    // the move to SQL is proven behaviour-preserving rather than assumed.
+    return this.governedMutation<{
+      merged: true;
+      keepProgramId: string;
+      mergeProgramId: string;
+      repointed: {
+        matches: number;
+        roles: number;
+        officeLinks: number;
+        provisionLinks: number;
       };
-      const deleted = {
-        matches: matchesDeleted,
-        officeLinks: officeLinksDeleted,
-        provisionLinks: provisionLinksDeleted,
-      };
-
-      await tx.auditLog.create({
-        data: {
-          tenantId: ctx.tenantId,
-          actorUserId: ctx.userId,
-          actorRole: ctx.role,
-          action: 'program.merge',
-          entityType: 'program',
-          entityId: mergeProgramId,
-          before: {
-            mergeProgramId,
-            mergeCanonicalName: loser.canonicalName,
-            mergeStatus: loser.status,
-          },
-          after: {
-            keepProgramId,
-            keepCanonicalName: keep.canonicalName,
-            status: 'merged',
-            mergedInto: keepProgramId,
-            mergedAt: mergedAt.toISOString(),
-            repointed,
-            deleted,
-            aliasesCopied,
-          },
-        },
-      });
-
-      return { repointed, deleted, aliasesCopied, mergedAt };
-    });
-
-    return {
-      merged: true as const,
-      keepProgramId,
-      mergeProgramId,
-      repointed: result.repointed,
-      aliasesCopied: result.aliasesCopied,
-    };
+      aliasesCopied: number;
+    }>(Prisma.sql`
+      SELECT public.capiro_defense_merge_programs(
+        ${ctx.tenantId}::uuid, ${ctx.userId}::uuid,
+        ${keepProgramId}::uuid, ${mergeProgramId}::uuid
+      ) AS result
+    `);
   }
 }

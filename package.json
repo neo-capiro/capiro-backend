@@ -51,6 +51,7 @@
     "verify:phase8-session2": "node scripts/verify-phase8-session2.mjs",
     "verify:phase8-session2:db": "node scripts/verify-phase8-session2-db.mjs",
     "verify:phase8-session3": "node scripts/verify-phase8-session3.mjs",
+    "verify:phase8-session3:admin": "node scripts/verify-phase8-session3-admin-boundary.mjs",
     "verify:phase8-session3:parity": "pnpm --filter @capiro/defense-api exec tsx --test ../../tests/phase8-session3-parity/*.spec.ts",
     "verify:phase8-session3:db": "node scripts/verify-phase8-session3-db.mjs",
     "verify:meriv2-browser": "node scripts/run-meriv2-phase19-local.mjs",
