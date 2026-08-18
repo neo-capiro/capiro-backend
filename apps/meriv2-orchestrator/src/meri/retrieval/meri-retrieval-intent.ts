@@ -98,6 +98,11 @@ const EXTERNAL_DISCOVERY_PATTERNS = [
   /\b(?:https?:\/\/)?(?:www\.)?[a-z0-9](?:[a-z0-9-]{0,62}\.)+[a-z]{2,}(?:\/\S*)?\b/i,
 ];
 
+const COMPANY_DESCRIPTION_PATTERNS = [
+  /\bwhat\s+does\s+.+?\s+(?:do|make|build|provide|sell|offer)\b/i,
+  /\bdescribe\s+.+?\s+(?:company|business|organization)\b/i,
+];
+
 const TEMPORAL_PATTERNS = [
   /\b(?:today|yesterday|this\s+week|last\s+week|this\s+month|last\s+month)\b/i,
   /\b(?:as\s+of|on|before|after|between)\s+\w+/i,
@@ -196,6 +201,7 @@ export function meriRetrievalTargetHint(text: string): string | null {
   if (domain) return domain.replace(/[),.;!?]+$/g, '');
 
   const patterns = [
+    /\bwhat\s+does\s+([a-z0-9][a-z0-9&.'-]*(?:\s+[a-z0-9][a-z0-9&.'-]*){0,5}?)\s+(?:do|make|build|provide|sell|offer)\b/gi,
     /\b(?:strategy|research|profile|brief)\s+(?:on|for|about)\s+([a-z0-9][a-z0-9&.'-]*(?:\s+[a-z0-9][a-z0-9&.'-]*){0,7})/gi,
     /\b(?:about|from|with|at|for|on)\s+([a-z0-9][a-z0-9&.'-]*(?:\s+[a-z0-9][a-z0-9&.'-]*){0,7})/gi,
     /\b(?:compare|versus|vs\.?)\b.*?\b(?:to|with|against)\s+([a-z0-9][a-z0-9&.'-]*(?:\s+[a-z0-9][a-z0-9&.'-]*){0,7})/gi,
@@ -234,6 +240,7 @@ export function classifyMeriRetrievalIntent(
   const comparison = matchesAny(text, COMPARISON_PATTERNS);
   const exhaustive = matchesAny(text, EXHAUSTIVE_PATTERNS);
   const externalDiscovery = matchesAny(text, EXTERNAL_DISCOVERY_PATTERNS);
+  const companyDescription = matchesAny(text, COMPANY_DESCRIPTION_PATTERNS);
   const targetHint = meriRetrievalTargetHint(text);
   const namedTarget = Boolean(targetHint);
   const explicitNamedSubject = Boolean(
@@ -242,6 +249,7 @@ export function classifyMeriRetrievalIntent(
         relationship ||
         federalMarket ||
         comparison ||
+        companyDescription ||
         EXPLICIT_NAMED_SUBJECT_RE.test(text) ||
         looksLikeExplicitEntityName(targetHint)),
   );
@@ -254,6 +262,7 @@ export function classifyMeriRetrievalIntent(
   if (comparison) reasonCodes.push('comparison_request');
   if (exhaustive) reasonCodes.push('exhaustive_language');
   if (externalDiscovery) reasonCodes.push('external_discovery');
+  if (companyDescription) reasonCodes.push('company_description_request');
   if (namedTarget) reasonCodes.push('named_target');
   if (explicitNamedSubject) reasonCodes.push('explicit_named_subject');
 

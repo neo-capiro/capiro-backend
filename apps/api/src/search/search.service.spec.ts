@@ -22,6 +22,7 @@ function makePrisma(overrides: Record<string, unknown> = {}) {
     intelArticle: emptyModel(),
     stateBill: emptyModel(),
     federalRegisterDocument: emptyModel(),
+    programElement: emptyModel(),
   };
   return { ...base, ...overrides } as never;
 }
@@ -88,5 +89,32 @@ describe('SearchService', () => {
     const firstCall = findMany.mock.calls[0] as unknown[] | undefined;
     const arg = (firstCall?.[0] ?? {}) as { take?: number };
     expect(arg.take).toBe(20);
+  });
+
+  it('normalizes program element rows and excludes them from no other categories', async () => {
+    const prisma = makePrisma({
+      programElement: {
+        findMany: jest.fn(async () => [
+          {
+            peCode: '0604645A',
+            title: 'Ground Robotics',
+            service: 'Army',
+            budgetActivity: '02',
+            budgetActivityName: 'Applied Research',
+            lastSyncedAt: new Date('2026-07-01'),
+          },
+        ]),
+      },
+    });
+    const svc = new SearchService(prisma);
+    const res = await svc.search('robotics');
+    const pe = res.results.find((r) => r.category === 'program_element');
+    expect(pe).toBeDefined();
+    expect(pe!.id).toBe('0604645A');
+    expect(pe!.title).toContain('0604645A');
+    expect(pe!.title).toContain('Ground Robotics');
+    expect(pe!.subtitle).toContain('Army');
+    expect(pe!.href).toBe('/program-elements/0604645A');
+    expect(res.byCategory.program_element).toBe(1);
   });
 });

@@ -22,7 +22,7 @@ import { MeriRetrievalCoordinator } from './retrieval/meri-retrieval-coordinator
 import { MeriV3Controller } from './meriv3/meriv3.controller.js';
 import { MeriV3AccessService } from './meriv3/meriv3-access.service.js';
 import { MeriV3AssistantService } from './meriv3/meriv3-assistant.service.js';
-import { MeriV3RetrievalAssistantService } from './meriv3/meriv3-retrieval-assistant.service.js';
+import { MeriV3CleanAssistantService } from './meriv3/meriv3-clean-assistant.service.js';
 import { ApiManagedMcpRepo } from './meriv3/api-managed-mcp.repo.js';
 import { ApiVisualAnalysisRepo } from './meriv3/api-visual-analysis.repo.js';
 import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
@@ -63,7 +63,7 @@ import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
     ApiVisualAnalysisRepo,
     {
       provide: MeriV3AssistantService,
-      useClass: MeriV3RetrievalAssistantService,
+      useClass: MeriV3CleanAssistantService,
     },
     WorkspaceGenClient,
     StrategyAssistantService,

@@ -53,6 +53,7 @@
     "sync:lda:incremental": "tsx scripts/sync-lda.ts --incremental",
     "sync:fec": "tsx scripts/sync-fec.ts",
     "sync:federal-award": "tsx scripts/sync-federal-award.ts",
+    "seed:federal-contractors-from-awards": "tsx scripts/seed-federal-contractors-from-awards.ts",
     "sync:federal-assistance-awards": "tsx scripts/sync-federal-assistance-awards.ts",
     "enrich:assistance-awards": "tsx scripts/enrich-assistance-award-details.ts",
     "backfill:assistance-awards-bulk": "tsx scripts/backfill-assistance-awards-bulk.ts",
@@ -248,6 +249,7 @@
     "svix": "^1.36.0",
     "tsx": "^4.19.1",
     "unpdf": "^1.6.2",
+    "word-extractor": "^1.0.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {

@@ -181,15 +181,21 @@ export type CandidateDecision = 'skip' | 'review' | 'auto_confirm';
  * Single source of truth for what happens to one scored candidate, given its
  * rank within its source. Only the single best candidate per source may
  * auto-confirm, and only when it clears the threshold AND is clearly ahead of
- * the runner-up. fec_committee never auto-confirms (PAC attribution is
- * compliance-sensitive — always human-reviewed). assistance_recipient never
- * auto-confirms EITHER, deliberately, for both of its candidate paths: a
- * name-fuzzy match (matchAssistanceRecipient — scoreCandidate's name-fingerprint
- * heuristics, capped hard for this source, see NON_DISTINCTIVE_MATCH_CAP) and
- * an exact-UEI match (matchAssistanceRecipientByUei — a verified identifier,
- * not a name heuristic, but still routed to human review; see
- * ASSISTANCE_RECIPIENT_UEI_MATCH_CONFIDENCE for why). Both paths only ever
- * reach 'review', never 'auto_confirm', regardless of confidence.
+ * the runner-up.
+ *
+ * fec_committee (PAC) MAY auto-confirm under those same rules: a clear top PAC
+ * name match (committee_type Q/N/O/V/W, noise words stripped) at ≥
+ * AUTO_CONFIRM_THRESHOLD. That unblocks Schedule B ingest (sync-fec-pac only
+ * reads confirmed fec_committee mappings) without a manual pin for obvious
+ * corporate PACs (e.g. "L3HARRIS TECHNOLOGIES, INC. PAC").
+ *
+ * assistance_recipient never auto-confirms, deliberately, for both of its
+ * candidate paths: a name-fuzzy match (matchAssistanceRecipient — scoreCandidate's
+ * name-fingerprint heuristics, capped hard for this source, see
+ * NON_DISTINCTIVE_MATCH_CAP) and an exact-UEI match (matchAssistanceRecipientByUei
+ * — a verified identifier, not a name heuristic, but still routed to human
+ * review; see ASSISTANCE_RECIPIENT_UEI_MATCH_CONFIDENCE for why). Both paths only
+ * ever reach 'review', never 'auto_confirm', regardless of confidence.
  */
 export function candidateDecision(params: {
   source: string;
@@ -217,7 +223,10 @@ export function candidateDecision(params: {
     matchTier,
     autoConfirmEligible,
   } = params;
-  const NEVER_AUTO_CONFIRM = new Set(['fec_committee', 'assistance_recipient']);
+  // assistance_recipient stays human-only (grant identity is high-blast-radius).
+  // fec_committee was removed from this set so clear PAC matches auto-confirm
+  // and PAC disbursements can populate without a manual ops pin.
+  const NEVER_AUTO_CONFIRM = new Set(['assistance_recipient']);
   const clearWinner =
     runnerUpConfidence === null ||
     confidence - runnerUpConfidence >= AUTO_CONFIRM_AMBIGUITY_MARGIN;
@@ -673,9 +682,9 @@ export class EntityResolutionService {
    * Match a client to its OWN PAC committee (FecCommittee). PAC names are noisy
    * ("BOEING COMPANY PAC", "EMPLOYEES OF X POLITICAL ACTION COMMITTEE"), so we
    * strip PAC-specific noise words before scoring. Source 'fec_committee' powers
-   * the Schedule B PAC-giving sync; because attributing an org's PAC is compliance-
-   * sensitive, these are scored conservatively and NEVER auto-confirmed (see
-   * scoreCommittee) — a human must confirm in the mappings review UI.
+   * the Schedule B PAC-giving sync. Clear top matches (score ≥ AUTO_CONFIRM_THRESHOLD,
+   * unambiguous winner) auto-confirm via candidateDecision; weaker / tied matches
+   * stay in the mappings review UI for a human.
    */
   private async matchFecCommittee(clientName: string): Promise<MatchRow[]> {
     return this.prisma.$queryRaw<MatchRow[]>`

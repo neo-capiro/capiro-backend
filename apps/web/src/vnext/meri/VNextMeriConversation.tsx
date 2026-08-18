@@ -304,6 +304,16 @@ export function VNextMeriConversation({
                   {tenantName.toUpperCase()} · {clients.length} CLIENT{clients.length === 1 ? '' : 'S'} IN SCOPE
                 </span>
 
+                <div className="vnext-meri__landing-mode-row">
+                  <div className="vnext-meri__landing-mode-copy">
+                    <span className="vnext-meri__landing-mode-label">How should Meri think?</span>
+                    <span className="vnext-meri__landing-mode-hint">
+                      Pick a depth before you start. It sticks for this new thread.
+                    </span>
+                  </div>
+                  <VNextMeriReasoningControl conversationId={activeConversationId} />
+                </div>
+
                 <VNextMeriComposer
                   controller={controller}
                   variant="landing"

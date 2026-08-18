@@ -102,8 +102,8 @@ describe('MeriV3RetrievalAssistantService', () => {
     expect(scopedDto?.skillAddendum).toContain('Call query_relationship_brief FIRST.');
     expect(output.retrieval?.plan.recipeTool).toBe('query_relationship_brief');
     expect(output.retrieval?.coverage.complete).toBe(false);
-    expect(output.reply).toContain('### Retrieval coverage');
-    expect(output.reply).toContain('Coverage is partial');
+    expect(output.reply).toContain('**Coverage note:**');
+    expect(output.reply).toContain('incomplete');
   });
 
   test('removes a single selected-client pin from a portfolio change request', async () => {
@@ -235,6 +235,6 @@ describe('MeriV3RetrievalAssistantService', () => {
     );
     expect(textEvents).toHaveLength(1);
     expect(textEvents[0]?.text).toBe(output.reply);
-    expect(output.reply).toContain('### Retrieval coverage');
+    expect(output.reply).toContain('**Coverage note:**');
   });
 });

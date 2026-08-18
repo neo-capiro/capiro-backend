@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { App } from 'antd';
 import { CheckCircle2, FolderOpen, Info, Lock, Users } from 'lucide-react';
 import { useMe } from '../../../lib/me.js';
 import { useShareArtifacts, type ShareArtifactRef } from './meetings-api.js';
 import type { Meeting } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
+import { useMeetingPanelChrome } from './meeting-panel-chrome.js';
 
 type ArtifactType = ShareArtifactRef['type'];
 
@@ -105,7 +105,7 @@ export function ShareConfirmation({
   onClose: () => void;
 }) {
   const me = useMe();
-  const { message } = App.useApp();
+  const chrome = useMeetingPanelChrome();
   const share = useShareArtifacts();
 
   const items = useMemo(() => (meeting ? buildShareableItems(meeting) : []), [meeting]);
@@ -140,10 +140,10 @@ export function ShareConfirmation({
     if (!artifacts.length) return;
     try {
       await share.mutateAsync({ meetingId: meeting.id, artifacts });
-      message.success(`Saved to ${clientName ?? 'the client'} · Documents.`);
+      chrome.success(`Saved to ${clientName ?? 'the client'} · Documents.`);
       onClose();
     } catch {
-      message.error('Could not share the selected artifacts.');
+      chrome.error('Could not share the selected artifacts.');
     }
   };
 

@@ -104,9 +104,20 @@ describe('candidateDecision', () => {
     });
   });
 
-  test('fec_committee never auto-confirms, even with a clear high-confidence winner (regression)', () => {
+  test('fec_committee auto-confirms a clear high-confidence winner', () => {
     expect(
       candidateDecision({ source: 'fec_committee', confidence: 0.99, isTopForSource: true, runnerUpConfidence: null }),
+    ).toBe('auto_confirm');
+  });
+
+  test('fec_committee does not auto-confirm an ambiguous near-tie', () => {
+    expect(
+      candidateDecision({
+        source: 'fec_committee',
+        confidence: 0.92,
+        isTopForSource: true,
+        runnerUpConfidence: 0.9,
+      }),
     ).toBe('review');
   });
 

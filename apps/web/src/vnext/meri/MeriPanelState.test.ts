@@ -22,7 +22,10 @@ describe('MeriPanelState', () => {
     const source = readMeri('VNextMeriContextRail.tsx');
     const usages = source.match(/<MeriPanelState/g);
     expect(usages?.length).toBe(8);
-    // The footnote under Skills is copy, not a state — it must stay plain.
-    expect(source).toContain('Select an action to prepare editable composer text');
+    // The old plain "Select an action…" footnote under Skills was removed by
+    // #1060 (friendly skills render rich per-action copy instead); this
+    // assertion previously pinned that footnote and went stale with it. The
+    // rich replacements are copy, not states — they must stay plain.
+    expect(source).toContain('Works across your portfolio');
   });
 });

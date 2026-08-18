@@ -10,15 +10,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../../lib/use-api.js';
 import { ContextInspector, type TrustContextPacket } from '../trust/ContextInspector.js';
 import { useChatStore } from './chat-store.js';
+import { INTENT_LABELS, type TrustStep } from './work-performed-shared.js';
 
-export interface TrustStep {
-  tool: string;
-  label: string;
-  detail?: string;
-  count?: number;
-  confidence?: 'high' | 'medium' | 'low';
-  status: 'running' | 'done' | 'error';
-}
+/**
+ * TrustStep and INTENT_LABELS now live in the UI-free
+ * ./work-performed-shared.js (single copy shared with the vNext hero card,
+ * which must not import this antd module at runtime). Re-exported here
+ * because the legacy surface historically imports them from WorkPerformed.
+ */
+export { INTENT_LABELS } from './work-performed-shared.js';
+export type { TrustStep } from './work-performed-shared.js';
 
 export interface WorkPerformedProps {
   intent?: string | null;
@@ -31,17 +32,6 @@ export interface WorkPerformedProps {
   contextPacketId?: string | null;
   asOf?: string | null;
 }
-
-export const INTENT_LABELS: Record<string, string> = {
-  query_intelligence: 'Researching government-affairs intelligence',
-  query_clients: 'Reviewing client records',
-  query_engagement: 'Reviewing meetings and outreach',
-  query_workflow: 'Checking workflows',
-  generate_draft: 'Drafting',
-  generate_briefing: 'Building a briefing',
-  navigate: 'Navigating',
-  general_question: 'Working on your question',
-};
 
 function confidenceDot(confidence?: 'high' | 'medium' | 'low'): string {
   if (confidence === 'high') return 'chat-tp-dot--high';
@@ -60,6 +50,33 @@ function formattedAsOf(value?: string | null): string | null {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function compactTrustSteps(steps: TrustStep[]): TrustStep[] {
+  const grouped = new Map<string, TrustStep>();
+  for (const step of steps) {
+    const current = grouped.get(step.tool);
+    if (!current) {
+      grouped.set(step.tool, {
+        ...step,
+        detail: step.status === 'error' ? undefined : step.detail,
+      });
+      continue;
+    }
+    const status: TrustStep['status'] =
+      current.status === 'running' || step.status === 'running'
+        ? 'running'
+        : current.status === 'done' || step.status === 'done'
+          ? 'done'
+          : 'error';
+    grouped.set(step.tool, {
+      ...current,
+      status,
+      count: (current.count ?? 0) + (step.count ?? 0),
+      detail: status === 'error' ? undefined : step.detail ?? current.detail,
+    });
+  }
+  return [...grouped.values()];
 }
 
 /**
@@ -128,27 +145,18 @@ export function WorkPerformed({
     isStreaming || steps.length > 0 || assumptions.length > 0 || warnings.length > 0;
   if (!hasWorkLog && !packet) return null;
 
-  const toolCount = steps.length;
-  const sourceCount = steps.reduce(
-    (sum, step) => sum + (typeof step.count === 'number' ? step.count : 0),
-    0,
-  );
+  const visibleSteps = compactTrustSteps(steps);
   const planLabel = (intent && INTENT_LABELS[intent]) || 'Working';
-  const runningStep = steps.find((step) => step.status === 'running');
-  const errorCount = steps.filter((step) => step.status === 'error').length;
+  const runningStep = visibleSteps.find((step) => step.status === 'running');
+  const availabilityIssueCount =
+    steps.filter((step) => step.status === 'error').length + warnings.length;
   const asOfLabel = formattedAsOf(asOf ?? packet?.compiledAt);
 
   const headerText = isStreaming
     ? runningStep?.label || `${planLabel}…`
-    : toolCount === 0
+    : visibleSteps.length === 0
       ? 'Sources and context'
-      : [
-          `Work performed · ${toolCount} tool${toolCount === 1 ? '' : 's'}`,
-          sourceCount ? `${sourceCount} source${sourceCount === 1 ? '' : 's'}` : null,
-          errorCount ? `${errorCount} issue${errorCount === 1 ? '' : 's'}` : null,
-        ]
-          .filter(Boolean)
-          .join(' · ');
+      : 'Sources and checks';
 
   return (
     <div className={`chat-tp${isStreaming ? ' chat-tp--live' : ''}`}>
@@ -162,7 +170,7 @@ export function WorkPerformed({
           {isStreaming ? <LoadingOutlined spin /> : <ThunderboltOutlined />}
         </span>
         <span className="chat-tp-header-text">{headerText}</span>
-        {tier === 'deep' && <span className="chat-tp-tier">deep</span>}
+        {isStreaming && tier === 'deep' && <span className="chat-tp-tier">deep</span>}
         <span className="chat-tp-chevron" aria-hidden="true">
           {expanded ? <DownOutlined /> : <RightOutlined />}
         </span>
@@ -184,9 +192,9 @@ export function WorkPerformed({
             </section>
           ) : null}
 
-          {steps.length > 0 && (
+          {visibleSteps.length > 0 && (
             <ol className="chat-tp-steps" aria-label="Sources and checks">
-              {steps.map((step, index) => (
+              {visibleSteps.map((step, index) => (
                 <li
                   key={`${step.tool}-${index}`}
                   className={`chat-tp-step chat-tp-step--${step.status}`}
@@ -202,7 +210,9 @@ export function WorkPerformed({
                   </span>
                   <span className="chat-tp-step-main">
                     <span className="chat-tp-step-label">{step.label}</span>
-                    {step.detail && <span className="chat-tp-step-detail">{step.detail}</span>}
+                    {step.detail && step.status !== 'error' && (
+                      <span className="chat-tp-step-detail">{step.detail}</span>
+                    )}
                   </span>
                   {step.confidence && step.status === 'done' && (
                     <span
@@ -213,7 +223,7 @@ export function WorkPerformed({
                   )}
                 </li>
               ))}
-              {isStreaming && steps.every((step) => step.status !== 'running') && (
+              {isStreaming && visibleSteps.every((step) => step.status !== 'running') && (
                 <li className="chat-tp-step chat-tp-step--running">
                   <span className="chat-tp-step-icon" aria-hidden="true">
                     <LoadingOutlined spin />
@@ -226,16 +236,19 @@ export function WorkPerformed({
             </ol>
           )}
 
+          {!isStreaming && availabilityIssueCount > 0 && (
+            <section className="chat-tp-plan" aria-label="Source availability note">
+              <span className="chat-tp-plan-label">Source note</span>
+              <span>
+                Some sources were unavailable. The answer includes a coverage note only when this affects the result.
+              </span>
+            </section>
+          )}
+
           {assumptions.length > 0 && (
             <section className="chat-tp-plan" aria-label="Assumptions">
               <span className="chat-tp-plan-label">Assumptions stated in the answer</span>
               <ul>{assumptions.map((item, index) => <li key={index}>{item}</li>)}</ul>
-            </section>
-          )}
-          {warnings.length > 0 && (
-            <section className="chat-tp-plan" aria-label="Execution warnings">
-              <span className="chat-tp-plan-label">Warnings</span>
-              <ul>{warnings.map((item, index) => <li key={index}>{item}</li>)}</ul>
             </section>
           )}
 
@@ -257,7 +270,7 @@ export function WorkPerformed({
             </div>
           )}
           <p className="chat-tp-footnote">
-            This log shows tools, sources, context, and checks—not private model reasoning. Verify specifics before high-stakes use.
+            Shows sources, context, and checks. Internal model reasoning stays private.
           </p>
         </div>
       )}

@@ -22,7 +22,7 @@ import { ClientProfileShell } from './ClientProfileShell.js';
 import { ClientCrmOverviewProto } from './tabs/OverviewTab.js';
 import { SegmentedTabs } from './portfolio-primitives.js';
 import { RELATIONSHIP_VIEW_LABELS, INTELLIGENCE_VIEW_LABELS } from './client-crm-routing.js';
-import { ClientFormModal } from '../../../pages/clients/ClientFormModal.js';
+import { ClientFormDialogVNext } from './ClientFormDialogVNext.js';
 import type { Client, ClientFormSubmit } from '../../../pages/clients/clientTypes.js';
 import { useApi } from '../../../lib/use-api.js';
 import { useMe } from '../../../lib/me.js';
@@ -96,7 +96,11 @@ export function ClientCrmPage({ client }: { client: Client }) {
   });
 
   // §15: opens the real review drawer, which resumes any in-flight run or
-  // starts a fresh one itself — no fabricated delay or change count here.
+  // lets the user choose a document upload vs. a source run — no fabricated
+  // delay or change count here. It cannot auto-start a source run itself
+  // (see ClientFillWithMeriDrawer.contract.test.ts): the backend resumes any
+  // run still within its 15-minute staleness window regardless of the new
+  // request, so an eager auto-start would silently swallow a document pick.
   const runFillWithMeri = useCallback(() => {
     setFillOpen(true);
   }, []);
@@ -322,7 +326,7 @@ function ClientCrmSurface({
   return null;
 }
 
-/** Reuse the canonical edit wizard and its update contract. */
+/** The vNext edit wizard on the canonical update contract (PUT + upload + refetch). */
 function ClientProfileEditor({ client, onClose }: { client: Client; onClose: () => void }) {
   const api = useApi();
   const qc = useQueryClient();
@@ -342,7 +346,7 @@ function ClientProfileEditor({ client, onClose }: { client: Client; onClose: () 
   });
 
   return (
-    <ClientFormModal
+    <ClientFormDialogVNext
       open
       mode="edit"
       client={client}

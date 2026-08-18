@@ -31,10 +31,15 @@ describe('MeriAgentSteps (shared step-row rendering)', () => {
 });
 
 describe('MeriWorkPerformed', () => {
-  test('reuses WorkPerformed intent labels rather than a second copy of the map', () => {
+  test('reuses the shared intent-label map rather than a second copy of it', () => {
     const source = readMeri('MeriWorkPerformed.tsx');
     expect(source).toContain("import { INTENT_LABELS");
-    expect(source).toContain("../../components/chat/WorkPerformed.js");
+    // The single copy lives in the UI-free work-performed-shared module —
+    // importing WorkPerformed.js itself would pull antd + ContextInspector.css
+    // into the vNext runtime graph.
+    expect(source).toContain("../../components/chat/work-performed-shared.js");
+    expect(source).not.toContain("components/chat/WorkPerformed.js");
+    expect(source).not.toContain('INTENT_LABELS =');
   });
 
   test('progress is derived from step counts, not a fabricated timer', () => {

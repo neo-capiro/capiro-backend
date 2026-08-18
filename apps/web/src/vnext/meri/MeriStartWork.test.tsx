@@ -83,11 +83,14 @@ describe('MeriStartWork live catalog', () => {
     ]);
   });
 
-  test('renders the server skill catalog instead of fixture cards', async () => {
+  test('renders friendly skill titles and descriptions, never recipe ids', async () => {
     renderStartWork();
     expect(await screen.findByRole('button', { name: /Portfolio Changes/ })).toBeTruthy();
     expect(screen.getByText('What moved across clients.')).toBeTruthy();
+    expect(screen.getByText('READY TO USE')).toBeTruthy();
     expect(screen.queryByText('Research a company')).toBeNull();
+    expect(screen.queryByText('portfolio_changes')).toBeNull();
+    expect(screen.queryByText('query_portfolio_changes')).toBeNull();
     await waitFor(() =>
       expect(mocks.api.get).toHaveBeenCalledWith('/api/clio/v3/skills'),
     );

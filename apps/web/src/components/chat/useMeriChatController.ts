@@ -58,10 +58,14 @@ import {
   type ScopePersistStatus,
 } from './meri-route-guards.js';
 import { formatMeriHttpError } from './meri-http-error.js';
-import { isUsableAttachment, type StagedAttachment } from './ChatInput.js';
-import type { TrustStep } from './WorkPerformed.js';
+// UI-free shared modules — NOT the antd components. This controller is
+// mounted on the vNext surface (vnext/meri/**), so a value import of
+// ChatInput/WorkPerformed here would drag antd + legacy CSS into the
+// os.capiro.ai runtime module graph.
+import { isUsableAttachment, type StagedAttachment } from './chat-attachments.js';
+import type { TrustStep } from './work-performed-shared.js';
 import type { CanvasArtifact } from './MeriCanvas.js';
-import type { MessageFeedbackPayload } from './MessageFeedback.js';
+import type { MessageFeedbackPayload } from './message-feedback-shared.js';
 import type { MeriLearnedMemory } from './MeriMemoryPanel.js';
 
 type SseEvent =

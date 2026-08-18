@@ -19,7 +19,10 @@ const schemas = [
   'research_federal_market_strategy',
   'query_portfolio_overlap',
   'resolve_entity',
+  'lookup_client_registry',
   'search_emails',
+  'list_emails',
+  'find_contacts',
   'search_research_sources',
   'search_memory',
   'search_public_web',
@@ -118,6 +121,100 @@ describe('MeriSemanticToolGateway', () => {
     expect(selected.schemas.map((item) => item.name)).toEqual(selected.decision.proposedNames);
     expect(selected.decision.exposedNames).toContain('query_portfolio_changes');
     expect(selected.decision.exposedNames).not.toContain('unused_legacy_tool');
+  });
+
+  test('quick company profiles stay bounded even when canonical Research Director is enabled', () => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+        MERI_RESEARCH_DIRECTOR_CANONICAL_ENABLED: 'true',
+        MERI_RESEARCH_DIRECTOR_CANONICAL_TENANTS: 'tenant-1',
+      }),
+    );
+    const quickPlan: MeriRetrievalPlan = {
+      ...plan('research_external_company'),
+      queryClass: 'lookup',
+      requiredDomains: ['public_web'],
+      optionalDomains: ['clients', 'internal_research'],
+      reasons: ['recipe:research_external_company', 'quick-company-profile'],
+    };
+    const canonicalPlan = canonicalizeMeriCompanyResearchPlan(quickPlan, true);
+    const selected = gateway.select({
+      schemas,
+      tenantId: 'tenant-1',
+      request: 'What does Overland AI do?',
+      plan: canonicalPlan,
+    });
+
+    expect(canonicalPlan.recipeTool).toBe('research_external_company');
+    expect(selected.decision.exposedNames).toEqual(
+      expect.arrayContaining([
+        'research_external_company',
+        'lookup_client_registry',
+        'search_research_sources',
+        'search_public_web',
+        'scrape_web_page',
+      ]),
+    );
+    for (const forbidden of [
+      'research_federal_market_strategy',
+      'resolve_entity',
+      'search_federal_awards',
+      'search_sam_opportunities',
+      'search_federal_grants',
+      'search_program_elements',
+      'run_analysis',
+    ]) {
+      expect(selected.decision.exposedNames).not.toContain(forbidden);
+    }
+  });
+
+  test('mailbox history exposes mail support but no external-company or federal-market lanes', () => {
+    const gateway = new MeriSemanticToolGateway(
+      config({
+        MERI_SEMANTIC_TOOL_GATEWAY_ENABLED: 'true',
+        MERI_SEMANTIC_TOOL_GATEWAY_TENANTS: 'tenant-1',
+      }),
+    );
+    const mailPlan: MeriRetrievalPlan = {
+      ...plan('query_relationship_brief'),
+      queryClass: 'relationship_history',
+      requiredDomains: ['mail'],
+      optionalDomains: ['contacts', 'memory', 'internal_research'],
+      reasons: ['recipe:query_relationship_brief', 'mail-history-focus'],
+    };
+    const selected = gateway.select({
+      schemas,
+      tenantId: 'tenant-1',
+      request: 'Tell me my email history with C2 Strategies',
+      plan: mailPlan,
+    });
+
+    expect(selected.decision.exposedNames).toEqual(
+      expect.arrayContaining([
+        'query_relationship_brief',
+        'search_emails',
+        'list_emails',
+        'find_contacts',
+        'search_memory',
+        'lookup_client_registry',
+      ]),
+    );
+    for (const forbidden of [
+      'resolve_entity',
+      'search_research_sources',
+      'search_public_web',
+      'scrape_web_page',
+      'search_federal_awards',
+      'search_sam_opportunities',
+      'search_federal_grants',
+      'search_program_elements',
+      'research_external_company',
+      'research_federal_market_strategy',
+    ]) {
+      expect(selected.decision.exposedNames).not.toContain(forbidden);
+    }
   });
 
   test('the Research Director flag replaces the old model-facing company reasoning path', () => {

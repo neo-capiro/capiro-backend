@@ -4,13 +4,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
 import { hasAtLeast } from '@capiro/shared';
-import { message } from 'antd';
+import { useCapiroToast } from '../../components/feedback/toast.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
 import { useApi } from '../../../lib/use-api.js';
 import type { MeResponse } from '../../../lib/me.js';
 import type { AxiosInstance } from 'axios';
 import type { Client, ClientFormSubmit } from '../../../pages/clients/clientTypes.js';
-import { ClientFormModal } from '../../../pages/clients/ClientFormModal.js';
+import { ClientFormDialogVNext } from '../client-crm/ClientFormDialogVNext.js';
 import { ImportWithLdaModal } from './ImportWithLdaModal.js';
 import { PortfolioProgramElements } from './PortfolioProgramElements.js';
 import {
@@ -299,6 +299,7 @@ function ClientCard({ row, rollupState, onOpen }: { row: PortfolioRow; rollupSta
 export function PortfolioIndexPage() {
   const navigate = useNavigate();
   const api = useApi();
+  const toast = useCapiroToast();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const route = resolvePortfolioRoute(searchParams);
@@ -353,7 +354,7 @@ export function PortfolioIndexPage() {
       setSearchParams(next, { replace: true });
       navigate(`/clients?clientId=${encodeURIComponent(created.id)}`);
     },
-    onError: (err) => message.error(errorMessage(err)),
+    onError: (err) => toast.error(errorMessage(err)),
   });
 
   const openImport = (open: boolean) => {
@@ -417,7 +418,7 @@ export function PortfolioIndexPage() {
 
       <PortfolioProgramElements peSummary={model.peSummary} />
       <ImportWithLdaModal open={importOpen} onClose={() => openImport(false)} />
-      <ClientFormModal
+      <ClientFormDialogVNext
         open={createOpen}
         mode="create"
         submitting={createClient.isPending}

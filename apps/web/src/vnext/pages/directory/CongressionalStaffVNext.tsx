@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { DirectoryEntry, DirectoryStaffMember } from '../../../pages/directory/directoryData.js';
-import { DirectoryMemberProfileModal } from '../../../pages/directory/DirectoryMemberProfileModal.js';
+import { MemberProfileModalVNext } from './MemberProfileModalVNext.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
@@ -106,10 +106,12 @@ export function CongressionalStaffVNextView({ model }: { model: CongressionalSta
   // A staffer has no equivalent on canonical's own Directory list — clicking
   // one there only ever navigates to the plain staff page, so `onOpenProfile`
   // (below) already matches it. A member does have a richer equivalent: the
-  // same 7-tab modal canonical opens from its own list. `open` is derived from
-  // the current selection, not just this flag, so switching to a staffer or
-  // clearing the selection closes it automatically — the same thing canonical
-  // gets for free from tying its own modal to `selectedEntry !== null`.
+  // 7-tab profile canonical opens from its own list, rendered here by
+  // `MemberProfileModalVNext` (this surface's own re-skin of it — no legacy UI
+  // may render on os.capiro.ai). `open` is derived from the current selection,
+  // not just this flag, so switching to a staffer or clearing the selection
+  // closes it automatically — the same thing canonical gets for free from
+  // tying its own modal to `selectedEntry !== null`.
   const [memberProfileOpen, setMemberProfileOpen] = useState(false);
 
   return (
@@ -307,7 +309,7 @@ export function CongressionalStaffVNextView({ model }: { model: CongressionalSta
         />
       </div>
 
-      <DirectoryMemberProfileModal
+      <MemberProfileModalVNext
         entry={selection.selected?.kind === 'member' ? selection.selected.member : null}
         open={memberProfileOpen && selection.selected?.kind === 'member'}
         onClose={() => setMemberProfileOpen(false)}
@@ -473,7 +475,7 @@ function SelectedProfileRail({
   detail: CongressionalStaffDetailModel;
   /** Staff: navigates to the canonical staff page — canonical has no richer equivalent. */
   onOpenProfile: (selection: CongressionalSelection) => void;
-  /** Member: opens the same 7-tab modal canonical's own list uses. */
+  /** Member: opens the vNext 7-tab profile modal (same depth as canonical's). */
   onOpenMemberProfile: () => void;
 }) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');

@@ -9,7 +9,16 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import './engagement-dialog.css';
+// The dialog stylesheet is authored entirely on the vNext `--uui-*` tokens
+// (it always was — see the header of the css file) and is consumed by both
+// surfaces, so it lives with the rest of the vNext Engagement styles. This is
+// the same canonical-imports-vnext-css direction OutreachV3CompleteRoute.tsx
+// already uses for engagement.css / engagement-ui-closeout.css /
+// engagement-tones.css. Keeping it under `vnext/` is also what lets the vNext
+// Engagement surfaces (VNextMeetingsWorkspace, VNextOutreachWorkspace,
+// VNextReportsTracker) consume this shell without a runtime dependency on any
+// legacy-design-system stylesheet.
+import '../../../vnext/pages/engagement/engagement-dialog.css';
 
 const FOCUSABLE = [
   'a[href]',

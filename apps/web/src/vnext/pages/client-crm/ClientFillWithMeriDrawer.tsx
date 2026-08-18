@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroDrawer } from '../../components/overlays/index.js';
+import { useApi } from '../../../lib/use-api.js';
 import {
   errorText,
   useClientFillWithMeri,
@@ -27,32 +28,112 @@ export function ClientFillWithMeriDrawer({
   onClose: () => void;
 }) {
   const fill = useClientFillWithMeri(clientId, open);
+  const api = useApi();
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState<string | null>(null);
 
-  // Opening the drawer resumes an in-flight run automatically (see the hook);
-  // once that check settles into 'idle' — nothing to resume — start a real
-  // run right away instead of waiting on a redundant manual click.
-  const startedRef = useRef(false);
-  useEffect(() => {
-    if (!open) {
-      startedRef.current = false;
+  const persistedAttachmentId = documentAttachmentId(fill.run?.sourceStates);
+
+  const retrySelectedDocument = () => {
+    const isDocumentRun = Object.prototype.hasOwnProperty.call(
+      fill.run?.sourceStates ?? {},
+      'client_document',
+    );
+    const attachmentId = isDocumentRun ? persistedAttachmentId ?? selectedAttachmentId : null;
+    if (isDocumentRun && attachmentId) {
+      setRetryError(null);
+      fill.startForAttachment(attachmentId);
       return;
     }
-    if (fill.phase === 'idle' && !startedRef.current) {
-      startedRef.current = true;
-      fill.start();
+    if (isDocumentRun) {
+      setRetryError('Document retry is unavailable because the original attachment could not be identified.');
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, fill.phase]);
+    setRetryError(null);
+    fill.start();
+  };
+
+  const uploadCapabilityDocument = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || uploading) return;
+    if (file.size > 25 * 1024 * 1024) {
+      setUploadError('Choose a file smaller than 25 MB.');
+      return;
+    }
+    // Use the supported extension mapping rather than a browser-provided MIME
+    // (for example, browsers often report Markdown as text/markdown while the
+    // attachment pipeline correctly accepts it as bounded text/plain).
+    const contentType = contentTypeFor(file.name);
+    if (!contentType) {
+      setUploadError('This file type is not supported. Upload PDF, DOC/DOCX, PPTX, XLSX, CSV, TXT, or Markdown.');
+      return;
+    }
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const presigned = (
+        await api.post<{ url: string; fields: Record<string, string>; s3Key: string }>(
+          '/api/engagement/attachments/upload-url',
+          { clientId, fileName: file.name, contentType, contentLength: file.size },
+        )
+      ).data;
+      const form = new FormData();
+      Object.entries(presigned.fields).forEach(([key, value]) => form.append(key, value));
+      form.append('file', file);
+      const stored = await fetch(presigned.url, { method: 'POST', body: form });
+      if (!stored.ok) throw new Error('Storage rejected the upload');
+      const confirmed = (
+        await api.post<{ id: string }>('/api/engagement/attachments/confirm', {
+          clientId,
+          fileName: file.name,
+          contentType,
+          s3Key: presigned.s3Key,
+          source: 'fill-with-meri-capability',
+        })
+      ).data;
+      // Keep this explicit user selection for an attachment-specific retry;
+      // a document failure must never silently fall back to source enrichment.
+      setSelectedAttachmentId(confirmed.id);
+      // The document run reads only this server-owned attachment. Extraction,
+      // scanner readiness, and text bounds are enforced again by that run.
+      fill.startForAttachment(confirmed.id);
+    } catch (error) {
+      setUploadError(errorText(error, 'Could not upload and extract this document.'));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <CapiroDrawer open={open} title={`Fill with Meri — ${clientName}`} onClose={onClose}>
       <div className="capiro-crm-fill">
         <p className="capiro-crm__foot">
-          Meri reviews connected client sources and reliable public records, then proposes
-          field-level changes. Nothing is written until you apply it.
+          Meri reviews connected sources and reliable public records, or you can upload a
+          capability document to propose capability cards, descriptions, and tags. Nothing is
+          written until you apply it.
         </p>
 
-        <FillBody fill={fill} onClose={onClose} />
+        <label className="capiro-crm-fill__document-upload">
+          <span className="capiro-crm__meta">Upload a capability document</span>
+          <input
+            type="file"
+            accept=".pdf,.doc,.docx,.pptx,.xlsx,.csv,.txt,.md"
+            disabled={uploading || fill.phase === 'researching'}
+            onChange={uploadCapabilityDocument}
+          />
+        </label>
+        <p className="capiro-crm__foot">
+          PDF, Word, PowerPoint, Excel, CSV, and text files up to 25 MB. Meri extracts the
+          server-stored document; it never receives a browser file body.
+        </p>
+        {uploading ? <FillProgress label="Preparing document" detail="Uploading and extracting text…" /> : null}
+        {uploadError ? <p className="capiro-crm__foot capiro-crm__state--error">{uploadError}</p> : null}
+        {retryError ? <p className="capiro-crm__foot capiro-crm__state--error">{retryError}</p> : null}
+
+        <FillBody fill={fill} onClose={onClose} onRetry={retrySelectedDocument} />
       </div>
     </CapiroDrawer>
   );
@@ -60,7 +141,38 @@ export function ClientFillWithMeriDrawer({
 
 type Fill = ReturnType<typeof useClientFillWithMeri>;
 
-function FillBody({ fill, onClose }: { fill: Fill; onClose: () => void }) {
+const FILE_CONTENT_TYPES: Record<string, string> = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  csv: 'text/csv',
+  txt: 'text/plain',
+  md: 'text/plain',
+};
+
+function contentTypeFor(name: string): string | null {
+  const extension = name.trim().toLowerCase().split('.').pop() ?? '';
+  return FILE_CONTENT_TYPES[extension] ?? null;
+}
+
+function documentAttachmentId(sourceStates: Record<string, unknown> | undefined): string | null {
+  const state = sourceStates?.client_document;
+  if (!state || typeof state !== 'object' || Array.isArray(state)) return null;
+  const attachmentId = (state as { attachmentId?: unknown }).attachmentId;
+  return typeof attachmentId === 'string' && attachmentId.length > 0 ? attachmentId : null;
+}
+
+function FillBody({
+  fill,
+  onClose,
+  onRetry,
+}: {
+  fill: Fill;
+  onClose: () => void;
+  onRetry: () => void;
+}) {
   switch (fill.phase) {
     case 'idle':
       return (
@@ -79,7 +191,7 @@ function FillBody({ fill, onClose }: { fill: Fill; onClose: () => void }) {
       return (
         <FillProgress
           label="Researching"
-          detail="Reading connected sources and public records. This can take a minute."
+          detail="Reading the selected document or connected sources. This can take a minute."
         />
       );
 
@@ -102,7 +214,7 @@ function FillBody({ fill, onClose }: { fill: Fill; onClose: () => void }) {
           <p className="capiro-crm__foot">
             {fill.run?.error ?? errorText(fill.startError, 'The enrichment run failed.')}
           </p>
-          <CapiroButton variant="secondary" size="compact" onClick={() => fill.start()}>
+          <CapiroButton variant="secondary" size="compact" onClick={onRetry}>
             Try again
           </CapiroButton>
         </div>

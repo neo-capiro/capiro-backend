@@ -116,8 +116,17 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
   const current = run.data ?? latest.data ?? null;
 
   const start = useMutation({
-    mutationFn: async (sources?: string[]) =>
-      (await api.post<FillRun>(`${base}/runs`, sources?.length ? { sources } : {})).data,
+    mutationFn: async (input: { sources?: string[]; attachmentId?: string } = {}) =>
+      (
+        await api.post<FillRun>(
+          `${base}/runs`,
+          input.attachmentId
+            ? { attachmentId: input.attachmentId }
+            : input.sources?.length
+              ? { sources: input.sources }
+              : {},
+        )
+      ).data,
     onSuccess: (created) => {
       setRunId(created.id);
       setSelected(new Set());
@@ -206,7 +215,8 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     applyOutcome,
     startError: start.error,
     applyError: apply.error,
-    start: (sources?: string[]) => start.mutate(sources),
+    start: (sources?: string[]) => start.mutate({ sources }),
+    startForAttachment: (attachmentId: string) => start.mutate({ attachmentId }),
     applySelected: () => apply.mutate([...selected]),
     applyAll: () => apply.mutate(proposals.map((finding) => finding.id)),
     reset: () => {

@@ -51,12 +51,24 @@ const RECOMMENDED_TOOLS = [
  * Feature-flagged Phase-4 cutover. The legacy external-company recipe remains
  * callable internally as an evidence collector, but it is no longer the
  * model-facing reasoning path for an allowlisted tenant.
+ *
+ * A bounded company-description lookup is deliberately excluded. The same
+ * recipe name powers both quick profiles and federal-market investigations;
+ * `quick-company-profile` is the intent contract that prevents a simple
+ * “what does this company do?” question from becoming a full Research Director
+ * run across registries, awards, opportunities, grants and budget data.
  */
 export function canonicalizeMeriCompanyResearchPlan(
   plan: MeriRetrievalPlan,
   enabled: boolean,
 ): MeriRetrievalPlan {
-  if (!enabled || plan.recipeTool !== 'research_external_company') return plan;
+  if (
+    !enabled ||
+    plan.recipeTool !== 'research_external_company' ||
+    plan.reasons.includes('quick-company-profile')
+  ) {
+    return plan;
+  }
   return {
     ...plan,
     recipeTool: 'research_federal_market_strategy',

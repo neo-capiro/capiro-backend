@@ -5,7 +5,7 @@ import type {
   DashboardDensity,
   DashboardVNextModel,
 } from '../../adapters/legacy/useDashboardVNextModel.js';
-import type { NewsPolicyTopic } from '../../../pages/dashboard/DashboardNewsAndNarrative.js';
+import type { NewsPolicyTopic } from '../../../pages/dashboard/news-preferences.js';
 
 const TOPICS: ReadonlyArray<{ value: NewsPolicyTopic; label: string }> = [
   { value: 'legislation', label: 'Legislation' },

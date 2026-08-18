@@ -179,13 +179,25 @@ export class MeriRetrievalCoordinator {
       throw new Error('Meri retrieval coverage requested outside an active retrieval run');
     }
     const manifest = buildMeriCoverageManifest(state.plan, state.observations);
-    const underlyingPartial = state.plan.requiredDomains.filter((domain) =>
-      state.observations.some(
-        (observation) =>
-          !RECIPE_TOOLS.has(observation.tool) &&
-          observation.domains.includes(domain) &&
-          observation.status !== 'complete',
+    const authoritativeCompleteDomains = new Set(
+      state.plan.requiredDomains.filter((domain) =>
+        state.observations.some(
+          (observation) =>
+            observation.authoritativeCoverage === true &&
+            observation.status === 'complete' &&
+            observation.domains.includes(domain),
+        ),
       ),
+    );
+    const underlyingPartial = state.plan.requiredDomains.filter(
+      (domain) =>
+        !authoritativeCompleteDomains.has(domain) &&
+        state.observations.some(
+          (observation) =>
+            !RECIPE_TOOLS.has(observation.tool) &&
+            observation.domains.includes(domain) &&
+            observation.status !== 'complete',
+        ),
     );
     if (!underlyingPartial.length) return manifest;
     return {

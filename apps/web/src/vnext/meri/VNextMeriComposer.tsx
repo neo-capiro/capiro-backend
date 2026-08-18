@@ -8,10 +8,9 @@ import {
 } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import {
-  attachmentKindIcon,
   truncateFilenameMiddle,
   type StagedAttachment,
-} from '../../components/chat/ChatInput.js';
+} from '../../components/chat/chat-attachments.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { maySend, meriEffectiveIdentityKey } from '../../components/chat/meri-route-guards.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
@@ -45,6 +44,16 @@ function stagedAttachmentFailed(attachment: StagedAttachment): boolean {
     attachment.status === 'scanned' ||
     attachment.status === 'unsupported'
   );
+}
+
+/**
+ * vNext-native kind→icon mapping — same convention as MeriAttachmentChip's
+ * attachmentChipSpec (image→Eye, docx→File04, otherwise File05). Replaces the
+ * antd attachmentKindIcon the legacy composer renders; antd may not render on
+ * the vNext surface.
+ */
+function stagedAttachmentIconName(kind: StagedAttachment['kind']): 'Eye' | 'File04' | 'File05' {
+  return kind === 'image' ? 'Eye' : kind === 'docx' ? 'File04' : 'File05';
 }
 
 export function VNextMeriComposer({
@@ -420,7 +429,9 @@ export function VNextMeriComposer({
                   key={attachment.localId}
                   className={`vnext-meri__attachment${failed ? ' is-error' : ''}`}
                 >
-                  <span aria-hidden="true">{attachmentKindIcon(attachment.kind)}</span>
+                  <span aria-hidden="true" style={{ display: 'flex' }}>
+                    <MeriIcon name={stagedAttachmentIconName(attachment.kind)} size={12} />
+                  </span>
                   <span title={attachment.filename}>
                     {truncateFilenameMiddle(attachment.filename, 28)}
                   </span>

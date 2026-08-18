@@ -24,6 +24,13 @@ export interface MeriToolCoverageObservation {
   sourceHealth: MeriSourceHealth[];
   requestedEntityCount?: number;
   searchedEntityCount?: number;
+  /**
+   * True only when a high-level recipe explicitly reconciled its underlying
+   * pages/sources and is allowed to supersede earlier observations for the same
+   * required domain. Ordinary composite results remain non-authoritative so
+   * they cannot hide a real coverage gap by merely declaring themselves complete.
+   */
+  authoritativeCoverage?: boolean;
   detail?: string;
 }
 
@@ -154,19 +161,40 @@ export function observeMeriToolCoverage(
   }
 
   const rows = meriToolRows(payload);
-  const total = firstNumber(payload, ['total', 'totalMatches', 'count', 'matchesFound']);
+  const coverage = explicitCoverage(payload);
+  const nestedTotal = firstNumber(coverage ?? {}, [
+    'recordsEvaluated',
+    'total',
+    'totalMatches',
+  ]);
+  const nestedReturned = firstNumber(coverage ?? {}, [
+    'recordsReturned',
+    'returned',
+    'returnedCount',
+  ]);
+  const total =
+    firstNumber(payload, ['total', 'totalMatches', 'count', 'matchesFound']) ?? nestedTotal;
   const returned =
-    firstNumber(payload, ['returned', 'returnedCount']) ?? (rows.length ? rows.length : 0);
+    firstNumber(payload, ['returned', 'returnedCount']) ??
+    nestedReturned ??
+    (rows.length ? rows.length : 0);
   const hasMore =
     payload.hasMore === true ||
     payload.nextCursor != null ||
+    coverage?.paginationComplete === false ||
     (total !== null && total > returned);
-  const truncated = payload.truncated === true || hasMore;
+  const truncated = payload.truncated === true || coverage?.truncated === true || hasMore;
   const error = typeof payload.error === 'string' ? payload.error : null;
   const note = typeof payload.note === 'string' ? payload.note : null;
-  const coverage = explicitCoverage(payload);
   const coverageComplete = coverage?.complete === true;
   const coveragePartial = coverage?.complete === false;
+  const authoritativeCoverage = coverage?.authoritative === true;
+  const explicitPaginationComplete =
+    coverageComplete ||
+    coverage?.paginationComplete === true ||
+    payload.paginationComplete === true ||
+    payload.exhausted === true ||
+    (payload.hasMore === false && (total === null || total <= returned));
   const unavailable = Boolean(
     error ||
       /unavailable|not connected|not configured|could not be loaded|failed/i.test(note ?? ''),
@@ -181,9 +209,11 @@ export function observeMeriToolCoverage(
       ? 'unavailable'
       : coverageComplete
         ? 'complete'
-        : coveragePartial || truncated || sourceFailure || !catalog.exhaustive
+        : coveragePartial || truncated || sourceFailure
           ? 'partial'
-          : 'complete';
+          : !catalog.exhaustive && !explicitPaginationComplete
+            ? 'partial'
+            : 'complete';
 
   return {
     tool,
@@ -210,6 +240,7 @@ export function observeMeriToolCoverage(
           ])!,
         }
       : {}),
+    ...(authoritativeCoverage ? { authoritativeCoverage: true } : {}),
     ...(error || note ? { detail: error ?? note ?? undefined } : {}),
   };
 }
@@ -233,6 +264,34 @@ function mergeSourceHealth(observations: readonly MeriToolCoverageObservation[])
     }
   }
   return [...bySource.values()].sort((a, b) => a.source.localeCompare(b.source));
+}
+
+function authoritativeDomains(
+  plan: MeriRetrievalPlan,
+  observations: readonly MeriToolCoverageObservation[],
+): Set<MeriRetrievalDomain> {
+  return new Set(
+    plan.requiredDomains.filter((domain) =>
+      observations.some(
+        (observation) =>
+          observation.authoritativeCoverage === true &&
+          observation.status === 'complete' &&
+          observation.domains.includes(domain),
+      ),
+    ),
+  );
+}
+
+function supersededByAuthoritativeCoverage(
+  plan: MeriRetrievalPlan,
+  observation: MeriToolCoverageObservation,
+  authoritative: ReadonlySet<MeriRetrievalDomain>,
+): boolean {
+  if (observation.authoritativeCoverage) return false;
+  const relevantDomains = observation.domains.filter((domain) =>
+    plan.requiredDomains.includes(domain),
+  );
+  return relevantDomains.length > 0 && relevantDomains.every((domain) => authoritative.has(domain));
 }
 
 export function buildMeriCoverageManifest(
@@ -261,33 +320,46 @@ export function buildMeriCoverageManifest(
   }
 
   const searchedDomains = unique(observations.flatMap((observation) => observation.domains));
+  const requiredObservations = observations.filter((observation) =>
+    observation.domains.some((domain) => plan.requiredDomains.includes(domain)),
+  );
+  const authoritative = authoritativeDomains(plan, observations);
+  const rawCompletionObservations = requiredObservations.length ? requiredObservations : observations;
+  const completionObservations = rawCompletionObservations.filter(
+    (observation) =>
+      !supersededByAuthoritativeCoverage(plan, observation, authoritative),
+  );
   const missingDomains = plan.requiredDomains.filter((domain) => !searchedDomains.includes(domain));
   const partialDomains = plan.requiredDomains.filter((domain) => {
-    const relevant = observations.filter((observation) => observation.domains.includes(domain));
+    const relevant = observations.filter(
+      (observation) =>
+        observation.domains.includes(domain) &&
+        !supersededByAuthoritativeCoverage(plan, observation, authoritative),
+    );
     return relevant.length > 0 && relevant.every((observation) => observation.status !== 'complete');
   });
-  const requestedEntityCount = observations.reduce<number | null>(
+  const requestedEntityCount = completionObservations.reduce<number | null>(
     (current, observation) =>
       observation.requestedEntityCount == null
         ? current
         : Math.max(current ?? 0, observation.requestedEntityCount),
     plan.subjectScope === 'portfolio' ? plan.activeClients.length : null,
   );
-  const searchedEntityCount = observations.reduce<number | null>(
+  const searchedEntityCount = completionObservations.reduce<number | null>(
     (current, observation) =>
       observation.searchedEntityCount == null
         ? current
         : Math.max(current ?? 0, observation.searchedEntityCount),
     null,
   );
-  const paginationComplete = observations.every((observation) => !observation.hasMore);
-  const truncated = observations.some((observation) => observation.truncated);
-  const sourceHealth = mergeSourceHealth(observations);
+  const paginationComplete = completionObservations.every((observation) => !observation.hasMore);
+  const truncated = completionObservations.some((observation) => observation.truncated);
+  const sourceHealth = mergeSourceHealth(completionObservations);
   const unavailableSources = [
     ...sourceHealth
       .filter((source) => source.status === 'error' || source.status === 'unavailable')
       .map((source) => ({ source: source.source, reason: source.detail ?? source.status })),
-    ...observations
+    ...completionObservations
       .filter((observation) => observation.status === 'error' || observation.status === 'unavailable')
       .map((observation) => ({
         source: observation.tool,
@@ -318,11 +390,14 @@ export function buildMeriCoverageManifest(
     partialDomains,
     requestedEntityCount,
     searchedEntityCount,
-    recordsEvaluated: observations.reduce(
+    recordsEvaluated: completionObservations.reduce(
       (sum, observation) => sum + (observation.total ?? observation.returned),
       0,
     ),
-    recordsReturned: observations.reduce((sum, observation) => sum + observation.returned, 0),
+    recordsReturned: completionObservations.reduce(
+      (sum, observation) => sum + observation.returned,
+      0,
+    ),
     paginationComplete,
     truncated,
     sourceHealth,
@@ -337,37 +412,39 @@ export function appendMeriCoverageDisclosure(
   plan: MeriRetrievalPlan,
   coverage: MeriCoverageManifest,
 ): string {
-  if (!plan.requireCompleteCoverage && coverage.unavailableSources.length === 0) return reply;
-  if (/^### Retrieval coverage$/m.test(reply)) return reply;
+  if (coverage.complete) return reply;
+  if (
+    !plan.requireCompleteCoverage &&
+    coverage.unavailableSources.length === 0 &&
+    !coverage.truncated
+  ) {
+    return reply;
+  }
+  if (/\*\*Coverage note:\*\*/i.test(reply)) return reply;
 
-  const lines = [
-    '### Retrieval coverage',
-    coverage.complete
-      ? `Coverage is complete for the requested scope (${coverage.searchedDomains.join(', ') || 'no external retrieval required'}).`
-      : 'Coverage is partial. Treat negative or exhaustive claims as provisional.',
-  ];
-  if (coverage.requestedEntityCount != null) {
-    lines.push(
-      coverage.complete
-        ? `Entities searched: ${coverage.searchedEntityCount ?? 0} of ${coverage.requestedEntityCount}.`
-        : `Entity fan-out attempted: ${coverage.searchedEntityCount ?? 0} of ${coverage.requestedEntityCount}; see the source/domain gaps below.`,
+  const mailRequired = plan.requiredDomains.includes('mail');
+  const mailUnavailable =
+    mailRequired &&
+    coverage.unavailableSources.some((source) =>
+      /mail|gmail|google|microsoft|outlook|search_emails/i.test(source.source),
     );
+  const mailPartial =
+    mailRequired &&
+    (coverage.partialDomains.includes('mail') || !coverage.paginationComplete || coverage.truncated);
+
+  let note: string;
+  if (mailUnavailable) {
+    note = 'Mailbox data was unavailable, so this relationship history may be incomplete.';
+  } else if (mailPartial) {
+    note =
+      coverage.recordsEvaluated > coverage.recordsReturned
+        ? `This summary covers ${coverage.recordsReturned} of ${coverage.recordsEvaluated} matching synchronized mailbox records; additional messages may exist.`
+        : 'The synchronized mailbox returned additional or truncated results, so this relationship history may omit some messages.';
+  } else if (coverage.missingDomains.length || coverage.partialDomains.length) {
+    note = 'One or more evidence sources required for this request were incomplete, so exhaustive or negative claims should be treated as provisional.';
+  } else {
+    note = 'A required source was temporarily unavailable, so the answer may omit relevant records.';
   }
-  if (coverage.missingDomains.length) {
-    lines.push(`Not searched: ${coverage.missingDomains.join(', ')}.`);
-  }
-  if (coverage.partialDomains.length) {
-    lines.push(`Partially searched: ${coverage.partialDomains.join(', ')}.`);
-  }
-  if (!coverage.paginationComplete || coverage.truncated) {
-    lines.push('At least one source had additional or truncated results that were not fully enumerated.');
-  }
-  if (coverage.unavailableSources.length) {
-    lines.push(
-      `Unavailable sources: ${coverage.unavailableSources
-        .map((source) => `${source.source} (${source.reason})`)
-        .join('; ')}.`,
-    );
-  }
-  return `${reply.trim()}\n\n${lines.join('\n')}`.trim();
+
+  return `${reply.trim()}\n\n> **Coverage note:** ${note}`.trim();
 }

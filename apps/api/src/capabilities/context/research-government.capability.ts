@@ -14,7 +14,10 @@ import {
 const inputSchemaZod = z
   .object({
     query: z.string().min(2).max(500),
-    categories: z.array(z.enum(OUTREACH_GOVERNMENT_RECORD_CATEGORIES)).max(12).default([]),
+    categories: z
+      .array(z.enum(OUTREACH_GOVERNMENT_RECORD_CATEGORIES))
+      .max(OUTREACH_GOVERNMENT_RECORD_CATEGORIES.length)
+      .default([]),
     intendedClass: z.enum(['required_policy', 'campaign_fact', 'target_specific', 'group_safe']),
     scope: outreachContextScopeV1Schema,
     limit: z.number().int().min(1).max(50).default(20),
@@ -163,5 +166,7 @@ function sourceSystem(category: SearchCategory): string {
       return 'legiscan';
     case 'federal_register':
       return 'federalregister.gov';
+    case 'program_element':
+      return 'capiro_program_elements';
   }
 }

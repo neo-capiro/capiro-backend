@@ -1,4 +1,4 @@
-import type { TrustStep } from '../../components/chat/WorkPerformed.js';
+import type { TrustStep } from '../../components/chat/work-performed-shared.js';
 import { formatElapsed } from '../../components/chat/useMeriChatController.js';
 import { MeriAgentSteps } from './MeriAgentSteps.js';
 

@@ -23,8 +23,9 @@
  * NOTE: `.cap-pf-client` is the LIVE client-profile root. The unrelated
  * `.capiro-crm` classes below this rule (header/tabs/grid/org-tree/etc.) style
  * `ClientCrmOrganization.tsx` and its sibling old-generation page files
- * (ClientCrmOverview.tsx, ClientCrmCapabilities.tsx, ...), none of which are
- * imported by ClientCrmPage.tsx — they were superseded by `tabs/*.tsx` +
+ * (ClientCrmOverview.tsx, ...; the antd-reaching ClientCrmCapabilities.tsx and
+ * ClientCrmGovernment.tsx were deleted in the legacy-UI purge), none of which
+ * are imported by ClientCrmPage.tsx — they were superseded by `tabs/*.tsx` +
  * `portfolio-proto.css` (the `cap-pf` system) and are dead code, confirmed by
  * grepping for their component names across `apps/web/src`. Only the drawer/
  * modal fragments of this file (`.capiro-crm-form*`, `.capiro-crm-fill*`,
@@ -1421,28 +1422,10 @@
   .capiro-vnext-root .capiro-crm__grid--files { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* ── Scoped override for a canonical component ───────────────────────────── */
-
-/*
- * ClientCrmCapabilities deliberately mounts the CANONICAL CapabilityDrawer
- * (src/pages/clients/CapabilityDrawer.tsx) rather than re-implementing the
- * editor, and that drawer renders IN FLOW inside .capiro-crm__body — no portal,
- * no overlay. Its panel is `width: 560px; min-width: 560px` in src/theme.css,
- * which is a file shared with production app.capiro.ai and must not be edited
- * on this branch. At 390 that is a 560px block in a ~334px body: the
- * foundation's overflow-x:clip safety net stops the page scrolling and
- * therefore cuts ~226px of the editor — including form fields — clean off.
- *
- * min(560px, 100%) is the same idiom .capiro-overlay-panel uses. It is
- * identical to the canonical rule at every width where 560px fits, so the
- * production surface is unaffected and only the vNext CRM subtree is retargeted.
- * The drawer's INTERNAL geometry is still canonical and unaudited — see the
- * residual risk note in this change's summary.
- */
-.capiro-vnext-root .capiro-crm .cap-drawer {
-  width: min(560px, 100%);
-  min-width: 0;
-}
+/* The canonical CapabilityDrawer no longer renders anywhere in vNext — the
+   Capabilities tab mounts CapabilityDrawerVNext (capability-drawer-vnext.css)
+   inside the standard CapiroModal — so the old scoped `.cap-drawer` width
+   override that used to retarget the canonical panel was removed with it. */
 
 /* ── Touch targets, ≤1179 (tablet and mobile) ────────────────────────────── */
 

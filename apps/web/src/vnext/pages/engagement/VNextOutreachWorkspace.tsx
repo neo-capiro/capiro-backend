@@ -20,7 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import type { Client } from '../../../pages/clients/clientTypes.js';
-import { CurrentDecisionSurface } from '../../../pages/engagement/outreach/v3/CurrentDecisionSurface.js';
+import { VNextCurrentDecisionSurface } from './VNextCurrentDecisionSurface.js';
 import { GoalDecisionSurface } from '../../../pages/engagement/outreach/v3/GoalDecisionSurface.js';
 import {
   outreachV3StyleSamples,
@@ -66,9 +66,14 @@ import {
   type OutreachV3ServerPreflight,
 } from './engagement-api.js';
 import { safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
-import '../../../pages/engagement/outreach/v3/outreach-v3.css';
-import '../../../pages/engagement/outreach/v3/planning-surfaces.css';
-// Re-themes the shared ov3-root component tree (Goal/Targets/Delivery step
+// The legacy outreach-v3 stylesheets are NOT imported here anymore (vNext
+// old-UI purge: no legacy-design-system css on this surface). Their vNext
+// port — outreach-decision-vnext.css, a :where()-scoped, token-stripped copy
+// of all four canonical files that behaves identically in the cascade —
+// arrives through the VNextCurrentDecisionSurface import above, which is
+// evaluated before outreach-body-vnext.css below, preserving the load order
+// the raw imports had.
+// Re-themes the shared ov3 component tree (Goal/Targets/Delivery step
 // bodies) to literal navy with zero edits to those canonical files — see this
 // file's header comment for the specificity/scoping rationale.
 import './outreach-body-vnext.css';
@@ -2200,7 +2205,7 @@ export function VNextOutreachWorkspace({
                         onNavigateToGoal={() => { selectStep('goal'); setBriefEditOpen(true); }}
                       />
                     ) : (
-                      <CurrentDecisionSurface
+                      <VNextCurrentDecisionSurface
                         session={session}
                         stage={
                           candidate.key === step

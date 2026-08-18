@@ -1,23 +1,23 @@
 /**
- * Engagement vNext tenant access gate (dogfood canary, capiro-internal only
- * for now). The Engagement vNext reskin shipped with all four destinations
- * (Meetings/Library/Outreach/Reports) claimed unconditionally by VNextRouter
- * as soon as ENGAGEMENT_DESTINATION_READY marked them ready — every
- * os.capiro.ai user on every tenant saw the new navy UI, with no way to hold
- * it back for a canary rollout. This locks in the real gate added on top:
- * `VNextRouter` now only takes the Engagement-interception branch when GET
- * /me's `features.engagementVNext` resolves `true`. Deliberately NOT the
- * nav-visibility-only `meFeature` mechanism in routeManifest.ts (confirmed
- * elsewhere that it only hides a rail link, not the route itself) — this
- * changes which component actually renders.
+ * Engagement vNext GA contract (gate REMOVED 2026-08-18, owner decision: no
+ * legacy UI on os.capiro.ai). During the dogfood canary, VNextRouter took the
+ * Engagement-interception branch only when GET /me's `features.engagementVNext`
+ * resolved `true`; every other tenant fell through to the canonical
+ * EngagementPage. That per-tenant gate is gone: the four destinations
+ * (Meetings/Library/Outreach/Reports) are claimed unconditionally, exactly
+ * like every other ported module. These tests lock the new contract —
+ * Engagement paths render vNext for every tenant, regardless of what the /me
+ * flag says (false, absent, or still loading), and VNextRouter no longer
+ * consults /me at all. If a tenant-level hold-back is ever needed again, see
+ * git history on this file and VNextRouter.tsx for the canary-era wiring.
  *
- * Every OTHER vNext branch is irrelevant to this gate and is stubbed out so
- * the test stays hermetic and exercises only: isVNextEngagementPath (real,
- * imported from engagement-route-state.ts) ANDed with the new tenant check.
- * The canonical fallback is reproduced the same way App.tsx actually wires
- * it — a layout `<Route element={<VNextRouter/>}>` around a sibling
- * `<Route path="/engagement/*" element={...}/>`, so VNextRouter's own
- * `<Outlet/>` is what renders the canonical page when the gate is closed.
+ * Every OTHER vNext branch is irrelevant here and is stubbed out so the test
+ * stays hermetic and exercises only isVNextEngagementPath (real, imported
+ * from engagement-route-state.ts). The canonical fallback is reproduced the
+ * same way App.tsx actually wires it — a layout `<Route element={<VNextRouter/>}>`
+ * around a sibling `<Route path="/engagement/*" element={...}/>`, so
+ * VNextRouter's own `<Outlet/>` is what renders the canonical page for paths
+ * no vNext branch claims (none of the Engagement ones, anymore).
  */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -56,7 +56,7 @@ vi.mock('../pages/client-crm/VNextClientCrmRoute.js', () => ({
 // isVNextEngagementPath is the REAL destination-readiness check (kept live
 // via importActual) — only VNextEngagementRoutes itself is stubbed, since its
 // real body pulls in useApi/useClientFilter and a lot of module weight that
-// has nothing to do with the tenant gate under test here.
+// has nothing to do with the routing contract under test here.
 vi.mock('../pages/engagement/VNextEngagementRoutes.js', async () => {
   const real = await vi.importActual<typeof import('../pages/engagement/engagement-route-state.js')>(
     '../pages/engagement/engagement-route-state.js',
@@ -91,8 +91,8 @@ function renderAt(path: string) {
   );
 }
 
-describe('VNextRouter — Engagement tenant access gate', () => {
-  it('renders vNext Engagement once features.engagementVNext resolves true', () => {
+describe('VNextRouter — Engagement claimed unconditionally (post-GA)', () => {
+  it('renders vNext Engagement when the legacy flag would have been true', () => {
     useMeMock.mockReturnValue({
       isLoading: false,
       data: { features: { engagementVNext: true } },
@@ -102,36 +102,56 @@ describe('VNextRouter — Engagement tenant access gate', () => {
     expect(screen.queryByTestId('canonical-engagement')).not.toBeInTheDocument();
   });
 
-  it('falls through to canonical EngagementPage when the tenant flag is false', () => {
+  it('renders vNext Engagement even when the legacy tenant flag is false', () => {
     useMeMock.mockReturnValue({
       isLoading: false,
       data: { features: { engagementVNext: false } },
     });
     renderAt('/engagement/meetings');
-    expect(screen.getByTestId('canonical-engagement')).toBeInTheDocument();
-    expect(screen.queryByTestId('vnext-engagement')).not.toBeInTheDocument();
+    expect(screen.getByTestId('vnext-engagement')).toBeInTheDocument();
+    expect(screen.queryByTestId('canonical-engagement')).not.toBeInTheDocument();
   });
 
-  it('falls through to canonical while /me is still loading — never flashes vNext before the flag is confirmed', () => {
+  it('renders vNext Engagement while /me is still loading — no canonical flash on slow tenants', () => {
     useMeMock.mockReturnValue({ isLoading: true, data: undefined });
     renderAt('/engagement/meetings');
-    expect(screen.getByTestId('canonical-engagement')).toBeInTheDocument();
-    expect(screen.queryByTestId('vnext-engagement')).not.toBeInTheDocument();
+    expect(screen.getByTestId('vnext-engagement')).toBeInTheDocument();
+    expect(screen.queryByTestId('canonical-engagement')).not.toBeInTheDocument();
   });
 
-  it('falls through to canonical for an older cached /me shape with no engagementVNext key at all', () => {
+  it('renders vNext Engagement for an older cached /me shape with no engagementVNext key at all', () => {
     useMeMock.mockReturnValue({ isLoading: false, data: { features: {} } });
     renderAt('/engagement/meetings');
-    expect(screen.getByTestId('canonical-engagement')).toBeInTheDocument();
-    expect(screen.queryByTestId('vnext-engagement')).not.toBeInTheDocument();
+    expect(screen.getByTestId('vnext-engagement')).toBeInTheDocument();
+    expect(screen.queryByTestId('canonical-engagement')).not.toBeInTheDocument();
   });
 
-  it('still claims the other three destinations once enabled, matching isVNextEngagementPath', () => {
-    useMeMock.mockReturnValue({
-      isLoading: false,
-      data: { features: { engagementVNext: true } },
-    });
-    renderAt('/engagement/outreach');
-    expect(screen.getByTestId('vnext-engagement')).toBeInTheDocument();
+  it('claims all four destinations, matching isVNextEngagementPath', () => {
+    useMeMock.mockReturnValue({ isLoading: false, data: { features: {} } });
+    for (const path of [
+      '/engagement/meetings',
+      '/engagement/meeting-library',
+      '/engagement/outreach',
+      '/engagement/reports',
+    ]) {
+      const { unmount } = renderAt(path);
+      expect(screen.getByTestId('vnext-engagement')).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('claims EVERY /engagement path — the canonical EngagementPage is unreachable on the vNext surface', () => {
+    useMeMock.mockReturnValue({ isLoading: false, data: { features: {} } });
+    // engagementDestination() maps any unrecognized /engagement path to
+    // 'meetings', and all four ENGAGEMENT_DESTINATION_READY entries are true,
+    // so isVNextEngagementPath accepts the whole /engagement subtree. That IS
+    // the post-GA invariant: no old-UI EngagementPage can render on
+    // os.capiro.ai through any engagement URL shape.
+    for (const path of ['/engagement', '/engagement/some-unknown-subpage']) {
+      const { unmount } = renderAt(path);
+      expect(screen.getByTestId('vnext-engagement')).toBeInTheDocument();
+      expect(screen.queryByTestId('canonical-engagement')).not.toBeInTheDocument();
+      unmount();
+    }
   });
 });

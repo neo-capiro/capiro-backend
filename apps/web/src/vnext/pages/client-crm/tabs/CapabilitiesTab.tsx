@@ -14,7 +14,8 @@ import {
 } from '../portfolio-primitives.js';
 import { CAP_PERF } from '../portfolio-fixtures.js';
 import { useApi } from '../../../../lib/use-api.js';
-import { CapabilityDrawer, type Capability } from '../../../../pages/clients/CapabilityDrawer.js';
+import { CapabilityDrawerVNext } from '../CapabilityDrawerVNext.js';
+import type { Capability } from '../../../../pages/clients/capability-types.js';
 import { readClientRegistrations } from '../../../../pages/clients/client-registrations.js';
 import {
   OUTCOME_TONE,
@@ -43,9 +44,11 @@ import { CapiroModal } from '../../../components/overlays/index.js';
  * client's `ClientSubmissionHistory` rows across its capabilities (row 12).
  * §7.2 capability-fit rows have no per-client backend and stay fixture.
  *
- * The canonical CapabilityDrawer stays mounted for all editing: the header
- * "Add capability" action opens it blank, and clicking a live capability area
- * opens it on that record (fixture areas are static — there is no record).
+ * All editing happens in the vNext capability editor (CapabilityDrawerVNext —
+ * a re-skin of the canonical CapabilityDrawer on the same PATCH/attachment
+ * contract; no antd renders on this surface): the header "Add capability"
+ * action opens it blank, and clicking a live capability area opens it on that
+ * record (fixture areas are static — there is no record).
  */
 
 export function ClientCrmCapabilitiesProto({
@@ -111,8 +114,20 @@ export function ClientCrmCapabilitiesProto({
       {/* §7.3 Past performance */}
       <PastPerformanceCard client={client} />
 
-      {(editing || creating) && (
-        <CapabilityDrawer
+      {/* The canonical editor is an in-flow side panel on the legacy profile.
+          In vNext that made a clicked capability look as if it had been appended
+          below the whole page. Keep its mature editing surface, but put it in the
+          standard focus-trapping modal so the selected capability is immediately
+          visible without changing the page's scroll position. */}
+      <CapiroModal
+        open={Boolean(editing || creating)}
+        title={`Capability — ${editing?.name ?? 'New capability'}`}
+        onClose={() => {
+          setEditing(null);
+          setCreating(false);
+        }}
+      >
+        <CapabilityDrawerVNext
           capability={editing}
           clientId={client.id}
           onClose={() => {
@@ -125,7 +140,7 @@ export function ClientCrmCapabilitiesProto({
           }}
           {...(editing ? { onDelete: () => setPendingDelete(editing) } : {})}
         />
-      )}
+      </CapiroModal>
 
       {/* Destructive mutations confirm; the overlay traps focus while open. */}
       <CapiroModal open={Boolean(pendingDelete)} title="Delete capability" onClose={() => setPendingDelete(null)}>

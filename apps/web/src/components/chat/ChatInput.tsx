@@ -12,42 +12,24 @@ import {
   SendOutlined,
 } from '@ant-design/icons';
 import { Button, Tooltip } from 'antd';
+import { truncateFilenameMiddle, type StagedAttachment } from './chat-attachments.js';
 import { ManagedComposerPlus } from './ManagedComposerPlus.js';
 
-/** A file staged in the composer: uploading, ready to send, or failed. */
-export interface StagedAttachment {
-  /** Client-side key, stable across the upload lifecycle. */
-  localId: string;
-  /** Server attachment id once uploaded; null while uploading or when unusable. */
-  id: string | null;
-  filename: string;
-  kind: 'pdf' | 'docx' | 'image' | 'text' | 'unsupported';
-  status:
-    | 'uploading'
-    | 'parsed'
-    | 'truncated'
-    | 'image_ready'
-    | 'scanned'
-    | 'unsupported'
-    | 'error';
-  reason: string | null;
-  /**
-   * POST /api/clio/attachments already returns these; kept optional (absent
-   * while uploading) so the v4 attachment chip can show real page/character
-   * counts instead of only the status.
-   */
-  pages?: number | null;
-  chars?: number;
-}
+/**
+ * The StagedAttachment type and the pure attachment rules now live in the
+ * UI-free ./chat-attachments.js so the vNext surface can share them without
+ * pulling this antd-heavy composer into its runtime graph. Re-exported here
+ * because the legacy chat surface (ChatMessage, ChatDrawer,
+ * MeriWorkspaceConversation) historically imports them from ChatInput.
+ */
+export { isUsableAttachment, truncateFilenameMiddle } from './chat-attachments.js';
+export type { StagedAttachment } from './chat-attachments.js';
 
-/** True when a staged file can be referenced by a send (has a server id). */
-export function isUsableAttachment(att: StagedAttachment): boolean {
-  return (
-    att.id !== null &&
-    (att.status === 'parsed' || att.status === 'truncated' || att.status === 'image_ready')
-  );
-}
-
+/**
+ * antd file-type icon for a staged attachment. Legacy-surface only — the
+ * vNext composer maps kinds onto MeriIcon names instead (image→Eye,
+ * docx→File04, otherwise File05; see vnext/meri/MeriAttachmentChip.tsx).
+ */
 export function attachmentKindIcon(kind: string): ReactNode {
   switch (kind) {
     case 'pdf':
@@ -61,14 +43,6 @@ export function attachmentKindIcon(kind: string): ReactNode {
     default:
       return <FileUnknownOutlined />;
   }
-}
-
-/** Middle-ellipsis truncation so the start AND the extension stay visible. */
-export function truncateFilenameMiddle(name: string, max = 28): string {
-  if (name.length <= max) return name;
-  const head = Math.ceil((max - 1) * 0.6);
-  const tail = max - 1 - head;
-  return `${name.slice(0, head)}…${name.slice(name.length - tail)}`;
 }
 
 const ATTACH_ACCEPT = '.pdf,.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';

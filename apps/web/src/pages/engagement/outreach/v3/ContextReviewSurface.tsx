@@ -33,7 +33,14 @@ import type {
   OutreachV3ResolvedContextRef,
 } from './contracts.js';
 import { safeOutreachV3Error } from './outreach-v3-api.js';
-import './context-review-surface.css';
+// NOTE: this component intentionally imports no stylesheet. Its canonical
+// styles (context-review-surface.css) are attached by OutreachV3Route.tsx,
+// alongside the other outreach-v3 stylesheets; the vNext Engagement surface
+// styles the same markup through its own scoped port
+// (vnext/pages/engagement/outreach-decision-vnext.css) and may not import the
+// legacy stylesheet at runtime. Keeping the component css-free is what lets
+// one implementation serve both surfaces — the TargetWorkspaceEntry /
+// TargetWorkspace split established this seam first.
 
 export type ContextReviewSurfaceProps = Pick<
   DecisionSurfacesProps,

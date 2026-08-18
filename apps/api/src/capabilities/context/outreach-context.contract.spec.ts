@@ -97,4 +97,22 @@ describe('Outreach governed context contract', () => {
     });
     expect(normalizeResolvedContextRefsV1([resolved, resolved])).toHaveLength(1);
   });
+
+  it('accepts program_element government_record locators keyed by PE code', () => {
+    const selection = normalizeContextSelectionV1({
+      locator: {
+        source: 'government_record',
+        category: 'program_element',
+        id: '0604645A',
+      },
+      contextClass: 'campaign_fact',
+      scope: { kind: 'campaign' },
+    });
+    expect(selection.locator).toEqual({
+      source: 'government_record',
+      category: 'program_element',
+      id: '0604645A',
+    });
+    expect(contextKeyForSelection(selection)).toContain('program_element');
+  });
 });

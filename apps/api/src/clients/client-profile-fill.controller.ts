@@ -26,6 +26,12 @@ class StartClientProfileFillDto {
   @ArrayMaxSize(CLIENT_PROFILE_FILL_SOURCES.length)
   @IsIn(CLIENT_PROFILE_FILL_SOURCES, { each: true })
   sources?: ClientProfileFillSource[];
+
+  /** A server-owned client document. When present, Meri extracts capabilities
+   * from this exact attachment instead of silently using unrelated sources. */
+  @IsOptional()
+  @IsUUID()
+  attachmentId?: string;
 }
 
 class ApplyClientProfileFillDto {
@@ -55,7 +61,7 @@ export class ClientProfileFillController {
     @Param('clientId') clientId: string,
     @Body() body: StartClientProfileFillDto,
   ) {
-    return this.service.startRun(ctx, clientId, body.sources);
+    return this.service.startRun(ctx, clientId, body.sources, body.attachmentId);
   }
 
   @Get('latest')

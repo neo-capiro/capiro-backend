@@ -16,47 +16,17 @@
  *   `.meri-fab`).
  */
 import { useLayoutEffect, useEffect, useState } from 'react';
+import { OB_TOUR } from './onboarding-shared.js';
 import { ObBtn } from './primitives.js';
 import './ob-overlay.css';
 
-/** Tour steps — copy is EXACTLY the prototype's OB_TOUR array. */
-export const OB_TOUR: Array<{ nav: string; h: string; s: string }> = [
-  {
-    nav: 'Dashboard',
-    h: 'Your Dashboard, Tailored to You',
-    s: "A quick view of what's critical in the coming days. Data gets more in-depth the more you use the platform.",
-  },
-  {
-    nav: 'Meri',
-    h: 'Meri, Your AI Assistant',
-    s: 'Meri pulls context from your connected inbox, calendar, and clients to serve as your "AI Chief of Staff." Ask Meri to perform research, update you on legislation, draft documents, and more.',
-  },
-  {
-    nav: 'Engagement',
-    h: 'Your Client Relationship CRM',
-    s: 'Prep for meetings, draft tailored email campaigns, and view auto-generated reports in the Engagement manager.',
-  },
-  {
-    nav: 'Portfolio',
-    h: "Your Organization's Client List",
-    s: "Your org's client profiles live here, along with key information and tailored insights for each one.",
-  },
-  {
-    nav: 'Workspace',
-    h: 'Draft Key Documents with Meri',
-    s: 'Meri can help you quickly draft personalized memos, white papers, requests, and more.',
-  },
-  {
-    nav: 'Directory',
-    h: 'Your Congressional Directory',
-    s: 'View and search the full congressional directory of members, staffers, and key insights.',
-  },
-  {
-    nav: 'Intelligence',
-    h: 'Intel Tailored for You',
-    s: "Explore intelligence tools. LegiWatch surfaces critical insights and alerts you when relevant bills move or your clients' interests are mentioned in hearings. Data Explorer searches Capiro's full federal data records. Program Elements gives you key budget data.",
-  },
-];
+/**
+ * The step copy (OB_TOUR) now lives in the UI-free ./onboarding-shared.js —
+ * the single copy shared with the vNext tour (vnext/app/onboarding/
+ * VNextDashboardTour.tsx). Re-exported for any consumer that imported it
+ * from here.
+ */
+export { OB_TOUR } from './onboarding-shared.js';
 
 /** Resolve the element to spotlight/measure for a tour step. */
 function resolveTourTarget(nav: string): Element | null {

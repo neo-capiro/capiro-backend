@@ -19,7 +19,7 @@ function plan(): MeriRetrievalPlan {
 }
 
 describe('MeriRetrievalCoordinator', () => {
-  test('does not let a successful composite recipe hide a partial underlying search', async () => {
+  test('does not let a non-authoritative composite recipe hide a partial underlying search', async () => {
     const coordinator = new MeriRetrievalCoordinator();
 
     const manifest = await coordinator.run(plan(), async () => {
@@ -37,6 +37,45 @@ describe('MeriRetrievalCoordinator', () => {
 
     expect(manifest.complete).toBe(false);
     expect(manifest.partialDomains).toContain('internal_research');
+  });
+
+  test('allows an authoritative recipe to close a recovered pagination gap', async () => {
+    const coordinator = new MeriRetrievalCoordinator();
+    const mailPlan: MeriRetrievalPlan = {
+      ...plan(),
+      requiredDomains: ['mail'],
+      optionalDomains: ['contacts', 'memory'],
+    };
+
+    const manifest = await coordinator.run(mailPlan, async () => {
+      coordinator.observe('search_emails', { query: 'Victory Six', limit: 50 }, {
+        totalMatches: 60,
+        returned: 50,
+        hasMore: true,
+        messages: Array.from({ length: 50 }, (_, index) => ({ id: `mail-${index}` })),
+      });
+      coordinator.observe('query_relationship_brief', {}, {
+        coverage: {
+          complete: true,
+          authoritative: true,
+          requestedEntityCount: 1,
+          searchedEntityCount: 1,
+          recordsEvaluated: 60,
+          recordsReturned: 60,
+          paginationComplete: true,
+          truncated: false,
+        },
+        results: Array.from({ length: 60 }, (_, index) => ({ id: `mail-${index}` })),
+      });
+      return coordinator.coverage();
+    });
+
+    expect(manifest.complete).toBe(true);
+    expect(manifest.partialDomains).toEqual([]);
+    expect(manifest.paginationComplete).toBe(true);
+    expect(manifest.truncated).toBe(false);
+    expect(manifest.recordsEvaluated).toBe(60);
+    expect(manifest.recordsReturned).toBe(60);
   });
 
   test('treats bounded task results without a cursor/total contract as partial', async () => {

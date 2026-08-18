@@ -34,6 +34,86 @@ describe('buildMeriRetrievalPlan', () => {
     );
   });
 
+  test('routes the exact Overland prompt to a bounded company profile', () => {
+    const result = plan('what does overland ai do');
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        queryClass: 'lookup',
+        subjectScope: 'external_entity',
+        targetHint: 'overland ai',
+        recipeTool: 'research_external_company',
+        requireCompleteCoverage: false,
+        requiredDomains: ['public_web'],
+      }),
+    );
+    expect(result.reasons).toContain('quick-company-profile');
+    expect(result.recommendedTools).toEqual(
+      expect.arrayContaining([
+        'research_external_company',
+        'lookup_client_registry',
+        'search_research_sources',
+        'search_public_web',
+        'scrape_web_page',
+      ]),
+    );
+    for (const forbidden of [
+      'research_federal_market_strategy',
+      'resolve_entity',
+      'search_lda_filings',
+      'search_sec_filings',
+      'search_federal_awards',
+      'search_sam_opportunities',
+      'search_federal_grants',
+      'search_program_elements',
+      'get_pe_budget_timeline',
+      'get_pe_report_language',
+    ]) {
+      expect(result.recommendedTools).not.toContain(forbidden);
+    }
+  });
+
+  test('routes the exact C2 prompt to mail-only required coverage', () => {
+    const result = plan('tell me my email history with c2 strategies');
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        queryClass: 'relationship_history',
+        subjectScope: 'external_entity',
+        targetHint: 'c2 strategies',
+        recipeTool: 'query_relationship_brief',
+        requireCompleteCoverage: true,
+        requiredDomains: ['mail'],
+      }),
+    );
+    expect(result.reasons).toContain('mail-history-focus');
+    expect(result.optionalDomains).toEqual(
+      expect.arrayContaining(['contacts', 'memory', 'internal_research']),
+    );
+    expect(result.recommendedTools).toEqual(
+      expect.arrayContaining([
+        'query_relationship_brief',
+        'search_emails',
+        'find_contacts',
+        'search_memory',
+        'lookup_client_registry',
+      ]),
+    );
+    for (const forbidden of [
+      'research_external_company',
+      'research_federal_market_strategy',
+      'resolve_entity',
+      'search_public_web',
+      'search_lda_filings',
+      'search_sec_filings',
+      'search_federal_awards',
+      'search_federal_grants',
+      'search_program_elements',
+    ]) {
+      expect(result.recommendedTools).not.toContain(forbidden);
+    }
+  });
+
   test('routes entity relationship briefs to the relationship recipe', () => {
     const result = plan('Tell me everything I should know about Victory Six');
 
@@ -96,6 +176,25 @@ describe('buildMeriRetrievalPlan', () => {
     expect(prompt).toContain('Authorized active client count: 2.');
     expect(prompt).toContain('Aperture Defense Systems (Aperture Defense Systems)');
     expect(prompt).toContain('Do not turn zero matches into a claim of absence');
+  });
+
+  test('renders the bounded quick-profile contract', () => {
+    const prompt = meriRetrievalPlanPrompt(plan('what does overland ai do'));
+
+    expect(prompt).toContain('Call research_external_company FIRST.');
+    expect(prompt).toContain('bounded company-description request');
+    expect(prompt).toContain('Do not search LDA, SEC, awards, SAM, grants, Program Elements');
+  });
+
+  test('renders the mailbox-history contract', () => {
+    const prompt = meriRetrievalPlanPrompt(
+      plan('tell me my email history with c2 strategies'),
+    );
+
+    expect(prompt).toContain('Call query_relationship_brief FIRST.');
+    expect(prompt).toContain('mailbox-history request');
+    expect(prompt).toContain('Mail is the required evidence lane');
+    expect(prompt).toContain('Do not search public web, LDA, SEC, awards');
   });
 
   test('renders the mandatory Research Director contract', () => {

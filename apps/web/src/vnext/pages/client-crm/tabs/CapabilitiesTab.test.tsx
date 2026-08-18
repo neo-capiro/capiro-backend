@@ -66,6 +66,17 @@ describe('ClientCrmCapabilitiesProto', () => {
     expect(onFillWithMeri).toHaveBeenCalledTimes(1);
   });
 
+  it('opens a modal capability editor rather than appending the editor below the page', async () => {
+    getMock.mockResolvedValue({
+      data: [{ id: 'cap-1', name: 'Autonomy stack', type: 'platform', tags: [], peNumbers: [] }],
+    });
+    renderCapabilities();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Autonomy stack/i }));
+
+    expect(await screen.findByRole('dialog', { name: /Autonomy stack/i })).toBeInTheDocument();
+  });
+
   /* ── §7.2 Registrations & codes (wire-audit "3 Compose extend" item 1) ──── */
 
   it('renders registrations from the real client record, not the CAP_CODES fixture', async () => {

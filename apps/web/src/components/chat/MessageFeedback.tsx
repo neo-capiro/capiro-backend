@@ -1,38 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  FEEDBACK_REASON_CODES,
+  FEEDBACK_REASON_LABELS as REASON_LABELS,
+  type FeedbackReasonCode,
+  type MessageFeedbackPayload,
+} from './message-feedback-shared.js';
 
-export const FEEDBACK_REASON_CODES = [
-  'factually_wrong',
-  'outdated',
-  'wrong_client_context',
-  'missed_source',
-  'unsupported_claim',
-  'too_generic',
-  'bad_recommendation',
-  'wrong_tone_or_format',
-  'compliance_concern',
-  'tool_or_action_failed',
-] as const;
-
-export type FeedbackReasonCode = (typeof FEEDBACK_REASON_CODES)[number];
-
-const REASON_LABELS: Record<FeedbackReasonCode, string> = {
-  factually_wrong: 'Factually wrong',
-  outdated: 'Outdated',
-  wrong_client_context: 'Wrong client context',
-  missed_source: 'Missed source',
-  unsupported_claim: 'Unsupported claim',
-  too_generic: 'Too generic',
-  bad_recommendation: 'Bad recommendation',
-  wrong_tone_or_format: 'Wrong tone or format',
-  compliance_concern: 'Compliance concern',
-  tool_or_action_failed: 'Tool or action failed',
-};
-
-export interface MessageFeedbackPayload {
-  rating: 'up' | 'down' | null;
-  reasons?: FeedbackReasonCode[];
-  note?: string;
-}
+/**
+ * Reason codes, labels and the submit payload now live in the UI-free
+ * ./message-feedback-shared.js (single copy shared with the vNext dialog,
+ * vnext/meri/MeriMessageFeedback.tsx). Re-exported here because the legacy
+ * surface historically imports them from MessageFeedback.
+ */
+export { FEEDBACK_REASON_CODES } from './message-feedback-shared.js';
+export type { FeedbackReasonCode, MessageFeedbackPayload } from './message-feedback-shared.js';
 
 export function MessageFeedback({
   currentRating,

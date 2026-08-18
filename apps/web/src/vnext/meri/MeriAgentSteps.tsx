@@ -1,4 +1,4 @@
-import type { TrustStep } from '../../components/chat/WorkPerformed.js';
+import type { TrustStep } from '../../components/chat/work-performed-shared.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 
 /**

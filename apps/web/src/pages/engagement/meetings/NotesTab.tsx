@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { App } from 'antd';
 import { AlertTriangle, CalendarClock, FileText, StickyNote } from 'lucide-react';
 import {
   useApproveNote,
@@ -11,6 +10,7 @@ import { Empty, MeriGlyph, SendMeriButton, eligibleForMeri } from './meetings-ui
 import { GeneratingState, RuleReinforcement, StagePill } from './tab-kit.js';
 import type { Meeting, MeetingNote } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
+import { useMeetingPanelChrome } from './meeting-panel-chrome.js';
 
 type NotesStageTone = 'navy' | 'gray' | 'warn' | 'err';
 
@@ -54,7 +54,7 @@ function noteStatusPill(note: MeetingNote) {
 
 /** One note's body + Edit/Approve controls (Phase 2 §3.e). */
 function NoteRow({ meetingId, note }: { meetingId: string; note: MeetingNote }) {
-  const { message } = App.useApp();
+  const chrome = useMeetingPanelChrome();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(note.body ?? '');
   const update = useUpdateNote();
@@ -63,10 +63,10 @@ function NoteRow({ meetingId, note }: { meetingId: string; note: MeetingNote }) 
   const save = async () => {
     try {
       await update.mutateAsync({ meetingId, noteId: note.id, body: draft });
-      message.success('Meeting notes updated.');
+      chrome.success('Meeting notes updated.');
       setEditing(false);
     } catch {
-      message.error('Could not save the note.');
+      chrome.error('Could not save the note.');
     }
   };
 
@@ -92,8 +92,8 @@ function NoteRow({ meetingId, note }: { meetingId: string; note: MeetingNote }) 
             onClick={() =>
               approve
                 .mutateAsync({ meetingId, noteId: note.id })
-                .then(() => message.success('Meeting notes approved.'))
-                .catch(() => message.error('Could not approve the note.'))
+                .then(() => chrome.success('Meeting notes approved.'))
+                .catch(() => chrome.error('Could not approve the note.'))
             }
           >
             Approve
@@ -173,7 +173,7 @@ export function NotesTab({
   onSendMeri: (m: Meeting) => void;
   onGoToDebrief: () => void;
 }) {
-  const { message, modal } = App.useApp();
+  const chrome = useMeetingPanelChrome();
   const cancel = useCancelNotetaker();
   const scheduled = m.meri === 'scheduled' || m.meri === 'attending';
   // Call ended (all participants left, or the scheduled end passed) and Meri is
@@ -185,15 +185,14 @@ export function NotesTab({
   const hasNotes = noteRows.length > 0;
 
   const cancelMeri = () =>
-    modal.confirm({
+    chrome.confirm({
       title: 'Cancel Meri?',
       content: "Meri will leave the call and won't capture notes.",
       okText: 'Cancel Meri',
-      okButtonProps: { danger: true },
-      rootClassName: 'redesign',
+      danger: true,
       onOk: async () => {
         await cancel.mutateAsync(m.id);
-        message.success('Meri cancelled.');
+        chrome.success('Meri cancelled.');
       },
     });
 

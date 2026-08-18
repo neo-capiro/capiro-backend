@@ -12,6 +12,7 @@ import {
 import { useMeeting, useMeetings } from './meetings-api.js';
 import { MonthView } from './MonthView.js';
 import { MeetingRow } from './MeetingRow.js';
+import { AntdMeetingPanelChrome } from './AntdMeetingPanelChrome.js';
 import { MeetingDetailPanel } from './MeetingDetailPanel.js';
 import { SendMeriModal } from './SendMeriModal.js';
 import { ShareConfirmation } from './ShareConfirmation.js';
@@ -192,8 +193,12 @@ export function MeetingsV2({
           .map(dayKey)
           .filter((k) => list.some((m) => meetingDayKey(m.startsAt, m.endsAt) === k));
 
+  // AntdMeetingPanelChrome keeps the drawer tree's confirms/toasts on AntD for
+  // this canonical page. The drawer components themselves no longer import
+  // antd (they read the injected chrome — see meeting-panel-chrome.tsx), so
+  // the vNext Meetings workspace can reuse them with its own chrome instead.
   const panel = (
-    <>
+    <AntdMeetingPanelChrome>
       {notFound ? (
         <div
           style={{
@@ -251,7 +256,7 @@ export function MeetingsV2({
         open={Boolean(shareTarget)}
         onClose={() => setShareTarget(null)}
       />
-    </>
+    </AntdMeetingPanelChrome>
   );
 
   if (libraryOpen) {

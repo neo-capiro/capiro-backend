@@ -52,9 +52,16 @@ describe('entity-resolution candidateDecision', () => {
     expect(top(0.9, 'lda', 0.9 - AUTO_CONFIRM_AMBIGUITY_MARGIN)).toBe('auto_confirm');
   });
 
-  test('PAC committee never auto-confirms even as a clear high-scoring best (compliance gate)', () => {
-    expect(top(0.95, 'fec_committee')).toBe('review');
-    expect(top(0.86, 'fec_committee')).toBe('review');
+  test('PAC committee auto-confirms a clear high-scoring single best', () => {
+    expect(top(0.95, 'fec_committee')).toBe('auto_confirm');
+    expect(top(0.86, 'fec_committee')).toBe('auto_confirm');
+    // At the threshold edge.
+    expect(top(AUTO_CONFIRM_THRESHOLD, 'fec_committee')).toBe('auto_confirm');
+  });
+
+  test('PAC committee still routes near-ties and sub-threshold scores correctly', () => {
+    expect(top(0.9, 'fec_committee', 0.88)).toBe('review'); // ambiguous near-tie
+    expect(top(0.8, 'fec_committee')).toBe('review'); // below auto-confirm, above write floor
   });
 
   test('PAC committee below floor is still dropped', () => {

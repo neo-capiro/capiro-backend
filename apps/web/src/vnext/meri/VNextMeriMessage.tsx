@@ -3,15 +3,15 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
 import type { Components } from 'react-markdown';
-import { AnalysisChartCard } from '../../components/chat/AnalysisChartCard.js';
 import type {
   ChatMessage,
   ChatMessageAttachment,
   ChatMessageRetrieval,
   MeriCitation,
 } from '../../components/chat/chat-store.js';
-import { MessageFeedback } from '../../components/chat/MessageFeedback.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import { MeriAnalysisChartCard } from './MeriAnalysisChartCard.js';
+import { MeriMessageFeedback } from './MeriMessageFeedback.js';
 import { MeriIcon } from './meri-icons.js';
 import { formatRecordTime, MERI_LOGO_SRC, visibleMarkdown } from './meri-presentation.js';
 import { VNextMeriSourceChip } from './VNextMeriSourceChip.js';
@@ -526,7 +526,7 @@ function VNextMeriAssistantMessage({
             className="vnext-meri__inline-actions"
             style={{ justifyContent: 'flex-end', alignItems: 'center' }}
           >
-            <MessageFeedback
+            <MeriMessageFeedback
               currentRating={message.feedback}
               onSubmit={(payload) => controller.submitFeedback(message.id, payload)}
             />
@@ -545,7 +545,7 @@ function VNextMeriAssistantMessage({
         {message.chartArtifacts?.length ? (
           <div className="vnext-meri__analysis-slot" aria-label="Analysis charts">
             {message.chartArtifacts.map((chart) => (
-              <AnalysisChartCard key={chart.id} artifactId={chart.id} title={chart.title} />
+              <MeriAnalysisChartCard key={chart.id} artifactId={chart.id} title={chart.title} />
             ))}
           </div>
         ) : null}

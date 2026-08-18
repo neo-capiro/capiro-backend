@@ -2,28 +2,87 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApi } from '../../lib/use-api.js';
 import { MeriIcon } from './meri-icons.js';
 
-const REASONING_MODES = [
-  { mode: 'fast', label: 'Fast', description: 'Quick answers and direct lookups.' },
-  { mode: 'standard', label: 'Standard', description: 'Balanced everyday reasoning.' },
-  { mode: 'deep', label: 'Deep', description: 'More investigation for strategic work.' },
-  { mode: 'max', label: 'Max', description: 'Highest configured reasoning tier.' },
+export const MERI_REASONING_MODES = [
+  {
+    mode: 'fast',
+    label: 'Fast',
+    description: 'Quick answers for simple lookups and short questions.',
+  },
+  {
+    mode: 'standard',
+    label: 'Standard',
+    description: 'Balanced everyday answers with solid research depth.',
+  },
+  {
+    mode: 'deep',
+    label: 'Deep',
+    description: 'More investigation for strategy, comparisons, and complex asks.',
+  },
+  {
+    mode: 'max',
+    label: 'Max',
+    description: 'Longest research window for broad market and PE analysis.',
+  },
 ] as const;
 
-type ReasoningMode = (typeof REASONING_MODES)[number]['mode'];
+export type MeriReasoningMode = (typeof MERI_REASONING_MODES)[number]['mode'];
 
-function isReasoningMode(value: unknown): value is ReasoningMode {
-  return REASONING_MODES.some((option) => option.mode === value);
+const DRAFT_REASONING_MODE_KEY = 'meri.vnext.draftReasoningMode';
+
+export function isMeriReasoningMode(value: unknown): value is MeriReasoningMode {
+  return MERI_REASONING_MODES.some((option) => option.mode === value);
+}
+
+export function readDraftReasoningMode(): MeriReasoningMode {
+  try {
+    const raw = window.sessionStorage.getItem(DRAFT_REASONING_MODE_KEY);
+    if (isMeriReasoningMode(raw)) return raw;
+  } catch {
+    // sessionStorage can throw in private mode; fall through to default.
+  }
+  return 'standard';
+}
+
+export function writeDraftReasoningMode(mode: MeriReasoningMode): void {
+  try {
+    window.sessionStorage.setItem(DRAFT_REASONING_MODE_KEY, mode);
+  } catch {
+    // Best-effort only — the in-memory control state still works for this page.
+  }
+}
+
+export async function applyReasoningModeToConversation(
+  api: { patch: (url: string, body: unknown) => Promise<unknown> },
+  conversationId: string,
+  mode: MeriReasoningMode,
+): Promise<void> {
+  if (!conversationId || mode === 'standard') return;
+  await api.patch(`/api/clio/v3/conversations/${encodeURIComponent(conversationId)}/reasoning-mode`, {
+    reasoningMode: mode,
+  });
 }
 
 interface VNextMeriReasoningControlProps {
-  conversationId: string;
+  /**
+   * When set, load/save against that conversation.
+   * When omitted (new-thread landing), keep a draft choice and apply it once
+   * the first durable conversation is created.
+   */
+  conversationId?: string | null;
+  /** Optional external notification when the user picks a mode. */
+  onModeChange?: (mode: MeriReasoningMode) => void;
+  className?: string;
 }
 
 export function VNextMeriReasoningControl({
-  conversationId,
+  conversationId = null,
+  onModeChange,
+  className,
 }: VNextMeriReasoningControlProps) {
   const api = useApi();
-  const [mode, setMode] = useState<ReasoningMode>('standard');
+  const [mode, setMode] = useState<MeriReasoningMode>(() =>
+    conversationId ? 'standard' : readDraftReasoningMode(),
+  );
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,14 +93,26 @@ export function VNextMeriReasoningControl({
     setOpen(false);
     setSaving(false);
     setError(null);
-    setMode('standard');
 
+    if (!conversationId) {
+      const draft = readDraftReasoningMode();
+      setMode(draft);
+      onModeChange?.(draft);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setMode('standard');
     void api
       .get<{ reasoningMode?: unknown }>(
         `/api/clio/v3/conversations/${encodeURIComponent(conversationId)}/reasoning-mode`,
       )
       .then(({ data }) => {
-        if (!cancelled && isReasoningMode(data.reasoningMode)) setMode(data.reasoningMode);
+        if (!cancelled && isMeriReasoningMode(data.reasoningMode)) {
+          setMode(data.reasoningMode);
+          onModeChange?.(data.reasoningMode);
+        }
       })
       .catch(() => {
         // Standard is the established safe default when the saved preference
@@ -51,6 +122,8 @@ export function VNextMeriReasoningControl({
     return () => {
       cancelled = true;
     };
+    // onModeChange is intentionally excluded — parents pass inline lambdas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api, conversationId]);
 
   useEffect(() => {
@@ -70,7 +143,7 @@ export function VNextMeriReasoningControl({
   }, [open]);
 
   const chooseMode = useCallback(
-    async (next: ReasoningMode) => {
+    async (next: MeriReasoningMode) => {
       if (saving || next === mode) {
         setOpen(false);
         return;
@@ -80,10 +153,20 @@ export function VNextMeriReasoningControl({
       setSaving(true);
       setError(null);
       setOpen(false);
+
+      if (!conversationId) {
+        writeDraftReasoningMode(next);
+        onModeChange?.(next);
+        setSaving(false);
+        return;
+      }
+
       try {
-        await api.patch(`/api/clio/v3/conversations/${encodeURIComponent(conversationId)}/reasoning-mode`, {
-          reasoningMode: next,
-        });
+        await api.patch(
+          `/api/clio/v3/conversations/${encodeURIComponent(conversationId)}/reasoning-mode`,
+          { reasoningMode: next },
+        );
+        onModeChange?.(next);
       } catch {
         setMode(previous);
         setError('The reasoning mode could not be saved.');
@@ -91,13 +174,15 @@ export function VNextMeriReasoningControl({
         setSaving(false);
       }
     },
-    [api, conversationId, mode, saving],
+    [api, conversationId, mode, onModeChange, saving],
   );
 
-  const selected = REASONING_MODES.find((option) => option.mode === mode) ?? REASONING_MODES[1];
+  const selected =
+    MERI_REASONING_MODES.find((option) => option.mode === mode) ?? MERI_REASONING_MODES[1];
+  const rootClass = ['vnext-meri__reasoning-chip', className].filter(Boolean).join(' ');
 
   return (
-    <div className="vnext-meri__reasoning-chip" ref={controlRef}>
+    <div className={rootClass} ref={controlRef}>
       <button
         type="button"
         className="vnext-meri__reasoning-trigger"
@@ -112,7 +197,10 @@ export function VNextMeriReasoningControl({
       </button>
       {open ? (
         <div className="vnext-meri__reasoning-menu" role="menu" aria-label="Reasoning mode">
-          {REASONING_MODES.map((option) => (
+          <div className="vnext-meri__reasoning-menu-eyebrow">
+            {conversationId ? 'REASONING FOR THIS THREAD' : 'REASONING FOR THIS NEW THREAD'}
+          </div>
+          {MERI_REASONING_MODES.map((option) => (
             <button
               type="button"
               role="menuitemradio"
@@ -131,9 +219,18 @@ export function VNextMeriReasoningControl({
               </span>
             </button>
           ))}
+          {!conversationId ? (
+            <div className="vnext-meri__reasoning-menu-footnote">
+              Applied when you send the first message
+            </div>
+          ) : null}
         </div>
       ) : null}
-      {error ? <div className="vnext-meri__reasoning-error" role="alert">{error}</div> : null}
+      {error ? (
+        <div className="vnext-meri__reasoning-error" role="alert">
+          {error}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -226,6 +226,10 @@ describe('bounded extraction (§3.h3)', () => {
     expect(out.text).toBe('');
   });
 
+  test('recognizes legacy Word documents as an extractable advertised type', () => {
+    expect(content.isExtractableDocument('capability-brief.doc', 'application/msword')).toBe(true);
+  });
+
   test('an unsupported format throws rather than returning placeholder text', async () => {
     await expect(
       content.extractBounded(Buffer.from('x'), 'a.exe', 'application/x-msdownload'),
