@@ -8,7 +8,7 @@ import {
   submissionHistoryKeys,
   type SubmissionHistoryRow,
 } from '../../../pages/clients/submission-history-api.js';
-import type { Capability } from '../../../pages/clients/CapabilityDrawer.js';
+import type { Capability } from '../../../pages/clients/capability-types.js';
 
 /**
  * The client's real submission history, composed across its capabilities.

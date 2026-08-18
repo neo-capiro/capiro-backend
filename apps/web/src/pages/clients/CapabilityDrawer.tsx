@@ -21,47 +21,12 @@ import {
 import { CAPABILITY_TAG_SUGGESTIONS } from '@capiro/shared';
 import { useApi } from '../../lib/use-api.js';
 import type { ClientAttachment } from './clientTypes.js';
+import type { Capability, SubmissionHistory } from './capability-types.js';
 
-export interface Capability {
-  id: string;
-  clientId: string;
-  name: string;
-  type: string;
-  description: string | null;
-  sector: string | null;
-  tags: string[];
-  trl: number | null;
-  mrl: number | null;
-  peNumber: string | null;
-  // Step 2.3 — explicit multi-PE list + match keywords used by client ⇄ PE relevance.
-  peNumbers: string[];
-  keywords: string[];
-  appropriationAccount: string | null;
-  serviceBranch: string | null;
-  targetSubcommittee: string | null;
-  fundingAsk: number | null;
-  fundingAskLabel: string | null;
-  justification: string | null;
-  districtNexus: string | null;
-  existingContracts: string | null;
-  notes: string | null;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface SubmissionHistory {
-  id: string;
-  clientId: string;
-  capabilityId: string | null;
-  fiscalYear: string;
-  title: string;
-  meta: string | null;
-  outcome: string | null;
-  outcomeType: string;
-  notes: string | null;
-  createdAt: string;
-}
+// The domain types moved to the UI-free `capability-types.ts` so vNext modules
+// can share them without a runtime path into this antd-carrying file. Existing
+// importers of this module keep working through this re-export.
+export type { Capability, SubmissionHistory } from './capability-types.js';
 
 const OUTCOME_CSS: Record<string, string> = {
   success: 'she-outcome-success',

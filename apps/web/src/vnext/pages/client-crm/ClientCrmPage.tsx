@@ -22,7 +22,7 @@ import { ClientProfileShell } from './ClientProfileShell.js';
 import { ClientCrmOverviewProto } from './tabs/OverviewTab.js';
 import { SegmentedTabs } from './portfolio-primitives.js';
 import { RELATIONSHIP_VIEW_LABELS, INTELLIGENCE_VIEW_LABELS } from './client-crm-routing.js';
-import { ClientFormModal } from '../../../pages/clients/ClientFormModal.js';
+import { ClientFormDialogVNext } from './ClientFormDialogVNext.js';
 import type { Client, ClientFormSubmit } from '../../../pages/clients/clientTypes.js';
 import { useApi } from '../../../lib/use-api.js';
 import { useMe } from '../../../lib/me.js';
@@ -322,7 +322,7 @@ function ClientCrmSurface({
   return null;
 }
 
-/** Reuse the canonical edit wizard and its update contract. */
+/** The vNext edit wizard on the canonical update contract (PUT + upload + refetch). */
 function ClientProfileEditor({ client, onClose }: { client: Client; onClose: () => void }) {
   const api = useApi();
   const qc = useQueryClient();
@@ -342,7 +342,7 @@ function ClientProfileEditor({ client, onClose }: { client: Client; onClose: () 
   });
 
   return (
-    <ClientFormModal
+    <ClientFormDialogVNext
       open
       mode="edit"
       client={client}

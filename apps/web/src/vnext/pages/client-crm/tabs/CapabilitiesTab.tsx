@@ -14,7 +14,8 @@ import {
 } from '../portfolio-primitives.js';
 import { CAP_PERF } from '../portfolio-fixtures.js';
 import { useApi } from '../../../../lib/use-api.js';
-import { CapabilityDrawer, type Capability } from '../../../../pages/clients/CapabilityDrawer.js';
+import { CapabilityDrawerVNext } from '../CapabilityDrawerVNext.js';
+import type { Capability } from '../../../../pages/clients/capability-types.js';
 import { readClientRegistrations } from '../../../../pages/clients/client-registrations.js';
 import {
   OUTCOME_TONE,
@@ -43,9 +44,11 @@ import { CapiroModal } from '../../../components/overlays/index.js';
  * client's `ClientSubmissionHistory` rows across its capabilities (row 12).
  * §7.2 capability-fit rows have no per-client backend and stay fixture.
  *
- * The canonical CapabilityDrawer stays mounted for all editing: the header
- * "Add capability" action opens it blank, and clicking a live capability area
- * opens it on that record (fixture areas are static — there is no record).
+ * All editing happens in the vNext capability editor (CapabilityDrawerVNext —
+ * a re-skin of the canonical CapabilityDrawer on the same PATCH/attachment
+ * contract; no antd renders on this surface): the header "Add capability"
+ * action opens it blank, and clicking a live capability area opens it on that
+ * record (fixture areas are static — there is no record).
  */
 
 export function ClientCrmCapabilitiesProto({
@@ -124,7 +127,7 @@ export function ClientCrmCapabilitiesProto({
           setCreating(false);
         }}
       >
-        <CapabilityDrawer
+        <CapabilityDrawerVNext
           capability={editing}
           clientId={client.id}
           onClose={() => {

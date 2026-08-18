@@ -17,7 +17,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
-import type { Capability } from '../../../../pages/clients/CapabilityDrawer.js';
+import type { Capability } from '../../../../pages/clients/capability-types.js';
 import {
   createCapabilityHistory,
   submissionHistoryKeys,

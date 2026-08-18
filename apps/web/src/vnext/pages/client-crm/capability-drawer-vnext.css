@@ -1,0 +1,265 @@
+/*
+ * Capability editor — vNext (CapabilityDrawerVNext.tsx).
+ *
+ * Scoped under .capiro-vnext-root; no global element rules, no .ant-* reach
+ * (foundation contract). The panel is mounted inside the standard CapiroModal
+ * by the Capabilities tab, so it carries no overlay of its own.
+ */
+
+.capiro-vnext-root .capiro-capd {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--capiro-color-text-primary);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-capd__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--capiro-color-border-default);
+}
+
+.capiro-vnext-root .capiro-capd__head-main { flex: 1; min-width: 0; }
+
+.capiro-vnext-root .capiro-capd__name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.capiro-vnext-root .capiro-capd__head-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.capiro-vnext-root .capiro-capd__type { text-transform: capitalize; }
+
+.capiro-vnext-root .capiro-capd__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.capiro-vnext-root .capiro-capd__delete {
+  padding: 2px 8px;
+  border-radius: var(--capiro-radius-control);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--capiro-color-danger);
+}
+
+.capiro-vnext-root .capiro-capd__delete:hover { background: var(--capiro-color-danger-soft); }
+
+.capiro-vnext-root .capiro-capd__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--capiro-radius-control);
+  font-size: 15px;
+  line-height: 1;
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .capiro-capd__close:hover { background: var(--capiro-color-bg-subtle); }
+
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-capd__tabs {
+  display: flex;
+  gap: 4px;
+  margin: 10px 0 12px;
+  border-bottom: 1px solid var(--capiro-color-border-default);
+}
+
+.capiro-vnext-root .capiro-capd__tab {
+  padding: 6px 10px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .capiro-capd__tab.is-active {
+  color: var(--capiro-color-text-primary);
+  border-bottom-color: var(--capiro-color-action-primary-default);
+}
+
+/* ── Fields ──────────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-capd__field { margin-bottom: 14px; }
+
+.capiro-vnext-root .capiro-capd__field-label {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .capiro-capd__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.capiro-vnext-root .capiro-capd__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 2px 6px 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--capiro-color-border-default);
+  background: var(--capiro-color-bg-subtle);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.capiro-vnext-root .capiro-capd__chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+  color: var(--capiro-color-text-muted);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.capiro-vnext-root .capiro-capd__chip-x:hover { color: var(--capiro-color-danger); }
+
+.capiro-vnext-root .capiro-capd__token-input { min-height: var(--capiro-control-height-compact); }
+
+.capiro-vnext-root .capiro-capd__textarea {
+  min-height: 0;
+  padding: 8px 10px;
+  resize: vertical;
+  font: inherit;
+}
+
+.capiro-vnext-root .capiro-capd__text-view {
+  display: block;
+  width: 100%;
+  min-height: 22px;
+  padding: 4px 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  text-align: left;
+  color: var(--capiro-color-text-primary);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.capiro-vnext-root .capiro-capd__text-view.is-empty {
+  color: var(--capiro-color-text-faint);
+  font-style: italic;
+}
+
+/* ── TRL ladder ──────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-capd__trl { margin-bottom: 16px; }
+
+.capiro-vnext-root .capiro-capd__trl-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.capiro-vnext-root .capiro-capd__trl-value {
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+  text-align: right;
+}
+
+.capiro-vnext-root .capiro-capd__trl-scale { display: flex; gap: 4px; }
+
+.capiro-vnext-root .capiro-capd__trl-step {
+  flex: 1;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--capiro-color-border-control);
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.capiro-vnext-root .capiro-capd__trl-step.is-filled {
+  background: var(--capiro-color-action-primary-default);
+  border-color: var(--capiro-color-action-primary-default);
+  color: var(--capiro-color-text-inverse-primary);
+}
+
+.capiro-vnext-root .capiro-capd__trl-step.is-selected {
+  outline: 2px solid var(--capiro-color-action-primary-default);
+  outline-offset: 1px;
+}
+
+/* ── Documents ───────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .capiro-capd__hint {
+  margin: 8px 0 12px;
+  font-size: 11.5px;
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .capiro-capd__docs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.capiro-vnext-root .capiro-capd__doc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: var(--capiro-radius-widget);
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .capiro-capd__doc-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--capiro-color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-capd__doc-download {
+  display: inline-flex;
+  color: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-capd__doc-skeleton {
+  height: 96px;
+  border-radius: var(--capiro-radius-widget);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .capiro-capd__empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--capiro-color-text-muted);
+}
