@@ -1805,24 +1805,72 @@ export class IntelligenceService {
     };
   }
 
+  /**
+   * True when `id` is a RFC-style UUID that Postgres will accept for `::uuid`.
+   * Confirmed contracting mappings MUST pin federal_contractor.id (uuid), but
+   * historical ops pins and award-name backfills have used synthetic ids like
+   * `award-name:L3HARRIS…`. Casting those with `${id}::uuid` throws 22P02 and
+   * 500s the entire client-profile / federal footprint card. Guard first.
+   */
+  private isUuid(id: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      id.trim(),
+    );
+  }
+
   /** Fetch contractor data by confirmed ID (skips fuzzy match) */
   private async fetchContractorById(id: string) {
-    const rows = await this.prisma.$queryRaw<
-      Array<{
-        id: string;
-        name: string;
-        total_contracts: number | null;
-        rank_by_contracts: number | null;
-        no_bid_total: number | null;
-        yearly_spend_jsonb: object[];
-        top_agencies_jsonb: object[];
-      }>
-    >`
-      SELECT id, name, total_contracts, rank_by_contracts, no_bid_total,
-             COALESCE(yearly_spend_jsonb, '[]')::jsonb as yearly_spend_jsonb,
-             COALESCE(top_agencies_jsonb, '[]')::jsonb as top_agencies_jsonb
-      FROM federal_contractor WHERE id = ${id}::uuid
-    `;
+    const raw = (id ?? '').trim();
+    if (!raw) return null;
+
+    // Prefer catalog uuid. Fall back to exact name (and award-name: prefix) so a
+    // non-uuid external_id never 500s the profile — it either resolves or nulls.
+    // IMPORTANT: never embed a non-uuid into `${x}::uuid` even under a false
+    // AND branch — Postgres still type-checks the cast and throws 22P02.
+    const nameFromSynthetic = raw.startsWith('award-name:')
+      ? raw.slice('award-name:'.length).trim()
+      : null;
+    const nameKey = nameFromSynthetic || (!this.isUuid(raw) ? raw : null);
+
+    const rows = this.isUuid(raw)
+      ? await this.prisma.$queryRaw<
+          Array<{
+            id: string;
+            name: string;
+            total_contracts: number | null;
+            rank_by_contracts: number | null;
+            no_bid_total: number | null;
+            yearly_spend_jsonb: object[];
+            top_agencies_jsonb: object[];
+          }>
+        >`
+          SELECT id, name, total_contracts, rank_by_contracts, no_bid_total,
+                 COALESCE(yearly_spend_jsonb, '[]')::jsonb as yearly_spend_jsonb,
+                 COALESCE(top_agencies_jsonb, '[]')::jsonb as top_agencies_jsonb
+          FROM federal_contractor
+          WHERE id = ${raw}::uuid
+          LIMIT 1
+        `
+      : nameKey
+        ? await this.prisma.$queryRaw<
+            Array<{
+              id: string;
+              name: string;
+              total_contracts: number | null;
+              rank_by_contracts: number | null;
+              no_bid_total: number | null;
+              yearly_spend_jsonb: object[];
+              top_agencies_jsonb: object[];
+            }>
+          >`
+            SELECT id, name, total_contracts, rank_by_contracts, no_bid_total,
+                   COALESCE(yearly_spend_jsonb, '[]')::jsonb as yearly_spend_jsonb,
+                   COALESCE(top_agencies_jsonb, '[]')::jsonb as top_agencies_jsonb
+            FROM federal_contractor
+            WHERE name = ${nameKey}
+            LIMIT 1
+          `
+        : [];
     if (!rows.length) return null;
 
     const match = rows[0]!;
@@ -1839,6 +1887,9 @@ export class IntelligenceService {
 
   /** Fetch lobby intel data by confirmed ID (skips fuzzy match) */
   private async fetchLobbyIntelById(id: string) {
+    const raw = (id ?? '').trim();
+    // lobby_intel_mv.id is uuid-only; a non-uuid confirmed mapping must not 500.
+    if (!this.isUuid(raw)) return null;
     const rows = await this.prisma.$queryRaw<
       Array<{
         id: string;
@@ -1849,7 +1900,7 @@ export class IntelligenceService {
       }>
     >`
       SELECT id, name, trajectory, growth_rate, total_spending
-      FROM lobby_intel_mv WHERE id = ${id}::uuid
+      FROM lobby_intel_mv WHERE id = ${raw}::uuid
     `;
     if (!rows.length) return null;
 
