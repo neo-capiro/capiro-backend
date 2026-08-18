@@ -8,7 +8,7 @@ import { useCapiroToast } from '../../components/feedback/toast.js';
 import {
   useNewsPreferences,
   type NewsPreferences,
-} from '../../../pages/dashboard/DashboardNewsAndNarrative.js';
+} from '../../../pages/dashboard/news-preferences.js';
 import type {
   ComingUpResult,
   IntelligenceChange,
