@@ -28,6 +28,7 @@ import { MeriGroundingWarning, type MeriGroundingItem } from './MeriGroundingWar
 import { MeriCoverageWarning } from './MeriCoverageWarning.js';
 import { MeriWorkPerformed } from './MeriWorkPerformed.js';
 import { MeriResearchProgress } from './MeriResearchProgress.js';
+import { MeriMemoryCallout } from './MeriMemoryCallout.js';
 import { deleteMeriResearch, fetchMeriContextPacket } from './meri-vnext-api.js';
 import { useApi } from '../../lib/use-api.js';
 
@@ -36,6 +37,7 @@ interface VNextMeriMessageProps {
   isLastAssistant: boolean;
   isStreaming: boolean;
   controller: MeriChatController;
+  onOpenMemory: () => void;
 }
 
 export function VNextMeriMessage({
@@ -43,6 +45,7 @@ export function VNextMeriMessage({
   isLastAssistant,
   isStreaming,
   controller,
+  onOpenMemory,
 }: VNextMeriMessageProps) {
   if (message.role === 'user') {
     return (
@@ -61,6 +64,7 @@ export function VNextMeriMessage({
       isLastAssistant={isLastAssistant}
       isStreaming={isStreaming}
       controller={controller}
+      onOpenMemory={onOpenMemory}
     />
   );
 }
@@ -70,11 +74,13 @@ function VNextMeriAssistantMessage({
   isLastAssistant,
   isStreaming,
   controller,
+  onOpenMemory,
 }: {
   message: ChatMessage;
   isLastAssistant: boolean;
   isStreaming: boolean;
   controller: MeriChatController;
+  onOpenMemory: () => void;
 }) {
   const api = useApi();
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
@@ -216,6 +222,10 @@ function VNextMeriAssistantMessage({
         ) : null}
 
         {message.retrieval ? <MeriCoverageWarning retrieval={message.retrieval} /> : null}
+
+        {isLastAssistant && !messageIsStreaming ? (
+          <MeriMemoryCallout memories={controller.learnedMemories} onOpenMemory={onOpenMemory} />
+        ) : null}
 
         {researchOffer ? (
           <div className="vnext-meri__research-offer">

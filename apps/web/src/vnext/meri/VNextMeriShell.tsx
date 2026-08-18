@@ -210,6 +210,7 @@ export function VNextMeriShell({
               tenantName={tenantName}
               onOpenIntegrations={handleOpenIntegrations}
               onOpenScope={() => setScopeMenuOpen(true)}
+              onOpenMemory={() => expandSection('memory')}
             />
 
             <VNextMeriContextRail

@@ -41,6 +41,8 @@ interface VNextMeriConversationProps {
   onOpenIntegrations: () => void;
   /** Opens the single scope menu owned by the top bar. */
   onOpenScope: () => void;
+  /** Expands the rail's Memory section. */
+  onOpenMemory: () => void;
 }
 
 export function VNextMeriConversation({
@@ -49,6 +51,7 @@ export function VNextMeriConversation({
   tenantName,
   onOpenIntegrations,
   onOpenScope,
+  onOpenMemory,
 }: VNextMeriConversationProps) {
   const [threadMenuOpen, setThreadMenuOpen] = useState(false);
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
@@ -335,6 +338,7 @@ export function VNextMeriConversation({
                         isLastAssistant={isLastAssistant}
                         isStreaming={isStreaming}
                         controller={controller}
+                        onOpenMemory={onOpenMemory}
                       />
                     </div>
                   );
