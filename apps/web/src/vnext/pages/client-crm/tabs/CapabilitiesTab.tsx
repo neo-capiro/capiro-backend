@@ -111,7 +111,19 @@ export function ClientCrmCapabilitiesProto({
       {/* §7.3 Past performance */}
       <PastPerformanceCard client={client} />
 
-      {(editing || creating) && (
+      {/* The canonical editor is an in-flow side panel on the legacy profile.
+          In vNext that made a clicked capability look as if it had been appended
+          below the whole page. Keep its mature editing surface, but put it in the
+          standard focus-trapping modal so the selected capability is immediately
+          visible without changing the page's scroll position. */}
+      <CapiroModal
+        open={Boolean(editing || creating)}
+        title={`Capability — ${editing?.name ?? 'New capability'}`}
+        onClose={() => {
+          setEditing(null);
+          setCreating(false);
+        }}
+      >
         <CapabilityDrawer
           capability={editing}
           clientId={client.id}
@@ -125,7 +137,7 @@ export function ClientCrmCapabilitiesProto({
           }}
           {...(editing ? { onDelete: () => setPendingDelete(editing) } : {})}
         />
-      )}
+      </CapiroModal>
 
       {/* Destructive mutations confirm; the overlay traps focus while open. */}
       <CapiroModal open={Boolean(pendingDelete)} title="Delete capability" onClose={() => setPendingDelete(null)}>

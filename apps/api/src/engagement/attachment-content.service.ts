@@ -22,6 +22,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import mammoth from 'mammoth';
+import WordExtractor from 'word-extractor';
 import {
   EXTRACTION_TIMEOUT_MS,
   MAX_EXTRACTED_CHARS,
@@ -263,6 +264,7 @@ export class AttachmentContentService {
   isExtractableDocument(fileName: string, contentType: string): boolean {
     return (
       isPlainTextAttachment(fileName, contentType) ||
+      isDocAttachment(fileName, contentType) ||
       isDocxAttachment(fileName, contentType) ||
       isPdfAttachment(fileName, contentType) ||
       isSpreadsheetAttachment(fileName, contentType) ||
@@ -305,6 +307,12 @@ export class AttachmentContentService {
       if (isPlainTextAttachment(fileName, contentType)) {
         source = 'text';
         raw = bytes.toString('utf8');
+      } else if (isDocAttachment(fileName, contentType)) {
+        source = 'docx';
+        raw = await this.withTimeout(
+          new WordExtractor().extract(bytes).then((document) => document.getBody()),
+          meta,
+        );
       } else if (isDocxAttachment(fileName, contentType)) {
         source = 'docx';
         raw = await this.withTimeout(
@@ -402,6 +410,10 @@ export function isPlainTextAttachment(fileName: string, contentType: string): bo
     /\.(txt|text|md|csv|log)$/i.test(fileName) ||
     normalized === 'application/json'
   );
+}
+
+export function isDocAttachment(fileName: string, contentType: string): boolean {
+  return contentType.toLowerCase() === 'application/msword' || /\.doc$/i.test(fileName);
 }
 
 export function isDocxAttachment(fileName: string, contentType: string): boolean {
