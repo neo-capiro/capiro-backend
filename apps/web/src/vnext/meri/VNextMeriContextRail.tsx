@@ -5,12 +5,19 @@ import {
 } from '../../components/chat/managed-mcp-apps.js';
 import { useApi } from '../../lib/use-api.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import type { MeriCitation } from '../../components/chat/chat-store.js';
+import { MeriSourceDetail } from './MeriSourceDetail.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import type { MeriContextSection } from './meri-prefs.js';
 import { activeContextLabels, contextPacketSummary } from './meri-context-packet.js';
 import { fetchLatestMeriContextPacket, type MeriContextPacket } from './meri-vnext-api.js';
 import { MeriMemoryTab } from './MeriMemoryTab.js';
 import { MeriPanelState } from './MeriPanelState.js';
+
+interface ActiveSourceDetail {
+  citations: MeriCitation[];
+  index: number;
+}
 
 interface VNextMeriContextRailProps {
   controller: MeriChatController;
@@ -21,6 +28,9 @@ interface VNextMeriContextRailProps {
   onSectionChange: (section: MeriContextSection | null) => void;
   onOpenIntegrations: () => void;
   onOpenContext: (packet: MeriContextPacket | null, loading: boolean, error: boolean) => void;
+  /** Set when a citation's "View full source" was clicked; swaps out the normal section stack. */
+  activeSourceDetail: ActiveSourceDetail | null;
+  onCloseSourceDetail: () => void;
 }
 
 export function normalizeMeriQuickActionCatalog(value: unknown): MeriQuickAction[] {
@@ -113,6 +123,8 @@ export function VNextMeriContextRail({
   onSectionChange,
   onOpenIntegrations,
   onOpenContext,
+  activeSourceDetail,
+  onCloseSourceDetail,
 }: VNextMeriContextRailProps) {
   const api = useApi();
   const [ctxOpen, setCtxOpen] = useState(true);
@@ -240,6 +252,32 @@ export function VNextMeriContextRail({
   }
 
   const panelTitle = PANEL_TITLES[openSection ?? 'context'];
+  const selectedClient = controller.clients.find((client) => client.id === controller.selectedClientValue) ?? null;
+  const scopeLabel = selectedClient ? selectedClient.name : 'Portfolio — all clients';
+
+  if (activeSourceDetail) {
+    return (
+      <aside className="vnext-meri__rail-right is-expanded" data-meri-context-rail aria-label="Source detail">
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div className="vnext-meri__rail-panel-head">
+            <span className="vnext-meri__rail-panel-title">SOURCE</span>
+            <span style={{ flex: 1 }} />
+            <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" onClick={onToggle}>
+              <MeriIcon name="ChevronRight" size={15} color="#98A2B3" />
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            <MeriSourceDetail
+              citations={activeSourceDetail.citations}
+              initialIndex={activeSourceDetail.index}
+              scopeLabel={scopeLabel}
+              onClose={onCloseSourceDetail}
+            />
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="vnext-meri__rail-right is-expanded" data-meri-context-rail aria-label="Context panel">
