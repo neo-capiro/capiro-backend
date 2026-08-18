@@ -26,6 +26,7 @@ import { evidenceContextPacket } from './meri-context-packet.js';
 import { MeriAttachmentChip, attachmentChipSpec } from './MeriAttachmentChip.js';
 import { MeriGroundingWarning, type MeriGroundingItem } from './MeriGroundingWarning.js';
 import { MeriCoverageWarning } from './MeriCoverageWarning.js';
+import { MeriWorkPerformed } from './MeriWorkPerformed.js';
 import { deleteMeriResearch, fetchMeriContextPacket } from './meri-vnext-api.js';
 import { useApi } from '../../lib/use-api.js';
 
@@ -184,41 +185,13 @@ function VNextMeriAssistantMessage({
         </div>
 
         {showExecutionEvidence ? (
-          <details
-            className="vnext-meri__attachment-notice"
-            open={messageIsStreaming ? true : undefined}
-          >
-            <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
-              {messageIsStreaming ? 'Meri is working…' : 'Execution evidence'}
-            </summary>
-            {controller.orchestratorIntent ? (
-              <div style={{ marginTop: 8 }}>
-                Intent: {controller.orchestratorIntent.replace(/_/g, ' ')}
-                {controller.orchestratorTier ? ` · ${controller.orchestratorTier}` : ''}
-              </div>
-            ) : null}
-            {controller.planSteps.length > 0 ? (
-              <ol style={{ margin: '8px 0 0', paddingLeft: 20 }}>
-                {controller.planSteps.map((step, index) => (
-                  <li key={`${index}-${step}`}>{step}</li>
-                ))}
-              </ol>
-            ) : null}
-            {controller.trustSteps.length > 0 ? (
-              <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
-                {controller.trustSteps.map((step, index) => (
-                  <li key={`${step.tool}-${index}`}>
-                    {step.status.toUpperCase()} · {step.label}
-                    {step.detail ? ` — ${step.detail}` : ''}
-                    {typeof step.count === 'number' ? ` (${step.count})` : ''}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <div style={{ marginTop: 8, fontSize: 11 }}>
-              This shows bounded plans, tools, sources, and checks — not private model reasoning.
-            </div>
-          </details>
+          <MeriWorkPerformed
+            intent={controller.orchestratorIntent}
+            tier={controller.orchestratorTier}
+            steps={controller.trustSteps}
+            planSteps={controller.planSteps}
+            isStreaming={messageIsStreaming}
+          />
         ) : null}
 
         {groundingItems.length ? (

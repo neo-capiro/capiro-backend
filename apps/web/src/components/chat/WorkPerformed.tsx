@@ -32,7 +32,7 @@ export interface WorkPerformedProps {
   asOf?: string | null;
 }
 
-const INTENT_LABELS: Record<string, string> = {
+export const INTENT_LABELS: Record<string, string> = {
   query_intelligence: 'Researching government-affairs intelligence',
   query_clients: 'Reviewing client records',
   query_engagement: 'Reviewing meetings and outreach',

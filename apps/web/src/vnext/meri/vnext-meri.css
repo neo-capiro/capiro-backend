@@ -2594,9 +2594,25 @@
   }
 }
 
+@keyframes vnext-meri-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.capiro-vnext-root .vnext-meri__work-step-icon.is-running {
+  animation: vnext-meri-spin 1.1s linear infinite;
+}
+
+.capiro-vnext-root .vnext-meri__work-source-dot.is-live {
+  animation: vnext-meri-pulse 1.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .capiro-vnext-root .vnext-meri__mode-pill-dot.is-researching,
-  .capiro-vnext-root .vnext-meri__assistant-streaming-dot {
+  .capiro-vnext-root .vnext-meri__assistant-streaming-dot,
+  .capiro-vnext-root .vnext-meri__work-step-icon.is-running,
+  .capiro-vnext-root .vnext-meri__work-source-dot {
     animation: none;
   }
 }
