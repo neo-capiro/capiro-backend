@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://capiro.ai/schemas/phase8-session5-live-benchmark-evidence-v1.json",
+  "title": "Phase 8 Session 5 live NVIDIA benchmark evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "repositorySha",
+    "modelPackageArn",
+    "modelName",
+    "modelVersion",
+    "parserOptionsHash",
+    "benchmarkResult",
+    "zeroIdleProof",
+    "productionDefaultChanged",
+    "generatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "phase8_session5_live_benchmark_evidence_v1"
+    },
+    "repositorySha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "modelPackageArn": {
+      "type": "string",
+      "minLength": 20
+    },
+    "modelName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "modelVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "parserOptionsHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "benchmarkResult": {
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "runId",
+        "corpusSha256",
+        "missingStrata",
+        "nvidiaObservationCount",
+        "acceptedPageClasses",
+        "liveBenchmarkAccepted",
+        "pageClassDecisions",
+        "contentSha256"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": "phase8_session5_benchmark_result_v1"
+        },
+        "runId": { "type": "string" },
+        "corpusSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "missingStrata": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "nvidiaObservationCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "acceptedPageClasses": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "clean_vector_text",
+              "complex_table",
+              "scanned_image",
+              "mixed_visual_layout",
+              "identity_banner",
+              "unknown"
+            ]
+          }
+        },
+        "liveBenchmarkAccepted": { "const": true },
+        "pageClassDecisions": {
+          "type": "object",
+          "additionalProperties": {
+            "enum": [
+              "DETERMINISTIC_PRIMARY",
+              "NVIDIA_PRIMARY",
+              "NVIDIA_FALLBACK",
+              "MANUAL_REVIEW"
+            ]
+          }
+        },
+        "contentSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": true
+    },
+    "zeroIdleProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activeJobs",
+        "persistentEndpoints",
+        "zeroIdleGpu",
+        "checkedAt"
+      ],
+      "properties": {
+        "activeJobs": { "const": 0 },
+        "persistentEndpoints": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "zeroIdleGpu": { "const": true },
+        "checkedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "productionDefaultChanged": { "const": false },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
