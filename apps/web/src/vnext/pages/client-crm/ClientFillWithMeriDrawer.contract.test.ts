@@ -23,6 +23,16 @@ describe('Client Fill with Meri document-upload contract', () => {
     expect(drawer).not.toContain('startedRef');
   });
 
+  it('retries a failed document run with the same selected attachment instead of default sources', () => {
+    expect(drawer).toContain('selectedAttachmentId');
+    expect(drawer).toContain('documentAttachmentId(fill.run?.sourceStates)');
+    expect(drawer).toContain('const attachmentId = selectedAttachmentId ?? persistedAttachmentId');
+    expect(drawer).toContain('fill.startForAttachment(attachmentId)');
+    expect(drawer).toContain('const isDocumentRun = Object.prototype.hasOwnProperty.call(');
+    expect(drawer).toContain("'client_document'");
+    expect(drawer).toContain('onRetry={retrySelectedDocument}');
+  });
+
   it('keeps review before writes and says tags are proposed from the document', () => {
     expect(drawer).toContain('propose capability cards, descriptions, and tags');
     expect(drawer).toContain('written until you apply it.');

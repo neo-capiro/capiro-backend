@@ -31,6 +31,22 @@ export function ClientFillWithMeriDrawer({
   const api = useApi();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
+
+  const persistedAttachmentId = documentAttachmentId(fill.run?.sourceStates);
+
+  const retrySelectedDocument = () => {
+    const isDocumentRun = Object.prototype.hasOwnProperty.call(
+      fill.run?.sourceStates ?? {},
+      'client_document',
+    );
+    const attachmentId = selectedAttachmentId ?? persistedAttachmentId;
+    if (isDocumentRun && attachmentId) {
+      fill.startForAttachment(attachmentId);
+      return;
+    }
+    fill.start();
+  };
 
   const uploadCapabilityDocument = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -71,6 +87,9 @@ export function ClientFillWithMeriDrawer({
           source: 'fill-with-meri-capability',
         })
       ).data;
+      // Keep this explicit user selection for an attachment-specific retry;
+      // a document failure must never silently fall back to source enrichment.
+      setSelectedAttachmentId(confirmed.id);
       // The document run reads only this server-owned attachment. Extraction,
       // scanner readiness, and text bounds are enforced again by that run.
       fill.startForAttachment(confirmed.id);
@@ -106,7 +125,7 @@ export function ClientFillWithMeriDrawer({
         {uploading ? <FillProgress label="Preparing document" detail="Uploading and extracting text…" /> : null}
         {uploadError ? <p className="capiro-crm__foot capiro-crm__state--error">{uploadError}</p> : null}
 
-        <FillBody fill={fill} onClose={onClose} />
+        <FillBody fill={fill} onClose={onClose} onRetry={retrySelectedDocument} />
       </div>
     </CapiroDrawer>
   );
@@ -130,7 +149,22 @@ function contentTypeFor(name: string): string | null {
   return FILE_CONTENT_TYPES[extension] ?? null;
 }
 
-function FillBody({ fill, onClose }: { fill: Fill; onClose: () => void }) {
+function documentAttachmentId(sourceStates: Record<string, unknown> | undefined): string | null {
+  const state = sourceStates?.client_document;
+  if (!state || typeof state !== 'object' || Array.isArray(state)) return null;
+  const attachmentId = (state as { attachmentId?: unknown }).attachmentId;
+  return typeof attachmentId === 'string' && attachmentId.length > 0 ? attachmentId : null;
+}
+
+function FillBody({
+  fill,
+  onClose,
+  onRetry,
+}: {
+  fill: Fill;
+  onClose: () => void;
+  onRetry: () => void;
+}) {
   switch (fill.phase) {
     case 'idle':
       return (
@@ -172,7 +206,7 @@ function FillBody({ fill, onClose }: { fill: Fill; onClose: () => void }) {
           <p className="capiro-crm__foot">
             {fill.run?.error ?? errorText(fill.startError, 'The enrichment run failed.')}
           </p>
-          <CapiroButton variant="secondary" size="compact" onClick={() => fill.start()}>
+          <CapiroButton variant="secondary" size="compact" onClick={onRetry}>
             Try again
           </CapiroButton>
         </div>

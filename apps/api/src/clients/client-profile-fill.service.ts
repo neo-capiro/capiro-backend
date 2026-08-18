@@ -571,6 +571,7 @@ export class ClientProfileFillService {
     await this.setDocumentSourceState(ctx.tenantId, runId, {
       status: 'running',
       count: 0,
+      attachmentId,
     });
     try {
       const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
@@ -596,6 +597,7 @@ export class ClientProfileFillService {
       await this.setDocumentSourceState(ctx.tenantId, runId, {
         status: 'completed',
         count,
+        attachmentId,
       });
       await this.completeDocumentRun(ctx.tenantId, runId, 'completed');
     } catch (error) {
@@ -603,6 +605,7 @@ export class ClientProfileFillService {
       await this.setDocumentSourceState(ctx.tenantId, runId, {
         status: 'failed',
         count: 0,
+        attachmentId,
         error: message,
       });
       await this.completeDocumentRun(ctx.tenantId, runId, 'failed', message);
