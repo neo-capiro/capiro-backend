@@ -1,0 +1,51 @@
+{
+  "session": 3,
+  "workstream": "E",
+  "title": "Phase 8 Session 3 — Program Elements full-surface migration to defense-api",
+  "deploymentPosture": "dark",
+  "mutations": {
+    "aws": false,
+    "sharedDatabase": false,
+    "productionData": false,
+    "routing": false,
+    "eventBridgeSchedule": false,
+    "iamOrSecrets": false,
+    "snapshotActivation": false,
+    "canonicalPromotion": false
+  },
+  "cutoverAuthorized": false,
+  "routeCount": 49,
+  "routeGroups": [
+    "programElements.finder",
+    "programElements.summary",
+    "programElements.profile",
+    "programElements.intelligence",
+    "programElements.timeline",
+    "programElements.narrative",
+    "programElements.bills",
+    "programElements.billActions",
+    "programElements.contractors",
+    "programElements.projects",
+    "programElements.procurementLines",
+    "programElements.sources",
+    "programElements.related",
+    "programElements.programs",
+    "programElements.provisions",
+    "programElements.opportunities",
+    "programElements.positions",
+    "programElements.deltas",
+    "programElements.watch",
+    "programElements.alertEmailPref",
+    "programElements.dataIssues",
+    "programElements.reconciliationAdmin",
+    "budgetLines",
+    "programs"
+  ],
+  "notes": [
+    "Cross-domain reads (Congress bills, SAM opportunities, USAspending awards) go through bounded read-only Prisma projections owned by apps/defense-api's own schema — no apps/api service code import.",
+    "Native identity boundaries preserved: no peCode<->BLIN/BLI resolver exists anywhere in apps/defense-api.",
+    "Governed manual-override propose/approve reimplemented as new pure source scoped to the reconciliation-queue target; author-not-approver and canonical-decimal invariants preserved.",
+    "New DB grant: capiro_defense_resolve_member() SECURITY DEFINER function (migration 20261120210000) resolves (userId, role) for capiro_defense_serve — mirrors the three Session 2 tenant-resolution functions exactly.",
+    "apps/api remains the production owner of every route in this list. No ALB/production traffic is routed to defense-api."
+  ]
+}

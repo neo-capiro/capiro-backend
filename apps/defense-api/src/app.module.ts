@@ -8,6 +8,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { RequestContextModule } from './request-context/request-context.module.js';
 import { OrgTenantResolverModule } from './auth/org-tenant-resolver.module.js';
 import { JsonLogger } from './observability/json-logger.js';
+import { ProgramElementsModule } from './program-elements/program-elements.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,9 @@ import { JsonLogger } from './observability/json-logger.js';
     RequestContextModule,
     InternalAuthModule,
     HealthModule,
+    // Session 3: full Program Elements surface registered dark. No production
+    // traffic is routed here until the later shadow/canary/cutover sessions.
+    ProgramElementsModule,
   ],
   providers: [JsonLogger],
 })
