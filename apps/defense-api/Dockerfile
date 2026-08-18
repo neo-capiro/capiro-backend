@@ -53,6 +53,8 @@ RUN --mount=type=cache,id=pnpm-defense-api,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter=@capiro/defense-api...
 
 # Source only — preserve install-time node_modules under each package.
+COPY packages/shared/src packages/shared/src
+COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
 COPY packages/auth/src packages/auth/src
 COPY packages/auth/tsconfig.json packages/auth/tsconfig.json
 COPY packages/defense-contracts/src packages/defense-contracts/src
@@ -68,7 +70,12 @@ COPY apps/defense-api/prisma apps/defense-api/prisma
 COPY apps/defense-api/scripts apps/defense-api/scripts
 COPY apps/defense-api/package.json apps/defense-api/package.json
 
-RUN pnpm --filter @capiro/auth build \
+# @capiro/shared MUST build before @capiro/defense-domain: defense-domain's
+# pe-read module imports the funding-claim / money primitives from it, and with no
+# packages/shared/dist present those types resolve to nothing (tsc reports missing
+# properties on the derived interfaces) rather than failing at the import line.
+RUN pnpm --filter @capiro/shared build \
+ && pnpm --filter @capiro/auth build \
  && pnpm --filter @capiro/defense-contracts build \
  && pnpm --filter @capiro/defense-domain build \
  && pnpm --filter @capiro/defense-client build \
@@ -96,6 +103,8 @@ COPY --chown=capiro:capiro --from=build /workspace/apps/defense-api/package.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/defense-api/prisma /app/apps/defense-api/prisma
 COPY --chown=capiro:capiro --from=build /workspace/apps/defense-api/scripts /app/apps/defense-api/scripts
 
+COPY --chown=capiro:capiro --from=build /workspace/packages/shared/dist /app/packages/shared/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/shared/package.json /app/packages/shared/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/dist /app/packages/auth/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/node_modules /app/packages/auth/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/packages/auth/package.json /app/packages/auth/package.json
@@ -103,6 +112,12 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/di
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/package.json /app/packages/defense-contracts/package.json
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/dist /app/packages/defense-domain/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/package.json /app/packages/defense-domain/package.json
+# defense-domain has RUNTIME dependencies of its own now (@capiro/shared for the
+# money/funding-claim primitives, simple-statistics for the conference forecast), so
+# its node_modules link farm must ship too — as auth's already does. Without it the
+# image builds and starts far enough to load main.js, then dies on the first
+# `require('@capiro/shared')` from pe-read.
+COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/node_modules /app/packages/defense-domain/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-client/dist /app/packages/defense-client/dist
 COPY --chown=capiro:capiro --from=build /workspace/packages/defense-client/package.json /app/packages/defense-client/package.json
 

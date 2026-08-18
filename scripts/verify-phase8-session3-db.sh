@@ -15,7 +15,11 @@
 #      job-only/canonical table (repeats every Session 2 check verbatim)
 #   6. serve CAN propose a manual override (INSERT) and approve it (UPDATE),
 #      but CANNOT delete an override record (immutable/versioned invariant)
-#   7. the parser plane still has no database role or credential
+#   7. the Workstream E full-surface read grants are exactly SELECT (plus the
+#      two FK re-point writes a program merge needs), and the HTTP plane
+#      CANNOT write a conference forecast, a budget action, a capability
+#      match, or the PE<->acquisition-program crosswalk
+#   8. the parser plane still has no database role or credential
 #
 # NEVER connects to a shared database. The container (if this script started
 # it) is destroyed on exit, same convention as verify-phase8-session2-db.sh.
@@ -259,14 +263,109 @@ expect_fail "serve deletes a manual override (immutability invariant)" "$SERVE_U
 ok "governed override propose/approve/no-delete invariant holds for capiro_defense_serve"
 
 # =============================================================================
-log "9. The parser plane still has no database role or credential"
+log "9. Workstream E full-surface read grants: readable where required, no more"
+# =============================================================================
+# The 49-route contract reads materially more than the earlier curated set. Each
+# relation below is asserted SELECT-able by serve, and the write side is asserted
+# refused where a write would break a stated invariant.
+for relation in \
+  program_element_detail_mv \
+  program_element_acquisition_program \
+  conference_probability \
+  budget_action \
+  capability \
+  capability_budget_line_match \
+  person_role \
+  program_office_program_link; do
+  expect_ok "serve SELECTs $relation (required by the frozen read contract)" "$SERVE_URL" \
+    "SELECT 1 FROM $relation LIMIT 1;"
+done
+
+# context_embeddings is served ONLY through two narrow SECURITY DEFINER functions.
+# A direct table grant cannot work: the table's FORCE-RLS policy references the
+# CRM's clients / client_memory_access tables, and PostgreSQL requires privileges
+# on every table a policy expression touches -- so a plain GRANT SELECT fails at
+# read time with "permission denied for table clients". Granting the defense HTTP
+# role read access to `clients` to work around that would hand it the CRM client
+# list, which is exactly the coupling Workstream E removes.
+expect_fail "serve reads context_embeddings directly (CRM-coupled RLS policy)" "$SERVE_URL" \
+  "SELECT 1 FROM context_embeddings LIMIT 1;"
+expect_ok "serve reads PE mission vectors via capiro_defense_related_pe_vectors" "$SERVE_URL" \
+  "SELECT count(*) FROM capiro_defense_related_pe_vectors('0601102A', 'amazon.titan-embed-text-v2:0', 0.7, 8);"
+expect_ok "serve searches PE mission vectors via capiro_defense_search_pe_vectors" "$SERVE_URL" \
+  "SELECT count(*) FROM capiro_defense_search_pe_vectors(('[' || array_to_string(array_fill(0.01::float8, ARRAY[1024]), ',') || ']'), 'amazon.titan-embed-text-v2:0', 0.35, 5);"
+expect_fail "job executes the PE-vector reader (serve-only capability)" "$JOB_URL" \
+  "SELECT count(*) FROM capiro_defense_related_pe_vectors('0601102A', 'amazon.titan-embed-text-v2:0', 0.7, 8);"
+
+# The vector functions must be STABLE (cannot write) and scoped to the GLOBAL
+# source_type='pe' partition, so no tenant-scoped or client-scoped embedding is
+# reachable through them even though the function owner bypasses RLS.
+for fn in capiro_defense_related_pe_vectors capiro_defense_search_pe_vectors; do
+  [ "$(q "SELECT provolatile FROM pg_proc WHERE proname='$fn';")" = "s" ] \
+    || fail "$fn is not STABLE - a SECURITY DEFINER read function must not be able to write"
+  [ "$(q "SELECT prosecdef FROM pg_proc WHERE proname='$fn';")" = "t" ] \
+    || fail "$fn is not SECURITY DEFINER"
+  [ "$(q "SELECT count(*) FROM pg_proc WHERE proname='$fn' AND prosrc LIKE '%tenant_id IS NULL%';")" = "1" ] \
+    || fail "$fn does not restrict to the global (tenant_id IS NULL) embedding partition"
+done
+ok "PE mission vectors are reachable only via the two global-scoped SECURITY DEFINER readers"
+
+# A tenant-scoped 'pe' embedding with an IDENTICAL vector must never come back
+# through the reader -- proof the scoping is real, not merely written down.
+run_sql "
+INSERT INTO program_element (pe_code, title, source)
+VALUES ('0601LEAK', 'Tenant Scoped Leak Probe', 'p8s3-rehearsal');
+INSERT INTO context_embeddings (tenant_id, source_type, source_id, model, content_text, content_hash, embedding)
+VALUES
+  (NULL, 'pe', '0601102A', 'p8s3-probe-model', 'src', 'p8s3-h1',
+   ('[' || array_to_string(array_fill(0.05::float8, ARRAY[1024]), ',') || ']')::vector),
+  ('$TENANT_A', 'pe', '0601LEAK', 'p8s3-probe-model', 'tenant scoped', 'p8s3-h2',
+   ('[' || array_to_string(array_fill(0.05::float8, ARRAY[1024]), ',') || ']')::vector);
+"
+LEAKED="$(psql "$SERVE_URL" -tAc "SELECT count(*) FROM capiro_defense_related_pe_vectors('0601102A', 'p8s3-probe-model', 0.7, 8) WHERE pe_code = '0601LEAK';")"
+[ "$LEAKED" = "0" ] \
+  || fail "a TENANT-SCOPED embedding leaked through capiro_defense_related_pe_vectors"
+ok "a tenant-scoped embedding with an identical vector is NOT reachable through the reader"
+
+# GAI-25: the HTTP read path computes a conference forecast in memory and must
+# NEVER persist one. Enforced by the database, not only by the absence of code.
+expect_fail "serve INSERTs a conference forecast (a read must not write)" "$SERVE_URL" \
+  "INSERT INTO conference_probability (pe_code, fy, predicted, ci_low, ci_high, confidence, model_version)
+   VALUES ('0601102A', 2027, 1, 1, 1, 0.5, 'conference-probability-v1');"
+expect_fail "serve UPDATEs a conference forecast" "$SERVE_URL" \
+  "UPDATE conference_probability SET predicted = 2 WHERE pe_code = '0601102A';"
+
+# Derived/job-owned money-graph tables are read-only to the HTTP plane.
+expect_fail "serve INSERTs a budget action (job-owned derivation)" "$SERVE_URL" \
+  "INSERT INTO budget_action (pe_code, fy, stage, action, baseline, derived_by)
+   VALUES ('0601102A', 2027, 'HASC', 'add', 'request', 'p8s3-rehearsal');"
+expect_fail "serve INSERTs a capability match (curated, job-owned)" "$SERVE_URL" \
+  "INSERT INTO capability_budget_line_match (capability_id, pe_code, confidence, matched_on, derived_by)
+   VALUES (gen_random_uuid(), '0601102A', 'high', 'rehearsal', 'p8s3-rehearsal');"
+expect_fail "serve writes the PE<->acquisition-program crosswalk (governed elsewhere)" "$SERVE_URL" \
+  "INSERT INTO program_element_acquisition_program (pe_code, acq_program_code)
+   VALUES ('0601102A', '999');"
+
+# A program merge must be able to RE-POINT the FK tables it owns the merge for,
+# but must not be able to create or destroy the underlying records.
+expect_ok "serve UPDATEs person_role.program_id (merge re-point)" "$SERVE_URL" \
+  "UPDATE person_role SET program_id = program_id WHERE false;"
+expect_fail "serve INSERTs a person_role (personnel records are not serve-owned)" "$SERVE_URL" \
+  "INSERT INTO person_role (person_id, role_title, role_type, source, observed_at, contact_use)
+   VALUES (gen_random_uuid(), 'PM', 'pm', 'p8s3-rehearsal', now(), 'candidate');"
+expect_fail "serve DELETEs a person_role" "$SERVE_URL" \
+  "DELETE FROM person_role WHERE false;"
+ok "full-surface read grants are exactly SELECT plus the two merge re-point writes"
+
+# =============================================================================
+log "10. The parser plane still has no database role or credential"
 # =============================================================================
 PARSER_ROLE_COUNT="$(q "SELECT count(*) FROM pg_roles WHERE rolname LIKE 'capiro_defense_parser%';")"
 [ "$PARSER_ROLE_COUNT" = "0" ] || fail "a parser database role exists"
 ok "no capiro_defense_parser* role exists in this database"
 
 # =============================================================================
-log "10. Downstream: defense-api's own test suite, database-backed"
+log "11. Downstream: defense-api's own test suite, database-backed"
 # =============================================================================
 log "handing REHEARSAL_DATABASE_URL / REHEARSAL_SERVE_URL to pnpm --filter @capiro/defense-api test"
 (cd "$REPO_ROOT" && \
