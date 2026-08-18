@@ -927,6 +927,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                   kind: data.kind,
                   status: data.status,
                   reason: data.reason,
+                  pages: data.pages,
+                  chars: data.chars,
                 }
               : att,
           ),
@@ -1451,6 +1453,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                   filename: att.filename,
                   kind: att.kind,
                   status: att.status,
+                  pages: att.pages,
+                  chars: att.chars,
                 })),
               }
             : {}),

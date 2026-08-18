@@ -44,6 +44,13 @@ export interface ChatMessageAttachment {
   filename: string;
   kind: string;
   status: string;
+  /**
+   * The upload endpoint already returns these; carried through so the v4
+   * attachment chip can show real page/character counts instead of only the
+   * status. Optional because they weren't tracked on this type before.
+   */
+  pages?: number | null;
+  chars?: number;
 }
 
 /**
@@ -68,10 +75,24 @@ export interface ChatMessageRetrieval {
     targetHint: string | null;
     recipeTool: string | null;
     queryClass: string;
+    /**
+     * These three were already sent by the server's RetrievalFrame and simply
+     * discarded here until the v4 coverage warning needed them. Optional
+     * because legacy turns (and the older narrow shape this type used to
+     * declare) may not carry them.
+     */
+    requireCompleteCoverage?: boolean;
+    requiredDomains?: string[];
+    timeWindow?: { expression: string; withinDays: number } | null;
   };
   coverage: {
     complete: boolean;
     stopReason: string;
+    /** Same as above — real fields from RetrievalFrame, previously untyped. */
+    searchedDomains?: string[];
+    missingDomains?: string[];
+    partialDomains?: string[];
+    toolsInvoked?: string[];
   };
 }
 
