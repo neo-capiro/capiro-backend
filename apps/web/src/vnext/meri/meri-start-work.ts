@@ -65,8 +65,10 @@ export function meriStartWorkCards(input: {
     return {
       id: action.id,
       title: action.label,
-      desc: skillDescription(source, action.starterPrompt),
-      tag: action.requiresClient ? 'ONE CLIENT' : 'SKILL',
+      // Prefer the human description from the catalog — never show internal
+      // recipe ids or raw starter-prompt placeholders as the card body.
+      desc: skillDescription(source, action.description ?? 'Starts a guided Meri workflow.'),
+      tag: action.requiresClient ? 'NEEDS A CLIENT' : 'READY TO USE',
       needsClient: action.requiresClient,
       fill: hydrateMeriStarterPrompt(action, { clientName: input.clientName }),
       kind: 'skill',
@@ -77,8 +79,9 @@ export function meriStartWorkCards(input: {
   const prompts = savedPrompts(input.prompts).map((prompt): MeriStartWorkCard => ({
     id: prompt.id,
     title: prompt.title,
-    desc: prompt.body,
-    tag: 'SAVED PROMPT',
+    // Keep the body as a short preview, not the whole monologue.
+    desc: prompt.body.length > 140 ? `${prompt.body.slice(0, 137).trimEnd()}…` : prompt.body,
+    tag: 'YOUR PROMPT',
     needsClient: false,
     fill: prompt.body,
     kind: 'prompt',

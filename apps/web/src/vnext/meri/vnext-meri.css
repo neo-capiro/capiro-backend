@@ -1090,12 +1090,99 @@
   position: absolute;
   top: 34px;
   right: 0;
-  width: 286px;
+  width: 300px;
   background: var(--meri-surface);
   border-radius: var(--meri-radius);
   box-shadow: var(--meri-shadow-popover);
   padding: 6px;
   z-index: var(--capiro-z-popover);
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-menu-eyebrow {
+  padding: 8px 11px 6px;
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--meri-text-muted);
+}
+
+.capiro-vnext-root .vnext-meri__reasoning-menu-footnote {
+  padding: 8px 11px 6px;
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--meri-text-faint);
+}
+
+.capiro-vnext-root .vnext-meri__landing-mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 18px 0 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--meri-surface);
+  box-shadow: inset 0 0 0 1px var(--meri-border, #eaecf0);
+}
+
+.capiro-vnext-root .vnext-meri__landing-mode-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.capiro-vnext-root .vnext-meri__landing-mode-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 19px;
+  color: var(--meri-ink, #101828);
+}
+
+.capiro-vnext-root .vnext-meri__landing-mode-hint {
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--meri-text-muted, #667085);
+}
+
+.capiro-vnext-root .vnext-meri__action-item.is-rich {
+  align-items: flex-start;
+  padding-top: 11px;
+  padding-bottom: 11px;
+}
+
+.capiro-vnext-root .vnext-meri__action-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+}
+
+.capiro-vnext-root .vnext-meri__action-item.is-rich .vnext-meri__action-label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  line-height: 18px;
+}
+
+.capiro-vnext-root .vnext-meri__action-desc {
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--meri-text-muted, #667085);
+}
+
+.capiro-vnext-root .vnext-meri__action-meta {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--meri-text-faint, #98a2b3);
+  text-transform: uppercase;
 }
 
 .capiro-vnext-root .vnext-meri__reasoning-menu-item {

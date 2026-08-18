@@ -53,9 +53,14 @@ export function normalizeMeriQuickActionCatalog(value: unknown): MeriQuickAction
     ) {
       return [];
     }
+    const description =
+      typeof candidate.description === 'string' && candidate.description.trim()
+        ? candidate.description.trim()
+        : null;
     return [{
       id: candidate.id,
-      label: candidate.label,
+      label: candidate.label.trim() || candidate.id,
+      description,
       starterPrompt: candidate.starterPrompt,
       requiresClient: candidate.requiresClient === true,
     }];
@@ -65,6 +70,7 @@ export function normalizeMeriQuickActionCatalog(value: unknown): MeriQuickAction
 export interface MeriQuickAction {
   id: string;
   label: string;
+  description: string | null;
   starterPrompt: string;
   requiresClient: boolean;
 }
@@ -399,19 +405,19 @@ export function VNextMeriContextRail({
                 <MeriIcon name="ChevronUp" size={14} color="#98A2B3" />
               </div>
               <div className="vnext-meri__rail-section-content">
-                {quickActionsLoading ? <MeriPanelState tone="loading">Loading available actions…</MeriPanelState> : null}
-                {quickActionsError ? <MeriPanelState tone="error">Quick actions could not be loaded.</MeriPanelState> : null}
+                {quickActionsLoading ? <MeriPanelState tone="loading">Loading available skills…</MeriPanelState> : null}
+                {quickActionsError ? <MeriPanelState tone="error">Skills could not be loaded right now.</MeriPanelState> : null}
                 {!quickActionsLoading && !quickActionsError && quickActions.length === 0 ? (
-                  <MeriPanelState tone="empty">No quick actions are available for this tenant.</MeriPanelState>
+                  <MeriPanelState tone="empty">No skills are available for this workspace yet.</MeriPanelState>
                 ) : null}
                 <div className="vnext-meri__actions-list">
                   {quickActions.map((action, index) => (
                     <button
                       type="button"
                       key={action.id}
-                      className="vnext-meri__action-item"
+                      className="vnext-meri__action-item is-rich"
                       disabled={controller.isStreaming || (action.requiresClient === true && !controller.selectedClientValue)}
-                      title={action.requiresClient === true && !controller.selectedClientValue ? 'Select a client scope before using this action.' : undefined}
+                      title={action.requiresClient === true && !controller.selectedClientValue ? 'Select a client in Scope first.' : undefined}
                       onClick={() => {
                         const prompt = quickActionPrompt(
                           action,
@@ -421,12 +427,24 @@ export function VNextMeriContextRail({
                       }}
                     >
                       <span className="vnext-meri__action-tile"><MeriIcon name={actionIcon(index)} size={13} color="#101828" /></span>
-                      <span className="vnext-meri__action-label">{action.label}</span>
+                      <span className="vnext-meri__action-copy">
+                        <span className="vnext-meri__action-label">{action.label}</span>
+                        {action.description ? (
+                          <span className="vnext-meri__action-desc">{action.description}</span>
+                        ) : null}
+                        {action.requiresClient ? (
+                          <span className="vnext-meri__action-meta">Needs a client</span>
+                        ) : (
+                          <span className="vnext-meri__action-meta">Works across your portfolio</span>
+                        )}
+                      </span>
                       <MeriIcon name="ChevronRight" size={14} color="#98A2B3" />
                     </button>
                   ))}
                 </div>
-                <div className="vnext-meri__ctx-empty vnext-meri__ctx-note">Select an action to prepare editable composer text. Nothing is sent until you press Send.</div>
+                <div className="vnext-meri__ctx-empty vnext-meri__ctx-note">
+                  Choose a skill to drop a starter prompt into the composer. Nothing is sent until you press Send.
+                </div>
                 <div className="vnext-meri__rail-footer">CONTEXT IS CLIENT-SCOPED · WRITES REQUIRE APPROVAL</div>
               </div>
             </div>

@@ -439,6 +439,29 @@ export function VNextMeriWorkspace() {
     pendingSendSessionIdRef.current = data.id;
     setChatSession(data.id);
     setActiveConversation(data.id);
+    // Apply any mode the user chose on the empty new-thread screen before
+    // the durable conversation existed. Fail soft — standard remains valid.
+    try {
+      const { isMeriReasoningMode, readDraftReasoningMode } = await import(
+        './VNextMeriReasoningControl.js'
+      );
+      const draftMode = readDraftReasoningMode();
+      if (isMeriReasoningMode(draftMode) && draftMode !== 'standard') {
+        const modeHeaders = await authHeaders();
+        if (mayApplyIdentityResult(requestIdentityKey, identityKeyRef.current)) {
+          await fetch(
+            `${config.apiBaseUrl}/api/clio/v3/conversations/${encodeURIComponent(data.id)}/reasoning-mode`,
+            {
+              method: 'PATCH',
+              headers: modeHeaders,
+              body: JSON.stringify({ reasoningMode: draftMode }),
+            },
+          );
+        }
+      }
+    } catch {
+      // Leave the conversation on the server default (standard).
+    }
     return data.id;
   }, [authHeaders, controller.clients, routeClients, selectedClientId]);
 
