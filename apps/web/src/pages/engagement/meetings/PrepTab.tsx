@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { App } from 'antd';
 import { FileText, Link as LinkIcon, TriangleAlert } from 'lucide-react';
 import { useApprovePrep, useGeneratePrep, useUpdatePrep } from './meetings-api.js';
 import { exportArtifactPdf } from './meetings-print.js';
@@ -8,6 +7,7 @@ import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
 import { ArtifactActionBar, GeneratingState, RuleReinforcement, StagePill } from './tab-kit.js';
 import type { Meeting } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
+import { useMeetingPanelChrome } from './meeting-panel-chrome.js';
 
 type PrepStageTone = 'navy' | 'gray' | 'warn' | 'err';
 
@@ -59,7 +59,7 @@ function splitLines(value: string): string[] {
 /** Prep tab — a port of the prototype PrepPanel. Meri drafts prep; the user
  *  refines (add context), regenerates, exports, and approves. */
 export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigured: boolean }) {
-  const { message } = App.useApp();
+  const chrome = useMeetingPanelChrome();
   const prep = meeting.preps[0] ?? null;
   const generate = useGeneratePrep();
   const approve = useApprovePrep();
@@ -85,7 +85,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
 
   const runGenerate = async (additionalContext?: string) => {
     await generate.mutateAsync({ meetingId: meeting.id, additionalContext });
-    message.success('Prep generated.');
+    chrome.success('Prep generated.');
   };
 
   if (generate.isPending) {
@@ -337,7 +337,7 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
         shared={prep.sharedAt != null}
         onApprove={async () => {
           await approve.mutateAsync(prep.id);
-          message.success('Prep approved.');
+          chrome.success('Prep approved.');
         }}
         approving={approve.isPending}
       />
@@ -381,10 +381,10 @@ export function PrepTab({ meeting, aiConfigured }: { meeting: Meeting; aiConfigu
                     followUps: splitLines(editValues.followUps),
                     emailEvidence: splitLines(editValues.emailEvidence),
                   });
-                  message.success('Prep updated.');
+                  chrome.success('Prep updated.');
                   setEditOpen(false);
                 } catch {
-                  message.error('Could not update the prep.');
+                  chrome.error('Could not update the prep.');
                 }
               }}
             >

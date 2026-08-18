@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { App } from 'antd';
 import { Link } from 'react-router-dom';
 import { Lock, Plus, Users, X } from 'lucide-react';
 import { PrepTab } from './PrepTab.js';
@@ -32,6 +31,10 @@ import {
 import { approvedDebrief, type DetailTab, type Meeting } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
 import { SharedMeetingsSection } from './SharedMeetingsSection.js';
+// Confirm/toast chrome is injected per surface (AntD on the canonical
+// Meetings page, EngagementDialog + Capiro toasts on vNext) — this shared
+// file deliberately imports no antd. See meeting-panel-chrome.tsx.
+import { useMeetingPanelChrome } from './meeting-panel-chrome.js';
 
 /**
  * Tab-strip dot color — reskin phase (navy design), intentional behavior
@@ -64,7 +67,7 @@ const TAB_DOT_COLOR: Record<TabDotTone, string> = {
  * requires confirmation and shows exactly what it will unshare.
  */
 function ShareArtifactsControl({ m, onOpenShare }: { m: Meeting; onOpenShare: () => void }) {
-  const { modal, message } = App.useApp();
+  const chrome = useMeetingPanelChrome();
   const unshare = useUnshareArtifacts();
   const shareable = canShare(m);
   const sharedItems: ShareArtifactRef[] = [
@@ -79,18 +82,17 @@ function ShareArtifactsControl({ m, onOpenShare }: { m: Meeting; onOpenShare: ()
   ];
 
   const confirmUnshareAll = () => {
-    modal.confirm({
+    chrome.confirm({
       title: `Unshare ${sharedItems.length} artifact${sharedItems.length === 1 ? '' : 's'}?`,
       content: `This removes ${sharedItems.length === 1 ? 'it' : 'them'} from ${m.client?.name ?? 'the client'}'s Documents and your firm's Meeting Library. This cannot be undone from here — you'd need to re-share.`,
       okText: 'Unshare all',
-      okButtonProps: { danger: true },
-      rootClassName: 'redesign',
+      danger: true,
       onOk: async () => {
         try {
           await unshare.mutateAsync({ meetingId: m.id, artifacts: sharedItems });
-          message.success('Unshared.');
+          chrome.success('Unshared.');
         } catch {
-          message.error('Could not unshare.');
+          chrome.error('Could not unshare.');
         }
       },
     });
@@ -133,7 +135,7 @@ function ShareArtifactsControl({ m, onOpenShare }: { m: Meeting; onOpenShare: ()
 /** The client pill / "Assign client" affordance — assigns or overrides the
  *  meeting's client (spec §6: sharing requires a client). Wired to PUT /meetings/:id. */
 function ClientAssign({ meeting }: { meeting: Meeting }) {
-  const { message } = App.useApp();
+  const chrome = useMeetingPanelChrome();
   const [editing, setEditing] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState(meeting.client?.id ?? '');
   const clients = useClientOptions(editing);
@@ -147,10 +149,10 @@ function ClientAssign({ meeting }: { meeting: Meeting }) {
   const save = async () => {
     try {
       await assign.mutateAsync({ meetingId: meeting.id, clientId: selectedClientId || null });
-      message.success('Client updated for this meeting.');
+      chrome.success('Client updated for this meeting.');
       setEditing(false);
     } catch {
-      message.error('Could not update the meeting client.');
+      chrome.error('Could not update the meeting client.');
     }
   };
 

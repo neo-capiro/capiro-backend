@@ -58,8 +58,15 @@ import {
 import { useApi } from '../../../lib/use-api.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
 import { MeetingDetailPanel } from '../../../pages/engagement/meetings/MeetingDetailPanel.js';
-import { SendMeriModal } from '../../../pages/engagement/meetings/SendMeriModal.js';
+// The drawer tree (MeetingDetailPanel + tabs + ShareConfirmation) is the
+// canonical implementation, reused — but its confirm/toast chrome is injected
+// per surface, and on this surface it must be vNext primitives, never AntD:
+// VNextMeetingPanelChrome provides EngagementDialog confirms + Capiro toasts.
+// SendMeriModal is the one drawer sibling that is STRUCTURALLY AntD (an AntD
+// Form), so this surface renders its vNext rebuild instead.
 import { ShareConfirmation } from '../../../pages/engagement/meetings/ShareConfirmation.js';
+import { VNextMeetingPanelChrome } from './VNextMeetingPanelChrome.js';
+import { VNextSendMeriModal } from './VNextSendMeriModal.js';
 import { meetingsListKey, useMeeting, useMeetings } from '../../../pages/engagement/meetings/meetings-api.js';
 import { meetingStatus } from '../../../pages/engagement/meetings/meetings-ui.js';
 import {
@@ -763,7 +770,8 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
   const viewLabel = viewMode === 'day' ? 'Day' : viewMode === 'list' ? 'List' : 'Month';
 
   return (
-    <div className="vmtg-workspace">
+    <VNextMeetingPanelChrome>
+      <div className="vmtg-workspace">
       {/* Below 760px the open drawer REPLACES the list rather than overlapping
           it (UI-parity §5.1) — driven by this attribute, not by an overlay. */}
       <div className="vmtg-main" data-drawer-open={drawerOpen || undefined}>
@@ -1013,7 +1021,7 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
         onClose={() => setNewMeetingOpen(false)}
         onSave={(input) => createMeeting.mutate(input)}
       />
-      <SendMeriModal
+      <VNextSendMeriModal
         meeting={sendMeriTarget}
         open={Boolean(sendMeriTarget)}
         onClose={() => setSendMeriTarget(null)}
@@ -1023,6 +1031,7 @@ export function VNextMeetingsWorkspace({ clientId }: VNextMeetingsWorkspaceProps
         open={Boolean(shareTarget)}
         onClose={() => setShareTarget(null)}
       />
-    </div>
+      </div>
+    </VNextMeetingPanelChrome>
   );
 }

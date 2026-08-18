@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { App } from 'antd';
 import { Check, EyeOff, Lock, Mic, PenLine, Sparkles, Upload } from 'lucide-react';
-import { parseDebriefBody } from '../meeting-actions.js';
+// UI-free module (not meeting-actions.tsx, which carries AntD): this tab is
+// part of the shared drawer tree the vNext surface reuses antd-free.
+import { parseDebriefBody } from '../debrief-body.js';
 import {
   useApproveDebrief,
   useGenerateDebriefDraft,
@@ -16,6 +17,7 @@ import { Empty, MeriGlyph, SectionLabel } from './meetings-ui.js';
 import { ArtifactActionBar, GeneratingState, RuleReinforcement, StagePill } from './tab-kit.js';
 import type { Meeting, MeetingDebriefDraft } from './meetings-types.js';
 import { EngagementDialog } from './EngagementDialog.js';
+import { useMeetingPanelChrome } from './meeting-panel-chrome.js';
 
 type DebriefStageTone = 'navy' | 'gray' | 'warn' | 'err';
 
@@ -346,7 +348,7 @@ function SourcePicker({
 }
 
 export function DebriefTab({ meeting }: { meeting: Meeting }) {
-  const { message } = App.useApp();
+  const chrome = useMeetingPanelChrome();
   const debriefs = useMeetingDebriefs(meeting.id);
   const current = debriefs.data?.[0] ?? null;
   // Poll while Meri is summarizing (mirrors NotesTab) so a note that lands
@@ -388,19 +390,19 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
 
   const draftAndSave = async (method: 'manual' | 'upload' | 'voice', sourceText: string) => {
     if (!sourceText.trim()) {
-      message.warning('Add some notes or a transcript first.');
+      chrome.warning('Add some notes or a transcript first.');
       return;
     }
     try {
       const draft = await generate.mutateAsync({ meetingId: meeting.id, method, sourceText });
       await save.mutateAsync({ meetingId: meeting.id, body: formatDebriefBody(draft) });
-      message.success('Debrief drafted.');
+      chrome.success('Debrief drafted.');
       setRedraft(false);
     } catch (err) {
       // Without this catch, the onUseNotes / onManual `void draftAndSave(...)` callers
       // swallow a generation or save failure silently — no toast, and the debrief is
       // never persisted. (onFile already has its own try/catch for the upload step.)
-      message.error(err instanceof Error ? err.message : 'Could not draft the debrief.');
+      chrome.error(err instanceof Error ? err.message : 'Could not draft the debrief.');
     }
   };
 
@@ -416,7 +418,7 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
       });
       await draftAndSave(isAudio ? 'voice' : 'upload', text);
     } catch (err) {
-      message.error(err instanceof Error ? err.message : 'Could not process that file.');
+      chrome.error(err instanceof Error ? err.message : 'Could not process that file.');
     }
   };
 
@@ -666,7 +668,7 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
         shared={current.sharedAt != null}
         onApprove={async () => {
           await approve.mutateAsync({ meetingId: meeting.id, debriefId: current.id });
-          message.success('Debrief approved.');
+          chrome.success('Debrief approved.');
         }}
         approving={approve.isPending}
       />
@@ -705,7 +707,7 @@ export function DebriefTab({ meeting }: { meeting: Meeting }) {
                   debriefId: current.id,
                   body: editBody,
                 });
-                message.success('Debrief updated.');
+                chrome.success('Debrief updated.');
                 setEditOpen(false);
               }}
             >

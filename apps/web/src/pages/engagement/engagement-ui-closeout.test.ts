@@ -199,7 +199,7 @@ describe('Engagement UI closeout contract', () => {
     // own — every file here only references the shared token above.
     for (const file of [
       'src/vnext/pages/engagement/engagement.css',
-      'src/pages/engagement/meetings/engagement-dialog.css',
+      'src/vnext/pages/engagement/engagement-dialog.css',
       'src/pages/engagement/engagement-ui-closeout.css',
       'src/vnext/pages/engagement/engagement-ui-closeout.css',
     ]) {
@@ -208,7 +208,7 @@ describe('Engagement UI closeout contract', () => {
   });
 
   it('keeps the dialog shell responsive and motion-safe', () => {
-    const css = source('src/pages/engagement/meetings/engagement-dialog.css');
+    const css = source('src/vnext/pages/engagement/engagement-dialog.css');
     // Bottom sheet on small viewports.
     expect(css).toContain('@media (max-width: 760px)');
     expect(css).toContain('align-items: end');

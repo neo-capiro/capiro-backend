@@ -13,6 +13,8 @@ import {
   type MeetingJoinSource,
 } from '@capiro/shared';
 import { MeriGlyph } from './meetings/meetings-ui.js';
+import { NOTETAKER_CONSENT_COPY } from './notetaker-consent-copy.js';
+import { parseDebriefBody } from './debrief-body.js';
 
 // ── Join-link detection ─────────────────────────────────────────────────────
 // The detection logic now lives in @capiro/shared (the single source of truth,
@@ -229,37 +231,34 @@ export function MeetingQuickActions({
  * (Form.Item binds via context). Field names — meetingUrl / authorizedToRecord /
  * allPartiesWillBeNotified — are the contract the page's onFinish reads.
  *
- * ⚠️ This is the ONE place the consent copy lives. It is compliance-reviewed
- * (docs/plans/meeting-notetaker-consent-copy.md); do not fork it per page.
+ * ⚠️ The consent copy is compliance-reviewed
+ * (docs/plans/meeting-notetaker-consent-copy.md) and now lives — verbatim — in
+ * `notetaker-consent-copy.ts`, the single UI-free source consumed by BOTH this
+ * AntD renderer (canonical app.capiro.ai) and the vNext renderer
+ * (`vnext/pages/engagement/VNextSendMeriModal.tsx`, which may not import
+ * antd). Do not fork or reword it per page; edit the copy module only.
  */
 export function NotetakerConsentFields() {
   return (
     <>
       <Typography.Paragraph type="secondary">
-        Meri will join as a visible participant named "Meri Notetaker (recording)", transcribe the
-        meeting, and draft a private debrief for your review. A notice is posted in the meeting so
-        participants know recording is happening. You're responsible for ensuring you're permitted
-        to record this meeting.
+        {NOTETAKER_CONSENT_COPY.intro}
       </Typography.Paragraph>
       <Form.Item
         name="meetingUrl"
-        label="Meeting join URL"
-        extra="The link participants click to join — from the calendar invite body, not the invite itself."
+        label={NOTETAKER_CONSENT_COPY.meetingUrlLabel}
+        extra={NOTETAKER_CONSENT_COPY.meetingUrlExtra}
         rules={[
-          { required: true, message: 'Paste the meeting join URL.' },
+          { required: true, message: NOTETAKER_CONSENT_COPY.meetingUrlRequired },
           {
             validator: (_rule, value: string) =>
               !value || isSupportedJoinUrl(value)
                 ? Promise.resolve()
-                : Promise.reject(
-                    new Error(
-                      "That doesn't look like a join link — use the Zoom, Teams, Google Meet, Webex, GoTo, or Slack URL from the invite.",
-                    ),
-                  ),
+                : Promise.reject(new Error(NOTETAKER_CONSENT_COPY.meetingUrlInvalid)),
           },
         ]}
       >
-        <Input placeholder="https://zoom.us/j/… · meet.google.com/… · teams.microsoft.com/…" />
+        <Input placeholder={NOTETAKER_CONSENT_COPY.meetingUrlPlaceholder} />
       </Form.Item>
       <Form.Item
         name="authorizedToRecord"
@@ -269,11 +268,11 @@ export function NotetakerConsentFields() {
             validator: (_rule, value: boolean) =>
               value
                 ? Promise.resolve()
-                : Promise.reject(new Error('Please confirm you are authorized.')),
+                : Promise.reject(new Error(NOTETAKER_CONSENT_COPY.authorizedRequired)),
           },
         ]}
       >
-        <Checkbox>I&apos;m authorized to have this meeting transcribed for my firm.</Checkbox>
+        <Checkbox>{NOTETAKER_CONSENT_COPY.authorizedLabel}</Checkbox>
       </Form.Item>
       <Form.Item
         name="allPartiesWillBeNotified"
@@ -283,64 +282,22 @@ export function NotetakerConsentFields() {
             validator: (_rule, value: boolean) =>
               value
                 ? Promise.resolve()
-                : Promise.reject(new Error('Please acknowledge participant notification.')),
+                : Promise.reject(new Error(NOTETAKER_CONSENT_COPY.notifiedRequired)),
           },
         ]}
       >
-        <Checkbox>
-          I understand participants will be notified, and I&apos;ll obtain any additional consent
-          required where participants are located.
-        </Checkbox>
+        <Checkbox>{NOTETAKER_CONSENT_COPY.notifiedLabel}</Checkbox>
       </Form.Item>
     </>
   );
 }
 
 // ── Saved-debrief read-only view (for the quick notes modal) ─────────────────
-export interface DebriefDraftState {
-  recap: string;
-  actionItems: string[];
-  notes: string;
-}
-
-function splitLines(value: string): string[] {
-  return value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 80);
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function sectionText(body: string, start: string, end?: string): string {
-  const startPattern = new RegExp(`(?:^|\\n)${escapeRegExp(start)}\\s*\\n`, 'i');
-  const startMatch = body.match(startPattern);
-  if (!startMatch || startMatch.index === undefined) return '';
-  const contentStart = startMatch.index + startMatch[0].length;
-  const rest = body.slice(contentStart);
-  if (!end) return rest.trim();
-  const endPattern = new RegExp(`\\n${escapeRegExp(end)}\\s*\\n`, 'i');
-  const endMatch = rest.match(endPattern);
-  return (endMatch?.index === undefined ? rest : rest.slice(0, endMatch.index)).trim();
-}
-
-/** Parse the plain-text debrief body into its Recap / Action Items / Notes sections. */
-export function parseDebriefBody(body: string): DebriefDraftState {
-  const fallback = { recap: body.trim(), actionItems: [], notes: '' };
-  if (!body.trim()) return { recap: '', actionItems: [], notes: '' };
-  const recap = sectionText(body, 'Recap', 'Action Items');
-  const actionItems = sectionText(body, 'Action Items', 'Notes');
-  const notes = sectionText(body, 'Notes');
-  if (!recap && !actionItems && !notes) return fallback;
-  return {
-    recap: recap || fallback.recap,
-    actionItems: splitLines(actionItems.replace(/^- /gm, '')),
-    notes,
-  };
-}
+// The body-parsing logic is UI-free and now lives in debrief-body.ts (so the
+// shared, antd-free Meetings drawer can use it without reaching this file's
+// AntD imports); re-exported here so existing importers are unchanged.
+export { parseDebriefBody };
+export type { DebriefDraftState } from './debrief-body.js';
 
 function NotesBlock({ title, children }: { title: string; children: ReactNode }) {
   return (

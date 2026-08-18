@@ -15,6 +15,17 @@ import { CurrentDecisionSurface } from './CurrentDecisionSurface.js';
 import { OutreachConversation } from './OutreachConversation.js';
 import type { OutreachV3Stage } from './contracts.js';
 import { useOutreachV3Session } from './useOutreachV3Session.js';
+// This route owns ALL of the canonical outreach-v3 stylesheet attachments.
+// context-review-surface.css and target-workspace.css used to be imported by
+// ContextReviewSurface.tsx / TargetWorkspaceEntry.tsx; they moved up here (in
+// the same position of the cascade they already occupied — subtree css always
+// evaluated before this file's own imports) so the shared component graph
+// under CurrentDecisionSurface stays css-free and reusable by the vNext
+// Engagement surface, which must not import legacy stylesheets at runtime and
+// carries its own scoped port instead
+// (vnext/pages/engagement/outreach-decision-vnext.css).
+import './context-review-surface.css';
+import './target-workspace.css';
 import './outreach-v3.css';
 import './planning-surfaces.css';
 import './outreach-v3-standalone.css';
