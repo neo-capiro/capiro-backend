@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "phase8_session5_live_benchmark_manifest_v1",
+  "status": "provider_ready_live_run_required",
+  "executionModel": "sagemaker_batch_transform",
+  "persistentEndpointAllowed": false,
+  "productionDefaultChangeAllowed": false,
+  "sourceCorpus": "real FY27 source-grounded calibration corpus",
+  "modelPackageArn": null,
+  "modelName": "nemotron-parse",
+  "modelVersion": null,
+  "parserOptionsHash": null,
+  "requiredStrata": [
+    {
+      "id": "r1_zero_native_tables",
+      "selection": "R-1 pages where native table extraction produced zero tables",
+      "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "providerArtifacts": []
+    },
+    {
+      "id": "r2_identity_banner",
+      "selection": "R-2 Program Element identity and banner pages",
+      "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "providerArtifacts": []
+    },
+    {
+      "id": "r2a_project_cost_table",
+      "selection": "R-2A project identity and cost tables",
+      "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "providerArtifacts": []
+    },
+    {
+      "id": "scanned_image_only",
+      "selection": "Scanned or image-only pages with required information",
+      "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "providerArtifacts": []
+    },
+    {
+      "id": "navy_ba6_duplicate_flattening",
+      "selection": "Navy BA6 duplicate and flattened-table calibration pages",
+      "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "providerArtifacts": []
+    },
+    {
+      "id": "p1_table",
+      "selection": "Representative P-1 procurement tables",
+      "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "providerArtifacts": []
+    },
+    {
+      "id": "o1_op5_table",
+      "selection": "Representative O-1 and OP-5 tables",
+      "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "providerArtifacts": []
+    },
+    {
+      "id": "defense_wide_volume",
+      "selection": "Representative Defense-Wide volume pages",
+      "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "providerArtifacts": []
+    }
+  ],
+  "providersToCompare": [
+    "deterministic_current",
+    "llamaparse_cached_when_available",
+    "nemotron_parse",
+    "nvidia_page_elements_table_structure",
+    "nvidia_ocr_when_applicable"
+  ],
+  "acceptance": {
+    "wrongMoneyCases": 0,
+    "wrongUnitCases": 0,
+    "wrongFiscalYearCases": 0,
+    "falseIdentityCases": 0,
+    "evidenceBindingRegressions": 0,
+    "unexplainedDifferences": 0,
+    "requiresMaterialPageClassRecovery": true,
+    "requiresPinnedReplay": true,
+    "requiresAcceptedCostAndThroughput": true,
+    "requiresZeroIdleGpuProof": true
+  },
+  "blockedBy": [
+    "approved NVIDIA AWS Marketplace model-package ARN and version are not committed",
+    "no retained NVIDIA provider-output artifacts exist for the real FY27 corpus",
+    "no isolated live benchmark execution evidence has been supplied"
+  ]
+}
