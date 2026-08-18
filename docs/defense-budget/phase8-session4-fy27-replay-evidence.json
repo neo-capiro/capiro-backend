@@ -22,9 +22,9 @@
   "samePromotionInspectionHash": true,
   "unexplainedDifferences": 0,
   "canonicalMutationAttempted": false,
-  "legacyGitSha": "d6e6a1c7eadc40a26089ea52200c80edf8de6638",
-  "defenseApiGitSha": "d6e6a1c7eadc40a26089ea52200c80edf8de6638",
-  "recordedAt": "2026-08-18T11:54:21.446Z",
+  "legacyGitSha": "8ac8df6f14b02574d20b9b53a36967d6f10ff5b1",
+  "defenseApiGitSha": "8ac8df6f14b02574d20b9b53a36967d6f10ff5b1",
+  "recordedAt": "2026-08-18T11:55:00.827Z",
   "notes": [
     "Dual-path inspect-only replay over immutable FY27 fixture slices.",
     "Retained root: apps/api/src/defense-budget",
