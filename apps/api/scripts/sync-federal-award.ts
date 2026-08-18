@@ -17,8 +17,17 @@
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { AwardPeExtractorService } from '../src/program-element/extractors/award-pe-extractor.service.js';
+import { seedFederalContractorsFromAwards } from './seed-federal-contractors-from-awards.js';
 
 dotenvConfig();
+
+/** Normalize USAspending Recipient UEI for storage / tier-1 matching. */
+export function parseRecipientUei(raw: unknown): string | null {
+  const s = String(raw ?? '')
+    .trim()
+    .toUpperCase();
+  return /^[A-Z0-9]{12}$/.test(s) ? s : null;
+}
 
 const USASPENDING = 'https://api.usaspending.gov/api/v2/search/spending_by_award/';
 
@@ -70,6 +79,10 @@ async function fetchPage(startDate: string, endDate: string, page: number): Prom
       // Location fields for district nexus. USAspending returns these for contracts.
       'Place of Performance State Code', 'Place of Performance Congressional District',
       'Recipient Location State Code', 'Recipient Location Congressional District',
+      // Recipient UEI enables tier-1 contractor auto-confirm (entity-resolution).
+      // Previously hardcoded null — Gate 3 in award-dollars diagnosis. Without it,
+      // federal_contractor can only match by exact name and never by identifier.
+      'Recipient UEI',
     ],
     page,
     limit: 100,
@@ -89,7 +102,7 @@ async function fetchPage(startDate: string, endDate: string, page: number): Prom
     piid: (r['Award ID'] as string) ?? null,
     fain: null,
     recipientName: (r['Recipient Name'] as string) ?? null,
-    recipientUei: null,
+    recipientUei: parseRecipientUei(r['Recipient UEI']),
     amount: r['Award Amount'] != null ? Number(r['Award Amount']) : null,
     description: (r['Description'] as string) ?? null,
     awardingAgency: (r['Awarding Agency'] as string) ?? null,
@@ -231,6 +244,24 @@ async function main(): Promise<void> {
         2,
       ),
     );
+
+    // Keep federal_contractor catalog aligned with award names so entity
+    // resolution can propose/confirm contracting mappings permanently.
+    // Best-effort: a seed failure must not fail the award sync itself.
+    try {
+      const seed = await seedFederalContractorsFromAwards(prisma, {
+        minAwards: 1,
+        minTotal: 0,
+        limit: null,
+      });
+      console.log(JSON.stringify({ seededContractors: seed }, null, 2));
+    } catch (seedErr) {
+      console.error(
+        `[federal-award-sync] contractor catalog seed failed (non-fatal): ${
+          seedErr instanceof Error ? seedErr.message : String(seedErr)
+        }`,
+      );
+    }
   } catch (err) {
     await prisma.syncRun.update({
       where: { id: run.id },
@@ -242,7 +273,16 @@ async function main(): Promise<void> {
   }
 }
 
-void main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+void (async () => {
+  const isDirectRun =
+    typeof require !== 'undefined' &&
+    typeof module !== 'undefined' &&
+    require.main === module;
+  if (!isDirectRun) return;
+  try {
+    await main();
+  } catch (err) {
+    console.error(err);
+    process.exit(1);
+  }
+})();
