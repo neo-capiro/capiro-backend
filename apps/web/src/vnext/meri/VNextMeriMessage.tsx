@@ -38,6 +38,7 @@ interface VNextMeriMessageProps {
   isStreaming: boolean;
   controller: MeriChatController;
   onOpenMemory: () => void;
+  onOpenSourceDetail: (citations: MeriCitation[], index: number) => void;
 }
 
 export function VNextMeriMessage({
@@ -46,6 +47,7 @@ export function VNextMeriMessage({
   isStreaming,
   controller,
   onOpenMemory,
+  onOpenSourceDetail,
 }: VNextMeriMessageProps) {
   if (message.role === 'user') {
     return (
@@ -65,6 +67,7 @@ export function VNextMeriMessage({
       isStreaming={isStreaming}
       controller={controller}
       onOpenMemory={onOpenMemory}
+      onOpenSourceDetail={onOpenSourceDetail}
     />
   );
 }
@@ -75,12 +78,14 @@ function VNextMeriAssistantMessage({
   isStreaming,
   controller,
   onOpenMemory,
+  onOpenSourceDetail,
 }: {
   message: ChatMessage;
   isLastAssistant: boolean;
   isStreaming: boolean;
   controller: MeriChatController;
   onOpenMemory: () => void;
+  onOpenSourceDetail: (citations: MeriCitation[], index: number) => void;
 }) {
   const api = useApi();
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
@@ -376,6 +381,16 @@ function VNextMeriAssistantMessage({
                   <MeriIcon name="ArrowUpRight" size={13} color="#101828" />
                 </a>
               ) : null}
+              <button
+                type="button"
+                className="vnext-meri__source-more"
+                onClick={() => {
+                  const index = citations.findIndex((c) => c.id === activeCitation.id && c.n === activeCitation.n);
+                  onOpenSourceDetail(citations, index >= 0 ? index : 0);
+                }}
+              >
+                VIEW FULL SOURCE
+              </button>
               <button
                 type="button"
                 className="vnext-meri__source-more"

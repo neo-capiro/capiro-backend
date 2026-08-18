@@ -43,6 +43,8 @@ interface VNextMeriConversationProps {
   onOpenScope: () => void;
   /** Expands the rail's Memory section. */
   onOpenMemory: () => void;
+  /** Opens the rail's Source Detail view for one of a turn's citations. */
+  onOpenSourceDetail: (citations: import('../../components/chat/chat-store.js').MeriCitation[], index: number) => void;
 }
 
 export function VNextMeriConversation({
@@ -52,6 +54,7 @@ export function VNextMeriConversation({
   onOpenIntegrations,
   onOpenScope,
   onOpenMemory,
+  onOpenSourceDetail,
 }: VNextMeriConversationProps) {
   const [threadMenuOpen, setThreadMenuOpen] = useState(false);
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
@@ -339,6 +342,7 @@ export function VNextMeriConversation({
                         isStreaming={isStreaming}
                         controller={controller}
                         onOpenMemory={onOpenMemory}
+                        onOpenSourceDetail={onOpenSourceDetail}
                       />
                     </div>
                   );
