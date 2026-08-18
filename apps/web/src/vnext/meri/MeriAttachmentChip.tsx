@@ -47,15 +47,18 @@ export const MERI_ATTACHMENT_STATES: MeriAttachmentChipSpec[] = [
 /**
  * Live attachment → chip presentation. Statuses are the real
  * `StagedAttachment['status']` union; `reason` is the server's own detail
- * string. No page/row counts are shown because the message attachment payload
- * does not carry them — the fixture's "PARSED · 14 PAGES" style detail only
- * appears when the server supplies it via `reason`.
+ * string; `pages`/`chars` come from the same upload response. There is no
+ * server-side row count for CSV/text attachments, so — unlike the prototype's
+ * "PARSED · 412 ROWS" fixture — a parsed spreadsheet shows a character count
+ * instead of an invented row count.
  */
 export function attachmentChipSpec(attachment: {
   filename: string;
   kind: string;
   status: string;
   reason?: string | null;
+  pages?: number | null;
+  chars?: number;
 }): MeriAttachmentChipSpec {
   const GOOD = { ring: '#ABEFC6', fg: '#027A48' };
   const WARN = { ring: '#FEDF89', fg: '#B54708' };
@@ -86,7 +89,18 @@ export function attachmentChipSpec(attachment: {
     }
   })();
 
-  const detail = attachment.reason?.trim();
+  // Preference order: the server's own reason string (covers scanned/error/
+  // unsupported explanations) beats a derived count, and a real page count
+  // beats a character count — pages is what "parsed" means for a document.
+  const detail =
+    attachment.reason?.trim() ||
+    (attachment.status === 'parsed' || attachment.status === 'truncated'
+      ? attachment.pages
+        ? `${attachment.pages} PAGE${attachment.pages === 1 ? '' : 'S'}`
+        : attachment.chars
+          ? `${attachment.chars.toLocaleString()} CHARS`
+          : undefined
+      : undefined);
   return {
     name: attachment.filename,
     state: detail ? `${base.state} · ${detail.toUpperCase()}` : base.state,

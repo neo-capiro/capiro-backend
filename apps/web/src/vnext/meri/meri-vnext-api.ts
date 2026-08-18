@@ -1,4 +1,5 @@
 import type { AxiosInstance } from 'axios';
+import type { MeriContextSection } from './meri-prefs.js';
 
 export interface MeriSavedPrompt {
   id: string;
@@ -19,7 +20,7 @@ export interface MeriWorkspace {
 export interface MeriVNextPreference {
   windowChrome: 'undocked' | 'maximized' | 'docked';
   railCollapsed: boolean;
-  openSection: 'context' | 'sources' | 'actions' | null;
+  openSection: MeriContextSection | null;
 }
 
 export interface MeriContextPacketItem {

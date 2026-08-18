@@ -4,6 +4,7 @@ import { ManagedMcpAppsProvider } from '../../components/chat/managed-mcp-apps.j
 import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import type { MeriCitation } from '../../components/chat/chat-store.js';
 import { MERI_LOGO_SRC } from './meri-presentation.js';
 import type { MeriContextSection, MeriWindowChrome } from './meri-prefs.js';
 import { VNextMeriTopBar } from './VNextMeriTopBar.js';
@@ -75,6 +76,10 @@ export function VNextMeriShell({
   // The scope menu lives in the top bar but the composer's SCOPE pill is a
   // second trigger for that same single control, so the open state is lifted.
   const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
+  const [activeSourceDetail, setActiveSourceDetail] = useState<{
+    citations: MeriCitation[];
+    index: number;
+  } | null>(null);
   const [contextSheet, setContextSheet] = useState<{
     open: boolean;
     packet: MeriContextPacket | null;
@@ -109,6 +114,17 @@ export function VNextMeriShell({
     if (!isTabletDown) return;
     setRailCollapsed(true);
   }, [isTabletDown]);
+
+  // A source-detail view pins to one turn's citations; switching threads
+  // must not leave a stale panel referencing the previous thread's sources.
+  useEffect(() => {
+    setActiveSourceDetail(null);
+  }, [controller.activeConversationId]);
+
+  // A streamed document should surface immediately even if the rail was collapsed.
+  useEffect(() => {
+    if (controller.activeArtifact) setRailCollapsed(false);
+  }, [controller.activeArtifact]);
 
   useEffect(() => {
     if (!preferencesHydrated) return;
@@ -210,6 +226,11 @@ export function VNextMeriShell({
               tenantName={tenantName}
               onOpenIntegrations={handleOpenIntegrations}
               onOpenScope={() => setScopeMenuOpen(true)}
+              onOpenMemory={() => expandSection('memory')}
+              onOpenSourceDetail={(citations, index) => {
+                setActiveSourceDetail({ citations, index });
+                setRailCollapsed(false);
+              }}
             />
 
             <VNextMeriContextRail
@@ -221,6 +242,10 @@ export function VNextMeriShell({
               onSectionChange={setOpenSection}
               onOpenIntegrations={handleOpenIntegrations}
               onOpenContext={(packet, loading, error) => setContextSheet({ open: true, packet, loading, error })}
+              activeSourceDetail={activeSourceDetail}
+              onCloseSourceDetail={() => setActiveSourceDetail(null)}
+              activeArtifact={controller.activeArtifact}
+              onCloseArtifact={() => controller.setActiveArtifact(null)}
             />
           </div>
         </div>
