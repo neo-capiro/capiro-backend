@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "session": "phase8-session5-nvidia-benchmark",
+  "baseBranch": "agent/phase8-session4-after-s3",
+  "branch": "agent/phase8-session5-nvidia-benchmark",
+  "productionDefaultChanged": false,
+  "awsMutationPerformed": false,
+  "productionDatabaseMutationPerformed": false,
+  "productionDataMutationPerformed": false,
+  "routingChanged": false,
+  "scheduleChanged": false,
+  "iamOrSecretsChangedInAws": false,
+  "snapshotActivated": false,
+  "canonicalPromotionExecuted": false,
+  "components": {
+    "publicHttpOwner": "apps/defense-api (unchanged; no NVIDIA runtime import)",
+    "deterministicParserOwner": "apps/defense-budget-parser (unchanged; AWS-free)",
+    "nvidiaOrchestrationOwner": "apps/defense-parser-orchestrator",
+    "sharedContractOwner": "packages/defense-contracts/src/parser/nvidia-batch.ts",
+    "benchmarkInfrastructureOwner": "infra/cdk/lib/phase8-session5-nvidia-benchmark.ts",
+    "benchmarkScoringOwner": "apps/defense-parser-orchestrator/src/session5.mjs"
+  },
+  "executionModel": {
+    "preferred": "sagemaker_batch_transform",
+    "persistentRealtimeEndpoint": false,
+    "awsBatchGpuFallbackEnabled": false,
+    "minimumIdleGpuCapacity": 0,
+    "maximumConcurrentGpuJobsDefault": 1
+  },
+  "routing": {
+    "defaultMode": "benchmark",
+    "decisions": [
+      "DETERMINISTIC_PRIMARY",
+      "NVIDIA_PRIMARY",
+      "NVIDIA_FALLBACK",
+      "MANUAL_REVIEW"
+    ],
+    "globalProviderSwitchAllowed": false,
+    "preferredModeRequiresAcceptedBenchmark": true
+  },
+  "providerReadyGates": [
+    "versioned provider-neutral request/result contract",
+    "governed page escalation only",
+    "SHA/model/options/page cache identity",
+    "immutable S3 manifests and artifacts",
+    "append-only asynchronous job state",
+    "hard concurrency/page/spend guard",
+    "completion and DLQ event handling",
+    "artifact identity and content-hash verification",
+    "no silent fabricated fallback",
+    "CloudWatch parser metrics",
+    "CDK zero-endpoint synth assertions",
+    "non-root no-GPU no-HTTP orchestrator image",
+    "source-grounded benchmark scorer and page-class decisions"
+  ],
+  "liveAcceptance": {
+    "status": "blocked_pending_real_provider_evidence",
+    "requiredEvidenceSchema": "docs/defense-budget/phase8-session5-live-benchmark-evidence.schema.json",
+    "manifest": "docs/defense-budget/phase8-session5-live-benchmark-manifest.json",
+    "required": [
+      "approved pinned NVIDIA AWS Marketplace model-package ARN",
+      "real FY27 gold-corpus provider outputs",
+      "accepted cost and throughput telemetry",
+      "zero active jobs after queue drain",
+      "zero persistent SageMaker endpoints"
+    ]
+  },
+  "verdict": "SESSION5_PROVIDER_READY_LIVE_BENCHMARK_BLOCKED"
+}
