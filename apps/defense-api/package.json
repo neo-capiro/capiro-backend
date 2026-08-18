@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "pnpm prisma:generate && nest build",
+    "build": "pnpm prisma:generate && node -e \"try{require('fs').unlinkSync('tsconfig.tsbuildinfo')}catch{}\" && nest build",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "start:prod": "bash scripts/entrypoint.sh serve",
