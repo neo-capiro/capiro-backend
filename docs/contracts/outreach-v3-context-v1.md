@@ -88,6 +88,23 @@ Document context:
 
 `research_government` searches Capiro’s source-backed public datasets and returns exact references. Results remain inside the authenticated tenant capability envelope even though the underlying government records are global.
 
+Supported `government_record` categories:
+
+- `bill`, `hearing` (congress.gov)
+- `award` (usaspending.gov)
+- `lda_filing` (lda.senate.gov)
+- `sec_filing` (sec.gov)
+- `fara_registration` (justice.gov/fara)
+- `gao_report` (gao.gov)
+- `crs_report` (crsreports.congress.gov)
+- `regulatory_docket` (regulations.gov)
+- `intel_article` (capiro_intelligence)
+- `state_bill` (legiscan)
+- `federal_register` (federalregister.gov)
+- `program_element` (Capiro PE registry / defense budget program elements; locator `id` is the PE code)
+
+Program elements are searchable by PE code, title, service, budget activity, program-of-record, and description. Soft-retired PEs are excluded from search and fail resolve on accept/restore.
+
 ## Model boundary
 
 The reasoning model may discover context and propose `ACCEPT_CONTEXT_REFS` or `EXCLUDE_CONTEXT_REFS` only when grounded in exact referenced Capiro tool results or current Campaign Spec state.

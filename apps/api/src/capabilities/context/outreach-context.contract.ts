@@ -105,6 +105,7 @@ export const OUTREACH_GOVERNMENT_RECORD_CATEGORIES = [
   'intel_article',
   'state_bill',
   'federal_register',
+  'program_element',
 ] as const;
 
 const governmentRecordLocatorSchema = z

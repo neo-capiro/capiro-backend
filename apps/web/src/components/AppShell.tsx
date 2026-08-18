@@ -794,6 +794,7 @@ const SEARCH_CATEGORY_LABELS: Record<string, string> = {
   intel_article: 'Intel',
   state_bill: 'State bill',
   federal_register: 'Fed. Register',
+  program_element: 'Program element',
 };
 
 function TopbarSearch() {

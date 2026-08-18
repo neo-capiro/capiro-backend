@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 /**
  * Global keyword search across all ingested reference datasets (bills, awards,
  * LDA filings, hearings, SEC/FARA filings, GAO/CRS reports, regulatory dockets,
- * intel articles, state bills, federal register docs).
+ * intel articles, state bills, federal register docs, program elements).
  *
  * These are GLOBAL read-only tables (not tenant-scoped) — the same federal data
  * every tenant sees — so we query `this.prisma.<model>` directly, no withTenant.
@@ -25,7 +25,8 @@ export type SearchCategory =
   | 'regulatory_docket'
   | 'intel_article'
   | 'state_bill'
-  | 'federal_register';
+  | 'federal_register'
+  | 'program_element';
 
 export interface SearchResult {
   category: SearchCategory;
@@ -85,6 +86,7 @@ export class SearchService {
       intelArticles,
       stateBills,
       fedReg,
+      programElements,
     ] = await Promise.all([
       safe(() => this.searchBills(contains, take)),
       safe(() => this.searchAwards(contains, take)),
@@ -98,6 +100,7 @@ export class SearchService {
       safe(() => this.searchIntel(contains, take)),
       safe(() => this.searchStateBills(contains, take)),
       safe(() => this.searchFederalRegister(contains, take)),
+      safe(() => this.searchProgramElements(contains, take)),
     ]);
 
     const results = [
@@ -113,6 +116,7 @@ export class SearchService {
       ...intelArticles,
       ...stateBills,
       ...fedReg,
+      ...programElements,
     ];
 
     const byCategory: Record<string, number> = {};
@@ -327,5 +331,58 @@ export class SearchService {
       date: this.iso(r.publicationDate),
       href: `/explorer/federal-register?q=${encodeURIComponent(r.documentNumber)}`,
     }));
+  }
+
+  /**
+   * Defense Program Elements (PE codes). Global reference data — same table the
+   * PE finder uses. Soft-retired rows stay out of search so Context accept cannot
+   * pin a PE that list/detail already hide by default.
+   *
+   * Locator id is the PE code (primary key), not a surrogate UUID.
+   */
+  private async searchProgramElements(
+    c: { contains: string; mode: 'insensitive' },
+    take: number,
+  ): Promise<SearchResult[]> {
+    const rows = await this.prisma.programElement.findMany({
+      where: {
+        retiredAt: null,
+        OR: [
+          { peCode: c },
+          { title: c },
+          { service: c },
+          { budgetActivity: c },
+          { budgetActivityName: c },
+          { programOfRecord: c },
+          { description: c },
+        ],
+      },
+      select: {
+        peCode: true,
+        title: true,
+        service: true,
+        budgetActivity: true,
+        budgetActivityName: true,
+        lastSyncedAt: true,
+      },
+      take,
+      orderBy: [{ peCode: 'asc' }],
+    });
+    return rows.map((r) => {
+      const service = r.service?.trim() || null;
+      const ba =
+        r.budgetActivityName?.trim() ||
+        r.budgetActivity?.trim() ||
+        null;
+      const subtitleParts = [service, ba ? `BA ${ba}` : null].filter(Boolean);
+      return {
+        category: 'program_element' as const,
+        id: r.peCode,
+        title: `${r.peCode} — ${r.title}`.slice(0, 200),
+        subtitle: subtitleParts.length ? subtitleParts.join(' · ') : 'Program element',
+        date: this.iso(r.lastSyncedAt),
+        href: `/program-elements/${encodeURIComponent(r.peCode)}`,
+      };
+    });
   }
 }

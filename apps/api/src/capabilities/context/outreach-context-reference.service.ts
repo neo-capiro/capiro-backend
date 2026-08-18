@@ -694,6 +694,57 @@ async function governmentRecord(
           )
         : null;
     }
+    case 'program_element': {
+      // PE primary key is the code (e.g. 0604645A). Accept either the stored
+      // casing or a case-insensitive lookup so Context search ids round-trip.
+      const code = id.trim();
+      if (!code) return null;
+      const row =
+        (await tx.programElement.findUnique({
+          where: { peCode: code },
+          select: {
+            peCode: true,
+            title: true,
+            service: true,
+            budgetActivity: true,
+            budgetActivityName: true,
+            appropriationType: true,
+            programOfRecord: true,
+            description: true,
+            lastSyncedAt: true,
+            retiredAt: true,
+          },
+        })) ??
+        (await tx.programElement.findFirst({
+          where: { peCode: { equals: code, mode: 'insensitive' }, retiredAt: null },
+          select: {
+            peCode: true,
+            title: true,
+            service: true,
+            budgetActivity: true,
+            budgetActivityName: true,
+            appropriationType: true,
+            programOfRecord: true,
+            description: true,
+            lastSyncedAt: true,
+            retiredAt: true,
+          },
+        }));
+      if (!row || row.retiredAt) return null;
+      const ba = row.budgetActivityName?.trim() || row.budgetActivity?.trim() || null;
+      return gov(
+        `${row.peCode} — ${row.title}`,
+        [
+          row.service,
+          ba ? `BA ${ba}` : null,
+          row.appropriationType,
+          row.programOfRecord,
+          row.description,
+        ],
+        'capiro_program_elements',
+        row.lastSyncedAt,
+      );
+    }
   }
 }
 
