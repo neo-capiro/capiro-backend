@@ -130,16 +130,30 @@ test('PARITY: every tenant-scoped surface operates inside a tenant transaction',
 });
 
 test('PARITY: no generic RLS-bypass or system-query escape hatch exists', () => {
+  // Scan CODE, not prose. `scripts/verify-phase8-session3.mjs` strips comments for
+  // the same reason: a doc comment that explains why the governed admin function
+  // confines app.bypass_rls to its own membership check is documentation, not an
+  // escape hatch, and failing on it would push that explanation out of the source.
   for (const [label, source] of [
     ['program-element-read', NEXT_PE],
     ['budget-lines-read', NEXT_BL],
     ['programs', NEXT_PROGRAMS],
     ['data-issues', NEXT_ISSUES],
   ] as const) {
-    assert.ok(!/app\.bypass_rls/.test(source), `${label} references app.bypass_rls`);
-    assert.ok(!/\bwithSystem\b/.test(source), `${label} references withSystem`);
+    const code = stripComments(source);
+    assert.ok(!/app\.bypass_rls/.test(code), `${label} references app.bypass_rls in executable code`);
+    assert.ok(!/\bwithSystem\b/.test(code), `${label} references withSystem in executable code`);
   }
 });
+
+/** Drop block and line comments so an assertion tests behaviour, not prose. */
+function stripComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .map((line) => line.replace(/\/\/.*$/, ''))
+    .join('\n');
+}
 
 test('PARITY: the mutating watch path writes an audit log for BOTH directions', () => {
   const body = NEXT_PE.slice(NEXT_PE.indexOf('async setWatching('), NEXT_PE.indexOf('async getPeAlertEmailPref('));

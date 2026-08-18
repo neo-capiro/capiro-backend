@@ -34,6 +34,15 @@ const NEXT_PROGRAMS = read('apps/defense-api/src/program-elements/programs.servi
 const NEXT_ISSUES = read('apps/defense-api/src/program-elements/program-element-data-issue.service.ts');
 
 /**
+ * The governed Program-graph admin boundary. Program mutations run inside
+ * SECURITY DEFINER functions declared here, so for those routes this file IS part
+ * of the new implementation and is checked as such.
+ */
+const NEXT_ADMIN_SQL = read(
+  'apps/api/prisma/migrations/20261120210200_phase8_defense_program_admin_boundary/migration.sql',
+);
+
+/**
  * Slice one method body out of a service source: from its declaration to the start
  * of the next top-level `async`/`private` member. Crude but adequate and, crucially,
  * asserted non-empty at every call site so a rename cannot silently vacate a check.
@@ -59,7 +68,37 @@ interface RouteContract {
   required: string[];
   /** Tokens that must NOT appear in the new implementation. */
   forbidden?: string[];
+  /**
+   * Additional sources that count as part of the new implementation for this
+   * route. Needed where behaviour legitimately lives outside the TypeScript
+   * method — the governed Program-graph mutations execute inside SECURITY DEFINER
+   * functions, so `status = 'merged'` and the FK re-points are in the migration,
+   * not the service. The requirement is still "this behaviour exists in the new
+   * implementation"; only its file changed.
+   */
+  extraNextSources?: string[];
 }
+
+/**
+ * Tokens that exist only in the governed SQL layer, so the apps/api-side
+ * inventory assertion skips them. Everything else must still be present in
+ * apps/api first, which is what stops this suite drifting into testing a fiction.
+ */
+const GOVERNED_ONLY_TOKENS = new Set<string>([
+  'capiro_defense_resolve_program_match',
+  'capiro_defense_create_program_alias',
+  'capiro_defense_update_program_alias',
+  'capiro_defense_delete_program_alias',
+  'capiro_defense_merge_programs',
+  'weak_signal',
+  'decision_notes',
+  'audit_logs',
+  'person_role',
+  'program_office_program_link',
+  'provision_pe_link',
+  "status = 'merged'",
+  'last ',
+]);
 
 const CONTRACTS: RouteContract[] = [
   {
@@ -425,7 +464,16 @@ const CONTRACTS: RouteContract[] = [
     legacyMethod: 'resolveMatch',
     nextSource: NEXT_PROGRAMS,
     nextMethod: 'resolveMatch',
-    required: ['mdap_curated', 'weakSignal', 'decisionNotes', 'auditLog'],
+    required: [
+      'mdap_curated',
+      // The write itself is governed: weak_signal clearing, decision notes and the
+      // audit row are inside capiro_defense_resolve_program_match.
+      'capiro_defense_resolve_program_match',
+      'weak_signal',
+      'decision_notes',
+      'audit_logs',
+    ],
+    extraNextSources: [NEXT_ADMIN_SQL],
   },
   {
     route: 'POST /programs/admin/:programId/aliases',
@@ -433,7 +481,14 @@ const CONTRACTS: RouteContract[] = [
     legacyMethod: 'createAlias',
     nextSource: NEXT_PROGRAMS,
     nextMethod: 'createAlias',
-    required: ['isGenericAlias', 'aliasNormalized', 'already exists', 'analyst_manual'],
+    required: [
+      'isGenericAlias',
+      'aliasNormalized',
+      'already exists',
+      'analyst_manual',
+      'capiro_defense_create_program_alias',
+    ],
+    extraNextSources: [NEXT_ADMIN_SQL],
   },
   {
     route: 'DELETE /programs/admin/aliases/:id',
@@ -441,7 +496,14 @@ const CONTRACTS: RouteContract[] = [
     legacyMethod: 'deleteAlias',
     nextSource: NEXT_PROGRAMS,
     nextMethod: 'deleteAlias',
-    required: ['canonical', 'remainingCanonical'],
+    required: [
+      'canonical',
+      'remainingCanonical',
+      // The refusal is enforced in BOTH layers.
+      'capiro_defense_delete_program_alias',
+      'last ',
+    ],
+    extraNextSources: [NEXT_ADMIN_SQL],
   },
   {
     route: 'POST /programs/admin/merge',
@@ -450,15 +512,18 @@ const CONTRACTS: RouteContract[] = [
     nextSource: NEXT_PROGRAMS,
     nextMethod: 'mergePrograms',
     required: [
-      'personRole',
-      'programOfficeProgramLink',
-      'provisionPeLink',
-      "status: 'merged'",
+      // Physical table names: the re-points execute inside the governed function.
+      'person_role',
+      'program_office_program_link',
+      'provision_pe_link',
+      "status = 'merged'",
       'mergedInto',
       'already merged',
+      'capiro_defense_merge_programs',
     ],
-    // The loser is retired, never hard-deleted.
-    forbidden: ['program.delete(', 'programDelete'],
+    // The loser is retired, never hard-deleted -- in either layer.
+    forbidden: ['program.delete(', 'programDelete', 'DELETE FROM public.program '],
+    extraNextSources: [NEXT_ADMIN_SQL],
   },
   {
     route: 'POST /program-elements/:peCode/data-issues',
@@ -476,6 +541,9 @@ test('PARITY: every representative route contract holds on BOTH implementations'
     const legacyBody = methodBody(c.legacySource, c.legacyMethod);
     const nextBody = methodBody(c.nextSource, c.nextMethod);
     for (const token of c.required) {
+      // Tokens naming the governed SQL (function names, physical columns) have no
+      // counterpart in apps/api's TypeScript; they are new-implementation-only.
+      if (GOVERNED_ONLY_TOKENS.has(token)) continue;
       if (!legacyBody.includes(token)) {
         // The inventory itself has drifted from apps/api — report it as such rather
         // than blaming defense-api for a field apps/api no longer serves.
@@ -484,12 +552,16 @@ test('PARITY: every representative route contract holds on BOTH implementations'
         );
         continue;
       }
-      if (!nextBody.includes(token)) {
+      const inNext =
+        nextBody.includes(token) ||
+        (c.extraNextSources ?? []).some((extra) => extra.includes(token));
+      if (!inNext) {
         failures.push(`[gap] ${c.route}: defense-api ${c.nextMethod} is missing "${token}"`);
       }
     }
     for (const token of c.forbidden ?? []) {
-      if (nextBody.includes(token)) {
+      const sources = [nextBody, ...(c.extraNextSources ?? [])];
+      if (sources.some((source) => source.includes(token))) {
         failures.push(`[forbidden] ${c.route}: defense-api ${c.nextMethod} contains "${token}"`);
       }
     }
