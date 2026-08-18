@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCapiroToast } from '../components/feedback/toast.js';
-import { MeriCanvas } from '../../components/chat/MeriCanvas.js';
 import type {
   MeriChatController,
   PendingApproval,
 } from '../../components/chat/useMeriChatController.js';
-import { config } from '../../env.js';
 import { MeriIcon } from './meri-icons.js';
 import { MERI_LOGO_SRC, dayDividerLabel, localDayKey, threadKindIcon, threadScopeLabel } from './meri-presentation.js';
 import { VNextMeriMessage } from './VNextMeriMessage.js';
@@ -370,15 +368,6 @@ export function VNextMeriConversation({
           />
         ) : null}
       </main>
-
-      {controller.activeArtifact ? (
-        <MeriCanvas
-          artifact={controller.activeArtifact}
-          onClose={() => controller.setActiveArtifact(null)}
-          apiBaseUrl={config.apiBaseUrl}
-          getAuthHeaders={controller.authHeaders}
-        />
-      ) : null}
     </>
   );
 }

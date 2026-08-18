@@ -1333,7 +1333,8 @@
 /* User message */
 .capiro-vnext-root .vnext-meri__user-message {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .capiro-vnext-root .vnext-meri__user-bubble {

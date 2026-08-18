@@ -50,11 +50,130 @@ export function VNextMeriMessage({
   onOpenSourceDetail,
 }: VNextMeriMessageProps) {
   if (message.role === 'user') {
+    // Editing is only offered on the still-standing last user turn — editing
+    // an earlier one would need to explain which later turns disappear too,
+    // and the controller only ever tracks one edit target at a time.
+    const canEdit = message.id === controller.lastUserMessageId && !isStreaming;
+    const isEditingThis = controller.editingMessageId === message.id;
+
+    if (isEditingThis) {
+      return (
+        <div className="vnext-meri__user-message">
+          <div
+            style={{
+              width: '76%',
+              marginLeft: 'auto',
+              padding: 12,
+              borderRadius: 12,
+              background: '#ffffff',
+              boxShadow: 'inset 0 0 0 1px #98A2B3, 0 0 0 4px #F2F4F7',
+            }}
+          >
+            <textarea
+              value={controller.editingText}
+              onChange={(event) => controller.setEditingText(event.target.value)}
+              aria-label="Edit message"
+              style={{
+                width: '100%',
+                minHeight: 66,
+                padding: 0,
+                border: 0,
+                outline: 'none',
+                background: 'none',
+                fontSize: 14,
+                lineHeight: '21px',
+                color: '#101828',
+                resize: 'vertical',
+              }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 10 }}>
+              <span
+                style={{
+                  flex: 1,
+                  fontFamily: "var(--meri-font-mono, 'IBM Plex Mono', monospace)",
+                  fontSize: 9,
+                  fontWeight: 500,
+                  letterSpacing: '.08em',
+                  color: '#98A2B3',
+                }}
+              >
+                RESENDING REPLACES THE ANSWER BELOW
+              </span>
+              <button
+                type="button"
+                onClick={() => controller.setEditingMessageId(null)}
+                style={{ height: 32, padding: '0 12px', borderRadius: 8, boxShadow: 'inset 0 0 0 1px #D0D5DD', fontSize: 13, fontWeight: 600, color: '#344054', background: 'transparent' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => controller.handleEditResend()}
+                disabled={!controller.editingText.trim()}
+                style={{
+                  height: 32,
+                  padding: '0 13px',
+                  borderRadius: 8,
+                  border: 0,
+                  background: 'var(--m-metal-bg, linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%))',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.14)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  opacity: controller.editingText.trim() ? 1 : 0.6,
+                }}
+              >
+                Save &amp; resend
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="vnext-meri__user-message">
         <div className="vnext-meri__user-bubble" data-meri-user-bubble>
           <AttachmentList attachments={message.attachments} />
           {message.content}
+        </div>
+        <div className="vnext-meri__user-meta" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={() => {
+                controller.setEditingMessageId(message.id);
+                controller.setEditingText(message.content);
+              }}
+              aria-label="Edit and resend"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                border: 0,
+                background: 'transparent',
+                fontFamily: "var(--meri-font-mono, 'IBM Plex Mono', monospace)",
+                fontSize: 9,
+                fontWeight: 500,
+                letterSpacing: '.08em',
+                color: '#667085',
+                cursor: 'pointer',
+              }}
+            >
+              <MeriIcon name="Edit01" size={12} color="#667085" />
+              EDIT
+            </button>
+          ) : null}
+          <span
+            style={{
+              fontFamily: "var(--meri-font-mono, 'IBM Plex Mono', monospace)",
+              fontSize: 9,
+              letterSpacing: '.07em',
+              color: '#98A2B3',
+            }}
+          >
+            {formatRecordTime(message.createdAt)}
+          </span>
         </div>
       </div>
     );
