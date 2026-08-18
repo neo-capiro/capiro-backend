@@ -6,6 +6,7 @@ import {
   isCanonicalDecimalStringV1,
   ManualOverrideRefusalError,
   manualOverrideHashV1,
+  normalizeCanonicalDecimalStringV1,
   proposeManualOverrideV1,
   type ManualOverrideRecordV1,
   type ManualOverrideRepositoryV1,
@@ -52,6 +53,24 @@ test('isCanonicalDecimalStringV1 accepts exact decimals, rejects -0 and malforme
   assert.equal(isCanonicalDecimalStringV1('1e5'), false);
   assert.equal(isCanonicalDecimalStringV1('abc'), false);
   assert.equal(isCanonicalDecimalStringV1('007'), false);
+});
+
+test('isCanonicalDecimalStringV1 rejects unnecessary trailing fractional zeros (regression, matches apps/api)', () => {
+  // Without this, "1.20" round-trips through NUMERIC(24,9) as "1.200000000"
+  // and silently drifts from the exact value the author supplied.
+  assert.equal(isCanonicalDecimalStringV1('1.20'), false);
+  assert.equal(isCanonicalDecimalStringV1('5.100'), false);
+  assert.equal(isCanonicalDecimalStringV1('10'), true, 'an integer with no dot is unaffected by the trailing-zero rule');
+  assert.equal(isCanonicalDecimalStringV1('1.25'), true);
+  assert.equal(isCanonicalDecimalStringV1('0.5'), true);
+});
+
+test('normalizeCanonicalDecimalStringV1 strips NUMERIC(24,9) zero-padding back to canonical form (regression)', () => {
+  assert.equal(normalizeCanonicalDecimalStringV1('1.250000000'), '1.25');
+  assert.equal(normalizeCanonicalDecimalStringV1('5.000000000'), '5');
+  assert.equal(normalizeCanonicalDecimalStringV1('-1.250000000'), '-1.25');
+  assert.equal(normalizeCanonicalDecimalStringV1('0.000000000'), '0');
+  assert.equal(normalizeCanonicalDecimalStringV1('10'), '10');
 });
 
 test('canonicalTargetForLegacyPeYearV1 maps (peCode, fy, fieldName) to a stable canonical target', () => {

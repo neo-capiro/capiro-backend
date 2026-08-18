@@ -88,13 +88,20 @@ BEGIN
     EXECUTE 'GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.program_alias TO capiro_defense_serve';
   END IF;
 
+  -- DELETE is required alongside UPDATE: mergePrograms repoints the loser's
+  -- matches one row at a time and must be able to drop a row that collides
+  -- with one the keeper already has for the same (peCode, projectCode).
   IF to_regclass('public.pe_program_match') IS NOT NULL THEN
     EXECUTE 'REVOKE ALL ON TABLE public.pe_program_match FROM capiro_defense_serve';
-    EXECUTE 'GRANT SELECT, UPDATE ON TABLE public.pe_program_match TO capiro_defense_serve';
+    EXECUTE 'GRANT SELECT, UPDATE, DELETE ON TABLE public.pe_program_match TO capiro_defense_serve';
   END IF;
 
+  -- UPDATE, not DELETE: mergePrograms retires the loser program (status
+  -- 'merged') rather than deleting the row, so the historical record survives
+  -- and any reference this schema doesn't model on the shared physical
+  -- database is never left dangling.
   IF to_regclass('public.program') IS NOT NULL THEN
-    EXECUTE 'GRANT DELETE ON TABLE public.program TO capiro_defense_serve';
+    EXECUTE 'GRANT UPDATE ON TABLE public.program TO capiro_defense_serve';
   END IF;
 END
 $grants$;

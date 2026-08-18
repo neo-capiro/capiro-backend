@@ -26,7 +26,36 @@ const CANONICAL_DECIMAL_RE = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/;
 export function isCanonicalDecimalStringV1(value: string): boolean {
   if (!CANONICAL_DECIMAL_RE.test(value)) return false;
   if (value === '-0') return false;
+  // Reject unnecessary trailing fractional zeros ("1.20", "5.100") — matches
+  // apps/api's isCanonicalDecimalString (contracts/decimal-string.ts). Without
+  // this, a non-canonical string round-trips through NUMERIC(24,9) and comes
+  // back padded, silently drifting from the exact value the author supplied.
+  const dot = value.indexOf('.');
+  if (dot >= 0 && value.endsWith('0')) return false;
   return true;
+}
+
+/**
+ * Normalize a NUMERIC(24,9)-sourced decimal string back to canonical form.
+ * Postgres pads a NUMERIC to its declared scale (e.g. "1.25" -> "1.250000000"
+ * on read), which is not canonical — canonical form strips trailing
+ * fractional zeros. Money is compared/hashed as canonical strings elsewhere
+ * in this module, so a value read from the DB must be renormalized before
+ * it's treated as equal to the string that was originally proposed.
+ */
+export function normalizeCanonicalDecimalStringV1(value: string): string {
+  if (!CANONICAL_DECIMAL_RE.test(value)) {
+    throw new Error(`not a decimal string: "${value}"`);
+  }
+  const negative = value.startsWith('-');
+  const unsigned = negative ? value.slice(1) : value;
+  const dot = unsigned.indexOf('.');
+  if (dot < 0) return negative ? `-${unsigned}` : unsigned;
+  const intPart = unsigned.slice(0, dot);
+  const fracPart = unsigned.slice(dot + 1).replace(/0+$/, '');
+  const magnitude = fracPart.length > 0 ? `${intPart}.${fracPart}` : intPart;
+  if (negative && !/^0(\.0*)?$/.test(magnitude)) return `-${magnitude}`;
+  return magnitude;
 }
 
 export const MANUAL_OVERRIDE_REFUSAL_V1_VALUES = [

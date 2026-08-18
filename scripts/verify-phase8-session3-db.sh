@@ -265,4 +265,15 @@ PARSER_ROLE_COUNT="$(q "SELECT count(*) FROM pg_roles WHERE rolname LIKE 'capiro
 [ "$PARSER_ROLE_COUNT" = "0" ] || fail "a parser database role exists"
 ok "no capiro_defense_parser* role exists in this database"
 
+# =============================================================================
+log "10. Downstream: defense-api's own test suite, database-backed"
+# =============================================================================
+log "handing REHEARSAL_DATABASE_URL / REHEARSAL_SERVE_URL to pnpm --filter @capiro/defense-api test"
+(cd "$REPO_ROOT" && \
+  REHEARSAL_DATABASE_URL="$REHEARSAL_DATABASE_URL" \
+  REHEARSAL_SERVE_URL="$SERVE_URL" \
+  pnpm --filter @capiro/defense-api test) \
+  || fail "defense-api's database-backed acceptance tests failed"
+ok "defense-api's database-backed tests pass against this real, migrated database (incl. Session 3 bug-fix regressions)"
+
 echo "[p8s3-db-rehearsal] SESSION3_DB_REHEARSAL_PASS ($PASS_COUNT checks)"

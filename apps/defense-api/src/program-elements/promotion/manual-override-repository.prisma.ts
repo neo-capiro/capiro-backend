@@ -1,8 +1,9 @@
 import { PrismaService } from '../../prisma/prisma.service.js';
-import type {
-  ManualOverrideRecordV1,
-  ManualOverrideRepositoryV1,
-  ManualOverrideTargetV1,
+import {
+  normalizeCanonicalDecimalStringV1,
+  type ManualOverrideRecordV1,
+  type ManualOverrideRepositoryV1,
+  type ManualOverrideTargetV1,
 } from './manual-override-service-v1.js';
 
 /**
@@ -19,7 +20,12 @@ export class ManualOverrideRepositoryPrisma implements ManualOverrideRepositoryV
     target: ManualOverrideTargetV1,
   ): Promise<{ overrideId: string; version: number; status: string } | null> {
     const row = await this.prisma.defenseBudgetManualOverride.findFirst({
-      where: { canonicalEntity: target.canonicalEntity, canonicalNaturalKey: target.naturalKey },
+      where: {
+        canonicalEntity: target.canonicalEntity,
+        canonicalNaturalKey: target.naturalKey,
+        fiscalYear: target.fiscalYear,
+        fundingField: target.fundingField,
+      },
       orderBy: { version: 'desc' },
     });
     if (!row) return null;
@@ -38,7 +44,10 @@ export class ManualOverrideRepositoryPrisma implements ManualOverrideRepositoryV
       value: {
         originalValue: row.moneyOriginalValue,
         originalUnit: row.moneyOriginalUnit,
-        valueMillions: row.moneyValueMillions.toString(),
+        // NUMERIC(24,9) pads on read ("1.25" -> "1.250000000") — renormalize
+        // to canonical form before it's compared/exposed as the value the
+        // proposer originally supplied.
+        valueMillions: normalizeCanonicalDecimalStringV1(row.moneyValueMillions.toString()),
       },
       governance: {
         authorActorId: row.authorActorId,

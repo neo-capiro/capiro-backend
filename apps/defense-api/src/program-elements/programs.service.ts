@@ -223,9 +223,67 @@ export class ProgramsService {
     const result = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.current_tenant', ${ctx.tenantId}, true)`;
       await tx.$executeRaw`SELECT set_config('app.current_user', ${ctx.userId}, true)`;
-      await tx.programAlias.updateMany({ where: { programId: input.mergeProgramId }, data: { programId: input.keepProgramId } });
-      await tx.peProgramMatch.updateMany({ where: { programId: input.mergeProgramId }, data: { programId: input.keepProgramId } });
-      await tx.program.delete({ where: { id: input.mergeProgramId } });
+
+      // Repoint aliases one at a time, deduping against the keeper's existing
+      // (aliasNormalized, aliasType) set. A bulk updateMany would throw on the
+      // real DB unique constraint (program_alias_program_norm_type_key) the
+      // instant the keeper and loser share one alias, aborting the whole merge.
+      const [keeperAliases, loserAliases] = await Promise.all([
+        tx.programAlias.findMany({ where: { programId: input.keepProgramId }, select: { aliasNormalized: true, aliasType: true } }),
+        tx.programAlias.findMany({ where: { programId: input.mergeProgramId } }),
+      ]);
+      const aliasKeys = new Set(keeperAliases.map((a) => `${a.aliasNormalized}|${a.aliasType}`));
+      let aliasesCopied = 0;
+      let aliasesDropped = 0;
+      for (const alias of loserAliases) {
+        const key = `${alias.aliasNormalized}|${alias.aliasType}`;
+        if (aliasKeys.has(key)) {
+          await tx.programAlias.delete({ where: { id: alias.id } });
+          aliasesDropped += 1;
+          continue;
+        }
+        await tx.programAlias.update({ where: { id: alias.id }, data: { programId: input.keepProgramId } });
+        aliasKeys.add(key);
+        aliasesCopied += 1;
+      }
+
+      // Same dedup discipline for PE/project matches, so the merge never
+      // leaves two active matches for the same (peCode, projectCode) pointing
+      // at the now-shared program.
+      const [keeperMatches, loserMatches] = await Promise.all([
+        tx.peProgramMatch.findMany({ where: { programId: input.keepProgramId }, select: { peCode: true, projectCode: true } }),
+        tx.peProgramMatch.findMany({ where: { programId: input.mergeProgramId } }),
+      ]);
+      const matchKeys = new Set(keeperMatches.map((m) => `${m.peCode}|${m.projectCode ?? ''}`));
+      let matchesRepointed = 0;
+      let matchesDropped = 0;
+      for (const match of loserMatches) {
+        const key = `${match.peCode}|${match.projectCode ?? ''}`;
+        if (matchKeys.has(key)) {
+          await tx.peProgramMatch.delete({ where: { id: match.id } });
+          matchesDropped += 1;
+          continue;
+        }
+        await tx.peProgramMatch.update({ where: { id: match.id }, data: { programId: input.keepProgramId } });
+        matchKeys.add(key);
+        matchesRepointed += 1;
+      }
+
+      // Retire the loser instead of deleting it. A hard delete is permanent
+      // data loss and risks leaving dangling references from any row this
+      // schema doesn't model on the shared physical database; retiring
+      // preserves the historical record, matching apps/api's merge semantics.
+      const mergeMetadata = merge.metadata && typeof merge.metadata === 'object' ? (merge.metadata as Record<string, unknown>) : {};
+      await tx.program.update({
+        where: { id: input.mergeProgramId },
+        data: {
+          status: 'merged',
+          metadata: { ...mergeMetadata, mergedInto: input.keepProgramId, mergedAt: new Date().toISOString() },
+          updatedAt: new Date(),
+        },
+      });
+
+      const repointed = { aliasesCopied, aliasesDropped, matchesRepointed, matchesDropped };
       await tx.auditLog.create({
         data: {
           tenantId: ctx.tenantId,
@@ -235,10 +293,10 @@ export class ProgramsService {
           entityType: 'program',
           entityId: input.keepProgramId,
           before: { mergedProgramId: input.mergeProgramId },
-          after: { keepProgramId: input.keepProgramId },
+          after: { keepProgramId: input.keepProgramId, repointed },
         },
       });
-      return { keepProgramId: input.keepProgramId, mergedProgramId: input.mergeProgramId };
+      return { keepProgramId: input.keepProgramId, mergedProgramId: input.mergeProgramId, repointed };
     });
     return result;
   }
