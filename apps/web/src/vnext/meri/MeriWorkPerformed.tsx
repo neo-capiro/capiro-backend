@@ -1,5 +1,5 @@
-import type { TrustStep } from '../../components/chat/WorkPerformed.js';
-import { INTENT_LABELS } from '../../components/chat/WorkPerformed.js';
+import type { TrustStep } from '../../components/chat/work-performed-shared.js';
+import { INTENT_LABELS } from '../../components/chat/work-performed-shared.js';
 import { MeriAgentSteps } from './MeriAgentSteps.js';
 
 /**

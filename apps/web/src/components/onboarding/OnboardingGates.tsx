@@ -34,38 +34,23 @@ import { useMe, type MeResponse } from '../../lib/me.js';
 import { DashboardTour } from './DashboardTour.js';
 import { PersonalSetupGateModal } from './PersonalSetupGate.js';
 import { ObBtn, ObCard } from './primitives.js';
+import {
+  GATE_SHOWN_KEY,
+  ONBOARDING_ORIGIN,
+  START_TOUR_EVENT,
+  type IntegrationConnection,
+  type SetupStateResponse,
+} from './onboarding-shared.js';
 import './ob-overlay.css';
 
-/** Origin of the standalone onboarding app (setup dashboard). */
-export const ONBOARDING_ORIGIN = 'https://onboarding.capiro.ai';
-
-/** Window event that (re)starts the product tour at step 1. */
-export const START_TOUR_EVENT = 'capiro:start-product-tour';
-
-/** sessionStorage flag: the email/calendar gate was shown this session, so
- * the "You're connected." confirmation should follow the OAuth return. */
-const GATE_SHOWN_KEY = 'ob-gate-was-shown';
-
-/** Contract of GET /onboard-api/setup/state (Phase 4). */
-interface SetupStateResponse {
-  complete: boolean;
-  tasks: {
-    it_email: 'none' | 'waiting' | 'verifying' | 'done';
-    import: 'none' | 'waiting' | 'verifying' | 'done';
-    firm_ai: 'none' | 'waiting' | 'verifying' | 'done';
-    invites: 'none' | 'waiting' | 'verifying' | 'done';
-  };
-}
-
-/** Same shape IntegrationsPage / AppShell read from /api/engagement/integrations. */
-interface IntegrationConnection {
-  id: string;
-  provider: 'microsoft_365' | 'google_workspace' | 'imap_caldav' | 'manual';
-  accountEmail: string | null;
-  displayName: string | null;
-  status: 'needs_configuration' | 'connected' | 'error' | 'disabled';
-  lastSyncAt: string | null;
-}
+/**
+ * The gate constants and API contracts now live in the UI-free
+ * ./onboarding-shared.js, shared with the vNext re-skins
+ * (vnext/app/onboarding/**) — which must not import this module at runtime
+ * because of ob-overlay.css. Re-exported here because AppShell (legacy)
+ * historically imports them from OnboardingGates.
+ */
+export { ONBOARDING_ORIGIN, START_TOUR_EVENT } from './onboarding-shared.js';
 
 export function OnboardingGates({ children }: { children: ReactNode }) {
   const api = useApi();

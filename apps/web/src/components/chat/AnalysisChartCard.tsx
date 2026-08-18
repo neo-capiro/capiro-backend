@@ -19,74 +19,42 @@ import {
   YAxis,
 } from 'recharts';
 import { useApi } from '../../lib/use-api.js';
+import {
+  analysisSlug,
+  axisTick,
+  buildAnalysisCsv,
+  chartTypeLabel,
+  downloadAnalysisBlob,
+  formatGeneratedAt,
+  formatValue,
+  provenanceInputs,
+  safeNumber,
+  type ArtifactProvenance,
+  type ArtifactResponse,
+  type ChartType,
+  type Row,
+  type SeriesSpec,
+  type VisualizationSpec,
+} from './analysis-chart-shared.js';
 import './analysis-chart-card.css';
+
+/**
+ * The artifact contract and the pure helpers (value formatting, CSV
+ * neutralization/escaping, provenance labels) now live in the UI-free
+ * ./analysis-chart-shared.js, shared with the vNext card
+ * (vnext/meri/MeriAnalysisChartCard.tsx) — which must not import this module
+ * at runtime because of the legacy stylesheet above. Re-exported here because
+ * existing consumers and tests import the CSV helpers from AnalysisChartCard.
+ */
+export {
+  buildAnalysisCsv,
+  escapeAnalysisCsvCell,
+  neutralizeAnalysisCsvCell,
+} from './analysis-chart-shared.js';
 
 interface AnalysisChartCardProps {
   artifactId: string;
   title: string;
-}
-
-type ChartType =
-  | 'line'
-  | 'area'
-  | 'bar'
-  | 'stacked_bar'
-  | 'scatter'
-  | 'pie'
-  | 'waterfall'
-  | 'heatmap'
-  | 'timeline';
-
-type ValueFormat = 'raw' | 'integer' | 'compact' | 'currency' | 'percent';
-type Row = Record<string, string | number | null>;
-
-interface SeriesSpec {
-  dataKey: string;
-  label?: string;
-  valueFormat?: ValueFormat;
-  valuePrefix?: string;
-  valueSuffix?: string;
-  stackId?: string;
-}
-
-interface VisualizationSpec {
-  version: 1;
-  chartType: ChartType;
-  title: string;
-  insight?: string;
-  description?: string;
-  footer?: string;
-  xKey?: string;
-  xAxisLabel?: string;
-  yAxisLabel?: string;
-  layout?: 'horizontal' | 'vertical';
-  series?: SeriesSpec[];
-  nameKey?: string;
-  valueKey?: string;
-  heatmap?: { rowKey: string; columnKey: string; valueKey: string };
-  timeline?: { labelKey: string; startKey: string; endKey?: string; groupKey?: string };
-  data: Row[];
-}
-
-interface DatasetSummary {
-  name: string;
-  rowCount: number;
-}
-
-interface ArtifactProvenance {
-  evidence: 'derived';
-  generatedAt: string;
-  datasetCount: number;
-  rowCount: number;
-  datasets: DatasetSummary[];
-}
-
-interface ArtifactResponse {
-  id: string;
-  title: string;
-  visualization: VisualizationSpec | null;
-  imageAvailable: boolean;
-  provenance: ArtifactProvenance;
 }
 
 type ViewMode = 'chart' | 'data' | 'image';
@@ -113,109 +81,6 @@ const tooltipStyle = {
 };
 
 const monoTick = { fill: MUTED, fontFamily: MONO, fontSize: 11 };
-
-function safeNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-function formatValue(value: unknown, series?: SeriesSpec): string {
-  if (value === null || value === undefined) return '—';
-  if (typeof value !== 'number') return String(value);
-  const format = series?.valueFormat ?? 'raw';
-  let formatted: string;
-  if (format === 'integer') {
-    formatted = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
-  } else if (format === 'compact') {
-    formatted = new Intl.NumberFormat(undefined, {
-      notation: 'compact',
-      maximumFractionDigits: 1,
-    }).format(value);
-  } else if (format === 'currency') {
-    formatted = new Intl.NumberFormat(undefined, {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: Math.abs(value) < 1000 ? 1 : 0,
-    }).format(value);
-  } else if (format === 'percent') {
-    formatted = `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value)}%`;
-  } else {
-    formatted = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(value);
-  }
-  return `${series?.valuePrefix ?? ''}${formatted}${series?.valueSuffix ?? ''}`;
-}
-
-/**
- * Spreadsheet programs may interpret a CSV string beginning with =, +, -, @,
- * tab or CR/LF as a formula. Numeric values remain numeric; only string cells
- * are neutralized with the conventional leading apostrophe before CSV quoting.
- */
-export function neutralizeAnalysisCsvCell(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  const text = String(value);
-  if (typeof value !== 'string') return text;
-  return /^(?:[\t\r\n ]*[=+\-@]|[\t\r\n])/.test(text) ? `'${text}` : text;
-}
-
-export function escapeAnalysisCsvCell(value: unknown): string {
-  const text = neutralizeAnalysisCsvCell(value);
-  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-export function buildAnalysisCsv(data: Row[]): string {
-  const columns = [...new Set(data.flatMap((row) => Object.keys(row)))];
-  return [
-    columns.map(escapeAnalysisCsvCell).join(','),
-    ...data.map((row) => columns.map((column) => escapeAnalysisCsvCell(row[column])).join(',')),
-  ].join('\n');
-}
-
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-function slug(value: string): string {
-  return (
-    value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 80) || 'analysis'
-  );
-}
-
-function chartTypeLabel(type: ChartType): string {
-  return type.replace(/_/g, ' ').toUpperCase();
-}
-
-function axisTick(value: unknown, spec: VisualizationSpec): string {
-  const first = spec.series?.[0];
-  return typeof value === 'number' ? formatValue(value, first) : String(value ?? '');
-}
-
-function formatGeneratedAt(value: string): string {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return '';
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-    .format(date)
-    .toUpperCase();
-}
-
-function provenanceInputs(provenance: ArtifactProvenance | undefined): string {
-  const names = provenance?.datasets.map((dataset) => dataset.name).filter(Boolean) ?? [];
-  if (!names.length) return 'AUTHORIZED RETRIEVAL';
-  if (names.length <= 2) return names.join(' · ').toUpperCase();
-  return `${names.slice(0, 2).join(' · ').toUpperCase()} · +${names.length - 2}`;
-}
 
 function StandardTooltip({ spec }: { spec: VisualizationSpec }) {
   return (
@@ -845,11 +710,14 @@ export function AnalysisChartCard({ artifactId, title }: AnalysisChartCardProps)
   const downloadCsv = () => {
     if (!spec?.data.length) return;
     const csv = buildAnalysisCsv(spec.data);
-    downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `${slug(displayTitle)}.csv`);
+    downloadAnalysisBlob(
+      new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+      `${analysisSlug(displayTitle)}.csv`,
+    );
   };
 
   const downloadPng = () => {
-    if (imageBlob) downloadBlob(imageBlob, `${slug(displayTitle)}.png`);
+    if (imageBlob) downloadAnalysisBlob(imageBlob, `${analysisSlug(displayTitle)}.png`);
   };
 
   const loading = !metadataDone || !imageDone;

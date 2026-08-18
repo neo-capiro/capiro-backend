@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { OnboardingGates } from '../../components/onboarding/OnboardingGates.js';
-import { TrialBanner } from '../../components/onboarding/TrialBanner.js';
 import { CapiroToastProvider } from '../components/feedback/toast.js';
+import { VNextOnboardingGates } from './onboarding/VNextOnboardingGates.js';
+import { VNextTrialBanner } from './onboarding/VNextTrialBanner.js';
 import { VNextMeriWorkspace } from '../meri/VNextMeriWorkspace.js';
 import { legacyMeriWindowRedirect } from '../meri/meri-route-state.js';
 import { AppShellUui } from '../shell/AppShellUui/index.js';
@@ -47,10 +47,13 @@ export function VNextApp() {
       {/* Inside the root: `.capiro-toast-region` styles are scoped to it. */}
       <CapiroToastProvider>
         <AppShellUui>
-          <TrialBanner />
-          <OnboardingGates>
+          {/* vNext-native onboarding chrome — the legacy OnboardingGates/
+              TrialBanner (ob-overlay.css) stay on the canonical AppShell only.
+              Same gating logic, endpoints and copy; vNext tokens. */}
+          <VNextTrialBanner />
+          <VNextOnboardingGates>
             <VNextRouter />
-          </OnboardingGates>
+          </VNextOnboardingGates>
         </AppShellUui>
       </CapiroToastProvider>
     </div>

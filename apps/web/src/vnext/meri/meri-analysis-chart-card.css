@@ -1,0 +1,426 @@
+/* MeriAnalysisChartCard — vNext-token styling for the live analysis artifact
+   card (vnext re-skin of components/chat/AnalysisChartCard.tsx, whose
+   analysis-chart-card.css / --analysis-* namespace must not ship into the
+   os surface's runtime graph). Visual language follows the v4 Meri card
+   convention (MeriAnalysisCard fixture, screen C): white surface with the
+   hairline chip ring, IBM Plex Mono eyebrows/metadata, INSIGHT strip,
+   DERIVED provenance footer. All selectors scoped under .capiro-vnext-root
+   with a meri-acc- prefix so nothing collides with the legacy stylesheet the
+   shared bundle still carries for app.capiro.ai. */
+
+.capiro-vnext-root .meri-acc-card {
+  display: block;
+  margin: 0;
+  border-radius: 10px;
+  background: var(--meri-surface, #ffffff);
+  box-shadow: var(--meri-shadow-chip, inset 0 0 0 1px #eaecf0);
+  overflow: hidden;
+}
+
+.capiro-vnext-root .meri-acc-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 16px 12px;
+}
+
+.capiro-vnext-root .meri-acc-heading {
+  flex: 1;
+  min-width: 200px;
+}
+
+.capiro-vnext-root .meri-acc-eyebrow {
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--meri-text-muted, #667085);
+}
+
+.capiro-vnext-root .meri-acc-heading h3 {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 600;
+  color: var(--meri-ink, #101828);
+}
+
+.capiro-vnext-root .meri-acc-heading p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--meri-text-muted, #667085);
+}
+
+.capiro-vnext-root .meri-acc-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.capiro-vnext-root .meri-acc-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--meri-surface, #ffffff);
+  box-shadow: var(--meri-shadow-chip, inset 0 0 0 1px #eaecf0);
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-secondary, #344054);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .meri-acc-actions button:hover {
+  background: var(--meri-surface-2, #f9fafb);
+}
+
+.capiro-vnext-root .meri-acc-actions button.is-active {
+  background: var(--meri-accent-soft, #f2f4f7);
+  box-shadow: inset 0 0 0 1px var(--meri-border-strong, #d0d5dd);
+  color: var(--meri-ink, #101828);
+}
+
+.capiro-vnext-root .meri-acc-insight {
+  margin: 0 16px;
+  padding: 11px 13px;
+  border-radius: 8px;
+  background: var(--meri-accent-soft, #f2f4f7);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--meri-text-secondary, #344054);
+}
+
+.capiro-vnext-root .meri-acc-insight > span:first-child {
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--meri-ink, #101828);
+}
+
+.capiro-vnext-root .meri-acc-series-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 0;
+}
+
+.capiro-vnext-root .meri-acc-series-toggles button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--meri-surface, #ffffff);
+  box-shadow: var(--meri-shadow-chip, inset 0 0 0 1px #eaecf0);
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--meri-text-secondary, #344054);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .meri-acc-series-toggles button[aria-pressed='false'] {
+  background: var(--meri-surface-2, #f9fafb);
+  color: var(--meri-text-faint, #98a2b3);
+}
+
+.capiro-vnext-root .meri-acc-series-marker {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.capiro-vnext-root .meri-acc-fallback-note {
+  margin: 12px 16px 0;
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-warning-text, #b54708);
+}
+
+.capiro-vnext-root .meri-acc-body {
+  padding: 12px 16px 0;
+}
+
+.capiro-vnext-root .meri-acc-loading,
+.capiro-vnext-root .meri-acc-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 26px 0 12px;
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-muted, #667085);
+}
+
+.capiro-vnext-root .meri-acc-loading > span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--meri-border-strong, #d0d5dd);
+  border-top-color: var(--meri-ink, #101828);
+  animation: meri-acc-spin 0.7s linear infinite;
+}
+
+@keyframes meri-acc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capiro-vnext-root .meri-acc-loading > span {
+    animation: none;
+  }
+}
+
+.capiro-vnext-root .meri-acc-image {
+  display: block;
+  width: 100%;
+  border-radius: 7px;
+}
+
+/* Data view */
+.capiro-vnext-root .meri-acc-data-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.capiro-vnext-root .meri-acc-data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.capiro-vnext-root .meri-acc-data-table th {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--meri-border, #eaecf0);
+  text-align: left;
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--meri-text-muted, #667085);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .meri-acc-data-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--meri-accent-soft, #f2f4f7);
+  font-size: 13px;
+  color: var(--meri-text-secondary, #344054);
+}
+
+.capiro-vnext-root .meri-acc-data-note {
+  padding: 9px 0 2px;
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--meri-text-muted, #667085);
+}
+
+/* Heatmap */
+.capiro-vnext-root .meri-acc-heatmap {
+  display: grid;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.capiro-vnext-root .meri-acc-heatmap-corner,
+.capiro-vnext-root .meri-acc-heatmap-column,
+.capiro-vnext-root .meri-acc-heatmap-row {
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--meri-text-muted, #667085);
+  padding: 6px 8px;
+}
+
+.capiro-vnext-root .meri-acc-heatmap-row {
+  display: flex;
+  align-items: center;
+}
+
+.capiro-vnext-root .meri-acc-heatmap-cell {
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--meri-surface-2, #f9fafb);
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 11px;
+  text-align: right;
+  color: var(--meri-ink, #101828);
+}
+
+.capiro-vnext-root .meri-acc-heatmap-cell.is-missing {
+  color: var(--meri-text-faint, #98a2b3);
+}
+
+/* Timeline */
+.capiro-vnext-root .meri-acc-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0 4px;
+  display: grid;
+  gap: 12px;
+}
+
+.capiro-vnext-root .meri-acc-timeline li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.capiro-vnext-root .meri-acc-timeline-marker {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--meri-ink, #101828);
+}
+
+.capiro-vnext-root .meri-acc-timeline small {
+  display: block;
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--meri-text-muted, #667085);
+}
+
+.capiro-vnext-root .meri-acc-timeline strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--meri-ink, #101828);
+}
+
+.capiro-vnext-root .meri-acc-timeline li > div > span {
+  display: block;
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--meri-text-muted, #667085);
+}
+
+/* Pie legend */
+.capiro-vnext-root .meri-acc-pie-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+.capiro-vnext-root .meri-acc-pie-chart {
+  flex: 1 1 260px;
+  min-width: 240px;
+}
+
+.capiro-vnext-root .meri-acc-pie-legend {
+  flex: 1 1 200px;
+  display: grid;
+  gap: 8px;
+  align-content: center;
+}
+
+.capiro-vnext-root .meri-acc-pie-legend > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--meri-text-secondary, #344054);
+}
+
+.capiro-vnext-root .meri-acc-pie-legend span[aria-hidden] {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+.capiro-vnext-root .meri-acc-pie-legend em {
+  font-style: normal;
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 11px;
+  color: var(--meri-text-muted, #667085);
+}
+
+.capiro-vnext-root .meri-acc-pie-legend b {
+  font-weight: 400;
+  font-size: 9px;
+  color: var(--meri-ink, #101828);
+}
+
+/* Provenance footer */
+.capiro-vnext-root .meri-acc-provenance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 14px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--meri-border, #eaecf0);
+  background: var(--meri-surface-2, #f9fafb);
+  font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-muted, #667085);
+}
+
+.capiro-vnext-root .meri-acc-provenance-derived {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--meri-ink, #101828);
+}
+
+.capiro-vnext-root .meri-acc-card figcaption {
+  padding: 0 16px 12px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--meri-text-muted, #667085);
+}
+
+.capiro-vnext-root .meri-acc-card .meri-acc-provenance + figcaption {
+  padding-top: 10px;
+}
+
+/* Expanded overlay */
+.capiro-vnext-root .meri-acc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--meri-z-modal, 80);
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: var(--m-scrim, rgba(12, 17, 29, 0.55));
+}
+
+.capiro-vnext-root .meri-acc-overlay .meri-acc-card {
+  width: min(980px, 100%);
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
+  box-shadow:
+    var(--meri-shadow-chip, inset 0 0 0 1px #eaecf0),
+    var(--m-shadow-modal, 0 24px 48px -12px rgba(16, 24, 40, 0.3));
+}

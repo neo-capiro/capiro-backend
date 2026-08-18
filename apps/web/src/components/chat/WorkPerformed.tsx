@@ -10,15 +10,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../../lib/use-api.js';
 import { ContextInspector, type TrustContextPacket } from '../trust/ContextInspector.js';
 import { useChatStore } from './chat-store.js';
+import { INTENT_LABELS, type TrustStep } from './work-performed-shared.js';
 
-export interface TrustStep {
-  tool: string;
-  label: string;
-  detail?: string;
-  count?: number;
-  confidence?: 'high' | 'medium' | 'low';
-  status: 'running' | 'done' | 'error';
-}
+/**
+ * TrustStep and INTENT_LABELS now live in the UI-free
+ * ./work-performed-shared.js (single copy shared with the vNext hero card,
+ * which must not import this antd module at runtime). Re-exported here
+ * because the legacy surface historically imports them from WorkPerformed.
+ */
+export { INTENT_LABELS } from './work-performed-shared.js';
+export type { TrustStep } from './work-performed-shared.js';
 
 export interface WorkPerformedProps {
   intent?: string | null;
@@ -31,17 +32,6 @@ export interface WorkPerformedProps {
   contextPacketId?: string | null;
   asOf?: string | null;
 }
-
-export const INTENT_LABELS: Record<string, string> = {
-  query_intelligence: 'Researching government-affairs intelligence',
-  query_clients: 'Reviewing client records',
-  query_engagement: 'Reviewing meetings and outreach',
-  query_workflow: 'Checking workflows',
-  generate_draft: 'Drafting',
-  generate_briefing: 'Building a briefing',
-  navigate: 'Navigating',
-  general_question: 'Working on your question',
-};
 
 function confidenceDot(confidence?: 'high' | 'medium' | 'low'): string {
   if (confidence === 'high') return 'chat-tp-dot--high';
