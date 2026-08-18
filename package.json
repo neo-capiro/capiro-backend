@@ -61,7 +61,8 @@
     "deploy:meriv2-operations-dark": "node scripts/deploy-meriv2-operations-dark.mjs",
     "verify:phase8-session4": "node scripts/verify-phase8-session4.mjs",
     "verify:phase8-session4:replay": "node scripts/phase8-session4-fy27-replay.mjs --out docs/defense-budget/phase8-session4-fy27-replay-evidence.json",
-    "verify:phase8-session4:enforce": "node scripts/verify-phase8-session4.mjs --enforce-replay"
+    "verify:phase8-session4:enforce": "node scripts/verify-phase8-session4.mjs --enforce-replay",
+    "verify:phase8-session4:image": "bash scripts/verify-phase8-session4-image.sh"
   },
   "devDependencies": {
     "turbo": "^2.1.3",
