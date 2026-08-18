@@ -203,7 +203,11 @@ const FORBIDDEN_ANYWHERE = [
     label: 'a write to defense_budget_active_snapshot (snapshot-activation code)',
   },
 ];
-const SKIP_DIRS = new Set(['node_modules', 'generated', 'dist']);
+// `runtime-source` is Session 4's byte-identical mirror of apps/api slices, kept
+// for the replay gate's tree comparison. It is not executable defense-api code:
+// never compiled, never imported, never shipped -- each asserted explicitly after
+// the scan, so this exclusion cannot silently become a hole.
+const SKIP_DIRS = new Set(['node_modules', 'generated', 'dist', 'runtime-source']);
 function walkTextFiles(dir, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isDirectory()) {
@@ -237,6 +241,58 @@ if (fs.existsSync(DEFENSE_API_ROOT)) {
         failures.push(`${relative} contains forbidden ${label}`);
       }
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The Session 4 trusted-source MIRROR is excluded from the executable scan
+// above -- but ONLY because the three properties that make it inert are
+// asserted here. Without these assertions the exclusion would be a hole.
+//
+// `apps/defense-api/runtime-source/` is a byte-identical copy of slices of
+// `apps/api/src`, and it exists solely so Session 4's replay gate can
+// byte-compare the retained and moved trees. It therefore legitimately contains
+// `capiro_pe_promoter`, `withSystem` and `app.bypass_rls` -- those strings are
+// properties of the mirrored main-API source, not of the defense-api runtime.
+//
+// It is only safe to exclude it while all three hold:
+//   1. it is never compiled (outside the tsconfig include),
+//   2. nothing under src/ imports from it, so it cannot execute, and
+//   3. it is never copied into the final image.
+// If any of those changes, the exclusion stops being sound and this fails.
+const MIRROR_DIR = 'apps/defense-api/runtime-source';
+if (fs.existsSync(file(MIRROR_DIR))) {
+  // 1. Never compiled.
+  const defenseTsconfig = JSON.parse(
+    read('apps/defense-api/tsconfig.json').replace(/^\s*\/\/.*$/gm, ''),
+  );
+  const includes = defenseTsconfig.include ?? [];
+  if (!includes.every((pattern) => pattern.startsWith('src/'))) {
+    failures.push(
+      `apps/defense-api/tsconfig.json include (${includes.join(', ')}) may compile ${MIRROR_DIR}; the trusted-source mirror must never be compiled`,
+    );
+  }
+
+  // 2. Unreachable from executable code.
+  const srcRoot = file('apps/defense-api/src');
+  if (fs.existsSync(srcRoot)) {
+    for (const absolutePath of walkTextFiles(srcRoot)) {
+      const relative = path.relative(root, absolutePath).replaceAll('\\', '/');
+      const contents = stripComments(fs.readFileSync(absolutePath, 'utf8'));
+      if (/from\s+['"][^'"]*runtime-source\//.test(contents) || /require\(\s*['"][^'"]*runtime-source\//.test(contents)) {
+        failures.push(
+          `${relative} imports from ${MIRROR_DIR}; the trusted-source mirror must stay unreachable from executable code`,
+        );
+      }
+    }
+  }
+
+  // 3. Never shipped.
+  const dockerfile = read('apps/defense-api/Dockerfile');
+  const runtimeStageStart = dockerfile.indexOf(' AS runtime');
+  const runtimeStage = runtimeStageStart >= 0 ? dockerfile.slice(runtimeStageStart) : dockerfile;
+  if (runtimeStage.includes('runtime-source')) {
+    failures.push(`the final defense-api image copies ${MIRROR_DIR}; the trusted-source mirror must never ship`);
   }
 }
 
