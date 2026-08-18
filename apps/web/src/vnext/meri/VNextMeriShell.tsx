@@ -239,7 +239,6 @@ export function VNextMeriShell({
               openSection={openSection}
               onToggle={() => setRailCollapsed((collapsed) => !collapsed)}
               onExpandSection={expandSection}
-              onSectionChange={setOpenSection}
               onOpenIntegrations={handleOpenIntegrations}
               onOpenContext={(packet, loading, error) => setContextSheet({ open: true, packet, loading, error })}
               activeSourceDetail={activeSourceDetail}
