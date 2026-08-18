@@ -12,7 +12,8 @@
     "verify:boundary": "node ../../scripts/verify-phase8-session2.mjs",
     "verify:session4": "node ../../scripts/verify-phase8-session4.mjs",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
-    "prisma:validate": "prisma validate --schema prisma/schema.prisma"
+    "prisma:validate": "prisma validate --schema prisma/schema.prisma",
+    "verify:session4:replay": "node ../../scripts/phase8-session4-fy27-replay.mjs --out docs/defense-budget/phase8-session4-fy27-replay-evidence.json"
   },
   "dependencies": {
     "@capiro/auth": "workspace:*",

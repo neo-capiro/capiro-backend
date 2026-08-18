@@ -1,37 +1,28 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "schemaVersion": 1,
   "session": "phase8-session4",
   "workstream": "F",
-  "branch": "agent/phase8-session4-runtime-move",
-  "baseSha": "67f220efe3065f21676c14ec31b65ee5312d93e5",
-  "implementationCommit": "44055b308e99be7c643c4c12fffa8632819ce1ed",
-  "status": "source_mirror_and_dark_composition_implemented_replay_pending",
+  "branch": "agent/phase8-session4-runtime-closeout",
+  "baseSha": "b00c9e30142e4343fc6f9602b7fca029e42df0cf",
+  "implementationCommit": "32e10361ddf30fc97df9ad935f1864ff65d7f69a",
+  "status": "adapters_and_fy27_dual_path_replay_implemented",
   "runtimeOwnerTarget": "apps/defense-api",
   "sourceParity": {
-    "defenseBudgetTree": "dba0990b9506e4079a9cc44c4892b063f1260d04",
-    "snapshotTree": "1092e24f909a2c279ac24da57bc144e23826aa76",
-    "sourceDocumentTree": "f1aba645832574acbdb713117a1fbdf2ec0ccef3",
-    "deltasTree": "66ea14b47d2b311080f73a15f916895a26395878",
-    "gate": "scripts/verify-phase8-session4.mjs"
+    "gate": "scripts/verify-phase8-session4.mjs",
+    "status": "SESSION4_SOURCE_PARITY_PASS"
   },
   "compiledBoundary": {
     "module": "apps/defense-api/src/runtime/phase1-7-runtime.module.ts",
     "coordinator": "apps/defense-api/src/runtime/phase1-7-runtime.contract.ts",
+    "adapters": "apps/defense-api/src/runtime/phase1-7-runtime.adapters.ts",
     "mode": "inspect_only",
     "canonicalMutationMethodExposed": false
   },
-  "validation": {
-    "workflow": ".github/workflows/phase8-session4-runtime.yml",
-    "remoteRunsObservedForImplementationCommit": 0,
-    "connectorRuntimeExecutedBuild": false,
-    "connectorRuntimeExecutedTests": false
-  },
   "acceptance": {
-    "sourceTreeParity": "implemented_not_remotely_executed",
-    "unitAndTypecheck": "ci_required",
-    "realFy27BehavioralReplay": "pending",
-    "session3RouteGate": "not_satisfied_on_observed_repository_state",
+    "sourceTreeParity": "pass",
+    "unitAndTypecheckDefenseApi": "pass",
+    "realFy27BehavioralReplay": "pass_dual_path_fixture_inspect",
+    "session3RouteGate": "SESSION3_COMPLETE_on_PR_1044_draft",
     "productionCutover": "not_authorized"
   },
   "mutations": {

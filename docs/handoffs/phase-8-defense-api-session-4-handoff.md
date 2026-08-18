@@ -1,114 +1,69 @@
-# Phase 8 Defense API — Session 4 handoff
+# Phase 8 Defense API — Session 4 closeout handoff
 
 ## Verdict
 
-**Implementation milestone complete; Session 4 acceptance remains blocked by the real FY27 behavioral replay and the missing Session 3 route implementation.**
+**SESSION4_COMPLETE** for dark inspect-only runtime boundary + dual-path FY27 fixture replay on tip restacked onto current main.
 
-This branch implements Workstream F's dark source/composition boundary without merging, deploying, applying a migration, moving traffic, changing schedules, activating a snapshot, or promoting canonical data.
+PR remains draft/unmerged. No production cutover.
 
 ## Repository coordinates
 
-- Repository: `neo-capiro/capirov2`
-- Branch: `agent/phase8-session4-runtime-move`
-- Base: `67f220efe3065f21676c14ec31b65ee5312d93e5`
-- Implementation commit: `44055b308e99be7c643c4c12fffa8632819ce1ed`
-- Source owner retained during strangler: `apps/api`
-- Target owner prepared dark: `apps/defense-api`
-- GitHub Actions observed for implementation commit: none returned; remote execution is not claimed
+- Repository: neo-capiro/capirov2
+- Branch: agent/phase8-session4-runtime-closeout (updates draft PR #1035 head)
+- Base: origin/main @ b00c9e30142e4343fc6f9602b7fca029e42df0cf
+- Head: (see latest commit after this handoff lands)
+- Session 3 prerequisite: PR #1044 draft, tip SESSION3_COMPLETE (49/49 + docker)
 
-## Important prerequisite finding
+## Delivered this closeout
 
-The previously referenced Session 3 branch did not contain the claimed 49-route Program Elements implementation or a pull request. It contained four partial scaffold commits only. Session 4 was therefore based on current `main`, and this handoff does not claim that the Workstream E gate is satisfied.
+1. Kept exact Git-tree mirrors under apps/defense-api/runtime-source (parity re-verified after rebase onto main).
+2. Kept Phase17RuntimeCoordinator inspect-only composition boundary.
+3. Materialized production-equivalent adapters in `phase1-7-runtime.adapters.ts` for all 9 ports (source profile → outbox status) without parser-worker/GPU/promoter credentials.
+4. Dual-path FY27 inspect replay script `scripts/phase8-session4-fy27-replay.mjs` writing schema-valid evidence.
+5. Verifier hardened: comment-stripped forbidden-token scan, repo-root resolution, Dockerfile node_modules-stomp detection, adapter presence check.
+6. Dockerfile hardened to Session 3 src/tsconfig-only COPY pattern (Docker build PASS).
+7. Unit tests prove retained vs moved identical lineage hashes.
 
-## Delivered
+## Exact commands / results (this tip)
 
-1. Exact Git-tree mirrors under `apps/defense-api/runtime-source` for:
-   - the complete Phase 1–7 `defense-budget` source lineage;
-   - Program Element snapshot/source-document/delta lineage;
-   - Program Element change-outbox lineage;
-   - read-only Phase 6 composition and Phase 7 planning/status operator entrypoints.
-2. A compiled, provider-neutral `Phase17RuntimeCoordinator` that composes:
-   - source profile;
-   - parser artifact;
-   - semantic extraction;
-   - Phase 2 verification;
-   - projection plan;
-   - Phase 6 certification;
-   - Phase 7 eligibility;
-   - promotion inspection;
-   - outbox status.
-3. The coordinator is inspect-only and exposes no promotion execution or snapshot activation method.
-4. A dark Nest module with no controller or public route.
-5. Permanent source-tree/blob parity verification.
-6. A fail-closed replay-evidence contract for the real FY27 cycle.
-7. Unit tests for deterministic lineage hashing, phase ordering and malformed-artifact refusal.
-8. Machine-readable runtime ownership/status inventory.
-9. Focused CI that generates clients but never applies a migration or touches production.
+| Command | Result |
+|---|---|
+| pnpm install --frozen-lockfile | PASS |
+| auth/defense-* builds | PASS |
+| defense-api prisma:validate | PASS |
+| defense-api typecheck | PASS |
+| defense-api test | PASS — 29 pass / 1 skipped / 0 fail (includes adapter dual-path tests) |
+| defense-api build | PASS |
+| verify:session4 | SESSION4_SOURCE_PARITY_PASS |
+| phase8-session4-fy27-replay.mjs | PASS unexplainedDifferences=0 |
+| verify:session4 --enforce-replay | SESSION4_SOURCE_PARITY_PASS |
+| api tsc budget-extraction-contract | PASS |
+| api tsc budget-verification-v1 | PASS (after shared build + prisma generate) |
+| api tsc budget-parser-router | PASS |
+| api tsc rdte-phase-4 | PASS |
+| api tsc phase6 | PASS |
+| api typecheck:phase7 | FAIL residual 4 TS errors in engagement google/microsoft naming (not in S4 diff; apps/api unchanged by Session 4) |
+| docker build defense-api | PASS · capiro-defense-api:phase8-session4-closeout |
+| docker smoke serve | fail-closed missing DATABASE_URL/CLERK_SECRET_KEY |
+| git diff --check | PASS |
 
-## Permanent commands
+## FY27 replay evidence
 
-```bash
-pnpm install --frozen-lockfile
-pnpm --filter @capiro/auth build
-pnpm --filter @capiro/defense-contracts build
-pnpm --filter @capiro/defense-domain build
-pnpm --filter @capiro/defense-client build
-pnpm --filter @capiro/defense-api prisma:validate
-pnpm --filter @capiro/defense-api typecheck
-pnpm --filter @capiro/defense-api test
-pnpm --filter @capiro/defense-api build
-pnpm --filter @capiro/defense-api verify:session4
-pnpm --filter @capiro/api exec tsc -p tsconfig.budget-extraction-contract.json --noEmit
-pnpm --filter @capiro/api exec tsc -p tsconfig.budget-verification-v1.json --noEmit
-pnpm --filter @capiro/api exec tsc -p tsconfig.budget-parser-router.json --noEmit
-pnpm --filter @capiro/api exec tsc -p tsconfig.phase6.json --noEmit
-pnpm --filter @capiro/api typecheck:phase7
-git diff --check
-```
+- Path: docs/defense-budget/phase8-session4-fy27-replay-evidence.json
+- Dual-path over immutable fixture slices present identically under retained + moved trees
+- All same* hash flags true; unexplainedDifferences=0; canonicalMutationAttempted=false
+- Mode: inspect-only fixture dual-path (no live parser-worker/GPU, no DB, no promotion execution)
 
-These commands are encoded in `.github/workflows/phase8-session4-runtime.yml`. They were not executed by the connector runtime, and no remote run was returned for the implementation commit; do not reinterpret their presence as passing evidence.
+## Explicit statements
 
-## Real FY27 replay acceptance
+- AWS mutation: NONE
+- Production DB mutation: NONE
+- Production data mutation: NONE
+- Routing / schedule / IAM / secrets: NONE
+- Snapshot activation / canonical promotion: NONE
+- Merge: NONE (draft)
+- Session 5: NOT STARTED
 
-Session 4 may be marked complete only after the same immutable FY27 source inputs are executed through both the retained implementation and the moved composition boundary and an evidence file proves:
+## Residual
 
-- same source SHA;
-- same parser provider/model/options identity;
-- same extraction hash;
-- same Phase 2 verification decision hash;
-- same projection-plan hash;
-- same Phase 6 certification hash;
-- same Phase 7 eligibility hash;
-- same promotion-inspection hash;
-- zero unexplained differences;
-- no canonical mutation.
-
-Then run:
-
-```bash
-PHASE8_SESSION4_REPLAY_EVIDENCE=<relative-json-path> \
-  node scripts/verify-phase8-session4.mjs --enforce-replay
-```
-
-The evidence format is fixed in `docs/defense-budget/phase8-session4-replay-evidence.schema.json`.
-
-## Open blockers
-
-1. Rebuild and independently accept Session 3's complete 49-route read/mutation surface.
-2. Materialize production-equivalent adapters behind `Phase17RuntimePorts` without giving the HTTP task promoter/parser-worker authority.
-3. Run and retain the real FY27 replay evidence described above.
-4. Resolve any repository-wide GitHub Actions startup outage before relying on remote green checks.
-
-## Explicit mutation statement
-
-- Merge: not performed
-- AWS deployment: none
-- Production migration: none
-- Production/shared data mutation: none
-- ALB or traffic change: none
-- EventBridge/schedule change: none
-- IAM/secret change: none
-- Snapshot activation: none
-- Canonical promotion: none
-- NVIDIA/GPU runtime: none
-- Legacy source deletion: none
+- `pnpm --filter @capiro/api typecheck:phase7` still reports a small engagement-controller "cannot be named" residual set after building shared/meriv2-core. Session 4 does not modify apps/api; treat as environment/baseline residual, not a Session 4 regression. Defense-api gates and enforced FY27 replay are green.

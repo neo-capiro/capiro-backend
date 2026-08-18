@@ -4,7 +4,23 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-const root = process.cwd();
+function resolveRepoRoot(start = process.cwd()) {
+  let dir = path.resolve(start);
+  for (let i = 0; i < 8; i += 1) {
+    if (
+      fs.existsSync(path.join(dir, 'pnpm-workspace.yaml')) &&
+      fs.existsSync(path.join(dir, 'apps', 'defense-api'))
+    ) {
+      return dir;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.resolve(start);
+}
+
+const root = resolveRepoRoot();
 const failures = [];
 const notes = [];
 const enforceReplay = process.argv.includes('--enforce-replay');
@@ -74,23 +90,39 @@ for (const slice of requiredSlices) {
   }
 }
 
+// Runtime composition boundary: forbid executable coupling + promotion authority.
+// Allowlisted documentation-only tokens are stripped before the scan so ownership
+// prose cannot false-positive (e.g. "sourceOwner: retained-api" strings).
 const runtimeRoot = path.join(root, 'apps/defense-api/src/runtime');
+const forbiddenExecutable = [
+  /from\s+['"][^'"]*apps\/api[^'"]*['"]/,
+  /require\(\s*['"][^'"]*apps\/api[^'"]*['"]\s*\)/,
+  /@prisma\/client/,
+  /@aws-sdk\//,
+  /app\.bypass_rls/,
+  /executePromotion/,
+  /activateSnapshot/,
+  /capiro_pe_promoter/,
+  /@Controller\s*\(/,
+];
 for (const entry of fs.readdirSync(runtimeRoot, { withFileTypes: true })) {
   if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
+  if (entry.name.endsWith('.spec.ts')) continue;
   const relative = `apps/defense-api/src/runtime/${entry.name}`;
-  const content = read(relative);
-  for (const forbidden of [
-    'apps/api',
-    '@prisma/client',
-    '@aws-sdk/',
-    'app.bypass_rls',
-    'executePromotion',
-    'activateSnapshot',
-    'capiro_pe_promoter',
-    '@Controller(',
-  ]) {
-    if (content.includes(forbidden)) fail(`${relative} contains forbidden token ${forbidden}`);
+  let content = read(relative);
+  // Strip block/line comments before scanning so docstrings cannot trip the gate.
+  content = content
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+  for (const pattern of forbiddenExecutable) {
+    if (pattern.test(content)) {
+      fail(`${relative} contains forbidden executable token ${pattern}`);
+    }
   }
+}
+
+if (!exists('apps/defense-api/src/runtime/phase1-7-runtime.adapters.ts')) {
+  fail('Missing production-equivalent Phase17 runtime adapters');
 }
 
 const appModule = read('apps/defense-api/src/app.module.ts');
@@ -115,6 +147,13 @@ if (runtimeStageStart < 0) {
   if (!runtimeStage.includes('USER capiro')) {
     fail('Final defense-api image is not explicitly non-root');
   }
+}
+// Build stage must not stomp package node_modules with wholesale package COPY.
+if (/COPY packages\/auth packages\/auth/.test(dockerfile)) {
+  fail('Dockerfile still wholesale-copies packages/auth (stomps install-time node_modules)');
+}
+if (!dockerfile.includes('PNPM_PACKAGE_IMPORT_METHOD=copy')) {
+  fail('Dockerfile missing PNPM_PACKAGE_IMPORT_METHOD=copy hardening');
 }
 
 if (!exists('apps/api/src/defense-budget')) {

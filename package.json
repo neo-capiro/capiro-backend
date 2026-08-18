@@ -58,7 +58,10 @@
     "collect:meriv2-aws-context": "node scripts/collect-meriv2-aws-context.mjs",
     "prepare:meriv2-ecs-release": "node scripts/prepare-meriv2-ecs-release.mjs",
     "ship:meriv2-ecs-release": "node scripts/execute-meriv2-ecs-release.mjs",
-    "deploy:meriv2-operations-dark": "node scripts/deploy-meriv2-operations-dark.mjs"
+    "deploy:meriv2-operations-dark": "node scripts/deploy-meriv2-operations-dark.mjs",
+    "verify:phase8-session4": "node scripts/verify-phase8-session4.mjs",
+    "verify:phase8-session4:replay": "node scripts/phase8-session4-fy27-replay.mjs --out docs/defense-budget/phase8-session4-fy27-replay-evidence.json",
+    "verify:phase8-session4:enforce": "node scripts/verify-phase8-session4.mjs --enforce-replay"
   },
   "devDependencies": {
     "turbo": "^2.1.3",
