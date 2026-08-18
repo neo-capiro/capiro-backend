@@ -203,6 +203,37 @@ export function strategyCommands(input: {
   ];
 }
 
+export interface StyleSampleDraft {
+  label: string;
+  subject: string;
+  body: string;
+}
+
+/**
+ * Add one or more example emails.
+ *
+ * `sampleKey` is deliberately NOT sent: the server derives it from the content
+ * and its command schema rejects a caller-supplied key outright, which is what
+ * makes removal-by-key and dedupe trustworthy. Adding the same example twice is
+ * a server-side no-change rather than an error, so the UI does not have to
+ * pre-check for duplicates.
+ */
+export function addStyleSamplesCommand(drafts: StyleSampleDraft[]): OutreachV3Command {
+  const samples = drafts.map((draft) => ({
+    label: nullable(draft.label),
+    subject: nullable(draft.subject),
+    body: required(draft.body, 'Example email body'),
+  }));
+  if (samples.length === 0) throw new Error('Add at least one example email.');
+  return command('ADD_STYLE_SAMPLES', { samples });
+}
+
+export function removeStyleSamplesCommand(sampleKeys: string[]): OutreachV3Command {
+  const keys = sampleKeys.map((key) => required(key, 'Example key'));
+  if (keys.length === 0) throw new Error('Choose at least one example email to remove.');
+  return command('REMOVE_STYLE_SAMPLES', { sampleKeys: keys });
+}
+
 function nullable(value: string): string | null {
   const normalized = value.trim();
   return normalized ? normalized : null;

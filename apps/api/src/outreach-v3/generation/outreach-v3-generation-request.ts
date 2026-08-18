@@ -5,7 +5,10 @@ import type {
 } from '../../engagement/generation/generation-gateway.types.js';
 import type { EnrichmentChannel } from '../../engagement/generation/evidence-packet.service.js';
 import type { SelectedContextItemRef } from '../../engagement/generation/evidence-source.service.js';
-import type { OutreachCampaignSpecV1 } from '../state/outreach-campaign-spec.v1.js';
+import {
+  campaignStyleSamplesV1,
+  type OutreachCampaignSpecV1,
+} from '../state/outreach-campaign-spec.v1.js';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
 import type { PreparedOutreachV3GenerationSlot } from './outreach-v3-generation-preparation.service.js';
 import type { OutreachV3GenerationPlan } from './outreach-v3-generation-plan.js';
@@ -46,6 +49,12 @@ export function buildOutreachV3GatewayUnit(
     ...strategyDirectives(input.spec, input.plan.stateVersion),
   ];
   const recipient = gatewayRecipient(input.prepared);
+  const styleSamples = campaignStyleSamplesV1(input.spec).map((sample) => ({
+    sampleKey: sample.sampleKey,
+    label: sample.label,
+    subject: sample.subject,
+    body: sample.body,
+  }));
   const request: GenerationRequest = {
     runtimeAction: 'outreach_v3_generate',
     surface: 'outreach_email',
@@ -69,6 +78,10 @@ export function buildOutreachV3GatewayUnit(
       ? { groupMemberCount: input.prepared.currentTargets.length }
       : {}),
     explicitAudience: null,
+    // Few-shot exemplars ride their own request field, not `items`. Routing them
+    // through the Evidence Packet would put last quarter's figures into this
+    // campaign's claim pool; see GenerationRequest.styleSamples.
+    ...(styleSamples.length ? { styleSamples } : {}),
     recipient,
     ...(input.authHeader ? { authHeader: input.authHeader } : {}),
   };

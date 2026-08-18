@@ -5,10 +5,17 @@ import {
 } from './outreach-command.contract.js';
 import { OutreachCommandError } from './outreach-command-errors.js';
 import {
+  campaignStyleSamplesV1,
   hashCampaignSpecV1,
   parseCampaignSpecV1,
   type OutreachCampaignSpecV1,
 } from './outreach-campaign-spec.v1.js';
+import {
+  normalizeStyleSamplesV1,
+  resolveStyleSampleV1,
+  OUTREACH_STYLE_SAMPLE_LIMITS,
+  type OutreachStyleSampleV1,
+} from './outreach-style-sample.contract.js';
 import {
   normalizeResolvedTargetRefsV1,
   targetKeyForLocator,
@@ -388,6 +395,46 @@ export function reduceOutreachCommand(
         command,
       );
     }
+    case 'ADD_STYLE_SAMPLES': {
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.ADD_STYLE_SAMPLES.parse(command.payload);
+      // Keys are derived here, never trusted from the wire, so the same pasted
+      // email always collapses onto one exemplar.
+      const incoming = payload.samples.map((sample) => resolveStyleSampleV1(sample));
+      const existing = campaignStyleSamplesV1(current);
+      const existingKeys = new Set(existing.map((sample) => sample.sampleKey));
+      const added = incoming.filter((sample) => !existingKeys.has(sample.sampleKey));
+      if (existing.length + added.length > OUTREACH_STYLE_SAMPLE_LIMITS.maxSamples) {
+        throw new OutreachCommandError(
+          'OUTREACH_COMMAND_BLOCKED',
+          `A campaign can carry at most ${OUTREACH_STYLE_SAMPLE_LIMITS.maxSamples} example emails.`,
+          422,
+          {
+            reason: 'style_sample_limit',
+            current: existing.length,
+            requested: added.length,
+            maxSamples: OUTREACH_STYLE_SAMPLE_LIMITS.maxSamples,
+          },
+        );
+      }
+      return withValidatedSpec(
+        current,
+        (spec) => withStyleSamples(spec, [...campaignStyleSamplesV1(spec), ...added]),
+        command,
+      );
+    }
+    case 'REMOVE_STYLE_SAMPLES': {
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.REMOVE_STYLE_SAMPLES.parse(command.payload);
+      const removed = new Set(payload.sampleKeys);
+      return withValidatedSpec(
+        current,
+        (spec) =>
+          withStyleSamples(
+            spec,
+            campaignStyleSamplesV1(spec).filter((sample) => !removed.has(sample.sampleKey)),
+          ),
+        command,
+      );
+    }
     case 'RESTORE_STATE_VERSION': {
       OUTREACH_COMMAND_PAYLOAD_SCHEMAS.RESTORE_STATE_VERSION.parse(command.payload);
       if (!command.restoreSpec) {
@@ -405,6 +452,24 @@ export function reduceOutreachCommand(
       };
     }
   }
+}
+
+/**
+ * Write the exemplar list back onto a spec, or DELETE the key when the list is
+ * empty.
+ *
+ * Removing the user's last example must return the spec to the exact bytes it
+ * had before any sample existed, or its hash would drift away from every
+ * pre-existing state version's canonical form. `{ ...spec, styleSamples: [] }`
+ * would leave the key present; this omits it.
+ */
+function withStyleSamples(
+  spec: OutreachCampaignSpecV1,
+  samples: readonly OutreachStyleSampleV1[],
+): OutreachCampaignSpecV1 {
+  const normalized = normalizeStyleSamplesV1(samples);
+  const { styleSamples: _dropped, ...rest } = spec;
+  return normalized.length ? { ...rest, styleSamples: normalized } : rest;
 }
 
 function contextBucket(

@@ -19,7 +19,10 @@ import {
   allAcceptedContextRefs,
   type OutreachCampaignSpecV1,
 } from '../state/outreach-campaign-spec.v1.js';
-import type { ParsedOutreachCommandEnvelope } from '../state/outreach-command.contract.js';
+import {
+  OUTREACH_USER_AUTHORED_COMMAND_TYPES,
+  type ParsedOutreachCommandEnvelope,
+} from '../state/outreach-command.contract.js';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
 import {
   OUTREACH_REASONING_LIMITS,
@@ -42,6 +45,16 @@ const implementedCommandTypes = new Set(
     (entry) => entry.type,
   ),
 );
+
+/**
+ * Implemented does not imply model-proposable.
+ *
+ * These commands carry text only a human can legitimately supply (see
+ * OUTREACH_USER_AUTHORED_COMMAND_TYPES). Without this set they would be
+ * proposable purely because they are implemented, which is how a model ends up
+ * writing the "example of how you write" that every draft then imitates.
+ */
+const userAuthoredCommandTypes = new Set<string>(OUTREACH_USER_AUTHORED_COMMAND_TYPES);
 
 @Injectable()
 export class OutreachReasoningService {
@@ -196,6 +209,13 @@ export class OutreachReasoningService {
           throw new OutreachReasoningError(
             'OUTREACH_REASONING_OUTPUT_INVALID',
             'The reasoning provider proposed a command that is not implemented in this phase.',
+            502,
+          );
+        }
+        if (userAuthoredCommandTypes.has(command.type)) {
+          throw new OutreachReasoningError(
+            'OUTREACH_REASONING_OUTPUT_INVALID',
+            'The reasoning provider proposed a command whose content only the author may supply.',
             502,
           );
         }

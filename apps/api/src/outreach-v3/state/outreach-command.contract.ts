@@ -13,6 +13,10 @@ import {
   outreachExcludedContextRefV1Schema,
 } from '../../capabilities/context/outreach-context.contract.js';
 import { OutreachCommandError } from './outreach-command-errors.js';
+import {
+  outreachStyleSampleInputV1Schema,
+  OUTREACH_STYLE_SAMPLE_LIMITS,
+} from './outreach-style-sample.contract.js';
 
 export const OUTREACH_IMPLEMENTED_COMMAND_TYPES = [
   'SET_GOAL',
@@ -34,7 +38,26 @@ export const OUTREACH_IMPLEMENTED_COMMAND_TYPES = [
   'SET_CAMPAIGN_ANGLE',
   'SET_TONE',
   'SET_LENGTH',
+  'ADD_STYLE_SAMPLES',
+  'REMOVE_STYLE_SAMPLES',
   'RESTORE_STATE_VERSION',
+] as const;
+
+/**
+ * Commands whose payload IS the user's own words, and which the reasoning model
+ * is therefore forbidden from proposing.
+ *
+ * Every other implemented command carries a decision the model can legitimately
+ * suggest (a tone, a delivery pattern, a target it found). An example email is
+ * different in kind: the whole value of a few-shot exemplar is that a human
+ * wrote or received it. A model-authored "example of how you write" is a
+ * fabrication that would then be imitated by every draft in the campaign and
+ * shown back to the user as their own voice. OutreachReasoningService rejects
+ * these at the proposal boundary.
+ */
+export const OUTREACH_USER_AUTHORED_COMMAND_TYPES = [
+  'ADD_STYLE_SAMPLES',
+  'REMOVE_STYLE_SAMPLES',
 ] as const;
 
 export const OUTREACH_FUTURE_COMMAND_TYPES = [
@@ -215,6 +238,29 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
         });
       }
     }),
+  /**
+   * Add few-shot exemplars. Additive and idempotent: the reducer appends, keyed
+   * by derived content hash, so re-adding the same example is a no-op rather
+   * than a duplicate. `sampleKey` is deliberately NOT accepted from the caller —
+   * it is derived server-side, which is what makes REMOVE_STYLE_SAMPLES and
+   * dedupe trustworthy.
+   */
+  ADD_STYLE_SAMPLES: z
+    .object({
+      samples: z
+        .array(outreachStyleSampleInputV1Schema)
+        .min(1)
+        .max(OUTREACH_STYLE_SAMPLE_LIMITS.maxSamples),
+    })
+    .strict(),
+  REMOVE_STYLE_SAMPLES: z
+    .object({
+      sampleKeys: z
+        .array(boundedString(128, 1))
+        .min(1)
+        .max(OUTREACH_STYLE_SAMPLE_LIMITS.maxSamples),
+    })
+    .strict(),
   RESTORE_STATE_VERSION: z.object({ version: z.number().int().positive() }).strict(),
   SET_SENDER_REF: z.object({ senderRef: boundedRef }).strict(),
   SET_ATTACHMENT_REFS: futureRefsPayload,

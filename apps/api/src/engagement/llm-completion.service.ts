@@ -20,6 +20,13 @@
  */
 import { Logger, ServiceUnavailableException } from '@nestjs/common';
 import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
+import {
+  anthropicEffort,
+  anthropicSupportsAdaptiveThinking,
+  openAiReasoningEffort,
+  openAiSupportsReasoningEffort,
+  type ReasoningEffort,
+} from './generation/reasoning-effort.js';
 
 export type LlmProvider = 'openai' | 'anthropic';
 
@@ -65,7 +72,29 @@ export interface LlmCompletionRequest {
    * default (unchanged behavior).
    */
   temperature?: number;
+  /**
+   * Requested reasoning depth.
+   *
+   * Applied ONLY when `model` is positively known to accept the corresponding
+   * parameter shape (see reasoning-effort.ts for why that gate exists and what
+   * it prevents). An unrecognized or non-reasoning model — `gpt-4.1-mini`,
+   * `claude-haiku-4-5`, a tenant BYOK id — leaves the request byte-identical to
+   * one without this field, so setting it can never turn a working generation
+   * into a 400.
+   */
+  reasoningEffort?: ReasoningEffort;
 }
+
+/**
+ * Output ceiling used when adaptive thinking is on.
+ *
+ * Anthropic counts thinking against `max_tokens`, so the legacy 2400 default
+ * would let a deep-reasoning pass spend the entire budget on thinking and return
+ * a truncated draft — a silent quality regression that looks like a bad model
+ * rather than a bad ceiling. Raised only on the thinking path; the non-thinking
+ * default stays exactly 2400.
+ */
+const THINKING_MAX_TOKENS = 16_000;
 
 export interface LlmCompletionResult {
   text: string;
@@ -201,6 +230,12 @@ export class LlmCompletionService {
       // automatic (no cache_control), so the static/volatile split is simply
       // joined here.
       const input = joinUser(req.userStatic, req.userVolatile);
+      // Reasoning families only. `gpt-4.1*`/`gpt-4o*` reject `reasoning`, so an
+      // unconditional field would 400 the model this service runs on today.
+      const openAiReasoning =
+        req.reasoningEffort && openAiSupportsReasoningEffort(req.model)
+          ? { reasoning: { effort: openAiReasoningEffort(req.reasoningEffort) } }
+          : {};
       return {
         url: 'https://api.openai.com/v1/responses',
         headers: {
@@ -212,6 +247,7 @@ export class LlmCompletionService {
           // Omit `instructions` when there is no system prompt (legacy v1 path).
           ...(req.system.trim() ? { instructions: req.system } : {}),
           input,
+          ...openAiReasoning,
           // Omit `max_output_tokens` when uncapped (legacy v1 path).
           ...(req.maxTokens ? { max_output_tokens: req.maxTokens } : {}),
           text: {
@@ -241,6 +277,19 @@ export class LlmCompletionService {
     } else {
       content = `${joinUser(req.userStatic, req.userVolatile)}${schemaAppendix}`;
     }
+    // Adaptive thinking + output_config.effort is the CURRENT shape and the only
+    // one sent. `budget_tokens` is deliberately never sent: deprecated on 4.6,
+    // a 400 on 4.7+. Models outside the supported set (incl. this repo's
+    // ANTHROPIC_MODEL default, claude-haiku-4-5) get no thinking field at all.
+    const thinkingOn = Boolean(
+      req.reasoningEffort && anthropicSupportsAdaptiveThinking(req.model),
+    );
+    const anthropicThinking = thinkingOn
+      ? {
+          thinking: { type: 'adaptive' },
+          output_config: { effort: anthropicEffort(req.model, req.reasoningEffort!) },
+        }
+      : {};
     return {
       url: 'https://api.anthropic.com/v1/messages',
       headers: {
@@ -250,9 +299,20 @@ export class LlmCompletionService {
       },
       body: {
         model: req.model,
-        max_tokens: req.maxTokens ?? 2400,
-        // See LlmCompletionRequest.temperature — Anthropic-only by design.
-        ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
+        // Thinking spends from max_tokens, so a caller's small explicit cap
+        // (message-plan passes 2000) would otherwise be consumed by reasoning and
+        // truncate the answer. Raise to the thinking floor rather than honouring a
+        // cap that predates thinking; leave the non-thinking path exactly as it was.
+        max_tokens: thinkingOn
+          ? Math.max(req.maxTokens ?? 0, THINKING_MAX_TOKENS)
+          : (req.maxTokens ?? 2400),
+        ...anthropicThinking,
+        // See LlmCompletionRequest.temperature — Anthropic-only by design, and
+        // dropped entirely while thinking is on: sampling parameters were removed
+        // alongside budget_tokens on 4.7+ and return a 400 there.
+        ...(req.temperature !== undefined && !thinkingOn
+          ? { temperature: req.temperature }
+          : {}),
         system,
         messages: [{ role: 'user', content }],
       },

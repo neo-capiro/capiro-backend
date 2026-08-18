@@ -61,6 +61,7 @@ import {
   GATEWAY_DRAFT_JSON_SCHEMA,
   GATEWAY_PROMPT_SPEC_VERSION,
 } from './gateway-prompt.js';
+import { supportsReasoning, type ReasoningEffort } from './reasoning-effort.js';
 import type {
   GenerationRequest,
   GenerationResult,
@@ -87,6 +88,8 @@ export class GenerationGatewayService {
   private readonly logger = new Logger(GenerationGatewayService.name);
   readonly enabled: boolean;
   private readonly envEmailScope: EmailContextScope;
+  private readonly v3GenerationEffort: ReasoningEffort;
+  private readonly v3GenerationModel: string;
 
   constructor(
     config: ConfigService<AppConfig, true>,
@@ -102,6 +105,44 @@ export class GenerationGatewayService {
   ) {
     this.enabled = config.get('ENGAGEMENT_GENERATION_GATEWAY', { infer: true });
     this.envEmailScope = config.get('ENGAGEMENT_EMAIL_CONTEXT_SCOPE', { infer: true });
+    this.v3GenerationEffort = config.get('OUTREACH_V3_GENERATION_EFFORT', { infer: true });
+    this.v3GenerationModel = config.get('OUTREACH_V3_GENERATION_MODEL', { infer: true });
+  }
+
+  /**
+   * The model V3 generation drafts on.
+   *
+   * A tenant's explicit BYOK modelOverride always wins — their choice governs, the
+   * same precedence OUTREACH_DRAFT_MODEL respects. Otherwise
+   * OUTREACH_V3_GENERATION_MODEL applies, and when that is unset (the default)
+   * nothing changes: the resolved credential's model is used, so deploying this
+   * code cannot move any tenant's drafting model or COGS on its own.
+   */
+  private resolveDraftModel(
+    cred: ResolvedAiCredential,
+    runtimeAction: GenerationRequest['runtimeAction'],
+  ): string {
+    if (runtimeAction !== 'outreach_v3_generate') return cred.model;
+    if (cred.modelOverridden) return cred.model;
+    return this.v3GenerationModel || cred.model;
+  }
+
+  /**
+   * Reasoning depth for this operation, or null.
+   *
+   * Scoped to V3 generation on purpose: Classic outreach keeps its exact current
+   * request shape. `supportsReasoning` is checked HERE as well as inside the
+   * completion client so the pinned identity and the manifest record `null`
+   * rather than an effort that was never actually sent — the audit trail should
+   * say what ran, not what was configured.
+   */
+  private resolveReasoningEffort(
+    provider: 'openai' | 'anthropic',
+    model: string,
+    runtimeAction: GenerationRequest['runtimeAction'],
+  ): ReasoningEffort | null {
+    if (runtimeAction !== 'outreach_v3_generate') return null;
+    return supportsReasoning(provider, model) ? this.v3GenerationEffort : null;
   }
 
   /**
@@ -125,12 +166,14 @@ export class GenerationGatewayService {
         : await this.ai.resolveOutreachCredentials(ctx);
     const head = creds[0];
     if (!head) return null;
+    const model = this.resolveDraftModel(head, opts.runtimeAction);
     return {
       creds,
       pinned: {
         provider: head.provider,
-        model: head.model,
+        model,
         planModel: this.plans.resolvePlanModel(head),
+        reasoningEffort: this.resolveReasoningEffort(head.provider, model, opts.runtimeAction),
         promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
         policyId: opts.policy.policyId,
         policyVersion: opts.policy.version,
@@ -238,14 +281,22 @@ export class GenerationGatewayService {
     // unit actually resolved, so the manifest reports the truth.
     const pinned: PinnedGenerationIdentity = request.pinned
       ? { ...request.pinned, policyId: policy.policyId, policyVersion: policy.version }
-      : {
-          provider: head.provider,
-          model: head.model,
-          planModel: this.plans.resolvePlanModel(head),
-          promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
-          policyId: policy.policyId,
-          policyVersion: policy.version,
-        };
+      : (() => {
+          const model = this.resolveDraftModel(head, request.runtimeAction);
+          return {
+            provider: head.provider,
+            model,
+            planModel: this.plans.resolvePlanModel(head),
+            reasoningEffort: this.resolveReasoningEffort(
+              head.provider,
+              model,
+              request.runtimeAction,
+            ),
+            promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
+            policyId: policy.policyId,
+            policyVersion: policy.version,
+          };
+        })();
     // §e3: an async chunk's pinned prompt spec must match what THIS process's
     // prompt builder actually implements. A rolling deploy can have an old and
     // a new container claiming chunks of the SAME job; without this check the
@@ -335,7 +386,8 @@ export class GenerationGatewayService {
       throw e;
     }
 
-    const manifest = this.buildManifest(packet, policy, pinned);
+    const styleSamples = request.styleSamples ?? [];
+    const manifest = this.buildManifest(packet, policy, pinned, styleSamples.length);
 
     // ── 6a. Critical source failures stop here, BEFORE any spend ──
     if (packet.criticalFailureCount > 0) {
@@ -375,6 +427,9 @@ export class GenerationGatewayService {
         ...(request.groupMemberCount != null ? { groupMemberCount: request.groupMemberCount } : {}),
         clientName: enrichment.clientName,
         tone: request.tone,
+        // Same pinned depth as the draft: the plan fixes which claims the draft
+        // may make, so a shallow plan caps a deep draft.
+        ...(pinned.reasoningEffort ? { reasoningEffort: pinned.reasoningEffort } : {}),
       });
       plan = built.plan;
       planModelUsed = built.planModel;
@@ -422,6 +477,7 @@ export class GenerationGatewayService {
       plan,
       styleProfile,
       styleProfileBlock: styleProfile ? this.styles.renderProfileBlock(styleProfile) : null,
+      styleSamples,
       recipientBrief: this.recipientBrief(request),
       clientBrief: enrichment.clientBrief,
       audienceKind: request.audienceKind,
@@ -453,6 +509,9 @@ export class GenerationGatewayService {
         jsonSchemaName: 'outreach_draft',
         cacheSystem: true,
         cacheUserStatic: true,
+        // The PINNED effort, for the same reason as the pinned model: every chunk
+        // of one campaign must reason at the same depth.
+        ...(pinned.reasoningEffort ? { reasoningEffort: pinned.reasoningEffort } : {}),
       });
       // ── 7. Strict output parse ──
       const parsed = parseDraft(completion.text);
@@ -652,6 +711,7 @@ export class GenerationGatewayService {
     packet: EvidencePacketV2,
     policy: GaPolicy,
     pinned: PinnedGenerationIdentity,
+    styleSampleCount = 0,
   ): GenerationSourceManifest {
     const counts: Record<string, number> = {};
     for (const e of packet.evidence) {
@@ -694,9 +754,11 @@ export class GenerationGatewayService {
       provider: pinned.provider,
       model: pinned.model,
       planModel: pinned.planModel,
+      reasoningEffort: pinned.reasoningEffort ?? null,
       promptSpecVersion: pinned.promptSpecVersion,
       emailScopeLabel: EMAIL_SCOPE_LABELS[packet.emailScope],
       standingMemoryCount: packet.standingMemory.length,
+      styleSampleCount,
       criticalMissingContext: criticalFailures.map((f) => f.userMessage),
       disclosures: packet.failures
         .filter((f) => f.code === 'ATTACHMENT_UNSCANNED' || f.code === 'DOCUMENT_TRUNCATED')
@@ -716,6 +778,7 @@ export class GenerationGatewayService {
       provider: '',
       model: '',
       planModel: null,
+      reasoningEffort: null,
       promptSpecVersion: GATEWAY_PROMPT_SPEC_VERSION,
       policyId: policy?.policyId ?? '',
       policyVersion: policy?.version ?? '',
@@ -752,9 +815,11 @@ export class GenerationGatewayService {
         provider: pinned.provider || null,
         model: pinned.model || null,
         planModel: pinned.planModel,
+        reasoningEffort: pinned.reasoningEffort ?? null,
         promptSpecVersion: pinned.promptSpecVersion,
         emailScopeLabel: EMAIL_SCOPE_LABELS.mine,
         standingMemoryCount: 0,
+        styleSampleCount: 0,
         criticalMissingContext: [message],
         disclosures: [],
       },

@@ -336,6 +336,26 @@ export function engagementApiTaskEnvironment(
     ENGAGEMENT_GENERATION_GATEWAY: 'true',
     ENGAGEMENT_VERSIONED_OUTREACH: 'true',
 
+    // Reasoning depth for V3 planning + drafting. Stated explicitly rather than
+    // left to the code default so the depth a campaign ran at is readable from
+    // the task definition, which is where every other generation-affecting
+    // decision on this service already lives.
+    //
+    // OUTREACH_V3_GENERATION_MODEL is what makes the effort above do anything:
+    // reasoning-effort.ts sends a reasoning parameter only to a model positively
+    // known to accept one, and the credential default (OPENAI_MODEL =
+    // gpt-4.1-mini) accepts none, so without this the effort is inert.
+    //
+    // Scoped to V3 only — Classic outreach keeps the resolved credential's model,
+    // so this cannot move drafting or COGS on the main API. Staying on OpenAI is
+    // deliberate: it leaves the provider order, credential path and strict-JSON
+    // shape identical to what is running, and gpt-5 already matches
+    // STRICT_JSON_MODEL_PATTERNS so message-plan's model gate is unaffected.
+    // OpenAI's ladder tops out at reasoning.effort='high', which is where 'max'
+    // lands via openAiReasoningEffort().
+    OUTREACH_V3_GENERATION_EFFORT: 'max',
+    OUTREACH_V3_GENERATION_MODEL: 'gpt-5',
+
     AWS_REGION_DEFAULT: cfg.region,
 
     OUTREACH_V3_PROTOTYPE_SHA256: cfg.uiContract.prototypeSha256,

@@ -34,4 +34,14 @@ test('Outreach V3 is explicitly enabled without opening the global shadow contro
   ]) {
     assert.equal(env[key], 'true', `${key} must be explicitly enabled`);
   }
+
+  // Reasoning depth is asserted, not merely present: a stack update that dropped
+  // it would silently fall back to the code default, and "which depth did this
+  // campaign draft at" would stop being answerable from the task definition.
+  assert.equal(env.OUTREACH_V3_GENERATION_EFFORT, 'max');
+
+  // The effort above is inert unless the model accepts a reasoning parameter, so
+  // the pair is asserted together — dropping either one silently returns V3
+  // drafting to no reasoning at all, which is the failure this pins.
+  assert.equal(env.OUTREACH_V3_GENERATION_MODEL, 'gpt-5');
 });

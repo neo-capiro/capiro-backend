@@ -262,6 +262,26 @@ export const configSchema = z.object({
   OUTREACH_DRAFT_MODEL: z.string().default(''),
   OUTREACH_FAST_MODEL: z.string().default(''),
 
+  // Reasoning depth for governed Outreach V3 generation (planning + drafting).
+  //
+  // Defaults to the top of the ladder because a governed campaign draft is the
+  // highest-stakes, lowest-volume generation in the product: three review samples
+  // and then one draft per recipient, each of which a human approves before it
+  // can be sent. This is NOT a silent behaviour change for existing models —
+  // reasoning-effort.ts sends a reasoning parameter only to models that accept
+  // one, and both live models (OPENAI_MODEL/OUTREACH_V3_REASONING_MODEL =
+  // gpt-4.1-mini) accept none, so the effort applies the moment a reasoning model
+  // is configured and is inert until then.
+  OUTREACH_V3_GENERATION_EFFORT: z
+    .enum(['low', 'medium', 'high', 'xhigh', 'max'])
+    .default('max'),
+
+  // Model override for V3 generation only. Empty (the default) keeps the resolved
+  // credential's model, so a deploy never changes the drafting model or COGS on
+  // its own — the same discipline OUTREACH_DRAFT_MODEL follows. Set this to a
+  // reasoning model for OUTREACH_V3_GENERATION_EFFORT to have any effect.
+  OUTREACH_V3_GENERATION_MODEL: z.string().default(''),
+
   // Per-tenant daily outreach token ceiling (plan W3.4 / A7): total (input +
   // output) AI tokens across outreach generation workflows in the current UTC
   // day. Soft-warn at 80% (generation proceeds, wizard shows a banner), hard-stop

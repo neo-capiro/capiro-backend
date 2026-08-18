@@ -16,6 +16,11 @@ import {
   normalizeExcludedContextRefsV1,
   type OutreachContextSelectionV1,
 } from '../../capabilities/context/outreach-context.contract.js';
+import {
+  normalizeStyleSampleInputV1,
+  styleSampleKeyFor,
+  type OutreachStyleSampleInputV1,
+} from './outreach-style-sample.contract.js';
 import type {
   ApplyOutreachCommandBatchInput,
   ParsedOutreachCommandEnvelope,
@@ -68,6 +73,25 @@ function normalizeContextSelections(values: unknown[]): OutreachContextSelection
   return [...byKey.entries()]
     .sort(([a], [b]) => compareCanonicalStrings(a, b))
     .map(([, selection]) => selection);
+}
+
+/**
+ * Dedupe submitted exemplars by derived key while KEEPING submitted order.
+ *
+ * Unlike target locators and context selections (both sorted, because they are
+ * order-free sets), few-shot order is read by the model and chosen by the user,
+ * so sorting here would silently reorder their examples. Normalizing still makes
+ * the batch hash stable, which is all `hashNormalizedOutreachCommandBatch` needs
+ * for replay detection.
+ */
+function normalizeStyleSampleInputs(values: unknown[]): OutreachStyleSampleInputV1[] {
+  const byKey = new Map<string, OutreachStyleSampleInputV1>();
+  for (const value of values) {
+    const sample = normalizeStyleSampleInputV1(value);
+    const key = styleSampleKeyFor(sample);
+    if (!byKey.has(key)) byKey.set(key, sample);
+  }
+  return [...byKey.values()];
 }
 
 export function normalizeOutreachCommandEnvelope(
@@ -154,6 +178,16 @@ export function normalizeOutreachCommandEnvelope(
               ? normalizeText(payload.customInstruction as string | null)
               : null,
         },
+      };
+    case 'ADD_STYLE_SAMPLES':
+      return {
+        ...command,
+        payload: { samples: normalizeStyleSampleInputs((payload.samples as unknown[]) ?? []) },
+      };
+    case 'REMOVE_STYLE_SAMPLES':
+      return {
+        ...command,
+        payload: { sampleKeys: normalizeSet((payload.sampleKeys as string[]) ?? []) },
       };
     case 'RESTORE_STATE_VERSION':
       return { ...command, payload: { version: payload.version } };

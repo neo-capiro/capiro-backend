@@ -16,6 +16,13 @@ import {
   type OutreachExcludedContextRefV1,
   type OutreachResolvedContextRefV1,
 } from '../../capabilities/context/outreach-context.contract.js';
+import {
+  normalizeStyleSamplesV1,
+  outreachStyleSampleV1Schema,
+  styleSampleKeyFor,
+  OUTREACH_STYLE_SAMPLE_LIMITS,
+  type OutreachStyleSampleV1,
+} from './outreach-style-sample.contract.js';
 
 export const OUTREACH_CAMPAIGN_SPEC_SCHEMA_VERSION = 'outreach_campaign_spec_v1' as const;
 
@@ -164,6 +171,24 @@ const outreachCampaignSpecV1BaseSchema = z
         ),
       })
       .strict(),
+    /**
+     * Optional few-shot exemplars. OPTIONAL IN THE SCHEMA, AND OMITTED FROM THE
+     * CANONICAL FORM WHEN EMPTY — both halves are load-bearing.
+     *
+     * Stored state is content-addressed: parseAndVerifyVersion() re-parses every
+     * stored spec_jsonb and recomputes its hash, and refuses the row as
+     * OUTREACH_STATE_CORRUPT on a mismatch. A required key (or an optional key
+     * with a `[]` default) would make every campaign written before this field
+     * existed canonicalize differently from the hash stored beside it, i.e. every
+     * pre-existing session would 500. Because `normalizeCampaignSpecV1` deletes
+     * the key when there are no samples, "no samples" and "field did not exist"
+     * are the same bytes and the same hash, so old rows round-trip untouched
+     * while a campaign that HAS samples correctly hashes differently.
+     */
+    styleSamples: z
+      .array(outreachStyleSampleV1Schema)
+      .max(OUTREACH_STYLE_SAMPLE_LIMITS.maxSamples)
+      .optional(),
   })
   .strict();
 
@@ -289,6 +314,40 @@ export const outreachCampaignSpecV1Schema = outreachCampaignSpecV1BaseSchema.sup
         message: 'Custom length instruction must be null unless length is custom.',
       });
     }
+
+    if (spec.styleSamples !== undefined) {
+      // An empty array is not a valid canonical form: normalizeCampaignSpecV1
+      // drops the key instead, which is what keeps pre-existing specs hashing
+      // identically. Rejecting `[]` here stops a second spelling of "no samples"
+      // from ever being written and hashed.
+      if (spec.styleSamples.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['styleSamples'],
+          message: 'Style samples must be omitted entirely rather than stored empty.',
+        });
+      }
+      const keys = spec.styleSamples.map((sample) => sample.sampleKey);
+      if (new Set(keys).size !== keys.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['styleSamples'],
+          message: 'Style sample keys must be unique.',
+        });
+      }
+      for (const [index, sample] of spec.styleSamples.entries()) {
+        // The key is DERIVED, never asserted by the caller. Verifying it here is
+        // what makes removal-by-key and dedupe trustworthy for a client that
+        // could otherwise send any string.
+        if (sample.sampleKey !== styleSampleKeyFor(sample)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['styleSamples', index, 'sampleKey'],
+            message: 'Style sample key does not match its own content.',
+          });
+        }
+      }
+    }
   },
 );
 
@@ -358,6 +417,7 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
   const sortedClientRefs = [...spec.sponsor.clientRefs].sort((a, b) =>
     compareCanonicalStrings(a.clientId, b.clientId),
   );
+  const normalizedStyleSamples = normalizeStyleSamplesV1(spec.styleSamples ?? []);
   const normalized: OutreachCampaignSpecV1 = {
     ...spec,
     goal: {
@@ -423,8 +483,27 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
       length: spec.strategy.length,
       customLengthInstruction: normalizeNullableText(spec.strategy.customLengthInstruction),
     },
+    // Conditional SPREAD, not `styleSamples: [] | list`. canonicalJsonStringify
+    // emits every own key, so writing the key with an empty array would change
+    // the canonical bytes of a spec that has no samples — and therefore its hash
+    // — breaking every state version stored before this field existed. Deleting
+    // the key is what makes "no samples" byte-identical to "field absent".
+    ...(normalizedStyleSamples.length ? { styleSamples: normalizedStyleSamples } : {}),
   };
   return outreachCampaignSpecV1Schema.parse(normalized);
+}
+
+/**
+ * Read style samples without every caller re-deriving the absent-vs-empty case.
+ *
+ * `styleSamples` is deliberately absent (not `[]`) whenever a campaign has none
+ * — see the field's schema comment for why — so every consumer needs this
+ * normalization and none of them should special-case `undefined` themselves.
+ */
+export function campaignStyleSamplesV1(
+  spec: Pick<OutreachCampaignSpecV1, 'styleSamples'>,
+): OutreachStyleSampleV1[] {
+  return spec.styleSamples ?? [];
 }
 
 export function allAcceptedContextRefs(

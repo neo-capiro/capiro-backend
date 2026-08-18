@@ -9,6 +9,7 @@ import type { GenerationSurface, SourceFailure } from './evidence-packet.types.j
 import type { SelectedContextItemRef } from './evidence-source.service.js';
 import type { GaAudience } from './government-affairs-policy.registry.js';
 import type { PlanValidationIssue } from './message-plan.schema.js';
+import type { ReasoningEffort } from './reasoning-effort.js';
 
 export interface GenerationRequest {
   /** Exact runtime authority for provider and credential boundaries. */
@@ -35,6 +36,18 @@ export interface GenerationRequest {
   explicitAudience?: GaAudience | null;
   /** The server-resolved recipient (never a browser assertion for identity). */
   recipient: GatewayRecipient;
+  /**
+   * User-supplied example emails, used as few-shot exemplars for VOICE ONLY.
+   *
+   * Deliberately a first-class request field rather than another
+   * `SelectedContextItemRef`: an evidence item flows into the Evidence Packet,
+   * the Message Plan's claim pool and the deterministic claim verifier, and a
+   * pasted old email is none of those things. Routing it through `items` would
+   * let last quarter's numbers become this campaign's "supported claims". The
+   * prompt renders these inside the untrusted-content spotlight and says
+   * explicitly that they establish no facts.
+   */
+  styleSamples?: GatewayStyleSample[];
   /** Revision mode. */
   existingSubject?: string | null;
   existingBody?: string | null;
@@ -57,6 +70,15 @@ export interface GenerationRequest {
    * blocked draft the moment ENGAGEMENT_GENERATION_GATEWAY was turned on.
    */
   authHeader?: string;
+}
+
+/** One user-supplied exemplar email. Voice only; never evidence. */
+export interface GatewayStyleSample {
+  /** Derived content hash, so the manifest can name a sample without its text. */
+  sampleKey: string;
+  label: string | null;
+  subject: string | null;
+  body: string;
 }
 
 export interface GatewayRecipient {
@@ -87,6 +109,13 @@ export interface PinnedGenerationIdentity {
   provider: string;
   model: string;
   planModel: string | null;
+  /**
+   * Reasoning depth pinned for the whole operation, alongside provider/model and
+   * for the same reason: an async job's later chunks must reason as deeply as its
+   * first one, or one campaign's drafts vary in quality by whichever container
+   * happened to claim them. `null` means no reasoning parameter was requested.
+   */
+  reasoningEffort?: ReasoningEffort | null;
   promptSpecVersion: string;
   policyId: string;
   policyVersion: string;
@@ -135,11 +164,19 @@ export interface GenerationSourceManifest {
   provider: string | null;
   model: string | null;
   planModel: string | null;
+  /** The reasoning depth actually requested, or null when the model takes none. */
+  reasoningEffort: string | null;
   promptSpecVersion: string;
   /** Mailbox breadth, verbatim: "My mailbox" | "Firm-shared client history". */
   emailScopeLabel: string;
   /** Standing-memory items applied (style/framing only). */
   standingMemoryCount: number;
+  /**
+   * User-supplied exemplars applied (voice only). A COUNT, matching
+   * standingMemoryCount's precedent: the manifest is rendered to everyone who
+   * can see the draft, and an exemplar is verbatim prior correspondence.
+   */
+  styleSampleCount: number;
   /** What the user must resolve before this can be sent. */
   criticalMissingContext: string[];
   /** Attachment/scan disclosures the UI must show. */

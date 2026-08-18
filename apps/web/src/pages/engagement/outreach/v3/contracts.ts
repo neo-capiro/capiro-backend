@@ -107,6 +107,19 @@ export interface OutreachV3ExcludedContextRef {
   [key: string]: unknown;
 }
 
+/**
+ * A user-supplied example email, used as a few-shot exemplar for voice.
+ *
+ * `sampleKey` is derived server-side from the content, so it is read-only here:
+ * the UI uses it to address a removal, never to assert identity.
+ */
+export interface OutreachV3StyleSample {
+  sampleKey: string;
+  label: string | null;
+  subject: string | null;
+  body: string;
+}
+
 export interface OutreachV3CampaignSpec {
   schemaVersion: 'outreach_campaign_spec_v1';
   goal: {
@@ -155,6 +168,20 @@ export interface OutreachV3CampaignSpec {
     length: OutreachV3Length;
     customLengthInstruction: string | null;
   };
+  /**
+   * Optional and ABSENT (not `[]`) when the campaign has no examples — the server
+   * omits the key entirely so a spec with no samples keeps the canonical hash it
+   * had before this field existed. Read it through `outreachV3StyleSamples()`
+   * rather than testing for undefined at each call site.
+   */
+  styleSamples?: OutreachV3StyleSample[];
+}
+
+/** Normalizes the deliberate absent-vs-empty distinction above. */
+export function outreachV3StyleSamples(
+  spec: Pick<OutreachV3CampaignSpec, 'styleSamples'>,
+): OutreachV3StyleSample[] {
+  return spec.styleSamples ?? [];
 }
 
 export type OutreachV3ReadinessBlocker =

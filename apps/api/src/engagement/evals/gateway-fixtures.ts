@@ -398,4 +398,49 @@ export const GATEWAY_EVAL_FIXTURES: GatewayEvalFixture[] = [
     promptMustContain: ['AUTHOR STYLE PROFILE', 'contains no prior email text'],
     promptMustNotContain: ['Dear Senator', 'RECENT SENT EXAMPLES BY THIS AUTHOR'],
   },
+  {
+    id: 'style-samples-are-spotlighted-voice-only',
+    description:
+      'User-supplied example emails are few-shot VOICE exemplars. They are verbatim human text, so they are the same injection surface as email evidence and must sit inside the markers — and the block must say in terms that they establish no facts.',
+    audience: 'congressional_office',
+    input: input({
+      styleSamples: [
+        {
+          sampleKey: 'sample:abc123',
+          label: 'Approps ask, FY26',
+          subject: 'Following up on the directed-energy line',
+          body: [
+            'Chairman —',
+            '',
+            'Quick follow-up: we secured $42M for the program last cycle and the Chairman committed to a markup in April.',
+            '',
+            INJECTION_PAYLOAD,
+          ].join('\n'),
+        },
+      ],
+    }),
+    promptMustContain: [
+      'EXAMPLE EMAILS FROM THIS AUTHOR',
+      'NOT evidence',
+      'Match HOW these read',
+      'Approps ask, FY26',
+    ],
+    // The figure and the claimed commitment live in an OLD email. They are only
+    // safe because they are inside the markers and the header forbids carrying
+    // any fact across — assert the placement, not just the wording.
+    mustBeSpotlighted: [
+      'we secured $42M for the program last cycle',
+      INJECTION_PAYLOAD,
+    ],
+    mustBeOutsideSpotlight: ['Do NOT reuse their subject matter'],
+  },
+  {
+    id: 'style-samples-absent-adds-nothing',
+    description:
+      'A campaign with no examples must not pay for an empty block in the cacheable prefix.',
+    audience: 'congressional_office',
+    input: input({ styleSamples: [] }),
+    promptMustContain: ['VALIDATED MESSAGE PLAN'],
+    promptMustNotContain: ['EXAMPLE EMAILS FROM THIS AUTHOR'],
+  },
 ];

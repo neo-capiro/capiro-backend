@@ -481,6 +481,66 @@ describe('VNextOutreachWorkspace', () => {
     });
   });
 
+  describe('optional Examples step (few-shot samples)', () => {
+    it('sits between Context and Drafts, and renumbers the steps after it', () => {
+      const { container } = renderWorkspace('targets');
+      const labels = Array.from(
+        container.querySelectorAll('.uui-outreach-step-strip button'),
+      ).map((node) => node.textContent);
+      expect(labels).toEqual([
+        'Goal',
+        'Targets',
+        'Delivery',
+        'Context',
+        'Examples',
+        'Drafts',
+        'Send',
+      ]);
+
+      const numbers = Array.from(
+        container.querySelectorAll('.uui-outreach-section__number'),
+      ).map((node) => node.textContent);
+      expect(numbers).toEqual(['01', '02', '03', '04', '05', '06', '07']);
+    });
+
+    it('is reachable from the very first planning stage — it never blocks or is blocked', () => {
+      const { container } = renderWorkspace('goal');
+      const strip = container.querySelector('.uui-outreach-step-strip')!;
+      const examples = within(strip as HTMLElement).getByRole('button', { name: 'Examples' });
+      expect(examples).toHaveProperty('disabled', false);
+    });
+
+    it('reads "no examples added" rather than Complete when the campaign has none', () => {
+      // The bug this pins: an optional step is passed by the planning stage the
+      // moment Context is done, so the generic "index < planningIndex" rule would
+      // label it Complete and tell the user they had supplied examples.
+      const { container } = renderWorkspace('drafts');
+      const heading = Array.from(
+        container.querySelectorAll('.uui-outreach-section__header strong'),
+      ).find((node) => node.textContent === 'Examples')!;
+      const section = heading.closest('section')!;
+      expect(within(section).getByText('Optional — no examples added')).toBeInTheDocument();
+      expect(within(section).queryByText('Complete')).not.toBeInTheDocument();
+    });
+
+    it('renders the examples surface, not a decision surface, in its own section', () => {
+      const { container } = renderWorkspace('samples');
+      const heading = Array.from(
+        container.querySelectorAll('.uui-outreach-section__header strong'),
+      ).find((node) => node.textContent === 'Examples')!;
+      const section = heading.closest('section')!;
+      expect(within(section).getByText('Show Meri how you write')).toBeInTheDocument();
+    });
+
+    it('gets its own dot on the narrow rail without colliding with Delivery or Drafts', () => {
+      const { container } = renderWorkspace('targets');
+      const dotRail = container.querySelector('.uui-outreach-step-dots')! as HTMLElement;
+      expect(within(dotRail).getByText('Ex')).toHaveAttribute('aria-label', 'Examples');
+      expect(within(dotRail).getByText('D')).toHaveAttribute('aria-label', 'Delivery');
+      expect(within(dotRail).getByText('Dr')).toHaveAttribute('aria-label', 'Drafts');
+    });
+  });
+
   describe('accordion status vocabulary (item 3)', () => {
     it('shows Complete for answered sections, In progress for the current one, and Locked for not-yet-reached ones', () => {
       // stage='targets', no drafts yet: Goal precedes the current planning

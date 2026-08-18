@@ -22,7 +22,11 @@ import {
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { CurrentDecisionSurface } from '../../../pages/engagement/outreach/v3/CurrentDecisionSurface.js';
 import { GoalDecisionSurface } from '../../../pages/engagement/outreach/v3/GoalDecisionSurface.js';
-import type { OutreachV3Stage } from '../../../pages/engagement/outreach/v3/contracts.js';
+import {
+  outreachV3StyleSamples,
+  type OutreachV3Stage,
+} from '../../../pages/engagement/outreach/v3/contracts.js';
+import { StyleSamplesSurface } from '../../../pages/engagement/outreach/v3/StyleSamplesSurface.js';
 import { useOutreachV3Session } from '../../../pages/engagement/outreach/v3/useOutreachV3Session.js';
 import { useApi } from '../../../lib/use-api.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
@@ -74,6 +78,7 @@ export type EngagementOutreachStep =
   | 'targets'
   | 'delivery'
   | 'context'
+  | 'samples'
   | 'drafts'
   | 'send';
 
@@ -102,13 +107,23 @@ interface Props {
   onExit: () => void;
 }
 
-const USER_STEPS: Array<{ key: EngagementOutreachStep; label: string; number: string }> = [
+const USER_STEPS: Array<{
+  key: EngagementOutreachStep;
+  label: string;
+  number: string;
+  /** Contributes no readiness blocker; reachable and completable while empty. */
+  optional?: boolean;
+}> = [
   { key: 'goal', label: 'Goal', number: '01' },
   { key: 'targets', label: 'Targets', number: '02' },
   { key: 'delivery', label: 'Delivery', number: '03' },
   { key: 'context', label: 'Context', number: '04' },
-  { key: 'drafts', label: 'Drafts', number: '05' },
-  { key: 'send', label: 'Send', number: '06' },
+  // Sits between Context and Drafts on purpose: examples shape HOW the drafts
+  // read, so it belongs after every decision about what they may say and
+  // immediately before the step that writes them.
+  { key: 'samples', label: 'Examples', number: '05', optional: true },
+  { key: 'drafts', label: 'Drafts', number: '06' },
+  { key: 'send', label: 'Send', number: '07' },
 ];
 
 // One initial per step for the narrow-width dot rail. "Dr" (not "D") for
@@ -118,18 +133,29 @@ const STEP_DOT_LABEL: Record<EngagementOutreachStep, string> = {
   targets: 'T',
   delivery: 'D',
   context: 'C',
+  // "Ex" for Examples, since "E" is not obviously distinct from the neighbouring
+  // initials at dot size.
+  samples: 'Ex',
   drafts: 'Dr',
   send: 'S',
 };
 
+/**
+ * Canonical stage -> USER_STEPS index.
+ *
+ * `strategy`/`ready_for_generation` map to 5 (Drafts), not 4: inserting the
+ * optional Examples step at 4 pushed Drafts down by one. There is no entry for
+ * Examples because no canonical stage corresponds to it — it is optional, so
+ * readiness never names it and the stage machine never stops there.
+ */
 const PLANNING_STAGE_INDEX: Record<OutreachV3Stage, number> = {
   goal: 0,
   sponsor: 0,
   targets: 1,
   delivery: 2,
   context: 3,
-  strategy: 4,
-  ready_for_generation: 4,
+  strategy: 5,
+  ready_for_generation: 5,
 };
 
 function stepIndex(step: EngagementOutreachStep): number {
@@ -480,6 +506,12 @@ function summaryForStep(
       spec.context.targetSpecificRefs.length +
       spec.context.groupSafeRefs.length;
     return `${used} governed sources · ${spec.context.excludedRefs.length} excluded`;
+  }
+  if (step === 'samples') {
+    const count = outreachV3StyleSamples(spec).length;
+    return count
+      ? `${count} example email${count === 1 ? '' : 's'} shaping voice`
+      : 'Optional — no examples added';
   }
   if (step === 'drafts') {
     const approved = drafts.filter(
@@ -1851,7 +1883,9 @@ export function VNextOutreachWorkspace({
   });
 
   const currentDrafts = drafts.data ?? [];
-  const reachedIndex = Math.max(planningIndex, currentDrafts.length ? 5 : 4);
+  // Drafts (5) is always reachable; Send (6) opens once drafts exist. Both indices
+  // shifted by one when the optional Examples step landed at 4.
+  const reachedIndex = Math.max(planningIndex, currentDrafts.length ? 6 : 5);
   const activeIntent = intent.data ?? null;
   const campaignHeading = outreachCampaignHeading(session);
   const mutationInFlight =
@@ -2055,8 +2089,13 @@ export function VNextOutreachWorkspace({
           {USER_STEPS.map((candidate, index) => {
             const waiting = index > reachedIndex;
             const inProgress = candidate.key === step && !waiting;
+            // An OPTIONAL step is only "Complete" once it actually holds something.
+            // Without this, Examples would read Complete the moment planning passed
+            // it — telling the user they had supplied examples when they had not.
+            const optionalSatisfied =
+              candidate.key === 'samples' ? outreachV3StyleSamples(session.spec).length > 0 : true;
             const locked =
-              index < planningIndex ||
+              (index < planningIndex && optionalSatisfied) ||
               (candidate.key === 'drafts' && currentDrafts.length > 0 && step !== 'drafts') ||
               (candidate.key === 'send' && Boolean(activeIntent));
             // `state` drives both the tone/color (data-state, unchanged) and,
@@ -2067,7 +2106,7 @@ export function VNextOutreachWorkspace({
                 ? 'locked'
                 : inProgress
                   ? 'in-progress'
-                  : index < reachedIndex
+                  : index < reachedIndex && optionalSatisfied
                     ? 'locked'
                     : 'in-progress';
             const open = openSections.has(candidate.key) && !waiting;
@@ -2087,7 +2126,11 @@ export function VNextOutreachWorkspace({
                   <span className="uui-outreach-section__number">{candidate.number}</span>
                   <strong>{candidate.label}</strong>
                   <small>
-                    {state === 'locked'
+                    {/* The optional step always shows its summary: "Optional — no
+                        examples added" is the single most useful thing a collapsed
+                        Examples header can say, and it never reaches state
+                        'locked' while empty. */}
+                    {state === 'locked' || candidate.optional
                       ? summaryForStep(candidate.key, session, currentDrafts, preflight)
                       : ''}
                   </small>
@@ -2096,7 +2139,14 @@ export function VNextOutreachWorkspace({
                 </button>
                 {open ? (
                   <div className="uui-outreach-section__body">
-                    {candidate.key === 'drafts' && controller.stage === 'ready_for_generation' ? (
+                    {candidate.key === 'samples' ? (
+                      <StyleSamplesSurface
+                        session={session}
+                        busy={controller.applyingCommands}
+                        applyCommands={controller.applyCommands}
+                        onContinue={() => selectStep('drafts')}
+                      />
+                    ) : candidate.key === 'drafts' && controller.stage === 'ready_for_generation' ? (
                       <DraftPanel
                         session={session}
                         plan={plan.data ?? null}

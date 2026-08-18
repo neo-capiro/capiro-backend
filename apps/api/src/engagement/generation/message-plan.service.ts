@@ -29,6 +29,7 @@ import {
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
 import type { GaPolicy } from './government-affairs-policy.registry.js';
 import { extractJsonObject } from './json-extract.js';
+import type { ReasoningEffort } from './reasoning-effort.js';
 
 /**
  * Models known to honor strict JSON schema output. The plan requires the fast
@@ -65,6 +66,16 @@ export interface BuildPlanRequest {
   groupMemberCount?: number;
   clientName: string | null;
   tone: 'professional' | 'friendly' | 'formal' | 'concise';
+  /**
+   * Reasoning depth for the PLAN pass.
+   *
+   * Supplied by the caller rather than read from config here so the plan reasons
+   * at the same pinned depth as the draft it feeds. The plan decides which claims
+   * the draft is permitted to make, so under-reasoning here silently caps the
+   * quality of a deeply-reasoned draft — the writer can only express what the
+   * plan already approved.
+   */
+  reasoningEffort?: ReasoningEffort | null;
 }
 
 export interface BuildPlanResult {
@@ -121,6 +132,7 @@ export class MessagePlanService {
       jsonSchema: MESSAGE_PLAN_JSON_SCHEMA as unknown as Record<string, unknown>,
       jsonSchemaName: 'message_plan',
       maxTokens: 2000,
+      ...(request.reasoningEffort ? { reasoningEffort: request.reasoningEffort } : {}),
       // RC8 (zero-trust Wave 1) pinned temperature: 0.2 here to cut sampling
       // variance on figure-heavy plans. Removed: the pinned outreach planning
       // model now rejects any non-default temperature outright ("temperature
