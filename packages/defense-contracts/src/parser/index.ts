@@ -95,3 +95,5 @@ export interface DefenseParserJobResult {
   readonly parserVersion: string;
   readonly sourceSha256?: string;
 }
+
+export * from './nvidia-batch.js';
