@@ -1,0 +1,94 @@
+name: Knowledge Plane Phase 16 CI
+
+on:
+  push:
+    branches:
+      - agent/knowledge-plane-phase-16-five-context-layers
+    paths:
+      - 'packages/meriv2-core/src/context/**'
+      - 'packages/meriv2-core/src/index.ts'
+      - 'apps/api/src/context/**'
+      - 'apps/api/src/retrieval/retrieval-v2.types.ts'
+      - 'apps/api/src/retrieval/data-catalog/**'
+      - 'docs/knowledge-plane/phase-16-five-context-layers.md'
+      - '.github/workflows/knowledge-phase16-ci.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'packages/meriv2-core/src/context/**'
+      - 'packages/meriv2-core/src/index.ts'
+      - 'apps/api/src/context/**'
+      - 'apps/api/src/retrieval/retrieval-v2.types.ts'
+      - 'apps/api/src/retrieval/data-catalog/**'
+      - 'docs/knowledge-plane/phase-16-five-context-layers.md'
+      - '.github/workflows/knowledge-phase16-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch hygiene
+        run: git diff --check origin/main...HEAD
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages consumed by API
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Validate and generate Prisma client
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Phase 16 five-layer contracts
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/context/context-layer.service.spec.ts \
+            src/context/context-resolver.service.spec.ts \
+            src/context/context-resolver-architecture.contract.spec.ts \
+            src/context/context-compiler.service.spec.ts \
+            src/context/context-compiler-v2.service.spec.ts \
+            src/retrieval/data-catalog/semantic-data-catalog.service.spec.ts
+
+      - name: Phase 15 retrieval/security regressions
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/retrieval/adapters/core-prisma-security-scope.spec.ts \
+            src/retrieval/retrieval-v2.service.spec.ts \
+            src/retrieval/coverage-manifest.spec.ts
+
+      - name: Reject Phase 16 TypeScript errors
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @capiro/api exec tsc --noEmit --pretty false > /tmp/api-tsc.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/api-tsc.log
+          if grep -E 'src/context/context-layer|src/context/context\.module|src/context/context-resolver|src/retrieval/retrieval-v2\.types|src/retrieval/data-catalog' /tmp/api-tsc.log; then
+            echo "Phase 16 introduced TypeScript errors." >&2
+            exit 1
+          fi
+          echo "Full API typecheck exit: $status (unrelated baseline errors, if any, are not attributed to Phase 16)."
