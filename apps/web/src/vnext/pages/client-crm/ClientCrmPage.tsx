@@ -96,7 +96,11 @@ export function ClientCrmPage({ client }: { client: Client }) {
   });
 
   // §15: opens the real review drawer, which resumes any in-flight run or
-  // starts a fresh one itself — no fabricated delay or change count here.
+  // lets the user choose a document upload vs. a source run — no fabricated
+  // delay or change count here. It cannot auto-start a source run itself
+  // (see ClientFillWithMeriDrawer.contract.test.ts): the backend resumes any
+  // run still within its 15-minute staleness window regardless of the new
+  // request, so an eager auto-start would silently swallow a document pick.
   const runFillWithMeri = useCallback(() => {
     setFillOpen(true);
   }, []);

@@ -110,7 +110,7 @@ beforeEach(() => {
 });
 
 describe('ClientCrmPage header wiring', () => {
-  it('opens the Fill with Meri drawer immediately and auto-starts a real run (no fake delay/toast)', async () => {
+  it('opens the Fill with Meri drawer immediately and starts a real run on request (no fake delay/toast)', async () => {
     renderPage();
 
     fireEvent.click(screen.getByRole('button', { name: 'Fill with Meri' }));
@@ -120,8 +120,15 @@ describe('ClientCrmPage header wiring', () => {
     expect(await screen.findByText('Fill with Meri — Overland AI')).toBeInTheDocument();
     expect(screen.queryByText('Meri proposed 7 field changes for review')).not.toBeInTheDocument();
 
-    // Auto-start fired a real run rather than waiting on a manual "Start
-    // enrichment" click.
+    // No auto-start on open (see ClientFillWithMeriDrawer.contract.test.ts):
+    // the backend resumes any run still within its 15-minute staleness
+    // window regardless of the new request, so an eager auto-start would
+    // silently swallow a document picked moments later instead of reading it.
+    const startButton = await screen.findByRole('button', { name: 'Start enrichment' });
+    expect(postMock).not.toHaveBeenCalled();
+
+    // Clicking through still fires a real run, not a fabricated toast.
+    fireEvent.click(startButton);
     await waitFor(() => expect(postMock).toHaveBeenCalledWith(expect.stringContaining('/fill-with-meri/runs'), {}));
   });
 
