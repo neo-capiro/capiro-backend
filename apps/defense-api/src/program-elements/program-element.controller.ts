@@ -100,6 +100,12 @@ export class ProgramElementController {
         q: query.q,
         page: query.page,
         limit: query.limit,
+        // `mode` and `divergence_threshold` are part of apps/api's behaviour on
+        // this same route (the watchlist markup-monitor view). Accepting them in
+        // the DTO and then dropping them here made `?mode=markup-monitor` return
+        // the ordinary catalog page instead.
+        mode: query.mode,
+        divergenceThreshold: query.divergence_threshold,
         hasData: query.has_data,
         watched: query.watched,
         lineType: query.line_type,

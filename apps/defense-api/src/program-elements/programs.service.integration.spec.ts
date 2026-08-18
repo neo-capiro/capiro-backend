@@ -108,15 +108,112 @@ test('mergePrograms dedupes colliding rows and retires (not deletes) the loser (
   await insertMatch(collidingMatchId, peCode, mergeId, 'candidate', 0.5);
   await insertMatch(uniqueMatchId, `${peCode}X`, mergeId, 'candidate', 0.6);
 
+  // A person_role and a provision_pe_link on the loser. apps/api repoints BOTH
+  // (person_role has no unique on program_id -> straight UPDATE; provision_pe_link
+  // is keyed on (provisionId, peCode ?? '') -> dedupe). The prior defense-api
+  // implementation touched neither, so a merge silently orphaned the loser's
+  // people and its committee report language.
+  const personId = randomUUID();
+  const roleId = randomUUID();
+  await admin.$executeRawUnsafe(
+    `INSERT INTO acquisition_personnel (id, full_name, name_key, updated_at)
+     VALUES ($1::uuid, $2, $3, $4)`,
+    personId,
+    `P8S3 Rehearsal Person ${suffix}`,
+    `p8s3-rehearsal-person-${suffix}`,
+    now,
+  );
+  await admin.$executeRawUnsafe(
+    `INSERT INTO person_role
+       (id, person_id, program_id, role_title, role_type, source, observed_at, contact_use, created_at, updated_at)
+     VALUES ($1::uuid, $2::uuid, $3::uuid, 'PM', 'pm', 'p8s3-rehearsal', $4, 'program_ownership_context', $4, $4)`,
+    roleId,
+    personId,
+    mergeId,
+    now,
+  );
+
+  const sourceDocId = randomUUID();
+  const provisionId = randomUUID();
+  const provLinkId = randomUUID();
+  await admin.$executeRawUnsafe(
+    `INSERT INTO source_document
+       (id, source_key, budget_cycle, document_type, title, source_url, extraction_method)
+     VALUES ($1::uuid, $2, 'hasc', 'committee_report', $3, $4, 'manual')`,
+    sourceDocId,
+    `p8s3-merge-${suffix}`,
+    `P8S3 Merge Rehearsal Report ${suffix}`,
+    `https://example.test/p8s3-merge-${suffix}`,
+  );
+  await admin.$executeRawUnsafe(
+    `INSERT INTO committee_report_provision
+       (id, source_document_id, committee, fy, heading, text, updated_at)
+     VALUES ($1::uuid, $2::uuid, 'HASC', 2027, 'Rehearsal heading', 'Rehearsal provision text', $3)`,
+    provisionId,
+    sourceDocId,
+    now,
+  );
+  await admin.$executeRawUnsafe(
+    `INSERT INTO provision_pe_link
+       (id, provision_id, program_id, match_basis, review_status, confidence, updated_at)
+     VALUES ($1::uuid, $2::uuid, $3::uuid, 'program_alias', 'accepted', 0.8, $4)`,
+    provLinkId,
+    provisionId,
+    mergeId,
+    now,
+  );
+
   const service = new ProgramsService(prisma);
   const result = await service.mergePrograms({ keepProgramId: keepId, mergeProgramId: mergeId }, { tenantId, userId, role: 'capiro_admin' });
 
+  // Envelope is apps/api's, field-for-field: { merged, keepProgramId,
+  // mergeProgramId, repointed: { matches, roles, officeLinks, provisionLinks },
+  // aliasesCopied }. The per-table DELETE counts stay in the audit log, not the
+  // response, so collision-dedup is asserted below against real DB state -- a
+  // stronger check than trusting a counter the implementation reports about itself.
+  assert.equal(result.merged, true);
   assert.equal(result.keepProgramId, keepId);
-  assert.equal(result.mergedProgramId, mergeId);
-  assert.equal(result.repointed.aliasesDropped, 1, 'the colliding alias must be dropped, not thrown on');
-  assert.equal(result.repointed.aliasesCopied, 1, 'the non-colliding alias must be repointed to the keeper');
-  assert.equal(result.repointed.matchesDropped, 1, 'the colliding match must be dropped, not thrown on');
-  assert.equal(result.repointed.matchesRepointed, 1, 'the non-colliding match must be repointed to the keeper');
+  assert.equal(result.mergeProgramId, mergeId);
+  assert.equal(result.aliasesCopied, 1, 'the non-colliding alias must be repointed to the keeper');
+  assert.equal(result.repointed.matches, 1, 'the non-colliding match must be repointed to the keeper');
+  assert.equal(result.repointed.roles, 1, 'a person_role on the loser must be repointed, not orphaned');
+  assert.equal(
+    result.repointed.provisionLinks,
+    1,
+    'a non-colliding provision_pe_link on the loser must be repointed, not orphaned',
+  );
+
+  // The loser must be left holding NOTHING: every colliding row deleted, every
+  // non-colliding row repointed. A row still pointing at a retired program is
+  // exactly the silent data-loss this merge exists to avoid.
+  // ALIASES ARE THE ONE EXCEPTION, and it is apps/api's behaviour, not an
+  // oversight: a loser alias whose (aliasNormalized, aliasType) the keeper ALREADY
+  // has is left where it is (`continue`), not deleted -- the keeper already carries
+  // an equivalent alias, and the loser row is retired, so nothing is lost and no
+  // history is destroyed. Only the non-colliding alias moves. defense-api matches
+  // that exactly; the PRIOR implementation deleted the colliding row, which was a
+  // silent divergence from apps/api in the destructive direction.
+  const loserAliasesAfter = await admin.programAlias.findMany({ where: { programId: mergeId } });
+  assert.deepEqual(
+    loserAliasesAfter.map((a) => a.aliasNormalized),
+    ['SHARED NAME'],
+    'exactly the colliding alias stays with the retired loser, matching apps/api',
+  );
+  assert.equal(
+    await admin.peProgramMatch.count({ where: { programId: mergeId } }),
+    0,
+    'no pe_program_match may still point at the retired loser',
+  );
+  assert.equal(
+    await admin.personRole.count({ where: { programId: mergeId } }),
+    0,
+    'no person_role may still point at the retired loser',
+  );
+  assert.equal(
+    await admin.provisionPeLink.count({ where: { programId: mergeId } }),
+    0,
+    'no provision_pe_link may still point at the retired loser',
+  );
 
   // The loser must still exist (retired), never hard-deleted.
   const loser = await admin.program.findUnique({ where: { id: mergeId } });
