@@ -1,10 +1,19 @@
 # Capiro defense-api dark-service image.
 # Build context: repository root.
+#
+# Important: after `pnpm install`, copy only source + tsconfig for each package —
+# never `COPY packages/<name> packages/<name>` wholesale. A full-directory copy
+# overwrites the per-package node_modules pnpm just created (or collides with a
+# hoisted layout). The main API Dockerfile uses the same src/tsconfig-only pattern.
 ARG NODE_VERSION=20.16.0
 
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
+# Prefer hardlinks/copy over deep host-path symlinks inside BuildKit cache mounts.
+# On Docker Desktop for Windows, default store symlinks have been observed to bake
+# unreachable host paths into the install graph (tsc MODULE_NOT_FOUND).
+ENV PNPM_PACKAGE_IMPORT_METHOD=copy
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /workspace
 
@@ -17,13 +26,8 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
 
 # pnpm install --frozen-lockfile validates the lockfile against every project
 # pnpm-workspace.yaml's globs (apps/*, packages/*, infra/*) can discover, not
-# just the ones --filter will actually build below. Copying only
-# defense-api's own dependency package.jsons left the rest of the workspace
-# glob resolving to nothing on disk, which silently produced an incomplete
-# install graph -- packages/auth's own "typescript" devDependency never got
-# linked, so its build step failed with tsc missing entirely. Every workspace
-# member's package.json has to be present for the lockfile to validate
-# correctly, even though only defense-api and its real dependencies get built.
+# just the ones --filter will actually build below. Every workspace member's
+# package.json has to be present for the lockfile to validate correctly.
 COPY apps/api-strategy/package.json apps/api-strategy/package.json
 COPY apps/api/package.json apps/api/package.json
 COPY apps/clio-sandbox/package.json apps/clio-sandbox/package.json
@@ -43,14 +47,26 @@ COPY packages/shared/package.json packages/shared/package.json
 COPY packages/strategy-verifier/package.json packages/strategy-verifier/package.json
 COPY infra/cdk/package.json infra/cdk/package.json
 
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+# Isolated cache mount id so defense-api installs never share a host-contaminated
+# pnpm store with other Windows Desktop builds.
+RUN --mount=type=cache,id=pnpm-defense-api,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter=@capiro/defense-api...
 
-COPY packages/auth packages/auth
-COPY packages/defense-contracts packages/defense-contracts
-COPY packages/defense-domain packages/defense-domain
-COPY packages/defense-client packages/defense-client
-COPY apps/defense-api apps/defense-api
+# Source only — preserve install-time node_modules under each package.
+COPY packages/auth/src packages/auth/src
+COPY packages/auth/tsconfig.json packages/auth/tsconfig.json
+COPY packages/defense-contracts/src packages/defense-contracts/src
+COPY packages/defense-contracts/tsconfig.json packages/defense-contracts/tsconfig.json
+COPY packages/defense-domain/src packages/defense-domain/src
+COPY packages/defense-domain/tsconfig.json packages/defense-domain/tsconfig.json
+COPY packages/defense-client/src packages/defense-client/src
+COPY packages/defense-client/tsconfig.json packages/defense-client/tsconfig.json
+COPY apps/defense-api/src apps/defense-api/src
+COPY apps/defense-api/tsconfig.json apps/defense-api/tsconfig.json
+COPY apps/defense-api/nest-cli.json apps/defense-api/nest-cli.json
+COPY apps/defense-api/prisma apps/defense-api/prisma
+COPY apps/defense-api/scripts apps/defense-api/scripts
+COPY apps/defense-api/package.json apps/defense-api/package.json
 
 RUN pnpm --filter @capiro/auth build \
  && pnpm --filter @capiro/defense-contracts build \
@@ -59,7 +75,7 @@ RUN pnpm --filter @capiro/auth build \
  && pnpm --filter @capiro/defense-api prisma:generate \
  && pnpm --filter @capiro/defense-api build
 
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+RUN --mount=type=cache,id=pnpm-defense-api,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --filter=@capiro/defense-api...
 
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION}-bookworm-slim AS runtime

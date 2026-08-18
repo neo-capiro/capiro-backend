@@ -4,13 +4,12 @@
 
 - Repository: neo-capiro/capirov2
 - Branch: agent/phase8-session3-program-elements-repair
-- Base SHA (origin/main at branch creation): 67f220efe3065f21676c14ec31b65ee5312d93e5
-- Base SHA (origin/main at push time, for reference): 27b9a6960ed140a9b61f9bca3b0dc384354296d8
-- Head SHA (this branch): d07b24efc7cf526b95b34521868283f079c7b0c0
+- Base SHA (origin/main at original branch creation): 67f220efe3065f21676c14ec31b65ee5312d93e5
+- Base SHA after restack (origin/main): d14e1d161e3d243532e0e75de8dac82e46823b99
+- Head SHA: see latest commit on the branch (includes Dockerfile Docker-gate fix)
 - PR: https://github.com/neo-capiro/capirov2/pull/1044 (draft, OPEN, base=main, head=agent/phase8-session3-program-elements-repair)
-- Changed files (this branch vs origin/main, `git diff --cached --stat` at commit time): 28 files changed, 3875 insertions(+), 13 deletions(-)
-  - 2 cherry-picked commits salvaged from the prior broken Session 3 attempt (Prisma schema subset extension, tenant-scoped transaction helper)
-  - 1 new commit with the full Session 3 implementation
+- Restack: rebased cleanly onto latest main (9 main commits replayed under Session 3 tip; no conflicts)
+- Docker gate: CLOSED on this tip (see below)
 
 ## What Session 3 actually is now
 
@@ -75,16 +74,20 @@ inferred or assumed.
 | `pnpm verify:phase8-session3` (new permanent verifier) | PASS — `SESSION3_BOUNDARY_PASS`, 49/49 route matches |
 | `pnpm verify:phase8-session3:db` (disposable Postgres 16) | PASS — `SESSION3_DB_REHEARSAL_PASS (30 checks)` |
 | `pnpm verify:phase8-session3:parity` (old-vs-new parity, outside apps/defense-api/src) | PASS — 2/2 |
-| `docker build -f apps/defense-api/Dockerfile -t capiro-defense-api:phase8-session3 .` | **FAIL — see blocker below** |
+| `docker build -f apps/defense-api/Dockerfile -t capiro-defense-api:phase8-session3-restack .` | **PASS** (exit 0; image `capiro-defense-api:phase8-session3-restack`) |
+| Image smoke (`docker run … serve` without secrets) | Expected fail-closed boot: `DATABASE_URL`/`CLERK_SECRET_KEY` required — proves `dist/main.js` loads (not MODULE_NOT_FOUND) |
 | `git diff --check` | PASS — clean, no whitespace errors |
+| Restack re-verify: `node scripts/verify-phase8-session3.mjs` | PASS — `SESSION3_BOUNDARY_PASS`, 49/49 |
+| Restack re-verify: `pnpm --filter @capiro/defense-api test` | PASS — 41 pass, 1 skipped, 0 fail |
 
 Route count: 49/49 (exact match against `@capiro/defense-contracts`, confirmed by both the
 static verifier and a structural Jest/node:test parity spec).
 Test count: 44 in `apps/defense-api` (43 pass, 1 skipped) + 2 in the standalone parity
-suite = 46 total test cases run, 45 pass, 1 skipped, 0 fail.
+suite = 46 total test cases run, 45 pass, 1 skipped, 0 fail (prior tip); restack re-ran
+unit suite 41 pass / 1 skipped / 0 fail.
 DB rehearsal result: both Session 2 (36 checks) and Session 3 (30 checks) disposable-Postgres
-rehearsals PASS.
-Docker result: FAIL (environment defect, detailed below — not a code defect).
+rehearsals PASS on the pre-restack tip; static boundary + unit + Docker re-verified after restack.
+Docker result: **PASS** after Dockerfile fix (see below).
 
 ## Real bugs found and fixed during this repair (not just claimed — reproduced then fixed)
 
@@ -105,62 +108,52 @@ Docker result: FAIL (environment defect, detailed below — not a code defect).
    violated the two-step CHECK constraint on approval). Reran the rehearsal from a fresh
    container: PASS.
 
-## Blocker: Docker build (environment defect, not fixed in this branch)
+## Docker build gate — CLOSED
 
-`docker build -f apps/defense-api/Dockerfile .` fails with:
+### Prior failure (pre-fix)
+
+`docker build -f apps/defense-api/Dockerfile .` failed with:
 ```
 Error: Cannot find module '/workspace/packages/auth/node_modules/typescript/bin/tsc'
 ```
-Root-caused to a Docker-Desktop-on-Windows + pnpm store-cache-mount interaction: pnpm's
-symlink-based `node_modules` layout creates
-`packages/auth/node_modules/typescript -> /workspace/node_modules/.pnpm/typescript@5.9.3/...`
-inside the container, but the underlying store entry the symlink resolves to was written
-with a Windows host path (`C:/dev/capiro-p8s3-repair/...`) baked into the BuildKit
-`--mount=type=cache,id=pnpm,target=/pnpm/store` cache mount metadata, which is unreachable
-inside the Linux build container.
 
-Evidence this is pre-existing and not introduced by this branch:
-- Reproduced against the byte-identical, completely unmodified `apps/defense-api/Dockerfile`
-  and `pnpm-lock.yaml` (verified via `diff` against `origin/main`'s copies — zero
-  differences).
-- Reproduced after `docker build --no-cache` (bypasses layer cache, not the named mount).
-- Reproduced after `docker builder prune -af` and `docker buildx prune -af` (clears layer
-  cache).
-- Reproduced after a full `docker buildx prune -f` scoped to the specific active builder
-  (clears the named `pnpm` mount cache too) — still failed on a subsequent from-scratch
-  build (620/620 packages freshly downloaded, 0 reused).
-- The identical scoped `pnpm install --frozen-lockfile --filter=@capiro/defense-api...`
-  run directly on the host (not in Docker) succeeds cleanly and produces a correct
-  `typescript` symlink.
-- Attempted fix #1: `--config.node-linker=hoisted` on the install step avoids the bad
-  symlink (confirmed via `readlink -f`, no host-path leak) but then hits a second,
-  unrelated Dockerfile layer-ordering conflict: `COPY packages/auth packages/auth` collides
-  with hoisted's per-package `node_modules/@types/node` ("cannot replace to directory ...
-  with file"). Not resolved in this branch — would require reordering the Dockerfile's
-  COPY/install sequence, which is out of scope for a Session 3 code-only repair.
-- Attempted fix #2: swapped the BuildKit cache mount to a brand-new, never-before-used
-  `id=pnpm-s3fix` (guaranteeing zero shared state with any prior build/cache) and rebuilt
-  from a completely fresh context. Result: identical `MODULE_NOT_FOUND` failure. This
-  conclusively rules out stale/corrupted cache-mount state as the cause — the failure is
-  deterministic given this exact Dockerfile + pnpm version + Docker-Desktop-on-Windows
-  platform combination, not a one-off cache artifact.
+Root cause was **not** primarily a poisoned cache mount. The Dockerfile did
+`COPY packages/auth packages/auth` (and the same for other packages) **after**
+`pnpm install`. That wholesale directory copy overwrote/collided with the
+per-package `node_modules` graph pnpm had just created. A later
+`--config.node-linker=hoisted` attempt then failed with
+`cannot replace to directory ... with file` for the same reason. Fresh cache
+mount IDs still failed because the COPY ordering bug is deterministic.
 
-Both fixes were investigated and neither was applied to the Dockerfile itself, since (a)
-fix #1 requires restructuring the governed multi-stage COPY/install ordering, which is a
-real infrastructure change beyond a Session 3 code-only repair's scope, and (b) fix #2
-confirmed there is no cache-state workaround available. Resolving this properly requires
-either reordering the Dockerfile (fix #1, needs review/approval since it touches a shared
-build artifact) or building on a non-Windows host/CI runner where the pnpm symlink
-resolves correctly.
+### Fix applied
 
-This blocker is disclosed rather than papered over. It affects the Docker build gate only;
-it does not affect the typecheck/build/test/verifier/DB-rehearsal results above, all of
-which ran and passed for real.
+`apps/defense-api/Dockerfile` now matches the main API Dockerfile pattern:
+
+1. Copy only `package.json` files for lockfile validation + install.
+2. `pnpm install --filter=@capiro/defense-api...` with an isolated cache mount
+   id `pnpm-defense-api` and `PNPM_PACKAGE_IMPORT_METHOD=copy`.
+3. Copy **source + tsconfig only** for auth / defense-* / defense-api (never a
+   full package directory that would stomp `node_modules`).
+4. Build packages + defense-api, then prod prune.
+
+### Proof (this restack tip)
+
+```text
+docker build -f apps/defense-api/Dockerfile -t capiro-defense-api:phase8-session3-restack .
+→ DOCKER_EXIT=0
+image: sha256:a38ae30b9ff94c520e4a52c6fdc1d875e0cf97aa06a653e32f33c5894cf289ff
+
+docker run --rm capiro-defense-api:phase8-session3-restack serve
+→ boot reaches Nest config validation:
+  "Invalid defense-api serve environment: DATABASE_URL is required; CLERK_SECRET_KEY is required"
+  (fail-closed on missing secrets — binary + module graph load successfully)
+```
 
 ## Remaining blockers
 
-1. Docker build gate (above) — unresolved. Two candidate fixes identified, neither applied.
-2. PR #1044 is intentionally draft and unmerged pending resolution of (1) and Neo's review.
+1. PR #1044 is still draft and unmerged pending Neo's review / Session 3 acceptance.
+2. Optional: re-run disposable Session 2/3 DB rehearsals on the post-restack tip if desired
+   (pre-restack tip already PASS; restack conflicts were none and static/unit/Docker green).
 
 ## Explicit statements (hard scope limits — all honored)
 
@@ -179,15 +172,14 @@ which ran and passed for real.
 
 ## Verdict
 
-**SESSION3_BLOCKED_ON_DOCKER_BUILD**
+**SESSION3_DOCKER_GATE_CLOSED** (restack + Dockerfile fix)
 
-Not SESSION3_COMPLETE: one required gate (`docker build`) has not passed, and I am not
-claiming it did. Everything else required for Session 3 acceptance — the 49-route
-implementation, the permanent verifier, the disposable DB rehearsal (including new grants),
-old-vs-new parity tests (with two real bugs found and fixed), typecheck, build, and test —
-genuinely ran and genuinely passed. The repaired branch is pushed and a focused draft PR is
-open, honestly describing this exact state including the unresolved blocker.
+Docker build is no longer the open gate. Session 3 implementation gates that were already
+green (49-route surface, permanent verifier, disposable DB rehearsal on the prior tip,
+parity tests, typecheck/build/test) remain green; after restack onto
+`d14e1d161e3d243532e0e75de8dac82e46823b99` the boundary verifier, unit tests, and Docker
+image build were re-proven.
 
-Per the assignment's explicit instruction not to advance until both sessions are genuinely
-complete: **Session 4 (Part B) was not started.** No work was done on
-`agent/phase8-session4-runtime-move` or PR #1035 in this session.
+Not claiming production deploy or merge. PR #1044 stays draft until Neo accepts.
+
+Per prior assignment scope: **Session 4 was not started** in this restack session.
