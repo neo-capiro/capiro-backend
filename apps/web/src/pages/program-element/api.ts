@@ -31,6 +31,14 @@ import type {
   BillActionEvent,
 } from './types.js';
 import type { IntelligenceChange } from '../intelligence/types.js';
+/* A top-level type-only import rather than the inline dynamic-style type
+ * annotations this function previously used: both are erased by tsc, but the
+ * vNext legacy-leak checker reads the inline form as a runtime edge (it cannot
+ * see type positions), and IntelligenceChips is a component module (antd)
+ * while this API module is imported at runtime from `src/vnext` (useDowModel).
+ * Don't spell the inline form literally anywhere in this file — comments
+ * included — or the checker flags it again. */
+import type { PeIntelligence } from './IntelligenceChips.js';
 
 export async function getProgramElementDetail(
   api: AxiosInstance,
@@ -78,9 +86,9 @@ export async function getProgramElementNarrative(
 export async function getProgramElementIntelligence(
   api: AxiosInstance,
   peCode: string,
-): Promise<import('./IntelligenceChips.js').PeIntelligence> {
+): Promise<PeIntelligence> {
   return (
-    await api.get<import('./IntelligenceChips.js').PeIntelligence>(
+    await api.get<PeIntelligence>(
       `/api/program-elements/${encodeURIComponent(peCode)}/intelligence`,
     )
   ).data;

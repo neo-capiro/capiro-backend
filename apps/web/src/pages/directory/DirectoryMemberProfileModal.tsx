@@ -30,21 +30,36 @@ import {
   stateDistrict,
   yearFromDate,
 } from './DirectoryPage.js';
+import {
+  FEC_FALLBACK_DISCLAIMER,
+  formatNewsDate,
+  formatNoteDate,
+  formatUsd,
+  noteAuthor,
+  romanNumeral,
+  type MemberFecSummary,
+  type MemberNewsPayload,
+  type MemberRepresentationSummary,
+} from './directory-format.js';
 import type { DirectoryContactNote, DirectoryEntry } from './directoryData.js';
 
 /**
  * The rich member detail view: seven tabs (Contact, Staff, Bio, Committees,
  * Leadership, Links, News) plus the Notes/Representation/FEC side panels.
  * Extracted out of `DirectoryPage` so the same depth is available wherever a
- * member can be selected — canonical's own `/directory` list and Directory
- * vNext's Congressional Staff screen both render this exact component, so the
- * two surfaces cannot drift apart on what a "member profile" shows.
+ * member can be selected on the CANONICAL surface (app.capiro.ai).
+ *
+ * Directory vNext's Congressional Staff screen used to render this exact
+ * component as a deliberate interim, but no legacy UI may render on the vNext
+ * surface any more: os.capiro.ai now renders `MemberProfileModalVNext`
+ * (`src/vnext/pages/directory/`), a tab-for-tab re-skin of this modal. The two
+ * share their pure formatters and endpoint contracts via `directory-format.ts`
+ * — change data semantics there, not in one modal only.
  *
  * Deliberately Ant Design throughout, matching the source it was extracted
- * from — the point is identical data and identical depth, not a vNext-styled
- * reskin. `theme.css` (imported once at the app root in `main.tsx`) is shared
- * by every surface regardless of which shell renders around it, so no CSS
- * import is needed here for the `directory-*` classes below to work.
+ * from. `theme.css` (imported once at the app root in `main.tsx`) is shared
+ * by every canonical surface regardless of which shell renders around it, so
+ * no CSS import is needed here for the `directory-*` classes below to work.
  */
 export function DirectoryMemberProfileModal({
   entry,
@@ -415,25 +430,6 @@ export function DirectoryMemberProfileModal({
   );
 }
 
-function romanNumeral(value: number | null): string {
-  return value === 1 ? 'I' : value === 2 ? 'II' : value === 3 ? 'III' : '';
-}
-
-function formatNoteDate(date: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(new Date(date));
-}
-
-function noteAuthor(note: DirectoryContactNote): string {
-  const fullName = [note.createdBy?.firstName, note.createdBy?.lastName].filter(Boolean).join(' ');
-  return fullName || note.createdBy?.email || 'Former user';
-}
-
 function DirectoryNotesPanel({ entry }: { entry: DirectoryEntry }) {
   const { message } = App.useApp();
   const api = useApi();
@@ -508,32 +504,6 @@ function DirectoryNotesPanel({ entry }: { entry: DirectoryEntry }) {
       </Space>
     </Card>
   );
-}
-
-interface MemberNewsItem {
-  id: string;
-  title: string;
-  link: string;
-  publishedAt: string | null;
-  summary: string;
-}
-
-interface MemberNewsPayload {
-  contactId: string;
-  memberName: string;
-  newsPressUrl: string | null;
-  rssFeedUrl: string | null;
-  rssSource: string | null;
-  items: MemberNewsItem[];
-  lastSyncedAt: string | null;
-  feedError: 'no_feed' | null;
-}
-
-function formatNewsDate(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 /**
@@ -637,14 +607,6 @@ function DirectoryNewsPanel({ entry }: { entry: DirectoryEntry }) {
   );
 }
 
-interface MemberRepresentationSummary {
-  clients: Array<{
-    clientId: string;
-    clientName: string;
-    facilities: Array<{ id: string; name: string }>;
-  }>;
-}
-
 /**
  * District Impact Engine (Phase 1 M1.4) — "Represents client facilities":
  * every client (tenant-wide) with a facility in this member's district.
@@ -687,28 +649,6 @@ function DirectoryRepresentationPanel({ entry }: { entry: DirectoryEntry }) {
       </Space>
     </Card>
   );
-}
-
-interface MemberFecSummary {
-  contactId: string;
-  memberName: string | null;
-  matchQuality: 'name_approximate';
-  clients: Array<{
-    clientId: string;
-    clientName: string;
-    mappedEmployer: string;
-    totalAmount: number;
-    contributionCount: number;
-    latestContributionDate: string | null;
-  }>;
-  summary: { totalAmount: number; contributionCount: number; clientCount: number };
-  disclaimer: string;
-}
-
-function formatUsd(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
 }
 
 /**
@@ -774,10 +714,7 @@ function DirectoryFecPanel({ entry }: { entry: DirectoryEntry }) {
         )}
 
         <Typography.Paragraph type="secondary" style={{ fontSize: 10, margin: 0, lineHeight: 1.4 }}>
-          {data?.disclaimer ??
-            'Source: public FEC filings, for informational purposes only — not legal or campaign-finance advice. ' +
-              'Matches are approximate (by candidate name) and reflect individual filers, legally distinct from ' +
-              'corporate/PAC giving. Not a recommendation to make any contribution. Verify at FEC.gov.'}
+          {data?.disclaimer ?? FEC_FALLBACK_DISCLAIMER}
         </Typography.Paragraph>
       </Space>
     </Card>

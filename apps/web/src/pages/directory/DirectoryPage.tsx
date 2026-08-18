@@ -53,6 +53,14 @@ import {
   type DirectoryStaffersResponse,
   type Party,
 } from './directoryData.js';
+import {
+  genderLabel,
+  initials,
+  partyLabel,
+  partyShortCode,
+  stateDistrict,
+  yearFromDate,
+} from './directory-format.js';
 
 type FreshmanFilter = 'All' | 'Freshman' | 'Non-Freshman';
 type ChamberFilter = DirectoryEntry['chamber'];
@@ -78,45 +86,14 @@ function partyColor(party: Party): string {
   return 'default';
 }
 
-/** Exported: shared with `DirectoryMemberProfileModal`, which renders member cards too. */
-export function partyLabel(party: Party): string {
-  if (party === 'D') return 'Democrat';
-  if (party === 'R') return 'Republican';
-  return 'Independent';
-}
-
-export function partyShortCode(party: Party): string | null {
-  if (party === 'D' || party === 'R' || party === 'I') return party;
-  return null;
-}
-
-export function stateDistrict(entry: DirectoryEntry): string {
-  const state = entry.state || '';
-  const district = entry.district || '';
-  if (!state) return district;
-  if (district && !district.includes(state)) return `${state}-${district}`;
-  return district || state;
-}
-
-export function genderLabel(gender: DirectoryEntry['gender']): string {
-  if (gender === 'F') return 'Female';
-  if (gender === 'M') return 'Male';
-  return 'Unknown';
-}
-
-export function initials(name: string): string {
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-}
-
-export function yearFromDate(date: string): string {
-  if (!date) return 'Unknown';
-  return date.slice(0, 4);
-}
+/**
+ * The pure profile formatters were extracted to `directory-format.ts` (imported
+ * at the top of this file) so Directory vNext can share them without a runtime
+ * import of this (antd) page module. Re-exported unchanged, so
+ * `DirectoryMemberProfileModal` and this page's historical importers keep
+ * their existing import paths.
+ */
+export { genderLabel, initials, partyLabel, partyShortCode, stateDistrict, yearFromDate };
 
 function buildApiParams(filters: {
   query: string;

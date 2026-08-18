@@ -556,12 +556,12 @@ describe('Congressional Staff vNext — search, filters, selection', () => {
     expect(within(dialog).getByRole('heading', { name: 'Rep. Elaine Morgan' })).toBeTruthy();
 
     // Closing is local UI state (`onClose` flips a boolean), not a navigation —
-    // the route underneath must never change. Ant Design's own exit animation
-    // is its concern, not this wiring's: asserting the control exists and is
-    // wired to something clickable is what's actually new here.
+    // the route underneath must never change. The vNext kit modal unmounts on
+    // close, so the dialog disappearing outright is also asserted.
     const closeButton = within(dialog).getByRole('button', { name: 'Close' });
     expect(closeButton).toBeEnabled();
     fireEvent.click(closeButton);
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.queryByText('member profile route')).toBeNull();
   });
 
