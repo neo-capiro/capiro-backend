@@ -29,8 +29,8 @@ describe('Knowledge Plane Phase 11 exact lexical index contract', () => {
 
     expect(entitySql).toContain('entity_aliases_global_lookup_idx');
     expect(entitySql).toContain('entity_aliases_tenant_lookup_idx');
-    expect(entitySql).toContain('entity_identifiers_global_unique');
-    expect(entitySql).toContain('entity_identifiers_tenant_unique');
+    expect(entitySql).toContain('entity_identifiers_global_identity_unique');
+    expect(entitySql).toContain('entity_identifiers_tenant_identity_unique');
   });
 
   it('adds only the missing tenant CRM exact identifier/account indexes', () => {
