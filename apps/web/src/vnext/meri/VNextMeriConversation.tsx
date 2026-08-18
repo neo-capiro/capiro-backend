@@ -287,16 +287,22 @@ export function VNextMeriConversation({
             {!hasThread ? (
               <div className="vnext-meri__landing">
                 <div className="vnext-meri__landing-greeting-row">
-                  <img className="vnext-meri__landing-mark" src={MERI_LOGO_SRC} alt="Meri" height={26} />
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <span className="vnext-meri__landing-greeting">
-                      {greetingFor(greetingName)}
-                    </span>
-                    <span className="vnext-meri__landing-sub">
-                      {tenantName.toUpperCase()} · {clients.length} CLIENT{clients.length === 1 ? '' : 'S'} IN SCOPE
-                    </span>
-                  </div>
+                  <span className="vnext-meri__assistant-mark">
+                    <img src={MERI_LOGO_SRC} alt="" width={13} height={13} />
+                  </span>
+                  <span className="vnext-meri__landing-live">
+                    <span className="vnext-meri__landing-live-dot" />
+                    SESSION LIVE
+                  </span>
                 </div>
+                <h2 className="vnext-meri__landing-greeting">{greetingFor(greetingName)}</h2>
+                <p className="vnext-meri__landing-homesub">
+                  Ask across every client you're scoped to, draft a document, or start research —
+                  Meri cites what it used and asks before it writes anywhere.
+                </p>
+                <span className="vnext-meri__landing-sub">
+                  {tenantName.toUpperCase()} · {clients.length} CLIENT{clients.length === 1 ? '' : 'S'} IN SCOPE
+                </span>
 
                 <VNextMeriComposer
                   controller={controller}
