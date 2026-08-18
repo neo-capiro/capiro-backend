@@ -73,10 +73,15 @@ describe('Engagement UI closeout contract', () => {
     // Deleting ?state=/forcedState must not delete the states themselves —
     // each is now driven by real controller/props rather than a debug switch.
     expect(workspace).toContain('controller.isBootstrapping'); // loading
-    expect(workspace).toContain('controller.reasoningUnavailable'); // Meri/model outage
     expect(workspace).toContain('uui-engagement-error'); // session error
     expect(workspace).toContain('Generation recovery'); // resumable generation
     expect(route).toContain('connectionWarning'); // mailbox disconnected
+    // The Meri model-outage state is deliberately NOT here any more: the
+    // conversation pane it belonged to was removed from Outreach V3, so there
+    // is no Meri surface in this workspace that could be degraded. Asserting
+    // it would require re-adding a banner for a pane that no longer exists.
+    expect(workspace).not.toContain('uui-model-outage');
+    expect(workspace).not.toContain('uui-outreach-chat');
   });
 
   it('keeps post-send learning reply-backed and governed', () => {

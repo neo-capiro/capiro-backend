@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, Check, ExternalLink } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { ArrowLeft, Check, ExternalLink, Loader2 } from 'lucide-react';
+import { useApi } from '../../../../lib/use-api.js';
 import type { Client } from '../../../clients/clientTypes.js';
+import { createOutreachV3Session, safeOutreachV3Error } from './outreach-v3-api.js';
 import type { OutreachSenderInbox } from '../v2/NewOutreachWizard.js';
 import {
   VNextOutreachWorkspace,
@@ -58,7 +61,36 @@ export function OutreachV3CompleteRoute({
   onComplete,
   onOpenClassic,
 }: OutreachV3CompleteRouteProps) {
+  const api = useApi();
   const [step, setStep] = useState<EngagementOutreachStep>('goal');
+
+  /**
+   * This host owns session creation.
+   *
+   * `VNextOutreachWorkspace` no longer creates a campaign for itself — on the
+   * vNext surface that job belongs to the Outreach home screen. This canonical
+   * host is only ever reached from Classic Outreach's explicit "new campaign"
+   * action (`OutreachWizardRouter` only routes here when there is no existing
+   * classic draft), so creating one on entry is exactly what the user asked
+   * for.
+   *
+   * `staleTime: Infinity` is load-bearing, not a cache tweak: this queryFn
+   * POSTs. A stale query would refetch on window focus and silently create a
+   * second campaign every time the user tabbed back. `gcTime: 0` is the other
+   * half — leaving and re-entering V3 is a NEW campaign, not a resurrected
+   * cache entry.
+   */
+  const session = useQuery({
+    queryKey: ['outreach-v3', 'complete-route-session'],
+    queryFn: () => createOutreachV3Session(api, 'New outreach campaign'),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 0,
+    retry: false,
+  });
+  const restart = useMutation({
+    mutationFn: () => session.refetch({ throwOnError: false }),
+  });
+
   const integrations = useMemo(
     () =>
       sendableInboxes.map((inbox) => ({
@@ -119,13 +151,47 @@ export function OutreachV3CompleteRoute({
             </button>
           </div>
         </header>
-        <VNextOutreachWorkspace
-          clients={clients}
-          selectedClientId={selectedClientId}
-          integrations={integrations}
-          step={step}
-          onStepChange={setStep}
-        />
+        {session.data ? (
+          <VNextOutreachWorkspace
+            sessionId={session.data.session.id}
+            clients={clients}
+            selectedClientId={selectedClientId}
+            integrations={integrations}
+            step={step}
+            onStepChange={setStep}
+            // There is no campaign list on this canonical host — leaving the
+            // builder here means leaving Outreach V3, which is what Cancel
+            // already does.
+            onExit={onCancel}
+          />
+        ) : session.isError ? (
+          <div className="uui-engagement-error" role="alert">
+            <strong>The campaign workspace could not be created</strong>
+            <p>{safeOutreachV3Error(session.error)}</p>
+            <div className="uui-engagement-error__actions">
+              <button type="button" className="uui-button" onClick={onOpenClassic}>
+                Open Classic Outreach
+              </button>
+              <button
+                type="button"
+                className="uui-button--primary"
+                disabled={restart.isPending || session.isFetching}
+                onClick={() => restart.mutate()}
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="uui-outreach-loading" aria-busy="true">
+            <div className="uui-canvas-skeleton">
+              <i />
+              <i />
+              <i />
+              <i />
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

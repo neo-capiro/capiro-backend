@@ -82,7 +82,39 @@ export interface OutreachV3SessionSummary {
   createdAt?: string;
   updatedAt?: string;
   archivedAt?: string | null;
+  /** Current Campaign Spec goal.topic — the real campaign name to display. */
+  topic?: string | null;
+  /** Current Campaign Spec goal.goal. */
+  goal?: string | null;
+  /** Selected target count on the session's current spec version. */
+  targetCount?: number;
+  /**
+   * Artifact-root record status: 'draft' | 'sent' | 'partial' | 'failed' | …
+   * `null` until the campaign creates its first draft artifact. This — not
+   * `status` — is where a completed real send is recorded for a V3 campaign.
+   */
+  recordStatus?: string | null;
+  sentAt?: string | null;
   [key: string]: unknown;
+}
+
+export type OutreachV3CampaignBucket = 'draft' | 'sent' | 'archived';
+
+/**
+ * Which home-screen bucket a campaign belongs in.
+ *
+ * 'sent' requires a real recorded send outcome on the artifact root. A
+ * campaign that merely reached the Send step, or whose only send was a test
+ * send (never mirrored onto the record), stays a draft — the list must not
+ * claim a send that did not happen.
+ */
+export function outreachV3CampaignBucket(
+  row: OutreachV3SessionSummary,
+): OutreachV3CampaignBucket {
+  if (row.status === 'archived') return 'archived';
+  const record = (row.recordStatus ?? '').trim().toLowerCase();
+  if (record === 'sent' || record === 'partial' || record === 'failed') return 'sent';
+  return 'draft';
 }
 
 /**
@@ -112,6 +144,13 @@ export async function listOutreachV3Sessions(
     status: String(row.status ?? 'active'),
     currentStateVersion: Number(row.currentStateVersion ?? 1),
     title: typeof row.title === 'string' ? row.title : row.title ?? null,
+    topic: typeof row.topic === 'string' ? row.topic : null,
+    goal: typeof row.goal === 'string' ? row.goal : null,
+    // Absent (an older API build that predates the enriched list) must read
+    // as 0/null, never as a fabricated count or a claimed send.
+    targetCount: Number.isFinite(Number(row.targetCount)) ? Number(row.targetCount) : 0,
+    recordStatus: typeof row.recordStatus === 'string' ? row.recordStatus : null,
+    sentAt: typeof row.sentAt === 'string' ? row.sentAt : null,
   }));
 }
 

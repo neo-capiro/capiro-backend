@@ -1,0 +1,240 @@
+/*
+ * Outreach home (campaign list) — vNext.
+ *
+ * Uses this module's existing `--eng-*` tokens and the `eng-pill` tone table
+ * (engagement-tones.css) rather than introducing a second palette. Scoped
+ * under `.capiro-vnext-root` exactly like engagement.css, so nothing here can
+ * leak into the canonical Engagement page.
+ */
+.capiro-vnext-root .uui-outreach-home {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  /* Fills the module body the way the builder's own canvas does, so a short
+     campaign list does not leave the page background cut off mid-viewport. */
+  min-height: calc(100vh - 214px);
+  padding: 20px 24px 32px;
+  background: var(--eng-page);
+}
+
+.capiro-vnext-root .uui-outreach-home__bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .uui-outreach-home__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.capiro-vnext-root .uui-outreach-home__summary p {
+  margin: 0;
+  color: var(--eng-ink-3);
+  font-size: 13px;
+}
+.capiro-vnext-root .uui-outreach-home__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.capiro-vnext-root .uui-outreach-home__new {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.capiro-vnext-root .uui-outreach-home__filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .uui-outreach-home__filters button {
+  height: 30px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--eng-recessed);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  color: var(--eng-ink-3);
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-outreach-home__filters button:hover {
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .uui-outreach-home__filters button[data-active] {
+  background: var(--eng-tone-navy-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-tone-navy-ring);
+  color: var(--eng-tone-navy-fg);
+}
+
+.capiro-vnext-root .uui-outreach-home__error {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: var(--eng-tone-err-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-tone-err-ring);
+  color: var(--eng-tone-err-fg);
+  font-size: 13px;
+}
+
+.capiro-vnext-root .uui-outreach-home__table {
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--eng-surface);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+}
+
+/* One grid definition shared by the header and every row, so the columns can
+   never drift apart. The trailing column is the per-row Archive action. */
+.capiro-vnext-root .uui-outreach-home__head,
+.capiro-vnext-root .uui-outreach-home__open {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr) 78px 180px 180px;
+  align-items: center;
+  gap: 14px;
+}
+.capiro-vnext-root .uui-outreach-home__head {
+  grid-template-columns: 86px minmax(0, 1fr) 78px 180px 180px 96px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--eng-tone-gray-ring);
+  background: var(--eng-recessed);
+  color: var(--eng-ink-4);
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.capiro-vnext-root .uui-outreach-home__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  align-items: center;
+  gap: 10px;
+  padding-right: 20px;
+  border-bottom: 1px solid var(--eng-muted);
+}
+.capiro-vnext-root .uui-outreach-home__row:last-child {
+  border-bottom: 0;
+}
+.capiro-vnext-root .uui-outreach-home__row:hover {
+  background: var(--eng-bg);
+}
+.capiro-vnext-root .uui-outreach-home__row[data-archived] {
+  opacity: 0.62;
+}
+
+.capiro-vnext-root .uui-outreach-home__open {
+  width: 100%;
+  padding: 15px 0 15px 20px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-outreach-home__title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.capiro-vnext-root .uui-outreach-home__title strong {
+  overflow: hidden;
+  color: var(--eng-ink);
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .uui-outreach-home__title small {
+  overflow: hidden;
+  color: var(--eng-ink-3);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .uui-outreach-home__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--eng-ink-2);
+  font-size: 13px;
+}
+.capiro-vnext-root .uui-outreach-home__when {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--eng-ink-3);
+  font-size: 12px;
+}
+.capiro-vnext-root .uui-outreach-home__rowaction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 28px;
+}
+
+.capiro-vnext-root .uui-outreach-home__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 54px 24px;
+  border-radius: 12px;
+  background: var(--eng-surface);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  color: var(--eng-ink-3);
+  text-align: center;
+}
+.capiro-vnext-root .uui-outreach-home__empty svg {
+  color: var(--eng-ink-4);
+}
+.capiro-vnext-root .uui-outreach-home__empty strong {
+  color: var(--eng-ink);
+  font-size: 16px;
+}
+.capiro-vnext-root .uui-outreach-home__empty p {
+  max-width: 46ch;
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.capiro-vnext-root .uui-outreach-home__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.capiro-vnext-root .uui-outreach-home__skeleton i {
+  height: 58px;
+  border-radius: 12px;
+  background: var(--eng-recessed);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+}
+
+/* Narrow widths: drop the two timestamp columns rather than let the row
+   overflow into a horizontal scroller. The status pill, campaign name and
+   target count are what the list is actually for. */
+@media (max-width: 1080px) {
+  .capiro-vnext-root .uui-outreach-home__head {
+    grid-template-columns: 86px minmax(0, 1fr) 78px 96px;
+  }
+  .capiro-vnext-root .uui-outreach-home__open {
+    grid-template-columns: 86px minmax(0, 1fr) 78px;
+  }
+  .capiro-vnext-root .uui-outreach-home__head span:nth-child(4),
+  .capiro-vnext-root .uui-outreach-home__head span:nth-child(5),
+  .capiro-vnext-root .uui-outreach-home__when {
+    display: none;
+  }
+}

@@ -3,6 +3,7 @@ import {
   canonicalEngagementLocation,
   engagementDestination,
   isVNextEngagementPath,
+  outreachCampaignIdFromPath,
 } from './engagement-route-state.js';
 
 describe('vNext Engagement route state', () => {
@@ -57,5 +58,25 @@ describe('vNext Engagement route state', () => {
       canonicalEngagementLocation('/engagement/outreach/campaign-1', '?step=context'),
     ).toBeNull();
     expect(engagementDestination('/engagement/outreach/campaign-1')).toBe('outreach');
+  });
+
+  describe('outreachCampaignIdFromPath', () => {
+    it('treats the bare Outreach path as the campaign list, not a campaign', () => {
+      // This is what stops the builder — and therefore session creation — from
+      // mounting just because someone clicked the Outreach tab.
+      expect(outreachCampaignIdFromPath('/engagement/outreach')).toBeNull();
+      expect(outreachCampaignIdFromPath('/engagement/outreach/')).toBeNull();
+    });
+
+    it('reads the campaign id, ignoring extra segments', () => {
+      expect(outreachCampaignIdFromPath('/engagement/outreach/campaign-1')).toBe('campaign-1');
+      expect(outreachCampaignIdFromPath('/engagement/outreach/campaign-1/send')).toBe('campaign-1');
+      expect(outreachCampaignIdFromPath('/engagement/outreach/camp%20aign')).toBe('camp aign');
+    });
+
+    it('never claims a non-Outreach or prefix-adjacent path', () => {
+      expect(outreachCampaignIdFromPath('/engagement/meetings/abc')).toBeNull();
+      expect(outreachCampaignIdFromPath('/engagement/outreach-archive/abc')).toBeNull();
+    });
   });
 });

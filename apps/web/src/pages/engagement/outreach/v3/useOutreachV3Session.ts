@@ -210,6 +210,17 @@ export function deriveOutreachV3Stage(session: OutreachV3SessionEnvelope | null)
 
 export interface UseOutreachV3SessionOptions {
   title?: string;
+  /**
+   * Pin the hook to one existing campaign.
+   *
+   * When this key is present the hook NEVER creates a session. Campaign
+   * creation belongs to the Outreach home screen, so merely opening a route
+   * can no longer mint an empty "New outreach campaign" the user never asked
+   * for. Omit the key entirely to keep the original self-bootstrapping
+   * behaviour, which `OutreachV3Route` (the standalone prototype host, not
+   * rendered by any route today) is still written against.
+   */
+  sessionId?: string | null;
 }
 
 export interface OutreachV3ContextSearchInput {
@@ -229,9 +240,19 @@ export type OutreachV3ContextSearchResult =
 export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) {
   const api = useApi();
   const queryClient = useQueryClient();
+  // `'sessionId' in options` — not a truthiness check. `{ sessionId: null }`
+  // is a caller that owns the id and does not have one yet (home screen still
+  // deciding); it must NOT fall back to the sessionStorage id or bootstrap.
+  const controlledSessionId = 'sessionId' in options;
+  const pinnedSessionId = options.sessionId ?? null;
   const [sessionId, setSessionId] = useState<string | null>(() =>
-    readSessionStorage(ACTIVE_SESSION_KEY),
+    controlledSessionId ? pinnedSessionId : readSessionStorage(ACTIVE_SESSION_KEY),
   );
+
+  useEffect(() => {
+    if (!controlledSessionId) return;
+    setSessionId((current) => (current === pinnedSessionId ? current : pinnedSessionId));
+  }, [controlledSessionId, pinnedSessionId]);
   const [transientTurns, setTransientTurns] = useState<OutreachV3TranscriptTurn[]>([]);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [startingNewSession, setStartingNewSession] = useState(false);
@@ -239,7 +260,7 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
   const bootstrapKey = ['outreach-v3', 'bootstrap', options.title ?? 'new'] as const;
   const bootstrap = useQuery({
     queryKey: bootstrapKey,
-    enabled: !sessionId,
+    enabled: !sessionId && !controlledSessionId,
     queryFn: () => createOutreachV3Session(api, options.title ?? 'New outreach campaign'),
     staleTime: Number.POSITIVE_INFINITY,
     retry: false,
@@ -247,17 +268,22 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
 
   useEffect(() => {
     const id = bootstrap.data?.session.id;
-    if (!id || sessionId) return;
+    if (!id || sessionId || controlledSessionId) return;
     writeSessionStorage(ACTIVE_SESSION_KEY, id);
     setSessionId(id);
     void queryClient.invalidateQueries({ queryKey: ['outreach-v3', 'sessions'] });
-  }, [bootstrap.data, queryClient, sessionId]);
+  }, [bootstrap.data, controlledSessionId, queryClient, sessionId]);
 
-  // Owned campaign list — GET /api/engagement/outreach-v3/sessions (already on backend).
-  // Enables resume without mounting classic OutreachView on os.
+  // Owned campaign list — GET /api/engagement/outreach-v3/sessions.
+  //
+  // Only fetched for a self-bootstrapping caller. A caller that already owns
+  // its session id reached it FROM the campaign list (the Outreach home
+  // screen, which runs this same query itself), so refetching the whole list
+  // inside the builder is pure duplicate work.
   const sessionsQuery = useQuery({
     queryKey: ['outreach-v3', 'sessions'],
     queryFn: () => listOutreachV3Sessions(api, { limit: 50, includeArchived: false }),
+    enabled: !controlledSessionId,
     staleTime: 30_000,
     retry: false,
   });
@@ -271,6 +297,10 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
 
   useEffect(() => {
     if (!sessionId || !sessionQuery.isError || responseStatus(sessionQuery.error) !== 404) return;
+    // A caller-owned id is left in place: clearing it here would fight the
+    // pin-sync effect above and loop. The 404 surfaces as `errorMessage`
+    // instead, and the route offers a way back to the campaign list.
+    if (controlledSessionId) return;
     writeSessionStorage(ACTIVE_SESSION_KEY, null);
     writeSessionStorage(conversationKey(sessionId), null);
     setTransientTurns([]);
@@ -278,7 +308,7 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     queryClient.removeQueries({ queryKey: ['outreach-v3', 'session', sessionId] });
     queryClient.removeQueries({ queryKey: ['outreach-v3', 'conversation', sessionId] });
     setSessionId(null);
-  }, [queryClient, sessionId, sessionQuery.error, sessionQuery.isError]);
+  }, [controlledSessionId, queryClient, sessionId, sessionQuery.error, sessionQuery.isError]);
 
   const conversationQuery = useQuery({
     queryKey: ['outreach-v3', 'conversation', sessionId],
@@ -591,10 +621,21 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
   const contextCandidates = useMemo<OutreachV3ContextCandidate[]>(() => {
     const value = contextSearchMutation.data;
     if (!value) return [];
+    // `?.data?.candidates` per branch, not a shared hoisted const: the branches
+    // carry different candidate shapes, and narrowing on `value.source` is what
+    // keeps each map callback typed. Defensive for the same reason as
+    // `targetCandidates` below — a malformed envelope must degrade to "no
+    // candidates", never unmount the surface.
     if (value.source === 'memory') {
-      return value.result.data.candidates.map((candidate) => ({ ...candidate, sourceKind: 'memory' }));
+      return (value.result?.data?.candidates ?? []).map((candidate) => ({
+        ...candidate,
+        sourceKind: 'memory',
+      }));
     }
-    return value.result.data.candidates.map((candidate) => ({ ...candidate, sourceKind: 'government' }));
+    return (value.result?.data?.candidates ?? []).map((candidate) => ({
+      ...candidate,
+      sourceKind: 'government',
+    }));
   }, [contextSearchMutation.data]);
 
   const session = sessionQuery.data ?? bootstrap.data ?? null;
@@ -620,6 +661,8 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     session,
     stage,
     isBootstrapping: bootstrap.isLoading || (Boolean(sessionId) && sessionQuery.isLoading),
+    /** True when this hook instance is pinned by its caller (no self-create). */
+    controlledSessionId,
     isRefreshing: sessionQuery.isFetching,
     error: primaryError,
     errorMessage: primaryError ? safeOutreachV3Error(primaryError) : null,
@@ -643,7 +686,13 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     targetSearchResult: targetSearchMutation.data as
       | CapabilityResult<OutreachV3TargetSearchData>
       | undefined,
-    targetCandidates: (targetSearchMutation.data?.data.candidates ?? []) as OutreachV3TargetCandidate[],
+    // `?.data?.candidates`, not `?.data.candidates`: a response that is not a
+    // well-formed capability envelope would otherwise throw here and unmount
+    // the whole Outreach tree instead of rendering an empty candidate list.
+    // Target search now runs on every source-tab open, not only on an explicit
+    // Search press, so this path is reached far more often.
+    targetCandidates: (targetSearchMutation.data?.data?.candidates ??
+      []) as OutreachV3TargetCandidate[],
     targetSearchPending: targetSearchMutation.isPending,
     targetSearchError: targetSearchMutation.error
       ? safeOutreachV3Error(targetSearchMutation.error)
