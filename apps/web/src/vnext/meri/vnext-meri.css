@@ -353,6 +353,19 @@
   color: var(--meri-accent);
 }
 
+.capiro-vnext-root .vnext-meri__scope-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--meri-border-soft);
+}
+
+.capiro-vnext-root .vnext-meri__scope-meta {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--meri-text-muted);
+}
+
 .capiro-vnext-root .vnext-meri__scope-menu {
   position: absolute;
   top: 44px;
