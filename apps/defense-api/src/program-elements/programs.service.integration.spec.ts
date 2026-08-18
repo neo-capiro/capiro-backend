@@ -56,6 +56,18 @@ test('mergePrograms dedupes colliding rows and retires (not deletes) the loser (
     `p8s3-merge-rehearsal-${suffix}`,
     `p8s3-merge-rehearsal-${suffix}@example.test`,
   );
+  // A REAL active capiro_admin membership is now required, not just a ctx object
+  // claiming `role: 'capiro_admin'`. The merge runs inside
+  // capiro_defense_merge_programs, which rechecks membership in the database — so a
+  // caller the application believes is an admin but the database does not is
+  // refused. That is the whole point of the governed boundary, and it is why this
+  // seed grew a membership row: without it the test 403s, correctly.
+  await admin.$executeRawUnsafe(
+    `INSERT INTO tenant_memberships (tenant_id, user_id, role, status)
+     VALUES ($1::uuid, $2::uuid, 'capiro_admin', 'active')`,
+    tenantId,
+    userId,
+  );
 
   const keepId = randomUUID();
   const mergeId = randomUUID();
