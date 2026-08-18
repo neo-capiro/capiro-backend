@@ -311,6 +311,14 @@ export function engagementApiTaskEnvironment(
     // dedicated V3 action classes and the one full-generation worker.
     OUTREACH_V3_STATE_ENABLED: 'true',
     OUTREACH_V3_REASONING_ENABLED: 'true',
+    // Read-only capability surfaces. Omitting either one left every
+    // `/sessions/:id/targets/*` and `/sessions/:id/context/*` route answering a
+    // bare 404 ("Not Found") in the live builder: target search/profile/
+    // relationships/coverage, the Delivery step's strategy recommendation, and
+    // the whole Context step. Neither carries a runtime action in
+    // ENGAGEMENT_RUNTIME_ROUTE_POLICY, so both stay inside the shadow posture.
+    OUTREACH_V3_TARGETS_ENABLED: 'true',
+    OUTREACH_V3_CONTEXT_ENABLED: 'true',
     OUTREACH_V3_GENERATION_ENABLED: 'true',
     OUTREACH_V3_DRAFTS_ENABLED: 'true',
     OUTREACH_V3_SEND_ENABLED: 'true',
