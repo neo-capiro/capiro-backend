@@ -80,4 +80,3 @@ Migration `apps/api/prisma/migrations/20261120210000_phase8_defense_serve_user_r
 ## Prior tip history
 
 Earlier tip `04e7ec6ce` closed Docker after restack onto `d14e1d161…`. This closeout restacked again onto `b00c9e301…` (main advanced 5 commits) with clean rebase and full gate re-run.
-
