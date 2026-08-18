@@ -329,10 +329,26 @@ export class ClientsService {
       }
     }
 
-    // SAM gov-id enrichment for each imported client — fill-if-empty, fire-and-forget
-    // (network-bound), matching the single-create + LDA-import paths so CSV imports
-    // are not the odd one out. Never blocks or fails the import response.
+    // Entity resolution (name-based) + SAM gov-id enrichment for each imported
+    // client — both fire-and-forget, matching the single-create path so CSV
+    // imports are not the odd one out. Never blocks or fails the import response.
+    //
+    // SAM enrichment will additionally re-trigger entity resolution once it fills
+    // the UEI (see sam-entity.service.ts), so both the name-based and
+    // identifier-based mapping paths fire even though the UEI isn't known at
+    // import time.
+    const tenantForResolve = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.tenant.findUnique({ where: { id: ctx.tenantId }, select: { ldaRegistrantId: true } }),
+    );
+    const ldaRegistrantId = tenantForResolve?.ldaRegistrantId ?? null;
     for (const c of created) {
+      void this.entityResolution
+        .resolveClient(c.id, ctx.tenantId, c.name, { ldaRegistrantId })
+        .catch((e: unknown) =>
+          this.logger.warn(
+            `resolve-on-import failed for client ${c.id}: ${e instanceof Error ? e.message : String(e)}`,
+          ),
+        );
       void this.samEntity
         .enrichGovIds(ctx.tenantId, c.id)
         .catch((e: unknown) =>
@@ -346,6 +362,11 @@ export class ClientsService {
   }
 
   async update(ctx: TenantContext, id: string, input: UpdateClientInput) {
+    // Read the current UEI before the update so we can detect whether it changed.
+    const before = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.client.findUnique({ where: { id }, select: { uei: true, name: true } }),
+    );
+
     const client = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.client.update({
         where: { id },
@@ -385,6 +406,28 @@ export class ClientsService {
         },
       }),
     );
+
+    // When the UEI was set or changed, re-run entity resolution so
+    // contracting (tier-1 UEI auto-confirm) and assistance_recipient (exact-UEI
+    // match) mappings get created — they could not fire before the UEI existed.
+    const ueiChanged = 'uei' in input && (before?.uei ?? null) !== (input.uei ?? null);
+    if (ueiChanged && input.uei) {
+      const tenant = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.tenant.findUnique({ where: { id: ctx.tenantId }, select: { ldaRegistrantId: true } }),
+      );
+      void this.entityResolution
+        .resolveClient(id, ctx.tenantId, client.name, {
+          ldaRegistrantId: tenant?.ldaRegistrantId ?? null,
+          clientUei: input.uei,
+          clientCageCode: input.cageCode ?? null,
+        })
+        .catch((e: unknown) =>
+          this.logger.warn(
+            `re-resolution after UEI update failed for ${id}: ${e instanceof Error ? e.message : String(e)}`,
+          ),
+        );
+    }
+
     // Client KB (F5): keep the profile (Overview tab) index in sync.
     this.clientKb.indexClientProfileFireAndForget(ctx.tenantId, id);
     return this.withLogoUrl(client);

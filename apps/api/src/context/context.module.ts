@@ -4,14 +4,19 @@ import { KnowledgeModule } from '../knowledge/knowledge.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { RetrievalModule } from '../retrieval/retrieval.module.js';
 import { ContextCompilerService } from './context-compiler.service.js';
+import { ContextLayerService } from './context-layer.service.js';
+import { ContextPacketV2Service } from './context-packet-v2.service.js';
 import { ContextPersistenceBoundaryInterceptor } from './context-persistence-boundary.interceptor.js';
 import { ContextPersistenceBoundaryService } from './context-persistence-boundary.service.js';
+import { ContextPlaneAuditService } from './context-plane-audit.service.js';
+import { ContextPlaneGatewayService } from './context-plane-gateway.service.js';
 import { ContextResolverService } from './context-resolver.service.js';
 
 /**
- * One shared Context Plane module. The existing compiler/persistence boundary
- * remains unchanged; Phase 15 adds the pre-retrieval resolver that separates
- * SecurityScope, SubjectScope, and FocusEntities before Retrieval V2 runs.
+ * One shared Context Plane module. Phase 15 resolves scope, Phase 16 normalizes
+ * five layers, Phase 17 compiles coverage-aware governed ContextPacket V2, and
+ * Phase 18 exposes the registered-operation enforcement gateway. Product
+ * migration exceptions are removed in Phases 19-25.
  */
 @Module({
   imports: [PrismaModule, KnowledgeModule, RetrievalModule],
@@ -19,6 +24,10 @@ import { ContextResolverService } from './context-resolver.service.js';
     ContextPersistenceBoundaryService,
     ContextCompilerService,
     ContextResolverService,
+    ContextLayerService,
+    ContextPacketV2Service,
+    ContextPlaneAuditService,
+    ContextPlaneGatewayService,
     {
       provide: APP_INTERCEPTOR,
       useClass: ContextPersistenceBoundaryInterceptor,
@@ -28,6 +37,10 @@ import { ContextResolverService } from './context-resolver.service.js';
     ContextCompilerService,
     ContextPersistenceBoundaryService,
     ContextResolverService,
+    ContextLayerService,
+    ContextPacketV2Service,
+    ContextPlaneAuditService,
+    ContextPlaneGatewayService,
   ],
 })
 export class ContextModule {}

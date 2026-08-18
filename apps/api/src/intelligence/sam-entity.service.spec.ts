@@ -11,7 +11,7 @@ function makeService(apiKey: string | undefined = 'TESTKEY', enabled = true) {
   const config = {
     get: (k: string) => (k === 'SAM_ENRICHMENT_ENABLED' ? enabled : apiKey),
   } as never;
-  return new SamEntityEnrichmentService({} as never, config);
+  return new SamEntityEnrichmentService({} as never, config, {} as never);
 }
 
 function entity(opts: {
@@ -166,7 +166,7 @@ describe('SamEntityEnrichmentService.enrichGovIds', () => {
           },
         }),
     } as never;
-    const s = new SamEntityEnrichmentService(prisma, { get: () => 'K' } as never);
+    const s = new SamEntityEnrichmentService(prisma, { get: () => 'K' } as never, {} as never);
     const r = await s.enrichGovIds('t1', 'c1');
     expect(r.filled).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();

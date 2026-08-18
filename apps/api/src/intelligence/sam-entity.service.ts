@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { EntityResolutionService } from './entity-resolution.service.js';
 
 /**
  * SAM.gov Entity-Management enrichment: resolve a client's government
@@ -52,6 +53,7 @@ export class SamEntityEnrichmentService {
   constructor(
     private readonly prisma: PrismaService,
     config: ConfigService<AppConfig, true>,
+    private readonly entityResolution: EntityResolutionService,
   ) {
     this.apiKey = config.get('SAM_GOV_API_KEY', { infer: true });
     this.enabled = config.get('SAM_ENRICHMENT_ENABLED', { infer: true }) !== false;
@@ -272,6 +274,36 @@ export class SamEntityEnrichmentService {
       ),
     );
     this.logger.log(`SAM enriched "${client.name}": filled ${filled.join(',')} (UEI=${gov.uei})`);
+
+    // ── Re-run entity resolution when a UEI was filled ──────────────────────
+    //
+    // SAM enrichment runs AFTER entity resolution on the create path (both are
+    // fire-and-forget), so the initial resolveClient call saw clientUei=null and
+    // could not auto-confirm contracting or assistance_recipient mappings by UEI.
+    // Now that the UEI is persisted, re-resolve so the identifier match path can
+    // fire: tier-1 contracting auto-confirm (contractor-identity.ts) and the
+    // exact-UEI assistance_recipient candidate (matchAssistanceRecipientByUei).
+    //
+    // resolveClient is idempotent — it upserts mappings and never downgrades a
+    // human-confirmed row — so re-running is safe even if the initial pass already
+    // created candidates. It just adds the UEI-driven ones it couldn't before.
+    if (filled.includes('uei')) {
+      const tenant = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.tenant.findUnique({ where: { id: tenantId }, select: { ldaRegistrantId: true } }),
+      );
+      void this.entityResolution
+        .resolveClient(clientId, tenantId, client.name, {
+          ldaRegistrantId: tenant?.ldaRegistrantId ?? null,
+          clientUei: gov.uei,
+          clientCageCode: filled.includes('cageCode') ? gov.cageCode : client.cageCode,
+        })
+        .catch((e: unknown) =>
+          this.logger.warn(
+            `post-SAM re-resolution failed for ${clientId}: ${e instanceof Error ? e.message : String(e)}`,
+          ),
+        );
+    }
+
     return { filled, matched: true };
   }
 
