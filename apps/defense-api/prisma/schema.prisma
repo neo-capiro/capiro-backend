@@ -27,20 +27,30 @@ model DefenseBudgetActiveSnapshot {
 }
 
 model ProgramElement {
-  peCode            String    @id @map("pe_code") @db.VarChar(16)
-  title             String
-  description       String?
-  service           String?
-  serviceCode       String?   @map("service_code")
-  budgetActivity    String?   @map("budget_activity")
-  appropriationType String?   @map("appropriation_type")
-  lineNumber        String?   @map("line_number")
-  acatLevel         String?   @map("acat_level")
-  programOfRecord   String?   @map("program_of_record")
-  status            String?
-  firstSeenFy       Int?      @map("first_seen_fy")
-  lastSyncedAt      DateTime? @map("last_synced_at") @db.Timestamptz(6)
-  retiredAt         DateTime? @map("retired_at") @db.Timestamptz(6)
+  peCode             String    @id @map("pe_code") @db.VarChar(16)
+  title              String
+  description        String?
+  service            String?
+  serviceCode        String?   @map("service_code")
+  budgetActivity     String?   @map("budget_activity")
+  budgetActivityName String?   @map("budget_activity_name")
+  appropriationType  String?   @map("appropriation_type")
+  lineNumber         String?   @map("line_number")
+  acatLevel          String?   @map("acat_level")
+  programOfRecord    String?   @map("program_of_record")
+  status             String?
+  rDocUrl            String?   @map("r_doc_url")
+  pDocUrl            String?   @map("p_doc_url")
+  oDocUrl            String?   @map("o_doc_url")
+  raw                Json      @default("{}") @map("raw_jsonb")
+  source             String
+  sourceConfidence   Float?    @map("source_confidence")
+  firstSeenFy        Int?      @map("first_seen_fy")
+  lastSyncedAt       DateTime  @default(now()) @map("last_synced_at") @db.Timestamptz(6)
+  retiredAt          DateTime? @map("retired_at") @db.Timestamptz(6)
+  retiredReason      String?   @map("retired_reason")
+
+  years ProgramElementYear[]
 
   @@map("program_element")
 }
@@ -48,6 +58,8 @@ model ProgramElement {
 model ProgramElementYear {
   id             String   @id @default(uuid()) @db.Uuid
   peCode         String   @map("pe_code") @db.VarChar(16)
+  // Relation back to the catalog row so the detail/intelligence reads can hydrate
+  // the COMPLETE budget-year history in one query, as apps/api does.
   fy             Int
   request        Decimal? @db.Decimal(14, 2)
   hascMark       Decimal? @map("hasc_mark") @db.Decimal(14, 2)
@@ -58,38 +70,61 @@ model ProgramElementYear {
   conference     Decimal? @db.Decimal(14, 2)
   enacted        Decimal? @db.Decimal(14, 2)
 
+  programElement ProgramElement @relation(fields: [peCode], references: [peCode], onDelete: Cascade)
+
   @@unique([peCode, fy])
   @@map("program_element_year")
 }
 
+/// Page-level PE citations - the proof pack. Provenance is the POINT of this
+/// table, so every provenance column apps/api serves is modeled here:
+/// exhibitType / publisher / snippet / confidence and the SourceDocument link.
+/// A citation without them is not a citation.
 model ProgramElementSource {
-  id         String  @id @default(uuid()) @db.Uuid
-  peCode     String  @map("pe_code") @db.VarChar(16)
-  fy         Int?
-  docType    String  @map("doc_type")
-  pageNumber Int?    @map("page_number")
-  sourceUrl  String? @map("source_url")
+  id               String  @id @default(uuid()) @db.Uuid
+  peCode           String  @map("pe_code") @db.VarChar(16)
+  fy               Int?
+  docType          String  @map("doc_type") @db.VarChar(8)
+  exhibitType      String? @map("exhibit_type") @db.VarChar(16)
+  pageNumber       Int?    @map("page_number")
+  pageEnd          Int?    @map("page_end")
+  snippet          String?
+  publisher        String? @db.VarChar(64)
+  confidence       Float   @default(0.9)
+  sourceUrl        String  @map("source_url")
+  sourceDocumentId String? @map("source_document_id") @db.Uuid
+
+  sourceDocument SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@map("program_element_source")
 }
 
 model ProgramElementProject {
-  id          String  @id @default(uuid()) @db.Uuid
-  peCode      String  @map("pe_code") @db.VarChar(16)
-  projectCode String  @map("project_code") @db.VarChar(32)
-  projectName String? @map("project_name")
+  id             String  @id @default(uuid()) @db.Uuid
+  peCode         String  @map("pe_code") @db.VarChar(16)
+  projectCode    String  @map("project_code") @db.VarChar(32)
+  title          String
+  mission        String?
+  budgetActivity String? @map("budget_activity")
+  fy             Int?
+  sourceUrl      String? @map("source_url")
+  pageNumber     Int?    @map("page_number")
+  confidence     Float   @default(0.9)
 
   @@unique([peCode, projectCode])
   @@map("program_element_project")
 }
 
 model ProgramElementBudgetPosition {
-  id            String  @id @default(uuid()) @db.Uuid
-  peCode        String  @map("pe_code") @db.VarChar(16)
-  positionCycle String  @map("position_cycle")
-  assertedFy    Int     @map("asserted_fy")
-  amount        Decimal @db.Decimal(14, 2)
-  valueKind     String  @map("value_kind")
+  id            String   @id @default(uuid()) @db.Uuid
+  peCode        String   @map("pe_code") @db.VarChar(16)
+  positionCycle String   @map("position_cycle")
+  assertedFy    Int      @map("asserted_fy")
+  amount        Decimal  @db.Decimal(14, 2)
+  quantity      Decimal? @db.Decimal(14, 2)
+  valueKind     String   @map("value_kind")
+  sourceUrl     String?  @map("source_url")
+  pageNumber    Int?     @map("page_number")
 
   @@map("program_element_budget_position")
 }
@@ -107,13 +142,15 @@ model ProgramElementProjectBudgetPosition {
 }
 
 model ProgramElementDelta {
-  id               String    @id @default(uuid()) @db.Uuid
-  peCode           String    @map("pe_code") @db.VarChar(16)
-  assertedFy       Int       @map("asserted_fy")
-  deltaType        String    @map("delta_type")
-  materialityScore Float     @map("materiality_score")
-  computedAt       DateTime  @map("computed_at") @db.Timestamptz(6)
-  supersededAt     DateTime? @map("superseded_at") @db.Timestamptz(6)
+  id                 String    @id @default(uuid()) @db.Uuid
+  peCode             String    @map("pe_code") @db.VarChar(16)
+  assertedFy         Int       @map("asserted_fy")
+  deltaType          String    @map("delta_type")
+  deltaPct           Float?    @map("delta_pct")
+  materialityScore   Float     @map("materiality_score")
+  materialityFactors Json      @default("{}") @map("materiality_factors_jsonb")
+  computedAt         DateTime  @map("computed_at") @db.Timestamptz(6)
+  supersededAt       DateTime? @map("superseded_at") @db.Timestamptz(6)
 
   @@map("program_element_delta")
 }
@@ -141,6 +178,8 @@ model ProgramElementProcurementLine {
   quantity        Decimal? @db.Decimal(14, 2)
   dollars         Decimal? @db.Decimal(18, 2)
   unitCost        Decimal? @map("unit_cost") @db.Decimal(18, 2)
+  source          String?
+  sourceUrl       String?  @map("source_url")
 
   @@map("program_element_procurement_line")
 }
@@ -153,10 +192,14 @@ model ProgramElementPerformer {
   location            String   @default("")
   costCategory        String   @default("") @map("cost_category")
   totalCostM          Decimal? @map("total_cost_m") @db.Decimal(18, 3)
+  contractMethod      String   @default("") @map("contract_method")
   tableType           String?  @map("table_type")
+  projectCode         String?  @map("project_code")
+  projectName         String?  @map("project_name")
   fy                  Int
-  sourceUrl           String?  @map("source_url")
-  pageNumber          Int?     @map("page_number")
+  sourceUrl           String   @map("source_url")
+  pageNumber          Int      @map("page_number")
+  publisher           String?
   isNamedCompany      Boolean  @default(true) @map("is_named_company")
 
   @@map("program_element_performer")
@@ -168,15 +211,19 @@ model ProgramElementPerformer {
 /// column here is exactly the pre-computed attribution apps/api's ingestion
 /// already stored, not a resolver this service invokes.
 model FederalAward {
-  id                   String   @id @default(uuid()) @db.Uuid
-  contractorName       String?  @map("contractor_name")
-  amount               Decimal? @db.Decimal(18, 2)
-  peCode               String?  @map("pe_code") @db.VarChar(16)
-  peCodeSource         String?  @map("pe_code_source")
-  peCodeConfidence     Float?   @map("pe_code_confidence")
-  peCodeCandidateCount Int?     @map("pe_code_candidate_count")
-  awardingSubTier      String?  @map("awarding_sub_tier")
-  fundingFy            Int?     @map("funding_fy")
+  id                   String    @id @default(uuid()) @db.Uuid
+  contractorName       String?   @map("contractor_name")
+  amount               Decimal?  @db.Decimal(18, 2)
+  peCode               String?   @map("pe_code") @db.VarChar(16)
+  peCodeSource         String?   @map("pe_code_source")
+  peCodeConfidence     Float?    @map("pe_code_confidence")
+  peCodeCandidateCount Int?      @map("pe_code_candidate_count")
+  awardingAgency       String?   @map("awarding_agency")
+  awardingSubTier      String?   @map("awarding_sub_tier")
+  fundingFy            Int?      @map("funding_fy")
+  piid                 String?
+  actionDate           DateTime? @map("action_date") @db.Date
+  dodAcqProgramCode    String?   @map("dod_acq_program_code")
 
   @@map("federal_award")
 }
@@ -185,11 +232,16 @@ model ProgramElementIntelligenceCache {
   peCode        String   @id @map("pe_code") @db.VarChar(16)
   lineType      String?  @map("line_type")
   maturity      Int?
+  maturityJson  Json     @default("{}") @map("maturity_jsonb")
   appropTier    String?  @map("approp_tier")
   appropScore   Int?     @map("approp_score")
+  appropJson    Json     @default("{}") @map("approp_jsonb")
   signalType    String?  @map("signal_type")
   signalTone    String?  @map("signal_tone")
+  signalFy      Int?     @map("signal_fy")
   valleyOfDeath Boolean? @map("valley_of_death")
+  anomaliesJson Json     @default("[]") @map("anomalies_jsonb")
+  computedAt    DateTime @map("computed_at") @db.Timestamptz(6)
 
   @@map("program_element_intelligence_cache")
 }
@@ -201,18 +253,26 @@ model BudgetLineRelationship {
   relType    String @map("rel_type") @db.VarChar(40)
   status     String @db.VarChar(12)
   confidence String @db.VarChar(8)
+  evidence   String
 
   @@map("budget_line_relationship")
 }
 
 model Program {
-  id            String   @id @default(uuid()) @db.Uuid
-  canonicalName String   @map("canonical_name")
-  mdapCode      String?  @map("mdap_code")
-  status        String
-  metadata      Json     @map("metadata_jsonb")
-  createdAt     DateTime @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime @map("updated_at") @db.Timestamptz(6)
+  id                 String   @id @default(uuid()) @db.Uuid
+  canonicalName      String   @map("canonical_name")
+  component          String?
+  capabilityArea     String?  @map("capability_area")
+  acquisitionPathway String?  @map("acquisition_pathway")
+  mdapCode           String?  @map("mdap_code")
+  description        String?
+  status             String
+  metadata           Json     @map("metadata_jsonb")
+  createdAt          DateTime @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @map("updated_at") @db.Timestamptz(6)
+
+  personRoles PersonRole[]
+  officeLinks ProgramOfficeProgramLink[]
 
   @@map("program")
 }
@@ -239,9 +299,13 @@ model PeProgramMatch {
   programId        String    @map("program_id") @db.Uuid
   status           String
   score            Float
+  evidenceTier     String    @map("evidence_tier")
+  evidence         Json      @default("[]") @map("evidence_jsonb")
   weakSignal       Boolean   @map("weak_signal")
+  matchBasis       String?   @map("match_basis")
   resolvedByUserId String?   @map("resolved_by_user_id") @db.Uuid
   resolvedAt       DateTime? @map("resolved_at") @db.Timestamptz(6)
+  decisionNotes    String?   @map("decision_notes")
   createdAt        DateTime  @map("created_at") @db.Timestamptz(6)
 
   @@map("pe_program_match")
@@ -267,6 +331,7 @@ model ProgramElementDataIssue {
   fieldName        String?   @map("field_name")
   issueType        String    @map("issue_type")
   description      String
+  suggestedSourceUrl String? @map("suggested_source_url")
   status           String
   resolvedByUserId String?   @map("resolved_by_user_id") @db.Uuid
   resolvedAt       DateTime? @map("resolved_at") @db.Timestamptz(6)
@@ -371,6 +436,7 @@ model CongressBill {
   title            String
   latestActionText String?   @map("latest_action_text")
   latestActionDate DateTime? @map("latest_action_date") @db.Date
+  introducedDate   DateTime? @map("introduced_date") @db.Date
   policyArea       String?   @map("policy_area")
   peCodes          String[]  @default([]) @map("pe_codes")
   sponsorName      String?   @map("sponsor_name")
@@ -416,46 +482,50 @@ model BillBudgetLineLink {
 }
 
 model BudgetPackageVehicle {
-  id        String                @id @default(uuid()) @db.Uuid
-  billId    String?               @map("bill_id")
+  id        String        @id @default(uuid()) @db.Uuid
+  billId    String?       @map("bill_id")
   track     String
   stage     String
-  packageId String                @map("package_id") @db.Uuid
-  package   BudgetPackage         @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  packageId String        @map("package_id") @db.Uuid
+  package   BudgetPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
 
   @@map("budget_package_vehicle")
 }
 
 model BudgetPackage {
-  id          String                 @id @default(uuid()) @db.Uuid
-  name        String
-  fiscalYear  Int                    @map("fiscal_year")
-  vehicles    BudgetPackageVehicle[]
+  id         String                 @id @default(uuid()) @db.Uuid
+  name       String
+  fiscalYear Int                    @map("fiscal_year")
+  vehicles   BudgetPackageVehicle[]
 
   @@map("budget_package")
 }
 
 model SourceDocument {
-  id        String @id @default(uuid()) @db.Uuid
-  sourceUrl String @map("source_url")
+  id          String  @id @default(uuid()) @db.Uuid
+  title       String
+  budgetCycle String  @map("budget_cycle")
+  sha256      String? @db.Char(64)
+  sourceUrl   String  @map("source_url")
 
   provisions CommitteeReportProvision[]
+  peSources  ProgramElementSource[]
 
   @@map("source_document")
 }
 
 model CommitteeReportProvision {
-  id             String  @id @default(uuid()) @db.Uuid
-  committee      String
-  fy             Int
-  heading        String
-  text           String
-  pageStart      Int?    @map("page_start")
-  pageEnd        Int?    @map("page_end")
-  actionType     String? @map("action_type")
+  id               String  @id @default(uuid()) @db.Uuid
+  committee        String
+  fy               Int
+  heading          String
+  text             String
+  pageStart        Int?    @map("page_start")
+  pageEnd          Int?    @map("page_end")
+  actionType       String? @map("action_type")
   sourceDocumentId String? @map("source_document_id") @db.Uuid
 
-  sourceDocument SourceDocument?  @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  sourceDocument SourceDocument?   @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
   links          ProvisionPeLink[]
 
   @@map("committee_report_provision")
@@ -476,22 +546,22 @@ model ProvisionPeLink {
 }
 
 model SamOpportunity {
-  id               String    @id @default(uuid()) @db.Uuid
-  noticeId         String    @unique @map("notice_id")
-  solicitationNumber String? @map("solicitation_number")
-  title            String
-  noticeType       String    @map("notice_type")
-  agency           String?
-  office           String?
-  pscCode          String?   @map("psc_code")
-  naicsCode        String?   @map("naics_code")
-  postedDate       DateTime? @map("posted_date") @db.Timestamptz(6)
-  responseDeadline DateTime? @map("response_deadline") @db.Timestamptz(6)
-  description      String?
-  sourceUrl        String?   @map("source_url")
-  pocName          String?   @map("poc_name")
-  pocEmail         String?   @map("poc_email")
-  active           Boolean   @default(true)
+  id                 String    @id @default(uuid()) @db.Uuid
+  noticeId           String    @unique @map("notice_id")
+  solicitationNumber String?   @map("solicitation_number")
+  title              String
+  noticeType         String    @map("notice_type")
+  agency             String?
+  office             String?
+  pscCode            String?   @map("psc_code")
+  naicsCode          String?   @map("naics_code")
+  postedDate         DateTime? @map("posted_date") @db.Timestamptz(6)
+  responseDeadline   DateTime? @map("response_deadline") @db.Timestamptz(6)
+  description        String?
+  sourceUrl          String?   @map("source_url")
+  pocName            String?   @map("poc_name")
+  pocEmail           String?   @map("poc_email")
+  active             Boolean   @default(true)
 
   matches SamOpportunityMatch[]
 
@@ -499,14 +569,117 @@ model SamOpportunity {
 }
 
 model SamOpportunityMatch {
-  id            String   @id @default(uuid()) @db.Uuid
-  opportunityId String   @map("opportunity_id") @db.Uuid
-  peCode        String?  @map("pe_code") @db.VarChar(16)
-  matchBasis    String   @map("match_basis")
-  confidence    Float    @default(0.5)
-  reviewStatus  String   @default("candidate") @map("review_status")
+  id            String  @id @default(uuid()) @db.Uuid
+  opportunityId String  @map("opportunity_id") @db.Uuid
+  peCode        String? @map("pe_code") @db.VarChar(16)
+  matchBasis    String  @map("match_basis")
+  confidence    Float   @default(0.5)
+  reviewStatus  String  @default("candidate") @map("review_status")
 
   opportunity SamOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   @@map("sam_opportunity_match")
+}
+
+// ---------------------------------------------------------------------------
+// Session 3 Workstream E additions.
+//
+// Every model below already exists physically in the shared schema and is
+// modeled here ONLY so defense-api can read what the frozen 49-route contract
+// actually serves. All are SELECT-only for capiro_defense_serve except the two
+// FK tables a program merge must re-point (person_role,
+// program_office_program_link), which need UPDATE. No DDL, no promotion
+// surface, no canonical snapshot table.
+// ---------------------------------------------------------------------------
+
+/// Normalized congressional budget actions (BL-0 derivation). Read-only.
+model BudgetAction {
+  id           String   @id @default(uuid()) @db.Uuid
+  peCode       String   @map("pe_code") @db.VarChar(16)
+  fy           Int
+  stage        String   @db.VarChar(12)
+  action       String   @db.VarChar(16)
+  amount       Decimal? @db.Decimal(14, 2)
+  baseline     String   @db.VarChar(12)
+  note         String?
+  evidenceJson Json     @default("{}") @map("evidence_jsonb")
+  billId       String?  @map("bill_id")
+  updatedAt    DateTime @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([peCode, fy, stage, action], map: "budget_action_natural_key")
+  @@map("budget_action")
+}
+
+/// Capability taxonomy + its auditable PE match table. `capability_budget_line_match`
+/// is the ONLY sanctioned capability<->budget-line association: an accepted row with
+/// a recorded `matchedOn` basis. Nothing here derives one native identity from
+/// another.
+model Capability {
+  id           String   @id @default(uuid()) @db.Uuid
+  slug         String   @unique @db.VarChar(32)
+  name         String
+  aliases      String[] @default([])
+  taxonomyPath String   @map("taxonomy_path")
+  description  String?
+
+  matches CapabilityBudgetLineMatch[]
+
+  @@map("capability")
+}
+
+model CapabilityBudgetLineMatch {
+  id           String @id @default(uuid()) @db.Uuid
+  capabilityId String @map("capability_id") @db.Uuid
+  peCode       String @map("pe_code") @db.VarChar(16)
+  confidence   String @db.VarChar(8)
+  matchedOn    String @map("matched_on")
+  status       String @default("accepted") @db.VarChar(12)
+
+  capability Capability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+
+  @@unique([capabilityId, peCode], map: "capability_budget_line_match_natural_key")
+  @@map("capability_budget_line_match")
+}
+
+/// Cached NDAA-conference forecast. The HTTP read path SELECTs a cached row and
+/// otherwise computes in memory; it never writes here (GAI-25: a read must not
+/// write). No INSERT/UPDATE grant exists for capiro_defense_serve on this table,
+/// so the invariant is enforced by the database, not just by code.
+model ConferenceProbability {
+  peCode       String   @map("pe_code") @db.VarChar(16)
+  fy           Int
+  predicted    Decimal  @db.Decimal(14, 4)
+  ciLow        Decimal  @map("ci_low") @db.Decimal(14, 4)
+  ciHigh       Decimal  @map("ci_high") @db.Decimal(14, 4)
+  confidence   Decimal  @db.Decimal(6, 4)
+  modelVersion String   @map("model_version")
+  computedAt   DateTime @map("computed_at") @db.Timestamptz(6)
+
+  @@id([peCode, fy])
+  @@map("conference_probability")
+}
+
+/// Two FK tables a program merge must re-point from the losing program to the
+/// keeper. Modeled with only the columns the merge touches - defense-api never
+/// reads personnel PII through them, and never surfaces a person on any route in
+/// the frozen contract.
+model PersonRole {
+  id        String  @id @default(uuid()) @db.Uuid
+  programId String? @map("program_id") @db.Uuid
+
+  program Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+
+  @@index([programId], map: "person_role_program_id_idx")
+  @@map("person_role")
+}
+
+model ProgramOfficeProgramLink {
+  id        String @id @default(uuid()) @db.Uuid
+  officeId  String @map("office_id") @db.Uuid
+  programId String @map("program_id") @db.Uuid
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([officeId, programId], map: "program_office_program_link_office_program_key")
+  @@map("program_office_program_link")
 }
