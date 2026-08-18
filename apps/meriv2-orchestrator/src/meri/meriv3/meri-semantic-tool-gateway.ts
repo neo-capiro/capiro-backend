@@ -66,6 +66,26 @@ const RECIPE_SUPPORT: Record<string, readonly string[]> = {
   ],
 };
 
+const MAIL_HISTORY_SUPPORT = [
+  'search_emails',
+  'find_contacts',
+  'search_memory',
+  'lookup_client_registry',
+] as const;
+
+const QUICK_COMPANY_PROFILE_SUPPORT = [
+  'lookup_client_registry',
+  'search_research_sources',
+  'search_public_web',
+  'scrape_web_page',
+] as const;
+
+function supportForPlan(plan: MeriRetrievalPlan, recipe: string): readonly string[] {
+  if (plan.reasons.includes('mail-history-focus')) return MAIL_HISTORY_SUPPORT;
+  if (plan.reasons.includes('quick-company-profile')) return QUICK_COMPANY_PROFILE_SUPPORT;
+  return RECIPE_SUPPORT[recipe] ?? [];
+}
+
 const DOMAIN_SUPPORT: Partial<Record<MeriRetrievalDomain, readonly string[]>> = {
   identity: ['resolve_entity'],
   clients: ['get_client_context', 'search_client_knowledge'],
@@ -267,11 +287,15 @@ export class MeriSemanticToolGateway {
     const requestContext = [input.recentUserContext, input.request].filter(Boolean).join('\n');
 
     let recipe = input.plan.recipeTool;
-    if (canonicalResearchDirector && recipe === 'research_external_company') {
+    if (
+      canonicalResearchDirector &&
+      recipe === 'research_external_company' &&
+      !input.plan.reasons.includes('quick-company-profile')
+    ) {
       recipe = 'research_federal_market_strategy';
     }
     if (recipe) addAvailable(critical, [recipe], available);
-    if (recipe) addAvailable(support, RECIPE_SUPPORT[recipe] ?? [], available);
+    if (recipe) addAvailable(support, supportForPlan(input.plan, recipe), available);
 
     if (!recipe) {
       const domains = unique([
@@ -312,9 +336,11 @@ export class MeriSemanticToolGateway {
 
     if (canonicalResearchDirector) {
       const oldIndex = critical.indexOf('research_external_company');
-      if (oldIndex >= 0) critical.splice(oldIndex, 1);
+      if (oldIndex >= 0 && recipe === 'research_federal_market_strategy') critical.splice(oldIndex, 1);
       const supportIndex = support.indexOf('research_external_company');
-      if (supportIndex >= 0) support.splice(supportIndex, 1);
+      if (supportIndex >= 0 && recipe === 'research_federal_market_strategy') {
+        support.splice(supportIndex, 1);
+      }
     }
 
     const proposedNames = unique([...critical, ...support]).slice(0, MAX_MODEL_FACING_TOOLS);

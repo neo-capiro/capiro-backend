@@ -29,6 +29,55 @@ describe('classifyMeriRetrievalIntent', () => {
     );
   });
 
+  test('recognizes the exact company-description prompt as a bounded external lookup', () => {
+    const result = classifyMeriRetrievalIntent(
+      'what does overland ai do',
+      'stale-ui-client',
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        subjectScope: 'external_entity',
+        queryClass: 'lookup',
+        requireCompleteCoverage: false,
+        includeFocusedClientContext: false,
+        targetHint: 'overland ai',
+      }),
+    );
+    expect(result.reasonCodes).toEqual(
+      expect.arrayContaining([
+        'company_description_request',
+        'named_target',
+        'explicit_named_subject',
+      ]),
+    );
+    expect(result.reasonCodes).not.toContain('federal_market_request');
+  });
+
+  test('recognizes the exact C2 email-history prompt as an exhaustive mail relationship request', () => {
+    const result = classifyMeriRetrievalIntent(
+      'tell me my email history with c2 strategies',
+      'stale-ui-client',
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        subjectScope: 'external_entity',
+        queryClass: 'relationship_history',
+        requireCompleteCoverage: true,
+        includeFocusedClientContext: false,
+        targetHint: 'c2 strategies',
+      }),
+    );
+    expect(result.reasonCodes).toEqual(
+      expect.arrayContaining([
+        'relationship_request',
+        'complete_coverage_required',
+        'explicit_named_subject',
+      ]),
+    );
+  });
+
   test('recognizes an inbox relationship brief about a named non-client entity', () => {
     const result = classifyMeriRetrievalIntent(
       'Look in my inbox and tell me everything I should know about Victory 6',
@@ -147,6 +196,8 @@ describe('classifyMeriRetrievalIntent', () => {
 
 describe('meriRetrievalTargetHint', () => {
   test.each([
+    ['what does overland ai do', 'overland ai'],
+    ['What does Overland AI build?', 'Overland AI'],
     ['Tell me everything about Victory Six', 'Victory Six'],
     ['Give me a strategy on Kinetic Industries Inc.', 'Kinetic Industries Inc'],
     ['Compare my client with Shield AI', 'Shield AI'],

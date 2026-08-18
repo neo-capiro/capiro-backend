@@ -8,6 +8,7 @@ import {
   executeMeriFederalMarketStrategyResearch,
   executeMeriPortfolioOverlap,
 } from './meriv3-retrieval-company.js';
+import { executeMeriQuickCompanyProfile } from './meriv3-retrieval-company-profile.js';
 import { executeMeriRelationshipBrief } from './meriv3-retrieval-relationship.js';
 import type { MeriRetrievalRecipeContext } from './meriv3-retrieval-recipe-utils.js';
 
@@ -30,12 +31,12 @@ export const MERI_RETRIEVAL_TOOL_SCHEMAS: MeriRetrievalToolSchema[] = [
   {
     name: 'query_relationship_brief',
     description:
-      'Build an entity-aware relationship and inbox brief across resolved aliases/domains, synchronized email, contacts, internal research, memory, client documents, meetings, tasks, outreach, and tracked work when available. Use FIRST for “everything I should know”, “catch me up”, relationship-history, and inbox-brief requests. Returns chronology, open commitments, people, communications, documents, evidence, and a coverage manifest.',
+      'Build a mailbox-first relationship history from synchronized email, known contacts, and firm memory. Use FIRST for email history, inbox history, correspondence history, “catch me up”, and relationship-history requests. It performs bounded subject/contact follow-ups to recover truncated mailbox matches. It does not search LDA, SEC, federal awards, grants, Program Elements, or the public web unless the user separately asks for external-company or federal-market research.',
     input_schema: {
       type: 'object',
       additionalProperties: false,
       properties: {
-        entity: stringSchema('Company, organization, or person to investigate'),
+        entity: stringSchema('Company, organization, or person whose relationship history is requested'),
         withinDays: integerSchema('Optional recency window in days (1-3650)'),
       },
       required: ['entity'],
@@ -73,7 +74,7 @@ export const MERI_RETRIEVAL_TOOL_SCHEMAS: MeriRetrievalToolSchema[] = [
   {
     name: 'research_external_company',
     description:
-      'Resolve and research a company whether or not it is a Capiro client. Builds a verified company evidence set, extracts capability/agency/NAICS/PSC/PE signals, searches SAM opportunities, grants and Program Elements from those signals, and names qualification gaps. Use FIRST for ordinary external-company profiles or a focused market lookup. Candidate matches are evidence for analysis, not automatic proof of eligibility or program fit.',
+      'Research a company whether or not it is a Capiro client. For an ordinary profile or “what does this company do?” question, the runtime uses a bounded client/official/public-source lane and stops after the core capabilities are supported. For explicit federal-market, opportunity, contract, grant, Program Element, capture, or comparison requests, it uses the broader market-research lane. Do not broaden a simple profile into federal-market research.',
     input_schema: {
       type: 'object',
       additionalProperties: false,
@@ -118,6 +119,12 @@ export function isMeriRetrievalRecipeTool(name: string): name is MeriRuntimeRetr
   return MERI_RETRIEVAL_TOOL_SCHEMAS.some((schema) => schema.name === name);
 }
 
+function useBoundedCompanyProfile(ctx: MeriRetrievalRecipeContext): boolean {
+  return ['lookup', 'semantic_recall', 'entity_history', 'temporal_state'].includes(
+    ctx.plan.queryClass,
+  );
+}
+
 export async function executeMeriRetrievalRecipe(
   name: MeriRuntimeRetrievalRecipeTool,
   input: Record<string, unknown>,
@@ -131,7 +138,9 @@ export async function executeMeriRetrievalRecipe(
     case 'query_portfolio_changes':
       return executeMeriPortfolioChanges(input, ctx);
     case 'research_external_company':
-      return executeMeriExternalCompanyResearch(input, ctx);
+      return useBoundedCompanyProfile(ctx)
+        ? executeMeriQuickCompanyProfile(input, ctx)
+        : executeMeriExternalCompanyResearch(input, ctx);
     case 'research_federal_market_strategy':
       return executeMeriFederalMarketStrategyResearch(input, ctx);
     case 'query_portfolio_overlap':

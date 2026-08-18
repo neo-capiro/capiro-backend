@@ -82,6 +82,16 @@ export interface MeriRetrievalPlan {
 const PORTFOLIO_OVERLAP_RE =
   /\b(?:search|scan|compare)\s+(?:across|against)\s+(?:my|our|the)?\s*clients?\b|\bwhich\s+(?:of\s+)?(?:my|our)\s+clients?\b|\bportfolio\s+(?:overlap|match|partner|fit)\b|\bpotential\s+partners?\s+(?:in|across)\s+(?:my|our)\s+(?:clients?|portfolio)\b/i;
 
+const MAIL_HISTORY_RE =
+  /\b(?:email|emails|mail|mailbox|inbox|correspondence|messages?)\b.*\b(?:history|with|from|about|between)\b|\b(?:history|correspondence)\b.*\b(?:email|emails|mail|mailbox|inbox|messages?)\b|\blook\s+in\s+my\s+inbox\b/i;
+
+const QUICK_COMPANY_QUERY_CLASSES: MeriQueryClass[] = [
+  'lookup',
+  'semantic_recall',
+  'entity_history',
+  'temporal_state',
+];
+
 const RESEARCH_DIRECTOR_REQUIRED_DOMAINS: MeriRetrievalDomain[] = [
   'identity',
   'public_web',
@@ -125,6 +135,31 @@ const RESEARCH_DIRECTOR_RECOMMENDED_TOOLS = [
   'search_committee_hearings',
   'search_research_sources',
   'search_memory',
+];
+
+const MAIL_HISTORY_RECOMMENDED_TOOLS = [
+  'query_relationship_brief',
+  'search_emails',
+  'find_contacts',
+  'search_memory',
+  'lookup_client_registry',
+];
+
+const RELATIONSHIP_RECOMMENDED_TOOLS = [
+  ...MAIL_HISTORY_RECOMMENDED_TOOLS,
+  'get_client_context',
+  'search_client_knowledge',
+  'query_debriefs',
+  'query_tasks',
+  'query_outreach',
+];
+
+const QUICK_COMPANY_RECOMMENDED_TOOLS = [
+  'research_external_company',
+  'lookup_client_registry',
+  'search_research_sources',
+  'search_public_web',
+  'scrape_web_page',
 ];
 
 function unique<T>(values: readonly T[]): T[] {
@@ -193,6 +228,12 @@ function recipeFor(
   if (intent.queryClass === 'comparison' && intent.subjectScope === 'external_entity') {
     return 'research_external_company';
   }
+  if (
+    intent.subjectScope === 'external_entity' &&
+    QUICK_COMPANY_QUERY_CLASSES.includes(intent.queryClass)
+  ) {
+    return 'research_external_company';
+  }
   return null;
 }
 
@@ -217,9 +258,16 @@ export function buildMeriRetrievalPlan(
     .map((client) => ({ ...client, id: client.id ?? client.name }));
   const timeWindow = inferTimeWindow(request);
   const targetHint = intent.targetHint ?? priorTargetHint ?? null;
+  const mailHistoryFocus =
+    recipeTool === 'query_relationship_brief' && MAIL_HISTORY_RE.test(request);
+  const quickCompanyProfile =
+    recipeTool === 'research_external_company' &&
+    QUICK_COMPANY_QUERY_CLASSES.includes(intent.queryClass);
   const reasons = [...intent.reasonCodes];
   if (recipeTool) reasons.push(`recipe:${recipeTool}`);
   if (recipeTool === 'research_federal_market_strategy') reasons.push('research-director-required');
+  if (mailHistoryFocus) reasons.push('mail-history-focus');
+  if (quickCompanyProfile) reasons.push('quick-company-profile');
   if (timeWindow) reasons.push(`time-window:${timeWindow.expression}`);
   if (targetHint && !intent.targetHint) reasons.push('target-from-conversation-history');
   if (intent.requireCompleteCoverage) reasons.push('coverage-required');
@@ -227,15 +275,40 @@ export function buildMeriRetrievalPlan(
   const requiredDomains =
     recipeTool === 'research_federal_market_strategy'
       ? RESEARCH_DIRECTOR_REQUIRED_DOMAINS
-      : catalogRecipe?.requiredDomains ?? [];
+      : mailHistoryFocus
+        ? (['mail'] as MeriRetrievalDomain[])
+        : recipeTool === 'query_relationship_brief'
+          ? (['mail', 'contacts', 'memory'] as MeriRetrievalDomain[])
+          : quickCompanyProfile
+            ? (['public_web'] as MeriRetrievalDomain[])
+            : catalogRecipe?.requiredDomains ?? [];
   const optionalDomains =
     recipeTool === 'research_federal_market_strategy'
       ? RESEARCH_DIRECTOR_OPTIONAL_DOMAINS
-      : catalogRecipe?.optionalDomains ?? [];
+      : mailHistoryFocus
+        ? (['contacts', 'memory', 'internal_research'] as MeriRetrievalDomain[])
+        : recipeTool === 'query_relationship_brief'
+          ? ([
+              'clients',
+              'internal_research',
+              'documents',
+              'meetings',
+              'tasks',
+              'outreach',
+            ] as MeriRetrievalDomain[])
+          : quickCompanyProfile
+            ? (['clients', 'internal_research'] as MeriRetrievalDomain[])
+            : catalogRecipe?.optionalDomains ?? [];
   const recommendedTools =
     recipeTool === 'research_federal_market_strategy'
       ? RESEARCH_DIRECTOR_RECOMMENDED_TOOLS
-      : catalogRecipe?.recommendedTools ?? [];
+      : mailHistoryFocus
+        ? MAIL_HISTORY_RECOMMENDED_TOOLS
+        : recipeTool === 'query_relationship_brief'
+          ? RELATIONSHIP_RECOMMENDED_TOOLS
+          : quickCompanyProfile
+            ? QUICK_COMPANY_RECOMMENDED_TOOLS
+            : catalogRecipe?.recommendedTools ?? [];
 
   return {
     version: 1,
@@ -269,6 +342,16 @@ export function meriRetrievalPlanPrompt(plan: MeriRetrievalPlan): string {
   if (plan.recipeTool) {
     lines.push(
       `Call ${plan.recipeTool} FIRST. It performs the required deterministic fan-out and returns a coverage manifest. Use lower-level tools afterward only to close a named gap or verify a load-bearing record.`,
+    );
+  }
+  if (plan.reasons.includes('mail-history-focus')) {
+    lines.push(
+      'This is a mailbox-history request. Mail is the required evidence lane; contacts and memory are supplementary. Do not search public web, LDA, SEC, awards, grants, contracts, Program Elements, legislation, or other federal-market sources for this answer.',
+    );
+  }
+  if (plan.reasons.includes('quick-company-profile')) {
+    lines.push(
+      'This is a bounded company-description request. Stop once client, official-site, or reliable public evidence supports the company’s core capabilities. Do not search LDA, SEC, awards, SAM, grants, Program Elements, report language, or federal opportunities unless the user explicitly asks for federal-market research.',
     );
   }
   if (plan.recipeTool === 'research_federal_market_strategy') {

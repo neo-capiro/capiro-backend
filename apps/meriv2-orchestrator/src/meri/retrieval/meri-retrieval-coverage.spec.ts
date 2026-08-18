@@ -77,7 +77,29 @@ describe('Meri retrieval coverage', () => {
     );
   });
 
-  test('reports pagination and mailbox outages as partial coverage', () => {
+  test('trusts explicit mailbox exhaustion even though the catalog is not globally exhaustive', () => {
+    const observation = observeMeriToolCoverage('search_emails', {}, {
+      totalMatches: 2,
+      returned: 2,
+      hasMore: false,
+      messages: [{ id: 'mail-1' }, { id: 'mail-2' }],
+    });
+    const relationshipPlan = plan({
+      queryClass: 'relationship_history',
+      subjectScope: 'external_entity',
+      recipeTool: 'query_relationship_brief',
+      requiredDomains: ['mail'],
+      activeClients: [],
+    });
+
+    const manifest = buildMeriCoverageManifest(relationshipPlan, [observation]);
+
+    expect(observation.status).toBe('complete');
+    expect(manifest.complete).toBe(true);
+    expect(manifest.paginationComplete).toBe(true);
+  });
+
+  test('renders pagination and mailbox outages as one clean coverage note', () => {
     const observation = observeMeriToolCoverage('search_emails', {}, {
       totalMatches: 80,
       returned: 50,
@@ -117,9 +139,40 @@ describe('Meri retrieval coverage', () => {
         expect.objectContaining({ source: 'google_workspace' }),
       ]),
     );
-    expect(reply).toContain('Coverage is partial');
-    expect(reply).toContain('additional or truncated results');
-    expect(reply).toContain('google_workspace');
+    expect(reply).toContain('**Coverage note:**');
+    expect(reply).toContain('Mailbox data was unavailable');
+    expect(reply).not.toContain('Coverage is partial');
+    expect(reply).not.toContain('google_workspace');
+    expect(reply).not.toContain('Sync failed');
+  });
+
+  test('does not let an irrelevant optional-source outage downgrade complete mail coverage', () => {
+    const mail = observeMeriToolCoverage('search_emails', {}, {
+      totalMatches: 1,
+      returned: 1,
+      hasMore: false,
+      messages: [{ id: 'mail-1' }],
+    });
+    const publicWeb = observeMeriToolCoverage('search_public_web', {}, {
+      error: '502 Bad Gateway',
+      results: [],
+    });
+    const relationshipPlan = plan({
+      queryClass: 'relationship_history',
+      subjectScope: 'external_entity',
+      recipeTool: 'query_relationship_brief',
+      requiredDomains: ['mail'],
+      optionalDomains: ['public_web'],
+      activeClients: [],
+    });
+
+    const manifest = buildMeriCoverageManifest(relationshipPlan, [mail, publicWeb]);
+
+    expect(manifest.complete).toBe(true);
+    expect(manifest.unavailableSources).toEqual([]);
+    expect(appendMeriCoverageDisclosure('Inbox brief', relationshipPlan, manifest)).toBe(
+      'Inbox brief',
+    );
   });
 
   test('does not append a disclosure to a normal lookup with no required retrieval', () => {

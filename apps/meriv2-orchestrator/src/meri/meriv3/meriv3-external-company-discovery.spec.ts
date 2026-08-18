@@ -176,7 +176,7 @@ describe('Meri external company discovery skill', () => {
   });
 
   test('returns not_found only after exact and discovery stages find no credible candidate', async () => {
-    const invoke = jest.fn(async (name: string) => {
+    const invoke = jest.fn(async (name: string, _input: Record<string, unknown>) => {
       if (name === 'lookup_client_registry') {
         return { existingClient: null, ldaExactMatch: null, ldaCandidates: [] };
       }

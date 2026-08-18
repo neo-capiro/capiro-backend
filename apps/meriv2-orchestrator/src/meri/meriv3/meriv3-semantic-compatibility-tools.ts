@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { MeriV3SemanticRuntimeStore } from './meriv3-semantic-runtime.store.js';
 
 export interface MeriSemanticCompatibilitySchema {
   name: string;
@@ -139,10 +140,18 @@ export class MeriV3SemanticCompatibilityTools {
     tenantId: string,
   ): MeriSemanticCompatibilitySchema[] {
     const researchDirectorCanonical = this.researchDirectorCanonicalEnabled(tenantId);
+    const quickCompanyProfile =
+      MeriV3SemanticRuntimeStore.current()?.plan.reasons.includes('quick-company-profile') === true;
     const fundingEnabled = this.fundingEnabled(tenantId);
     const artifactEnabled = this.artifactEnabled(tenantId);
     const filtered = schemas.filter((schema) => {
-      if (researchDirectorCanonical && schema.name === 'research_external_company') return false;
+      if (
+        researchDirectorCanonical &&
+        !quickCompanyProfile &&
+        schema.name === 'research_external_company'
+      ) {
+        return false;
+      }
       if (fundingEnabled && FUNDING_REASONING_TOOLS.has(schema.name)) return false;
       if (artifactEnabled && LEGACY_ARTIFACT_TOOLS.has(schema.name)) return false;
       return true;

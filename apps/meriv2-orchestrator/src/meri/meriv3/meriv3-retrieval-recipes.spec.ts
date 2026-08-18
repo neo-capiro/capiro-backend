@@ -13,8 +13,8 @@ function plan(overrides: Partial<MeriRetrievalPlan> = {}): MeriRetrievalPlan {
     targetHint: 'Victory Six',
     recipeTool: 'query_relationship_brief',
     requireCompleteCoverage: true,
-    requiredDomains: ['identity', 'internal_research', 'mail', 'contacts', 'memory'],
-    optionalDomains: [],
+    requiredDomains: ['mail'],
+    optionalDomains: ['contacts', 'memory', 'internal_research'],
     recommendedTools: [],
     timeWindow: null,
     activeClients: [],
@@ -25,49 +25,21 @@ function plan(overrides: Partial<MeriRetrievalPlan> = {}): MeriRetrievalPlan {
 
 const meriContext = { tenantId: 'tenant-1', userId: 'user-1' } as unknown as MeriContext;
 
-function identityAndResearchMock(extra?: MeriUnderlyingToolInvoker) {
+function relationshipMock(extra?: MeriUnderlyingToolInvoker) {
   return jest.fn(async (name: string, input: Record<string, unknown>) => {
     if (extra) {
       const delegated = await extra(name, input);
       if (delegated !== undefined) return delegated;
     }
     switch (name) {
-      case 'resolve_entity':
-        return { results: [] };
       case 'lookup_client_registry':
-        return { results: [] };
-      case 'search_research_sources':
         return {
           results: [
             {
-              id: 'internal-1',
-              title: 'Pilot relationship note',
-              description: 'Pilot relationship and connector request.',
-            },
-          ],
-        };
-      case 'search_lda_filings':
-        return {
-          results: [
-            {
-              id: 'lda-1',
-              registrantName: 'Victory Six Advisors',
-              clientName: 'Victory Six Advisors',
-              website: 'https://v6advisors.com',
-            },
-          ],
-        };
-      case 'search_sec_filings':
-      case 'search_federal_awards':
-        return { results: [] };
-      case 'search_public_web':
-        return {
-          results: [
-            {
-              id: 'web-1',
-              title: 'Victory Six Advisors',
-              url: 'https://v6advisors.com',
-              snippet: 'Official Victory Six Advisors website.',
+              id: 'client-v6',
+              clientId: 'client-v6',
+              name: 'Victory Six Advisors',
+              domain: 'v6advisors.com',
             },
           ],
         };
@@ -88,13 +60,45 @@ function identityAndResearchMock(extra?: MeriUnderlyingToolInvoker) {
 }
 
 describe('MeriV3 retrieval recipes', () => {
-  test('builds an entity-aware relationship brief across aliases, domain, mail and contacts', async () => {
-    const invoke = identityAndResearchMock(async (name, input) => {
+  test('builds a mailbox-first relationship brief and closes a bounded truncation gap', async () => {
+    const invoke = relationshipMock(async (name, input) => {
       if (name === 'search_emails') {
+        if (typeof input.query === 'string' && input.query !== 'Victory Six') {
+          return {
+            totalMatches: 1,
+            returned: 1,
+            hasMore: false,
+            messages: [
+              {
+                id: 'mail-1',
+                subject: String(input.query),
+                bodyText: 'Sean asked to finish connector setup.',
+                sentAt: '2026-08-10T15:00:00.000Z',
+                fromEmail: 'sean@v6advisors.com',
+              },
+            ],
+          };
+        }
+        if (typeof input.participant === 'string') {
+          return {
+            totalMatches: 1,
+            returned: 1,
+            hasMore: false,
+            messages: [
+              {
+                id: 'mail-2',
+                subject: 'V6 | Pilot feedback',
+                bodyText: 'Sean shared pilot feedback and next steps.',
+                sentAt: '2026-08-12T15:00:00.000Z',
+                fromEmail: 'sean@v6advisors.com',
+              },
+            ],
+          };
+        }
         return {
-          totalMatches: 1,
+          totalMatches: 2,
           returned: 1,
-          hasMore: false,
+          hasMore: true,
           messages: [
             {
               id: 'mail-1',
@@ -109,7 +113,7 @@ describe('MeriV3 retrieval recipes', () => {
               provider: 'microsoft_365',
               status: 'connected',
               syncedMessages: 400,
-              lastSyncAt: '2026-08-14T10:00:00.000Z',
+              lastSyncAt: new Date().toISOString(),
             },
           ],
         };
@@ -120,6 +124,7 @@ describe('MeriV3 retrieval recipes', () => {
             {
               id: 'contact-1',
               name: 'Sean Montplaisir',
+              email: 'sean@v6advisors.com',
               description: 'Victory Six contact',
             },
           ],
@@ -131,29 +136,240 @@ describe('MeriV3 retrieval recipes', () => {
     const raw = await executeMeriRetrievalRecipe(
       'query_relationship_brief',
       { entity: 'Victory Six', withinDays: 30 },
-      { plan: plan(), meriContext, invoke },
+      {
+        plan: plan({ reasons: ['mail-history-focus'] }),
+        meriContext,
+        invoke,
+      },
     );
     const result = raw as {
       resolvedEntity: { canonicalName: string; domains: string[] } | null;
       results: Array<{ sourceTool: string; title: string }>;
-      coverage: { requestedEntityCount: number; searchedEntityCount: number };
+      coverage: {
+        complete: boolean;
+        authoritative: boolean;
+        requestedEntityCount: number;
+        searchedEntityCount: number;
+        recordsEvaluated: number;
+        recordsReturned: number;
+      };
     };
 
-    expect(result.resolvedEntity?.canonicalName).toBe('Victory Six Advisors');
+    expect(result.resolvedEntity?.canonicalName).toBe('Victory Six');
     expect(result.resolvedEntity?.domains).toContain('v6advisors.com');
     expect(result.results).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ sourceTool: 'search_emails', title: 'V6 | Capiro orientation' }),
+        expect.objectContaining({ sourceTool: 'search_emails', title: 'V6 | Pilot feedback' }),
         expect.objectContaining({ sourceTool: 'find_contacts', title: 'Sean Montplaisir' }),
       ]),
     );
     expect(result.coverage).toEqual(
-      expect.objectContaining({ requestedEntityCount: 1, searchedEntityCount: 1 }),
+      expect.objectContaining({
+        complete: true,
+        authoritative: true,
+        requestedEntityCount: 1,
+        searchedEntityCount: 1,
+        recordsEvaluated: 2,
+        recordsReturned: 2,
+      }),
     );
     expect(invoke).toHaveBeenCalledWith(
       'search_emails',
-      expect.objectContaining({ participant: 'v6advisors.com', withinDays: 30, limit: 50 }),
+      expect.objectContaining({
+        participant: expect.stringMatching(/@v6advisors\.com$|^v6advisors\.com$/),
+        withinDays: 30,
+        limit: 50,
+      }),
     );
+    expect(invoke).toHaveBeenCalledWith(
+      'search_emails',
+      expect.objectContaining({
+        query: 'V6 | Capiro orientation',
+        participant: 'v6advisors.com',
+        withinDays: 30,
+        limit: 50,
+      }),
+    );
+    for (const forbidden of [
+      'resolve_entity',
+      'search_lda_filings',
+      'search_sec_filings',
+      'search_federal_awards',
+      'search_public_web',
+      'search_federal_grants',
+      'search_program_elements',
+    ]) {
+      expect(invoke).not.toHaveBeenCalledWith(forbidden, expect.anything());
+    }
+  });
+
+  test('keeps stale mailbox coverage incomplete even after bounded follow-ups', async () => {
+    const invoke = relationshipMock(async (name, input) => {
+      if (name === 'search_emails') {
+        return {
+          totalMatches: 1,
+          returned: 1,
+          hasMore: false,
+          messages: [
+            {
+              id: 'mail-stale',
+              subject: 'Victory Six update',
+              bodyText: 'A synchronized message.',
+              sentAt: '2026-08-10T15:00:00.000Z',
+              fromEmail: 'sean@v6advisors.com',
+            },
+          ],
+          ...(input.query === 'Victory Six'
+            ? {
+                searchedMailboxes: [
+                  {
+                    provider: 'microsoft_365',
+                    status: 'connected',
+                    syncedMessages: 400,
+                    lastSyncAt: '2020-01-01T00:00:00.000Z',
+                  },
+                ],
+              }
+            : {}),
+        };
+      }
+      if (name === 'find_contacts') {
+        return {
+          results: [
+            {
+              id: 'contact-stale',
+              name: 'Sean Montplaisir',
+              email: 'sean@v6advisors.com',
+            },
+          ],
+        };
+      }
+      return undefined;
+    });
+
+    const raw = await executeMeriRetrievalRecipe(
+      'query_relationship_brief',
+      { entity: 'Victory Six' },
+      {
+        plan: plan({ reasons: ['mail-history-focus'] }),
+        meriContext,
+        invoke,
+      },
+    );
+    const result = raw as {
+      coverage: {
+        complete: boolean;
+        authoritative: boolean;
+        unavailableSources: Array<{ source: string; reason: string }>;
+      };
+    };
+
+    expect(result.coverage.complete).toBe(false);
+    expect(result.coverage.authoritative).toBe(true);
+    expect(result.coverage.unavailableSources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: 'mail',
+          reason: expect.stringContaining('has not synchronized within the last 48 hours'),
+        }),
+      ]),
+    );
+  });
+
+  test('uses the bounded company-profile lane for an ordinary lookup', async () => {
+    const invoke = jest.fn(async (name: string) => {
+      switch (name) {
+        case 'lookup_client_registry':
+          return {
+            results: [
+              {
+                id: 'overland',
+                name: 'Overland AI',
+                domain: 'overland.ai',
+                description: 'Defense ground autonomy company.',
+              },
+            ],
+          };
+        case 'search_research_sources':
+          return {
+            results: [
+              {
+                id: 'internal-overland',
+                title: 'Overland AI',
+                description: 'Autonomous ground vehicles for off-road defense missions.',
+              },
+            ],
+          };
+        case 'search_public_web':
+          return {
+            results: [
+              {
+                id: 'web-overland',
+                title: 'Overland AI',
+                url: 'https://overland.ai',
+                snippet: 'Ground autonomy for defense operations in complex terrain.',
+              },
+            ],
+          };
+        case 'scrape_web_page':
+          return {
+            id: 'site-overland',
+            title: 'Overland AI',
+            url: 'https://overland.ai',
+            text: 'Autonomous vehicle systems for off-road and contested environments.',
+          };
+        default:
+          return { results: [] };
+      }
+    });
+    const lookupPlan = plan({
+      queryClass: 'lookup',
+      targetHint: 'Overland AI',
+      recipeTool: 'research_external_company',
+      requireCompleteCoverage: false,
+      requiredDomains: ['public_web'],
+      optionalDomains: ['clients', 'internal_research'],
+      reasons: ['quick-company-profile'],
+    });
+
+    const raw = await executeMeriRetrievalRecipe(
+      'research_external_company',
+      { entity: 'Overland AI' },
+      { plan: lookupPlan, meriContext, invoke },
+    );
+    const result = raw as {
+      profileMode: string;
+      researchSubject: string;
+      results: Array<{ sourceTool: string }>;
+      coverage: { complete: boolean; authoritative: boolean };
+    };
+
+    expect(result.profileMode).toBe('quick');
+    expect(result.researchSubject).toBe('Overland AI');
+    expect(result.coverage).toEqual(
+      expect.objectContaining({ complete: true, authoritative: true }),
+    );
+    expect(result.results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sourceTool: 'search_public_web' }),
+        expect.objectContaining({ sourceTool: 'scrape_web_page' }),
+      ]),
+    );
+    for (const forbidden of [
+      'resolve_entity',
+      'search_lda_filings',
+      'search_sec_filings',
+      'search_federal_awards',
+      'search_sam_opportunities',
+      'search_federal_grants',
+      'search_program_elements',
+      'get_program_element',
+      'get_pe_budget_timeline',
+      'get_pe_report_language',
+    ]) {
+      expect(invoke).not.toHaveBeenCalledWith(forbidden, expect.anything());
+    }
   });
 
   test('fans a portfolio change scan out to every active client', async () => {
@@ -304,7 +520,13 @@ describe('MeriV3 retrieval recipes', () => {
       if (name === 'search_research_sources') return { results: [] };
       if (name === 'search_memory') return { results: [] };
       if (
-        ['search_lda_filings', 'search_sec_filings', 'search_federal_awards', 'search_sam_opportunities', 'search_federal_grants'].includes(name)
+        [
+          'search_lda_filings',
+          'search_sec_filings',
+          'search_federal_awards',
+          'search_sam_opportunities',
+          'search_federal_grants',
+        ].includes(name)
       ) {
         return { results: [] };
       }

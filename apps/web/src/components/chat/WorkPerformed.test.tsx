@@ -57,33 +57,64 @@ describe('WorkPerformed', () => {
     );
 
     await waitFor(() => expect(getMock).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /Work performed/i }));
+    const button = screen.getByRole('button', { name: /Sources and checks/i });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText(/^deep$/i)).toBeNull();
+    fireEvent.click(button);
     expect(screen.getByText('Resolve the bill')).toBeTruthy();
     expect(screen.getByText('Searched congressional bills')).toBeTruthy();
     fireEvent.click(screen.getByText(/Context used/i));
     expect(screen.getByText('Firm Compass')).toBeTruthy();
-    expect(screen.getByText(/This log shows tools, sources, context, and checks/)).toBeTruthy();
+    expect(screen.getByText(/Shows sources, context, and checks/)).toBeTruthy();
     expect(screen.queryByText(/Thought process/i)).toBeNull();
     expect(screen.queryByText(/^Reasoning$/i)).toBeNull();
   });
 
-  it('keeps errors visible after streaming completes', async () => {
+  it('summarizes source failures without rendering raw details', async () => {
     render(
       <WorkPerformed
         isStreaming={false}
+        warnings={['Delegated source returned 502 Bad Gateway']}
         steps={[
           {
             tool: 'get_bill_status',
             label: 'Checked bill status',
-            detail: 'Source unavailable',
+            detail: 'Source unavailable: 502 Bad Gateway',
             status: 'error',
           },
         ]}
       />,
     );
     await waitFor(() => expect(getMock).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: /1 issue/i }));
-    expect(screen.getByText('Source unavailable')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Sources and checks/i }));
+    expect(screen.queryByText(/502 Bad Gateway/i)).toBeNull();
+    expect(screen.queryByText('Source unavailable: 502 Bad Gateway')).toBeNull();
+    expect(screen.getByText(/Some sources were unavailable/)).toBeTruthy();
+  });
+
+  it('compacts repeated tool calls into one visible source check', async () => {
+    render(
+      <WorkPerformed
+        isStreaming={false}
+        steps={[
+          {
+            tool: 'search_emails',
+            label: 'Searched emails',
+            count: 10,
+            status: 'done',
+          },
+          {
+            tool: 'search_emails',
+            label: 'Searched emails',
+            count: 5,
+            status: 'done',
+          },
+        ]}
+      />,
+    );
+    await waitFor(() => expect(getMock).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: /Sources and checks/i }));
+    expect(screen.getAllByText('Searched emails')).toHaveLength(1);
   });
 
   it('renders a degraded context state without exposing hidden item identity', async () => {

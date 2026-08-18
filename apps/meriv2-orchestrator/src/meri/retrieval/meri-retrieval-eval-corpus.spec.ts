@@ -41,7 +41,7 @@ describe('Meri retrieval production eval corpus', () => {
       selectedClientId: 'client-a',
       subjectScope: 'external_entity',
       queryClass: 'federal_market_analysis',
-      recipe: 'research_external_company',
+      recipe: 'research_federal_market_strategy',
       complete: true,
     },
     {

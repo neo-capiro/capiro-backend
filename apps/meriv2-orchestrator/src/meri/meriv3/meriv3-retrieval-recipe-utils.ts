@@ -235,7 +235,11 @@ export function evidenceRows(tool: string, result: unknown, max = 8): MeriRecipe
 export function uniqueEvidence(rows: readonly MeriRecipeEvidence[]): MeriRecipeEvidence[] {
   const seen = new Set<string>();
   return rows.filter((row) => {
-    const key = `${row.sourceTool}:${row.id}:${row.title}`;
+    // Message/record ids are the canonical deduplication key. A bounded
+    // subject follow-up can return the same message with a different derived
+    // title; counting that twice makes mailbox coverage look incomplete or
+    // inflates the evidence release. Fall back to title only for id-less rows.
+    const key = `${row.sourceTool}:${row.id || row.title}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
