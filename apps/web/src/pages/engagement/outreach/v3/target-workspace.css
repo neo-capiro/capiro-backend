@@ -267,3 +267,261 @@
 .ov3-target-workspace.is-compact .ov3-target-column {
   overflow-y: visible;
 }
+
+/* --------------------------------------------------------------------------
+ * Directory source (TargetDirectoryBrowser) — V2-parity browse table.
+ *
+ * A real member→staffer table rather than the capability card list, because
+ * the Directory tab now reads GET /api/directory/contacts the way Outreach V2
+ * does. One grid definition is shared by the head and every row (member and
+ * staffer) so the columns cannot drift apart.
+ *
+ * TOKEN NOTE: muted text here is `--ov3-muted`, never `--ov3-subtle`. The vNext
+ * re-theme (outreach-body-vnext.css) maps `--ov3-subtle` onto
+ * `--eng-accent-soft` (#edf3f7) — a soft accent BACKGROUND — so using it as a
+ * text colour renders near-white on this white table.
+ * -------------------------------------------------------------------------- */
+.ov3-dir {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ov3-dir__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ov3-dir__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 0 11px;
+  border: 1px solid var(--ov3-border);
+  border-radius: 9px;
+  background: var(--ov3-surface);
+  color: var(--ov3-muted);
+}
+.ov3-dir__search input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ov3-ink);
+  font-size: 13px;
+  outline: none;
+}
+.ov3-dir__filter select {
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--ov3-border);
+  border-radius: 8px;
+  background: var(--ov3-surface);
+  color: var(--ov3-ink);
+  font-size: 12px;
+}
+.ov3-dir__favtoggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--ov3-border);
+  border-radius: 8px;
+  background: var(--ov3-surface);
+  color: var(--ov3-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ov3-dir__favtoggle.is-on {
+  border-color: var(--ov3-accent);
+  color: var(--ov3-accent);
+}
+.ov3-dir__favtoggle.is-on svg {
+  fill: currentColor;
+}
+
+.ov3-dir__hint {
+  margin: 0;
+  color: var(--ov3-muted);
+  font-size: 12px;
+}
+
+.ov3-dir__table {
+  overflow: hidden;
+  border: 1px solid var(--ov3-border);
+  border-radius: 11px;
+  background: var(--ov3-surface);
+}
+.ov3-dir__head,
+.ov3-dir__row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1.4fr) minmax(0, 1.1fr) minmax(0, 1fr) 56px 96px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+}
+.ov3-dir__head {
+  padding-block: 8px;
+  border-bottom: 1px solid var(--ov3-border);
+  background: var(--ov3-canvas);
+  color: var(--ov3-muted);
+  font-family: var(--ov3-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ov3-dir__row {
+  padding-block: 8px;
+  border-bottom: 1px solid var(--ov3-border-quiet);
+}
+.ov3-dir__row:last-child {
+  border-bottom: 0;
+}
+.ov3-dir__office:last-child .ov3-dir__row:last-child {
+  border-bottom: 0;
+}
+.ov3-dir__row[data-added] {
+  background: var(--ov3-selected);
+}
+.ov3-dir__row.is-staff {
+  background: var(--ov3-canvas);
+}
+.ov3-dir__row.is-staff[data-added] {
+  background: var(--ov3-selected);
+}
+
+.ov3-dir__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ov3-dir__caret,
+.ov3-dir__add,
+.ov3-dir__star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ov3-muted);
+  cursor: pointer;
+}
+.ov3-dir__caret.is-spacer {
+  cursor: default;
+  opacity: 0.5;
+}
+.ov3-dir__add {
+  border-color: var(--ov3-border);
+  color: var(--ov3-ink);
+}
+.ov3-dir__add:hover:not(:disabled) {
+  border-color: var(--ov3-border-strong);
+}
+.ov3-dir__add.is-added {
+  border-color: var(--ov3-success);
+  background: var(--ov3-selected);
+  color: var(--ov3-success);
+}
+.ov3-dir__add:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.ov3-dir__star.is-on {
+  color: var(--ov3-warning);
+}
+.ov3-dir__star.is-on svg {
+  fill: currentColor;
+}
+
+.ov3-dir__who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.ov3-dir__who.is-static {
+  cursor: default;
+}
+.ov3-dir__who strong {
+  overflow: hidden;
+  color: var(--ov3-ink);
+  font-size: 13px;
+  font-weight: 640;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ov3-dir__who small {
+  overflow: hidden;
+  color: var(--ov3-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ov3-dir__cell {
+  overflow: hidden;
+  color: var(--ov3-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ov3-dir__empty {
+  padding: 28px 16px;
+  color: var(--ov3-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.ov3-dir__pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ov3-dir__pager span {
+  flex: 1;
+  color: var(--ov3-muted);
+  font-size: 12px;
+}
+
+/* Narrow widths: drop Committee/State/Party rather than horizontally scroll.
+   Name + office + the add control are what the table is for. */
+@media (max-width: 1180px) {
+  .ov3-dir__head,
+  .ov3-dir__row {
+    grid-template-columns: 104px minmax(0, 1.5fr) minmax(0, 1fr);
+  }
+  .ov3-dir__head span:nth-child(4),
+  .ov3-dir__head span:nth-child(5),
+  .ov3-dir__head span:nth-child(6),
+  .ov3-dir__row > .ov3-dir__cell:nth-child(4),
+  .ov3-dir__row > .ov3-dir__cell:nth-child(5),
+  .ov3-dir__row > .ov3-dir__cell:nth-child(6) {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .ov3-dir__head,
+  .ov3-dir__row {
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+  .ov3-dir__head span:nth-child(3),
+  .ov3-dir__row > .ov3-dir__cell:nth-child(3) {
+    display: none;
+  }
+}

@@ -4,6 +4,14 @@ import type { TenantContext } from '@capiro/shared';
 import { outreachNotFound, OutreachCommandError } from '../state/outreach-command-errors.js';
 
 export type OutreachSessionStatus = 'active' | 'completed' | 'archived';
+
+/**
+ * Reserved artifact-root type for a V3 campaign. Declared locally rather than
+ * imported from OutreachV3ArtifactRootService so this persistence module takes
+ * no dependency on the drafts module; the value is asserted identical to that
+ * service's by outreach-session-list.repository.spec.ts.
+ */
+const OUTREACH_V3_ARTIFACT_ROOT_TYPE = 'outreach_v3';
 export type OutreachProposalStatus = 'pending' | 'applied' | 'rejected' | 'superseded';
 export type OutreachEventSource = 'user_control' | 'user_proposal' | 'future_model' | 'system';
 
@@ -17,6 +25,33 @@ export interface OutreachSessionRow {
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;
+}
+
+/**
+ * One row of the Outreach home list (the draft/sent campaign list).
+ *
+ * Everything beyond `OutreachSessionRow` is READ from state that already
+ * exists, never a new stored field:
+ *   - `topic`/`goal` come from the session's own current Campaign Spec
+ *     version, because a session's `title` is only ever written at creation
+ *     ("New outreach campaign") and would make every row of a campaign list
+ *     read identically.
+ *   - `targetCount` is the length of that same spec's selected target refs.
+ *   - `recordStatus`/`sentAt` come from the compatibility artifact root
+ *     (id-equal to the session — see OutreachV3ArtifactRootService). That row
+ *     is where a completed real send is already mirrored by
+ *     OutreachSendIntentService.rollUpIntent, and it is the ONLY durable
+ *     draft-vs-sent truth for a V3 campaign: a session's own `status` is never
+ *     advanced to 'completed' by any code path. Both are null until the
+ *     campaign first creates a draft artifact, which honestly means "no
+ *     recorded send" rather than a claimed one.
+ */
+export interface OutreachSessionListRow extends OutreachSessionRow {
+  topic: string | null;
+  goal: string | null;
+  targetCount: number;
+  recordStatus: string | null;
+  sentAt: Date | null;
 }
 
 export interface OutreachStateVersionRow {
@@ -187,26 +222,101 @@ export class OutreachStateRepository {
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
     input: { limit: number; offset: number; includeArchived: boolean },
-  ): Promise<OutreachSessionRow[]> {
-    return tx.$queryRaw<OutreachSessionRow[]>`
+  ): Promise<OutreachSessionListRow[]> {
+    // The spec join is LEFT and additionally tenant-predicated in its own ON
+    // clause: a session whose current state version is somehow unreadable must
+    // still appear in the list rather than silently disappear from the user's
+    // own campaigns.
+    const rows = await tx.$queryRaw<
+      Array<
+        Omit<OutreachSessionListRow, 'targetCount' | 'recordStatus' | 'sentAt'> & {
+          targetCount: number | bigint | null;
+        }
+      >
+    >`
       SELECT
-        id,
-        tenant_id AS "tenantId",
-        created_by_user_id AS "createdByUserId",
-        status,
-        current_state_version AS "currentStateVersion",
-        title,
-        created_at AS "createdAt",
-        updated_at AS "updatedAt",
-        archived_at AS "archivedAt"
-      FROM outreach_sessions
-      WHERE tenant_id = CAST(${ctx.tenantId} AS uuid)
-        AND created_by_user_id = CAST(${ctx.userId} AS uuid)
-        AND (${input.includeArchived} OR status <> 'archived')
-      ORDER BY updated_at DESC, id DESC
+        s.id,
+        s.tenant_id AS "tenantId",
+        s.created_by_user_id AS "createdByUserId",
+        s.status,
+        s.current_state_version AS "currentStateVersion",
+        s.title,
+        s.created_at AS "createdAt",
+        s.updated_at AS "updatedAt",
+        s.archived_at AS "archivedAt",
+        v.spec_jsonb -> 'goal' ->> 'topic' AS "topic",
+        v.spec_jsonb -> 'goal' ->> 'goal' AS "goal",
+        COALESCE(
+          jsonb_array_length(
+            CASE
+              WHEN jsonb_typeof(v.spec_jsonb -> 'targeting' -> 'selectedTargetRefs') = 'array'
+                THEN v.spec_jsonb -> 'targeting' -> 'selectedTargetRefs'
+              ELSE '[]'::jsonb
+            END
+          ),
+          0
+        ) AS "targetCount"
+      FROM outreach_sessions s
+      LEFT JOIN outreach_state_versions v
+        ON v.session_id = s.id
+        AND v.tenant_id = s.tenant_id
+        AND v.version = s.current_state_version
+      WHERE s.tenant_id = CAST(${ctx.tenantId} AS uuid)
+        AND s.created_by_user_id = CAST(${ctx.userId} AS uuid)
+        AND (${input.includeArchived} OR s.status <> 'archived')
+      ORDER BY s.updated_at DESC, s.id DESC
       LIMIT ${input.limit}
       OFFSET ${input.offset}
     `;
+
+    // Send outcome is read through the Prisma model, not joined into the SQL
+    // above. This module's Phase 2 boundary
+    // (outreach-v3-phase2-architecture.spec.ts) forbids naming the legacy
+    // Outreach tables in raw SQL anywhere under src/outreach-v3; the model
+    // accessor is the sanctioned route, and is exactly what
+    // OutreachV3ArtifactRootService already uses to create these same rows.
+    const sendState = await this.loadArtifactRootSendState(
+      tx,
+      ctx,
+      rows.map((row) => row.id),
+    );
+
+    // jsonb_array_length returns an integer, but $queryRaw can surface a
+    // bigint depending on the driver path — normalize before it crosses the
+    // API boundary so it can never serialize as a BigInt and throw.
+    return rows.map((row) => ({
+      ...row,
+      targetCount: Number(row.targetCount ?? 0),
+      recordStatus: sendState.get(row.id)?.status ?? null,
+      sentAt: sendState.get(row.id)?.sentAt ?? null,
+    }));
+  }
+
+  /**
+   * Draft-vs-sent for a batch of campaigns, from the compatibility artifact
+   * root.
+   *
+   * A campaign has no artifact root until it first creates a draft, so a
+   * missing entry means "no recorded send" — never a claimed one. Scoped to the
+   * caller's tenant and to the reserved V3 artifact type, so a classic record
+   * could not contribute a send outcome even if it shared an id.
+   */
+  private async loadArtifactRootSendState(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    sessionIds: string[],
+  ): Promise<Map<string, { status: string; sentAt: Date | null }>> {
+    if (sessionIds.length === 0) return new Map();
+    const roots = await tx.outreachRecord.findMany({
+      where: {
+        tenantId: ctx.tenantId,
+        id: { in: sessionIds },
+        type: OUTREACH_V3_ARTIFACT_ROOT_TYPE,
+        deletedAt: null,
+      },
+      select: { id: true, status: true, sentAt: true },
+    });
+    return new Map(roots.map((root) => [root.id, { status: root.status, sentAt: root.sentAt }]));
   }
 
   async loadStateVersion(

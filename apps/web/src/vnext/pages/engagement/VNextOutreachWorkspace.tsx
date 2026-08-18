@@ -3,15 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
-  Archive,
-  ArrowUp,
+  ArrowLeft,
   Ban,
   Check,
   ChevronDown,
   ChevronUp,
   CircleAlert,
   FileClock,
-  FolderOpen,
   Loader2,
   Paperclip,
   RotateCcw,
@@ -24,10 +22,7 @@ import {
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { CurrentDecisionSurface } from '../../../pages/engagement/outreach/v3/CurrentDecisionSurface.js';
 import { GoalDecisionSurface } from '../../../pages/engagement/outreach/v3/GoalDecisionSurface.js';
-import type {
-  OutreachV3Stage,
-  OutreachV3TranscriptTurn,
-} from '../../../pages/engagement/outreach/v3/contracts.js';
+import type { OutreachV3Stage } from '../../../pages/engagement/outreach/v3/contracts.js';
 import { useOutreachV3Session } from '../../../pages/engagement/outreach/v3/useOutreachV3Session.js';
 import { useApi } from '../../../lib/use-api.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
@@ -91,11 +86,20 @@ interface IntegrationConnection {
 }
 
 interface Props {
+  /**
+   * The campaign this builder edits. Required: the builder no longer creates
+   * a campaign for itself, because mounting it used to mint an empty session
+   * every time the Outreach tab was clicked. Creation belongs to the Outreach
+   * home screen (`VNextOutreachHome`).
+   */
+  sessionId: string;
   clients: Client[];
   selectedClientId: string | null;
   integrations: IntegrationConnection[];
   step: EngagementOutreachStep;
   onStepChange: (step: EngagementOutreachStep) => void;
+  /** Leaves the builder and returns to the campaign list. */
+  onExit: () => void;
 }
 
 const USER_STEPS: Array<{ key: EngagementOutreachStep; label: string; number: string }> = [
@@ -409,23 +413,21 @@ function SectionStatus({ state }: { state: SectionToneState }) {
 }
 
 /**
- * Chat pane header pill. Resolves to "Sent" once a durable send intent
- * exists, "Drafts" once the approach is approved (immutable drafts exist to
- * review), otherwise the current step name — matching the mockup, which
- * never shows a raw step key once the campaign has moved past planning.
+ * The builder's own heading.
+ *
+ * Prefers the canonical Campaign Spec topic over `session.title`, which is
+ * only ever written at session creation and so reads "New outreach campaign"
+ * for every campaign — see `outreachCampaignName` in VNextOutreachHome, which
+ * makes the same choice for the campaign list.
  */
-export function outreachChatStateLabel(
-  step: EngagementOutreachStep,
-  hasActiveIntent: boolean,
-  approachApproved: boolean,
+export function outreachCampaignHeading(
+  session: ReturnType<typeof useOutreachV3Session>['session'],
 ): string {
-  if (hasActiveIntent) return 'Sent';
-  if (approachApproved) return 'Drafts';
-  return step.toUpperCase();
-}
-
-function transcriptLabel(turn: OutreachV3TranscriptTurn): string {
-  return turn.role === 'assistant' ? 'Meri' : turn.role === 'user' ? 'You' : 'System';
+  return (
+    session?.spec.goal.topic?.trim() ||
+    session?.session.title?.trim() ||
+    'Untitled campaign'
+  );
 }
 
 function campaignBrief(
@@ -1070,10 +1072,10 @@ function SendPanel({
       }),
     onSuccess: (result) => onIntent(result.intentId),
   });
-  // The real send trigger itself now lives one level up (see
-  // VNextOutreachWorkspace's own `realSend` mutation) so the chat pane can
-  // fire the exact same, single, real send code path — see item D in this
-  // phase's report. This panel only displays `sendPending`/`sendError`.
+  // The real send trigger itself lives one level up (see
+  // VNextOutreachWorkspace's own `realSend` mutation) so the campaign action
+  // bar can fire the exact same, single, real send code path. This panel only
+  // displays `sendPending`/`sendError`.
   const refreshIntent = useMutation({
     mutationFn: async () => {
       if (!activeIntent) throw new Error('No send intent is active.');
@@ -1654,20 +1656,20 @@ function SendPanel({
               {testSend.isPending ? 'Creating test…' : 'Send test'}
             </button>
           </section>
-          {/* Per the product rule "send lives in the conversation, not the
-              workbench": the real primary send trigger now lives in the chat
-              pane (see InlineActions in VNextOutreachWorkspace), reading this
-              exact same preflight/held-out/acknowledge state. This step ends
-              with an explanatory note only — there is exactly one real send
-              code path (the `realSend` mutation lifted to the parent), never
-              a second copy of the gating logic here. */}
+          {/* The real primary send trigger lives in the campaign action bar
+              at the foot of the workbench (see CampaignActionBar in
+              VNextOutreachWorkspace), reading this exact same preflight/
+              held-out/acknowledge state. This step ends with an explanatory
+              note only — there is exactly one real send code path (the
+              `realSend` mutation lifted to the parent), never a second copy of
+              the gating logic here. */}
           <div className="uui-send-relocated-note">
             <ShieldCheck size={16} aria-hidden="true" />
             <div>
-              <strong>Send lives in the conversation on the left.</strong>
+              <strong>Send is the action bar at the bottom of this page.</strong>
               <p>
                 Every check above and the held-out acknowledgment stay live here. Once they're
-                clear, use the Send button in the chat panel to send{' '}
+                clear, use the Send button in the action bar below to send{' '}
                 {preflight.draftVersionIds.length} approved email
                 {preflight.draftVersionIds.length === 1 ? '' : 's'}.
                 {sendPending ? ' A send is being created now…' : ''}
@@ -1699,16 +1701,17 @@ function PreflightRow({ check }: { check: HonestPreflightRow }) {
 }
 
 export function VNextOutreachWorkspace({
+  sessionId: routeSessionId,
   clients,
   selectedClientId,
   integrations,
   step,
   onStepChange,
+  onExit,
 }: Props) {
   const api = useApi();
   const qc = useQueryClient();
-  const controller = useOutreachV3Session({ title: 'New outreach campaign' });
-  const [composer, setComposer] = useState('');
+  const controller = useOutreachV3Session({ sessionId: routeSessionId });
   /** Campaign brief → Edit opens the canonical goal fields in a modal
    *  (UI-parity §7); the goal card itself is read-only. */
   const [briefEditOpen, setBriefEditOpen] = useState(false);
@@ -1719,9 +1722,8 @@ export function VNextOutreachWorkspace({
   const [intentId, setIntentId] = useState<string | null>(null);
   // Held-out state lives here (not inside SendPanel) for two reasons: it is
   // the fix for the permanently-empty excludedGenerationKeys bug (see
-  // `effectiveExcludedKeys`/`realSend` below), and per the product rule "send
-  // lives in the conversation, not the workbench" the chat pane needs the
-  // SAME acknowledgment state SendPanel's checkbox writes to.
+  // `effectiveExcludedKeys`/`realSend` below), and the campaign action bar
+  // needs the SAME acknowledgment state SendPanel's checkbox writes to.
   const [heldOutKeys, setHeldOutKeys] = useState<Set<string>>(new Set());
   // Recipient-key -> blocker codes, accumulated across preflight responses so
   // the "Held out" panel can still show a real reason after a key becomes
@@ -1729,9 +1731,6 @@ export function VNextOutreachWorkspace({
   // it is actually excluded from the required set).
   const [heldOutReasons, setHeldOutReasons] = useState<Map<string, string[]>>(new Map());
   const [acknowledgeHeldOut, setAcknowledgeHeldOut] = useState(false);
-  const [campaignsOpen, setCampaignsOpen] = useState(false);
-  const [archivingSessionId, setArchivingSessionId] = useState<string | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const sessionId = controller.sessionId;
   const session = controller.session;
@@ -1779,9 +1778,6 @@ export function VNextOutreachWorkspace({
   useEffect(() => {
     setOpenSections((current) => new Set(current).add(step));
   }, [step]);
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [controller.turns.length]);
   useEffect(() => {
     if (
       generationJob.data &&
@@ -1857,6 +1853,9 @@ export function VNextOutreachWorkspace({
   const currentDrafts = drafts.data ?? [];
   const reachedIndex = Math.max(planningIndex, currentDrafts.length ? 5 : 4);
   const activeIntent = intent.data ?? null;
+  const campaignHeading = outreachCampaignHeading(session);
+  const mutationInFlight =
+    controller.applyingCommands || controller.proposalBusy || controller.isRefreshing;
 
   // Defensively filtered against the CURRENT plan's real generation keys so a
   // held-out choice from a since-replaced plan can never surface as the
@@ -1880,10 +1879,10 @@ export function VNextOutreachWorkspace({
     setAcknowledgeHeldOut(false);
   };
 
-  // THE real send code path — see item D in this phase's report. Triggered
-  // from the chat pane (InlineActions) and read-only-displayed (pending/
-  // error) from the workbench (SendPanel); there is exactly one `.mutate()`
-  // call site for a real send in this whole file.
+  // THE real send code path. Triggered from the campaign action bar
+  // (CampaignActionBar) and read-only-displayed (pending/error) by the Send
+  // section (SendPanel); there is exactly one `.mutate()` call site for a real
+  // send in this whole file.
   const realSend = useMutation({
     mutationFn: () =>
       createOutreachV3SendIntent(api, sessionId!, {
@@ -1893,13 +1892,6 @@ export function VNextOutreachWorkspace({
       }),
     onSuccess: (result) => setIntentId(result.intentId),
   });
-
-  const sendComposer = async (text = composer) => {
-    const value = text.trim();
-    if (!value || controller.sendingTurn) return;
-    setComposer('');
-    await controller.sendTurn(value);
-  };
 
   const selectStep = (value: EngagementOutreachStep) => {
     const index = stepIndex(value);
@@ -1931,11 +1923,6 @@ export function VNextOutreachWorkspace({
   if (controller.isBootstrapping) {
     return (
       <div className="uui-outreach-loading">
-        <div className="uui-chat-skeleton">
-          <i />
-          <i />
-          <i />
-        </div>
         <div className="uui-canvas-skeleton">
           <i />
           <i />
@@ -1948,130 +1935,60 @@ export function VNextOutreachWorkspace({
   if (!session || !sessionId) {
     return (
       <div className="uui-engagement-error">
-        <strong>Outreach could not start</strong>
+        <strong>This campaign could not be opened</strong>
         <p>{controller.errorMessage || 'A governed campaign session was not available.'}</p>
-        <button
-          type="button"
-          className="uui-button"
-          onClick={() => void controller.startNewSession()}
-        >
-          Try again
-        </button>
+        <div className="uui-engagement-error__actions">
+          <button type="button" className="uui-button" onClick={onExit}>
+            Back to campaigns
+          </button>
+          <button
+            type="button"
+            className="uui-button--primary"
+            onClick={() => void controller.refreshCanonical()}
+          >
+            Try again
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="uui-outreach-workspace">
-      <aside className="uui-outreach-chat">
-        <header>
-          <div>
-            <span className="uui-live-dot" />
-            <strong>Meri · Outreach</strong>
-          </div>
-          <span>{outreachChatStateLabel(step, Boolean(activeIntent), Boolean(approach.data))}</span>
+      <main className="uui-outreach-canvas">
+        {/* The builder is now its own URL (`/engagement/outreach/<id>`), so it
+            owns the only way back to the campaign list. Before this, the list
+            lived in a dropdown inside the builder and there was no exit. */}
+        <div className="uui-outreach-crumb">
           <button
             type="button"
-            className="uui-button uui-outreach-chat__archive"
-            disabled={controller.startingNewSession}
-            title="Archive this campaign session and start a new one"
-            onClick={() => void controller.startNewSession()}
+            className="uui-outreach-crumb__back"
+            onClick={onExit}
+            aria-label="Back to campaigns"
           >
-            <Archive size={14} />
-            {controller.startingNewSession ? 'Archiving…' : 'Archive session'}
+            <ArrowLeft size={15} aria-hidden="true" />
+            Campaigns
           </button>
-        </header>
-        {controller.reasoningUnavailable ? (
-          <div className="uui-model-outage">
-            <AlertTriangle size={17} />
-            <div>
-              <strong>Meri is temporarily unavailable</strong>
-              <p>
-                {controller.reasoningErrorMessage ||
-                  'Planning controls and current campaign data remain available.'}
-              </p>
-              <button
-                type="button"
-                className="uui-model-outage__retry"
-                onClick={() => controller.retryReasoning()}
-              >
-                Retry Meri
-              </button>
-            </div>
-          </div>
-        ) : null}
-        <div className="uui-outreach-transcript">
-          {controller.turns.length ? (
-            controller.turns.map((turn, index) => (
-              <article key={turn.id ?? `${turn.role}-${index}`} data-role={turn.role}>
-                <span>{transcriptLabel(turn)}</span>
-                <div>{turn.text}</div>
-              </article>
-            ))
-          ) : (
-            <article data-role="assistant">
-              <span>Meri</span>
-              <div>
-                What do you need to accomplish? Give me the goal in your own words — client, sponsor
-                and audience stay optional until you choose them.
-              </div>
-            </article>
-          )}
-          <InlineActions
-            step={step}
-            controllerStage={controller.stage}
-            plan={plan.data ?? null}
-            drafts={currentDrafts}
-            approachCurrent={Boolean(approach.data)}
-            preflight={preflight}
-            acknowledgeHeldOut={acknowledgeHeldOut}
-            hasActiveIntent={Boolean(activeIntent)}
-            sendPending={realSend.isPending}
-            sendError={realSend.error}
-            onSend={() => realSend.mutate()}
-            onSuggested={(value) => void sendComposer(value)}
-            generationError={sampleMutation.error || fullGeneration.error}
-            onGenerateSamples={() => sampleMutation.mutate()}
-            onApproveApproach={() => approachMutation.mutate(sampleVersions)}
-            onGenerateRemaining={() => fullGeneration.mutate()}
-            onGoToPreflight={() => {
-              selectStep('send');
-              setTimeout(() => setPreflight(null), 0);
-            }}
-          />
-          <div ref={chatEndRef} />
+          <span className="uui-outreach-crumb__title">
+            <strong>{campaignHeading}</strong>
+            <small>
+              v{session.currentStateVersion} ·{' '}
+              {session.spec.targeting.selectedTargetRefs.length} target
+              {session.spec.targeting.selectedTargetRefs.length === 1 ? '' : 's'}
+            </small>
+          </span>
+          <span className="uui-outreach-crumb__state" role="status">
+            {mutationInFlight ? (
+              <>
+                <Loader2 className="uui-spin" size={13} aria-hidden="true" /> Saving…
+              </>
+            ) : (
+              <>
+                <ShieldCheck size={13} aria-hidden="true" /> Saved
+              </>
+            )}
+          </span>
         </div>
-        <footer>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void sendComposer();
-            }}
-          >
-            <input
-              value={composer}
-              onChange={(event) => setComposer(event.target.value)}
-              placeholder="Tell Meri what you need to send…"
-              aria-label="Message Meri"
-            />
-            <button
-              type="submit"
-              className="uui-button--primary"
-              aria-label="Send to Meri"
-              disabled={!composer.trim() || controller.sendingTurn}
-            >
-              {controller.sendingTurn ? (
-                <Loader2 className="uui-spin" size={17} />
-              ) : (
-                <ArrowUp size={18} />
-              )}
-            </button>
-          </form>
-          <p>Reply to Meri, or use the action above.</p>
-        </footer>
-      </aside>
-
-      <main className="uui-outreach-canvas">
         <div className="uui-campaign-brief">
           <span className="uui-eyebrow">Campaign brief</span>
           <p>{campaignBrief(session, currentDrafts)}</p>
@@ -2082,122 +1999,6 @@ export function VNextOutreachWorkspace({
             Edit
           </button>
         </div>
-        {/* Wire-existing-apis item 1: real V3 session list (GET …/sessions),
-            not classic OutreachView. Resume + archive without leaving os. */}
-        <section className="uui-campaign-list" aria-label="Your campaigns">
-          <header className="uui-campaign-list__header">
-            <button
-              type="button"
-              className="uui-campaign-list__toggle"
-              aria-expanded={campaignsOpen}
-              onClick={() => setCampaignsOpen((open) => !open)}
-            >
-              <FolderOpen size={14} />
-              <strong>Campaigns</strong>
-              <span className="uui-campaign-list__count">
-                {controller.sessionsLoading
-                  ? '…'
-                  : String(controller.ownedSessions?.length ?? 0)}
-              </span>
-              {campaignsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            </button>
-            <div className="uui-campaign-list__actions">
-              <button
-                type="button"
-                className="uui-button"
-                disabled={controller.sessionsLoading}
-                onClick={() => void controller.refreshSessions?.()}
-                title="Refresh campaign list"
-              >
-                Refresh
-              </button>
-              <button
-                type="button"
-                className="uui-button"
-                disabled={controller.startingNewSession}
-                onClick={() => void controller.startNewSession()}
-                title="Archive the current session and start a new campaign"
-              >
-                New campaign
-              </button>
-            </div>
-          </header>
-          {campaignsOpen ? (
-            <div className="uui-campaign-list__body">
-              {controller.sessionsError ? (
-                <p className="uui-campaign-list__error">{controller.sessionsError}</p>
-              ) : null}
-              {controller.sessionsLoading && !(controller.ownedSessions?.length) ? (
-                <p className="uui-campaign-list__empty">Loading campaigns…</p>
-              ) : null}
-              {!controller.sessionsLoading && !(controller.ownedSessions?.length) ? (
-                <p className="uui-campaign-list__empty">
-                  No other active campaigns. This session is the current campaign.
-                </p>
-              ) : null}
-              <ul className="uui-campaign-list__rows">
-                {(controller.ownedSessions ?? []).map((row) => {
-                  const active = row.id === sessionId;
-                  const label = row.title?.trim() || 'Untitled campaign';
-                  const updated =
-                    typeof row.updatedAt === 'string'
-                      ? new Date(row.updatedAt).toLocaleString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        })
-                      : null;
-                  return (
-                    <li
-                      key={row.id}
-                      className="uui-campaign-list__row"
-                      data-active={active || undefined}
-                    >
-                      <button
-                        type="button"
-                        className="uui-campaign-list__open"
-                        disabled={active}
-                        onClick={() => controller.openSession?.(row.id)}
-                        title={active ? 'Current campaign' : `Open ${label}`}
-                      >
-                        <span className="uui-campaign-list__title">{label}</span>
-                        <span className="uui-campaign-list__meta">
-                          {active ? 'Current · ' : ''}
-                          v{row.currentStateVersion}
-                          {updated ? ` · ${updated}` : ''}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="uui-button uui-campaign-list__archive"
-                        disabled={archivingSessionId === row.id || controller.startingNewSession}
-                        title={
-                          active
-                            ? 'Archive this campaign and start a new one'
-                            : 'Archive this campaign'
-                        }
-                        onClick={() => {
-                          if (active) {
-                            void controller.startNewSession();
-                            return;
-                          }
-                          setArchivingSessionId(row.id);
-                          void Promise.resolve(controller.archiveSessionById?.(row.id)).finally(
-                            () => setArchivingSessionId(null),
-                          );
-                        }}
-                      >
-                        <Archive size={13} />
-                        {archivingSessionId === row.id ? '…' : 'Archive'}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ) : null}
-        </section>
         <EngagementDialog
           open={briefEditOpen}
           eyebrow="Campaign brief"
@@ -2408,6 +2209,31 @@ export function VNextOutreachWorkspace({
             );
           })}
         </div>
+        {/* Relocated from the removed left conversation pane. This is still
+            the ONLY real-send call site in this file — the preflight table,
+            held-out list and acknowledge checkbox stay in the Send section
+            above and this bar reads the same lifted state. */}
+        <CampaignActionBar
+          step={step}
+          controllerStage={controller.stage}
+          plan={plan.data ?? null}
+          drafts={currentDrafts}
+          approachCurrent={Boolean(approach.data)}
+          preflight={preflight}
+          acknowledgeHeldOut={acknowledgeHeldOut}
+          hasActiveIntent={Boolean(activeIntent)}
+          sendPending={realSend.isPending}
+          sendError={realSend.error}
+          onSend={() => realSend.mutate()}
+          generationError={sampleMutation.error || fullGeneration.error}
+          onGenerateSamples={() => sampleMutation.mutate()}
+          onApproveApproach={() => approachMutation.mutate(sampleVersions)}
+          onGenerateRemaining={() => fullGeneration.mutate()}
+          onGoToPreflight={() => {
+            selectStep('send');
+            setTimeout(() => setPreflight(null), 0);
+          }}
+        />
       </main>
 
       {editingDraft?.current ? (
@@ -2428,8 +2254,19 @@ export function VNextOutreachWorkspace({
   );
 }
 
-function InlineActions({
-  step,
+/**
+ * The campaign's single next action, docked at the foot of the workbench.
+ *
+ * This was `InlineActions`, rendered inside the left Meri conversation pane.
+ * That pane is gone, so:
+ *   - the two suggested-prompt branches (which existed only to seed a chat
+ *     turn) are gone with it — the Goal step's own fields are the real control;
+ *   - every note that said "in the workbench below" / "send from here" now
+ *     points at the sections ABOVE this bar, which is where they are.
+ *
+ * The real send is still triggered from exactly one place: the button below.
+ */
+function CampaignActionBar({
   controllerStage,
   plan,
   drafts,
@@ -2440,7 +2277,6 @@ function InlineActions({
   sendPending,
   sendError,
   onSend,
-  onSuggested,
   onGenerateSamples,
   onApproveApproach,
   onGenerateRemaining,
@@ -2458,54 +2294,42 @@ function InlineActions({
   sendPending: boolean;
   sendError: unknown;
   onSend: () => void;
-  onSuggested: (value: string) => void;
   onGenerateSamples: () => void;
   onApproveApproach: () => void;
   onGenerateRemaining: () => void;
   generationError: unknown;
   onGoToPreflight: () => void;
 }) {
-  if (step === 'goal' && controllerStage === 'goal')
-    return (
-      <div className="uui-chat-actions">
-        {['Share an update', 'Make an ask', 'Invite people', 'Something else'].map((label) => (
-          <button type="button" key={label} onClick={() => onSuggested(label)}>
-            {label}
-          </button>
-        ))}
-      </div>
-    );
-  if (controllerStage !== 'ready_for_generation')
-    return (
-      <div className="uui-chat-actions">
-        <button type="button" onClick={() => onSuggested(`Continue with the current ${step}.`)}>
-          Use the current {step}
-        </button>
-      </div>
-    );
+  // Planning stages have no cross-step action of their own — each step's own
+  // surface owns its Continue control.
+  if (controllerStage !== 'ready_for_generation') return null;
+
   const samples = plan
     ? drafts.filter((draft) => plan.representativeSampleKeys.includes(draft.generationKey))
     : [];
   if (!samples.length)
     return (
-      <div className="uui-chat-actions">
-        <button type="button" onClick={onGenerateSamples}>
+      <div className="uui-outreach-actionbar">
+        <button type="button" className="uui-button--primary" onClick={onGenerateSamples}>
+          <Sparkles size={16} aria-hidden="true" />
           Generate representative samples
         </button>
       </div>
     );
   if (!approachCurrent)
     return (
-      <div className="uui-chat-actions">
-        <button type="button" onClick={onApproveApproach}>
+      <div className="uui-outreach-actionbar">
+        <button type="button" className="uui-button--primary" onClick={onApproveApproach}>
+          <Check size={16} aria-hidden="true" />
           Approve approach
         </button>
       </div>
     );
   if (plan && drafts.length < plan.slots.length)
     return (
-      <div className="uui-chat-actions">
-        <button type="button" onClick={onGenerateRemaining}>
+      <div className="uui-outreach-actionbar">
+        <button type="button" className="uui-button--primary" onClick={onGenerateRemaining}>
+          <Sparkles size={16} aria-hidden="true" />
           Generate remaining drafts
         </button>
         {generationError ? (
@@ -2515,48 +2339,46 @@ function InlineActions({
     );
   if (!preflight)
     return (
-      <div className="uui-chat-actions">
-        <button type="button" onClick={onGoToPreflight}>
+      <div className="uui-outreach-actionbar">
+        <button type="button" className="uui-button--primary" onClick={onGoToPreflight}>
+          <ShieldCheck size={16} aria-hidden="true" />
           Go to preflight
         </button>
       </div>
     );
-  // Per the product rule "send lives in the conversation, not the
-  // workbench": this is the ONLY place a real send is triggered from. The
-  // 14-check table, held-out list and acknowledge checkbox still live (and
-  // stay fully interactive) in the workbench below — this just reads the
-  // same lifted preflight/acknowledge state and fires the same `realSend`
-  // mutation the parent owns.
   if (hasActiveIntent) return null; // already sent — nothing left to trigger
+
   const sponsorBlocked = preflight.blockers.includes('SPONSOR_SCOPE_BLOCKED');
   const heldOut = preflight.excludedGenerationKeys.length;
   const needsAcknowledge = heldOut > 0 && !acknowledgeHeldOut;
   if (sponsorBlocked)
     return (
-      <div className="uui-chat-actions uui-chat-actions--note">
+      <div className="uui-outreach-actionbar uui-outreach-actionbar--note">
         <p>
           Internal-only campaigns can&apos;t send externally. Use the Change sponsor button in the
-          workbench below to jump to the Goal step and change the sponsor scope.
+          Send section above to jump to the Goal step and change the sponsor scope.
         </p>
       </div>
     );
   if (needsAcknowledge)
     return (
-      <div className="uui-chat-actions uui-chat-actions--note">
+      <div className="uui-outreach-actionbar uui-outreach-actionbar--note">
         <p>
-          {heldOut} recipient{heldOut === 1 ? '' : 's'} held out. Acknowledge them in the
-          workbench below, then send from here.
+          {heldOut} recipient{heldOut === 1 ? '' : 's'} held out. Acknowledge them in the Send
+          section above, then send from here.
         </p>
       </div>
     );
   if (!preflight.eligible)
     return (
-      <div className="uui-chat-actions uui-chat-actions--note">
-        <p>Preflight found blockers. Resolve them in the workbench below, then send from here.</p>
+      <div className="uui-outreach-actionbar uui-outreach-actionbar--note">
+        <p>
+          Preflight found blockers. Resolve them in the Send section above, then send from here.
+        </p>
       </div>
     );
   return (
-    <div className="uui-chat-actions">
+    <div className="uui-outreach-actionbar">
       <button
         type="button"
         className="uui-button uui-button--primary uui-send-action"
@@ -2568,11 +2390,7 @@ function InlineActions({
           ? 'Creating durable intent…'
           : `Send ${preflight.draftVersionIds.length} approved email${preflight.draftVersionIds.length === 1 ? '' : 's'}`}
       </button>
-      {sendError ? (
-        <p className="uui-field-error">
-          {safeOutreachV3Error(sendError)}
-        </p>
-      ) : null}
+      {sendError ? <p className="uui-field-error">{safeOutreachV3Error(sendError)}</p> : null}
     </div>
   );
 }

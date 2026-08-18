@@ -6,6 +6,7 @@ import {
   getOutreachV3TargetRelationships,
   listOutreachV3Proposals,
   listOutreachV3Sessions,
+  outreachV3CampaignBucket,
   safeOutreachV3Error,
 } from './outreach-v3-api.js';
 
@@ -132,15 +133,20 @@ describe('Outreach V3 browser wire normalization', () => {
     });
   });
 
-  it('lists owned sessions from GET /sessions', async () => {
+  it('lists owned sessions from GET /sessions with the home-screen fields', async () => {
     const api = apiMock({
       get: [
         {
           id: 'session-1',
           status: 'active',
           currentStateVersion: 3,
-          title: 'Ground Robotics',
+          title: 'New outreach campaign',
           updatedAt: '2026-08-17T12:00:00.000Z',
+          topic: 'Ground Robotics',
+          goal: 'Brief the subcommittee',
+          targetCount: 12,
+          recordStatus: 'sent',
+          sentAt: '2026-08-17T13:00:00.000Z',
         },
       ],
     });
@@ -150,11 +156,71 @@ describe('Outreach V3 browser wire normalization', () => {
         id: 'session-1',
         status: 'active',
         currentStateVersion: 3,
-        title: 'Ground Robotics',
+        title: 'New outreach campaign',
         updatedAt: '2026-08-17T12:00:00.000Z',
+        topic: 'Ground Robotics',
+        goal: 'Brief the subcommittee',
+        targetCount: 12,
+        recordStatus: 'sent',
+        sentAt: '2026-08-17T13:00:00.000Z',
       },
     ]);
     expect(api.get).toHaveBeenCalledWith('/api/engagement/outreach-v3/sessions?limit=25');
+  });
+
+  it('never fabricates a target count or a send when the API omits those fields', async () => {
+    // An older API build predating the enriched list must read as "0 targets,
+    // no recorded send", not as a claimed send or an invented count.
+    const api = apiMock({
+      get: [
+        {
+          id: 'session-1',
+          status: 'active',
+          currentStateVersion: 1,
+          title: 'New outreach campaign',
+        },
+      ],
+    });
+    const [session] = await listOutreachV3Sessions(api);
+    expect(session).toMatchObject({
+      topic: null,
+      goal: null,
+      targetCount: 0,
+      recordStatus: null,
+      sentAt: null,
+    });
+    expect(outreachV3CampaignBucket(session!)).toBe('draft');
+  });
+
+  describe('outreachV3CampaignBucket', () => {
+    const row = (over: Record<string, unknown>) =>
+      ({
+        id: 's',
+        status: 'active',
+        currentStateVersion: 1,
+        title: null,
+        ...over,
+      }) as Parameters<typeof outreachV3CampaignBucket>[0];
+
+    it('reads Sent from the artifact-root record status, not the session status', () => {
+      // No code path ever writes 'completed' to outreach_sessions.status, so
+      // the session status can never be the send signal.
+      expect(outreachV3CampaignBucket(row({ recordStatus: 'sent' }))).toBe('sent');
+      expect(outreachV3CampaignBucket(row({ recordStatus: 'partial' }))).toBe('sent');
+      expect(outreachV3CampaignBucket(row({ recordStatus: 'failed' }))).toBe('sent');
+      expect(outreachV3CampaignBucket(row({ status: 'completed' }))).toBe('draft');
+    });
+
+    it('keeps a campaign that only reached the Send step a draft', () => {
+      expect(outreachV3CampaignBucket(row({ recordStatus: 'draft' }))).toBe('draft');
+      expect(outreachV3CampaignBucket(row({ recordStatus: null }))).toBe('draft');
+    });
+
+    it('buckets archived ahead of everything else', () => {
+      expect(outreachV3CampaignBucket(row({ status: 'archived', recordStatus: 'sent' }))).toBe(
+        'archived',
+      );
+    });
   });
 
   it('prefers server code/message over generic 503 wrap for OpenAI and shadow denials', () => {

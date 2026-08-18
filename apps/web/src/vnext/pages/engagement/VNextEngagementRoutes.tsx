@@ -46,9 +46,11 @@ import {
   canonicalEngagementLocation,
   engagementDestination,
   isVNextEngagementPath,
+  outreachCampaignIdFromPath,
   type EngagementDestination,
 } from './engagement-route-state.js';
 import { VNextOutreachWorkspace, type EngagementOutreachStep } from './VNextOutreachWorkspace.js';
+import { VNextOutreachHome } from './VNextOutreachHome.js';
 import { VNextMeetingsWorkspace } from './VNextMeetingsWorkspace.js';
 import { VNextMeetingLibrary } from './VNextMeetingLibrary.js';
 import { VNextReportsTracker } from './VNextReportsTracker.js';
@@ -75,7 +77,7 @@ interface IntegrationConnection {
   displayName?: string | null;
 }
 
-function subline(destination: EngagementDestination): string {
+function subline(destination: EngagementDestination, outreachCampaignId?: string | null): string {
   if (destination === 'reports') {
     return 'Auto-populated activity with explicit manual status overrides and CSV export.';
   }
@@ -90,6 +92,9 @@ function subline(destination: EngagementDestination): string {
   if (destination === 'meetings') {
     return 'Calendar-synced meetings with prep, notes, Meri join, and client context.';
   }
+  if (destination === 'outreach' && !outreachCampaignId) {
+    return 'Your draft and sent campaigns. Open one to continue, or start a new campaign.';
+  }
   return 'Governed outreach: goal, targets, delivery, context, immutable drafts, preflight, send.';
 }
 
@@ -99,7 +104,15 @@ export function VNextEngagementRoutes() {
   const navigate = useNavigate();
   const clientFilter = useClientFilter();
   const destination = engagementDestination(location.pathname);
+  // null → the Outreach home (campaign list); an id → that campaign's builder.
+  const outreachCampaignId = outreachCampaignIdFromPath(location.pathname);
   const [step, setStep] = useState<EngagementOutreachStep>('goal');
+
+  // Entering a different campaign must not inherit the step the previous one
+  // was left on — `step` is per-campaign UI state living in this shell.
+  useEffect(() => {
+    setStep('goal');
+  }, [outreachCampaignId]);
 
   // Ported from the reference implementation (see engagement-route-state.ts
   // for why this is currently a no-op for every URL this component actually
@@ -143,13 +156,21 @@ export function VNextEngagementRoutes() {
   let body: ReactNode = null;
   switch (destination) {
     case 'outreach':
-      body = (
+      body = outreachCampaignId ? (
         <VNextOutreachWorkspace
+          sessionId={outreachCampaignId}
           clients={activeClients}
           selectedClientId={clientFilter.selectedClientId}
           integrations={integrations.data ?? []}
           step={step}
           onStepChange={setStep}
+          onExit={() => navigate('/engagement/outreach')}
+        />
+      ) : (
+        <VNextOutreachHome
+          onOpenCampaign={(sessionId) =>
+            navigate(`/engagement/outreach/${encodeURIComponent(sessionId)}`)
+          }
         />
       );
       break;
@@ -174,7 +195,7 @@ export function VNextEngagementRoutes() {
         <header className="uui-engagement-page-header">
           <div>
             <h1>Engagement</h1>
-            <p>{subline(destination)}</p>
+            <p>{subline(destination, outreachCampaignId)}</p>
           </div>
           {/* Content-width scope control (UI-parity §3.1). The visible value
               is painted by the span so the box hugs its content; the real

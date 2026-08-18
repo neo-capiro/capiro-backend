@@ -109,7 +109,6 @@
 .capiro-vnext-root .uui-outreach-workspace {
   min-height: min(760px, calc(100dvh - 196px));
 }
-.capiro-vnext-root .uui-outreach-chat,
 .capiro-vnext-root .uui-outreach-canvas {
   min-width: 0;
 }
@@ -146,23 +145,11 @@
   text-decoration: none;
 }
 
-/* The prototype branches at two widths only — compact below 1180px and mobile
-   below 760px (UI-parity §0). Between them the Meri rail stays a real 380px
-   side column; it only stacks full-width at the mobile branch. This block
-   previously stacked it at 1180px, which is why the compact capture showed no
-   side-by-side layout at ~1066px. */
+/* Mobile branch (UI-parity §0, <=760px). The compact 1180px branch no longer
+   needs a layout override: the Meri side rail this block used to stack was
+   removed, so the workbench is a single full-width column at every width and
+   only its own min-height needs adjusting here. */
 @media (max-width: 760px) {
-  .capiro-vnext-root .uui-outreach-workspace {
-    flex-direction: column;
-  }
-  .capiro-vnext-root .uui-outreach-chat {
-    position: static;
-    flex: 0 0 auto;
-    min-height: 420px;
-    max-height: 560px;
-    border-right: 0;
-    border-bottom: 1px solid var(--eng-border);
-  }
   .capiro-vnext-root .uui-outreach-canvas {
     min-height: 620px;
   }

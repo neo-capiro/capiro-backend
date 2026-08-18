@@ -8,7 +8,7 @@ import {
   buildHonestPreflightRows,
   draftStrategyHeadline,
   humanizeBlockerCode,
-  outreachChatStateLabel,
+  outreachCampaignHeading,
   type EngagementOutreachStep,
 } from './VNextOutreachWorkspace.js';
 import type { OutreachV3SessionEnvelope } from '../../../pages/engagement/outreach/v3/contracts.js';
@@ -23,10 +23,10 @@ import type { OutreachV3NamedPreflightCheck } from './engagement-api.js';
  * every OTHER query this component runs directly (plan/approach/generationJob
  * /intent) stays disabled and only the always-on `drafts` list query
  * actually fires, resolving to an empty array via the generic `get` mock.
- * This isolates the chrome-level fixes (chat header pill, model-outage
- * banner, accordion vocabulary, step-dot rail) from the full planning flow.
+ * This isolates the chrome-level fixes (crumb header, accordion vocabulary,
+ * step-dot rail) from the full planning flow.
  *
- * The Send-flow tests below (held-out fix, chat-pane relocation) need
+ * The Send-flow tests below (held-out fix, action-bar relocation) need
  * realistic, request-shaped responses for several endpoints (plan, drafts,
  * settings, and critically a STATEFUL preflight response that reacts to
  * excludedGenerationKeys/acknowledgeHeldOut). `onGet`/`onPost` register
@@ -170,11 +170,13 @@ function renderWorkspace(step: EngagementOutreachStep = 'targets') {
     <QueryClientProvider client={qc}>
       <MemoryRouter>
         <VNextOutreachWorkspace
+          sessionId="session-1"
           clients={[]}
           selectedClientId={null}
           integrations={[]}
           step={step}
           onStepChange={() => undefined}
+          onExit={() => undefined}
         />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -182,8 +184,8 @@ function renderWorkspace(step: EngagementOutreachStep = 'targets') {
 }
 
 // ---------------------------------------------------------------------------
-// Fixtures for the Send-flow tests (Step 6: held-out fix + chat-pane
-// relocation). Four generation keys, one of which (r4) is always ineligible
+// Fixtures for the Send-flow tests (held-out fix + action-bar relocation).
+// Four generation keys, one of which (r4) is always ineligible
 // (a real RECIPIENT_EMAIL_MISSING blocker) unless explicitly held out AND
 // acknowledged — this is a simplified but behaviorally-faithful stand-in for
 // apps/api's evaluateOutreachV3Preflight + buildNamedChecks: same shape,
@@ -375,97 +377,92 @@ describe('VNextOutreachWorkspace', () => {
     resetHandlers();
   });
 
-  describe('chat header state pill (item 1a)', () => {
-    it('resolves Sent / Drafts / step name in that priority, as a plain testable function', () => {
-      expect(outreachChatStateLabel('targets', true, true)).toBe('Sent');
-      expect(outreachChatStateLabel('targets', true, false)).toBe('Sent');
-      expect(outreachChatStateLabel('targets', false, true)).toBe('Drafts');
-      expect(outreachChatStateLabel('targets', false, false)).toBe('TARGETS');
+  describe('the Meri conversation pane is gone (UX adjustment)', () => {
+    it('renders no chat rail, transcript or composer', () => {
+      const { container } = renderWorkspace('targets');
+      expect(container.querySelector('.uui-outreach-chat')).toBeNull();
+      expect(container.querySelector('.uui-outreach-transcript')).toBeNull();
+      expect(screen.queryByLabelText('Message Meri')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Send to Meri' })).not.toBeInTheDocument();
     });
 
-    it('shows the raw step name today when no intent or approach exists yet', () => {
-      renderWorkspace('targets');
-      expect(screen.getByText('TARGETS')).toBeInTheDocument();
-    });
-  });
-
-  describe('model-outage banner (item 1b)', () => {
-    it('renders "Retry Meri" as a proper pill button, not a plain text-style button', () => {
-      const retryReasoning = vi.fn();
+    it('does not render the Meri outage banner even when reasoning is unavailable', () => {
+      // The controller still reports the outage. Nothing in Outreach V3 has a
+      // reason to surface it now that there is no conversation to be down.
       useOutreachV3SessionMock.mockReturnValue(
         baseController({
           reasoningUnavailable: true,
           reasoningErrorMessage: 'The model provider is unavailable.',
-          retryReasoning,
         }),
       );
-      renderWorkspace('targets');
-
-      const retry = screen.getByRole('button', { name: 'Retry Meri' });
-      expect(retry).toHaveClass('uui-model-outage__retry');
-
-      fireEvent.click(retry);
-      expect(retryReasoning).toHaveBeenCalledTimes(1);
-    });
-
-    it('surfaces the real OpenAI/runtime error message in the outage banner', () => {
-      useOutreachV3SessionMock.mockReturnValue(
-        baseController({
-          reasoningUnavailable: true,
-          reasoningErrorMessage:
-            'OpenAI reasoning is not available for this Capiro environment. (OUTREACH_REASONING_PROVIDER_UNAVAILABLE)',
-        }),
-      );
-      renderWorkspace('targets');
-      expect(
-        screen.getByText(/OpenAI reasoning is not available for this Capiro environment/i),
-      ).toBeInTheDocument();
+      const { container } = renderWorkspace('targets');
+      expect(container.querySelector('.uui-model-outage')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Retry Meri' })).not.toBeInTheDocument();
+      expect(screen.queryByText('The model provider is unavailable.')).not.toBeInTheDocument();
     });
   });
 
-  describe('campaign list (wire existing APIs item 1)', () => {
-    it('lists owned V3 sessions and opens a non-current campaign', () => {
+  describe('the campaigns dropdown is gone (UX adjustment)', () => {
+    it('renders no in-builder campaign list, even when the controller has other sessions', () => {
       const openSession = vi.fn();
-      const archiveSessionById = vi.fn(async () => undefined);
       useOutreachV3SessionMock.mockReturnValue(
         baseController({
           ownedSessions: [
-            {
-              id: 'session-1',
-              title: 'Ground Robotics',
-              status: 'active',
-              currentStateVersion: 2,
-              updatedAt: '2026-08-17T12:00:00.000Z',
-            },
-            {
-              id: 'session-2',
-              title: 'FY27 mark-up',
-              status: 'active',
-              currentStateVersion: 4,
-              updatedAt: '2026-08-16T09:00:00.000Z',
-            },
+            { id: 'session-2', title: 'FY27 mark-up', status: 'active', currentStateVersion: 4 },
           ],
           openSession,
-          archiveSessionById,
         }),
       );
-      renderWorkspace('targets');
-
-      // Collapsed by default — expand.
-      fireEvent.click(screen.getByRole('button', { name: /Campaigns/i }));
-      expect(screen.getByText('FY27 mark-up')).toBeInTheDocument();
-      const list = screen.getByLabelText('Your campaigns');
-      expect(within(list).getByText(/Current ·/i)).toBeInTheDocument();
-
-      fireEvent.click(screen.getByText('FY27 mark-up').closest('button')!);
-      expect(openSession).toHaveBeenCalledWith('session-2');
+      const { container } = renderWorkspace('targets');
+      expect(container.querySelector('.uui-campaign-list')).toBeNull();
+      expect(screen.queryByLabelText('Your campaigns')).not.toBeInTheDocument();
+      expect(screen.queryByText('FY27 mark-up')).not.toBeInTheDocument();
+      expect(openSession).not.toHaveBeenCalled();
     });
   });
 
-  describe('composer send button (item 1c)', () => {
-    it('uses the shared primary gradient treatment instead of a flat fill', () => {
+  describe('builder identity and exit', () => {
+    it('pins the hook to the routed campaign instead of letting it self-create one', () => {
       renderWorkspace('targets');
-      expect(screen.getByRole('button', { name: 'Send to Meri' })).toHaveClass('uui-button--primary');
+      expect(useOutreachV3SessionMock).toHaveBeenCalledWith({ sessionId: 'session-1' });
+    });
+
+    it('offers a way back to the campaign list', () => {
+      const onExit = vi.fn();
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        <QueryClientProvider client={qc}>
+          <MemoryRouter>
+            <VNextOutreachWorkspace
+              sessionId="session-1"
+              clients={[]}
+              selectedClientId={null}
+              integrations={[]}
+              step="targets"
+              onStepChange={() => undefined}
+              onExit={onExit}
+            />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Back to campaigns' }));
+      expect(onExit).toHaveBeenCalledTimes(1);
+    });
+
+    it('titles the builder from the spec topic, never the always-identical session title', () => {
+      expect(
+        outreachCampaignHeading({
+          session: { id: 's', title: 'New outreach campaign' },
+          spec: { goal: { topic: 'FY27 ground robotics' } },
+        } as never),
+      ).toBe('FY27 ground robotics');
+      expect(
+        outreachCampaignHeading({
+          session: { id: 's', title: 'New outreach campaign' },
+          spec: { goal: { topic: null } },
+        } as never),
+      ).toBe('New outreach campaign');
+      expect(outreachCampaignHeading(null)).toBe('Untitled campaign');
     });
   });
 
@@ -666,7 +663,7 @@ describe('VNextOutreachWorkspace', () => {
     });
   });
 
-  describe('Send step — held-out fix + chat-pane relocation (items A, C, D)', () => {
+  describe('Send step — held-out fix + action-bar relocation (items A, C, D)', () => {
     let sendIntentCalls: Array<Record<string, unknown>>;
 
     beforeEach(() => {
@@ -710,7 +707,8 @@ describe('VNextOutreachWorkspace', () => {
     it('has no send button in the workbench, and lets 3 clean recipients send once the 1 blocked one is held out and acknowledged — never before', async () => {
       const { container } = renderWorkspace('send');
       const workbench = () => container.querySelector('.uui-send-panel') as HTMLElement;
-      const chat = () => container.querySelector('.uui-outreach-chat') as HTMLElement;
+      const actionBar = () =>
+        container.querySelector('.uui-outreach-actionbar') as HTMLElement;
 
       await waitFor(() => {
         expect(workbench()).toBeTruthy();
@@ -732,17 +730,17 @@ describe('VNextOutreachWorkspace', () => {
       expect(within(workbench()).queryByText('Shared visibility')).not.toBeInTheDocument();
       expect(within(workbench()).queryByText('Context checks')).not.toBeInTheDocument();
 
-      // (D) — no send button anywhere in the workbench; only the closing note.
+      // (D) — no send button inside the Send section; only the closing note.
       expect(
         within(workbench()).queryByRole('button', { name: /send \d+ approved email/i }),
       ).not.toBeInTheDocument();
       expect(
-        within(workbench()).getByText(/send lives in the conversation on the left/i),
+        within(workbench()).getByText(/send is the action bar at the bottom of this page/i),
       ).toBeInTheDocument();
 
-      // Not sendable yet from chat either — nothing held out or acknowledged.
+      // Not sendable from the action bar either — nothing held out or acknowledged.
       expect(
-        within(chat()).queryByRole('button', { name: /send \d+ approved email/i }),
+        within(actionBar()).queryByRole('button', { name: /send \d+ approved email/i }),
       ).not.toBeInTheDocument();
 
       // (A) — hold out the blocked recipient via its real per-draft toggle.
@@ -754,11 +752,11 @@ describe('VNextOutreachWorkspace', () => {
       fireEvent.click(within(workbench()).getByRole('button', { name: /run preflight/i }));
       await waitFor(() => expect(within(workbench()).getByText(/held out · 1/i)).toBeInTheDocument());
 
-      // Held out but NOT acknowledged yet — still not sendable from chat.
+      // Held out but NOT acknowledged yet — still not sendable.
       expect(
-        within(chat()).queryByRole('button', { name: /send \d+ approved email/i }),
+        within(actionBar()).queryByRole('button', { name: /send \d+ approved email/i }),
       ).not.toBeInTheDocument();
-      expect(within(chat()).getByText(/held out\..*acknowledge/i)).toBeInTheDocument();
+      expect(within(actionBar()).getByText(/held out\..*acknowledge/i)).toBeInTheDocument();
 
       // Acknowledge in the workbench, then re-run preflight.
       fireEvent.click(
@@ -766,9 +764,9 @@ describe('VNextOutreachWorkspace', () => {
       );
       fireEvent.click(within(workbench()).getByRole('button', { name: /run preflight/i }));
 
-      // Now — and only now — the chat pane's real send button appears,
+      // Now — and only now — the action bar's real send button appears,
       // enabled, for exactly the 3 clean recipients.
-      const sendButton = await within(chat()).findByRole('button', {
+      const sendButton = await within(actionBar()).findByRole('button', {
         name: /send 3 approved emails/i,
       });
       expect(sendButton).toBeEnabled();

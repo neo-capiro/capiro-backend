@@ -35,6 +35,8 @@ const MEETING_DETAIL_PREFIX = '/engagement/meetings/';
  */
 const LIBRARY_PATH = '/engagement/meeting-library';
 
+const OUTREACH_PATH = '/engagement/outreach';
+
 /**
  * Staged-rollout switchboard. Flip an entry to `true` once its real vNext
  * component exists and is wired into `VNextEngagementRoutes`' render switch —
@@ -63,6 +65,30 @@ export function engagementDestination(pathname: string): EngagementDestination {
   if (pathname.startsWith('/engagement/outreach')) return 'outreach';
   if (pathname.startsWith('/engagement/reports')) return 'reports';
   return 'meetings';
+}
+
+/**
+ * The campaign id in an Outreach builder URL, or `null` for the Outreach home
+ * (campaign list).
+ *
+ * `/engagement/outreach`            → null  (home)
+ * `/engagement/outreach/`           → null  (home; trailing slash tolerated)
+ * `/engagement/outreach/<id>`       → '<id>'
+ * `/engagement/outreach/<id>/x`     → '<id>' (extra segments ignored)
+ *
+ * Kept as pure URL logic here, beside `engagementDestination`, so the builder
+ * and the home screen are distinguished by the URL rather than by component
+ * state — the browser Back button then leaves a campaign the same way the
+ * in-app Back does.
+ */
+export function outreachCampaignIdFromPath(pathname: string): string | null {
+  if (!pathname.startsWith(OUTREACH_PATH)) return null;
+  const rest = pathname.slice(OUTREACH_PATH.length);
+  if (rest === '' || rest === '/') return null;
+  if (!rest.startsWith('/')) return null;
+  const raw = rest.slice(1).split('/')[0] ?? '';
+  if (!raw) return null;
+  return decodeURIComponent(raw);
 }
 
 /**

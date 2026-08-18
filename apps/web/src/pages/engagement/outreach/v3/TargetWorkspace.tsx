@@ -25,6 +25,7 @@ import {
   targetCriteriaCommand,
 } from './commands.js';
 import type { DecisionSurfacesProps } from './DecisionSurfaces.js';
+import { TargetDirectoryBrowser } from './TargetDirectoryBrowser.js';
 import type {
   OutreachV3ResolvedTargetRef,
   OutreachV3TargetCandidate,
@@ -72,15 +73,27 @@ export type TargetWorkspaceProps = Pick<
 type TargetSourceKey =
   | 'recommended'
   | 'directory'
+  | 'statelegislators'
   | 'client'
   | 'recent'
   | 'selected'
   | 'saved'
   | 'manual';
 
-// Order matches the mockup: Recommended · Directory · Client contacts ·
-// Saved audiences · Recent · Add manually · Selected · N (the live selected
-// count is rendered next to the "Selected" tab itself, below).
+/**
+ * `directory` carries NO capability sources: it is served by
+ * `TargetDirectoryBrowser`, which reads `GET /api/directory/contacts` exactly
+ * as Outreach V2's Directory tab does. It previously ran the governed
+ * `search_targets` capability over
+ * `['directory_member', 'directory_staff', 'state_legislator']` with
+ * `limit: 20` — one merged, score-ranked, 20-row pool, so most of the
+ * Directory was simply unreachable and state legislators competed with
+ * members for the same 20 slots.
+ *
+ * `state_legislator` therefore moved to its own tab, still on the capability
+ * (there is no V2-style browse endpoint wired here for it, and it has no
+ * staffer nesting or favorites store of its own).
+ */
 const SOURCE_OPTIONS: Array<{
   key: TargetSourceKey;
   label: string;
@@ -88,11 +101,8 @@ const SOURCE_OPTIONS: Array<{
   requiresClient?: boolean;
 }> = [
   { key: 'recommended', label: 'Recommended', sources: [] },
-  {
-    key: 'directory',
-    label: 'Directory',
-    sources: ['directory_member', 'directory_staff', 'state_legislator'],
-  },
+  { key: 'directory', label: 'Directory', sources: [] },
+  { key: 'statelegislators', label: 'State legislators', sources: ['state_legislator'] },
   {
     key: 'client',
     label: 'Client contacts',
@@ -109,6 +119,14 @@ const SOURCE_OPTIONS: Array<{
   { key: 'manual', label: 'Add manually', sources: [] },
   { key: 'selected', label: 'Selected', sources: [] },
 ];
+
+/** Tabs that render their own surface instead of the capability card list. */
+const NON_CAPABILITY_SOURCES = new Set<TargetSourceKey>([
+  'directory',
+  'selected',
+  'saved',
+  'manual',
+]);
 
 /**
  * Resolves one saved-audience member into the same locator shape every other
@@ -397,7 +415,10 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
     organization: '',
     note: '',
   });
-  const searched = useRef(false);
+  // Holds the live query for the tab-load effect without making that effect
+  // rerun per keystroke.
+  const queryRef = useRef(query);
+  queryRef.current = query;
 
   const profile = targetProfile as OutreachV3TargetProfileResponse | undefined;
   const profileData = profile?.data;
@@ -427,7 +448,9 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
     [selected],
   );
   const visibleCandidates = useMemo(() => {
-    if (source === 'selected' || source === 'saved') return [];
+    // A tab with its own surface must never inherit the last capability
+    // result — the Directory browser owns its own rows.
+    if (NON_CAPABILITY_SOURCES.has(source)) return [];
     return targetCandidates;
   }, [source, targetCandidates]);
   const highConfidence = useMemo(
@@ -461,7 +484,7 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
   const runSearch = async (event?: FormEvent) => {
     event?.preventDefault();
     const option = selectedOption();
-    if (!option || source === 'selected' || source === 'manual' || source === 'saved') return;
+    if (!option || NON_CAPABILITY_SOURCES.has(source)) return;
     if (option.requiresClient && !sponsorClientId) {
       setError('This source requires one explicit client sponsor.');
       return;
@@ -477,19 +500,31 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
     }
   };
 
+  // Load the rows for whichever capability-backed tab is open — on mount, and
+  // again on every tab switch.
+  //
+  // Without the tab-switch half of this, `targetCandidates` still held the
+  // PREVIOUS tab's result, so opening e.g. State legislators showed Client
+  // contacts rows under a State-legislators heading until you pressed Search.
+  // Read-only: this never calls applyCommands, so merely opening a tab cannot
+  // commit inferred target criteria to the canonical Campaign Spec — same rule
+  // the mount-time recommendation load already followed.
   useEffect(() => {
-    if (searched.current) return;
-    searched.current = true;
-    const option = SOURCE_OPTIONS[0]!;
-    // Read-only recommendations are allowed to load automatically. They do not
-    // add targets or commit inferred criteria.
+    const option = SOURCE_OPTIONS.find((entry) => entry.key === source);
+    if (!option || NON_CAPABILITY_SOURCES.has(source)) return;
+    if (option.requiresClient && !sponsorClientId) return;
     void searchTargets({
-      query: query.trim() || undefined,
-      clientId: sponsorClientId ?? undefined,
+      query: queryRef.current.trim() || undefined,
+      clientId: source === 'recommended' || option.requiresClient
+        ? sponsorClientId ?? undefined
+        : undefined,
       sources: [...option.sources],
       limit: 20,
     }).catch((caught) => setError(safeOutreachV3Error(caught)));
-  }, [query, searchTargets, sponsorClientId]);
+    // `query` is deliberately NOT a dependency: it changes on every keystroke,
+    // and searching per keystroke is what the Search control exists to avoid.
+    // The current value is read through a ref instead.
+  }, [searchTargets, source, sponsorClientId]);
 
   const openProfile = async (locator: OutreachV3TargetLocator) => {
     setActiveLocator(locator);
@@ -624,7 +659,12 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
         ))}
       </div>
 
-      <div className="ov3-target-criteria">
+      {/* The shared query field and criteria row belong to the capability
+          search. A tab with its own surface (Directory, Selected, Saved, Add
+          manually) is HIDDEN rather than merely disabled: leaving a greyed-out
+          second search box stacked above the Directory's own search field made
+          it read as a broken control. */}
+      <div className="ov3-target-criteria" hidden={NON_CAPABILITY_SOURCES.has(source)}>
         <form className="ov3-search-bar" onSubmit={runSearch}>
           <Search size={17} aria-hidden="true" />
           <input
@@ -633,7 +673,7 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search names, committees, offices, states, or issue areas"
             aria-label="Search targets"
-            disabled={source === 'selected' || source === 'manual' || source === 'saved'}
+            disabled={NON_CAPABILITY_SOURCES.has(source)}
           />
           {/* UI-parity §8.2: the compact variant has no standalone Search
               button — the field alone is the control, submitted with Enter,
@@ -646,12 +686,7 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
             <button
               className="ov3-button is-secondary"
               type="submit"
-              disabled={
-                targetSearchPending ||
-                source === 'selected' ||
-                source === 'manual' ||
-                source === 'saved'
-              }
+              disabled={targetSearchPending || NON_CAPABILITY_SOURCES.has(source)}
             >
               {targetSearchPending ? <Loader2 className="ov3-spin" size={16} /> : null}
               Search
@@ -752,6 +787,13 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
               busy={busy}
               onProfile={openProfile}
               onRemove={removeTarget}
+            />
+          ) : source === 'directory' ? (
+            <TargetDirectoryBrowser
+              selected={selected}
+              busy={busy}
+              applyCommands={applyCommands}
+              onProfile={(locator) => void openProfile(locator)}
             />
           ) : source === 'saved' ? (
             <SavedAudiencesPanel

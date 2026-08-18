@@ -1240,68 +1240,13 @@
 /* Outreach */
 .capiro-vnext-root .uui-outreach-workspace {
   display: flex;
+  /* Column, not row: the 380/440px Meri side rail this used to sit beside was
+     removed, so the workbench is the only child and owns the full width. */
+  flex-direction: column;
   align-items: stretch;
   flex: 1;
   min-height: calc(100vh - 214px);
   background: var(--eng-page);
-}
-/* Meri rail — 380px compact, 440px at >=1180px (UI-parity §6.1). */
-.capiro-vnext-root .uui-outreach-chat {
-  position: sticky;
-  top: 64px;
-  display: flex;
-  flex: 0 0 380px;
-  flex-direction: column;
-  max-height: calc(100vh - 64px);
-  border-right: 1px solid var(--eng-border);
-  background: var(--eng-surface);
-}
-@media (min-width: 1180px) {
-  .capiro-vnext-root .uui-outreach-chat {
-    flex-basis: 440px;
-  }
-}
-.capiro-vnext-root .uui-outreach-chat > header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 57px;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--eng-border);
-}
-.capiro-vnext-root .uui-outreach-chat > header > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--eng-accent);
-  font-family: var(--eng-font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.capiro-vnext-root .uui-outreach-chat > header > span {
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 9999px;
-  background: var(--eng-muted);
-  color: var(--eng-ink-2);
-  font-family: var(--eng-font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 24px;
-  letter-spacing: 0.05em;
-}
-.capiro-vnext-root .uui-outreach-chat > header .uui-outreach-chat__archive {
-  margin-left: auto;
-  height: 28px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
 }
 .capiro-vnext-root .uui-live-dot {
   width: 7px;
@@ -1309,165 +1254,6 @@
   border-radius: 50%;
   background: var(--eng-accent);
   animation: uiPulse 2.4s ease-in-out infinite;
-}
-.capiro-vnext-root .uui-outreach-transcript {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 18px;
-  min-height: 0;
-  padding: 20px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-.capiro-vnext-root .uui-outreach-transcript article {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-}
-.capiro-vnext-root .uui-outreach-transcript article[data-role='user'] {
-  align-items: flex-end;
-}
-.capiro-vnext-root .uui-outreach-transcript article > span {
-  color: var(--eng-ink-4);
-  font-family: var(--eng-font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-.capiro-vnext-root .uui-outreach-transcript article > div {
-  max-width: 94%;
-  padding: 12px 14px;
-  border-radius: 12px 12px 12px 4px;
-  background: var(--eng-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-border);
-  font-size: 14px;
-  line-height: 21px;
-  white-space: pre-wrap;
-}
-/* UI-parity §6.1: user turns are the dark gradient with white text, not a
-   navy tint — the tint reads as another Meri surface. */
-.capiro-vnext-root .uui-outreach-transcript article[data-role='user'] > div {
-  border-radius: 12px 12px 4px 12px;
-  background: var(--eng-primary-fill);
-  color: #fff;
-  box-shadow: var(--eng-primary-shadow);
-}
-.capiro-vnext-root .uui-chat-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-/* Informational (non-clickable) variant of the chat inline-actions row — used
-   when the real send trigger is present but not yet enabled (sponsor-scope
-   blocked, held-out unacknowledged, or other preflight blockers), so the
-   chat pane always shows an honest, specific reason rather than a dead
-   disabled button with no context. */
-.capiro-vnext-root .uui-chat-actions--note p {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--eng-warning-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-warning-border);
-  color: var(--eng-warning);
-  font-size: 12px;
-  line-height: 17px;
-}
-.capiro-vnext-root .uui-chat-actions button {
-  min-height: 34px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--eng-surface);
-  box-shadow: 0 0 0 1px var(--eng-border);
-  color: #344054;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-outreach-chat > footer {
-  flex: 0 0 auto;
-  padding: 14px 20px 18px;
-  border-top: 1px solid var(--eng-border);
-  background: var(--eng-surface);
-}
-.capiro-vnext-root .uui-outreach-chat > footer form {
-  display: flex;
-  gap: 10px;
-}
-.capiro-vnext-root .uui-outreach-chat > footer input {
-  flex: 1;
-  min-width: 0;
-  height: 40px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 8px;
-  outline: 0;
-  background: var(--eng-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-border);
-}
-.capiro-vnext-root .uui-outreach-chat > footer form button {
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--eng-primary-fill);
-  box-shadow: var(--eng-primary-shadow);
-  color: white;
-  cursor: pointer;
-}
-.capiro-vnext-root .uui-outreach-chat > footer form button:hover:not(:disabled) {
-  background: var(--eng-primary-fill-hover);
-}
-.capiro-vnext-root .uui-outreach-chat > footer form button:disabled {
-  cursor: not-allowed;
-  opacity: 0.48;
-}
-.capiro-vnext-root .uui-outreach-chat > footer p {
-  margin: 8px 0 0;
-  color: var(--eng-ink-4);
-  font-size: 12px;
-}
-/* The ONE deliberate solid-fill exception in the product (confirmed against
-   the canonical reference — every other warning/notice surface in this
-   module uses the light `--eng-warning-bg` tint). Model-outage is the single
-   spot that gets a solid dark-amber fill instead. */
-.capiro-vnext-root .uui-model-outage {
-  display: flex;
-  gap: 10px;
-  margin: 12px 14px 0;
-  padding: 12px;
-  border-radius: 10px;
-  background: var(--eng-warning-deep);
-  color: #fff;
-}
-.capiro-vnext-root .uui-model-outage > svg {
-  color: #fedf89;
-}
-.capiro-vnext-root .uui-model-outage p {
-  margin: 3px 0 5px;
-  color: inherit;
-  font-size: 12px;
-  line-height: 18px;
-}
-.capiro-vnext-root .uui-model-outage__retry {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 32px;
-  padding: 0 13px;
-  border: 0;
-  border-radius: 8px;
-  background: #fff;
-  color: var(--eng-warning-deep);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
 }
 .capiro-vnext-root .uui-outreach-canvas {
   flex: 1;
@@ -1505,142 +1291,6 @@
 .capiro-vnext-root .uui-campaign-brief button:hover {
   color: var(--eng-accent-hover);
 }
-
-/* V3 owned-campaign list (GET /api/engagement/outreach-v3/sessions).
-   Replaces classic OutreachView list on os without mounting classic chrome. */
-.capiro-vnext-root .uui-campaign-list {
-  margin-top: 12px;
-  border-radius: 12px;
-  background: var(--eng-surface);
-  box-shadow: inset 0 0 0 1px var(--eng-border);
-}
-.capiro-vnext-root .uui-campaign-list__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 10px 14px;
-}
-.capiro-vnext-root .uui-campaign-list__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  background: transparent;
-  color: var(--eng-ink-2);
-  cursor: pointer;
-  font: inherit;
-  padding: 0;
-}
-.capiro-vnext-root .uui-campaign-list__toggle strong {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--eng-ink);
-}
-.capiro-vnext-root .uui-campaign-list__count {
-  min-width: 22px;
-  height: 20px;
-  padding: 0 7px;
-  border-radius: 9999px;
-  background: var(--eng-muted);
-  color: var(--eng-ink-2);
-  font-family: var(--eng-font-mono);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 20px;
-  text-align: center;
-}
-.capiro-vnext-root .uui-campaign-list__actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.capiro-vnext-root .uui-campaign-list__actions .uui-button {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 500;
-}
-.capiro-vnext-root .uui-campaign-list__body {
-  border-top: 1px solid var(--eng-border);
-  padding: 8px 10px 12px;
-}
-.capiro-vnext-root .uui-campaign-list__empty,
-.capiro-vnext-root .uui-campaign-list__error {
-  margin: 6px 6px 10px;
-  font-size: 12px;
-  line-height: 17px;
-  color: var(--eng-ink-4);
-}
-.capiro-vnext-root .uui-campaign-list__error {
-  color: var(--eng-error);
-}
-.capiro-vnext-root .uui-campaign-list__rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.capiro-vnext-root .uui-campaign-list__row {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-  border-radius: 10px;
-  background: var(--eng-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-border);
-}
-.capiro-vnext-root .uui-campaign-list__row[data-active] {
-  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
-  background: var(--eng-accent-soft);
-}
-.capiro-vnext-root .uui-campaign-list__open {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  padding: 10px 12px;
-  cursor: pointer;
-  color: inherit;
-}
-.capiro-vnext-root .uui-campaign-list__open:disabled {
-  cursor: default;
-}
-.capiro-vnext-root .uui-campaign-list__title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--eng-ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
-}
-.capiro-vnext-root .uui-campaign-list__meta {
-  font-family: var(--eng-font-mono);
-  font-size: 11px;
-  color: var(--eng-ink-4);
-  letter-spacing: 0.02em;
-}
-.capiro-vnext-root .uui-campaign-list__archive {
-  align-self: center;
-  margin-right: 8px;
-  height: 28px;
-  padding: 0 10px;
-  font-size: 11px;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-}
-
 /* Step strip — UI-parity §6.2. `flex:1` on each step is what distributes the
    six labels evenly so SEND is never clipped at the right edge; the strip
    still scrolls rather than overflowing once min-width wins. */
@@ -2428,8 +2078,8 @@
   height: 15px;
   accent-color: var(--eng-accent);
 }
-/* Workbench Send step's closing note, replacing the send button that moved
-   to the chat pane — see item D in this phase's report. */
+/* Workbench Send step's closing note, replacing the send button that lives in
+   the campaign action bar at the foot of the workbench. */
 .capiro-vnext-root .uui-send-relocated-note {
   display: flex;
   align-items: flex-start;
@@ -2838,6 +2488,15 @@
 .capiro-vnext-root .uui-engagement-error--inside {
   margin: 18px;
 }
+/* The error block is a flex ROW (title | message | action), so a pair of
+   recovery actions needs its own group or the two buttons become separate row
+   items and get pushed apart by the message. */
+.capiro-vnext-root .uui-engagement-error__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
 .capiro-vnext-root .uui-engagement-error p,
 .capiro-vnext-root .uui-recovery-panel p {
   margin: 4px 0 10px;
@@ -2881,7 +2540,6 @@
   padding: 18px;
 }
 .capiro-vnext-root .uui-table-skeleton i,
-.capiro-vnext-root .uui-chat-skeleton i,
 .capiro-vnext-root .uui-canvas-skeleton i {
   display: block;
   height: 64px;
@@ -2890,11 +2548,8 @@
   animation: uiSkeleton 1.4s ease-in-out infinite alternate;
 }
 .capiro-vnext-root .uui-outreach-loading {
-  display: grid;
-  grid-template-columns: 440px minmax(0, 1fr);
-  min-height: 650px;
+  min-height: 480px;
 }
-.capiro-vnext-root .uui-chat-skeleton,
 .capiro-vnext-root .uui-canvas-skeleton {
   display: flex;
   flex-direction: column;
@@ -3004,9 +2659,6 @@
 }
 
 @media (max-width: 1179px) {
-  .capiro-vnext-root .uui-outreach-chat {
-    flex-basis: 380px;
-  }
   .capiro-vnext-root .uui-draft-layout {
     grid-template-columns: minmax(190px, 0.7fr) minmax(0, 1.5fr);
   }
@@ -3089,20 +2741,6 @@
     min-width: 0;
     text-align: left;
   }
-  .capiro-vnext-root .uui-outreach-workspace {
-    flex-direction: column;
-  }
-  .capiro-vnext-root .uui-outreach-chat {
-    position: static;
-    flex-basis: auto;
-    width: 100%;
-    max-height: none;
-    border-right: 0;
-    border-bottom: 1px solid var(--eng-border);
-  }
-  .capiro-vnext-root .uui-outreach-transcript {
-    max-height: 440px;
-  }
   .capiro-vnext-root .uui-outreach-canvas {
     padding: 16px 16px 36px;
   }
@@ -3178,9 +2816,6 @@
     bottom: 16px;
     width: calc(100vw - 32px);
   }
-  .capiro-vnext-root .uui-outreach-loading {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3191,7 +2826,6 @@
     transition-duration: 80ms !important;
   }
   .capiro-vnext-root .uui-table-skeleton i,
-  .capiro-vnext-root .uui-chat-skeleton i,
   .capiro-vnext-root .uui-canvas-skeleton i {
     animation: none !important;
     opacity: 0.7;
@@ -3268,4 +2902,102 @@
   margin: 0;
   color: var(--eng-error);
   font-size: 12px;
+}
+
+/* --------------------------------------------------------------------------
+ * Campaign builder chrome that replaced the removed left conversation pane.
+ *
+ * `uui-outreach-crumb` is the builder's only exit back to the campaign list
+ * (the list used to be a dropdown inside the builder, with no way out).
+ * `uui-outreach-actionbar` is the relocated single next action, including the
+ * one and only real-send trigger.
+ * -------------------------------------------------------------------------- */
+.capiro-vnext-root .uui-outreach-crumb {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.capiro-vnext-root .uui-outreach-crumb__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px 0 9px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--eng-surface);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  color: var(--eng-ink-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-outreach-crumb__back:hover {
+  box-shadow: inset 0 0 0 1px var(--eng-border-strong);
+  color: var(--eng-ink);
+}
+.capiro-vnext-root .uui-outreach-crumb__title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  gap: 1px;
+}
+.capiro-vnext-root .uui-outreach-crumb__title strong {
+  overflow: hidden;
+  color: var(--eng-ink);
+  font-size: 16px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .uui-outreach-crumb__title small {
+  color: var(--eng-ink-3);
+  font-size: 12px;
+}
+.capiro-vnext-root .uui-outreach-crumb__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--eng-ink-3);
+  font-family: var(--eng-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.capiro-vnext-root .uui-outreach-actionbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--eng-surface);
+  box-shadow:
+    inset 0 0 0 1px var(--eng-border),
+    0 -6px 18px -12px rgb(16 24 40 / 22%);
+}
+.capiro-vnext-root .uui-outreach-actionbar--note {
+  background: var(--eng-recessed);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+}
+.capiro-vnext-root .uui-outreach-actionbar p {
+  margin: 0;
+  color: var(--eng-ink-3);
+  font-size: 13px;
+}
+.capiro-vnext-root .uui-outreach-actionbar .uui-field-error {
+  flex-basis: 100%;
+}
+.capiro-vnext-root .uui-outreach-actionbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
