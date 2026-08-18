@@ -121,6 +121,11 @@ export function VNextMeriShell({
     setActiveSourceDetail(null);
   }, [controller.activeConversationId]);
 
+  // A streamed document should surface immediately even if the rail was collapsed.
+  useEffect(() => {
+    if (controller.activeArtifact) setRailCollapsed(false);
+  }, [controller.activeArtifact]);
+
   useEffect(() => {
     if (!preferencesHydrated) return;
     if (skipInitialPreferenceSaveRef.current) {
@@ -239,6 +244,8 @@ export function VNextMeriShell({
               onOpenContext={(packet, loading, error) => setContextSheet({ open: true, packet, loading, error })}
               activeSourceDetail={activeSourceDetail}
               onCloseSourceDetail={() => setActiveSourceDetail(null)}
+              activeArtifact={controller.activeArtifact}
+              onCloseArtifact={() => controller.setActiveArtifact(null)}
             />
           </div>
         </div>

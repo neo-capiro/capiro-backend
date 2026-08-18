@@ -4,9 +4,12 @@ import {
   type ManagedApp,
 } from '../../components/chat/managed-mcp-apps.js';
 import { useApi } from '../../lib/use-api.js';
+import { config } from '../../env.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import type { MeriCitation } from '../../components/chat/chat-store.js';
 import { MeriSourceDetail } from './MeriSourceDetail.js';
+import { MeriArtifactCanvas } from './MeriArtifactCanvas.js';
+import type { CanvasArtifact } from '../../components/chat/MeriCanvas.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import type { MeriContextSection } from './meri-prefs.js';
 import { activeContextLabels, contextPacketSummary } from './meri-context-packet.js';
@@ -31,6 +34,9 @@ interface VNextMeriContextRailProps {
   /** Set when a citation's "View full source" was clicked; swaps out the normal section stack. */
   activeSourceDetail: ActiveSourceDetail | null;
   onCloseSourceDetail: () => void;
+  /** Set while a streamed document is open; swaps out the normal section stack. */
+  activeArtifact: CanvasArtifact | null;
+  onCloseArtifact: () => void;
 }
 
 export function normalizeMeriQuickActionCatalog(value: unknown): MeriQuickAction[] {
@@ -125,6 +131,8 @@ export function VNextMeriContextRail({
   onOpenContext,
   activeSourceDetail,
   onCloseSourceDetail,
+  activeArtifact,
+  onCloseArtifact,
 }: VNextMeriContextRailProps) {
   const api = useApi();
   const [ctxOpen, setCtxOpen] = useState(true);
@@ -254,6 +262,30 @@ export function VNextMeriContextRail({
   const panelTitle = PANEL_TITLES[openSection ?? 'context'];
   const selectedClient = controller.clients.find((client) => client.id === controller.selectedClientValue) ?? null;
   const scopeLabel = selectedClient ? selectedClient.name : 'Portfolio — all clients';
+
+  if (activeArtifact) {
+    return (
+      <aside className="vnext-meri__rail-right is-expanded" data-meri-context-rail aria-label="Artifact">
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div className="vnext-meri__rail-panel-head">
+            <span className="vnext-meri__rail-panel-title">ARTIFACT</span>
+            <span style={{ flex: 1 }} />
+            <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" onClick={onToggle}>
+              <MeriIcon name="ChevronRight" size={15} color="#98A2B3" />
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            <MeriArtifactCanvas
+              artifact={activeArtifact}
+              onClose={onCloseArtifact}
+              apiBaseUrl={config.apiBaseUrl}
+              getAuthHeaders={controller.authHeaders}
+            />
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   if (activeSourceDetail) {
     return (
