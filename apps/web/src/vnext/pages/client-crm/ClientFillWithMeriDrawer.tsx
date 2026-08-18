@@ -32,6 +32,7 @@ export function ClientFillWithMeriDrawer({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState<string | null>(null);
 
   const persistedAttachmentId = documentAttachmentId(fill.run?.sourceStates);
 
@@ -40,11 +41,17 @@ export function ClientFillWithMeriDrawer({
       fill.run?.sourceStates ?? {},
       'client_document',
     );
-    const attachmentId = selectedAttachmentId ?? persistedAttachmentId;
+    const attachmentId = isDocumentRun ? persistedAttachmentId ?? selectedAttachmentId : null;
     if (isDocumentRun && attachmentId) {
+      setRetryError(null);
       fill.startForAttachment(attachmentId);
       return;
     }
+    if (isDocumentRun) {
+      setRetryError('Document retry is unavailable because the original attachment could not be identified.');
+      return;
+    }
+    setRetryError(null);
     fill.start();
   };
 
@@ -124,6 +131,7 @@ export function ClientFillWithMeriDrawer({
         </p>
         {uploading ? <FillProgress label="Preparing document" detail="Uploading and extracting text…" /> : null}
         {uploadError ? <p className="capiro-crm__foot capiro-crm__state--error">{uploadError}</p> : null}
+        {retryError ? <p className="capiro-crm__foot capiro-crm__state--error">{retryError}</p> : null}
 
         <FillBody fill={fill} onClose={onClose} onRetry={retrySelectedDocument} />
       </div>

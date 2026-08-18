@@ -26,11 +26,17 @@ describe('Client Fill with Meri document-upload contract', () => {
   it('retries a failed document run with the same selected attachment instead of default sources', () => {
     expect(drawer).toContain('selectedAttachmentId');
     expect(drawer).toContain('documentAttachmentId(fill.run?.sourceStates)');
-    expect(drawer).toContain('const attachmentId = selectedAttachmentId ?? persistedAttachmentId');
+    expect(drawer).toContain('const attachmentId = isDocumentRun ? persistedAttachmentId ?? selectedAttachmentId : null;');
     expect(drawer).toContain('fill.startForAttachment(attachmentId)');
     expect(drawer).toContain('const isDocumentRun = Object.prototype.hasOwnProperty.call(');
     expect(drawer).toContain("'client_document'");
     expect(drawer).toContain('onRetry={retrySelectedDocument}');
+  });
+
+  it('fails closed when a document run has no recoverable attachment id', () => {
+    expect(drawer).toContain('Document retry is unavailable because the original attachment could not be identified.');
+    expect(drawer).toContain('setRetryError');
+    expect(drawer).toContain('if (isDocumentRun)');
   });
 
   it('keeps review before writes and says tags are proposed from the document', () => {

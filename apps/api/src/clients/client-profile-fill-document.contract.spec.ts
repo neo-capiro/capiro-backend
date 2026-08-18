@@ -32,7 +32,11 @@ describe('Fill with Meri capability-document contract', () => {
     expect(service).toContain('Document-derived capability source');
   });
 
-  it('persists the selected attachment id in source state so a resumed failed run can retry the same document', () => {
+  it('initializes the selected attachment id in the durable run state before detached execution', () => {
+    expect(service).toContain("const sourceStates = attachmentId\n      ? { client_document: { status: 'queued', count: 0, attachmentId } }\n      : Object.fromEntries(");
+  });
+
+  it('persists the selected attachment id in every document source state transition', () => {
     expect(service).toContain("status: 'running',\n      count: 0,\n      attachmentId");
     expect(service).toContain("status: 'failed',\n        count: 0,\n        attachmentId");
   });

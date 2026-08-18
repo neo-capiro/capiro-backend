@@ -201,9 +201,11 @@ export class ClientProfileFillService {
       );
     }
 
-    const sourceStates = Object.fromEntries(
-      sources.map((source) => [source, { status: 'queued', count: 0 }]),
-    );
+    const sourceStates = attachmentId
+      ? { client_document: { status: 'queued', count: 0, attachmentId } }
+      : Object.fromEntries(
+          sources.map((source) => [source, { status: 'queued', count: 0 }]),
+        );
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.$queryRawUnsafe<FillRunRow[]>(
         `INSERT INTO client_profile_fill_run
