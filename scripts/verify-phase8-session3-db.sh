@@ -505,8 +505,8 @@ ok "an already-merged program cannot be merged again"
 # 10i. A curated MDAP seed cannot be rejected through the queue.
 SEED_MATCH="bbbbbbbb-0000-0000-0000-00000000000e"
 run_sql "
-INSERT INTO pe_program_match (id, pe_code, program_id, score, evidence_tier, status, weak_signal, updated_at)
-VALUES ('$SEED_MATCH', '0601102A', '$KEEP_PROG', 1.0, 'mdap_curated', 'accepted', false, now());
+INSERT INTO pe_program_match (id, pe_code, project_code, program_id, score, evidence_tier, status, weak_signal, updated_at)
+VALUES ('$SEED_MATCH', '0601102A', 'SEED1', '$KEEP_PROG', 1.0, 'mdap_curated', 'accepted', false, now());
 "
 expect_fail "capiro_admin rejects a curated MDAP seed match" "$SERVE_URL" \
   "SELECT capiro_defense_resolve_program_match('$TENANT_A'::uuid, '$ADMIN_ACTOR'::uuid, '$SEED_MATCH'::uuid, 'reject', NULL);"
