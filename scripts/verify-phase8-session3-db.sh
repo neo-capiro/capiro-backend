@@ -23,7 +23,7 @@
 #      SELECT-only on program/program_alias/pe_program_match/person_role/
 #      program_office_program_link/provision_pe_link, every mutation is a
 #      search_path-locked SECURITY DEFINER function that rechecks an ACTIVE
-#      capiro_admin membership, a standard_user / inactive-admin / foreign-tenant
+#      capiro_admin membership, a standard_user / removed-admin / foreign-tenant
 #      actor is refused, and audit rows land on audit_logs.occurred_at
 #   9. the parser plane still has no database role or credential
 #
@@ -374,32 +374,44 @@ log "10. Governed Program-graph admin boundary (ported from PR #1044)"
 # source; SQL formatting cannot fool the checks below.
 
 # 10a. The serve role must hold SELECT and NOTHING ELSE on the global graph.
-for relation in program program_alias pe_program_match person_role program_office_program_link provision_pe_link; do
-  PRIVS="$(q "SELECT COALESCE(string_agg(DISTINCT privilege_type, ',' ORDER BY privilege_type), '') FROM information_schema.table_privileges WHERE grantee = 'capiro_defense_serve' AND table_name = '$relation';")"
-  [ "$PRIVS" = "SELECT" ] \
-    || fail "capiro_defense_serve holds '$PRIVS' on global graph table $relation (expected exactly SELECT)"
-  ok "serve holds exactly SELECT on $relation"
-done
+#      One query, not one per table: every psql round-trip goes through the
+#      docker-exec shim and costs seconds, and this is a permanent gate.
+GRAPH_PRIVS="$(q "
+  SELECT string_agg(t.relation || '=' || COALESCE(p.privs, 'NONE'), ' ' ORDER BY t.relation)
+  FROM (VALUES ('program'),('program_alias'),('pe_program_match'),
+               ('person_role'),('program_office_program_link'),('provision_pe_link')) AS t(relation)
+  LEFT JOIN (
+    SELECT table_name, string_agg(DISTINCT privilege_type, ',' ORDER BY privilege_type) AS privs
+    FROM information_schema.table_privileges
+    WHERE grantee = 'capiro_defense_serve'
+    GROUP BY table_name
+  ) p ON p.table_name = t.relation;
+")"
+EXPECTED_GRAPH_PRIVS="pe_program_match=SELECT person_role=SELECT program=SELECT program_alias=SELECT program_office_program_link=SELECT provision_pe_link=SELECT"
+[ "$GRAPH_PRIVS" = "$EXPECTED_GRAPH_PRIVS" ] \
+  || fail "capiro_defense_serve privileges on the global Program graph are '$GRAPH_PRIVS' (expected '$EXPECTED_GRAPH_PRIVS')"
+ok "serve holds exactly SELECT on all six global Program graph tables, and nothing more"
 
-# 10b. Every governed function: SECURITY DEFINER, locked empty search_path,
-#      revoked from PUBLIC, executable by serve, not executable by job.
-for fn in capiro_defense_resolve_program_match capiro_defense_create_program_alias \
-          capiro_defense_update_program_alias capiro_defense_delete_program_alias \
-          capiro_defense_merge_programs; do
-  [ "$(q "SELECT prosecdef FROM pg_proc WHERE proname='$fn';")" = "t" ] \
-    || fail "$fn is not SECURITY DEFINER"
-  # PostgreSQL stores SET search_path = '' in proconfig as the literal
-  # search_path="" (quotes included), not a bare search_path=.
-  [ "$(q "SELECT count(*) FROM pg_proc WHERE proname='$fn' AND proconfig @> ARRAY['search_path=\"\"'];")" = "1" ] \
-    || fail "$fn does not lock search_path to the empty string"
-  [ "$(q "SELECT has_function_privilege('capiro_defense_serve', p.oid, 'EXECUTE') FROM pg_proc p WHERE p.proname='$fn';")" = "t" ] \
-    || fail "capiro_defense_serve cannot EXECUTE $fn"
-  [ "$(q "SELECT has_function_privilege('capiro_defense_job', p.oid, 'EXECUTE') FROM pg_proc p WHERE p.proname='$fn';")" = "f" ] \
-    || fail "capiro_defense_job CAN execute $fn - governed operator decisions are not a job capability"
-  [ "$(q "SELECT has_function_privilege('public', p.oid, 'EXECUTE') FROM pg_proc p WHERE p.proname='$fn';")" = "f" ] \
-    || fail "$fn is executable by PUBLIC"
-done
-ok "all 5 governed mutations are SECURITY DEFINER, search_path-locked, serve-only (PUBLIC and job revoked)"
+# 10b. Every governed function in ONE query: SECURITY DEFINER, empty search_path,
+#      executable by serve, NOT by job, NOT by PUBLIC.
+FN_AUDIT="$(q "
+  SELECT string_agg(
+           p.proname || ':' ||
+           CASE WHEN p.prosecdef THEN 'secdef' ELSE 'NOT_SECDEF' END || ',' ||
+           CASE WHEN p.proconfig @> ARRAY['search_path=\"\"'] THEN 'locked' ELSE 'NOT_LOCKED' END || ',' ||
+           CASE WHEN has_function_privilege('capiro_defense_serve', p.oid, 'EXECUTE') THEN 'serve' ELSE 'NO_SERVE' END || ',' ||
+           CASE WHEN has_function_privilege('capiro_defense_job', p.oid, 'EXECUTE') THEN 'JOB_CAN' ELSE 'job_denied' END || ',' ||
+           CASE WHEN has_function_privilege('public', p.oid, 'EXECUTE') THEN 'PUBLIC_CAN' ELSE 'public_denied' END,
+           ' ' ORDER BY p.proname)
+  FROM pg_proc p
+  WHERE p.proname IN ('capiro_defense_resolve_program_match','capiro_defense_create_program_alias',
+                      'capiro_defense_update_program_alias','capiro_defense_delete_program_alias',
+                      'capiro_defense_merge_programs');
+")"
+[ "$(printf '%s' "$FN_AUDIT" | grep -c 'secdef,locked,serve,job_denied,public_denied')" = "1" ] \
+  && [ "$(printf '%s' "$FN_AUDIT" | tr ' ' '\n' | grep -c 'secdef,locked,serve,job_denied,public_denied')" = "5" ] \
+  || fail "governed function posture is wrong: $FN_AUDIT"
+ok "all 5 governed mutations: SECURITY DEFINER, search_path-locked, serve-only (job and PUBLIC denied)"
 
 # 10c. The internal admin gate is not a membership oracle the serve role can probe.
 [ "$(q "SELECT has_function_privilege('capiro_defense_serve', p.oid, 'EXECUTE') FROM pg_proc p WHERE p.proname='capiro_defense_require_admin';")" = "f" ] \
@@ -443,12 +455,14 @@ expect_fail "standard_user merges programs" "$SERVE_URL" \
   || fail "the refused standard_user merge still retired the loser"
 ok "the refused standard_user merge left the loser active"
 
-# An INACTIVE admin membership must not pass either - the recheck asserts active.
-run_sql "UPDATE tenant_memberships SET status='inactive' WHERE tenant_id='$TENANT_A' AND user_id='$ADMIN_ACTOR';"
-expect_fail "inactive capiro_admin membership resolves a match" "$SERVE_URL" \
+# A membership whose access was REVOKED must not pass either. MembershipStatus is
+# invited/active/removed, and the recheck asserts status=active, so any non-active
+# value is excluded by the same condition.
+run_sql "UPDATE tenant_memberships SET status='removed' WHERE tenant_id='$TENANT_A' AND user_id='$ADMIN_ACTOR';"
+expect_fail "REMOVED capiro_admin membership resolves a match" "$SERVE_URL" \
   "SELECT capiro_defense_resolve_program_match('$TENANT_A'::uuid, '$ADMIN_ACTOR'::uuid, '$GOV_MATCH'::uuid, 'accept', NULL);"
 run_sql "UPDATE tenant_memberships SET status='active' WHERE tenant_id='$TENANT_A' AND user_id='$ADMIN_ACTOR';"
-ok "an inactive capiro_admin membership is refused (the recheck requires ACTIVE)"
+ok "a REMOVED capiro_admin membership is refused (the recheck requires status=active)"
 
 # A foreign tenant's admin cannot act on this tenant's behalf.
 expect_fail "admin of another tenant resolves this tenant's match" "$SERVE_URL" \
