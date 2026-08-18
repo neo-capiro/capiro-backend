@@ -1,97 +1,84 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
-import { useCapiroToast } from '../components/feedback/toast.js';
+import { useChatStore } from '../../components/chat/chat-store.js';
+import { useApi } from '../../lib/use-api.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
+import { displayThreadTitle } from './meri-presentation.js';
 
 /**
- * MeriCommandPalette — full-surface ⌘K palette (threads, messages, context,
- * sources and actions). Pixel-parity port of the design prototype's
- * `paletteOpen` overlay.
+ * MeriCommandPalette — full-surface ⌘K palette over the user's own threads and
+ * clients. Pixel-parity port of the design prototype's `paletteOpen` overlay.
  *
- * BACKEND GAP: there is no cross-workspace search endpoint today. Results are
- * prototype fixtures; row actions close the palette and toast the intent.
- * Tracked in GAPS.md (Meri vNext — command palette search).
+ * Threads come from the loaded conversation list, message hits from the same
+ * `/api/clio/conversations/search` endpoint the thread rail uses, and clients
+ * from the controller's client list. Nothing here is synthesised: an empty
+ * result set renders the empty state rather than placeholder rows.
  */
 
 const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
 
-type PaletteResultKind = 'THREAD' | 'MESSAGE' | 'SOURCE' | 'SKILL' | 'CLIENT';
+type PaletteResultKind = 'THREAD' | 'MESSAGE' | 'CLIENT';
 
 interface PaletteResult {
-  key: number;
+  key: string;
   icon: MeriIconName;
   title: string;
   sub: string;
   kind: PaletteResultKind;
+  conversationId?: string;
+  clientId?: string;
 }
 
-const PALETTE_RESULTS: PaletteResult[] = [
-  {
-    key: 1,
-    icon: 'MessageTextSquare01',
-    title: 'FY27 rotorcraft position after the HASC mark',
-    sub: 'Lockheed Martin · 4 messages',
-    kind: 'THREAD',
-  },
-  {
-    key: 2,
-    icon: 'SearchLg',
-    title: '“engine qualification schedule”',
-    sub: 'Found in 3 messages across 2 threads',
-    kind: 'MESSAGE',
-  },
-  {
-    key: 3,
-    icon: 'File05',
-    title: 'HASC FY27 committee report',
-    sub: 'Capiro intelligence · last verified Aug 14',
-    kind: 'SOURCE',
-  },
-  {
-    key: 4,
-    icon: 'Stars02',
-    title: 'Run Portfolio Changes',
-    sub: 'Skill · all clients',
-    kind: 'SKILL',
-  },
-  {
-    key: 5,
-    icon: 'Building01',
-    title: 'Shield AI',
-    sub: 'Client workspace · 18 records',
-    kind: 'CLIENT',
-  },
-  {
-    key: 6,
-    icon: 'ClockFastForward',
-    title: 'What changed for Lockheed Martin this week',
-    sub: 'Lockheed Martin · 8:05 AM',
-    kind: 'THREAD',
-  },
-];
+interface HistorySearchResult {
+  conversationId: string;
+  title: string;
+  clientId: string | null;
+  messageId: string;
+  snippet: string;
+  createdAt: string;
+  score: number | null;
+}
 
 interface MeriCommandPaletteProps {
   controller: MeriChatController;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Optional navigation hooks — wired by the shell once routes exist. */
-  onOpenSource?: () => void;
-  onOpenThread?: (conversationId: string) => void;
-  onRunSkill?: (skillLabel: string) => void;
+  onOpenThread: (conversationId: string) => void;
+  onSelectClient: (clientId: string) => void;
 }
 
 export function MeriCommandPalette({
   controller,
   open,
   onOpenChange,
-  onOpenSource,
   onOpenThread,
-  onRunSkill,
+  onSelectClient,
 }: MeriCommandPaletteProps) {
-  const toast = useCapiroToast();
+  const api = useApi();
+  const { conversations } = useChatStore();
   const [query, setQuery] = useState('');
-  const [hoveredKey, setHoveredKey] = useState<number | null>(null);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => setDebouncedQuery(query.trim()), 200);
+    return () => window.clearTimeout(handle);
+  }, [query]);
+
+  const searchActive = open && debouncedQuery.length >= 2;
+  const messageSearch = useQuery<HistorySearchResult[]>({
+    queryKey: ['meri-conversation-search', debouncedQuery],
+    queryFn: async () =>
+      (
+        await api.get<HistorySearchResult[]>('/api/clio/conversations/search', {
+          params: { q: debouncedQuery, limit: 25 },
+        })
+      ).data,
+    enabled: searchActive,
+    staleTime: 30_000,
+  });
 
   // ⌘K / Ctrl+K opens; Escape closes. Registered for the whole workspace while
   // the palette is mounted.
@@ -119,37 +106,65 @@ export function MeriCommandPalette({
     window.setTimeout(() => inputRef.current?.focus(), 0);
   }, [open]);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return PALETTE_RESULTS;
-    return PALETTE_RESULTS.filter(
-      (result) =>
-        result.title.toLowerCase().includes(q) ||
-        result.sub.toLowerCase().includes(q) ||
-        result.kind.toLowerCase().includes(q),
-    );
-  }, [query]);
+  const results = useMemo<PaletteResult[]>(() => {
+    const q = debouncedQuery.toLowerCase();
+    const threadRows: PaletteResult[] = [...conversations]
+      .sort((a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0))
+      .filter((conversation) => {
+        if (!q) return true;
+        return [
+          displayThreadTitle(conversation.title, conversation.latestMessage?.body),
+          conversation.client?.name ?? '',
+          conversation.latestMessage?.body ?? '',
+        ].some((value) => value.toLowerCase().includes(q));
+      })
+      .slice(0, 8)
+      .map((conversation) => ({
+        key: `thread:${conversation.id}`,
+        icon: 'MessageTextSquare01',
+        title: displayThreadTitle(conversation.title, conversation.latestMessage?.body),
+        sub: conversation.client?.name ?? 'All clients · Portfolio',
+        kind: 'THREAD',
+        conversationId: conversation.id,
+      }));
+
+    const knownIds = new Set(conversations.map((conversation) => conversation.id));
+    const messageRows: PaletteResult[] = (searchActive ? (messageSearch.data ?? []) : [])
+      .filter((hit) => !knownIds.has(hit.conversationId) || hit.snippet)
+      .slice(0, 8)
+      .map((hit) => ({
+        key: `message:${hit.messageId}`,
+        icon: 'SearchLg',
+        title: hit.snippet || displayThreadTitle(hit.title, hit.snippet),
+        sub: displayThreadTitle(hit.title, hit.snippet),
+        kind: 'MESSAGE',
+        conversationId: hit.conversationId,
+      }));
+
+    const clientRows: PaletteResult[] = (q ? controller.clients : [])
+      .filter((client) => client.name.toLowerCase().includes(q))
+      .slice(0, 5)
+      .map((client) => ({
+        key: `client:${client.id}`,
+        icon: 'Building01',
+        title: client.name,
+        sub: 'Set conversation scope to this client',
+        kind: 'CLIENT',
+        clientId: client.id,
+      }));
+
+    return [...threadRows, ...messageRows, ...clientRows];
+  }, [conversations, controller.clients, debouncedQuery, messageSearch.data, searchActive]);
 
   if (!open) return null;
 
   const pick = (result: PaletteResult) => {
     onOpenChange(false);
-    if (result.kind === 'SOURCE') {
-      onOpenSource?.();
+    if (result.conversationId) {
+      onOpenThread(result.conversationId);
       return;
     }
-    if (result.kind === 'THREAD') {
-      // BACKEND GAP: no thread-search endpoint — the shell passes onOpenThread
-      // once conversation routing lands.
-      onOpenThread?.(String(result.key));
-      if (!onOpenThread) toast.success('Opening the thread.');
-      return;
-    }
-    if (result.kind === 'SKILL') {
-      onRunSkill?.(result.title);
-      return;
-    }
-    toast.success(`Opening ${result.title}.`);
+    if (result.clientId) onSelectClient(result.clientId);
   };
 
   return (
@@ -223,6 +238,27 @@ export function MeriCommandPalette({
           </button>
         </div>
         <div style={{ maxHeight: 400, overflowY: 'auto', padding: 8 }}>
+          {results.length === 0 ? (
+            <div
+              role="status"
+              style={{
+                margin: 6,
+                padding: '16px 14px',
+                borderRadius: 10,
+                background: '#F9FAFB',
+                boxShadow: 'inset 0 0 0 1px #EAECF0',
+                fontSize: 13,
+                lineHeight: '19px',
+                color: '#475467',
+              }}
+            >
+              {messageSearch.isFetching
+                ? 'Searching…'
+                : debouncedQuery
+                  ? `Nothing matches “${debouncedQuery}”.`
+                  : 'No threads yet. Ask Meri something to start one.'}
+            </div>
+          ) : null}
           {results.map((result) => (
             <button
               type="button"

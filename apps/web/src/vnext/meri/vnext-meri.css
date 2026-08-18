@@ -799,6 +799,62 @@
   margin: 18px 0;
 }
 
+.capiro-vnext-root .vnext-meri__saved-prompt-list,
+.capiro-vnext-root .vnext-meri__workspace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.capiro-vnext-root .vnext-meri__saved-prompt-row,
+.capiro-vnext-root .vnext-meri__workspace-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 9px;
+}
+
+.capiro-vnext-root .vnext-meri__saved-prompt-row:hover,
+.capiro-vnext-root .vnext-meri__workspace-row:hover {
+  background: var(--meri-surface-2);
+}
+
+/* The row owns the hover fill, so the inner button must not repaint over it. */
+.capiro-vnext-root .vnext-meri__saved-prompt-row:hover .vnext-meri__saved-prompt,
+.capiro-vnext-root .vnext-meri__workspace-row:hover .vnext-meri__workspace-item {
+  background: transparent;
+}
+
+.capiro-vnext-root .vnext-meri__saved-prompt-delete {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--meri-text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--capiro-motion-fast) var(--capiro-motion-ease),
+    background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__saved-prompt-row:hover .vnext-meri__saved-prompt-delete,
+.capiro-vnext-root .vnext-meri__workspace-row:hover .vnext-meri__saved-prompt-delete,
+.capiro-vnext-root .vnext-meri__saved-prompt-delete:focus-visible {
+  opacity: 1;
+}
+
+.capiro-vnext-root .vnext-meri__saved-prompt-delete:hover {
+  background: var(--m-error-bg);
+  color: var(--meri-danger);
+}
+
 .capiro-vnext-root .vnext-meri__saved-prompt {
   display: flex;
   width: 100%;
@@ -1470,13 +1526,6 @@
   height: 7px;
   border-radius: 50%;
   background: var(--meri-success);
-}
-
-.capiro-vnext-root .vnext-meri__ungrounded-note {
-  font-size: 13px;
-  line-height: 19px;
-  color: var(--meri-text-muted);
-  font-style: italic;
 }
 
 /* Research offer inline */
@@ -3058,6 +3107,39 @@
   font-weight: 500;
   letter-spacing: 0.09em;
   color: #B54708;
+}
+
+.capiro-vnext-root .vnext-meri__coverage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 7px;
+  font-family: var(--meri-font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__coverage-pill.is-complete {
+  background: #ECFDF3;
+  box-shadow: inset 0 0 0 1px #ABEFC6;
+  color: #027A48;
+}
+
+.capiro-vnext-root .vnext-meri__coverage-pill.is-partial {
+  background: #FFFAEB;
+  box-shadow: inset 0 0 0 1px #FEDF89;
+  color: #B54708;
+}
+
+.capiro-vnext-root .vnext-meri__analysis-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 18px 16px;
 }
 
 .capiro-vnext-root .vnext-meri__composer-send-btn {

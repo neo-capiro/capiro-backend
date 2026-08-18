@@ -1,4 +1,3 @@
-import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 
 /**
@@ -45,9 +44,59 @@ export const MERI_ATTACHMENT_STATES: MeriAttachmentChipSpec[] = [
   { name: 'notes.pdf', state: 'FAILED · RETRY', icon: 'XCircle', ring: '#FECDCA', fg: '#B42318' },
 ];
 
+/**
+ * Live attachment → chip presentation. Statuses are the real
+ * `StagedAttachment['status']` union; `reason` is the server's own detail
+ * string. No page/row counts are shown because the message attachment payload
+ * does not carry them — the fixture's "PARSED · 14 PAGES" style detail only
+ * appears when the server supplies it via `reason`.
+ */
+export function attachmentChipSpec(attachment: {
+  filename: string;
+  kind: string;
+  status: string;
+  reason?: string | null;
+}): MeriAttachmentChipSpec {
+  const GOOD = { ring: '#ABEFC6', fg: '#027A48' };
+  const WARN = { ring: '#FEDF89', fg: '#B54708' };
+  const BAD = { ring: '#FECDCA', fg: '#B42318' };
+  const NEUTRAL = { ring: '#D0D5DD', fg: '#667085' };
+
+  const kindIcon: MeriIconName =
+    attachment.kind === 'image' ? 'Eye' : attachment.kind === 'docx' ? 'File04' : 'File05';
+
+  const base = ((): { state: string; icon: MeriIconName; ring: string; fg: string } => {
+    switch (attachment.status) {
+      case 'uploading':
+        return { state: 'UPLOADING', icon: 'UploadCloud02', ...NEUTRAL };
+      case 'parsed':
+        return { state: 'PARSED', icon: kindIcon, ...GOOD };
+      case 'image_ready':
+        return { state: 'IMAGE READY', icon: 'Eye', ...GOOD };
+      case 'truncated':
+        return { state: 'TRUNCATED', icon: 'AlertTriangle', ...WARN };
+      case 'scanned':
+        return { state: 'SCANNED · NO READABLE TEXT', icon: 'EyeOff', ...WARN };
+      case 'unsupported':
+        return { state: 'UNSUPPORTED TYPE', icon: 'SlashCircle01', ...BAD };
+      case 'error':
+        return { state: 'FAILED', icon: 'XCircle', ...BAD };
+      default:
+        return { state: attachment.status.replace(/_/g, ' ').toUpperCase(), icon: kindIcon, ...NEUTRAL };
+    }
+  })();
+
+  const detail = attachment.reason?.trim();
+  return {
+    name: attachment.filename,
+    state: detail ? `${base.state} · ${detail.toUpperCase()}` : base.state,
+    icon: base.icon,
+    ring: base.ring,
+    fg: base.fg,
+  };
+}
+
 interface MeriAttachmentChipProps {
-  /** Reserved for wiring to live staged attachments. */
-  controller?: MeriChatController;
   name: string;
   state: string;
   icon: MeriIconName;
@@ -83,22 +132,24 @@ export function MeriAttachmentChip({ name, state, icon, ring, fg, onRemove }: Me
       >
         {state}
       </span>
-      <button
-        type="button"
-        aria-label={`Remove ${name}`}
-        onClick={() => onRemove?.()}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 18,
-          height: 18,
-          borderRadius: 5,
-          color: '#98A2B3',
-        }}
-      >
-        <MeriIcon name="XClose" size={11} />
-      </button>
+      {onRemove ? (
+        <button
+          type="button"
+          aria-label={`Remove ${name}`}
+          onClick={onRemove}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 18,
+            height: 18,
+            borderRadius: 5,
+            color: '#98A2B3',
+          }}
+        >
+          <MeriIcon name="XClose" size={11} />
+        </button>
+      ) : null}
     </span>
   );
 }

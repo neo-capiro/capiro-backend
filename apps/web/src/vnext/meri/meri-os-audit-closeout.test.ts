@@ -109,14 +109,30 @@ describe('Meri os wire-audit closeout contracts', () => {
     const conversation = readMeri('VNextMeriConversation.tsx');
     const composer = readMeri('VNextMeriComposer.tsx');
     const mounted = `${shell}\n${conversation}\n${composer}`;
+    // These still render prototype fixtures, so mounting one would put
+    // fabricated clients, figures or sources in front of a user. MeriAnalysisCard
+    // additionally duplicates the real, backend-wired AnalysisChartCard.
     for (const fixture of [
       'MeriActionProposal',
-      'MeriCommandPalette',
       'MeriManageContext',
       'MeriSourceDetail',
       'MeriAnalysisCard',
     ]) {
       expect(mounted).not.toContain(fixture);
+    }
+  });
+
+  test('the mounted command palette reads real threads and clients, never fixtures', () => {
+    const source = readMeri('MeriCommandPalette.tsx');
+    // Mounted in the shell, so the no-fabrication rule is enforced on its data
+    // sources rather than on whether it is rendered at all.
+    expect(readMeri('VNextMeriShell.tsx')).toContain('<MeriCommandPalette');
+    expect(source).toContain('useChatStore');
+    expect(source).toContain("'/api/clio/conversations/search'");
+    expect(source).toContain('controller.clients');
+    expect(source).not.toContain('PALETTE_RESULTS');
+    for (const fabricated of ['Lockheed', 'Shield AI', 'HASC', 'rotorcraft']) {
+      expect(source).not.toContain(fabricated);
     }
   });
 });

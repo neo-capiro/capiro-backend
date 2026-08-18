@@ -4,13 +4,10 @@ import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
 import type { Components } from 'react-markdown';
 import { AnalysisChartCard } from '../../components/chat/AnalysisChartCard.js';
-import {
-  attachmentKindIcon,
-  truncateFilenameMiddle,
-} from '../../components/chat/ChatInput.js';
 import type {
   ChatMessage,
   ChatMessageAttachment,
+  ChatMessageRetrieval,
   MeriCitation,
 } from '../../components/chat/chat-store.js';
 import { MessageFeedback } from '../../components/chat/MessageFeedback.js';
@@ -26,6 +23,8 @@ import {
   type MeriWorkStep,
 } from './MeriEvidenceTray.js';
 import { evidenceContextPacket } from './meri-context-packet.js';
+import { MeriAttachmentChip, attachmentChipSpec } from './MeriAttachmentChip.js';
+import { MeriGroundingWarning, type MeriGroundingItem } from './MeriGroundingWarning.js';
 import { deleteMeriResearch, fetchMeriContextPacket } from './meri-vnext-api.js';
 import { useApi } from '../../lib/use-api.js';
 
@@ -154,6 +153,9 @@ function VNextMeriAssistantMessage({
         detail: step.detail ?? step.tool,
       }))
     : [];
+  const groundingItems: MeriGroundingItem[] = (message.groundingCaveat?.findings ?? []).map(
+    (finding) => ({ kind: finding.check.replace(/_/g, ' ').toUpperCase(), text: finding.detail }),
+  );
 
   return (
     <div className="vnext-meri__assistant-message">
@@ -218,27 +220,11 @@ function VNextMeriAssistantMessage({
           </details>
         ) : null}
 
-        {message.groundingStatement ? (
-          <div className="vnext-meri__attachment-notice" role="status">{message.groundingStatement}</div>
-        ) : null}
-
-        {message.groundingCaveat?.findings.length ? (
-          <div className="vnext-meri__attachment-notice" role="alert">
-            <strong>Meri flagged a possible grounding issue.</strong>
-            {message.groundingCaveat.findings.map((finding) => (
-              <span key={`${finding.check}-${finding.detail}`} style={{ display: 'block' }}>
-                {finding.check}: {finding.detail}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
-        {message.verification && message.verification.totalCount > 0 ? (
-          <div className="vnext-meri__attachment-notice" role="status">
-            {message.verification.unsupportedCount === 0
-              ? `${message.verification.totalCount} claims were checked against retrieved sources.`
-              : `${message.verification.unsupportedCount} of ${message.verification.totalCount} claims could not be tied to a retrieved source.`}
-          </div>
+        {groundingItems.length ? (
+          <MeriGroundingWarning
+            items={groundingItems}
+            onInspectEvidence={() => setEvidenceOpen(true)}
+          />
         ) : null}
 
         {researchOffer ? (
@@ -354,6 +340,7 @@ function VNextMeriAssistantMessage({
               </button>
             ) : null}
             <span style={{ flex: 1 }} />
+            {message.retrieval ? <CoveragePill coverage={message.retrieval.coverage} /> : null}
             {verificationLabel ? (
               <span className="vnext-meri__grounded-stamp">
                 <MeriIcon name="ShieldTick" size={13} color="#027A48" />
@@ -364,9 +351,11 @@ function VNextMeriAssistantMessage({
         ) : !messageIsStreaming && message.content ? (
           <div className="vnext-meri__source-strip">
             <span className="vnext-meri__ungrounded-note">
-              No retrieved sources were attached to this answer.
+              {message.groundingStatement ??
+                'No retrieved sources were attached to this answer.'}
             </span>
             <span style={{ flex: 1 }} />
+            {message.retrieval ? <CoveragePill coverage={message.retrieval.coverage} /> : null}
             <span className="vnext-meri__ungrounded-stamp">
               <MeriIcon name="AlertCircle" size={13} color="#B54708" />
               NOT GROUNDED
@@ -419,15 +408,14 @@ function VNextMeriAssistantMessage({
             ) : null}
           </div>
         ) : null}
+        {message.chartArtifacts?.length ? (
+          <div className="vnext-meri__analysis-slot" aria-label="Analysis charts">
+            {message.chartArtifacts.map((chart) => (
+              <AnalysisChartCard key={chart.id} artifactId={chart.id} title={chart.title} />
+            ))}
+          </div>
+        ) : null}
       </div>
-
-      {message.chartArtifacts?.length ? (
-        <div className="chat-chart-cards" aria-label="Analysis charts">
-          {message.chartArtifacts.map((chart) => (
-            <AnalysisChartCard key={chart.id} artifactId={chart.id} title={chart.title} />
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -436,18 +424,43 @@ function AttachmentList({ attachments }: { attachments?: ChatMessageAttachment[]
   if (!attachments?.length) return null;
   return (
     <div className="vnext-meri__attachments" aria-label="Attached files">
-      {attachments.map((attachment) => (
-        <span key={attachment.id} className="vnext-meri__attachment">
-          <span aria-hidden="true">{attachmentKindIcon(attachment.kind)}</span>
-          <span title={attachment.filename}>
-            {truncateFilenameMiddle(attachment.filename, 28)}
-          </span>
-          {attachment.status === 'truncated' ? (
-            <span className="vnext-meri__attachment-state">TRUNCATED</span>
-          ) : null}
-        </span>
-      ))}
+      {attachments.map((attachment) => {
+        const spec = attachmentChipSpec(attachment);
+        return (
+          <MeriAttachmentChip
+            key={attachment.id}
+            name={spec.name}
+            state={spec.state}
+            icon={spec.icon}
+            ring={spec.ring}
+            fg={spec.fg}
+          />
+        );
+      })}
     </div>
+  );
+}
+
+/**
+ * Coverage pill for the trust strip. The backend reports coverage as
+ * `{ complete, stopReason }`, so only the complete/partial distinction is
+ * real — the prototype's SOURCES DISAGREE and REQUIRED SOURCE MISSING states
+ * have no backing field and are deliberately not synthesised here.
+ */
+function CoveragePill({ coverage }: { coverage: ChatMessageRetrieval['coverage'] }) {
+  const reason = coverage.stopReason?.replace(/_/g, ' ').trim();
+  return (
+    <span
+      className={`vnext-meri__coverage-pill${coverage.complete ? ' is-complete' : ' is-partial'}`}
+      title={reason ? `Stop reason: ${reason}` : undefined}
+    >
+      <MeriIcon
+        name={coverage.complete ? 'CheckCircle' : 'AlertTriangle'}
+        size={12}
+        color={coverage.complete ? '#027A48' : '#B54708'}
+      />
+      {coverage.complete ? 'FULL COVERAGE' : 'PARTIAL COVERAGE'}
+    </span>
   );
 }
 

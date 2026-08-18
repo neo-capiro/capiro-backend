@@ -35,6 +35,8 @@ interface VNextMeriConversationProps {
   greetingName: string;
   tenantName: string;
   onOpenIntegrations: () => void;
+  /** Opens the single scope menu owned by the top bar. */
+  onOpenScope: () => void;
 }
 
 export function VNextMeriConversation({
@@ -42,6 +44,7 @@ export function VNextMeriConversation({
   greetingName,
   tenantName,
   onOpenIntegrations,
+  onOpenScope,
 }: VNextMeriConversationProps) {
   const [threadMenuOpen, setThreadMenuOpen] = useState(false);
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
@@ -292,6 +295,7 @@ export function VNextMeriConversation({
                   variant="landing"
                   hasThread={false}
                   onOpenIntegrations={onOpenIntegrations}
+                  onOpenScope={onOpenScope}
                 />
 
                 <MeriStartWork
@@ -350,6 +354,7 @@ export function VNextMeriConversation({
             variant="pinned"
             hasThread={true}
             onOpenIntegrations={onOpenIntegrations}
+            onOpenScope={onOpenScope}
           />
         ) : null}
       </main>

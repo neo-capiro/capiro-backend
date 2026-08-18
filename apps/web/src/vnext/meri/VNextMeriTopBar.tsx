@@ -12,6 +12,9 @@ interface VNextMeriTopBarProps {
   windowChrome: MeriWindowChrome;
   onNewChat: () => void;
   onSearch: () => void;
+  /** Scope-menu open state is lifted so the composer pill triggers this same menu. */
+  scopeMenuOpen: boolean;
+  onScopeMenuOpenChange: (open: boolean) => void;
   onDock: () => void;
   onToggleMaximize: () => void;
   onClose: () => void;
@@ -40,13 +43,16 @@ export function VNextMeriTopBar({
   windowChrome,
   onNewChat,
   onSearch,
+  scopeMenuOpen,
+  onScopeMenuOpenChange,
   onDock,
   onToggleMaximize,
   onClose,
 }: VNextMeriTopBarProps) {
-  const [scopeOpen, setScopeOpen] = useState(false);
   const [scopeQuery, setScopeQuery] = useState('');
   const [tipOpen, setTipOpen] = useState(false);
+  const scopeOpen = scopeMenuOpen;
+  const setScopeOpen = onScopeMenuOpenChange;
   const scopeRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
 
@@ -75,11 +81,16 @@ export function VNextMeriTopBar({
   useEffect(() => {
     if (!scopeOpen) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!scopeRef.current?.contains(event.target as Node)) setScopeOpen(false);
+      const target = event.target as HTMLElement | null;
+      if (scopeRef.current?.contains(target)) return;
+      // The composer carries a second trigger for this same menu; let its own
+      // click handler do the toggling instead of closing out from under it.
+      if (target?.closest('[data-meri-scope-trigger]')) return;
+      setScopeOpen(false);
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [scopeOpen]);
+  }, [scopeOpen, setScopeOpen]);
 
   useEffect(() => {
     if (!scopeOpen) setScopeQuery('');
@@ -103,7 +114,7 @@ export function VNextMeriTopBar({
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [setScopeOpen]);
 
   return (
     <header className="vnext-meri__topbar">
@@ -126,7 +137,7 @@ export function VNextMeriTopBar({
           type="button"
           className="vnext-meri__scope-trigger"
           disabled={controller.isStreaming}
-          onClick={() => setScopeOpen((open) => !open)}
+          onClick={() => setScopeOpen(!scopeOpen)}
           aria-haspopup="menu"
           aria-expanded={scopeOpen}
           title="Conversation scope"
