@@ -1,28 +1,49 @@
-# Phase 8 Session 3 — Workstream E Handoff
+# Phase 8 Session 3 — Workstream E Handoff (consolidated)
 
 ## Repository / branch / PR
 
 - Repository: `neo-capiro/capirov2`
-- Branch: `agent/phase8-session3-program-elements-repair`
-- Base SHA (`origin/main` at this tip): `91aa1bd79eecce5646d49a4a45e34257f667ef9e`
-- Prior head (inherited): `ae0712b63c1a1fca03c1522c0ac7539012316af8`
-- PR: https://github.com/neo-capiro/capirov2/pull/1044 — **DRAFT, unmerged, by design**
+- Branch: `agent/phase8-session3-consolidated`
+- Consolidated head: the tip of this branch (this doc is the last commit on it; see
+  the PR for the exact SHA and the commit table below for everything beneath it)
+- `origin/main` integrated: `aa7bda236972548583da4a44d34d750191c4600d`
+- PR: opened against `main` as a REPLACEMENT for #1044 — **DRAFT, unmerged, by design**
 
-`main` advanced from `b00c9e301` to `91aa1bd79` during this session (Meri vNext / web
-only — nothing under `apps/api/src/program-element`, `apps/defense-api` or the defense
-packages). No rebase was needed and none was performed; the branch is still a clean
-fast-forward from `main`.
+### Why this branch exists
 
-### Commits added this session
+Session 3 was implemented **twice, concurrently**, by two agents on the same branch.
+This branch is the consolidation, and it is the one to review:
+
+| | Branch | Head | State |
+|---|---|---|---|
+| Functional base | `agent/phase8-session3-workstream-e-gated` | `b22b3f059` | every gate executed and green |
+| Security source | `agent/phase8-session3-program-elements-repair` (PR #1044) | `cc69f43e6` | own verdict `ACCEPTANCE_BLOCKED`; independently confirmed: `typecheck` fails, parity suite cannot load |
+
+The consolidation takes the gated branch's tested business implementation as the
+base and ports **only** the governed-admin security boundary out of #1044. #1044's
+overlapping rewrite of the Program Elements / Budget Lines / funding / timeline /
+provenance read services is deliberately NOT taken.
+
+Neither original branch was force-pushed or deleted. Both are preserved on the
+remote, plus explicit pre-consolidation backups:
+
+- `backup/phase8-s3-gated-pre-consolidation` → `b22b3f059`
+- `backup/phase8-s3-repair-pre-consolidation` → `cc69f43e6`
+- `backup/phase8-s4-pre-restack` → `cb93e236a`
+
+### Commits on this branch beyond the gated base
 
 | SHA | Subject |
 |---|---|
-| `5cc68abaf` | `feat(defense-domain): hoist the PE read-path domain layer into packages` |
-| `c53e99312` | `feat(defense-api): widen the curated Prisma boundary to the real read contract` |
-| `14e709d3a` | `feat(defense-api): port the real Program Elements business logic` |
-| `b4ae8f1a1` | `test(defense): real old-vs-new parity gates, and two Docker defects they exposed` |
+| `0342e55c2` | `security(defense): governed Program-graph admin boundary, ported from PR #1044` |
+| `5b8597016` | `test(defense): follow the parity contract into the governed SQL layer` |
+| `5a99526ec` | `test(defense): correct three real defects in the governed-admin rehearsal checks` |
+| `5d936facc` | `test(defense): differentiate the curated-seed fixture by project_code` |
+| `86432926a` | `test(defense): the merge regression now needs a real capiro_admin membership` |
+| `2383cfe18` | `Merge origin/main (aa7bda236) — 0 conflicts` |
 
-Changed-file count for this session's work: **45 files** (17 modified, 28 added).
+Gated-base commits (unchanged, inherited): `5cc68abaf`, `c53e99312`, `14e709d3a`,
+`b4ae8f1a1`, `b22b3f059`.
 
 ---
 
@@ -30,14 +51,101 @@ Changed-file count for this session's work: **45 files** (17 modified, 28 added)
 
 **SESSION3_COMPLETE.**
 
-The prior tip's retraction was correct and its itemized gap list was accurate. Every
-item on it is now closed, and closure is enforced by permanent gates rather than
-asserted. The three correctness bugs that tip fixed (money canonicalization, the
-`fundingField`-scoped open-proposal lookup, merge safety) are preserved with their
-regression tests intact.
+Every gap the independent review itemized is closed; the governed-admin boundary
+from #1044 is in place and proven against a real database; `origin/main` is
+integrated; and the full acceptance suite passes on the exact consolidated SHA
+recorded above.
 
 Deviations from `apps/api` are deliberate, few, and listed under
 **Stated deviations** below rather than folded into a clean bill of health.
+
+---
+
+## Governed Program-graph admin boundary (ported from PR #1044)
+
+This is the one piece of the concurrent branch worth keeping, and it closes a real
+hole rather than adding ceremony.
+
+**The problem.** The preceding dark migration granted `capiro_defense_serve` direct
+`INSERT`/`UPDATE`/`DELETE` on the GLOBAL Program graph — `program`, `program_alias`,
+`pe_program_match`, `person_role`, `program_office_program_link`,
+`provision_pe_link`. Those tables carry no `tenant_id` and no RLS, so the only thing
+between an authenticated request and a global mutation was the application's own
+role check. One handler missing `@Roles('capiro_admin')`, one guard regression, or a
+compromised HTTP task was enough.
+
+**Now.** `capiro_defense_serve` is `SELECT`-only on all six. Every mutation runs
+inside a fixed-shape `SECURITY DEFINER` function that re-checks an **ACTIVE**
+`capiro_admin` membership in the database, independently of the application:
+
+| Function | Route |
+|---|---|
+| `capiro_defense_resolve_program_match` | `POST /programs/admin/match-queue/:id/resolve` |
+| `capiro_defense_create_program_alias` | `POST /programs/admin/:programId/aliases` |
+| `capiro_defense_update_program_alias` | `PATCH /programs/admin/aliases/:id` |
+| `capiro_defense_delete_program_alias` | `DELETE /programs/admin/aliases/:id` |
+| `capiro_defense_merge_programs` | `POST /programs/admin/merge` |
+
+Each: scalar parameters only (no caller-supplied SQL), fully-qualified object names
+under `SET search_path = ''`, revoked from `PUBLIC` **and** from the job role,
+granted to `capiro_defense_serve` alone. `capiro_defense_require_admin` is an
+internal helper the serve role cannot call — it is not a membership oracle an HTTP
+request can aim at a tenant.
+
+**Two improvements over #1044's version.**
+
+1. `require_admin` **saves and restores** `app.bypass_rls` instead of leaving it on.
+   The original sets it and returns, so it stays on for the remainder of the
+   caller's transaction — any later read in that request would run with RLS
+   bypassed. Restoring confines the widening to the membership check itself.
+2. The governed call runs **outside** a transaction. The function authorizes from
+   its own parameters and needs no tenant GUC, so the transaction-local setting
+   cannot outlive the single statement.
+
+**Where validation lives.** TypeScript keeps the alias-type allowlist, the
+generic-label stoplist, `normalizeAlias`, duplicate detection, the
+last-canonical-alias guard and the merge input checks, so HTTP error semantics stay
+apps/api's. The functions repeat the curated-MDAP-seed and last-canonical refusals
+as defence in depth. Merge semantics are unchanged from the gated implementation —
+including that a colliding alias stays with the retired loser (apps/api's
+behaviour), which the DB regression test pins.
+
+**#1044's audit bug, fixed for real.** `audit_logs` has `occurred_at` and **no**
+`created_at`, so that branch's first migration would have failed outright on every
+governed write; its follow-up migration corrected the column. Rather than trust the
+fix, the rehearsal asserts `created_at` does not exist and that the governed write
+lands exactly one row with `occurred_at` populated.
+
+### Proof, not description
+
+`verify:phase8-session3:admin` is a new permanent STATIC gate: for all five
+functions it checks `SECURITY DEFINER`, the locked empty `search_path`,
+schema-qualified names, absence of dynamic SQL, the grant/revoke shape, and that
+**no Prisma DML on the six graph tables remains anywhere in `apps/defense-api`**.
+
+The authoritative half is in the disposable-DB rehearsal, which reads the ACTUAL
+granted privileges out of `information_schema` and executes the real cases as the
+real roles — SQL formatting cannot make that pass:
+
+| Proof | Result |
+|---|---|
+| serve holds exactly `SELECT` on all six graph tables, nothing more | PASS |
+| all five functions SECURITY DEFINER + `search_path` locked + serve-only (job, PUBLIC denied) | PASS |
+| `require_admin` not callable by serve | PASS |
+| `standard_user` actor refused, and the row is unchanged afterwards | PASS |
+| **inactive** `capiro_admin` membership refused | PASS |
+| admin of a **different tenant** refused | PASS |
+| `capiro_admin` actor succeeds; notes trimmed | PASS |
+| audit row written to `occurred_at`; `created_at` proven nonexistent | PASS |
+| merge retires (never deletes) the loser and repoints its alias | PASS |
+| re-merging an already-merged program refused | PASS |
+| curated MDAP seed cannot be rejected, remains idempotently acceptable | PASS |
+| direct DML by serve refused on all six tables | PASS |
+| serve retains `SELECT` (writes removed, reads intact) | PASS |
+
+`programs-admin-security.integration.spec.ts` additionally drives the real
+`ProgramsService` against the real serve login and asserts the HTTP contract: a
+`ForbiddenException` with status 403, not a 400 or a 500.
 
 ---
 
@@ -215,7 +323,11 @@ Four, all deliberate:
 
 ---
 
-## Gate results — every command re-run on this tip
+## Gate results — every command re-run on the consolidated tip
+
+Repository CI is still in repo-level `startup_failure`, so every gate below was
+executed locally against real PostgreSQL containers and a real `docker build`. No
+result is carried over from an earlier tip.
 
 | Command | Result |
 |---|---|
@@ -227,19 +339,23 @@ Four, all deliberate:
 | `pnpm --filter @capiro/defense-client build` | **PASS** |
 | `pnpm --filter @capiro/defense-api prisma:validate` | **PASS** — schema valid |
 | `pnpm --filter @capiro/defense-api typecheck` | **PASS** — 0 errors |
-| `pnpm --filter @capiro/defense-api test` (no DB) | **PASS** — 43 pass / 4 skipped (DB-gated) / 0 fail |
+| `pnpm --filter @capiro/defense-api test` (no DB) | **PASS** — 43 pass / 0 fail / 8 skipped (DB-gated) |
 | `pnpm --filter @capiro/defense-api build` | **PASS** |
 | `pnpm verify:phase8-session2` | **PASS** — `SESSION2_BOUNDARY_PASS` |
-| `pnpm verify:phase8-session2:db` | **PASS** — `SESSION2_DB_REHEARSAL_PASS` (36 checks); downstream suite 53/53 |
+| `pnpm verify:phase8-session2:db` | **PASS** — `SESSION2_DB_REHEARSAL_PASS` (36 checks) |
 | `pnpm verify:phase8-session3` | **PASS** — `SESSION3_BOUNDARY_PASS` · **49/49** routes |
-| `pnpm verify:phase8-session3:db` | **PASS** — `SESSION3_DB_REHEARSAL_PASS` (**54 checks**, was 31); downstream suite 53/53 |
-| `pnpm verify:phase8-session3:parity` | **PASS** — **52/52** (was 2/2) |
-| `docker build -f apps/defense-api/Dockerfile -t capiro-defense-api:phase8-session3 .` | **PASS** (exit 0) |
-| Image fail-closed smoke (`docker run … serve`, no secrets) | **PASS** — `DATABASE_URL is required; CLERK_SECRET_KEY is required` |
+| `pnpm verify:phase8-session3:admin` | **PASS** — `SESSION3_ADMIN_BOUNDARY_PASS` · 5 governed mutations |
+| `pnpm verify:phase8-session3:parity` | **PASS** — **52/52** |
+| `pnpm verify:phase8-session3:db` | **PASS** — `SESSION3_DB_REHEARSAL_PASS` (86 checks) |
+| `docker build --no-cache -f apps/defense-api/Dockerfile …` | **PASS** (exit 0) |
+| Image runs non-root | **PASS** — `id -u` = `1001` |
+| Image fail-closed smoke (no secrets) | **PASS** — nonzero exit; `DATABASE_URL is required; CLERK_SECRET_KEY is required` |
 | `git diff --check` | **PASS** |
 
-`@capiro/shared` must be built before `@capiro/defense-domain`; the gate list above is
-in dependency order.
+`@capiro/shared` must be built before `@capiro/defense-domain`; the list above is in
+dependency order. The DB rehearsals also hand off to the full defense-api suite at the end, which is
+where the 8 DB-gated specs actually execute: **57 pass / 0 fail** under both
+rehearsals, versus 43 pass + 8 skipped when run offline.
 
 ### Parity coverage: 2 → 52 assertions
 
@@ -255,7 +371,7 @@ fails a gate:
 | `provenance-and-provisions-parity` | Comparator permutation equality; provision merge/rank; the attribution caveat asserted byte-identical to apps/api's source text |
 | `budget-lines-and-intelligence-parity` | 3-tier incumbents; intelligence verdict; taxonomy; service-filter aliases; the unicode-dash alias normalizer |
 | `conference-forecast-parity` | Source identity of the model + its constants + the `simple-statistics` calls, plus behavioural invariants |
-| `response-contract-parity` | A required-field inventory for ~35 representative routes, and a no-unconditional-stub check |
+| `response-contract-parity` | A required-field inventory for ~35 representative routes, a no-unconditional-stub check, and uniform `requirePeCode` normalization |
 | `security-and-error-parity` | Admin gating vs the frozen contract; guard-chain order; tenant-transaction coverage; 404/400/409; no promoter/parser/GPU/DDL authority |
 | `pb-comparison-parity` | (pre-existing) PB-comparison money/shape |
 
@@ -266,22 +382,52 @@ which is the direction that matters. This is the check a fixture test structural
 cannot make: the regression being repaired was field **absence**, and a fixture test
 passes happily against a response missing ten fields.
 
+Where a route's behaviour legitimately moved into the governed SQL layer, the
+contract entry names the boundary migration as an additional source, so the
+requirement still has to be met — it followed the behaviour rather than being
+relaxed. Tokens that exist only in SQL are listed explicitly as governed-only so the
+apps/api-side assertion skips them and nothing else.
+
 The conference forecast is the one comparison that cannot import both sides — the pure
 model sits inside a Nest service that imports `@prisma/client` at module scope, and
 apps/api's Prisma client is not generated in this workspace. Making a permanent gate
 depend on generating a multi-megabyte client to reach one pure function is the wrong
 trade, so that suite establishes parity by source identity plus behaviour and says so.
 
-### Two real defects the gates caught
+### Defects the gates caught, and what they say about the gates
 
-Both introduced by this session's own work, both fixed here:
+Every one of these was found by RUNNING a gate, not by reading code. Three were in
+the gates themselves, which is worth stating plainly rather than quietly fixing:
 
+**In the implementation:**
 - The Dockerfile never built `@capiro/shared`, which `defense-domain` now depends on.
   With no `dist` present its types resolved to nothing and `tsc` failed on the derived
-  interfaces — a local build passed because `dist` was already there.
+  interfaces — a local build had passed only because `dist` already existed.
 - The runtime stage shipped `auth`'s `node_modules` but not `defense-domain`'s. The
   image built and started far enough to load `main.js`, then died on the first
   `require('@capiro/shared')`.
+- A plain `GRANT SELECT ON context_embeddings` cannot work at all: that table's
+  FORCE-RLS policy references the CRM's `clients` / `client_memory_access`, and
+  PostgreSQL requires privileges on every table a policy expression touches. Found by
+  the rehearsal, not by review.
+
+**In the gates:**
+- The step-9 `person_role` check asserted the serve role CAN write it — true before
+  the governed boundary, deliberately false after. The check was stale, not the
+  migration.
+- The `search_path` assertion never matched a correctly-locked function: PostgreSQL
+  stores `SET search_path = ''` in `pg_proc.proconfig` as the literal
+  `search_path=""`, quotes included.
+- Two rehearsal fixtures were invalid against the real schema — `status='inactive'`
+  is not a `MembershipStatus` (the enum is `invited`/`active`/`removed`), and the
+  curated-seed match collided with an earlier row on
+  `(pe_code, project_code, program_id)`.
+
+The per-table and per-function privilege probes were also collapsed from 26 `psql`
+round-trips into 3 batched queries. Each call goes through the docker-exec shim at
+roughly 15 seconds, which had made this permanent gate impractical to run; the
+assertions still read actual privileges out of `information_schema` and `pg_proc`
+rather than trusting SQL text.
 
 ---
 
@@ -294,24 +440,32 @@ Explicitly, for the HTTP runtime:
 | Promoter credentials (`capiro_pe_promoter`, `DEFENSE_PROMOTER_*`) | **No** |
 | Snapshot activation / canonical promotion reachability | **No** |
 | DDL authority | **No** |
-| Generic bypass-RLS (`app.bypass_rls`, `withSystem`) | **No** |
+| Generic bypass-RLS (`app.bypass_rls`, `withSystem`) in executable code | **No** |
 | Parser credentials | **No** |
 | GPU / NVIDIA credentials | **No** |
 | Write access to `conference_probability` | **No** — enforced by the absence of a grant, not only by code |
 | Direct read of `context_embeddings` | **No** — two global-scoped SECURITY DEFINER readers instead |
+| **Direct DML on the global Program graph** | **No** — SELECT-only; every mutation is a governed, DB-rechecked function |
 | PE→BLIN / PE→BLI identity coercion | **No** |
 
-New grants for `capiro_defense_serve`, all in this branch's own **unmerged** migration
-and applied only to disposable rehearsal containers:
+Grants for `capiro_defense_serve`, all in this branch's own **unmerged** migrations and
+applied only to disposable rehearsal containers:
 
 - `SELECT` on `program_element_detail_mv`, `program_element_acquisition_program`,
   `conference_probability`, `budget_action`, `capability`,
   `capability_budget_line_match`
-- `SELECT, UPDATE` on `person_role`; `SELECT, UPDATE, DELETE` on
-  `program_office_program_link`; `UPDATE, DELETE` on `provision_pe_link` — the FK
-  re-points a program merge requires, and nothing more (INSERT and DELETE on
-  `person_role` are asserted refused)
-- `EXECUTE` on the two PE-vector readers
+- `SELECT` **only** on `program`, `program_alias`, `pe_program_match`, `person_role`,
+  `program_office_program_link`, `provision_pe_link` — the governed-admin migration
+  revokes the DML the earlier migration had granted, and the rehearsal asserts the
+  privilege set is exactly `SELECT` by reading `information_schema.table_privileges`
+- `EXECUTE` on the two PE-vector readers and the five governed Program-graph mutations,
+  revoked from `PUBLIC` and from `capiro_defense_job`
+- `INSERT, UPDATE` (never `DELETE`) on `defense_budget_manual_override`; the
+  tenant-scoped overlay tables keep their DML because they carry `tenant_id` + RLS
+
+`capiro_defense_require_admin` is granted to **nobody** — not even the serve role. It
+is an internal helper for the five mutation functions, not a membership oracle a
+request can aim at a tenant.
 
 ---
 
@@ -319,32 +473,48 @@ and applied only to disposable rehearsal containers:
 
 | | |
 |---|---|
+| Merge performed | **No** — the replacement PR is draft; #1044 and #1035 untouched |
 | AWS mutation | **No** |
-| Production DB migration | **No** — disposable rehearsal containers only, destroyed on exit |
+| Production / shared DB migration | **No** — disposable rehearsal containers only, destroyed on exit |
 | Production data mutation | **No** |
 | Traffic / routing mutation | **No** |
-| Schedule mutation | **No** |
+| Schedule (EventBridge) mutation | **No** |
 | IAM mutation | **No** |
 | Secret mutation | **No** |
 | Snapshot activation | **No** |
 | Canonical promotion | **No** |
-| Merge performed | **No** — PR #1044 remains draft |
-| Session 4 / Session 5 touched | **No** |
+| NVIDIA / GPU runtime introduced | **No** |
+| Session 5 started | **No** |
+| Force-push over either existing branch | **No** — backups pushed first regardless |
+| Either existing branch deleted | **No** |
 
-`apps/api` remains the sole production owner of all 49 routes. Nothing in
-`apps/api/src` was modified; the only `apps/api` change is the branch-local, unmerged
-migration file.
+`apps/api` remains the sole production owner of all 49 routes. Nothing under
+`apps/api/src` was modified; the only `apps/api` changes are branch-local, unmerged
+migration SQL files.
 
 ---
 
 ## Next step
 
-Session 4 — Workstream F, on its own branch (`agent/phase8-session4-runtime-move`,
-draft PR #1035), which was deliberately not touched. Its gate is that the same real
-FY27 inputs replay through the moved code with the same governed decisions and hashes,
-except for documented parser-provider identity changes.
+Session 4 — Workstream F. Its existing work lives on `agent/phase8-session4-runtime-move`
+(draft PR #1035, head `cb93e236a`, backed up as `backup/phase8-s4-pre-restack`) and is
+restacked on this consolidated Session 3 rather than recreated.
 
-Two things from this session that Session 4 will want:
+Three things from this session that the restack depends on:
+
+- Session 4's `SESSION4_SOURCE_PARITY` gate byte-compares nine
+  `defense-budget/**/__fixtures__/*.json` slices between `apps/api/src` and
+  `apps/defense-api/runtime-source`. None of those files are touched by the `main`
+  merged here, so the comparison survives integration.
+- This branch's Dockerfile already satisfies all four Session 4 containment checks
+  (named `AS runtime` stage, `USER capiro`, copies the compiled `dist` boundary,
+  `PNPM_PACKAGE_IMPORT_METHOD=copy`, no wholesale `packages/auth` copy). The restack
+  must keep this branch's version, which additionally builds `@capiro/shared` and ships
+  `packages/defense-domain/node_modules` — dropping either breaks the image at
+  `require` time, not at build time.
+- `apps/defense-api/package.json` must keep BOTH this branch's `@capiro/shared`
+  dependency and Session 4's `verify:session4` script at its exact expected value —
+  the Session 4 verifier asserts that string literally.
 
 - The Phase 7 snapshot read gate is the natural first piece of Workstream F, and
   deviation 3 above is exactly its scope.
