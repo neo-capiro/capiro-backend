@@ -9,7 +9,7 @@ ENV NODE_ENV=production
 ENV AWS_PAGER=""
 WORKDIR /app
 
-# Runtime uses task-role credentials through AWS CLI v2. It contains no CUDA,
+# Runtime uses task-role credentials through AWS CLI v2. It contains no GPU libraries,
 # NVIDIA driver, model weight, database client, or public HTTP server.
 COPY --from=awscli /usr/local/aws-cli /usr/local/aws-cli
 RUN ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws \
