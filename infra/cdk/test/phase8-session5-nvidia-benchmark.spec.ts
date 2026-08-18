@@ -63,9 +63,13 @@ describe('Phase8Session5NvidiaBenchmark', () => {
         maxReceiveCount: 3,
       }),
     });
-    template.hasOutput('PlanePersistentEndpointCount*', {
-      Value: '0',
-    });
+    const outputs = Object.values(template.toJSON().Outputs ?? {});
+    expect(outputs).toContainEqual(
+      expect.objectContaining({
+        Value: '0',
+        Description: 'This construct creates no endpoint or endpoint configuration',
+      }),
+    );
   });
 
   it('creates alarms for DLQ, queue age, concurrency, and application spend', () => {

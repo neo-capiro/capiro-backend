@@ -6,7 +6,7 @@ on:
       - 'apps/defense-parser-orchestrator/**'
       - 'packages/defense-contracts/src/parser/**'
       - 'infra/cdk/lib/phase8-session5-nvidia-benchmark.ts'
-      - 'infra/cdk/test/phase8-session5-nvidia-benchmark.test.ts'
+      - 'infra/cdk/test/phase8-session5-nvidia-benchmark.spec.ts'
       - 'scripts/verify-phase8-session5.mjs'
       - 'docs/defense-budget/phase8-session5-*'
       - 'docs/handoffs/phase-8-session-5-*'
@@ -16,7 +16,7 @@ on:
       - 'apps/defense-parser-orchestrator/**'
       - 'packages/defense-contracts/src/parser/**'
       - 'infra/cdk/lib/phase8-session5-nvidia-benchmark.ts'
-      - 'infra/cdk/test/phase8-session5-nvidia-benchmark.test.ts'
+      - 'infra/cdk/test/phase8-session5-nvidia-benchmark.spec.ts'
       - 'scripts/verify-phase8-session5.mjs'
       - 'docs/defense-budget/phase8-session5-*'
       - 'docs/handoffs/phase-8-session-5-*'
@@ -76,7 +76,7 @@ jobs:
         run: |
           pnpm --filter @capiro/infra-cdk typecheck
           pnpm --filter @capiro/infra-cdk exec jest \
-            test/phase8-session5-nvidia-benchmark.test.ts --runInBand
+            test/phase8-session5-nvidia-benchmark.spec.ts --runInBand
 
       - name: Re-run accepted Session 4 source/replay boundary
         run: |

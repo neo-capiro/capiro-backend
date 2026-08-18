@@ -178,15 +178,26 @@ node scripts/verify-phase8-session5.mjs --enforce-live-benchmark
 - Production NVIDIA default: **unchanged**
 - Session 6: **not started**
 
+## Live authorization check — 2026-08-18
+
+Read-only checks against the intended benchmark account established:
+
+- Account/region: `967807252336` / `us-east-1`
+- Caller: `arn:aws:iam::967807252336:user/capirocli` through `capiro-dev`
+- Marketplace: the only active accepted purchase agreement is a `SaaSProduct` (`prod-ffvjxvh4ltq64`), not an NVIDIA machine-learning product.
+- SageMaker: no registered model package and no NVIDIA/Nemotron model-package group exists in the account/region.
+- Existing Session 5 plane: no resource with tag `CapiroPhase=phase8-session5`, no `capiro` transform job, and no `capiro-defense-nvidia` endpoint exists.
+- Cost authority: the USD 500 account-wide monthly budget is not an explicit Session 5 GPU authorization; with month-to-date spend USD 1,421.283 and forecast USD 2,728.831, it must not be used as a benchmark hard cap.
+
+No CDK deployment, SageMaker model creation, transform submission, provider invocation, or paid GPU operation was attempted. The local Docker Desktop Linux engine is unavailable, preventing no-cache image and disposable-DB reruns on this host.
+
 ## Remaining blocker
 
 A true `SESSION5_COMPLETE` verdict requires real provider evidence. Specifically:
 
-- approved model package/version;
-- actual NVIDIA outputs for all required FY27 strata;
-- source-grounded scoring with zero safety regressions;
-- accepted cost/throughput;
-- retained zero-idle proof.
+- Neo must accept the exact NVIDIA Marketplace Nemotron Parse product for AWS account `967807252336` in `us-east-1` and provide the resulting approved, version-pinned SageMaker model-package ARN, model name, and version. Do not accept an unversioned alias or substitute product.
+- Neo must explicitly approve a positive hard Session 5 GPU budget (USD cap) before any paid job. The account-wide budget is not authorization.
+- After these two prerequisites, actual NVIDIA outputs must be retained for all eight FY27 strata, then source-grounded scoring must show zero safety regressions, accepted cost/throughput, and a retained zero-idle proof.
 
 Until those are supplied and the live gate passes, the correct verdict remains:
 
