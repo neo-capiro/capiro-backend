@@ -136,6 +136,24 @@ const targetCandidate: OutreachV3ContextCandidate = {
   },
 };
 
+const documentCandidate: OutreachV3ContextCandidate = {
+  sourceKind: 'document',
+  attachmentId: '33333333-3333-4333-8333-333333333333',
+  clientId: '11111111-1111-4111-8111-111111111111',
+  clientName: 'Acme Robotics',
+  title: 'Ground robotics capability brief.pdf',
+  date: '2026-07-02T12:00:00.000Z',
+  selection: {
+    locator: {
+      source: 'document',
+      id: '33333333-3333-4333-8333-333333333333',
+      clientId: '11111111-1111-4111-8111-111111111111',
+    },
+    contextClass: 'campaign_fact',
+    scope: { kind: 'campaign' },
+  },
+};
+
 function review(): OutreachV3ContextReviewResponse {
   return {
     sessionId: 'session-1',
@@ -215,14 +233,58 @@ describe('ContextReviewSurface', () => {
     expect(screen.getByText('Style is not evidence')).toBeInTheDocument();
     expect(screen.getByText('Congressional staff writing style')).toBeInTheDocument();
     expect(screen.getAllByText('Writing guidance').length).toBeGreaterThan(0);
-    expect(value.searchContext).not.toHaveBeenCalled();
+    // Entering the stage reads, and only reads. applyCommands staying untouched
+    // is the governance property; the auto-search asserted below is a read-only
+    // capability call that cannot mutate the Campaign Spec.
     expect(value.applyCommands).not.toHaveBeenCalled();
   });
 
-  it('accepts the exact source/class/scope selection only after the user clicks', async () => {
+  it('runs one unified search on entry, seeded from the campaign topic', async () => {
     const value = props();
     render(<ContextReviewSurface {...value} />);
 
+    await waitFor(() => expect(value.searchContext).toHaveBeenCalledTimes(1));
+    // No source, no intendedClass, no scope: one query across every source, with
+    // the class decided per item afterwards.
+    expect(value.searchContext).toHaveBeenCalledWith({
+      query: 'Ground Robotics',
+      clientId: '11111111-1111-4111-8111-111111111111',
+      limit: 20,
+    });
+  });
+
+  it('refuses to accept an ambiguous source until a purpose is chosen', async () => {
+    // The guidance candidate is instructionsAllowed, so it could legitimately be
+    // read as tone OR as a citable fact. Nothing is preselected and the accept
+    // control stays inert until the user says which.
+    const value = props();
+    render(<ContextReviewSurface {...value} />);
+
+    const accept = screen.getByRole('button', { name: 'Accept context' });
+    expect(accept).toBeDisabled();
+    fireEvent.click(accept);
+    await waitFor(() => expect(value.applyCommands).not.toHaveBeenCalled());
+  });
+
+  it('disables a purpose the source cannot serve and says why', () => {
+    // A government record hard-codes instructionsAllowed: false in its resolver,
+    // so guidance is impossible rather than merely discouraged.
+    render(<ContextReviewSurface {...props([targetCandidate])} />);
+
+    const guidance = screen.getByRole('button', { name: 'Writing guidance' });
+    expect(guidance).toBeDisabled();
+    expect(guidance).toHaveAttribute(
+      'title',
+      'Only institutional-memory items can carry writing instructions.',
+    );
+  });
+
+  it('offers documents alongside memory and government, as document locators', async () => {
+    const value = props([documentCandidate]);
+    render(<ContextReviewSurface {...value} />);
+
+    expect(screen.getByText('Ground robotics capability brief.pdf')).toBeInTheDocument();
+    // Documents cannot be guidance, so evidence is unambiguous and preselected.
     fireEvent.click(screen.getByRole('button', { name: 'Accept context' }));
 
     await waitFor(() => expect(value.applyCommands).toHaveBeenCalledTimes(1));
@@ -230,18 +292,95 @@ describe('ContextReviewSurface', () => {
       {
         type: 'ACCEPT_CONTEXT_REFS',
         schemaVersion: 1,
-        payload: { selections: [guidanceCandidate.selection] },
+        payload: {
+          selections: [
+            {
+              locator: {
+                source: 'document',
+                id: '33333333-3333-4333-8333-333333333333',
+                clientId: '11111111-1111-4111-8111-111111111111',
+              },
+              contextClass: 'campaign_fact',
+              scope: { kind: 'campaign' },
+            },
+          ],
+        },
       },
     ]);
   });
 
-  it('names the only target a target-specific fact may influence', () => {
-    render(<ContextReviewSurface {...props([targetCandidate])} />);
+  it('reports a dead source without hiding the ones that answered', () => {
+    render(
+      <ContextReviewSurface
+        {...props()}
+        contextSourceFailures={[{ source: 'government', message: 'Not Found' }]}
+      />,
+    );
+
+    expect(screen.getByText('Some context sources could not be searched')).toBeInTheDocument();
+    expect(screen.getByText('Government: Not Found')).toBeInTheDocument();
+    expect(screen.getByText('Congressional staff writing style')).toBeInTheDocument();
+  });
+
+  it('accepts the exact source/class/scope selection only after the user clicks', async () => {
+    const value = props();
+    render(<ContextReviewSurface {...value} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Writing guidance' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Accept context' }));
+
+    await waitFor(() => expect(value.applyCommands).toHaveBeenCalledTimes(1));
+    // The class comes from the purpose picked on this card, not from the
+    // placeholder the unified search stamped on the candidate.
+    expect(value.applyCommands).toHaveBeenCalledWith([
+      {
+        type: 'ACCEPT_CONTEXT_REFS',
+        schemaVersion: 1,
+        payload: {
+          selections: [
+            {
+              locator: guidanceCandidate.selection.locator,
+              contextClass: 'writing_guidance',
+              scope: { kind: 'campaign' },
+            },
+          ],
+        },
+      },
+    ]);
+  });
+
+  it('names the only target a target-specific fact may influence', async () => {
+    const value = props([targetCandidate]);
+    render(<ContextReviewSurface {...value} />);
+
+    // Campaign-wide until the user narrows it, and named explicitly once they do.
+    expect(screen.getByText('Campaign-wide')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'directory_staff:staff-1' },
+    });
     expect(screen.getByText('Applies to Jordan Miller only')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Open source/i })).toHaveAttribute(
       'href',
       'https://example.test/hearing-1',
     );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept context' }));
+    await waitFor(() => expect(value.applyCommands).toHaveBeenCalledTimes(1));
+    expect(value.applyCommands).toHaveBeenCalledWith([
+      {
+        type: 'ACCEPT_CONTEXT_REFS',
+        schemaVersion: 1,
+        payload: {
+          selections: [
+            {
+              locator: targetCandidate.selection.locator,
+              contextClass: 'target_specific',
+              scope: { kind: 'target', targetKey: 'directory_staff:staff-1' },
+            },
+          ],
+        },
+      },
+    ]);
   });
 
   it('locks required policy and surfaces unverified-evidence blockers', () => {

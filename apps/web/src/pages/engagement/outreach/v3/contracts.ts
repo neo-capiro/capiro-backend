@@ -370,9 +370,27 @@ export interface OutreachV3GovernmentSearchData {
   byCategory: Record<string, number>;
 }
 
+/**
+ * A stored document offered as campaign context.
+ *
+ * Sourced from `GET /api/engagement/outreach/context-library` (the same
+ * tenant-wide attachment listing the V2 builder used) and narrowed to rows the
+ * V3 `document` locator can actually resolve — an `engagementAttachment` id
+ * belonging to the campaign's sole sponsor client.
+ */
+export interface OutreachV3ContextDocumentCandidate {
+  attachmentId: string;
+  clientId: string | null;
+  clientName: string;
+  title: string;
+  date: string | null;
+  selection: OutreachV3ContextSelection;
+}
+
 export type OutreachV3ContextCandidate =
   | ({ sourceKind: 'memory' } & OutreachV3MemoryCandidate)
-  | ({ sourceKind: 'government' } & OutreachV3GovernmentCandidate);
+  | ({ sourceKind: 'government' } & OutreachV3GovernmentCandidate)
+  | ({ sourceKind: 'document' } & OutreachV3ContextDocumentCandidate);
 
 export interface OutreachV3ContextReviewResponse {
   sessionId: string;

@@ -83,7 +83,7 @@
 
 .ov3-context-source-row > span {
   color: var(--ov3-muted);
-  font-family: "IBM Plex Mono", monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 8px;
   text-transform: uppercase;
 }
@@ -120,7 +120,7 @@
 
 .ov3-context-summary-grid span {
   color: var(--ov3-muted);
-  font-family: "IBM Plex Mono", monospace;
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 7px;
   text-transform: uppercase;
 }
@@ -157,5 +157,91 @@
   .ov3-context-class-guide,
   .ov3-context-summary-grid {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Unified search: one field plus its submit, so the row no longer needs to lay
+   out a source select, a class select, and a conditional target select. */
+.ov3-context-review .ov3-context-search.is-unified {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.ov3-context-review .ov3-context-search.is-unified .ov3-search-control {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Per-result "Use as" control. Lives on the card because the purpose is a
+   judgement about ONE source, not a filter for the whole search. */
+.ov3-context-use-as {
+  align-items: center;
+  border-top: 1px dashed var(--ov3-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.ov3-context-use-as fieldset {
+  align-items: center;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.ov3-context-use-as legend {
+  color: var(--ov3-muted);
+  float: left;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  margin-right: 7px;
+  text-transform: uppercase;
+}
+
+.ov3-context-use-as label {
+  align-items: center;
+  color: var(--ov3-muted);
+  display: flex;
+  font-size: 9px;
+  gap: 5px;
+}
+
+.ov3-chip {
+  background: var(--ov3-surface);
+  border: 1px solid var(--ov3-border);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 3px 10px;
+}
+
+.ov3-chip.is-selected {
+  background: var(--ov3-accent);
+  border-color: var(--ov3-accent);
+  color: #fff;
+}
+
+/* A blocked purpose stays visible and keeps its title= reason: hiding it would
+   make the option look like it never existed. */
+.ov3-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (max-width: 760px) {
+  .ov3-context-review .ov3-context-search.is-unified {
+    flex-wrap: wrap;
+  }
+
+  .ov3-context-use-as {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

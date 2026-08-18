@@ -5,11 +5,7 @@ import type {
   CapabilityResult,
   OutreachV3Command,
   OutreachV3ContextCandidate,
-  OutreachV3ContextClass,
   OutreachV3ContextReviewResponse,
-  OutreachV3ContextScope,
-  OutreachV3GovernmentSearchData,
-  OutreachV3MemorySearchData,
   OutreachV3Proposal,
   OutreachV3Readiness,
   OutreachV3SessionEnvelope,
@@ -33,16 +29,18 @@ import {
   getOutreachV3Strategy,
   getOutreachV3TargetCoverage,
   getOutreachV3TargetProfile,
+  listOutreachV3ContextDocuments,
   listOutreachV3Proposals,
   listOutreachV3Sessions,
   listOutreachV3Turns,
   rejectOutreachV3Proposal,
   safeOutreachV3Error,
-  searchOutreachV3Government,
-  searchOutreachV3Memory,
+  searchOutreachV3ContextAll,
   searchOutreachV3Targets,
   sendOutreachV3Turn,
   type OutreachV3SessionSummary,
+  type OutreachV3UnifiedContextSearchInput,
+  type OutreachV3UnifiedContextSearchResult,
 } from './outreach-v3-api.js';
 
 const ACTIVE_SESSION_KEY = 'capiro.outreach-v3.active-session';
@@ -223,19 +221,16 @@ export interface UseOutreachV3SessionOptions {
   sessionId?: string | null;
 }
 
-export interface OutreachV3ContextSearchInput {
-  source: 'memory' | 'government';
-  query: string;
-  clientId?: string | null;
-  intendedClass: OutreachV3ContextClass;
-  scope: OutreachV3ContextScope;
-  categories?: string[];
-  limit?: number;
-}
-
-export type OutreachV3ContextSearchResult =
-  | { source: 'memory'; result: CapabilityResult<OutreachV3MemorySearchData> }
-  | { source: 'government'; result: CapabilityResult<OutreachV3GovernmentSearchData> };
+/**
+ * Context search input.
+ *
+ * `source`, `intendedClass`, `scope` and `categories` are gone: the Context
+ * stage now runs one query across every searchable source and decides the class
+ * and scope per accepted item instead. Re-exported under the historical names so
+ * `decision-surface-contract.ts` and `DecisionSurfaces.tsx` keep one shared type.
+ */
+export type OutreachV3ContextSearchInput = OutreachV3UnifiedContextSearchInput;
+export type OutreachV3ContextSearchResult = OutreachV3UnifiedContextSearchResult;
 
 export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) {
   const api = useApi();
@@ -369,6 +364,20 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     retry: false,
   });
 
+  /**
+   * The campaign's sole sponsor client, or null.
+   *
+   * Client-specific context is only permitted when exactly one explicit client
+   * sponsor exists — `assertOutreachContextSponsorIsolation` rejects the spec
+   * otherwise — so this doubles as the gate for memory client scope and the
+   * document library.
+   */
+  const sponsor = sessionQuery.data?.spec.sponsor;
+  const soleSponsorClientId =
+    sponsor?.kind === 'client' && sponsor.clientRefs.length === 1
+      ? sponsor.clientRefs[0]?.clientId ?? null
+      : null;
+
   const strategyQuery = useQuery({
     queryKey: ['outreach-v3', 'strategy', sessionId, sessionQuery.data?.specHash],
     enabled: Boolean(sessionId && sessionQuery.data),
@@ -483,33 +492,38 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     },
   });
 
+  /**
+   * One query across every searchable context source.
+   *
+   * Replaces the old per-source, per-class mutation. The caller no longer picks
+   * a source or a context class before searching — see `context-selection.ts`
+   * for why neither was load-bearing.
+   */
   const contextSearchMutation = useMutation<
-    OutreachV3ContextSearchResult,
+    OutreachV3UnifiedContextSearchResult,
     Error,
-    OutreachV3ContextSearchInput
+    OutreachV3UnifiedContextSearchInput
   >({
-    mutationFn: (input: OutreachV3ContextSearchInput): Promise<OutreachV3ContextSearchResult> => {
+    mutationFn: (input) => {
       if (!sessionId) throw new Error('The Outreach session is not ready.');
-      if (input.source === 'memory') {
-        return searchOutreachV3Memory(api, sessionId, {
-          query: input.query,
-          clientId: input.clientId ?? null,
-          intendedClass: input.intendedClass,
-          scope: input.scope,
-          limit: input.limit,
-        }).then((result) => ({ source: 'memory' as const, result }));
-      }
-      if (input.intendedClass === 'writing_guidance') {
-        throw new Error('Government records cannot be used as writing-guidance memory.');
-      }
-      return searchOutreachV3Government(api, sessionId, {
-        query: input.query,
-        categories: input.categories,
-        intendedClass: input.intendedClass,
-        scope: input.scope,
-        limit: input.limit,
-      }).then((result) => ({ source: 'government' as const, result }));
+      return searchOutreachV3ContextAll(api, sessionId, input);
     },
+  });
+
+  /**
+   * Stored documents for the sole sponsor client.
+   *
+   * A separate query rather than a leg of the search fan-out: the library is a
+   * full listing with no query parameter, so it is cached once per client and
+   * filtered client-side as the user types, instead of being refetched per
+   * search.
+   */
+  const contextDocumentsQuery = useQuery({
+    queryKey: ['outreach-v3', 'context-documents', soleSponsorClientId],
+    enabled: Boolean(sessionId && soleSponsorClientId),
+    queryFn: () => listOutreachV3ContextDocuments(api, soleSponsorClientId!),
+    staleTime: 60_000,
+    retry: false,
   });
 
   const retryReasoning = useCallback(async () => {
@@ -618,25 +632,31 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
       });
   }, [proposalsQuery.data, sessionQuery.data?.currentStateVersion]);
 
+  /**
+   * Every context candidate the current query produced, across all sources.
+   *
+   * Documents come from their own cached listing and are filtered here by the
+   * live query text, so the Documents tab responds with the same word the user
+   * typed into the one search box without a second round trip. A blank query
+   * shows the whole library.
+   */
   const contextCandidates = useMemo<OutreachV3ContextCandidate[]>(() => {
-    const value = contextSearchMutation.data;
-    if (!value) return [];
-    // `?.data?.candidates` per branch, not a shared hoisted const: the branches
-    // carry different candidate shapes, and narrowing on `value.source` is what
-    // keeps each map callback typed. Defensive for the same reason as
-    // `targetCandidates` below — a malformed envelope must degrade to "no
-    // candidates", never unmount the surface.
-    if (value.source === 'memory') {
-      return (value.result?.data?.candidates ?? []).map((candidate) => ({
-        ...candidate,
-        sourceKind: 'memory',
-      }));
-    }
-    return (value.result?.data?.candidates ?? []).map((candidate) => ({
-      ...candidate,
-      sourceKind: 'government',
-    }));
-  }, [contextSearchMutation.data]);
+    const searched = contextSearchMutation.data?.candidates ?? [];
+    const needle = (contextSearchMutation.variables?.query ?? '').trim().toLowerCase();
+    const documents = (contextDocumentsQuery.data ?? []).filter(
+      (candidate) => !needle || candidate.title.toLowerCase().includes(needle),
+    );
+    return [
+      ...searched,
+      ...documents.map(
+        (candidate): OutreachV3ContextCandidate => ({ ...candidate, sourceKind: 'document' }),
+      ),
+    ];
+  }, [
+    contextDocumentsQuery.data,
+    contextSearchMutation.data,
+    contextSearchMutation.variables?.query,
+  ]);
 
   const session = sessionQuery.data ?? bootstrap.data ?? null;
   const stage = deriveOutreachV3Stage(session);
@@ -704,10 +724,31 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     coveragePending: coverageQuery.isFetching,
     searchContext: contextSearchMutation.mutateAsync,
     contextCandidates,
-    contextSearchPending: contextSearchMutation.isPending,
+    contextSearchPending: contextSearchMutation.isPending || contextDocumentsQuery.isFetching,
     contextSearchError: contextSearchMutation.error
       ? safeOutreachV3Error(contextSearchMutation.error)
       : null,
+    /**
+     * Per-source failures from the last unified search, plus the document
+     * listing. Reported alongside results rather than instead of them: one dead
+     * source must not read as "no context exists".
+     */
+    contextSourceFailures: [
+      ...(contextSearchMutation.data?.failures ?? []),
+      ...(contextDocumentsQuery.error
+        ? [
+            {
+              source: 'documents' as const,
+              message: safeOutreachV3Error(contextDocumentsQuery.error),
+            },
+          ]
+        : []),
+    ],
+    /** True once a unified context search has actually run for this session. */
+    contextSearched: contextSearchMutation.isSuccess || contextSearchMutation.isError,
+    /** The last query was under the two-character minimum, so nothing was sent. */
+    contextSearchSkipped: contextSearchMutation.data?.skipped === true,
+    soleSponsorClientId,
     contextReview: contextReviewQuery.data as OutreachV3ContextReviewResponse | undefined,
     contextReviewPending: contextReviewQuery.isFetching,
     contextReviewError: contextReviewQuery.error
