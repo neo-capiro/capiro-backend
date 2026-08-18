@@ -6722,34 +6722,72 @@ export class IntelligenceService {
 
   /**
    * Portfolio summary, seven numbers for the Portfolio list stat strip.
-   * All cheap counts; LDA spend is summed across clients with confirmed
-   * mappings using current-quarter filings.
    *
-   * G1 (wire-audit "3 Compose extend" item 2): `meetingsThisWeek` and
-   * `activeStrategies` are now folded into this endpoint so the pulse band
-   * reads one summary instead of composing separate meetings/strategies
-   * queries. Strategies live in a separate service (apps/api-strategy) but
-   * share the same Postgres database, so we count non-archived `sp_strategy`
-   * rows via $queryRaw — no cross-service HTTP call needed.
+   * Tenant-scoped counts (clients, meetings, strategies, tracked bills, LDA
+   * mappings) MUST run inside `withTenant`. `sp_strategy` / `tracked_bill` /
+   * `client_intel_mapping` all FORCE RLS; bare `$queryRaw` outside the tenant
+   * transaction returns 0 under `capiro_app` (FORCE RLS, no GUC) and the old
+   * `.catch(() => 0)` path silently papered that over as a real zero.
+   *
+   * `billsTracked` is the tenant's pinned `tracked_bill` rows — the same source
+   * as the Clients table Intelligence column / portfolio-rollup — not the LDA
+   * issue-code × congress_bill subject join (which can be empty while pins exist).
    */
   async getPortfolioSummary(tenantId: string) {
     const now = new Date();
     const quarterStart = startOfQuarter(now);
 
-    const [clients, mappings] = await Promise.all([
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.client.findMany({
-          where: { status: { not: 'archived' } },
-          select: { id: true, profileStatus: true },
-        }),
-      ),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.clientIntelMapping.findMany({
-          where: { confirmed: true, source: 'lda' },
-          select: { clientId: true, externalId: true },
-        }),
-      ),
+    // G1: meetings this week — same weekBounds logic the frontend used.
+    const day = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + (day === 0 ? -6 : 1 - day));
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    const [tenantScoped, regulationsTracked] = await Promise.all([
+      this.prisma.withTenant(tenantId, async (tx) => {
+        const [clients, mappings, meetingsThisWeek, billsTracked, activeStrategies] =
+          await Promise.all([
+            tx.client.findMany({
+              where: { status: { not: 'archived' } },
+              select: { id: true, profileStatus: true },
+            }),
+            tx.clientIntelMapping.findMany({
+              where: { confirmed: true, source: 'lda' },
+              select: { clientId: true, externalId: true },
+            }),
+            tx.meeting.count({
+              where: {
+                startsAt: { gte: monday, lte: sunday },
+                visibility: 'shared',
+                status: { not: 'cancelled' },
+              },
+            }),
+            // Match Clients → Intelligence column (rollup uses trackedBill.groupBy).
+            tx.trackedBill.count(),
+            // sp_strategy is owned by api-strategy but lives in the same DB and
+            // FORCE-RLS on tenant_id. Must use the tenant-scoped tx client.
+            tx.$queryRaw<Array<{ count: bigint }>>`
+              SELECT COUNT(*)::bigint AS count
+              FROM sp_strategy
+              WHERE tenant_id = ${tenantId}::uuid
+                AND archived_at IS NULL
+            `.catch(() => [{ count: 0n }]),
+          ]);
+        return { clients, mappings, meetingsThisWeek, billsTracked, activeStrategies };
+      }),
+      // Global FR catalog (not tenant-RLS); open proposed/final rules with a comment window.
+      this.prisma.federalRegisterDocument.count({
+        where: {
+          type: { in: ['PROPOSED_RULE', 'RULE'] },
+          commentEndDate: { gt: now },
+        },
+      }),
     ]);
+
+    const { clients, mappings, meetingsThisWeek, billsTracked, activeStrategies } = tenantScoped;
 
     const tenantClientIds = new Set(clients.map((c) => c.id));
     const tenantLdaIds = mappings
@@ -6761,88 +6799,24 @@ export class IntelligenceService {
       (c) => c.profileStatus === 'PAUSED' || c.profileStatus === 'MONITORING',
     ).length;
 
-    // G1: meetings this week — same weekBounds logic the frontend used, but
-    // computed server-side so the pulse reads one summary endpoint.
-    const day = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + (day === 0 ? -6 : 1 - day));
-    monday.setHours(0, 0, 0, 0);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    sunday.setHours(23, 59, 59, 999);
+    // LDA filings are a shared catalog keyed by LDA client id (not tenant RLS).
+    const ldaSpendRows = tenantLdaIds.length
+      ? await this.prisma.$queryRaw<Array<{ total: string | null }>>`
+          SELECT COALESCE(SUM(income), 0)::text AS total
+          FROM lda_filing
+          WHERE client_id = ANY(${tenantLdaIds}::int[])
+            AND dt_posted >= ${quarterStart}
+        `
+      : [{ total: '0' }];
 
-    const [ldaSpendRows, billsTracked, regulationsTracked, meetingsThisWeek, activeStrategies] = await Promise.all([
-      tenantLdaIds.length
-        ? this.prisma.$queryRaw<Array<{ total: string | null }>>`
-            SELECT COALESCE(SUM(income), 0)::text AS total
-            FROM lda_filing
-            WHERE client_id = ANY(${tenantLdaIds}::int[])
-              AND dt_posted >= ${quarterStart}
-          `
-        : Promise.resolve([{ total: '0' }]),
-      tenantLdaIds.length
-        ? this.prisma.$queryRaw<Array<{ count: bigint }>>`
-            SELECT COUNT(DISTINCT b.id)::bigint AS count
-            FROM congress_bill b
-            JOIN congress_bill_subject s ON s.bill_id = b.id
-            WHERE lower(b.latest_action_text) NOT LIKE '%became public law%'
-              AND lower(b.latest_action_text) NOT LIKE '%vetoed%'
-              -- LDA issue-code names contain no ILIKE wildcards (controlled
-              -- vocabulary; verified 0 of 79 names have _ or %), so the original
-              -- s.name ILIKE ANY(names) is exactly case-insensitive set
-              -- membership. Expressing it as lower(s.name) = ANY(lower(names))
-              -- lets it use congress_bill_subject_name_lower_trgm_idx instead of a
-              -- full congress_bill x congress_bill_subject join + seq-scan filter.
-              AND lower(s.name) = ANY(
-                ARRAY(
-                  SELECT DISTINCT lower(name) FROM lda_issue_code
-                  WHERE code = ANY(
-                    SELECT DISTINCT unnest(issue_codes)
-                    FROM lda_client
-                    WHERE id = ANY(${tenantLdaIds}::int[])
-                  )
-                )
-              )
-          `
-        : Promise.resolve([{ count: 0n }]),
-      this.prisma.federalRegisterDocument.count({
-        where: {
-          type: { in: ['PROPOSED_RULE', 'RULE'] },
-          commentEndDate: { gt: now },
-        },
-      }),
-      this.prisma.withTenant(tenantId, (tx) =>
-        tx.meeting.count({
-          where: {
-            startsAt: { gte: monday, lte: sunday },
-            visibility: 'shared',
-            status: { not: 'cancelled' },
-          },
-        }),
-      ),
-      // G1: active strategies count — sp_strategy lives in the same Postgres
-      // database (apps/api-strategy shares DATABASE_URL). Count non-archived
-      // rows for this tenant via $queryRaw since the SpStrategy model is not
-      // in this service's Prisma schema. Wrapped in .catch so a missing table
-      // or query error degrades to 0 rather than failing the entire summary.
-      this.prisma.$queryRaw<Array<{ count: bigint }>>`
-        SELECT COUNT(*)::bigint AS count
-        FROM sp_strategy
-        WHERE tenant_id = ${tenantId}::uuid
-          AND archived_at IS NULL
-      `.catch(() => [{ count: 0n }]),
-    ]);
-
-    // LDA `income` is stored as Decimal dollars (not cents); SUM returns a
-    // numeric string via the text cast, parsed back to a plain JS number.
+    // LDA `income` is stored as Decimal dollars (not cents).
     const ldaSpendDollars = Number(ldaSpendRows[0]?.total ?? '0');
-    const billsTrackedCount = Number(billsTracked[0]?.count ?? 0n);
 
     return {
       activeClients: clients.length,
       needAttention,
       ldaSpendQtd: ldaSpendDollars,
-      billsTracked: billsTrackedCount,
+      billsTracked,
       activeRegulations: regulationsTracked,
       meetingsThisWeek,
       activeStrategies: Number(activeStrategies[0]?.count ?? 0n),
