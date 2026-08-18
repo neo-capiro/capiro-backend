@@ -23,6 +23,8 @@ test('Outreach V3 is explicitly enabled without opening the global shadow contro
   for (const key of [
     'OUTREACH_V3_STATE_ENABLED',
     'OUTREACH_V3_REASONING_ENABLED',
+    'OUTREACH_V3_TARGETS_ENABLED',
+    'OUTREACH_V3_CONTEXT_ENABLED',
     'OUTREACH_V3_GENERATION_ENABLED',
     'OUTREACH_V3_DRAFTS_ENABLED',
     'OUTREACH_V3_SEND_ENABLED',

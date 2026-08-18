@@ -118,6 +118,16 @@ Save is disabled with explanation.
 - **Estimated backend surface:** 1 optional list field
 - **Owner:** unassigned
 
+### GAP-MERI-TYPED-ANSWER-BLOCKS — assistant turns are one markdown string, not typed blocks
+- **Module / surface:** Assistant message body — the v4 design's kv (metric grid), callout, `MeriFigureTable`, `MeriCriteriaChecklist`, and `MeriOverlapMatrix` block kinds.
+- **What the UI needs:** each assistant turn as an ordered `blocks[]` array, each block carrying a `kind` (`paragraph | quote | code | kv | callout | figure_table | criteria_checklist | overlap_matrix`, at minimum) plus that kind's typed payload — e.g. a `kv` block's `items: [{ label, value, note }]`, a `callout` block's `{ tone, icon, label, body }`.
+- **Proposed contract:** extend the chat-turn response with `blocks: MeriAnswerBlock[]` alongside (not instead of) the existing markdown `content`, so the model can keep authoring prose while structurally distinguishing a metric grid or a checklist from a paragraph. A single shared block-kind enum, versioned once, is enough to unblock all five component types — this does not need five separate endpoint asks.
+- **Evidence of absence:** grepped `apps/api/src/meri/meriv3-chat.client.ts`, `apps/web/src/components/chat/chat-store.ts`, and `apps/web/src/vnext/meri` for any block/kind field on a chat message — none exists. `ChatMessage.content` is a single markdown string rendered through `ReactMarkdown` in `VNextMeriMessage.tsx`; there is no per-block type information for the renderer to key off of.
+- **Shipped instead:** nothing — `MeriFigureTable`, `MeriCriteriaChecklist`, `MeriOverlapMatrix`, and the kv/callout block kinds were left unbuilt this pass rather than approximated from markdown headings/tables, which would silently misrepresent which numbers came from a structured source versus prose formatting.
+- **Blocking?** No for ordinary chat (markdown still renders); yes for the 5 v4 components listed above, which have no real data to bind to without this.
+- **Estimated backend surface:** 1 new field on the chat-turn response + 1 shared block-kind type; no migration if blocks are computed at response time rather than stored.
+- **Owner:** unassigned — flagging for Neo to decide whether this becomes a Jira ticket under the Meri notetaker backlog.
+
 ## §2. Generation-mode persistence — **CLOSED: fixed 2026-08-15**
 
 `PatchAgentDto` already declared `generation?: { mode }`, but

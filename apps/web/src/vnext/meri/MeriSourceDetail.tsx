@@ -1,64 +1,83 @@
 import { useState } from 'react';
-import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import type { MeriCitation } from '../../components/chat/chat-store.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import { MeriIcon } from './meri-icons.js';
-import { MERI_EVIDENCE_SOURCES, type MeriEvidenceSource } from './MeriEvidenceTray.js';
 
 /**
- * MeriSourceDetail — the SOURCE DETAIL right-panel content: prev/next source
- * navigation, why-it-matters, evidence in this conversation, provenance, and
- * the include-in-active-context switch. Pixel-parity port of the prototype's
- * `panelIsSource` block.
+ * MeriSourceDetail — the SOURCE DETAIL right-panel content: prev/next
+ * navigation across a turn's real citations, an excerpt, and provenance.
+ * Pixel-parity port of the prototype's `panelIsSource` block, rebuilt against
+ * the real MeriCitation shape rather than the hardcoded evidence-sources
+ * fixture it originally rendered.
  *
- * BACKEND GAP: there is no per-source detail endpoint on vNext; the panel
- * pages through the evidence sources it is handed (prototype fixtures by
- * default). Tracked in GAPS.md (Meri vNext — source detail).
+ * Three prototype fields have no real backing and are dropped rather than
+ * fabricated: the "why it matters" narrative (no such field exists — the
+ * excerpt below is the real thing citation data can say), a numeric
+ * client-fit match percentage, and a second hardcoded evidence citation.
+ * "Include in active context" stays local-only UI state — there is no
+ * thread-context-membership mutation endpoint to call.
  */
 
 const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
 
-const WHY_IT_MATTERS =
-  'This is the committee document that sets the authorised figure your position depends on. It is the only source in this thread that states the $14.7M increase and the Army validation rationale together.';
-
-interface MeriSourceDetailProps {
-  /** Reserved for wiring to live source data; fixtures render when absent. */
-  controller?: MeriChatController;
-  sources?: MeriEvidenceSource[];
-  initialIndex?: number;
-  onOpenExternal?: (source: MeriEvidenceSource) => void;
-  onToggleContext?: (source: MeriEvidenceSource, included: boolean) => void;
+function providerLabel(citation: MeriCitation): string {
+  return citation.tool.replace(/_/g, ' ').toUpperCase();
 }
 
-export function MeriSourceDetail({
-  sources = MERI_EVIDENCE_SOURCES,
-  initialIndex = 0,
-  onOpenExternal,
-  onToggleContext,
-}: MeriSourceDetailProps) {
+function locatorLabel(citation: MeriCitation): string {
+  return citation.type.replace(/_/g, ' ').toUpperCase();
+}
+
+interface MeriSourceDetailProps {
+  citations: MeriCitation[];
+  initialIndex: number;
+  /** Real client scope label, when one is set — used in the provenance row rather than a fabricated one. */
+  scopeLabel: string;
+  onClose: () => void;
+}
+
+export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose }: MeriSourceDetailProps) {
   const toast = useCapiroToast();
   const [index, setIndex] = useState(initialIndex);
   const [inContext, setInContext] = useState(true);
 
-  const count = sources.length;
+  const count = citations.length;
   const clamped = count > 0 ? ((index % count) + count) % count : 0;
-  const source = sources[clamped];
+  const citation = citations[clamped];
 
-  if (!source) return null;
-
-  const toggleContext = () => {
-    const next = !inContext;
-    setInContext(next);
-    onToggleContext?.(source, next);
-  };
+  if (!citation) return null;
 
   return (
     <div style={{ animation: 'vnext-meri-rise .2s cubic-bezier(.2,0,0,1)' }}>
-      <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid #EAECF0' }}>
+      <div style={{ padding: '14px 20px 0' }}>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            border: 0,
+            background: 'transparent',
+            fontFamily: MONO,
+            fontSize: 9.5,
+            fontWeight: 500,
+            letterSpacing: '.08em',
+            color: '#667085',
+            cursor: 'pointer',
+          }}
+        >
+          <MeriIcon name="ChevronLeft" size={13} color="#98A2B3" />
+          BACK TO CONTEXT
+        </button>
+      </div>
+      <div style={{ padding: '12px 20px 14px', borderBottom: '1px solid #EAECF0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             type="button"
             title="Previous source"
             aria-label="Previous source"
+            disabled={count <= 1}
             onClick={() => setIndex((i) => i - 1)}
             style={{
               display: 'flex',
@@ -69,6 +88,7 @@ export function MeriSourceDetail({
               borderRadius: 7,
               boxShadow: 'inset 0 0 0 1px #EAECF0',
               color: '#667085',
+              opacity: count <= 1 ? 0.5 : 1,
             }}
           >
             <MeriIcon name="ChevronLeft" size={14} />
@@ -77,6 +97,7 @@ export function MeriSourceDetail({
             type="button"
             title="Next source"
             aria-label="Next source"
+            disabled={count <= 1}
             onClick={() => setIndex((i) => i + 1)}
             style={{
               display: 'flex',
@@ -87,6 +108,7 @@ export function MeriSourceDetail({
               borderRadius: 7,
               boxShadow: 'inset 0 0 0 1px #EAECF0',
               color: '#667085',
+              opacity: count <= 1 ? 0.5 : 1,
             }}
           >
             <MeriIcon name="ChevronRight" size={14} />
@@ -118,34 +140,17 @@ export function MeriSourceDetail({
               }}
             >
               <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#12B76A' }} />
-              <span
-                style={{
-                  fontFamily: MONO,
-                  fontSize: 9,
-                  fontWeight: 500,
-                  letterSpacing: '.07em',
-                  color: '#027A48',
-                }}
-              >
+              <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.07em', color: '#027A48' }}>
                 IN ACTIVE CONTEXT
               </span>
             </span>
           ) : null}
         </div>
-        <div
-          style={{
-            marginTop: 12,
-            fontFamily: MONO,
-            fontSize: 9.5,
-            fontWeight: 500,
-            letterSpacing: '.08em',
-            color: '#667085',
-          }}
-        >
-          {source.provider}
+        <div style={{ marginTop: 12, fontFamily: MONO, fontSize: 9.5, fontWeight: 500, letterSpacing: '.08em', color: '#667085' }}>
+          {providerLabel(citation)}
         </div>
         <div style={{ marginTop: 7, fontSize: 16, lineHeight: '23px', fontWeight: 600, color: '#101828' }}>
-          {source.title}
+          {citation.title}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 11 }}>
           <span
@@ -163,168 +168,55 @@ export function MeriSourceDetail({
               color: '#344054',
             }}
           >
-            {source.locator}
+            {locatorLabel(citation)}
           </span>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              height: 24,
-              padding: '0 9px',
-              borderRadius: 6,
-              background: '#F2F4F7',
-              fontFamily: MONO,
-              fontSize: 9,
-              fontWeight: 500,
-              letterSpacing: '.07em',
-              color: '#344054',
-            }}
-          >
-            98% CLIENT FIT
-          </span>
-          <button
-            type="button"
-            onClick={() => {
-              if (onOpenExternal) onOpenExternal(source);
-              else toast.success('Opening the source in a new tab.');
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              height: 24,
-              padding: '0 9px',
-              borderRadius: 6,
-              boxShadow: 'inset 0 0 0 1px #D0D5DD',
-            }}
-          >
-            <span
+          {citation.url ? (
+            <a
+              href={citation.url}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
-                fontFamily: MONO,
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: '.07em',
-                color: '#344054',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                height: 24,
+                padding: '0 9px',
+                borderRadius: 6,
+                boxShadow: 'inset 0 0 0 1px #D0D5DD',
+                textDecoration: 'none',
               }}
             >
-              OPEN SOURCE
-            </span>
-            <MeriIcon name="LinkExternal01" size={11} color="#101828" />
-          </button>
+              <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.07em', color: '#344054' }}>
+                OPEN SOURCE
+              </span>
+              <MeriIcon name="LinkExternal01" size={11} color="#101828" />
+            </a>
+          ) : null}
         </div>
       </div>
 
       <div style={{ padding: '16px 20px', borderBottom: '1px solid #EAECF0' }}>
-        <div
-          style={{
-            fontFamily: MONO,
-            fontSize: 9.5,
-            fontWeight: 500,
-            letterSpacing: '.09em',
-            color: '#667085',
-          }}
-        >
-          WHY IT MATTERS
+        <div style={{ fontFamily: MONO, fontSize: 9.5, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
+          EXCERPT
         </div>
         <div style={{ marginTop: 9, fontSize: 13, lineHeight: '20px', color: '#344054' }}>
-          {WHY_IT_MATTERS}
-        </div>
-      </div>
-
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #EAECF0' }}>
-        <div
-          style={{
-            fontFamily: MONO,
-            fontSize: 9.5,
-            fontWeight: 500,
-            letterSpacing: '.09em',
-            color: '#667085',
-          }}
-        >
-          EVIDENCE IN THIS CONVERSATION
-        </div>
-        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[
-            { ref: source.locator, kind: 'QUOTED FIGURE', text: source.snippet },
-            {
-              ref: '§ 214',
-              kind: 'REPORT LANGUAGE',
-              text: 'Directs the Secretary of the Army to report on the FY29 fielding decision not later than 180 days after enactment.',
-            },
-          ].map((evidence) => (
-            <div
-              key={evidence.ref + evidence.kind}
-              style={{
-                padding: '12px 13px',
-                borderRadius: 8,
-                background: '#F9FAFB',
-                boxShadow: 'inset 0 0 0 1px #EAECF0',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span
-                  style={{
-                    fontFamily: MONO,
-                    fontSize: 9,
-                    fontWeight: 500,
-                    letterSpacing: '.07em',
-                    color: '#101828',
-                  }}
-                >
-                  {evidence.ref}
-                </span>
-                <span style={{ flex: 1 }} />
-                <span
-                  style={{
-                    fontFamily: MONO,
-                    fontSize: 9,
-                    fontWeight: 500,
-                    letterSpacing: '.07em',
-                    color: '#667085',
-                  }}
-                >
-                  {evidence.kind}
-                </span>
-              </div>
-              <div style={{ marginTop: 8, fontSize: 12.5, lineHeight: '19px', color: '#344054' }}>
-                {evidence.text}
-              </div>
-            </div>
-          ))}
+          {citation.snippet ?? 'No excerpt was returned for this source.'}
         </div>
       </div>
 
       <div style={{ padding: '16px 20px' }}>
-        <div
-          style={{
-            fontFamily: MONO,
-            fontSize: 9.5,
-            fontWeight: 500,
-            letterSpacing: '.09em',
-            color: '#667085',
-          }}
-        >
+        <div style={{ fontFamily: MONO, fontSize: 9.5, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
           PROVENANCE
         </div>
         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
-            ['SOURCE', source.provider],
-            ['LAST VERIFIED', source.date],
-            ['SCOPE', 'Client — Lockheed Martin'],
-            ['CITATION', `${source.title} · ${source.locator}`],
-            ['VERSION', 'v3 · immutable, Meri never edits source content'],
+            ['SOURCE', providerLabel(citation)],
+            ['RETRIEVED', 'THIS TURN'],
+            ['SCOPE', scopeLabel],
+            ['CITATION', `${citation.title} · ${locatorLabel(citation)}`],
           ].map(([label, value]) => (
             <div key={label} style={{ display: 'flex', gap: 12 }}>
-              <span
-                style={{
-                  flex: '0 0 116px',
-                  fontFamily: MONO,
-                  fontSize: 9,
-                  fontWeight: 500,
-                  letterSpacing: '.07em',
-                  color: '#98A2B3',
-                }}
-              >
+              <span style={{ flex: '0 0 96px', fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.07em', color: '#98A2B3' }}>
                 {label}
               </span>
               <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, lineHeight: '18px', color: '#344054' }}>
@@ -332,6 +224,9 @@ export function MeriSourceDetail({
               </span>
             </div>
           ))}
+        </div>
+        <div style={{ marginTop: 12, fontSize: 11.5, lineHeight: '16px', color: '#98A2B3' }}>
+          Meri never edits source content.
         </div>
         <div
           style={{
@@ -351,18 +246,19 @@ export function MeriSourceDetail({
             role="switch"
             aria-checked={inContext}
             aria-label="Include in active context"
-            onClick={toggleContext}
+            onClick={() => {
+              setInContext((value) => !value);
+              toast.success(inContext ? 'Removed for this session.' : 'Included for this session.');
+            }}
             style={{
               position: 'relative',
               width: 38,
               height: 22,
               borderRadius: 9999,
-              background: inContext
-                ? 'linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%)'
-                : '#F2F4F7',
-              boxShadow: inContext
-                ? 'inset 0 1px 0 rgba(255,255,255,.14)'
-                : 'inset 0 0 0 1px #D0D5DD',
+              border: 0,
+              background: inContext ? 'var(--m-metal-bg, linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%))' : '#F2F4F7',
+              boxShadow: inContext ? 'inset 0 1px 0 rgba(255,255,255,.14)' : 'inset 0 0 0 1px #D0D5DD',
+              cursor: 'pointer',
             }}
           >
             <span

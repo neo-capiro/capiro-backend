@@ -3,7 +3,9 @@ import type {
   CapabilityResult,
   OutreachV3Command,
   OutreachV3CommandBatchResult,
+  OutreachV3ContextCandidate,
   OutreachV3ContextClass,
+  OutreachV3ContextDocumentCandidate,
   OutreachV3ContextReviewResponse,
   OutreachV3ContextScope,
   OutreachV3Conversation,
@@ -364,6 +366,156 @@ export async function getOutreachV3ContextReview(
       `${outreachV3SessionPath(sessionId)}/context/review`,
     )
   ).data;
+}
+
+/** One `documents` row of `GET /api/engagement/outreach/context-library`. */
+interface ContextLibraryDocumentWire {
+  id?: unknown;
+  clientId?: unknown;
+  clientName?: unknown;
+  title?: unknown;
+  date?: unknown;
+}
+
+/**
+ * Stored documents that the V3 `document` locator can actually resolve.
+ *
+ * Reuses the V2 builder's tenant-wide library rather than adding a route: this
+ * path is NOT under `/api/engagement/outreach-v3/`, so `engagementPreviewHeader`
+ * deliberately does not tag it and it is served by the main API, which owns the
+ * endpoint. No manifest, ALB rule, or engagement-api change is involved.
+ *
+ * The library mixes several kinds behind prefixed ids. Only `doc-<uuid>` rows
+ * are real `engagementAttachment` ids; `clientnote-*` and the meeting-derived
+ * rows are not, and would resolve to a 404 on accept. They are dropped here
+ * rather than offered and allowed to fail.
+ */
+export async function listOutreachV3ContextDocuments(
+  api: AxiosInstance,
+  clientId: string,
+): Promise<OutreachV3ContextDocumentCandidate[]> {
+  const data = (
+    await api.get<{ documents?: ContextLibraryDocumentWire[] }>(
+      '/api/engagement/outreach/context-library',
+    )
+  ).data;
+  const rows = Array.isArray(data?.documents) ? data.documents : [];
+  const candidates: OutreachV3ContextDocumentCandidate[] = [];
+  for (const row of rows) {
+    const rawId = typeof row.id === 'string' ? row.id : '';
+    if (!rawId.startsWith('doc-')) continue;
+    const attachmentId = rawId.slice('doc-'.length);
+    if (!attachmentId) continue;
+    const rowClientId = typeof row.clientId === 'string' ? row.clientId : null;
+    // `resolveDocument` compares the attachment's clientId to the locator's and
+    // 404s on any mismatch, and the sponsor-isolation policy rejects
+    // client-specific context that is not the sole sponsor client. Offering a
+    // different client's document could therefore only ever fail.
+    if (rowClientId !== clientId) continue;
+    candidates.push({
+      attachmentId,
+      clientId: rowClientId,
+      clientName: typeof row.clientName === 'string' ? row.clientName : 'Client',
+      title: typeof row.title === 'string' && row.title.trim() ? row.title : 'Untitled document',
+      date: typeof row.date === 'string' ? row.date : null,
+      selection: {
+        // contextClass/scope are placeholders: the Context surface rewrites both
+        // from the purpose the user picks, and the server re-derives every trust
+        // flag when it re-resolves this locator.
+        locator: { source: 'document', id: attachmentId, clientId: rowClientId },
+        contextClass: 'campaign_fact',
+        scope: { kind: 'campaign' },
+      },
+    });
+  }
+  return candidates;
+}
+
+export interface OutreachV3UnifiedContextSearchInput {
+  query: string;
+  /** Sole sponsor client, or null for a client-neutral campaign. */
+  clientId: string | null;
+  limit?: number;
+}
+
+export interface OutreachV3UnifiedContextSearchResult {
+  candidates: OutreachV3ContextCandidate[];
+  /** Per-source failure sentences, so one dead source cannot blank the stage. */
+  failures: Array<{ source: 'memory' | 'government'; message: string }>;
+  /**
+   * True when the query was too short to search and NO request was sent.
+   *
+   * Both capability schemas and both controller DTOs require `query` to be at
+   * least two characters, so a blank campaign topic would otherwise 400 both
+   * legs the moment the stage opened. Skipping is not a failure: the document
+   * library needs no query and still lists.
+   */
+  skipped: boolean;
+}
+
+/** Shortest query the memory and government capabilities will accept. */
+export const OUTREACH_V3_CONTEXT_MIN_QUERY = 2;
+
+/**
+ * One query, every searchable context source, in parallel.
+ *
+ * `search_memory` takes an `intendedClass` and pre-filters on it
+ * (`compatibleWithClass`). We deliberately probe with `campaign_fact`, the one
+ * value whose filter branch returns true unconditionally — that makes this an
+ * UNFILTERED read of the tenant's memory rather than a taxonomy-narrowed one.
+ * The class each row is finally accepted under is chosen per item afterwards, and
+ * re-validated server-side, so probing with a permissive class grants nothing.
+ *
+ * `Promise.allSettled`, not `all`: government search reaching into twelve
+ * datasets is the more failure-prone leg, and a government outage must not also
+ * hide institutional memory.
+ */
+export async function searchOutreachV3ContextAll(
+  api: AxiosInstance,
+  sessionId: string,
+  input: OutreachV3UnifiedContextSearchInput,
+): Promise<OutreachV3UnifiedContextSearchResult> {
+  const limit = input.limit ?? 20;
+  const query = input.query.trim();
+  if (query.length < OUTREACH_V3_CONTEXT_MIN_QUERY) {
+    return { candidates: [], failures: [], skipped: true };
+  }
+  const [memory, government] = await Promise.allSettled([
+    searchOutreachV3Memory(api, sessionId, {
+      query,
+      clientId: input.clientId,
+      intendedClass: 'campaign_fact',
+      scope: { kind: 'campaign' },
+      limit,
+    }),
+    searchOutreachV3Government(api, sessionId, {
+      query,
+      intendedClass: 'campaign_fact',
+      scope: { kind: 'campaign' },
+      limit,
+    }),
+  ]);
+
+  const candidates: OutreachV3ContextCandidate[] = [];
+  const failures: OutreachV3UnifiedContextSearchResult['failures'] = [];
+
+  if (memory.status === 'fulfilled') {
+    for (const candidate of memory.value?.data?.candidates ?? []) {
+      candidates.push({ ...candidate, sourceKind: 'memory' });
+    }
+  } else {
+    failures.push({ source: 'memory', message: safeOutreachV3Error(memory.reason) });
+  }
+
+  if (government.status === 'fulfilled') {
+    for (const candidate of government.value?.data?.candidates ?? []) {
+      candidates.push({ ...candidate, sourceKind: 'government' });
+    }
+  } else {
+    failures.push({ source: 'government', message: safeOutreachV3Error(government.reason) });
+  }
+
+  return { candidates, failures, skipped: false };
 }
 
 export async function getOutreachV3Strategy(

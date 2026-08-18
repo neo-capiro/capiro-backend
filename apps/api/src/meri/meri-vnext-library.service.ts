@@ -41,7 +41,7 @@ export interface MeriVNextPreferenceInput {
 export interface MeriVNextPreference {
   windowChrome: 'undocked' | 'maximized' | 'docked';
   railCollapsed: boolean;
-  openSection: 'context' | 'sources' | 'actions' | null;
+  openSection: 'context' | 'sources' | 'actions' | 'memory' | null;
 }
 
 function requiredText(value: unknown, field: string, max: number): string {
@@ -72,7 +72,13 @@ function normalizePreference(value: MeriVNextPreferenceInput): MeriVNextPreferen
     throw new BadRequestException('railCollapsed must be boolean');
   }
   const openSection = value.openSection;
-  if (openSection !== null && openSection !== 'context' && openSection !== 'sources' && openSection !== 'actions') {
+  if (
+    openSection !== null &&
+    openSection !== 'context' &&
+    openSection !== 'sources' &&
+    openSection !== 'actions' &&
+    openSection !== 'memory'
+  ) {
     throw new BadRequestException('openSection is invalid');
   }
   return { windowChrome, railCollapsed: value.railCollapsed, openSection };

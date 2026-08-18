@@ -62,6 +62,7 @@ import type {
   OutreachV3TargetLocator,
 } from './contracts.js';
 import type { OutreachV3TargetProfileResponse } from './target-intelligence-contracts.js';
+import { contextSelectionForClass } from './context-selection.js';
 import type { OutreachV3ContextSearchInput } from './useOutreachV3Session.js';
 
 export interface DecisionSurfacesProps {
@@ -93,6 +94,10 @@ export interface DecisionSurfacesProps {
   contextCandidates: OutreachV3ContextCandidate[];
   contextSearchPending: boolean;
   contextSearchError?: string | null;
+  /** Per-source failures from the last unified context search. */
+  contextSourceFailures?: Array<{ source: string; message: string }>;
+  /** The last query was under the searchable minimum, so nothing was sent. */
+  contextSearchSkipped?: boolean;
   contextReview?: OutreachV3ContextReviewResponse;
   contextReviewPending: boolean;
   contextReviewError?: string | null;
@@ -1196,11 +1201,6 @@ function ContextSurface(props: DecisionSurfacesProps) {
       ? session.spec.sponsor.clientRefs[0]?.clientId ?? null
       : null;
 
-  const scope = useMemo(() => {
-    if (contextClass === 'target_specific') return { kind: 'target' as const, targetKey };
-    return { kind: 'campaign' as const };
-  }, [contextClass, targetKey]);
-
   const runSearch = async (event?: FormEvent) => {
     event?.preventDefault();
     if (query.trim().length < 2) {
@@ -1211,20 +1211,12 @@ function ContextSurface(props: DecisionSurfacesProps) {
       setError('Choose the target that this context belongs to.');
       return;
     }
-    if (source === 'government' && contextClass === 'writing_guidance') {
-      setError('Writing guidance must come from governed memory, not a government fact source.');
-      return;
-    }
     setError(null);
     try {
-      await searchContext({
-        source,
-        query,
-        clientId: source === 'memory' ? sponsorClientId : null,
-        intendedClass: contextClass,
-        scope,
-        limit: 20,
-      });
+      // One query across every context source. `source` below is now purely a
+      // view filter over the merged results, and the class travels with the
+      // ACCEPT instead — see `context-selection.ts`.
+      await searchContext({ query, clientId: sponsorClientId, limit: 20 });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Context could not be searched.');
     }
@@ -1233,7 +1225,9 @@ function ContextSurface(props: DecisionSurfacesProps) {
   const accept = async (candidate: OutreachV3ContextCandidate) => {
     setError(null);
     try {
-      await applyCommands([acceptContextCommand([candidate.selection])]);
+      await applyCommands([
+        acceptContextCommand([contextSelectionForClass(candidate, contextClass, targetKey || null)]),
+      ]);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Context could not be accepted.');
     }
@@ -1324,7 +1318,9 @@ function ContextSurface(props: DecisionSurfacesProps) {
                 const summary =
                   candidate.sourceKind === 'memory'
                     ? candidate.summary
-                    : candidate.subtitle || `${candidate.category} record`;
+                    : candidate.sourceKind === 'document'
+                      ? `Stored document for ${candidate.clientName}`
+                      : candidate.subtitle || `${candidate.category} record`;
                 return (
                   <article key={`${candidate.sourceKind}-${candidate.selection.locator.id}-${index}`} className="ov3-context-card">
                     <header>
@@ -1332,7 +1328,9 @@ function ContextSurface(props: DecisionSurfacesProps) {
                         <span className="ov3-eyebrow">
                           {candidate.sourceKind === 'memory'
                             ? candidate.memoryType
-                            : candidate.category}
+                            : candidate.sourceKind === 'document'
+                              ? 'Client document'
+                              : candidate.category}
                         </span>
                         <h3>{title}</h3>
                       </div>

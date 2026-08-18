@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCapiroToast } from '../components/feedback/toast.js';
-import { MeriCanvas } from '../../components/chat/MeriCanvas.js';
 import type {
   MeriChatController,
   PendingApproval,
 } from '../../components/chat/useMeriChatController.js';
-import { config } from '../../env.js';
 import { MeriIcon } from './meri-icons.js';
 import { MERI_LOGO_SRC, dayDividerLabel, localDayKey, threadKindIcon, threadScopeLabel } from './meri-presentation.js';
 import { VNextMeriMessage } from './VNextMeriMessage.js';
@@ -41,6 +39,10 @@ interface VNextMeriConversationProps {
   onOpenIntegrations: () => void;
   /** Opens the single scope menu owned by the top bar. */
   onOpenScope: () => void;
+  /** Expands the rail's Memory section. */
+  onOpenMemory: () => void;
+  /** Opens the rail's Source Detail view for one of a turn's citations. */
+  onOpenSourceDetail: (citations: import('../../components/chat/chat-store.js').MeriCitation[], index: number) => void;
 }
 
 export function VNextMeriConversation({
@@ -49,6 +51,8 @@ export function VNextMeriConversation({
   tenantName,
   onOpenIntegrations,
   onOpenScope,
+  onOpenMemory,
+  onOpenSourceDetail,
 }: VNextMeriConversationProps) {
   const [threadMenuOpen, setThreadMenuOpen] = useState(false);
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
@@ -283,16 +287,22 @@ export function VNextMeriConversation({
             {!hasThread ? (
               <div className="vnext-meri__landing">
                 <div className="vnext-meri__landing-greeting-row">
-                  <img className="vnext-meri__landing-mark" src={MERI_LOGO_SRC} alt="Meri" height={26} />
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <span className="vnext-meri__landing-greeting">
-                      {greetingFor(greetingName)}
-                    </span>
-                    <span className="vnext-meri__landing-sub">
-                      {tenantName.toUpperCase()} · {clients.length} CLIENT{clients.length === 1 ? '' : 'S'} IN SCOPE
-                    </span>
-                  </div>
+                  <span className="vnext-meri__assistant-mark">
+                    <img src={MERI_LOGO_SRC} alt="" width={13} height={13} />
+                  </span>
+                  <span className="vnext-meri__landing-live">
+                    <span className="vnext-meri__landing-live-dot" />
+                    SESSION LIVE
+                  </span>
                 </div>
+                <h2 className="vnext-meri__landing-greeting">{greetingFor(greetingName)}</h2>
+                <p className="vnext-meri__landing-homesub">
+                  Ask across every client you're scoped to, draft a document, or start research —
+                  Meri cites what it used and asks before it writes anywhere.
+                </p>
+                <span className="vnext-meri__landing-sub">
+                  {tenantName.toUpperCase()} · {clients.length} CLIENT{clients.length === 1 ? '' : 'S'} IN SCOPE
+                </span>
 
                 <VNextMeriComposer
                   controller={controller}
@@ -335,6 +345,8 @@ export function VNextMeriConversation({
                         isLastAssistant={isLastAssistant}
                         isStreaming={isStreaming}
                         controller={controller}
+                        onOpenMemory={onOpenMemory}
+                        onOpenSourceDetail={onOpenSourceDetail}
                       />
                     </div>
                   );
@@ -362,15 +374,6 @@ export function VNextMeriConversation({
           />
         ) : null}
       </main>
-
-      {controller.activeArtifact ? (
-        <MeriCanvas
-          artifact={controller.activeArtifact}
-          onClose={() => controller.setActiveArtifact(null)}
-          apiBaseUrl={config.apiBaseUrl}
-          getAuthHeaders={controller.authHeaders}
-        />
-      ) : null}
     </>
   );
 }

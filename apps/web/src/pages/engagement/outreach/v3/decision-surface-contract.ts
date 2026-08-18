@@ -46,6 +46,10 @@ export interface OutreachV3DecisionSurfaceProps {
   contextCandidates: OutreachV3ContextCandidate[];
   contextSearchPending: boolean;
   contextSearchError?: string | null;
+  /** Per-source failures from the last unified context search. */
+  contextSourceFailures?: Array<{ source: string; message: string }>;
+  /** The last query was under the searchable minimum, so nothing was sent. */
+  contextSearchSkipped?: boolean;
   contextReview?: OutreachV3ContextReviewResponse;
   contextReviewPending: boolean;
   contextReviewError?: string | null;
