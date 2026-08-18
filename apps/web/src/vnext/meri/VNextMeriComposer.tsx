@@ -35,6 +35,8 @@ interface VNextMeriComposerProps {
   /** Whether the thread has messages (affects placeholder). */
   hasThread: boolean;
   onOpenIntegrations: () => void;
+  /** Opens the single scope menu owned by the top bar. */
+  onOpenScope: () => void;
 }
 
 function stagedAttachmentFailed(attachment: StagedAttachment): boolean {
@@ -50,6 +52,7 @@ export function VNextMeriComposer({
   variant,
   hasThread,
   onOpenIntegrations,
+  onOpenScope,
 }: VNextMeriComposerProps) {
   const toast = useCapiroToast();
   const api = useApi();
@@ -496,10 +499,30 @@ export function VNextMeriComposer({
         <div className="vnext-meri__composer-toolbar">
           <MeriTaskModePicker controller={controller} disabled={busy} />
 
-          <span className="vnext-meri__composer-context-label">
+          <button
+            type="button"
+            className="vnext-meri__composer-scope-btn"
+            data-meri-scope-trigger
+            disabled={isStreaming}
+            onClick={onOpenScope}
+            aria-haspopup="menu"
+            title="Conversation scope"
+          >
+            <MeriIcon name={selectedClient ? 'Building01' : 'Grid01'} size={13} color="#101828" />
+            SCOPE · {selectedClient ? selectedClient.name.toUpperCase() : 'ALL CLIENTS'}
+          </button>
+
+          <button
+            type="button"
+            className="vnext-meri__composer-context-label"
+            onClick={() => setAddOpen((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={addOpen}
+            title="Add context to this thread"
+          >
             <MeriIcon name="Attachment01" size={13} color="#101828" />
             {contextLabel}
-          </span>
+          </button>
 
           <span className="vnext-meri__composer-send-hint">
             {isStreaming
@@ -521,7 +544,7 @@ export function VNextMeriComposer({
               aria-label="Stop research"
             >
               <MeriIcon name="StopCircle" size={15} color="#344054" />
-              Stop research
+              Stop
             </button>
           ) : (
             <button
@@ -538,7 +561,7 @@ export function VNextMeriComposer({
       </div>
 
       <div className="vnext-meri__composer-policy">
-        MERI CITES SOURCES · NETWORK WRITES AND EXTERNAL SENDS REQUIRE YOUR APPROVAL
+        MERI CITES SOURCES · EXTERNAL SENDS AND NETWORK WRITES REQUIRE YOUR APPROVAL
       </div>
     </div>
   );

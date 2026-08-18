@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import { MeriCanvas } from '../../components/chat/MeriCanvas.js';
-import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
+import type {
+  MeriChatController,
+  PendingApproval,
+} from '../../components/chat/useMeriChatController.js';
 import { config } from '../../env.js';
 import { MeriIcon } from './meri-icons.js';
 import { MERI_LOGO_SRC, dayDividerLabel, localDayKey, threadKindIcon, threadScopeLabel } from './meri-presentation.js';
 import { VNextMeriMessage } from './VNextMeriMessage.js';
 import { VNextMeriComposer } from './VNextMeriComposer.js';
+import { MeriActionConfirm, MeriBulkActionConfirm } from './MeriActionConfirm.js';
 import { VNextMeriReasoningControl } from './VNextMeriReasoningControl.js';
 import { MeriStartWork } from './MeriStartWork.js';
 
@@ -35,6 +39,8 @@ interface VNextMeriConversationProps {
   greetingName: string;
   tenantName: string;
   onOpenIntegrations: () => void;
+  /** Opens the single scope menu owned by the top bar. */
+  onOpenScope: () => void;
 }
 
 export function VNextMeriConversation({
@@ -42,6 +48,7 @@ export function VNextMeriConversation({
   greetingName,
   tenantName,
   onOpenIntegrations,
+  onOpenScope,
 }: VNextMeriConversationProps) {
   const [threadMenuOpen, setThreadMenuOpen] = useState(false);
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
@@ -292,6 +299,7 @@ export function VNextMeriConversation({
                   variant="landing"
                   hasThread={false}
                   onOpenIntegrations={onOpenIntegrations}
+                  onOpenScope={onOpenScope}
                 />
 
                 <MeriStartWork
@@ -350,6 +358,7 @@ export function VNextMeriConversation({
             variant="pinned"
             hasThread={true}
             onOpenIntegrations={onOpenIntegrations}
+            onOpenScope={onOpenScope}
           />
         ) : null}
       </main>
@@ -498,6 +507,27 @@ function PendingApprovalsInline({ controller }: { controller: MeriChatController
     (proposal) => proposal.status === 'proposed',
   ).length;
   const actionBusy = Boolean(controller.approvingProposalId);
+  // Informed-consent gate: a governed write only leaves the tenant after the
+  // operator confirms this exact payload in the dialog.
+  const [confirmFor, setConfirmFor] = useState<PendingApproval | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const proposedApprovals = controller.pendingApprovals.filter(
+    (proposal) => proposal.status === 'proposed',
+  );
+
+  // Drop a held dialog if the server retires the proposal underneath it.
+  useEffect(() => {
+    if (!confirmFor) return;
+    const live = controller.pendingApprovals.find(
+      (proposal) => proposal.proposalId === confirmFor.proposalId,
+    );
+    if (!live) setConfirmFor(null);
+    else if (live !== confirmFor) setConfirmFor(live);
+  }, [confirmFor, controller.pendingApprovals]);
+
+  useEffect(() => {
+    if (bulkOpen && proposedApprovals.length === 0) setBulkOpen(false);
+  }, [bulkOpen, proposedApprovals.length]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -601,7 +631,7 @@ function PendingApprovalsInline({ controller }: { controller: MeriChatController
                     className="vnext-meri__rail-action-btn"
                     style={{ marginTop: 0 }}
                     disabled={actionBusy}
-                    onClick={() => void controller.handleApprovePending(proposal.proposalId)}
+                    onClick={() => setConfirmFor(proposal)}
                   >
                     {active
                       ? proposal.status === 'failed_retryable'
@@ -633,11 +663,32 @@ function PendingApprovalsInline({ controller }: { controller: MeriChatController
           type="button"
           className="vnext-meri__rail-action-btn"
           disabled={actionBusy}
-          onClick={() => void controller.handleApproveAll()}
+          onClick={() => setBulkOpen(true)}
         >
           Approve all proposed actions
         </button>
       ) : null}
+
+      <MeriActionConfirm
+        proposal={confirmFor}
+        busy={actionBusy}
+        onCancel={() => setConfirmFor(null)}
+        onConfirm={() => {
+          const target = confirmFor;
+          setConfirmFor(null);
+          if (target) void controller.handleApprovePending(target.proposalId);
+        }}
+      />
+      <MeriBulkActionConfirm
+        proposals={proposedApprovals}
+        open={bulkOpen}
+        busy={actionBusy}
+        onCancel={() => setBulkOpen(false)}
+        onConfirm={() => {
+          setBulkOpen(false);
+          void controller.handleApproveAll();
+        }}
+      />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useManagedMcpApps,
   type ManagedApp,
@@ -68,16 +68,21 @@ function quickActionPrompt(action: MeriQuickAction, clientName: string | null): 
   return action.starterPrompt.replaceAll('{{clientName}}', clientName?.trim() || 'the client selected in SCOPE');
 }
 
+/**
+ * v4 collapses the rail's three sibling accordions into one Context panel whose
+ * sections are always present, so the tab strip scrolls to a section rather than
+ * swapping the panel out from under it.
+ */
 const PANEL_TABS: Array<{ key: MeriContextSection; icon: MeriIconName; label: string }> = [
-  { key: 'context', icon: 'Sliders02', label: 'Context' },
-  { key: 'sources', icon: 'PuzzlePiece01', label: 'Sources' },
-  { key: 'actions', icon: 'DotsGrid', label: 'Actions' },
+  { key: 'context', icon: 'Sliders02', label: 'Active context' },
+  { key: 'sources', icon: 'PuzzlePiece01', label: 'Connected sources' },
+  { key: 'actions', icon: 'DotsGrid', label: 'Skills' },
 ];
 
 const PANEL_TITLES: Record<MeriContextSection, string> = {
   context: 'CONTEXT',
-  sources: 'CONNECTED SOURCES',
-  actions: 'QUICK ACTIONS',
+  sources: 'CONTEXT',
+  actions: 'CONTEXT',
 };
 
 const UNUSABLE_ATTACHMENT_STATES = new Set(['error', 'scanned', 'unsupported']);
@@ -106,9 +111,10 @@ export function VNextMeriContextRail({
   onOpenContext,
 }: VNextMeriContextRailProps) {
   const api = useApi();
-  const [ctxOpen, setCtxOpen] = useState(openSection !== 'sources' && openSection !== 'actions');
-  const [srcOpen, setSrcOpen] = useState(openSection === 'sources');
-  const [actOpen, setActOpen] = useState(openSection === 'actions');
+  const [ctxOpen, setCtxOpen] = useState(true);
+  const [srcOpen, setSrcOpen] = useState(true);
+  const [actOpen, setActOpen] = useState(true);
+  const sectionRefs = useRef<Partial<Record<MeriContextSection, HTMLDivElement | null>>>({});
   const [packet, setPacket] = useState<MeriContextPacket | null>(null);
   const [packetLoading, setPacketLoading] = useState(false);
   const [packetError, setPacketError] = useState(false);
@@ -118,9 +124,12 @@ export function VNextMeriContextRail({
   const managed = useManagedMcpApps();
 
   useEffect(() => {
+    if (!openSection) return;
     if (openSection === 'context') setCtxOpen(true);
     if (openSection === 'sources') setSrcOpen(true);
     if (openSection === 'actions') setActOpen(true);
+    const node = sectionRefs.current[openSection];
+    if (node) node.scrollIntoView({ block: 'nearest' });
   }, [openSection]);
 
   useEffect(() => {
@@ -231,7 +240,7 @@ export function VNextMeriContextRail({
               const active = (openSection ?? 'context') === tab.key;
               const badge = badgeFor(tab.key);
               return (
-                <button key={tab.key} type="button" className={`vnext-meri__rail-panel-tab${active ? ' is-active' : ''}`} title={tab.label} aria-pressed={active} onClick={() => onExpandSection(tab.key)}>
+                <button key={tab.key} type="button" className={`vnext-meri__rail-panel-tab${active ? ' is-active' : ''}`} title={tab.label} aria-label={tab.label} aria-pressed={active} onClick={() => onExpandSection(tab.key)}>
                   <MeriIcon name={tab.icon} size={15} />
                   {badge > 0 ? <span className="vnext-meri__rail-panel-tab-badge">{badge}</span> : null}
                 </button>
@@ -243,7 +252,12 @@ export function VNextMeriContextRail({
           </button>
         </div>
 
-        <div className="vnext-meri__rail-section">
+        <div
+          className="vnext-meri__rail-section"
+          ref={(node) => {
+            sectionRefs.current.context = node;
+          }}
+        >
           <div className="vnext-meri__rail-section-head">
             <button type="button" className="vnext-meri__rail-section-toggle" onClick={() => {
               setCtxOpen((open) => {
@@ -296,7 +310,12 @@ export function VNextMeriContextRail({
           ) : null}
         </div>
 
-        <div className="vnext-meri__rail-section">
+        <div
+          className="vnext-meri__rail-section"
+          ref={(node) => {
+            sectionRefs.current.sources = node;
+          }}
+        >
           <div className="vnext-meri__rail-section-head">
             <button type="button" className="vnext-meri__rail-section-toggle" onClick={() => {
               setSrcOpen((open) => {
@@ -333,7 +352,12 @@ export function VNextMeriContextRail({
           ) : null}
         </div>
 
-        <div className="vnext-meri__rail-section">
+        <div
+          className="vnext-meri__rail-section"
+          ref={(node) => {
+            sectionRefs.current.actions = node;
+          }}
+        >
           <div className="vnext-meri__rail-section-head">
             <button type="button" className="vnext-meri__rail-section-toggle" onClick={() => {
               setActOpen((open) => {
@@ -342,7 +366,7 @@ export function VNextMeriContextRail({
                 return next;
               });
             }} aria-expanded={actOpen}>
-              <span className="vnext-meri__section-label">QUICK ACTIONS</span>
+              <span className="vnext-meri__section-label">SKILLS</span>
               <MeriIcon name={actOpen ? 'ChevronUp' : 'ChevronDown'} size={14} color="#98A2B3" />
             </button>
           </div>

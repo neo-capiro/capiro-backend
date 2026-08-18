@@ -11,6 +11,7 @@ import { VNextMeriThreadRail } from './VNextMeriThreadRail.js';
 import { VNextMeriConversation } from './VNextMeriConversation.js';
 import { VNextMeriContextRail } from './VNextMeriContextRail.js';
 import { MeriContextSheet } from './MeriContextSheet.js';
+import { MeriCommandPalette } from './MeriCommandPalette.js';
 import {
   getMeriVNextPreferences,
   saveMeriVNextPreferences,
@@ -70,6 +71,10 @@ export function VNextMeriShell({
   const [preferencesHydrated, setPreferencesHydrated] = useState(false);
   const skipInitialPreferenceSaveRef = useRef(true);
   const [threadSearch, setThreadSearch] = useState('');
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  // The scope menu lives in the top bar but the composer's SCOPE pill is a
+  // second trigger for that same single control, so the open state is lifted.
+  const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
   const [contextSheet, setContextSheet] = useState<{
     open: boolean;
     packet: MeriContextPacket | null;
@@ -125,17 +130,7 @@ export function VNextMeriShell({
     };
   }, []);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setRailCollapsed(false);
-        window.setTimeout(() => threadSearchRef.current?.focus(), 0);
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
+  // ⌘K opening is owned by MeriCommandPalette while it is mounted.
 
   const handleNewChat = () => {
     setThreadSearch('');
@@ -183,10 +178,9 @@ export function VNextMeriShell({
             me={me.data}
             windowChrome={windowChrome}
             onNewChat={handleNewChat}
-            onSearch={() => {
-              setRailCollapsed(false);
-              window.setTimeout(() => threadSearchRef.current?.focus(), 0);
-            }}
+            onSearch={() => setPaletteOpen(true)}
+            scopeMenuOpen={scopeMenuOpen}
+            onScopeMenuOpenChange={setScopeMenuOpen}
             onDock={() => setWindowChrome('docked')}
             onToggleMaximize={() =>
               setWindowChrome((current) => (current === 'maximized' ? 'undocked' : 'maximized'))
@@ -207,10 +201,7 @@ export function VNextMeriShell({
               searchQuery={threadSearch}
               onSearchQueryChange={setThreadSearch}
               searchInputRef={threadSearchRef}
-              onOpenPalette={() => {
-                setRailCollapsed(false);
-                window.setTimeout(() => threadSearchRef.current?.focus(), 0);
-              }}
+              onOpenPalette={() => setPaletteOpen(true)}
             />
 
             <VNextMeriConversation
@@ -218,6 +209,7 @@ export function VNextMeriShell({
               greetingName={greetingName}
               tenantName={tenantName}
               onOpenIntegrations={handleOpenIntegrations}
+              onOpenScope={() => setScopeMenuOpen(true)}
             />
 
             <VNextMeriContextRail
@@ -239,6 +231,15 @@ export function VNextMeriShell({
         loading={contextSheet.loading}
         error={contextSheet.error}
         onClose={() => setContextSheet((current) => ({ ...current, open: false }))}
+      />
+      <MeriCommandPalette
+        controller={controller}
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        onOpenThread={(conversationId) =>
+          navigate(`/meri/t/${encodeURIComponent(conversationId)}`)
+        }
+        onSelectClient={(clientId) => void controller.changeSessionClient(clientId)}
       />
     </ManagedMcpAppsProvider>
   );

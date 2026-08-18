@@ -370,12 +370,12 @@ export function VNextMeriThreadRail({
                 <div key={prompt.id} className="vnext-meri__saved-prompt-row">
                   <button
                     type="button"
-                    className="vnext-meri__saved-prompt-main"
+                    className="vnext-meri__saved-prompt"
                     title={prompt.body}
                     onClick={() => useSavedPrompt(prompt)}
                   >
-                    <MeriIcon name="File05" size={13} color="#667085" />
-                    <span>{prompt.title}</span>
+                    <MeriIcon name="Diamond01" size={14} color="#98A2B3" />
+                    <span className="vnext-meri__saved-prompt-label">{prompt.title}</span>
                   </button>
                   <button
                     type="button"
@@ -432,12 +432,12 @@ export function VNextMeriThreadRail({
                       else toast.success('Assign a chat from its overflow menu to add it here.');
                     }}
                   >
-                    <span className="vnext-meri__workspace-icon">
+                    <span className="vnext-meri__workspace-tile">
                       <MeriIcon name="Building01" size={13} color="#667085" />
                     </span>
-                    <span className="vnext-meri__workspace-copy">
+                    <span className="vnext-meri__workspace-body">
                       <span className="vnext-meri__workspace-name">{workspace.name}</span>
-                      <span className="vnext-meri__workspace-meta">{workspace.clientId ? 'CLIENT' : 'GENERAL'}</span>
+                      <span className="vnext-meri__workspace-kind">{workspace.clientId ? 'CLIENT' : 'GENERAL'}</span>
                     </span>
                   </button>
                   <button
@@ -718,11 +718,11 @@ export function VNextMeriThreadRail({
             <div className="vnext-meri__confirm-body">Choose the durable workspace that owns this chat.</div>
             <div className="vnext-meri__move-workspace-list">
               <button type="button" className="vnext-meri__workspace-item" onClick={() => void assignWorkspace(moveFor, null)}>
-                <span className="vnext-meri__workspace-copy"><span className="vnext-meri__workspace-name">No workspace</span><span className="vnext-meri__workspace-meta">GENERAL</span></span>
+                <span className="vnext-meri__workspace-body"><span className="vnext-meri__workspace-name">No workspace</span><span className="vnext-meri__workspace-kind">GENERAL</span></span>
               </button>
               {(workspaces.data ?? []).map((workspace: MeriWorkspace) => (
                 <button type="button" key={workspace.id} className="vnext-meri__workspace-item" onClick={() => void assignWorkspace(moveFor, workspace.id)}>
-                  <span className="vnext-meri__workspace-copy"><span className="vnext-meri__workspace-name">{workspace.name}</span><span className="vnext-meri__workspace-meta">{workspace.clientId ? 'CLIENT' : 'GENERAL'}</span></span>
+                  <span className="vnext-meri__workspace-body"><span className="vnext-meri__workspace-name">{workspace.name}</span><span className="vnext-meri__workspace-kind">{workspace.clientId ? 'CLIENT' : 'GENERAL'}</span></span>
                 </button>
               ))}
             </div>
