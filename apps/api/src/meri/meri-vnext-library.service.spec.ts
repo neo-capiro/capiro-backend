@@ -146,4 +146,26 @@ describe('MeriVNextLibraryService', () => {
     expect(tx.meriVnextPreference.upsert).not.toHaveBeenCalled();
   });
 
+  it('accepts the v4 memory rail section like the other three', async () => {
+    const { service, tx } = makeService();
+
+    const preference = await service.savePreferences(ctx, {
+      windowChrome: 'undocked',
+      railCollapsed: false,
+      openSection: 'memory',
+    });
+
+    expect(preference.openSection).toBe('memory');
+    expect(tx.meriVnextPreference.upsert).toHaveBeenCalled();
+  });
+
+  it('still rejects an openSection outside the four known rail sections', async () => {
+    const { service, tx } = makeService();
+
+    await expect(
+      service.savePreferences(ctx, { windowChrome: 'undocked', railCollapsed: false, openSection: 'bogus' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(tx.meriVnextPreference.upsert).not.toHaveBeenCalled();
+  });
+
 });

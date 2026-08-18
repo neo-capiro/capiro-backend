@@ -3,7 +3,7 @@
  * Values are persisted through /api/clio/vnext/preferences, not browser storage.
  */
 export type MeriWindowChrome = 'undocked' | 'maximized' | 'docked';
-export type MeriContextSection = 'context' | 'sources' | 'actions';
+export type MeriContextSection = 'context' | 'sources' | 'actions' | 'memory';
 
 export interface MeriRailPrefs {
   collapsed: boolean;

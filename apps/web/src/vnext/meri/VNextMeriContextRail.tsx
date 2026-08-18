@@ -9,6 +9,7 @@ import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import type { MeriContextSection } from './meri-prefs.js';
 import { activeContextLabels, contextPacketSummary } from './meri-context-packet.js';
 import { fetchLatestMeriContextPacket, type MeriContextPacket } from './meri-vnext-api.js';
+import { MeriMemoryTab } from './MeriMemoryTab.js';
 
 interface VNextMeriContextRailProps {
   controller: MeriChatController;
@@ -77,12 +78,14 @@ const PANEL_TABS: Array<{ key: MeriContextSection; icon: MeriIconName; label: st
   { key: 'context', icon: 'Sliders02', label: 'Active context' },
   { key: 'sources', icon: 'PuzzlePiece01', label: 'Connected sources' },
   { key: 'actions', icon: 'DotsGrid', label: 'Skills' },
+  { key: 'memory', icon: 'Lightbulb02', label: 'Memory' },
 ];
 
 const PANEL_TITLES: Record<MeriContextSection, string> = {
   context: 'CONTEXT',
   sources: 'CONTEXT',
   actions: 'CONTEXT',
+  memory: 'CONTEXT',
 };
 
 const UNUSABLE_ATTACHMENT_STATES = new Set(['error', 'scanned', 'unsupported']);
@@ -114,6 +117,7 @@ export function VNextMeriContextRail({
   const [ctxOpen, setCtxOpen] = useState(true);
   const [srcOpen, setSrcOpen] = useState(true);
   const [actOpen, setActOpen] = useState(true);
+  const [memOpen, setMemOpen] = useState(true);
   const sectionRefs = useRef<Partial<Record<MeriContextSection, HTMLDivElement | null>>>({});
   const [packet, setPacket] = useState<MeriContextPacket | null>(null);
   const [packetLoading, setPacketLoading] = useState(false);
@@ -128,6 +132,7 @@ export function VNextMeriContextRail({
     if (openSection === 'context') setCtxOpen(true);
     if (openSection === 'sources') setSrcOpen(true);
     if (openSection === 'actions') setActOpen(true);
+    if (openSection === 'memory') setMemOpen(true);
     const node = sectionRefs.current[openSection];
     if (node) node.scrollIntoView({ block: 'nearest' });
   }, [openSection]);
@@ -203,9 +208,14 @@ export function VNextMeriContextRail({
   const connectedSources = managed?.apps ?? [];
   const connectedCount = connectedSources.filter((source) => source.connected).length;
 
+  const pendingMemoryCount = controller.learnedMemories.filter(
+    (memory) => memory.state === 'pending_review',
+  ).length;
+
   const badgeFor = (section: MeriContextSection): number => {
     if (section === 'context') return contextItems.length;
     if (section === 'sources') return connectedCount;
+    if (section === 'memory') return pendingMemoryCount;
     return 0;
   };
 
@@ -401,6 +411,38 @@ export function VNextMeriContextRail({
               </div>
               <div className="vnext-meri__ctx-empty vnext-meri__ctx-note">Select an action to prepare editable composer text. Nothing is sent until you press Send.</div>
             </div>
+          ) : null}
+        </div>
+
+        <div
+          className="vnext-meri__rail-section"
+          ref={(node) => {
+            sectionRefs.current.memory = node;
+          }}
+        >
+          <div className="vnext-meri__rail-section-head">
+            <button type="button" className="vnext-meri__rail-section-toggle" onClick={() => {
+              setMemOpen((open) => {
+                const next = !open;
+                onSectionChange(next ? 'memory' : null);
+                return next;
+              });
+            }} aria-expanded={memOpen}>
+              <span className="vnext-meri__section-label">
+                MEMORY{controller.learnedMemories.length ? ` · ${controller.learnedMemories.length}` : ''}
+              </span>
+              <MeriIcon name={memOpen ? 'ChevronUp' : 'ChevronDown'} size={14} color="#98A2B3" />
+            </button>
+          </div>
+          {memOpen ? (
+            <MeriMemoryTab
+              memories={controller.learnedMemories}
+              forgotten={controller.forgottenMemories}
+              onSave={controller.saveMemoryEdit}
+              onForget={controller.forgetMemory}
+              onUndo={controller.undoForgetMemory}
+              onSuggestCorrection={controller.suggestMemoryCorrection}
+            />
           ) : null}
           <div className="vnext-meri__rail-footer">CONTEXT IS CLIENT-SCOPED · WRITES REQUIRE APPROVAL</div>
         </div>
