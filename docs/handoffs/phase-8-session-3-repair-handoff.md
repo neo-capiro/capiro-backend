@@ -138,6 +138,20 @@ Evidence this is pre-existing and not introduced by this branch:
   with hoisted's per-package `node_modules/@types/node` ("cannot replace to directory ...
   with file"). Not resolved in this branch — would require reordering the Dockerfile's
   COPY/install sequence, which is out of scope for a Session 3 code-only repair.
+- Attempted fix #2: swapped the BuildKit cache mount to a brand-new, never-before-used
+  `id=pnpm-s3fix` (guaranteeing zero shared state with any prior build/cache) and rebuilt
+  from a completely fresh context. Result: identical `MODULE_NOT_FOUND` failure. This
+  conclusively rules out stale/corrupted cache-mount state as the cause — the failure is
+  deterministic given this exact Dockerfile + pnpm version + Docker-Desktop-on-Windows
+  platform combination, not a one-off cache artifact.
+
+Both fixes were investigated and neither was applied to the Dockerfile itself, since (a)
+fix #1 requires restructuring the governed multi-stage COPY/install ordering, which is a
+real infrastructure change beyond a Session 3 code-only repair's scope, and (b) fix #2
+confirmed there is no cache-state workaround available. Resolving this properly requires
+either reordering the Dockerfile (fix #1, needs review/approval since it touches a shared
+build artifact) or building on a non-Windows host/CI runner where the pnpm symlink
+resolves correctly.
 
 This blocker is disclosed rather than papered over. It affects the Docker build gate only;
 it does not affect the typecheck/build/test/verifier/DB-rehearsal results above, all of
