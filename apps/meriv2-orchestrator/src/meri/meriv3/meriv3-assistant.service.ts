@@ -117,6 +117,23 @@ function finishInstructions(): string {
   ].join('\n');
 }
 
+/**
+ * Hold back enough wall-clock for a no-tools synthesis pass so a long gather
+ * loop cannot burn the entire turn budget and leave only a 15s writer window
+ * (or an empty "runtime unavailable" failure). Scales with the mode budget.
+ */
+function synthesisReserveMs(turnBudgetMs: number): number {
+  const scaled = Math.floor(turnBudgetMs * 0.15);
+  const floor = turnBudgetMs >= 600_000 ? 180_000 : 60_000;
+  const ceiling = Math.floor(turnBudgetMs / 3);
+  return Math.min(Math.max(floor, scaled), ceiling);
+}
+
+function isModelTimeoutError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /timed out after \d+ms/i.test(message) || /AbortError/i.test(message);
+}
+
 @Injectable()
 export class MeriV3AssistantService {
   private readonly logger = new Logger(MeriV3AssistantService.name);
@@ -271,11 +288,48 @@ export class MeriV3AssistantService {
       reasoningEffort: profile.effort,
     });
 
+    const reserveMs = synthesisReserveMs(profile.turnBudgetMs);
+    const synthesisFloorMs = Math.min(
+      reserveMs,
+      Math.max(60_000, Math.floor(profile.turnBudgetMs * 0.1)),
+    );
+    let gatheredToolOutput = false;
+
+    const runForcedSynthesis = async (reason: string): Promise<string> => {
+      const remainingMs = profile.turnBudgetMs - (Date.now() - startedAt);
+      const timeoutMs = Math.max(synthesisFloorMs, remainingMs);
+      this.logger.warn(
+        `MeriV3 forcing no-tools synthesis (${reason}); timeoutMs=${timeoutMs} reserveMs=${reserveMs} toolsUsed=${toolsUsed.length}`,
+      );
+      emit({
+        type: 'tool_done',
+        tool: 'synthesize',
+        label: 'Writing the answer from gathered evidence',
+        status: 'done',
+        detail: reason,
+      });
+      const synthesis = await this.openai.complete({
+        profile,
+        instructions: `${instructions}\n\n${finishInstructions()}`,
+        input,
+        tools: [],
+        toolChoice: 'none',
+        timeoutMs,
+        ...(opts.signal ? { signal: opts.signal } : {}),
+        safetyIdentifier: safetyIdentifier(ctx),
+      });
+      actualModel = synthesis.model;
+      addUsage(usage, synthesis.usage);
+      void this.meterRound(ctx, synthesis.model, synthesis.usage, synthesis.usedTenantKey);
+      return synthesis.outputText;
+    };
+
     try {
       for (rounds = 0; rounds < profile.maxToolRounds; rounds += 1) {
         if (opts.signal?.aborted) break;
         const remainingMs = profile.turnBudgetMs - (Date.now() - startedAt);
-        if (remainingMs <= 0) break;
+        // Stop opening new gather rounds once only the synthesis reserve remains.
+        if (remainingMs <= reserveMs) break;
 
         const response = await this.openai.complete({
           profile,
@@ -283,7 +337,8 @@ export class MeriV3AssistantService {
           input,
           tools,
           toolChoice: 'auto',
-          timeoutMs: remainingMs,
+          // Clamp each gather call so it cannot eat the reserved synthesis window.
+          timeoutMs: Math.max(15_000, remainingMs - reserveMs),
           ...(opts.signal ? { signal: opts.signal } : {}),
           safetyIdentifier: safetyIdentifier(ctx),
         });
@@ -321,6 +376,7 @@ export class MeriV3AssistantService {
           prePersistRefusal,
           noteComplianceOutcome,
         });
+        gatheredToolOutput = gatheredToolOutput || executions.length > 0;
 
         for (const execution of executions) {
           input.push({
@@ -340,25 +396,38 @@ export class MeriV3AssistantService {
       }
 
       if (!finalText && !opts.signal?.aborted) {
-        const remainingMs = Math.max(15_000, profile.turnBudgetMs - (Date.now() - startedAt));
-        const synthesis = await this.openai.complete({
-          profile,
-          instructions: `${instructions}\n\n${finishInstructions()}`,
-          input,
-          tools: [],
-          toolChoice: 'none',
-          timeoutMs: remainingMs,
-          ...(opts.signal ? { signal: opts.signal } : {}),
-          safetyIdentifier: safetyIdentifier(ctx),
-        });
-        actualModel = synthesis.model;
-        addUsage(usage, synthesis.usage);
-        void this.meterRound(ctx, synthesis.model, synthesis.usage, synthesis.usedTenantKey);
-        finalText = synthesis.outputText;
+        finalText = await runForcedSynthesis(
+          gatheredToolOutput || toolsUsed.length
+            ? 'gather complete or budget reserve reached'
+            : 'no model prose yet',
+        );
       }
     } catch (error) {
       if (opts.signal?.aborted) finalText = '';
-      else {
+      else if (
+        !finalText &&
+        (gatheredToolOutput || toolsUsed.length > 0) &&
+        isModelTimeoutError(error)
+      ) {
+        // Prefer a report from already-gathered tool evidence over a dead-end
+        // "runtime unavailable" message after a long research turn.
+        this.logger.error(
+          `MeriV3 model loop timed out after gathering evidence: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        try {
+          finalText = await runForcedSynthesis('recovering after model timeout');
+        } catch (synthesisError) {
+          this.logger.error(
+            `MeriV3 timeout recovery synthesis failed: ${
+              synthesisError instanceof Error ? synthesisError.message : String(synthesisError)
+            }`,
+          );
+          finalText =
+            'I gathered sources for this request but hit a model time limit before the final write finished. Retry the turn (or switch to Deep Research) so I can finish the report from the evidence already collected. No unapproved action was executed.';
+        }
+      } else {
         this.logger.error(
           `MeriV3 model loop failed: ${error instanceof Error ? error.message : String(error)}`,
         );

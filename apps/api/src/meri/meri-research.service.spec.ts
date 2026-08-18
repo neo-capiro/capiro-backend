@@ -128,8 +128,8 @@ function makeConfig(overrides: Record<string, unknown> = {}) {
     CLIO_RESEARCH_MAX_TOOL_ROUNDS: 2, // small cap so the loop exhausts fast
     // Generous wall-clock budget so the existing specs exercise the round cap,
     // not the budget gate (the budget specs override these).
-    CLIO_RESEARCH_TOTAL_BUDGET_MS: 420_000,
-    CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: 120_000,
+    CLIO_RESEARCH_TOTAL_BUDGET_MS: 1_800_000,
+    CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: 480_000,
     CLIO_RESEARCH_PROGRESS_INTERVAL_MS: 5_000,
     ...overrides,
   };

@@ -39,9 +39,11 @@ const PRODUCT_NAME = 'Meri';
  * Absolute floor for the forced-synthesis window, independent of how little of
  * the total budget is left. Guards the degenerate case where gathering consumed
  * everything: a 0ms window aborts the writer instantly and ships sources with no
- * report. Clamped down to the per-call timeout at the use site.
+ * report. Clamped down to the per-call timeout at the use site. 30s produced
+ * thin partial artifacts under live load (2026-08-18 funding reports); 3 minutes
+ * is enough for a multi-section cited body.
  */
-const SYNTHESIS_FLOOR_MS = 30_000;
+const SYNTHESIS_FLOOR_MS = 180_000;
 
 interface SourceAttribution {
   tool: string;
@@ -287,7 +289,7 @@ export class MeriResearchService {
       ),
       budgetMs: positiveNumberOr(
         this.config.get('CLIO_RESEARCH_TOTAL_BUDGET_MS', { infer: true }),
-        420_000,
+        1_800_000,
       ),
     });
     try {
@@ -344,12 +346,12 @@ export class MeriResearchService {
     // timeout is clamped to the budget that remains.
     const totalBudgetMs = positiveNumberOr(
       this.config.get('CLIO_RESEARCH_TOTAL_BUDGET_MS', { infer: true }),
-      420_000,
+      1_800_000,
     );
     const synthesisReserveMs = Math.min(
       positiveNumberOr(
         this.config.get('CLIO_RESEARCH_SYNTHESIS_RESERVE_MS', { infer: true }),
-        120_000,
+        480_000,
       ),
       // Never reserve so much that gathering gets no time at all.
       Math.floor(totalBudgetMs / 2),

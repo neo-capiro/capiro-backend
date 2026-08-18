@@ -569,29 +569,30 @@ export const configSchema = z.object({
   // research runs longer and writes a much larger output.
   CLIO_RESEARCH_MODEL: z.string().default('claude-sonnet-4-6'),
   CLIO_RESEARCH_PLAN_MODEL: z.string().default('claude-haiku-4-5-20251001'),
-  CLIO_RESEARCH_MAX_TOKENS: z.coerce.number().int().positive().default(8000),
-  CLIO_RESEARCH_MAX_TOOL_ROUNDS: z.coerce.number().int().positive().default(10),
+  CLIO_RESEARCH_MAX_TOKENS: z.coerce.number().int().positive().default(16_000),
+  CLIO_RESEARCH_MAX_TOOL_ROUNDS: z.coerce.number().int().positive().default(20),
   // Per-request timeout for the deep-research model calls. A single research
-  // turn legitimately runs minutes (gathering across many tools, then streaming
-  // an 8k-token report), so the 120s interactive chat timeout
+  // turn legitimately runs many minutes (gathering across many tools, then
+  // streaming a long report), so the 120s interactive chat timeout
   // (CLIO_REQUEST_TIMEOUT_MS) is far too short — it was aborting research runs
   // before the report was written, leaving only the "Sources consulted" list.
-  CLIO_RESEARCH_TIMEOUT_MS: z.coerce.number().int().positive().default(600_000),
+  // Live 2026-08-18 NC Submarine / funding reports still hit the prior 10-min
+  // per-call / 7-min total ceilings and shipped thin partial synthesis.
+  CLIO_RESEARCH_TIMEOUT_MS: z.coerce.number().int().positive().default(900_000),
   // HARD wall-clock ceiling for one research run, across ALL gather rounds plus
-  // synthesis. Without this, the only bound was MAX_TOOL_ROUNDS × TIMEOUT_MS =
-  // 10 × 600s ≈ 100 MINUTES, which on an interactive chat surface is
-  // indistinguishable from a hang (the drawer just sits on "Working…"). The
-  // gather loop stops taking new rounds once the budget minus the synthesis
-  // reserve is spent, and every round's own timeout is clamped to whatever
-  // budget is left, so a run can no longer outlive this number by more than the
-  // audit + persist tail.
-  CLIO_RESEARCH_TOTAL_BUDGET_MS: z.coerce.number().int().positive().default(420_000),
+  // synthesis. Defaults to 30 minutes so long federal-funding reports can finish
+  // a full gather + write cycle. The gather loop stops taking new rounds once
+  // the budget minus the synthesis reserve is spent, and every round's own
+  // timeout is clamped to whatever budget is left. ALB idle timeout is 4000s,
+  // and research SSE progress heartbeats keep the stream alive.
+  CLIO_RESEARCH_TOTAL_BUDGET_MS: z.coerce.number().int().positive().default(1_800_000),
   // Slice of the total budget held back so the forced-synthesis pass always has
   // time to actually write the report. Gathering that eats the whole budget is
   // the failure this prevents: evidence collected, no report. Kept as a floor
   // too — if the budget is already blown when synthesis starts, synthesis still
-  // gets this long rather than an instantly-aborted 0ms window.
-  CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: z.coerce.number().int().positive().default(120_000),
+  // gets this long rather than an instantly-aborted 0ms window. 8 minutes is
+  // enough for a long, cited report body under extended thinking.
+  CLIO_RESEARCH_SYNTHESIS_RESERVE_MS: z.coerce.number().int().positive().default(480_000),
   // Cadence of the `progress` SSE heartbeat during a research run. Under
   // MERI_AUDITOR_MODE=enforce the report body is withheld until the post-hoc
   // audit clears it, so this heartbeat is the ONLY thing telling the reader the

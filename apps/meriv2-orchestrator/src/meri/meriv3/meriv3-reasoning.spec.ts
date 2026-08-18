@@ -48,8 +48,23 @@ describe('MeriV3 reasoning profiles', () => {
     });
     expect(profile.model).toBe('gpt-custom-reasoning');
     expect(profile.effort).toBe('xhigh');
-    expect(profile.maxToolRounds).toBe(30);
+    expect(profile.maxToolRounds).toBe(40);
     expect(profile.turnBudgetMs).toBe(30_000);
+  });
+
+  test('defaults deep/max to long-research budgets suitable for multi-source reports', () => {
+    const deep = resolveMeriV3ReasoningProfile('deep', {});
+    const max = resolveMeriV3ReasoningProfile('max', {});
+    expect(deep.turnBudgetMs).toBe(900_000);
+    expect(deep.maxToolRounds).toBe(20);
+    expect(max.turnBudgetMs).toBe(1_800_000);
+    expect(max.maxToolRounds).toBe(28);
+    expect(
+      resolveMeriV3ReasoningProfile('max', {
+        MERIV3_MAX_TURN_BUDGET_MS: '99999999',
+        MERIV3_MAX_MAX_TOOL_ROUNDS: '999',
+      }),
+    ).toMatchObject({ turnBudgetMs: 3_600_000, maxToolRounds: 48 });
   });
 
   test('uses provider max for Max and accepts an explicit xhigh compatibility override', () => {

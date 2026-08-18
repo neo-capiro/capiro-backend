@@ -75,8 +75,11 @@ export function resolveMeriV3ReasoningProfile(
         model: deepModel,
         effort: effort(env.MERIV3_DEEP_REASONING_EFFORT, 'high'),
         maxOutputTokens: positiveInt(env.MERIV3_DEEP_MAX_OUTPUT_TOKENS, 24_576, 2_048, 65_536),
-        maxToolRounds: positiveInt(env.MERIV3_DEEP_MAX_TOOL_ROUNDS, 14, 1, 30),
-        turnBudgetMs: positiveInt(env.MERIV3_DEEP_TURN_BUDGET_MS, 300_000, 30_000, 900_000),
+        // Long strategy/funding investigations routinely need more than a
+        // 5-minute wall clock and ~14 tool rounds. Defaults allow ~15 minutes
+        // and 20 rounds; env may raise to 45 minutes / 40 rounds.
+        maxToolRounds: positiveInt(env.MERIV3_DEEP_MAX_TOOL_ROUNDS, 20, 1, 40),
+        turnBudgetMs: positiveInt(env.MERIV3_DEEP_TURN_BUDGET_MS, 900_000, 30_000, 2_700_000),
       };
     case 'max':
       return {
@@ -86,8 +89,12 @@ export function resolveMeriV3ReasoningProfile(
         model: maxModel,
         effort: effort(env.MERIV3_MAX_REASONING_EFFORT, 'max'),
         maxOutputTokens: positiveInt(env.MERIV3_MAX_MAX_OUTPUT_TOKENS, 32_768, 4_096, 65_536),
-        maxToolRounds: positiveInt(env.MERIV3_MAX_MAX_TOOL_ROUNDS, 18, 1, 36),
-        turnBudgetMs: positiveInt(env.MERIV3_MAX_TURN_BUDGET_MS, 480_000, 60_000, 1_200_000),
+        // Live 2026-08-18 funding reports hit the prior 8-minute / 18-round
+        // ceiling mid-gather (OpenAI Responses abort → "runtime unavailable").
+        // Max is the long-research tier: default 30 minutes / 28 rounds, env
+        // up to 60 minutes / 48 rounds (under the 4000s ALB idle timeout).
+        maxToolRounds: positiveInt(env.MERIV3_MAX_MAX_TOOL_ROUNDS, 28, 1, 48),
+        turnBudgetMs: positiveInt(env.MERIV3_MAX_TURN_BUDGET_MS, 1_800_000, 60_000, 3_600_000),
       };
     case 'standard':
     default:
