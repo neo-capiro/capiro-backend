@@ -9,6 +9,8 @@ import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import type { MeriContextSection } from './meri-prefs.js';
 import { activeContextLabels, contextPacketSummary } from './meri-context-packet.js';
 import { fetchLatestMeriContextPacket, type MeriContextPacket } from './meri-vnext-api.js';
+import { MeriMemoryTab } from './MeriMemoryTab.js';
+import { MeriPanelState } from './MeriPanelState.js';
 
 interface VNextMeriContextRailProps {
   controller: MeriChatController;
@@ -77,12 +79,14 @@ const PANEL_TABS: Array<{ key: MeriContextSection; icon: MeriIconName; label: st
   { key: 'context', icon: 'Sliders02', label: 'Active context' },
   { key: 'sources', icon: 'PuzzlePiece01', label: 'Connected sources' },
   { key: 'actions', icon: 'DotsGrid', label: 'Skills' },
+  { key: 'memory', icon: 'Lightbulb02', label: 'Memory' },
 ];
 
 const PANEL_TITLES: Record<MeriContextSection, string> = {
   context: 'CONTEXT',
   sources: 'CONTEXT',
   actions: 'CONTEXT',
+  memory: 'CONTEXT',
 };
 
 const UNUSABLE_ATTACHMENT_STATES = new Set(['error', 'scanned', 'unsupported']);
@@ -114,6 +118,7 @@ export function VNextMeriContextRail({
   const [ctxOpen, setCtxOpen] = useState(true);
   const [srcOpen, setSrcOpen] = useState(true);
   const [actOpen, setActOpen] = useState(true);
+  const [memOpen, setMemOpen] = useState(true);
   const sectionRefs = useRef<Partial<Record<MeriContextSection, HTMLDivElement | null>>>({});
   const [packet, setPacket] = useState<MeriContextPacket | null>(null);
   const [packetLoading, setPacketLoading] = useState(false);
@@ -128,6 +133,7 @@ export function VNextMeriContextRail({
     if (openSection === 'context') setCtxOpen(true);
     if (openSection === 'sources') setSrcOpen(true);
     if (openSection === 'actions') setActOpen(true);
+    if (openSection === 'memory') setMemOpen(true);
     const node = sectionRefs.current[openSection];
     if (node) node.scrollIntoView({ block: 'nearest' });
   }, [openSection]);
@@ -203,9 +209,14 @@ export function VNextMeriContextRail({
   const connectedSources = managed?.apps ?? [];
   const connectedCount = connectedSources.filter((source) => source.connected).length;
 
+  const pendingMemoryCount = controller.learnedMemories.filter(
+    (memory) => memory.state === 'pending_review',
+  ).length;
+
   const badgeFor = (section: MeriContextSection): number => {
     if (section === 'context') return contextItems.length;
     if (section === 'sources') return connectedCount;
+    if (section === 'memory') return pendingMemoryCount;
     return 0;
   };
 
@@ -272,8 +283,8 @@ export function VNextMeriContextRail({
           </div>
           {ctxOpen ? (
             <div className="vnext-meri__rail-section-content">
-              {packetLoading ? <div className="vnext-meri__ctx-empty">Loading compiled context…</div> : null}
-              {packetError ? <div className="vnext-meri__ctx-empty">Context provenance could not be loaded.</div> : null}
+              {packetLoading ? <MeriPanelState tone="loading">Loading compiled context…</MeriPanelState> : null}
+              {packetError ? <MeriPanelState tone="error">Context provenance could not be loaded.</MeriPanelState> : null}
               {contextItems.length ? (
                 <div className="vnext-meri__ctx-list">
                   {contextItems.slice(0, 5).map((item) => (
@@ -287,7 +298,7 @@ export function VNextMeriContextRail({
                     </div>
                   ))}
                 </div>
-              ) : !packetLoading && !packetError ? <div className="vnext-meri__ctx-empty">{contextPacketSummary(packet)}</div> : null}
+              ) : !packetLoading && !packetError ? <MeriPanelState tone="empty">{contextPacketSummary(packet)}</MeriPanelState> : null}
               {pendingAttachments.length ? (
                 <div className="vnext-meri__ctx-list" aria-label="Pending attachments">
                   <span className="vnext-meri__section-label">PENDING ATTACHMENTS</span>
@@ -330,8 +341,8 @@ export function VNextMeriContextRail({
           </div>
           {srcOpen ? (
             <div className="vnext-meri__rail-section-content">
-              {managed?.loading && connectedSources.length === 0 ? <div className="vnext-meri__ctx-empty">Loading connected apps…</div> : null}
-              {!managed?.loading && connectedSources.length === 0 ? <div className="vnext-meri__ctx-empty">{managed?.error || 'No managed apps are configured for this tenant.'}</div> : null}
+              {managed?.loading && connectedSources.length === 0 ? <MeriPanelState tone="loading">Loading connected apps…</MeriPanelState> : null}
+              {!managed?.loading && connectedSources.length === 0 ? <MeriPanelState tone={managed?.error ? 'error' : 'empty'}>{managed?.error || 'No managed apps are configured for this tenant.'}</MeriPanelState> : null}
               {connectedSources.length ? <div>{connectedSources.map((source) => {
                 const status = appStatus(source);
                 const tone = statusTone(status);
@@ -372,10 +383,10 @@ export function VNextMeriContextRail({
           </div>
           {actOpen ? (
             <div className="vnext-meri__rail-section-content">
-              {quickActionsLoading ? <div className="vnext-meri__ctx-empty">Loading available actions…</div> : null}
-              {quickActionsError ? <div className="vnext-meri__ctx-empty">Quick actions could not be loaded.</div> : null}
+              {quickActionsLoading ? <MeriPanelState tone="loading">Loading available actions…</MeriPanelState> : null}
+              {quickActionsError ? <MeriPanelState tone="error">Quick actions could not be loaded.</MeriPanelState> : null}
               {!quickActionsLoading && !quickActionsError && quickActions.length === 0 ? (
-                <div className="vnext-meri__ctx-empty">No quick actions are available for this tenant.</div>
+                <MeriPanelState tone="empty">No quick actions are available for this tenant.</MeriPanelState>
               ) : null}
               <div className="vnext-meri__actions-list">
                 {quickActions.map((action, index) => (
@@ -401,6 +412,38 @@ export function VNextMeriContextRail({
               </div>
               <div className="vnext-meri__ctx-empty vnext-meri__ctx-note">Select an action to prepare editable composer text. Nothing is sent until you press Send.</div>
             </div>
+          ) : null}
+        </div>
+
+        <div
+          className="vnext-meri__rail-section"
+          ref={(node) => {
+            sectionRefs.current.memory = node;
+          }}
+        >
+          <div className="vnext-meri__rail-section-head">
+            <button type="button" className="vnext-meri__rail-section-toggle" onClick={() => {
+              setMemOpen((open) => {
+                const next = !open;
+                onSectionChange(next ? 'memory' : null);
+                return next;
+              });
+            }} aria-expanded={memOpen}>
+              <span className="vnext-meri__section-label">
+                MEMORY{controller.learnedMemories.length ? ` · ${controller.learnedMemories.length}` : ''}
+              </span>
+              <MeriIcon name={memOpen ? 'ChevronUp' : 'ChevronDown'} size={14} color="#98A2B3" />
+            </button>
+          </div>
+          {memOpen ? (
+            <MeriMemoryTab
+              memories={controller.learnedMemories}
+              forgotten={controller.forgottenMemories}
+              onSave={controller.saveMemoryEdit}
+              onForget={controller.forgetMemory}
+              onUndo={controller.undoForgetMemory}
+              onSuggestCorrection={controller.suggestMemoryCorrection}
+            />
           ) : null}
           <div className="vnext-meri__rail-footer">CONTEXT IS CLIENT-SCOPED · WRITES REQUIRE APPROVAL</div>
         </div>

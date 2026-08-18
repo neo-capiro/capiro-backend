@@ -31,6 +31,13 @@ export interface StagedAttachment {
     | 'unsupported'
     | 'error';
   reason: string | null;
+  /**
+   * POST /api/clio/attachments already returns these; kept optional (absent
+   * while uploading) so the v4 attachment chip can show real page/character
+   * counts instead of only the status.
+   */
+  pages?: number | null;
+  chars?: number;
 }
 
 /** True when a staged file can be referenced by a send (has a server id). */
