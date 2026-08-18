@@ -356,7 +356,7 @@
 .capiro-vnext-root .vnext-meri__scope-divider {
   width: 1px;
   height: 14px;
-  background: var(--meri-border-soft);
+  background: var(--m-gray-200);
 }
 
 .capiro-vnext-root .vnext-meri__scope-meta {
@@ -2095,6 +2095,92 @@
   font-size: 9px;
   font-weight: 500;
   box-shadow: 0 0 0 2px var(--meri-surface);
+}
+
+/* Expanded rail panel header: title + exclusive tab strip + collapse button.
+   These classes render in VNextMeriContextRail.tsx but had no rules at all —
+   the title/tabs/collapse fell back to unstyled default HTML, and the bare
+   `.vnext-meri__rail-panel-tabs` div (block-level by default, no flex) broke
+   the row onto its own line, stacking title / tabs / collapse into three. */
+.capiro-vnext-root .vnext-meri__rail-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--m-gray-200);
+}
+
+.capiro-vnext-root .vnext-meri__rail-panel-title {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__rail-panel-tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.capiro-vnext-root .vnext-meri__rail-panel-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--m-gray-500);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__rail-panel-tab:hover,
+.capiro-vnext-root .vnext-meri__rail-panel-tab.is-active {
+  background: var(--m-gray-100);
+  color: var(--m-gray-900);
+}
+
+.capiro-vnext-root .vnext-meri__rail-panel-tab-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--m-metal-bg);
+  box-shadow: 0 0 0 2px #ffffff;
+  font-family: var(--meri-font-mono);
+  font-size: 8px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.capiro-vnext-root .vnext-meri__rail-panel-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--m-gray-400);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__rail-panel-collapse:hover {
+  background: var(--m-gray-50);
+  color: var(--m-gray-700);
 }
 
 /* Expanded rail sections */

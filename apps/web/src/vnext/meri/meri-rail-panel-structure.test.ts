@@ -1,0 +1,68 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, test } from 'vitest';
+
+const meriDir = resolve(process.cwd(), 'src/vnext/meri');
+
+function readMeri(name: string): string {
+  return readFileSync(resolve(meriDir, name), 'utf8');
+}
+
+describe('context rail panel head — CSS actually exists for what the JSX renders', () => {
+  test('every class VNextMeriContextRail renders on the panel head has a real CSS rule', () => {
+    const css = readMeri('vnext-meri.css');
+    for (const cls of [
+      '.vnext-meri__rail-panel-head',
+      '.vnext-meri__rail-panel-title',
+      '.vnext-meri__rail-panel-tabs',
+      '.vnext-meri__rail-panel-tab',
+      '.vnext-meri__rail-panel-tab-badge',
+      '.vnext-meri__rail-panel-collapse',
+    ]) {
+      expect(css).toContain(`.capiro-vnext-root ${cls} {`);
+    }
+  });
+
+  test('the tab strip is a flex row, not a bare block div that wraps title/tabs/collapse onto separate lines', () => {
+    const css = readMeri('vnext-meri.css');
+    const headBlock = css.slice(css.indexOf('.vnext-meri__rail-panel-head {'), css.indexOf('.vnext-meri__rail-panel-head {') + 200);
+    expect(headBlock).toMatch(/display:\s*flex/);
+    const tabsBlock = css.slice(css.indexOf('.vnext-meri__rail-panel-tabs {'), css.indexOf('.vnext-meri__rail-panel-tabs {') + 120);
+    expect(tabsBlock).toMatch(/display:\s*flex/);
+  });
+});
+
+describe('context rail — exclusive Context/Memory switcher, not a 4-way accordion', () => {
+  test('the tab strip is Context and Memory only — Sources and Skills are sections inside Context, not their own tabs', () => {
+    const source = readMeri('VNextMeriContextRail.tsx');
+    expect(source).toMatch(/key:\s*'context'/);
+    expect(source).toMatch(/key:\s*'memory'/);
+    expect(source).not.toMatch(/key:\s*'sources'/);
+    expect(source).not.toMatch(/key:\s*'actions'/);
+  });
+
+  test('panel titles match the prototype exactly: CONVERSATION CONTEXT / WHAT MERI REMEMBERS / SOURCE DETAIL / ARTIFACT CANVAS', () => {
+    const source = readMeri('VNextMeriContextRail.tsx');
+    expect(source).toContain('CONVERSATION CONTEXT');
+    expect(source).toContain('WHAT MERI REMEMBERS');
+    expect(source).toContain('SOURCE DETAIL');
+    expect(source).toContain('ARTIFACT CANVAS');
+  });
+
+  test('Connected Sources and Skills render only inside the Context panel, not as independently toggleable accordion sections', () => {
+    const source = readMeri('VNextMeriContextRail.tsx');
+    expect(source).not.toContain('vnext-meri__rail-section-toggle');
+    expect(source).not.toContain('setCtxOpen');
+    expect(source).not.toContain('setSrcOpen');
+    expect(source).not.toContain('setActOpen');
+    expect(source).not.toContain('setMemOpen');
+  });
+});
+
+describe('top-bar scope pill — divider and meta text use the tokens that actually resolve to the spec hex values', () => {
+  test('the divider uses the #EAECF0-resolving token, not one that resolves to a different gray', () => {
+    const css = readMeri('vnext-meri.css');
+    const block = css.slice(css.indexOf('.vnext-meri__scope-divider {'), css.indexOf('.vnext-meri__scope-divider {') + 150);
+    expect(block).toContain('var(--m-gray-200)');
+  });
+});
