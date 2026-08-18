@@ -2608,6 +2608,28 @@
   animation: vnext-meri-pulse 1.6s ease-in-out infinite;
 }
 
+/* No budget to measure against — a real elapsed time still runs, but the fill
+   sweeps rather than claiming a percentage of an unknown total. */
+@keyframes vnext-meri-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(240%);
+  }
+}
+
+.capiro-vnext-root .vnext-meri__research-bar-indeterminate {
+  animation: vnext-meri-indeterminate 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capiro-vnext-root .vnext-meri__research-bar-indeterminate {
+    animation: none;
+    width: 60% !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .capiro-vnext-root .vnext-meri__mode-pill-dot.is-researching,
   .capiro-vnext-root .vnext-meri__assistant-streaming-dot,

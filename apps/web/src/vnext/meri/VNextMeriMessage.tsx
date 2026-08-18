@@ -27,6 +27,7 @@ import { MeriAttachmentChip, attachmentChipSpec } from './MeriAttachmentChip.js'
 import { MeriGroundingWarning, type MeriGroundingItem } from './MeriGroundingWarning.js';
 import { MeriCoverageWarning } from './MeriCoverageWarning.js';
 import { MeriWorkPerformed } from './MeriWorkPerformed.js';
+import { MeriResearchProgress } from './MeriResearchProgress.js';
 import { deleteMeriResearch, fetchMeriContextPacket } from './meri-vnext-api.js';
 import { useApi } from '../../lib/use-api.js';
 
@@ -86,8 +87,13 @@ function VNextMeriAssistantMessage({
   const researchReport = controller.researchReports[message.id];
   const researchOffer = controller.researchOffers[message.id];
   const messageIsStreaming = isStreaming && isLastAssistant;
+  // Deep research and the ordinary tool loop both stream into trustSteps, but
+  // only research has a real elapsed/budget time — so it gets the dedicated
+  // MeriResearchProgress hero instead of MeriWorkPerformed's step-count one.
+  const showResearchProgress = isLastAssistant && controller.isResearchStreaming;
   const showExecutionEvidence =
     isLastAssistant &&
+    !showResearchProgress &&
     (messageIsStreaming ||
       controller.planSteps.length > 0 ||
       controller.trustSteps.length > 0 ||
@@ -183,6 +189,14 @@ function VNextMeriAssistantMessage({
           ) : null}
           {messageIsStreaming && message.content ? <StreamingDots /> : null}
         </div>
+
+        {showResearchProgress ? (
+          <MeriResearchProgress
+            isStreaming={controller.isResearchStreaming}
+            progress={controller.researchProgress}
+            steps={controller.trustSteps}
+          />
+        ) : null}
 
         {showExecutionEvidence ? (
           <MeriWorkPerformed

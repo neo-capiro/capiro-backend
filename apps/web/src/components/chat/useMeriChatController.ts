@@ -219,7 +219,7 @@ type ResearchSseEvent =
 const RESEARCH_STALL_MS = 120_000;
 
 /** "1m 20s" / "45s" — elapsed time for the progress line. */
-function formatElapsed(ms: number): string {
+export function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));
   const mins = Math.floor(total / 60);
   const secs = total % 60;
@@ -468,6 +468,20 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
   const [researchOffers, setResearchOffers] = useState<
     Record<string, { topic: string; reason?: string }>
   >({});
+  // True only while a deep-research SSE stream (plan or gather/synthesize) is
+  // actively being consumed — distinct from `isStreaming`, which is also true
+  // for an ordinary chat reply. Lets the UI show research-specific progress
+  // instead of the generic agent-run card.
+  const [isResearchStreaming, setIsResearchStreaming] = useState(false);
+  // The research 'progress' heartbeat carries real elapsedMs/budgetMs from the
+  // server; previously this was only ever composed into the message body as
+  // text and then discarded. Captured here so a progress bar can show real
+  // elapsed-against-budget instead of a step-count guess.
+  const [researchProgress, setResearchProgress] = useState<{
+    note: string;
+    elapsedMs: number;
+    budgetMs?: number;
+  } | null>(null);
   // The last finished assistant turn's retrieval plan, forwarded by the
   // orchestrator's `done` frame. Drives the truthful thread scope label
   // (CLIENT / PORTFOLIO / EXTERNAL RESEARCH / general) instead of the legacy
@@ -1139,6 +1153,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
 
           let planText = '';
           let questions: string[] = [];
+          setIsResearchStreaming(true);
+          setResearchProgress(null);
           await consumeResearchStream(`/api/clio/research/${id}/plan/stream`, controller, (e) => {
             if (e.type === 'progress') {
               // Only until the plan itself starts arriving.
@@ -1146,6 +1162,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
                 const elapsed =
                   typeof e.elapsedMs === 'number' ? ` · ${formatElapsed(e.elapsedMs)} elapsed` : '';
                 updateChatMessage(assistantId, `_${e.note}${elapsed}_`);
+                setResearchProgress({ note: e.note, elapsedMs: e.elapsedMs ?? 0, budgetMs: e.budgetMs });
               }
             } else if (e.type === 'title') {
               planText = `**Research plan — ${e.title}**\n\n`;
@@ -1162,6 +1179,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
               updateChatMessage(assistantId, `Error: ${e.message}`);
             }
           }, streamEpoch);
+          setIsResearchStreaming(false);
+          setResearchProgress(null);
           // Render clarifying questions as an inline answer form (Claude-style),
           // not as text the user has to reply to free-form.
           setResearchQuestions(questions);
@@ -1242,6 +1261,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         });
       }
       setTrustSteps([]);
+      setIsResearchStreaming(true);
+      setResearchProgress(null);
       let report = '';
       // Live status shown in the message body until the first report text lands.
       // On a grounding-enforced workspace that's the whole run, so without it the
@@ -1285,6 +1306,7 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
               typeof e.elapsedMs === 'number' ? ` · ${formatElapsed(e.elapsedMs)} elapsed` : '';
             progressNote = `_${e.note}${elapsed}_`;
             renderProgress();
+            setResearchProgress({ note: e.note, elapsedMs: e.elapsedMs ?? 0, budgetMs: e.budgetMs });
           } else if (e.type === 'notice') {
             deliveryNotice = `_${e.message}_`;
             renderProgress();
@@ -1320,6 +1342,9 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
         );
         researchSessionRef.current = null;
         return;
+      } finally {
+        setIsResearchStreaming(false);
+        setResearchProgress(null);
       }
       // Mark this message as a finished report so export actions render.
       const finishedId = researchSessionRef.current;
@@ -2474,6 +2499,8 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
     researchQuestions,
     researchReports,
     researchOffers,
+    isResearchStreaming,
+    researchProgress,
     handleRunResearchOffer,
     lastRetrieval,
     lastUserMessageId,

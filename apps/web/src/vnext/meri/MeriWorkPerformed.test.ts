@@ -8,18 +8,29 @@ function readMeri(name: string): string {
   return readFileSync(resolve(meriDir, name), 'utf8');
 }
 
-describe('MeriWorkPerformed', () => {
+describe('MeriAgentSteps (shared step-row rendering)', () => {
   test('only real TrustStep statuses have a tone — queued/skipped are not reachable', () => {
-    const source = readMeri('MeriWorkPerformed.tsx');
-    expect(source).toContain("done:");
-    expect(source).toContain("running:");
-    expect(source).toContain("error:");
+    const source = readMeri('MeriAgentSteps.tsx');
+    expect(source).toContain('done:');
+    expect(source).toContain('running:');
+    expect(source).toContain('error:');
     // The prototype's STEP dictionary has these two; TrustStep never reports
     // them, so they must not appear as tone keys here.
     expect(source).not.toMatch(/queued:\s*\{/);
     expect(source).not.toMatch(/skipped:\s*\{/);
   });
 
+  test('is shared, not duplicated, between the two agent-run heroes', () => {
+    const workPerformed = readMeri('MeriWorkPerformed.tsx');
+    const researchProgress = readMeri('MeriResearchProgress.tsx');
+    expect(workPerformed).toContain("import { MeriAgentSteps } from './MeriAgentSteps.js'");
+    expect(researchProgress).toContain("import { MeriAgentSteps } from './MeriAgentSteps.js'");
+    expect(workPerformed).not.toMatch(/queued:\s*\{/);
+    expect(researchProgress).not.toMatch(/queued:\s*\{/);
+  });
+});
+
+describe('MeriWorkPerformed', () => {
   test('reuses WorkPerformed intent labels rather than a second copy of the map', () => {
     const source = readMeri('MeriWorkPerformed.tsx');
     expect(source).toContain("import { INTENT_LABELS");
@@ -45,10 +56,12 @@ describe('MeriWorkPerformed', () => {
   });
 
   test('animated elements use CSS classes, not inline animation, so reduced-motion can turn them off', () => {
-    const source = readMeri('MeriWorkPerformed.tsx');
-    expect(source).not.toMatch(/animation:\s*tone\.spin/);
-    expect(source).toContain('vnext-meri__work-step-icon');
-    expect(source).toContain('vnext-meri__work-source-dot');
+    const workPerformed = readMeri('MeriWorkPerformed.tsx');
+    const steps = readMeri('MeriAgentSteps.tsx');
+    expect(workPerformed).not.toMatch(/animation:\s*tone\.spin/);
+    expect(workPerformed).toContain('vnext-meri__work-source-dot');
+    expect(steps).not.toMatch(/animation:\s*tone\.spin/);
+    expect(steps).toContain('vnext-meri__work-step-icon');
     const css = readMeri('vnext-meri.css');
     expect(css).toContain('.vnext-meri__work-step-icon.is-running');
     expect(css).toContain('.vnext-meri__work-source-dot.is-live');
