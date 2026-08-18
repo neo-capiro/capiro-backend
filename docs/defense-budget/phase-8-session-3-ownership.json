@@ -1,7 +1,7 @@
 {
   "session": 3,
   "workstream": "E",
-  "title": "Phase 8 Session 3 — Program Elements full-surface migration to defense-api",
+  "title": "Phase 8 Session 3 \u2014 Program Elements full-surface migration to defense-api",
   "deploymentPosture": "dark",
   "mutations": {
     "aws": false,
@@ -42,10 +42,15 @@
     "programs"
   ],
   "notes": [
-    "Cross-domain reads (Congress bills, SAM opportunities, USAspending awards) go through bounded read-only Prisma projections owned by apps/defense-api's own schema — no apps/api service code import.",
+    "Cross-domain reads (Congress bills, SAM opportunities, USAspending awards) go through bounded read-only Prisma projections owned by apps/defense-api's own schema \u2014 no apps/api service code import.",
     "Native identity boundaries preserved: no peCode<->BLIN/BLI resolver exists anywhere in apps/defense-api.",
     "Governed manual-override propose/approve reimplemented as new pure source scoped to the reconciliation-queue target; author-not-approver and canonical-decimal invariants preserved.",
-    "New DB grant: capiro_defense_resolve_member() SECURITY DEFINER function (migration 20261120210000) resolves (userId, role) for capiro_defense_serve — mirrors the three Session 2 tenant-resolution functions exactly.",
-    "apps/api remains the production owner of every route in this list. No ALB/production traffic is routed to defense-api."
+    "New DB grant: capiro_defense_resolve_member() SECURITY DEFINER function (migration 20261120210000) resolves (userId, role) for capiro_defense_serve \u2014 mirrors the three Session 2 tenant-resolution functions exactly.",
+    "apps/api remains the production owner of every route in this list. No ALB/production traffic is routed to defense-api.",
+    "Cross-domain enrichment that needs another bounded context's live logic (client<->PE relevance, query embedding) goes through typed BATCHED ports in @capiro/defense-contracts, never a per-row call into apps/api. apps/api answers the relevance question with up to 50 sequential per-PE probes; the port takes the whole candidate set in one call.",
+    "context_embeddings is NOT granted to capiro_defense_serve: its FORCE-RLS policy references the CRM's clients / client_memory_access tables, so a table grant fails at read time with 'permission denied for table clients'. PE mission vectors are served by two STABLE SECURITY DEFINER readers hard-scoped to the GLOBAL (tenant_id IS NULL) source_type='pe' partition; the rehearsal proves a tenant-scoped embedding with an identical vector is unreachable through them.",
+    "conference_probability is SELECT-only for capiro_defense_serve. The HTTP read path computes a forecast in memory and never persists one (GAI-25); with no INSERT/UPDATE grant the database enforces that, not just the absence of code.",
+    "Stated deviations from apps/api, all deliberate: (1) peCode normalization is uniform via requirePeCode, where apps/api normalizes on some methods and not others; (2) client relevance is batched rather than probed per PE; (3) no Phase 7 snapshot read gate \u2014 apps/api's serveWithSnapshotOptionV1 wrapper is Workstream F scope, and with no active snapshot in any environment the two paths are identical today; (4) a merge leaves a colliding alias with the retired loser, which matches apps/api (the prior defense-api implementation deleted it).",
+    "Old-vs-new parity coverage: 52 assertions across 9 suites, most comparing apps/api's real pure modules against the package copies defense-api runs on identical fixtures. The Session 3 disposable-DB rehearsal grew from 31 to 54 checks."
   ]
 }

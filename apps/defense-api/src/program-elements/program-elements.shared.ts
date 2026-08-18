@@ -18,6 +18,26 @@ export function num(value: Prisma.Decimal | number | string | null | undefined):
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Normalize a caller-supplied Program Element code: trim, upper-case, and refuse
+ * an empty or over-long value.
+ *
+ * DELIBERATE DEVIATION FROM apps/api, and the one place Session 3 does not copy it
+ * verbatim. apps/api is internally inconsistent here: `getIntelligence`,
+ * `getProgramsForPe` and the Budget Lines reads upper-case (or trim) their input,
+ * while `getProgramElement`, `getTimeline`, `getBills`, `getSources` and most other
+ * reads pass the raw route param straight into `where: { peCode }`. The observable
+ * consequence is that the SAME code resolves on some panels and 404s on others
+ * depending only on its case.
+ *
+ * Every peCode-taking method here routes through this function instead, so one
+ * input behaves one way across the whole surface. The difference is strictly more
+ * permissive (a lower-case code that apps/api 404s now resolves) and cannot widen
+ * what a caller can reach: the code is still matched exactly against the catalog,
+ * and no authorization decision keys off its spelling. Pinned by the
+ * "peCode normalization is applied consistently" assertion in
+ * tests/phase8-session3-parity/response-contract-parity.spec.ts.
+ */
 export function requirePeCode(raw: string): string {
   const peCode = (raw ?? '').trim().toUpperCase();
   if (!peCode) throw new BadRequestException('peCode is required');
