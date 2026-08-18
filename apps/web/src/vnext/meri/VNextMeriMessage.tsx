@@ -25,6 +25,7 @@ import {
 import { evidenceContextPacket } from './meri-context-packet.js';
 import { MeriAttachmentChip, attachmentChipSpec } from './MeriAttachmentChip.js';
 import { MeriGroundingWarning, type MeriGroundingItem } from './MeriGroundingWarning.js';
+import { MeriCoverageWarning } from './MeriCoverageWarning.js';
 import { deleteMeriResearch, fetchMeriContextPacket } from './meri-vnext-api.js';
 import { useApi } from '../../lib/use-api.js';
 
@@ -226,6 +227,8 @@ function VNextMeriAssistantMessage({
             onInspectEvidence={() => setEvidenceOpen(true)}
           />
         ) : null}
+
+        {message.retrieval ? <MeriCoverageWarning retrieval={message.retrieval} /> : null}
 
         {researchOffer ? (
           <div className="vnext-meri__research-offer">
