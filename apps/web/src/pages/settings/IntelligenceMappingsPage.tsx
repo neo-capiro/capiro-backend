@@ -140,26 +140,33 @@ function asMappingSource(raw: string | null | undefined): MappingSource | undefi
 
 /**
  * Sources the backend's entity resolver never auto-confirms regardless of
- * confidence (see NEVER_AUTO_CONFIRM in apps/api's entity-resolution.service.ts).
+ * confidence (see NEVER_AUTO_CONFIRM in apps/api's entity-resolution.service.ts),
+ * PLUS sources that need a per-row relationship / roll-up decision before confirm.
+ *
  * assistance_recipient's confidence is a name-similarity score across wildly
  * heterogeneous entity types (universities, counties, energy companies) where a
- * high score can still be the wrong entity; fec_committee is PAC attribution,
- * compliance-sensitive by policy. "Confirm All" must not let one click override
- * that per-source policy for a whole filtered page — each of these mappings
- * needs individual eyes, no matter its confidence. (Verified live 2026-07-27:
- * $15B+ in wrong assistance_recipient suggestions sat at confidence a
- * confidence-only bulk action would have swept up.)
+ * high score can still be the wrong entity — still never bulk-confirmed.
+ * contracting needs an explicit relationship type + roll-up awards decision, so
+ * it stays out of "Confirm All" even when a candidate is eligible.
+ *
+ * fec_committee (PAC) was removed from this set: clear PAC matches now
+ * auto-confirm server-side, and high-confidence candidates may be bulk-confirmed
+ * here the same way as LDA / fec_employer. Ambiguous near-ties still land as
+ * review and stay out of auto-confirm.
+ *
+ * (Verified live 2026-07-27: $15B+ in wrong assistance_recipient suggestions sat
+ * at confidence a confidence-only bulk action would have swept up — that source
+ * remains blocked.)
  */
-const REQUIRES_INDIVIDUAL_REVIEW = new Set<string>(['assistance_recipient', 'fec_committee', 'contracting']);
+const REQUIRES_INDIVIDUAL_REVIEW = new Set<string>(['assistance_recipient', 'contracting']);
 
 /**
- * The subset of the above that attributes federal award MONEY, and therefore
+ * The subset of sources that attribute federal award MONEY, and therefore
  * cannot be confirmed without an explicit relationship type and roll-up decision.
  * Mirrors AWARD_BEARING_MAPPING_SOURCES in apps/api's intelligence.service.ts.
  *
- * Narrower than REQUIRES_INDIVIDUAL_REVIEW on purpose: `fec_committee` is
- * compliance-sensitive and stays out of bulk actions, but it makes no award
- * attribution claim, so it has no relationship or roll-up to decide.
+ * Narrower than REQUIRES_INDIVIDUAL_REVIEW on purpose: only award-money sources
+ * need the relationship / roll-up modal.
  */
 const AWARD_BEARING_SOURCES = new Set<string>(['contracting', 'assistance_recipient']);
 
