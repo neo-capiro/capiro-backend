@@ -22,6 +22,7 @@ export * from './grounding/skeptic-audit';
 export * from './context/contract';
 export * from './context/layers';
 export * from './context/coverage-aware-packet';
+export * from './context/operation-enforcement';
 export * from './context/compiler';
 export * from './context/truthful-compiler';
 export * from './context/context-rollout';

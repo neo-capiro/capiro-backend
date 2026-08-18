@@ -1,0 +1,102 @@
+name: Knowledge Plane Phase 18 CI
+
+on:
+  push:
+    branches:
+      - agent/knowledge-plane-phase-18-context-plane-enforcement
+    paths:
+      - 'packages/meriv2-core/src/context/**'
+      - 'packages/meriv2-core/src/index.ts'
+      - 'apps/api/src/context/**'
+      - 'scripts/check-context-plane-new-bypasses.mjs'
+      - 'docs/knowledge-plane/phase-18-context-plane-enforcement.md'
+      - '.github/workflows/knowledge-phase18-ci.yml'
+      - '.github/workflows/context-plane-architecture-guard.yml'
+  pull_request:
+    paths:
+      - 'packages/meriv2-core/src/context/**'
+      - 'packages/meriv2-core/src/index.ts'
+      - 'apps/api/src/context/**'
+      - 'scripts/check-context-plane-new-bypasses.mjs'
+      - 'docs/knowledge-plane/phase-18-context-plane-enforcement.md'
+      - '.github/workflows/knowledge-phase18-ci.yml'
+      - '.github/workflows/context-plane-architecture-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch hygiene
+        run: git diff --check origin/main...HEAD
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build workspace packages consumed by API
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/meriv2-core build
+
+      - name: Validate and generate Prisma client
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+
+      - name: Phase 18 core enforcement contracts
+        run: |
+          pnpm --filter @capiro/meriv2-core exec jest --runInBand --forceExit \
+            src/context/operation-enforcement.spec.ts \
+            src/context/coverage-aware-packet.spec.ts
+
+      - name: Phase 18 API enforcement contracts
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/context/context-plane-operation-registry.spec.ts \
+            src/context/context-plane-gateway.service.spec.ts \
+            src/context/context-plane-audit.service.spec.ts \
+            src/context/context-plane-enforcement-architecture.contract.spec.ts \
+            src/context/context-packet-v2.service.spec.ts \
+            src/context/context-layer.service.spec.ts \
+            src/context/context-resolver.service.spec.ts
+
+      - name: Retrieval / security regressions
+        run: |
+          pnpm --filter @capiro/api exec jest --runInBand --forceExit \
+            src/retrieval/retrieval-v2.service.spec.ts \
+            src/retrieval/coverage-manifest.spec.ts \
+            src/retrieval/adapters/core-prisma-security-scope.spec.ts
+
+      - name: Reject Phase 18 TypeScript errors
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @capiro/api exec tsc --noEmit --pretty false > /tmp/api-tsc.log 2>&1
+          api_status=$?
+          pnpm --filter @capiro/meriv2-core exec tsc --noEmit --pretty false > /tmp/core-tsc.log 2>&1
+          core_status=$?
+          set -e
+          cat /tmp/core-tsc.log
+          cat /tmp/api-tsc.log
+          if grep -E 'operation-enforcement|context-plane-(operation|gateway|audit|enforcement)|context\.module' /tmp/core-tsc.log /tmp/api-tsc.log; then
+            echo "Phase 18 introduced TypeScript errors." >&2
+            exit 1
+          fi
+          echo "Core typecheck exit: $core_status; API typecheck exit: $api_status (unrelated baseline errors, if any, are not attributed to Phase 18)."

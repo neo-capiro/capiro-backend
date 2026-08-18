@@ -1,0 +1,35 @@
+name: Context Plane Architecture Guard
+
+on:
+  pull_request:
+    paths:
+      - 'apps/**/*.ts'
+      - 'apps/**/*.tsx'
+      - 'packages/**/*.ts'
+      - 'scripts/check-context-plane-new-bypasses.mjs'
+      - '.github/workflows/context-plane-architecture-guard.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-new-context-bypasses:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Guard shared Context Plane boundary
+        shell: bash
+        run: |
+          base_ref="${{ github.base_ref }}"
+          if [ -z "$base_ref" ]; then base_ref="main"; fi
+          git fetch origin "$base_ref:refs/remotes/origin/$base_ref" --depth=1
+          node scripts/check-context-plane-new-bypasses.mjs "origin/$base_ref"
