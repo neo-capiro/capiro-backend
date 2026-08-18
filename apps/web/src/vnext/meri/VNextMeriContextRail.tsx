@@ -99,10 +99,10 @@ const PANEL_TABS: Array<{ key: MeriContextSection; icon: MeriIconName; label: st
 ];
 
 const PANEL_TITLES: Record<MeriContextSection, string> = {
-  context: 'CONTEXT',
-  sources: 'CONTEXT',
-  actions: 'CONTEXT',
-  memory: 'CONTEXT',
+  context: 'CONVERSATION CONTEXT',
+  sources: 'CONVERSATION CONTEXT',
+  actions: 'CONVERSATION CONTEXT',
+  memory: 'CONVERSATION CONTEXT',
 };
 
 const UNUSABLE_ATTACHMENT_STATES = new Set(['error', 'scanned', 'unsupported']);
