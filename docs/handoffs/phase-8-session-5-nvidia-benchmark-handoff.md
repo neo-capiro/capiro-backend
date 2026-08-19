@@ -6,7 +6,7 @@
 
 Do **not** redeploy the benchmark stack or submit a paid NVIDIA TransformJob yet.
 
-A real-runtime review found that the earlier provider-ready implementation was still simulation-oriented. The separate `nvidia_real_batch_v2` path passed the final local runtime/CDK re-review at local head `858939ba1fc4a8e6a88bf298a0f2b4f07c2682c1`. No live NVIDIA benchmark is claimed. The remote PR head remains `53e80207b8dcbda209905205953c3bc3dbdfe893` because no push was performed in this assignment.
+A real-runtime review found that the earlier provider-ready implementation was still simulation-oriented. The separate `nvidia_real_batch_v2` path passed the final local runtime/CDK re-review at local head `1e0c3185a2ef49858ec4c9c6e0ef0ab9dc657780`. No live NVIDIA benchmark is claimed. The final verified PR head is `1e0c3185a2ef49858ec4c9c6e0ef0ab9dc657780`.
 
 ## Coordinates and authorization
 
@@ -136,7 +136,7 @@ The prior v1 simulation/scoring code remains for historical provider-ready cover
 
 ## Validation truth
 
-An earlier implementation milestone passed an isolated **15/15** P0 test harness, but the branch was tightened afterward with strict live-gold, provider-identity, and payload-size changes. **Do not treat 15/15 as current-tip acceptance.** The final Session 5 suite passed **34/34**, and the isolated CDK suite passed **6/6**.
+An earlier implementation milestone passed an isolated **15/15** P0 test harness, but the branch was tightened afterward with strict live-gold, provider-identity, and payload-size changes. **Do not treat 15/15 as current-tip acceptance.** The final Session 5 suite passed **35/35**, and the isolated CDK suite passed **6/6**.
 
 Likewise, pre-P0 Session 2/3/4 DB/Docker results were real at the time but do not validate this materially changed tip. The final Session 2/3 DB rehearsal integration phases still failed in the same four defense-api integration files; those are retained as explicit baseline/environment blockers rather than reported as green.
 
