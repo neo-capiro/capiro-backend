@@ -55,7 +55,11 @@ COPY apps/api/scripts/lib/pe-compose-database-url.js apps/api/scripts/lib/pe-com
 RUN pnpm --filter @capiro/shared build
 RUN pnpm --filter @capiro/meriv2-core build
 RUN pnpm --filter @capiro/api exec prisma generate
-RUN pnpm --filter @capiro/api build
+# Same heap ceiling apps/api/Dockerfile already uses for this exact target. The
+# default is no longer enough for `nest build` over apps/api, so without this the
+# build aborts with a V8 OOM (exit 134) and no engagement-api image can be
+# produced at all — here or in CI.
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @capiro/api build
 
 # Prune dev dependencies in place (keeps the .pnpm store with the generated
 # Prisma client intact).
