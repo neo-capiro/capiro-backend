@@ -6,7 +6,7 @@
 
 Runtime safety verdict remains **SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED**. The source-grounded corpus is now accepted, but live execution is still separately unauthorized. Do **not** deploy the benchmark stack or submit a paid NVIDIA TransformJob.
 
-A real-runtime review found that the earlier provider-ready implementation was still simulation-oriented. The separate `nvidia_real_batch_v2` path passed the final local runtime/CDK re-review at local head `f1641cae1aae71477948106ec7da50aaaf6ebaa6`. No live NVIDIA benchmark is claimed. The final verified PR head is `f1641cae1aae71477948106ec7da50aaaf6ebaa6`.
+A real-runtime review found that the earlier provider-ready implementation was still simulation-oriented. The separate `nvidia_real_batch_v2` path passed the local runtime/CDK re-review before corpus closeout. No live NVIDIA benchmark is claimed. The current corpus-closeout commit is `fac3c1fb21dfd4b02fe3c7cf316eaf45b99df8d7`.
 
 ## Coordinates and authorization
 
@@ -133,11 +133,11 @@ The prior v1 simulation/scoring code remains for historical provider-ready cover
 
 ## Validation truth
 
-An earlier implementation milestone passed an isolated **15/15** P0 test harness, but the branch was tightened afterward with strict live-gold, provider-identity, and payload-size changes. **Do not treat 15/15 as current-tip acceptance.** The final Session 5 suite passed **35/35**, and the isolated CDK suite passed **6/6**.
+An earlier implementation milestone passed an isolated **15/15** P0 test harness, but the branch was tightened afterward with strict live-gold, provider-identity, and payload-size changes. **Do not treat 15/15 as current-tip acceptance.** The current Session 5 suite passed **40/40**, and the isolated CDK suite passed **6/6**.
 
-Likewise, pre-P0 Session 2/3/4 DB/Docker results were real at the time but do not validate this materially changed tip. The final Session 2/3 DB rehearsal integration phases still failed in the same four defense-api integration files; those are retained as explicit baseline/environment blockers rather than reported as green.
+The current clean validation reran the Session 2 DB rehearsal (36 checks), Session 3 DB rehearsal (86 checks), Session 3 parity (52/52), Session 4 enforced replay, and Docker containment successfully. These are current-tip results, not historical carry-forward.
 
-The current GitHub Actions run is repository-level `startup_failure` before jobs execute. Therefore a clean Linux/Docker runner must rerun the full gate set below before deployment is reconsidered.
+The GitHub Actions startup-failure observation predates this corpus-closeout commit and is not treated as current local validation. A clean Linux/Docker runner should rerun the full gate set before deployment is reconsidered.
 
 ## Required clean re-review before redeploy
 
