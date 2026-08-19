@@ -518,13 +518,24 @@ export class MeriOpportunityToolsAdapter {
     const refusal = await this.gate<ActionPlanView>(tool, actor, input.clientId, asOf);
     if (refusal) return refusal;
 
+    // Source allowlist — every other tool in this adapter does this check via
+    // asOpportunitySource, but this method was passing input.source straight to
+    // composeActionPlan, which permits 'agency_forecast' in addition to
+    // 'sam_gov' with no flag check. That bypassed the master
+    // funding_opportunities flag for forecast data when called via Meri (this
+    // adapter never passes through the NestJS HTTP guard pipeline). Adding the
+    // same allowlist closes the gap: only 'grants_gov' and 'sam_gov' — the
+    // sources OPPORTUNITY_SOURCES admits — can reach composeActionPlan.
+    const source = asOpportunitySource(input.source);
+    if (!source) return envelope(tool, 'unsupported_source', asOf, unsupportedSource(input.source));
+
     let result;
     try {
       result = await this.landscape.composeActionPlan(
         actor.tenantId,
         actor.userId,
         input.clientId,
-        input.source,
+        source,
         input.sourceRecordId,
         asOf,
       );
