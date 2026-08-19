@@ -6,7 +6,7 @@
 
 Do **not** redeploy the benchmark stack or submit a paid NVIDIA TransformJob yet.
 
-A real-runtime review found that the earlier provider-ready implementation was still simulation-oriented. The separate `nvidia_real_batch_v2` path passed the final local runtime/CDK re-review at local head `1e0c3185a2ef49858ec4c9c6e0ef0ab9dc657780`. No live NVIDIA benchmark is claimed. The final verified PR head is `1e0c3185a2ef49858ec4c9c6e0ef0ab9dc657780`.
+A real-runtime review found that the earlier provider-ready implementation was still simulation-oriented. The separate `nvidia_real_batch_v2` path passed the final local runtime/CDK re-review at local head `f1641cae1aae71477948106ec7da50aaaf6ebaa6`. No live NVIDIA benchmark is claimed. The final verified PR head is `f1641cae1aae71477948106ec7da50aaaf6ebaa6`.
 
 ## Coordinates and authorization
 

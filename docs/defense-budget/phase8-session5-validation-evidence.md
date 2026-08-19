@@ -8,11 +8,11 @@ This file separates **historical evidence** from validation that actually applie
 
 Do **not** redeploy the isolated benchmark stack or submit a paid NVIDIA TransformJob yet.
 
-No redeploy or paid NVIDIA benchmark has been performed after the P0 real-runtime review. The final local runtime/CDK review passed at `1e0c3185a2ef49858ec4c9c6e0ef0ab9dc657780`.
+No redeploy or paid NVIDIA benchmark has been performed after the P0 real-runtime review. The final local runtime/CDK review passed at `f1641cae1aae71477948106ec7da50aaaf6ebaa6`.
 
 ## Final exact-tip re-review
 
-Remote state was fetched first. The Session 5 remote head advanced from `53e80207b8dcbda209905205953c3bc3dbdfe893` to the final verified head `1e0c3185a2ef49858ec4c9c6e0ef0ab9dc657780`.
+Remote state was fetched first. The Session 5 remote head advanced from `53e80207b8dcbda209905205953c3bc3dbdfe893` to the final verified head `f1641cae1aae71477948106ec7da50aaaf6ebaa6`.
 
 - `pnpm install --frozen-lockfile`: PASS;
 - shared/auth/defense-contracts/defense-domain/defense-client builds: PASS;
