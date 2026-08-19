@@ -72,7 +72,7 @@
  * drifted, which is the only thing the number is for.
  */
 import { config as dotenvConfig } from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import {
   TangoSbirClient,
   TangoSbirEnvelopeError,
@@ -83,9 +83,11 @@ import {
 import {
   mapSbirSolicitation,
   mapSbirTopic,
+  reconcileSolicitationDates,
   type TangoSbirSolicitationRow,
   type TangoSbirTopicRow,
 } from '../src/external/tango/tango-sbir.mapper.js';
+import { dateOnly } from '../src/external/tango/tango-dibbs.mapper.js';
 import { str } from '../src/external/tango/tango.mappers.js';
 import { redact, redactWithKnownSecret } from '../src/external/tango/tango.errors.js';
 
@@ -271,6 +273,8 @@ export interface SbirSyncSummary {
    * parent from the topic number or from `official_solicitation_url`.
    */
   topicsWithNoStatedCycle: number;
+  /** Solicitation rows whose inverted dates caused endDate to be nulled (counted before upsert). */
+  solicitationsWithInvertedDates: number;
   commit: boolean;
   windowKind: 'full' | 'explicit-since' | 'derived-high-water';
   completeness: 'complete' | 'in_progress';
@@ -340,6 +344,7 @@ async function walkEndpoint(
   options: SbirSyncOptions,
   windowFrom: string | null,
   onTopicWithNoCycle: () => void,
+  onDateOrderInvalid: () => void,
 ): Promise<SbirEndpointSummary> {
   const batchSize = options.batchSize ?? DEFAULT_BATCH_SIZE;
   const limit = options.limit ?? Number.POSITIVE_INFINITY;
@@ -428,6 +433,18 @@ async function walkEndpoint(
       if (endpoint === 'topic' && (row as TangoSbirTopicRow).solicitationNumber == null) {
         onTopicWithNoCycle();
       }
+      // The mapper calls reconcileSolicitationDates and discards the flag, so the
+      // count is recomputed here on the SAME inputs — see sync-tango-dibbs.ts's
+      // identical pattern and its comment for why that beats re-deriving the
+      // condition. Topics are excluded: tango_sbir_topic_dates_chk (open/close)
+      // is a different constraint this fix does not touch.
+      if (endpoint === 'solicitation') {
+        const { endDateDropped } = reconcileSolicitationDates(
+          dateOnly(raw['start_date']),
+          dateOnly(raw['end_date']),
+        );
+        if (endDateDropped) onDateOrderInvalid();
+      }
 
       summary.written += 1;
       if (options.commit) {
@@ -437,9 +454,23 @@ async function walkEndpoint(
           } else {
             await deps.upsertTopic(row as TangoSbirTopicRow);
           }
-        } catch {
+        } catch (error) {
           summary.errored += 1;
           summary.written -= 1;
+          const message = error instanceof Error ? error.message : String(error);
+          const code =
+            error instanceof Prisma.PrismaClientKnownRequestError ? error.code : undefined;
+          console.error(
+            `TANGO_SBIR_SYNC_UPSERT_ERR ${JSON.stringify({
+              endpoint,
+              tangoSbirId:
+                endpoint === 'solicitation'
+                  ? (row as TangoSbirSolicitationRow).tangoSbirId
+                  : (row as TangoSbirTopicRow).tangoSbirId,
+              code,
+              message: redact(message),
+            })}`,
+          );
         }
       }
     }
@@ -474,6 +505,10 @@ export async function runSbirSync(
   const onTopicWithNoCycle = () => {
     topicsWithNoStatedCycle += 1;
   };
+  let solicitationsWithInvertedDates = 0;
+  const onDateOrderInvalid = () => {
+    solicitationsWithInvertedDates += 1;
+  };
 
   const summaries: SbirEndpointSummary[] = [];
   for (const endpoint of endpoints) {
@@ -491,7 +526,16 @@ export async function runSbirSync(
         }
       }
     }
-    summaries.push(await walkEndpoint(endpoint, deps, options, windowFrom, onTopicWithNoCycle));
+    summaries.push(
+      await walkEndpoint(
+        endpoint,
+        deps,
+        options,
+        windowFrom,
+        onTopicWithNoCycle,
+        onDateOrderInvalid,
+      ),
+    );
   }
 
   // `now` is read so a caller-supplied clock is honoured even though no field
@@ -502,6 +546,7 @@ export async function runSbirSync(
   return {
     endpoints: summaries,
     topicsWithNoStatedCycle,
+    solicitationsWithInvertedDates,
     commit: options.commit,
     windowKind,
     completeness: summaries.every((s) => s.complete) ? 'complete' : 'in_progress',

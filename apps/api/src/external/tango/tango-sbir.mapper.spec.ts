@@ -135,6 +135,39 @@ describe('mapSbirSolicitation', () => {
     expect(row.solicitationStatus).toBe('Open');
   });
 
+  it('nulls end_date when it precedes start_date while preserving start_date', () => {
+    const row = mapSbirSolicitation({
+      ...SOLICITATION,
+      start_date: '2026-02-04',
+      end_date: '2026-01-06',
+    })!;
+
+    expect(iso(row.startDate)).toBe('2026-02-04T00:00:00.000Z');
+    expect(row.endDate).toBeNull();
+  });
+
+  it('leaves equal start/end dates untouched', () => {
+    const row = mapSbirSolicitation({
+      ...SOLICITATION,
+      start_date: '2026-01-06',
+      end_date: '2026-01-06',
+    })!;
+
+    expect(iso(row.startDate)).toBe('2026-01-06T00:00:00.000Z');
+    expect(iso(row.endDate)).toBe('2026-01-06T00:00:00.000Z');
+  });
+
+  it('leaves an end_date on or after start_date untouched', () => {
+    const row = mapSbirSolicitation({
+      ...SOLICITATION,
+      start_date: '2026-01-06',
+      end_date: '2026-02-04',
+    })!;
+
+    expect(iso(row.startDate)).toBe('2026-01-06T00:00:00.000Z');
+    expect(iso(row.endDate)).toBe('2026-02-04T00:00:00.000Z');
+  });
+
   it('nulls an unparseable date rather than storing an Invalid Date', () => {
     const row = mapSbirSolicitation({ ...SOLICITATION, start_date: 'sometime in spring' })!;
     expect(row.startDate).toBeNull();
@@ -266,9 +299,7 @@ describe('the mapper does not invent what the provider does not publish', () => 
   // Comments explain exactly these absences, so a naive substring scan matches
   // its own documentation. Strip comments first — the same trap P49's
   // "never calls the provider" test hit against its own header.
-  const code = source
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '');
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
   it.each([['phase'], ['description'], ['dsip'], ['grant_link'], ['component']])(
     'maps no `%s` field',
@@ -357,7 +388,9 @@ describe('real capture — every mapper against records the provider actually se
    * name.
    */
   test('topics and cycles do not share a status vocabulary', () => {
-    const topicStatuses = new Set(capture.topics.map((t: { solicitation_status: string }) => t.solicitation_status));
+    const topicStatuses = new Set(
+      capture.topics.map((t: { solicitation_status: string }) => t.solicitation_status),
+    );
     const cycleStatuses = new Set(
       capture.solicitations.map((s: { solicitation_status: string }) => s.solicitation_status),
     );
@@ -375,7 +408,9 @@ describe('real capture — every mapper against records the provider actually se
    * nowhere that still looks like a working one.
    */
   test('an empty-string sol_download_url maps to null, not to a dead link', () => {
-    const blank = capture.solicitations.find((s: { sol_download_url: unknown }) => s.sol_download_url === '');
+    const blank = capture.solicitations.find(
+      (s: { sol_download_url: unknown }) => s.sol_download_url === '',
+    );
     expect(blank).toBeDefined();
     expect(mapSbirSolicitation(blank)!.solDownloadUrl).toBeNull();
   });

@@ -85,6 +85,26 @@ export function solicitationYear(value: unknown): number | null {
 }
 
 /**
+ * A cycle whose end date precedes its start date cannot satisfy
+ * `tango_sbir_solicitation_dates_chk`. Both dates are already well-formed
+ * (each passed through `dateOnly()`); only their relationship is wrong.
+ *
+ * Same choice `reconcileQuantity` makes in the DIBBS mapper: lose the
+ * secondary fact, keep the row. `endDate` is dropped, not `startDate` — an
+ * opening date is what a pursuit decision anchors on; an unresolvable close
+ * date becomes "not yet known" rather than costing the whole record.
+ */
+export function reconcileSolicitationDates(
+  startDate: Date | null,
+  endDate: Date | null,
+): { startDate: Date | null; endDate: Date | null; endDateDropped: boolean } {
+  if (startDate != null && endDate != null && endDate.getTime() < startDate.getTime()) {
+    return { startDate, endDate: null, endDateDropped: true };
+  }
+  return { startDate, endDate, endDateDropped: false };
+}
+
+/**
  * `/api/sbir/solicitations/` — one solicitation cycle.
  *
  * Returns null when the record has no `solicitation_id` or no
@@ -93,12 +113,14 @@ export function solicitationYear(value: unknown): number | null {
  * missing either cannot be stored without inventing one, so it is dropped and
  * counted rather than half-mapped.
  */
-export function mapSbirSolicitation(
-  raw: Record<string, unknown>,
-): TangoSbirSolicitationRow | null {
+export function mapSbirSolicitation(raw: Record<string, unknown>): TangoSbirSolicitationRow | null {
   const tangoSbirId = str(raw['solicitation_id']);
   const solicitationNumber = str(raw['solicitation_number']);
   if (tangoSbirId == null || solicitationNumber == null) return null;
+  const { startDate, endDate } = reconcileSolicitationDates(
+    dateOnly(raw['start_date']),
+    dateOnly(raw['end_date']),
+  );
 
   return {
     tangoSbirId,
@@ -110,8 +132,8 @@ export function mapSbirSolicitation(
     program: str(raw['program']),
     cycleName: str(raw['cycle_name']),
     year: solicitationYear(raw['year']),
-    startDate: dateOnly(raw['start_date']),
-    endDate: dateOnly(raw['end_date']),
+    startDate,
+    endDate,
     outOfCycle: bool(raw['out_of_cycle']),
     activity: str(raw['activity']),
     // The provider's own lifecycle word, never derived from `end_date`. A cycle
