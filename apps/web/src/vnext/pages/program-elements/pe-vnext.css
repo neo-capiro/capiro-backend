@@ -255,24 +255,14 @@
 }
 
 /*
- * Workspace destination bar (ProgramElementsV2Page, an unclassed inline-styled
- * first child of `.pe-v2` — the profile page's first child is `.pe-v2-prof-head`,
- * which `:not([class])` excludes). `height: 44` + five `flex:none` nowrap tabs +
- * a nowrap MONITORED meta need ~770px of min-content and there is no flexWrap,
- * so the bar widened the document below roughly 900px viewport width.
- * `align-items: stretch` is deliberately preserved: with wrapping, each flex line
- * stretches its own items, so the active-tab underline still sits on the bottom
- * of whichever row the tab lands on.
+ * REMOVED IN PHASE 4 — the workspace destination bar's wrap fix.
+ * It matched `.pe-v2 > div:first-child:not([class])`, i.e. the old inline-styled
+ * unclassed bar in ProgramElementsV2Page. The native bar is now a classed
+ * `.pe-ws-bar` that wraps intrinsically and holds a `CapiroTabs` strip (which
+ * scrolls rather than crushing its tabs), so the selector could only ever
+ * mis-target from here on. Nothing on the profile or fallback branches ever
+ * matched it: both of those roots' first children are classed.
  */
-.pe-vnext-root .pe-v2 > div:first-child:not([class]) {
-  height: auto !important;
-  min-height: 44px;
-  flex-wrap: wrap;
-  row-gap: 6px;
-}
-.pe-vnext-root .pe-v2 > div:first-child:not([class]) > button {
-  min-height: 44px;
-}
 
 /*
  * Selection command bar (Explore). Four nowrap action buttons + two labels need
@@ -289,38 +279,23 @@
 }
 
 /*
- * Explore grid scroll band. The grid's own min-content is 1110px of fixed tracks
- * + 240px identity minimum + 120px of column gaps = 1470px, and each data row
- * adds 24px of right padding — 1494px. The canonical band is `minWidth: 1400`,
- * 94px short, so the row background, the raised header band and the selection
- * highlight all stopped before the Recommended and chevron columns at EVERY
- * width, not just narrow ones. `:has(> .pe-v2-grid-head)` names the band by the
- * only classed element it contains.
+ * REMOVED IN PHASE 4 — the Explore and Actions "scroll band" minimum widths.
+ *
+ * Both existed because the old workspace drew its tables as CSS-grid divs whose
+ * declared band width (`minWidth: 1400` / `minWidth: 1120`) was narrower than
+ * the tracks' real min-content, so row fills and header bands stopped short of
+ * the last columns. Those grids are gone: the workspace now renders real
+ * `<table>`s inside `CapiroTableWrap`, where a row IS its cells and cannot
+ * disagree with them, and the only width floor left is the table's own
+ * `min-width` in pe-workspace.css.
+ *
+ * The Actions rule in particular had to go rather than merely rot: its
+ * `> div:only-child > div:only-child` chain would have landed a
+ * `min-width: 1148px !important` on the new table's own overflow container,
+ * defeating the horizontal scroll it exists to provide. Neither selector can
+ * match the profile or fallback branches ( `[data-screen-label]` and
+ * `.pe-v2-grid-head` are workspace-only ).
  */
-.pe-vnext-root [data-screen-label='Explore'] div:has(> .pe-v2-grid-head) {
-  min-width: 1494px !important;
-}
-/*
- * Same band: the column-header `.pe-v2-grid` carries `padding: 0 24px 8px` while
- * the group header and every data row use a 0 left padding and rely on
- * `.pe-v2-cell-check { padding-left: 24px }`. That offsets every header label
- * 24px from its column and needs 1518px rather than 1494px. Dropping the left
- * padding restores a shared content box for all three grids.
- */
-.pe-vnext-root .pe-v2-grid-head > .pe-v2-grid:last-child {
-  padding-left: 0 !important;
-}
-
-/*
- * Actions scroll band. Tracks are 1040px + 60px of gaps + 48px of row padding =
- * 1148px against a `minWidth: 1120` band, so the Evidence column fell outside
- * both the header's canvas fill and each row's white fill at every width. The
- * `:only-child` chain is deliberately literal: if the canonical wrapper markup
- * changes, this stops matching rather than mis-targeting.
- */
-.pe-vnext-root [data-screen-label='Actions'] > div:last-child > div:only-child > div:only-child {
-  min-width: 1148px !important;
-}
 
 /* ── 2 · Tablet and below (<=1179) ────────────────────────────────────────── */
 

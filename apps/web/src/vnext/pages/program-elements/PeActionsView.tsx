@@ -5,19 +5,35 @@
  * STATUS · EVIDENCE) over the same intelligence-actions list the legacy
  * ActionBoard renders. The shared /actions page keeps its own List default —
  * this is only the PE-embedded view.
+ *
+ * Phase 4 polish: `CapiroTable` + `CapiroBadge` + `CapiroButton`; same query
+ * hook, same peCode filter, same columns, same copy.
  */
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useActionsList } from '../../../pages/actions/actions-api.js';
 import { STATUS_LABELS, type ActionStatus } from '../../../pages/actions/types.js';
+import { CapiroButton } from '../../components/actions/index.js';
+import { CapiroBadge, type CapiroBadgeTone } from '../../components/badges/index.js';
 import { CapiroEmptyState } from '../../components/feedback/index.js';
+import {
+  CapiroTable,
+  CapiroTableBody,
+  CapiroTableCell,
+  CapiroTableHead,
+  CapiroTableHeaderCell,
+  CapiroTableWrap,
+} from '../../components/tables/index.js';
 import { PeSkeletonBlock } from './pe-primitives.js';
 
-const GRID = 'minmax(300px,1fr) 168px 150px 118px 128px 176px';
-
-function statusCls(status: ActionStatus): string {
+/**
+ * Status tone. Mirrors the Phase 3 `statusCls` mapping exactly — `new`/`triaged`
+ * are the loud (ink) states, everything else is quiet — only the vocabulary
+ * moved from a local chip class to the CapiroBadge tone scale.
+ */
+function statusTone(status: ActionStatus): CapiroBadgeTone {
   if (status === 'dismissed' || status === 'archived') return 'neutral';
-  if (status === 'new' || status === 'triaged') return 'ink';
+  if (status === 'new' || status === 'triaged') return 'info';
   return 'neutral';
 }
 
@@ -32,131 +48,98 @@ export function PeActionsView() {
   const blocked = rows.filter((a) => (a.uncertainty ?? '').toLowerCase().includes('conflict')).length;
 
   return (
-    <div data-screen-label="Actions">
+    <div data-screen-label="Actions" className="pe-ws-view">
       <div className="pe-v2-page-head">
-        <div style={{ flex: 1, minWidth: 340 }}>
+        <div className="pe-ws-head__text">
           <div className="pe-v2-page-title">Actions</div>
           <div className="pe-v2-page-sub">
             Government-affairs actions tied to monitored budget changes. These are the same records as the
             Engagement actions queue, filtered to Program Elements triggers.
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none', paddingTop: 6 }}>
-          <button type="button" className="pe-v2-quiet-link" onClick={() => navigate('/actions')}>
+        <div className="pe-ws-head__actions">
+          <CapiroButton size="compact" variant="quiet" onClick={() => navigate('/actions')}>
             Open in Engagement ↗
-          </button>
-          <button type="button" className="pe-v2-btn pe-v2-btn-primary" onClick={() => navigate('/actions')}>
+          </CapiroButton>
+          <CapiroButton size="compact" variant="primary" onClick={() => navigate('/actions')}>
             Create action
-          </button>
+          </CapiroButton>
         </div>
       </div>
 
-      <div style={{ background: 'var(--pev2-surface)' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: 1120 }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: GRID,
-                columnGap: 12,
-                padding: '9px 24px',
-                borderBottom: '1px solid var(--pev2-border-strong)',
-                background: 'var(--pev2-canvas)',
-                fontFamily: 'var(--pev2-mono)',
-                fontSize: 11,
-                letterSpacing: '0.08em',
-                color: 'var(--pev2-secondary)',
-              }}
-            >
-              <div style={{ color: 'var(--pev2-ink)', fontWeight: 600 }}>Action</div>
-              <div>Client</div>
-              <div>Line</div>
-              <div>Due</div>
-              <div>Status</div>
-              <div>Evidence</div>
+      <div className="pe-ws-body">
+        <section className="pe-v2-card pe-ws-tablecard">
+          {actions.isLoading ? (
+            <div className="pe-ws-pad">
+              <PeSkeletonBlock rows={5} />
             </div>
-            {actions.isLoading ? (
-              <div style={{ padding: 24 }}>
-                <PeSkeletonBlock rows={5} />
-              </div>
-            ) : rows.length === 0 ? (
-              <div style={{ padding: '32px 24px' }}>
-                <CapiroEmptyState title="No Program-Elements-triggered actions in the queue." />
-              </div>
-            ) : (
-              rows.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() =>
-                    a.peCode
-                      ? navigate(`/program-elements/${encodeURIComponent(a.peCode)}?tab=legislative`)
-                      : navigate('/actions')
-                  }
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: GRID,
-                    columnGap: 12,
-                    padding: '12px 24px',
-                    borderBottom: '1px solid var(--pev2-hairline)',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    background: 'var(--pev2-surface)',
-                    width: '100%',
-                    textAlign: 'left',
-                  }}
-                >
-                  <span style={{ minWidth: 0 }}>
-                    <span
-                      style={{
-                        display: 'block',
-                        fontSize: 13.5,
-                        fontWeight: 600,
-                        color: 'var(--pev2-ink)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {a.issueTitle}
-                    </span>
-                    <span className="pe-v2-mono" style={{ display: 'block', fontSize: 11, color: 'var(--pev2-secondary)', marginTop: 3 }}>
-                      {a.actionType.replaceAll('_', ' ').toUpperCase()}
-                    </span>
-                  </span>
-                  <span style={{ fontSize: 13, color: 'var(--pev2-ink-2)' }}>{a.clientName ?? '—'}</span>
-                  <span className="pe-v2-mono" style={{ fontSize: 11, letterSpacing: '0.05em', color: 'var(--pev2-ink)' }}>
-                    {a.peCode ?? '—'}
-                  </span>
-                  <span style={{ fontSize: 13, color: 'var(--pev2-body)' }}>
-                    {a.deadline ? new Date(a.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                  </span>
-                  <span>
-                    <span className={`pe-v2-ev-chip ${statusCls(a.status)}`}>
-                      {(STATUS_LABELS[a.status] ?? a.status).toUpperCase()}
-                    </span>
-                  </span>
-                  <span
-                    className="pe-v2-mono"
-                    style={{
-                      fontSize: 11,
-                      color: 'var(--pev2-secondary)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {a.evidence?.length ? `${a.evidence.length} REF${a.evidence.length === 1 ? '' : 'S'}` : '—'}
-                  </span>
-                </button>
-              ))
-            )}
+          ) : rows.length === 0 ? (
+            <div className="pe-ws-pad pe-ws-pad--tall">
+              <CapiroEmptyState title="No Program-Elements-triggered actions in the queue." />
+            </div>
+          ) : (
+            <CapiroTableWrap className="pe-ws-tablescroll">
+              <CapiroTable className="pe-ws-table">
+                <CapiroTableHead>
+                  <tr>
+                    <CapiroTableHeaderCell className="pe-ws-col-id">Action</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Client</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Line</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Due</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Status</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Evidence</CapiroTableHeaderCell>
+                  </tr>
+                </CapiroTableHead>
+                <CapiroTableBody>
+                  {rows.map((a) => {
+                    const open = () =>
+                      a.peCode
+                        ? navigate(`/program-elements/${encodeURIComponent(a.peCode)}?tab=legislative`)
+                        : navigate('/actions');
+                    return (
+                      <tr key={a.id} className="pe-ws-row pe-ws-row--link" onClick={open}>
+                        <CapiroTableCell className="pe-ws-col-id">
+                          <button
+                            type="button"
+                            className="pe-ws-idbtn"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              open();
+                            }}
+                          >
+                            <span className="pe-ws-title">{a.issueTitle}</span>
+                            <span className="pe-ws-code">
+                              {a.actionType.replaceAll('_', ' ').toUpperCase()}
+                            </span>
+                          </button>
+                        </CapiroTableCell>
+                        <CapiroTableCell>{a.clientName ?? '—'}</CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-meta pe-ws-meta--ink">{a.peCode ?? '—'}</CapiroTableCell>
+                        <CapiroTableCell>
+                          {a.deadline
+                            ? new Date(a.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                            : '—'}
+                        </CapiroTableCell>
+                        <CapiroTableCell>
+                          <CapiroBadge tone={statusTone(a.status)}>
+                            {(STATUS_LABELS[a.status] ?? a.status).toUpperCase()}
+                          </CapiroBadge>
+                        </CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-meta">
+                          {a.evidence?.length ? `${a.evidence.length} REF${a.evidence.length === 1 ? '' : 'S'}` : '—'}
+                        </CapiroTableCell>
+                      </tr>
+                    );
+                  })}
+                </CapiroTableBody>
+              </CapiroTable>
+            </CapiroTableWrap>
+          )}
+          <div className="pe-v2-table-foot">
+            {rows.length} ACTION{rows.length === 1 ? '' : 'S'}
+            {blocked ? ` · ${blocked} BLOCKED BY AN UNRESOLVED EVIDENCE CONFLICT` : ''}
           </div>
-        </div>
-        <div className="pe-v2-table-foot">
-          {rows.length} ACTION{rows.length === 1 ? '' : 'S'}
-          {blocked ? ` · ${blocked} BLOCKED BY AN UNRESOLVED EVIDENCE CONFLICT` : ''}
-        </div>
+        </section>
       </div>
     </div>
   );

@@ -4,6 +4,10 @@
  * Feed + table over the existing /api/budget-lines/movement response.
  * Classification spine: official change = ink, conflict = warning, else raised.
  * (Graph mode from the legacy finder is intentionally absent in v2.)
+ *
+ * Phase 4 polish: feed entries are vNext surfaces, the table is a real
+ * `CapiroTable`, filters are `CapiroSelect`s and the classification spine is a
+ * `CapiroBadge` tone. Same endpoint, query key, filter predicates and copy.
  */
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -12,15 +16,26 @@ import { useApi } from '../../../lib/use-api.js';
 import { getMovement } from '../../../pages/program-element/api.js';
 import type { MovementFeedItem } from '../../../pages/program-element/types.js';
 import { sgn } from '../../../pages/program-element/v2/pe-v2-model.js';
+import { CapiroButton } from '../../components/actions/index.js';
+import { CapiroBadge, type CapiroBadgeTone } from '../../components/badges/index.js';
 import { CapiroEmptyState } from '../../components/feedback/index.js';
+import {
+  CapiroTable,
+  CapiroTableBody,
+  CapiroTableCell,
+  CapiroTableHead,
+  CapiroTableHeaderCell,
+  CapiroTableWrap,
+} from '../../components/tables/index.js';
 import { FilterControl, PeSkeletonBlock, Segmented } from './pe-primitives.js';
 
 type MvView = 'feed' | 'table';
+type Classification = 'official' | 'correction' | 'conflict' | 'new' | 'none';
 
 const STAGE_OPTIONS = ['ANY', 'HASC', 'SASC', 'HAC-D', 'SAC-D'];
 const MAT_OPTIONS = ['ANY', 'Over $10M', 'Over 5%'];
 
-function classify(item: MovementFeedItem): 'official' | 'correction' | 'conflict' | 'new' | 'none' {
+function classify(item: MovementFeedItem): Classification {
   const a = (item.action ?? '').toLowerCase();
   if (a === 'add' || a === 'cut' || a === 'new_start' || a === 'termination') return 'official';
   return 'none';
@@ -32,6 +47,14 @@ const CLS_LABEL: Record<string, string> = {
   conflict: 'CONFLICT — UNRESOLVED',
   new: 'NEW STAGE AVAILABLE',
   none: 'NO MATERIAL CHANGE',
+};
+
+const CLS_TONE: Record<Classification, CapiroBadgeTone> = {
+  official: 'info',
+  correction: 'neutral',
+  conflict: 'warning',
+  new: 'info',
+  none: 'neutral',
 };
 
 export function PeMovementView() {
@@ -56,15 +79,15 @@ export function PeMovementView() {
   }, [movement.data, stage, mat]);
 
   return (
-    <div data-screen-label="Movement">
+    <div data-screen-label="Movement" className="pe-ws-view">
       <div className="pe-v2-page-head">
-        <div style={{ flex: 1, minWidth: 340 }}>
+        <div className="pe-ws-head__text">
           <div className="pe-v2-page-title">Movement</div>
           <div className="pe-v2-page-sub">
             Official funding changes in the active defense-budget snapshot.
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 0, flex: 'none', marginTop: 6 }}>
+        <div className="pe-ws-head__actions">
           <Segmented
             ariaLabel="Movement view"
             options={[
@@ -77,215 +100,153 @@ export function PeMovementView() {
         </div>
       </div>
 
-      <div className="pe-v2-toolbar">
-        <span className="pe-v2-eyebrow" style={{ marginRight: 2 }}>
-          Filters
-        </span>
-        <FilterControl label="Stage" value={stage} options={STAGE_OPTIONS} onChange={setStage} formatValue={(v) => v.replace('_', '-')} />
-        <FilterControl label="Materiality" value={mat} options={MAT_OPTIONS} onChange={setMat} />
-        <div style={{ flex: 1, minWidth: 8 }} />
-        <span className="pe-v2-eyebrow-quiet" style={{ letterSpacing: '0.07em' }}>
-          {items.length} CHANGES · FY{movement.data?.openFy ?? '—'}
-        </span>
-      </div>
-
-      {movement.isLoading ? (
-        <div style={{ background: 'var(--pev2-surface)', padding: 24 }}>
-          <PeSkeletonBlock rows={6} />
-        </div>
-      ) : items.length === 0 ? (
-        <div style={{ background: 'var(--pev2-surface)', padding: '52px 24px' }}>
-          <CapiroEmptyState title="No movement matches every filter" />
-        </div>
-      ) : view === 'feed' ? (
-        <div style={{ background: 'var(--pev2-surface)' }}>
-          {items.map((m) => {
-            const cls = classify(m);
-            const isCut = (m.amount ?? 0) < 0;
-            return (
-              <div
-                key={m.id}
-                style={{
-                  display: 'flex',
-                  gap: 26,
-                  padding: '20px 24px',
-                  borderBottom: '1px solid var(--pev2-hairline)',
-                  flexWrap: 'wrap',
-                  background: cls === 'official' ? 'var(--pev2-surface)' : 'var(--pev2-raised)',
-                  boxShadow:
-                    cls === 'official'
-                      ? 'inset 2px 0 0 var(--pev2-ink)'
-                      : cls === 'conflict'
-                        ? 'inset 2px 0 0 var(--pev2-warning)'
-                        : 'none',
-                }}
-              >
-                <div style={{ flex: 'none', width: 132 }}>
-                  <div className="pe-v2-mono" style={{ fontSize: 11, letterSpacing: '0.06em', color: 'var(--pev2-secondary)' }}>
-                    FY{m.fy} · {(m.stage ?? '').replaceAll('_', '-').toUpperCase()}
-                  </div>
-                  <span className={`pe-v2-cls ${cls}`} style={{ marginTop: 7 }}>
-                    {CLS_LABEL[cls]}
-                  </span>
-                </div>
-                <div style={{ flex: '1 1 0', minWidth: 280 }}>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/program-elements/${encodeURIComponent(m.peCode)}`)}
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 700,
-                      letterSpacing: '-0.005em',
-                      color: 'var(--pev2-ink)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
-                  >
-                    {m.title}
-                  </button>
-                  <div className="pe-v2-mono" style={{ fontSize: 11, letterSpacing: '0.06em', color: 'var(--pev2-secondary)', marginTop: 4 }}>
-                    {m.peCode} · {(m.service ?? '').toUpperCase()} · {(m.lineType ?? '').toUpperCase()}
-                  </div>
-                  {m.note ? (
-                    <div style={{ fontSize: 13.5, lineHeight: 1.55, color: 'var(--pev2-body)', marginTop: 5, maxWidth: 640 }}>
-                      {m.note}
-                    </div>
-                  ) : null}
-                </div>
-                <div style={{ flex: 'none', width: 230, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, fontVariantNumeric: 'tabular-nums' }}>
-                    <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.015em', color: 'var(--pev2-ink)' }}>
-                      {m.amount == null ? '—' : sgn(m.amount)}
-                    </span>
-                  </div>
-                  <div
-                    className="pe-v2-mono"
-                    style={{
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      color: m.amount == null ? 'var(--pev2-secondary)' : isCut ? 'var(--pev2-ink)' : 'var(--pev2-success)',
-                    }}
-                  >
-                    {m.amount == null ? 'NO MATERIAL CHANGE' : isCut ? 'PROGRAM DECREASE' : 'PROGRAM INCREASE'}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 11 }}>
-                    <button
-                      type="button"
-                      className="pe-v2-btn pe-v2-btn-sm"
-                      onClick={() => navigate(`/program-elements/${encodeURIComponent(m.peCode)}`)}
-                    >
-                      Open line
-                    </button>
-                    <button
-                      type="button"
-                      className="pe-v2-btn pe-v2-btn-primary pe-v2-btn-sm"
-                      onClick={() => navigate(`/actions?peCode=${encodeURIComponent(m.peCode)}`)}
-                    >
-                      Create action
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          <div className="pe-v2-table-foot">
-            {items.length} CHANGES · RANKED BY MATERIALITY
+      <div className="pe-ws-body">
+        <section className="pe-v2-card" aria-label="Filters">
+          <div className="pe-ws-toolbar__row">
+            <span className="pe-ws-eyebrow pe-ws-toolbar__legend">Filters</span>
+            <FilterControl
+              label="Stage"
+              value={stage}
+              options={STAGE_OPTIONS}
+              onChange={setStage}
+              formatValue={(v) => v.replace('_', '-')}
+            />
+            <FilterControl label="Materiality" value={mat} options={MAT_OPTIONS} onChange={setMat} />
+            <span className="pe-ws-spacer" />
+            <span className="pe-ws-cap pe-ws-toolbar__count">
+              {items.length} CHANGES · FY{movement.data?.openFy ?? '—'}
+            </span>
           </div>
-        </div>
-      ) : (
-        <div style={{ background: 'var(--pev2-surface)' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <div style={{ minWidth: 1140 }}>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'minmax(250px,1fr) 150px 120px 120px 112px 168px',
-                  columnGap: 12,
-                  padding: '9px 24px',
-                  borderBottom: '1px solid var(--pev2-border-strong)',
-                  background: 'var(--pev2-canvas)',
-                  fontFamily: 'var(--pev2-mono)',
-                  fontSize: 11,
-                  letterSpacing: '0.08em',
-                  color: 'var(--pev2-secondary)',
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 5,
-                }}
-              >
-                <div style={{ color: 'var(--pev2-ink)', fontWeight: 600 }}>Program / budget line</div>
-                <div>Field</div>
-                <div style={{ textAlign: 'right' }}>Change</div>
-                <div style={{ textAlign: 'right' }}>FY</div>
-                <div>Classification</div>
-                <div />
-              </div>
+        </section>
+
+        {movement.isLoading ? (
+          <section className="pe-v2-card">
+            <div className="pe-ws-pad">
+              <PeSkeletonBlock rows={6} />
+            </div>
+          </section>
+        ) : items.length === 0 ? (
+          <section className="pe-v2-card">
+            <div className="pe-ws-pad pe-ws-pad--tall">
+              <CapiroEmptyState title="No movement matches every filter" />
+            </div>
+          </section>
+        ) : view === 'feed' ? (
+          <section className="pe-v2-card pe-ws-tablecard">
+            <ul className="pe-ws-feed">
               {items.map((m) => {
                 const cls = classify(m);
+                const isCut = (m.amount ?? 0) < 0;
                 return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => navigate(`/program-elements/${encodeURIComponent(m.peCode)}`)}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'minmax(250px,1fr) 150px 120px 120px 112px 168px',
-                      columnGap: 12,
-                      padding: '10px 24px',
-                      borderBottom: '1px solid var(--pev2-hairline)',
-                      alignItems: 'center',
-                      cursor: 'pointer',
-                      background: 'var(--pev2-surface)',
-                      width: '100%',
-                      textAlign: 'left',
-                    }}
-                  >
-                    <span style={{ minWidth: 0 }}>
-                      <span className="pe-v2-mono" style={{ display: 'block', fontSize: 11.5, letterSpacing: '0.04em', color: 'var(--pev2-secondary)' }}>
-                        {m.peCode}
-                      </span>
-                      <span
-                        style={{
-                          display: 'block',
-                          fontSize: 13.5,
-                          fontWeight: 600,
-                          color: 'var(--pev2-ink)',
-                          marginTop: 2,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
+                  <li key={m.id} className={`pe-ws-feed__item pe-ws-feed__item--${cls}`}>
+                    <div className="pe-ws-feed__spine">
+                      <div className="pe-ws-cap">
+                        FY{m.fy} · {(m.stage ?? '').replaceAll('_', '-').toUpperCase()}
+                      </div>
+                      <CapiroBadge tone={CLS_TONE[cls]}>{CLS_LABEL[cls]}</CapiroBadge>
+                    </div>
+                    <div className="pe-ws-feed__main">
+                      <button
+                        type="button"
+                        className="pe-ws-feed__title"
+                        onClick={() => navigate(`/program-elements/${encodeURIComponent(m.peCode)}`)}
                       >
                         {m.title}
+                      </button>
+                      <div className="pe-ws-cap">
+                        {m.peCode} · {(m.service ?? '').toUpperCase()} · {(m.lineType ?? '').toUpperCase()}
+                      </div>
+                      {m.note ? <p className="pe-ws-feed__note">{m.note}</p> : null}
+                    </div>
+                    <div className="pe-ws-feed__figure">
+                      <span className="pe-ws-feed__amount">{m.amount == null ? '—' : sgn(m.amount)}</span>
+                      <span
+                        className={`pe-ws-feed__dir${
+                          m.amount == null ? ' is-none' : isCut ? ' is-down' : ' is-up'
+                        }`}
+                      >
+                        {m.amount == null ? 'NO MATERIAL CHANGE' : isCut ? 'PROGRAM DECREASE' : 'PROGRAM INCREASE'}
                       </span>
-                    </span>
-                    <span className="pe-v2-mono" style={{ fontSize: 11, letterSpacing: '0.05em', color: 'var(--pev2-body)' }}>
-                      {(m.stage ?? '').replaceAll('_', '-').toUpperCase()} POSITION
-                    </span>
-                    <span
-                      className="pe-v2-mono"
-                      style={{
-                        textAlign: 'right',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: (m.amount ?? 0) > 0 ? 'var(--pev2-success)' : (m.amount ?? 0) < 0 ? 'var(--pev2-ink)' : 'var(--pev2-secondary)',
-                      }}
-                    >
-                      {m.amount == null ? '—' : sgn(m.amount)}
-                    </span>
-                    <span style={{ textAlign: 'right', fontSize: 13, color: 'var(--pev2-body)' }}>FY{m.fy}</span>
-                    <span>
-                      <span className={`pe-v2-cls ${cls}`}>{CLS_LABEL[cls]}</span>
-                    </span>
-                    <span />
-                  </button>
+                      <span className="pe-ws-feed__actions">
+                        <CapiroButton
+                          size="compact"
+                          onClick={() => navigate(`/program-elements/${encodeURIComponent(m.peCode)}`)}
+                        >
+                          Open line
+                        </CapiroButton>
+                        <CapiroButton
+                          size="compact"
+                          variant="primary"
+                          onClick={() => navigate(`/actions?peCode=${encodeURIComponent(m.peCode)}`)}
+                        >
+                          Create action
+                        </CapiroButton>
+                      </span>
+                    </div>
+                  </li>
                 );
               })}
-            </div>
-          </div>
-          <div className="pe-v2-table-foot">{items.length} CHANGES · FY{movement.data?.openFy ?? '—'}</div>
-        </div>
-      )}
+            </ul>
+            <div className="pe-v2-table-foot">{items.length} CHANGES · RANKED BY MATERIALITY</div>
+          </section>
+        ) : (
+          <section className="pe-v2-card pe-ws-tablecard">
+            <CapiroTableWrap className="pe-ws-tablescroll">
+              <CapiroTable className="pe-ws-table">
+                <CapiroTableHead>
+                  <tr>
+                    <CapiroTableHeaderCell className="pe-ws-col-id">Program / budget line</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Field</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell className="pe-ws-num">Change</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell className="pe-ws-num">FY</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Classification</CapiroTableHeaderCell>
+                  </tr>
+                </CapiroTableHead>
+                <CapiroTableBody>
+                  {items.map((m) => {
+                    const cls = classify(m);
+                    const open = () => navigate(`/program-elements/${encodeURIComponent(m.peCode)}`);
+                    return (
+                      <tr key={m.id} className="pe-ws-row pe-ws-row--link" onClick={open}>
+                        <CapiroTableCell className="pe-ws-col-id">
+                          <button
+                            type="button"
+                            className="pe-ws-idbtn"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              open();
+                            }}
+                          >
+                            <span className="pe-ws-code">{m.peCode}</span>
+                            <span className="pe-ws-title">{m.title}</span>
+                          </button>
+                        </CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-meta">
+                          {(m.stage ?? '').replaceAll('_', '-').toUpperCase()} POSITION
+                        </CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-num">
+                          <span
+                            className={`pe-ws-delta${
+                              (m.amount ?? 0) > 0 ? ' is-up' : (m.amount ?? 0) < 0 ? ' is-down' : ' is-flat'
+                            }`}
+                          >
+                            {m.amount == null ? '—' : sgn(m.amount)}
+                          </span>
+                        </CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-num">FY{m.fy}</CapiroTableCell>
+                        <CapiroTableCell>
+                          <CapiroBadge tone={CLS_TONE[cls]}>{CLS_LABEL[cls]}</CapiroBadge>
+                        </CapiroTableCell>
+                      </tr>
+                    );
+                  })}
+                </CapiroTableBody>
+              </CapiroTable>
+            </CapiroTableWrap>
+            <div className="pe-v2-table-foot">{items.length} CHANGES · FY{movement.data?.openFy ?? '—'}</div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }

@@ -3,6 +3,10 @@
  * src/pages/program-element/v2/PeV2Portfolio.tsx).
  * Monitored budget lines + the clients they touch: 4 metric cells, then cards.
  * Data: watched list + summary aggregates + per-card client relevance.
+ *
+ * Phase 4 polish: vNext card chrome, `CapiroSelect` filters, `CapiroBadge`
+ * classification chips and `CapiroButton` actions. Same queries, same sort and
+ * client-filter semantics, same metric definitions and copy.
  */
 import { useMemo, useState } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
@@ -12,6 +16,8 @@ import { getProgramElementsList } from '../../../pages/program-element/api.js';
 import { getRelevantClientsForPe } from '../../../pages/clients/relevance-api.js';
 import { useActionsList } from '../../../pages/actions/actions-api.js';
 import { money, spct, stageLabelShort, toLineRow } from '../../../pages/program-element/v2/pe-v2-model.js';
+import { CapiroButton } from '../../components/actions/index.js';
+import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroEmptyState } from '../../components/feedback/index.js';
 import { FilterControl, PeSkeletonBlock } from './pe-primitives.js';
 
@@ -96,171 +102,109 @@ export function PePortfolioView() {
   ];
 
   return (
-    <div data-screen-label="Portfolio">
+    <div data-screen-label="Portfolio" className="pe-ws-view">
       <div className="pe-v2-page-head">
-        <div style={{ flex: 1, minWidth: 340 }}>
+        <div className="pe-ws-head__text">
           <div className="pe-v2-page-title">Portfolio</div>
           <div className="pe-v2-page-sub">Monitored budget lines and the clients they touch.</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 'none', paddingTop: 6 }}>
+        <div className="pe-ws-head__actions pe-ws-head__actions--fields">
           <FilterControl label="Client" value={clientFilter} options={clientNames} onChange={setClientFilter} />
           <FilterControl label="Sort" value={sort} options={SORT_OPTIONS} onChange={setSort} />
         </div>
       </div>
 
-      <div style={{ padding: '20px 24px 0' }}>
-        <div
-          className="pe-v2-card"
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))' }}
-        >
-          {metrics.map((m, i) => (
-            <div
-              key={m.k}
-              style={{
-                padding: '15px 18px',
-                borderRight: i < metrics.length - 1 ? '1px solid var(--pev2-border)' : 'none',
-              }}
-            >
-              <div className="pe-v2-eyebrow-quiet" style={{ letterSpacing: '0.08em' }}>
-                {m.k}
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.015em', marginTop: 7 }}>
-                {watched.isLoading ? '…' : m.v}
-              </div>
-              {m.sub ? (
-                <div className="pe-v2-mono" style={{ fontSize: 11, color: 'var(--pev2-secondary)', marginTop: 5 }}>
-                  {m.sub}
-                </div>
-              ) : null}
+      <div className="pe-ws-body">
+        <section className="pe-v2-card pe-ws-metrics">
+          {metrics.map((m) => (
+            <div key={m.k} className="pe-ws-metric">
+              <div className="pe-ws-cap pe-ws-cap--strong">{m.k}</div>
+              <div className="pe-ws-metric__value">{watched.isLoading ? '…' : m.v}</div>
+              {m.sub ? <div className="pe-ws-cap">{m.sub}</div> : null}
             </div>
           ))}
-        </div>
-      </div>
+        </section>
 
-      <div style={{ padding: '20px 24px 28px' }}>
         {watched.isLoading ? (
-          <div className="pe-v2-card" style={{ padding: 24 }}>
-            <PeSkeletonBlock rows={4} />
-          </div>
+          <section className="pe-v2-card">
+            <div className="pe-ws-pad">
+              <PeSkeletonBlock rows={4} />
+            </div>
+          </section>
         ) : cards.length === 0 ? (
-          <div className="pe-v2-card" style={{ padding: '32px 24px' }}>
-            <CapiroEmptyState
-              title={
-                clientFilter === 'ALL'
-                  ? 'No monitored budget lines yet. Monitor a line from Explore to pin it here.'
-                  : `No monitored lines linked to ${clientFilter}.`
-              }
-            />
-          </div>
+          <section className="pe-v2-card">
+            <div className="pe-ws-pad pe-ws-pad--tall">
+              <CapiroEmptyState
+                title={
+                  clientFilter === 'ALL'
+                    ? 'No monitored budget lines yet. Monitor a line from Explore to pin it here.'
+                    : `No monitored lines linked to ${clientFilter}.`
+                }
+              />
+            </div>
+          </section>
         ) : (
           <div className="pe-v2-pf-grid">
             {cards.map(({ line, clients: cls, openActions: open }) => (
-              <div key={line.code} className="pe-v2-pf-card">
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                  <span
-                    className="pe-v2-mono"
-                    style={{
-                      fontSize: 11.5,
-                      letterSpacing: '0.05em',
-                      color: 'var(--pev2-secondary)',
-                      flex: 1,
-                    }}
-                  >
-                    {line.code}
-                  </span>
-                </div>
+              <article key={line.code} className="pe-v2-pf-card">
+                <div className="pe-ws-cap pe-ws-cap--strong">{line.code}</div>
                 <button
                   type="button"
+                  className="pe-ws-pf-title"
                   onClick={() => navigate(`/program-elements/${encodeURIComponent(line.code)}`)}
-                  style={{
-                    fontSize: 15.5,
-                    fontWeight: 700,
-                    lineHeight: 1.28,
-                    color: 'var(--pev2-ink)',
-                    marginTop: 6,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                  }}
                 >
                   {line.title}
                 </button>
-                <div className="pe-v2-mono" style={{ fontSize: 11, letterSpacing: '0.06em', color: 'var(--pev2-secondary)', marginTop: 5 }}>
+                <div className="pe-ws-cap">
                   {(line.service ?? '').toUpperCase()}
                   {line.lineType ? ` · ${line.lineType.replace('RDTE_PE', 'RDT&E').replace('PROCUREMENT_BLIN', 'PROC').replace('OM_BLI', 'O&M')}` : ''}
                   {line.budgetActivity ? ` · ${line.budgetActivity}` : ''}
                 </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3,minmax(0,1fr))',
-                    gap: 12,
-                    marginTop: 14,
-                    paddingTop: 12,
-                    borderTop: '1px solid var(--pev2-hairline)',
-                  }}
-                >
+                <div className="pe-ws-pf-stats">
                   <div>
-                    <div className="pe-v2-eyebrow-quiet" style={{ letterSpacing: '0.07em' }}>Current</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4 }}>{money(line.current)}</div>
+                    <div className="pe-ws-cap">Current</div>
+                    <div className="pe-ws-pf-stat">{money(line.current)}</div>
                   </div>
                   <div>
-                    <div className="pe-v2-eyebrow-quiet" style={{ letterSpacing: '0.07em' }}>Δ request</div>
+                    <div className="pe-ws-cap">Δ request</div>
                     <div
-                      style={{
-                        fontSize: 15,
-                        fontWeight: 700,
-                        marginTop: 4,
-                        color:
-                          line.delta == null
-                            ? 'var(--pev2-warning)'
-                            : line.delta > 0
-                              ? 'var(--pev2-success)'
-                              : line.delta < 0
-                                ? 'var(--pev2-ink)'
-                                : 'var(--pev2-secondary)',
-                      }}
+                      className={`pe-ws-pf-stat${
+                        line.delta == null
+                          ? ' is-missing'
+                          : line.delta > 0
+                            ? ' is-up'
+                            : line.delta < 0
+                              ? ' is-down'
+                              : ' is-flat'
+                      }`}
                     >
                       {line.pct == null ? '—' : line.pct === 0 ? 'NO CHANGE' : spct(line.pct)}
                     </div>
                   </div>
                   <div>
-                    <div className="pe-v2-eyebrow-quiet" style={{ letterSpacing: '0.07em' }}>Stage</div>
-                    <div className="pe-v2-mono" style={{ fontSize: 12, fontWeight: 600, marginTop: 5, color: 'var(--pev2-ink)' }}>
-                      {stageLabelShort(line.currentStage)}
-                    </div>
+                    <div className="pe-ws-cap">Stage</div>
+                    <div className="pe-ws-pf-stat pe-ws-pf-stat--mono">{stageLabelShort(line.currentStage)}</div>
                   </div>
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--pev2-body)', marginTop: 12 }}>
+                <p className="pe-ws-pf-clients">
                   {cls.length
                     ? `${cls.length} client${cls.length === 1 ? '' : 's'} · ${open || 'no'} open action${open === 1 ? '' : 's'}`
                     : 'No client linked'}
                   {cls.length && cls[0] ? ` — ${cls[0].clientName}${cls.length > 1 ? ` +${cls.length - 1}` : ''}` : ''}
-                </div>
-                <div style={{ flex: 1, minHeight: 10 }} />
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    marginTop: 13,
-                    paddingTop: 12,
-                    borderTop: '1px solid var(--pev2-hairline)',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <span className={`pe-v2-cls ${line.delta != null && line.delta !== 0 ? 'official' : ''}`}>
+                </p>
+                <div className="pe-ws-pf-foot">
+                  <CapiroBadge tone={line.delta != null && line.delta !== 0 ? 'info' : 'neutral'}>
                     {line.delta != null && line.delta !== 0 ? 'OFFICIAL CHANGE' : 'NO MATERIAL CHANGE'}
-                  </span>
-                  <span style={{ flex: 1, minWidth: 6 }} />
-                  <button
-                    type="button"
-                    className="pe-v2-btn pe-v2-btn-sm"
+                  </CapiroBadge>
+                  <span className="pe-ws-spacer" />
+                  <CapiroButton
+                    size="compact"
                     onClick={() => navigate(`/program-elements/${encodeURIComponent(line.code)}`)}
                   >
                     Open
-                  </button>
+                  </CapiroButton>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}

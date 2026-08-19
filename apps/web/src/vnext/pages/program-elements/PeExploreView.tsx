@@ -2,14 +2,19 @@
  * Program Elements vNext — Explore surface (native port of
  * src/pages/program-element/v2/PeV2Explore.tsx).
  *
- * Dense analyst grid per "Capiro Program Elements v2 (standalone).html" +
- * refinement notes §01/§07: column-group header, pinned checkbox + identity,
- * BudgetDeltaRail, 72×18 sparkline, quiet-vs-loud evidence, expandable row,
- * sticky selection bar. Data: existing program-elements list + summary APIs —
- * identical endpoints, query keys, params and copy as the canonical view; only
- * the loading/empty presentation moved to Capiro primitives.
+ * Dense analyst catalog: column-group header, per-row selection, BudgetDeltaRail,
+ * 72×18 sparkline, quiet-vs-loud evidence, expandable row, selection command bar.
+ * Data: existing program-elements list + summary APIs — identical endpoints,
+ * query keys, params, filter/sort semantics and copy as the canonical view.
+ *
+ * Phase 4 polish: the grid is a real `CapiroTable` (the same table family as
+ * Settings → Intelligence Mappings and the Mark-up monitor) instead of a
+ * hand-rolled `.pe-v2-grid` of divs, the filters are `CapiroSelect`s, the
+ * actions are `CapiroButton`s and the evidence marks are `CapiroBadge`s. The
+ * information architecture — which columns exist, in which order, under which
+ * group heading — is unchanged.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
@@ -30,11 +35,25 @@ import {
   toLineRow,
   type V2LineRow,
 } from '../../../pages/program-element/v2/pe-v2-model.js';
+import { CapiroButton, CapiroIconButton } from '../../components/actions/index.js';
+import { CapiroInput } from '../../components/fields/index.js';
 import { CapiroEmptyState } from '../../components/feedback/index.js';
+import { CapiroDownloadIcon } from '../../components/icons/index.js';
+import {
+  CapiroTable,
+  CapiroTableBody,
+  CapiroTableCell,
+  CapiroTableHead,
+  CapiroTableHeaderCell,
+  CapiroTableWrap,
+} from '../../components/tables/index.js';
 import { useWatchToggle } from './pe-watch-toggle.js';
 import { EvMark, FilterControl, PeSkeletonBlock, Segmented } from './pe-primitives.js';
 
 const PAGE_SIZE = 50;
+
+/** Column count of the catalog table — the expanded row spans all of it. */
+const COLUMN_COUNT = 13;
 
 type Density = 'standard' | 'compact';
 
@@ -65,6 +84,26 @@ const TYPE_TO_API: Record<string, string> = {
 
 function rowMovement(row: V2LineRow): 'material' | 'none' {
   return row.delta != null && row.delta !== 0 ? 'material' : 'none';
+}
+
+/**
+ * The delta rail keeps the canonical geometry (width is the shared model's
+ * `railGeometry` math, unchanged) but paints on the token layer: the model
+ * returns DS-v2 hex literals, which would be the only raw colors left on this
+ * surface.
+ */
+function railStyle(rail: ReturnType<typeof railGeometry>, pct: number | null): CSSProperties {
+  const base = { ...(rail.style ?? {}) } as CSSProperties;
+  if (rail.kind === 'nopos') {
+    return { ...base, border: '1px dashed var(--capiro-color-warning-rail)' };
+  }
+  return {
+    ...base,
+    background:
+      pct != null && pct < 0
+        ? 'var(--capiro-color-bg-dark)'
+        : 'var(--capiro-color-success)',
+  };
 }
 
 export function PeExploreView() {
@@ -124,6 +163,7 @@ export function PeExploreView() {
     setPage(1);
   };
 
+  const allSelected = selected.length === rows.length && rows.length > 0;
   const toggleAll = () => {
     setSelected((sel) => (sel.length === rows.length && rows.length > 0 ? [] : rows.map((r) => r.code)));
   };
@@ -157,544 +197,377 @@ export function PeExploreView() {
     URL.revokeObjectURL(url);
   };
 
-  const pad = density === 'compact' ? '7px 24px 7px 0' : '11px 24px 12px 0';
   const watchedCount = summary.data?.watched;
 
   return (
-    <div data-screen-label="Explore">
-      {/* Header — quiet meta right of title (refinement §01 Explore header) */}
-      <div
-        style={{
-          background: 'var(--pev2-surface)',
-          padding: '20px 24px 16px',
-          display: 'flex',
-          alignItems: 'flex-end',
-          gap: 28,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 320 }}>
-          <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.016em', lineHeight: 1.2 }}>
-            Program Elements
-          </div>
-          <div
-            style={{
-              fontSize: 13.5,
-              lineHeight: 1.5,
-              color: 'var(--pev2-secondary)',
-              marginTop: 4,
-              maxWidth: 610,
-            }}
-          >
+    <div data-screen-label="Explore" className="pe-ws-view">
+      {/* Header — quiet meta right of title */}
+      <div className="pe-v2-page-head">
+        <div className="pe-ws-head__text">
+          <div className="pe-v2-page-title">Program Elements</div>
+          <div className="pe-v2-page-sub">
             Follow defense funding from request through Congress and enacted outcomes.
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 15, flex: 'none', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="pe-v2-quiet-link ink"
+        <div className="pe-ws-head__actions">
+          <CapiroButton
+            size="compact"
+            variant="quiet"
             onClick={() => navigate('/program-elements?tab=portfolio')}
           >
             Monitoring · {watchedCount ?? '—'}
-          </button>
-          <span style={{ width: 1, height: 15, background: 'var(--pev2-border)' }} />
-          <button type="button" className="pe-v2-quiet-link" onClick={() => exportRows(null)}>
+          </CapiroButton>
+          <CapiroButton
+            size="compact"
+            leadingIcon={<CapiroDownloadIcon />}
+            onClick={() => exportRows(null)}
+          >
             Export
-          </button>
+          </CapiroButton>
         </div>
       </div>
 
-      {/* Toolbar — search + primary filters + MORE FILTERS + density (refinement §01) */}
-      <div
-        style={{
-          background: 'var(--pev2-surface)',
-          borderBottom: '1px solid var(--pev2-border-strong)',
-          padding: '0 24px 13px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 9,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span
-            style={{
-              display: 'flex',
-              alignItems: 'stretch',
-              border: '1px solid var(--pev2-control)',
-              background: 'var(--pev2-surface)',
-              flex: '1 1 300px',
-              minWidth: 300,
-              maxWidth: 470,
-            }}
-          >
-            <span
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: '0 9px',
-                color: 'var(--pev2-quiet)',
-                flex: 'none',
-                fontSize: 13,
-              }}
-              aria-hidden
-            >
-              ⌕
-            </span>
-            <input
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Search code or title"
-              aria-label="Search code or title"
-              style={{
-                flex: 1,
-                minWidth: 0,
-                border: 0,
-                padding: '7px 6px 7px 0',
-                fontSize: 13.5,
-                color: 'var(--pev2-title)',
-                background: 'transparent',
-                outline: 'none',
-                fontFamily: 'inherit',
-              }}
-            />
-          </span>
-          <FilterControl
-            label="Movement"
-            value={filters.move}
-            options={MOVE_OPTIONS}
-            onChange={(v) => {
-              setFilters((f) => ({ ...f, move: v }));
-              setPage(1);
-            }}
-          />
-          <button
-            type="button"
-            className={`pe-v2-filter-btn${activeSecondary || moreOpen ? ' active' : ''}`}
-            aria-expanded={moreOpen}
-            onClick={() => setMoreOpen((o) => !o)}
-          >
-            {moreOpen ? 'FEWER FILTERS' : 'MORE FILTERS'}
-            {activeSecondary ? ` · ${activeSecondary}` : ''}
-          </button>
-          <div style={{ flex: 1, minWidth: 6 }} />
-          <Segmented
-            ariaLabel="Row density"
-            options={[
-              { value: 'standard', label: 'STANDARD' },
-              { value: 'compact', label: 'COMPACT' },
-            ]}
-            value={density}
-            onChange={setDensity}
-          />
-          {anyFilter ? (
-            <button type="button" className="pe-v2-quiet-link" style={{ color: 'var(--pev2-rust-text)' }} onClick={resetFilters}>
-              Reset filters
-            </button>
-          ) : null}
-        </div>
-        {moreOpen ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              flexWrap: 'wrap',
-              borderTop: '1px solid var(--pev2-hairline-faint)',
-              paddingTop: 9,
-            }}
-          >
-            <FilterControl
-              label="Component"
-              value={filters.comp}
-              options={SERVICE_OPTIONS}
-              onChange={(v) => {
-                setFilters((f) => ({ ...f, comp: v }));
-                setPage(1);
-              }}
-            />
-            <FilterControl
-              label="Line type"
-              value={filters.type}
-              options={TYPE_OPTIONS}
-              onChange={(v) => {
-                setFilters((f) => ({ ...f, type: v }));
-                setPage(1);
-              }}
-            />
-            <FilterControl
-              label="Monitored"
-              value={filters.mon}
-              options={MON_OPTIONS}
-              onChange={(v) => {
-                setFilters((f) => ({ ...f, mon: v }));
-                setPage(1);
-              }}
-            />
-          </div>
-        ) : null}
-      </div>
-
-      {/* Grid */}
-      <div style={{ background: 'var(--pev2-surface)' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <div style={{ minWidth: 1400 }}>
-            {/* Group header + column header (sticky container) */}
-            <div className="pe-v2-grid-head">
-              <div className="pe-v2-grid" style={{ padding: '8px 24px 5px 0' }}>
-                <div
-                  className="pe-v2-eyebrow-quiet"
-                  style={{ gridColumn: 'span 2', paddingLeft: 24, position: 'sticky', left: 0, background: 'var(--pev2-raised)' }}
-                >
-                  Identity
-                </div>
-                <div className="pe-v2-eyebrow-quiet" style={{ gridColumn: 'span 2' }}>
-                  Classification
-                </div>
-                <div className="pe-v2-eyebrow-quiet" style={{ gridColumn: 'span 3' }}>
-                  FY2027 position
-                </div>
-                <div className="pe-v2-eyebrow-quiet" style={{ gridColumn: 'span 2' }}>
-                  Movement vs request
-                </div>
-                <div className="pe-v2-eyebrow-quiet">Evidence</div>
-                <div className="pe-v2-eyebrow-quiet" style={{ gridColumn: 'span 3' }}>
-                  Client impact &amp; action
-                </div>
-              </div>
-              <div
-                className="pe-v2-grid"
-                style={{
-                  padding: '0 24px 8px',
-                  fontFamily: 'var(--pev2-mono)',
-                  fontSize: 11,
-                  letterSpacing: '0.07em',
-                  color: 'var(--pev2-secondary)',
+      <div className="pe-ws-body">
+        {/* Toolbar — search + primary filter + MORE FILTERS + density */}
+        <section className="pe-v2-card" aria-label="Filters">
+          <div className="pe-ws-toolbar__row">
+            <span className="pe-ws-toolbar__search">
+              <CapiroInput
+                label="Search"
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setPage(1);
                 }}
+                placeholder="Search code or title"
+                aria-label="Search code or title"
+              />
+            </span>
+            <FilterControl
+              label="Movement"
+              value={filters.move}
+              options={MOVE_OPTIONS}
+              onChange={(v) => {
+                setFilters((f) => ({ ...f, move: v }));
+                setPage(1);
+              }}
+            />
+            <span className="pe-ws-spacer" />
+            <span className="pe-ws-toolbar__tail">
+              <CapiroButton
+                size="compact"
+                aria-expanded={moreOpen}
+                onClick={() => setMoreOpen((o) => !o)}
               >
-                <button
-                  type="button"
-                  aria-label="Select all rows"
-                  onClick={toggleAll}
-                  style={{
-                    cursor: 'pointer',
-                    paddingLeft: 24,
-                    position: 'sticky',
-                    left: 0,
-                    background: 'var(--pev2-raised)',
-                    fontSize: 12,
-                    color: 'var(--pev2-ink)',
-                    textAlign: 'left',
-                  }}
-                >
-                  {selected.length === rows.length && rows.length > 0 ? '■' : '□'}
-                </button>
-                <div
-                  style={{
-                    color: 'var(--pev2-ink)',
-                    fontWeight: 600,
-                    position: 'sticky',
-                    left: 54,
-                    background: 'var(--pev2-raised)',
-                  }}
-                >
-                  Program / budget line
-                </div>
-                <div>Component</div>
-                <div>Type</div>
-                <div style={{ textAlign: 'right' }}>Request</div>
-                <div style={{ textAlign: 'right' }}>Current</div>
-                <div>Stage</div>
-                <div>Δ request</div>
-                <div>FY trend</div>
-                <div>State</div>
-                <div style={{ textAlign: 'right' }}>Clients</div>
-                <div>Recommended</div>
-                <div />
-              </div>
-            </div>
-
-            {list.isLoading ? (
-              <div style={{ padding: 24 }}>
-                <PeSkeletonBlock rows={8} />
-              </div>
-            ) : rows.length === 0 ? (
-              <div style={{ padding: '52px 24px' }}>
-                <CapiroEmptyState
-                  title="No rows — the query is valid and returned nothing"
-                  description="No budget line in the active snapshot matches every filter. The narrowest filter is the one to remove first."
-                  action={
-                    <button type="button" className="pe-v2-btn pe-v2-btn-sm" style={{ marginTop: 2 }} onClick={resetFilters}>
-                      Reset filters
-                    </button>
-                  }
-                />
-              </div>
-            ) : (
-              rows.map((r) => {
-                const sel = selected.includes(r.code);
-                const exp = expanded === r.code;
-                const rail = railGeometry(r.pct);
-                const spark = sparkGeometry(r.spark);
-                return (
-                  <div key={r.code}>
-                    <div
-                      className={`pe-v2-grid pe-v2-row${sel ? ' sel' : ''}${exp ? ' exp' : ''}`}
-                      style={{ padding: pad }}
-                    >
-                      <button
-                        type="button"
-                        className="pe-v2-cell-check"
-                        aria-label={`Select ${r.code}`}
-                        aria-pressed={sel}
-                        onClick={() => toggleRow(r.code)}
-                        style={{ paddingTop: 3 }}
-                      >
-                        {sel ? '■' : '□'}
-                      </button>
-                      <button
-                        type="button"
-                        className="pe-v2-cell-id"
-                        onClick={() => navigate(`/program-elements/${encodeURIComponent(r.code)}`)}
-                      >
-                        <div
-                          className="pe-v2-mono"
-                          style={{ fontSize: 11, letterSpacing: '0.05em', color: 'var(--pev2-quiet)', textAlign: 'left' }}
-                        >
-                          {r.code}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 13.5,
-                            fontWeight: 600,
-                            color: 'var(--pev2-ink)',
-                            marginTop: 2,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            textAlign: 'left',
-                          }}
-                        >
-                          {r.title}
-                        </div>
-                      </button>
-                      <div className="pe-v2-mono" style={{ fontSize: 11, letterSpacing: '0.05em', color: 'var(--pev2-secondary)', paddingTop: 4 }}>
-                        {r.service ? serviceLabel(r.service).toUpperCase() : '—'}
-                      </div>
-                      <div className="pe-v2-mono" style={{ fontSize: 11, letterSpacing: '0.05em', color: 'var(--pev2-secondary)', paddingTop: 4 }}>
-                        {(r.lineType ?? '—').toString().toUpperCase().replace('RDTE_PE', 'RDT&E').replace('PROCUREMENT_BLIN', 'PROC').replace('OM_BLI', 'O&M')}
-                      </div>
-                      <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--pev2-tertiary)', paddingTop: 4 }}>
-                        {money(r.request)}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/program-elements/${encodeURIComponent(r.code)}?tab=funding`)}
-                        style={{
-                          textAlign: 'right',
-                          fontSize: 14,
-                          fontWeight: 700,
-                          paddingTop: 3,
-                          cursor: 'pointer',
-                          textDecoration: 'underline',
-                          textDecorationColor: 'var(--pev2-border)',
-                          textUnderlineOffset: 3,
-                          color: r.current == null ? 'var(--pev2-warning)' : 'var(--pev2-ink)',
-                          display: 'block',
-                          width: '100%',
-                        }}
-                      >
-                        {money(r.current)}
-                      </button>
-                      <div className="pe-v2-mono" style={{ fontSize: 11, letterSpacing: '0.05em', color: 'var(--pev2-ink)', paddingTop: 4 }}>
-                        {stageLabelShort(r.currentStage)}
-                      </div>
-                      <div style={{ paddingTop: 2 }}>
-                        <div className="pe-v2-rail">
-                          <div className="pe-v2-rail-base" />
-                          {rail.kind !== 'none' ? <div style={rail.style as React.CSSProperties} /> : null}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
-                          <div
-                            className="pe-v2-mono"
-                            style={{
-                              fontSize: 11.5,
-                              fontWeight: 600,
-                              whiteSpace: 'nowrap',
-                              color:
-                                r.delta != null && r.delta > 0
-                                  ? 'var(--pev2-success)'
-                                  : r.delta != null && r.delta < 0
-                                    ? 'var(--pev2-ink)'
-                                    : r.pct == null
-                                      ? 'var(--pev2-warning)'
-                                      : 'var(--pev2-quiet)',
-                            }}
-                          >
-                            {r.pct == null ? 'NO PAIR' : r.pct === 0 ? 'NO CHANGE' : spct(r.pct)}
-                          </div>
-                          <div className="pe-v2-mono" style={{ fontSize: 10.5, color: 'var(--pev2-quiet)', whiteSpace: 'nowrap' }}>
-                            {r.delta == null ? '' : r.delta === 0 ? 'VS REQUEST' : sgn(r.delta)}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ paddingTop: 5 }}>
-                        {spark ? (
-                          <svg viewBox="0 0 72 18" width={72} height={18} style={{ display: 'block' }} aria-hidden>
-                            <polyline points={spark.points} fill="none" stroke="var(--pev2-border-strong)" strokeWidth={1} />
-                            <rect x={spark.endX} y={spark.endY} width={3} height={3} fill="var(--pev2-ink)" />
-                          </svg>
-                        ) : (
-                          <span className="pe-v2-mono" style={{ fontSize: 10.5, color: 'var(--pev2-quiet)' }}>
-                            —
-                          </span>
-                        )}
-                        <div className="pe-v2-spark-cap">{r.spark.length >= 2 ? `${r.spark.length} FY` : 'ONE YEAR'}</div>
-                      </div>
-                      <div style={{ paddingTop: 3 }}>
-                        <EvMark
-                          state={r.signalType ? 'PARTIAL' : 'VERIFIED'}
-                          label={r.signalType ? '■ SIGNAL' : '■ VERIFIED'}
-                          quiet={!r.signalType}
-                        />
-                        <div className="pe-v2-spark-cap">{r.billCount != null ? `${r.billCount} BILLS` : ''}</div>
-                      </div>
-                      <div style={{ textAlign: 'right', paddingTop: 3 }}>
-                        <ExpandClients code={r.code} />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/program-elements/${encodeURIComponent(r.code)}?tab=legislative`)}
-                        style={{
-                          fontSize: 12.5,
-                          fontWeight: 600,
-                          color: 'var(--pev2-ink-2)',
-                          paddingTop: 4,
-                          cursor: 'pointer',
-                          lineHeight: 1.3,
-                          textAlign: 'left',
-                        }}
-                      >
-                        {recommendedAction(r)}
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={exp ? `Collapse ${r.code}` : `Expand ${r.code}`}
-                        aria-expanded={exp}
-                        onClick={() => setExpanded(exp ? null : r.code)}
-                        className="pe-v2-mono"
-                        style={{
-                          textAlign: 'right',
-                          fontSize: 11,
-                          color: 'var(--pev2-quiet)',
-                          cursor: 'pointer',
-                          paddingTop: 4,
-                        }}
-                      >
-                        {exp ? '⌃' : '⌄'}
-                      </button>
-                    </div>
-                    {exp ? <ExpandRegion row={r} onClose={() => setExpanded(null)} /> : null}
-                  </div>
-                );
-              })
-            )}
+                {moreOpen ? 'FEWER FILTERS' : 'MORE FILTERS'}
+                {activeSecondary ? ` · ${activeSecondary}` : ''}
+              </CapiroButton>
+              <Segmented
+                ariaLabel="Row density"
+                options={[
+                  { value: 'standard', label: 'STANDARD' },
+                  { value: 'compact', label: 'COMPACT' },
+                ]}
+                value={density}
+                onChange={setDensity}
+              />
+              {anyFilter ? (
+                <CapiroButton size="compact" variant="quiet" className="pe-ws-btn-reset" onClick={resetFilters}>
+                  Reset filters
+                </CapiroButton>
+              ) : null}
+            </span>
           </div>
-        </div>
+          {moreOpen ? (
+            <div className="pe-ws-toolbar__row pe-ws-toolbar__row--more">
+              <FilterControl
+                label="Component"
+                value={filters.comp}
+                options={SERVICE_OPTIONS}
+                onChange={(v) => {
+                  setFilters((f) => ({ ...f, comp: v }));
+                  setPage(1);
+                }}
+              />
+              <FilterControl
+                label="Line type"
+                value={filters.type}
+                options={TYPE_OPTIONS}
+                onChange={(v) => {
+                  setFilters((f) => ({ ...f, type: v }));
+                  setPage(1);
+                }}
+              />
+              <FilterControl
+                label="Monitored"
+                value={filters.mon}
+                options={MON_OPTIONS}
+                onChange={(v) => {
+                  setFilters((f) => ({ ...f, mon: v }));
+                  setPage(1);
+                }}
+              />
+            </div>
+          ) : null}
+        </section>
 
-        {/* Footer */}
-        <div className="pe-v2-table-foot">
-          <span>
-            {rows.length} OF {total.toLocaleString()} BUDGET LINES · FY{summary.data?.latestRequestFy ?? '—'}
-          </span>
-          <span style={{ flex: 1, minWidth: 8 }} />
-          <span style={{ color: 'var(--pev2-quiet)' }}>PAGE {page} OF {pageCount}</span>
-          <span style={{ width: 1, height: 14, background: 'var(--pev2-border)' }} />
-          <button
-            type="button"
-            className="pe-v2-quiet-link"
-            disabled={page <= 1}
-            style={page <= 1 ? { color: 'var(--pev2-quiet)', cursor: 'not-allowed' } : { color: 'var(--pev2-ink)' }}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            ← Prev
-          </button>
-          <button
-            type="button"
-            className="pe-v2-quiet-link"
-            disabled={page >= pageCount}
-            style={page >= pageCount ? { color: 'var(--pev2-quiet)', cursor: 'not-allowed' } : { color: 'var(--pev2-ink)' }}
-            onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-          >
-            Next →
-          </button>
-        </div>
+        {/* Catalog */}
+        <section className="pe-v2-card pe-ws-tablecard">
+          {list.isLoading ? (
+            <div className="pe-ws-pad">
+              <PeSkeletonBlock rows={8} />
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="pe-ws-pad pe-ws-pad--tall">
+              <CapiroEmptyState
+                title="No rows — the query is valid and returned nothing"
+                description="No budget line in the active snapshot matches every filter. The narrowest filter is the one to remove first."
+                action={
+                  <CapiroButton size="compact" onClick={resetFilters}>
+                    Reset filters
+                  </CapiroButton>
+                }
+              />
+            </div>
+          ) : (
+            <CapiroTableWrap className="pe-ws-tablescroll">
+              <CapiroTable
+                className={`pe-ws-table pe-ws-table--catalog${density === 'compact' ? ' pe-ws-table--compact' : ''}`}
+              >
+                <CapiroTableHead>
+                  <tr className="pe-ws-table__grouprow">
+                    <CapiroTableHeaderCell colSpan={2}>Identity</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell colSpan={2}>Classification</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell colSpan={3}>FY2027 position</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell colSpan={2}>Movement vs request</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Evidence</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell colSpan={3}>Client impact &amp; action</CapiroTableHeaderCell>
+                  </tr>
+                  <tr>
+                    <CapiroTableHeaderCell className="pe-ws-col-check">
+                      <input
+                        type="checkbox"
+                        className="pe-ws-check"
+                        aria-label="Select all rows"
+                        checked={allSelected}
+                        onChange={toggleAll}
+                      />
+                    </CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell className="pe-ws-col-id">Program / budget line</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Component</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Type</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell className="pe-ws-num">Request</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell className="pe-ws-num">Current</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Stage</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Δ request</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>FY trend</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>State</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell className="pe-ws-num">Clients</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>Recommended</CapiroTableHeaderCell>
+                    <CapiroTableHeaderCell>
+                      <span className="pe-ws-sr">Expand row</span>
+                    </CapiroTableHeaderCell>
+                  </tr>
+                </CapiroTableHead>
+                <CapiroTableBody>
+                  {rows.flatMap((r) => {
+                    const sel = selected.includes(r.code);
+                    const exp = expanded === r.code;
+                    const rail = railGeometry(r.pct);
+                    const spark = sparkGeometry(r.spark);
+                    const line = (
+                      <tr
+                        key={r.code}
+                        className={`pe-ws-row${sel ? ' is-selected' : ''}${exp ? ' is-expanded' : ''}`}
+                      >
+                        <CapiroTableCell className="pe-ws-col-check">
+                          <input
+                            type="checkbox"
+                            className="pe-ws-check"
+                            aria-label={`Select ${r.code}`}
+                            checked={sel}
+                            onChange={() => toggleRow(r.code)}
+                          />
+                        </CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-col-id">
+                          <button
+                            type="button"
+                            className="pe-ws-idbtn"
+                            onClick={() => navigate(`/program-elements/${encodeURIComponent(r.code)}`)}
+                          >
+                            <span className="pe-ws-code">{r.code}</span>
+                            <span className="pe-ws-title">{r.title}</span>
+                          </button>
+                        </CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-meta">
+                          {r.service ? serviceLabel(r.service).toUpperCase() : '—'}
+                        </CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-meta">
+                          {(r.lineType ?? '—').toString().toUpperCase().replace('RDTE_PE', 'RDT&E').replace('PROCUREMENT_BLIN', 'PROC').replace('OM_BLI', 'O&M')}
+                        </CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-num pe-ws-quiet">{money(r.request)}</CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-num">
+                          <button
+                            type="button"
+                            className={`pe-ws-link pe-ws-current${r.current == null ? ' is-missing' : ''}`}
+                            onClick={() =>
+                              navigate(`/program-elements/${encodeURIComponent(r.code)}?tab=funding`)
+                            }
+                          >
+                            {money(r.current)}
+                          </button>
+                        </CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-meta pe-ws-meta--ink">
+                          {stageLabelShort(r.currentStage)}
+                        </CapiroTableCell>
+                        <CapiroTableCell>
+                          <div className="pe-ws-rail">
+                            <div className="pe-ws-rail__base" />
+                            {rail.kind !== 'none' ? <div style={railStyle(rail, r.pct)} /> : null}
+                          </div>
+                          <div className="pe-ws-deltaline">
+                            <span
+                              className={`pe-ws-delta${
+                                r.delta != null && r.delta > 0
+                                  ? ' is-up'
+                                  : r.delta != null && r.delta < 0
+                                    ? ' is-down'
+                                    : r.pct == null
+                                      ? ' is-missing'
+                                      : ' is-flat'
+                              }`}
+                            >
+                              {r.pct == null ? 'NO PAIR' : r.pct === 0 ? 'NO CHANGE' : spct(r.pct)}
+                            </span>
+                            <span className="pe-ws-cap">
+                              {r.delta == null ? '' : r.delta === 0 ? 'VS REQUEST' : sgn(r.delta)}
+                            </span>
+                          </div>
+                        </CapiroTableCell>
+                        <CapiroTableCell>
+                          {spark ? (
+                            <svg viewBox="0 0 72 18" width={72} height={18} className="pe-ws-spark" aria-hidden>
+                              <polyline points={spark.points} fill="none" stroke="var(--capiro-color-border-strong)" strokeWidth={1} />
+                              <rect x={spark.endX} y={spark.endY} width={3} height={3} fill="var(--capiro-color-text-primary)" />
+                            </svg>
+                          ) : (
+                            <span className="pe-ws-cap">—</span>
+                          )}
+                          <div className="pe-ws-cap">{r.spark.length >= 2 ? `${r.spark.length} FY` : 'ONE YEAR'}</div>
+                        </CapiroTableCell>
+                        <CapiroTableCell>
+                          <EvMark
+                            state={r.signalType ? 'PARTIAL' : 'VERIFIED'}
+                            label={r.signalType ? 'SIGNAL' : 'VERIFIED'}
+                            quiet={!r.signalType}
+                          />
+                          <div className="pe-ws-cap">{r.billCount != null ? `${r.billCount} BILLS` : ''}</div>
+                        </CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-num">
+                          <ExpandClients code={r.code} />
+                        </CapiroTableCell>
+                        <CapiroTableCell>
+                          <button
+                            type="button"
+                            className="pe-ws-link pe-ws-reco"
+                            onClick={() =>
+                              navigate(`/program-elements/${encodeURIComponent(r.code)}?tab=legislative`)
+                            }
+                          >
+                            {recommendedAction(r)}
+                          </button>
+                        </CapiroTableCell>
+                        <CapiroTableCell className="pe-ws-col-toggle">
+                          <CapiroIconButton
+                            className="pe-ws-rowtoggle"
+                            label={exp ? `Collapse ${r.code}` : `Expand ${r.code}`}
+                            aria-expanded={exp}
+                            icon={<span aria-hidden>{exp ? '⌃' : '⌄'}</span>}
+                            onClick={() => setExpanded(exp ? null : r.code)}
+                          />
+                        </CapiroTableCell>
+                      </tr>
+                    );
+                    return exp
+                      ? [line, <ExpandRegion key={`${r.code}-exp`} row={r} onClose={() => setExpanded(null)} />]
+                      : [line];
+                  })}
+                </CapiroTableBody>
+              </CapiroTable>
+            </CapiroTableWrap>
+          )}
+
+          {/* Footer — sibling of the scroll wrapper, so it never scrolls away */}
+          <div className="pe-v2-table-foot">
+            <span>
+              {rows.length} OF {total.toLocaleString()} BUDGET LINES · FY{summary.data?.latestRequestFy ?? '—'}
+            </span>
+            <span className="pe-ws-spacer" />
+            <span className="pe-ws-foot__page">PAGE {page} OF {pageCount}</span>
+            <CapiroButton
+              size="compact"
+              variant="quiet"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              ← Prev
+            </CapiroButton>
+            <CapiroButton
+              size="compact"
+              variant="quiet"
+              disabled={page >= pageCount}
+              onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+            >
+              Next →
+            </CapiroButton>
+          </div>
+        </section>
       </div>
 
-      {/* Selection bar */}
+      {/* Selection command bar */}
       {selected.length > 0 ? (
-        <div className="pe-v2-selbar" role="region" aria-label="Selection">
-          <span className="pe-v2-eyebrow" style={{ color: '#AAB5C4' }}>
-            Selected
-          </span>
-          <span style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--pev2-surface)', whiteSpace: 'nowrap' }}>
+        <div className="pe-v2-selbar capiro-elevation-widget" role="region" aria-label="Selection">
+          <span className="pe-ws-selbar__eyebrow">Selected</span>
+          <span className="pe-ws-selbar__count">
             {selected.length} budget line{selected.length === 1 ? '' : 's'}
           </span>
-          <span style={{ width: 1, height: 18, background: '#2F3C50' }} />
-          <span
-            style={{
-              fontSize: 12.5,
-              color: '#AAB5C4',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              minWidth: 0,
-            }}
-          >
+          <span className="pe-ws-selbar__rule" aria-hidden />
+          <span className="pe-ws-selbar__codes">
             {selected.slice(0, 4).join(' · ')}
             {selected.length > 4 ? ` · +${selected.length - 4}` : ''}
           </span>
-          <span style={{ flex: 1, minWidth: 8 }} />
-          <button
-            type="button"
-            className="pe-v2-selbar-btn"
+          <span className="pe-ws-spacer" />
+          <CapiroButton
+            size="compact"
             disabled={selected.length < 2}
             onClick={() =>
               navigate(`/program-elements?view=compare&codes=${selected.slice(0, 4).join(',')}`)
             }
           >
             Compare
-          </button>
-          <button
-            type="button"
-            className="pe-v2-selbar-btn"
+          </CapiroButton>
+          <CapiroButton
+            size="compact"
             disabled={watch.isPending}
             onClick={() => {
               for (const code of selected) watch.mutate({ peCode: code, watching: true });
             }}
           >
             Monitor
-          </button>
-          <button type="button" className="pe-v2-selbar-btn" onClick={() => exportRows(selected)}>
+          </CapiroButton>
+          <CapiroButton size="compact" onClick={() => exportRows(selected)}>
             Export
-          </button>
-          <button
-            type="button"
-            className="pe-v2-selbar-btn primary"
+          </CapiroButton>
+          <CapiroButton
+            size="compact"
+            variant="primary"
             onClick={() => { if (selected[0]) navigate(`/actions?peCode=${encodeURIComponent(selected[0])}`); }}
           >
             Create action
-          </button>
-          <button
-            type="button"
-            className="pe-v2-quiet-link"
-            style={{ color: '#AAB5C4' }}
-            onClick={() => setSelected([])}
-          >
+          </CapiroButton>
+          <CapiroButton size="compact" variant="quiet" onClick={() => setSelected([])}>
             Clear ⎋
-          </button>
+          </CapiroButton>
         </div>
       ) : null}
     </div>
@@ -715,16 +588,8 @@ function ExpandClients({ code }: { code: string }) {
   const n = q.data?.length ?? 0;
   return (
     <>
-      <div
-        style={{
-          fontSize: 13.5,
-          fontWeight: n ? 700 : 400,
-          color: n ? 'var(--pev2-ink)' : 'var(--pev2-quiet)',
-        }}
-      >
-        {q.isLoading ? '…' : n || '—'}
-      </div>
-      <div className="pe-v2-spark-cap">{n ? 'AFFECTED' : 'NONE'}</div>
+      <div className={`pe-ws-clients${n ? ' is-affected' : ''}`}>{q.isLoading ? '…' : n || '—'}</div>
+      <div className="pe-ws-cap">{n ? 'AFFECTED' : 'NONE'}</div>
     </>
   );
 }
@@ -760,65 +625,57 @@ function ExpandRegion({ row, onClose }: { row: V2LineRow; onClose: () => void })
   const clientRows = clients.data ?? [];
 
   return (
-    <div className="pe-v2-expand">
-      <div style={{ flex: '1 1 0', minWidth: 300 }}>
-        <div className="pe-v2-eyebrow-quiet">What changed</div>
-        <div style={{ fontSize: 13.5, lineHeight: 1.55, color: 'var(--pev2-title)', marginTop: 7 }}>
-          {detail.isLoading ? (
-            <PeSkeletonBlock rows={2} />
-          ) : latestDelta?.explanation ? (
-            latestDelta.explanation
-          ) : (
-            'No material change in the active snapshot.'
-          )}
+    <tr className="pe-ws-expandrow">
+      <CapiroTableCell colSpan={COLUMN_COUNT} className="pe-ws-expandcell">
+        <div className="pe-ws-expand">
+          <div className="pe-ws-expand__col pe-ws-expand__col--wide">
+            <div className="pe-ws-eyebrow">What changed</div>
+            <div className="pe-ws-expand__body">
+              {detail.isLoading ? (
+                <PeSkeletonBlock rows={2} />
+              ) : latestDelta?.explanation ? (
+                latestDelta.explanation
+              ) : (
+                'No material change in the active snapshot.'
+              )}
+            </div>
+          </div>
+          <div className="pe-ws-expand__col">
+            <div className="pe-ws-eyebrow">Strongest evidence</div>
+            <div className="pe-ws-expand__mono">
+              {detail.data?.d.sourceCount ?? row.billCount ?? 0} SOURCES · {detail.data?.d.billCount ?? row.billCount ?? 0} BILLS
+            </div>
+            <button
+              type="button"
+              className="pe-ws-link"
+              onClick={() => navigate(`/program-elements/${encodeURIComponent(row.code)}?tab=sources`)}
+            >
+              Open source inspector →
+            </button>
+          </div>
+          <div className="pe-ws-expand__col">
+            <div className="pe-ws-eyebrow">Client exposure</div>
+            <div className="pe-ws-expand__body">
+              {clients.isLoading
+                ? '…'
+                : clientRows.length
+                  ? clientRows.map((c) => c.clientName).join(', ')
+                  : 'No client in this tenant is linked to this line.'}
+            </div>
+          </div>
+          <div className="pe-ws-expand__col">
+            <div className="pe-ws-eyebrow">Recommended action</div>
+            <div className="pe-ws-expand__strong">{recommendedAction(row)}</div>
+            <CapiroButton
+              size="compact"
+              onClick={() => navigate(`/actions?peCode=${encodeURIComponent(row.code)}`)}
+            >
+              Create action
+            </CapiroButton>
+          </div>
+          <button type="button" aria-label="Close" onClick={onClose} className="pe-ws-sr-btn" />
         </div>
-      </div>
-      <div style={{ flex: '1 1 0', minWidth: 230 }}>
-        <div className="pe-v2-eyebrow-quiet">Strongest evidence</div>
-        <div className="pe-v2-mono" style={{ fontSize: 12.5, color: 'var(--pev2-ink)', marginTop: 7 }}>
-          {detail.data?.d.sourceCount ?? row.billCount ?? 0} SOURCES · {detail.data?.d.billCount ?? row.billCount ?? 0} BILLS
-        </div>
-        <button
-          type="button"
-          onClick={() => navigate(`/program-elements/${encodeURIComponent(row.code)}?tab=sources`)}
-          style={{
-            fontSize: 12.5,
-            fontWeight: 600,
-            color: 'var(--pev2-ink-2)',
-            marginTop: 7,
-            cursor: 'pointer',
-            textDecoration: 'underline',
-            textUnderlineOffset: 3,
-          }}
-        >
-          Open source inspector →
-        </button>
-      </div>
-      <div style={{ flex: 'none', minWidth: 200 }}>
-        <div className="pe-v2-eyebrow-quiet">Client exposure</div>
-        <div style={{ fontSize: 13, color: 'var(--pev2-title)', marginTop: 7, lineHeight: 1.5 }}>
-          {clients.isLoading
-            ? '…'
-            : clientRows.length
-              ? clientRows.map((c) => c.clientName).join(', ')
-              : 'No client in this tenant is linked to this line.'}
-        </div>
-      </div>
-      <div style={{ flex: 'none', minWidth: 190 }}>
-        <div className="pe-v2-eyebrow-quiet">Recommended action</div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--pev2-title)', marginTop: 7, lineHeight: 1.4 }}>
-          {recommendedAction(row)}
-        </div>
-        <button
-          type="button"
-          className="pe-v2-btn pe-v2-btn-sm"
-          style={{ marginTop: 9 }}
-          onClick={() => navigate(`/actions?peCode=${encodeURIComponent(row.code)}`)}
-        >
-          Create action
-        </button>
-      </div>
-      <button type="button" aria-label="Close" onClick={onClose} style={{ display: 'none' }} />
-    </div>
+      </CapiroTableCell>
+    </tr>
   );
 }

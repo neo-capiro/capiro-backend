@@ -11,9 +11,11 @@
  * — destination is URL (query) state, never component state, so deep links and
  * back/forward behave identically to the canonical app.
  *
- * NOTE the destination bar stays an UNCLASSED inline-styled first child of
- * `.pe-v2`: pe-vnext.css's responsive layer targets
- * `.pe-v2 > div:first-child:not([class])` to let it wrap on narrow viewports.
+ * Phase 4 polish: the destination bar is a `CapiroTabs` strip (a tablist is
+ * what five sibling destinations over one panel actually are) and the summary
+ * meta prints as CapiroBadges. Both destination-bar copy strings — "MONITORED ·
+ * n" and "n OPEN MARKUP(S)" — are unchanged; they are now two chips instead of
+ * one run-on line.
  */
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -21,6 +23,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import { getProgramElementSummary } from '../../../pages/program-element/api.js';
 import { PE_DESTINATIONS, resolvePeDestination, type PeDestination } from './pe-routes.js';
+import { CapiroBadge } from '../../components/badges/index.js';
+import { CapiroTabs } from '../../components/menus/index.js';
 import { PeExploreView } from './PeExploreView.js';
 import { PeMovementView } from './PeMovementView.js';
 import { PeCongressionalView } from './PeCongressionalView.js';
@@ -57,62 +61,33 @@ export function PeWorkspacePage() {
     setSearchParams(params, { replace: true });
   };
 
-  const destBar = useMemo(
-    () => (
-      <div
-        style={{
-          height: 44,
-          flex: 'none',
-          background: 'var(--pev2-canvas)',
-          borderBottom: '1px solid var(--pev2-border-strong)',
-          display: 'flex',
-          alignItems: 'stretch',
-          padding: '0 20px',
-          gap: 20,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 'none' }}>
-          <span className="pe-v2-eyebrow" style={{ letterSpacing: '0.1em' }}>
-            Program elements
-          </span>
-          <span style={{ width: 1, height: 16, background: 'var(--pev2-control)' }} />
-        </div>
-        {PE_DESTINATIONS.map((d) => (
-          <button
-            key={d}
-            type="button"
-            onClick={() => go(d)}
-            aria-current={dest === d ? 'page' : undefined}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              fontSize: 13.5,
-              cursor: 'pointer',
-              flex: 'none',
-              borderBottom: `2px solid ${dest === d ? 'var(--pev2-ink)' : 'transparent'}`,
-              color: dest === d ? 'var(--pev2-ink)' : 'var(--pev2-secondary)',
-              fontWeight: dest === d ? 700 : 500,
-            }}
-          >
-            {DEST_LABEL[d]}
-          </button>
-        ))}
-        <div style={{ flex: 1, minWidth: 8 }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span className="pe-v2-eyebrow-quiet" style={{ letterSpacing: '0.07em' }}>
-            {monitored != null ? `MONITORED · ${monitored}` : ''}
-            {openMarkups ? ` · ${openMarkups} OPEN MARKUP${openMarkups === 1 ? '' : 'S'}` : ''}
-          </span>
-        </div>
-      </div>
-    ),
-    [dest, monitored, openMarkups],
+  const tabItems = useMemo(
+    () => PE_DESTINATIONS.map((d) => ({ id: d, label: DEST_LABEL[d] })),
+    [],
   );
 
   return (
-    <div className="pe-v2" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      {destBar}
-      <div style={{ flex: 1, minHeight: 0 }}>
+    <div className="pe-v2 pe-ws">
+      <header className="pe-ws-bar">
+        <span className="pe-ws-bar__eyebrow">Program elements</span>
+        <span className="pe-ws-bar__rule" aria-hidden />
+        <CapiroTabs
+          items={tabItems}
+          activeId={dest}
+          onChange={(id) => go(resolvePeDestination(id))}
+          label="Program element destinations"
+        />
+        <span className="pe-ws-spacer" />
+        <span className="pe-ws-bar__meta">
+          {monitored != null ? <CapiroBadge>{`MONITORED · ${monitored}`}</CapiroBadge> : null}
+          {openMarkups ? (
+            <CapiroBadge tone="warning">
+              {`${openMarkups} OPEN MARKUP${openMarkups === 1 ? '' : 'S'}`}
+            </CapiroBadge>
+          ) : null}
+        </span>
+      </header>
+      <div className="pe-ws-panel">
         {dest === 'explore' ? <PeExploreView /> : null}
         {dest === 'movement' ? <PeMovementView /> : null}
         {dest === 'congressional' ? <PeCongressionalView /> : null}
