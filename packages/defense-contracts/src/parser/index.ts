@@ -104,3 +104,4 @@ export interface DefenseParserJobResult {
 
 export * from './nvidia-batch.js';
 export * from './nvidia-real-batch.js';
+export * from './nvidia-async.js';

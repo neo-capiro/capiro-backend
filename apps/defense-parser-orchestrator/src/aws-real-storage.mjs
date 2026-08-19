@@ -176,7 +176,7 @@ export class AwsCliS3RealBatchStore {
   }
 
   async getCachedArtifact(cacheKey) {
-    const key = `${this.config.outputPrefix}/artifacts-v2/${cacheKey}.json`;
+    const key = `${this.config.normalizedPrefix ?? `${this.config.outputPrefix}/artifacts-v2`}/${cacheKey}.json`;
     const head = await this.#head(this.bucket, key);
     if (!head) return null;
     const artifact = await this.#getJson(this.bucket, key);
@@ -209,7 +209,7 @@ export class AwsCliS3RealBatchStore {
   }
 
   async putVerifiedArtifact({ cacheKey, artifact, contentSha256 }) {
-    const key = `${this.config.outputPrefix}/artifacts-v2/${cacheKey}.json`;
+    const key = `${this.config.normalizedPrefix ?? `${this.config.outputPrefix}/artifacts-v2`}/${cacheKey}.json`;
     if (artifact.cacheKey !== cacheKey) {
       throw new Session5RefusalError(
         'CACHE_KEY_MISMATCH',

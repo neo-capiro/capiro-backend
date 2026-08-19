@@ -12,7 +12,8 @@ import {
 
 const MAX_PROVIDER_RECORD_BYTES = 5_500_000;
 
-export function buildProviderManifest(batch) {
+export function buildProviderManifest(batch, options = {}) {
+  const executionModel = options.executionModel ?? 'sagemaker_batch_transform';
   const records = [];
   const sidecarRecords = [];
   for (let index = 0; index < batch.pages.length; index += 1) {
@@ -53,7 +54,15 @@ export function buildProviderManifest(batch) {
   }
   const body = `${records.join('\n')}\n`;
   const sidecarWithoutHash = {
-    schemaVersion: 'nvidia_batch_input_sidecar_v2',
+    schemaVersion:
+      executionModel === 'sagemaker_async_inference'
+        ? 'nvidia_async_input_sidecar_v1'
+        : 'nvidia_batch_input_sidecar_v2',
+    executionModel,
+    runtimeContractVersion:
+      executionModel === 'sagemaker_async_inference'
+        ? 'nvidia_async_inference_v1'
+        : 'nvidia_real_batch_v2',
     batchId: batch.batchId,
     sourceDocumentId: batch.sourceDocumentId,
     sourceSha256: batch.sourceSha256,
@@ -163,7 +172,13 @@ export function extractNemotronMarkdownBBox(response) {
 
 export function normalizeProviderOutputJsonLines(input) {
   const sidecar = input.sidecar;
-  if (!sidecar || sidecar.schemaVersion !== 'nvidia_batch_input_sidecar_v2') {
+  if (
+    !sidecar ||
+    ![
+      'nvidia_batch_input_sidecar_v2',
+      'nvidia_async_input_sidecar_v1',
+    ].includes(sidecar.schemaVersion)
+  ) {
     throw new Session5RefusalError('SIDECAR_REQUIRED', 'A v2 input sidecar is required');
   }
   const sidecarWithoutHash = { ...sidecar };
@@ -183,7 +198,7 @@ export function normalizeProviderOutputJsonLines(input) {
     if (record.lineIndex !== index) {
       throw new Session5RefusalError('SIDECAR_ORDER_MISMATCH', 'Sidecar line ordering is invalid');
     }
-    if (record.actualParserMethod !== sidecar.parserMethod) {
+      if (record.actualParserMethod !== sidecar.parserMethod) {
       throw new Session5RefusalError(
         'SIDECAR_PROVIDER_METHOD_MISMATCH',
         `Page ${record.pageNumber} actual parser method disagrees with batch provider`,
@@ -202,6 +217,7 @@ export function normalizeProviderOutputJsonLines(input) {
       modelName: sidecar.modelName,
       modelVersion: sidecar.modelVersion,
       parserOptionsHash: sidecar.parserOptionsHash,
+      runtimeContractVersion: sidecar.runtimeContractVersion,
       renderedImageSha256: record.renderedImageSha256,
       providerPayloadSha256: record.providerPayloadSha256,
       renderingConfigSha256: record.renderingConfigSha256,

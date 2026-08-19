@@ -15,17 +15,19 @@ import { Construct } from 'constructs';
 
 export const SESSION5_REQUIRED_MODEL_PACKAGE_ARN =
   'arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587';
+export const SESSION5_ASYNC_EXECUTION_MODE = 'sagemaker_async_inference' as const;
 
 export interface Phase8Session5NvidiaBenchmarkProps {
   readonly modelPackageArn: string;
   readonly monthlyGpuBudgetUsd: number;
   readonly initialBenchmarkCapUsd?: number;
   readonly instanceType?: string;
+  readonly executionMode?: typeof SESSION5_ASYNC_EXECUTION_MODE;
 }
 
 /**
  * Dark, benchmark-only NVIDIA parser plane. No public route and no SageMaker
- * Endpoint/EndpointConfig are created. Batch Transform is the only paid GPU path.
+ * Endpoint/EndpointConfig are orchestrator-owned ephemeral resources. Async Inference is the only active paid GPU path.
  */
 export class Phase8Session5NvidiaBenchmark extends Construct {
   readonly artifactBucket: s3.Bucket;
@@ -33,7 +35,7 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
   readonly completionQueue: sqs.Queue;
   readonly deadLetterQueue: sqs.Queue;
   readonly reservationLedger: dynamodb.Table;
-  readonly transformRole: iam.Role;
+  readonly executionRole: iam.Role;
   readonly orchestratorRole: iam.Role;
   readonly model: sagemaker.CfnModel;
 
@@ -45,6 +47,10 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
     super(scope, id);
 
     const initialCap = props.initialBenchmarkCapUsd ?? 50;
+    const executionMode = props.executionMode ?? SESSION5_ASYNC_EXECUTION_MODE;
+    if (executionMode !== SESSION5_ASYNC_EXECUTION_MODE) {
+      throw new Error('Session 5 active execution mode must be sagemaker_async_inference');
+    }
     if (props.modelPackageArn !== SESSION5_REQUIRED_MODEL_PACKAGE_ARN) {
       throw new Error(
         'Session 5 requires the approved pinned NVIDIA Nemotron Parse model package ARN',
@@ -151,36 +157,36 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
       removalPolicy: RemovalPolicy.RETAIN,
     });
 
-    this.transformRole = new iam.Role(this, 'BatchTransformRole', {
+    this.executionRole = new iam.Role(this, 'AsyncInferenceExecutionRole', {
       assumedBy: new iam.ServicePrincipal('sagemaker.amazonaws.com'),
       description:
-        'Session 5 Batch Transform role; evidence-prefix S3 only, no database access',
+        'Session 5 Async Inference model role; evidence-prefix S3 only, no database access',
       maxSessionDuration: Duration.hours(1),
     });
-    this.transformRole.addToPolicy(
+    this.executionRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject'],
         resources: [this.artifactBucket.arnForObjects('phase8/nvidia/*')],
       }),
     );
-    this.transformRole.addToPolicy(
+    this.executionRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['s3:ListBucket'],
         resources: [this.artifactBucket.bucketArn],
         conditions: { StringLike: { 's3:prefix': ['phase8/nvidia/*'] } },
       }),
     );
-    key.grantEncryptDecrypt(this.transformRole);
+    key.grantEncryptDecrypt(this.executionRole);
 
     this.model = new sagemaker.CfnModel(this, 'NemotronParseModel', {
-      executionRoleArn: this.transformRole.roleArn,
+      executionRoleArn: this.executionRole.roleArn,
       enableNetworkIsolation: true,
       primaryContainer: { modelPackageName: props.modelPackageArn },
       tags: [
         { key: 'CapiroPhase', value: 'phase8-session5' },
         {
           key: 'CapiroExecutionModel',
-          value: 'batch-transform-zero-idle',
+          value: executionMode,
         },
         { key: 'CapiroPublicTraffic', value: 'false' },
       ],
@@ -189,7 +195,7 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
     this.orchestratorRole = new iam.Role(this, 'ParserOrchestratorRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
       description:
-        'Non-HTTP Session 5 orchestrator; Batch Transform only, no endpoint mutation',
+        'Non-HTTP Session 5 orchestrator; Async Inference only, ephemeral endpoint lifecycle',
       maxSessionDuration: Duration.hours(1),
     });
     this.orchestratorRole.addToPolicy(
@@ -222,13 +228,16 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
 
     this.orchestratorRole.addToPolicy(
       new iam.PolicyStatement({
-        sid: 'BatchTransformOnly',
+        sid: 'AsyncInferenceOnly',
         effect: iam.Effect.ALLOW,
         actions: [
-          'sagemaker:CreateTransformJob',
-          'sagemaker:DescribeTransformJob',
-          'sagemaker:ListTransformJobs',
-          'sagemaker:StopTransformJob',
+          'sagemaker:CreateEndpointConfig',
+          'sagemaker:DescribeEndpointConfig',
+          'sagemaker:DeleteEndpointConfig',
+          'sagemaker:CreateEndpoint',
+          'sagemaker:DescribeEndpoint',
+          'sagemaker:DeleteEndpoint',
+          'sagemaker:InvokeEndpointAsync',
           'sagemaker:ListEndpoints',
         ],
         resources: ['*'],
@@ -241,14 +250,29 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
     );
     this.orchestratorRole.addToPolicy(
       new iam.PolicyStatement({
-        sid: 'PassOnlyBenchmarkTransformRole',
+        sid: 'PassOnlyAsyncInferenceExecutionRole',
         effect: iam.Effect.ALLOW,
         actions: ['iam:PassRole'],
-        resources: [this.transformRole.roleArn],
+        resources: [this.executionRole.roleArn],
         conditions: {
           StringEquals: {
             'iam:PassedToService': 'sagemaker.amazonaws.com',
           },
+        },
+      }),
+    );
+    this.orchestratorRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AsyncEndpointAutoscalingOnly',
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'application-autoscaling:RegisterScalableTarget',
+          'application-autoscaling:PutScalingPolicy',
+          'application-autoscaling:DeregisterScalableTarget',
+        ],
+        resources: ['*'],
+        conditions: {
+          StringEquals: { 'aws:RequestedRegion': Stack.of(this).region },
         },
       }),
     );
@@ -343,7 +367,8 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
     new CfnOutput(this, 'PersistentEndpointCount', {
       value: '0',
       description:
-        'This construct creates no endpoint or endpoint configuration',
+        'Endpoints are orchestrator-owned ephemeral resources and must be deleted after the run',
     });
+    new CfnOutput(this, 'ExecutionMode', { value: executionMode });
   }
 }

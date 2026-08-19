@@ -51,6 +51,12 @@ const awsReal = [
   read('apps', 'defense-parser-orchestrator', 'src', 'aws-real-storage.mjs'),
   read('apps', 'defense-parser-orchestrator', 'src', 'aws-real-ledger.mjs'),
 ].join('\n');
+const asyncRuntime = read(
+  'apps',
+  'defense-parser-orchestrator',
+  'src',
+  'real-async.mjs',
+);
 const cli = read('apps', 'defense-parser-orchestrator', 'src', 'cli.mjs');
 const materializer = read(
   'apps',
@@ -102,6 +108,31 @@ const manifestText = read(
   'phase8-session5-live-benchmark-manifest.json',
 );
 const manifest = manifestText ? JSON.parse(manifestText) : {};
+
+check(
+  asyncRuntime.includes("ASYNC_EXECUTION_MODEL = 'sagemaker_async_inference'") &&
+    asyncRuntime.includes('invoke-endpoint-async') &&
+    !asyncRuntime.includes('create-transform-job') &&
+    !asyncRuntime.includes('CreateTransformJob'),
+  'async runtime is explicit and has no Batch Transform submission path',
+);
+check(
+  asyncRuntime.includes('maxEndpointLifetimeSeconds') &&
+    asyncRuntime.includes('computeMaximumEndpointReservationUsd') &&
+    asyncRuntime.includes('ENDPOINT_DRAINING') &&
+    asyncRuntime.includes('ENDPOINT_DELETED'),
+  'async runtime has bounded lifetime, wall-clock reservation, and teardown states',
+);
+check(
+  asyncRuntime.includes('configureScaleToZero') &&
+    asyncRuntime.includes('MinCapacity: 0') &&
+    asyncRuntime.includes('MaxCapacity: 1'),
+  'async runtime configures max-one scale-to-zero capacity',
+);
+check(
+  asyncRuntime.includes('LIVE_RUN_AUTHORIZATION_REQUIRED'),
+  'async runtime refuses endpoint creation without explicit live authorization',
+);
 
 check(
   parserIndex.includes("export * from './nvidia-batch.js';"),
@@ -159,13 +190,17 @@ check(
 );
 
 check(
-  cli.includes('RealNvidiaBatchCoordinator') &&
-    cli.includes('createAwsRealBatchPorts'),
-  'live CLI uses the real-Batch coordinator, not the simulation coordinator',
+  cli.includes('AsyncNvidiaCoordinator') &&
+    cli.includes('createAwsRealAsyncPorts') &&
+    cli.includes("command === 'async-submit'"),
+  'live CLI uses the async coordinator and async port factory',
 );
 check(
-  cli.includes("command === 'reconcile'") && cli.includes("command === 'retry'"),
-  'CLI provides reconciliation and bounded retry drivers',
+  cli.includes("command === 'async-reconcile'") &&
+    cli.includes("command === 'async-watch'") &&
+    cli.includes("command === 'async-drain'") &&
+    cli.includes("command === 'async-zero-idle'"),
+  'CLI provides async reconciliation, watchdog, drain, and zero-idle drivers',
 );
 check(
   cli.includes('caller provider facts are not accepted'),
@@ -250,9 +285,10 @@ check(
   'Marketplace SageMaker model has network isolation enabled',
 );
 check(
-  infra.includes("'sagemaker:CreateTransformJob'") &&
-    !infra.includes("'sagemaker:CreateEndpoint'"),
-  'orchestrator IAM permits Batch Transform but no endpoint mutation',
+  infra.includes("'sagemaker:CreateEndpoint'") &&
+    infra.includes("'sagemaker:InvokeEndpointAsync'") &&
+    !infra.includes("'sagemaker:CreateTransformJob'"),
+  'orchestrator IAM permits isolated Async Inference and no Batch Transform',
 );
 check(
   infraTest.includes("resourceCountIs('AWS::SQS::Queue', 3)") &&
@@ -261,8 +297,9 @@ check(
 );
 check(
   infraTest.includes("resourceCountIs('AWS::SageMaker::Endpoint', 0)") &&
-    infraTest.includes("resourceCountIs('AWS::SageMaker::EndpointConfig', 0)"),
-  'synth tests pin zero persistent SageMaker endpoints',
+    infraTest.includes("resourceCountIs('AWS::SageMaker::EndpointConfig', 0)") &&
+    infraTest.includes('Async Inference'),
+  'synth tests pin orchestrator-owned ephemeral endpoint lifecycle',
 );
 
 for (const decision of ROUTING_DECISIONS) {
@@ -319,10 +356,10 @@ for (const s of REQUIRED_BENCHMARK_STRATA) {
   check(strata.has(s), `live manifest includes ${s}`);
 }
 check(
-  manifest.executionModel === 'sagemaker_batch_transform' &&
+  manifest.executionModel === 'sagemaker_async_inference' &&
     manifest.persistentEndpointAllowed === false &&
     manifest.productionDefaultChangeAllowed === false,
-  'manifest keeps Batch Transform dark and production defaults unchanged',
+  'manifest pins Async Inference and production defaults unchanged',
 );
 check(
   manifest.spendControls?.hardTotalIncrementalCapUsd === 150 &&
@@ -383,7 +420,10 @@ if (enforceLive) {
       'live evidence confirms no production default route changed',
     );
   }
-} else if (manifest.status === 'corpus_ready_awaiting_live_run_authorization') {
+} else if (
+  manifest.status === 'corpus_ready_awaiting_live_run_authorization' ||
+  manifest.status === 'async_runtime_ready_awaiting_live_run_authorization'
+) {
   check(
     manifest.corpusReview?.liveCorpusReady === true &&
       manifest.corpusReview?.acceptedStrataCount === REQUIRED_BENCHMARK_STRATA.length &&
@@ -393,6 +433,10 @@ if (enforceLive) {
   check(
     !existsSync(p('docs', 'defense-budget', 'phase8-session5-live-benchmark-evidence.json')),
     'live benchmark evidence is absent before live-run authorization',
+  );
+  check(
+    manifest.executionModel === 'sagemaker_async_inference',
+    'async runtime manifest remains live-run gated',
   );
 } else {
   check(

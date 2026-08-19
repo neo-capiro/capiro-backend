@@ -1,8 +1,110 @@
-# Phase 8 Session 5 — NVIDIA real-Batch handoff
+# Phase 8 Session 5 — NVIDIA Async Inference handoff
 
-## Verdict
+## Current verdict
 
-**SESSION5_CORPUS_READY_AWAITING_LIVE_RUN_AUTHORIZATION**
+**SESSION5_ASYNC_RUNTIME_READY_AWAITING_LIVE_RUN_AUTHORIZATION**
+
+The replacement async execution adapter is implemented and locally independently re-reviewed. No endpoint was created and no async invocation was submitted in this assignment. The live benchmark remains explicitly unauthorized.
+
+## Exact coordinates
+
+- Repository: `neo-capiro/capirov2`
+- Branch: `agent/phase8-session5-nvidia-benchmark`
+- Last implementation baseline before this adapter: `eb72e95c4a7f9902b2e9dc95207b3618d5259964`
+- AWS account/region: `967807252336` / `us-east-1`
+- Pinned Marketplace package: `arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587`
+- Model/version: `nemotron-parse` / `LLM NIM 1.14 and VLM NIM version 1.5.0`
+- Frozen corpus SHA: `a4bf213ea908f6dff2988e1ec3c78d0d5359a8e085554cb1915721b687fc8e98`
+- Parser options SHA: `890f08082befbee5261b4c77f0646d647a98d402bfd31c0dcb022f2610cf688a`
+- Rendering config SHA: `800a38fb9e8a4f8e014febe9822a5ca075596cf03d8544ab2aa67d9856f8a2fc`
+- Corpus: 8/8 accepted, 0 blocked, 10 prepared pages
+
+## Hosting preflight
+
+The exact `DescribeModelPackage` result reported:
+
+- `ModelDataSource`: present, with the pinned NVIDIA manifest S3 prefix
+- `SupportedContentTypes`: `application/json`
+- `SupportedResponseMIMETypes`: `application/json`
+- `SupportedRealtimeInferenceInstanceTypes`: includes `ml.g5.xlarge`
+- `SupportedTransformInstanceTypes`: includes `ml.g5.xlarge`, but this does not override the ModelDataSource Batch restriction
+- Marketplace product: `prod-jpaccpvt6aut4`
+- Container digest: `sha256:df067fc805581e2d1bfee3da87b5fe437115927098d931e48a162b70d51a5615`
+- `CertifyForMarketplace`: `true`
+
+The prior live Batch retry was rejected by SageMaker with:
+`SageMaker Batch currently doesn't support Model entity with container definitions which use ModelDataSource attribute`.
+No Batch Transform retry is permitted.
+
+The exact realtime-hosting instance support makes Async Inference the compatible replacement candidate. This is a capability proof from the package metadata, not live async execution evidence.
+
+## Async lifecycle
+
+The active runtime is `sagemaker_async_inference`:
+
+`CAPACITY_RESERVED -> ENDPOINT_CREATING -> ENDPOINT_READY -> REQUESTS_SUBMITTED -> REQUESTS_RECONCILING -> ARTIFACT_VERIFIED -> COMPLETION_PENDING -> RESUME_PUBLISHED -> ENDPOINT_DRAINING -> ENDPOINT_DELETED -> COMPLETE`
+
+The endpoint and endpoint config are orchestrator-owned and deterministic. The CDK construct creates the pinned isolated model/control plane only; it does not create a persistent endpoint. Existing endpoint/config identities are rediscovered and checked before reuse. Orphaned deterministic resources refuse a new reservation until reconciled.
+
+Endpoint names derive from corpus SHA, exact package ARN, model version, and async runtime contract. Async inference IDs derive from endpoint identity, source/page, payload SHA, and attempt.
+
+## Zero-idle and crash recovery
+
+- Endpoint variant autoscaling: `MinCapacity=0`, `MaxCapacity=1`
+- Explicit delete is still mandatory after completion or failure
+- Hard endpoint lifetime: `NVIDIA_MAX_ENDPOINT_LIFETIME_SECONDS`, default 1,800 seconds
+- Watch/reconcile discovers an endpoint after local state loss
+- CreateEndpoint uncertainty is resolved by deterministic rediscovery
+- Endpoint/config deletion is idempotent for not-found responses
+- Endpoint config is deleted only after endpoint absence is observed
+- `async-drain` and `async-zero-idle` are explicit operators' commands
+- Zero-idle requires ledger active capacity zero and no Session 5 async endpoints
+
+## Spend and provenance
+
+The atomic DynamoDB ledger reserves the maximum bounded endpoint wall-clock cost before endpoint creation. With the current test rate assumptions (USD 1 Marketplace + USD 1 instance/hour) and 1,800-second lifetime, the projection is USD 1.00. Actual settlement is derived from observed endpoint timestamps after endpoint and config deletion; caller-provided cost is not accepted. USD 150 remains unavailable unless extended authorization is explicitly set; current effective cap is USD 50.
+
+Each async invocation binds source SHA, physical page, rendered PNG SHA, provider payload SHA, rendering SHA, model/version, endpoint identity, deterministic inference ID, exact S3 output location, raw output SHA, and normalized output SHA through an immutable sidecar.
+
+## IAM and CDK
+
+The isolated orchestrator role now has only the Async Inference lifecycle actions, `InvokeEndpointAsync`, scoped role passing to the model execution role, the exact DynamoDB/S3/SQS/KMS controls, and the bounded autoscaling actions. `CreateTransformJob`, `DescribeTransformJob`, `StopTransformJob`, and related Batch execution permissions were removed from the active role. No production DB, Clerk, snapshot, canonical, routing, EventBridge, or unrelated IAM permissions were added.
+
+## Validation at this worktree
+
+- Async-specific tests: rerun at final SHA required; the prior run passed 11/11
+- Full Session 5 Node suite: rerun at final SHA required; the prior run passed 47/47
+- P0 verifier: `SESSION5_P0_RUNTIME_PASS`
+- Corpus verifier: `SESSION5_CORPUS_READY_PASS accepted=8 blocked=0`
+- Async CDK-focused tests: 6/6 passed
+- Defense contracts build: passed
+- Async/CDK typecheck: passed
+- Session 2 DB rehearsal: 36 checks passed
+- Session 3 parity: 52/52 passed
+- Session 3 DB rehearsal: 86 checks passed
+- Session 4 enforced replay: `SESSION4_SOURCE_PARITY_PASS`
+- Docker containment: `SESSION4_IMAGE_CONTAINMENT_PASS (8 checks)`
+
+The final exact SHA and fresh final counts must be updated after the final gates. Do not claim `SESSION5_COMPLETE`; no provider output, score, accepted live benchmark evidence, or live zero-idle run exists.
+
+## No-deployment boundary
+
+- No endpoint created in this assignment
+- No `InvokeEndpointAsync` submitted
+- No GPU spend incurred
+- No Batch Transform retry
+- No alternative model/package/container
+- No BYOC/NGC/ECR
+- No production or shared DB/data/routing/default/EventBridge/snapshot/canonical mutation
+- PR #1069 remains unmerged
+- Session 6 not started
+
+Live authorization must explicitly permit creating the deterministic async endpoint and invoking the frozen 10-page corpus before any paid AWS command is run.
+
+## Prior Batch attempt retained
+
+The previously performed isolated Batch attempt remains factual: quota was initially zero, quota was approved to one, Batch Transform created zero jobs, paid GPU spend was USD 0, active jobs were zero, endpoints were zero, and the reservation ledger ended at activeJobs zero and spentAndReservedUsd zero. Its ModelDataSource incompatibility is the reason the active adapter is now Async Inference.
+
 
 Runtime safety verdict remains **SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED**. The source-grounded corpus is now accepted, but live execution is still separately unauthorized. Do **not** deploy the benchmark stack or submit a paid NVIDIA TransformJob.
 

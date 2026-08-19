@@ -2,31 +2,31 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import process from 'node:process';
 import { evaluateBenchmark } from './session5.mjs';
+import { validateLiveBenchmarkCorpus } from './real-batch.mjs';
 import {
-  REAL_BATCH_INPUT_CONTENT_TYPE,
-  REAL_BATCH_OUTPUT_ACCEPT,
-  RealNvidiaBatchCoordinator,
-  loadRealBatchConfig,
-  validateLiveBenchmarkCorpus,
-} from './real-batch.mjs';
-import { createAwsRealBatchPorts } from './aws-real-runtime.mjs';
+  ASYNC_EXECUTION_MODEL,
+  ASYNC_INPUT_CONTENT_TYPE,
+  ASYNC_OUTPUT_ACCEPT,
+  AsyncNvidiaCoordinator,
+  loadRealAsyncConfig,
+} from './real-async.mjs';
+import { createAwsRealAsyncPorts } from './aws-real-runtime.mjs';
 
 function usage() {
   return `Usage:
   node src/cli.mjs validate-config [--out <file>]
   node src/cli.mjs benchmark --corpus <file> --out <file> [--enforce-live true]
-  node src/cli.mjs plan --request <file> --out <file>
-  node src/cli.mjs submit --plan <file> --out <file>
-  node src/cli.mjs reconcile --job-id <id> --out <file>
-  node src/cli.mjs reconcile --all true --out <file>
-  node src/cli.mjs retry --job-id <id> --out <file>
-  node src/cli.mjs watch --job-id <id> --interval-seconds 30 --max-seconds 3600 --out <file>
-  node src/cli.mjs handle-event --job-id <id> --out <file>
-  node src/cli.mjs zero-idle --out <file>
+  node src/cli.mjs async-submit --request <file> --out <file>
+  node src/cli.mjs async-reconcile --job-id <id> --out <file>
+  node src/cli.mjs async-watch --job-id <id> --interval-seconds 30 --max-seconds 3600 --out <file>
+  node src/cli.mjs async-drain --job-id <id> --out <file>
+  node src/cli.mjs async-zero-idle --out <file>
 
-handle-event is only a reconciliation signal: provider status, output identity, timing,
-and cost are always re-read from SageMaker/S3. Caller-supplied provider facts are never trusted.
-The CLI exposes no public listener and accepts no static cloud credentials.
+The active Session 5 execution model is SageMaker Asynchronous Inference.
+caller provider facts are not accepted; reconciliation re-reads SageMaker and S3.
+Batch Transform commands are intentionally unavailable because the pinned
+Marketplace package resolves through ModelDataSource, which SageMaker Batch
+Transform rejects. No caller-supplied provider facts are trusted.
 `;
 }
 
@@ -66,12 +66,8 @@ async function main() {
       validateLiveBenchmarkCorpus(corpus, { requireScorableGold: true });
     }
     const result = evaluateBenchmark(corpus, {
-      materialImprovementThreshold: Number(
-        args['improvement-threshold'] ?? 0.05,
-      ),
-      maxCostPerThousandPages: Number(
-        args['max-cost-per-thousand'] ?? Infinity,
-      ),
+      materialImprovementThreshold: Number(args['improvement-threshold'] ?? 0.05),
+      maxCostPerThousandPages: Number(args['max-cost-per-thousand'] ?? Infinity),
     });
     await writeJson(args.out, result);
     if (args['enforce-live'] === 'true' && !result.liveBenchmarkAccepted) {
@@ -80,7 +76,10 @@ async function main() {
     return;
   }
 
-  const config = loadRealBatchConfig();
+  const config = loadRealAsyncConfig();
+  if (command === 'submit' || command === 'plan' || command === 'reconcile' || command === 'retry' || command === 'watch' || command === 'handle-event' || command === 'zero-idle') {
+    throw new Error('ASYNC_MODE_REQUIRED: Batch Transform execution commands are disabled; use async-submit/async-reconcile/async-watch/async-drain/async-zero-idle');
+  }
   if (command === 'validate-config') {
     await writeJson(args.out, {
       valid: true,
@@ -89,92 +88,65 @@ async function main() {
       benchmarkAccepted: config.benchmarkAccepted,
       modelName: config.modelName,
       modelVersion: config.modelVersion,
+      modelPackageArn: config.modelPackageArn,
       maxConcurrentGpuJobs: config.maxConcurrentGpuJobs,
-      maxPagesPerJob: config.maxPagesPerJob,
+      maxEndpointLifetimeSeconds: config.maxEndpointLifetimeSeconds,
       initialBenchmarkCapUsd: config.initialBenchmarkCapUsd,
       hardIncrementalCapUsd: config.hardIncrementalCapUsd,
       effectiveSpendCapUsd: config.effectiveSpendCapUsd,
       extendedBudgetAuthorized: config.extendedBudgetAuthorized,
-      maxPaidAttempts: config.maxPaidAttempts,
-      executionModel: 'sagemaker_batch_transform',
-      inputContentType: REAL_BATCH_INPUT_CONTENT_TYPE,
-      outputAccept: REAL_BATCH_OUTPUT_ACCEPT,
-      persistentEndpoint: false,
+      executionModel: ASYNC_EXECUTION_MODEL,
+      inputContentType: ASYNC_INPUT_CONTENT_TYPE,
+      outputAccept: ASYNC_OUTPUT_ACCEPT,
+      endpointScaleToZeroConfigured: true,
+      endpointLifecycle: 'orchestrator_owned_create_and_delete',
       atomicReservationLedger: Boolean(config.ledgerTableName),
     });
     return;
   }
 
-  const ports = createAwsRealBatchPorts(config);
-  const coordinator = new RealNvidiaBatchCoordinator(ports, config);
-
-  if (command === 'plan') {
-    await writeJson(args.out, await coordinator.plan(await readJson(args.request)));
+  const ports = createAwsRealAsyncPorts(config);
+  const coordinator = new AsyncNvidiaCoordinator(ports, config);
+  if (command === 'async-submit') {
+    await writeJson(args.out, await coordinator.submit(await readJson(args.request)));
     return;
   }
-  if (command === 'submit') {
-    await writeJson(args.out, await coordinator.submit(await readJson(args.plan)));
+  if (command === 'async-reconcile') {
+    if (!args['job-id']) throw new Error('async-reconcile requires --job-id');
+    await writeJson(args.out, await coordinator.reconcile(args['job-id']));
     return;
   }
-  if (command === 'reconcile') {
-    if (args.all === 'true') {
-      await writeJson(args.out, await coordinator.reconcileAll());
-      return;
-    }
-    if (!args['job-id']) {
-      throw new Error('reconcile requires --job-id or --all true');
-    }
-    await writeJson(args.out, await coordinator.reconcileJob(args['job-id']));
+  if (command === 'async-drain') {
+    if (!args['job-id']) throw new Error('async-drain requires --job-id');
+    const job = await ports.jobStore.get(args['job-id']);
+    if (!job) throw new Error(`Async job ${args['job-id']} was not found`);
+    await writeJson(args.out, await coordinator.drain(job));
     return;
   }
-  if (command === 'handle-event') {
-    if (!args['job-id']) {
-      throw new Error(
-        'handle-event requires --job-id; caller provider facts are not accepted',
-      );
-    }
-    await writeJson(args.out, await coordinator.reconcileJob(args['job-id']));
-    return;
-  }
-  if (command === 'retry') {
-    if (!args['job-id']) throw new Error('retry requires --job-id');
-    await writeJson(args.out, await coordinator.retry(args['job-id']));
-    return;
-  }
-  if (command === 'watch') {
-    if (!args['job-id']) throw new Error('watch requires --job-id');
+  if (command === 'async-watch') {
+    if (!args['job-id']) throw new Error('async-watch requires --job-id');
     const intervalSeconds = Number(args['interval-seconds'] ?? 30);
     const maxSeconds = Number(args['max-seconds'] ?? 3600);
-    if (!Number.isFinite(intervalSeconds) || intervalSeconds < 1) {
-      throw new Error('watch --interval-seconds must be >= 1');
-    }
-    if (!Number.isFinite(maxSeconds) || maxSeconds < intervalSeconds) {
-      throw new Error('watch --max-seconds must be >= interval-seconds');
-    }
+    if (!Number.isFinite(intervalSeconds) || intervalSeconds < 1) throw new Error('async-watch interval must be >= 1');
+    if (!Number.isFinite(maxSeconds) || maxSeconds < intervalSeconds) throw new Error('async-watch max must be >= interval');
     const deadline = Date.now() + maxSeconds * 1000;
     let result;
     while (Date.now() <= deadline) {
-      result = await coordinator.reconcileJob(args['job-id']);
-      if (
-        ['RESUME_PUBLISHED', 'DLQ'].includes(result.status) &&
-        result.dlqPublishPending !== true
-      ) {
+      result = await coordinator.reconcile(args['job-id']);
+      if (['COMPLETE', 'ENDPOINT_DELETED'].includes(result.status)) {
         await writeJson(args.out, result);
         return;
       }
-      await new Promise((resolve) =>
-        setTimeout(resolve, intervalSeconds * 1000),
-      );
+      await new Promise((resolve) => setTimeout(resolve, intervalSeconds * 1000));
     }
-    throw new Error(`watch deadline exceeded for ${args['job-id']}`);
+    throw new Error(`async-watch deadline exceeded for ${args['job-id']}`);
   }
-  if (command === 'zero-idle') {
+  if (command === 'async-zero-idle') {
     const proof = await coordinator.zeroIdleProof();
     await writeJson(args.out, proof);
     if (!proof.zeroIdleGpu) process.exitCode = 3;
     return;
   }
-
   throw new Error(`Unknown command ${command}`);
 }
 

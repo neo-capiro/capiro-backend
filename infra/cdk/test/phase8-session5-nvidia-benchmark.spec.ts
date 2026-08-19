@@ -1,7 +1,10 @@
 import { App, Stack } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { Phase8Session5NvidiaBenchmark } from '../lib/phase8-session5-nvidia-benchmark';
-import { SESSION5_REQUIRED_MODEL_PACKAGE_ARN } from '../lib/phase8-session5-nvidia-benchmark';
+import {
+  SESSION5_ASYNC_EXECUTION_MODE,
+  SESSION5_REQUIRED_MODEL_PACKAGE_ARN,
+} from '../lib/phase8-session5-nvidia-benchmark';
 
 describe('Phase8Session5NvidiaBenchmark', () => {
   const synth = () => {
@@ -13,11 +16,12 @@ describe('Phase8Session5NvidiaBenchmark', () => {
       modelPackageArn: SESSION5_REQUIRED_MODEL_PACKAGE_ARN,
       monthlyGpuBudgetUsd: 150,
       initialBenchmarkCapUsd: 50,
+      executionMode: SESSION5_ASYNC_EXECUTION_MODE,
     });
     return Template.fromStack(stack);
   };
 
-  it('creates Batch Transform prerequisites with completion outbox and atomic reservation ledger, but no endpoint', () => {
+  it('creates Async Inference control-plane prerequisites with completion outbox and atomic reservation ledger, but no declarative endpoint', () => {
     const template = synth();
     template.resourceCountIs('AWS::SageMaker::Model', 1);
     template.resourceCountIs('AWS::SageMaker::Endpoint', 0);
@@ -54,16 +58,17 @@ describe('Phase8Session5NvidiaBenchmark', () => {
     });
   });
 
-  it('grants Batch Transform, completion publish and Dynamo transactions but never endpoint mutation', () => {
+  it('grants Async Inference lifecycle, completion publish and Dynamo transactions', () => {
     const json = JSON.stringify(synth().toJSON());
-    expect(json).toContain('sagemaker:CreateTransformJob');
-    expect(json).toContain('sagemaker:DescribeTransformJob');
+    expect(json).toContain('sagemaker:CreateEndpoint');
+    expect(json).toContain('sagemaker:CreateEndpointConfig');
+    expect(json).toContain('sagemaker:InvokeEndpointAsync');
+    expect(json).toContain('sagemaker:DeleteEndpoint');
+    expect(json).toContain('application-autoscaling:RegisterScalableTarget');
     expect(json).toContain('sqs:SendMessage');
     expect(json).toContain('dynamodb:TransactWriteItems');
-    expect(json).not.toContain('sagemaker:CreateEndpoint');
-    expect(json).not.toContain('sagemaker:CreateEndpointConfig');
-    expect(json).not.toContain('sagemaker:UpdateEndpoint');
-    expect(json).not.toContain('sagemaker:DeleteEndpoint');
+    expect(json).not.toContain('sagemaker:CreateTransformJob');
+    expect(json).not.toContain('sagemaker:DescribeTransformJob');
   });
 
   it('retains DLQ wiring and literal zero-endpoint proof', () => {
@@ -75,7 +80,8 @@ describe('Phase8Session5NvidiaBenchmark', () => {
     expect(outputs).toContainEqual(
       expect.objectContaining({
         Value: '0',
-        Description: 'This construct creates no endpoint or endpoint configuration',
+        Description:
+          'Endpoints are orchestrator-owned ephemeral resources and must be deleted after the run',
       }),
     );
     expect(
