@@ -241,6 +241,7 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
           'sagemaker:InvokeEndpointAsync',
           'sagemaker:AddTags',
           'sagemaker:ListTags',
+          'sagemaker:DescribeModel',
         ],
         resources: [
           `arn:${Aws.PARTITION}:sagemaker:${Aws.REGION}:${Aws.ACCOUNT_ID}:endpoint/capiro-s5-async-*`,
