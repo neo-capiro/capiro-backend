@@ -63,7 +63,6 @@ export type TangoWebhookRejection =
   | 'malformed_signature'
   | 'invalid_signature'
   | 'malformed_json'
-  | 'missing_delivery_id'
   | 'missing_event_type'
   | 'stale_timestamp';
 
@@ -194,7 +193,7 @@ export type TangoEnvelopeResult =
  */
 export function readEnvelope(
   payload: unknown,
-  deliveryHeader: string | undefined,
+  contentDigest: string,
   providerEventAt: Date | null,
 ): TangoEnvelopeResult {
   const envelope: Record<string, unknown> =
@@ -232,26 +231,16 @@ export function readEnvelope(
     ? { ...firstEvent, ...stripUndefined(envelope) }
     : envelope;
 
-  // THE SIGNED BODY WINS. The HMAC covers the body only, so the header is
-  // attacker-controlled: preferring it — which the first version did, reasoning
-  // that the header is "the transport's own identifier for THIS delivery" —
-  // meant one captured signed body could be replayed under unlimited distinct
-  // delivery ids, each one a fresh row. The unique index on `delivery_id` is
-  // described in its own migration as "the whole replay defence", and it was
-  // keyed on unsigned input.
-  //
-  // The header is still read, but only as a LAST resort for a provider that
-  // sends no id in the body at all. That path is replay-vulnerable by
-  // construction and there is no way around it without the provider signing the
-  // header; `diag-tango-webhook-contract` reports whether the body carries an
-  // id, and if it does, this branch never runs.
-  const deliveryId = firstNonEmptyString([
-    body.delivery_id,
-    body.deliveryId,
-    body.id,
-    deliveryHeader,
-  ]);
-  if (deliveryId === null) return { ok: false, rejection: 'missing_delivery_id' };
+  // THE SIGNED BODY WINS, and now it is the ONLY thing that can. The HMAC
+  // covers the body only (verified against the vendor SDK's own signing.js —
+  // see FIX-PLAN-p46-webhooks.md §2), so any header is attacker-controlled and
+  // is no longer part of identity resolution at all — not even as a last
+  // resort. When the body names no id (true of every shape the provider's SDK
+  // documents today), the fallback is the SHA-256 digest of the exact verified
+  // bytes: a value an attacker cannot change without invalidating the
+  // signature, and one that is always available, so this can never fail.
+  const deliveryId =
+    firstNonEmptyString([body.delivery_id, body.deliveryId, body.id]) ?? contentDigest;
 
   const eventType = firstNonEmptyString([body.event_type, body.eventType, body.event, body.type]);
   if (eventType === null) return { ok: false, rejection: 'missing_event_type' };
@@ -369,10 +358,28 @@ export class TangoWebhookService {
       return { kind: 'rejected', rejection: 'malformed_json' };
     }
 
-    const envelope = readEnvelope(parsed, headers.deliveryId, window.providerEventAt);
+    // Computed once, from the exact bytes verifyTangoSignature already
+    // authenticated. Reused below both as the id-resolution fallback and as
+    // the stored payloadSha256 — one hash, two uses, so the two values are
+    // provably the same computation, not two independent calls that could
+    // drift.
+    const contentDigest = payloadDigest(rawBody);
+
+    const envelope = readEnvelope(parsed, contentDigest, window.providerEventAt);
     if (!envelope.ok) {
       this.logger.warn(`Tango webhook rejected: ${envelope.rejection}`);
       return { kind: 'rejected', rejection: envelope.rejection };
+    }
+
+    // Observability only. x-tango-delivery-id is NOT part of the HMAC (§2 of
+    // FIX-PLAN-p46-webhooks.md) and MUST NEVER influence identity or the
+    // uniqueness check — an attacker replaying a captured signed body can set
+    // this to anything. Logged, never stored, never compared.
+    if (headers.deliveryId !== undefined && headers.deliveryId.trim() !== '') {
+      this.logger.debug(
+        `Tango webhook: ${TANGO_DELIVERY_HEADER}="${headers.deliveryId.trim()}" received ` +
+          `(unsigned; ignored for identity). Resolved identity=${envelope.envelope.deliveryId}`,
+      );
     }
 
     // ── 4. Record. The unique index, not a pre-read, decides duplicates. ─────
@@ -388,7 +395,7 @@ export class TangoWebhookService {
           deliveryId,
           eventType,
           eventId,
-          payloadSha256: payloadDigest(rawBody),
+          payloadSha256: contentDigest,
           payloadBytes: rawBody.byteLength,
           payload: parsed as never,
           status: 'received',
