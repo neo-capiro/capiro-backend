@@ -176,6 +176,24 @@ test('async submit discovers and drains an orphaned endpoint before reserving ne
   assert.equal(jobs.get(identity.endpointName).status, 'COMPLETE');
 });
 
+test('reconcile does not re-submit deletion for an endpoint already deleting', async () => {
+  const c = config();
+  const endpoint = buildAsyncEndpointIdentity({ corpusSha256: SOURCE, modelPackageArn: MODEL_ARN, modelVersion: MODEL_VERSION, runtimeContractVersion: ASYNC_RUNTIME_CONTRACT_VERSION, modelName: c.sagemakerModelName, executionRoleArn: c.executionRoleArn, instanceType: c.instanceType, outputBucket: c.outputBucket, outputPrefix: c.outputPrefix, failureBucket: c.outputBucket, failurePrefix: c.failurePrefix, kmsKeyId: c.kmsKeyId });
+  const job = { jobId: endpoint.endpointName, status: 'ENDPOINT_DRAINING', endpoint, reservationId: 'r', createdAt: '2026-08-19T00:00:00.000Z', updatedAt: '2026-08-19T00:00:00.000Z', history: [] };
+  let deleteCalls = 0;
+  const coordinator = new AsyncNvidiaCoordinator({
+    jobStore: { async get() { return job; }, async put() {} },
+    reservationLedger: { async settle() {}, async release() {}, async snapshot() { return { activeJobs: 1, spentAndReservedUsd: 1 }; } },
+    endpointClient: {
+      async describeEndpoint() { return { EndpointStatus: 'Deleting' }; },
+      async deleteEndpoint() { deleteCalls += 1; },
+    },
+  }, c);
+  const result = await coordinator.reconcile(job.jobId);
+  assert.equal(result.status, 'ENDPOINT_DRAINING');
+  assert.equal(deleteCalls, 0);
+});
+
 test('async output location is matched exactly and unrelated objects do not count', async () => {
   const calls = [];
   const adapter = new SafeAwsCliSageMakerAsyncInferenceAdapter({

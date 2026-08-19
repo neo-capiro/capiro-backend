@@ -1074,8 +1074,7 @@ export class AsyncNvidiaCoordinator {
       ? Math.min(this.config.maxEndpointLifetimeSeconds, Math.max(0, (providerEnd - start) / 1000))
       : 0;
     const hourly = this.config.marketplaceUsdPerHostHour + this.config.instanceUsdPerHour;
-    const reconciled = Number(((seconds / 3600) * hourly).toFixed(6));
-    return Math.min(reconciled, Number(this.config.effectiveSpendCapUsd));
+    return Number(((seconds / 3600) * hourly).toFixed(6));
   }
 
   async zeroIdleProof() {
