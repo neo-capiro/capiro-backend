@@ -176,6 +176,38 @@ describe('TargetWorkspace', () => {
     expect(screen.getByText(/Saving to the shared Directory remains off/i)).toBeInTheDocument();
   });
 
+  it('sends the declared audience type for a manual target, or null when left unset', async () => {
+    const value = props();
+    renderWorkspace(value);
+    fireEvent.click(screen.getByRole('tab', { name: 'Add manually' }));
+
+    fireEvent.change(screen.getByLabelText(/^Name/i), { target: { value: 'Jordan Miller' } });
+    fireEvent.change(screen.getByLabelText(/Audience type/i), {
+      target: { value: 'client_executive' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add target to campaign' }));
+
+    await waitFor(() => expect(value.applyCommands).toHaveBeenCalledTimes(1));
+    expect(value.applyCommands).toHaveBeenCalledWith([
+      expect.objectContaining({
+        type: 'ADD_TARGET_REFS',
+        payload: {
+          refs: [expect.objectContaining({ source: 'manual', audienceType: 'client_executive' })],
+        },
+      }),
+    ]);
+
+    (value.applyCommands as ReturnType<typeof vi.fn>).mockClear();
+    fireEvent.change(screen.getByLabelText(/^Name/i), { target: { value: 'Alex Rivera' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add target to campaign' }));
+    await waitFor(() => expect(value.applyCommands).toHaveBeenCalledTimes(1));
+    expect(value.applyCommands).toHaveBeenCalledWith([
+      expect.objectContaining({
+        payload: { refs: [expect.objectContaining({ source: 'manual', audienceType: null })] },
+      }),
+    ]);
+  });
+
   describe('signal pills (item 5)', () => {
     it('renders candidate signals as tone-driven pill components instead of joined plain text', () => {
       renderWorkspace(props());

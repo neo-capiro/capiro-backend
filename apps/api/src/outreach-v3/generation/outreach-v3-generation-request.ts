@@ -77,7 +77,7 @@ export function buildOutreachV3GatewayUnit(
     ...(input.prepared.slot.audienceKind === 'group'
       ? { groupMemberCount: input.prepared.currentTargets.length }
       : {}),
-    explicitAudience: null,
+    explicitAudience: manualAudienceOverride(input.prepared),
     // Few-shot exemplars ride their own request field, not `items`. Routing them
     // through the Evidence Packet would put last quarter's figures into this
     // campaign's claim pool; see GenerationRequest.styleSamples.
@@ -121,6 +121,23 @@ export function buildOutreachV3GatewayUnit(
   }
 
   return { request, enrichments, auditLedger };
+}
+
+/**
+ * A manually-added target carries no directory/domain signal for
+ * government-affairs-policy.registry's selectPolicy() to key off, so it FAILS
+ * CLOSED (AudiencePolicyRequiredError -> OUTREACH_COMMAND_BLOCKED) unless the
+ * person who added it said which audience this is. Only wired for the
+ * individual slot: a shared-thread group mixing manual and directory-resolved
+ * members must not have one manual member's guess silently override the
+ * group's own (already server-verified) audience resolution.
+ */
+function manualAudienceOverride(
+  prepared: PreparedOutreachV3GenerationSlot,
+): GenerationRequest['explicitAudience'] {
+  if (prepared.slot.audienceKind === 'group') return null;
+  const target = prepared.currentTargets[0];
+  return target && target.locator.source === 'manual' ? target.locator.audienceType : null;
 }
 
 function gatewayRecipient(prepared: PreparedOutreachV3GenerationSlot): GatewayRecipient {
