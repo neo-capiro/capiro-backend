@@ -197,4 +197,24 @@ describe('Committee Staff vNext', () => {
     await waitFor(() => expect(screen.getByText('Chair Person')).toBeTruthy());
     expect(screen.queryByText('Subcommittee')).toBeNull();
   });
+
+  test('hierarchy view has no persistent selection rail — the canvas uses the full width', async () => {
+    mockHappy([staffer()]);
+    renderAt('/directory/committee-staff');
+    await waitFor(() => expect(screen.getByText('Chair Person')).toBeTruthy());
+    expect(screen.queryByText('Selected staff profile')).toBeNull();
+    fireEvent.click(screen.getByText('Sam Diaz'));
+    await waitFor(() => expect(screen.getByText('Staff ID')).toBeTruthy());
+    // Still no rail once someone is selected — only the modal shows the profile.
+    expect(screen.queryByText('Selected staff profile')).toBeNull();
+  });
+
+  test('subcommittee names drop the redundant parent-committee prefix the source repeats on every unit', async () => {
+    mockHappy([staffer()], [
+      { id: 'committee-101', officeId: 101, name: 'House Armed Services Subcommittee on Seapower', kind: 'subcommittee' },
+    ]);
+    renderAt('/directory/committee-staff');
+    await waitFor(() => expect(screen.getByText('Subcommittee on Seapower')).toBeTruthy());
+    expect(screen.queryByText('House Armed Services Subcommittee on Seapower')).toBeNull();
+  });
 });
