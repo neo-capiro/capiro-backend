@@ -298,8 +298,7 @@ function HierarchyView({
   const units = committee.units;
 
   return (
-    <div className="capiro-directory-split">
-      <div className="capiro-directory-hierarchy">
+    <div className="capiro-directory-hierarchy">
         <div className="capiro-directory-results__header">
           <p className="capiro-directory-results__eyebrow">
             {detail?.name ?? 'Committee'} · Hierarchy
@@ -364,10 +363,10 @@ function HierarchyView({
                   <TreeConnector toCount={units.length} />
                   <div
                     className="capiro-directory-canvas__tier"
-                    style={{ gridTemplateColumns: `repeat(${units.length}, minmax(150px, 1fr))` }}
+                    style={{ gridTemplateColumns: `repeat(${units.length}, minmax(180px, 1fr))` }}
                   >
                     {units.map((unit) => (
-                      <UnitNode key={unit.id} unit={unit} />
+                      <UnitNode key={unit.id} unit={unit} committeeName={detail.name} />
                     ))}
                   </div>
                 </>
@@ -380,7 +379,7 @@ function HierarchyView({
             </p>
 
             {/* Staff people, grouped at the committee level (per-unit placement
-                is not source-backed — DIR-1). Selecting a node fills the rail. */}
+                is not source-backed — DIR-1). Clicking a node opens the profile modal. */}
             {results.staff.length === 0 ? (
               <p className="capiro-directory-canvas__note">No committee-level staff on record.</p>
             ) : (
@@ -444,21 +443,27 @@ function HierarchyView({
           </div>
         )}
       </div>
-
-      <SelectedCommitteeStaffRail staffer={selection.selected} onOpenProfile={onOpenStaffProfile} />
-    </div>
   );
 }
 
-function UnitNode({ unit }: { unit: CommitteeRef }) {
+/** Subcommittee names repeat their parent committee's full name as a literal
+ * prefix (source data, not a display choice) — stripped so the card shows
+ * only the part that actually distinguishes it from its siblings. */
+function unitDisplayName(unit: CommitteeRef, committeeName: string): string {
+  const prefix = `${committeeName} `;
+  return unit.name.startsWith(prefix) ? unit.name.slice(prefix.length) : unit.name;
+}
+
+function UnitNode({ unit, committeeName }: { unit: CommitteeRef; committeeName: string }) {
+  const name = unitDisplayName(unit, committeeName);
   return (
     <div className="capiro-directory-node capiro-directory-node--unit">
       <span className="capiro-directory-node__mark capiro-directory-node__mark--place">
-        {unit.name.slice(0, 2).toUpperCase()}
+        {name.slice(0, 2).toUpperCase()}
       </span>
       <span className="capiro-directory-node__body">
         <span className="capiro-directory-node__kind">Subcommittee</span>
-        <span className="capiro-directory-node__name">{unit.name}</span>
+        <span className="capiro-directory-node__name">{name}</span>
       </span>
     </div>
   );
