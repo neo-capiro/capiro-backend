@@ -355,9 +355,34 @@ class DismissOpportunityDto {
   reason?: string | null;
 }
 
+/**
+ * Params for the `opportunities/:source/:id` family, including the
+ * client-scoped `clients/:clientId/opportunities/:source/:id/...` routes.
+ *
+ * EVERY segment a binding route's pattern names must be declared here, not
+ * just `source`: the global ValidationPipe (configure-api-http-app.ts) runs
+ * whitelist + forbidNonWhitelisted over the WHOLE params object, so an
+ * undeclared `:id` makes the pipe reject the request — an unconditional 400
+ * on a route whose record the inbox happily lists. That is how the detail
+ * route shipped broken while every unit spec stayed green: unit specs call
+ * the controller methods directly and never meet the pipe. The HTTP-level
+ * proof lives in funding-opportunities.detail-route.http.spec.ts.
+ */
 class SourceParamDto {
   @IsIn(OPPORTUNITY_SOURCES)
   source!: OpportunitySource;
+
+  // Grants.gov ids are numeric strings and SAM ids are UUIDs; which key space
+  // applies is the service's decision, so the path only asserts shape.
+  @IsString()
+  @MaxLength(256)
+  id!: string;
+
+  // Present only on the client-scoped routes; optional so the plain catalog
+  // reads validate too. Route handlers still bind it separately.
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
 }
 
 /**
@@ -371,6 +396,12 @@ class SourceParamDto {
 class InboxSourceParamDto {
   @IsIn(INBOX_SOURCES)
   source!: InboxSource;
+
+  // Same forbidNonWhitelisted constraint as SourceParamDto: the binding
+  // route's `:id` segment must be whitelisted or the pipe 400s the request.
+  @IsString()
+  @MaxLength(256)
+  id!: string;
 }
 
 /**
