@@ -5,9 +5,17 @@ import { ClerkProvider } from '@clerk/clerk-react';
 import { App as AntApp, ConfigProvider } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App.js';
-import { config } from './env.js';
+import { config, isVNextSurface } from './env.js';
 import { ANTD_THEME, CLERK_APPEARANCE } from './theme-antd.js';
-import './theme.css';
+
+// theme.css is the LEGACY surface's global stylesheet. One bundle serves two
+// surfaces (see env.ts): app.capiro.ai still renders antd and needs it;
+// os.capiro.ai is fully vNext-native (no-legacy-ui.contract.test.ts holds the
+// allowlist at zero) and must not have legacy selectors repainting its DOM.
+// Loaded dynamically so the vNext surface never fetches or applies it.
+if (!isVNextSurface) {
+  void import('./theme.css');
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,13 +32,21 @@ const PublicWorkspaceShare = React.lazy(() =>
 );
 
 function FoundationProviders({ children }: { children: React.ReactNode }) {
+  const core = (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>{children}</BrowserRouter>
+    </QueryClientProvider>
+  );
+
+  // The antd theme context and <App> chrome exist for the legacy surface
+  // only. On os.capiro.ai nothing antd renders (guard test), so the vNext
+  // tree mounts without them — no .ant-app wrapper, no antd message/modal
+  // context, no antd theme tokens.
+  if (isVNextSurface) return core;
+
   return (
     <ConfigProvider theme={ANTD_THEME}>
-      <AntApp>
-        <QueryClientProvider client={queryClient}>
-          <BrowserRouter>{children}</BrowserRouter>
-        </QueryClientProvider>
-      </AntApp>
+      <AntApp>{core}</AntApp>
     </ConfigProvider>
   );
 }
