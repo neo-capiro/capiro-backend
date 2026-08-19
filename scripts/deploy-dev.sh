@@ -80,16 +80,27 @@ echo "app.capiro.ai -> HTTP $APP_HTTP"
 GIT_SHA=$( (cd "$REPO_ROOT" && git rev-parse --short HEAD) 2>/dev/null || echo unknown)
 echo "deploying from git $GIT_SHA"
 
+# The same MSYS_NO_PATHCONV hazard bites docker, and harder: `docker buildx
+# build` takes the build context and -f as PATHS, and native docker.exe cannot
+# read a POSIX `/c/dev/...`. It fails with
+#   ERROR: failed to build: unable to prepare context: path "/c/dev/..." not found
+# (observed 2026-08-13). `cd` rescued the git call because cd is a builtin;
+# there is no builtin to rescue docker, so the path itself has to be converted.
+# `cygpath -m` yields `C:/dev/...`, which both docker.exe and bash accept. On a
+# non-MSYS host cygpath does not exist and no conversion is wanted, so fall back
+# to the POSIX path unchanged.
+DOCKER_CTX="$(command -v cygpath >/dev/null 2>&1 && cygpath -m "$REPO_ROOT" || echo "$REPO_ROOT")"
+
 # ---- 1. (optional) build + push arm64 images -------------------------------
 if $DO_BUILD; then
   log "Build + push arm64 images (api + web) to ECR"
   run "aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR"
   # IMPORTANT: Fargate here is arm64. Never push an amd64 :latest.
-  run "docker buildx build --platform linux/arm64 -f $REPO_ROOT/apps/api/Dockerfile \
-        -t $ECR/capiro/dev/api:latest -t $ECR/capiro/dev/api:$GIT_SHA --push $REPO_ROOT"
-  run "docker buildx build --platform linux/arm64 -f $REPO_ROOT/apps/web/Dockerfile \
+  run "docker buildx build --platform linux/arm64 -f $DOCKER_CTX/apps/api/Dockerfile \
+        -t $ECR/capiro/dev/api:latest -t $ECR/capiro/dev/api:$GIT_SHA --push $DOCKER_CTX"
+  run "docker buildx build --platform linux/arm64 -f $DOCKER_CTX/apps/web/Dockerfile \
         --build-arg GIT_SHA=$GIT_SHA \
-        -t $ECR/capiro/dev/web:latest -t $ECR/capiro/dev/web:$GIT_SHA --push $REPO_ROOT"
+        -t $ECR/capiro/dev/web:latest -t $ECR/capiro/dev/web:$GIT_SHA --push $DOCKER_CTX"
 else
   echo "(skipping local build — assuming CI already pushed :latest for $GIT_SHA)"
 fi
