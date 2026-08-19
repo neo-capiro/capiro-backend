@@ -4,6 +4,7 @@ import {
   RemovalPolicy,
   Stack,
   aws_cloudwatch as cloudwatch,
+  aws_dynamodb as dynamodb,
   aws_iam as iam,
   aws_kms as kms,
   aws_s3 as s3,
@@ -13,25 +14,22 @@ import {
 import { Construct } from 'constructs';
 
 export interface Phase8Session5NvidiaBenchmarkProps {
-  /** Pinned, approved AWS Marketplace model-package ARN. */
   readonly modelPackageArn: string;
-  /** Hard application budget mirrored by the coordinator. */
   readonly monthlyGpuBudgetUsd: number;
-  /** Optional explicit instance type; one instance per transform job. */
+  readonly initialBenchmarkCapUsd?: number;
   readonly instanceType?: string;
 }
 
 /**
- * Dark, benchmark-only NVIDIA parser plane.
- *
- * This construct deliberately creates no SageMaker Endpoint or EndpointConfig.
- * Batch Transform capacity exists only for the duration of a transform job.
- * The public defense-api task role is never referenced or granted permissions.
+ * Dark, benchmark-only NVIDIA parser plane. No public route and no SageMaker
+ * Endpoint/EndpointConfig are created. Batch Transform is the only paid GPU path.
  */
 export class Phase8Session5NvidiaBenchmark extends Construct {
   readonly artifactBucket: s3.Bucket;
   readonly escalationQueue: sqs.Queue;
+  readonly completionQueue: sqs.Queue;
   readonly deadLetterQueue: sqs.Queue;
+  readonly reservationLedger: dynamodb.Table;
   readonly transformRole: iam.Role;
   readonly orchestratorRole: iam.Role;
   readonly model: sagemaker.CfnModel;
@@ -43,18 +41,34 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
   ) {
     super(scope, id);
 
+    const initialCap = props.initialBenchmarkCapUsd ?? 50;
     if (!props.modelPackageArn.trim()) {
       throw new Error('modelPackageArn is required and must be version-pinned');
     }
-    if (!Number.isFinite(props.monthlyGpuBudgetUsd) || props.monthlyGpuBudgetUsd <= 0) {
-      throw new Error('monthlyGpuBudgetUsd must be a positive hard application limit');
+    if (
+      !Number.isFinite(props.monthlyGpuBudgetUsd) ||
+      props.monthlyGpuBudgetUsd <= 0
+    ) {
+      throw new Error(
+        'monthlyGpuBudgetUsd must be a positive hard application limit',
+      );
+    }
+    if (
+      !Number.isFinite(initialCap) ||
+      initialCap <= 0 ||
+      initialCap > props.monthlyGpuBudgetUsd
+    ) {
+      throw new Error(
+        'initialBenchmarkCapUsd must be positive and <= monthlyGpuBudgetUsd',
+      );
     }
 
     const key = new kms.Key(this, 'ArtifactKey', {
       alias: 'alias/capiro-phase8-session5-nvidia-benchmark',
       enableKeyRotation: true,
       removalPolicy: RemovalPolicy.RETAIN,
-      description: 'Session 5 immutable NVIDIA benchmark manifests and artifacts',
+      description:
+        'Session 5 immutable NVIDIA benchmark evidence and atomic spend ledger',
     });
 
     this.artifactBucket = new s3.Bucket(this, 'ArtifactBucket', {
@@ -105,25 +119,51 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
       },
     });
 
+    // Separate completion/outbox queue. Artifact verification can succeed even if
+    // downstream delivery is temporarily unavailable; reconciliation retries this
+    // queue before a job can become RESUME_PUBLISHED.
+    this.completionQueue = new sqs.Queue(this, 'CompletionQueue', {
+      fifo: true,
+      contentBasedDeduplication: true,
+      encryption: sqs.QueueEncryption.KMS,
+      encryptionMasterKey: key,
+      retentionPeriod: Duration.days(14),
+      visibilityTimeout: Duration.minutes(5),
+    });
+
+    // One strongly-consistent control row plus immutable reservation rows make
+    // concurrency and spend reservation atomic across retries/workers.
+    this.reservationLedger = new dynamodb.Table(this, 'ReservationLedger', {
+      partitionKey: { name: 'pk', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
+      encryptionKey: key,
+      pointInTimeRecovery: true,
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
+
     this.transformRole = new iam.Role(this, 'BatchTransformRole', {
       assumedBy: new iam.ServicePrincipal('sagemaker.amazonaws.com'),
-      description: 'Session 5 SageMaker Batch Transform role; S3 only, no database access',
+      description:
+        'Session 5 Batch Transform role; evidence-prefix S3 only, no database access',
       maxSessionDuration: Duration.hours(1),
     });
-    this.artifactBucket.grantReadWrite(this.transformRole, 'phase8/nvidia/*');
+    this.artifactBucket.grantReadWrite(
+      this.transformRole,
+      'phase8/nvidia/*',
+    );
     key.grantEncryptDecrypt(this.transformRole);
 
     this.model = new sagemaker.CfnModel(this, 'NemotronParseModel', {
       executionRoleArn: this.transformRole.roleArn,
-      // AWS Marketplace model packages require network isolation. The Batch
-      // Transform role still has only the isolated evidence-prefix access.
       enableNetworkIsolation: true,
-      primaryContainer: {
-        modelPackageName: props.modelPackageArn,
-      },
+      primaryContainer: { modelPackageName: props.modelPackageArn },
       tags: [
         { key: 'CapiroPhase', value: 'phase8-session5' },
-        { key: 'CapiroExecutionModel', value: 'batch-transform-zero-idle' },
+        {
+          key: 'CapiroExecutionModel',
+          value: 'batch-transform-zero-idle',
+        },
         { key: 'CapiroPublicTraffic', value: 'false' },
       ],
     });
@@ -131,12 +171,17 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
     this.orchestratorRole = new iam.Role(this, 'ParserOrchestratorRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
       description:
-        'Non-HTTP Session 5 parser orchestrator; may create Batch Transform jobs but no endpoints',
+        'Non-HTTP Session 5 orchestrator; Batch Transform only, no endpoint mutation',
       maxSessionDuration: Duration.hours(1),
     });
-    this.artifactBucket.grantReadWrite(this.orchestratorRole, 'phase8/nvidia/*');
+    this.artifactBucket.grantReadWrite(
+      this.orchestratorRole,
+      'phase8/nvidia/*',
+    );
     this.escalationQueue.grantConsumeMessages(this.orchestratorRole);
+    this.completionQueue.grantSendMessages(this.orchestratorRole);
     this.deadLetterQueue.grantSendMessages(this.orchestratorRole);
+    this.reservationLedger.grantReadWriteData(this.orchestratorRole);
     key.grantEncryptDecrypt(this.orchestratorRole);
 
     this.orchestratorRole.addToPolicy(
@@ -194,7 +239,6 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
       alarmDescription: 'Any NVIDIA parser page in the DLQ requires governed review',
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-
     new cloudwatch.Alarm(this, 'QueueAgeAlarm', {
       metric: this.escalationQueue.metricApproximateAgeOfOldestMessage({
         period: Duration.minutes(5),
@@ -204,7 +248,6 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
       alarmDescription: 'NVIDIA benchmark escalation queue is not draining',
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-
     new cloudwatch.Alarm(this, 'ActiveJobsAboveConfiguredLimit', {
       metric: new cloudwatch.Metric({
         namespace: 'Capiro/DefenseParser',
@@ -213,12 +256,12 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
         period: Duration.minutes(1),
       }),
       threshold: 1,
-      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      comparisonOperator:
+        cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
       evaluationPeriods: 1,
-      alarmDescription: 'Session 5 allows at most one concurrent GPU job',
+      alarmDescription: 'Session 5 allows exactly one concurrent GPU job',
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
-
     new cloudwatch.Alarm(this, 'ApplicationSpendStop', {
       metric: new cloudwatch.Metric({
         namespace: 'Capiro/DefenseParser',
@@ -227,10 +270,10 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
         period: Duration.hours(1),
       }),
       threshold: props.monthlyGpuBudgetUsd,
-      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      comparisonOperator:
+        cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       evaluationPeriods: 1,
-      alarmDescription:
-        'Hard Session 5 application spend stop; coordinator must refuse new submissions',
+      alarmDescription: 'Session 5 hard incremental spend stop',
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     });
 
@@ -240,8 +283,14 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
     new CfnOutput(this, 'EscalationQueueUrl', {
       value: this.escalationQueue.queueUrl,
     });
+    new CfnOutput(this, 'CompletionQueueUrl', {
+      value: this.completionQueue.queueUrl,
+    });
     new CfnOutput(this, 'DeadLetterQueueUrl', {
       value: this.deadLetterQueue.queueUrl,
+    });
+    new CfnOutput(this, 'ReservationLedgerTableName', {
+      value: this.reservationLedger.tableName,
     });
     new CfnOutput(this, 'SageMakerModelName', {
       value: this.model.attrModelName,
@@ -249,9 +298,16 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
     new CfnOutput(this, 'OrchestratorRoleArn', {
       value: this.orchestratorRole.roleArn,
     });
+    new CfnOutput(this, 'InitialBenchmarkCapUsd', {
+      value: String(initialCap),
+    });
+    new CfnOutput(this, 'HardIncrementalCapUsd', {
+      value: String(props.monthlyGpuBudgetUsd),
+    });
     new CfnOutput(this, 'PersistentEndpointCount', {
       value: '0',
-      description: 'This construct creates no endpoint or endpoint configuration',
+      description:
+        'This construct creates no endpoint or endpoint configuration',
     });
   }
 }
