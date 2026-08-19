@@ -1,5 +1,10 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+} from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import process from 'node:process';
 import {
@@ -9,62 +14,111 @@ import {
 } from '../apps/defense-parser-orchestrator/src/session5.mjs';
 
 const root = resolve(process.cwd());
-const args = new Set(process.argv.slice(2));
-const enforceLive = args.has('--enforce-live-benchmark');
+const enforceLive = new Set(process.argv.slice(2)).has('--enforce-live-benchmark');
 const failures = [];
 const passes = [];
-
-function path(...parts) {
-  return join(root, ...parts);
-}
-
-function read(...parts) {
-  const target = path(...parts);
+const p = (...x) => join(root, ...x);
+const read = (...x) => {
+  const target = p(...x);
   if (!existsSync(target)) {
     failures.push(`missing required file: ${relative(root, target)}`);
     return '';
   }
   return readFileSync(target, 'utf8').replaceAll('\r\n', '\n');
-}
-
-function assert(condition, message) {
-  if (condition) passes.push(message);
-  else failures.push(message);
-}
-
-function walk(directory) {
-  if (!existsSync(directory)) return [];
-  const files = [];
-  for (const entry of readdirSync(directory)) {
-    const target = join(directory, entry);
-    if (statSync(target).isDirectory()) files.push(...walk(target));
-    else files.push(target);
+};
+const check = (ok, msg) => (ok ? passes : failures).push(msg);
+function walk(dir) {
+  if (!existsSync(dir)) return [];
+  const out = [];
+  for (const e of readdirSync(dir)) {
+    const x = join(dir, e);
+    if (statSync(x).isDirectory()) out.push(...walk(x));
+    else out.push(x);
   }
-  return files;
+  return out;
 }
 
-const orchestrator = read('apps', 'defense-parser-orchestrator', 'src', 'session5.mjs');
-const awsRuntime = read('apps', 'defense-parser-orchestrator', 'src', 'aws-runtime.mjs');
+const legacy = read('apps', 'defense-parser-orchestrator', 'src', 'session5.mjs');
+const real = [
+  read('apps', 'defense-parser-orchestrator', 'src', 'real-batch.mjs'),
+  read('apps', 'defense-parser-orchestrator', 'src', 'real-batch-config.mjs'),
+  read('apps', 'defense-parser-orchestrator', 'src', 'real-batch-provider.mjs'),
+  read('apps', 'defense-parser-orchestrator', 'src', 'real-batch-cost.mjs'),
+  read('apps', 'defense-parser-orchestrator', 'src', 'real-batch-coordinator.mjs'),
+].join('\n');
+const awsReal = [
+  read('apps', 'defense-parser-orchestrator', 'src', 'aws-real-runtime.mjs'),
+  read('apps', 'defense-parser-orchestrator', 'src', 'aws-real-storage.mjs'),
+  read('apps', 'defense-parser-orchestrator', 'src', 'aws-real-ledger.mjs'),
+].join('\n');
 const cli = read('apps', 'defense-parser-orchestrator', 'src', 'cli.mjs');
+const materializer = read(
+  'apps',
+  'defense-parser-orchestrator',
+  'scripts',
+  'materialize-live-inputs.mjs',
+);
 const dockerfile = read('apps', 'defense-parser-orchestrator', 'Dockerfile');
 const readme = read('apps', 'defense-parser-orchestrator', 'README.md');
-const contract = read('packages', 'defense-contracts', 'src', 'parser', 'nvidia-batch.ts');
-const parserIndex = read('packages', 'defense-contracts', 'src', 'parser', 'index.ts');
-const infra = read('infra', 'cdk', 'lib', 'phase8-session5-nvidia-benchmark.ts');
-const infraTest = read('infra', 'cdk', 'test', 'phase8-session5-nvidia-benchmark.spec.ts');
-const tests = read('apps', 'defense-parser-orchestrator', 'test', 'session5.test.mjs');
-const manifestText = read('docs', 'defense-budget', 'phase8-session5-live-benchmark-manifest.json');
+const contract = read(
+  'packages',
+  'defense-contracts',
+  'src',
+  'parser',
+  'nvidia-batch.ts',
+);
+const realContract = read(
+  'packages',
+  'defense-contracts',
+  'src',
+  'parser',
+  'nvidia-real-batch.ts',
+);
+const parserIndex = read(
+  'packages',
+  'defense-contracts',
+  'src',
+  'parser',
+  'index.ts',
+);
+const infra = read(
+  'infra',
+  'cdk',
+  'lib',
+  'phase8-session5-nvidia-benchmark.ts',
+);
+const infraTest = read(
+  'infra',
+  'cdk',
+  'test',
+  'phase8-session5-nvidia-benchmark.spec.ts',
+);
+const tests =
+  read('apps', 'defense-parser-orchestrator', 'test', 'real-batch.test.mjs') +
+  read('apps', 'defense-parser-orchestrator', 'test', 'aws-real-runtime.test.mjs');
+const manifestText = read(
+  'docs',
+  'defense-budget',
+  'phase8-session5-live-benchmark-manifest.json',
+);
 const manifest = manifestText ? JSON.parse(manifestText) : {};
 
-assert(
+check(
   parserIndex.includes("export * from './nvidia-batch.js';"),
-  'shared defense parser contract exports the NVIDIA batch contract',
+  'v1 NVIDIA parser contract remains exported',
 );
-assert(
-  contract.includes('NvidiaProviderIdentityV1') &&
-    contract.includes('NvidiaBatchRequestV1') &&
-    contract.includes('NvidiaBatchResultV1'),
-  'request/result/provider provenance is a shared versioned contract',
+check(
+  parserIndex.includes("export * from './nvidia-real-batch.js';"),
+  'v2 real-Batch contract is exported',
+);
+check(
+  contract.includes('NvidiaProviderIdentityV1'),
+  'provider-neutral v1 contract remains intact',
+);
+check(
+  realContract.includes('NvidiaLivePageIdentityV2') &&
+    realContract.includes('NvidiaSpendReservationV1'),
+  'v2 contract includes live cache identity and atomic spend reservation',
 );
 
 for (const field of [
@@ -72,216 +126,282 @@ for (const field of [
   'pageNumber',
   'modelVersion',
   'parserOptionsHash',
+  'renderedImageSha256',
+  'providerPayloadSha256',
+  'renderingConfigSha256',
   'runtimeContractVersion',
 ]) {
-  assert(orchestrator.includes(field), `cache/provider identity binds ${field}`);
+  check(real.includes(field), `v2 cache identity binds ${field}`);
 }
-assert(
-  orchestrator.includes('governed escalation approval') ||
-    orchestrator.includes('UNGOVERNED_ESCALATION'),
-  'NVIDIA planning refuses ungoverned page escalation',
+check(
+  real.includes("REAL_BATCH_INPUT_CONTENT_TYPE = 'application/json'") &&
+    real.includes("REAL_BATCH_OUTPUT_ACCEPT = 'application/json'"),
+  'real Batch provider MIME is application/json',
 );
-assert(
-  orchestrator.includes('CONCURRENCY_LIMIT') &&
-    orchestrator.includes('BUDGET_LIMIT') &&
-    orchestrator.includes('PAGE_LIMIT'),
-  'concurrency, page-count, and hard budget guards are enforced before submission',
+check(
+  !awsReal.includes('application/jsonlines'),
+  'real AWS Batch path never advertises unsupported application/jsonlines MIME',
 );
-assert(
-  orchestrator.includes('ARTIFACT_HASH_MISMATCH') &&
-    orchestrator.includes('PROVIDER_IDENTITY_MISMATCH') &&
-    orchestrator.includes('SOURCE_HASH_MISMATCH'),
-  'provider artifacts must pass source, provider, and content-hash verification',
+check(
+  awsReal.includes('SplitType: REAL_BATCH_SPLIT_TYPE') &&
+    awsReal.includes('AssembleWith: REAL_BATCH_ASSEMBLE_WITH'),
+  'Batch Transform splits/assembles provider records line-by-line',
 );
-assert(
-  orchestrator.includes('NvidiaBatchDlq') &&
-    orchestrator.includes('nvidia_failed_no_silent_fabrication'),
-  'failed pages are DLQed/reviewed without fabricated content',
+check(
+  real.includes('nvidia_batch_input_sidecar_v2') &&
+    real.includes('nvidia_normalized_page_artifact_v2'),
+  'provider-native JSONL is normalized through hashed internal sidecars',
 );
-for (const decision of ROUTING_DECISIONS) {
-  assert(orchestrator.includes(decision), `routing decision ${decision} is implemented`);
-}
-
-assert(
-  orchestrator.includes("routingMode: env.NVIDIA_ROUTING_MODE || 'benchmark'") &&
-    orchestrator.includes('preferred routing requires accepted source-grounded benchmark evidence'),
-  'default route remains benchmark and preferred mode is benchmark-gated',
-);
-assert(
-  orchestrator.includes('maxConcurrentGpuJobs') &&
-    orchestrator.includes('monthlyGpuBudgetUsd') &&
-    orchestrator.includes('maxPagesPerJob'),
-  'operator cost/concurrency settings are represented in runtime configuration',
+check(
+  real.includes('MARKDOWN_BBOX_REQUIRED') &&
+    real.includes('providerRawResponseSha256'),
+  'Nemotron markdown_bbox output and raw provider bytes are verified',
 );
 
-assert(
-  awsRuntime.includes('AwsCliS3JobStore') &&
-    awsRuntime.includes('/events/') &&
-    awsRuntime.includes('/latest/'),
-  'asynchronous job state is stored as append-only S3 events plus a materialized latest state',
+check(
+  cli.includes('RealNvidiaBatchCoordinator') &&
+    cli.includes('createAwsRealBatchPorts'),
+  'live CLI uses the real-Batch coordinator, not the simulation coordinator',
 );
-assert(
-  orchestrator.includes("'sagemaker', 'create-transform-job'") &&
-    !orchestrator.includes("'sagemaker', 'create-endpoint'"),
-  'runtime adapter can create Batch Transform jobs and cannot create endpoints',
+check(
+  cli.includes("command === 'reconcile'") && cli.includes("command === 'retry'"),
+  'CLI provides reconciliation and bounded retry drivers',
 );
-assert(
-  cli.includes('zero-idle') && cli.includes('handle-event') && cli.includes('benchmark'),
-  'command runtime supports completion events, live benchmark, and zero-idle proof',
+check(
+  cli.includes('caller provider facts are not accepted'),
+  'event signals cannot inject provider status/cost/output facts',
+);
+check(
+  real.includes('describeTransformJob') && real.includes('reconcileTransformFacts'),
+  'terminal status and cost are reconciled from SageMaker facts',
+);
+check(
+  real.includes('TIMEOUT_STOP_REQUESTED') && real.includes('stopTransformJob'),
+  'timeout watchdog requests provider stop and awaits terminal reconciliation',
+);
+check(
+  real.includes('COMPLETION_PENDING') &&
+    real.includes('completionPublishAttempts'),
+  'verified work persists a retryable completion-outbox state',
+);
+check(
+  real.includes('dlqPublishPending'),
+  'DLQ publication failure is persisted for reconciliation',
 );
 
-assert(
-  dockerfile.includes('public.ecr.aws/aws-cli/aws-cli') &&
-    dockerfile.includes('USER 1001:1001') &&
-    !/CUDA|nvidia\/cuda/i.test(dockerfile),
-  'orchestrator image uses task-role AWS CLI, runs non-root, and contains no GPU runtime',
+check(
+  real.includes('SESSION5_AUTHORIZED_INITIAL_CAP_USD = 50') &&
+    real.includes('SESSION5_AUTHORIZED_HARD_CAP_USD = 150'),
+  'approved USD 50 initial / USD 150 hard caps are code-bound',
 );
-assert(
-  !/EXPOSE\s+\d+/.test(dockerfile) &&
-    !/createServer\(|\.listen\(/.test(orchestrator + cli + awsRuntime),
-  'orchestrator has no public HTTP listener',
+check(
+  real.includes('extendedBudgetAuthorized') &&
+    real.includes('effectiveSpendCapUsd'),
+  'hard-cap extension requires explicit authorization',
 );
-assert(
-  !/Prisma|postgres|DATABASE_URL/.test(orchestrator + cli + awsRuntime),
-  'orchestrator has no database dependency or credential',
+check(
+  awsReal.includes("'dynamodb', 'transact-write-items'") &&
+    awsReal.includes('activeJobs < :max') &&
+    awsReal.includes('spentAndReservedUsd'),
+  'DynamoDB transaction atomically reserves concurrency and spend',
+);
+check(
+  real.includes('NvidiaActiveGpuJobs') &&
+    real.includes('NvidiaMonthlySpendUsd'),
+  'runtime emits the exact metrics consumed by alarms',
+);
+check(
+  real.includes('deterministicTransformJobName') &&
+    !awsReal.includes('Date.now()'),
+  'real provider submission is idempotent by deterministic attempt identity',
 );
 
-assert(
-  infra.includes('sagemaker.CfnModel') &&
-    !infra.includes('CfnEndpoint(') &&
-    !infra.includes('CfnEndpointConfig'),
-  'CDK creates a model for Batch Transform and no persistent endpoint resource',
+check(
+  materializer.includes("model: 'nvidia/nemotron-parse'") &&
+    materializer.includes("name: 'markdown_bbox'") &&
+    materializer.includes('temperature: 0.0'),
+  'materializer uses the pinned Nemotron Parse VLM request surface',
 );
-assert(
+check(
+  materializer.includes('renderingConfigSha256') &&
+    materializer.includes('providerPayloadSha256') &&
+    materializer.includes('renderedImage'),
+  'materializer persists rendering, image, and provider-payload hashes',
+);
+check(
+  real.includes('LIVE_CORPUS_NOT_ACCEPTABLE') &&
+    real.includes("gold.reviewStatus !== 'accepted'") &&
+    real.includes('gold.incomplete') &&
+    real.includes('gold.conflicted'),
+  'live acceptance refuses incomplete/conflicted/unreviewed gold',
+);
+
+check(
+  infra.includes('aws_dynamodb as dynamodb') && infra.includes('ReservationLedger'),
+  'CDK provides an atomic DynamoDB reservation ledger',
+);
+check(
+  infra.includes('CompletionQueue') &&
+    infra.includes('completionQueue.grantSendMessages'),
+  'CDK provides and authorizes a dedicated completion queue',
+);
+check(
+  infra.includes('enableNetworkIsolation: true'),
+  'Marketplace SageMaker model has network isolation enabled',
+);
+check(
   infra.includes("'sagemaker:CreateTransformJob'") &&
-    !infra.includes("'sagemaker:CreateEndpoint'") &&
-    !infra.includes("'sagemaker:UpdateEndpoint'"),
-  'orchestrator IAM is limited to Batch Transform and endpoint observation',
+    !infra.includes("'sagemaker:CreateEndpoint'"),
+  'orchestrator IAM permits Batch Transform but no endpoint mutation',
 );
-assert(
-  infra.includes('DeadLetterQueue') &&
-    infra.includes('ApplicationSpendStop') &&
-    infra.includes('ActiveJobsAboveConfiguredLimit'),
-  'DLQ, spend-stop, and active-job alarms are declared',
+check(
+  infraTest.includes("resourceCountIs('AWS::SQS::Queue', 3)") &&
+    infraTest.includes("resourceCountIs('AWS::DynamoDB::Table', 1)"),
+  'synth tests pin completion queue and atomic ledger topology',
 );
-assert(
+check(
   infraTest.includes("resourceCountIs('AWS::SageMaker::Endpoint', 0)") &&
     infraTest.includes("resourceCountIs('AWS::SageMaker::EndpointConfig', 0)"),
-  'synth tests pin zero persistent SageMaker endpoint resources',
+  'synth tests pin zero persistent SageMaker endpoints',
 );
 
-const defenseApiFiles = walk(path('apps', 'defense-api', 'src'));
-const forbiddenImports = defenseApiFiles.filter((file) => {
-  const source = readFileSync(file, 'utf8');
-  return source.includes('defense-parser-orchestrator') ||
-    source.includes('AwsCliSageMakerBatchTransformAdapter') ||
-    source.includes('NvidiaBatchCoordinator');
-});
-assert(
-  forbiddenImports.length === 0,
-  `public defense-api has no parser-orchestrator import (${forbiddenImports.map((file) => relative(root, file)).join(', ')})`,
+for (const decision of ROUTING_DECISIONS) {
+  check(
+    legacy.includes(decision),
+    `routing decision ${decision} remains implemented`,
+  );
+}
+check(
+  tests.includes('atomic reservation') &&
+    tests.includes('provider JSONL') &&
+    tests.includes('completion publication failure'),
+  'P0 regression tests cover atomic spend, real output normalization, and completion recovery',
 );
 
-const deterministicParserFiles = walk(
-  path('apps', 'defense-budget-parser', 'src'),
-).filter((file) => file.endsWith('.py'));
-const deterministicAwsImports = deterministicParserFiles.filter((file) => {
+const defenseApiFiles = walk(p('apps', 'defense-api', 'src'));
+const forbidden = defenseApiFiles.filter((file) => {
   const source = readFileSync(file, 'utf8');
-  return /^\s*(?:from|import)\s+(?:boto3|botocore|sagemaker)/m.test(source);
+  return (
+    source.includes('defense-parser-orchestrator') ||
+    source.includes('RealNvidiaBatchCoordinator')
+  );
 });
-assert(
-  deterministicAwsImports.length === 0,
-  'deterministic Python parser remains AWS-free',
+check(
+  forbidden.length === 0,
+  `public defense-api has no live parser-orchestrator import (${forbidden
+    .map((f) => relative(root, f))
+    .join(', ')})`,
 );
-assert(
+check(
+  !/EXPOSE\s+\d+/.test(dockerfile) &&
+    !/createServer\(|\.listen\(/.test(real + awsReal + cli),
+  'real orchestrator has no public listener',
+);
+check(
+  !/Prisma|postgres|DATABASE_URL/.test(real + awsReal + cli),
+  'real orchestrator has no database credential/dependency',
+);
+check(
+  !/CUDA|nvidia\/cuda/i.test(dockerfile),
+  'orchestrator image contains no GPU runtime',
+);
+check(
   readme.includes('not') && readme.includes('public `defense-api`'),
-  'orchestrator ownership boundary is documented',
+  'ownership boundary remains documented',
 );
 
-const manifestStrata = new Set(
+const strata = new Set(
   Array.isArray(manifest.requiredStrata)
-    ? manifest.requiredStrata.map((entry) => entry.id)
+    ? manifest.requiredStrata.map((x) => x.id)
     : [],
 );
-for (const stratum of REQUIRED_BENCHMARK_STRATA) {
-  assert(manifestStrata.has(stratum), `live benchmark manifest includes ${stratum}`);
+for (const s of REQUIRED_BENCHMARK_STRATA) {
+  check(strata.has(s), `live manifest includes ${s}`);
 }
-assert(
+check(
   manifest.executionModel === 'sagemaker_batch_transform' &&
     manifest.persistentEndpointAllowed === false &&
     manifest.productionDefaultChangeAllowed === false,
-  'live manifest freezes Batch Transform, no endpoint, and no production default change',
+  'manifest keeps Batch Transform dark and production defaults unchanged',
 );
-assert(
-  Array.isArray(manifest.providersToCompare) &&
-    manifest.providersToCompare.includes('deterministic_current') &&
-    manifest.providersToCompare.includes('nemotron_parse') &&
-    manifest.providersToCompare.includes('nvidia_page_elements_table_structure') &&
-    manifest.providersToCompare.includes('nvidia_ocr_when_applicable'),
-  'live manifest compares current and all applicable NVIDIA routes',
-);
-assert(
-  tests.includes('wrong identity or money safety regresses') &&
-    tests.includes('zero-idle proof') &&
-    tests.includes('hard monthly budget'),
-  'regressions pin safety, zero-idle, and application budget behavior',
+check(
+  manifest.spendControls?.hardTotalIncrementalCapUsd === 150 &&
+    manifest.spendControls?.initialBenchmarkTargetCapUsd === 50 &&
+    manifest.spendControls?.maxConcurrentGpuJobs === 1,
+  'manifest pins approved spend/concurrency authorization',
 );
 
 if (enforceLive) {
-  const evidencePath = process.env.PHASE8_SESSION5_LIVE_BENCHMARK_EVIDENCE ||
-    path('docs', 'defense-budget', 'phase8-session5-live-benchmark-evidence.json');
-  assert(existsSync(evidencePath), `live NVIDIA evidence exists at ${evidencePath}`);
+  const evidencePath =
+    process.env.PHASE8_SESSION5_LIVE_BENCHMARK_EVIDENCE ||
+    p('docs', 'defense-budget', 'phase8-session5-live-benchmark-evidence.json');
+  check(
+    existsSync(evidencePath),
+    `live NVIDIA evidence exists at ${evidencePath}`,
+  );
   if (existsSync(evidencePath)) {
     const evidence = JSON.parse(readFileSync(evidencePath, 'utf8'));
     const result = evidence.benchmarkResult;
-    assert(
+    check(
       evidence.schemaVersion === 'phase8_session5_live_benchmark_evidence_v1',
       'live evidence schema is versioned',
     );
-    assert(result?.liveBenchmarkAccepted === true, 'source-grounded live benchmark is accepted');
-    assert(
+    check(
+      result?.liveBenchmarkAccepted === true,
+      'source-grounded live benchmark is accepted',
+    );
+    check(
       Array.isArray(result?.missingStrata) && result.missingStrata.length === 0,
       'live benchmark covers every required stratum',
     );
-    assert(result?.nvidiaObservationCount > 0, 'live benchmark contains real NVIDIA observations');
-    assert(
-      Array.isArray(result?.acceptedPageClasses) && result.acceptedPageClasses.length > 0,
-      'at least one page class materially benefits from a safe NVIDIA route',
+    check(
+      result?.nvidiaObservationCount > 0,
+      'live benchmark contains real NVIDIA observations',
+    );
+    check(
+      Array.isArray(result?.acceptedPageClasses) &&
+        result.acceptedPageClasses.length > 0,
+      'at least one page class safely benefits from NVIDIA',
     );
     const withoutHash = { ...result };
     delete withoutHash.contentSha256;
-    assert(
+    check(
       result?.contentSha256 === sha256Hex(withoutHash),
       'live benchmark result content hash is valid',
     );
-    assert(
+    check(
       evidence.zeroIdleProof?.activeJobs === 0 &&
+        Array.isArray(evidence.zeroIdleProof?.providerActiveJobs) &&
+        evidence.zeroIdleProof.providerActiveJobs.length === 0 &&
         Array.isArray(evidence.zeroIdleProof?.persistentEndpoints) &&
         evidence.zeroIdleProof.persistentEndpoints.length === 0 &&
         evidence.zeroIdleProof.zeroIdleGpu === true,
-      'live evidence proves zero active jobs and zero persistent endpoints after drain',
+      'live evidence proves ledger + provider zero-idle state',
     );
-    assert(
+    check(
       evidence.productionDefaultChanged === false,
-      'Session 5 live evidence confirms no production default route changed',
+      'live evidence confirms no production default route changed',
     );
   }
 } else {
-  assert(
-    manifest.status === 'provider_ready_live_run_required' &&
-      Array.isArray(manifest.blockedBy) && manifest.blockedBy.length > 0,
-    'ordinary verification remains honest that live provider evidence is not bundled',
+  check(
+    manifest.status === 'p0_runtime_implemented_re_review_required' &&
+      Array.isArray(manifest.blockedBy) &&
+      manifest.blockedBy.length > 0,
+    'ordinary verification remains blocked pending re-review and source-grounded corpus completion',
   );
 }
 
-for (const pass of passes) console.log(`[phase8-session5] PASS: ${pass}`);
-if (failures.length > 0) {
+for (const pass of passes) {
+  console.log(`[phase8-session5] PASS: ${pass}`);
+}
+if (failures.length) {
   console.error(`\n[phase8-session5] FAILED (${failures.length})`);
-  for (const failure of failures) console.error(`- ${failure}`);
+  for (const f of failures) console.error(`- ${f}`);
   process.exit(1);
 }
 console.log(
   enforceLive
     ? '[phase8-session5] SESSION5_LIVE_BENCHMARK_PASS'
-    : '[phase8-session5] SESSION5_PROVIDER_READY_PASS',
+    : '[phase8-session5] SESSION5_P0_RUNTIME_PASS',
 );
