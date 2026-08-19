@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isVNextProgramElementsPath,
   matchPeProfilePath,
+  matchPeStaticPath,
   resolvePeDestination,
   resolvePeProfileTab,
 } from './pe-routes.js';
@@ -20,18 +21,31 @@ describe('program-elements vNext route contract', () => {
     expect(matchPeProfilePath('/program-elements/4868W12002')).toBe('4868W12002');
   });
 
-  it('does NOT claim static PE segments — they fall through to canonical', () => {
-    expect(isVNextProgramElementsPath('/program-elements/mark-up-monitor')).toBe(false);
-    expect(isVNextProgramElementsPath('/program-elements/contacts')).toBe(false);
+  it('claims the two native static segments as of Phase 3 — and never as a profile', () => {
+    expect(isVNextProgramElementsPath('/program-elements/mark-up-monitor')).toBe(true);
+    expect(isVNextProgramElementsPath('/program-elements/contacts')).toBe(true);
+    expect(matchPeStaticPath('/program-elements/mark-up-monitor')).toBe('mark-up-monitor');
+    expect(matchPeStaticPath('/program-elements/contacts')).toBe('contacts');
+    // A static segment must never parse as a :peCode line profile.
     expect(matchPeProfilePath('/program-elements/mark-up-monitor')).toBeNull();
     expect(matchPeProfilePath('/program-elements/contacts')).toBeNull();
   });
 
+  it('does NOT claim deeper paths under a static segment', () => {
+    expect(matchPeStaticPath('/program-elements/mark-up-monitor/extra')).toBeNull();
+    expect(matchPeStaticPath('/program-elements/contacts/extra')).toBeNull();
+  });
+
+  it('does NOT claim the reserved reconciliation segment — it falls through to canonical', () => {
+    expect(isVNextProgramElementsPath('/program-elements/reconciliation')).toBe(false);
+    expect(matchPeStaticPath('/program-elements/reconciliation')).toBeNull();
+    expect(matchPeProfilePath('/program-elements/reconciliation')).toBeNull();
+  });
+
   it('does not claim unrelated paths', () => {
     expect(isVNextProgramElementsPath('/')).toBe(false);
-    expect(isVNextProgramElementsPath('/clients')).toBe(false);
-    expect(isVNextProgramElementsPath('/strategies')).toBe(false);
-    expect(isVNextProgramElementsPath('/actions')).toBe(false);
+    expect(isVNextProgramElementsPath('/nonexistent-path-xyz')).toBe(false);
+    expect(isVNextProgramElementsPath('/program-element')).toBe(false);
   });
 
   it('resolves destinations with Explore as the default', () => {

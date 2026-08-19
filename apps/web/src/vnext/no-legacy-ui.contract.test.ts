@@ -24,15 +24,20 @@ import { describe, expect, it } from 'vitest';
  * entry (edge no longer present) also fails, so the list cannot rot.
  */
 
-/** vnext file -> legacy modules it may reach at runtime (Phase 2 backlog). */
+/** vnext file -> legacy modules it may reach at runtime (Phase 3 backlog). */
 const ALLOWED_LEGACY_EDGES: Record<string, string[]> = {
-  // Program Elements vNext is a token re-skin that wholesale-mounts the
-  // canonical v2 pages (antd throughout). Rebuilding it natively is in the
-  // approved "nav-exposed page ports" tranche; until that lands these two
-  // edges are the ONLY sanctioned antd reach on the vNext surface.
+  // Program Elements Phase 3: the workspace (Explore · Movement ·
+  // Congressional · Actions · Portfolio) and both static segments are native
+  // now (PE-CORE). The remaining sanctioned antd reaches are the three lazy
+  // page mounts below, each owned by a named sibling swap:
   'vnext/pages/program-elements/VNextProgramElementsRoutes.tsx': [
-    'pages/program-element/ProgramElementsV2Page.tsx',
+    // capiro-internal line profile — PE-PROFILE agent swaps this for the
+    // native profile and deletes the edge.
     'pages/program-element/ProgramElementV2ProfilePage.tsx',
+    // TEMP: PE-FALLBACK swap pending — non-internal tenants' read surfaces
+    // (finder + watch). The PE-FALLBACK agent swaps them and deletes both.
+    'pages/program-element/ProgramElementFinderPage.tsx',
+    'pages/program-element/ProgramElementWatchPage.tsx',
   ],
 };
 

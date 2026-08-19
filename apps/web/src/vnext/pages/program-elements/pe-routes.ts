@@ -1,21 +1,24 @@
 /**
- * Program Elements vNext route contract (PROGRAM-ELEMENTS-HANDOFF §4).
+ * Program Elements vNext route contract (PROGRAM-ELEMENTS-HANDOFF §4, extended
+ * by the Phase 3 native rebuild).
  *
  * The module ships in the vNext surface (os.capiro.ai) but preserves the
  * canonical URLs exactly — destination and tab are URL (query) state, never
  * component state, so deep links, shared filters and browser back/forward
  * behave identically to the canonical app.
  *
- * Route shape (handoff §4):
- *   /program-elements                                  Explore (default destination)
+ * Route shape:
+ *   /program-elements                                  Workspace (Explore default destination)
  *   /program-elements?dest=movement|congressional|actions|portfolio
+ *   /program-elements/mark-up-monitor                  Mark-up monitor (native, Phase 3)
+ *   /program-elements/contacts                         Contact review queue (native, Phase 3)
  *   /program-elements/:peCode                          Line profile (Overview default tab)
  *   /program-elements/:peCode?tab=funding|legislative|structure|sources
  *
- * Static segments (`mark-up-monitor`, `contacts`) and the legacy finder params
- * are NOT claimed here — they fall through to the canonical page so existing
- * surfaces keep working while the vNext module owns only the workspace shell
- * and the line profile.
+ * `reconciliation` is a reserved static segment that is NOT claimed — there is
+ * no canonical page at /program-elements/reconciliation (the reconciliation
+ * queue lives at /admin/program-element/reconciliation), so the segment falls
+ * through to the canonical tree exactly as before.
  */
 
 /** Workspace destinations, in the order the destination bar renders them. */
@@ -41,9 +44,16 @@ export type PeProfileTab = (typeof PE_PROFILE_TABS)[number];
 export const PE_WORKSPACE_ROUTE = '/program-elements';
 
 /**
- * Static PE segments that the vNext module must NOT claim. These are distinct
- * canonical surfaces (mark-up monitor, contact candidates) that share the
- * `/program-elements/` prefix; claiming them would shadow working pages.
+ * Static PE segments claimed by the vNext module as of Phase 3 (native
+ * rebuilds of the canonical mark-up monitor and contact review queue).
+ */
+export const PE_CLAIMED_STATIC_SEGMENTS = ['mark-up-monitor', 'contacts'] as const;
+export type PeStaticSegment = (typeof PE_CLAIMED_STATIC_SEGMENTS)[number];
+
+/**
+ * Static PE segments that must never parse as a :peCode line profile. The
+ * claimed ones above render native pages; `reconciliation` stays unclaimed
+ * (see the header comment).
  */
 const PE_STATIC_SEGMENTS = new Set(['mark-up-monitor', 'contacts', 'reconciliation']);
 
@@ -62,9 +72,22 @@ export function resolvePeProfileTab(raw: string | null | undefined): PeProfileTa
 }
 
 /**
+ * Match a claimed static segment (mark-up monitor / contacts), or null when
+ * the path is neither. Exact one-segment match only — deeper paths fall
+ * through to canonical, same as before Phase 3.
+ */
+export function matchPeStaticPath(pathname: string): PeStaticSegment | null {
+  for (const segment of PE_CLAIMED_STATIC_SEGMENTS) {
+    if (pathname === `${PE_WORKSPACE_ROUTE}/${segment}`) return segment;
+  }
+  return null;
+}
+
+/**
  * Extract the PE code from a profile pathname, or null when the path is not a
  * claimable line profile. Returns null for the workspace root and for the
- * static segments above so those fall through to canonical.
+ * static segments above so those resolve to their own branches (or, for
+ * `reconciliation`, fall through to canonical).
  */
 export function matchPeProfilePath(pathname: string): string | null {
   if (!pathname.startsWith(`${PE_WORKSPACE_ROUTE}/`)) return null;
@@ -76,10 +99,11 @@ export function matchPeProfilePath(pathname: string): string | null {
 
 /**
  * Guard used by `VNextRouter` to decide whether the vNext Program Elements
- * module claims this path. Claims the workspace root and line profiles only;
- * static segments fall through to the canonical page.
+ * module claims this path. Claims the workspace root, the two native static
+ * segments and line profiles; `reconciliation` falls through to canonical.
  */
 export function isVNextProgramElementsPath(pathname: string): boolean {
   if (pathname === PE_WORKSPACE_ROUTE) return true;
+  if (matchPeStaticPath(pathname) !== null) return true;
   return matchPeProfilePath(pathname) !== null;
 }

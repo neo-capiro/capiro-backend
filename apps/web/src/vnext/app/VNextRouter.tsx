@@ -117,11 +117,12 @@ export function VNextRouter() {
     return <VNextDirectoryRoutes />;
   }
 
-  // Program Elements: the workspace (Explore · Movement · Congressional ·
-  // Actions · Portfolio) plus the five-tab line profile. The module reuses the
-  // canonical v2 components over the same backend endpoints, re-skinned onto
-  // the vNext token layer. Static segments (mark-up-monitor, contacts) fall
-  // through to canonical.
+  // Program Elements: the native workspace (Explore · Movement ·
+  // Congressional · Actions · Portfolio) plus the native mark-up-monitor and
+  // contacts segments (Phase 3, PE-CORE). The five-tab line profile and the
+  // non-internal finder/watch fallbacks still lazy-mount canonical pages
+  // inside the module router — see VNextProgramElementsRoutes for the sibling
+  // swap contract. Only /program-elements/reconciliation falls through.
   if (isVNextProgramElementsPath(location.pathname)) {
     return <VNextProgramElementsRoutes />;
   }
