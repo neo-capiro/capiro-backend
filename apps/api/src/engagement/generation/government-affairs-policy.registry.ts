@@ -534,6 +534,11 @@ export function selectPolicy(input: PolicySelectionInput): GaPolicy {
     case 'congressional':
     case 'congress_member':
     case 'congress_staff':
+    // Outreach V3 preserves the concrete server-side target locator source.
+    // These are federal directory records, so they carry the same policy as
+    // the legacy normalized congressional source types.
+    case 'directory_member':
+    case 'directory_staff':
       return POLICIES.congressional_office;
     case 'federal_agency':
     case 'agency':

@@ -100,6 +100,15 @@ describe('deterministic selection', () => {
     );
   });
 
+  test('Outreach V3 federal directory target sources resolve congressional policy', () => {
+    expect(selectPolicy({ recipient: { sourceType: 'directory_member' } }).audienceType).toBe(
+      'congressional_office',
+    );
+    expect(selectPolicy({ recipient: { sourceType: 'directory_staff' } }).audienceType).toBe(
+      'congressional_office',
+    );
+  });
+
   test('a state legislature source type resolves the STATE policy', () => {
     const p = selectPolicy({ recipient: { sourceType: 'state_legislature' } });
     expect(p.audienceType).toBe('state_legislator');
@@ -107,14 +116,16 @@ describe('deterministic selection', () => {
   });
 
   test('a defense acquisition office wins over a bare source type', () => {
-    const p = selectPolicy({ recipient: { sourceType: 'federal_agency', defenseAcquisition: true } });
+    const p = selectPolicy({
+      recipient: { sourceType: 'federal_agency', defenseAcquisition: true },
+    });
     expect(p.audienceType).toBe('defense_acquisition_office');
   });
 
   test('reserved federal legislative domains resolve congressional', () => {
-    expect(
-      selectPolicy({ recipient: { emailDomain: 'mail.house.gov' } }).audienceType,
-    ).toBe('congressional_office');
+    expect(selectPolicy({ recipient: { emailDomain: 'mail.house.gov' } }).audienceType).toBe(
+      'congressional_office',
+    );
     expect(selectPolicy({ recipient: { emailDomain: 'senate.gov' } }).audienceType).toBe(
       'congressional_office',
     );
