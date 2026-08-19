@@ -646,11 +646,13 @@
 /* The one shared coordinate space every tier grid AND every connector's
    percentage anchors are measured against — this is what keeps a T-branch
    leg lined up with the grid column it targets no matter how many children
-   a tier has. Dropped at mobile (<=779, see the responsive block): a
-   centre-justified 1180px frame would put the committee node off-screen on
-   a 390px viewport with no affordance saying so. */
+   a tier has. Fluid, not a fixed floor: real committees vary far more than
+   a fixture (a 2-column leadership row next to a 7-column, long-named
+   subcommittee row), so a fixed min-width either clips the wide case or
+   wastes space on the narrow one. Each tier's own `minmax(Nch, 1fr)` columns
+   (set inline per tier — see CommitteeStaffVNext.tsx) are the real floor:
+   the frame itself just fills whatever width the canvas card has. */
 .capiro-vnext-root .capiro-directory-canvas__frame {
-  min-width: 1180px;
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -742,7 +744,7 @@
 /* The one hero card: bigger, dark-filled, its own translucent-on-dark mark —
    matches the prototype's committee/department root exactly. */
 .capiro-vnext-root .capiro-directory-node--hero {
-  width: 340px;
+  width: 100%;
   max-width: 340px;
   padding: 14px 16px;
   background: var(--uui-gray-900);
@@ -2030,12 +2032,7 @@
   .capiro-vnext-root .capiro-directory-columns { display: none; }
   .capiro-vnext-root .capiro-directory-row { min-height: 0; }
 
-  /* The hierarchy stays pannable, but its frame gives up the drawn 1180px
-     floor: a centre-justified 1180px frame puts the committee node off-screen
-     at 390. */
   .capiro-vnext-root .capiro-directory-canvas__scroller { padding: var(--capiro-space-04); }
-  .capiro-vnext-root .capiro-directory-canvas__frame { min-width: 0; }
-  .capiro-vnext-root .capiro-directory-node--hero { width: 100%; max-width: 100%; }
 
   /* The filter menu is anchored to the pill, floors at 220px and has no
      right-edge clamp, so any pill starting past ~78px on a 390px screen opened

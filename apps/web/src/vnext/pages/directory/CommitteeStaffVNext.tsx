@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type {
   DirectoryCommitteeStaffer,
 } from '../../../pages/directory/directoryData.js';
@@ -9,6 +10,8 @@ import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../compon
 import { IdentityMark } from '../../components/identity/index.js';
 import { DirectoryShell } from './DirectoryShell.js';
 import { DirectoryFilterPill } from './DirectoryFilterPill.js';
+import { DIRECTORY_PROFILE_ROUTES } from './directory-routes.js';
+import { StaffProfileModalVNext } from './StaffProfileModalVNext.js';
 import { useCommitteeStaffModel, type CommitteeStaffModel } from './useCommitteeStaffModel.js';
 
 /**
@@ -40,6 +43,10 @@ export function CommitteeStaffVNext() {
 export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel }) {
   const { search, view, committee, filters, results, selection } = model;
   const { total, staff, isInitialLoading, isRefetching } = results;
+  // Clicking a person shows their profile without leaving the diagram/roster —
+  // a modal, not the navigate-away `selection.onOpenProfile` the model exposes
+  // (that's kept for callers that still want a real route, e.g. a bookmark).
+  const [modalStaffId, setModalStaffId] = useState<string | null>(null);
 
   return (
     <DirectoryShell
@@ -121,7 +128,7 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
       </div>
 
       {view.current === 'hierarchy' ? (
-        <HierarchyView model={model} />
+        <HierarchyView model={model} onOpenStaffProfile={setModalStaffId} />
       ) : (
         <div className="capiro-directory-split">
           <div
@@ -192,8 +199,10 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
                     className={`capiro-directory-row capiro-directory-row-grid--roster${
                       isSelected ? ' capiro-directory-row--selected' : ''
                     }`}
-                    onClick={() => selection.onToggle(staffer.id)}
-                    onDoubleClick={() => selection.onOpenProfile(staffer.id)}
+                    onClick={() => {
+                      selection.onToggle(staffer.id);
+                      setModalStaffId(staffer.id);
+                    }}
                   >
                     <span className="capiro-directory-cell capiro-directory-cell--person">
                       <IdentityMark kind="person" size="sm" name={staffer.fullName} aria-hidden="true" />
@@ -226,10 +235,16 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
 
           <SelectedCommitteeStaffRail
             staffer={selection.selected}
-            onOpenProfile={selection.onOpenProfile}
+            onOpenProfile={setModalStaffId}
           />
         </div>
       )}
+
+      <StaffProfileModalVNext
+        staffId={modalStaffId}
+        open={modalStaffId !== null}
+        onClose={() => setModalStaffId(null)}
+      />
     </DirectoryShell>
   );
 }
@@ -268,10 +283,16 @@ function TreeConnector({ toCount, height = 28 }: { toCount: number; height?: num
   );
 }
 
-function HierarchyView({ model }: { model: CommitteeStaffModel }) {
+function HierarchyView({
+  model,
+  onOpenStaffProfile,
+}: {
+  model: CommitteeStaffModel;
+  onOpenStaffProfile: (staffId: string) => void;
+}) {
   const { committee, results, selection } = model;
   const detail = committee.detail;
-  const leaders: Array<{ role: string; memberRef: { name?: string | null } | null }> = [];
+  const leaders: Array<{ role: string; memberRef: { id: string; name?: string | null } | null }> = [];
   if (detail?.chair) leaders.push({ role: 'Committee Chair', memberRef: detail.chair });
   if (detail?.rankingMember) leaders.push({ role: 'Ranking Member', memberRef: detail.rankingMember });
   const units = committee.units;
@@ -325,7 +346,7 @@ function HierarchyView({ model }: { model: CommitteeStaffModel }) {
                   <TreeConnector toCount={leaders.length} />
                   <div
                     className="capiro-directory-canvas__tier"
-                    style={{ gridTemplateColumns: `repeat(${leaders.length}, 1fr)` }}
+                    style={{ gridTemplateColumns: `repeat(${leaders.length}, minmax(150px, 1fr))` }}
                   >
                     {leaders.map((l) => (
                       <LeadershipNode key={l.role} role={l.role} memberRef={l.memberRef} />
@@ -343,7 +364,7 @@ function HierarchyView({ model }: { model: CommitteeStaffModel }) {
                   <TreeConnector toCount={units.length} />
                   <div
                     className="capiro-directory-canvas__tier"
-                    style={{ gridTemplateColumns: `repeat(${units.length}, 1fr)` }}
+                    style={{ gridTemplateColumns: `repeat(${units.length}, minmax(150px, 1fr))` }}
                   >
                     {units.map((unit) => (
                       <UnitNode key={unit.id} unit={unit} />
@@ -374,8 +395,10 @@ function HierarchyView({ model }: { model: CommitteeStaffModel }) {
                       className={`capiro-directory-node capiro-directory-node--person${
                         isSelected ? ' capiro-directory-node--selected' : ''
                       }`}
-                      onClick={() => selection.onToggle(staffer.id)}
-                      onDoubleClick={() => selection.onOpenProfile(staffer.id)}
+                      onClick={() => {
+                        selection.onToggle(staffer.id);
+                        onOpenStaffProfile(staffer.id);
+                      }}
                     >
                       <span className="capiro-directory-node__mark capiro-directory-node__mark--person">
                         {staffer.fullName
@@ -398,9 +421,9 @@ function HierarchyView({ model }: { model: CommitteeStaffModel }) {
             )}
 
             <p className="capiro-directory-canvas__note">
-              Selecting a person node opens the staff profile rail. The highlighted path shows office
-              and unit placement; it does not imply a person-to-person reporting line unless the
-              source explicitly supports it.
+              Clicking a team member opens their profile and highlights their place in the structure.
+              That placement is office/unit context, not an implied person-to-person reporting line
+              unless the source explicitly supports it.
             </p>
           </div>
 
@@ -422,7 +445,7 @@ function HierarchyView({ model }: { model: CommitteeStaffModel }) {
         )}
       </div>
 
-      <SelectedCommitteeStaffRail staffer={selection.selected} onOpenProfile={selection.onOpenProfile} />
+      <SelectedCommitteeStaffRail staffer={selection.selected} onOpenProfile={onOpenStaffProfile} />
     </div>
   );
 }
@@ -446,26 +469,34 @@ function LeadershipNode({
   memberRef,
 }: {
   role: string;
-  memberRef: { name?: string | null } | null;
+  memberRef: { id: string; name?: string | null } | null;
 }) {
+  const navigate = useNavigate();
   const name = memberRef?.name ?? null;
+  const initials = (name ?? '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+  // Leadership is a MEMBER of Congress, a materially richer record than a
+  // staffer's — no modal wraps that depth yet, so this opens the full member
+  // profile page (still real navigation, unlike the staff modal above).
   return (
-    <div className="capiro-directory-node capiro-directory-node--person capiro-directory-node--leader">
-      <span className="capiro-directory-node__mark capiro-directory-node__mark--person">
-        {(name ?? '?')
-          .split(/\s+/)
-          .filter(Boolean)
-          .map((p) => p[0])
-          .slice(0, 2)
-          .join('')
-          .toUpperCase()}
-      </span>
+    <button
+      type="button"
+      className="capiro-directory-node capiro-directory-node--person capiro-directory-node--leader"
+      disabled={!memberRef}
+      onClick={() => memberRef && navigate(DIRECTORY_PROFILE_ROUTES.member(memberRef.id))}
+    >
+      <span className="capiro-directory-node__mark capiro-directory-node__mark--person">{initials}</span>
       <span className="capiro-directory-node__body">
         <span className="capiro-directory-node__kind">Leadership</span>
         <span className="capiro-directory-node__name">{name ?? 'Not recorded'}</span>
         <span className="capiro-directory-node__meta">{role}</span>
       </span>
-    </div>
+    </button>
   );
 }
 

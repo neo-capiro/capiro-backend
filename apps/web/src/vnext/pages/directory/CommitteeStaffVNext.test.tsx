@@ -60,11 +60,52 @@ function renderAt(path = '/directory/committee-staff?view=roster') {
   );
 }
 
+const STAFF_DETAIL = {
+  kind: 'staff' as const,
+  id: 'staff-1',
+  source: { snapshotId: 'snap-1', staffId: 1, lastUpdatedAt: null },
+  identity: {
+    staffId: 1,
+    firstName: 'Sam',
+    lastName: 'Diaz',
+    preferredFirstName: null,
+    preferredLastName: null,
+    suffix: null,
+    gender: null,
+  },
+  bioDetails: {
+    dob: null,
+    dateOfDeath: null,
+    hometown: null,
+    placeOfBirth: null,
+    nativeOf: null,
+    majMin: null,
+    partyName: null,
+    occupation: null,
+    pronunciation: null,
+    raceName: null,
+    religionName: null,
+  },
+  photoUrl: null,
+  photoSource: null,
+  emails: [],
+  socialContacts: [],
+  officeAddresses: [],
+  positions: [],
+  memberAssociations: [],
+  committeeAssociations: [],
+  issues: [],
+  roles: [],
+  availability: { photo: 'not_provided' as const, socialContacts: 'not_provided' as const },
+};
+
 function mockHappy(staff: DirectoryCommitteeStaffer[], subcommittees: { id: string; officeId: number; name: string; kind: string }[] = []) {
   get.mockImplementation((...args: unknown[]) => {
     const url = args[0] as string;
     if (url === '/api/directory/committees')
       return Promise.resolve({ data: { committees: [COMMITTEE], total: 1, page: 1, pageSize: 200 } });
+    if (typeof url === 'string' && url.includes('/staffers/'))
+      return Promise.resolve({ data: STAFF_DETAIL });
     if (typeof url === 'string' && url.includes('/staff'))
       return Promise.resolve({ data: { committee: COMMITTEE, staff, total: staff.length, page: 1, pageSize: 500 } });
     if (typeof url === 'string' && /\/api\/directory\/committees\/[^/]+$/.test(url))
@@ -96,16 +137,35 @@ describe('Committee Staff vNext', () => {
     expect(screen.getAllByText(/House Armed Services/).length).toBeGreaterThan(0);
   });
 
-  test('Open → resolves the canonical shared staff profile route', async () => {
+  test('clicking a staffer opens their profile in a modal, without navigating away', async () => {
     mockHappy([staffer()]);
     renderAt();
     await waitFor(() => expect(screen.getByText('Sam Diaz')).toBeTruthy());
-    // Select the row, then open the profile from the rail.
+    fireEvent.click(screen.getByText('Sam Diaz'));
+    // The modal fetches by the same canonical staff id and shows the real
+    // detail payload (Staff ID from STAFF_DETAIL.identity.staffId = 1) —
+    // never a route change, so the diagram/roster stays mounted underneath.
+    await waitFor(() => expect(screen.getByText('Staff ID')).toBeTruthy());
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  test('"Open full profile" from the rail opens the same modal as clicking the row', async () => {
+    mockHappy([staffer()]);
+    renderAt();
+    await waitFor(() => expect(screen.getByText('Sam Diaz')).toBeTruthy());
     fireEvent.click(screen.getByText('Sam Diaz'));
     await waitFor(() => expect(screen.getByText('Open full profile')).toBeTruthy());
     fireEvent.click(screen.getByText('Open full profile'));
-    // One canonical identity: /directory/staff/:id — never a committee-specific copy.
-    expect(navigate).toHaveBeenCalledWith('/directory/staff/staff-1');
+    await waitFor(() => expect(screen.getByText('Staff ID')).toBeTruthy());
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  test('clicking committee leadership navigates to the member profile (no staffer-depth modal for members yet)', async () => {
+    mockHappy([staffer()]);
+    renderAt('/directory/committee-staff');
+    await waitFor(() => expect(screen.getByText('Chair Person')).toBeTruthy());
+    fireEvent.click(screen.getByText('Chair Person'));
+    expect(navigate).toHaveBeenCalledWith('/directory/members/m-1');
   });
 
   test('hierarchy view annotates non-source-backed affordances instead of faking them', async () => {
