@@ -251,15 +251,40 @@
 
 /* ── split body ────────────────────────────────────────────────────────── */
 .capiro-vnext-root .dnx-split {
-  flex: 1;
-  min-height: 520px;
+  /* LOAD-BEARING: the split must own a DEFINITE, viewport-derived height.
+     The vNext shell scrolls the PAGE — unlike the legacy shell, nothing above
+     this module carries a definite height, so a `flex: 1` here resolves to
+     CONTENT height and the tallest column (the rail: one row per district)
+     sets the row. Live QA 2026-08-18 caught exactly that: 28 districts
+     inflated this row to ~1500px, MapLibre sized its canvas to the full
+     1060x1511 card, the CONUS fit centered in THAT canvas, and the visible
+     first-viewport slice showed northern Canada with the choropleth (and the
+     legend) 700px below the card fold — read as "map broken, no polygons".
+     Height arithmetic: 100vh minus the chrome above/below the split at
+     desktop width (64px shell topbar + ~245px hero+KPIs+filters+gaps + ~40px
+     canvas padding + 24px breathing room ≈ 415px), clamped so short laptops
+     still get the canonical 520px minimum map and tall monitors do not
+     stretch the rail past useful density. The rail then scrolls INTERNALLY
+     (.dnx-rail-scroll), which is the designed behavior.
+     district-nexus-layout.contract.test.ts pins this rule. */
+  height: clamp(520px, calc(100vh - 415px), 920px);
+  flex: none;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 420px;
   gap: 16px;
 }
 @media (max-width: 1180px) {
   .capiro-vnext-root .dnx-split {
+    /* Single column: the split no longer owns one shared height — each panel
+       sizes itself (map gets a viewport share, the rail caps and scrolls). */
+    height: auto;
     grid-template-columns: minmax(0, 1fr);
+  }
+  .capiro-vnext-root .dnx-mapcard {
+    height: min(64vh, 560px);
+  }
+  .capiro-vnext-root .dnx-rail {
+    max-height: 560px;
   }
 }
 .capiro-vnext-root .dnx-mapcard {
