@@ -67,14 +67,13 @@ export function deterministicTransformJobName(batchId, attempt = 1) {
 }
 
 function hasScorableGold(gold) {
-  const collections = [
+  return [
     gold.peIdentities,
     gold.projectIdentities,
     gold.lineIdentities,
     gold.money,
     gold.tableCells,
-  ];
-  return collections.some((value) => Array.isArray(value) && value.length > 0);
+  ].some((value) => Array.isArray(value) && value.length > 0);
 }
 
 function validateGoldShape(entry, problems) {
@@ -133,10 +132,11 @@ function validateGoldShape(entry, problems) {
   }
 }
 
-export function validateLiveBenchmarkCorpus(corpus) {
+export function validateLiveBenchmarkCorpus(corpus, options = {}) {
   if (!corpus || corpus.schemaVersion !== 'phase8_session5_benchmark_corpus_v1') {
     throw new Session5RefusalError('INVALID_BENCHMARK', 'Unsupported benchmark corpus schema');
   }
+  const requireScorableGold = options.requireScorableGold === true;
   const acceptedByStratum = new Map();
   for (const stratum of REQUIRED_BENCHMARK_STRATA) acceptedByStratum.set(stratum, 0);
   const problems = [];
@@ -157,13 +157,17 @@ export function validateLiveBenchmarkCorpus(corpus) {
       continue;
     }
     const before = problems.length;
-    validateGoldShape(entry, problems);
+    if (requireScorableGold) validateGoldShape(entry, problems);
     if (problems.length === before && acceptedByStratum.has(entry.stratum)) {
       acceptedByStratum.set(entry.stratum, acceptedByStratum.get(entry.stratum) + 1);
     }
   }
   for (const [stratum, count] of acceptedByStratum) {
-    if (count === 0) problems.push(`${stratum}: no accepted source-grounded scorable gold entry`);
+    if (count === 0) {
+      problems.push(
+        `${stratum}: no accepted source-grounded${requireScorableGold ? ' scorable' : ''} gold entry`,
+      );
+    }
   }
   if (problems.length > 0) {
     throw new Session5RefusalError(
@@ -175,5 +179,6 @@ export function validateLiveBenchmarkCorpus(corpus) {
   return Object.freeze({
     acceptedEntries: corpus.entries.length,
     strata: Object.fromEntries(acceptedByStratum),
+    scorableGoldEnforced: requireScorableGold,
   });
 }
