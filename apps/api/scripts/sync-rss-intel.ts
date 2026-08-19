@@ -39,16 +39,45 @@ const FEEDS = [
   // whitehouse.gov, treasury, epa, sba, dot, cap, rand, cfr, third_way
 ];
 
-function extractText(xml: string, tag: string): string | null {
-  const cdataMatch = xml.match(new RegExp(`<${tag}><!\\[CDATA\\[(.+?)\\]\\]><\/${tag}>`, 's'));
-  if (cdataMatch) return cdataMatch[1].trim();
-  const plainMatch = xml.match(new RegExp(`<${tag}>(.+?)<\/${tag}>`, 's'));
-  return plainMatch ? plainMatch[1].replace(/<[^>]+>/g, '').trim() : null;
+// RSS/Atom fields commonly arrive HTML-entity-escaped (named entities like
+// &amp;/&lt;/&gt;, and numeric character references like &#8216; or &#x2019;
+// for smart quotes). A field such as <description> is frequently itself
+// escaped markup (e.g. "&lt;p&gt;President &lt;a href=...&gt;...") — decoding
+// must happen BEFORE tag-stripping, otherwise the escaped tags never match
+// the strip regex and survive as literal entity text in stored data.
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+};
+
+export function decodeEntities(s: string): string {
+  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, entity: string) => {
+    if (entity[0] === '#') {
+      const isHex = entity[1]?.toLowerCase() === 'x';
+      const codePoint = Number.parseInt(entity.slice(isHex ? 2 : 1), isHex ? 16 : 10);
+      return Number.isFinite(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+        ? String.fromCodePoint(codePoint)
+        : match;
+    }
+    return NAMED_ENTITIES[entity.toLowerCase()] ?? match;
+  });
 }
 
-function extractCategories(item: string): string[] {
+export function stripHtmlTags(s: string): string {
+  return s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+export function extractText(xml: string, tag: string): string | null {
+  const cdataMatch = xml.match(new RegExp(`<${tag}><!\\[CDATA\\[(.+?)\\]\\]><\/${tag}>`, 's'));
+  const plainMatch = cdataMatch ? null : xml.match(new RegExp(`<${tag}>(.+?)<\/${tag}>`, 's'));
+  const raw = cdataMatch?.[1] ?? plainMatch?.[1];
+  if (raw == null) return null;
+  const clean = stripHtmlTags(decodeEntities(raw));
+  return clean || null;
+}
+
+export function extractCategories(item: string): string[] {
   const matches = [...item.matchAll(/<category[^>]*>(?:<!\[CDATA\[)?(.+?)(?:\]\]>)?<\/category>/g)];
-  return matches.map(m => m[1].trim()).filter(Boolean).slice(0, 10);
+  return matches.map(m => decodeEntities(m[1] ?? '').trim()).filter(Boolean).slice(0, 10);
 }
 
 function safeDate(v: string | null | undefined): Date | null {
@@ -123,4 +152,6 @@ async function main() {
   await prisma.$disconnect();
 }
 
-main().catch((err) => { console.error('[rss-sync] FAILED', err); process.exit(1); });
+if (require.main === module) {
+  main().catch((err) => { console.error('[rss-sync] FAILED', err); process.exit(1); });
+}
