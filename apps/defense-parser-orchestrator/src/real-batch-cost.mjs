@@ -13,8 +13,6 @@ export function computeMaximumReservedCostUsd(config, instanceCount = 1) {
   if (!Number.isFinite(configuredRate) || configuredRate <= 0) {
     throw new Session5RefusalError('INVALID_RATE', 'Combined GPU hourly rate must be positive');
   }
-  // Reservation uses a deliberately conservative floor so a stale/low pricing
-  // input cannot make the atomic authorization ledger under-reserve paid work.
   const reservationRate = Math.max(
     configuredRate,
     SESSION5_RESERVATION_RATE_FLOOR_USD_PER_HOUR,
@@ -37,10 +35,6 @@ export function reconcileTransformFacts(description, config, nowIso = new Date()
       `Unsupported SageMaker TransformJobStatus ${status}`,
     );
   }
-  // Use CreationTime for conservative spend/watchdog reconciliation. GPU billing
-  // cannot start before provider job creation; using the earlier provider fact
-  // avoids under-reserving startup/provisioning time. TransformStartTime is
-  // retained separately as executionStartedAt for telemetry.
   const billingStart = toEpochMillis(
     description.CreationTime ?? description.TransformStartTime,
   );
@@ -72,6 +66,73 @@ export function deterministicTransformJobName(batchId, attempt = 1) {
   return `capiro-s5-${sha256Hex(batchId).slice(0, 43)}-a${String(attempt).padStart(2, '0')}`;
 }
 
+function hasScorableGold(gold) {
+  const collections = [
+    gold.peIdentities,
+    gold.projectIdentities,
+    gold.lineIdentities,
+    gold.money,
+    gold.tableCells,
+  ];
+  return collections.some((value) => Array.isArray(value) && value.length > 0);
+}
+
+function validateGoldShape(entry, problems) {
+  const gold = entry.gold ?? {};
+  try {
+    assertSha(entry.sourceSha256, `${entry.id}.sourceSha256`);
+  } catch (error) {
+    problems.push(`${entry.id}: ${error.message}`);
+  }
+  if (!Number.isInteger(entry.pageNumber) || entry.pageNumber < 1) {
+    problems.push(`${entry.id}: pageNumber must be a positive physical PDF page`);
+  }
+  for (const name of [
+    'peIdentities',
+    'projectIdentities',
+    'lineIdentities',
+    'money',
+    'tableCells',
+  ]) {
+    if (!Array.isArray(gold[name])) {
+      problems.push(`${entry.id}: gold.${name} must be an explicit array`);
+    }
+  }
+  if (!hasScorableGold(gold)) {
+    problems.push(`${entry.id}: accepted gold contains no scorable identity/money/table assertion`);
+  }
+  for (const [index, money] of (gold.money ?? []).entries()) {
+    if (
+      typeof money?.value !== 'string' ||
+      !money.unit ||
+      !Number.isInteger(money.fy) ||
+      !Number.isInteger(money.evidencePage) ||
+      money.evidencePage < 1
+    ) {
+      problems.push(`${entry.id}: gold.money[${index}] lacks exact value/unit/FY/evidence-page identity`);
+    }
+  }
+  if (entry.stratum === 'r2_identity_banner' && (gold.peIdentities?.length ?? 0) === 0) {
+    problems.push(`${entry.id}: R-2 identity gold must name at least one PE identity`);
+  }
+  if (
+    entry.stratum === 'r2a_project_cost_table' &&
+    (gold.projectIdentities?.length ?? 0) === 0 &&
+    (gold.money?.length ?? 0) === 0 &&
+    (gold.tableCells?.length ?? 0) === 0
+  ) {
+    problems.push(`${entry.id}: R-2A gold must contain project, money, or table assertions`);
+  }
+  if (
+    ['p1_table', 'o1_op5_table'].includes(entry.stratum) &&
+    (gold.lineIdentities?.length ?? 0) === 0 &&
+    (gold.money?.length ?? 0) === 0 &&
+    (gold.tableCells?.length ?? 0) === 0
+  ) {
+    problems.push(`${entry.id}: ${entry.stratum} gold must contain line, money, or table assertions`);
+  }
+}
+
 export function validateLiveBenchmarkCorpus(corpus) {
   if (!corpus || corpus.schemaVersion !== 'phase8_session5_benchmark_corpus_v1') {
     throw new Session5RefusalError('INVALID_BENCHMARK', 'Unsupported benchmark corpus schema');
@@ -95,12 +156,14 @@ export function validateLiveBenchmarkCorpus(corpus) {
       problems.push(`${entry.id}: ${error.message}`);
       continue;
     }
-    if (acceptedByStratum.has(entry.stratum)) {
+    const before = problems.length;
+    validateGoldShape(entry, problems);
+    if (problems.length === before && acceptedByStratum.has(entry.stratum)) {
       acceptedByStratum.set(entry.stratum, acceptedByStratum.get(entry.stratum) + 1);
     }
   }
   for (const [stratum, count] of acceptedByStratum) {
-    if (count === 0) problems.push(`${stratum}: no accepted source-grounded gold entry`);
+    if (count === 0) problems.push(`${stratum}: no accepted source-grounded scorable gold entry`);
   }
   if (problems.length > 0) {
     throw new Session5RefusalError(
