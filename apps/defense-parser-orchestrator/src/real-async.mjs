@@ -694,8 +694,8 @@ export class AsyncNvidiaCoordinator {
         attempt: 1,
         corpusSha256: input.corpusSha256,
         pages: input.pages,
-        reservationId: `${endpoint.endpointName}#endpoint`,
-        reservedCostUsd: computeMaximumEndpointReservationUsd(this.config),
+        reservationId: null,
+        reservedCostUsd: 0,
         endpoint,
         endpointCreatedAt: providerExisting?.CreationTime,
         endpointLastModifiedAt: providerExisting?.LastModifiedTime,
@@ -1048,13 +1048,15 @@ export class AsyncNvidiaCoordinator {
     }
     if (job.status === 'ENDPOINT_DELETED') {
       const actualCostUsd = this.#reconciledEndpointCost(job);
-      await this.ports.reservationLedger.settle({
-        reservationId: job.reservationId,
-        reconciledCostUsd: actualCostUsd,
-        effectiveCapUsd: this.config.effectiveSpendCapUsd,
-        hardCapUsd: this.config.hardIncrementalCapUsd,
-        at: this.clock(),
-      });
+      if (job.reservationId) {
+        await this.ports.reservationLedger.settle({
+          reservationId: job.reservationId,
+          reconciledCostUsd: actualCostUsd,
+          effectiveCapUsd: this.config.effectiveSpendCapUsd,
+          hardCapUsd: this.config.hardIncrementalCapUsd,
+          at: this.clock(),
+        });
+      }
       const complete = transition(job, 'COMPLETE', this.clock(), {
         reconciledCostUsd: actualCostUsd,
       });
