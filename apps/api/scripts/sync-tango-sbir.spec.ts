@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { TangoSbirHttpError } from '../src/external/tango/tango-sbir.client.js';
 import {
   SBIR_ENDPOINTS,
@@ -214,7 +215,9 @@ describe('idempotency and replay', () => {
   });
 
   test('the same id arriving twice within one walk collapses to one row', async () => {
-    const { deps, topics } = fakeDeps({ topic: [[topic('T1'), topic('T1', { title: 'Revised' })]] });
+    const { deps, topics } = fakeDeps({
+      topic: [[topic('T1'), topic('T1', { title: 'Revised' })]],
+    });
     const summary = await runSbirSync(deps, { commit: true, endpoints: ['topic'] });
 
     expect(topics.size).toBe(1);
@@ -303,6 +306,52 @@ describe('topicsWithNoStatedCycle is a contract signal, not noise', () => {
   });
 });
 
+describe('solicitation date-order reconciliation', () => {
+  test('counts inverted dates even when the upsert later fails', async () => {
+    const { deps } = fakeDeps({
+      solicitation: [
+        [
+          solicitation('SOL-INVERTED-FAIL', {
+            start_date: '2026-02-04',
+            end_date: '2026-01-06',
+          }),
+        ],
+      ],
+    });
+    (deps as any).upsertSolicitation = jest.fn(async () => {
+      throw new Error('constraint violation');
+    });
+    const summary = await runSbirSync(deps, { commit: true, endpoints: ['solicitation'] });
+    const s = byEndpoint(summary, 'solicitation');
+    expect(summary.solicitationsWithInvertedDates).toBe(1);
+    expect(s.errored).toBe(1);
+    expect(s.written).toBe(0);
+  });
+
+  test('counts inverted dates as written rows and does not classify them as errors', async () => {
+    const { deps, solicitations } = fakeDeps({
+      solicitation: [
+        [
+          solicitation('SOL-INVERTED', {
+            start_date: '2026-02-04',
+            end_date: '2026-01-06',
+          }),
+          solicitation('SOL-VALID'),
+        ],
+      ],
+    });
+
+    const summary = await runSbirSync(deps, { commit: true, endpoints: ['solicitation'] });
+    const s = byEndpoint(summary, 'solicitation');
+
+    expect(solicitations.size).toBe(2);
+    expect((solicitations.get('SOL-INVERTED') as any).endDate).toBeNull();
+    expect(summary.solicitationsWithInvertedDates).toBe(1);
+    expect(s.errored).toBe(0);
+    expect(s.written).toBe(2);
+  });
+});
+
 describe('the incremental window', () => {
   test('each endpoint sends its OWN documented date-filter spelling', async () => {
     const { deps, calls } = fakeDeps(
@@ -326,7 +375,10 @@ describe('the incremental window', () => {
   });
 
   test('the window is the high-water mark minus the overlap', async () => {
-    const { deps, calls } = fakeDeps({ topic: [[topic('T1')]] }, { topic: new Date('2026-06-10T00:00:00.000Z') });
+    const { deps, calls } = fakeDeps(
+      { topic: [[topic('T1')]] },
+      { topic: new Date('2026-06-10T00:00:00.000Z') },
+    );
     await runSbirSync(deps, { commit: false, endpoints: ['topic'], overlapDays: 7 });
 
     expect(calls[0]!.options.releaseDateAfter).toBe('2026-06-03');
@@ -341,7 +393,10 @@ describe('the incremental window', () => {
   });
 
   test('--full drops the window even when a high-water mark exists', async () => {
-    const { deps, calls } = fakeDeps({ topic: [[topic('T1')]] }, { topic: new Date('2026-06-10T00:00:00.000Z') });
+    const { deps, calls } = fakeDeps(
+      { topic: [[topic('T1')]] },
+      { topic: new Date('2026-06-10T00:00:00.000Z') },
+    );
     const summary = await runSbirSync(deps, { commit: false, endpoints: ['topic'], full: true });
 
     expect(calls[0]!.options.releaseDateAfter).toBeUndefined();
@@ -349,7 +404,10 @@ describe('the incremental window', () => {
   });
 
   test('--since overrides the derived mark', async () => {
-    const { deps, calls } = fakeDeps({ topic: [[topic('T1')]] }, { topic: new Date('2026-06-10T00:00:00.000Z') });
+    const { deps, calls } = fakeDeps(
+      { topic: [[topic('T1')]] },
+      { topic: new Date('2026-06-10T00:00:00.000Z') },
+    );
     const summary = await runSbirSync(deps, {
       commit: false,
       endpoints: ['topic'],
@@ -495,7 +553,9 @@ describe('rate limiting', () => {
       throw new Error('boom');
     });
 
-    await expect(runSbirSync(deps, { commit: false, endpoints: ['topic'] })).rejects.toThrow('boom');
+    await expect(runSbirSync(deps, { commit: false, endpoints: ['topic'] })).rejects.toThrow(
+      'boom',
+    );
   });
 
   // Mirrors the two capped-wait tests in sync-tango-dibbs.spec.ts, added after
@@ -557,5 +617,42 @@ describe('what the summary reports', () => {
 
     expect(t.errored).toBe(1);
     expect(t.written).toBe(0);
+  });
+
+  test('logs a redacted Prisma-aware error without exposing diagnostic metadata', async () => {
+    const { deps } = fakeDeps({ solicitation: [[solicitation('SOL-ERR')]] });
+    const error = new Prisma.PrismaClientKnownRequestError(
+      'constraint violation token=super-secret',
+      {
+        code: 'P2004',
+        clientVersion: '5.22.0',
+        meta: { database_error: 'violates check constraint tango_sbir_solicitation_dates_chk' },
+      },
+    );
+    (deps as any).upsertSolicitation = jest.fn(async () => {
+      throw error;
+    });
+    const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      const summary = await runSbirSync(deps, { commit: true, endpoints: ['solicitation'] });
+      const s = byEndpoint(summary, 'solicitation');
+      expect(s.errored).toBe(1);
+      expect(s.written).toBe(0);
+      expect(log).toHaveBeenCalledTimes(1);
+      const line = log.mock.calls[0]![0] as string;
+      expect(line.startsWith('TANGO_SBIR_SYNC_UPSERT_ERR ')).toBe(true);
+      const payload = JSON.parse(line.slice('TANGO_SBIR_SYNC_UPSERT_ERR '.length));
+      expect(payload).toEqual({
+        endpoint: 'solicitation',
+        tangoSbirId: 'SOL-ERR',
+        code: 'P2004',
+        message: 'constraint violation token=[redacted]',
+      });
+      expect(line).not.toContain('super-secret');
+      expect(line).not.toContain('database_error');
+    } finally {
+      log.mockRestore();
+    }
   });
 });
