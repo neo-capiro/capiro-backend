@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Map as MaplibreMap, Source, Layer, type MapLayerMouseEvent, type MapRef } from '@vis.gl/react-maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -16,26 +16,38 @@ import {
   NO_NEXUS_FILL,
   metricValue,
   rampColorForValue,
+  type ChoroplethMetric,
 } from '../../../pages/intelligence/district-nexus/district-nexus-format.js';
+import './district-map.css';
 
 /**
- * The client profile's district map, carrying the SAME map key and details as
- * the canonical District Nexus module (`pages/intelligence/district-nexus`):
- * MapLibre choropleth over the key-free Census boundary artifact, the
- * six-step nexus-strength ramp with its scale ticks, the "No verified nexus"
- * swatch, the hover card (district key + score), the AK/HI/PR jump controls,
- * and the Boundaries/Census attribution line.
+ * The SHARED vNext district map: MapLibre choropleth over the key-free Census
+ * boundary artifact, carrying the same map key and details as the canonical
+ * District Nexus module (`pages/intelligence/district-nexus`): the six-step
+ * nexus-strength ramp with its scale ticks, the "No verified nexus" swatch,
+ * the hover card (district key + score), the AK/HI/PR jump controls, and the
+ * Boundaries/Census attribution line.
  *
- * Loaded via `React.lazy` from the Intelligence tab so the WebGL engine stays
- * out of the client-crm chunk for users who never open the District subtab
- * (see `bundle-boundaries.test.ts` for why that matters). Query keys for the
- * boundary manifest/geojson are identical to the canonical page's, so the
- * ~5MB artifact is fetched once per session across both surfaces.
+ * Two vNext surfaces consume it:
+ *  - the Client CRM Intelligence tab (its original home, PR #1034) — default
+ *    props reproduce that usage exactly: 'nexus' metric, fit-to-footprint on
+ *    load, an internal Facilities toggle, plain note fallbacks;
+ *  - the native District Nexus page (`vnext/pages/district-nexus`), which
+ *    passes a metric, URL-controlled facilities state, footprint-vs-CONUS fit
+ *    semantics, and its own unavailable/loading fallbacks.
  *
- * Presentation is antd-free: the vNext shell owns this chunk, so the chrome is
- * plain elements styled in `portfolio-proto.css` (`.cap-pf-dn-*`).
+ * Always loaded via `React.lazy` so the WebGL engine stays out of eager
+ * chunks (see `bundle-boundaries.test.ts` for why that matters). Query keys
+ * for the boundary manifest/geojson are identical to the canonical page's, so
+ * the ~5MB artifact is fetched once per session across every surface.
+ *
+ * Presentation is antd-free; chrome is plain elements styled by
+ * `district-map.css` (`.cap-pf-dn-*` — class names kept from the component's
+ * client-crm origin so that surface's visuals are byte-identical).
  */
 
+// Bounds are [lng, lat] pairs (MapLibre order), converted from the
+// prototype's Leaflet [lat, lng] fit targets.
 const CONUS_BOUNDS: [[number, number], [number, number]] = [
   [-125.2, 24.4],
   [-66.8, 49.6],
@@ -69,33 +81,82 @@ function supportsWebGL(): boolean {
   return webglSupportCache;
 }
 
+export type DistrictMapUnavailableReason = 'webgl' | 'artifact';
+
 export interface DistrictNexusMapLibreProps {
   districts: DistrictNexusDistrictSummary[];
   selectedDistrictKey: string | null;
   onSelectDistrict: (districtKey: string) => void;
+  /** Choropleth colour metric. Defaults to nexus strength. */
+  metric?: ChoroplethMetric;
+  /** Boundary vintage. Only 'current' has an artifact today ('future' 400s —
+   * see DistrictNexusMapQuery in district-nexus-api.ts). */
+  view?: 'current' | 'future';
+  onHoverDistrict?: (districtKey: string | null) => void;
+  /** Controlled facilities-layer state. When BOTH this and
+   * `onShowFacilitiesChange` are provided the component never manages its own
+   * state; when omitted, an internal toggle (default off) drives the layer. */
+  showFacilities?: boolean;
+  onShowFacilitiesChange?: (value: boolean) => void;
+  /**
+   * 'footprint' (default): fit the districts' footprint once loaded — the
+   * client-profile behavior, where the district set IS the client's footprint.
+   * `{ token }`: the District Nexus page behavior — footprint when the token
+   * is truthy (a client filter is applied), CONUS otherwise; refits whenever
+   * the token changes. The token value is opaque; only identity matters.
+   */
+  fit?: 'footprint' | { token: string | null };
+  /** Custom unavailable state (WebGL off / artifact missing / render error).
+   * The default is a plain note; the District Nexus page substitutes a
+   * warning banner plus its district table (§8.6 — never a blank canvas). */
+  renderUnavailable?: (reason: DistrictMapUnavailableReason) => ReactNode;
+  /** Custom loading state while the manifest/geojson queries are pending. */
+  loadingFallback?: ReactNode;
+  /** Custom node for the top-right control group (e.g. a layers popover).
+   * Suppresses the built-in Facilities toggle button. */
+  layersSlot?: ReactNode;
 }
 
-const METRIC = 'nexus' as const;
-
-export function DistrictNexusMapLibre({ districts, selectedDistrictKey, onSelectDistrict }: DistrictNexusMapLibreProps) {
+export function DistrictNexusMapLibre({
+  districts,
+  selectedDistrictKey,
+  onSelectDistrict,
+  metric = 'nexus',
+  view = 'current',
+  onHoverDistrict,
+  showFacilities: showFacilitiesProp,
+  onShowFacilitiesChange,
+  fit = 'footprint',
+  renderUnavailable,
+  loadingFallback,
+  layersSlot,
+}: DistrictNexusMapLibreProps) {
   const api = useApi();
   const mapRef = useRef<MapRef | null>(null);
   const [hover, setHover] = useState<{ key: string; x: number; y: number } | null>(null);
   const [renderError, setRenderError] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [showFacilities, setShowFacilities] = useState(false);
+  const [internalShowFacilities, setInternalShowFacilities] = useState(false);
   const webglOk = useMemo(supportsWebGL, []);
+  const statusParam = view === 'future' ? 'F' : 'C';
+
+  const facilitiesControlled = showFacilitiesProp != null;
+  const showFacilities = facilitiesControlled ? showFacilitiesProp : internalShowFacilities;
+  const setShowFacilities = (value: boolean) => {
+    if (facilitiesControlled) onShowFacilitiesChange?.(value);
+    else setInternalShowFacilities(value);
+  };
 
   const manifest = useQuery({
-    queryKey: ['district-nexus', 'boundary-manifest', 'C'],
-    queryFn: () => getDistrictBoundaryManifest(api, 'C'),
+    queryKey: ['district-nexus', 'boundary-manifest', statusParam],
+    queryFn: () => getDistrictBoundaryManifest(api, statusParam),
     staleTime: 5 * 60_000,
     retry: false,
     enabled: webglOk,
   });
   const geojson = useQuery<BoundaryFeatureCollection>({
-    queryKey: ['district-nexus', 'boundary-geojson', 'C'],
-    queryFn: () => getDistrictBoundaryGeoJson(api, 'C'),
+    queryKey: ['district-nexus', 'boundary-geojson', statusParam],
+    queryFn: () => getDistrictBoundaryGeoJson(api, statusParam),
     staleTime: 5 * 60_000,
     retry: false,
     enabled: webglOk,
@@ -109,18 +170,23 @@ export function DistrictNexusMapLibre({ districts, selectedDistrictKey, onSelect
       ...geojson.data,
       features: geojson.data.features.map((feature) => {
         const district = byKey.get(feature.id);
-        const color = district ? rampColorForValue(metricValue(district, METRIC), METRIC) : NO_NEXUS_FILL;
+        const color = district ? rampColorForValue(metricValue(district, metric), metric) : NO_NEXUS_FILL;
         return {
           ...feature,
           properties: { ...feature.properties, __color: color, __hasNexus: Boolean(district) },
         };
       }),
     };
-  }, [geojson.data, byKey]);
+  }, [geojson.data, byKey, metric]);
 
-  // One marker per district at the boundary centroid, sized by aggregate
-  // employee count — deliberately NOT a facility-precision claim (see the
-  // canonical map's comment on why).
+  /**
+   * One marker per DISTRICT, at the boundary centroid, sized by that
+   * district's aggregate employee count. This is deliberately NOT a facility
+   * map: the E1 aggregate carries no facility coordinates, and placing a
+   * marker at a centroid while calling it "Client facilities" claimed a
+   * precision we do not have. Rendering real coordinates needs a
+   * tenant-scoped facility-points field on the API — see the plan's §6.
+   */
   const facilityPoints = useMemo(() => {
     if (!geojson.data) return { type: 'FeatureCollection' as const, features: [] };
     const features = geojson.data.features
@@ -160,12 +226,20 @@ export function DistrictNexusMapLibre({ districts, selectedDistrictKey, onSelect
     );
   };
 
-  // Fit the client's footprint once everything is ready.
+  // Re-fit whenever the map finishes loading, the artifact arrives, or (in
+  // token mode) the caller's fit token changes: footprint when a client scope
+  // exists, CONUS otherwise. In 'footprint' mode the token is a constant
+  // undefined, so this fires exactly like the original client-profile effect.
+  const fitToken = typeof fit === 'object' ? fit.token : undefined;
   useEffect(() => {
     if (!loaded || !mapRef.current || !geojson.data) return;
+    if (typeof fit === 'object' && !fit.token) {
+      mapRef.current.fitBounds(CONUS_BOUNDS, { padding: 24, animate: false });
+      return;
+    }
     fitToFootprint();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, geojson.data]);
+  }, [fitToken, loaded, geojson.data]);
 
   // Selected-district outline via feature-state.
   useEffect(() => {
@@ -177,21 +251,24 @@ export function DistrictNexusMapLibre({ districts, selectedDistrictKey, onSelect
   }, [selectedDistrictKey, districts, loaded]);
 
   if (!webglOk || geojson.isError || renderError) {
+    const reason: DistrictMapUnavailableReason = !webglOk ? 'webgl' : 'artifact';
+    if (renderUnavailable) return <>{renderUnavailable(reason)}</>;
     return (
       <div className="cap-pf-dn-fail" role="note">
         <b>Boundary map unavailable.</b>{' '}
-        {!webglOk ? 'WebGL is unavailable in this browser session.' : 'The boundary artifact could not be loaded.'}{' '}
+        {reason === 'webgl' ? 'WebGL is unavailable in this browser session.' : 'The boundary artifact could not be loaded.'}{' '}
         The district list beside the map carries every number shown here.
       </div>
     );
   }
 
   if (geojson.isPending || manifest.isPending) {
+    if (loadingFallback) return <>{loadingFallback}</>;
     return <div className="cap-pf-dn-loading" aria-busy="true" aria-label="Loading district boundaries" />;
   }
 
   const hoveredDistrict = hover ? byKey.get(hover.key) : undefined;
-  const scale = METRIC_SCALES[METRIC];
+  const scale = METRIC_SCALES[metric];
 
   return (
     <div className="cap-pf-dn-root">
@@ -207,12 +284,17 @@ export function DistrictNexusMapLibre({ districts, selectedDistrictKey, onSelect
           const feature = e.features?.[0];
           if (!feature?.id) {
             if (hover) setHover(null);
+            onHoverDistrict?.(null);
             return;
           }
           const key = String(feature.id);
           setHover({ key, x: e.point.x, y: e.point.y });
+          onHoverDistrict?.(key);
         }}
-        onMouseLeave={() => setHover(null)}
+        onMouseLeave={() => {
+          setHover(null);
+          onHoverDistrict?.(null);
+        }}
         onClick={(e: MapLayerMouseEvent) => {
           const feature = e.features?.[0];
           const key = feature?.id != null ? String(feature.id) : null;
@@ -285,16 +367,17 @@ export function DistrictNexusMapLibre({ districts, selectedDistrictKey, onSelect
         <button type="button" aria-label="Zoom out" onClick={() => mapRef.current?.zoomOut()}>
           −
         </button>
-        {facilityPoints.features.length ? (
-          <button
-            type="button"
-            aria-pressed={showFacilities}
-            title="Districts with client facilities · sized by employees"
-            onClick={() => setShowFacilities((v) => !v)}
-          >
-            Facilities
-          </button>
-        ) : null}
+        {layersSlot ??
+          (facilityPoints.features.length ? (
+            <button
+              type="button"
+              aria-pressed={showFacilities}
+              title="Districts with client facilities · sized by employees"
+              onClick={() => setShowFacilities(!showFacilities)}
+            >
+              Facilities
+            </button>
+          ) : null)}
       </div>
 
       <div className="cap-pf-dn-legend">

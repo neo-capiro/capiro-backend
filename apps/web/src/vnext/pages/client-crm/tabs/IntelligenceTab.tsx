@@ -105,8 +105,10 @@ const INTEL_TONE: Record<string, PillTone> = {
 };
 
 /** MapLibre choropleth, lazy so the WebGL engine stays out of this chunk (see
- * bundle-boundaries.test.ts) for users who never open the District subtab. */
-const DistrictNexusMapLibreLazy = lazy(() => import('../DistrictNexusMapLibre.js'));
+ * bundle-boundaries.test.ts) for users who never open the District subtab.
+ * Shared with the native District Nexus page since the Phase 2 port — its
+ * default props reproduce this tab's original behavior exactly. */
+const DistrictNexusMapLibreLazy = lazy(() => import('../../../components/district-map/DistrictNexusMapLibre.js'));
 
 /**
  * District Nexus v2 — the scored, district-keyed model the canonical

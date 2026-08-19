@@ -1,0 +1,162 @@
+/* ── Shared District Nexus MapLibre chrome (DistrictNexusMapLibre.tsx) ───────
+   Moved verbatim from pages/client-crm/portfolio-proto.css when the map was
+   promoted from a client-crm-local component to a shared vNext component
+   (Phase 2 District Nexus port). Class names and values are unchanged so the
+   client-crm surface's visuals stay byte-identical; both consumers (the
+   Client CRM Intelligence tab and the native District Nexus page) get this
+   chrome from the map chunk itself.
+
+   `.cap-pf-dn-loading` deliberately does NOT live here: it styles the
+   Suspense fallback that IntelligenceTab renders BEFORE this lazy chunk (and
+   this stylesheet) has loaded, so it must ship with the eager client-crm CSS
+   (portfolio-proto.css). The District Nexus page passes its own
+   `loadingFallback`, so the default loading node never renders there. */
+
+.cap-pf-dn-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.cap-pf-dn-fail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  height: 100%;
+  min-height: 240px;
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 19px;
+  color: #667085;
+  background: #f9fafb;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px #eaecf0;
+}
+.cap-pf-dn-hovcard {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+  min-width: 120px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: inset 0 0 0 1px #eaecf0, 0 4px 12px rgba(16, 24, 40, 0.12);
+}
+.cap-pf-dn-hk {
+  font: 600 13px/18px Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  color: #101828;
+}
+.cap-pf-dn-hr {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+  font: 500 12px/17px Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #667085;
+}
+.cap-pf-dn-hr b {
+  font-weight: 600;
+  color: #101828;
+}
+.cap-pf-dn-ctl {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+}
+.cap-pf-dn-tl {
+  top: 12px;
+  left: 12px;
+}
+.cap-pf-dn-tr {
+  top: 12px;
+  right: 12px;
+}
+.cap-pf-dn-ctl button {
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: inset 0 0 0 1px #eaecf0, 0 1px 2px rgba(16, 24, 40, 0.05);
+  font: 600 11px/16px Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  color: #344054;
+  cursor: pointer;
+}
+.cap-pf-dn-ctl button:hover {
+  background: #ffffff;
+  color: #101828;
+}
+.cap-pf-dn-ctl button:focus-visible {
+  outline: 2px solid #344054;
+  outline-offset: 1px;
+}
+.cap-pf-dn-ctl button[aria-pressed='true'] {
+  background: #101828;
+  color: #ffffff;
+  box-shadow: none;
+}
+.cap-pf-dn-legend {
+  position: absolute;
+  z-index: 3;
+  left: 12px;
+  bottom: 30px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: inset 0 0 0 1px #eaecf0;
+}
+.cap-pf-dn-lt {
+  font: 600 11px/15px Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #667085;
+}
+.cap-pf-dn-ramp {
+  display: flex;
+  margin-top: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.cap-pf-dn-ramp i {
+  width: 22px;
+  height: 8px;
+}
+.cap-pf-dn-sc {
+  display: flex;
+  justify-content: space-between;
+  width: 132px;
+  margin-top: 3px;
+  font: 500 10px/14px Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #98a2b3;
+}
+.cap-pf-dn-ex {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font: 500 11px/15px Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #667085;
+}
+.cap-pf-dn-sw {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+.cap-pf-dn-attrib {
+  position: absolute;
+  z-index: 3;
+  right: 8px;
+  bottom: 8px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.85);
+  font: 500 10px/14px Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #98a2b3;
+}

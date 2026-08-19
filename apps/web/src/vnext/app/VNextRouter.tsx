@@ -22,6 +22,7 @@ import {
   isVNextEngagementPath,
   VNextEngagementRoutes,
 } from '../pages/engagement/VNextEngagementRoutes.js';
+import { isVNextDistrictNexusPath } from '../pages/district-nexus/district-nexus-route.js';
 import {
   isVNextBillPath,
   VNextBillRoutes,
@@ -29,6 +30,12 @@ import {
 
 const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
+}));
+
+// Lazy like Client CRM: the District Nexus page reaches the MapLibre engine,
+// which must never be eagerly reachable (bundle-boundaries.test.ts).
+const VNextDistrictNexusPage = lazy(async () => ({
+  default: (await import('../pages/district-nexus/DistrictNexusPageVNext.js')).DistrictNexusPageVNext,
 }));
 
 const DataExplorerVNext = lazy(async () => ({
@@ -123,6 +130,17 @@ export function VNextRouter() {
   // Reports) — claimed for every tenant since GA on 2026-08-18.
   if (isVNextEngagementPath(location.pathname)) {
     return <VNextEngagementRoutes />;
+  }
+
+  // District Nexus: the firm-wide district map at /intelligence/district-nexus.
+  // The `district_nexus_v2` flag-off state is rendered IN-PAGE (fail-closed
+  // guide), matching canonical — so the claim itself is unconditional.
+  if (isVNextDistrictNexusPath(location.pathname)) {
+    return (
+      <Suspense fallback={<div className="capiro-vnext-route-loading">Loading…</div>}>
+        <VNextDistrictNexusPage />
+      </Suspense>
+    );
   }
 
   // Data Explorer ("Intelligence Center"): the 18-source explorer at
