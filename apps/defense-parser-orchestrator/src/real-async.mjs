@@ -14,6 +14,8 @@ export const ASYNC_RUNTIME_CONTRACT_VERSION = 'nvidia_async_inference_v1';
 export const ASYNC_EXECUTION_MODEL = 'sagemaker_async_inference';
 export const ASYNC_INPUT_CONTENT_TYPE = 'application/json';
 export const ASYNC_OUTPUT_ACCEPT = 'application/json';
+const SESSION5_MIN_MARKETPLACE_RATE_USD = 1;
+const SESSION5_MIN_INSTANCE_RATE_USD = 1;
 export const SESSION5_MODEL_PACKAGE_ARN =
   'arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587';
 export const PINNED_MODEL_USES_MODEL_DATA_SOURCE = true;
@@ -144,6 +146,15 @@ export function loadRealAsyncConfig(env = process.env) {
     region: env.AWS_REGION || env.AWS_DEFAULT_REGION || 'us-east-1',
   };
   validateAsyncExecutionConfig(config);
+  if (
+    config.marketplaceUsdPerHostHour < SESSION5_MIN_MARKETPLACE_RATE_USD ||
+    config.instanceUsdPerHour < SESSION5_MIN_INSTANCE_RATE_USD
+  ) {
+    throw new Session5RefusalError(
+      'RATE_FLOOR_REQUIRED',
+      'Async benchmark rates must not understate the approved Marketplace and instance rates',
+    );
+  }
   if (config.enabled) {
     const required = [
       ['NVIDIA_MODEL_VERSION', config.modelVersion !== 'UNPINNED'],
@@ -234,6 +245,14 @@ export function buildAsyncEndpointIdentity(input) {
     modelVersion: input.modelVersion,
     runtimeContractVersion:
       input.runtimeContractVersion || ASYNC_RUNTIME_CONTRACT_VERSION,
+    modelName: input.modelName || null,
+    executionRoleArn: input.executionRoleArn || null,
+    instanceType: input.instanceType || null,
+    outputBucket: input.outputBucket || null,
+    outputPrefix: input.outputPrefix || null,
+    failureBucket: input.failureBucket || null,
+    failurePrefix: input.failurePrefix || null,
+    kmsKeyId: input.kmsKeyId || null,
   };
   return Object.freeze({
     endpointConfigName: shortName('capiro-s5-async-cfg-', basis),
@@ -364,6 +383,9 @@ export class SafeAwsCliSageMakerAsyncInferenceAdapter {
   async ensureEndpoint(input) {
     const existing = await this.describeEndpoint(input.endpointName);
     if (existing) {
+      if (existing.EndpointConfigName && existing.EndpointConfigName !== input.endpointConfigName) {
+        throw new Session5RefusalError('ENDPOINT_IDENTITY_MISMATCH', `Existing endpoint ${input.endpointName} points at an unexpected endpoint config`);
+      }
       return Object.freeze({
         ...input,
         endpointArn: existing.EndpointArn,
@@ -383,7 +405,9 @@ export class SafeAwsCliSageMakerAsyncInferenceAdapter {
       if (
         configuredModel !== input.modelName ||
         configuredInstance !== input.instanceType ||
-        !configExisting.AsyncInferenceConfig
+        !configExisting.AsyncInferenceConfig ||
+        configExisting.AsyncInferenceConfig.OutputConfig?.S3OutputPath !== input.outputLocation ||
+        (input.failureLocation && configExisting.AsyncInferenceConfig.OutputConfig?.S3FailurePath !== input.failureLocation)
       ) {
         throw new Session5RefusalError(
           'ENDPOINT_CONFIG_IDENTITY_MISMATCH',
@@ -503,21 +527,19 @@ export class SafeAwsCliSageMakerAsyncInferenceAdapter {
   }
 
   async listAsyncOutput(providerRun, inferenceId, outputLocation) {
+    const bucket = providerRun.outputBucket;
+    const prefix = `${String(providerRun.outputPrefix).replace(/\/$/, '')}/${inferenceId}`;
+    const expectedKey = `${prefix}.out`;
     const exactLocation = parseS3Uri(outputLocation);
-    const bucket = exactLocation?.bucket || providerRun.outputBucket;
-    const prefix = exactLocation?.key
-      ? exactLocation.key.replace(/\/?$/, '')
-      : `${providerRun.outputPrefix}/${inferenceId}`;
+    if (exactLocation && (exactLocation.bucket !== bucket || exactLocation.key !== expectedKey)) {
+      throw new Session5RefusalError('ASYNC_OUTPUT_LOCATION_MISMATCH', `Async output for ${inferenceId} is outside the configured output prefix`);
+    }
     const response = await this.runner.invoke('s3api', 'list-objects-v2', {
       Bucket: bucket,
       Prefix: prefix,
       MaxKeys: 10,
     });
-    const expectedKeys = new Set([
-      prefix,
-      `${prefix}.out`,
-      `${providerRun.outputPrefix}/${inferenceId}.out`,
-    ]);
+    const expectedKeys = new Set([expectedKey]);
     const matches = (response.Contents || [])
       .map((item) => item.Key)
       .filter((key) => expectedKeys.has(key));
@@ -626,6 +648,9 @@ export class AsyncNvidiaCoordinator {
 
   async submit(input) {
     validateAsyncExecutionConfig(this.config);
+    if (this.config.enabled !== true) {
+      throw new Session5RefusalError('ASYNC_PARSING_DISABLED', 'Async benchmark submission requires enabled parsing configuration');
+    }
     if (!this.config.asyncLiveRunAuthorized) {
       throw new Session5RefusalError(
         'LIVE_RUN_AUTHORIZATION_REQUIRED',
@@ -639,11 +664,22 @@ export class AsyncNvidiaCoordinator {
         'Session 5 async submission requires the frozen 10-page corpus',
       );
     }
+    if (this.config.enabled !== true) {
+      throw new Session5RefusalError('ASYNC_PARSING_DISABLED', 'Async benchmark submission requires enabled parsing configuration');
+    }
     const endpoint = buildAsyncEndpointIdentity({
       corpusSha256: input.corpusSha256,
       modelPackageArn: this.config.modelPackageArn,
       modelVersion: this.config.modelVersion,
       runtimeContractVersion: ASYNC_RUNTIME_CONTRACT_VERSION,
+      modelName: this.config.sagemakerModelName,
+      executionRoleArn: this.config.executionRoleArn,
+      instanceType: this.config.instanceType,
+      outputBucket: this.config.outputBucket,
+      outputPrefix: this.config.outputPrefix,
+      failureBucket: this.config.outputBucket,
+      failurePrefix: this.config.failurePrefix,
+      kmsKeyId: this.config.kmsKeyId,
     });
     const existing = await this.ports.jobStore.get(endpoint.endpointName);
     if (existing) return this.reconcile(existing.jobId);
@@ -686,7 +722,7 @@ export class AsyncNvidiaCoordinator {
       at: this.clock(),
       resourceKind: 'async_endpoint',
     });
-    const job = {
+    let job = {
       schemaVersion: 'phase8_session5_async_job_v1',
       jobId: endpoint.endpointName,
       status: 'CAPACITY_RESERVED',
@@ -701,7 +737,12 @@ export class AsyncNvidiaCoordinator {
       executionModel: ASYNC_EXECUTION_MODEL,
       history: [],
     };
-    await this.ports.jobStore.put(job);
+    try {
+      await this.ports.jobStore.put(job);
+    } catch (error) {
+      await this.ports.reservationLedger.release({ reservationId, reason: 'JOB_STATE_PERSISTENCE_FAILED', at: this.clock() });
+      throw error;
+    }
     return this.reconcile(job.jobId);
   }
 
@@ -713,6 +754,14 @@ export class AsyncNvidiaCoordinator {
     const now = this.clock();
     const endpointName = job.endpoint.endpointName;
     const description = await this.ports.endpointClient.describeEndpoint(endpointName);
+
+    if (job.status === 'ENDPOINT_DRAINING') {
+      if (description) {
+        await this.ports.endpointClient.deleteEndpoint(endpointName);
+        return job;
+      }
+      return this.#finishDrain(job);
+    }
 
     if (
       ['CAPACITY_RESERVED', 'ENDPOINT_CREATING'].includes(job.status) &&
@@ -783,11 +832,19 @@ export class AsyncNvidiaCoordinator {
       return this.drain(job);
     }
     if (current.EndpointStatus !== 'InService') {
+      if (current.EndpointStatus === 'Deleting') return job;
       if (job.status !== 'ENDPOINT_CREATING') {
         job = transition(job, 'ENDPOINT_CREATING', now);
       }
       await this.ports.jobStore.put(job);
       return job;
+    }
+    if (job.status === 'CAPACITY_RESERVED') {
+      job = transition(job, 'ENDPOINT_CREATING', now, {
+        endpointCreatedAt: current.CreationTime || job.endpointCreatedAt || now,
+        endpointLastModifiedAt: current.LastModifiedTime || job.endpointLastModifiedAt,
+      });
+      await this.ports.jobStore.put(job);
     }
     if (job.status === 'ENDPOINT_CREATING') {
       job = transition(job, 'ENDPOINT_READY', now, {
@@ -966,6 +1023,7 @@ export class AsyncNvidiaCoordinator {
     }
     const endpoint = await this.ports.endpointClient.describeEndpoint(job.endpoint.endpointName);
     if (endpoint) {
+      if (endpoint.EndpointStatus === 'Deleting') return job;
       await this.ports.endpointClient.deleteEndpoint(job.endpoint.endpointName);
       return job;
     }
@@ -983,21 +1041,19 @@ export class AsyncNvidiaCoordinator {
       );
       const deleted = transition(job, 'ENDPOINT_DELETED', this.clock(), {
         endpointDeletedAt: this.clock(),
-        endpointProviderLastModifiedAt: endpointConfig.LastModifiedTime,
       });
       await this.ports.jobStore.put(deleted);
       return deleted;
     }
     if (job.status === 'ENDPOINT_DELETED') {
       const actualCostUsd = this.#reconciledEndpointCost(job);
-      const ledger = await this.ports.reservationLedger.snapshot();
-      if (ledger.activeJobs > 0) {
-        await this.ports.reservationLedger.settle({
-          reservationId: job.reservationId,
-          reconciledCostUsd: actualCostUsd,
-          at: this.clock(),
-        });
-      }
+      await this.ports.reservationLedger.settle({
+        reservationId: job.reservationId,
+        reconciledCostUsd: actualCostUsd,
+        effectiveCapUsd: this.config.effectiveSpendCapUsd,
+        hardCapUsd: this.config.hardIncrementalCapUsd,
+        at: this.clock(),
+      });
       const complete = transition(job, 'COMPLETE', this.clock(), {
         reconciledCostUsd: actualCostUsd,
       });
@@ -1013,17 +1069,13 @@ export class AsyncNvidiaCoordinator {
 
   #reconciledEndpointCost(job) {
     const start = Date.parse(job.endpointCreatedAt || job.createdAt);
-    const providerEnd = Date.parse(
-      job.endpointProviderLastModifiedAt ||
-        job.endpointLastModifiedAt ||
-        job.endpointDeletedAt ||
-        this.clock(),
-    );
+    const providerEnd = Date.parse(job.endpointDeletedAt || this.clock());
     const seconds = Number.isFinite(start) && Number.isFinite(providerEnd)
-      ? Math.max(0, (providerEnd - start) / 1000)
+      ? Math.min(this.config.maxEndpointLifetimeSeconds, Math.max(0, (providerEnd - start) / 1000))
       : 0;
     const hourly = this.config.marketplaceUsdPerHostHour + this.config.instanceUsdPerHour;
-    return Number(((seconds / 3600) * hourly).toFixed(6));
+    const reconciled = Number(((seconds / 3600) * hourly).toFixed(6));
+    return Math.min(reconciled, Number(this.config.effectiveSpendCapUsd));
   }
 
   async zeroIdleProof() {

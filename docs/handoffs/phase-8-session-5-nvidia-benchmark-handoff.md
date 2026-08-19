@@ -46,7 +46,7 @@ The active runtime is `sagemaker_async_inference`:
 
 The endpoint and endpoint config are orchestrator-owned and deterministic. The CDK construct creates the pinned isolated model/control plane only; it does not create a persistent endpoint. Existing endpoint/config identities are rediscovered and checked before reuse. Orphaned deterministic resources refuse a new reservation until reconciled.
 
-Endpoint names derive from corpus SHA, exact package ARN, model version, and async runtime contract. Async inference IDs derive from endpoint identity, source/page, payload SHA, and attempt.
+- Endpoint names derive from the corpus SHA, exact package ARN, model/version, runtime contract, endpoint configuration, output/failure locations, instance type, execution role, and KMS identity. Async inference IDs derive from endpoint identity, source/page, payload SHA, and attempt.
 
 ## Zero-idle and crash recovery
 
@@ -72,8 +72,10 @@ The isolated orchestrator role now has only the Async Inference lifecycle action
 
 ## Validation at this worktree
 
-- Async-specific tests: rerun at final SHA required; the prior run passed 11/11
-- Full Session 5 Node suite: rerun at final SHA required; the prior run passed 47/47
+- Full Session 5 Node suite: 58/58 passed at the current working tree
+- Async-specific tests: 16/16 passed within that suite
+- Real-runtime containment tests: 6/6 passed within that suite
+- Final commit/push is still required after this audit repair set
 - P0 verifier: `SESSION5_P0_RUNTIME_PASS`
 - Corpus verifier: `SESSION5_CORPUS_READY_PASS accepted=8 blocked=0`
 - Async CDK-focused tests: 6/6 passed
@@ -85,7 +87,7 @@ The isolated orchestrator role now has only the Async Inference lifecycle action
 - Session 4 enforced replay: `SESSION4_SOURCE_PARITY_PASS`
 - Docker containment: `SESSION4_IMAGE_CONTAINMENT_PASS (8 checks)`
 
-The final exact SHA and fresh final counts must be updated after the final gates. Do not claim `SESSION5_COMPLETE`; no provider output, score, accepted live benchmark evidence, or live zero-idle run exists.
+- The current audit repair set is not yet committed or pushed. Do not claim `SESSION5_COMPLETE`; no provider output, score, accepted live benchmark evidence, or live zero-idle run exists.
 
 ## No-deployment boundary
 

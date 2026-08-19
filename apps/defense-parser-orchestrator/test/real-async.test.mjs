@@ -89,6 +89,19 @@ test('exact package async config is bounded and never permits Batch execution', 
   assert.throws(() => validateAsyncExecutionConfig({ ...c, maxEndpointLifetimeSeconds: 0 }), (e) => e.code === 'ENDPOINT_LIFETIME_REQUIRED');
 });
 
+test('async config rejects under-reserving rates and submission rejects disabled parsing', async () => {
+  assert.throws(
+    () => config({ NVIDIA_MARKETPLACE_USD_PER_HOST_HOUR: '0.000001' }),
+    (e) => e.code === 'RATE_FLOOR_REQUIRED',
+  );
+  const disabled = loadRealAsyncConfig({ ...configEnv(), NVIDIA_PARSING_ENABLED: 'false' });
+  const coordinator = new AsyncNvidiaCoordinator({}, disabled);
+  await assert.rejects(
+    () => coordinator.submit({ corpusSha256: SOURCE, pages: Array.from({ length: 10 }, (_, i) => page(i + 1)) }),
+    (e) => e.code === 'ASYNC_PARSING_DISABLED',
+  );
+});
+
 test('endpoint and inference identities are deterministic and bounded', () => {
   const identity = buildAsyncEndpointIdentity({ corpusSha256: SOURCE, modelPackageArn: MODEL_ARN, modelVersion: MODEL_VERSION, runtimeContractVersion: ASYNC_RUNTIME_CONTRACT_VERSION });
   assert.match(identity.endpointName, /^capiro-s5-async-/);
@@ -138,7 +151,7 @@ test('async coordinator refuses live creation without explicit run authorization
 
 test('async submit discovers and drains an orphaned endpoint before reserving new capacity', async () => {
   const c = loadRealAsyncConfig({ ...configEnv(), NVIDIA_ASYNC_LIVE_RUN_AUTHORIZED: 'true' });
-  const identity = buildAsyncEndpointIdentity({ corpusSha256: SOURCE, modelPackageArn: MODEL_ARN, modelVersion: MODEL_VERSION, runtimeContractVersion: ASYNC_RUNTIME_CONTRACT_VERSION });
+  const identity = buildAsyncEndpointIdentity({ corpusSha256: SOURCE, modelPackageArn: MODEL_ARN, modelVersion: MODEL_VERSION, runtimeContractVersion: ASYNC_RUNTIME_CONTRACT_VERSION, modelName: c.sagemakerModelName, executionRoleArn: c.executionRoleArn, instanceType: c.instanceType, outputBucket: c.outputBucket, outputPrefix: c.outputPrefix, failureBucket: c.outputBucket, failurePrefix: c.failurePrefix, kmsKeyId: c.kmsKeyId });
   let reserved = false;
   const jobs = new Map();
   let endpointPresent = true;
@@ -197,6 +210,14 @@ test('async output location is matched exactly and unrelated objects do not coun
   );
 });
 
+test('async output location outside the configured inference key fails closed', async () => {
+  const adapter = new SafeAwsCliSageMakerAsyncInferenceAdapter({ async invoke() { return { Contents: [] }; } });
+  await assert.rejects(
+    () => adapter.listAsyncOutput({ outputBucket: 'output', outputPrefix: 'phase8/nvidia/async/output' }, 's5-id', 's3://output/phase8/nvidia/async/output/other.out'),
+    (e) => e.code === 'ASYNC_OUTPUT_LOCATION_MISMATCH',
+  );
+});
+
  test('existing endpoint config must match model and async mode before reuse', async () => {
   const adapter = new SafeAwsCliSageMakerAsyncInferenceAdapter({
     async invoke(service, command) {
@@ -214,7 +235,7 @@ test('async output location is matched exactly and unrelated objects do not coun
 
  test('endpoint create failure enters teardown rather than leaving a reserved endpoint state', async () => {
   const c = loadRealAsyncConfig({ ...configEnv(), NVIDIA_ASYNC_LIVE_RUN_AUTHORIZED: 'true' });
-  const ledger = { async reserve() {}, async settle() {}, async snapshot() { return { activeJobs: 0, spentAndReservedUsd: 0 }; } };
+  const ledger = { async reserve() {}, async settle() {}, async release() {}, async snapshot() { return { activeJobs: 0, spentAndReservedUsd: 0 }; } };
   const jobs = new Map();
   const endpointClient = {
     async describeEndpoint() { return null; },
@@ -228,6 +249,32 @@ test('async output location is matched exactly and unrelated objects do not coun
   jobs.set(endpoint.endpointName, { jobId: endpoint.endpointName, status: 'CAPACITY_RESERVED', endpoint, reservationId: 'r', createdAt: '2026-08-19T00:00:00Z', updatedAt: '2026-08-19T00:00:00Z', history: [] });
   const result = await coordinator.reconcile(endpoint.endpointName);
   assert.equal(result.status, 'ENDPOINT_DELETED');
+});
+
+test('reconcile promotes an externally-created InService endpoint before submitting work', async () => {
+ const c = config();
+ const endpoint = buildAsyncEndpointIdentity({ corpusSha256: SOURCE, modelPackageArn: MODEL_ARN, modelVersion: MODEL_VERSION, runtimeContractVersion: ASYNC_RUNTIME_CONTRACT_VERSION, modelName: c.sagemakerModelName, executionRoleArn: c.executionRoleArn, instanceType: c.instanceType, outputBucket: c.outputBucket, outputPrefix: c.outputPrefix, failureBucket: c.outputBucket, failurePrefix: c.failurePrefix, kmsKeyId: c.kmsKeyId });
+ const jobs = new Map([[endpoint.endpointName, { jobId: endpoint.endpointName, status: 'CAPACITY_RESERVED', endpoint, reservationId: 'r', corpusSha256: SOURCE, pages: [], attempt: 1, createdAt: '2026-08-19T00:00:00.000Z', updatedAt: '2026-08-19T00:00:00.000Z', history: [] }]]);
+ let ensured = false;
+ const coordinator = new AsyncNvidiaCoordinator({
+   jobStore: { async get(id) { return jobs.get(id) ?? null; }, async put(job) { jobs.set(job.jobId, job); } },
+   reservationLedger: { async settle() {}, async release() {}, async snapshot() { return { activeJobs: 1, spentAndReservedUsd: 1 }; } },
+   endpointClient: { async describeEndpoint() { return { EndpointStatus: 'InService', CreationTime: '2026-08-19T00:00:00.000Z' }; }, async ensureEndpoint() { ensured = true; }, async configureScaleToZero() {}, async listPersistentEndpoints() { return []; } },
+ }, c);
+ const result = await coordinator.reconcile(endpoint.endpointName);
+ assert.equal(ensured, false);
+ assert.equal(result.status, 'REQUESTS_RECONCILING');
+});
+
+test('reservation is released when the first durable job write fails', async () => {
+ const c = config(); let reserved = 0; let released = 0;
+ const coordinator = new AsyncNvidiaCoordinator({
+   jobStore: { async get() { return null; }, async put() { throw new Error('state store unavailable'); } },
+   reservationLedger: { async reserve() { reserved += 1; }, async release() { released += 1; } },
+   endpointClient: { async describeEndpoint() { return null; }, async describeEndpointConfig() { return null; } },
+ }, c);
+ await assert.rejects(() => coordinator.submit({ corpusSha256: SOURCE, pages: Array.from({ length: 10 }, (_, i) => page(i + 1)) }), /state store unavailable/);
+ assert.equal(reserved, 1); assert.equal(released, 1);
 });
 
 function configEnv() {

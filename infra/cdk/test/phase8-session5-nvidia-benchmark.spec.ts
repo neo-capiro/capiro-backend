@@ -69,6 +69,8 @@ describe('Phase8Session5NvidiaBenchmark', () => {
     expect(json).toContain('dynamodb:TransactWriteItems');
     expect(json).not.toContain('sagemaker:CreateTransformJob');
     expect(json).not.toContain('sagemaker:DescribeTransformJob');
+    expect(json).not.toContain('resources": ["*"]');
+    expect(json).toContain('capiro-s5-async-');
   });
 
   it('retains DLQ wiring and literal zero-endpoint proof', () => {

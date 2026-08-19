@@ -44,6 +44,8 @@ export class AwsCliDynamoReservationLedger {
               attempt: { N: String(input.attempt) },
               status: { S: 'ACTIVE' },
               reservedCostUsd: { N: decimal(input.reservedCostUsd) },
+              effectiveCapUsd: { N: decimal(input.effectiveCapUsd) },
+              hardCapUsd: { N: decimal(input.hardCapUsd) },
               createdAt: { S: input.at },
               updatedAt: { S: input.at },
             },
@@ -118,6 +120,14 @@ export class AwsCliDynamoReservationLedger {
         'Reconciled provider cost is invalid',
       );
     }
+    const effectiveCap = Number(existing.effectiveCapUsd?.N ?? 0);
+    const hardCap = Number(existing.hardCapUsd?.N ?? effectiveCap);
+    if (actual > hardCap) {
+      throw new Session5RefusalError(
+        'RECONCILED_COST_EXCEEDS_HARD_CAP',
+        `Reconciled cost USD ${actual} exceeds hard authorized cap USD ${hardCap}`,
+      );
+    }
     const delta = actual - reserved;
     try {
       await this.runner.invoke('dynamodb', 'transact-write-items', {
@@ -147,12 +157,14 @@ export class AwsCliDynamoReservationLedger {
                 'spentAndReservedUsd = spentAndReservedUsd + :delta, ' +
                 'settledSpendUsd = if_not_exists(settledSpendUsd, :zero) + :actual, ' +
                 'updatedAt = :at',
-              ConditionExpression: 'activeJobs >= :one',
+              ConditionExpression:
+                'activeJobs >= :one AND spentAndReservedUsd + :delta <= :effectiveCap',
               ExpressionAttributeValues: {
                 ':one': { N: '1' },
                 ':zero': { N: '0' },
                 ':delta': { N: decimal(delta) },
                 ':actual': { N: decimal(actual) },
+                ':effectiveCap': { N: decimal(effectiveCap) },
                 ':at': { S: input.at },
               },
             },

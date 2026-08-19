@@ -3,6 +3,7 @@ import {
   Duration,
   RemovalPolicy,
   Stack,
+  Aws,
   aws_cloudwatch as cloudwatch,
   aws_dynamodb as dynamodb,
   aws_iam as iam,
@@ -238,13 +239,27 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
           'sagemaker:DescribeEndpoint',
           'sagemaker:DeleteEndpoint',
           'sagemaker:InvokeEndpointAsync',
-          'sagemaker:ListEndpoints',
         ],
-        resources: ['*'],
+        resources: [
+          `arn:${Aws.PARTITION}:sagemaker:${Aws.REGION}:${Aws.ACCOUNT_ID}:endpoint/capiro-s5-async-*`,
+          `arn:${Aws.PARTITION}:sagemaker:${Aws.REGION}:${Aws.ACCOUNT_ID}:endpoint-config/capiro-s5-async-cfg-*`,
+        ],
         conditions: {
           StringEquals: {
             'aws:RequestedRegion': Stack.of(this).region,
           },
+        },
+      }),
+    );
+    // ListEndpoints does not support resource-level authorization; isolate this read-only action.
+    this.orchestratorRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'ListOnlySession5Endpoints',
+        effect: iam.Effect.ALLOW,
+        actions: ['sagemaker:ListEndpoints'],
+        resources: ['*'],
+        conditions: {
+          StringEquals: { 'aws:RequestedRegion': Stack.of(this).region },
         },
       }),
     );
@@ -270,7 +285,10 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
           'application-autoscaling:PutScalingPolicy',
           'application-autoscaling:DeregisterScalableTarget',
         ],
-        resources: ['*'],
+        resources: [
+          `arn:${Aws.PARTITION}:application-autoscaling:${Aws.REGION}:${Aws.ACCOUNT_ID}:scalable-target/*`,
+          `arn:${Aws.PARTITION}:application-autoscaling:${Aws.REGION}:${Aws.ACCOUNT_ID}:scalingPolicy/*`,
+        ],
         conditions: {
           StringEquals: { 'aws:RequestedRegion': Stack.of(this).region },
         },

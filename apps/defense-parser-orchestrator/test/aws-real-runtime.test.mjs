@@ -155,3 +155,40 @@ test('atomic ledger reservation transaction gates both concurrency and spend in 
   assert.equal(update.ExpressionAttributeValues[':remaining'].N, '47');
   assert.equal(update.ExpressionAttributeValues[':max'].N, '1');
 });
+
+test('atomic ledger refuses reconciled cost above the reserved amount before settlement', async () => {
+  const runner = new FakeRunner();
+  runner.items.set('RESERVATION#r-over', {
+    pk: { S: 'RESERVATION#r-over' },
+    status: { S: 'ACTIVE' },
+    reservedCostUsd: { N: '1' },
+    effectiveCapUsd: { N: '50' },
+    hardCapUsd: { N: '150' },
+    jobId: { S: 'job-over' },
+  });
+  const ledger = new AwsCliDynamoReservationLedger(runner, {
+    ledgerTableName: 'ledger',
+  });
+  await assert.rejects(
+    () => ledger.settle({
+      reservationId: 'r-over',
+      reconciledCostUsd: 2,
+      at: '2026-08-19T00:00:00Z',
+    }),
+    (error) => error.code === 'RECONCILED_COST_EXCEEDS_HARD_CAP',
+  );
+  assert.equal(
+    runner.calls.filter(
+      (call) => call.service === 'dynamodb' && call.operation === 'transact-write-items',
+    ).length,
+    0,
+  );
+});
+
+test('real Batch port factory is hard-disabled after the ModelDataSource compatibility block', async () => {
+  const { createAwsRealBatchPorts } = await import('../src/aws-real-runtime.mjs');
+  assert.throws(
+    () => createAwsRealBatchPorts(),
+    (error) => error.code === 'BATCH_TRANSFORM_DISABLED',
+  );
+});
