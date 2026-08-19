@@ -13,6 +13,9 @@ import {
 } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
+export const SESSION5_REQUIRED_MODEL_PACKAGE_ARN =
+  'arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587';
+
 export interface Phase8Session5NvidiaBenchmarkProps {
   readonly modelPackageArn: string;
   readonly monthlyGpuBudgetUsd: number;
@@ -42,24 +45,28 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
     super(scope, id);
 
     const initialCap = props.initialBenchmarkCapUsd ?? 50;
-    if (!props.modelPackageArn.trim()) {
-      throw new Error('modelPackageArn is required and must be version-pinned');
+    if (props.modelPackageArn !== SESSION5_REQUIRED_MODEL_PACKAGE_ARN) {
+      throw new Error(
+        'Session 5 requires the approved pinned NVIDIA Nemotron Parse model package ARN',
+      );
     }
     if (
       !Number.isFinite(props.monthlyGpuBudgetUsd) ||
-      props.monthlyGpuBudgetUsd <= 0
+      props.monthlyGpuBudgetUsd <= 0 ||
+      props.monthlyGpuBudgetUsd > 150
     ) {
       throw new Error(
-        'monthlyGpuBudgetUsd must be a positive hard application limit',
+        'monthlyGpuBudgetUsd must be positive and <= USD 150',
       );
     }
     if (
       !Number.isFinite(initialCap) ||
       initialCap <= 0 ||
+      initialCap > 50 ||
       initialCap > props.monthlyGpuBudgetUsd
     ) {
       throw new Error(
-        'initialBenchmarkCapUsd must be positive and <= monthlyGpuBudgetUsd',
+        'initialBenchmarkCapUsd must be positive, <= USD 50, and <= monthlyGpuBudgetUsd',
       );
     }
 
@@ -138,7 +145,9 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       encryption: dynamodb.TableEncryption.CUSTOMER_MANAGED,
       encryptionKey: key,
-      pointInTimeRecovery: true,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: true,
+      },
       removalPolicy: RemovalPolicy.RETAIN,
     });
 
@@ -148,9 +157,18 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
         'Session 5 Batch Transform role; evidence-prefix S3 only, no database access',
       maxSessionDuration: Duration.hours(1),
     });
-    this.artifactBucket.grantReadWrite(
-      this.transformRole,
-      'phase8/nvidia/*',
+    this.transformRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject'],
+        resources: [this.artifactBucket.arnForObjects('phase8/nvidia/*')],
+      }),
+    );
+    this.transformRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:ListBucket'],
+        resources: [this.artifactBucket.bucketArn],
+        conditions: { StringLike: { 's3:prefix': ['phase8/nvidia/*'] } },
+      }),
     );
     key.grantEncryptDecrypt(this.transformRole);
 
@@ -174,14 +192,32 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
         'Non-HTTP Session 5 orchestrator; Batch Transform only, no endpoint mutation',
       maxSessionDuration: Duration.hours(1),
     });
-    this.artifactBucket.grantReadWrite(
-      this.orchestratorRole,
-      'phase8/nvidia/*',
+    this.orchestratorRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          's3:GetObject',
+          's3:GetObjectVersion',
+          's3:PutObject',
+        ],
+        resources: [this.artifactBucket.arnForObjects('phase8/nvidia/*')],
+      }),
+    );
+    this.orchestratorRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:ListBucket'],
+        resources: [this.artifactBucket.bucketArn],
+        conditions: { StringLike: { 's3:prefix': ['phase8/nvidia/*'] } },
+      }),
     );
     this.escalationQueue.grantConsumeMessages(this.orchestratorRole);
     this.completionQueue.grantSendMessages(this.orchestratorRole);
     this.deadLetterQueue.grantSendMessages(this.orchestratorRole);
-    this.reservationLedger.grantReadWriteData(this.orchestratorRole);
+    this.orchestratorRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['dynamodb:GetItem', 'dynamodb:TransactWriteItems'],
+        resources: [this.reservationLedger.tableArn],
+      }),
+    );
     key.grantEncryptDecrypt(this.orchestratorRole);
 
     this.orchestratorRole.addToPolicy(

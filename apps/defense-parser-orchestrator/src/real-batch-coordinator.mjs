@@ -315,7 +315,26 @@ export class RealNvidiaBatchCoordinator {
     }
 
     if (job.status === 'RESERVED') {
-      const manifest = buildProviderManifest(batch);
+      let manifest;
+      try {
+        manifest = buildProviderManifest(batch);
+      } catch (error) {
+        // Deterministic input-contract failures must not strand an active
+        // paid reservation in RESERVED forever. Transient persistence errors
+        // remain retryable because they happen after this validation.
+        await this.ports.reservationLedger.release({
+          reservationId: job.reservationId,
+          reason: 'manifest_validation_failed',
+          at: this.clock(),
+        });
+        await this.#emitLedgerMetrics();
+        const failed = realJobTransition(job, 'FAILED', this.clock(), {
+          failureCode: error?.code ?? 'MANIFEST_VALIDATION_FAILED',
+          failureMessage: String(error?.message ?? error),
+        });
+        await this.ports.jobStore.put(failed);
+        return this.#publishDlq(failed, 'manifest_validation_failed');
+      }
       const stored = await this.ports.artifactStore.putManifestBundle({
         batch,
         body: manifest.body,
@@ -336,24 +355,14 @@ export class RealNvidiaBatchCoordinator {
       job.batchId,
       job.attempt,
     );
+    let providerRun;
     try {
-      const providerRun = await this.ports.batchClient.ensureTransformJob({
+      providerRun = await this.ports.batchClient.ensureTransformJob({
         transformJobName,
         batch,
         manifest: job.manifest,
         config: this.config,
       });
-      job = realJobTransition(job, 'SUBMITTED', this.clock(), {
-        providerRun,
-        submittedAt: providerRun.submittedAt ?? this.clock(),
-        submissionUncertain: false,
-      });
-      await this.ports.jobStore.put(job);
-      await this.ports.metrics.put('NvidiaBatchSubmitted', 1, {
-        parserMethod: batch.parserMethod,
-        modelVersion: batch.modelVersion,
-      });
-      return job;
     } catch (error) {
       const confirmedAbsent =
         await this.ports.batchClient.confirmTransformJobAbsent(transformJobName);
@@ -381,6 +390,21 @@ export class RealNvidiaBatchCoordinator {
       await this.ports.jobStore.put(failed);
       return this.#publishDlq(failed, 'submission_failed');
     }
+
+    // Persist provider identity before telemetry. If the process dies after
+    // CreateTransformJob succeeds, reconciliation can rediscover this
+    // deterministic job name from MANIFEST_WRITTEN without double submission.
+    job = realJobTransition(job, 'SUBMITTED', this.clock(), {
+      providerRun,
+      submittedAt: providerRun.submittedAt ?? this.clock(),
+      submissionUncertain: false,
+    });
+    await this.ports.jobStore.put(job);
+    await this.ports.metrics.put('NvidiaBatchSubmitted', 1, {
+      parserMethod: batch.parserMethod,
+      modelVersion: batch.modelVersion,
+    });
+    return job;
   }
 
   async reconcileJob(jobId) {

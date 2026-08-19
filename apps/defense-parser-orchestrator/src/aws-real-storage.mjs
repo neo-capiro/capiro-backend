@@ -191,11 +191,39 @@ export class AwsCliS3RealBatchStore {
         `Cached artifact metadata SHA does not match body for ${cacheKey}`,
       );
     }
+    const withoutHash = { ...artifact };
+    delete withoutHash.contentSha256;
+    if (sha256Hex(withoutHash) !== artifact.contentSha256) {
+      throw new Session5RefusalError(
+        'CACHE_BODY_HASH_MISMATCH',
+        `Cached artifact body hash does not match ${cacheKey}`,
+      );
+    }
+    if (artifact.cacheKey !== cacheKey) {
+      throw new Session5RefusalError(
+        'CACHE_KEY_MISMATCH',
+        `Cached artifact body is stored under the wrong cache key ${cacheKey}`,
+      );
+    }
     return artifact;
   }
 
   async putVerifiedArtifact({ cacheKey, artifact, contentSha256 }) {
     const key = `${this.config.outputPrefix}/artifacts-v2/${cacheKey}.json`;
+    if (artifact.cacheKey !== cacheKey) {
+      throw new Session5RefusalError(
+        'CACHE_KEY_MISMATCH',
+        `Verified artifact identity does not match cache key ${cacheKey}`,
+      );
+    }
+    const withoutHash = { ...artifact };
+    delete withoutHash.contentSha256;
+    if (sha256Hex(withoutHash) !== contentSha256) {
+      throw new Session5RefusalError(
+        'CACHE_BODY_HASH_MISMATCH',
+        `Verified artifact body hash does not match ${cacheKey}`,
+      );
+    }
     const existing = await this.#head(this.bucket, key);
     if (existing) {
       const current = await this.#getJson(this.bucket, key);

@@ -1,6 +1,7 @@
 import { App, Stack } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { Phase8Session5NvidiaBenchmark } from '../lib/phase8-session5-nvidia-benchmark';
+import { SESSION5_REQUIRED_MODEL_PACKAGE_ARN } from '../lib/phase8-session5-nvidia-benchmark';
 
 describe('Phase8Session5NvidiaBenchmark', () => {
   const synth = () => {
@@ -9,8 +10,7 @@ describe('Phase8Session5NvidiaBenchmark', () => {
       env: { account: '111111111111', region: 'us-east-1' },
     });
     new Phase8Session5NvidiaBenchmark(stack, 'Plane', {
-      modelPackageArn:
-        'arn:aws:sagemaker:us-east-1:111111111111:model-package/capiro-nemotron-parse/7',
+      modelPackageArn: SESSION5_REQUIRED_MODEL_PACKAGE_ARN,
       monthlyGpuBudgetUsd: 150,
       initialBenchmarkCapUsd: 50,
     });
@@ -33,7 +33,7 @@ describe('Phase8Session5NvidiaBenchmark', () => {
       EnableNetworkIsolation: true,
       PrimaryContainer: {
         ModelPackageName:
-          'arn:aws:sagemaker:us-east-1:111111111111:model-package/capiro-nemotron-parse/7',
+          SESSION5_REQUIRED_MODEL_PACKAGE_ARN,
       },
     });
     template.hasResourceProperties('AWS::S3::Bucket', {
@@ -88,5 +88,24 @@ describe('Phase8Session5NvidiaBenchmark', () => {
 
   it('creates alarms for DLQ, queue age, concurrency and hard spend', () => {
     synth().resourceCountIs('AWS::CloudWatch::Alarm', 4);
+  });
+
+  it('rejects unapproved model packages and cap overrides', () => {
+    const app = new App();
+    const stack = new Stack(app, 'RejectTest', {
+      env: { account: '111111111111', region: 'us-east-1' },
+    });
+    expect(() =>
+      new Phase8Session5NvidiaBenchmark(stack, 'BadModel', {
+        modelPackageArn: 'arn:aws:sagemaker:us-east-1:111111111111:model-package/other',
+        monthlyGpuBudgetUsd: 50,
+      }),
+    ).toThrow();
+    expect(() =>
+      new Phase8Session5NvidiaBenchmark(stack, 'BadCap', {
+        modelPackageArn: SESSION5_REQUIRED_MODEL_PACKAGE_ARN,
+        monthlyGpuBudgetUsd: 151,
+      }),
+    ).toThrow();
   });
 });

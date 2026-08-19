@@ -680,3 +680,23 @@ test('reconciliation recovers a crash from PLANNED before reservation/submission
   assert.equal(x.state.ledger.activeJobs, 1);
   assert.equal(x.state.ensureCalls.length, 1);
 });
+
+test('manifest contract refusal releases the atomic reservation instead of stranding paid capacity', async () => {
+  const x = memoryPorts();
+  const config = loadRealBatchConfig(
+    enabledEnv({ NVIDIA_INSTANCE_USD_PER_HOUR: '1' }),
+  );
+  const c = new RealNvidiaBatchCoordinator(x.ports, config, () => '2026-08-19T00:00:00Z');
+  const plan = await c.plan(request());
+  const brokenPlan = {
+    ...plan,
+    batches: plan.batches.map((batch) => ({
+      ...batch,
+      pages: batch.pages.map((page) => ({ ...page, providerPayload: null })),
+    })),
+  };
+  const [failed] = await c.submit(brokenPlan);
+  assert.equal(failed.status, 'DLQ');
+  assert.equal(x.state.ledger.activeJobs, 0);
+  assert.equal(x.state.ledger.spentAndReservedUsd, 0);
+});

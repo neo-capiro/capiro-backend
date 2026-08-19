@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { App, Stack, Tags } from 'aws-cdk-lib';
-import { Phase8Session5NvidiaBenchmark } from '../lib/phase8-session5-nvidia-benchmark';
+import {
+  Phase8Session5NvidiaBenchmark,
+  SESSION5_REQUIRED_MODEL_PACKAGE_ARN,
+} from '../lib/phase8-session5-nvidia-benchmark';
 
-const REQUIRED_MODEL_PACKAGE_ARN =
-  'arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587';
+const REQUIRED_MODEL_PACKAGE_ARN = SESSION5_REQUIRED_MODEL_PACKAGE_ARN;
 const REQUIRED_ACCOUNT = '967807252336';
 const REQUIRED_REGION = 'us-east-1';
 const INITIAL_BENCHMARK_CAP_USD = 50;
