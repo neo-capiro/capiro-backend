@@ -4,6 +4,7 @@ import {
   buildLivePageIdentity,
   buildProviderManifest,
 } from '../src/real-batch.mjs';
+import { canonicalJson, sha256Hex } from '../src/session5.mjs';
 
 const H = (ch) => ch.repeat(64);
 
@@ -34,6 +35,7 @@ test('subscribed live provider is always recorded as nemotron_parse while govern
 test('input sidecar retains requested route intent but identifies actual batch provider truthfully', () => {
   const page = identity('nvidia_page_elements_table_structure');
   const payload = { model: 'nvidia/nemotron-parse' };
+  const payloadSha256 = sha256Hex(canonicalJson(payload));
   const batch = {
     batchId: 'batch',
     sourceDocumentId: 'doc',
@@ -49,16 +51,10 @@ test('input sidecar retains requested route intent but identifies actual batch p
         cacheKey: 'cache',
         escalationReason: 'governed_escalation_complex_table',
         providerPayload: payload,
-        providerPayloadSha256: H('d'),
+        providerPayloadSha256: payloadSha256,
       },
     ],
   };
-  // Keep the payload hash aligned with the test fixture rather than weakening
-  // buildProviderManifest's immutable-byte check.
-  batch.pages[0].providerPayloadSha256 =
-    (await import('../src/session5.mjs')).sha256Hex(
-      (await import('../src/session5.mjs')).canonicalJson(payload),
-    );
   const manifest = buildProviderManifest(batch);
   assert.equal(manifest.sidecar.parserMethod, 'nemotron_parse');
   assert.equal(
