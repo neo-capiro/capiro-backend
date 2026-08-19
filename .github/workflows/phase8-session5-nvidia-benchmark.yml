@@ -5,6 +5,7 @@ on:
     paths:
       - 'apps/defense-parser-orchestrator/**'
       - 'packages/defense-contracts/src/parser/**'
+      - 'infra/cdk/bin/phase8-session5-nvidia-benchmark.ts'
       - 'infra/cdk/lib/phase8-session5-nvidia-benchmark.ts'
       - 'infra/cdk/test/phase8-session5-nvidia-benchmark.spec.ts'
       - 'scripts/verify-phase8-session5.mjs'
@@ -15,6 +16,7 @@ on:
     paths:
       - 'apps/defense-parser-orchestrator/**'
       - 'packages/defense-contracts/src/parser/**'
+      - 'infra/cdk/bin/phase8-session5-nvidia-benchmark.ts'
       - 'infra/cdk/lib/phase8-session5-nvidia-benchmark.ts'
       - 'infra/cdk/test/phase8-session5-nvidia-benchmark.spec.ts'
       - 'scripts/verify-phase8-session5.mjs'
@@ -38,7 +40,7 @@ permissions:
   contents: read
 
 jobs:
-  provider-ready:
+  p0-runtime:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -65,11 +67,18 @@ jobs:
       - name: Syntax and unit tests
         run: |
           node --check apps/defense-parser-orchestrator/src/session5.mjs
-          node --check apps/defense-parser-orchestrator/src/aws-runtime.mjs
+          node --check apps/defense-parser-orchestrator/src/real-batch-config.mjs
+          node --check apps/defense-parser-orchestrator/src/real-batch-provider.mjs
+          node --check apps/defense-parser-orchestrator/src/real-batch-cost.mjs
+          node --check apps/defense-parser-orchestrator/src/real-batch-coordinator.mjs
+          node --check apps/defense-parser-orchestrator/src/aws-real-storage.mjs
+          node --check apps/defense-parser-orchestrator/src/aws-real-ledger.mjs
+          node --check apps/defense-parser-orchestrator/src/aws-real-runtime.mjs
           node --check apps/defense-parser-orchestrator/src/cli.mjs
+          node --check apps/defense-parser-orchestrator/scripts/materialize-live-inputs.mjs
           node --test apps/defense-parser-orchestrator/test/*.test.mjs
 
-      - name: Provider-neutral and zero-idle architecture gate
+      - name: P0 real-Batch architecture gate
         run: node scripts/verify-phase8-session5.mjs
 
       - name: CDK typecheck and focused synth assertions
@@ -79,6 +88,8 @@ jobs:
             test/phase8-session5-nvidia-benchmark.spec.ts --runInBand
 
       - name: Re-run accepted Session 4 source/replay boundary
+        env:
+          PHASE8_SESSION4_REPLAY_EVIDENCE: docs/defense-budget/phase8-session4-fy27-replay-evidence.json
         run: |
           pnpm --filter @capiro/auth build
           pnpm --filter @capiro/shared build
@@ -110,7 +121,7 @@ jobs:
 
   live-benchmark-evidence:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.enforce_live_benchmark }}
-    needs: provider-ready
+    needs: p0-runtime
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
