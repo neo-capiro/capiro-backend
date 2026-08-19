@@ -434,7 +434,14 @@ function OfficeRows({
                         never given their member's headshot, so initials stand. */}
                     <IdentityMark kind="person" size="sm" name={person.fullName} aria-hidden="true" />
                     <span className="capiro-directory-cell__stack">
-                      <span className="capiro-directory-cell__primary">{person.fullName}</span>
+                      <span className="capiro-directory-cell__primary">
+                        {person.fullName}
+                        {/* isCurrent is scoped to THIS office — someone who moved
+                            on from this member's staff, not necessarily off the
+                            Hill entirely (StaffProfileVNext shows their other
+                            positions, per-position, if any are current). */}
+                        {person.isCurrent ? null : <CapiroBadge>Former</CapiroBadge>}
+                      </span>
                       <span className="capiro-directory-cell__secondary">{person.title || 'Staffer'}</span>
                     </span>
                   </span>
@@ -537,6 +544,9 @@ function SelectedProfileRail({
         metadata={role}
         metadataVisible
       />
+      {/* Scoped to this office, same as the roster row — a staffer who moved on
+          from here may still be current elsewhere; a member is always current. */}
+      {!isMember && !selection.staff.isCurrent ? <CapiroBadge>Former on this staff</CapiroBadge> : null}
 
       <p className="capiro-directory-rail__office">{officeLine}</p>
       <span className="capiro-directory-rail__divider" aria-hidden="true" />

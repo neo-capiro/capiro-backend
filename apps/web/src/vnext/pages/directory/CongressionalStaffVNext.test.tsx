@@ -20,6 +20,7 @@ function staff(overrides: Partial<DirectoryStaffMember> = {}): DirectoryStaffMem
     email: 'grace.hopper@house.gov',
     phone: '202-555-0142',
     officeLocation: 'Personal office',
+    isCurrent: true,
     ...overrides,
   };
 }
@@ -249,6 +250,25 @@ describe('Congressional Staff vNext — offices and their rosters', () => {
     expect(screen.queryByRole('button', { name: /Grace Hopper/ })).toBeNull();
   });
 
+  test('a former staffer is badged distinctly from a current one — LegiStorm rosters carry both', async () => {
+    resolveWith([
+      member({
+        staff: [
+          staff({ id: 'staff-800', fullName: 'Grace Hopper', isCurrent: true }),
+          staff({ id: 'staff-801', fullName: 'Marcus Ellery', isCurrent: false }),
+        ],
+      }),
+    ]);
+    renderScreen();
+    await expandFirstOffice();
+
+    const currentRow = await screen.findByRole('button', { name: /Grace Hopper/ });
+    expect(within(currentRow).queryByText('Former')).toBeNull();
+
+    const formerRow = await screen.findByRole('button', { name: /Marcus Ellery/ });
+    expect(within(formerRow).getByText('Former')).toBeTruthy();
+  });
+
   test('an office with no synced staff says so instead of rendering an empty block', async () => {
     resolveWith([member({ staff: [] })]);
     renderScreen();
@@ -469,6 +489,19 @@ describe('Congressional Staff vNext — search, filters, selection', () => {
     expect(within(rail).getByText('Office of Rep. Elaine Morgan')).toBeTruthy();
     // Committee comes from the staff detail contract, not the list row.
     await waitFor(() => expect(within(rail).getByText('House Armed Services')).toBeTruthy());
+  });
+
+  test('the rail flags a former staffer, and says nothing for a current one or a member', async () => {
+    resolveWith([member({ staff: [staff({ isCurrent: false })] })]);
+    renderScreen();
+
+    await expandFirstOffice();
+    fireEvent.click(await screen.findByRole('button', { name: /Grace Hopper/ }));
+    const rail = screen.getByRole('complementary', { name: 'Selected directory profile' });
+    expect(within(rail).getByText('Former on this staff')).toBeTruthy();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Rep\. Elaine Morgan/ }));
+    expect(within(rail).queryByText(/Former/)).toBeNull();
   });
 
   /**

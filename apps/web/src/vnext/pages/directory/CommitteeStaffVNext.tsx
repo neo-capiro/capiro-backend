@@ -207,7 +207,10 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
                     <span className="capiro-directory-cell capiro-directory-cell--person">
                       <IdentityMark kind="person" size="sm" name={staffer.fullName} aria-hidden="true" />
                       <span className="capiro-directory-cell__stack">
-                        <span className="capiro-directory-cell__primary">{staffer.fullName}</span>
+                        <span className="capiro-directory-cell__primary">
+                          {staffer.fullName}
+                          {staffer.isCurrent ? null : <CapiroBadge>Former</CapiroBadge>}
+                        </span>
                         <span className="capiro-directory-cell__secondary">{staffer.title || '—'}</span>
                       </span>
                     </span>
@@ -393,7 +396,7 @@ function HierarchyView({
                       aria-pressed={isSelected}
                       className={`capiro-directory-node capiro-directory-node--person${
                         isSelected ? ' capiro-directory-node--selected' : ''
-                      }`}
+                      }${staffer.isCurrent ? '' : ' capiro-directory-node--former'}`}
                       onClick={() => {
                         selection.onToggle(staffer.id);
                         onOpenStaffProfile(staffer.id);
@@ -410,7 +413,10 @@ function HierarchyView({
                       </span>
                       <span className="capiro-directory-node__body">
                         <span className="capiro-directory-node__kind">Team</span>
-                        <span className="capiro-directory-node__name">{staffer.fullName}</span>
+                        <span className="capiro-directory-node__name">
+                          {staffer.fullName}
+                          {staffer.isCurrent ? null : <CapiroBadge>Former</CapiroBadge>}
+                        </span>
                         <span className="capiro-directory-node__meta">{staffer.title || '—'}</span>
                       </span>
                     </button>
@@ -555,6 +561,7 @@ function SelectedCommitteeStaffRail({
         metadata={person.title}
         metadataVisible
       />
+      {person.isCurrent ? null : <CapiroBadge>Former on this committee</CapiroBadge>}
 
       <p className="capiro-directory-rail__office">{unit.primary}</p>
       <span className="capiro-directory-rail__divider" aria-hidden="true" />

@@ -78,6 +78,7 @@ function entry(overrides: Partial<DirectoryEntry> = {}): DirectoryEntry {
         email: 'grace.hopper@cruz.senate.gov',
         phone: '202-224-5923',
         officeLocation: 'Personal office',
+        isCurrent: true,
       },
     ],
     bio: {

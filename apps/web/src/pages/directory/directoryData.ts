@@ -36,6 +36,8 @@ export interface DirectoryStaffMember {
   email: string;
   phone: string;
   officeLocation: string;
+  /** Current at this specific office — not necessarily current on the Hill overall. */
+  isCurrent: boolean;
 }
 
 export interface DirectoryEntry {

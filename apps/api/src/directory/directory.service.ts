@@ -93,6 +93,9 @@ export interface DirectoryStaffMember {
   email: string;
   phone: string;
   officeLocation: string;
+  /** Whether this staffer holds a CURRENT position at this specific office —
+   * not whether they're current anywhere on the Hill (see buildMemberStaff). */
+  isCurrent: boolean;
 }
 
 export interface DirectoryContact {
@@ -527,6 +530,7 @@ const TEST_DIRECTORY_CONTACT: DirectoryContact = {
       email: 'jordan.sample@example.invalid',
       phone: '202-555-0151',
       officeLocation: '123 Test House Office Building',
+      isCurrent: true,
     },
     {
       id: 'test-staff-leg',
@@ -537,6 +541,7 @@ const TEST_DIRECTORY_CONTACT: DirectoryContact = {
       email: 'morgan.example@example.invalid',
       phone: '202-555-0152',
       officeLocation: '123 Test House Office Building',
+      isCurrent: true,
     },
   ],
   bio: {
@@ -2987,6 +2992,11 @@ export class DirectoryService implements OnModuleInit {
     const byStaffId = new Map<number, DirectoryStaffMember>();
     const roles = Array.isArray(row?.staffer_roles) ? row.staffer_roles : [];
     const issues = Array.isArray(row?.staffer_issues) ? row.staffer_issues : [];
+    // extraStaffIds is already "staff with a CURRENT position at THIS member's
+    // office" (buildStaffIdsByMember) — reused here as the ground truth for
+    // every staffer's isCurrent, not just the coverage-merge ones below, since
+    // staffer_roles/staffer_issues carry no position/current data of their own.
+    const currentAtThisOffice = new Set(extraStaffIds);
 
     const ensureStaffer = (staffer: any): DirectoryStaffMember | null => {
       const staffId = Number(staffer?.id);
@@ -3013,6 +3023,7 @@ export class DirectoryService implements OnModuleInit {
         email: detail?.email ?? '',
         phone: detail?.phone ?? '',
         officeLocation: detail?.officeLocation ?? '',
+        isCurrent: currentAtThisOffice.has(staffId),
       };
       byStaffId.set(staffId, created);
       return created;
@@ -3047,6 +3058,9 @@ export class DirectoryService implements OnModuleInit {
         email: detail.email ?? '',
         phone: detail.phone ?? '',
         officeLocation: detail.officeLocation ?? '',
+        // extraStaffIds is itself the current-at-this-office set, so anyone
+        // added from it is current by construction.
+        isCurrent: true,
       });
     }
 

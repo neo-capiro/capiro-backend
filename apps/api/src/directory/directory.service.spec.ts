@@ -361,3 +361,60 @@ describe('DirectoryService.getContacts staff-derived role + issue filters', () =
     expect(result.total).toBe(3);
   });
 });
+
+describe('DirectoryService.buildContacts — staff isCurrent at this office', () => {
+  // Raw LegiStorm-shaped rows, exercised directly against the private builder
+  // (same pattern as directory.committees.spec.ts) rather than through
+  // getDirectoryData, since the isCurrent computation happens during
+  // buildMemberStaff/buildStaffIdsByMember — before a DirectoryContact exists.
+  const MEMBERS_RAW = [
+    {
+      member: { member_id: 700, bioguide_id: 'M000700', profile: { first_name: 'Elaine', last_name: 'Morgan' } },
+      member_offices: [
+        { office: { office_id: 950 }, office_type_id: 'HM', state_id: 'VA', district_no: 10, party: 'D', status: 'In office', start_date: '2021-01-03', end_date: '2100-01-01' },
+      ],
+      staffer_roles: [
+        { role_name: 'Counsel', staffer: { id: 900 } },
+        { role_name: 'Legislative Director', staffer: { id: 901 } },
+      ],
+    },
+  ];
+
+  const STAFF_RAW = [
+    {
+      // Left this office — their only position here has ended — but LegiStorm
+      // hasn't put them on /staff/retired-ids, so they still appear on the roster.
+      staff: { id: 900, first_name: 'Former', last_name: 'Counsel' },
+      positions: [{ is_current: false, position_title: 'Counsel', member: { member_id: 700 }, end_date: '2025-06-01' }],
+    },
+    {
+      staff: { id: 901, first_name: 'Current', last_name: 'LegDirector' },
+      positions: [{ is_current: true, position_title: 'Legislative Director', member: { member_id: 700 } }],
+    },
+  ];
+
+  function makeService(): DirectoryService {
+    const config = { get: jest.fn().mockReturnValue('us-east-1') } as any;
+    return new DirectoryService(config, {} as any, {} as any);
+  }
+
+  // buildContacts always appends a synthetic TEST_DIRECTORY_CONTACT ("Avery
+  // Testwell") and sorts alphabetically by memberName, so it is not safe to
+  // assume array position — find this fixture's own contact by id instead.
+  function findOwnContact(): any {
+    const contacts = (makeService() as any).buildContacts(MEMBERS_RAW, STAFF_RAW);
+    return contacts.find((c: any) => c.id === 'member-700');
+  }
+
+  test('a staffer whose only position at this office has ended is marked isCurrent: false', () => {
+    const contact = findOwnContact();
+    const former = contact.staff.find((s: any) => s.id === 'staff-900');
+    expect(former).toMatchObject({ fullName: 'Former Counsel', isCurrent: false });
+  });
+
+  test('a staffer with a current position at this office is marked isCurrent: true', () => {
+    const contact = findOwnContact();
+    const current = contact.staff.find((s: any) => s.id === 'staff-901');
+    expect(current).toMatchObject({ fullName: 'Current LegDirector', isCurrent: true });
+  });
+});
