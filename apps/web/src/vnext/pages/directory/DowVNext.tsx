@@ -186,9 +186,12 @@ export function DowVNextView({ model }: { model: DowModel }) {
                   }`}
                   onClick={() => selection.onToggle(person.id)}
                 >
-                  <span className="capiro-directory-cell capiro-directory-cell--identity">
-                    <span className="capiro-directory-cell__primary">{person.fullName}</span>
-                    <span className="capiro-directory-cell__secondary">{person.title || '—'}</span>
+                  <span className="capiro-directory-cell capiro-directory-cell--person">
+                    <IdentityMark kind="person" size="sm" name={person.fullName} aria-hidden="true" />
+                    <span className="capiro-directory-cell__stack">
+                      <span className="capiro-directory-cell__primary">{person.fullName}</span>
+                      <span className="capiro-directory-cell__secondary">{person.title || '—'}</span>
+                    </span>
                   </span>
                   <span className="capiro-directory-cell capiro-directory-cell--mono">
                     <span className="capiro-directory-cell__primary">{person.title || '—'}</span>

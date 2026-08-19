@@ -221,3 +221,11 @@ export function CapiroSaveIcon(props: CapiroIconProps) {
     </Glyph>
   );
 }
+
+export function CapiroChevronDownIcon(props: CapiroIconProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M6 9l6 6 6-6" />
+    </Glyph>
+  );
+}

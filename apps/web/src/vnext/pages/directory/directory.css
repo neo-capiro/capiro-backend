@@ -39,8 +39,11 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--capiro-space-06);
-  background: var(--capiro-color-bg-surface);
-  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  /* Panel tier, not the white card tier — matches the prototype's header/tab/
+     toolbar band exactly (--uui-gray-50), distinct from the white cards
+     (rail, rows, hierarchy canvas) that float on top of it. */
+  background: var(--uui-gray-50);
+  border-bottom: 1px solid var(--uui-gray-200);
 }
 
 /* Premium Header / Accent Rail (954:3020) — 4px, full band height. */
@@ -59,32 +62,34 @@
 
 .capiro-vnext-root .capiro-directory-header__eyebrow {
   margin: 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-accent);
+  /* Mono eyebrows/labels read as quiet metadata, not links — gray-500, not
+     the navy accent (which stays reserved for real actions/selection). */
+  color: var(--uui-gray-500);
 }
 
 .capiro-vnext-root .capiro-directory-header__title {
   margin: 6px 0 0;
-  font-family: var(--capiro-type-family-sans);
-  font-size: 32px;
+  font-family: var(--uui-font-family);
+  font-size: 30px;
   font-weight: 600;
   line-height: 38px;
-  letter-spacing: -0.48px;
-  color: var(--capiro-color-text-primary);
+  letter-spacing: -0.02em;
+  color: var(--uui-gray-900);
 }
 
 .capiro-vnext-root .capiro-directory-header__subtitle {
   margin: 2px 0 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 12px;
   font-weight: 500;
   line-height: 17px;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
 
 /* Premium Header / Metrics (954:3021) — three 150×56 cards, 8px gap. */
@@ -103,10 +108,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--capiro-space-01);
-  border: 1px solid var(--capiro-color-border-quiet);
+  border: 1px solid var(--uui-gray-200);
   border-radius: 9px;
-  background: var(--capiro-color-bg-subtle);
-  font-family: var(--capiro-type-family-mono);
+  background: var(--uui-gray-50);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-weight: 500;
 }
 
@@ -116,7 +121,7 @@
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-muted);
+  color: var(--uui-gray-500);
   white-space: nowrap;
 }
 
@@ -124,7 +129,7 @@
   margin: 0;
   font-size: 12px;
   line-height: 17px;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
   white-space: nowrap;
 }
 
@@ -137,12 +142,46 @@
   display: flex;
   align-items: flex-start;
   gap: var(--capiro-space-02);
-  background: var(--capiro-color-bg-surface);
+  background: var(--uui-gray-50);
   overflow-x: auto;
   scrollbar-width: none;
 }
 
 .capiro-vnext-root .capiro-directory-tabs::-webkit-scrollbar { display: none; }
+
+/* Directory's own underline-tab look for the shared CapiroTopNavItem
+   (base style: primitives.css .capiro-top-nav-item), scoped to this band
+   only — same "override under a more specific selector" pattern already
+   used below for the modal hero / identity-mark sizing, so every other
+   consumer of the shared nav item is untouched. */
+.capiro-vnext-root .capiro-directory-tabs .capiro-top-nav-item {
+  height: auto;
+  padding: 9px 14px;
+  margin-bottom: -1px;
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--uui-gray-500);
+}
+
+.capiro-vnext-root .capiro-directory-tabs .capiro-top-nav-item:hover {
+  background: var(--uui-gray-100);
+  color: var(--uui-gray-900);
+}
+
+.capiro-vnext-root .capiro-directory-tabs .capiro-top-nav-item--current {
+  background: var(--uui-white);
+  color: var(--uui-gray-900);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--uui-gray-200), inset 0 2px 0 var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .capiro-directory-tabs .capiro-top-nav-item--current:hover {
+  background: var(--uui-white);
+}
 
 /* ── Body (937:2720) ────────────────────────────────────────────────────────
    24px horizontal padding over the 1368 surface yields the 1320 inner content
@@ -158,7 +197,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: var(--capiro-color-bg-canvas);
+  background: var(--uui-surface-canvas);
 }
 
 /* ── Signal ribbon (957:3021) ───────────────────────────────────────────── */
@@ -167,9 +206,9 @@
   align-items: center;
   gap: 10px;
   padding: var(--capiro-space-02) var(--capiro-space-03);
-  border: 1px solid var(--capiro-color-border-quiet);
+  border: 1px solid var(--uui-gray-200);
   border-radius: 9px;
-  background: var(--capiro-color-bg-subtle);
+  background: var(--uui-gray-50);
 }
 
 .capiro-vnext-root .capiro-directory-ribbon__accent {
@@ -182,13 +221,13 @@
 
 .capiro-vnext-root .capiro-directory-ribbon__label {
   margin: 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-gray-500);
   white-space: nowrap;
 }
 
@@ -200,41 +239,41 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  padding: var(--capiro-space-03) 14px;
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-surface);
+  padding: 16px 24px;
+  /* No card of its own — it's a continuation of the gray-50 panel the header
+     and tab band sit on; only the search box and pills below are cards. */
+  background: transparent;
 }
 
-/* Search (937:2724) — 460×40, stacked label + input. */
+/* Search (937:2724) — 460×44, stacked label + input. */
 .capiro-vnext-root .capiro-directory-search {
   box-sizing: border-box;
   width: 460px;
   max-width: 100%;
-  height: 40px;
+  height: 44px;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: var(--capiro-space-02);
   padding: 0 var(--capiro-space-03);
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-subtle);
+  border: 0;
+  border-radius: 10px;
+  background: var(--uui-white);
+  box-shadow: var(--uui-shadow-card);
 }
 
 .capiro-vnext-root .capiro-directory-search:focus-within {
-  border-color: var(--capiro-color-border-information);
-  box-shadow: var(--capiro-focus-ring);
+  box-shadow: var(--uui-shadow-input-focus);
 }
 
 .capiro-vnext-root .capiro-directory-search__label {
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-gray-400);
   white-space: nowrap;
   flex: 0 0 auto;
 }
@@ -244,13 +283,13 @@
   min-width: 0;
   border: 0;
   background: transparent;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
 }
 
-.capiro-vnext-root .capiro-directory-search__input::placeholder { color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .capiro-directory-search__input::placeholder { color: var(--uui-gray-600); }
 .capiro-vnext-root .capiro-directory-search__input:focus { outline: none; }
 
 .capiro-vnext-root .capiro-directory-search__clear {
@@ -259,14 +298,14 @@
   background: transparent;
   padding: 0 2px;
   cursor: pointer;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 12px;
   line-height: 17px;
-  color: var(--capiro-color-text-muted);
+  color: var(--uui-gray-500);
 }
 
-.capiro-vnext-root .capiro-directory-search__clear:hover { color: var(--capiro-color-text-primary); }
-.capiro-vnext-root .capiro-directory-search__clear:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); border-radius: var(--capiro-radius-control); }
+.capiro-vnext-root .capiro-directory-search__clear:hover { color: var(--uui-gray-900); }
+.capiro-vnext-root .capiro-directory-search__clear:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); border-radius: var(--uui-radius-control); }
 
 /* Filter pill (937:2721) — circular, label is the control's text. */
 .capiro-vnext-root .capiro-directory-filter { position: relative; flex: 0 0 auto; }
@@ -274,34 +313,41 @@
 .capiro-vnext-root .capiro-directory-filter__pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 9px var(--capiro-space-03);
-  border: 1px solid var(--capiro-color-border-default);
+  height: 36px;
+  gap: 7px;
+  padding: 0 var(--capiro-space-03);
+  border: 0;
   border-radius: var(--capiro-radius-circular);
-  background: var(--capiro-color-bg-subtle);
+  background: var(--uui-white);
+  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
   cursor: pointer;
-  font-family: var(--capiro-type-family-mono);
-  font-size: 12px;
+  font-family: var(--uui-font-family);
+  font-size: 14px;
   font-weight: 500;
-  line-height: 17px;
-  color: var(--capiro-color-text-secondary);
+  line-height: 1;
+  color: var(--uui-gray-600);
   white-space: nowrap;
 }
 
-.capiro-vnext-root .capiro-directory-filter__pill:hover { color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-directory-filter__pill:hover { color: var(--uui-gray-900); }
 .capiro-vnext-root .capiro-directory-filter__pill:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); }
 
 .capiro-vnext-root .capiro-directory-filter__pill--selected {
-  border-color: var(--capiro-color-shell-signature-primary);
-  background: var(--capiro-color-shell-nav-current-bg);
-  color: var(--capiro-color-shell-nav-current-text);
+  box-shadow: inset 0 0 0 1px var(--capiro-color-text-accent);
+  background: var(--capiro-color-bg-accent-soft);
+  color: var(--capiro-color-text-accent);
 }
 
-.capiro-vnext-root .capiro-directory-filter__pill--unavailable { cursor: not-allowed; opacity: 0.72; color: var(--capiro-color-shell-nav-disabled); }
+.capiro-vnext-root .capiro-directory-filter__pill--unavailable { cursor: not-allowed; opacity: 0.72; color: var(--uui-gray-400); }
 
 .capiro-vnext-root .capiro-directory-filter__count {
   font-size: 10px;
   letter-spacing: 0.6px;
+}
+
+.capiro-vnext-root .capiro-directory-filter__chevron {
+  display: flex;
+  color: var(--uui-gray-400);
 }
 
 .capiro-vnext-root .capiro-directory-filter__menu {
@@ -313,9 +359,10 @@
   max-height: 320px;
   overflow-y: auto;
   padding: var(--capiro-space-02);
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: var(--capiro-radius-navigation);
-  background: var(--capiro-color-bg-surface);
+  border: 0;
+  border-radius: var(--uui-radius-card);
+  background: var(--uui-white);
+  box-shadow: var(--uui-shadow-menu);
 }
 
 .capiro-vnext-root .capiro-directory-filter__option {
@@ -325,40 +372,40 @@
   gap: var(--capiro-space-02);
   padding: 6px var(--capiro-space-02);
   border: 0;
-  border-radius: var(--capiro-radius-control);
+  border-radius: var(--uui-radius-control);
   background: transparent;
   cursor: pointer;
   text-align: left;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
 }
 
-.capiro-vnext-root .capiro-directory-filter__option:hover { background: var(--capiro-color-bg-flyout-hover); }
+.capiro-vnext-root .capiro-directory-filter__option:hover { background: var(--uui-gray-50); }
 .capiro-vnext-root .capiro-directory-filter__option:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); }
-.capiro-vnext-root .capiro-directory-filter__option[aria-checked='true'] { color: var(--capiro-color-shell-nav-current-text); }
+.capiro-vnext-root .capiro-directory-filter__option[aria-checked='true'] { color: var(--capiro-color-text-accent); font-weight: 600; }
 
 .capiro-vnext-root .capiro-directory-filter__note {
   margin: 0;
   padding: 6px var(--capiro-space-02);
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
 
 .capiro-vnext-root .capiro-directory-toolbar__reset {
   border: 0;
   background: transparent;
   cursor: pointer;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 12px;
   line-height: 17px;
   color: var(--capiro-color-text-accent);
 }
 
-.capiro-vnext-root .capiro-directory-toolbar__reset:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); border-radius: var(--capiro-radius-control); }
+.capiro-vnext-root .capiro-directory-toolbar__reset:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); border-radius: var(--uui-radius-control); }
 
 /* ── Results + selection rail (937:2737) ────────────────────────────────── */
 .capiro-vnext-root .capiro-directory-split {
@@ -392,16 +439,16 @@
   flex-wrap: wrap;
   gap: var(--capiro-space-02);
   padding: 13px 14px;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: var(--capiro-radius-navigation);
-  background: var(--capiro-color-bg-subtle);
+  border: 1px solid var(--uui-gray-200);
+  border-radius: var(--uui-radius-card);
+  background: var(--uui-gray-50);
 }
 
 .capiro-vnext-root .capiro-directory-results__eyebrow,
 .capiro-vnext-root .capiro-directory-results__count {
   margin: 0;
   min-width: 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
@@ -415,22 +462,22 @@
    lines, and nothing here may be dropped to make the layout fit. */
 .capiro-vnext-root .capiro-directory-results__count { white-space: nowrap; }
 
-.capiro-vnext-root .capiro-directory-results__eyebrow { color: var(--capiro-color-text-accent); }
-.capiro-vnext-root .capiro-directory-results__count { color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .capiro-directory-results__eyebrow { color: var(--uui-gray-600); }
+.capiro-vnext-root .capiro-directory-results__count { color: var(--uui-gray-400); }
 
 /* Directory-wide staff total. Deliberately a separate, quieter line from the
    count: `totals.staff` is fixed at cache-build time and does not respond to
    filters, so fusing it into the count would read as "this many matched". */
 .capiro-vnext-root .capiro-directory-results__note {
   margin: 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--capiro-color-text-muted);
+  color: var(--uui-gray-500);
 }
 
 /* Expand/collapse every office on the page. Sits at the far end of the results
@@ -440,7 +487,7 @@
   padding: 0;
   border: 0;
   background: none;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
@@ -511,27 +558,35 @@
   align-items: start;
 }
 
-/* Hierarchy / Roster peer toggle. */
+/* Hierarchy / Roster peer toggle — a segmented control, not a tab pair: the
+   active segment is a pressed dark "metal" pill (reusing the same
+   --uui-btn-metal-face/-shadow tokens CapiroButton's primary variant already
+   uses, not a new color), matching the prototype exactly. */
 .capiro-vnext-root .capiro-directory-viewtoggle {
   display: inline-flex;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: var(--capiro-radius-control);
-  overflow: hidden;
-  background: var(--capiro-color-bg-subtle);
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 0;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--uui-gray-100);
 }
 .capiro-vnext-root .capiro-directory-viewtoggle__btn {
-  padding: 6px 14px;
-  font: inherit;
-  font-size: 12px;
+  height: 30px;
+  padding: 0 14px;
+  font-family: var(--uui-font-family);
+  font-size: 13px;
+  font-weight: 600;
   border: 0;
+  border-radius: var(--capiro-radius-circular);
   background: transparent;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
   cursor: pointer;
 }
 .capiro-vnext-root .capiro-directory-viewtoggle__btn--active {
-  background: var(--capiro-color-bg-surface);
-  color: var(--capiro-color-accent);
-  font-weight: 600;
+  background: var(--uui-btn-metal-face);
+  box-shadow: var(--uui-btn-metal-shadow);
+  color: var(--uui-btn-metal-fg);
 }
 
 /* Hierarchy canvas. Only source-backed structure renders; the dashed and muted
@@ -540,143 +595,268 @@
 .capiro-vnext-root .capiro-directory-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  padding: 10px 14px;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-subtle);
-  font-family: var(--capiro-type-family-mono);
+  align-items: center;
+  gap: 22px;
+  padding: 12px 24px;
+  border: 0;
+  border-top: 1px solid var(--uui-gray-200);
+  background: var(--uui-gray-50);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
-  letter-spacing: 0.4px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
-.capiro-vnext-root .capiro-directory-legend__item { display: inline-flex; align-items: center; gap: 6px; }
+.capiro-vnext-root .capiro-directory-legend__item { display: inline-flex; align-items: center; gap: 8px; }
 .capiro-vnext-root .capiro-directory-legend__item--disabled { opacity: 0.6; }
-.capiro-vnext-root .capiro-directory-legend__swatch { width: 18px; height: 0; border-top: 1px solid var(--capiro-color-border-default); }
-.capiro-vnext-root .capiro-directory-legend__swatch--dashed { border-top: 1px dashed var(--capiro-color-info-rail); }
-.capiro-vnext-root .capiro-directory-legend__swatch--muted { border-top: 1px solid var(--capiro-color-border-quiet); }
+.capiro-vnext-root .capiro-directory-legend__swatch { width: 24px; height: 0; border-top: 1px solid var(--uui-gray-400); }
+.capiro-vnext-root .capiro-directory-legend__swatch--dashed { width: 24px; border-top: 1px dashed var(--capiro-color-info-rail); }
+.capiro-vnext-root .capiro-directory-legend__swatch--muted {
+  width: 12px;
+  height: 12px;
+  border-top: 0;
+  border-radius: 3px;
+  background: var(--uui-gray-200);
+}
 
 /* The canvas is the one genuinely wide diagram in this module, so it keeps a
    horizontal scroller (handoff 941:2888: "Mobile: horizontally pannable
-   hierarchy"). The floor belongs on the SCROLLED CONTENT, never on the
-   scroller: `min-width` on the overflow-x box makes the box itself 1180px wide,
-   so it never has anything to scroll and simply pushes the page sideways. */
+   hierarchy"). The floor belongs on the SCROLLED CONTENT (`__frame` below),
+   never on the scroller itself, or the box would have nothing to scroll and
+   would simply push the page sideways. The legend sits INSIDE this card as
+   its footer strip (border-top, no radius/margin of its own) — one shared
+   white card, matching the prototype exactly, not a separate box above it. */
 .capiro-vnext-root .capiro-directory-canvas {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 0;
+  border-radius: var(--uui-radius-card);
+  background: var(--uui-white);
+  box-shadow: var(--uui-shadow-elevation);
+  overflow: hidden;
+}
+.capiro-vnext-root .capiro-directory-canvas__scroller {
   overflow-x: auto;
   overscroll-behavior-x: contain;
   min-width: 0;
-  padding: 24px;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: var(--capiro-radius-navigation);
-  background: var(--capiro-color-bg-surface);
+  padding: 32px 28px 24px;
+}
+/* The one shared coordinate space every tier grid AND every connector's
+   percentage anchors are measured against — this is what keeps a T-branch
+   leg lined up with the grid column it targets no matter how many children
+   a tier has. Dropped at mobile (<=779, see the responsive block): a
+   centre-justified 1180px frame would put the committee node off-screen on
+   a 390px viewport with no affordance saying so. */
+.capiro-vnext-root .capiro-directory-canvas__frame {
+  min-width: 1180px;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  align-items: stretch;
 }
+.capiro-vnext-root .capiro-directory-canvas__hero-row { display: flex; justify-content: center; }
+
 .capiro-vnext-root .capiro-directory-canvas__tier {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  flex-wrap: wrap;
-  /* The drawn diagram width, carried by the tiers so the canvas above has
-     something to pan. Dropped at mobile (see the <=779 block): a 1180px tier is
-     centre-justified, so on a 390px screen the committee node would sit off
-     the left of the viewport with no affordance saying so. The nodes are capped
-     at 240px and wrap, so nothing becomes an unreadable miniature (941:2888). */
-  min-width: 1180px;
+  position: relative;
+  display: grid;
+  gap: 20px;
+  align-items: start;
 }
-.capiro-vnext-root .capiro-directory-canvas__tier--staff { justify-content: flex-start; }
+/* The flat committee-staff group makes no per-child position claim (there is
+   no connector reaching into it — DIR-1), so it stays a plain wrapping row
+   rather than an equal-column grid; a large roster can wrap to any number of
+   rows without breaking anything, unlike the tiers above it. */
+.capiro-vnext-root .capiro-directory-canvas__tier--staff {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.capiro-vnext-root .capiro-directory-canvas__section-label {
+  margin: 22px 0 0;
+  padding-top: 4px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--uui-gray-500);
+}
 .capiro-vnext-root .capiro-directory-canvas__note {
-  margin: 0;
+  margin: 16px 0 0;
   font-size: 12px;
   line-height: 18px;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
   max-width: 720px;
+}
+
+/* Vertical trunk + horizontal bar + one leg per child — see TreeConnector in
+   CommitteeStaffVNext.tsx for how the percentages are computed. Same
+   div-line technique this file already uses for the Congressional roster's
+   guide rail (.capiro-directory-branch), not a new pattern. */
+.capiro-vnext-root .capiro-directory-tree-connector { position: relative; }
+.capiro-vnext-root .capiro-directory-tree-connector__trunk {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 50%;
+  width: 1px;
+  background: var(--uui-gray-300);
+}
+.capiro-vnext-root .capiro-directory-tree-connector__bar {
+  position: absolute;
+  top: 50%;
+  height: 1px;
+  background: var(--uui-gray-300);
+}
+.capiro-vnext-root .capiro-directory-tree-connector__leg {
+  position: absolute;
+  top: 50%;
+  bottom: 0;
+  width: 1px;
+  background: var(--uui-gray-300);
 }
 
 .capiro-vnext-root .capiro-directory-node {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-surface);
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--uui-radius-card);
+  background: var(--uui-white);
+  box-shadow: var(--uui-shadow-card);
   min-width: 0;
-  max-width: 240px;
+  max-width: 270px;
+  justify-self: center;
   text-align: left;
   font: inherit;
   color: inherit;
   cursor: pointer;
 }
-.capiro-vnext-root .capiro-directory-node--committee { cursor: default; }
+.capiro-vnext-root .capiro-directory-node--committee,
+.capiro-vnext-root .capiro-directory-node--hero,
+.capiro-vnext-root .capiro-directory-node--unit { cursor: default; }
+
+/* The one hero card: bigger, dark-filled, its own translucent-on-dark mark —
+   matches the prototype's committee/department root exactly. */
+.capiro-vnext-root .capiro-directory-node--hero {
+  width: 340px;
+  max-width: 340px;
+  padding: 14px 16px;
+  background: var(--uui-gray-900);
+  box-shadow: none;
+}
+.capiro-vnext-root .capiro-directory-node--hero .capiro-directory-node__mark {
+  /* Translucent-white-on-dark badge — reuses the shell's own dark-chrome
+     active-item tint token rather than a literal color declaration, which
+     this file's foundation-contract guard test does not allow. */
+  background: var(--uui-chrome-item-active-bg);
+  color: var(--uui-white);
+}
+.capiro-vnext-root .capiro-directory-node--hero .capiro-directory-node__kind,
+.capiro-vnext-root .capiro-directory-node--hero .capiro-directory-node__meta {
+  color: var(--uui-chrome-label-idle);
+}
+.capiro-vnext-root .capiro-directory-node--hero .capiro-directory-node__name { color: var(--uui-white); }
+
+/* A staff/team card in the flat group is flatter than a structural card
+   above it — a ring, not a drop shadow (matches the prototype's tier
+   distinction between "org chart" and "roster pool"). */
+.capiro-vnext-root .capiro-directory-node--person {
+  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
+  max-width: 240px;
+}
 .capiro-vnext-root .capiro-directory-node--selected {
-  border-color: var(--capiro-color-accent);
-  box-shadow: 0 0 0 1px var(--capiro-color-accent);
+  box-shadow: inset 0 0 0 2px var(--capiro-color-text-accent);
+  background: var(--capiro-color-bg-accent-soft);
 }
 .capiro-vnext-root .capiro-directory-node__mark {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 11px;
   font-weight: 600;
   color: var(--capiro-color-text-inverse-primary);
-  background: var(--capiro-color-text-primary);
+  background: var(--uui-gray-900);
 }
 /* A person is a circle; a committee/office/unit is a rounded square (§5.3). */
-.capiro-vnext-root .capiro-directory-node__mark--person { width: 32px; height: 32px; border-radius: 9999px; }
-.capiro-vnext-root .capiro-directory-node__mark--place { width: 32px; height: 32px; border-radius: 8px; }
+.capiro-vnext-root .capiro-directory-node__mark--person { width: 30px; height: 30px; border-radius: 9999px; }
+.capiro-vnext-root .capiro-directory-node__mark--place { width: 34px; height: 30px; border-radius: 7px; }
+.capiro-vnext-root .capiro-directory-node--hero .capiro-directory-node__mark--place { width: 34px; height: 34px; border-radius: 8px; }
+/* Team-tier person marks read as a dense list row, so they get the same
+   metal gradient a row avatar uses elsewhere in this module — leadership
+   keeps the flat mark, the prototype's own distinction between the two. */
+.capiro-vnext-root .capiro-directory-canvas__tier--staff .capiro-directory-node__mark--person {
+  width: 26px;
+  height: 26px;
+  background: var(--uui-btn-metal-face);
+}
+.capiro-vnext-root .capiro-directory-node--selected .capiro-directory-node__mark { background: var(--uui-btn-metal-face); }
+
 .capiro-vnext-root .capiro-directory-node__body { min-width: 0; }
+.capiro-vnext-root .capiro-directory-node__kind {
+  display: block;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--uui-gray-400);
+}
 .capiro-vnext-root .capiro-directory-node__name {
   display: block;
+  margin-top: 2px;
   font-size: 13px;
   font-weight: 600;
   line-height: 18px;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
   /* Names wrap rather than ellipse (§5.4). */
   white-space: normal;
   word-break: break-word;
 }
+.capiro-vnext-root .capiro-directory-node--hero .capiro-directory-node__name { font-size: 14px; letter-spacing: -0.01em; }
 .capiro-vnext-root .capiro-directory-node__meta {
   display: block;
-  font-family: var(--capiro-type-family-mono);
-  font-size: 10px;
-  letter-spacing: 0.3px;
-  color: var(--capiro-color-text-secondary);
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--uui-gray-600);
   white-space: normal;
   word-break: break-word;
 }
 
 .capiro-vnext-root .capiro-directory-cell--muted .capiro-directory-cell__primary {
-  color: var(--capiro-color-text-tertiary);
+  color: var(--uui-gray-500);
 }
 
+/* A plain quiet sub-box, matching every other field row on the rail — the
+   prototype does not give Program Alignment a colored accent border. */
 .capiro-vnext-root .capiro-directory-callout {
-  padding: 10px 12px;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-left: 3px solid var(--capiro-color-accent);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-subtle);
+  margin-top: 2px;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--uui-gray-50);
 }
 
 .capiro-vnext-root .capiro-directory-callout__label {
-  margin: 0 0 2px;
-  font-family: var(--capiro-type-family-mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.6px;
+  margin: 0 0 5px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-gray-500);
 }
 
 .capiro-vnext-root .capiro-directory-callout__value {
   margin: 0;
   font-size: 13px;
   line-height: 18px;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
 }
 
 .capiro-vnext-root .capiro-directory-provenance {
@@ -684,23 +864,23 @@
   flex-direction: column;
   gap: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--capiro-color-border-quiet);
+  border-top: 1px solid var(--uui-gray-200);
 }
 
 .capiro-vnext-root .capiro-directory-provenance__eyebrow {
   margin: 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
 
 .capiro-vnext-root .capiro-directory-columns {
   padding: 9px 14px;
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-subtle);
+  border-radius: var(--uui-radius-control);
+  background: var(--uui-gray-50);
 }
 
 .capiro-vnext-root .capiro-directory-columns__label {
@@ -709,13 +889,13 @@
      of the desktop band; without this it paints over its neighbour. */
   min-width: 0;
   overflow-wrap: anywhere;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
 
 .capiro-vnext-root .capiro-directory-row {
@@ -723,9 +903,9 @@
   width: 100%;
   min-height: 68px;
   padding: 10px 14px;
-  border: 1px solid var(--capiro-color-border-quiet);
+  border: 1px solid var(--uui-gray-200);
   border-radius: 9px;
-  background: var(--capiro-color-bg-surface);
+  background: var(--uui-white);
   cursor: pointer;
   text-align: left;
   font: inherit;
@@ -735,12 +915,12 @@
     border-color var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
 
-.capiro-vnext-root .capiro-directory-row:hover { border-color: var(--capiro-color-border-default); }
+.capiro-vnext-root .capiro-directory-row:hover { border-color: var(--uui-gray-300); }
 .capiro-vnext-root .capiro-directory-row:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); }
 
 .capiro-vnext-root .capiro-directory-row--selected {
-  border-color: var(--capiro-color-border-default);
-  background: var(--capiro-color-bg-selected);
+  border-color: var(--uui-gray-300);
+  background: var(--uui-gray-100);
 }
 
 /* ── Congressional Staff hierarchy rows ─────────────────────────────────────
@@ -782,10 +962,10 @@
   width: 26px;
   height: 26px;
   padding: 0;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-subtle);
-  color: var(--capiro-color-text-secondary);
+  border: 1px solid var(--uui-gray-200);
+  border-radius: var(--uui-radius-control);
+  background: var(--uui-gray-50);
+  color: var(--uui-gray-600);
   /* The triangle glyphs are small for their point size; at the mono-10 used
      elsewhere in the row they read as specks rather than a direction. */
   font-size: 13px;
@@ -797,7 +977,7 @@
 }
 
 .capiro-vnext-root .capiro-directory-caret:hover {
-  border-color: var(--capiro-color-border-default);
+  border-color: var(--uui-gray-300);
   color: var(--capiro-color-text-accent);
 }
 
@@ -807,7 +987,7 @@
 }
 
 .capiro-vnext-root .capiro-directory-caret[aria-expanded='true'] {
-  border-color: var(--capiro-color-border-default);
+  border-color: var(--uui-gray-300);
   color: var(--capiro-color-text-accent);
 }
 
@@ -824,19 +1004,19 @@
 .capiro-vnext-root .capiro-directory-roster__empty {
   margin: 0;
   padding: 10px 14px 10px 50px;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
 
 /* Nested staffer rows sit on the quieter surface and keep the header's column
    alignment; the step-in is carried by the guide rail and the indented name,
    not by shifting the whole grid out of register with its header. */
 .capiro-vnext-root .capiro-directory-row--staff {
-  background: var(--capiro-color-bg-subtle);
+  background: var(--uui-gray-50);
 }
 
 .capiro-vnext-root .capiro-directory-row--staff .capiro-directory-cell--person {
@@ -899,6 +1079,34 @@
 
 .capiro-vnext-root .capiro-directory-cell--person .capiro-identity-mark { flex: 0 0 auto; }
 
+/* Identity-mark background/border, scoped to this module only — the base
+   `.capiro-identity-mark` in primitives.css is shared app-wide and stays
+   untouched. The prototype draws two distinct treatments: a dark GRADIENT
+   for a person row in a dense list (reusing --uui-btn-metal-face, the same
+   token CapiroButton's primary variant already uses — not a new color),
+   and a FLAT dark mark for a featured/selected identity (the rail, a
+   legislator card, hierarchy leadership). */
+.capiro-vnext-root .capiro-directory-cell--person .capiro-identity-mark,
+.capiro-vnext-root .capiro-directory-roster .capiro-identity-mark {
+  background: var(--uui-btn-metal-face);
+  border: 0;
+  color: var(--uui-white);
+}
+
+.capiro-vnext-root .capiro-directory-rail .capiro-identity-mark,
+.capiro-vnext-root .capiro-directory-leg-card .capiro-identity-mark {
+  background: var(--uui-gray-900);
+  border: 0;
+  color: var(--uui-white);
+}
+
+.capiro-vnext-root .capiro-directory-rail .capiro-identity-mark--lg {
+  width: 34px;
+  height: 34px;
+  font-size: 12px;
+  line-height: 17px;
+}
+
 .capiro-vnext-root .capiro-directory-cell__stack {
   display: flex;
   flex-direction: column;
@@ -916,29 +1124,29 @@
 }
 
 .capiro-vnext-root .capiro-directory-cell__primary {
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
 }
 
 .capiro-vnext-root .capiro-directory-cell__secondary {
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
 
 /* Office / Coverage / Contact cells are mono. */
 .capiro-vnext-root .capiro-directory-cell--mono .capiro-directory-cell__primary {
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 12px;
   font-weight: 500;
   line-height: 17px;
 }
 
 .capiro-vnext-root .capiro-directory-cell--mono .capiro-directory-cell__secondary {
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
@@ -953,7 +1161,7 @@
 }
 
 .capiro-vnext-root .capiro-directory-cell__action {
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
   color: var(--capiro-color-text-accent);
@@ -974,61 +1182,73 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 13px;
+  gap: 14px;
   padding: 18px;
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: var(--capiro-radius-widget);
-  background: var(--capiro-color-bg-surface);
+  border: 0;
+  border-radius: var(--uui-radius-card);
+  background: var(--uui-white);
+  box-shadow: var(--uui-shadow-elevation);
 }
 
 .capiro-vnext-root .capiro-directory-rail__eyebrow {
   margin: 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-muted);
+  color: var(--uui-gray-500);
 }
 
+/* The prototype draws this line's own border-bottom as the divider (a solid
+   dark rule directly under the text, not a separately-colored accent hr) —
+   reproduced here with a border instead of touching the sibling __divider
+   markup, which is hidden below. */
 .capiro-vnext-root .capiro-directory-rail__office {
   margin: 0;
-  font-family: var(--capiro-type-family-mono);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 17px;
-  color: var(--capiro-color-text-primary);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--uui-gray-900);
+  font-family: var(--uui-font-family);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 18px;
+  color: var(--uui-gray-900);
+  text-wrap: pretty;
 }
 
-.capiro-vnext-root .capiro-directory-rail__divider {
-  height: 1px;
-  background: var(--capiro-color-icon-accent);
-}
+.capiro-vnext-root .capiro-directory-rail__divider { display: none; }
 
+/* Each field is its own quiet sub-box on the rail (prototype: 8px/10px
+   padding, 7px radius, gray-50) — a small structural addition beyond the
+   old bare label+value stack, matching every EMAIL/PHONE/etc. row. */
 .capiro-vnext-root .capiro-directory-field {
   display: flex;
   flex-direction: column;
+  gap: 3px;
   min-width: 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: var(--uui-gray-50);
 }
 
 .capiro-vnext-root .capiro-directory-field__label {
   margin: 0;
-  font-family: var(--capiro-type-family-mono);
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 14px;
-  letter-spacing: 0.6px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 12px;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--capiro-color-text-muted);
+  color: var(--uui-gray-500);
 }
 
 .capiro-vnext-root .capiro-directory-field__value {
   margin: 0;
-  font-family: var(--capiro-type-family-sans);
-  font-size: 12.5px;
+  font-family: var(--uui-font-family);
+  font-size: 13px;
   line-height: 18px;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-900);
   overflow-wrap: anywhere;
 }
 
@@ -1038,34 +1258,36 @@
   gap: var(--capiro-space-02);
 }
 
-/* Connected Workflows (962:3052). */
+/* Connected Workflows (962:3052) — a second, quieter card below the main
+   rail card, same "gray-50 box on top of the white rail" treatment as
+   DoW's Provenance card. */
 .capiro-vnext-root .capiro-directory-workflows {
   display: flex;
   flex-direction: column;
-  gap: var(--capiro-space-02);
-  padding: var(--capiro-space-03);
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: var(--capiro-radius-navigation);
-  background: var(--capiro-color-bg-subtle);
+  gap: 6px;
+  padding: 16px;
+  border: 0;
+  border-radius: var(--uui-radius-card);
+  background: var(--uui-gray-50);
 }
 
 .capiro-vnext-root .capiro-directory-workflows__eyebrow {
   margin: 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-gray-500);
 }
 
 .capiro-vnext-root .capiro-directory-workflows__copy {
   margin: 0;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-accent);
+  color: var(--uui-gray-600);
 }
 
 .capiro-vnext-root .capiro-directory-workflows__badges {
@@ -1084,13 +1306,13 @@
 
 .capiro-vnext-root .capiro-directory-pagination__status {
   margin: 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
 
 /* A background refetch must be visible without blanking resolved content. */
@@ -1115,17 +1337,20 @@
   gap: 10px;
   padding: 16px;
   text-align: left;
-  background: var(--capiro-color-bg-surface);
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: var(--capiro-radius-navigation);
+  background: var(--uui-white);
+  border: 0;
+  border-radius: var(--uui-radius-card);
+  box-shadow: var(--uui-shadow-card);
   cursor: pointer;
   font: inherit;
   color: inherit;
 }
 
+/* A grid card gets a full selection ring (it's a tile you've chosen), not
+   the row-list's left accent bar — distinct affordance for a distinct
+   layout, matching the prototype exactly. */
 .capiro-vnext-root .capiro-directory-leg-card--selected {
-  border-color: var(--capiro-color-accent);
-  box-shadow: inset 3px 0 0 var(--capiro-color-accent);
+  box-shadow: 0 0 0 2px var(--capiro-color-text-accent), var(--uui-shadow-elevation);
 }
 
 .capiro-vnext-root .capiro-directory-leg-card__head { display: flex; gap: 10px; align-items: center; }
@@ -1136,81 +1361,101 @@
   font-size: 15px;
   font-weight: 600;
   line-height: 20px;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
 }
 
 .capiro-vnext-root .capiro-directory-leg-card__meta {
   margin: 2px 0 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
 
 .capiro-vnext-root .capiro-directory-leg-card__party {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-family: var(--capiro-type-family-mono);
-  font-size: 11px;
-  color: var(--capiro-color-text-secondary);
+  gap: 8px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--uui-gray-600);
 }
 
 .capiro-vnext-root .capiro-directory-party-dot {
   width: 8px;
   height: 8px;
   border-radius: 9999px;
-  background: var(--capiro-color-text-muted);
+  background: var(--uui-gray-500);
 }
 .capiro-vnext-root .capiro-directory-party-dot--d { background: var(--capiro-color-info-rail); }
 .capiro-vnext-root .capiro-directory-party-dot--r { background: var(--capiro-color-danger-rail); }
 .capiro-vnext-root .capiro-directory-party-dot--i { background: var(--capiro-color-warning-rail); }
 
+/* 1px gap over a gray-200 fill reads as hairline dividers between the three
+   cells, so the group looks like one seamed strip rather than three
+   separate boxes — matches the prototype exactly. */
 .capiro-vnext-root .capiro-directory-leg-card__stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 1px;
+  background: var(--uui-gray-200);
+  border-radius: var(--uui-radius-control);
+  overflow: hidden;
 }
 
 .capiro-vnext-root .capiro-directory-stat {
-  padding: 8px 10px;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-subtle);
+  padding: 10px 12px;
+  background: var(--uui-gray-50);
 }
 
 .capiro-vnext-root .capiro-directory-stat__value {
   margin: 0;
-  font-family: var(--capiro-type-family-mono);
-  font-size: 16px;
+  font-family: var(--uui-font-family);
+  font-size: 20px;
   font-weight: 600;
-  line-height: 20px;
-  color: var(--capiro-color-text-primary);
+  line-height: 24px;
+  letter-spacing: -0.01em;
+  color: var(--uui-gray-900);
 }
 
 .capiro-vnext-root .capiro-directory-stat__label {
   margin: 2px 0 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 9px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-500);
 }
 
-/* A real zero is muted; a never-crosswalked count is the warning ramp. */
+/* A real zero is muted; a never-crosswalked count is the warning ramp — the
+   card's own background/border still carries that signal (below), not just
+   the value glyph, so a "—" here can't be mistaken for a real muted zero. */
 .capiro-vnext-root .capiro-directory-stat--zero .capiro-directory-stat__value {
-  color: var(--capiro-color-text-muted);
+  color: var(--uui-gray-500);
 }
 .capiro-vnext-root .capiro-directory-stat--unknown {
   background: var(--capiro-color-warning-soft);
-  border-color: var(--capiro-color-border-warning);
 }
 .capiro-vnext-root .capiro-directory-stat--unknown .capiro-directory-stat__value {
-  font-size: 11px;
-  font-weight: 500;
+  color: var(--uui-gray-300);
+}
+.capiro-vnext-root .capiro-directory-stat--unknown .capiro-directory-stat__label {
   color: var(--capiro-color-text-warning);
+}
+.capiro-vnext-root .capiro-directory-stat__unknown-note {
+  display: block;
+  margin-top: 1px;
+  font-family: var(--uui-font-family);
+  font-size: 9px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--capiro-color-text-warning);
+  opacity: 0.85;
 }
 
 .capiro-vnext-root .capiro-directory-leg-card__foot {
@@ -1219,13 +1464,13 @@
   justify-content: space-between;
   gap: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--capiro-color-border-quiet);
+  border-top: 1px solid var(--uui-gray-200);
 }
 
 .capiro-vnext-root .capiro-directory-leg-card__email {
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 11px;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1254,7 +1499,7 @@
 
 .capiro-vnext-root .capiro-dirprofile__escape-link,
 .capiro-vnext-root .capiro-dirprofile__link {
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
   color: var(--capiro-color-text-accent);
@@ -1268,7 +1513,7 @@
 .capiro-vnext-root .capiro-dirprofile__link:focus-visible {
   outline: none;
   box-shadow: var(--capiro-focus-ring);
-  border-radius: var(--capiro-radius-control);
+  border-radius: var(--uui-radius-control);
 }
 
 /* Hero: mark + pills/role/serving + copy actions. */
@@ -1277,7 +1522,7 @@
   align-items: flex-start;
   gap: var(--capiro-space-04);
   padding-bottom: var(--capiro-space-03);
-  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  border-bottom: 1px solid var(--uui-gray-200);
 }
 
 /* The canonical hero draws an 86px portrait; the kit's lg mark is 46. Resized
@@ -1306,19 +1551,19 @@
 
 .capiro-vnext-root .capiro-dirprofile__role {
   margin: 0;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: var(--capiro-type-size-body-md);
   line-height: var(--capiro-type-line-body-md);
   font-weight: 600;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
 }
 
 .capiro-vnext-root .capiro-dirprofile__serving {
   margin: 0;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
 
 .capiro-vnext-root .capiro-dirprofile__hero-actions {
@@ -1336,18 +1581,18 @@
   gap: 6px;
   height: var(--capiro-control-height-compact);
   padding: 0 12px;
-  border: 1px solid var(--capiro-color-border-control);
-  border-radius: var(--capiro-radius-control);
+  border: 1px solid var(--uui-gray-300);
+  border-radius: var(--uui-radius-control);
   background: var(--capiro-color-action-secondary-default);
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: var(--capiro-type-size-body-sm);
   line-height: 1;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
   text-decoration: none;
   white-space: nowrap;
 }
 
-.capiro-vnext-root .capiro-dirprofile__linkbtn:hover { border-color: var(--capiro-color-border-strong); }
+.capiro-vnext-root .capiro-dirprofile__linkbtn:hover { border-color: var(--uui-gray-400); }
 
 .capiro-vnext-root .capiro-dirprofile__linkbtn:focus-visible {
   outline: none;
@@ -1393,11 +1638,11 @@
 
 .capiro-vnext-root .capiro-dirprofile__heading {
   margin: 0;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: var(--capiro-type-size-body-md);
   line-height: var(--capiro-type-line-body-md);
   font-weight: 600;
-  color: var(--capiro-color-text-heading);
+  color: var(--uui-gray-900);
 }
 
 .capiro-vnext-root .capiro-dirprofile__contact-grid {
@@ -1405,41 +1650,41 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--capiro-space-05);
   padding: var(--capiro-space-03);
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: var(--capiro-radius-navigation);
-  background: var(--capiro-color-bg-surface-2);
+  border: 1px solid var(--uui-gray-200);
+  border-radius: var(--uui-radius-card);
+  background: var(--uui-gray-50);
 }
 
 .capiro-vnext-root .capiro-dirprofile__block-label {
   margin: 0 0 4px;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
   font-weight: 600;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
 }
 
 .capiro-vnext-root .capiro-dirprofile__line {
   margin: 0;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
   overflow-wrap: anywhere;
 }
 
 .capiro-vnext-root .capiro-dirprofile__line--warning { color: var(--capiro-color-text-warning); }
-.capiro-vnext-root .capiro-dirprofile__line--muted { color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dirprofile__line--muted { color: var(--uui-gray-500); }
 .capiro-vnext-root .capiro-dirprofile__line--preline { white-space: pre-line; }
 
 .capiro-vnext-root .capiro-dirprofile__meta {
   margin: 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.4px;
-  color: var(--capiro-color-text-muted);
+  color: var(--uui-gray-500);
 }
 
 .capiro-vnext-root .capiro-dirprofile__contact-lines {
@@ -1470,15 +1715,15 @@
   height: 22px;
   padding: 0;
   border: 0;
-  border-radius: var(--capiro-radius-control);
+  border-radius: var(--uui-radius-control);
   background: transparent;
-  color: var(--capiro-color-text-muted);
+  color: var(--uui-gray-500);
   cursor: pointer;
 }
 
 .capiro-vnext-root .capiro-dirprofile__copybtn:hover {
-  background: var(--capiro-color-bg-subtle);
-  color: var(--capiro-color-text-secondary);
+  background: var(--uui-gray-50);
+  color: var(--uui-gray-600);
 }
 
 .capiro-vnext-root .capiro-dirprofile__copybtn:focus-visible {
@@ -1497,9 +1742,9 @@
   flex-direction: column;
   gap: 2px;
   padding: 10px 12px;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--uui-gray-200);
+  border-radius: var(--uui-radius-control);
+  background: var(--uui-white);
 }
 
 /* Side cards (Snapshot / Top issues / Notes / Representation / FEC). */
@@ -1508,9 +1753,9 @@
   flex-direction: column;
   gap: var(--capiro-space-02);
   padding: var(--capiro-space-03);
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: var(--capiro-radius-navigation);
-  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--uui-gray-300);
+  border-radius: var(--uui-radius-card);
+  background: var(--uui-white);
 }
 
 .capiro-vnext-root .capiro-dirprofile-card__title {
@@ -1519,7 +1764,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--capiro-space-02);
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
@@ -1543,10 +1788,10 @@
 
 .capiro-vnext-root .capiro-dirprofile__fineprint {
   margin: 0;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 10px;
   line-height: 1.4;
-  color: var(--capiro-color-text-muted);
+  color: var(--uui-gray-500);
 }
 
 .capiro-vnext-root .capiro-dirprofile__textarea {
@@ -1555,30 +1800,30 @@
   min-height: 68px;
   resize: vertical;
   padding: 8px 10px;
-  border: 1px solid var(--capiro-color-border-control);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-surface);
-  font-family: var(--capiro-type-family-sans);
+  border: 1px solid var(--uui-gray-300);
+  border-radius: var(--uui-radius-control);
+  background: var(--uui-white);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
 }
 
-.capiro-vnext-root .capiro-dirprofile__textarea::placeholder { color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-dirprofile__textarea::placeholder { color: var(--uui-gray-500); }
 
 .capiro-vnext-root .capiro-dirprofile__textarea:focus-visible {
   outline: none;
-  border-color: var(--capiro-color-border-strong);
+  border-color: var(--uui-gray-400);
   box-shadow: var(--capiro-focus-ring);
 }
 
 .capiro-vnext-root .capiro-dirprofile__count {
   margin: -4px 0 0;
-  font-family: var(--capiro-type-family-mono);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   line-height: 14px;
   text-align: right;
-  color: var(--capiro-color-text-muted);
+  color: var(--uui-gray-500);
 }
 
 .capiro-vnext-root .capiro-dirprofile__list {
@@ -1591,7 +1836,7 @@
   flex-direction: column;
   gap: 2px;
   padding: var(--capiro-space-02) 0;
-  border-top: 1px solid var(--capiro-color-border-quiet);
+  border-top: 1px solid var(--uui-gray-200);
 }
 
 .capiro-vnext-root .capiro-dirprofile__list-item:first-child { border-top: 0; }
@@ -1621,20 +1866,20 @@
 
 .capiro-vnext-root .capiro-dirprofile-staff__header {
   padding: 9px 12px;
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-subtle);
-  font-family: var(--capiro-type-family-mono);
+  border-radius: var(--uui-radius-control);
+  background: var(--uui-gray-50);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
 
 .capiro-vnext-root .capiro-dirprofile-staff__row {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  border-bottom: 1px solid var(--uui-gray-200);
 }
 
 .capiro-vnext-root .capiro-dirprofile-staff__person {
@@ -1662,12 +1907,12 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
-  border: 1px solid var(--capiro-color-border-quiet);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--uui-gray-200);
+  border-radius: var(--uui-radius-control);
+  background: var(--uui-white);
 }
 
-.capiro-vnext-root .capiro-dirprofile__biocard--narrative { background: var(--capiro-color-bg-surface-2); }
+.capiro-vnext-root .capiro-dirprofile__biocard--narrative { background: var(--uui-gray-50); }
 
 /* Links tab. */
 .capiro-vnext-root .capiro-dirprofile__linkgrid {
@@ -1682,7 +1927,7 @@
   flex-direction: column;
   gap: 2px;
   padding: var(--capiro-space-02) 0;
-  border-top: 1px solid var(--capiro-color-border-quiet);
+  border-top: 1px solid var(--uui-gray-200);
 }
 
 .capiro-vnext-root .capiro-dirprofile-news__item:first-child { border-top: 0; }
@@ -1785,10 +2030,12 @@
   .capiro-vnext-root .capiro-directory-columns { display: none; }
   .capiro-vnext-root .capiro-directory-row { min-height: 0; }
 
-  /* The hierarchy stays pannable, but its tiers give up the drawn 1180px frame:
-     a centre-justified 1180px tier puts the committee node off-screen at 390. */
-  .capiro-vnext-root .capiro-directory-canvas { padding: var(--capiro-space-04); }
-  .capiro-vnext-root .capiro-directory-canvas__tier { min-width: 0; }
+  /* The hierarchy stays pannable, but its frame gives up the drawn 1180px
+     floor: a centre-justified 1180px frame puts the committee node off-screen
+     at 390. */
+  .capiro-vnext-root .capiro-directory-canvas__scroller { padding: var(--capiro-space-04); }
+  .capiro-vnext-root .capiro-directory-canvas__frame { min-width: 0; }
+  .capiro-vnext-root .capiro-directory-node--hero { width: 100%; max-width: 100%; }
 
   /* The filter menu is anchored to the pill, floors at 220px and has no
      right-edge clamp, so any pill starting past ~78px on a 390px screen opened
@@ -1829,7 +2076,7 @@
   padding: 0;
   background: transparent;
   cursor: pointer;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
   color: var(--capiro-color-text-accent);
@@ -1841,7 +2088,7 @@
 .capiro-vnext-root .capiro-dirpage__back:focus-visible {
   outline: none;
   box-shadow: var(--capiro-focus-ring);
-  border-radius: var(--capiro-radius-control);
+  border-radius: var(--uui-radius-control);
 }
 
 .capiro-vnext-root .capiro-dirpage__loading {
@@ -1862,9 +2109,9 @@
   align-items: flex-start;
   gap: var(--capiro-space-04);
   padding: var(--capiro-space-04);
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: var(--capiro-radius-surface);
-  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--uui-gray-300);
+  border-radius: var(--uui-radius-card);
+  background: var(--uui-white);
 }
 
 /* The canonical hero draws a 104px portrait; the kit lg mark is 46. Resized
@@ -1887,11 +2134,11 @@
 
 .capiro-vnext-root .capiro-dirpage__title {
   margin: 0;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: var(--capiro-type-size-title-lg);
   line-height: 1.25;
   font-weight: 600;
-  color: var(--capiro-color-text-heading);
+  color: var(--uui-gray-900);
   overflow-wrap: anywhere;
 }
 
@@ -1914,19 +2161,19 @@
 }
 
 .capiro-vnext-root .capiro-dirpage__desc-item dt {
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 11px;
   line-height: 16px;
   font-weight: 500;
-  color: var(--capiro-color-text-muted);
+  color: var(--uui-gray-500);
 }
 
 .capiro-vnext-root .capiro-dirpage__desc-item dd {
   margin: 0;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: var(--capiro-type-size-body-sm);
   line-height: var(--capiro-type-line-body-sm);
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
   overflow-wrap: anywhere;
 }
 
@@ -1938,21 +2185,21 @@
 }
 
 .capiro-vnext-root .capiro-dirpage__row {
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: var(--capiro-type-size-body-sm);
   line-height: var(--capiro-type-line-body-sm);
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
   overflow-wrap: anywhere;
 }
 
 .capiro-vnext-root .capiro-dirpage__row + .capiro-dirpage__row {
   padding-top: var(--capiro-space-02);
-  border-top: 1px solid var(--capiro-color-border-quiet);
+  border-top: 1px solid var(--uui-gray-200);
 }
 
 .capiro-vnext-root .capiro-dirpage__row-title {
   font-weight: 600;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
 }
 
 .capiro-vnext-root .capiro-dirpage__address p,
@@ -1968,7 +2215,7 @@
 .capiro-vnext-root .capiro-dirpage__address + .capiro-dirpage__address,
 .capiro-vnext-root .capiro-dirpage__trip + .capiro-dirpage__trip {
   padding-top: var(--capiro-space-02);
-  border-top: 1px solid var(--capiro-color-border-quiet);
+  border-top: 1px solid var(--uui-gray-200);
 }
 
 .capiro-vnext-root .capiro-dirpage__trip-party { font-weight: 600; }
@@ -2002,35 +2249,35 @@
   flex-wrap: wrap;
   gap: var(--capiro-space-03);
   padding: var(--capiro-space-03) 14px;
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--uui-gray-300);
+  border-radius: var(--uui-radius-control);
+  background: var(--uui-white);
 }
 
 .capiro-vnext-root .capiro-dirpage-segmented {
   display: flex;
   gap: 2px;
   padding: 2px;
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-sunken);
-  box-shadow: inset 0 0 0 1px var(--capiro-color-border-quiet);
+  border-radius: var(--uui-radius-control);
+  background: var(--uui-gray-100);
+  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
   align-self: flex-start;
 }
 
 .capiro-vnext-root .capiro-dirpage-segmented button {
   border: 0;
   padding: 6px 12px;
-  border-radius: var(--capiro-radius-control);
+  border-radius: var(--uui-radius-control);
   background: transparent;
   cursor: pointer;
-  font-family: var(--capiro-type-family-sans);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
   font-weight: 600;
-  color: var(--capiro-color-text-secondary);
+  color: var(--uui-gray-600);
 }
 
-.capiro-vnext-root .capiro-dirpage-segmented button:hover { color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .capiro-dirpage-segmented button:hover { color: var(--uui-gray-900); }
 
 .capiro-vnext-root .capiro-dirpage-segmented button:focus-visible {
   outline: none;
@@ -2038,9 +2285,9 @@
 }
 
 .capiro-vnext-root .capiro-dirpage-segmented button[data-selected] {
-  background: var(--capiro-color-bg-surface);
-  box-shadow: inset 0 0 0 1px var(--capiro-color-border-default);
-  color: var(--capiro-color-text-heading);
+  background: var(--uui-white);
+  box-shadow: inset 0 0 0 1px var(--uui-gray-300);
+  color: var(--uui-gray-900);
 }
 
 .capiro-vnext-root .capiro-dirpage__search {
@@ -2058,16 +2305,16 @@
   max-width: 320px;
   height: var(--capiro-control-height-compact);
   padding: 0 var(--capiro-space-03);
-  border: 1px solid var(--capiro-color-border-control);
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-subtle);
-  font-family: var(--capiro-type-family-sans);
+  border: 1px solid var(--uui-gray-300);
+  border-radius: var(--uui-radius-control);
+  background: var(--uui-gray-50);
+  font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--capiro-color-text-primary);
+  color: var(--uui-gray-900);
 }
 
-.capiro-vnext-root .capiro-dirpage__search-input::placeholder { color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .capiro-dirpage__search-input::placeholder { color: var(--uui-gray-600); }
 
 .capiro-vnext-root .capiro-dirpage__search-input:focus-visible {
   outline: none;
@@ -2079,9 +2326,9 @@
 .capiro-vnext-root .capiro-dirpage-roster {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: var(--capiro-radius-surface);
-  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--uui-gray-300);
+  border-radius: var(--uui-radius-card);
+  background: var(--uui-white);
 }
 
 .capiro-vnext-root .capiro-dirpage-roster__row {
@@ -2092,11 +2339,11 @@
 }
 
 .capiro-vnext-root .capiro-dirpage-roster > .capiro-dirpage-roster__row + .capiro-dirpage-roster__row {
-  border-top: 1px solid var(--capiro-color-border-quiet);
+  border-top: 1px solid var(--uui-gray-200);
 }
 
 .capiro-vnext-root .capiro-dirpage-roster > .capiro-dirpage-roster__row:hover {
-  background: var(--capiro-color-bg-subtle);
+  background: var(--uui-gray-50);
 }
 
 /* The same row anatomy inside a card (district representatives) needs no
@@ -2105,7 +2352,7 @@
 
 .capiro-vnext-root .capiro-dirpage__rows > .capiro-dirpage-roster__row + .capiro-dirpage-roster__row {
   padding-top: var(--capiro-space-02);
-  border-top: 1px solid var(--capiro-color-border-quiet);
+  border-top: 1px solid var(--uui-gray-200);
 }
 
 .capiro-vnext-root .capiro-dirpage-roster__main {
