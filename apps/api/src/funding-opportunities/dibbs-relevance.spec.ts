@@ -82,12 +82,13 @@ describe('P41 scoreDibbsRelevance — the acceptance bar', () => {
     expect(result.clearsSuggestionFloor).toBe(false);
   });
 
-  test('a prior award to the client\'s own CAGE is strong on its own', () => {
+  test("a prior award to the client's own CAGE is WEAK: monitor, floor not cleared (P1-4/B-1)", () => {
     const result = scoreDibbsRelevance(input({ priorCageAwardHistory: true }));
 
-    expect(result.machineRecommendation).toBe('pursue');
-    expect(result.clearsSuggestionFloor).toBe(true);
+    expect(result.machineRecommendation).toBe('monitor');
+    expect(result.clearsSuggestionFloor).toBe(false);
     expect(result.reasonCodes).toContain('prior_cage_award_history');
+    expect(result.primaryReason).toMatch(/CAGE code has DLA award history/i);
   });
 
   test('part-level evidence AND prior CAGE history together raise confidence to high', () => {
@@ -140,7 +141,7 @@ describe('P41 closed items', () => {
   });
 
   test('a null closing date is not a closure either', () => {
-    const result = scoreDibbsRelevance(input({ closesDate: null, priorCageAwardHistory: true }));
+    const result = scoreDibbsRelevance(input({ closesDate: null, exactNsnMatch: true, clientHasRecordedParts: true }));
 
     expect(result.machineRecommendation).toBe('pursue');
   });
@@ -161,7 +162,7 @@ describe('P41 closed items', () => {
     test('a bid closing TODAY is still open, at midday and at one second to midnight', () => {
       for (const asOf of [MIDDAY, LATE]) {
         const result = scoreDibbsRelevance(
-          input({ closesDate: '2026-08-08T00:00:00.000Z', priorCageAwardHistory: true, asOf }),
+          input({ closesDate: '2026-08-08T00:00:00.000Z', exactNsnMatch: true, clientHasRecordedParts: true, asOf }),
         );
 
         expect(result.machineRecommendation).toBe('pursue');
@@ -177,7 +178,7 @@ describe('P41 closed items', () => {
 
     test('a bid that closed YESTERDAY is closed', () => {
       const result = scoreDibbsRelevance(
-        input({ closesDate: '2026-08-07T00:00:00.000Z', priorCageAwardHistory: true, asOf: MIDDAY }),
+        input({ closesDate: '2026-08-07T00:00:00.000Z', exactNsnMatch: true, clientHasRecordedParts: true, asOf: MIDDAY }),
       );
 
       expect(result.machineRecommendation).toBe('pass');
@@ -187,7 +188,7 @@ describe('P41 closed items', () => {
     test('a bid closing tomorrow is open regardless of the time of day', () => {
       for (const asOf of [MIDDAY, LATE]) {
         const result = scoreDibbsRelevance(
-          input({ closesDate: '2026-08-09T00:00:00.000Z', priorCageAwardHistory: true, asOf }),
+          input({ closesDate: '2026-08-09T00:00:00.000Z', exactNsnMatch: true, clientHasRecordedParts: true, asOf }),
         );
 
         expect(result.machineRecommendation).toBe('pursue');
@@ -210,7 +211,7 @@ describe('P41 closed items', () => {
 
     test('the day count reported to the reader is never negative on an open item', () => {
       const result = scoreDibbsRelevance(
-        input({ closesDate: '2026-08-08T00:00:00.000Z', priorCageAwardHistory: true, asOf: MIDDAY }),
+        input({ closesDate: '2026-08-08T00:00:00.000Z', exactNsnMatch: true, clientHasRecordedParts: true, asOf: MIDDAY }),
       );
 
       expect(result.primaryRisk).not.toMatch(/-\d/);
@@ -275,8 +276,8 @@ describe('P41 awards never offer Pursue', () => {
   test('scoreDibbsRelevance admits only rfq and rfp document types', () => {
     // The type system is the real guarantee; this pins the runtime vocabulary
     // so widening it becomes a deliberate, visible change.
-    const rfq = scoreDibbsRelevance(input({ documentType: 'rfq', priorCageAwardHistory: true }));
-    const rfp = scoreDibbsRelevance(input({ documentType: 'rfp', priorCageAwardHistory: true }));
+    const rfq = scoreDibbsRelevance(input({ documentType: 'rfq', exactNsnMatch: true, clientHasRecordedParts: true }));
+    const rfp = scoreDibbsRelevance(input({ documentType: 'rfp', exactNsnMatch: true, clientHasRecordedParts: true }));
 
     expect(rfq.recommendedNextAction).toMatch(/quote/i);
     expect(rfp.recommendedNextAction).toMatch(/proposal/i);
@@ -410,7 +411,7 @@ describe('P41 contract stability', () => {
     expect(permutations).toHaveLength(2 * 2 * 2 * 2 * 3 * 2);
   });
 
-  test('the floor is never cleared without part-level evidence or a prior CAGE award', () => {
+  test('the floor is never cleared without part-level evidence', () => {
     const permutations: DibbsRelevanceInput[] = [];
     for (const capabilityTextMatch of [false, true]) {
       for (const buyerHistory of [false, true]) {

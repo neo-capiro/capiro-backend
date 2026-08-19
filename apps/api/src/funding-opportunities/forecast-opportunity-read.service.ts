@@ -22,6 +22,7 @@ import {
 import { sourceRecordWhere } from './funding-opportunity-identity.js';
 import { USABLE_ACQUISITION_POSITION_STATES } from './acquisition-position.js';
 import { FundingOpportunitiesService } from './funding-opportunities.service.js';
+import { normAgency } from './sam-opportunity-relevance.js';
 import {
   scoreForecastRelevance,
   type ForecastRelevanceInput,
@@ -246,24 +247,6 @@ export interface ForecastSignalProfile {
   programElementCodes: string[];
   priorAgencies: string[];
   facilityStates: string[];
-}
-
-/**
- * Agency-name comparison form.
- *
- * The same closed set of rewrites `normAgency` applies on the SAM rail
- * ("dept" → "department", "hq" → "headquarters", a trailing parenthetical
- * dropped), because prior-award history is stored with the awarding agency's
- * own spelling and the forecast carries the agency's. A closed rewrite list,
- * never fuzzy distance: this signal asserts "this client has won work from this
- * organisation", and a near miss is not that evidence.
- */
-function normAgency(value: string | null | undefined): string {
-  return norm(value)
-    .replace(/\s*\([^)]*\)\s*$/, '')
-    .replace(/\bdept\b\.?/g, 'department')
-    .replace(/\bhq\b/g, 'headquarters')
-    .trim();
 }
 
 /**

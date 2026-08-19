@@ -222,9 +222,9 @@ function norm(v: string | null | undefined): string {
 }
 
 /**
- * Agency names are compared across two sources that spell the same organisation
+ * Agency names are compared across sources that spell the same organisation
  * differently, so a bare `norm` never matches them. Measured on capiro-dev
- * 2026-07-29:
+ * 2026-07-29 (SAM rail):
  *
  *   federal_award.awarding_sub_tier : 'Department of the Navy', 'Defense Logistics Agency'
  *   sam_opportunity.agency          : 'DEPT OF THE NAVY',       'DEFENSE LOGISTICS AGENCY'
@@ -234,17 +234,43 @@ function norm(v: string | null | undefined): string {
  * history. SAM also suffixes acronyms — 'DEFENSE HEALTH AGENCY (DHA)' — which
  * never appear on the award side.
  *
- * This is deliberately a small, closed set of rewrites rather than fuzzy
- * matching: the agency signal is evidence that a client has won work from this
- * organisation before, and a near-miss is not that evidence.
+ * A THIRD shape, proven on the real SBIR capture (P1-5/B-2, see
+ * FIX-PLAN-dibbs-sbir-scoring.md and
+ * apps/api/src/external/tango/__fixtures__/real-captures/sbir-contract-capture-2026-08-09.json,
+ * 5/5 records): `tango_sbir_topic.agency` is a bare top-level department
+ * ABBREVIATION — `'DOD'` — never sub-tier or full-name shaped, so even the
+ * rewrites above never bridge it to `federal_award.awarding_agency`'s
+ * `'Department of Defense'`. `AGENCY_ABBREVIATIONS` below is that bridge — a
+ * small, closed abbreviation→full-name table, applied AFTER the rewrites
+ * above so an abbreviation and its expansion always land on the same
+ * normalized string. Only the toptier form needs a mapping: `contractAgencies`
+ * (`client-opportunity-profile.repository.ts`) always includes the toptier
+ * `awarding_agency` alongside any sub-tier, for EVERY contract under that
+ * department, so 'DOD' only ever needs to match 'department of defense' —
+ * never each sub-component name individually.
+ *
+ * This stays a small, closed set of rewrites rather than fuzzy matching: the
+ * agency signal is evidence that a client has won work from this organisation
+ * before, and a near-miss is not that evidence.
+ *
+ * VERIFY BEFORE EXTENDING: only 'dod' is proven against real provider data
+ * (5/5 records in the capture above). Confirm any addition with
+ * `SELECT DISTINCT agency FROM tango_sbir_topic` on capiro-dev (or a fresh
+ * `diag-tango-contract-capture.ts` pull) before relying on it, and remove any
+ * entry that turns out not to match what the provider actually sends.
  */
+const AGENCY_ABBREVIATIONS: Readonly<Record<string, string>> = Object.freeze({
+  dod: 'department of defense',
+});
+
 export function normAgency(v: string | null | undefined): string {
-  return norm(v)
+  const rewritten = norm(v)
     .replace(/\s*\([^)]*\)\s*$/, '')
     .replace(/\bdept\b\.?/g, 'department')
     .replace(/\bhq\b/g, 'headquarters')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
+  return AGENCY_ABBREVIATIONS[rewritten] ?? rewritten;
 }
 
 /** NAICS/PSC codes are compared as uppercase alphanumerics — no spaces, no dots. */
