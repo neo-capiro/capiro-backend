@@ -31,9 +31,6 @@ const ALLOWED_LEGACY_EDGES: Record<string, string[]> = {
   // now (PE-CORE). The remaining sanctioned antd reaches are the three lazy
   // page mounts below, each owned by a named sibling swap:
   'vnext/pages/program-elements/VNextProgramElementsRoutes.tsx': [
-    // capiro-internal line profile — PE-PROFILE agent swaps this for the
-    // native profile and deletes the edge.
-    'pages/program-element/ProgramElementV2ProfilePage.tsx',
     // TEMP: PE-FALLBACK swap pending — non-internal tenants' read surfaces
     // (finder + watch). The PE-FALLBACK agent swaps them and deletes both.
     'pages/program-element/ProgramElementFinderPage.tsx',

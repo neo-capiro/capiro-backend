@@ -2,9 +2,10 @@
  * Module-router branch contract: the capiro-internal tenant gate (reproduced
  * from App.tsx's ProgramElementFinderGate/ProgramElementWatchGate, INCLUDING
  * its no-loading-branch semantics), the two native static segments (never
- * tenant-gated), and the sibling swap contract — the canonical profile mounts
- * inside `.pe-vnext-root` while the non-internal fallbacks mount WITHOUT the
- * wrapper (their layout must match the pre-Phase-3 Outlet fallthrough).
+ * tenant-gated), and the sibling swap contract — the NATIVE line profile
+ * (PeProfileVNext) mounts inside `.pe-vnext-root` while the non-internal
+ * fallbacks mount WITHOUT the wrapper (their layout must match the
+ * pre-Phase-3 Outlet fallthrough).
  *
  * All five page bodies are stubbed: this file tests only the branch logic.
  */
@@ -25,8 +26,8 @@ vi.mock('./PeMarkupMonitorPage.js', () => ({
 vi.mock('./PePersonCandidatesPage.js', () => ({
   PePersonCandidatesPage: () => <div data-testid="native-contacts" />,
 }));
-vi.mock('../../../pages/program-element/ProgramElementV2ProfilePage.js', () => ({
-  ProgramElementV2ProfilePage: () => <div data-testid="canonical-v2-profile" />,
+vi.mock('./profile/index.js', () => ({
+  PeProfileVNext: () => <div data-testid="native-profile" />,
 }));
 vi.mock('../../../pages/program-element/ProgramElementFinderPage.js', () => ({
   ProgramElementFinderPage: () => <div data-testid="canonical-finder" />,
@@ -68,10 +69,10 @@ describe('VNextProgramElementsRoutes — tenant gate + branch contract', () => {
     expect(await screen.findByTestId('canonical-finder')).toBeInTheDocument();
   });
 
-  it('renders the canonical v2 profile for capiro-internal at :peCode — inside the pe-vnext-root wrapper', async () => {
+  it('renders the NATIVE profile (PeProfileVNext) for capiro-internal at :peCode — inside the pe-vnext-root wrapper', async () => {
     useMeMock.mockReturnValue(INTERNAL);
     const { container } = renderAt('/program-elements/0604201A');
-    expect(await screen.findByTestId('canonical-v2-profile')).toBeInTheDocument();
+    expect(await screen.findByTestId('native-profile')).toBeInTheDocument();
     expect(container.querySelector('.pe-vnext-root')).not.toBeNull();
   });
 

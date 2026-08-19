@@ -20,10 +20,8 @@ import './pe-vnext.css';
  * in flight the non-internal read surface renders, exactly as canonical.
  *
  * INTEGRATION CONTRACT (Phase 3 siblings):
- *  - The capiro-internal PROFILE branch still lazy-mounts the canonical
- *    ProgramElementV2ProfilePage (allowlisted in
- *    no-legacy-ui.contract.test.ts). The PE-PROFILE agent swaps it for the
- *    native profile and deletes that allowlist edge.
+ *  - The capiro-internal PROFILE branch mounts the NATIVE PeProfileVNext
+ *    (vnext/pages/program-elements/profile) — no antd on that branch.
  *  - The non-internal fallback branches still lazy-mount the canonical
  *    ProgramElementFinderPage / ProgramElementWatchPage (TEMP allowlist
  *    edges). The PE-FALLBACK agent swaps them and deletes those edges.
@@ -44,9 +42,8 @@ const PePersonCandidatesPage = lazy(async () => ({
   default: (await import('./PePersonCandidatesPage.js')).PePersonCandidatesPage,
 }));
 
-const ProgramElementV2ProfilePage = lazy(async () => ({
-  default: (await import('../../../pages/program-element/ProgramElementV2ProfilePage.js'))
-    .ProgramElementV2ProfilePage,
+const PeProfileVNext = lazy(async () => ({
+  default: (await import('./profile/index.js')).PeProfileVNext,
 }));
 
 const ProgramElementFinderPage = lazy(async () => ({
@@ -92,13 +89,12 @@ export function VNextProgramElementsRoutes() {
   }
 
   if (peCode) {
-    // Line profile: canonical v2 profile for capiro-internal (PE-PROFILE agent
-    // swaps this), canonical watch page for everyone else (PE-FALLBACK agent
-    // swaps that).
+    // Line profile: native vNext profile for capiro-internal, canonical watch
+    // page for everyone else (PE-FALLBACK agent swaps that).
     return isInternal ? (
       <div className="pe-vnext-root">
         <Suspense fallback={<RouteLoading />}>
-          <ProgramElementV2ProfilePage />
+          <PeProfileVNext />
         </Suspense>
       </div>
     ) : (

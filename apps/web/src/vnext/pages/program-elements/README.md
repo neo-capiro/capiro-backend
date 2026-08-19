@@ -19,10 +19,19 @@ Native module (Phase 3 of the os.capiro.ai old-UI purge — PE-CORE tranche).
   and `/program-elements/contacts` (both now claimed by `pe-routes.ts`).
 - `pe-primitives.tsx` — native EvMark/Segmented/FilterControl (+ the
   CapiroSkeleton loading block).
+- `profile/` — the five-tab line profile (`PeProfileVNext`), native port of
+  `pages/program-element/ProgramElementV2ProfilePage.tsx` + the
+  `v2/PeV2*Tab` components (PE-PROFILE tranche): header/snapshot/trust
+  bands, Overview · Funding & lifecycle · Legislative · Program structure ·
+  Sources & proof tabs, source-inspector drawer (CapiroDrawer), data-issue
+  modal (CapiroModal). The view-model is the UI-free extraction
+  `pages/program-element/useProgramElementProfileFinalCore.ts` (the canonical
+  `useProgramElementProfileFinal.ts` is a thin wrapper over it), so both
+  surfaces share one implementation of every endpoint/query key/derivation.
+  `profile/pe-profile.css` owns all profile-only styling.
 - `pe-workspace.css` — structural layer (workspace subset of the canonical
   `pe-v2.css`, class contract identical). `pe-vnext.css` remains the token
-  re-skin + responsive layer on top and also serves the canonical profile
-  mount.
+  re-skin + responsive layer on top.
 - UI-free logic is consumed directly from the legacy tree:
   `pages/program-element/{api,types,funding-model,pe-shared-model}.ts`,
   `pages/program-element/v2/pe-v2-model.ts`, `pages/actions/actions-api.ts`,
@@ -31,9 +40,6 @@ Native module (Phase 3 of the os.capiro.ai old-UI purge — PE-CORE tranche).
 
 ## Still canonical (sibling swap contract)
 
-- `/program-elements/:peCode` for capiro-internal lazy-mounts
-  `ProgramElementV2ProfilePage` — the **PE-PROFILE** agent replaces it and
-  deletes its edge in `no-legacy-ui.contract.test.ts`.
 - Non-internal tenants' `/program-elements` and `/program-elements/:peCode`
   lazy-mount `ProgramElementFinderPage`/`ProgramElementWatchPage` — the
   **PE-FALLBACK** agent replaces them and deletes both TEMP edges. These
