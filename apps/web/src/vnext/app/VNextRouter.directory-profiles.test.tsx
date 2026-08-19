@@ -102,7 +102,13 @@ function renderAt(path: string) {
               path="/directory/districts/:state/:districtNo"
               element={<div data-testid="canonical-district-profile" />}
             />
-            <Route path="/help" element={<div data-testid="canonical-help" />} />
+            {/* Unclaimed-path example: deliberately NOT a real surface's path —
+                /help is claimed by admin-misc as of Phase 3 (lesson 3 in the
+                phase briefing: never use another surface's path here). */}
+            <Route
+              path="/nonexistent-path-xyz"
+              element={<div data-testid="canonical-unclaimed" />}
+            />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -144,7 +150,7 @@ describe('VNextRouter — directory profile routes claimed (Phase 2)', () => {
   });
 
   it('still falls through to canonical for unclaimed paths', () => {
-    renderAt('/help');
-    expect(screen.getByTestId('canonical-help')).toBeInTheDocument();
+    renderAt('/nonexistent-path-xyz');
+    expect(screen.getByTestId('canonical-unclaimed')).toBeInTheDocument();
   });
 });

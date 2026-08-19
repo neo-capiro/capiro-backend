@@ -543,7 +543,11 @@ function PersonCard({ person, side }: { person: MergePersonDetail | null; side: 
   );
 }
 
-function VNextPersonnelMergeTab() {
+// Exported (additive — behavior unchanged) so the vNext Analyst Console
+// (vnext/pages/admin-misc) can mount this merge-candidates queue as a tab
+// without duplicating its logic — same move the canonical console made with
+// the legacy PersonnelMergeTab.
+export function VNextPersonnelMergeTab() {
   const api = useApi();
   const qc = useQueryClient();
   const toast = useCapiroToast();

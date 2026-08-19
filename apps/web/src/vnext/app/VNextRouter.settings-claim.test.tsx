@@ -80,9 +80,12 @@ function renderAt(path: string) {
               path="/admin"
               element={<div data-testid="canonical-admin">canonical admin redirect</div>}
             />
+            {/* Unclaimed-path example: deliberately NOT a real surface's path —
+                /help is claimed by admin-misc as of Phase 3 (lesson 3 in the
+                phase briefing: never use another surface's path here). */}
             <Route
-              path="/help"
-              element={<div data-testid="canonical-help">canonical help</div>}
+              path="/nonexistent-path-xyz"
+              element={<div data-testid="canonical-unclaimed">canonical unclaimed</div>}
             />
           </Route>
         </Routes>
@@ -117,8 +120,8 @@ describe('VNextRouter — Settings claimed for the whole /settings prefix', () =
   });
 
   it('does not intercept a non-settings path', () => {
-    renderAt('/help');
-    expect(screen.getByTestId('canonical-help')).toBeInTheDocument();
+    renderAt('/nonexistent-path-xyz');
+    expect(screen.getByTestId('canonical-unclaimed')).toBeInTheDocument();
     expect(screen.queryByTestId('vnext-settings')).not.toBeInTheDocument();
   });
 });

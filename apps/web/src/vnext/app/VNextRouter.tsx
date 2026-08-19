@@ -36,6 +36,7 @@ import {
   VNextBillRoutes,
 } from '../pages/bills/VNextBillRoutes.js';
 import { isVNextSettingsPath } from '../pages/settings/settings-route.js';
+import { isVNextAdminMiscPath } from '../pages/admin-misc/admin-misc-routes.js';
 
 const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
@@ -55,6 +56,12 @@ const DataExplorerVNext = lazy(async () => ({
 // AI-usage panels) behind a rail item — no reason to pay for it on entry.
 const VNextSettingsRoutes = lazy(async () => ({
   default: (await import('../pages/settings/VNextSettingsRoutes.js')).VNextSettingsRoutes,
+}));
+
+// Lazy like Settings: three capiro_admin consoles plus three shallow
+// deep-link pages — never on the entry path.
+const VNextAdminMiscRoutes = lazy(async () => ({
+  default: (await import('../pages/admin-misc/VNextAdminMiscRoutes.js')).VNextAdminMiscRoutes,
 }));
 
 /**
@@ -206,6 +213,19 @@ export function VNextRouter() {
     return (
       <Suspense fallback={<div className="capiro-vnext-route-loading">Loading…</div>}>
         <VNextSettingsRoutes />
+      </Suspense>
+    );
+  }
+
+  // Admin + misc (purge Phase 3): the analyst console, the two PE admin
+  // queues, the action board, the reviewer queue and the help center — six
+  // exact paths only (see admin-misc-routes.ts). /admin, /admin/<other> and
+  // /capiro-admin keep falling through to the canonical <Navigate> redirects
+  // into Settings.
+  if (isVNextAdminMiscPath(location.pathname)) {
+    return (
+      <Suspense fallback={<div className="capiro-vnext-route-loading">Loading…</div>}>
+        <VNextAdminMiscRoutes />
       </Suspense>
     );
   }

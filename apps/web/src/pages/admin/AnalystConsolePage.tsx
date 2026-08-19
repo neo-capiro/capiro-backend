@@ -27,63 +27,28 @@ import { PeReconciliationPage } from './PeReconciliationPage.js';
 import { ProgramMatchQueuePage } from '../program-element/ProgramMatchQueuePage.js';
 import { PersonCandidatesPage } from '../program-element/PersonCandidatesPage.js';
 import { PersonnelMergeTab } from '../capiro-admin/CapiroAdminPage.js';
+import { ALIAS_TYPES, ageLabel, slaColor } from './analyst-console-shared.js';
+import type {
+  AliasType,
+  AuditLog,
+  AuditLogResponse,
+  DuplicateAliasGroup,
+  ProgramAlias,
+  ProgramSearchRow,
+  QuarantineResponse,
+  QuarantineRow,
+  QuarantineType,
+  ReviewCounts,
+} from './analyst-console-shared.js';
+
+export type { ReviewCounts } from './analyst-console-shared.js';
 
 const { Title, Paragraph, Text } = Typography;
 
-// ── Shared types (mirror the shipped capiro-admin + programs API contracts) ────
-
-export interface ReviewCounts {
-  reconciliation: { openCount: number; oldestOpenAt: string | null };
-  programMatch: { openCount: number; quarantinedCount: number; oldestOpenAt: string | null };
-  personCandidate: { openCount: number; oldestOpenAt: string | null };
-  personnelMerge: { openCount: number; oldestOpenAt: string | null };
-  provisionPeLink: { candidateCount: number; oldestOpenAt: string | null };
-  programQuarantine: { count: number };
-  personnelQuarantine: { count: number };
-}
-
-// ── SLA helpers ───────────────────────────────────────────────────────────────
-
-/**
- * Approximate "business days" elapsed since `iso`. Weekends are skipped so a
- * Friday-queued item isn't flagged red purely for sitting over a weekend.
- */
-function businessDaysSince(iso: string | null): number | null {
-  if (!iso) return null;
-  const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return null;
-  const now = Date.now();
-  if (now <= then) return 0;
-  let days = 0;
-  const cursor = new Date(then);
-  // Count whole elapsed days, skipping Sat/Sun on the target side.
-  while (cursor.getTime() + 24 * 60 * 60 * 1000 <= now) {
-    cursor.setTime(cursor.getTime() + 24 * 60 * 60 * 1000);
-    const dow = cursor.getDay();
-    if (dow !== 0 && dow !== 6) days += 1;
-  }
-  return days;
-}
-
-function ageLabel(iso: string | null): string {
-  if (!iso) return '—';
-  const ms = Math.max(0, Date.now() - new Date(iso).getTime());
-  const days = Math.floor(ms / (24 * 60 * 60 * 1000));
-  if (days >= 1) return `${days}d`;
-  const hours = Math.floor(ms / (60 * 60 * 1000));
-  if (hours >= 1) return `${hours}h`;
-  const minutes = Math.floor(ms / (60 * 1000));
-  return `${minutes}m`;
-}
-
-/** amber after 1 business day open, red after 3. */
-function slaColor(oldestOpenAt: string | null): 'green' | 'gold' | 'red' {
-  const bd = businessDaysSince(oldestOpenAt);
-  if (bd === null) return 'green';
-  if (bd >= 3) return 'red';
-  if (bd >= 1) return 'gold';
-  return 'green';
-}
+// ── Shared types + SLA helpers ────────────────────────────────────────────────
+// Extracted to analyst-console-shared.ts (UI-free) so the vNext console
+// (vnext/pages/admin-misc) can reuse them; public API unchanged (ReviewCounts
+// is re-exported below).
 
 function SlaChip({ label, openCount, oldestOpenAt }: { label: string; openCount: number; oldestOpenAt: string | null }) {
   const color = openCount > 0 ? slaColor(oldestOpenAt) : 'green';
@@ -144,44 +109,6 @@ function SlaHeader({ counts, loading, error }: { counts?: ReviewCounts; loading:
 }
 
 // ── Alias manager tab ───────────────────────────────────────────────────────────
-
-const ALIAS_TYPES = [
-  'canonical',
-  'acronym',
-  'pe_title',
-  'project_title',
-  'p1_line_name',
-  'mdap_name',
-  'office_usage',
-  'congressional',
-  'sam_usage',
-  'award_usage',
-] as const;
-type AliasType = (typeof ALIAS_TYPES)[number];
-
-interface ProgramAlias {
-  id: string;
-  programId: string;
-  alias: string;
-  aliasNormalized: string;
-  aliasType: string;
-  source: string | null;
-  sourceUrl: string | null;
-  confidence: number;
-}
-
-interface ProgramSearchRow {
-  id: string;
-  canonicalName: string;
-  component: string | null;
-  mdapCode: string | null;
-  status: string;
-}
-
-interface DuplicateAliasGroup {
-  aliasNormalized: string;
-  programs: Array<{ programId: string; canonicalName: string | null; status: string | null; aliasId: string }>;
-}
 
 function AliasManagerTab() {
   const api = useApi();
@@ -525,23 +452,6 @@ function AliasManagerTab() {
 
 // ── Quarantine tab ───────────────────────────────────────────────────────────
 
-type QuarantineType = 'program_element' | 'acquisition_personnel';
-
-interface QuarantineRow {
-  id: string;
-  rawRecord: unknown;
-  reason: string | null;
-  source: string;
-  quarantinedAt: string;
-}
-
-interface QuarantineResponse {
-  data: QuarantineRow[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
 function QuarantineTab() {
   const api = useApi();
   const qc = useQueryClient();
@@ -717,25 +627,6 @@ function QuarantineTab() {
 }
 
 // ── Audit log tab ───────────────────────────────────────────────────────────
-
-interface AuditLog {
-  id: string;
-  actorUserId: string;
-  actorRole: string;
-  action: string;
-  entityType: string;
-  entityId: string | null;
-  before: unknown;
-  after: unknown;
-  occurredAt: string;
-}
-
-interface AuditLogResponse {
-  data: AuditLog[];
-  total: number;
-  page: number;
-  limit: number;
-}
 
 function AuditLogTab() {
   const api = useApi();
