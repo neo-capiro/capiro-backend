@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -158,6 +158,37 @@ describe('Committee Staff vNext', () => {
     fireEvent.click(screen.getByText('Open full profile'));
     await waitFor(() => expect(screen.getByText('Staff ID')).toBeTruthy());
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  test('roster badges a former committee staffer distinctly from a current one', async () => {
+    mockHappy([
+      staffer(),
+      staffer({ id: 'staff-2', fullName: 'Jamie Lang', email: 'jamie.lang@house.gov', isCurrent: false }),
+    ]);
+    renderAt();
+    const currentRow = (await screen.findByText('sam@house.gov')).closest('button')!;
+    expect(within(currentRow).queryByText('Former')).toBeNull();
+    const formerRow = screen.getByText('jamie.lang@house.gov').closest('button')!;
+    expect(within(formerRow).getByText('Former')).toBeTruthy();
+  });
+
+  test('the rail flags a former committee staffer, scoped to this committee', async () => {
+    mockHappy([
+      staffer({ id: 'staff-2', fullName: 'Jamie Lang', email: 'jamie.lang@house.gov', isCurrent: false }),
+    ]);
+    renderAt();
+    const row = (await screen.findByText('jamie.lang@house.gov')).closest('button')!;
+    fireEvent.click(row);
+    const rail = screen.getByRole('complementary', { name: 'Selected staff profile' });
+    expect(within(rail).getByText('Former on this committee')).toBeTruthy();
+  });
+
+  test('the hierarchy canvas dims and badges a former team member — no distinction existed before', async () => {
+    mockHappy([staffer({ id: 'staff-2', fullName: 'Jamie Lang', isCurrent: false })]);
+    renderAt('/directory/committee-staff');
+    const node = await screen.findByRole('button', { name: /Jamie Lang/ });
+    expect(within(node).getByText('Former')).toBeTruthy();
+    expect(node.className).toContain('capiro-directory-node--former');
   });
 
   test('clicking committee leadership navigates to the member profile (no staffer-depth modal for members yet)', async () => {

@@ -34,8 +34,9 @@ function staff(
   email: string,
   phone: string,
   officeLocation: string,
+  isCurrent = true,
 ): DirectoryStaffMember {
-  return { id, fullName, title, roles, issueAreas, email, phone, officeLocation };
+  return { id, fullName, title, roles, issueAreas, email, phone, officeLocation, isCurrent };
 }
 
 /** Only the fields this screen reads; the contract is far wider. */
