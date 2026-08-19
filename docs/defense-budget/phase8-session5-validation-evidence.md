@@ -1,14 +1,16 @@
 # Phase 8 Session 5 validation evidence
 
-This file separates **pre-P0 historical evidence** from validation that actually covers the new real-Batch runtime.
+This file separates **historical evidence** from validation that actually applies to the current real-Batch implementation.
 
 ## Current verdict
 
 `SESSION5_P0_RUNTIME_IMPLEMENTED_RE_REVIEW_REQUIRED`
 
+Do **not** redeploy the isolated benchmark stack or submit a paid NVIDIA TransformJob yet.
+
 No redeploy or paid NVIDIA benchmark has been performed after the P0 real-runtime review.
 
-## P0 issue that invalidated the prior provider-ready conclusion
+## Why the prior provider-ready conclusion was insufficient
 
 The previous provider-ready gates did not prove that the SageMaker Batch path could safely execute against the real NVIDIA model package. Real-runtime review identified:
 
@@ -18,9 +20,10 @@ The previous provider-ready gates did not prove that the SageMaker Batch path co
 - no deployed completion queue/outbox;
 - non-atomic spend/concurrency accounting and caller-supplied cost;
 - timestamped paid-job identities and incomplete cache identity;
+- provider identity that could label a real Nemotron Parse run as a separate table/OCR provider;
 - insufficient accepted source-grounded gold to close the live benchmark.
 
-Those are now implementation targets of the `nvidia_real_batch_v2` path rather than being waived.
+Those are implemented as a separate `nvidia_real_batch_v2` path rather than waived.
 
 ## P0 changes now in branch
 
@@ -28,47 +31,42 @@ Those are now implementation targets of the `nvidia_real_batch_v2` path rather t
 - provider-native request lines + immutable hashed Capiro input sidecars;
 - JSONL `.out` normalization via `markdown_bbox` tool output;
 - raw provider-response hash + normalized artifact hash;
+- requested route intent retained separately from the actual provider identity;
+- current live provider truthfully recorded as `nemotron_parse` for the subscribed Nemotron package;
 - reconciliation commands that re-read SageMaker provider facts;
 - timeout stop/watchdog with terminal-state settlement;
 - durable `COMPLETION_PENDING` outbox and recoverable DLQ publication;
 - deterministic TransformJob identity by immutable batch + paid attempt;
-- v2 cache identity includes rendered-image, provider-payload and rendering-config hashes;
+- v2 cache identity includes requested/actual method, rendered-image, provider-payload and rendering-config hashes;
 - cache body/identity/key validation before reuse;
 - DynamoDB atomic concurrency/spend reservation ledger;
 - USD 50 initial effective cap and USD 150 absolute ceiling;
 - direct runtime emission of `NvidiaActiveGpuJobs` / `NvidiaMonthlySpendUsd`;
-- CDK completion queue, DynamoDB ledger, correct IAM, and no endpoint resources;
-- source-grounded gold preflight for all required strata.
+- CDK completion queue, DynamoDB ledger, correct IAM, network isolation, and no endpoint resources;
+- source-grounded/scorable gold preflight for all required strata;
+- provider payload materializer requires PNG rendering provenance and refuses oversized records before Batch submission.
 
-## Fresh validation that DOES cover the P0 implementation
+## P0 milestone evidence — NOT current-tip acceptance
 
-In the isolated implementation harness used to build the new modular path:
+During implementation, before the later strict-gold/provider-identity/payload-size tightenings, an isolated harness passed:
 
-- modular Node syntax checks: **PASS**
-- P0 real-Batch/AWS tests: **15/15 PASS**
+- modular Node syntax checks;
+- P0 real-Batch/AWS tests: **15/15**.
 
-Those tests cover:
+Those tests were useful development evidence. **They do not validate the current branch head** because additional P0 code and tests were added afterward. Do not quote 15/15 as a final current-tip result.
 
-- application/json + line split/assembly;
-- deterministic provider job names/idempotent ensure;
-- exact input-correlated `.out` resolution;
-- atomic Dynamo reservation conditions;
-- USD 50 / USD 150 authorization; max concurrency 1;
-- expanded cache identity;
-- real JSONL + sidecar normalization;
-- rejection of incomplete/unaccepted gold;
-- pre-submission crash recovery;
-- SageMaker-timestamp cost reconciliation;
-- completion-outbox failure/retry;
-- DLQ publication failure/retry;
-- zero-idle direct-provider cross-check;
-- timeout stop without premature reservation release.
+The final branch now also contains additional tests for:
 
-This isolated result is useful implementation evidence but is **not** the required clean-checkout repository acceptance sweep.
+- strict scorable live-gold acceptance;
+- requested route intent vs actual Nemotron provider identity;
+- provider sidecar identity consistency;
+- oversized provider payload refusal.
 
-## Pre-P0 historical gates — do not treat as validating current tip
+These require a fresh clean-checkout run before deployment eligibility can be reassessed.
 
-Before the P0 runtime rewrite, the agent had genuinely rerun and passed:
+## Pre-P0 historical gates — also not current-tip acceptance
+
+Before the P0 runtime rewrite, the agent genuinely reran and passed:
 
 - Session 2 DB rehearsal: 36 checks;
 - Session 3 parity: 52/52;
@@ -80,6 +78,10 @@ Before the P0 runtime rewrite, the agent had genuinely rerun and passed:
 
 The branch has since changed materially. These results establish the prerequisite baseline only; they must be rerun before deployment.
 
+## Current GitHub Actions state
+
+Repository Actions still fails at the repository startup layer before Session 5 jobs execute. The current P0 tip therefore does not have a valid Actions test run. A startup failure is not a pass and is not evidence against the code either; use a functioning clean Linux/Docker runner for the required revalidation.
+
 ## Required fresh re-review gate before redeploy
 
 Run from a clean checkout of the exact current Session 5 SHA:
@@ -87,6 +89,16 @@ Run from a clean checkout of the exact current Session 5 SHA:
 ```bash
 pnpm install --frozen-lockfile
 pnpm --filter @capiro/defense-contracts build
+node --check apps/defense-parser-orchestrator/src/session5.mjs
+node --check apps/defense-parser-orchestrator/src/real-batch-config.mjs
+node --check apps/defense-parser-orchestrator/src/real-batch-provider.mjs
+node --check apps/defense-parser-orchestrator/src/real-batch-cost.mjs
+node --check apps/defense-parser-orchestrator/src/real-batch-coordinator.mjs
+node --check apps/defense-parser-orchestrator/src/aws-real-storage.mjs
+node --check apps/defense-parser-orchestrator/src/aws-real-ledger.mjs
+node --check apps/defense-parser-orchestrator/src/aws-real-runtime.mjs
+node --check apps/defense-parser-orchestrator/src/cli.mjs
+node --check apps/defense-parser-orchestrator/scripts/materialize-live-inputs.mjs
 node --test apps/defense-parser-orchestrator/test/*.test.mjs
 node scripts/verify-phase8-session5.mjs
 pnpm --filter @capiro/infra-cdk typecheck
@@ -104,18 +116,20 @@ node scripts/verify-phase8-session4.mjs --enforce-replay
 
 docker build --no-cache -f apps/defense-parser-orchestrator/Dockerfile \
   -t capiro-defense-parser-orchestrator:phase8-session5 .
+test "$(docker run --rm --entrypoint id capiro-defense-parser-orchestrator:phase8-session5 -u)" = '1001'
 git diff --check
 ```
 
 Then independently inspect the CDK and live provider path. Passing tests alone do not authorize redeploy.
 
-## Current AWS/Marketplace facts already established
+## Current AWS / Marketplace facts already established
 
 - Account: `967807252336`
 - Region: `us-east-1`
 - Exact package ARN: `arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587`
 - Listing/model version: `LLM NIM 1.14 and VLM NIM version 1.5.0`
 - Marketplace package requires `EnableNetworkIsolation: true`
+- supported Batch instance verified by the agent: `ml.g5.xlarge`
 - authorized initial target: **USD 50**
 - hard incremental ceiling: **USD 150**
 - max concurrent GPU jobs: **1**
@@ -124,9 +138,30 @@ Then independently inspect the CDK and live provider path. Passing tests alone d
 
 The earlier failed CloudFormation attempt occurred before GPU/model/job creation because network isolation was absent. The empty bucket/stack were removed; the unused KMS key was scheduled for deletion. No paid NVIDIA work occurred.
 
+## Provider truth / planned comparison lanes
+
+The subscribed live Marketplace package currently implements **Nemotron Parse**. The legacy benchmark vocabulary also contains desired `nvidia_page_elements_table_structure` and `nvidia_ocr` lanes. Those remain route/comparison intents, not claims that separate provider packages are configured.
+
+The v2 runtime therefore records:
+
+- `requestedParserMethod`: governed desired lane;
+- `parserMethod`: actual provider invoked (`nemotron_parse` for the current package).
+
+Do not report a Nemotron Parse execution as a separate table-structure or OCR provider observation.
+
 ## Gold-corpus blocker
 
-Even if the runtime passes re-review, `SESSION5_COMPLETE` cannot be asserted until accepted source-grounded gold covers all eight strata. Current manifest records the known gaps explicitly.
+Even if the runtime passes re-review, `SESSION5_COMPLETE` cannot be asserted until accepted, source-grounded, **scorable** gold covers all eight strata. The strict live CLI gate requires:
+
+- accepted review status;
+- source evidence SHA;
+- immutable source SHA and physical page;
+- explicit identity/money/table assertion arrays;
+- at least one scorable assertion;
+- exact money values with unit/FY/evidence page when money is part of the gold;
+- no incomplete/conflicted flag.
+
+Current manifest records the known gaps explicitly.
 
 The live verifier must remain closed until a genuine evidence file exists:
 
@@ -148,6 +183,7 @@ Since the P0 real-runtime blocker was identified:
 - production routing/default change: **no**
 - production/shared DB/data change: **no**
 - production schedules: **no**
+- production IAM/secrets: **no**
 - snapshot activation: **no**
 - canonical promotion: **no**
 - Session 6: **not started**
