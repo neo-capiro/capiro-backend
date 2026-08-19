@@ -6,49 +6,76 @@
  * Strategies-specific accent and the timeline-specific geometry (§5.3 of the
  * original handoff).
  *
- * v3 pass (`Capiro Strategies - Untitled UI.dc.html`, design handoff
- * 2026-08-16): the reference file's own accent is Capiro navy (#294E68) and
- * every primary action in it uses a dark gradient. Its own README flags both
- * as open questions and recommends resolving to the shell's actual v3
- * decisions — which by now are settled elsewhere in this codebase, not
- * hypothetical: `foundations/untitled-ui-tokens.css` already runs the full
- * indigo brand ramp (`--uui-brand-solid:#3e4784`) as the one shell-wide
- * accent, and `.capiro-button--primary` (components/primitives.css) already
- * paints the dark gradient for every primary button shell-wide — so neither
- * question is actually open here; this file just adopts what's already
- * canonical. Every navy hex below is the handoff's own literal mapping onto
- * that ramp (`#294E68→#3E4784`, `#1F3D52→#293056`, `#EDF3F7→#F5F6FA`,
- * `#C3D5E1→#DCDFEC`, `#4A7A9B→#4E5BA6`); gray-200 also picks up the same
- * `#EAECF0→#E4E7EC` correction the shell ramp made in its own v3 pass.
+ * ACCENT: METALLIC BLACK (Neo, 2026-08-19).
+ *
+ * History, because this token has moved twice. The reference file's own accent
+ * is Capiro navy (#294E68); the v3 pass remapped it onto the shell-wide indigo
+ * ramp (`--uui-brand-solid:#3e4784`) for cross-module consistency. Neo has now
+ * called it explicitly: Strategies runs a metallic black accent instead. This
+ * is a deliberate, module-scoped divergence from the shell's indigo — not
+ * drift — and this file is the one place to change it back.
+ *
+ * "Metallic" is why the ramp below is cool-grey rather than neutral black, and
+ * why every filled accent surface is a GRADIENT (--st-metal-sheen) rather than
+ * a flat fill: the vertical light-to-dark sweep is what reads as brushed metal
+ * instead of a black rectangle. That gradient is the reference file's own
+ * primary-action gradient, unchanged — the design already used it for
+ * `Ask Meri`, `Add step` and the current legislative bar, so the accent now
+ * agrees with chrome that was always there.
+ *
+ * Semantic ramps (error / warning / success) are deliberately NOT part of
+ * this: they carry meaning, not brand, and a metallic risk chip would be
+ * unreadable. gray-200 also picks up the `#EAECF0→#E4E7EC` correction the
+ * shell ramp made in its own v3 pass.
  *
  * Dark panels (stewardship card, steward-review scoreboard, agent-review
- * banner, toast) are a documented exception: the handoff pins these to
- * neutral gray-900 (`#101828`), not an accent-tinted dark — so
- * `--st-accent-deep` below is gray-900, deliberately not part of the brand
- * ramp.
+ * banner, toast) used to be a documented EXCEPTION — pinned to neutral
+ * gray-900 because the accent was a hue and an accent-tinted dark would have
+ * looked tinted. Under a metallic black accent that exception dissolves:
+ * `--st-accent-deep` is now the same metal as everything else, which is what
+ * makes the dark panels and the primary controls read as one material.
  *
- * Milestone is a genuine fifth semantic color the handoff calls out
- * (`#6941C6`, Untitled UI's own purple-600) — documented here as a real
- * addition, not a one-off literal. `decision` is a real domain NodeKind
- * (`pages/strategy/types.ts`) the new handoff's step-kind table omits
- * entirely; it keeps mapping to the accent-focus shade under the new ramp,
- * same relative role it had under navy.
+ * Milestone keeps its own hue (`#6941C6`). Under navy or indigo it was one
+ * accent among several; under metallic black it is the only chromatic step
+ * kind besides risk-red, which is exactly what keeps an outcome legible at a
+ * glance on a timeline that is otherwise monochrome. `action`, `gate` and
+ * `decision` are three metal weights — steel, near-black, lighter steel —
+ * kept far enough apart to stay distinguishable as 6px dots.
  *
  * Rule (§5.1): monospace is scoped to machine-verifiable identifiers only —
  * template keys, filenames, source line refs, hashes, run/op state tokens,
  * confidence and version strings. Everything else is the vNext sans family.
  */
 .capiro-strategies {
-  /* Accent — Capiro indigo v3 ramp (shared with shell/Dashboard). */
-  --st-accent: #3e4784;
-  --st-accent-hover: #293056;
-  --st-accent-deep: #101828;         /* dark-panel bg — gray-900, NOT accent-tinted */
-  --st-accent-deep-label: #d0d5dd;   /* dark-panel body copy */
-  --st-accent-deep-eyebrow: #98a2b3; /* dark-panel eyebrow / uppercase micro-label */
-  --st-accent-tint: #f5f6fa;         /* selected rows / tinted panels */
-  --st-accent-tint-border: #dcdfec;
-  --st-accent-focus: #4e5ba6;        /* focus ring, 2px, 2px offset */
-  --st-accent-secondary: #b3badd;    /* secondary bar fill */
+  /* Metallic black ramp. Cool-grey, not neutral — a neutral black ramp reads
+     as ink; the slight blue cast is what reads as metal. */
+  --st-metal-25: #f7f8f9;
+  --st-metal-50: #f1f3f5;
+  --st-metal-100: #e3e6ea;
+  --st-metal-200: #c9cfd6;
+  --st-metal-300: #a3abb6;
+  --st-metal-400: #6e7784;
+  --st-metal-500: #4a5462;
+  --st-metal-600: #39424f;
+  --st-metal-700: #2a323d;
+  --st-metal-800: #1b2430;
+  --st-metal-900: #131a24;
+  --st-metal-950: #0e141c;
+  /* The sheen. Every filled/active metallic surface uses THIS rather than a
+     flat token, or it stops looking like metal. */
+  --st-metal-sheen: linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%);
+  --st-metal-sheen-hover: linear-gradient(180deg, #4a5462 0%, #252f3c 46%, #161d26 100%);
+
+  /* Accent — metallic black (Neo, 2026-08-19; was indigo #3e4784). */
+  --st-accent: var(--st-metal-800);
+  --st-accent-hover: var(--st-metal-950);
+  --st-accent-deep: var(--st-metal-950);      /* dark panels: same metal, no longer an exception */
+  --st-accent-deep-label: #d0d5dd;            /* dark-panel body copy */
+  --st-accent-deep-eyebrow: #98a2b3;          /* dark-panel eyebrow / uppercase micro-label */
+  --st-accent-tint: var(--st-metal-50);       /* selected rows / tinted panels */
+  --st-accent-tint-border: var(--st-metal-200);
+  --st-accent-focus: var(--st-metal-500);     /* focus ring, 2px, 2px offset */
+  --st-accent-secondary: var(--st-metal-300); /* secondary bar fill */
 
   /* Neutrals (Untitled UI Gray v3) — mirrored for module-local use. */
   --st-white: #ffffff;
@@ -66,7 +93,7 @@
   --st-error-bg: #fef3f2;   --st-error-ring: #fecdca;   --st-error-fg: #b42318;   --st-error-dot: #f04438;
   --st-warning-bg: #fffaeb; --st-warning-ring: #fedf89; --st-warning-fg: #b54708; --st-warning-dot: #f79009;
   --st-success-bg: #ecfdf3; --st-success-ring: #abefc6; --st-success-fg: #027a48; --st-success-dot: #12b76a;
-  --st-info-bg: #f5f6fa;    --st-info-ring: #dcdfec;    --st-info-fg: #3e4784;    --st-info-dot: #3e4784;
+  --st-info-bg: #f1f3f5;    --st-info-ring: #c9cfd6;    --st-info-fg: #2a323d;    --st-info-dot: #39424f;
   /* Purple — Milestone only (Untitled UI purple-50/200/600/500). Not a
      brand color; do not reuse for anything but the Milestone kind. */
   --st-purple-bg: #f4f3ff;  --st-purple-ring: #d9d6fe;  --st-purple-fg: #6941c6;  --st-purple-dot: #7a5af8;
@@ -80,24 +107,24 @@
   --st-fyline: #e4e7ec;              /* fiscal-year boundary */
   --st-refbar-h: 26px;
   --st-refbar-radius: 6px;
-  --st-refbar-active-bg: #101828;    /* active legislative bar */
-  --st-firmphase-bg: #f5f6fa;
-  --st-firmphase-ring: #dcdfec;
-  --st-firmphase-label: #3e4784;
+  --st-refbar-active: var(--st-metal-sheen); /* the bar whose window contains today */
+  --st-firmphase-bg: var(--st-metal-50);
+  --st-firmphase-ring: var(--st-metal-200);
+  --st-firmphase-label: var(--st-metal-700);
   --st-watch-bg: #fffaeb;
   --st-watch-ring: #fedf89;
   --st-watch-label: #b54708;
   --st-step-h: 72px;
   --st-step-radius: 8px;
   --st-step-ring: #e4e7ec;
-  --st-step-selected: #3e4784;
-  --st-today: #3e4784;
+  --st-step-selected: var(--st-metal-800);
+  --st-today: var(--st-metal-800);
 
-  /* Step kind dots. */
-  --st-kind-action: #3e4784;
-  --st-kind-gate: #101828;
+  /* Step kind dots — three metal weights plus the two chromatic kinds. */
+  --st-kind-action: var(--st-metal-600);
+  --st-kind-gate: var(--st-metal-950);
   --st-kind-milestone: #6941c6;
-  --st-kind-decision: #4e5ba6;
+  --st-kind-decision: var(--st-metal-400);
   --st-kind-risk: #f04438;
 
   /* Elevation. The reference file draws two distinct card weights, not one:

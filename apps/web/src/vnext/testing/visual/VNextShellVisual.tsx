@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { VNEXT_ROUTE_MANIFEST } from '../../adapters/routes/routeManifest.js';
 import { AppShellUuiView } from '../../shell/AppShellUui/index.js';
 import { DashboardVNextView } from '../../pages/dashboard/DashboardVNext.js';
 import { StrategyLibraryVNext } from '../../pages/strategies/StrategyLibraryVNext.js';
+import { StrategyEditorVNext } from '../../pages/strategies/StrategyEditorVNext.js';
 // Normally imported once by VNextStrategiesRoutes (the module root, per that
 // folder's BUILD-CONTRACT.md) — imported here too since the harness mounts
 // the view directly and skips that router.
@@ -94,7 +95,8 @@ export type VNextVisualScreen =
   | 'congressional-staff'
   | 'congressional-staff-empty'
   | 'strategies'
-  | 'strategies-empty';
+  | 'strategies-empty'
+  | 'strategy-editor';
 
 /**
  * Each screen renders at the route it actually ships on, so the sidebar's
@@ -112,6 +114,7 @@ const SCREEN_ROUTES: Record<VNextVisualScreen, string> = {
   'congressional-staff-empty': DIRECTORY_ROUTES.congressionalStaff,
   strategies: '/strategies',
   'strategies-empty': '/strategies',
+  'strategy-editor': '/strategies/7f1c9a20-4d3e-4b8a-9c21-6e0f5a8b1d34',
 };
 
 export function VNextShellVisual({
@@ -207,6 +210,12 @@ export function VNextShellVisual({
             // harness mounts the view directly, skipping that route shell.
             <div className="capiro-strategies" data-module="strategies">
               <StrategyLibraryVNext />
+            </div>
+          ) : screen === 'strategy-editor' ? (
+            <div className="capiro-strategies" data-module="strategies">
+              <Routes>
+                <Route path="/strategies/:strategyId" element={<StrategyEditorVNext />} />
+              </Routes>
             </div>
           ) : (
             <div className="capiro-vnext-foundation-banner" style={{ margin: 20 }}>

@@ -31,11 +31,34 @@ import './scope-bar.css';
 
 export type HorizonKey = '3fy' | '2fy' | '1fy';
 
-export const HORIZON_OPTIONS: ReadonlyArray<{ key: HorizonKey; label: string; sub: string }> = [
-  { key: '3fy', label: 'FY27–FY29', sub: '36 months' },
-  { key: '1fy', label: 'FY27 only', sub: '12 months' },
-  { key: '2fy', label: 'FY27–FY28', sub: '24 months' },
-];
+/** Fiscal years each horizon spans. */
+export const HORIZON_YEARS: Record<HorizonKey, number> = { '1fy': 1, '2fy': 2, '3fy': 3 };
+
+const fyShort = (fy: number) => `FY${String(fy).slice(2)}`;
+
+/**
+ * Horizon options labelled from the window the editor is ACTUALLY drawing.
+ *
+ * These were three frozen strings ('FY27–FY29', 'FY27 only', 'FY27–FY28')
+ * matching an axis that was itself hard-coded to start at FY27. The axis is now
+ * anchored on the live fiscal year (lib/timeline.ts currentFiscalYear — the same
+ * rule api-strategy uses to date every reference row it generates), so the
+ * labels have to be derived from that same `startFy` or the chip advertises a
+ * window the timeline does not show.
+ */
+export function horizonOptions(
+  startFy: number,
+): ReadonlyArray<{ key: HorizonKey; label: string; sub: string }> {
+  const label = (key: HorizonKey) => {
+    const years = HORIZON_YEARS[key];
+    return years === 1 ? `${fyShort(startFy)} only` : `${fyShort(startFy)}–${fyShort(startFy + years - 1)}`;
+  };
+  return [
+    { key: '3fy', label: label('3fy'), sub: '36 months' },
+    { key: '1fy', label: label('1fy'), sub: '12 months' },
+    { key: '2fy', label: label('2fy'), sub: '24 months' },
+  ];
+}
 
 export interface ScopeBarStatus {
   tone: 'success' | 'warning' | 'error' | 'gray';
@@ -128,7 +151,7 @@ export function ScopeBar({
   /** Editor only: the strategy's own client is fixed, not a scope the editor can change. */
   fixedClientName?: string;
   /** Editor only — no other view has a windowed timeline to narrow. */
-  horizon?: { value: HorizonKey; onChange: (value: HorizonKey) => void };
+  horizon?: { value: HorizonKey; onChange: (value: HorizonKey) => void; startFy: number };
   status: ScopeBarStatus;
 }) {
   const clientContext = useShellClientContext();
@@ -167,10 +190,13 @@ export function ScopeBar({
         )}
 
         {horizon ? (
-          <ScopeChip label="HORIZON" value={HORIZON_OPTIONS.find((o) => o.key === horizon.value)?.label ?? ''}>
+          <ScopeChip
+            label="HORIZON"
+            value={horizonOptions(horizon.startFy).find((o) => o.key === horizon.value)?.label ?? ''}
+          >
             {(close) => (
               <>
-                {HORIZON_OPTIONS.map((option) => (
+                {horizonOptions(horizon.startFy).map((option) => (
                   <ScopeChipRow
                     key={option.key}
                     selected={horizon.value === option.key}

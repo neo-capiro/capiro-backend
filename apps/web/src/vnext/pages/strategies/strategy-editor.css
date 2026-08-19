@@ -116,203 +116,540 @@
 .capiro-vnext-root .capiro-strategies .st-timeline__meta { font-size: 14px; color: var(--st-gray-600); margin: 2px 0 0; }
 .capiro-vnext-root .capiro-strategies .st-planhealth-chip { border: none; cursor: pointer; }
 
-/*
- * The timeline canvas is ONE scale for every layer.
+/* ══ Working timeline ═════════════════════════════════════════════════════
  *
- * The old `min-width: 960px` did not hold that. The month ticks cannot shrink
- * below 46px, so 36 of them lay out at 1656px while the bar track — sized by
- * `minmax(0, 1fr)` inside a 960px canvas — resolved to 792px. Every bar is
- * positioned as a percentage of that track (lib/timeline.ts barGeometry), so the
- * ruler ran at ~2.1x the scale of the bars it labels and a step dated JAN FY28
- * did not sit under the JAN FY28 tick. That was true at 1280px, not only on a
- * phone. Sizing the canvas to what the ticks actually need makes the ruler, the
- * FY header row and every bar share one scale at every viewport; the horizon
- * control (1FY/2FY/3FY) is how a user narrows the canvas.
+ * Transcribed from the reference file's own geometry (`.dc.html`
+ * "Working timeline"), which is a MONTH-COLUMN GRID:
  *
- * --st-tl-months is written by StrategyEditorVNext from axis.cells.length; the
- * 36 fallback is the default 3FY horizon. --st-tl-month-w is ALSO written by
- * StrategyEditorVNext per horizon (design handoff colW: 92/62/46px at
- * <=12/<=24/<=36 months — narrower horizons get wider columns); 46px below is
- * only the pre-JS fallback for the default 3FY/36-month case.
+ *   gutter            flex:0 0 150px (116px tight), border-right, never scrolls
+ *   scroller          flex:1, overflow-x:auto
+ *     canvas          min-width: months x colW   (colW 92/62/46 by horizon)
+ *       FY row        grid, 34px
+ *       month row     grid, 28px, #FCFCFD
+ *       band  x N     grid, grid-auto-rows:26px, row-gap:6px, padding:8px 0
+ *       steps         grid, grid-auto-rows:72px, row-gap:8px, padding:10px 0 14px
  *
- * --st-tl-label-w is the gutter width (design handoff "Working timeline":
- * "a fixed left gutter (200px, 140px when tight)"). The literal reference
- * file's own computed value (`.dc.html` edVals: `gutterW: c.tight ? '116px'
- * : '150px'`) is narrower than that prose — used here instead, per the
- * handoff's own fidelity note ("read the HTML for exact values").
+ * Every band shares `grid-template-columns: repeat(n, minmax(colW, 1fr))`, so
+ * a bar placed with `grid-column: s / span n` sits exactly under its month
+ * tick — the ruler and the bars cannot drift apart, and a bar's box is its
+ * grid area, so its label ellipsizes inside the bar instead of spilling past
+ * it. This replaces a percentage-positioned track whose bars were laid over a
+ * flex ruler at a different scale.
+ *
+ * The gutter is a SIBLING of the scroller (as drawn), not a position:sticky
+ * cell inside it: nothing can be painted across it and it needs no z-index.
  */
+
 .capiro-vnext-root .capiro-strategies .st-tl {
+  --st-tl-label-w: 150px;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__frame {
+  display: flex;
+  align-items: stretch;
+}
+
+/* ---- label gutter ---- */
+.capiro-vnext-root .capiro-strategies .st-tl__gutter {
+  flex: 0 0 auto;
+  width: var(--st-tl-label-w);
+  background: var(--st-white);
+  border-right: 1px solid var(--st-gray-200);
+}
+/* Stacked, not a space-between row: "LEGISLATIVE" has no break opportunity, so
+   beside the Edit button it overran the button instead of shrinking, and the
+   two rendered on top of each other. */
+.capiro-vnext-root .capiro-strategies .st-tl__gutter-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--st-gray-200);
+  overflow: hidden;
+}
+/* Reference: the fiscal-window label is pushed down past the 34px FY band so
+   it sits beside the month ruler (`pad: '22px 14px 0'`). */
+.capiro-vnext-root .capiro-strategies .st-tl__gutter-row--header { padding: 22px 14px 0; }
+.capiro-vnext-root .capiro-strategies .st-tl__gutter-row--last { border-bottom: none; padding: 14px; }
+.capiro-vnext-root .capiro-strategies .st-tl__gutter-label {
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--st-gray-500);
+  text-wrap: pretty;
+  min-width: 0;
+}
+/* Enters the calendar edit mode. Quiet until hovered/focused so the gutter
+   still reads as a label column, but always in the tab order. */
+.capiro-vnext-root .capiro-strategies .st-tl__gutter-edit {
+  flex: none;
+  border: none;
+  background: transparent;
+  padding: 0 2px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--st-gray-400);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__gutter-row:hover .st-tl__gutter-edit,
+.capiro-vnext-root .capiro-strategies .st-tl__gutter-edit:focus-visible,
+.capiro-vnext-root .capiro-strategies .st-tl__gutter-edit[aria-pressed='true'] {
+  opacity: 1;
+  color: var(--st-accent);
+}
+.capiro-vnext-root .capiro-strategies .st-tl__gutter-edit:focus-visible {
+  outline: none;
+  box-shadow: var(--st-shadow-focus);
+  border-radius: 4px;
+}
+
+/* ---- scroller + canvas ---- */
+.capiro-vnext-root .capiro-strategies .st-tl__scroll {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  --st-tl-label-w: 150px;
-  --st-tl-month-w: 46px;
 }
-.capiro-vnext-root .capiro-strategies .st-tl__grid {
-  /* Containing block for .st-tl-today (direct child as of the full-height fix
-     below): its top:0/bottom:0 needs to resolve against the ENTIRE stack of
-     rows, which is exactly this element's own (auto, content-derived) height. */
+.capiro-vnext-root .capiro-strategies .st-tl__canvas {
   position: relative;
-  min-width: calc(var(--st-tl-label-w) + var(--st-tl-months, 36) * var(--st-tl-month-w));
+  min-width: calc(var(--st-tl-cols, 36) * var(--st-tl-col-w, 46px));
 }
 
-.capiro-vnext-root .capiro-strategies .st-tl-row {
+/* One column definition, shared by every band — this is what keeps the ruler
+   and the bars on a single scale. */
+.capiro-vnext-root .capiro-strategies .st-tl__fyrow,
+.capiro-vnext-root .capiro-strategies .st-tl__monthrow,
+.capiro-vnext-root .capiro-strategies .st-tl__band {
   display: grid;
-  grid-template-columns: var(--st-tl-label-w) minmax(0, 1fr);
-  border-bottom: 1px solid var(--st-gray-100);
+  grid-template-columns: repeat(var(--st-tl-cols, 36), minmax(var(--st-tl-col-w, 46px), 1fr));
 }
-/* Fiscal-window header row (FY ticks + month ticks): flush, no track padding —
-   unlike the data rows below it, which keep .st-tl-row__track's 8/12px. */
-.capiro-vnext-root .capiro-strategies .st-tl-row--header .st-tl-row__track { padding: 0; }
-.capiro-vnext-root .capiro-strategies .st-tl-row:last-child { border-bottom: none; }
-.capiro-vnext-root .capiro-strategies .st-tl-row__label {
-  padding: 14px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--st-gray-500);
-  border-right: 1px solid var(--st-gray-200);
-  /* Pin the identifying column (the .capiro-scroll-x__pin idiom): the canvas is
-     wider than the viewport at every width, and an unpinned label scrolls away
-     the moment the user reaches FY28, leaving unlabelled bar rows. z-index 3
-     clears the today marker's 2. */
-  position: sticky;
-  inset-inline-start: 0;
-  z-index: 3;
-  background: var(--st-white);
-}
-.capiro-vnext-root .capiro-strategies .st-tl-row__track { position: relative; padding: 8px 0; min-height: 44px; }
-.capiro-vnext-root .capiro-strategies .st-tl-row--steps .st-tl-row__track { padding: 12px 0; }
 
-/* Fiscal window — FY header 34px, month header 28px (design handoff "Working
-   timeline": "FY header — 34px ..." / "Month header — 28px on #FCFCFD"). */
-.capiro-vnext-root .capiro-strategies .st-tl-fy { position: relative; display: flex; height: 34px; border-bottom: 1px solid var(--st-gray-100); }
-.capiro-vnext-root .capiro-strategies .st-tl-fy__cell {
+.capiro-vnext-root .capiro-strategies .st-tl__fyrow {
+  height: 34px;
+  border-bottom: 1px solid var(--st-gray-200);
+}
+.capiro-vnext-root .capiro-strategies .st-tl__fycell {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-left: 1px solid var(--st-fyline);
   font-size: 12px;
   font-weight: 600;
-  color: var(--st-gray-600);
-  border-left: 1px solid var(--st-fyline);
+  letter-spacing: 0.04em;
+  color: var(--st-gray-700);
 }
-.capiro-vnext-root .capiro-strategies .st-tl-fy__cell:first-child { border-left: none; }
-/* The handoff draws this row on a near-white #FCFCFD; the token layer's
-   closest neutral is --st-gray-50 (#F9FAFB) — no dedicated token exists for
-   that exact shade (out of scope: strategies-tokens.css). The two are
-   imperceptibly close, so gray-50 stands in rather than adding a literal. */
-.capiro-vnext-root .capiro-strategies .st-tl-months { display: flex; height: 28px; background: var(--st-gray-50); }
-.capiro-vnext-root .capiro-strategies .st-tl-month {
-  flex: 1 1 0;
-  min-width: var(--st-tl-month-w);
+.capiro-vnext-root .capiro-strategies .st-tl__fycell:first-child { border-left-color: transparent; }
+
+.capiro-vnext-root .capiro-strategies .st-tl__monthrow {
+  height: 28px;
+  border-bottom: 1px solid var(--st-gray-200);
+  /* Reference draws #FCFCFD; --st-gray-50 (#F9FAFB) is the nearest token and
+     the two are imperceptibly close (see the note this file already carried). */
+  background: var(--st-gray-50);
+}
+.capiro-vnext-root .capiro-strategies .st-tl__month {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-left: 1px solid var(--st-gridline);
   font-size: 10px;
+  line-height: 1;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--st-gray-400);
-  border-left: 1px solid var(--st-gridline);
+  overflow: hidden;
 }
-.capiro-vnext-root .capiro-strategies .st-tl-month:first-child { border-left: none; }
-.capiro-vnext-root .capiro-strategies .st-tl-month--fy { border-left-color: var(--st-fyline); color: var(--st-gray-600); }
-/* Current-month emphasis, distinct from --fy (which marks every fiscal year's
-   FIRST month, not "now"). Reuses --st-today — already this exact module's
-   "today" accent (the marker line/pill above) — rather than a new one-off
-   color. Declared after --fy so the current month still reads as current on
-   the rare month that is both (October landing on today). */
-.capiro-vnext-root .capiro-strategies .st-tl-month--current { font-weight: 700; color: var(--st-today); }
+.capiro-vnext-root .capiro-strategies .st-tl__month--fy {
+  border-left-color: var(--st-fyline);
+  color: var(--st-gray-600);
+}
+/* The one cell that is actually the current month — distinct from --fy, which
+   marks every fiscal year's October. */
+.capiro-vnext-root .capiro-strategies .st-tl__month--current { color: var(--st-today); font-weight: 700; }
 
-/* Today marker: 2px line at 50% opacity spanning the full height, plus a
-   pill (both pointer-events:none — design handoff "Working timeline"). */
-.capiro-vnext-root .capiro-strategies .st-tl-today { position: absolute; top: 0; bottom: 0; width: 0; z-index: 2; pointer-events: none; }
-.capiro-vnext-root .capiro-strategies .st-tl-today::before {
-  content: '';
-  position: absolute; top: 0; bottom: 0; left: -1px;
-  width: 2px; background: var(--st-today); opacity: 0.5;
+/* ---- reference bands ---- */
+.capiro-vnext-root .capiro-strategies .st-tl__band {
+  position: relative;
+  grid-auto-rows: var(--st-refbar-h);
+  row-gap: 6px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--st-gray-200);
+  /* Month gridlines, one repeat per column — the reference's own
+     repeating-linear-gradient, sized off the same column count. */
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--st-gridline) 0 1px,
+    rgba(0, 0, 0, 0) 1px var(--st-tl-col-pct, 2.7778%)
+  );
 }
-.capiro-vnext-root .capiro-strategies .st-tl-today__pill {
-  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
-  display: inline-flex; align-items: center; gap: 5px;
-  height: 20px; padding: 0 8px;
-  background: var(--st-today); color: var(--st-white);
-  font-size: 10px; font-weight: 600; text-transform: uppercase;
-  border-radius: 999px;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
+.capiro-vnext-root .capiro-strategies .st-tl__band--steps {
+  grid-auto-rows: var(--st-step-h);
+  row-gap: 8px;
+  padding: 10px 0 14px;
+  border-bottom: none;
 }
-.capiro-vnext-root .capiro-strategies .st-tl-today__dot { width: 5px; height: 5px; border-radius: 999px; background: var(--st-white); flex: none; }
 
-/* Reference bars (§5.3) */
-.capiro-vnext-root .capiro-strategies .st-tl-bars { position: relative; min-height: 30px; }
-.capiro-vnext-root .capiro-strategies .st-tl-refbar {
-  position: absolute;
+.capiro-vnext-root .capiro-strategies .st-tl__empty {
+  align-self: center;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--st-gray-400);
+}
+
+/* ---- a bar ----
+   Grid item, so its width is exactly its month range. The label is a separate
+   span because `text-overflow: ellipsis` has no effect on a flex container's
+   own anonymous text — that is why bar labels used to be chopped mid-glyph
+   rather than ellipsized. */
+.capiro-vnext-root .capiro-strategies .st-tl__bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   height: var(--st-refbar-h);
   margin: 0 3px;
-  border-radius: var(--st-refbar-radius);
-  font-size: 12px;
   padding: 0 10px;
-  display: inline-flex;
-  align-items: center;
+  border: none;
+  border-radius: var(--st-refbar-radius);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--st-gray-50);
+  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  color: var(--st-gray-600);
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 16px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  border: none;
-  cursor: pointer;
-  background: var(--st-gray-100);
-  color: var(--st-gray-700);
 }
-.capiro-vnext-root .capiro-strategies .st-tl-refbar--active { background: var(--st-refbar-active-bg); color: var(--st-white); }
-.capiro-vnext-root .capiro-strategies .st-tl-refbar--firmphase {
+.capiro-vnext-root .capiro-strategies button.st-tl__bar { cursor: pointer; }
+.capiro-vnext-root .capiro-strategies button.st-tl__bar:hover { filter: brightness(0.985); }
+.capiro-vnext-root .capiro-strategies .st-tl__bar:focus-visible {
+  outline: none;
+  box-shadow: var(--st-shadow-focus);
+}
+
+/* Tones. `--active` is the bar whose window contains today: the metallic sheen
+   (--st-refbar-active -> --st-metal-sheen), the same gradient every primary
+   control in this module uses. Tokenized, not a literal, so the accent stays
+   changeable from strategies-tokens.css alone. */
+.capiro-vnext-root .capiro-strategies .st-tl__bar--active {
+  background: var(--st-refbar-active);
+  box-shadow: none;
+  color: var(--st-white);
+  font-weight: 600;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar--critical {
+  background: var(--st-warning-bg);
+  box-shadow: inset 0 0 0 1px var(--st-warning-ring);
+  color: var(--st-warning-fg);
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar--success {
+  background: var(--st-success-bg);
+  box-shadow: inset 0 0 0 1px var(--st-success-ring);
+  color: var(--st-success-fg);
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar--phase {
   background: var(--st-firmphase-bg);
   box-shadow: inset 0 0 0 1px var(--st-firmphase-ring);
   color: var(--st-firmphase-label);
 }
-.capiro-vnext-root .capiro-strategies .st-tl-refbar--watch {
+.capiro-vnext-root .capiro-strategies .st-tl__bar--watch {
   background: var(--st-watch-bg);
   box-shadow: inset 0 0 0 1px var(--st-watch-ring);
   color: var(--st-watch-label);
 }
-.capiro-vnext-root .capiro-strategies .st-tl-empty { font-size: 13px; color: var(--st-gray-400); padding: 6px 4px; }
 
-/* Step cards (design handoff "Working timeline": "margin:0 4px, padding:8px
-   10px, border-radius:8px, white, a 6px kind dot with a 10px/600 uppercase
-   kind label, a 13px/500 title, and a 10px/600 uppercase #98A2B3 meta line.
-   Selected: navy ring. Hover: ring + elevation shadow."). */
-.capiro-vnext-root .capiro-strategies .st-tl-steps { position: relative; }
-.capiro-vnext-root .capiro-strategies .st-step {
+/* A bar the window cut off keeps a square edge on the cut side, so a clipped
+   run reads as continuing rather than as ending there. */
+.capiro-vnext-root .capiro-strategies .st-tl__bar--clip-start {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar--clip-end {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  margin-right: 0;
+}
+
+/* ---- legislative edit mode ---- */
+.capiro-vnext-root .capiro-strategies .st-tl__band--editing {
+  background-color: var(--st-accent-tint);
+}
+/* Edit-mode grid item: holds the draggable bar plus its own remove control as
+   siblings, so neither is nested inside the other's button semantics.
+   Both the resize handles and the remove button are OVERLAYS rather than flex
+   children — as flex children they took ~30px out of every bar and truncated
+   labels that read fine a moment earlier ("President's Budget" -> "Presi…"),
+   which is the opposite of what edit mode should do to legibility. */
+.capiro-vnext-root .capiro-strategies .st-tl__slot {
+  position: relative;
+  display: flex;
+  margin: 0 3px;
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__slot .st-tl__bar {
+  flex: 1 1 auto;
+  margin: 0;
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar--draggable {
+  cursor: grab;
+  /* Without this the browser claims the horizontal gesture for panning and the
+     drag never reaches the pointer handlers on touch or a precision touchpad. */
+  touch-action: none;
+  user-select: none;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar--draggable:active { cursor: grabbing; }
+
+/* z-index above the remove button: the button only appears on hover, and at
+   the bar's trailing end it otherwise covers this handle exactly — the press
+   landed on the button and the resize drag never started. */
+.capiro-vnext-root .capiro-strategies .st-tl__bar-handle {
   position: absolute;
-  height: var(--st-step-h);
-  min-width: 120px;
-  margin: 0 4px;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  width: 9px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar-handle--start { inset-inline-start: 0; }
+.capiro-vnext-root .capiro-strategies .st-tl__bar-handle--end { inset-inline-end: 0; }
+.capiro-vnext-root .capiro-strategies .st-tl__bar-handle::after {
+  content: '';
+  position: absolute;
+  inset-block: 6px;
+  inset-inline-start: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar--draggable:hover .st-tl__bar-handle::after,
+.capiro-vnext-root .capiro-strategies .st-tl__bar--draggable:focus-visible .st-tl__bar-handle::after { opacity: 0.35; }
+.capiro-vnext-root .capiro-strategies .st-tl__bar-handle:hover::after { opacity: 0.75; }
+
+/* Overlaid on the bar, revealed on hover/keyboard focus so it never competes
+   with the label for room. Inset past the 9px end handle rather than flush to
+   the edge, so the two affordances do not share the same pixels. */
+.capiro-vnext-root .capiro-strategies .st-tl__bar-remove {
+  position: absolute;
+  z-index: 1;
+  inset-inline-end: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
   background: var(--st-white);
-  border-radius: var(--st-step-radius);
-  box-shadow: 0 0 0 1px var(--st-step-ring), 0px 1px 2px rgba(16, 24, 40, 0.05);
-  padding: 8px 10px;
-  text-align: left;
+  box-shadow: 0 0 0 1px var(--st-gray-200);
+  color: var(--st-gray-600);
+  font-size: 13px;
+  line-height: 1;
   cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__slot:hover .st-tl__bar-remove,
+.capiro-vnext-root .capiro-strategies .st-tl__slot:focus-within .st-tl__bar-remove {
+  opacity: 1;
+  pointer-events: auto;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar-remove:hover {
+  color: var(--st-error-fg);
+  box-shadow: 0 0 0 1px var(--st-error-ring);
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar-remove:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  outline: none;
+  box-shadow: var(--st-shadow-focus);
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar--renaming { padding: 0 4px; }
+.capiro-vnext-root .capiro-strategies .st-tl__bar-input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  border-radius: 4px;
+  padding: 0 4px;
+  background: var(--st-white);
+  color: var(--st-gray-900);
+  font: inherit;
+  font-size: 12px;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__bar-input:focus-visible { outline: 2px solid var(--st-accent-focus); }
+
+.capiro-vnext-root .capiro-strategies .st-tl__editbar {
+  display: flex;
+  align-items: center;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  border-top: 1px solid var(--st-gray-200);
+  background: var(--st-accent-tint);
+}
+.capiro-vnext-root .capiro-strategies .st-tl__editbar-hint {
+  flex: 1 1 320px;
+  margin: 0;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--st-gray-600);
+  text-wrap: pretty;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__editbar-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__editbar .st-modal__alert { flex: 1 1 100%; margin: 0; }
+
+/* ---- today marker ----
+   Positioned inside the canvas (which is the scrolled content and holds no
+   gutter of its own), so `left` is a plain fraction of the axis. It used to
+   live in a grid that INCLUDED the label column and needed a calc() to add
+   the gutter back. */
+.capiro-vnext-root .capiro-strategies .st-tl__today-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--st-today);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 2;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__today-pill {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--st-today);
+  color: var(--st-white);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+.capiro-vnext-root .capiro-strategies .st-tl__today-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--st-white);
+  flex: none;
+}
+
+/* ---- step cards ----
+   Reference: margin:0 4px, padding:8px 10px, radius 8, white, a 6px kind dot
+   with a 10px/600 uppercase kind label, a 13px/500 title and a 10px/600
+   uppercase meta line. Selected: accent ring. Hover: ring + elevation. */
+.capiro-vnext-root .capiro-strategies .st-step {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 4px;
-  overflow: hidden;
+  height: var(--st-step-h);
+  margin: 0 4px;
+  padding: 8px 10px;
   border: none;
+  border-radius: var(--st-step-radius);
+  background: var(--st-white);
+  box-shadow: 0 0 0 1px var(--st-step-ring), 0 1px 2px rgba(16, 24, 40, 0.05);
   font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  min-width: 0;
   transition: box-shadow 120ms ease;
 }
 .capiro-vnext-root .capiro-strategies .st-step:hover {
-  box-shadow: 0 0 0 1px var(--st-accent-tint-border), 0px 4px 8px -2px rgba(16, 24, 40, 0.12);
+  box-shadow: 0 0 0 1px var(--st-accent-tint-border), 0 4px 8px -2px rgba(16, 24, 40, 0.12);
 }
 .capiro-vnext-root .capiro-strategies .st-step:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }
 .capiro-vnext-root .capiro-strategies .st-step--selected {
-  box-shadow: 0 0 0 2px var(--st-step-selected), 0px 4px 8px -2px rgba(16, 24, 40, 0.14);
+  box-shadow: 0 0 0 2px var(--st-step-selected), 0 4px 8px -2px rgba(16, 24, 40, 0.14);
 }
 
+/*
+ * Point-in-time step (gate / milestone with no end date).
+ *
+ * The card is padded past one month so its label fits, which would otherwise
+ * assert a duration the step does not have. The 3px edge sits on the card's
+ * leading side — the step's real date — and the exact date is in the tooltip
+ * and the accessible name. Per kind, so a gate and a milestone stay
+ * distinguishable at a glance.
+ */
+.capiro-vnext-root .capiro-strategies .st-step--instant { padding-inline-start: 12px; }
+.capiro-vnext-root .capiro-strategies .st-step--instant::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  background: var(--st-step-edge, var(--st-gray-300));
+}
+.capiro-vnext-root .capiro-strategies .st-step--action { --st-step-edge: var(--st-kind-action); }
+.capiro-vnext-root .capiro-strategies .st-step--gate { --st-step-edge: var(--st-kind-gate); }
+.capiro-vnext-root .capiro-strategies .st-step--milestone { --st-step-edge: var(--st-kind-milestone); }
+.capiro-vnext-root .capiro-strategies .st-step--decision { --st-step-edge: var(--st-kind-decision); }
+.capiro-vnext-root .capiro-strategies .st-step--risk { --st-step-edge: var(--st-kind-risk); }
+
+/* Every micro-label below pins its own line-height. The shell's base
+   line-height resolves to 24px, which a 10px label inherits — inside the 72px
+   card that made the kind row 24px tall and squeezed the meta row to 7px, so
+   the owner line was invisible. */
 .capiro-vnext-root .capiro-strategies .st-step__kind {
-  display: inline-flex; align-items: center; gap: 6px; min-width: 0;
-  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  line-height: 14px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--st-gray-600);
+}
+/* Same reason as .st-tl__bar-label: the flex row cannot ellipsize its own text. */
+.capiro-vnext-root .capiro-strategies .st-step__kind-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .capiro-vnext-root .capiro-strategies .st-step__dot { width: 6px; height: 6px; border-radius: 999px; background: var(--st-gray-400); flex: none; }
 /* Kind text AND dot both carry the kind color (Step-kind table: "Dot /
@@ -328,18 +665,30 @@
 .capiro-vnext-root .capiro-strategies .st-step__kind--risk { color: var(--st-kind-risk); }
 .capiro-vnext-root .capiro-strategies .st-step__kind--risk .st-step__dot { background: var(--st-kind-risk); }
 
-/* Single-line ellipsis + native tooltip (the button's `title` attribute) —
-   matches the reference's own treatment more closely than a 2-line clamp,
-   which this card's height doesn't comfortably fit anyway. */
 .capiro-vnext-root .capiro-strategies .st-step__title {
   flex: 0 0 auto;
-  font-size: 13px; font-weight: 500; color: var(--st-gray-900); line-height: 17px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 17px;
+  color: var(--st-gray-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .capiro-vnext-root .capiro-strategies .st-step__meta {
-  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--st-gray-400); margin-top: auto;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: none;
+  min-width: 0;
+  margin-top: auto;
+  line-height: 14px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-gray-400);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Bottom cards — reference (`.dc.html` line ~414-437): lighter 2-layer
@@ -376,10 +725,9 @@
      that it wraps. */
   .capiro-vnext-root .capiro-strategies .st-editor-cards { grid-template-columns: minmax(0, 1fr); }
 
-  /* "Tight" gutter (design handoff: gutter narrows below ~1024px; mapped onto
-     the canonical 1179 tablet boundary like the rest of this file's
-     responsive behavior). Literal reference value — see the .st-tl comment
-     above. */
+  /* "Tight" gutter — the reference file's own computed value
+     (`.dc.html` edVals: `gutterW: c.tight ? '116px' : '150px'`), mapped onto
+     the canonical 1179 tablet boundary like the rest of this file. */
   .capiro-vnext-root .capiro-strategies .st-tl { --st-tl-label-w: 116px; }
 
   /*
@@ -447,11 +795,13 @@
     width: 100%;
   }
   /* A narrower label column buys back real track: the canvas scrolls at every
-     width, and the label is pinned over the viewport the whole time. */
+     width. */
   .capiro-vnext-root .capiro-strategies .st-tl {
     --st-tl-label-w: 112px;
   }
-  .capiro-vnext-root .capiro-strategies .st-tl-row__label {
-    padding: 14px 10px;
-  }
+  .capiro-vnext-root .capiro-strategies .st-tl__gutter-row { padding: 12px 10px; }
+  .capiro-vnext-root .capiro-strategies .st-tl__gutter-row--header { padding: 22px 10px 0; }
+  .capiro-vnext-root .capiro-strategies .st-tl__gutter-row--last { padding: 14px 10px; }
+  /* The edit affordance has no hover on touch — keep it visible. */
+  .capiro-vnext-root .capiro-strategies .st-tl__gutter-edit { opacity: 1; }
 }

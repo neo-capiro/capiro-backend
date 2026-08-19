@@ -78,64 +78,126 @@ export function axisPosition(axis: TimelineAxis, date: Date): number {
   return Math.min(1, Math.max(0, t));
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * Column geometry (design handoff `.dc.html` "Working timeline").
+ *
+ * The reference design does NOT position bars as a percentage of a free
+ * track — it lays every row out as a CSS grid of `repeat(n, minmax(colW,1fr))`
+ * month columns and places each bar with `grid-column: <start> / span <n>`.
+ * That is what makes bars sit exactly under their month tick at every
+ * viewport, and what stops a label from spilling past the bar it belongs to:
+ * the grid area IS the bar's box.
+ *
+ * axisPosition above is still the right model for the TODAY marker, which is a
+ * continuous position on the axis, not a month cell. Both share one axis, so
+ * they cannot drift. The old percentage bar geometry and its timestamp-based
+ * lane packer went with the free track they served.
+ * ───────────────────────────────────────────────────────────────────────── */
+
 /**
- * Geometry for a dated bar: left/width as percentages of the axis. A bar partly
- * outside the range is CLIPPED to the visible range, never dropped (§7.3).
- * Returns null only when the bar is entirely outside the axis.
+ * The federal fiscal year containing `now` (FY starts in October).
+ *
+ * This is the same rule the strategy service uses to anchor everything it
+ * generates (`apps/api-strategy/src/fiscal/fiscal.ts` fyOf / currentFyWindow):
+ * the reference calendars, the PPBE lanes and the firm phases are all
+ * materialized against `[fyOf(now), +1, +2]`. The editor axis has to be
+ * derived the same way or it renders those rows against a window they were
+ * never built for. Computed in UTC to match buildFiscalAxis's own frame.
  */
-export function barGeometry(
+export function currentFiscalYear(now: Date = new Date(), fiscalYearStartMonth = 10): number {
+  const month = now.getUTCMonth() + 1;
+  return month >= fiscalYearStartMonth ? now.getUTCFullYear() + 1 : now.getUTCFullYear();
+}
+
+/** Month-column index of a date on this axis. Negative / >= cells.length when off-axis. */
+export function monthIndexOf(axis: TimelineAxis, date: Date): number {
+  return (
+    (date.getUTCFullYear() - axis.start.getUTCFullYear()) * 12 +
+    (date.getUTCMonth() - axis.start.getUTCMonth())
+  );
+}
+
+export interface ColumnSpan {
+  /** 0-based first month column. */
+  start: number;
+  /** Number of month columns, >= 1. */
+  span: number;
+  clippedStart: boolean;
+  clippedEnd: boolean;
+  /** Columns the bar would occupy on its real dates, before any `minSpan` padding. */
+  trueSpan: number;
+}
+
+/**
+ * Month-column geometry for a dated bar, clipped (never dropped) at the axis
+ * edges. Returns null only when the bar lies entirely outside the window.
+ *
+ * `minSpan` widens a bar that is too narrow to render its own label — a
+ * point-in-time step (a gate with no end date) would otherwise be a ~46px
+ * sliver with its title clipped to two characters. The pre-padding width is
+ * returned as `trueSpan` so callers can still tell a real one-month bar from a
+ * padded instant; the exact dates stay authoritative in the inspector.
+ */
+export function columnSpan(
   axis: TimelineAxis,
   startIso: string | null,
   endIso: string | null,
-): { left: number; width: number; clippedStart: boolean; clippedEnd: boolean } | null {
-  const start = startIso ? new Date(startIso) : null;
-  const end = endIso ? new Date(endIso) : null;
-  const s = start && !Number.isNaN(start.getTime()) ? start : end;
-  const e = end && !Number.isNaN(end.getTime()) ? end : start;
-  if (!s || !e) return null;
-  if (e.getTime() < axis.start.getTime() || s.getTime() > axis.end.getTime()) return null;
-  const clippedStart = s.getTime() < axis.start.getTime();
-  const clippedEnd = e.getTime() > axis.end.getTime();
-  const left = axisPosition(axis, s) * 100;
-  const right = axisPosition(axis, e) * 100;
-  // A point-in-time (due date) still renders a sliver so it stays visible.
-  const width = Math.max(0.6, right - left);
-  return { left, width: Math.min(100 - left, width), clippedStart, clippedEnd };
+  minSpan = 1,
+): ColumnSpan | null {
+  const startDate = startIso ? new Date(startIso) : null;
+  const endDate = endIso ? new Date(endIso) : null;
+  const s = startDate && !Number.isNaN(startDate.getTime()) ? startDate : endDate;
+  const e = endDate && !Number.isNaN(endDate.getTime()) ? endDate : startDate;
+  if (!s || !e || Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return null;
+
+  const n = axis.cells.length;
+  const rawStart = monthIndexOf(axis, s);
+  const rawEnd = Math.max(rawStart, monthIndexOf(axis, e));
+  if (rawEnd < 0 || rawStart > n - 1) return null;
+
+  const clippedStart = rawStart < 0;
+  const clippedEnd = rawEnd > n - 1;
+  let start = Math.max(0, rawStart);
+  let end = Math.min(n - 1, rawEnd);
+  const trueSpan = end - start + 1;
+
+  // Pad a too-narrow bar to `minSpan`, preferring to grow rightward so the
+  // bar still begins on the month it really begins on.
+  let span = trueSpan;
+  if (span < minSpan) {
+    end = Math.min(n - 1, start + minSpan - 1);
+    span = end - start + 1;
+    if (span < minSpan) {
+      start = Math.max(0, end - minSpan + 1);
+      span = end - start + 1;
+    }
+  }
+  return { start, span, clippedStart, clippedEnd, trueSpan };
 }
 
-/** A bar that needs a lane. Generic over the carried payload. */
-export interface LaneItem {
+export interface ColumnLaneItem {
   id: string;
-  startIso: string | null;
-  endIso: string | null;
-}
-
-export interface LanedItem<T extends LaneItem> {
-  item: T;
-  lane: number;
-}
-
-function dayMs(iso: string | null, fallback: number): number {
-  if (!iso) return fallback;
-  const t = new Date(iso).getTime();
-  return Number.isNaN(t) ? fallback : t;
+  start: number;
+  span: number;
 }
 
 /**
- * Assign lanes so no two overlapping bars collide (§4.1 #6). Greedy interval
- * partitioning; input is sorted by (start, id) for stable, jump-free output.
+ * Lane assignment over COLUMN ranges rather than raw dates.
+ *
+ * assignLanes() above partitions by timestamp, which is right for a
+ * continuous track but wrong for a month grid: "Floor & amendments"
+ * (Jul 1 – Aug 17) and "Conference" (Aug 17 – Sep 22) do not overlap as dates
+ * yet both occupy the August column, so laning them by date puts two bars in
+ * the same grid cell and one covers the other. Laning by column is the only
+ * partition that matches what is actually drawn.
  */
-export function assignLanes<T extends LaneItem>(items: T[]): LanedItem<T>[] {
-  const sorted = [...items].sort((a, b) => {
-    const d = dayMs(a.startIso, 0) - dayMs(b.startIso, 0);
-    return d !== 0 ? d : a.id.localeCompare(b.id);
-  });
+export function assignColumnLanes<T extends ColumnLaneItem>(items: T[]): Array<{ item: T; lane: number }> {
+  const sorted = [...items].sort((a, b) => (a.start - b.start) || a.id.localeCompare(b.id));
   const laneEnds: number[] = [];
-  const out: LanedItem<T>[] = [];
+  const out: Array<{ item: T; lane: number }> = [];
   for (const item of sorted) {
-    const start = dayMs(item.startIso, 0);
-    const end = dayMs(item.endIso, start);
-    let lane = laneEnds.findIndex((laneEnd) => laneEnd <= start);
+    const end = item.start + item.span - 1;
+    let lane = laneEnds.findIndex((laneEnd) => laneEnd < item.start);
     if (lane === -1) {
       lane = laneEnds.length;
       laneEnds.push(end);
@@ -147,6 +209,51 @@ export function assignLanes<T extends LaneItem>(items: T[]): LanedItem<T>[] {
   return out;
 }
 
-export function laneCount<T extends LaneItem>(laned: LanedItem<T>[]): number {
+export function columnLaneCount<T extends ColumnLaneItem>(laned: Array<{ item: T; lane: number }>): number {
   return laned.reduce((n, l) => Math.max(n, l.lane + 1), 0);
+}
+
+/* ------------------------------------------------------------ date edits */
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** Days in a UTC month (month is 1-12). */
+function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/** `YYYY-MM-DD` for a Date, in the UTC frame the axis uses. */
+export function toDateOnly(d: Date): string {
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
+}
+
+/**
+ * Shift an ISO date by whole months, preserving day-of-month and clamping to
+ * the target month's length (Jan 31 + 1mo -> Feb 28/29, never Mar 3).
+ *
+ * Dragging a bar moves it by whole COLUMNS, so applying the delta to the real
+ * stored date is what keeps a milestone dated the 29th on the 29th. Snapping
+ * bars to the 1st of a month on every save would quietly rewrite dates the
+ * user never touched.
+ */
+export function shiftIsoMonths(iso: string, months: number): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const targetMonthIndex = d.getUTCMonth() + months;
+  const year = d.getUTCFullYear() + Math.floor(targetMonthIndex / 12);
+  const month = ((targetMonthIndex % 12) + 12) % 12 + 1;
+  const day = Math.min(d.getUTCDate(), daysInMonth(year, month));
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+/** First day of the month at `index` on this axis, as `YYYY-MM-DD`. */
+export function monthStartIso(axis: TimelineAxis, index: number): string {
+  const cell = axis.cells[Math.min(Math.max(index, 0), axis.cells.length - 1)]!;
+  return `${cell.year}-${pad2(cell.month)}-01`;
+}
+
+/** Last day of the month at `index` on this axis, as `YYYY-MM-DD`. */
+export function monthEndIso(axis: TimelineAxis, index: number): string {
+  const cell = axis.cells[Math.min(Math.max(index, 0), axis.cells.length - 1)]!;
+  return `${cell.year}-${pad2(cell.month)}-${pad2(daysInMonth(cell.year, cell.month))}`;
 }

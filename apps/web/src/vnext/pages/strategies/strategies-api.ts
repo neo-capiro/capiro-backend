@@ -886,19 +886,39 @@ export function useRunCheck() {
   });
 }
 
-/* ----------------------------------------- Reference calendar assist */
-/** POST /reference-calendars/:kind/assist — Meri edits the working rows (REF-4, not saved). */
-export function useRefAssist(kind: 'congress' | 'ppbe') {
+/* ----------------------------------------- Reference calendar fork (REF-5) */
+
+/** One row of a tenant's forked reference calendar. Mirrors ReferenceForkDto. */
+export interface ReferenceForkRow {
+  label: string;
+  startsOn?: string | null;
+  endsOn?: string | null;
+  fy?: number | null;
+  tone?: string | null;
+}
+
+/**
+ * PUT /reference-calendars/:kind — fork-on-edit (api-strategy ReferenceService.fork).
+ *
+ * The body REPLACES every override row for that kind, so callers must send the
+ * complete set, not a delta. The server answers with the merged calendars
+ * (fork applied), which goes straight into the GET cache.
+ *
+ * `congress` maps to `congress_milestone` and requires startsOn AND endsOn on
+ * every row, with endsOn strictly after startsOn. `ppbe` maps to
+ * `ppbe_current_phase` (fy + label, no dates) — NOT to `ppbe_lane_bar`, which
+ * is what the PPBE band on the timeline actually draws, so the PPBE bars are
+ * not editable through this route.
+ */
+export function useForkReferenceCalendar(kind: 'congress' | 'ppbe') {
   const api = useApi();
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { instruction: string; rows: unknown[] }) =>
-      (
-        await api.post<{ reply?: string; rows: unknown[] }>(
-          `${BASE}/reference-calendars/${kind}/assist`,
-          input,
-          { timeout: 90_000 },
-        )
-      ).data,
+    mutationFn: async (rows: ReferenceForkRow[]) =>
+      (await api.put<ReferenceCalendars>(`${BASE}/reference-calendars/${kind}`, { rows })).data,
+    onSuccess: (data) => {
+      qc.setQueryData(['strategy', 'reference-calendars'], data);
+    },
   });
 }
 

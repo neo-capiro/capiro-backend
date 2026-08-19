@@ -12,17 +12,23 @@
  * the non-invasive way to get it rendering here without touching that
  * production component. Only the names `StrategyLibraryVNext.tsx` actually
  * imports are covered; this is not a full `strategies-api.ts` replacement,
- * so it must not be aliased for any screen that also needs the editor or
- * other Strategies views.
+ * Covers the library AND the editor (screen=strategy-editor); other
+ * Strategies views still need their own hooks added before they can render
+ * here.
  */
+import { useEffect, useReducer } from 'react';
 import {
   STRATEGIES_VISUAL_CLIENTS,
+  STRATEGIES_VISUAL_EDITOR_DETAIL,
+  STRATEGIES_VISUAL_EDITOR_FIRM_PHASES,
+  STRATEGIES_VISUAL_REFERENCE_CALENDARS,
   STRATEGIES_VISUAL_FIRM_PHASES,
   STRATEGIES_VISUAL_LIST,
   STRATEGIES_VISUAL_MEMBERS,
   STRATEGIES_VISUAL_NO_PENDING_WATCH_COUNTS,
   STRATEGIES_VISUAL_PENDING_WATCH_COUNTS,
 } from '../fixtures/strategies.js';
+import type { ReferenceCalendars } from '../../../pages/strategy/types.js';
 import type { ClientLite, TenantMember } from '../../pages/strategies/strategies-api.js';
 
 export function useStrategies() {
@@ -38,7 +44,8 @@ export function useTenantMembers() {
 }
 
 export function useFirmPhases() {
-  return { data: STRATEGIES_VISUAL_FIRM_PHASES };
+  const screen = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('screen') : null;
+  return { data: screen === 'strategy-editor' ? STRATEGIES_VISUAL_EDITOR_FIRM_PHASES : STRATEGIES_VISUAL_FIRM_PHASES };
 }
 
 /** `?screen=strategies-empty` shows the "Needs review" card with nothing
@@ -63,4 +70,96 @@ export function memberName(
 export function clientName(clients: ClientLite[] | undefined, clientId: string | null | undefined): string {
   if (!clientId) return '—';
   return clients?.find((c) => c.id === clientId)?.name ?? 'Client';
+}
+
+/* ─────────────────── Strategy editor (screen=strategy-editor) ───────────────
+ *
+ * The editor is a container component too, so the same alias covers it. These
+ * are read-only stubs over the fixtures; the one mutation the editor owns
+ * (the legislative-calendar fork) is stubbed as a local state write so the
+ * drag/resize/rename interactions are exercisable here without a backend.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+let harnessCalendars: ReferenceCalendars = STRATEGIES_VISUAL_REFERENCE_CALENDARS;
+const calendarListeners = new Set<() => void>();
+
+export function useStrategy(_id: string | null) {
+  return {
+    data: STRATEGIES_VISUAL_EDITOR_DETAIL,
+    isLoading: false,
+    isError: false,
+    dataUpdatedAt: Date.now() - 4 * 60_000,
+  };
+}
+
+export function useReferenceCalendars() {
+  const [, force] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    calendarListeners.add(force);
+    return () => void calendarListeners.delete(force);
+  }, []);
+  return { data: harnessCalendars, isLoading: false, isError: false };
+}
+
+export function useForkReferenceCalendar(kind: 'congress' | 'ppbe') {
+  return {
+    isPending: false,
+    isError: false,
+    error: null,
+    mutate: (
+      rows: Array<{ label: string; startsOn?: string | null; endsOn?: string | null; tone?: string | null }>,
+      opts?: { onSuccess?: () => void },
+    ) => {
+      if (kind === 'congress') {
+        harnessCalendars = {
+          ...harnessCalendars,
+          congress: rows.map((r, i) => ({
+            id: `fork-${i}`,
+            kind: 'congress_milestone' as const,
+            label: r.label,
+            fy: null,
+            startsOn: r.startsOn ?? null,
+            endsOn: r.endsOn ?? null,
+            tone: r.tone ?? null,
+            position: i,
+          })),
+          source: { ...harnessCalendars.source, congress: 'override' as const },
+        };
+        calendarListeners.forEach((fn) => fn());
+      }
+      opts?.onSuccess?.();
+    },
+  };
+}
+
+export function useWatchReviewState(_strategyId: string | null, _enabled: boolean) {
+  return { data: { proposals: [] }, isLoading: false, isError: false };
+}
+
+export function useRevalidateWatch() {
+  return { mutate: () => {}, isPending: false };
+}
+
+/* StepInspector's own hooks. The inspector is reachable from the editor (any
+   step click deep-links `?step=<id>`), so the alias has to satisfy its imports
+   too or the harness bundle will not build. Inert stubs — the inspector's own
+   behaviour is out of scope for the timeline harness. */
+export function useAddNode(_strategyId: string) {
+  return { mutate: () => {}, mutateAsync: async () => undefined, isPending: false, isError: false, error: null };
+}
+
+export function useAssistant(_strategyId: string) {
+  return { mutate: () => {}, mutateAsync: async () => undefined, isPending: false, isError: false, error: null };
+}
+
+export function useDismissContextGap(_strategyId: string) {
+  return { mutate: () => {}, isPending: false };
+}
+
+export function useRecordArtifact(_strategyId: string) {
+  return { mutate: () => {}, isPending: false, isError: false, error: null };
+}
+
+export function useStrategyConversation(_strategyId: string, _nodeId: string | null, _enabled?: boolean) {
+  return { data: [], isLoading: false, isError: false };
 }
