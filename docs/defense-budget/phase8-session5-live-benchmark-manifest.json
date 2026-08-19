@@ -9,6 +9,11 @@
   "modelName": "nemotron-parse",
   "modelVersion": "LLM NIM 1.14 and VLM NIM version 1.5.0",
   "parserOptionsHash": null,
+  "implementedLiveProviders": ["nemotron_parse"],
+  "plannedComparisonLanesNotYetSeparateLiveProviders": [
+    "nvidia_page_elements_table_structure",
+    "nvidia_ocr"
+  ],
   "spendControls": {
     "currency": "USD",
     "hardTotalIncrementalCapUsd": 150,
@@ -27,9 +32,11 @@
     "assembleWith": "Line",
     "providerOutputNormalization": "provider JSONL plus immutable hashed input sidecar",
     "completionMode": "reconciliation/outbox",
+    "providerIdentityRule": "requested route intent is retained separately; actual parserMethod is the provider that really executed, currently nemotron_parse",
     "cacheIdentityIncludes": [
       "sourceSha256",
       "pageNumber",
+      "requestedParserMethod",
       "parserMethod",
       "modelName",
       "modelVersion",
@@ -123,6 +130,7 @@
     "scanned-image stratum has no accepted source-grounded gold",
     "R-2 and Navy BA6 gold are incomplete or conflicted",
     "P-1 and O-1/OP-5 lack accepted normalized gold artifacts",
+    "separate live NVIDIA table-structure and OCR provider packages are not configured; the current subscribed live provider is Nemotron Parse only",
     "no retained live NVIDIA provider artifacts or accepted live evidence exist"
   ]
 }
