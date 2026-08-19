@@ -166,15 +166,19 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
     });
     this.executionRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ['s3:GetObject', 's3:GetObjectVersion', 's3:PutObject'],
+        actions: [
+          's3:GetObject',
+          's3:GetObjectVersion',
+          's3:PutObject',
+          's3:AbortMultipartUpload',
+        ],
         resources: [this.artifactBucket.arnForObjects('phase8/nvidia/*')],
       }),
     );
     this.executionRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ['s3:ListBucket'],
+        actions: ['s3:GetBucketLocation', 's3:ListBucket'],
         resources: [this.artifactBucket.bucketArn],
-        conditions: { StringLike: { 's3:prefix': ['phase8/nvidia/*'] } },
       }),
     );
     key.grantEncryptDecrypt(this.executionRole);
