@@ -385,10 +385,10 @@ if (enforceLive) {
   }
 } else {
   check(
-    manifest.status === 'p0_runtime_implemented_re_review_required' &&
+    ['p0_runtime_implemented_re_review_required', 'p0_runtime_accepted_live_corpus_blocked'].includes(manifest.status) &&
       Array.isArray(manifest.blockedBy) &&
       manifest.blockedBy.length > 0,
-    'ordinary verification remains blocked pending re-review and source-grounded corpus completion',
+    'ordinary verification remains blocked pending source-grounded corpus completion',
   );
 }
 
