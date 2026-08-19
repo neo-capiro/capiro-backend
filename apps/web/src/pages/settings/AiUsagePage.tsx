@@ -17,12 +17,11 @@ import {
   type TenantUsageSummary,
 } from '../../components/ai-usage/UsageSummaryPanels.js';
 
-/** Surface the API's message (e.g. a validation error) from an axios error. */
-export function apiErrorMessage(err: unknown): string {
-  const data = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data;
-  if (data?.message) return Array.isArray(data.message) ? data.message.join('; ') : data.message;
-  return err instanceof Error ? err.message : 'Request failed';
-}
+// Extracted to ai-usage-shared.ts (UI-free) so the vNext Settings module can
+// share it; re-exported here so existing importers (AiKeysAdminPanel) keep
+// working unchanged.
+export { apiErrorMessage } from './ai-usage-shared.js';
+import { apiErrorMessage } from './ai-usage-shared.js';
 
 export function AiUsagePage() {
   const api = useApi();

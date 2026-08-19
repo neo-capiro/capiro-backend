@@ -3,70 +3,26 @@ import { Alert, App, Button, Empty, Input, Select, Space, Spin, Tag, Typography 
 import { SaveOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../lib/use-api.js';
-import {
-  PendingMemoryReviewPanel,
-  type MemoryReviewSection,
-  type PendingMemoryReviewState,
-} from './PendingMemoryReviewPanel.js';
+import { PendingMemoryReviewPanel } from './PendingMemoryReviewPanel.js';
 
 const { Text, Paragraph } = Typography;
 
-interface SectionDef {
-  key: string;
-  heading: string;
-  prompt: string;
-  example: string;
-}
-interface FileDef {
-  type: string;
-  scope: 'firm' | 'client' | 'user';
-  label: string;
-  blurb: string;
-  sections: SectionDef[];
-}
-interface ItemSection extends MemoryReviewSection {
-  prompt: string;
-  example: string;
-}
-interface ItemSectionsResp {
-  type: string;
-  slug: string;
-  title: string;
-  visibility: string;
-  clientId: string | null;
-  updatedAt: string | null;
-  exists: boolean;
-  pendingReview: PendingMemoryReviewState | null;
-  sections: ItemSection[];
-}
-interface SaveSectionsResp {
-  ok?: true;
-  updatedAt?: string;
-  status?: 'pending_review';
-  candidateId?: string;
-  activeItemUnchanged?: true;
-}
-
-export function settingsMemorySuccessMessage(result: SaveSectionsResp): string {
-  return result.status === 'pending_review' ? 'Submitted for approval' : 'Saved';
-}
-
-export function memorySaveErrorMessage(error: unknown): string {
-  if (error && typeof error === 'object') {
-    const response = (error as { response?: { data?: { message?: unknown } } }).response;
-    if (typeof response?.data?.message === 'string') return response.data.message;
-    if (Array.isArray(response?.data?.message)) {
-      return response.data.message
-        .filter((value): value is string => typeof value === 'string')
-        .join(' ');
-    }
-  }
-  return error instanceof Error ? error.message : 'Save failed';
-}
-
-function defaultFileType(scope: 'firm' | 'client' | 'user'): string {
-  return scope === 'firm' ? 'firm-soul' : scope === 'user' ? 'user-profile' : 'client-soul';
-}
+// Types + helpers extracted to memory-file-editor-shared.ts (UI-free) so the
+// vNext Settings module shares them. Re-exported to keep this file's public
+// API unchanged.
+export {
+  memorySaveErrorMessage,
+  settingsMemorySuccessMessage,
+} from './memory-file-editor-shared.js';
+import {
+  defaultMemoryFileType as defaultFileType,
+  memorySaveErrorMessage,
+  settingsMemorySuccessMessage,
+  type MemoryFileDef as FileDef,
+  type MemoryItemSection as ItemSection,
+  type MemoryItemSectionsResp as ItemSectionsResp,
+  type MemorySaveSectionsResp as SaveSectionsResp,
+} from './memory-file-editor-shared.js';
 
 export function MemoryFileEditor({
   scope,

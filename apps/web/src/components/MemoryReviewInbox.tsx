@@ -43,178 +43,34 @@ const { Paragraph, Text, Title } = Typography;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export type MemoryReviewInboxView =
-  | 'needs_my_review'
-  | 'submitted_by_me'
-  | 'all_pending'
-  | 'blocked'
-  | 'history';
-
-export type MemoryReviewStatus =
-  | 'pending'
-  | 'changes_requested'
-  | 'approved'
-  | 'rejected'
-  | 'withdrawn'
-  | 'superseded';
-
-export interface MemoryReviewInboxItem {
-  candidateId: string;
-  reviewRequestId: string;
-  candidateKind: 'standard' | 'correction' | 'restore' | 'contradiction';
-  scope: 'firm' | 'client';
-  client: { id: string; name: string; status: string | null } | null;
-  title: string;
-  status: MemoryReviewStatus;
-  revisionNumber: number;
-  rootCandidateId: string;
-  predecessorCandidateId: string | null;
-  submittedBy: { userId: string; name: string };
-  assignedReviewer: { userId: string; name: string } | null;
-  decidedBy: { userId: string; name: string } | null;
-  createdAt: string;
-  decidedAt: string | null;
-  blockedReason:
-    | 'no_reviewer'
-    | 'reviewer_unavailable'
-    | 'archived_client'
-    | null;
-  nextAction:
-    | 'review'
-    | 'revise'
-    | 'await_reviewer'
-    | 'assign_reviewer'
-    | 'none';
-  capabilities: {
-    open: boolean;
-    approve: boolean;
-    reject: boolean;
-    requestChanges: boolean;
-    revise: boolean;
-    reassign: boolean;
-    withdraw: boolean;
-  };
-}
-
-interface InboxPage {
-  enabled: boolean;
-  view: MemoryReviewInboxView;
-  items: MemoryReviewInboxItem[];
-  nextCursor: string | null;
-}
-
-interface InboxSummary {
-  enabled: boolean;
-  counts: {
-    needsMyReview: number;
-    submittedByMe: number;
-    allPending: number;
-    blocked: number;
-    history: number;
-  };
-  truncated: boolean;
-}
-
-interface MemorySection {
-  key: string;
-  heading: string;
-  owner: 'human' | 'engine';
-  body: string;
-}
-
-interface MemoryReviewDetail extends MemoryReviewInboxItem {
-  proposal: {
-    key: string | null;
-    value: string | null;
-    canonicalItem: {
-      type: string;
-      slug: string;
-      title: string;
-      sections: MemorySection[];
-    } | null;
-  };
-  feedbackReason: string | null;
-  eligibleReviewers: Array<{ userId: string; name: string; role: string }>;
-  timeline: Array<{
-    candidateId: string;
-    reviewRequestId: string;
-    revisionNumber: number;
-    predecessorCandidateId: string | null;
-    supersededById: string | null;
-    title: string;
-    status: MemoryReviewStatus;
-    submittedBy: { userId: string; name: string };
-    assignedReviewer: { userId: string; name: string } | null;
-    decidedBy: { userId: string; name: string } | null;
-    createdAt: string;
-    decidedAt: string | null;
-  }>;
-  controllingMemory: { itemId: string; version: number | null } | null;
-  activeMemoryUnchanged: boolean;
-}
-
-interface NotificationItem {
-  id: string;
-  reviewRequestId: string;
-  candidateId: string;
-  clientId: string | null;
-  eventType: string;
-  title: string;
-  readAt: string | null;
-  createdAt: string;
-}
-
-interface NotificationPage {
-  enabled: boolean;
-  items: NotificationItem[];
-  nextCursor: string | null;
-}
+// Types + label helpers extracted to memory-review-inbox-shared.ts (UI-free)
+// so the vNext Settings module shares them. Re-exported to keep this file's
+// public API unchanged.
+export {
+  memoryReviewBlockedReasonLabel,
+  memoryReviewNextActionLabel,
+  memoryReviewStatusLabel,
+  type MemoryReviewInboxItem,
+  type MemoryReviewInboxView,
+  type MemoryReviewStatus,
+} from './memory-review-inbox-shared.js';
+import {
+  memoryReviewBlockedReasonLabel,
+  memoryReviewEmptyDescription as emptyDescription,
+  memoryReviewErrorMessage as errorMessage,
+  memoryReviewNextActionLabel,
+  memoryReviewStatusLabel,
+  type MemoryReviewDetail,
+  type MemoryReviewInboxItem,
+  type MemoryReviewInboxPage as InboxPage,
+  type MemoryReviewInboxSummary as InboxSummary,
+  type MemoryReviewInboxView,
+  type MemoryReviewNotificationPage as NotificationPage,
+  type MemoryReviewSectionBody as MemorySection,
+  type MemoryReviewStatus,
+} from './memory-review-inbox-shared.js';
 
 type ReasonAction = 'reject' | 'request_changes' | 'reassign' | null;
-
-export function memoryReviewStatusLabel(status: MemoryReviewStatus): string {
-  const labels: Record<MemoryReviewStatus, string> = {
-    pending: 'Pending review',
-    changes_requested: 'Changes requested',
-    approved: 'Approved',
-    rejected: 'Rejected',
-    withdrawn: 'Withdrawn',
-    superseded: 'Revised',
-  };
-  return labels[status];
-}
-
-export function memoryReviewNextActionLabel(
-  item: MemoryReviewInboxItem,
-): string {
-  switch (item.nextAction) {
-    case 'review':
-      return 'Your review is needed';
-    case 'revise':
-      return 'Revise and resubmit';
-    case 'await_reviewer':
-      return item.assignedReviewer
-        ? `Waiting for ${item.assignedReviewer.name}`
-        : 'Waiting for a reviewer';
-    case 'assign_reviewer':
-      return 'Assign an eligible reviewer';
-    case 'none':
-      return 'No action needed';
-  }
-}
-
-export function memoryReviewBlockedReasonLabel(
-  reason: MemoryReviewInboxItem['blockedReason'],
-): string | null {
-  if (reason === 'no_reviewer') return 'No reviewer is assigned.';
-  if (reason === 'reviewer_unavailable') {
-    return 'The assigned reviewer is no longer eligible.';
-  }
-  if (reason === 'archived_client') {
-    return 'This client is not active, so review is paused.';
-  }
-  return null;
-}
 
 export function MemoryReviewInbox({ isAdmin }: { isAdmin: boolean }) {
   const api = useApi();
@@ -955,17 +811,6 @@ function countLabel(label: string, count: number) {
   );
 }
 
-function emptyDescription(view: MemoryReviewInboxView): string {
-  const descriptions: Record<MemoryReviewInboxView, string> = {
-    needs_my_review: 'Nothing needs your review',
-    submitted_by_me: 'You have no open shared-memory submissions',
-    all_pending: 'No shared-memory proposals are pending',
-    blocked: 'No review workflows are blocked',
-    history: 'No completed memory reviews yet',
-  };
-  return descriptions[view];
-}
-
 function statusColor(status: MemoryReviewStatus): string {
   if (status === 'approved') return 'green';
   if (status === 'rejected') return 'red';
@@ -978,16 +823,4 @@ function reasonModalTitle(action: ReasonAction): string {
   if (action === 'request_changes') return 'Request changes';
   if (action === 'reassign') return 'Assign an eligible reviewer';
   return 'Reject memory proposal';
-}
-
-function errorMessage(error: unknown): string {
-  if (error && typeof error === 'object') {
-    const response = (
-      error as { response?: { data?: { message?: unknown } } }
-    ).response;
-    if (typeof response?.data?.message === 'string') {
-      return response.data.message;
-    }
-  }
-  return error instanceof Error ? error.message : 'Memory review action failed';
 }

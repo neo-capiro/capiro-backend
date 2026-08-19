@@ -6,78 +6,28 @@ import { useApi } from '../lib/use-api.js';
 
 const { Paragraph, Text, Title } = Typography;
 
-export type MemoryCandidateKind = 'standard' | 'correction' | 'restore' | 'contradiction';
-
-export interface ReviewableMemoryCandidate {
-  id: string;
-  candidateKind: MemoryCandidateKind;
-  scope: string;
-  clientId: string | null;
-  proposedByUserId: string;
-  sourceKind: string;
-  createdAt: string;
-  proposal: {
-    key: string | null;
-    value: string | null;
-    canonicalItem: {
-      type: string;
-      slug: string;
-      title: string;
-      sections: Array<{
-        key: string;
-        heading: string;
-        owner: 'human' | 'engine';
-        body: string;
-      }>;
-    } | null;
-  };
-  capabilities: {
-    approve: boolean;
-    reject: boolean;
-  };
-}
-
-interface ReviewQueueResponse {
-  enabled: boolean;
-  candidates: ReviewableMemoryCandidate[];
-}
-
-export function memoryReviewCandidateTitle(candidate: ReviewableMemoryCandidate): string {
-  return candidate.proposal.canonicalItem?.title ?? candidate.proposal.key ?? 'Memory proposal';
-}
-
-export function memoryCandidateKindLabel(kind: MemoryCandidateKind): string {
-  const labels: Record<MemoryCandidateKind, string> = {
-    standard: 'New memory',
-    correction: 'Correction',
-    restore: 'Restore',
-    contradiction: 'Contradiction',
-  };
-  return labels[kind];
-}
-
-export function candidateRejectRequiresReason(candidate: ReviewableMemoryCandidate): boolean {
-  return candidate.candidateKind !== 'standard';
-}
-
-export function memoryReviewOutcomeMessage(
-  result: Record<string, unknown>,
-  decision: 'approve' | 'reject',
-): string {
-  const outcome = String(result.outcome ?? decision);
-  const kind = String(result.candidateKind ?? 'standard');
-  if (outcome === 'activated') {
-    return kind === 'standard' ? 'Memory approved' : 'Memory version activated';
-  }
-  if (outcome === 'duplicate') return 'Existing controlling memory confirmed';
-  if (outcome === 'conflict') return 'Memory conflict opened for resolution';
-  if (outcome === 'rejected' || decision === 'reject') return 'Memory rejected';
-  return decision === 'approve' ? 'Memory approved' : 'Memory rejected';
-}
-
-export function shouldRenderMemoryReviewQueue(response: ReviewQueueResponse | undefined): boolean {
-  return response?.enabled === true && response.candidates.length > 0;
-}
+// Types + helpers extracted to memory-queue-shared.ts (UI-free) so the vNext
+// Settings module shares them. Re-exported to keep this file's public API
+// unchanged.
+export {
+  candidateRejectRequiresReason,
+  memoryCandidateKindLabel,
+  memoryReviewCandidateTitle,
+  memoryReviewOutcomeMessage,
+  shouldRenderMemoryReviewQueue,
+  type MemoryCandidateKind,
+  type ReviewableMemoryCandidate,
+} from './memory-queue-shared.js';
+import {
+  candidateRejectRequiresReason,
+  memoryCandidateKindLabel,
+  memoryQueueErrorMessage as errorMessage,
+  memoryReviewCandidateTitle,
+  memoryReviewOutcomeMessage,
+  shouldRenderMemoryReviewQueue,
+  type ReviewableMemoryCandidate,
+  type ReviewQueueResponse,
+} from './memory-queue-shared.js';
 
 /** Server-filtered reviewer queue used by standard reviewers and administrators. */
 export function MemoryReviewQueue() {
@@ -233,10 +183,3 @@ export function MemoryReviewQueue() {
   );
 }
 
-function errorMessage(error: unknown): string {
-  if (error && typeof error === 'object') {
-    const response = (error as { response?: { data?: { message?: unknown } } }).response;
-    if (typeof response?.data?.message === 'string') return response.data.message;
-  }
-  return error instanceof Error ? error.message : 'Review decision failed';
-}

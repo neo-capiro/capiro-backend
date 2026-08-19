@@ -5,69 +5,22 @@ import { useApi } from '../lib/use-api.js';
 
 const { Paragraph, Text, Title } = Typography;
 
-export type OwnedMemoryCandidateStatus =
-  | 'pending'
-  | 'withdrawn'
-  | 'rejected'
-  | 'approved'
-  | 'auto_committed';
-
-export interface OwnedMemoryCandidate {
-  id: string;
-  scope: string;
-  clientId: string | null;
-  sourceKind: string;
-  status: OwnedMemoryCandidateStatus;
-  createdAt: string;
-  decidedAt: string | null;
-  restricted: boolean;
-  proposal: {
-    key: string | null;
-    value: string | null;
-    canonicalItem: {
-      type: string;
-      slug: string;
-      title: string;
-      sections: Array<{
-        key: string;
-        heading: string;
-        owner: 'human' | 'engine';
-        body: string;
-      }>;
-    } | null;
-  } | null;
-  capabilities: { withdraw: boolean };
-}
-
-interface ProposalQueueResponse {
-  enabled: boolean;
-  candidates: OwnedMemoryCandidate[];
-}
-
-export function ownedMemoryCandidateTitle(candidate: OwnedMemoryCandidate): string {
-  if (candidate.restricted) return 'Restricted client memory proposal';
-  return candidate.proposal?.canonicalItem?.title ?? candidate.proposal?.key ?? 'Memory proposal';
-}
-
-export function ownedMemoryCandidateStatusLabel(status: OwnedMemoryCandidateStatus): string {
-  switch (status) {
-    case 'pending':
-      return 'Pending review';
-    case 'withdrawn':
-      return 'Withdrawn';
-    case 'rejected':
-      return 'Rejected by reviewer';
-    case 'approved':
-    case 'auto_committed':
-      return 'Approved';
-  }
-}
-
-export function shouldRenderMemoryProposalQueue(
-  response: ProposalQueueResponse | undefined,
-): boolean {
-  return response?.enabled === true && response.candidates.length > 0;
-}
+// Types + helpers extracted to memory-queue-shared.ts (UI-free) so the vNext
+// Settings module shares them. Re-exported to keep this file's public API
+// unchanged.
+export {
+  ownedMemoryCandidateStatusLabel,
+  ownedMemoryCandidateTitle,
+  shouldRenderMemoryProposalQueue,
+  type OwnedMemoryCandidate,
+  type OwnedMemoryCandidateStatus,
+} from './memory-queue-shared.js';
+import {
+  ownedMemoryCandidateStatusLabel,
+  ownedMemoryCandidateTitle,
+  shouldRenderMemoryProposalQueue,
+  type OwnedProposalQueueResponse as ProposalQueueResponse,
+} from './memory-queue-shared.js';
 
 /**
  * Proposer-owned history. The server returns only the current user's candidates;

@@ -31,6 +31,7 @@ import {
   isVNextBillPath,
   VNextBillRoutes,
 } from '../pages/bills/VNextBillRoutes.js';
+import { isVNextSettingsPath } from '../pages/settings/settings-route.js';
 
 const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
@@ -44,6 +45,12 @@ const VNextDistrictNexusPage = lazy(async () => ({
 
 const DataExplorerVNext = lazy(async () => ({
   default: (await import('../pages/explorer/DataExplorerVNext.js')).DataExplorerVNext,
+}));
+
+// Lazy like Explorer: Settings is fourteen sub-pages (incl. recharts on the
+// AI-usage panels) behind a rail item — no reason to pay for it on entry.
+const VNextSettingsRoutes = lazy(async () => ({
+  default: (await import('../pages/settings/VNextSettingsRoutes.js')).VNextSettingsRoutes,
 }));
 
 /**
@@ -172,6 +179,19 @@ export function VNextRouter() {
   // page, exactly as on canonical.
   if (isVNextBillPath(location.pathname)) {
     return <VNextBillRoutes />;
+  }
+
+  // Settings: the whole /settings prefix — layout with role-filtered tabs plus
+  // all fourteen sub-pages (personal/contact/memory/team/branding/clients/
+  // integrations/billing/customers/ai-usage/intelligence-mappings/skills/
+  // policy-packs/tenants). The legacy /admin and /capiro-admin redirects stay
+  // canonical <Navigate>s in App.tsx and land here.
+  if (isVNextSettingsPath(location.pathname)) {
+    return (
+      <Suspense fallback={<div className="capiro-vnext-route-loading">Loading…</div>}>
+        <VNextSettingsRoutes />
+      </Suspense>
+    );
   }
 
   return <Outlet />;
