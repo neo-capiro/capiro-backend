@@ -126,6 +126,7 @@ export function buildOutreachV3GatewayUnit(
 function gatewayRecipient(prepared: PreparedOutreachV3GenerationSlot): GatewayRecipient {
   if (prepared.slot.audienceKind === 'group') {
     const members = prepared.currentTargets.map(targetSnapshot);
+    const sourceTypes = [...new Set(members.map((member) => member.source))].sort();
     return {
       generationKey: prepared.slot.generationKey,
       scopeKeys: prepared.slot.scopeKeys,
@@ -137,6 +138,10 @@ function gatewayRecipient(prepared: PreparedOutreachV3GenerationSlot): GatewayRe
       state: commonValue(members.map((member) => member.state)),
       district: null,
       sourceType: 'outreach_v3_group',
+      sourceTypes,
+      governmentLevel: commonValue(
+        members.map((member) => member.jurisdiction.governmentLevel),
+      ) as GatewayRecipient['governmentLevel'],
       chamber: commonValue(members.map((member) => member.chamber)),
       snapshot: {
         kind: 'shared_thread',
@@ -172,6 +177,8 @@ function gatewayRecipient(prepared: PreparedOutreachV3GenerationSlot): GatewayRe
     state: target.jurisdiction.state,
     district: target.jurisdiction.district,
     sourceType: target.locator.source,
+    sourceTypes: [target.locator.source],
+    governmentLevel: target.jurisdiction.governmentLevel,
     chamber: target.jurisdiction.chamber,
     snapshot: targetSnapshot(target),
   };

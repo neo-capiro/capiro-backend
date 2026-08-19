@@ -144,6 +144,13 @@ describe('Outreach V3 gateway request compiler', () => {
         ],
       }),
     );
+    expect(unit.request.recipient).toEqual(
+      expect.objectContaining({
+        sourceType: 'outreach_v3_group',
+        sourceTypes: ['directory_member'],
+        governmentLevel: 'federal',
+      }),
+    );
   });
 
   it('preserves custom tone and custom length only as authenticated directives', () => {

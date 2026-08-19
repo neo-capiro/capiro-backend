@@ -109,6 +109,30 @@ describe('deterministic selection', () => {
     );
   });
 
+  test('a homogeneous federal directory group resolves from complete server metadata', () => {
+    expect(
+      selectPolicy({
+        recipient: {
+          sourceType: 'outreach_v3_group',
+          sourceTypes: ['directory_member', 'directory_staff'],
+          governmentLevel: 'federal',
+        },
+      }).audienceType,
+    ).toBe('congressional_office');
+  });
+
+  test('a mixed or manual group does not default to federal', () => {
+    expect(() =>
+      selectPolicy({
+        recipient: {
+          sourceType: 'outreach_v3_group',
+          sourceTypes: ['directory_member', 'manual'],
+          governmentLevel: 'federal',
+        },
+      }),
+    ).toThrow(AudiencePolicyRequiredError);
+  });
+
   test('a state legislature source type resolves the STATE policy', () => {
     const p = selectPolicy({ recipient: { sourceType: 'state_legislature' } });
     expect(p.audienceType).toBe('state_legislator');

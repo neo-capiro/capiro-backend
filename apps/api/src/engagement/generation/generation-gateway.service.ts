@@ -200,6 +200,8 @@ export class GenerationGatewayService {
       templateId: request.templateId,
       recipient: {
         sourceType: request.recipient.sourceType,
+        sourceTypes: request.recipient.sourceTypes,
+        governmentLevel: request.recipient.governmentLevel,
         emailDomain: emailDomain(request.recipient.email),
         chamber: request.recipient.chamber,
         defenseAcquisition: request.recipient.defenseAcquisition,

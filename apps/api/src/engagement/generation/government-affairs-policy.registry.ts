@@ -499,6 +499,10 @@ export interface PolicySelectionInput {
   recipient?: {
     /** 'congress' | 'federal_agency' | 'state_legislature' | 'state_agency' | 'local' | 'client' | 'internal' | 'coalition' | null */
     sourceType?: string | null;
+    /** All server-resolved source types represented in a shared group. */
+    sourceTypes?: string[];
+    /** Server-resolved government level; never inferred from chamber alone. */
+    governmentLevel?: 'federal' | 'state' | 'local' | 'agency' | 'corporate' | 'unknown' | null;
     /** Email domain, lowercased. */
     emailDomain?: string | null;
     /** Directory chamber, e.g. 'House' | 'Senate'. */
@@ -525,6 +529,13 @@ export function selectPolicy(input: PolicySelectionInput): GaPolicy {
 
   const r = input.recipient ?? null;
   const sourceType = r?.sourceType?.trim().toLowerCase() || null;
+  const sourceTypes = [
+    ...new Set(
+      (r?.sourceTypes ?? (sourceType ? [sourceType] : []))
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ];
   const domain = r?.emailDomain?.trim().toLowerCase() || null;
 
   if (r?.defenseAcquisition) return POLICIES.defense_acquisition_office;
@@ -561,6 +572,17 @@ export function selectPolicy(input: PolicySelectionInput): GaPolicy {
       return POLICIES.internal_colleague;
     default:
       break;
+  }
+
+  // Shared-thread recipients use a synthetic sourceType, so resolve their
+  // audience from complete server-resolved member metadata. Mixed or manual
+  // groups remain blocked rather than inheriting federal etiquette.
+  if (
+    r?.governmentLevel === 'federal' &&
+    sourceTypes.length > 0 &&
+    sourceTypes.every((value) => value === 'directory_member' || value === 'directory_staff')
+  ) {
+    return POLICIES.congressional_office;
   }
 
   // Domain-based inference, but ONLY for domains that are unambiguous by

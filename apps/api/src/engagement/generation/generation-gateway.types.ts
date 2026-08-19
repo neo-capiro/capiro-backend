@@ -95,6 +95,10 @@ export interface GatewayRecipient {
   district: string | null;
   /** Server-resolved directory source type, drives policy selection. */
   sourceType: string | null;
+  /** Server-resolved source types for a shared recipient group. */
+  sourceTypes?: string[];
+  /** Server-resolved government level for an individual or homogeneous group. */
+  governmentLevel?: 'federal' | 'state' | 'local' | 'agency' | 'corporate' | 'unknown' | null;
   chamber: string | null;
   defenseAcquisition?: boolean;
   /** The full snapshot persisted on the Phase 0 artifact. */
