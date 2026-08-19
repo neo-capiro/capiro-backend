@@ -38,6 +38,42 @@ export function baShort(budgetActivity: string | null | undefined): string | nul
   return m?.[1] ?? budgetActivity;
 }
 
+/**
+ * line_type registry (mockup data-spine): label/short/color per type. MILCON /
+ * TRANSFER / CLASSIFIED are reserved — they render correctly the day those
+ * ingests land, and the facet strip hides types with zero rows. Data registry
+ * (not presentation) — shared verbatim by the canonical chips (pe-shared.tsx)
+ * and the vNext fallback chips so the two surfaces cannot drift.
+ */
+export const LINE_TYPES: Record<
+  string,
+  { label: string; short: string; code: string; color: string }
+> = {
+  RDTE_PE: { label: 'RDT&E · Program Element', short: 'RDT&E PE', code: 'PE', color: '#2A57CE' },
+  PROCUREMENT_BLIN: { label: 'Procurement · BLIN', short: 'Proc BLIN', code: 'BLIN', color: '#1A6E78' },
+  OM_BLI: { label: 'O&M · Budget Line', short: 'O&M BLI', code: 'BLI', color: '#A26913' },
+  MILCON_PROJECT: { label: 'MILCON · Project', short: 'MILCON', code: 'MC', color: '#4E5A86' },
+  TRANSFER: { label: 'Transfer authority', short: 'Transfer', code: 'TR', color: '#7A5C3A' },
+  CLASSIFIED: { label: 'Classified program', short: 'Classified', code: '•••', color: '#3A3D45' },
+};
+
+/** Appropriability tier color registry (F27). */
+export const TIER_COLOR: Record<string, string> = {
+  high: '#2E6B43',
+  med: '#A26913',
+  low: '#B5301B',
+};
+
+/** Latest normalized budget-action chip metadata (BL catalog Signal column). */
+export const ACTION_SIGNAL_META: Record<string, { label: string; tone: string }> = {
+  add: { label: 'Add', tone: 'notable' },
+  cut: { label: 'Cut', tone: 'critical' },
+  new_start: { label: 'New start', tone: 'info' },
+  termination: { label: 'Zeroed', tone: 'critical' },
+  hold: { label: 'Fenced', tone: 'notable' },
+  transfer: { label: 'Transfer', tone: 'info' },
+};
+
 function patchListWatched(
   data: ProgramElementListResponse | undefined,
   peCode: string,

@@ -2,12 +2,11 @@
  * Module-router branch contract: the capiro-internal tenant gate (reproduced
  * from App.tsx's ProgramElementFinderGate/ProgramElementWatchGate, INCLUDING
  * its no-loading-branch semantics), the two native static segments (never
- * tenant-gated), and the sibling swap contract — the NATIVE line profile
- * (PeProfileVNext) mounts inside `.pe-vnext-root` while the non-internal
- * fallbacks mount WITHOUT the wrapper (their layout must match the
- * pre-Phase-3 Outlet fallthrough).
+ * tenant-gated), and — post PE-FALLBACK swap — every branch mounting a NATIVE
+ * page inside the `.pe-vnext-root` wrapper (non-internal tenants get the
+ * native fallback finder/watch, no canonical/antd mounts remain).
  *
- * All five page bodies are stubbed: this file tests only the branch logic.
+ * All six page bodies are stubbed: this file tests only the branch logic.
  */
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -29,11 +28,11 @@ vi.mock('./PePersonCandidatesPage.js', () => ({
 vi.mock('./profile/index.js', () => ({
   PeProfileVNext: () => <div data-testid="native-profile" />,
 }));
-vi.mock('../../../pages/program-element/ProgramElementFinderPage.js', () => ({
-  ProgramElementFinderPage: () => <div data-testid="canonical-finder" />,
+vi.mock('./fallback/PeFinderFallbackVNext.js', () => ({
+  PeFinderFallbackVNext: () => <div data-testid="fallback-finder" />,
 }));
-vi.mock('../../../pages/program-element/ProgramElementWatchPage.js', () => ({
-  ProgramElementWatchPage: () => <div data-testid="canonical-watch" />,
+vi.mock('./fallback/PeWatchFallbackVNext.js', () => ({
+  PeWatchFallbackVNext: () => <div data-testid="fallback-watch" />,
 }));
 
 const INTERNAL = { isLoading: false, data: { tenant: { slug: 'capiro-internal' } } };
@@ -55,18 +54,18 @@ describe('VNextProgramElementsRoutes — tenant gate + branch contract', () => {
     expect(await screen.findByTestId('native-workspace')).toBeInTheDocument();
   });
 
-  it('renders the canonical finder for a non-internal tenant at the root — without the pe-vnext-root wrapper', async () => {
+  it('renders the NATIVE fallback finder for a non-internal tenant at the root — inside the pe-vnext-root wrapper', async () => {
     useMeMock.mockReturnValue(OTHER_TENANT);
     const { container } = renderAt('/program-elements');
-    expect(await screen.findByTestId('canonical-finder')).toBeInTheDocument();
+    expect(await screen.findByTestId('fallback-finder')).toBeInTheDocument();
     expect(screen.queryByTestId('native-workspace')).not.toBeInTheDocument();
-    expect(container.querySelector('.pe-vnext-root')).toBeNull();
+    expect(container.querySelector('.pe-vnext-root')).not.toBeNull();
   });
 
-  it('renders the finder while /me is still loading — canonical gate parity (no loading branch)', async () => {
+  it('renders the fallback finder while /me is still loading — canonical gate parity (no loading branch)', async () => {
     useMeMock.mockReturnValue(LOADING);
     renderAt('/program-elements');
-    expect(await screen.findByTestId('canonical-finder')).toBeInTheDocument();
+    expect(await screen.findByTestId('fallback-finder')).toBeInTheDocument();
   });
 
   it('renders the NATIVE profile (PeProfileVNext) for capiro-internal at :peCode — inside the pe-vnext-root wrapper', async () => {
@@ -76,11 +75,12 @@ describe('VNextProgramElementsRoutes — tenant gate + branch contract', () => {
     expect(container.querySelector('.pe-vnext-root')).not.toBeNull();
   });
 
-  it('renders the canonical watch page for a non-internal tenant at :peCode — without the wrapper', async () => {
+  it('renders the NATIVE fallback watch page for a non-internal tenant at :peCode — inside the wrapper', async () => {
     useMeMock.mockReturnValue(OTHER_TENANT);
     const { container } = renderAt('/program-elements/0604201A');
-    expect(await screen.findByTestId('canonical-watch')).toBeInTheDocument();
-    expect(container.querySelector('.pe-vnext-root')).toBeNull();
+    expect(await screen.findByTestId('fallback-watch')).toBeInTheDocument();
+    expect(screen.queryByTestId('native-profile')).not.toBeInTheDocument();
+    expect(container.querySelector('.pe-vnext-root')).not.toBeNull();
   });
 
   it('renders the NATIVE mark-up monitor for any tenant (canonical never gated it)', async () => {

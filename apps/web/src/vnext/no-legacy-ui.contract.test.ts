@@ -24,19 +24,15 @@ import { describe, expect, it } from 'vitest';
  * entry (edge no longer present) also fails, so the list cannot rot.
  */
 
-/** vnext file -> legacy modules it may reach at runtime (Phase 3 backlog). */
-const ALLOWED_LEGACY_EDGES: Record<string, string[]> = {
-  // Program Elements Phase 3: the workspace (Explore · Movement ·
-  // Congressional · Actions · Portfolio) and both static segments are native
-  // now (PE-CORE). The remaining sanctioned antd reaches are the three lazy
-  // page mounts below, each owned by a named sibling swap:
-  'vnext/pages/program-elements/VNextProgramElementsRoutes.tsx': [
-    // TEMP: PE-FALLBACK swap pending — non-internal tenants' read surfaces
-    // (finder + watch). The PE-FALLBACK agent swaps them and deletes both.
-    'pages/program-element/ProgramElementFinderPage.tsx',
-    'pages/program-element/ProgramElementWatchPage.tsx',
-  ],
-};
+/**
+ * vnext file -> legacy modules it may reach at runtime (Phase 3 backlog).
+ *
+ * EMPTY as of the PE-FALLBACK swap: the last two sanctioned antd edges (the
+ * non-internal tenants' canonical finder/watch mounts) were replaced by the
+ * native fallback module (vnext/pages/program-elements/fallback). Never grow
+ * this list without an owner decision.
+ */
+const ALLOWED_LEGACY_EDGES: Record<string, string[]> = {};
 
 const SRC_ROOT = resolve(process.cwd(), 'src');
 const VNEXT_ROOT = join(SRC_ROOT, 'vnext');

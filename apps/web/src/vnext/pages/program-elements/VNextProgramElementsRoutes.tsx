@@ -19,16 +19,16 @@ import './pe-vnext.css';
  * here byte-for-byte — including the no-loading-branch semantics: while /me is
  * in flight the non-internal read surface renders, exactly as canonical.
  *
- * INTEGRATION CONTRACT (Phase 3 siblings):
- *  - The capiro-internal PROFILE branch mounts the NATIVE PeProfileVNext
- *    (vnext/pages/program-elements/profile) — no antd on that branch.
- *  - The non-internal fallback branches still lazy-mount the canonical
- *    ProgramElementFinderPage / ProgramElementWatchPage (TEMP allowlist
- *    edges). The PE-FALLBACK agent swaps them and deletes those edges.
- *  - Fallback branches render WITHOUT the `.pe-vnext-root` wrapper on purpose:
- *    before Phase 3 they reached these exact canonical pages via the
- *    VNextRouter `<Outlet/>` fallthrough, i.e. with no PE module chrome — the
- *    wrapper's `.uui-content` width escape must not change their layout.
+ * Phase 3 branches (all NATIVE now — no antd anywhere in this module):
+ *  - The capiro-internal PROFILE branch mounts PeProfileVNext
+ *    (vnext/pages/program-elements/profile).
+ *  - The non-internal fallback branches mount the native PE-FALLBACK module
+ *    (vnext/pages/program-elements/fallback): PeFinderFallbackVNext /
+ *    PeWatchFallbackVNext — same endpoints, query keys, copy and states as the
+ *    canonical finder/watch pages they replaced. Now that they are native
+ *    vNext pages they render INSIDE the `.pe-vnext-root` wrapper like every
+ *    other branch (the pre-swap canonical mounts deliberately rendered without
+ *    it, preserving the old Outlet-fallthrough layout).
  */
 const PeWorkspacePage = lazy(async () => ({
   default: (await import('./PeWorkspacePage.js')).PeWorkspacePage,
@@ -46,14 +46,12 @@ const PeProfileVNext = lazy(async () => ({
   default: (await import('./profile/index.js')).PeProfileVNext,
 }));
 
-const ProgramElementFinderPage = lazy(async () => ({
-  default: (await import('../../../pages/program-element/ProgramElementFinderPage.js'))
-    .ProgramElementFinderPage,
+const PeFinderFallbackVNext = lazy(async () => ({
+  default: (await import('./fallback/PeFinderFallbackVNext.js')).PeFinderFallbackVNext,
 }));
 
-const ProgramElementWatchPage = lazy(async () => ({
-  default: (await import('../../../pages/program-element/ProgramElementWatchPage.js'))
-    .ProgramElementWatchPage,
+const PeWatchFallbackVNext = lazy(async () => ({
+  default: (await import('./fallback/PeWatchFallbackVNext.js')).PeWatchFallbackVNext,
 }));
 
 function RouteLoading() {
@@ -89,8 +87,8 @@ export function VNextProgramElementsRoutes() {
   }
 
   if (peCode) {
-    // Line profile: native vNext profile for capiro-internal, canonical watch
-    // page for everyone else (PE-FALLBACK agent swaps that).
+    // Line profile: native vNext profile for capiro-internal, native fallback
+    // watch (PE-FALLBACK) for everyone else.
     return isInternal ? (
       <div className="pe-vnext-root">
         <Suspense fallback={<RouteLoading />}>
@@ -98,14 +96,16 @@ export function VNextProgramElementsRoutes() {
         </Suspense>
       </div>
     ) : (
-      <Suspense fallback={<RouteLoading />}>
-        <ProgramElementWatchPage />
-      </Suspense>
+      <div className="pe-vnext-root">
+        <Suspense fallback={<RouteLoading />}>
+          <PeWatchFallbackVNext />
+        </Suspense>
+      </div>
     );
   }
 
-  // Workspace root: native workspace for capiro-internal, canonical finder for
-  // everyone else (PE-FALLBACK agent swaps that).
+  // Workspace root: native workspace for capiro-internal, native fallback
+  // finder (PE-FALLBACK) for everyone else.
   return isInternal ? (
     <div className="pe-vnext-root">
       <Suspense fallback={<RouteLoading />}>
@@ -113,9 +113,11 @@ export function VNextProgramElementsRoutes() {
       </Suspense>
     </div>
   ) : (
-    <Suspense fallback={<RouteLoading />}>
-      <ProgramElementFinderPage />
-    </Suspense>
+    <div className="pe-vnext-root">
+      <Suspense fallback={<RouteLoading />}>
+        <PeFinderFallbackVNext />
+      </Suspense>
+    </div>
   );
 }
 

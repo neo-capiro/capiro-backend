@@ -2,12 +2,19 @@ import { message } from 'antd';
 import { StarFilled, StarOutlined } from '@ant-design/icons';
 import type { ProgramElementListItem } from './types.js';
 import { serviceColor, signalMeta } from './charts/index.js';
-import { baShort, serviceLabel, useWatchToggleCore } from './pe-shared-model.js';
+import {
+  ACTION_SIGNAL_META,
+  LINE_TYPES,
+  TIER_COLOR,
+  baShort,
+  serviceLabel,
+  useWatchToggleCore,
+} from './pe-shared-model.js';
 
-// UI-free logic extracted to pe-shared-model.ts so the vNext module can
-// consume it without reaching antd; re-exported here so this file's public
-// API is unchanged.
-export { serviceLabel, baShort };
+// UI-free logic + data registries extracted to pe-shared-model.ts so the vNext
+// module can consume them without reaching antd; re-exported here so this
+// file's public API is unchanged.
+export { serviceLabel, baShort, LINE_TYPES };
 
 export function PeCodeBadge({ code, size }: { code: string; size?: 'sm' }) {
   return <span className={`pe-code-badge${size === 'sm' ? ' sm' : ''}`}>{code}</span>;
@@ -35,23 +42,6 @@ export function SignalPill({ item }: { item: ProgramElementListItem }) {
 }
 
 // ── BL-1: money-graph registries + badges ─────────────────────────────────────
-
-/**
- * line_type registry (mockup data-spine): label/short/color per type. MILCON /
- * TRANSFER / CLASSIFIED are reserved — they render correctly the day those
- * ingests land, and the facet strip hides types with zero rows.
- */
-export const LINE_TYPES: Record<
-  string,
-  { label: string; short: string; code: string; color: string }
-> = {
-  RDTE_PE: { label: 'RDT&E · Program Element', short: 'RDT&E PE', code: 'PE', color: '#2A57CE' },
-  PROCUREMENT_BLIN: { label: 'Procurement · BLIN', short: 'Proc BLIN', code: 'BLIN', color: '#1A6E78' },
-  OM_BLI: { label: 'O&M · Budget Line', short: 'O&M BLI', code: 'BLI', color: '#A26913' },
-  MILCON_PROJECT: { label: 'MILCON · Project', short: 'MILCON', code: 'MC', color: '#4E5A86' },
-  TRANSFER: { label: 'Transfer authority', short: 'Transfer', code: 'TR', color: '#7A5C3A' },
-  CLASSIFIED: { label: 'Classified program', short: 'Classified', code: '•••', color: '#3A3D45' },
-};
 
 export function LineTypeBadge({ lineType, small }: { lineType: string | null | undefined; small?: boolean }) {
   const t = lineType ? LINE_TYPES[lineType] : undefined;
@@ -87,12 +77,6 @@ export function MaturityMini({ value }: { value: number | null | undefined }) {
   );
 }
 
-const TIER_COLOR: Record<string, string> = {
-  high: '#2E6B43',
-  med: '#A26913',
-  low: '#B5301B',
-};
-
 /** Appropriability tier badge (F27). `label` overrides the tier text (e.g. score). */
 export function TierBadge({ tier, label }: { tier: string | null | undefined; label?: string }) {
   if (!tier) return <span className="pe-dash">—</span>;
@@ -104,16 +88,6 @@ export function TierBadge({ tier, label }: { tier: string | null | undefined; la
     </span>
   );
 }
-
-/** Latest normalized budget-action chip (BL catalog Signal column). */
-const ACTION_SIGNAL_META: Record<string, { label: string; tone: string }> = {
-  add: { label: 'Add', tone: 'notable' },
-  cut: { label: 'Cut', tone: 'critical' },
-  new_start: { label: 'New start', tone: 'info' },
-  termination: { label: 'Zeroed', tone: 'critical' },
-  hold: { label: 'Fenced', tone: 'notable' },
-  transfer: { label: 'Transfer', tone: 'info' },
-};
 
 export function ActionSignalChip({
   type,
