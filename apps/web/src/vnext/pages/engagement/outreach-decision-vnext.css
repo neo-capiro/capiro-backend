@@ -1837,11 +1837,13 @@
 }
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-field input,
+:where(.capiro-vnext-root .engagement-vnext) .ov3-field select,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-field textarea,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-context-search select,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-search-control,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-search-bar,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-manual-entry input,
+:where(.capiro-vnext-root .engagement-vnext) .ov3-manual-entry select,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-manual-entry textarea {
   background: var(--ov3-surface);
   border: 1px solid var(--ov3-border);
@@ -1850,6 +1852,7 @@
 }
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-field input,
+:where(.capiro-vnext-root .engagement-vnext) .ov3-field select,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-field textarea,
 :where(.capiro-vnext-root .engagement-vnext) .ov3-context-search select {
   font-size: 12px;

@@ -98,4 +98,31 @@ describe('Outreach target contract', () => {
     ).toThrow();
     expect(() => normalizeTargetLocatorV1({ source: 'invented', id: 'person' })).toThrow();
   });
+
+  it('defaults a manual target audience type to null and accepts an explicit choice', () => {
+    const unset = createManualTargetLocator({ name: 'Alex Example' });
+    expect(unset).toMatchObject({ audienceType: null });
+
+    const declared = createManualTargetLocator({
+      name: 'Alex Example',
+      audienceType: 'client_executive',
+    });
+    expect(declared).toMatchObject({ audienceType: 'client_executive' });
+  });
+
+  it('rejects a manual target audience type outside the government-affairs registry', () => {
+    expect(() =>
+      normalizeTargetLocatorV1({
+        source: 'manual',
+        id: '00000000-0000-4000-8000-000000000006',
+        name: 'Alex Example',
+        email: null,
+        phone: null,
+        title: null,
+        organization: null,
+        note: null,
+        audienceType: 'made_up_audience',
+      }),
+    ).toThrow();
+  });
 });

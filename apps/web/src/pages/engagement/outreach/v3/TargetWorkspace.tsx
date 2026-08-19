@@ -129,6 +129,26 @@ const NON_CAPABILITY_SOURCES = new Set<TargetSourceKey>([
 ]);
 
 /**
+ * Mirrors GA_AUDIENCES in government-affairs-policy.registry.ts. A manual
+ * target has no directory/domain signal for that registry's selectPolicy()
+ * to resolve on its own, so it fails closed (OUTREACH_COMMAND_BLOCKED,
+ * "audience_policy_required") at sample generation unless the person adding
+ * it says which audience this is.
+ */
+const MANUAL_AUDIENCE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: '', label: 'Not sure yet' },
+  { value: 'congressional_office', label: 'Federal congressional office' },
+  { value: 'federal_agency', label: 'Federal agency' },
+  { value: 'defense_acquisition_office', label: 'Defense acquisition office' },
+  { value: 'state_legislator', label: 'State legislator' },
+  { value: 'state_agency', label: 'State agency' },
+  { value: 'local_official', label: 'Local official' },
+  { value: 'coalition', label: 'Coalition partner' },
+  { value: 'client_executive', label: 'Client executive' },
+  { value: 'internal_colleague', label: 'Internal colleague' },
+];
+
+/**
  * Resolves one saved-audience member into the same locator shape every other
  * target source uses. Prefers the member's real backing source/ref (so the
  * backend re-resolves it the same way a Directory/Client-contact pick does);
@@ -230,6 +250,7 @@ function Field({
   type = 'text',
   multiline,
   required,
+  options,
 }: {
   label: string;
   value: string;
@@ -237,11 +258,20 @@ function Field({
   type?: 'text' | 'email';
   multiline?: boolean;
   required?: boolean;
+  options?: Array<{ value: string; label: string }>;
 }) {
   return (
     <label className="ov3-field">
       <span>{label}{required ? <em>Required</em> : null}</span>
-      {multiline ? (
+      {options ? (
+        <select value={value} onChange={(event) => onChange(event.target.value)}>
+          {options.map((option) => (
+            <option key={option.value || 'unset'} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      ) : multiline ? (
         <textarea rows={3} value={value} onChange={(event) => onChange(event.target.value)} />
       ) : (
         <input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
@@ -414,6 +444,7 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
     title: '',
     organization: '',
     note: '',
+    audienceType: '',
   });
   // Holds the live query for the tab-load effect without making that effect
   // rerun per keystroke.
@@ -612,11 +643,12 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
       title: manual.title.trim() || null,
       organization: manual.organization.trim() || null,
       note: manual.note.trim() || null,
+      audienceType: manual.audienceType || null,
     };
     setError(null);
     try {
       await applyCommands([addTargetCommand(locator)]);
-      setManual({ name: '', email: '', title: '', organization: '', note: '' });
+      setManual({ name: '', email: '', title: '', organization: '', note: '', audienceType: '' });
     } catch (caught) {
       setError(safeOutreachV3Error(caught));
     }
@@ -770,7 +802,18 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
                 <Field label="Email" type="email" value={manual.email} onChange={(email) => setManual({ ...manual, email })} />
                 <Field label="Title" value={manual.title} onChange={(title) => setManual({ ...manual, title })} />
                 <Field label="Organization" value={manual.organization} onChange={(organization) => setManual({ ...manual, organization })} />
+                <Field
+                  label="Audience type"
+                  value={manual.audienceType}
+                  onChange={(audienceType) => setManual({ ...manual, audienceType })}
+                  options={MANUAL_AUDIENCE_OPTIONS}
+                />
               </div>
+              <p className="ov3-muted-copy">
+                Capiro applies different government-affairs etiquette by audience and will not guess.
+                Leaving this as "Not sure yet" blocks sample generation for this target until an
+                audience is set.
+              </p>
               <Field label="Target note" value={manual.note} onChange={(note) => setManual({ ...manual, note })} multiline />
               <button
                 type="button"

@@ -1,4 +1,5 @@
 import type { OutreachResolvedTargetRefV1 } from '../../capabilities/targets/outreach-target.contract.js';
+import type { GaAudience } from '../../engagement/generation/government-affairs-policy.registry.js';
 import { createBlankCampaignSpecV1 } from '../state/outreach-campaign-spec.v1.js';
 import type { OutreachCommandError } from '../state/outreach-command-errors.js';
 import type { PreparedOutreachV3GenerationSlot } from './outreach-v3-generation-preparation.service.js';
@@ -30,6 +31,32 @@ function target(id: string): OutreachResolvedTargetRefV1 {
     emailStatus: 'available',
     profileStatus: 'complete',
     sourceSnapshot: { system: 'directory', version: '1', lastVerifiedAt: null },
+    snapshotHash: 'a'.repeat(64),
+  } as OutreachResolvedTargetRefV1;
+}
+
+function manualTarget(id: string, audienceType: GaAudience | null = null): OutreachResolvedTargetRefV1 {
+  return {
+    targetKey: `manual:${id}`,
+    locator: { source: 'manual', id, name: `Manual ${id}`, email: null, phone: null, title: null, organization: null, note: null, audienceType },
+    displayName: `Manual ${id}`,
+    email: `${id}@example.test`,
+    phone: null,
+    title: null,
+    organization: null,
+    clientId: null,
+    jurisdiction: {
+      governmentLevel: 'unknown',
+      chamber: null,
+      state: null,
+      district: null,
+      committees: [],
+      issueAreas: [],
+    },
+    roleStatus: 'unknown',
+    emailStatus: 'available',
+    profileStatus: 'limited',
+    sourceSnapshot: { system: 'user_supplied', version: null, lastVerifiedAt: null },
     snapshotHash: 'a'.repeat(64),
   } as OutreachResolvedTargetRefV1;
 }
@@ -283,5 +310,61 @@ describe('Outreach V3 gateway request compiler', () => {
     ]);
     expect(unit.auditLedger.map((entry) => entry.serialized)).toEqual(['A text', 'B text']);
     expect(unit.enrichments[0]?.scope).toBe('all');
+  });
+
+  it('carries a manual target\'s declared audience through as an explicit override', () => {
+    const spec = createBlankCampaignSpecV1();
+    const generationSlot = slot('manual:alpha');
+    const preparedSlot: PreparedOutreachV3GenerationSlot = {
+      ...prepared(generationSlot),
+      currentTargets: [manualTarget('alpha', 'client_executive')],
+    };
+
+    const unit = buildOutreachV3GatewayUnit({
+      plan: plan(generationSlot),
+      spec,
+      prepared: preparedSlot,
+    });
+    expect(unit.request.explicitAudience).toBe('client_executive');
+  });
+
+  it('leaves the audience unresolved for a manual target with no declared audience', () => {
+    const spec = createBlankCampaignSpecV1();
+    const generationSlot = slot('manual:alpha');
+    const preparedSlot: PreparedOutreachV3GenerationSlot = {
+      ...prepared(generationSlot),
+      currentTargets: [manualTarget('alpha')],
+    };
+
+    const unit = buildOutreachV3GatewayUnit({
+      plan: plan(generationSlot),
+      spec,
+      prepared: preparedSlot,
+    });
+    expect(unit.request.explicitAudience).toBeNull();
+  });
+
+  it('never lets one manual member\'s declared audience override a shared-thread group', () => {
+    const spec = createBlankCampaignSpecV1();
+    const groupSlot: OutreachV3GenerationSlot = {
+      ...slot('shared'),
+      generationKey: 'v3:session:shared:abc',
+      recipientKey: 'shared:abc',
+      audienceKind: 'group',
+    };
+    const groupPlan = plan(groupSlot);
+    groupPlan.deliveryPattern = 'shared_thread';
+    groupPlan.personalization = 'light';
+    const preparedGroup: PreparedOutreachV3GenerationSlot = {
+      ...prepared(groupSlot),
+      currentTargets: [manualTarget('alpha', 'client_executive'), target('bravo')],
+    };
+
+    const unit = buildOutreachV3GatewayUnit({
+      plan: groupPlan,
+      spec,
+      prepared: preparedGroup,
+    });
+    expect(unit.request.explicitAudience).toBeNull();
   });
 });

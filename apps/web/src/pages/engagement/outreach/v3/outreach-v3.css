@@ -1030,11 +1030,13 @@
 }
 
 .ov3-field input,
+.ov3-field select,
 .ov3-field textarea,
 .ov3-context-search select,
 .ov3-search-control,
 .ov3-search-bar,
 .ov3-manual-entry input,
+.ov3-manual-entry select,
 .ov3-manual-entry textarea {
   background: var(--ov3-surface);
   border: 1px solid var(--ov3-border);
@@ -1043,6 +1045,7 @@
 }
 
 .ov3-field input,
+.ov3-field select,
 .ov3-field textarea,
 .ov3-context-search select {
   font-size: 12px;
