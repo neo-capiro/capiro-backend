@@ -21,6 +21,7 @@ import { ContextLayerService } from './context-layer.service.js';
 import type {
   ContextResolutionResult,
   ContextResolvedEntity,
+  ContextRetrievalDirective,
   ContextRetrievalResult,
 } from './context-resolver.types.js';
 
@@ -53,6 +54,7 @@ export class ContextPacketV2Service {
   async compile(
     request: ContextRequest,
     result: ContextRetrievalResult,
+    plannedRetrieval?: ContextRetrievalDirective,
   ): Promise<Phase17CompiledContextPacket> {
     const bridge = this.layers.bridgeToCompiler(result.resolution, request);
     const basePacket = await this.compiler.compile(bridge.compilerRequest);
@@ -61,7 +63,7 @@ export class ContextPacketV2Service {
     // enforcement; Phase 17 only establishes the V2 contract.
     if (basePacket.version !== 2) return basePacket;
 
-    const retrievalContext = buildContextPacketRetrievalContext(result);
+    const retrievalContext = buildContextPacketRetrievalContext(result, plannedRetrieval);
     const packet = compileCoverageAwareContextPacket(basePacket, retrievalContext);
     await this.persistCoverageAwareState(packet, retrievalContext);
     return packet;
@@ -130,14 +132,15 @@ export class ContextPacketV2Service {
 
 export function buildContextPacketRetrievalContext(
   result: ContextRetrievalResult,
+  plannedRetrieval?: ContextRetrievalDirective,
 ): ContextPacketRetrievalContext {
   const resolution = result.resolution;
   const retrieval = result.retrieval;
-  const requested = !!resolution.retrievalRequest;
+  const requested = !!resolution.retrievalRequest || !!plannedRetrieval;
   const coverageManifest = retrieval
     ? mapCoverageManifest(retrieval.coverage)
     : requested
-      ? missingRetrievalCoverageManifest(resolution)
+      ? missingRetrievalCoverageManifest(resolution, plannedRetrieval)
       : null;
 
   return {
@@ -152,12 +155,12 @@ export function buildContextPacketRetrievalContext(
     sourceHealth: retrieval
       ? mapSourceHealth(retrieval)
       : requested
-        ? missingSourceHealth(resolution)
+        ? missingSourceHealth(resolution, plannedRetrieval)
         : {},
     sourceFreshness: retrieval
       ? mapSourceFreshness(retrieval)
       : requested
-        ? missingSourceFreshness(resolution)
+        ? missingSourceFreshness(resolution, plannedRetrieval)
         : {},
     evidenceRefs: retrieval ? retrieval.records.map(mapEvidenceRef) : [],
     retrievalStopReason:
@@ -240,8 +243,9 @@ function mapCoverageManifest(coverage: CoverageManifest): ContextPacketCoverageM
 
 function missingRetrievalCoverageManifest(
   resolution: ContextResolutionResult,
+  plannedRetrieval?: ContextRetrievalDirective,
 ): ContextPacketCoverageManifest {
-  const requestedDomains = [...(resolution.retrievalRequest?.requestedDomains ?? [])];
+  const requestedDomains = requestedDomainsFor(resolution, plannedRetrieval);
   const requestedEntityCount =
     resolution.retrievalRequest?.canonicalEntityIds?.length ??
     resolution.subjectScope.clientIds.length;
@@ -298,9 +302,10 @@ function mapSourceFreshness(retrieval: RetrievalResponse): Record<string, string
 
 function missingSourceHealth(
   resolution: ContextResolutionResult,
+  plannedRetrieval?: ContextRetrievalDirective,
 ): Record<string, ContextPacketSourceStatus> {
   return Object.fromEntries(
-    (resolution.retrievalRequest?.requestedDomains ?? []).map((domain) => [
+    requestedDomainsFor(resolution, plannedRetrieval).map((domain) => [
       domain,
       'unavailable' as const,
     ]),
@@ -309,10 +314,22 @@ function missingSourceHealth(
 
 function missingSourceFreshness(
   resolution: ContextResolutionResult,
+  plannedRetrieval?: ContextRetrievalDirective,
 ): Record<string, string | null> {
   return Object.fromEntries(
-    (resolution.retrievalRequest?.requestedDomains ?? []).map((domain) => [domain, null]),
+    requestedDomainsFor(resolution, plannedRetrieval).map((domain) => [domain, null]),
   );
+}
+
+function requestedDomainsFor(
+  resolution: ContextResolutionResult,
+  plannedRetrieval?: ContextRetrievalDirective,
+): ContextPacketCoverageManifest['requestedDomains'] {
+  return [
+    ...new Set(
+      resolution.retrievalRequest?.requestedDomains ?? plannedRetrieval?.requestedDomains ?? [],
+    ),
+  ];
 }
 
 function mapEvidenceRef(record: RetrievalRecord): ContextPacketEvidenceRef {

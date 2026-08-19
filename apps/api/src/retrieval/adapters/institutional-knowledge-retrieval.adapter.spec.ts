@@ -1,8 +1,10 @@
+import type { EmbeddingProvider } from '../../embeddings/embedding-provider.js';
 import type { TemporalKnowledgeGraphService } from '../../knowledge/graph/temporal-knowledge-graph.service.js';
 import type {
   TemporalKnowledgeGraphEdge,
   TemporalKnowledgeGraphPartition,
 } from '../../knowledge/graph/temporal-knowledge-graph.types.js';
+import type { PrismaService } from '../../prisma/prisma.service.js';
 import { SemanticDataCatalogService } from '../data-catalog/semantic-data-catalog.service.js';
 import type { RetrievalRequest } from '../retrieval-v2.types.js';
 import { InstitutionalKnowledgeRetrievalAdapter } from './institutional-knowledge-retrieval.adapter.js';
@@ -52,13 +54,69 @@ const historyRequest = (overrides: Partial<RetrievalRequest> = {}): RetrievalReq
   ...overrides,
 });
 
-function setup() {
+const memoryRequest = (overrides: Partial<RetrievalRequest> = {}): RetrievalRequest => ({
+  queryClass: 'lookup',
+  requestedDomains: ['institutional_knowledge'],
+  caller: {
+    tenantId: 'tenant-1',
+    userId: 'user-1',
+    authorizedClientIds: [],
+  },
+  query: 'nickname',
+  ...overrides,
+});
+
+function setup(options: {
+  memories?: Array<{
+    id: string;
+    key: string;
+    value: string;
+    scope: string;
+    clientId: string | null;
+    ownerUserId: string | null;
+    updatedAt: Date;
+  }>;
+  wallAllowed?: boolean;
+  embed?: () => Promise<number[]>;
+} = {}) {
   const walkAsOf = jest.fn().mockResolvedValue([edge]);
   const relationHistory = jest.fn().mockResolvedValue([edge]);
   const graph = { walkAsOf, relationHistory } as unknown as TemporalKnowledgeGraphService;
-  const adapter = new InstitutionalKnowledgeRetrievalAdapter(graph);
+  const clioMemoryFindMany = jest.fn().mockResolvedValue(options.memories ?? []);
+  const queryRawUnsafe = jest
+    .fn()
+    .mockResolvedValue([{ allowed: options.wallAllowed !== false }]);
+  const queryRaw = jest.fn().mockResolvedValue([]);
+  const tx = {
+    clioMemory: { findMany: clioMemoryFindMany },
+    $queryRawUnsafe: queryRawUnsafe,
+    $queryRaw: queryRaw,
+  };
+  const withTenantUser = jest.fn(
+    async (_tenantId: string, _userId: string, fn: (value: unknown) => Promise<unknown>) =>
+      fn(tx),
+  );
+  const prisma = { withTenantUser } as unknown as PrismaService;
+  const embeddingProvider = {
+    embed: jest.fn(options.embed ?? (async () => [0.1, 0.2, 0.3])),
+  } as unknown as EmbeddingProvider;
+  const adapter = new InstitutionalKnowledgeRetrievalAdapter(
+    graph,
+    prisma,
+    embeddingProvider,
+  );
   const dataset = new SemanticDataCatalogService().get('institutional_knowledge');
-  return { adapter, dataset, walkAsOf, relationHistory };
+  return {
+    adapter,
+    dataset,
+    walkAsOf,
+    relationHistory,
+    clioMemoryFindMany,
+    queryRawUnsafe,
+    queryRaw,
+    withTenantUser,
+    embeddingProvider,
+  };
 }
 
 describe('InstitutionalKnowledgeRetrievalAdapter', () => {
@@ -165,6 +223,131 @@ describe('InstitutionalKnowledgeRetrievalAdapter', () => {
       paginationComplete: false,
       coverageComplete: false,
       stopReason: 'bounded_graph_walk_no_exhaustive_proof',
+    });
+  });
+
+  it('can prove a healthy empty governed-memory scan complete', async () => {
+    const { adapter, dataset, clioMemoryFindMany } = setup({ memories: [] });
+
+    const result = await adapter.retrieve(dataset, memoryRequest());
+
+    expect(clioMemoryFindMany).toHaveBeenCalled();
+    expect(result).toMatchObject({
+      records: [],
+      returned: 0,
+      sourceStatus: 'healthy',
+      paginationComplete: true,
+      coverageComplete: true,
+      stopReason: 'governed_memory_scan_complete',
+    });
+  });
+
+  it('returns governed memory through institutional knowledge with explicit provenance', async () => {
+    const { adapter, dataset } = setup({
+      memories: [
+        {
+          id: 'memory-1',
+          key: 'nickname',
+          value: 'Neo prefers to be called Neo',
+          scope: 'user_private',
+          clientId: null,
+          ownerUserId: 'user-1',
+          updatedAt: new Date('2026-08-18T10:00:00.000Z'),
+        },
+      ],
+    });
+
+    const result = await adapter.retrieve(dataset, memoryRequest());
+
+    expect(result.records[0]).toMatchObject({
+      domain: 'institutional_knowledge',
+      recordId: 'memory-1',
+      payload: {
+        sourceKind: 'governed_memory',
+        key: 'nickname',
+        value: 'Neo prefers to be called Neo',
+        scope: 'user_private',
+      },
+      provenance: { source: 'clio_memory', recordId: 'memory-1' },
+    });
+    expect(result.coverageComplete).toBe(true);
+  });
+
+  it('fails closed before querying memory when requested client scope exceeds the authorization envelope', async () => {
+    const { adapter, dataset, withTenantUser } = setup();
+
+    const result = await adapter.retrieve(
+      dataset,
+      memoryRequest({
+        caller: {
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          clientIds: ['client-1'],
+          authorizedClientIds: [],
+        },
+      }),
+    );
+
+    expect(withTenantUser).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      sourceStatus: 'unauthorized',
+      coverageComplete: false,
+      stopReason: 'requested_client_scope_not_authorized',
+    });
+  });
+
+  it('fails closed when the ethical wall denies a requested client memory scan', async () => {
+    const { adapter, dataset, clioMemoryFindMany, queryRawUnsafe } = setup({ wallAllowed: false });
+
+    const result = await adapter.retrieve(
+      dataset,
+      memoryRequest({
+        caller: {
+          tenantId: 'tenant-1',
+          userId: 'user-1',
+          clientIds: ['client-1'],
+          authorizedClientIds: ['client-1'],
+        },
+      }),
+    );
+
+    expect(queryRawUnsafe).toHaveBeenCalled();
+    expect(clioMemoryFindMany).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      sourceStatus: 'unauthorized',
+      coverageComplete: false,
+      stopReason: 'requested_client_scope_failed_ethical_wall',
+    });
+  });
+
+  it('keeps lexical recall but marks coverage degraded when semantic projection is unavailable', async () => {
+    const { adapter, dataset } = setup({
+      memories: [
+        {
+          id: 'memory-1',
+          key: 'nickname',
+          value: 'Neo',
+          scope: 'user_private',
+          clientId: null,
+          ownerUserId: 'user-1',
+          updatedAt: new Date('2026-08-18T10:00:00.000Z'),
+        },
+      ],
+      embed: async () => {
+        throw new Error('provider unavailable');
+      },
+    });
+
+    const result = await adapter.retrieve(
+      dataset,
+      memoryRequest({ queryClass: 'semantic_recall' }),
+    );
+
+    expect(result.records).toHaveLength(1);
+    expect(result).toMatchObject({
+      sourceStatus: 'degraded',
+      coverageComplete: false,
+      stopReason: 'governed_memory_semantic_projection_incomplete',
     });
   });
 });

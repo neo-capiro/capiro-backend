@@ -50,6 +50,8 @@ import { MeriFeatureFlagsService } from './meri-feature-flags.service.js';
 import { MeriApprovalService } from './meri-approval.service.js';
 import { MeriComplianceAuditService } from './meri-compliance-audit.service.js';
 import { MeriClaimWriterService } from './meri-claim-writer.js';
+import { MeriContextPlaneService } from './meri-context-plane.service.js';
+import { MeriContextPlaneRuntimeService } from './meri-context-plane-runtime.js';
 import { MeriV2ChatClient } from './meriv2-chat.client.js';
 import { MeriV3ChatClient } from './meriv3-chat.client.js';
 import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js';
@@ -91,13 +93,20 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     MeriVNextLibraryController,
   ],
   providers: [
+    MeriContextPlaneService,
+    MeriContextPlaneRuntimeService,
     { provide: RAW_MERI_SERVICE, useClass: MeriService },
     MeriV3ChatClient,
     MeriV3ProxyService,
     {
       provide: MeriService,
       useFactory: createMeriRuntimeService,
-      inject: [RAW_MERI_SERVICE, MeriV3ProxyService, MeriV3VisualAnalysisService],
+      inject: [
+        RAW_MERI_SERVICE,
+        MeriV3ProxyService,
+        MeriV3VisualAnalysisService,
+        MeriContextPlaneRuntimeService,
+      ],
     },
     { provide: RAW_MERI_TOOLS_SERVICE, useClass: MeriToolsService },
     {
@@ -114,7 +123,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
         MeriToolsService,
         AiCredentialResolverService,
         ReviewsService,
-        ContextCompilerService,
+        MeriContextPlaneService,
       ],
     },
     MeriDocgenService,

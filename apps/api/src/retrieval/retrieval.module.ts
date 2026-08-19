@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { KnowledgeModule } from '../knowledge/knowledge.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { createDefaultRerankingProvider } from '../reranking/reranking-provider.factory.js';
@@ -20,7 +21,7 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
  * this same plane, not separate indexes, vector stores, graphs or feature RAGs.
  */
 @Module({
-  imports: [PrismaModule, KnowledgeModule],
+  imports: [PrismaModule, KnowledgeModule, EmbeddingsModule],
   providers: [
     SemanticDataCatalogService,
     RetrievalPlannerV2Service,

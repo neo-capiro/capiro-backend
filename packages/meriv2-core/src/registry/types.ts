@@ -58,6 +58,57 @@ export interface MeriContextPacketSummary {
   degradedReason?: string | null;
 }
 
+/**
+ * Phase 19 model-facing projection of the shared Context Plane.
+ *
+ * The prompt is runtime-only and may contain authorized steering/evidence bodies.
+ * The packet summary is deliberately body-free and safe to persist/display. The
+ * retrieval projection is a compatibility contract for Meri surfaces; its truth
+ * comes from Retrieval V2 / ContextPacket V2 rather than a Meri-owned coverage
+ * engine.
+ */
+export interface MeriGovernedTurnContext {
+  version: 1;
+  operationId: 'meri.chat' | 'meri.research' | 'research.generate-report';
+  prompt: string;
+  contextPacket: MeriContextPacketSummary;
+  retrieval: {
+    plan: {
+      version: 1;
+      queryClass: string;
+      subjectScope: 'client' | 'portfolio' | 'external_entity' | 'general';
+      targetHint: string | null;
+      recipeTool: null;
+      requireCompleteCoverage: boolean;
+      requiredDomains: string[];
+      timeWindow: { expression: string; withinDays: number } | null;
+    };
+    coverage: {
+      version: 1;
+      complete: boolean;
+      requestedDomains: string[];
+      searchedDomains: string[];
+      missingDomains: string[];
+      partialDomains: string[];
+      requestedEntityCount: number | null;
+      searchedEntityCount: number | null;
+      recordsEvaluated: number;
+      recordsReturned: number;
+      paginationComplete: boolean;
+      truncated: boolean;
+      sourceHealth: Array<{
+        source: string;
+        status: 'complete' | 'partial' | 'error' | 'unavailable';
+        lastSyncAt?: string;
+        detail?: string;
+      }>;
+      unavailableSources: Array<{ source: string; reason: string }>;
+      toolsInvoked: string[];
+      stopReason: string;
+    };
+  };
+}
+
 export interface MeriContext {
   tenantId: string;
   userId: string;

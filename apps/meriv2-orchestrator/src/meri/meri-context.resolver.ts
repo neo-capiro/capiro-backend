@@ -86,12 +86,13 @@ export class MeriContextResolver {
     private readonly contextCompiler: OrchestratorContextCompilerService,
   ) {}
 
-  async resolve(
-    tenant: OrchestratorTenantContext,
-    clientId?: string | null,
-    surface: ContextSurface = 'ga-chat',
-    ref: Record<string, string | null | undefined> = {},
-  ): Promise<MeriContext> {
+  /**
+   * Phase 19 governed turns already arrive with a ContextPacket compiled by the
+   * shared API Context Plane. The orchestrator still needs its local Capiro user
+   * id for tool scoping, but it must not compile firm/client context or load a
+   * roster a second time. This method is therefore deliberately identity-only.
+   */
+  async resolveIdentity(tenant: OrchestratorTenantContext): Promise<MeriContext> {
     const user = await this.prisma.user.findUnique({
       where: { clerkUserId: tenant.clerkUserId },
       select: { id: true },
@@ -99,6 +100,22 @@ export class MeriContextResolver {
     if (!user) {
       throw new UnauthorizedException('No Capiro user for the authenticated identity');
     }
+    return {
+      tenantId: tenant.tenantId,
+      userId: user.id,
+      clerkUserId: tenant.clerkUserId,
+      role: mapRole(tenant.role),
+    };
+  }
+
+  async resolve(
+    tenant: OrchestratorTenantContext,
+    clientId?: string | null,
+    surface: ContextSurface = 'ga-chat',
+    ref: Record<string, string | null | undefined> = {},
+  ): Promise<MeriContext> {
+    const identity = await this.resolveIdentity(tenant);
+    const userId = identity.userId;
 
     let firmMemory: MeriContext['firmMemory'] | undefined;
     let userVoice: string | undefined;
@@ -110,12 +127,12 @@ export class MeriContextResolver {
         : (['firm-identity', 'user-voice'] as const);
       const ethicalWallAllowed = await this.resolveEthicalWallAllowed(
         tenant.tenantId,
-        user.id,
+        userId,
         clientId ?? null,
       );
       const packet = await this.contextCompiler.compile({
         tenantId: tenant.tenantId,
-        userId: user.id,
+        userId,
         surface,
         layers: [...layers],
         ref,
@@ -190,10 +207,7 @@ export class MeriContextResolver {
     }
 
     return {
-      tenantId: tenant.tenantId,
-      userId: user.id,
-      clerkUserId: tenant.clerkUserId,
-      role: mapRole(tenant.role),
+      ...identity,
       ...(firmMemory ? { firmMemory } : {}),
       ...(userVoice ? { userVoice } : {}),
       ...(clientRoster ? { clientRoster } : {}),

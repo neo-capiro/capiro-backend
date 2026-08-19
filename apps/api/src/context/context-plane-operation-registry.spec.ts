@@ -4,7 +4,9 @@ import {
   contextPlaneOperation,
 } from './context-plane-operation-registry.js';
 
-describe('Knowledge Plane Phase 18 operation registry', () => {
+const PHASE19_ADOPTED = ['meri.chat', 'meri.research', 'research.generate-report'] as const;
+
+describe('Knowledge Plane Context Plane operation registry', () => {
   test('covers every product family named by the Phase 18 audit', () => {
     const products = new Set(CONTEXT_PLANE_OPERATIONS.map((entry) => entry.registration.product));
     for (const required of [
@@ -22,29 +24,41 @@ describe('Knowledge Plane Phase 18 operation registry', () => {
     expect(contextPlaneOperation('research.generate-report')).toBeDefined();
   });
 
-  test('current legacy ownership is explicit, reviewed, phase-bounded, and tied to concrete implementation debt', () => {
+  test('Phase 19 Meri/research operations are packet-required and carry no migration debt', () => {
+    for (const id of PHASE19_ADOPTED) {
+      const entry = contextPlaneOperation(id);
+      expect(entry?.registration.mode).toBe('packet_required');
+      expect(entry?.registration.migrationException).toBeUndefined();
+      expect(entry?.legacyPaths).toEqual([]);
+    }
+  });
+
+  test('remaining legacy ownership is explicit, reviewed, phase-bounded, and tied to concrete implementation debt', () => {
     expect(CONTEXT_PLANE_ENFORCEMENT_PHASE).toBe(18);
-    for (const entry of CONTEXT_PLANE_OPERATIONS) {
+    const remaining = CONTEXT_PLANE_OPERATIONS.filter(
+      (entry) => entry.registration.mode === 'migration_exception',
+    );
+    expect(remaining.length).toBeGreaterThan(0);
+    for (const entry of remaining) {
       const registration = entry.registration;
-      expect(registration.mode).toBe('migration_exception');
       expect(registration.id).not.toContain('*');
       expect(registration.migrationException).toEqual(
         expect.objectContaining({
           approvalBasis: 'knowledge-plane-phase-sequence',
         }),
       );
-      expect(registration.migrationException!.targetPhase).toBeGreaterThan(18);
+      expect(registration.migrationException!.targetPhase).toBeGreaterThan(19);
       expect(registration.migrationException!.targetPhase).toBeLessThanOrEqual(25);
       expect(entry.legacyPaths.length).toBeGreaterThan(0);
       expect(entry.legacyPaths.every((path) => path.trim().length > 0)).toBe(true);
     }
   });
 
-  test('matches the master-plan adoption sequence: Meri 19, Outreach 20, Workspace 21, LegiWatch 22, CRM 23, Meetings 24, Strategies 25', () => {
+  test('matches the remaining master-plan adoption sequence after Meri: Outreach 20, Workspace 21, LegiWatch 22, CRM 23, Meetings 24, Strategies 25', () => {
     const target = (id: string) =>
       contextPlaneOperation(id)?.registration.migrationException?.targetPhase;
 
-    expect(target('meri.chat')).toBe(19);
+    expect(contextPlaneOperation('meri.chat')?.registration.mode).toBe('packet_required');
     expect(target('outreach.generate')).toBe(20);
     expect(target('workspace.generate')).toBe(21);
     expect(target('legiwatch.generate-report')).toBe(22);

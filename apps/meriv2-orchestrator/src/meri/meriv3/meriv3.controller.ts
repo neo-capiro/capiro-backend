@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -9,16 +10,23 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { CurrentTenant } from '../../auth/current-tenant.decorator.js';
 import { TenantGuard } from '../../auth/tenant.guard.js';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { parseAiProviderHeader } from '../meri.controller.js';
 import { MeriContextResolver } from '../meri-context.resolver.js';
+import {
+  runWithGovernedMeriContext,
+  withGovernedPrompt,
+} from '../meri-governed-context.runtime.js';
 import { MeriV3AccessService } from './meriv3-access.service.js';
 import { MeriV3AssistantService } from './meriv3-assistant.service.js';
 import { listMeriV3ReasoningProfiles } from './meriv3-reasoning.js';
 import type { MeriV3ChatInput } from './meriv3.types.js';
+
+type GovernedMeriV3ChatInput = MeriV3ChatInput & { governedContext?: MeriGovernedTurnContext };
 
 @Controller('v3/chat')
 @UseGuards(TenantGuard)
@@ -48,19 +56,25 @@ export class MeriV3Controller {
 
   @Post()
   async run(
-    @Body() dto: MeriV3ChatInput,
+    @Body() dto: GovernedMeriV3ChatInput,
     @CurrentTenant() tenant: OrchestratorTenantContext,
     @Req() req: Request,
   ) {
     await this.assertAllowed(tenant.tenantId);
     const execute = async () => {
-      const meriContext = await this.resolver.resolve(tenant, dto?.clientId ?? null, 'ga-chat', {
-        conversationId: dto?.conversationId ?? null,
-      });
-      const result = await this.assistant.run(meriContext, dto ?? {});
+      const governed = requireGovernedContext(dto);
+      const meriContext = await this.resolver.resolveIdentity(tenant);
+      meriContext.contextPacket = governed.contextPacket;
+      const effectiveDto = {
+        ...dto,
+        skillAddendum: withGovernedPrompt(dto.skillAddendum, governed),
+      };
+      const run = async () => this.assistant.run(meriContext, effectiveDto);
+      const result = await runWithGovernedMeriContext(governed, run);
       return {
         ...result,
-        ...(meriContext.contextPacket ? { contextPacket: meriContext.contextPacket } : {}),
+        contextPacket: governed.contextPacket,
+        retrieval: governed.retrieval,
       };
     };
     return this.withRequestCredentials(req, execute);
@@ -68,7 +82,7 @@ export class MeriV3Controller {
 
   @Post('stream')
   async stream(
-    @Body() dto: MeriV3ChatInput,
+    @Body() dto: GovernedMeriV3ChatInput,
     @CurrentTenant() tenant: OrchestratorTenantContext,
     @Req() req: Request,
     @Res() res: Response,
@@ -88,19 +102,25 @@ export class MeriV3Controller {
     };
 
     const execute = async () => {
-      const meriContext = await this.resolver.resolve(tenant, dto?.clientId ?? null, 'ga-chat', {
-        conversationId: dto?.conversationId ?? null,
-      });
+      const governed = requireGovernedContext(dto);
+      const meriContext = await this.resolver.resolveIdentity(tenant);
+      meriContext.contextPacket = governed.contextPacket;
+      const effectiveDto = {
+        ...dto,
+        skillAddendum: withGovernedPrompt(dto.skillAddendum, governed),
+      };
       frame({
         type: 'start',
         runtime: 'meriv3',
         reasoningMode: dto?.reasoningMode ?? 'standard',
       });
       try {
-        const result = await this.assistant.run(meriContext, dto ?? {}, {
-          onEvent: frame,
-          signal: abort.signal,
-        });
+        const run = async () =>
+          this.assistant.run(meriContext, effectiveDto, {
+            onEvent: frame,
+            signal: abort.signal,
+          });
+        const result = await runWithGovernedMeriContext(governed, run);
         frame({
           type: 'done',
           reply: result.reply,
@@ -113,8 +133,8 @@ export class MeriV3Controller {
           ...(result.usage ? { usage: result.usage } : {}),
           ...(result.citations?.length ? { citations: result.citations } : {}),
           ...(result.pendingApprovals?.length ? { pendingApprovals: result.pendingApprovals } : {}),
-          ...(result.retrieval ? { retrieval: result.retrieval } : {}),
-          ...(meriContext.contextPacket ? { contextPacket: meriContext.contextPacket } : {}),
+          retrieval: governed.retrieval,
+          contextPacket: governed.contextPacket,
           aborted: abort.signal.aborted,
         });
       } catch (error) {
@@ -156,6 +176,17 @@ export class MeriV3Controller {
         )
       : execute();
   }
+}
+
+function requireGovernedContext(dto: GovernedMeriV3ChatInput): MeriGovernedTurnContext {
+  if (!dto?.governedContext) {
+    throw new BadRequestException({
+      statusCode: 400,
+      error: 'Governed Context Plane input required',
+      code: 'meri_governed_context_required',
+    });
+  }
+  return dto.governedContext;
 }
 
 function extractBearerToken(req: Request): string | null {

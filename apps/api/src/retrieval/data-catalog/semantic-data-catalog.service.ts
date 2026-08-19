@@ -225,22 +225,22 @@ const DATASETS: readonly SemanticDatasetDescriptor[] = [
   {
     domain: 'institutional_knowledge',
     label: 'Institutional Knowledge',
-    description: 'Canonical, provenance-bearing tenant knowledge projected through the Temporal Knowledge Graph.',
-    entityKinds: ['canonical_entity', 'knowledge_assertion', 'knowledge_episode', 'relationship'],
+    description: 'Canonical provenance-bearing tenant knowledge plus governed durable memory, exposed through the shared Knowledge Plane.',
+    entityKinds: ['canonical_entity', 'knowledge_assertion', 'knowledge_episode', 'relationship', 'governed_memory'],
     sourceKind: 'knowledge_plane',
     authority: 'knowledge_plane',
     tenantScope: 'mixed',
-    temporalSemantics: 'bitemporal valid-time plus observed-time semantics with no hindsight leakage',
-    supportedQueryClasses: ['entity_history', 'relationship_history', 'temporal_state', 'change_detection'],
+    temporalSemantics: 'bitemporal graph history plus current governed memory state; revoked/superseded memory is suppressed',
+    supportedQueryClasses: ['lookup', 'semantic_recall', 'entity_history', 'relationship_history', 'temporal_state', 'change_detection'],
     queryCapabilities: {
       exactFiltering: true,
       dateRange: true,
-      pagination: false,
+      pagination: true,
       exhaustiveScan: false,
       temporalHistory: true,
     },
     adapterKey: 'knowledge-plane-temporal-graph',
-    freshnessDescription: 'Derived from authoritative KnowledgeEvent/Assertion/Evidence observation timestamps.',
+    freshnessDescription: 'Graph rows use KnowledgeEvent/Assertion/Evidence observation time; governed memories use their durable update/confirmation state.',
   },
 ] as const;
 

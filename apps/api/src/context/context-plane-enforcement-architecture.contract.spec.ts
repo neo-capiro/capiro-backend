@@ -40,11 +40,14 @@ describe('Knowledge Plane Phase 18 architecture contract', () => {
     expect(core).not.toContain('skipContextPlane');
   });
 
-  test('legacy product paths are an explicit reviewed debt inventory, not hidden bypasses', () => {
+  test('adopted Meri operations are governed while remaining product paths stay explicit reviewed debt', () => {
     const registry = read(registryPath);
 
+    for (const adopted of ["id: 'meri.chat'", "id: 'meri.research'", "id: 'research.generate-report'"]) {
+      expect(registry).toContain(adopted);
+    }
+    expect(registry).toContain('governedOperation({');
     for (const marker of [
-      'apps/api/src/meri/',
       'apps/api/src/engagement/',
       'apps/workspace/',
       'apps/api/src/workspace-assistant/',
@@ -55,7 +58,10 @@ describe('Knowledge Plane Phase 18 architecture contract', () => {
     ]) {
       expect(registry).toContain(marker);
     }
-    expect(registry).toContain("approvalBasis: APPROVAL_BASIS");
+    expect(registry).toContain('approvalBasis: APPROVAL_BASIS');
+    expect(registry).not.toContain('phase19-meri-chat-adoption');
+    expect(registry).not.toContain('phase19-meri-research-adoption');
+    expect(registry).not.toContain('phase19-research-report-adoption');
   });
 
   test('enforcement decisions are auditable without copying prompts, responses, or retrieved bodies', () => {

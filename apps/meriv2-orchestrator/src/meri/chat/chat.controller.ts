@@ -1,13 +1,20 @@
-import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { TenantGuard } from '../../auth/tenant.guard.js';
 import { CurrentTenant } from '../../auth/current-tenant.decorator.js';
 import type { OrchestratorTenantContext } from '../../auth/tenant-context.js';
 import { MeriContextResolver } from '../meri-context.resolver.js';
+import {
+  runWithGovernedMeriContext,
+  withGovernedPrompt,
+} from '../meri-governed-context.runtime.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { parseAiProviderHeader } from '../meri.controller.js';
 import { ChatAssistantService } from './chat-assistant.service.js';
 import type { ChatInput, ChatResult } from './chat-prompt.js';
+
+type GovernedChatInput = ChatInput & { governedContext?: MeriGovernedTurnContext };
 
 @Controller('chat')
 @UseGuards(TenantGuard)
@@ -19,20 +26,27 @@ export class ChatController {
 
   @Post()
   async run(
-    @Body() dto: ChatInput,
+    @Body() dto: GovernedChatInput,
     @CurrentTenant() tenant: OrchestratorTenantContext,
     @Req() req: Request,
-  ): Promise<ChatResult & { contextPacket?: unknown }> {
+  ): Promise<ChatResult & { contextPacket: unknown; retrieval: unknown }> {
     const token = extractBearerToken(req);
     const aiProvider = parseAiProviderHeader(req);
     const impersonateTenantId = extractImpersonateTenant(req);
     const execute = async () => {
-      const meriCtx = await this.resolver.resolve(tenant, dto?.clientId ?? null, 'ga-chat', {
-        conversationId: dto?.conversationId ?? null,
-      });
+      const governed = requireGovernedContext(dto);
+      const meriCtx = await this.resolver.resolveIdentity(tenant);
+      meriCtx.contextPacket = governed.contextPacket;
+      const effectiveDto = {
+        ...dto,
+        skillAddendum: withGovernedPrompt(dto.skillAddendum, governed),
+      };
+      const run = async () => this.chat.run(meriCtx, effectiveDto);
+      const result = await runWithGovernedMeriContext(governed, run);
       return {
-        ...(await this.chat.run(meriCtx, dto ?? {})),
-        ...(meriCtx.contextPacket ? { contextPacket: meriCtx.contextPacket } : {}),
+        ...result,
+        contextPacket: governed.contextPacket,
+        retrieval: governed.retrieval,
       };
     };
     return token || aiProvider || impersonateTenantId
@@ -49,7 +63,7 @@ export class ChatController {
 
   @Post('stream')
   async stream(
-    @Body() dto: ChatInput,
+    @Body() dto: GovernedChatInput,
     @CurrentTenant() tenant: OrchestratorTenantContext,
     @Req() req: Request,
     @Res() res: Response,
@@ -72,15 +86,21 @@ export class ChatController {
     };
 
     const execute = async () => {
-      const meriCtx = await this.resolver.resolve(tenant, dto?.clientId ?? null, 'ga-chat', {
-        conversationId: dto?.conversationId ?? null,
-      });
+      const governed = requireGovernedContext(dto);
+      const meriCtx = await this.resolver.resolveIdentity(tenant);
+      meriCtx.contextPacket = governed.contextPacket;
+      const effectiveDto = {
+        ...dto,
+        skillAddendum: withGovernedPrompt(dto.skillAddendum, governed),
+      };
       frame({ type: 'start' });
       try {
-        const result = await this.chat.run(meriCtx, dto ?? {}, {
-          onEvent: frame,
-          signal: abort.signal,
-        });
+        const run = async () =>
+          this.chat.run(meriCtx, effectiveDto, {
+            onEvent: frame,
+            signal: abort.signal,
+          });
+        const result = await runWithGovernedMeriContext(governed, run);
         frame({
           type: 'done',
           reply: result.reply,
@@ -89,7 +109,8 @@ export class ChatController {
           ...(result.usage ? { usage: result.usage } : {}),
           ...(result.citations?.length ? { citations: result.citations } : {}),
           ...(result.pendingApprovals?.length ? { pendingApprovals: result.pendingApprovals } : {}),
-          ...(meriCtx.contextPacket ? { contextPacket: meriCtx.contextPacket } : {}),
+          contextPacket: governed.contextPacket,
+          retrieval: governed.retrieval,
           aborted: abort.signal.aborted,
         });
       } catch (error) {
@@ -109,6 +130,17 @@ export class ChatController {
         )
       : execute());
   }
+}
+
+function requireGovernedContext(dto: GovernedChatInput): MeriGovernedTurnContext {
+  if (!dto?.governedContext) {
+    throw new BadRequestException({
+      statusCode: 400,
+      error: 'Governed Context Plane input required',
+      code: 'meri_governed_context_required',
+    });
+  }
+  return dto.governedContext;
 }
 
 function extractBearerToken(req: Request): string | null {

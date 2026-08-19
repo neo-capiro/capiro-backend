@@ -1,5 +1,6 @@
 import { createMeriRuntimeService } from './meriv3-runtime.proxy.js';
 import type { MeriService } from './meri.service.js';
+import type { MeriContextPlaneRuntimeService } from './meri-context-plane-runtime.js';
 import type { MeriV3ProxyService } from './meriv3-proxy.service.js';
 import type { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 
@@ -19,10 +20,18 @@ function make() {
       buffer: Buffer.from('legacy-tenant-only-result'),
       contentType: 'image/png',
     })),
+    orchestrateContext: jest.fn(async () => ({})),
+    loadRelevantMemories: jest.fn(async () => []),
+    policyForIntent: jest.fn(() => ({})),
+    templateForIntent: jest.fn(() => null),
+    meriV2Chat: { streamChat: jest.fn(async () => undefined) },
+    clientKb: { buildSnapshot: jest.fn(async () => 'legacy-kb') },
   } as unknown as MeriService;
   const meriv3 = {
     shouldHandle: jest.fn(async () => false),
     streamMessage: jest.fn(async () => undefined),
+    client: { streamChat: jest.fn(async () => undefined) },
+    clientKb: { buildSnapshot: jest.fn(async () => 'v3-kb') },
   } as unknown as MeriV3ProxyService;
   const visualAnalysis = {
     getArtifactImage: jest.fn(async () => ({
@@ -30,30 +39,68 @@ function make() {
       contentType: 'image/png',
     })),
   } as unknown as MeriV3VisualAnalysisService;
+  const governedRuntime = {
+    runChatTurn: jest.fn(
+      async (
+        _valueCtx: unknown,
+        _input: unknown,
+        execute: () => Promise<unknown>,
+      ) => execute(),
+    ),
+  } as unknown as MeriContextPlaneRuntimeService;
   return {
     raw,
     meriv3,
     visualAnalysis,
-    service: createMeriRuntimeService(raw, meriv3, visualAnalysis),
+    governedRuntime,
+    service: createMeriRuntimeService(raw, meriv3, visualAnalysis, governedRuntime),
   };
 }
 
-describe('Meri runtime proxy', () => {
-  test('delegates a non-canary turn to the existing MeriService', async () => {
-    const { raw, meriv3, service } = make();
+describe('Meri runtime proxy Phase 19', () => {
+  test('resolves governed context before delegating a non-canary turn to the existing MeriService', async () => {
+    const { raw, meriv3, governedRuntime, service } = make();
     await service.streamMessage(ctx as never, 'conversation', 'hello', { write: jest.fn() });
+
+    expect(governedRuntime.runChatTurn).toHaveBeenCalledWith(
+      ctx,
+      { conversationId: 'conversation', body: 'hello', mode: 'new' },
+      expect.any(Function),
+    );
     expect(meriv3.shouldHandle).toHaveBeenCalledWith(ctx);
     expect(meriv3.streamMessage).not.toHaveBeenCalled();
     expect(raw.streamMessage).toHaveBeenCalledTimes(1);
   });
 
-  test('routes an allowed turn to MeriV3 and never also calls V2', async () => {
-    const { raw, meriv3, service } = make();
+  test('resolves governed context once before routing an allowed turn to MeriV3', async () => {
+    const { raw, meriv3, governedRuntime, service } = make();
     (meriv3.shouldHandle as jest.Mock).mockResolvedValue(true);
     const writer = { write: jest.fn() };
+
     await service.streamMessage(ctx as never, 'conversation', 'hello', writer);
+
+    expect(governedRuntime.runChatTurn).toHaveBeenCalledTimes(1);
     expect(meriv3.streamMessage).toHaveBeenCalledWith(ctx, 'conversation', 'hello', writer);
     expect(raw.streamMessage).not.toHaveBeenCalled();
+  });
+
+  test('preserves regenerate mode when preparing the governed turn', async () => {
+    const { governedRuntime, service } = make();
+
+    await service.streamMessage(
+      ctx as never,
+      'conversation',
+      '',
+      { write: jest.fn() },
+      undefined,
+      'regenerate',
+    );
+
+    expect(governedRuntime.runChatTurn).toHaveBeenCalledWith(
+      ctx,
+      { conversationId: 'conversation', body: '', mode: 'regenerate' },
+      expect.any(Function),
+    );
   });
 
   test('routes the legacy image endpoint through the tenant + user scoped reader', async () => {

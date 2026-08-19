@@ -41,7 +41,7 @@ function governedOperation(): ContextPlaneOperationRegistration {
     }),
     resolverSurface: 'research',
     owner: 'test',
-    legacyPaths: ['test-only'],
+    legacyPaths: [],
   };
 }
 
@@ -69,7 +69,7 @@ function harness(mode: 'off' | 'shadow' | 'enforce' = 'enforce') {
   return { service, resolver, packets, compiler, audit, context };
 }
 
-describe('ContextPlaneGatewayService Phase 18', () => {
+describe('ContextPlaneGatewayService Phase 18/19', () => {
   afterEach(() => jest.restoreAllMocks());
 
   test('unregistered operation is denied and audited before resolver/retrieval', async () => {
@@ -94,12 +94,12 @@ describe('ContextPlaneGatewayService Phase 18', () => {
     );
   });
 
-  test('reviewed Phase 19-25 migration exception exits before retrieval and is audited', async () => {
+  test('remaining reviewed Phase 20-25 migration exception exits before retrieval and is audited', async () => {
     const h = harness();
     const result = await h.service.requestContext({
-      operationId: 'meri.chat',
-      resolverRequest: resolverRequest('chat'),
-      contextRequest: contextRequest('chat'),
+      operationId: 'outreach.generate',
+      resolverRequest: resolverRequest('outreach'),
+      contextRequest: contextRequest('outreach'),
     });
 
     expect(result.kind).toBe('migration_exception');
@@ -107,23 +107,23 @@ describe('ContextPlaneGatewayService Phase 18', () => {
     expect(h.packets.compile).not.toHaveBeenCalled();
     expect(h.audit.record).toHaveBeenCalledWith(
       expect.objectContaining({
-        product: 'meri',
+        product: 'outreach',
         decision: expect.objectContaining({
           reason: 'migration_exception',
-          migrationTargetPhase: 19,
+          migrationTargetPhase: 20,
         }),
       }),
     );
   });
 
-  test('migration exception expires automatically when its adoption phase begins', async () => {
+  test('remaining migration exception expires automatically when its adoption phase begins', async () => {
     const h = harness();
     await expect(
       h.service.requestContext({
-        operationId: 'meri.chat',
-        resolverRequest: resolverRequest('chat'),
-        contextRequest: contextRequest('chat'),
-        currentPhase: 19,
+        operationId: 'outreach.generate',
+        resolverRequest: resolverRequest('outreach'),
+        contextRequest: contextRequest('outreach'),
+        currentPhase: 20,
       }),
     ).rejects.toMatchObject({ status: 403 });
 
@@ -135,10 +135,31 @@ describe('ContextPlaneGatewayService Phase 18', () => {
     );
   });
 
+  test('Phase 19 Meri chat is now packet-required', async () => {
+    const h = harness('enforce');
+    const resolverReq = resolverRequest('chat');
+    const compilerReq = contextRequest('chat');
+
+    const result = await h.service.requestContext({
+      operationId: 'meri.chat',
+      resolverRequest: resolverReq,
+      contextRequest: compilerReq,
+      currentPhase: 19,
+    });
+
+    expect(result.kind).toBe('governed_packet');
+    expect(h.resolver.resolveAndRetrieve).toHaveBeenCalledWith(resolverReq);
+    expect(h.packets.compile).toHaveBeenCalledWith(compilerReq, h.context, undefined);
+  });
+
   test('packet-required operation can only reach reasoning through resolver and ContextPacket V2', async () => {
     jest.spyOn(operationRegistry, 'contextPlaneOperation').mockReturnValue(governedOperation());
     const h = harness('enforce');
     const resolverReq = resolverRequest();
+    resolverReq.retrieval = {
+      queryClass: 'lookup',
+      requestedDomains: ['clients'],
+    };
     const compilerReq = contextRequest();
 
     const result = await h.service.requestContext({
@@ -149,7 +170,11 @@ describe('ContextPlaneGatewayService Phase 18', () => {
 
     expect(result.kind).toBe('governed_packet');
     expect(h.resolver.resolveAndRetrieve).toHaveBeenCalledWith(resolverReq);
-    expect(h.packets.compile).toHaveBeenCalledWith(compilerReq, h.context);
+    expect(h.packets.compile).toHaveBeenCalledWith(
+      compilerReq,
+      h.context,
+      resolverReq.retrieval,
+    );
     expect(h.audit.record).toHaveBeenCalledWith(
       expect.objectContaining({
         decision: expect.objectContaining({ reason: 'governed_packet' }),

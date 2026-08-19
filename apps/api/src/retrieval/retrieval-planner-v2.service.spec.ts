@@ -19,20 +19,33 @@ describe('RetrievalPlannerV2Service', () => {
     expect(plan.entries.map((entry) => entry.dataset.domain)).toEqual(['clients', 'mail']);
   });
 
-  it('marks unsupported query classes explicitly instead of silently searching another dataset', () => {
+  it('keeps unsupported semantic recall explicit while allowing governed institutional memory', () => {
     const plan = planner.plan(
       request({ queryClass: 'semantic_recall', requestedDomains: ['clients', 'institutional_knowledge'] }),
     );
 
     expect(plan.entries).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ supported: false, dataset: expect.objectContaining({ domain: 'clients' }) }),
         expect.objectContaining({
           supported: false,
+          dataset: expect.objectContaining({ domain: 'clients' }),
+        }),
+        expect.objectContaining({
+          supported: true,
           dataset: expect.objectContaining({ domain: 'institutional_knowledge' }),
         }),
       ]),
     );
+  });
+
+  it('catalogs governed institutional memory for lookup as well as semantic recall', () => {
+    const catalog = new SemanticDataCatalogService().get('institutional_knowledge');
+    expect(catalog.supportedQueryClasses).toEqual(
+      expect.arrayContaining(['lookup', 'semantic_recall']),
+    );
+    expect(
+      planner.plan(request({ requestedDomains: ['institutional_knowledge'] })).entries[0]?.supported,
+    ).toBe(true);
   });
 
   it('requires at least one requested domain', () => {

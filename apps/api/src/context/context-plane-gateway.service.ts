@@ -128,7 +128,16 @@ export class ContextPlaneGatewayService {
 
     // A packet-required operation is never allowed to assemble context itself.
     const context = await this.resolver.resolveAndRetrieve(request.resolverRequest);
-    const packet = await this.packets.compile(request.contextRequest, context);
+    // The original retrieval directive is deliberately forwarded separately.
+    // Entity resolution can fail/ambiguous before Phase 15 can construct a
+    // RetrievalRequest. Phase 17 must still know that domains were requested so
+    // it records them as unchecked/unavailable rather than falsely calling the
+    // turn "not requested" and complete.
+    const packet = await this.packets.compile(
+      request.contextRequest,
+      context,
+      request.resolverRequest.retrieval,
+    );
     const decision = evaluateContextOperationEnforcement({
       operationId: request.operationId,
       requestedSurface: request.contextRequest.surface,

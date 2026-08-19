@@ -1,15 +1,93 @@
 import type { TenantContext } from '@capiro/shared';
-import { ContextPacketPersistenceError } from '@capiro/meriv2-core';
+import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { createGovernedMeriResearchService } from './governed-meri-research.factory.js';
+import { MeriResearchService } from './meri-research.service.js';
 
-const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as TenantContext;
+const ctx = {
+  tenantId: 'tenant-1',
+  userId: 'user-1',
+  clerkUserId: 'clerk-1',
+  role: 'standard_user',
+} as TenantContext;
 
-function makeHarness(mode: 'off' | 'shadow' | 'enforce') {
+const governed = (operationId: MeriGovernedTurnContext['operationId']): MeriGovernedTurnContext => ({
+  version: 1,
+  operationId,
+  prompt: `Governed prompt for ${operationId}`,
+  contextPacket: {
+    packetId: 'packet-1',
+    persisted: true,
+    items: [],
+    exclusions: [],
+    unauthorizedCount: 0,
+    degraded: false,
+  },
+  retrieval: {
+    plan: {
+      version: 1,
+      queryClass: 'lookup',
+      subjectScope: 'client',
+      targetHint: null,
+      recipeTool: null,
+      requireCompleteCoverage: false,
+      requiredDomains: ['clients'],
+      timeWindow: null,
+    },
+    coverage: {
+      version: 1,
+      complete: true,
+      requestedDomains: ['clients'],
+      searchedDomains: ['clients'],
+      missingDomains: [],
+      partialDomains: [],
+      requestedEntityCount: 1,
+      searchedEntityCount: 1,
+      recordsEvaluated: 1,
+      recordsReturned: 1,
+      paginationComplete: true,
+      truncated: false,
+      sourceHealth: [{ source: 'clients', status: 'complete' }],
+      unavailableSources: [],
+      toolsInvoked: ['retrieval-v2:clients'],
+      stopReason: 'complete',
+    },
+  },
+});
+
+function makeHarness() {
+  let promptObservedInsidePlan: string | null = null;
+  let promptObservedInsideResearch: string | null = null;
+
+  const originalPlan = jest
+    .spyOn(MeriResearchService.prototype, 'streamPlan')
+    .mockImplementation(async function (this: MeriResearchService, valueCtx: TenantContext) {
+      promptObservedInsidePlan = await (
+        this as unknown as {
+          clientContext: (innerCtx: TenantContext, clientId: string | null) => Promise<string | null>;
+        }
+      ).clientContext(valueCtx, 'client-1');
+    });
+  const originalResearch = jest
+    .spyOn(MeriResearchService.prototype, 'streamResearch')
+    .mockImplementation(async function (this: MeriResearchService, valueCtx: TenantContext) {
+      promptObservedInsideResearch = await (
+        this as unknown as {
+          clientContext: (innerCtx: TenantContext, clientId: string | null) => Promise<string | null>;
+        }
+      ).clientContext(valueCtx, 'client-1');
+    });
+
   const tx = {
+    clioResearchSession: {
+      findFirst: jest.fn().mockResolvedValue({
+        topic: 'RTX federal market strategy',
+        clientId: 'client-1',
+      }),
+    },
     client: {
       findFirst: jest.fn().mockResolvedValue({
         name: 'Acme',
-        description: 'Client description',
+        description: 'Legacy client description',
         productDescription: null,
       }),
     },
@@ -17,12 +95,13 @@ function makeHarness(mode: 'off' | 'shadow' | 'enforce') {
   const prisma = {
     withTenant: jest.fn(async (_tenantId: string, fn: (client: typeof tx) => unknown) => fn(tx)),
   };
-  const contextCompiler = {
-    modeFor: jest.fn().mockResolvedValue(mode),
-    compile: jest.fn().mockResolvedValue({
-      version: mode === 'enforce' ? 2 : 1,
-      rendered: [{ body: 'Firm-approved governed context.' }],
-    }),
+  const contextPlane = {
+    resolveResearch: jest.fn(
+      async (
+        _valueCtx: TenantContext,
+        input: { operationId: MeriGovernedTurnContext['operationId'] },
+      ) => governed(input.operationId),
+    ),
   };
   const service = createGovernedMeriResearchService(
     prisma as never,
@@ -30,47 +109,64 @@ function makeHarness(mode: 'off' | 'shadow' | 'enforce') {
     {} as never,
     {} as never,
     {} as never,
-    contextCompiler as never,
+    contextPlane as never,
   );
-  const load = (service as unknown as {
-    clientContext: (value: TenantContext, clientId: string | null) => Promise<string | null>;
-  }).clientContext.bind(service);
-  return { load, contextCompiler };
+
+  return {
+    service,
+    contextPlane,
+    originalPlan,
+    originalResearch,
+    tx,
+    get promptObservedInsidePlan() {
+      return promptObservedInsidePlan;
+    },
+    get promptObservedInsideResearch() {
+      return promptObservedInsideResearch;
+    },
+  };
 }
 
-describe('createGovernedMeriResearchService', () => {
-  it('keeps off mode byte-compatible and does not compile a packet', async () => {
-    const { load, contextCompiler } = makeHarness('off');
-    await expect(load(ctx, 'client-1')).resolves.toBe(
-      'Client: Acme\nDescription: Client description',
-    );
-    expect(contextCompiler.compile).not.toHaveBeenCalled();
+describe('createGovernedMeriResearchService Phase 19', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('routes research planning through the meri.research Context Plane operation', async () => {
+    const h = makeHarness();
+
+    await h.service.streamPlan(ctx, 'research-1', {} as never);
+
+    expect(h.contextPlane.resolveResearch).toHaveBeenCalledWith(ctx, {
+      task: 'RTX federal market strategy',
+      clientId: 'client-1',
+      operationId: 'meri.research',
+      sessionId: 'research-1',
+    });
+    expect(h.originalPlan).toHaveBeenCalled();
+    expect(h.promptObservedInsidePlan).toBe('Governed prompt for meri.research');
   });
 
-  it('records shadow evidence without changing the prompt context', async () => {
-    const { load, contextCompiler } = makeHarness('shadow');
-    const result = await load(ctx, 'client-1');
-    expect(result).toBe('Client: Acme\nDescription: Client description');
-    expect(contextCompiler.compile).toHaveBeenCalledWith(
-      expect.objectContaining({ surface: 'research', clientId: 'client-1' }),
+  it('routes gather and synthesis through research.generate-report', async () => {
+    const h = makeHarness();
+
+    await h.service.streamResearch(ctx, 'research-1', {} as never);
+
+    expect(h.contextPlane.resolveResearch).toHaveBeenCalledWith(ctx, {
+      task: 'RTX federal market strategy',
+      clientId: 'client-1',
+      operationId: 'research.generate-report',
+      sessionId: 'research-1',
+    });
+    expect(h.originalResearch).toHaveBeenCalled();
+    expect(h.promptObservedInsideResearch).toBe(
+      'Governed prompt for research.generate-report',
     );
   });
 
-  it('adds plain governed context only in enforce mode', async () => {
-    const { load } = makeHarness('enforce');
-    await expect(load(ctx, 'client-1')).resolves.toBe(
-      'Client: Acme\nDescription: Client description\n\nFirm-approved governed context.',
-    );
-  });
+  it('does not invoke the legacy client lookup inside a governed run', async () => {
+    const h = makeHarness();
 
-  it('propagates a required persistence hold before research emits output', async () => {
-    const { load, contextCompiler } = makeHarness('enforce');
-    const failure = new ContextPacketPersistenceError(
-      'context_packet_error',
-      'attempt-1',
-      'research',
-    );
-    contextCompiler.compile.mockRejectedValueOnce(failure);
-    await expect(load(ctx, 'client-1')).rejects.toBe(failure);
+    await h.service.streamPlan(ctx, 'research-1', {} as never);
+
+    expect(h.tx.client.findFirst).not.toHaveBeenCalled();
   });
 });

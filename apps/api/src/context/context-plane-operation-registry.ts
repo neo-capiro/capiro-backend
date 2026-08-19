@@ -1,5 +1,6 @@
 import {
   defineContextMigrationException,
+  defineContextOperation,
   type ContextAwareOperationRegistration,
   type ContextSurface as PacketContextSurface,
   validateContextOperationRegistry,
@@ -8,19 +9,38 @@ import type { ContextSurface as ResolverContextSurface } from './context-resolve
 
 /**
  * API-side inventory of the context-aware AI operation families named by the
- * Knowledge Plane plan. Phase 18 makes legacy ownership explicit; Phases 19-25
- * delete these exceptions as each product adopts the shared Context Plane.
+ * Knowledge Plane plan. Phase 18 made legacy ownership explicit; each adoption
+ * phase deletes its bounded exception and converts the operation to
+ * packet_required. Phase 19 has now adopted Meri chat/research/report reasoning.
  */
 export interface ContextPlaneOperationRegistration {
   registration: ContextAwareOperationRegistration;
   /** Resolver surface can be more specific than the compiler's historic surface vocabulary. */
   resolverSurface: ResolverContextSurface;
   owner: string;
-  /** Concrete implementation areas audited as legacy context/RAG debt. */
+  /** Concrete implementation areas audited as migration debt. Empty after adoption. */
   legacyPaths: readonly string[];
 }
 
 const APPROVAL_BASIS = 'knowledge-plane-phase-sequence';
+
+function governedOperation(input: {
+  id: string;
+  product: string;
+  packetSurface: PacketContextSurface;
+  resolverSurface: ResolverContextSurface;
+}): ContextPlaneOperationRegistration {
+  return {
+    registration: defineContextOperation({
+      id: input.id,
+      product: input.product,
+      surface: input.packetSurface,
+    }),
+    resolverSurface: input.resolverSurface,
+    owner: input.product,
+    legacyPaths: [],
+  };
+}
 
 function migrationOperation(input: {
   id: string;
@@ -51,45 +71,23 @@ function migrationOperation(input: {
 }
 
 export const CONTEXT_PLANE_OPERATIONS: readonly ContextPlaneOperationRegistration[] = [
-  migrationOperation({
+  governedOperation({
     id: 'meri.chat',
     product: 'meri',
     packetSurface: 'chat',
     resolverSurface: 'chat',
-    targetPhase: 19,
-    exceptionId: 'phase19-meri-chat-adoption',
-    reason: 'Meri reasoning cutover to ContextPacket V2 is Phase 19.',
-    legacyPaths: [
-      'apps/api/src/meri/meri.service.ts',
-      'apps/api/src/meri/meri-tools.service.ts',
-      'apps/api/src/meri/meriv3-runtime.proxy.ts',
-    ],
   }),
-  migrationOperation({
+  governedOperation({
     id: 'meri.research',
     product: 'meri',
     packetSurface: 'research',
     resolverSurface: 'research',
-    targetPhase: 19,
-    exceptionId: 'phase19-meri-research-adoption',
-    reason: 'Meri research cutover to the shared Context Plane is Phase 19.',
-    legacyPaths: [
-      'apps/api/src/meri/meri-research.service.ts',
-      'apps/api/src/meri/governed-meri-research.factory.ts',
-    ],
   }),
-  migrationOperation({
+  governedOperation({
     id: 'research.generate-report',
     product: 'research',
     packetSurface: 'research',
     resolverSurface: 'research',
-    targetPhase: 19,
-    exceptionId: 'phase19-research-report-adoption',
-    reason: 'Current Meri/research report reasoning is migrated with Meri in Phase 19.',
-    legacyPaths: [
-      'apps/api/src/meri/meri-research.service.ts',
-      'apps/api/src/meri/meri-docgen.service.ts',
-    ],
   }),
   migrationOperation({
     id: 'outreach.generate',
@@ -183,8 +181,11 @@ export const CONTEXT_PLANE_OPERATIONS: readonly ContextPlaneOperationRegistratio
 
 validateContextOperationRegistry(CONTEXT_PLANE_OPERATIONS.map((entry) => entry.registration));
 for (const entry of CONTEXT_PLANE_OPERATIONS) {
-  if (entry.legacyPaths.length === 0) {
+  if (entry.registration.mode === 'migration_exception' && entry.legacyPaths.length === 0) {
     throw new Error(`context_operation_legacy_audit_required:${entry.registration.id}`);
+  }
+  if (entry.registration.mode === 'packet_required' && entry.legacyPaths.length !== 0) {
+    throw new Error(`context_operation_adopted_but_legacy_paths_remain:${entry.registration.id}`);
   }
 }
 

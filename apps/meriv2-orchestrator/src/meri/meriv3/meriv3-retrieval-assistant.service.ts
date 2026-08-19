@@ -28,6 +28,7 @@ import {
   meriRetrievalPlanPrompt,
 } from '../retrieval/meri-retrieval-plan.js';
 import { compactMeriRetrievalRecipeResult } from '../retrieval/meri-retrieval-result.js';
+import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
 import { ApiVisualAnalysisRepo } from './api-visual-analysis.repo.js';
 import { MeriV3AssistantService, type MeriV3RunOptions } from './meriv3-assistant.service.js';
@@ -148,10 +149,11 @@ function enhancedDescription(schema: ToolSchema): ToolSchema {
 /**
  * Retrieval-aware adapter around the established MeriV3 runtime.
  *
- * OpenAI remains the reasoning engine. This adapter contributes deterministic
- * query classification, entity-aware recipe tools, authorized fan-out through
- * the existing Meri registry, and an explicit completeness contract. It does
- * not write to or reimplement the Knowledge/Context Plane.
+ * Compatibility mode retains the historic V3 retrieval planner/recipes for
+ * direct callers. A Phase 19 Capiro turn arrives inside currentGovernedMeriContext
+ * and bypasses that second retrieval/coverage engine entirely: the API Context
+ * Plane already resolved identity, retrieved evidence, and proved coverage.
+ * Native reasoning/action tools remain available for same-turn work.
  */
 @Injectable()
 export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantService {
@@ -188,7 +190,12 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
     internals.fetchToolSchemas = async (): Promise<ToolSchema[]> => {
       const native = (await nativeFetch()).map(enhancedDescription);
       const seen = new Set(native.map((schema) => schema.name));
-      const recipes = MERI_RETRIEVAL_TOOL_SCHEMAS.filter((schema) => !seen.has(schema.name));
+      // Phase 19 governed turns already ran Retrieval V2 upstream. Do not expose
+      // the V3 recipe tools, otherwise the model can start a second retrieval
+      // plan and manufacture a competing coverage manifest.
+      const recipes = currentGovernedMeriContext()
+        ? []
+        : MERI_RETRIEVAL_TOOL_SCHEMAS.filter((schema) => !seen.has(schema.name));
       const merged = [...native, ...recipes];
       const semanticRuntime = MeriV3SemanticRuntimeStore.current();
       if (!semanticRuntime) return merged;
@@ -356,6 +363,20 @@ export class MeriV3RetrievalAssistantService extends MeriV3ManagedMcpAssistantSe
     dto: MeriV3ChatInput,
     opts: MeriV3RunOptions = {},
   ): Promise<MeriV3ChatResult> {
+    const governed = currentGovernedMeriContext();
+    if (governed) {
+      // The controller already appends governed.prompt to skillAddendum and sets
+      // ctx.contextPacket to the upstream body-free packet summary. Calling the
+      // parent directly preserves native reasoning/actions while skipping this
+      // class's classifier, recipes, research director and coverage engine.
+      const result = await super.run(
+        { ...ctx, contextPacket: governed.contextPacket },
+        dto,
+        opts,
+      );
+      return { ...result, retrieval: undefined };
+    }
+
     const request = latestUserText(dto);
     const selectedClientId = dto.clientId;
     const retrievalIntent = classifyMeriRetrievalIntent(request, selectedClientId);
