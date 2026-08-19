@@ -22,9 +22,28 @@ import {
   isVNextEngagementPath,
   VNextEngagementRoutes,
 } from '../pages/engagement/VNextEngagementRoutes.js';
+import {
+  isVNextFundingOpportunitiesPath,
+  VNextFundingOpportunitiesRoutes,
+} from '../pages/funding-opportunities/VNextFundingOpportunitiesRoutes.js';
+import { isVNextDistrictNexusPath } from '../pages/district-nexus/district-nexus-route.js';
+import {
+  isVNextBillPath,
+  VNextBillRoutes,
+} from '../pages/bills/VNextBillRoutes.js';
 
 const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
+}));
+
+// Lazy like Client CRM: the District Nexus page reaches the MapLibre engine,
+// which must never be eagerly reachable (bundle-boundaries.test.ts).
+const VNextDistrictNexusPage = lazy(async () => ({
+  default: (await import('../pages/district-nexus/DistrictNexusPageVNext.js')).DistrictNexusPageVNext,
+}));
+
+const DataExplorerVNext = lazy(async () => ({
+  default: (await import('../pages/explorer/DataExplorerVNext.js')).DataExplorerVNext,
 }));
 
 /**
@@ -37,9 +56,9 @@ const VNextClientCrmRoute = lazy(async () => ({
  * `/directory/congressional-staff`) have native vNext presentations and are
  * substituted here. The Strategies module is a complete native rebuild (no old
  * pages/strategy/* components) over the same backend endpoints. The Directory
- * module claims only the surfaces with a native vNext body (legacy redirect +
- * Congressional Staff in this phase); the remaining list surfaces and all
- * profile routes fall through to canonical. LegiWatch was intercepted here
+ * module claims the legacy redirect, all four list surfaces, and the five
+ * deep-linkable profile routes (see isVNextDirectoryPath /
+ * matchDirectoryProfilePath). LegiWatch was intercepted here
  * previously — see git history on this file if reviving it. Everything else
  * falls through to the canonical page via Outlet.
  *
@@ -80,10 +99,9 @@ export function VNextRouter() {
     return <VNextStrategiesRoutes />;
   }
 
-  // Directory: the legacy `/directory` redirect plus the surfaces with a native
-  // vNext body (Congressional Staff in this phase). All other directory paths —
-  // the remaining list surfaces and every profile route — fall through to the
-  // canonical page below.
+  // Directory: the legacy `/directory` redirect, the four list surfaces, and
+  // the five deep-linkable profile routes (members/staff/committees/
+  // state-legislators/districts) — all natively vNext as of Phase 2.
   if (isVNextDirectoryPath(location.pathname)) {
     return <VNextDirectoryRoutes />;
   }
@@ -116,6 +134,44 @@ export function VNextRouter() {
   // Reports) — claimed for every tenant since GA on 2026-08-18.
   if (isVNextEngagementPath(location.pathname)) {
     return <VNextEngagementRoutes />;
+  }
+
+  // Funding Opportunities: the list (Inbox · Explore · Pipeline) and the
+  // deep-linkable detail, both at their canonical URLs. The
+  // `funding_opportunities` feature flag stays in-page, exactly as the
+  // canonical pages gate it.
+  if (isVNextFundingOpportunitiesPath(location.pathname)) {
+    return <VNextFundingOpportunitiesRoutes />;
+  }
+
+  // District Nexus: the firm-wide district map at /intelligence/district-nexus.
+  // The `district_nexus_v2` flag-off state is rendered IN-PAGE (fail-closed
+  // guide), matching canonical — so the claim itself is unconditional.
+  if (isVNextDistrictNexusPath(location.pathname)) {
+    return (
+      <Suspense fallback={<div className="capiro-vnext-route-loading">Loading…</div>}>
+        <VNextDistrictNexusPage />
+      </Suspense>
+    );
+  }
+
+  // Data Explorer ("Intelligence Center"): the 18-source explorer at
+  // /explorer, ?source=/?bill= deep links included. The canonical
+  // /intelligence and /intelligence/* redirects resolve here via their
+  // existing <Navigate to="/explorer">s in App.tsx — no claim needed there.
+  if (location.pathname === '/explorer') {
+    return (
+      <Suspense fallback={<div className="capiro-vnext-route-loading">Loading…</div>}>
+        <DataExplorerVNext />
+      </Suspense>
+    );
+  }
+
+  // Bill 360: the deep-linkable dossier at /bills/:billId (vNext LegiWatch's
+  // drawer links into it). The bill_360 fail-closed flag gate lives inside the
+  // page, exactly as on canonical.
+  if (isVNextBillPath(location.pathname)) {
+    return <VNextBillRoutes />;
   }
 
   return <Outlet />;

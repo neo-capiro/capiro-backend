@@ -10,33 +10,15 @@
  * not gold-plating); the status pill is the S3 canonical derivation as-is.
  */
 import type { ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Empty, Skeleton, Tag } from 'antd';
 import { stateBillStatusLabel } from '@capiro/shared';
-import { useApi } from '../../lib/use-api.js';
 import { ChipList, DrillSection, DrillKV, formatDate } from './bill-detail.js';
-import type { StateBillDetail } from './explorerTypes.js';
+import { LINK_TYPE_LABEL, useStateBillDetail } from './state-bill-detail-data.js';
 
-const LINK_TYPE_LABEL: Record<string, string> = {
-  same_as: 'Same as',
-  companion: 'Companion',
-  similar: 'Similar',
-  replaces: 'Replaces',
-  replaced_by: 'Replaced by',
-};
-
-/** Read-only single-state-bill detail. Same query key as the Explorer drill-in
- *  so both surfaces share one react-query cache entry per bill. */
-export function useStateBillDetail(id: string | null | undefined) {
-  const api = useApi();
-  return useQuery<StateBillDetail | null>({
-    queryKey: ['explorer-state-bill-detail', id],
-    queryFn: async () =>
-      (await api.get<StateBillDetail>(`/api/explorer/state-bills/${encodeURIComponent(id ?? '')}`))
-        .data,
-    enabled: Boolean(id),
-  });
-}
+/** The fetch hook + link-type labels live in the UI-free
+ *  `state-bill-detail-data.ts` (vNext Phase 2 extraction) and are re-exported
+ *  here so this module's public API is unchanged for existing importers. */
+export { useStateBillDetail } from './state-bill-detail-data.js';
 
 /** Loading skeleton / not-found / rendered detail for a state bill. `extra` is
  *  rendered below the standard sections (mirrors BillDetailBody's contract). */

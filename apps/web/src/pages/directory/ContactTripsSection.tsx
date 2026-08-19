@@ -3,12 +3,11 @@ import { Card, Tag, Typography } from 'antd';
 import { useApi } from '../../lib/use-api.js';
 import { getContactTrips, type DirectoryContactTripSummary } from './directory-api.js';
 import { hasText } from './directory-profile-helpers.js';
+// usd moved to directory-profile-shared.ts (UI-free) so the vNext trips
+// section can share it.
+import { usd } from './directory-profile-shared.js';
 
 const { Text } = Typography;
-
-function usd(v: number | null): string | null {
-  return v == null ? null : `$${Math.round(v).toLocaleString('en-US')}`;
-}
 
 function tripLine(t: DirectoryContactTripSummary) {
   const dateRange = [t.startDate, t.endDate].filter(Boolean).join(' – ');

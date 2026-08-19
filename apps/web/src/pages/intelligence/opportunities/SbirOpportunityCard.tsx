@@ -1,5 +1,20 @@
 import { Button, Card, Space, Tag, Tooltip, Typography } from 'antd';
 import { formatSourceDate } from './funding-opportunities-api.js';
+import {
+  SBIR_ACTION_LABELS,
+  describeSbirCycle,
+  sbirProgramLabel,
+  type SbirAction,
+  type SbirCycleFacts,
+  type SbirTopicFacts,
+} from './sbir-card-shared.js';
+
+// The UI-free types, labels and description rules moved to sbir-card-shared.ts
+// so the vNext presentation can consume them without reaching this antd file
+// (Phase 2 extraction pattern). Re-exported here so this file's public API is
+// unchanged.
+export { SBIR_ACTION_LABELS, describeSbirCycle, sbirProgramLabel } from './sbir-card-shared.js';
+export type { SbirAction, SbirCycleFacts, SbirTopicFacts } from './sbir-card-shared.js';
 
 const { Text } = Typography;
 
@@ -51,99 +66,6 @@ const { Text } = Typography;
  * ForecastOpportunityCard and DibbsOpportunityCard follow. There is no prop by
  * which a closed topic could be given a control.
  */
-
-/** The stored topic facts this card renders. Mirrors `tango_sbir_topic`. */
-export interface SbirTopicFacts {
-  /** The public number a human cites, e.g. `A26-001`. Distinct from the provider's row id. */
-  topicNumber: string | null;
-  title: string | null;
-  /** The provider's single `agency` field. Never split into agency/component. */
-  agency: string | null;
-  year: number | null;
-  /** The parent cycle as STATED. Null means the source named none. */
-  solicitationNumber: string | null;
-  releaseDate: string | null;
-  openDate: string | null;
-  closeDate: string | null;
-  /** The provider's own lifecycle word, as stated. Never rewritten. */
-  solicitationStatus: string | null;
-  topicUrl: string | null;
-  /** May point at DSIP. Rendered as a link, never parsed for an identifier. */
-  officialSolicitationUrl: string | null;
-}
-
-/**
- * The parent cycle, when Capiro holds it. Mirrors `tango_sbir_solicitation`.
- *
- * Null on this card's props means the cycle is NOT held — which is a different
- * statement from the topic naming none. See the file doc.
- */
-export interface SbirCycleFacts {
-  solicitationNumber: string;
-  cycleName: string | null;
-  /** `'SBIR' | 'STTR'` as the provider spells it. The ONLY place that distinction lives. */
-  program: string | null;
-  year: number | null;
-  startDate: string | null;
-  endDate: string | null;
-  solicitationStatus: string | null;
-  solDownloadUrl: string | null;
-}
-
-/** Mirrors SbirAction in apps/api's sbir-relevance.ts. */
-export type SbirAction =
-  | 'assess_fit'
-  | 'confirm_small_business_and_partner_requirements'
-  | 'contact_program_office'
-  | 'prepare_white_paper';
-
-/**
- * The label for each action.
- *
- * Note what none of them says: SUBMIT. A topic is an invitation to propose
- * against a cycle, and the response goes through DSIP rather than through
- * Capiro. A control labelled "Submit" would promise a surface this program does
- * not have.
- */
-export const SBIR_ACTION_LABELS: Readonly<Record<SbirAction, string>> = Object.freeze({
-  assess_fit: 'Assess fit',
-  confirm_small_business_and_partner_requirements: 'Confirm eligibility requirements',
-  contact_program_office: 'Contact the program office',
-  prepare_white_paper: 'Prepare a white paper',
-});
-
-/**
- * How this card describes the parent cycle. Exported so the test asserts the
- * same function the card renders, rather than a re-implementation of the rule.
- */
-export function describeSbirCycle(
-  facts: Pick<SbirTopicFacts, 'solicitationNumber'>,
-  cycle: SbirCycleFacts | null,
-): string {
-  if (facts.solicitationNumber == null || facts.solicitationNumber === '') {
-    // A fact about the SOURCE.
-    return 'The source states no solicitation cycle for this topic';
-  }
-  if (cycle == null) {
-    // A fact about CAPIRO'S SYNC. Deliberately not merged with the case above.
-    return `${facts.solicitationNumber} — Capiro does not hold this cycle`;
-  }
-  const name = cycle.cycleName?.trim();
-  return name ? `${cycle.solicitationNumber} · ${name}` : cycle.solicitationNumber;
-}
-
-/**
- * The program label, or null when it cannot be known.
- *
- * Returns null rather than a guess when the cycle is absent, because SBIR and
- * STTR differ in a way that matters to a reader: STTR requires a research
- * partner. Labelling a topic "SBIR" because the rail is mostly SBIR would be
- * asserting the absence of that requirement.
- */
-export function sbirProgramLabel(cycle: SbirCycleFacts | null): string | null {
-  const program = cycle?.program?.trim();
-  return program ? program : null;
-}
 
 export function SbirOpportunityCard({
   facts,

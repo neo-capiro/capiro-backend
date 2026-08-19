@@ -2,18 +2,14 @@ import { Card, Descriptions, Empty, Space, Tag, Typography } from 'antd';
 import { stateBillStatusLabel } from '@capiro/shared';
 import { DirectoryProfilePhoto } from './DirectoryProfilePhoto.js';
 import { NOT_PROVIDED, orNotProvided } from './directory-profile-helpers.js';
+import { chamberLabel } from './directory-profile-shared.js';
 import type { StateLegislatorDetail } from './StateLegislatorDirectory.js';
 
 const { Title, Text, Link: TextLink } = Typography;
 
-/** upper => Senate, lower => House/Assembly; anything else shown verbatim. */
-export function chamberLabel(chamber: string | null | undefined): string | null {
-  if (!chamber) return null;
-  const c = chamber.toLowerCase();
-  if (c === 'upper') return 'Senate (upper)';
-  if (c === 'lower') return 'House (lower)';
-  return chamber;
-}
+// chamberLabel moved to directory-profile-shared.ts (UI-free) so the vNext
+// profile pages can share it; re-exported so this module's API is unchanged.
+export { chamberLabel } from './directory-profile-shared.js';
 
 /**
  * Prop-driven state-legislator profile — the page-level parity of MemberProfileView

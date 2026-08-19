@@ -1804,3 +1804,352 @@
     max-height: 50vh;
   }
 }
+
+/* ── Deep-linkable profile pages (Phase 2 old-UI purge) ─────────────────────
+   /directory/members/:id · /directory/staff/:id · /directory/committees/:id ·
+   /directory/state-legislators/:id · /directory/districts/:state/:no.
+   Re-skins of the canonical (antd) profile pages: same 960px centered column,
+   presentation on the shared dirprofile card chrome + kit primitives. */
+.capiro-vnext-root .capiro-dirpage {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--capiro-space-06);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--capiro-space-04);
+}
+
+/* Context-aware back control, drawn as the quiet accent link it is. */
+.capiro-vnext-root .capiro-dirpage__back {
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-accent);
+  text-decoration: none;
+}
+
+.capiro-vnext-root .capiro-dirpage__back:hover { text-decoration: underline; }
+
+.capiro-vnext-root .capiro-dirpage__back:focus-visible {
+  outline: none;
+  box-shadow: var(--capiro-focus-ring);
+  border-radius: var(--capiro-radius-control);
+}
+
+.capiro-vnext-root .capiro-dirpage__loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-03);
+}
+
+.capiro-vnext-root .capiro-dirpage__profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-04);
+}
+
+/* Hero: identity mark beside the h1 + pills/meta, on its own surface card. */
+.capiro-vnext-root .capiro-dirpage__hero {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--capiro-space-04);
+  padding: var(--capiro-space-04);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-surface);
+  background: var(--capiro-color-bg-surface);
+}
+
+/* The canonical hero draws a 104px portrait; the kit lg mark is 46. Resized
+   under this scope only — the same pattern as the modal hero. */
+.capiro-vnext-root .capiro-dirpage__hero .capiro-identity-mark--lg {
+  width: 88px;
+  height: 88px;
+  font-size: 20px;
+  line-height: 28px;
+  flex: 0 0 auto;
+}
+
+.capiro-vnext-root .capiro-dirpage__hero-main {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-01);
+}
+
+.capiro-vnext-root .capiro-dirpage__title {
+  margin: 0;
+  font-family: var(--capiro-type-family-sans);
+  font-size: var(--capiro-type-size-title-lg);
+  line-height: 1.25;
+  font-weight: 600;
+  color: var(--capiro-color-text-heading);
+  overflow-wrap: anywhere;
+}
+
+/* Section cards ride the shared dirprofile chrome; pages get roomier padding. */
+.capiro-vnext-root .capiro-dirpage__card { padding: var(--capiro-space-04); }
+
+/* Descriptions grid: only fields with a value render (helpers drop the rest). */
+.capiro-vnext-root .capiro-dirpage__desc {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--capiro-space-03) var(--capiro-space-04);
+}
+
+.capiro-vnext-root .capiro-dirpage__desc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-dirpage__desc-item dt {
+  font-family: var(--capiro-type-family-sans);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .capiro-dirpage__desc-item dd {
+  margin: 0;
+  font-family: var(--capiro-type-family-sans);
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* Stacked list body inside a card. */
+.capiro-vnext-root .capiro-dirpage__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-02);
+}
+
+.capiro-vnext-root .capiro-dirpage__row {
+  font-family: var(--capiro-type-family-sans);
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.capiro-vnext-root .capiro-dirpage__row + .capiro-dirpage__row {
+  padding-top: var(--capiro-space-02);
+  border-top: 1px solid var(--capiro-color-border-quiet);
+}
+
+.capiro-vnext-root .capiro-dirpage__row-title {
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .capiro-dirpage__address p,
+.capiro-vnext-root .capiro-dirpage__trip p { margin: 0; }
+
+.capiro-vnext-root .capiro-dirpage__address,
+.capiro-vnext-root .capiro-dirpage__trip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.capiro-vnext-root .capiro-dirpage__address + .capiro-dirpage__address,
+.capiro-vnext-root .capiro-dirpage__trip + .capiro-dirpage__trip {
+  padding-top: var(--capiro-space-02);
+  border-top: 1px solid var(--capiro-color-border-quiet);
+}
+
+.capiro-vnext-root .capiro-dirpage__trip-party { font-weight: 600; }
+
+/* Photos gallery: horizontal wrap of marks with the Selected badge beneath. */
+.capiro-vnext-root .capiro-dirpage__gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-03);
+  align-items: flex-start;
+}
+
+.capiro-vnext-root .capiro-dirpage__photo {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--capiro-space-01);
+}
+
+.capiro-vnext-root .capiro-dirpage__photo .capiro-identity-mark--lg {
+  width: 64px;
+  height: 64px;
+  font-size: 16px;
+  line-height: 22px;
+}
+
+/* Committee filter toolbar: segmented toggles + commit-on-enter search. */
+.capiro-vnext-root .capiro-dirpage__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-03) 14px;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-surface);
+}
+
+.capiro-vnext-root .capiro-dirpage-segmented {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-sunken);
+  box-shadow: inset 0 0 0 1px var(--capiro-color-border-quiet);
+  align-self: flex-start;
+}
+
+.capiro-vnext-root .capiro-dirpage-segmented button {
+  border: 0;
+  padding: 6px 12px;
+  border-radius: var(--capiro-radius-control);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .capiro-dirpage-segmented button:hover { color: var(--capiro-color-text-primary); }
+
+.capiro-vnext-root .capiro-dirpage-segmented button:focus-visible {
+  outline: none;
+  box-shadow: var(--capiro-focus-ring);
+}
+
+.capiro-vnext-root .capiro-dirpage-segmented button[data-selected] {
+  background: var(--capiro-color-bg-surface);
+  box-shadow: inset 0 0 0 1px var(--capiro-color-border-default);
+  color: var(--capiro-color-text-heading);
+}
+
+.capiro-vnext-root .capiro-dirpage__search {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.capiro-vnext-root .capiro-dirpage__search-input {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 320px;
+  height: var(--capiro-control-height-compact);
+  padding: 0 var(--capiro-space-03);
+  border: 1px solid var(--capiro-color-border-control);
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+  font-family: var(--capiro-type-family-sans);
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .capiro-dirpage__search-input::placeholder { color: var(--capiro-color-text-secondary); }
+
+.capiro-vnext-root .capiro-dirpage__search-input:focus-visible {
+  outline: none;
+  border-color: var(--capiro-color-border-information);
+  box-shadow: var(--capiro-focus-ring);
+}
+
+/* Committee roster / current representatives: mark + name + badge meta rows. */
+.capiro-vnext-root .capiro-dirpage-roster {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-surface);
+  background: var(--capiro-color-bg-surface);
+}
+
+.capiro-vnext-root .capiro-dirpage-roster__row {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-02) var(--capiro-space-03);
+}
+
+.capiro-vnext-root .capiro-dirpage-roster > .capiro-dirpage-roster__row + .capiro-dirpage-roster__row {
+  border-top: 1px solid var(--capiro-color-border-quiet);
+}
+
+.capiro-vnext-root .capiro-dirpage-roster > .capiro-dirpage-roster__row:hover {
+  background: var(--capiro-color-bg-subtle);
+}
+
+/* The same row anatomy inside a card (district representatives) needs no
+   frame of its own — the card provides it. */
+.capiro-vnext-root .capiro-dirpage__rows > .capiro-dirpage-roster__row { padding: 0; }
+
+.capiro-vnext-root .capiro-dirpage__rows > .capiro-dirpage-roster__row + .capiro-dirpage-roster__row {
+  padding-top: var(--capiro-space-02);
+  border-top: 1px solid var(--capiro-color-border-quiet);
+}
+
+.capiro-vnext-root .capiro-dirpage-roster__main {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.capiro-vnext-root .capiro-dirpage-roster__main p { margin: 0; }
+
+.capiro-vnext-root .capiro-dirpage-roster__name {
+  font-size: var(--capiro-type-size-body-sm);
+  line-height: var(--capiro-type-line-body-sm);
+  font-weight: 600;
+}
+
+.capiro-vnext-root .capiro-dirpage-roster__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--capiro-space-01);
+}
+
+/* District boundary silhouette — token ink instead of canonical hardcoded hex. */
+.capiro-vnext-root .capiro-dirpage-boundary {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  display: block;
+}
+
+.capiro-vnext-root .capiro-dirpage-boundary path {
+  fill: var(--capiro-color-icon-accent);
+  fill-opacity: 0.25;
+  stroke: var(--capiro-color-icon-accent);
+  stroke-width: 1.5;
+}
+
+/* Small screens: single-column descriptions, full-width search. */
+@media (max-width: 720px) {
+  .capiro-vnext-root .capiro-dirpage { padding: var(--capiro-space-04); }
+  .capiro-vnext-root .capiro-dirpage__desc { grid-template-columns: minmax(0, 1fr); }
+  .capiro-vnext-root .capiro-dirpage__search-input { max-width: none; }
+  .capiro-vnext-root .capiro-dirpage__hero { flex-wrap: wrap; }
+}

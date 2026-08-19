@@ -1,5 +1,8 @@
 import type { NavigateFunction } from 'react-router-dom';
 import { Typography } from 'antd';
+// historyCanGoBack moved to directory-profile-shared.ts (UI-free) so the
+// vNext back link shares the exact same pop-vs-fallback decision.
+import { historyCanGoBack } from './directory-profile-shared.js';
 
 /**
  * Context-aware "back" for the deep-linkable profile pages. Returns to wherever the
@@ -20,9 +23,7 @@ export function ProfileBackLink({
   label?: string;
 }) {
   const onBack = () => {
-    const state = window.history.state as { idx?: number } | null;
-    const idx = state && typeof state.idx === 'number' ? state.idx : 0;
-    if (idx > 0) navigate(-1);
+    if (historyCanGoBack()) navigate(-1);
     else navigate(fallback);
   };
   return (

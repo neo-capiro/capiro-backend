@@ -1,0 +1,789 @@
+/**
+ * Data Explorer vNext ("Intelligence Center") — presentation for the 18-source
+ * explorer, its filter bar, results table, news feed and drill-in drawer.
+ *
+ * Scoped under `.capiro-vnext-root` + `.xp-*` (explorer) classes; token layer
+ * only (var(--capiro-*) / var(--uui-*)) for every color/radius/shadow. Layout
+ * geometry (widths/gaps) is plain px, same as the sibling vNext modules.
+ * Chrome comes from the component library (.capiro-input/.capiro-select/
+ * .capiro-tabs/.capiro-table/.capiro-badge/.capiro-drawer); rules here only
+ * lay the page out and add the explorer-specific pieces (filter pills, state
+ * pills, severity pills, news list, drill sections).
+ */
+
+/* Explorer owns its own wide surface (dense 6–9 column tables), same escape
+   pattern as Directory (directory.css:22) / Dashboard / Strategies: lift the
+   shell's 1280px content cap and let .xp-page center itself. */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.xp-page) {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
+.capiro-vnext-root .xp-page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1488px; /* 1440 content + 24px gutter per side */
+  margin: 0 auto;
+  padding: var(--capiro-space-05) var(--capiro-space-06) var(--capiro-space-08);
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-03);
+}
+
+/* ── Page header ─────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .xp-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--capiro-space-04);
+  padding-bottom: var(--capiro-space-02);
+}
+.capiro-vnext-root .xp-page-title {
+  margin: 0;
+  font-size: var(--capiro-type-size-title-lg);
+  font-weight: var(--uui-weight-semibold);
+  color: var(--capiro-color-text-heading);
+  letter-spacing: -0.01em;
+}
+.capiro-vnext-root .xp-page-dek {
+  margin: 6px 0 0;
+  font-size: var(--capiro-type-size-body-md);
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── Source tabs + caption ───────────────────────────────────────────────── */
+
+/* 18 sources: wrap into rows instead of the tab strip's default single
+   scrolling line, so every source stays visible (canonical behavior). */
+.capiro-vnext-root .xp-source-tabs .capiro-tabs {
+  flex-wrap: wrap;
+  row-gap: 4px;
+  overflow: visible;
+  padding-bottom: 6px;
+}
+
+.capiro-vnext-root .xp-source-caption {
+  margin: 0;
+  font-size: var(--capiro-type-size-body-sm);
+  color: var(--capiro-color-text-muted);
+}
+
+/* ── Filter bar ──────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .xp-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-03);
+  padding: var(--capiro-space-04);
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--uui-radius-card);
+  box-shadow: var(--uui-shadow-card);
+}
+
+.capiro-vnext-root .xp-search {
+  position: relative;
+  max-width: 640px;
+}
+.capiro-vnext-root .xp-search .capiro-input {
+  padding-left: 34px;
+  padding-right: 38px;
+  box-shadow: var(--uui-shadow-input);
+}
+.capiro-vnext-root .xp-search__icon {
+  position: absolute;
+  left: 10px;
+  bottom: 9px;
+  display: inline-flex;
+  color: var(--capiro-color-text-muted);
+  pointer-events: none;
+}
+.capiro-vnext-root .xp-search__clear {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+}
+
+.capiro-vnext-root .xp-filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--capiro-space-03) var(--capiro-space-04);
+}
+
+.capiro-vnext-root .xp-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.capiro-vnext-root .xp-filter__label,
+.capiro-vnext-root .xp-filter-bar .capiro-field__label {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+/* CapiroInput/CapiroSelect (.capiro-field) already stack label-over-control;
+   align their gap with the hand-laid .xp-filter columns. */
+.capiro-vnext-root .xp-filter-bar .capiro-field {
+  gap: 5px;
+}
+/* Beat .capiro-input/.capiro-select's own width:100% regardless of stylesheet
+   order: one extra class of specificity. */
+.capiro-vnext-root .xp-filter .xp-filter__select {
+  width: auto;
+  min-width: 160px;
+  min-height: var(--capiro-control-height-compact);
+}
+
+/* Facet multi-select: the popover trigger reads as a select-shaped control. */
+.capiro-vnext-root .xp-filter .capiro-popover__trigger {
+  min-width: 160px;
+  min-height: var(--capiro-control-height-compact);
+  padding: 0 10px;
+  gap: 8px;
+  justify-content: space-between;
+  font-size: var(--capiro-type-size-body-sm);
+  color: var(--capiro-color-text-primary);
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-control);
+  border-radius: var(--capiro-radius-control);
+  box-shadow: var(--uui-shadow-input);
+}
+.capiro-vnext-root .xp-filter .capiro-popover__trigger:hover {
+  background: var(--capiro-color-bg-subtle);
+}
+.capiro-vnext-root .xp-filter--active .capiro-popover__trigger {
+  border-color: var(--capiro-color-shell-signature-primary);
+}
+.capiro-vnext-root .xp-filter__summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.capiro-vnext-root .xp-filter__summary--placeholder {
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .xp-filter__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: var(--uui-weight-semibold);
+  color: var(--capiro-color-text-inverse-primary);
+  background: var(--capiro-color-shell-signature-primary);
+}
+.capiro-vnext-root .xp-filter__chevron {
+  font-size: 10px;
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .xp-filter .capiro-popover__panel {
+  min-width: 240px;
+  max-width: 380px;
+  padding: 4px;
+  box-shadow: var(--uui-shadow-menu);
+}
+.capiro-vnext-root .xp-filter__menu {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.capiro-vnext-root .xp-filter__note {
+  margin: 0;
+  padding: 10px;
+  font-size: var(--capiro-type-size-body-sm);
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .xp-filter__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--capiro-color-text-secondary);
+  font-size: var(--capiro-type-size-body-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.capiro-vnext-root .xp-filter__option:hover {
+  background: var(--capiro-color-bg-subtle);
+}
+.capiro-vnext-root .xp-filter__option--selected {
+  color: var(--capiro-color-text-primary);
+  font-weight: var(--uui-weight-medium);
+}
+.capiro-vnext-root .xp-filter__optionmark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border: 1px solid var(--capiro-color-border-control);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--capiro-color-text-inverse-primary);
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-vnext-root .xp-filter__option--selected .xp-filter__optionmark {
+  background: var(--capiro-color-shell-signature-primary);
+  border-color: var(--capiro-color-shell-signature-primary);
+}
+.capiro-vnext-root .xp-filter__optionlabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .xp-filter__menufoot {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px;
+  border-top: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface);
+}
+
+/* Number / amount ranges + short text filters */
+.capiro-vnext-root .xp-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.capiro-vnext-root .xp-filter .xp-range__input,
+.capiro-vnext-root .xp-range .xp-range__input {
+  width: 110px;
+  min-height: var(--capiro-control-height-compact);
+  box-shadow: var(--uui-shadow-input);
+}
+.capiro-vnext-root .xp-range__dash {
+  color: var(--capiro-color-text-muted);
+}
+
+/* Toggle chip */
+.capiro-vnext-root .xp-filter--chip {
+  justify-content: flex-end;
+}
+.capiro-vnext-root .xp-toggle-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--capiro-control-height-compact);
+  padding: 0 12px;
+  border: 1px solid var(--capiro-color-border-control);
+  border-radius: 999px;
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-secondary);
+  font-size: var(--capiro-type-size-body-sm);
+  cursor: pointer;
+  box-shadow: var(--uui-shadow-button);
+}
+.capiro-vnext-root .xp-toggle-chip:hover {
+  background: var(--capiro-color-bg-subtle);
+}
+.capiro-vnext-root .xp-toggle-chip--active {
+  color: var(--capiro-color-text-primary);
+  border-color: var(--capiro-color-shell-signature-primary);
+  background: var(--capiro-color-bg-selected);
+}
+.capiro-vnext-root .xp-toggle-chip__box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--capiro-color-border-control);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--capiro-color-text-inverse-primary);
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-vnext-root .xp-toggle-chip--active .xp-toggle-chip__box {
+  background: var(--capiro-color-shell-signature-primary);
+  border-color: var(--capiro-color-shell-signature-primary);
+}
+
+/* ── Results table ───────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .xp-table-shell {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--uui-radius-card);
+  box-shadow: var(--uui-shadow-card);
+  overflow: hidden;
+}
+.capiro-vnext-root .xp-table-shell--empty .capiro-feedback {
+  justify-items: center;
+  width: 100%;
+  padding: 48px 20px;
+  text-align: center;
+}
+
+.capiro-vnext-root .xp-table-meta {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+.capiro-vnext-root .xp-table-count {
+  font-size: var(--capiro-type-size-body-sm);
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .xp-table-count b {
+  color: var(--capiro-color-text-primary);
+  font-weight: var(--uui-weight-semibold);
+}
+
+.capiro-vnext-root .xp-table {
+  table-layout: fixed;
+}
+.capiro-vnext-root .xp-table td {
+  vertical-align: top;
+  font-size: 12.5px;
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-vnext-root .xp-row--clickable {
+  cursor: pointer;
+}
+.capiro-vnext-root .xp-row--clickable:hover td {
+  background: var(--capiro-color-bg-subtle);
+}
+.capiro-vnext-root .xp-cell--right {
+  text-align: right;
+}
+.capiro-vnext-root .xp-cell--ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .xp-table a {
+  color: var(--capiro-color-text-accent);
+  text-decoration: none;
+}
+.capiro-vnext-root .xp-table a:hover {
+  text-decoration: underline;
+}
+
+/* ── Cell atoms ──────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .xp-num {
+  font-variant-numeric: tabular-nums;
+}
+.capiro-vnext-root .xp-mono {
+  font-family: var(--capiro-type-family-mono);
+}
+.capiro-vnext-root .xp-mono-sm {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+}
+.capiro-vnext-root .xp-w500 {
+  font-weight: var(--uui-weight-medium);
+}
+.capiro-vnext-root .xp-w600 {
+  font-weight: var(--uui-weight-semibold);
+}
+.capiro-vnext-root .xp-muted {
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .xp-danger {
+  color: var(--capiro-color-danger);
+}
+.capiro-vnext-root .xp-subline {
+  display: block;
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .xp-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.capiro-vnext-root .xp-stack__main {
+  font-size: 12.5px;
+}
+.capiro-vnext-root .xp-stack__sub {
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .xp-state-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border: 1px solid var(--capiro-color-border-badge);
+  border-radius: 999px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10.5px;
+  color: var(--capiro-color-text-secondary);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .xp-party-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: var(--uui-weight-semibold);
+}
+.capiro-vnext-root .xp-party-pill--d {
+  color: var(--uui-blue-fg);
+  background: var(--uui-blue-bg);
+}
+.capiro-vnext-root .xp-party-pill--r {
+  color: var(--uui-error-fg);
+  background: var(--uui-error-bg);
+}
+.capiro-vnext-root .xp-party-pill--i {
+  color: var(--uui-gray-pill-fg);
+  background: var(--uui-gray-pill-bg);
+}
+.capiro-vnext-root .xp-party-suffix {
+  margin-left: 6px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10.5px;
+  color: var(--capiro-color-text-muted);
+}
+
+/* Comment-deadline severity pill (critical ≤3d, notable ≤14d, info beyond). */
+.capiro-vnext-root .xp-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: var(--uui-weight-medium);
+}
+.capiro-vnext-root .xp-pill--critical {
+  color: var(--capiro-color-danger);
+  background: var(--capiro-color-danger-soft);
+}
+.capiro-vnext-root .xp-pill--notable {
+  color: var(--capiro-color-text-warning);
+  background: var(--capiro-color-warning-soft);
+}
+.capiro-vnext-root .xp-pill--info {
+  color: var(--capiro-color-info);
+  background: var(--capiro-color-info-soft);
+}
+
+/* Mono code chips (issue codes, filing types, form types…) read squarer than
+   status pills — same badge chrome, tighter radius. */
+.capiro-vnext-root .xp-tag--mono {
+  border-radius: 6px;
+}
+.capiro-vnext-root .xp-chiplist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ── Skeleton / pagination ───────────────────────────────────────────────── */
+
+.capiro-vnext-root .xp-skeleton {
+  display: grid;
+  gap: 12px;
+  padding: var(--capiro-space-04);
+}
+
+.capiro-vnext-root .xp-pagination-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 14px;
+  border-top: 1px solid var(--capiro-color-border-quiet);
+}
+.capiro-vnext-root .xp-pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.capiro-vnext-root .xp-pagination__pages {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.capiro-vnext-root .xp-pagination__page {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--capiro-radius-control);
+  background: transparent;
+  color: var(--capiro-color-text-secondary);
+  font-size: var(--capiro-type-size-body-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.capiro-vnext-root .xp-pagination__page:hover {
+  background: var(--capiro-color-bg-subtle);
+}
+.capiro-vnext-root .xp-pagination__page--current {
+  color: var(--capiro-color-text-primary);
+  border-color: var(--capiro-color-shell-signature-primary);
+  background: var(--capiro-color-bg-selected);
+  font-weight: var(--uui-weight-semibold);
+}
+.capiro-vnext-root .xp-pagination__gap {
+  padding: 0 4px;
+  color: var(--capiro-color-text-muted);
+}
+
+/* ── News feed ───────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .xp-news-feed {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--uui-radius-card);
+  box-shadow: var(--uui-shadow-card);
+  overflow: hidden;
+}
+.capiro-vnext-root .xp-news-feed--empty .capiro-feedback {
+  justify-items: center;
+  width: 100%;
+  padding: 48px 20px;
+  text-align: center;
+}
+.capiro-vnext-root .xp-news-feed--loading .xp-news-list {
+  opacity: 0.6;
+}
+
+.capiro-vnext-root .xp-news-list {
+  display: flex;
+  flex-direction: column;
+}
+.capiro-vnext-root .xp-news-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  cursor: pointer;
+}
+.capiro-vnext-root .xp-news-item:last-child {
+  border-bottom: 0;
+}
+.capiro-vnext-root .xp-news-item:hover {
+  background: var(--capiro-color-bg-subtle);
+}
+.capiro-vnext-root .xp-news-item:focus-visible {
+  box-shadow: var(--capiro-focus-ring-inset);
+  outline: none;
+}
+
+.capiro-vnext-root .xp-news-logo {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-subtle);
+  overflow: hidden;
+}
+.capiro-vnext-root .xp-news-logo img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+.capiro-vnext-root .xp-news-logo-mono {
+  display: inline-grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 13px;
+  font-weight: var(--uui-weight-semibold);
+  color: var(--capiro-color-text-inverse-primary);
+  background: var(--xp-brand, var(--capiro-color-bg-dark));
+}
+
+.capiro-vnext-root .xp-news-body {
+  flex: 1;
+  min-width: 0;
+}
+.capiro-vnext-root .xp-news-meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .xp-news-source {
+  font-weight: var(--uui-weight-semibold);
+  letter-spacing: 0.01em;
+}
+.capiro-vnext-root .xp-news-headline {
+  margin: 4px 0 0;
+  font-size: 15.5px;
+  line-height: 1.35;
+  font-weight: var(--uui-weight-semibold);
+  color: var(--capiro-color-text-heading);
+}
+.capiro-vnext-root .xp-news-item--lead .xp-news-headline {
+  font-size: 20px;
+}
+.capiro-vnext-root .xp-news-item--lead .xp-news-logo {
+  width: 48px;
+  height: 48px;
+}
+.capiro-vnext-root .xp-news-summary {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-vnext-root .xp-news-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.capiro-vnext-root .xp-news-read {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--capiro-radius-control);
+  font-size: var(--capiro-type-size-body-sm);
+  color: var(--capiro-color-text-accent);
+  text-decoration: none;
+}
+.capiro-vnext-root .xp-news-read:hover {
+  background: var(--capiro-color-bg-subtle);
+  text-decoration: underline;
+}
+
+/* ── Drill-in drawer ─────────────────────────────────────────────────────── */
+
+/* Canonical drawer width: min(640, viewport − 60). The primitive default is
+   480 — widened here for the record-detail tables/lists. */
+.capiro-vnext-root .xp-page .capiro-drawer {
+  width: min(640px, calc(100vw - 60px));
+  box-shadow: var(--uui-shadow-drawer);
+}
+
+.capiro-vnext-root .xp-drill-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-05);
+}
+.capiro-vnext-root .xp-drill-section__title {
+  margin: 0 0 10px;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+.capiro-vnext-root .xp-drill-kv {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.capiro-vnext-root .xp-drill-kv__k {
+  color: var(--capiro-color-text-muted);
+  font-size: 12px;
+}
+.capiro-vnext-root .xp-drill-kv__v {
+  color: var(--capiro-color-text-primary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.capiro-vnext-root .xp-drill-kv__v a {
+  color: var(--capiro-color-text-accent);
+}
+
+.capiro-vnext-root .xp-drill-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.capiro-vnext-root .xp-drill-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  font-size: 12.5px;
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-vnext-root .xp-drill-list li:last-child {
+  border-bottom: 0;
+}
+.capiro-vnext-root .xp-drill-list__note {
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .xp-drill-list__link {
+  font-size: 11px;
+  color: var(--capiro-color-text-accent);
+}
+.capiro-vnext-root .xp-drill-amount {
+  margin-left: auto;
+  font-weight: var(--uui-weight-medium);
+  white-space: nowrap;
+}
+.capiro-vnext-root .xp-drill-subdate {
+  display: block;
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .xp-drill-inline-note {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .xp-drill-para {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--capiro-color-text-primary);
+}
+.capiro-vnext-root .xp-drill-para--sm {
+  font-size: 12.5px;
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-vnext-root .xp-vote--passed {
+  color: var(--capiro-color-success);
+}
+.capiro-vnext-root .xp-drill-unwired {
+  padding: 24px;
+  font-size: 12.5px;
+  color: var(--capiro-color-text-muted);
+}
+
+/* ── Mobile (shell's canonical <=779 band) ──────────────────────────────── */
+
+@media (max-width: 779px) {
+  .capiro-vnext-root .xp-page {
+    padding: var(--capiro-space-04) var(--capiro-space-03) var(--capiro-space-06);
+  }
+  .capiro-vnext-root .xp-drill-kv {
+    grid-template-columns: 110px 1fr;
+  }
+}

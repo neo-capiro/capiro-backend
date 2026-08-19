@@ -1,19 +1,15 @@
 import type { ReactNode } from 'react';
 import { Card, Descriptions, Tag, Typography } from 'antd';
-import type { StaffDetail } from './directory-api.js';
+import { hasText } from './directory-profile-shared.js';
+import type { OfficeAddress } from './directory-profile-shared.js';
 
 const { Text } = Typography;
 
-/** True when a value is a non-empty, non-whitespace string. */
-export function hasText(v: string | null | undefined): v is string {
-  return !!(v && String(v).trim());
-}
-
-export const NOT_PROVIDED = 'Not provided by source';
-
-export function orNotProvided(value: string | null | undefined): string {
-  return value && String(value).trim() ? String(value) : NOT_PROVIDED;
-}
+// Pure text helpers moved to directory-profile-shared.ts (UI-free) so the
+// vNext profile pages can share them; re-exported here so this module's
+// public API is unchanged.
+export { hasText, NOT_PROVIDED, orNotProvided } from './directory-profile-shared.js';
+export type { OfficeAddress } from './directory-profile-shared.js';
 
 /** A label/value pair for a Descriptions grid; dropped entirely when the value is blank. */
 export type BioField = { label: string; value: string | null | undefined };
@@ -69,9 +65,6 @@ export function ListCard<T>({
     </Card>
   );
 }
-
-/** Office/staff addresses share one shape across member & staff details. */
-export type OfficeAddress = StaffDetail['officeAddresses'][number];
 
 /** Render one physical office address, hiding any blank line within it. */
 export function renderOfficeAddress(a: OfficeAddress, i: number): ReactNode {
