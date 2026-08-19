@@ -357,7 +357,7 @@ export function computeMaximumEndpointReservationUsd(config) {
 }
 
 function endpointNotFound(error) {
-  return /not found|ValidationException|Could not find|does not exist/i.test(
+  return /not found|ValidationException|ObjectNotFoundException|Could not find|does not exist/i.test(
     String(error?.stderr || error?.message || error),
   );
 }
@@ -1159,6 +1159,13 @@ export class AsyncNvidiaCoordinator {
     }
     if (job.status === 'ENDPOINT_DELETED') {
       if (job.failureCode) {
+        if (job.reservationId) {
+          await this.ports.reservationLedger.release({
+            reservationId: job.reservationId,
+            reason: job.failureCode,
+            at: this.clock(),
+          });
+        }
         const failed = transition(job, 'FAILED', this.clock(), {
           failureCode: job.failureCode,
           failureMessage: job.failureMessage,
