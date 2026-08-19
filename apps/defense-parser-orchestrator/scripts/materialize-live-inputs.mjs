@@ -4,6 +4,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 import process from 'node:process';
 
+const DEFAULT_MAX_PROVIDER_RECORD_BYTES = 5_500_000;
+
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value && typeof value === 'object') {
@@ -64,6 +66,17 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   assert(args.request, '--request is required');
   assert(args.out, '--out is required');
+  const maxProviderRecordBytes = Number(
+    process.env.NVIDIA_MAX_PROVIDER_RECORD_BYTES ??
+      DEFAULT_MAX_PROVIDER_RECORD_BYTES,
+  );
+  assert(
+    Number.isInteger(maxProviderRecordBytes) &&
+      maxProviderRecordBytes > 0 &&
+      maxProviderRecordBytes < 6_000_000,
+    'NVIDIA_MAX_PROVIDER_RECORD_BYTES must be a positive integer below 6,000,000 bytes',
+  );
+
   const requestPath = resolve(args.request);
   const request = JSON.parse(await readFile(requestPath, 'utf8'));
   assert(
@@ -89,8 +102,6 @@ async function main() {
     );
 
     const providerPayload = {
-      // Nemotron Parse NIM 1.5 uses the OpenAI-compatible VLM request surface.
-      // Internal provenance stays in the sidecar and must never be sent to the model.
       model: 'nvidia/nemotron-parse',
       messages: [
         {
@@ -112,15 +123,23 @@ async function main() {
         },
       ],
       temperature: 0.0,
-      max_tokens: Number(page.maxTokens ?? 2000),
     };
-    assert(
-      Number.isInteger(providerPayload.max_tokens) &&
-        providerPayload.max_tokens > 0,
-      `page ${page.pageNumber} maxTokens must be a positive integer`,
-    );
+    if (page.maxTokens !== undefined && page.maxTokens !== null) {
+      const maxTokens = Number(page.maxTokens);
+      assert(
+        Number.isInteger(maxTokens) && maxTokens > 0,
+        `page ${page.pageNumber} maxTokens must be a positive integer when explicitly set`,
+      );
+      providerPayload.max_tokens = maxTokens;
+    }
 
-    const providerPayloadSha256 = sha256(canonicalJson(providerPayload));
+    const providerPayloadText = canonicalJson(providerPayload);
+    const providerPayloadBytes = Buffer.byteLength(providerPayloadText, 'utf8');
+    assert(
+      providerPayloadBytes <= maxProviderRecordBytes,
+      `page ${page.pageNumber} provider JSON record is ${providerPayloadBytes} bytes; reduce/render/compress below ${maxProviderRecordBytes} bytes before Batch Transform`,
+    );
+    const providerPayloadSha256 = sha256(providerPayloadText);
     const renderingConfigSha256 = sha256(canonicalJson(renderingConfig));
 
     rendered.push({
@@ -131,6 +150,7 @@ async function main() {
         fileName: basename(imagePath),
         sha256: imageSha256,
         mimeType,
+        providerPayloadBytes,
       },
       providerPayload,
       providerPayloadSha256,
@@ -140,6 +160,7 @@ async function main() {
   const output = {
     ...request,
     materializationSchemaVersion: 'phase8_session5_provider_payload_v2',
+    maxProviderRecordBytes,
     pages: rendered,
   };
   await mkdir(dirname(resolve(args.out)), { recursive: true });
