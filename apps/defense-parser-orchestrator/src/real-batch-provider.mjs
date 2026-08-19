@@ -34,6 +34,8 @@ export function buildProviderManifest(batch) {
       lineIndex: index,
       pageNumber: page.pageNumber,
       pageClass: page.pageClass,
+      requestedParserMethod: page.requestedParserMethod,
+      actualParserMethod: page.parserMethod,
       cacheKey: page.cacheKey,
       renderedImageSha256: page.renderedImageSha256,
       providerPayloadSha256: page.providerPayloadSha256,
@@ -195,6 +197,12 @@ export function normalizeProviderOutputJsonLines(input) {
         'Sidecar line ordering is invalid',
       );
     }
+    if (record.actualParserMethod !== sidecar.parserMethod) {
+      throw new Session5RefusalError(
+        'SIDECAR_PROVIDER_METHOD_MISMATCH',
+        `Page ${record.pageNumber} actual parser method disagrees with batch provider`,
+      );
+    }
     const blocks = extractNemotronMarkdownBBox(line.value);
     const markdown = blocks
       .map((block) => block.text)
@@ -206,6 +214,7 @@ export function normalizeProviderOutputJsonLines(input) {
       sourceSha256: sidecar.sourceSha256,
       pageNumber: record.pageNumber,
       pageClass: record.pageClass,
+      requestedParserMethod: record.requestedParserMethod,
       parserMethod: sidecar.parserMethod,
       modelName: sidecar.modelName,
       modelVersion: sidecar.modelVersion,
