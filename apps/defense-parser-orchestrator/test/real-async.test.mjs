@@ -157,7 +157,7 @@ test('async submit discovers and drains an orphaned endpoint before reserving ne
   let endpointPresent = true;
   const coordinator = new AsyncNvidiaCoordinator({
     jobStore: { async get(id) { return jobs.get(id) ?? null; }, async put(job) { jobs.set(job.jobId, job); } },
-    reservationLedger: { async reserve() { reserved = true; }, async snapshot() { return { activeJobs: 0, spentAndReservedUsd: 0 }; } },
+    reservationLedger: { async reserve() { reserved = true; }, async settle() {}, async snapshot() { return { activeJobs: 0, spentAndReservedUsd: 0 }; } },
     endpointClient: {
       async describeEndpoint(name) { return endpointPresent && name === identity.endpointName ? { EndpointStatus: 'InService', CreationTime: '2026-08-19T00:00:00Z' } : null; },
       async describeEndpointConfig() { return null; },

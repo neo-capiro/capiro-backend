@@ -172,7 +172,7 @@ test('atomic ledger refuses reconciled cost above the reserved amount before set
   await assert.rejects(
     () => ledger.settle({
       reservationId: 'r-over',
-      reconciledCostUsd: 2,
+      reconciledCostUsd: 151,
       at: '2026-08-19T00:00:00Z',
     }),
     (error) => error.code === 'RECONCILED_COST_EXCEEDS_HARD_CAP',
