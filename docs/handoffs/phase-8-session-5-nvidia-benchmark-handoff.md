@@ -72,10 +72,9 @@ The isolated orchestrator role now has only the Async Inference lifecycle action
 
 ## Validation at this worktree
 
-- Full Session 5 Node suite: 62/62 passed in the current uncommitted audit-repair worktree
-- Async-specific tests: 20/20 passed within that suite
-- Real-runtime containment tests: 9/9 passed within that suite
-- Audit repair changes remain uncommitted pending final review and exact-head verification
+- Full Session 5 Node suite: 63/63 passed at final commit `7068fadee`
+- The suite includes direct controls for hard-cap reconciliation, endpoint/config/model identity, orphan draining, deletion races, partial submission, scale-to-zero recovery, durable failure/DLQ handling, output cardinality, and direct Batch-adapter refusal
+- Audit repair commits `32af413d4` and `7068fadee` are pushed to the branch
 - P0 verifier: `SESSION5_P0_RUNTIME_PASS`
 - Corpus verifier: `SESSION5_CORPUS_READY_PASS accepted=8 blocked=0`
 - Async CDK-focused tests: 6/6 passed
