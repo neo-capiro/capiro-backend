@@ -10,6 +10,8 @@ import {
   buildLivePageIdentity,
 } from './real-batch-config.mjs';
 
+const MAX_PROVIDER_RECORD_BYTES = 5_500_000;
+
 export function buildProviderManifest(batch) {
   const records = [];
   const sidecarRecords = [];
@@ -21,14 +23,21 @@ export function buildProviderManifest(batch) {
         `Page ${page.pageNumber} requires a provider-native JSON payload`,
       );
     }
-    const payloadSha = sha256Hex(canonicalJson(page.providerPayload));
+    const payloadText = canonicalJson(page.providerPayload);
+    if (Buffer.byteLength(payloadText, 'utf8') > MAX_PROVIDER_RECORD_BYTES) {
+      throw new Session5RefusalError(
+        'PROVIDER_PAYLOAD_TOO_LARGE',
+        `Page ${page.pageNumber} provider-native JSON record exceeds ${MAX_PROVIDER_RECORD_BYTES} bytes`,
+      );
+    }
+    const payloadSha = sha256Hex(payloadText);
     if (payloadSha !== page.providerPayloadSha256) {
       throw new Session5RefusalError(
         'PROVIDER_PAYLOAD_HASH_MISMATCH',
         `Page ${page.pageNumber} provider payload hash does not match materialized bytes`,
       );
     }
-    records.push(canonicalJson(page.providerPayload));
+    records.push(payloadText);
     sidecarRecords.push({
       lineIndex: index,
       pageNumber: page.pageNumber,

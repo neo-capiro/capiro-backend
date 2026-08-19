@@ -681,6 +681,28 @@ test('reconciliation recovers a crash from PLANNED before reservation/submission
   assert.equal(x.state.ensureCalls.length, 1);
 });
 
+test('provider manifest refuses oversized provider records before Batch submission', () => {
+  const oversized = page();
+  oversized.providerPayload = {
+    ...oversized.providerPayload,
+    oversized: 'x'.repeat(5_500_001),
+  };
+  oversized.providerPayloadSha256 = sha256Hex(canonicalJson(oversized.providerPayload));
+  assert.throws(
+    () => buildProviderManifest({
+      batchId: 'b1',
+      sourceDocumentId: 'doc-1',
+      sourceSha256: SOURCE,
+      parserMethod: 'nemotron_parse',
+      modelName: 'nemotron-parse',
+      modelVersion: MODEL_VERSION,
+      parserOptionsHash: OPTIONS,
+      pages: [oversized],
+    }),
+    (error) => error.code === 'PROVIDER_PAYLOAD_TOO_LARGE',
+  );
+});
+
 test('manifest contract refusal releases the atomic reservation instead of stranding paid capacity', async () => {
   const x = memoryPorts();
   const config = loadRealBatchConfig(

@@ -87,11 +87,44 @@ async function main() {
   const rendered = [];
   for (const page of request.pages) {
     assert(
-      typeof page.renderedImagePath === 'string' &&
-        page.renderedImagePath.length > 0,
-      `page ${page.pageNumber} requires renderedImagePath`,
+      Number.isInteger(Number(page.pageNumber)) && Number(page.pageNumber) > 0,
+      `page ${page.pageNumber} requires a positive physical pageNumber`,
+    );
+    assert(
+      typeof page.sourcePdfPath === 'string' && page.sourcePdfPath.length > 0,
+      `page ${page.pageNumber} requires sourcePdfPath`,
+    );
+    assert(
+      typeof page.sourcePdfSha256 === 'string' &&
+        /^[0-9a-f]{64}$/.test(page.sourcePdfSha256),
+      `page ${page.pageNumber} requires sourcePdfSha256`,
+    );
+    assert(
+      page.renderedImageProvenance &&
+        page.renderedImageProvenance.sourcePdfSha256 === page.sourcePdfSha256 &&
+        Number(page.renderedImageProvenance.pageNumber) === Number(page.pageNumber),
+      `page ${page.pageNumber} renderedImageProvenance must bind the immutable source PDF and physical page`,
     );
     const renderingConfig = validateRenderingConfig(page);
+    const sourcePdfPath = resolve(dirname(requestPath), page.sourcePdfPath);
+    const sourceBytes = await readFile(sourcePdfPath);
+    assert(
+      sourceBytes.subarray(0, 5).toString('ascii') === '%PDF-',
+      `page ${page.pageNumber} sourcePdfPath is not a PDF`,
+    );
+    const sourcePdfSha256 = sha256(sourceBytes);
+    assert(
+      sourcePdfSha256 === page.sourcePdfSha256,
+      `page ${page.pageNumber} source PDF SHA does not match immutable bytes`,
+    );
+    assert(
+      sourcePdfSha256 === request.sourceSha256,
+      `page ${page.pageNumber} source PDF SHA does not match request.sourceSha256`,
+    );
+    assert(
+      typeof page.renderedImagePath === 'string' && page.renderedImagePath.length > 0,
+      `page ${page.pageNumber} requires renderedImagePath`,
+    );
     const imagePath = resolve(dirname(requestPath), page.renderedImagePath);
     const bytes = await readFile(imagePath);
     const imageSha256 = sha256(bytes);
