@@ -60,13 +60,24 @@ function renderAt(path = '/directory/committee-staff?view=roster') {
   );
 }
 
-function mockHappy(staff: DirectoryCommitteeStaffer[]) {
+function mockHappy(staff: DirectoryCommitteeStaffer[], subcommittees: { id: string; officeId: number; name: string; kind: string }[] = []) {
   get.mockImplementation((...args: unknown[]) => {
     const url = args[0] as string;
     if (url === '/api/directory/committees')
       return Promise.resolve({ data: { committees: [COMMITTEE], total: 1, page: 1, pageSize: 200 } });
     if (typeof url === 'string' && url.includes('/staff'))
       return Promise.resolve({ data: { committee: COMMITTEE, staff, total: staff.length, page: 1, pageSize: 500 } });
+    if (typeof url === 'string' && /\/api\/directory\/committees\/[^/]+$/.test(url))
+      return Promise.resolve({
+        data: {
+          ...COMMITTEE,
+          parentCommittee: null,
+          subcommittees,
+          contacts: [],
+          memberCount: 0,
+          currentStaffCount: staff.length,
+        },
+      });
     if (url === undefined) return Promise.resolve({ data: {} });
     return Promise.reject(new Error(`unexpected ${url}`));
   });
@@ -104,5 +115,26 @@ describe('Committee Staff vNext', () => {
     await waitFor(() => expect(screen.getAllByText(/not source-backed/i).length).toBe(2));
     // Leadership is source-backed and renders.
     await waitFor(() => expect(screen.getByText('Chair Person')).toBeTruthy());
+  });
+
+  test('hierarchy view renders a real subcommittee-unit tier from getCommitteeDetail', async () => {
+    mockHappy([staffer()], [
+      { id: 'committee-101', officeId: 101, name: 'Subcommittee on Seapower', kind: 'subcommittee' },
+      { id: 'committee-102', officeId: 102, name: 'Subcommittee on Readiness', kind: 'subcommittee' },
+    ]);
+    renderAt('/directory/committee-staff');
+    await waitFor(() => expect(screen.getByText('Subcommittee on Seapower')).toBeTruthy());
+    expect(screen.getByText('Subcommittee on Readiness')).toBeTruthy();
+    expect(screen.getAllByText('Subcommittee').length).toBe(2);
+    // Real structure only — no fabricated per-unit roster; committee-level
+    // staff still renders as one flat, unattributed group underneath.
+    expect(screen.getByText('Sam Diaz')).toBeTruthy();
+  });
+
+  test('hierarchy view renders no unit tier when the committee has no subcommittees', async () => {
+    mockHappy([staffer()], []);
+    renderAt('/directory/committee-staff');
+    await waitFor(() => expect(screen.getByText('Chair Person')).toBeTruthy());
+    expect(screen.queryByText('Subcommittee')).toBeNull();
   });
 });

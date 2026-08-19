@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type {
   DirectoryCommitteeStaffer,
 } from '../../../pages/directory/directoryData.js';
+import type { CommitteeRef } from '../../../pages/directory/directory-api.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
@@ -194,9 +195,12 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
                     onClick={() => selection.onToggle(staffer.id)}
                     onDoubleClick={() => selection.onOpenProfile(staffer.id)}
                   >
-                    <span className="capiro-directory-cell capiro-directory-cell--identity">
-                      <span className="capiro-directory-cell__primary">{staffer.fullName}</span>
-                      <span className="capiro-directory-cell__secondary">{staffer.title || '—'}</span>
+                    <span className="capiro-directory-cell capiro-directory-cell--person">
+                      <IdentityMark kind="person" size="sm" name={staffer.fullName} aria-hidden="true" />
+                      <span className="capiro-directory-cell__stack">
+                        <span className="capiro-directory-cell__primary">{staffer.fullName}</span>
+                        <span className="capiro-directory-cell__secondary">{staffer.title || '—'}</span>
+                      </span>
                     </span>
                     <span className="capiro-directory-cell capiro-directory-cell--mono">
                       <span className="capiro-directory-cell__primary">{unit.primary}</span>
@@ -236,9 +240,41 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
  * placement, working-relationship edges and vacancies are not modeled
  * server-side (DIR-1/2/3) and ship as an explicit note, never synthesized.
  */
+/**
+ * Vertical trunk + horizontal bar + one leg per child, all positioned as
+ * percentages of this connector's OWN width — which is always the shared
+ * canvas-frame width every tier grid above and below it also spans at
+ * `width: 100%`, so a leg here lines up with the grid column it targets
+ * regardless of how many children that tier has. Equal-column grids only
+ * (§ HierarchyView), so a child's center is always `(i+0.5)/N`.
+ */
+function TreeConnector({ toCount, height = 28 }: { toCount: number; height?: number }) {
+  const centers = Array.from({ length: toCount }, (_, i) => ((i + 0.5) / toCount) * 100);
+  const first = centers[0] ?? 50;
+  const last = centers[centers.length - 1] ?? 50;
+  return (
+    <div className="capiro-directory-tree-connector" style={{ height }} aria-hidden="true">
+      <span className="capiro-directory-tree-connector__trunk" />
+      {toCount > 1 ? (
+        <span
+          className="capiro-directory-tree-connector__bar"
+          style={{ left: `${first}%`, right: `${100 - last}%` }}
+        />
+      ) : null}
+      {centers.map((c, i) => (
+        <span key={i} className="capiro-directory-tree-connector__leg" style={{ left: `${c}%` }} />
+      ))}
+    </div>
+  );
+}
+
 function HierarchyView({ model }: { model: CommitteeStaffModel }) {
   const { committee, results, selection } = model;
   const detail = committee.detail;
+  const leaders: Array<{ role: string; memberRef: { name?: string | null } | null }> = [];
+  if (detail?.chair) leaders.push({ role: 'Committee Chair', memberRef: detail.chair });
+  if (detail?.rankingMember) leaders.push({ role: 'Ranking Member', memberRef: detail.rankingMember });
+  const units = committee.units;
 
   return (
     <div className="capiro-directory-split">
@@ -252,21 +288,6 @@ function HierarchyView({ model }: { model: CommitteeStaffModel }) {
           </p>
         </div>
 
-        <div className="capiro-directory-legend">
-          <span className="capiro-directory-legend__item">
-            <span className="capiro-directory-legend__swatch capiro-directory-legend__swatch--solid" />
-            Solid · formal committee structure
-          </span>
-          <span className="capiro-directory-legend__item capiro-directory-legend__item--disabled">
-            <span className="capiro-directory-legend__swatch capiro-directory-legend__swatch--dashed" />
-            Dashed blue · bipartisan / working relationship · not source-backed
-          </span>
-          <span className="capiro-directory-legend__item capiro-directory-legend__item--disabled">
-            <span className="capiro-directory-legend__swatch capiro-directory-legend__swatch--muted" />
-            Muted · unfilled / pending assignment · not source-backed
-          </span>
-        </div>
-
         {results.isInitialLoading ? (
           <CapiroSkeleton height={320} />
         ) : !detail ? (
@@ -276,77 +297,146 @@ function HierarchyView({ model }: { model: CommitteeStaffModel }) {
           />
         ) : (
           <div className="capiro-directory-canvas">
-            {/* Committee node (rounded-square mark — a place, never a person). */}
-            <div className="capiro-directory-canvas__tier">
-              <div className="capiro-directory-node capiro-directory-node--committee">
-                <span className="capiro-directory-node__mark capiro-directory-node__mark--place">
-                  {detail.committeeCode ?? detail.name.slice(0, 2).toUpperCase()}
-                </span>
-                <span className="capiro-directory-node__body">
-                  <span className="capiro-directory-node__name">{detail.name}</span>
-                  <span className="capiro-directory-node__meta">
-                    {[detail.chamber, detail.kind].filter(Boolean).join(' · ')}
+          <div className="capiro-directory-canvas__scroller">
+            <div className="capiro-directory-canvas__frame">
+              {/* Committee node — the one hero card, dark fill, larger than
+                  every node below it (rounded-square mark: a place, never a
+                  person). */}
+              <div className="capiro-directory-canvas__hero-row">
+                <div className="capiro-directory-node capiro-directory-node--hero">
+                  <span className="capiro-directory-node__mark capiro-directory-node__mark--place">
+                    {detail.committeeCode ?? detail.name.slice(0, 2).toUpperCase()}
                   </span>
-                </span>
+                  <span className="capiro-directory-node__body">
+                    <span className="capiro-directory-node__kind">{detail.kind}</span>
+                    <span className="capiro-directory-node__name">{detail.name}</span>
+                    <span className="capiro-directory-node__meta">
+                      {[detail.chamber, detail.kind === 'subcommittee' ? 'Subcommittee' : 'Standing committee']
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+                </div>
               </div>
+
+              {/* Leadership context (source-backed). Never an inferred reporting line. */}
+              {leaders.length > 0 ? (
+                <>
+                  <TreeConnector toCount={leaders.length} />
+                  <div
+                    className="capiro-directory-canvas__tier"
+                    style={{ gridTemplateColumns: `repeat(${leaders.length}, 1fr)` }}
+                  >
+                    {leaders.map((l) => (
+                      <LeadershipNode key={l.role} role={l.role} memberRef={l.memberRef} />
+                    ))}
+                  </div>
+                </>
+              ) : null}
+
+              {/* Real subcommittee-unit structure (DIR-1: structure only —
+                  which staffers sit under which unit is not source-backed,
+                  so units render with no nested roster; the committee-level
+                  staff below stays one flat, honestly-unattributed group). */}
+              {units.length > 0 ? (
+                <>
+                  <TreeConnector toCount={units.length} />
+                  <div
+                    className="capiro-directory-canvas__tier"
+                    style={{ gridTemplateColumns: `repeat(${units.length}, 1fr)` }}
+                  >
+                    {units.map((unit) => (
+                      <UnitNode key={unit.id} unit={unit} />
+                    ))}
+                  </div>
+                </>
+              ) : null}
             </div>
 
-            {/* Leadership context (source-backed). Never an inferred reporting line. */}
-            {detail.chair || detail.rankingMember ? (
-              <div className="capiro-directory-canvas__tier">
-                {detail.chair ? (
-                  <LeadershipNode role="Committee Chair" memberRef={detail.chair} />
-                ) : null}
-                {detail.rankingMember ? (
-                  <LeadershipNode role="Ranking Member" memberRef={detail.rankingMember} />
-                ) : null}
-              </div>
-            ) : null}
+            <p className="capiro-directory-canvas__section-label">
+              {detail.name} staff
+              {units.length > 0 ? ' — committee-level; not attributed to a specific unit above' : ''}
+            </p>
 
             {/* Staff people, grouped at the committee level (per-unit placement
                 is not source-backed — DIR-1). Selecting a node fills the rail. */}
-            <div className="capiro-directory-canvas__tier capiro-directory-canvas__tier--staff">
-              {results.staff.map((staffer) => {
-                const isSelected = staffer.id === selection.selectedId;
-                return (
-                  <button
-                    type="button"
-                    key={staffer.id}
-                    aria-pressed={isSelected}
-                    className={`capiro-directory-node capiro-directory-node--person${
-                      isSelected ? ' capiro-directory-node--selected' : ''
-                    }`}
-                    onClick={() => selection.onToggle(staffer.id)}
-                    onDoubleClick={() => selection.onOpenProfile(staffer.id)}
-                  >
-                    <span className="capiro-directory-node__mark capiro-directory-node__mark--person">
-                      {staffer.fullName
-                        .split(/\s+/)
-                        .filter(Boolean)
-                        .map((p) => p[0])
-                        .slice(0, 2)
-                        .join('')
-                        .toUpperCase()}
-                    </span>
-                    <span className="capiro-directory-node__body">
-                      <span className="capiro-directory-node__name">{staffer.fullName}</span>
-                      <span className="capiro-directory-node__meta">{staffer.title || '—'}</span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            {results.staff.length === 0 ? (
+              <p className="capiro-directory-canvas__note">No committee-level staff on record.</p>
+            ) : (
+              <div className="capiro-directory-canvas__tier capiro-directory-canvas__tier--staff">
+                {results.staff.map((staffer) => {
+                  const isSelected = staffer.id === selection.selectedId;
+                  return (
+                    <button
+                      type="button"
+                      key={staffer.id}
+                      aria-pressed={isSelected}
+                      className={`capiro-directory-node capiro-directory-node--person${
+                        isSelected ? ' capiro-directory-node--selected' : ''
+                      }`}
+                      onClick={() => selection.onToggle(staffer.id)}
+                      onDoubleClick={() => selection.onOpenProfile(staffer.id)}
+                    >
+                      <span className="capiro-directory-node__mark capiro-directory-node__mark--person">
+                        {staffer.fullName
+                          .split(/\s+/)
+                          .filter(Boolean)
+                          .map((p) => p[0])
+                          .slice(0, 2)
+                          .join('')
+                          .toUpperCase()}
+                      </span>
+                      <span className="capiro-directory-node__body">
+                        <span className="capiro-directory-node__kind">Team</span>
+                        <span className="capiro-directory-node__name">{staffer.fullName}</span>
+                        <span className="capiro-directory-node__meta">{staffer.title || '—'}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <p className="capiro-directory-canvas__note">
               Selecting a person node opens the staff profile rail. The highlighted path shows office
-              placement; it does not imply a person-to-person reporting line unless the source
-              explicitly supports it.
+              and unit placement; it does not imply a person-to-person reporting line unless the
+              source explicitly supports it.
             </p>
+          </div>
+
+          <div className="capiro-directory-legend">
+            <span className="capiro-directory-legend__item">
+              <span className="capiro-directory-legend__swatch capiro-directory-legend__swatch--solid" />
+              Solid · formal committee structure
+            </span>
+            <span className="capiro-directory-legend__item capiro-directory-legend__item--disabled">
+              <span className="capiro-directory-legend__swatch capiro-directory-legend__swatch--dashed" />
+              Dashed blue · bipartisan / working relationship · not source-backed
+            </span>
+            <span className="capiro-directory-legend__item capiro-directory-legend__item--disabled">
+              <span className="capiro-directory-legend__swatch capiro-directory-legend__swatch--muted" />
+              Muted · unfilled / pending assignment · not source-backed
+            </span>
+          </div>
           </div>
         )}
       </div>
 
       <SelectedCommitteeStaffRail staffer={selection.selected} onOpenProfile={selection.onOpenProfile} />
+    </div>
+  );
+}
+
+function UnitNode({ unit }: { unit: CommitteeRef }) {
+  return (
+    <div className="capiro-directory-node capiro-directory-node--unit">
+      <span className="capiro-directory-node__mark capiro-directory-node__mark--place">
+        {unit.name.slice(0, 2).toUpperCase()}
+      </span>
+      <span className="capiro-directory-node__body">
+        <span className="capiro-directory-node__kind">Subcommittee</span>
+        <span className="capiro-directory-node__name">{unit.name}</span>
+      </span>
     </div>
   );
 }
@@ -371,6 +461,7 @@ function LeadershipNode({
           .toUpperCase()}
       </span>
       <span className="capiro-directory-node__body">
+        <span className="capiro-directory-node__kind">Leadership</span>
         <span className="capiro-directory-node__name">{name ?? 'Not recorded'}</span>
         <span className="capiro-directory-node__meta">{role}</span>
       </span>

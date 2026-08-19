@@ -8,6 +8,8 @@ import type {
   DirectoryCommitteeStaffResponse,
   DirectoryCommitteeStaffer,
 } from '../../../pages/directory/directoryData.js';
+import { getCommitteeDetail } from '../../../pages/directory/directory-api.js';
+import type { CommitteeRef } from '../../../pages/directory/directory-api.js';
 import type { DirectoryFilterOption } from './DirectoryFilterPill.js';
 import { DIRECTORY_PROFILE_ROUTES } from './directory-routes.js';
 
@@ -49,6 +51,18 @@ export interface CommitteeStaffModel {
     onSelect: (id: string) => void;
     detail: DirectoryCommittee | null;
     isLoadingList: boolean;
+    /**
+     * Real subcommittee-unit structure for the selected committee (DIR-1:
+     * structure only — per-unit staff PLACEMENT is not source-backed, so
+     * these render as structural nodes, never with a nested roster).
+     * Sourced from `getCommitteeDetail`, which computes `subcommittees`
+     * server-side against the full dataset — NOT from the `committees`
+     * picker list above, which is filtered by the shared search box and
+     * would silently drop unrelated subcommittees while a staffer search
+     * is active.
+     */
+    units: CommitteeRef[];
+    isLoadingUnits: boolean;
   };
   filters: {
     chamber: string[];
@@ -176,6 +190,18 @@ export function useCommitteeStaffModel(): CommitteeStaffModel {
   const committeeDetail = staffQuery.data?.committee ?? null;
   const selected = selectedId ? staff.find((s) => s.id === selectedId) ?? null : null;
 
+  // Real subcommittee structure for the hierarchy canvas's units tier.
+  // Deliberately a separate query against getCommitteeDetail, not a client-
+  // side filter of `committees` above — see the interface doc comment.
+  const unitsQuery = useQuery({
+    queryKey: ['directory-committee-detail', effectiveCommitteeId],
+    queryFn: () => getCommitteeDetail(api, effectiveCommitteeId as string),
+    enabled: effectiveCommitteeId !== null,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+  const units = useMemo(() => unitsQuery.data?.subcommittees ?? [], [unitsQuery.data]);
+
   return {
     search: { text: searchText, onChange: setSearchText },
     view: {
@@ -197,6 +223,8 @@ export function useCommitteeStaffModel(): CommitteeStaffModel {
         }),
       detail: committeeDetail,
       isLoadingList: committeesQuery.isLoading && !committeesQuery.data,
+      units,
+      isLoadingUnits: unitsQuery.isLoading && !unitsQuery.data,
     },
     filters: {
       chamber,

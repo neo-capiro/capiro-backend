@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { CapiroChevronDownIcon } from '../../components/icons/index.js';
 
 export interface DirectoryFilterOption {
   value: string;
@@ -88,6 +89,9 @@ export function DirectoryFilterPill({
       >
         {label}
         {count ? <span className="capiro-directory-filter__count">{count}</span> : null}
+        <span className="capiro-directory-filter__chevron" aria-hidden="true">
+          <CapiroChevronDownIcon size={0.85} />
+        </span>
       </button>
 
       {open ? (
