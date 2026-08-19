@@ -7,6 +7,9 @@ export interface NvidiaLivePageIdentityV2 {
   readonly sourceSha256: string;
   readonly pageNumber: number;
   readonly provider: 'nvidia';
+  /** Governed desired lane (e.g. table/OCR) retained for benchmark intent. */
+  readonly requestedParserMethod: string;
+  /** Actual provider/method invoked. Current live package is Nemotron Parse. */
   readonly parserMethod: string;
   readonly modelName: string;
   readonly modelVersion: string;
@@ -21,6 +24,8 @@ export interface NvidiaBatchInputSidecarRecordV2 {
   readonly lineIndex: number;
   readonly pageNumber: number;
   readonly pageClass: string;
+  readonly requestedParserMethod: string;
+  readonly actualParserMethod: string;
   readonly cacheKey: string;
   readonly renderedImageSha256: string;
   readonly providerPayloadSha256: string;
