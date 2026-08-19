@@ -15,6 +15,7 @@ import {
 import { CAP_PERF } from '../portfolio-fixtures.js';
 import { useApi } from '../../../../lib/use-api.js';
 import { CapabilityDrawerVNext } from '../CapabilityDrawerVNext.js';
+import { CapabilityCreateFormVNext } from '../CapabilityCreateFormVNext.js';
 import type { Capability } from '../../../../pages/clients/capability-types.js';
 import { readClientRegistrations } from '../../../../pages/clients/client-registrations.js';
 import {
@@ -46,9 +47,15 @@ import { CapiroModal } from '../../../components/overlays/index.js';
  *
  * All editing happens in the vNext capability editor (CapabilityDrawerVNext —
  * a re-skin of the canonical CapabilityDrawer on the same PATCH/attachment
- * contract; no antd renders on this surface): the header "Add capability"
- * action opens it blank, and clicking a live capability area opens it on that
- * record (fixture areas are static — there is no record).
+ * contract; no antd renders on this surface): clicking a live capability area
+ * opens it on that record (fixture areas are static — there is no record).
+ *
+ * "Add capability" used to open that editor with `capability={null}`, which the
+ * editor renders as NOTHING — so the modal appeared with an empty body and the
+ * button was effectively dead. Creating now goes through
+ * `CapabilityCreateFormVNext` (POST `…/capabilities`), and on success the same
+ * modal switches to the editor on the record just created, so PE numbers, match
+ * keywords, and documents — all of which need an id — are one step away.
  */
 
 export function ClientCrmCapabilitiesProto({
@@ -121,25 +128,36 @@ export function ClientCrmCapabilitiesProto({
           visible without changing the page's scroll position. */}
       <CapiroModal
         open={Boolean(editing || creating)}
-        title={`Capability — ${editing?.name ?? 'New capability'}`}
+        title={editing ? `Capability — ${editing.name}` : 'New capability'}
         onClose={() => {
           setEditing(null);
           setCreating(false);
         }}
       >
-        <CapabilityDrawerVNext
-          capability={editing}
-          clientId={client.id}
-          onClose={() => {
-            setEditing(null);
-            setCreating(false);
-          }}
-          onUpdated={() => {
-            refresh();
-            setCreating(false);
-          }}
-          {...(editing ? { onDelete: () => setPendingDelete(editing) } : {})}
-        />
+        {editing ? (
+          <CapabilityDrawerVNext
+            capability={editing}
+            clientId={client.id}
+            onClose={() => {
+              setEditing(null);
+              setCreating(false);
+            }}
+            onUpdated={refresh}
+            onDelete={() => setPendingDelete(editing)}
+          />
+        ) : (
+          <CapabilityCreateFormVNext
+            clientId={client.id}
+            onCancel={() => setCreating(false)}
+            onCreated={(capability) => {
+              // Stay in the same modal and continue on the saved record: the
+              // editor owns PE numbers, match keywords, and documents, none of
+              // which can be set before the capability has an id.
+              setCreating(false);
+              setEditing(capability);
+            }}
+          />
+        )}
       </CapiroModal>
 
       {/* Destructive mutations confirm; the overlay traps focus while open. */}

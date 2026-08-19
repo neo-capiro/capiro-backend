@@ -18,6 +18,8 @@ import { ClientProfileFillController } from './client-profile-fill.controller.js
 import { ClientProfileFillService } from './client-profile-fill.service.js';
 import { ClientAccountOwnerController } from './client-account-owner.controller.js';
 import { ClientAccountOwnerService } from './client-account-owner.service.js';
+import { ClientTeamController } from './client-team.controller.js';
+import { ClientTeamService } from './client-team.service.js';
 import { RepresentationModule } from './representation.module.js';
 import { EngagementModule } from '../engagement/engagement.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
@@ -47,6 +49,7 @@ import { DirectoryModule } from '../directory/directory.module.js';
     ClientActivityController,
     ClientFilesController,
     ClientAccountOwnerController,
+    ClientTeamController,
   ],
   providers: [
     ClientsService,
@@ -59,6 +62,7 @@ import { DirectoryModule } from '../directory/directory.module.js';
     ClientActivityService,
     ClientFilesService,
     ClientAccountOwnerService,
+    ClientTeamService,
   ],
   // Exported so Meri's get_client_context tool can read full client profiles
   // and update_client_profile can write approved values back.

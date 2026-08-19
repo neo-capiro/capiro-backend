@@ -39,7 +39,7 @@ const TYPE_TONE: Record<string, 'info' | 'success' | 'warning' | 'neutral'> = {
   technology: 'warning',
 };
 
-const TRL_LABELS = [
+export const TRL_LABELS = [
   'Basic principles',
   'Concept formulated',
   'Proof of concept',
@@ -208,8 +208,12 @@ function ProfileTab({
  * TRL as a clickable 1–9 ladder. Each step is a segment; segments up to the
  * current level are filled, the active one is ringed. Clicking a step sets it;
  * clicking the active step clears it.
+ *
+ * Exported so the create form (CapabilityCreateFormVNext) collects TRL with the
+ * exact same control the editor uses, rather than a second number input that
+ * would look and behave differently for the same field.
  */
-function TrlScale({ value, onSave }: { value: number | null; onSave: (v: number | null) => void }) {
+export function TrlScale({ value, onSave }: { value: number | null; onSave: (v: number | null) => void }) {
   const label = value != null ? (TRL_LABELS[value - 1] ?? '') : '';
   return (
     <div className="capiro-capd__trl">

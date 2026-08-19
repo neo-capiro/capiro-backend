@@ -36,6 +36,7 @@ import {
   type FederalFootprint,
 } from '../../../adapters/legacy/useClientCrmOverviewModel.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
+import { ManageAccountTeamModal } from '../ManageAccountTeamModal.js';
 
 /**
  * Overview tab (spec §6). Order: profile+account → federal footprint →
@@ -180,8 +181,8 @@ function ProfileCard({ model, onEditProfile }: { model: ClientCrmOverviewModel; 
 /* ── §6.1 Account ─────────────────────────────────────────────────────────── */
 
 function AccountCard({ model, client }: { model: ClientCrmOverviewModel; client: Client }) {
-  const navigate = useNavigate();
-  const { account, accountStatus } = model;
+  const { account, accountStatus, accountTeamStatus } = model;
+  const [teamOpen, setTeamOpen] = useState(false);
   const briefLabel = account.briefState === 'ready' ? 'Brief ready' : account.briefState === 'none' ? 'No brief yet' : 'No meeting scheduled';
   const contactEmail = client.primaryContactEmail;
   // Account owner already lives in the shell header — repeating it here was
@@ -190,14 +191,13 @@ function AccountCard({ model, client }: { model: ClientCrmOverviewModel; client:
   const meetingsLoading = accountStatus.state === 'loading';
   return (
     <Card>
-      {/* Row 7, wire-audit "4 New capability": there is no per-client
-          account-team roster API — `accountTeam` is hardcoded empty in the
-          overview model. The real, existing destination is the firm's team
-          settings, so the link says that rather than implying a client roster
-          this product does not store. */}
+      {/* There IS a per-client account-team roster now (`client_team_members`,
+          served by `/api/clients/:id/team`), so this no longer redirects to
+          firm-wide team settings — which was a different thing and the reason
+          there was no way to put anyone on an account team. */}
       <CardHead
         title="Account"
-        action={<PfButton variant="link" onClick={() => navigate('/settings/team')}>Firm team settings</PfButton>}
+        action={<PfButton variant="link" onClick={() => setTeamOpen(true)}>Manage team</PfButton>}
       />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px', padding: 24 }}>
         <Field
@@ -221,12 +221,13 @@ function AccountCard({ model, client }: { model: ClientCrmOverviewModel; client:
         )}
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Account team</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
-            {/* Wire-audit "3 Compose extend" item 3: no per-client team roster
-                exists, so the hardcoded fixture avatars (SM, JC, AR) are
-                replaced with an honest empty state that links to the real
-                team settings. */}
-            <span style={{ fontSize: 14, color: '#98A2B3' }}>No roster</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+            <AccountTeamSlot
+              team={account.accountTeam}
+              available={account.accountTeamAvailable}
+              status={accountTeamStatus}
+              onManage={() => setTeamOpen(true)}
+            />
             {meetingsLoading ? <PfSkeleton width={72} height={22} style={{ borderRadius: 9999 }} /> : <Pill tone="success">{briefLabel}</Pill>}
           </div>
         </div>
@@ -236,7 +237,98 @@ function AccountCard({ model, client }: { model: ClientCrmOverviewModel; client:
           <RegionErrorLine status={accountStatus} label="Couldn't read meetings" />
         </div>
       ) : null}
+      {accountTeamStatus.state === 'error' ? (
+        <div style={{ padding: '0 24px 20px' }}>
+          <RegionErrorLine status={accountTeamStatus} label="Couldn't read the account team" />
+        </div>
+      ) : null}
+
+      <ManageAccountTeamModal
+        open={teamOpen}
+        clientId={client.id}
+        clientName={client.name}
+        onClose={() => setTeamOpen(false)}
+      />
     </Card>
+  );
+}
+
+/**
+ * The Account card's team slot: stacked initials for the real roster.
+ *
+ * Three genuinely different states, never collapsed into one another:
+ *  - loading  → a skeleton (NOT "no roster", which is a claim)
+ *  - errored  → nothing here; the card's RegionErrorLine says the read failed
+ *  - settled  → the roster, or a real "nobody assigned yet" with a way to fix it
+ */
+function AccountTeamSlot({
+  team,
+  available,
+  status,
+  onManage,
+}: {
+  team: ClientCrmOverviewModel['account']['accountTeam'];
+  available: boolean;
+  status: RegionStatus;
+  onManage: () => void;
+}) {
+  if (status.state === 'loading') {
+    return <PfSkeleton width={96} height={24} style={{ borderRadius: 9999 }} />;
+  }
+  if (status.state === 'error' || !available) {
+    // The failure is reported once, by the card's own error line.
+    return <span style={{ fontSize: 14, color: '#98A2B3' }}>—</span>;
+  }
+  if (team.length === 0) {
+    return (
+      <PfButton variant="link" onClick={onManage} style={{ fontSize: 14 }}>
+        Add a teammate
+      </PfButton>
+    );
+  }
+
+  const shown = team.slice(0, 4);
+  const overflow = team.length - shown.length;
+  return (
+    <button
+      type="button"
+      onClick={onManage}
+      // The full roster (with roles) as a tooltip, so four stacked initials are
+      // still identifiable without opening the editor.
+      title={team
+        .map((member) => (member.role ? `${member.name} — ${member.role}` : member.name))
+        .join(', ')}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'none', padding: 0 }}
+    >
+      <span style={{ display: 'inline-flex' }}>
+        {shown.map((member, index) => (
+          <span
+            key={member.id}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 26,
+              height: 26,
+              // Overlap so a roster of four stays compact in a two-up card.
+              marginLeft: index === 0 ? 0 : -7,
+              borderRadius: 9999,
+              background: '#F2F4F7',
+              boxShadow: '0 0 0 2px #ffffff, inset 0 0 0 1px #D0D5DD',
+              color: '#475467',
+              fontSize: 10.5,
+              fontWeight: 600,
+            }}
+          >
+            {member.initials}
+          </span>
+        ))}
+      </span>
+      <span style={{ fontSize: 14, color: '#475467' }}>
+        {team.length} member{team.length === 1 ? '' : 's'}
+        {overflow > 0 ? ` (+${overflow} more)` : ''}
+      </span>
+    </button>
   );
 }
 
@@ -356,7 +448,10 @@ function FederalFootprintCard({ model, onOpen }: { model: ClientCrmOverviewModel
         <FootCell
           metric={fp.federalAwards}
           label="Federal awards"
-          title="Count of matched federal contract awards"
+          // The figure is obligated DOLLARS on the matched federal contractor
+          // record, not a count of awards — the old "Count of…" tooltip was
+          // describing the same mislabel that printed the raw 68973208559.3.
+          title="Obligated dollars on the matched federal contractor record"
         />
       ),
     },

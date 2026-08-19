@@ -1,0 +1,165 @@
+/* Manage facilities — vNext client-facility manager (ManageFacilitiesModal.tsx).
+   Scoped under .capiro-vnext-root, like every vNext stylesheet, so nothing here
+   reaches the legacy surface that shares this bundle. */
+
+.capiro-vnext-root .capiro-facmod {
+  display: block;
+  width: min(680px, 100%);
+}
+
+.capiro-vnext-root .capiro-facmod__hint {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--capiro-color-text-muted);
+  text-wrap: pretty;
+}
+
+.capiro-vnext-root .capiro-facmod__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 42vh;
+  overflow-y: auto;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--capiro-color-border-divider);
+}
+
+.capiro-vnext-root .capiro-facmod__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+}
+
+.capiro-vnext-root .capiro-facmod__row:last-child { border-bottom: none; }
+
+/* An inline edit form takes the whole row width and stops being a flex row. */
+.capiro-vnext-root .capiro-facmod__row.is-editing {
+  display: block;
+  padding: 14px;
+  background: var(--capiro-color-bg-surface-2);
+}
+
+/* min-width:0 so a long facility name truncates rather than pushing the row's
+   Edit/Remove controls out (a flex item's automatic minimum is min-content). */
+.capiro-vnext-root .capiro-facmod__who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.capiro-vnext-root .capiro-facmod__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-facmod__meta {
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-facmod__remove {
+  flex: 0 0 auto;
+  height: var(--capiro-control-height-compact);
+  padding: 0 10px;
+  border-radius: var(--capiro-radius-control);
+  background: transparent;
+  color: var(--capiro-color-danger);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .capiro-facmod__remove:hover {
+  background: var(--capiro-color-danger-soft);
+}
+
+.capiro-vnext-root .capiro-facmod__empty {
+  margin: 0;
+  padding: 16px;
+  font-size: 13.5px;
+  color: var(--capiro-color-text-muted);
+  text-wrap: pretty;
+}
+
+.capiro-vnext-root .capiro-facmod__error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+  font-size: 13.5px;
+  color: var(--capiro-color-danger);
+}
+
+.capiro-vnext-root .capiro-facmod__new {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--capiro-color-bg-surface-2);
+  box-shadow: inset 0 0 0 1px var(--capiro-color-border-divider);
+}
+
+.capiro-vnext-root .capiro-facmod__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.capiro-vnext-root .capiro-facmod__span2 { grid-column: 1 / -1; }
+
+@media (max-width: 639px) {
+  .capiro-vnext-root .capiro-facmod__grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.capiro-vnext-root .capiro-facmod__field { margin-top: 10px; }
+
+.capiro-vnext-root .capiro-facmod__label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .capiro-facmod__textarea {
+  min-height: 0;
+  padding: 8px 10px;
+  resize: vertical;
+  font: inherit;
+}
+
+.capiro-vnext-root .capiro-facmod__form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.capiro-vnext-root .capiro-facmod__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--capiro-color-border-default);
+}
+
+.capiro-vnext-root .capiro-facmod__spacer { flex: 1; }
+
+.capiro-vnext-root .capiro-facmod__confirm {
+  margin: 0;
+  font-size: 14px;
+  color: var(--capiro-color-text-secondary);
+  text-wrap: pretty;
+}

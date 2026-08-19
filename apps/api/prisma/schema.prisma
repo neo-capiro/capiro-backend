@@ -266,6 +266,7 @@ model Tenant {
   memoryTransitionAudits             MemoryTransitionAudit[]
   memoryCleanupOutbox                MemoryCleanupOutbox[]
   clientMemoryAccessGrants           ClientMemoryAccess[]
+  clientTeamMembers                  ClientTeamMember[]
   clientGrantNexuses                 ClientGrantNexus[]
   clientFundingOpportunities         ClientFundingOpportunity[]
   fundingOpportunityStageTransitions FundingOpportunityStageTransition[]
@@ -540,6 +541,7 @@ model User {
   programElementDataIssuesResolved ProgramElementDataIssue[]      @relation("PeDataIssueResolver")
   peAlertEmailPrefs                PeAlertEmailPref[]
   clientMemoryAccessGrants         ClientMemoryAccess[]           @relation("ClientMemoryAccessUser")
+  clientTeamMemberships            ClientTeamMember[]             @relation("ClientTeamMemberUser")
   governedMemoryAccessGrants       MemoryAccessGrant[]            @relation("MemoryAccessGrantUser")
   outreachDraftArtifacts           OutreachDraftArtifact[]        @relation("OutreachDraftArtifactAuthor")
   outreachDraftVersions            OutreachDraftVersion[]         @relation("OutreachDraftVersionAuthor")
@@ -823,6 +825,7 @@ model Client {
   clioProactiveAlerts     ClioProactiveAlert[]
   actionRecommendations   ActionRecommendation[]
   memoryAccessGrants      ClientMemoryAccess[]
+  teamMembers             ClientTeamMember[]
   governedMemoryGrants    MemoryAccessGrant[]
   grantNexuses            ClientGrantNexus[]
   fundingOpportunities    ClientFundingOpportunity[]
@@ -855,6 +858,39 @@ model ClientMemoryAccess {
   @@unique([tenantId, clientId, userId], map: "client_memory_access_uniq")
   @@index([tenantId, userId], map: "client_memory_access_user_idx")
   @@map("client_memory_access")
+}
+
+/// Account team: which of the firm's own users work a given client.
+///
+/// Capiro had only `Client.accountOwnerUserId` — one person — so the client
+/// profile's "Account team" had no backing record at all and the UI honestly
+/// rendered "No roster" with no way to add anyone. A row here is ADDITIONAL
+/// team membership; the owner stays on `Client.accountOwnerUserId` and the API
+/// reads the two together rather than duplicating the owner into this table.
+///
+/// `role` is deliberately free text (e.g. "Lead lobbyist"). No controlled
+/// vocabulary exists for it in this product, and inventing an enum would be
+/// fabricated structure. NULL means "on the team, no stated role" — a real
+/// answer, not missing data.
+model ClientTeamMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  clientId  String   @map("client_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  role      String?
+  /// Who assigned them (plain uuid, no FK — mirrors Client.createdByUserId;
+  /// survives the assigner's departure).
+  addedBy   String?  @map("added_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User   @relation("ClientTeamMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, clientId, userId], map: "client_team_members_uniq")
+  @@index([tenantId, clientId], map: "client_team_members_client_idx")
+  @@index([tenantId, userId], map: "client_team_members_user_idx")
+  @@map("client_team_members")
 }
 
 model DirectoryContactNote {

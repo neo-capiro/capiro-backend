@@ -24,6 +24,12 @@ import { useActionsList } from '../../../pages/actions/actions-api.js';
 import { useMeetings } from '../../../pages/engagement/meetings/meetings-api.js';
 import type { Meeting } from '../../../pages/engagement/meetings/meetings-types.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
+import {
+  clientTeamKey,
+  getClientTeam,
+  teamMemberLabel,
+  type ClientTeamMember,
+} from '../../pages/client-crm/client-team-api.js';
 import { formatFacilityDistrict, type ClientFacility } from '../../../pages/clients/facilities-api.js';
 import {
   CLOSED_ACTION_STATUSES,
@@ -111,7 +117,20 @@ export interface AccountCard {
   nextMeeting: { id: string; label: string; startsAt: string } | null;
   /** Derived from the next meeting's `preps`, which is the real brief record. */
   briefState: 'ready' | 'none' | 'no-meeting';
-  accountTeam: Array<{ id: string; initials: string; name: string }>;
+  /**
+   * The real account-team roster: the account owner (flagged `isOwner`) plus
+   * every `client_team_members` row, from `/api/clients/:id/team`.
+   *
+   * This used to be hardcoded `[]` with `accountTeamAvailable: false` because no
+   * per-client roster existed anywhere in the product — the card rendered "No
+   * roster" and there was no way to add anyone.
+   */
+  accountTeam: Array<{ id: string; initials: string; name: string; role: string | null; isOwner: boolean; userId: string }>;
+  /**
+   * True once the roster READ has settled successfully. False while loading or
+   * on failure — so the card can say "couldn't read the team" instead of
+   * showing an empty roster, which would be a different (and wrong) claim.
+   */
   accountTeamAvailable: boolean;
 }
 
@@ -176,6 +195,8 @@ export interface ClientCrmOverviewModel {
   profile: ClientProfileCard;
   account: AccountCard;
   accountStatus: RegionStatus;
+  /** Loading / error / retry for the account-team roster read specifically. */
+  accountTeamStatus: RegionStatus;
   attention: AttentionRow[];
   attentionTotal: number;
   attentionStatus: RegionStatus;
@@ -346,6 +367,15 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
     staleTime: 5 * 60 * 1000,
   });
 
+  /* Account team — the real per-client roster (`/api/clients/:id/team`).
+   * `accountTeam` was hardcoded `[]` here for as long as the slot existed,
+   * because no roster table existed; `client_team_members` is that table. */
+  const teamQuery = useQuery({
+    queryKey: clientTeamKey(clientId),
+    queryFn: () => getClientTeam(api, clientId),
+    staleTime: 60_000,
+  });
+
   /* Federal footprint (wire-audit "3 Compose extend" item 3) — the real
    * LDA spend, filing count, federal award total, and lobbying trajectory
    * from the client-profile endpoint. Replaces the hardcoded FOOT_STATS
@@ -405,10 +435,25 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
           }
         : null,
       briefState: !nextMeeting ? 'no-meeting' : nextMeeting.preps.length > 0 ? 'ready' : 'none',
-      accountTeam: [],
-      accountTeamAvailable: false,
+      accountTeam: (teamQuery.data ?? []).map((member: ClientTeamMember) => {
+        const name = teamMemberLabel(member);
+        return {
+          // The owner row has no membership id (it is a `clients` column), so
+          // the userId is what identifies a row uniquely across both sources.
+          id: member.id ?? `owner:${member.userId}`,
+          userId: member.userId,
+          initials: initialsFor(name),
+          name,
+          role: member.role,
+          isOwner: member.isOwner,
+        };
+      }),
+      // Only a SETTLED, successful read may claim the roster is known. Loading
+      // or errored stays false so the card shows a skeleton / a failure line
+      // rather than asserting the team is empty.
+      accountTeamAvailable: teamQuery.isSuccess,
     };
-  }, [client, nextMeeting, accountOwner.ownerLabel]);
+  }, [client, nextMeeting, accountOwner.ownerLabel, teamQuery.data, teamQuery.isSuccess]);
 
   const openActions = useMemo(
     () => (actionQuery.data?.data ?? []).filter((action) => !CLOSED_ACTION_STATUSES.has(action.status)),
@@ -592,9 +637,16 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
       ldaFilings: p?.lda?.matched
         ? value(p.lda.totalFilings, undefined, 'count')
         : unavailable('No LDA match for this client'),
+      // `federal_contractor.total_contracts` is Decimal(18,2) DOLLARS of award
+      // obligations — not a count of awards. Rendering it as a count printed
+      // RTX's $68.97B as the bare digits `68973208559.3`: the declared type says
+      // `number | null`, but Prisma serializes Decimal as a STRING, so
+      // `formatNumber`'s `toLocaleString` was a no-op on it (hence not even
+      // thousands separators). Currency + an explicit Number() coercion, so the
+      // cell is right whether the API sends a number or a decimal string.
       federalAwards: p?.contracting?.matched
-        ? (p.contracting.totalContracts != null
-          ? value(p.contracting.totalContracts, undefined, 'count')
+        ? (p.contracting.totalContracts != null && Number.isFinite(Number(p.contracting.totalContracts))
+          ? value(Number(p.contracting.totalContracts), undefined, 'currency')
           : unavailable('Contract data not reported'))
         : unavailable('No federal award match for this client'),
       // Both facts travel: the human label ("Contracting") and the YoY rate.
@@ -620,6 +672,7 @@ export function useClientCrmOverviewModel(client: Client): ClientCrmOverviewMode
     profile,
     account,
     accountStatus: statusOf(meetings),
+    accountTeamStatus: statusOf(teamQuery),
     attention: attentionAll.slice(0, 4),
     attentionTotal: attentionAll.length,
     attentionStatus: statusOf(actionQuery),

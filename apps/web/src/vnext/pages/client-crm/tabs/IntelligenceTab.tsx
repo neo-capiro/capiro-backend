@@ -41,6 +41,7 @@ import {
   type DistrictNexusDistrictDetail,
 } from '../../../../pages/clients/intelligence-v1/district-nexus-api.js';
 import { DistrictNexusMap } from '../DistrictNexusMap.js';
+import { ManageFacilitiesModal } from '../ManageFacilitiesModal.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import type { IntelligenceView } from '../client-crm-routing.js';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -53,7 +54,8 @@ import {
   type RecommendationBill,
   type RecommendationsResponse,
 } from '../../../../pages/clients/tracker/tracker-api.js';
-import { adaptBoard, intelTrackerPaths } from '../../../../pages/clients/tracker/intel-tracker-api.js';
+import { adaptBoard, adaptRecs, intelTrackerPaths } from '../../../../pages/clients/tracker/intel-tracker-api.js';
+import type { IntelRec } from '../../../../pages/clients/tracker/intel-tracker-api.js';
 import {
   getClientFacilities,
   formatFacilityDistrict,
@@ -111,6 +113,30 @@ const INTEL_TONE: Record<string, PillTone> = {
 const DistrictNexusMapLibreLazy = lazy(() => import('../../../components/district-map/DistrictNexusMapLibre.js'));
 
 /**
+ * Read the tracker recommendations for a client, whichever backend serves them.
+ *
+ * The intel-api route answers with a BARE `IntelRec[]`; only the legacy route
+ * answers with the `RecommendationsResponse` envelope. `adaptRecs` is therefore
+ * mandatory on the v2 path — without it `data.recommendations` is `undefined`
+ * and the first `.filter`/`.slice` on it throws during render, blanking the
+ * whole Intelligence tab (which is exactly what happened: two call sites here
+ * each fetched `intelTrackerPaths.recommendations` raw). Both sites share this
+ * one reader so the adapter can never be dropped at one of them again, and so
+ * the `trackerKeys.recommendations` cache entry holds the same shape the
+ * canonical TrackerTab writes into it.
+ */
+async function fetchRecommendations(
+  api: ReturnType<typeof useApi>,
+  clientId: string,
+  trackerV2: boolean,
+): Promise<RecommendationsResponse> {
+  if (trackerV2) {
+    return adaptRecs((await api.get<IntelRec[]>(intelTrackerPaths.recommendations(clientId))).data);
+  }
+  return (await api.get<RecommendationsResponse>(trackerPaths.recommendations(clientId))).data;
+}
+
+/**
  * District Nexus v2 — the scored, district-keyed model the canonical
  * District Nexus module renders. Deliberately NOT the legacy widget's
  * `['client-district-nexus-v2']` key: this query resolves a 404 to `null`
@@ -141,14 +167,17 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
   const navigate = useNavigate();
   const api = useApi();
   const domain = DOMAIN_META[view] ?? DOMAIN_META.overview!;
+  const [facilitiesOpen, setFacilitiesOpen] = useState(false);
   // Actions that need the client are computed here rather than in the static
   // map below: District's "Manage facilities" (item 3, wire-audit "2 Wire
   // existing APIs") and Legislative's "Configure" (item 4, "3 Compose extend").
   const actions =
     view === 'district' ? (
-      <SecondaryBtn onClick={() => navigate(`/clients?clientId=${client.id}&tab=facilities`)}>
-        Manage facilities
-      </SecondaryBtn>
+      // This used to `navigate('?tab=facilities')`, which client-crm-routing maps
+      // straight back to intelligence/district — the very view this button sits
+      // on. It therefore did nothing. The editor is now in-place, on the real
+      // /api/clients/:id/facilities CRUD.
+      <SecondaryBtn onClick={() => setFacilitiesOpen(true)}>Manage facilities</SecondaryBtn>
     ) : view === 'legislative' ? (
       <>
         {/* The real source/alert configuration for a client's legislative
@@ -183,6 +212,13 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
       {view === 'funding' ? <FundingPanel client={client} /> : null}
       {view === 'footprint' ? <FootprintPanel client={client} /> : null}
       {view === 'district' ? <DistrictPanel client={client} /> : null}
+
+      <ManageFacilitiesModal
+        open={facilitiesOpen}
+        clientId={client.id}
+        clientName={client.name}
+        onClose={() => setFacilitiesOpen(false)}
+      />
     </div>
   );
 }
@@ -209,10 +245,7 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
   });
   const recsQ = useQuery<RecommendationsResponse>({
     queryKey: trackerKeys.recommendations(client.id),
-    queryFn: async () =>
-      (await api.get<RecommendationsResponse>(
-        trackerV2 ? intelTrackerPaths.recommendations(client.id) : trackerPaths.recommendations(client.id),
-      )).data,
+    queryFn: () => fetchRecommendations(api, client.id, trackerV2),
     enabled: trackerReady && view === 'legislative',
     staleTime: 60_000,
   });
@@ -272,7 +305,10 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
 
   if (view === 'legislative' && trackerReady && boardQ.isSuccess && recsQ.isSuccess) {
     const board = boardQ.data;
-    const highFit = recsQ.data.recommendations.filter((r) => r.fit >= 0.85).length;
+    // Defensive `?? []`: an unadapted payload here used to throw mid-render and
+    // blank the ENTIRE Intelligence tab. `fetchRecommendations` is the real fix;
+    // this makes any future shape surprise cost one stat cell, not the page.
+    const highFit = (recsQ.data.recommendations ?? []).filter((r) => r.fit >= 0.85).length;
     return [
       [String(board.total), 'Tracked bills'],
       ['—', 'Material changes'],
@@ -696,16 +732,11 @@ function LegislativePanel({ client }: { client: Client }) {
   const { enabled: trackerV2, ready } = useIntelFeature('tracker_v2');
   const recsQ = useQuery<RecommendationsResponse>({
     queryKey: trackerKeys.recommendations(client.id),
-    queryFn: async () =>
-      (
-        await api.get<RecommendationsResponse>(
-          trackerV2 ? intelTrackerPaths.recommendations(client.id) : trackerPaths.recommendations(client.id),
-        )
-      ).data,
+    queryFn: () => fetchRecommendations(api, client.id, trackerV2),
     enabled: ready,
     staleTime: 60_000,
   });
-  const realRecs = ready && recsQ.isSuccess ? recsQ.data.recommendations.slice(0, 5) : null;
+  const realRecs = ready && recsQ.isSuccess ? (recsQ.data.recommendations ?? []).slice(0, 5) : null;
 
   // Item 19: the tracked-bill board. The server already groups by stage and its
   // four stage ids match the design's own STAGES exactly, so columns are used

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -195,8 +195,14 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
     expect(screen.queryByText('Seattle headquarters')).not.toBeInTheDocument();
   });
 
-  it('wires "Manage facilities" to the real canonical Facilities tab (item 3, wire-audit)', () => {
-    getMock.mockImplementation(() => new Promise(() => {})); // no district data needed for this action
+  /**
+   * This used to assert `?tab=facilities`, and passed while the button was DEAD:
+   * `client-crm-routing` maps that legacy tab back to intelligence/district, so
+   * the navigation landed on the view already on screen and nothing happened.
+   * Assert the outcome the user needs — an editor — not a URL.
+   */
+  it('opens the vNext facilities editor from "Manage facilities" (item 3, wire-audit)', async () => {
+    getMock.mockResolvedValue({ data: [] });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={queryClient}>
@@ -218,7 +224,11 @@ describe('ClientCrmIntelligenceProto — district panel (items 1-2, wire-audit)'
 
     fireEvent.click(screen.getByText('Manage facilities'));
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/clients?clientId=client-1&tab=facilities');
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Facilities — Overland AI');
+    expect(within(dialog).getByRole('button', { name: 'Add facility' })).toBeInTheDocument();
+    // In-place: no navigation, and in particular not the old dead ?tab=facilities.
+    expect(screen.getByTestId('location')).not.toHaveTextContent('tab=facilities');
   });
 });
 

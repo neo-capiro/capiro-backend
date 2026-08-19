@@ -75,6 +75,7 @@ export const CLIENT_CRM_VISUAL_FIXTURE: ClientCrmOverviewModel = {
     accountTeamAvailable: false,
   },
   accountStatus: ready,
+  accountTeamStatus: ready,
   attention: [
     {
       id: 'a0',

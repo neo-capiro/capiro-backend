@@ -25,6 +25,7 @@ import {
 } from '../../../../pages/clients/targets-api.js';
 import { profileHref } from '../../../../pages/clients/targets-normalize.js';
 import { TargetDrawer, type TargetRecord } from '../portfolio-overlays.js';
+import { AddRelationshipModal } from '../AddRelationshipModal.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 
 /**
@@ -97,6 +98,7 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
   const api = useApi();
   const navigate = useNavigate();
   const [drawerTarget, setDrawerTarget] = useState<ClientTarget | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   // Same query key as the canonical TargetsTab — one shared cache entry (§10).
   const targetsQ = useQuery<ClientTarget[]>({
@@ -106,12 +108,17 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
   });
   const realTargets = targetsQ.isSuccess ? targetsQ.data : null;
 
-  // Item 11: the real create flow is TargetsTab's debounced tri-directory
-  // search + `addClientTarget`. That component is antd-based and `src/vnext` is
-  // deliberately antd-free, so this navigates to the real, maintained flow
-  // rather than forking a second one (same call as item 3's Manage facilities).
-  const openAddRelationship = () =>
-    navigate(`/clients?clientId=${encodeURIComponent(client.id)}&tab=targets`);
+  /**
+   * Item 11: the real create flow is a debounced tri-directory search +
+   * `addClientTarget`. This used to navigate to `?tab=targets` on the reasoning
+   * that the antd TargetsTab owned that flow and `src/vnext` must stay
+   * antd-free — but on os.capiro.ai that navigation is a NO-OP:
+   * `client-crm-routing`'s LEGACY_TABS maps `tab=targets` back to
+   * `relationships/government`, the view already on screen. So the button did
+   * nothing. `AddRelationshipModal` is that same flow, native to vNext, on the
+   * same endpoints and the same `['client-targets', clientId]` cache entry.
+   */
+  const openAddRelationship = () => setAddOpen(true);
 
   return (
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -139,6 +146,8 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
         )}
         <NetworkCard client={client} />
       </div>
+
+      <AddRelationshipModal open={addOpen} clientId={client.id} onClose={() => setAddOpen(false)} />
 
       {drawerTarget ? (
         <TargetDrawer

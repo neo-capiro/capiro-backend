@@ -102,6 +102,21 @@ export const AWARD_BEARING_MAPPING_SOURCES: ReadonlySet<string> = new Set([
   'assistance_recipient',
 ]);
 
+/**
+ * `federal_contractor.total_contracts` / `.no_bid_total` are Decimal(18,2), and
+ * `$queryRaw` hands them back as Prisma `Decimal` — which JSON-serializes to a
+ * STRING even though every declared row type and the web `ClientIntelProfile`
+ * contract say `number | null`. Web then formatted the string with
+ * `toLocaleString`, a no-op on strings, and the client profile printed RTX's
+ * $68.97B as the bare digits `68973208559.3`. Coerce here so the wire matches
+ * the declared contract. (Same helper shape as federal-spending.service.ts.)
+ */
+const decToNumber = (v: unknown): number | null => {
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
 @Injectable()
 export class IntelligenceService {
   private readonly logger = new Logger(IntelligenceService.name);
@@ -1877,9 +1892,9 @@ export class IntelligenceService {
     return {
       matched: true,
       contractorName: match.name,
-      totalContracts: match.total_contracts,
+      totalContracts: decToNumber(match.total_contracts),
       rankByContracts: match.rank_by_contracts,
-      noBidTotal: match.no_bid_total,
+      noBidTotal: decToNumber(match.no_bid_total),
       topAgencies: match.top_agencies_jsonb as { name: string; amount: number }[],
       yearlySpend: match.yearly_spend_jsonb as { year: number; amount: number }[],
     };
@@ -1991,9 +2006,9 @@ export class IntelligenceService {
     return {
       matched: true,
       contractorName: match.name,
-      totalContracts: match.total_contracts,
+      totalContracts: decToNumber(match.total_contracts),
       rankByContracts: match.rank_by_contracts,
-      noBidTotal: match.no_bid_total,
+      noBidTotal: decToNumber(match.no_bid_total),
       topAgencies: match.top_agencies_jsonb as { name: string; amount: number }[],
       yearlySpend: match.yearly_spend_jsonb as { year: number; amount: number }[],
     };
@@ -2630,7 +2645,7 @@ export class IntelligenceService {
         name: r.name,
         uei: r.uei,
         category: r.category,
-        totalContracts: r.total_contracts,
+        totalContracts: decToNumber(r.total_contracts),
         rankByContracts: r.rank_by_contracts,
         sourceSyncedAt: r.last_synced_at ? r.last_synced_at.toISOString() : null,
         similarity: Number(r.similarity ?? 0),

@@ -46,6 +46,7 @@ const model = {
   attention: [],
   attentionTotal: 0,
   accountStatus: ready,
+  accountTeamStatus: ready,
   workStatus: ready,
   intelligenceStatus: ready,
   attentionStatus: ready,

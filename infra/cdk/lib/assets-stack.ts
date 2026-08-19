@@ -59,6 +59,15 @@ export class AssetsStack extends cdk.Stack {
             ...new Set([
               `https://${cfg.appHost}`,
               `https://${cfg.rootDomain}`,
+              // The isolated vNext surface. os.capiro.ai runs the SAME presign →
+              // S3 POST → confirm upload flow, so leaving it out of this list
+              // made every browser upload from os.capiro.ai fail the CORS
+              // preflight — the API minted a valid presigned POST (201) and the
+              // browser then refused to send it ("Failed to fetch"), which is
+              // what broke the client Files tab and per-capability documents.
+              // compute-stack.ts already carries this host in WEB_ORIGIN;
+              // this bucket was the half of the rollout that was missed.
+              'https://os.capiro.ai',
             ]),
             // Vanity tenant subdomain wildcard, S3 CORS supports the
             // `*.app.capiro.ai` form natively.

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -138,14 +138,25 @@ describe('ClientCrmGovernmentProto — real targets (items 11-14, wire-audit)', 
     ).toBeInTheDocument();
   });
 
-  it('wires "Add relationship" to the real canonical Targets tab (item 11)', async () => {
+  /**
+   * This used to assert `?tab=targets`, and passed while the button was DEAD:
+   * `client-crm-routing` maps that legacy tab back to relationships/government,
+   * so the navigation landed on the view already on screen and nothing happened.
+   * Assert the outcome the user needs — a directory picker — not a URL.
+   */
+  it('opens the vNext directory picker from "Add relationship" (item 11)', async () => {
     mockTargets();
     renderGov();
 
     await waitFor(() => expect(screen.getAllByText('Rep. Dana Whitfield').length).toBeGreaterThan(0));
     fireEvent.click(screen.getByRole('button', { name: 'Add relationship' }));
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/clients?clientId=client-1&tab=targets');
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Add relationship');
+    expect(within(dialog).getByLabelText(/^Search the directory/)).toBeInTheDocument();
+    // The picker is in-place: no navigation at all, and in particular not the
+    // old self-referential hop to the legacy ?tab=targets.
+    expect(screen.getByTestId('location')).not.toHaveTextContent('tab=targets');
   });
 
   it('shows an honest empty state instead of the fixture when the client has no targets', async () => {

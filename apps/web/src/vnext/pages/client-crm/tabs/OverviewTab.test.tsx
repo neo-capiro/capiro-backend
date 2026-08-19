@@ -60,6 +60,7 @@ function baseModel(): ClientCrmOverviewModel {
       accountTeamAvailable: false,
     },
     accountStatus: readyStatus,
+    accountTeamStatus: readyStatus,
     attention: [],
     attentionTotal: 0,
     attentionStatus: readyStatus,
@@ -206,5 +207,65 @@ describe('ClientCrmOverviewProto — advocacy history', () => {
     expect(
       screen.queryByText('6 records · 3 public · 2 client-verified · 1 inferred'),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('ClientCrmOverviewProto — Account team slot', () => {
+  /**
+   * Regression: this slot read "No roster" and its only action linked to
+   * FIRM-WIDE team settings, because `accountTeam` was hardcoded `[]` with no
+   * roster table behind it. There was no way to put anyone on an account team.
+   */
+  it('offers a way in when the roster is genuinely empty', async () => {
+    const model = baseModel();
+    // Read SETTLED and the roster really is empty — distinct from "not read yet".
+    model.account.accountTeamAvailable = true;
+    modelMock.mockReturnValue(model);
+    renderOverview(<ClientCrmOverviewProto client={client} />);
+
+    expect(await screen.findByRole('button', { name: 'Add a teammate' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Manage team' })).toBeInTheDocument();
+    // The old dead-end copy is gone.
+    expect(screen.queryByText('No roster')).not.toBeInTheDocument();
+    expect(screen.queryByText('Firm team settings')).not.toBeInTheDocument();
+  });
+
+  it('shows the real roster with a member count', async () => {
+    const model = baseModel();
+    model.account.accountTeam = [
+      { id: 'owner:u1', userId: 'u1', initials: 'NM', name: 'Neo Martinez', role: null, isOwner: true },
+      { id: 'ctm-1', userId: 'u2', initials: 'LM', name: 'Lia Martinez', role: 'Lead lobbyist', isOwner: false },
+    ];
+    model.account.accountTeamAvailable = true;
+    modelMock.mockReturnValue(model);
+    renderOverview(<ClientCrmOverviewProto client={client} />);
+
+    expect(await screen.findByText('2 members')).toBeInTheDocument();
+    expect(screen.getByText('NM')).toBeInTheDocument();
+    expect(screen.getByText('LM')).toBeInTheDocument();
+  });
+
+  it('reports a failed roster read instead of claiming the team is empty', async () => {
+    const model = baseModel();
+    model.accountTeamStatus = { state: 'error', message: 'boom', retry: () => {} };
+    model.account.accountTeamAvailable = false;
+    modelMock.mockReturnValue(model);
+    renderOverview(<ClientCrmOverviewProto client={client} />);
+
+    expect(await screen.findByText(/Couldn't read the account team/)).toBeInTheDocument();
+    // "Add a teammate" would assert an empty roster, which is not what happened.
+    expect(screen.queryByRole('button', { name: 'Add a teammate' })).not.toBeInTheDocument();
+  });
+
+  it('opens the roster editor from "Manage team"', async () => {
+    const model = baseModel();
+    model.account.accountTeamAvailable = true;
+    modelMock.mockReturnValue(model);
+    renderOverview(<ClientCrmOverviewProto client={client} />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Manage team' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Account team — Overland AI');
   });
 });

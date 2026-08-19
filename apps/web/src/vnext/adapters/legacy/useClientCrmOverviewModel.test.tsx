@@ -54,6 +54,11 @@ function Harness() {
       <div data-testid="milestones">
         {model.work.upcomingMilestones.kind === 'value' ? model.work.upcomingMilestones.value : 'unavailable'}
       </div>
+      <div data-testid="federal-awards">
+        {model.federalFootprint.federalAwards.kind === 'value'
+          ? `${model.federalFootprint.federalAwards.format ?? 'none'}:${model.federalFootprint.federalAwards.value}`
+          : 'unavailable'}
+      </div>
     </div>
   );
 }
@@ -97,10 +102,12 @@ function mockEndpoints(overrides: {
   facilities?: unknown[];
   strategies?: unknown[];
   strategyDetails?: Record<string, unknown>;
+  clientProfile?: unknown;
 } = {}) {
   const facilities = overrides.facilities ?? [];
   const strategies = overrides.strategies ?? [];
   const strategyDetails = overrides.strategyDetails ?? {};
+  const clientProfile = overrides.clientProfile ?? {};
 
   getMock.mockImplementation((url: string) => {
     if (url === '/api/intelligence/actions') return Promise.resolve({ data: { data: [], total: 0 } });
@@ -119,6 +126,7 @@ function mockEndpoints(overrides: {
     }
     if (url === '/api/clients/client-1/facilities') return Promise.resolve({ data: facilities });
     if (url === '/api/intelligence/comment-alerts') return Promise.resolve({ data: { alerts: [] } });
+    if (url === '/api/intelligence/client-profile/client-1') return Promise.resolve({ data: clientProfile });
     return Promise.reject(new Error(`unexpected GET ${url}`));
   });
 }
@@ -209,5 +217,61 @@ describe('useClientCrmOverviewModel — Work pulse upcoming milestones (item 10)
 
     await waitFor(() => expect(screen.getByTestId('current-strategies')).toHaveTextContent('1'));
     expect(screen.getByTestId('milestones')).toHaveTextContent('0');
+  });
+});
+
+describe('useClientCrmOverviewModel — federal awards is money, not a count', () => {
+  /**
+   * Regression: RTX's Overview printed `68973208559.3` under "FEDERAL AWARDS".
+   *
+   * `federal_contractor.total_contracts` is Decimal(18,2) DOLLARS of obligations,
+   * but this slot was built as a `'count'`. Two things then compounded: the count
+   * branch is the wrong unit, and because Prisma serializes Decimal as a STRING,
+   * `formatNumber`'s `toLocaleString` was a no-op on it — so the cell showed the
+   * raw digits with not even a thousands separator.
+   */
+  it('reports a decimal-string total as currency (the real API wire shape)', async () => {
+    mockEndpoints({
+      clientProfile: {
+        // A STRING, exactly as Prisma Decimal arrives over JSON.
+        contracting: { matched: true, totalContracts: '68973208559.30' },
+      },
+    });
+    renderModel();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('federal-awards')).toHaveTextContent('currency:68973208559.3'),
+    );
+  });
+
+  it('reports a numeric total as currency too', async () => {
+    mockEndpoints({
+      clientProfile: { contracting: { matched: true, totalContracts: 84_200_000 } },
+    });
+    renderModel();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('federal-awards')).toHaveTextContent('currency:84200000'),
+    );
+  });
+
+  it('stays unavailable — never $0 — when the contractor record is unmatched', async () => {
+    mockEndpoints({ clientProfile: { contracting: { matched: false, totalContracts: null } } });
+    renderModel();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('federal-awards')).toHaveTextContent('unavailable'),
+    );
+  });
+
+  it('stays unavailable when a matched record carries an unparseable total', async () => {
+    mockEndpoints({
+      clientProfile: { contracting: { matched: true, totalContracts: 'not-a-number' } },
+    });
+    renderModel();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('federal-awards')).toHaveTextContent('unavailable'),
+    );
   });
 });

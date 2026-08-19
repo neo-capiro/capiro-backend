@@ -263,3 +263,36 @@
   font-size: 13px;
   color: var(--capiro-color-text-muted);
 }
+
+/* ── Create form (CapabilityCreateFormVNext) ─────────────────────────────────
+   The editor above is a saved-record surface; these are the few extra pieces a
+   CREATE form needs — a two-up field grid and a confirm/cancel footer. Shares
+   every field, chip, and TRL class with the editor so the two read as one
+   surface. */
+
+.capiro-vnext-root .capiro-capc {
+  display: block;
+  max-width: 620px;
+}
+
+.capiro-vnext-root .capiro-capc__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin-bottom: 14px;
+}
+
+.capiro-vnext-root .capiro-capc__span2 { grid-column: 1 / -1; }
+
+@media (max-width: 639px) {
+  .capiro-vnext-root .capiro-capc__grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.capiro-vnext-root .capiro-capc__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--capiro-color-border-default);
+}
