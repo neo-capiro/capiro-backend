@@ -22,6 +22,10 @@ import {
   isVNextEngagementPath,
   VNextEngagementRoutes,
 } from '../pages/engagement/VNextEngagementRoutes.js';
+import {
+  isVNextBillPath,
+  VNextBillRoutes,
+} from '../pages/bills/VNextBillRoutes.js';
 
 const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
@@ -116,6 +120,13 @@ export function VNextRouter() {
   // Reports) — claimed for every tenant since GA on 2026-08-18.
   if (isVNextEngagementPath(location.pathname)) {
     return <VNextEngagementRoutes />;
+  }
+
+  // Bill 360: the deep-linkable dossier at /bills/:billId (vNext LegiWatch's
+  // drawer links into it). The bill_360 fail-closed flag gate lives inside the
+  // page, exactly as on canonical.
+  if (isVNextBillPath(location.pathname)) {
+    return <VNextBillRoutes />;
   }
 
   return <Outlet />;

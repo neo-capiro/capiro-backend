@@ -1,0 +1,741 @@
+/*
+ * Bill 360 vNext — the Untitled UI re-skin of the dossier design system
+ * (components/dossier/dossier.css + pages/bills/bill-360.css). Same geometry
+ * and hierarchy as the prototype; every color/radius/font comes off the vNext
+ * token layer (foundations/tokens.css). Structure-only px values (spacing,
+ * type scale steps the prototype defines) are kept literal, matching how the
+ * other vNext modules carry their prototype geometry.
+ *
+ * The severity system maps onto the vNext semantic set:
+ *   critical→danger · notable→warning · info→info · success→success ·
+ *   accent→accent(soft) · neutral→subtle. Pills are CapiroBadge underneath;
+ *   only the dossier's uppercase micro-label treatment is layered on here.
+ */
+
+/* ── Route frame ─────────────────────────────────────────────────────────── */
+/* The dossier owns its full content box (sticky chrome bar spans edge to
+   edge; the 980px reading column centers itself), so escape the shell's
+   1280px cap + 32px gutter — same pattern as dashboard.css / legiwatch.css. */
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.b360-route) {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
+.capiro-vnext-root .b360-route {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--capiro-color-bg-canvas);
+}
+.capiro-vnext-root .b360-route--center {
+  display: grid;
+  place-items: center;
+  padding: 48px 24px;
+}
+.capiro-vnext-root .b360-route--center .capiro-feedback {
+  justify-items: center;
+  text-align: center;
+}
+
+.capiro-vnext-root .b360-dossier {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--capiro-type-family-sans);
+  color: var(--capiro-color-text-primary);
+}
+
+/* ── Chrome bar (top strip) ──────────────────────────────────────────────── */
+.capiro-vnext-root .b360-chrome {
+  position: sticky;
+  top: var(--uui-topbar-h, 0px);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-vnext-root .b360-eyebrow {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .b360-chrome-spacer { flex: 1; }
+.capiro-vnext-root .b360-export { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ── Reading column ──────────────────────────────────────────────────────── */
+.capiro-vnext-root .b360-inner {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 24px 28px 64px;
+}
+.capiro-vnext-root .b360-loading {
+  display: grid;
+  gap: 14px;
+  padding-top: 8px;
+}
+.capiro-vnext-root .b360-empty {
+  display: grid;
+  place-items: center;
+  padding: 28px 20px;
+}
+.capiro-vnext-root .b360-empty .capiro-feedback {
+  justify-items: center;
+  text-align: center;
+  max-width: 460px;
+}
+
+/* ── Pills (CapiroBadge + dossier micro-label treatment) ─────────────────── */
+.capiro-vnext-root .b360-pill {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.capiro-vnext-root .b360-pill--accent {
+  background: var(--capiro-color-bg-accent-soft);
+  color: var(--capiro-color-text-accent);
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+.capiro-vnext-root .b360-hero { margin-bottom: 18px; }
+.capiro-vnext-root .b360-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 9px;
+}
+.capiro-vnext-root .b360-num {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-body-sm);
+  font-weight: 600;
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-vnext-root .b360-metachip { font-size: 12px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .b360-title {
+  margin: 0 0 13px;
+  font-family: var(--capiro-type-family-serif);
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  color: var(--capiro-color-text-heading);
+}
+.capiro-vnext-root .b360-hero-sub { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.capiro-vnext-root .b360-hero-sub-spacer { flex: 1; }
+.capiro-vnext-root .b360-scopechip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-control);
+  padding: 5px 11px;
+}
+.capiro-vnext-root .b360-scopechip-type {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .b360-scopechip-label { font-size: 12.5px; font-weight: 600; }
+.capiro-vnext-root .b360-herofield { display: flex; align-items: center; gap: 6px; }
+.capiro-vnext-root .b360-herofield-label { font-size: 11px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .b360-herofield-value { font-size: 12.5px; font-weight: 600; }
+.capiro-vnext-root .b360-synced {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--capiro-color-text-muted);
+}
+
+/* ── KPI strip (6 cells, 3-up hairline grid) ─────────────────────────────── */
+.capiro-vnext-root .b360-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--capiro-color-border-divider);
+  border: 1px solid var(--capiro-color-border-divider);
+  border-radius: var(--capiro-radius-widget);
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+.capiro-vnext-root .b360-kpi {
+  background: var(--capiro-color-bg-surface);
+  padding: 13px 15px;
+  min-width: 0;
+}
+.capiro-vnext-root .b360-kpi-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--capiro-color-text-muted);
+  margin-bottom: 7px;
+}
+/* Prototype `kv(color, mono)`: 19px/600/1.1, color set per cell, mono optional.
+   Deliberately NO ellipsis — the prototype lets a long status label wrap. */
+.capiro-vnext-root .b360-kpi-value {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--capiro-color-text-primary);
+}
+.capiro-vnext-root .b360-kpi-value.mono {
+  font-family: var(--capiro-type-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+.capiro-vnext-root .b360-kpi-sub {
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+  margin-top: 5px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Tab bar (CapiroTabs carries the interaction; spacing lives here) ────── */
+.capiro-vnext-root .b360-tabs { margin-bottom: 22px; }
+
+/* ── Cards + section labels ──────────────────────────────────────────────── */
+.capiro-vnext-root .b360-card {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  padding: 15px 16px;
+}
+/* Raised overview cards take the foundation's widget elevation class
+   (capiro-elevation-widget) in JSX — no shadow recipe is re-authored here. */
+.capiro-vnext-root .b360-card--roomy { padding: 17px 18px; }
+.capiro-vnext-root .b360-card--sources { padding: 16px 18px; margin-bottom: 14px; }
+.capiro-vnext-root .b360-card--legend { background: var(--capiro-color-bg-surface-2); }
+.capiro-vnext-root .b360-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--capiro-color-text-muted);
+  margin-bottom: 11px;
+}
+.capiro-vnext-root .b360-section-label--timeline { margin-bottom: 15px; }
+.capiro-vnext-root .b360-section-label--votes { margin-bottom: 13px; }
+.capiro-vnext-root .b360-section-label--flush { margin-bottom: 0; }
+
+/* ── Overview ────────────────────────────────────────────────────────────── */
+.capiro-vnext-root .b360-ov-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.capiro-vnext-root .b360-ov-head { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+.capiro-vnext-root .b360-ov-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--capiro-color-text-secondary);
+  flex: 1;
+}
+.capiro-vnext-root .b360-ov-text {
+  margin: 0 0 10px;
+  font-size: var(--capiro-type-size-body-sm);
+  color: var(--capiro-color-text-primary);
+  line-height: 1.55;
+}
+.capiro-vnext-root .b360-ov-meta { font-size: 11px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .b360-related { display: flex; flex-direction: column; gap: 8px; }
+.capiro-vnext-root .b360-related-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: var(--capiro-color-bg-surface-2);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-surface);
+  padding: 10px 12px;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.capiro-vnext-root .b360-related-row:hover {
+  border-color: var(--capiro-color-border-strong);
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-vnext-root .b360-related-row:focus-visible {
+  outline: none;
+  box-shadow: var(--capiro-focus-ring);
+}
+.capiro-vnext-root .b360-related-num {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--capiro-color-text-accent);
+  flex-shrink: 0;
+}
+.capiro-vnext-root .b360-related-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--capiro-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .b360-related-role {
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+  white-space: nowrap;
+}
+
+/* ── Path & votes: timeline ──────────────────────────────────────────────── */
+.capiro-vnext-root .b360-path { display: flex; flex-direction: column; gap: 16px; }
+.capiro-vnext-root .b360-timeline-row { display: flex; gap: 14px; }
+.capiro-vnext-root .b360-rail { display: flex; flex-direction: column; align-items: center; width: 12px; }
+.capiro-vnext-root .b360-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--capiro-radius-circular);
+  flex-shrink: 0;
+  border: 2px solid;
+}
+.capiro-vnext-root .b360-line { flex: 1; width: 2px; margin: 3px 0; }
+.capiro-vnext-root .b360-ms-body { padding-bottom: 17px; flex: 1; min-width: 0; }
+.capiro-vnext-root .b360-ms-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.capiro-vnext-root .b360-ms-label { font-size: var(--capiro-type-size-body-sm); font-weight: 600; }
+.capiro-vnext-root .b360-ms-date {
+  margin-left: auto;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .b360-ms-detail { font-size: 12px; color: var(--capiro-color-text-muted); margin-top: 3px; }
+
+/* ── Path & votes: governing-rule callout ────────────────────────────────── */
+.capiro-vnext-root .b360-rule-callout {
+  background: var(--capiro-color-danger-soft);
+  border: 1px solid var(--capiro-color-danger);
+  border-radius: var(--capiro-radius-widget);
+  padding: 16px 18px;
+}
+.capiro-vnext-root .b360-rule-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.capiro-vnext-root .b360-rule-gavel { display: inline-flex; color: var(--capiro-color-danger); }
+.capiro-vnext-root .b360-rule-label {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-body-sm);
+  font-weight: 600;
+}
+.capiro-vnext-root .b360-rule-tally {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-body-md);
+  font-weight: 600;
+}
+.capiro-vnext-root .b360-controls-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--capiro-color-danger);
+  background: var(--capiro-color-bg-surface);
+  padding: 3px 7px;
+  border-radius: var(--capiro-radius-control);
+}
+.capiro-vnext-root .b360-rule-desc { font-size: 12px; color: var(--capiro-color-text-secondary); margin-bottom: 7px; }
+.capiro-vnext-root .b360-rule-note { font-size: 12.5px; color: var(--capiro-color-text-primary); line-height: 1.55; }
+
+/* ── Path & votes: recorded votes + party bars ───────────────────────────── */
+.capiro-vnext-root .b360-vote-card {
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-surface);
+  padding: 14px 15px;
+  margin-bottom: 10px;
+}
+.capiro-vnext-root .b360-vote-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.capiro-vnext-root .b360-vote-target {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .b360-vote-label {
+  font-size: var(--capiro-type-size-body-sm);
+  font-weight: 600;
+  flex: 1;
+  min-width: 120px;
+}
+.capiro-vnext-root .b360-vote-tally {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 15px;
+  font-weight: 600;
+}
+.capiro-vnext-root .b360-party { display: flex; flex-direction: column; gap: 7px; margin: 11px 0; }
+.capiro-vnext-root .b360-party-row { display: flex; align-items: center; gap: 10px; }
+.capiro-vnext-root .b360-party-label {
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+  width: 92px;
+  flex-shrink: 0;
+}
+.capiro-vnext-root .b360-bar-track {
+  flex: 1;
+  display: flex;
+  height: 8px;
+  border-radius: var(--capiro-radius-control);
+  overflow: hidden;
+  background: var(--capiro-color-bg-sunken);
+}
+.capiro-vnext-root .b360-bar-yea { background: var(--capiro-color-success-rail); }
+.capiro-vnext-root .b360-bar-nay { background: var(--capiro-color-danger-rail); }
+.capiro-vnext-root .b360-party-tally {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+  width: 64px;
+  text-align: right;
+}
+.capiro-vnext-root .b360-vote-note {
+  font-size: 12px;
+  color: var(--capiro-color-text-secondary);
+  line-height: 1.5;
+}
+.capiro-vnext-root .b360-novote {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  background: var(--capiro-color-bg-surface-2);
+  border: 1px dashed var(--capiro-color-border-strong);
+  border-radius: var(--capiro-radius-surface);
+  padding: 13px 15px;
+}
+.capiro-vnext-root .b360-novote-icon { color: var(--capiro-color-text-muted); flex-shrink: 0; display: inline-flex; }
+.capiro-vnext-root .b360-novote-text {
+  font-size: 12.5px;
+  color: var(--capiro-color-text-secondary);
+  line-height: 1.55;
+}
+
+/* ── Funding ─────────────────────────────────────────────────────────────── */
+.capiro-vnext-root .b360-fund-card {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  padding: 17px 18px;
+  margin-bottom: 14px;
+}
+.capiro-vnext-root .b360-fund-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end; }
+.capiro-vnext-root .b360-fund-amount {
+  font-family: var(--capiro-type-family-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1;
+}
+.capiro-vnext-root .b360-fund-metacol { display: flex; flex-direction: column; gap: 6px; }
+.capiro-vnext-root .b360-fund-line { font-size: 11.5px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .b360-fund-line--eyebrow { margin-bottom: 5px; }
+.capiro-vnext-root .b360-fund-line--req { margin-top: 3px; }
+.capiro-vnext-root .b360-fund-delta-col { margin-left: auto; text-align: right; }
+.capiro-vnext-root .b360-fund-delta {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 21px;
+  font-weight: 600;
+}
+.capiro-vnext-root .b360-fund-source {
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--capiro-color-border-divider);
+}
+.capiro-vnext-root .b360-likebar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-surface);
+  padding: 12px 15px;
+  margin-bottom: 14px;
+}
+.capiro-vnext-root .b360-likebar-caption { font-size: 12px; color: var(--capiro-color-text-secondary); flex: 1; }
+.capiro-vnext-root .b360-likebar-label { font-size: 12.5px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .b360-likebar-amount {
+  font-family: var(--capiro-type-family-mono);
+  font-size: var(--capiro-type-size-body-md);
+  font-weight: 600;
+}
+.capiro-vnext-root .b360-likebar-delta {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.capiro-vnext-root .b360-likebar-open {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--capiro-color-text-accent);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.capiro-vnext-root .b360-likebar-open:hover { text-decoration: underline; }
+.capiro-vnext-root .b360-likebar-open:focus-visible {
+  outline: none;
+  box-shadow: var(--capiro-focus-ring);
+  border-radius: var(--capiro-radius-control);
+}
+.capiro-vnext-root .b360-guardrail {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  background: var(--capiro-color-warning-soft);
+  border: 1px solid var(--capiro-color-warning);
+  border-radius: var(--capiro-radius-surface);
+  padding: 12px 15px;
+  margin-bottom: 14px;
+}
+.capiro-vnext-root .b360-guardrail-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--capiro-color-warning);
+  margin-bottom: 3px;
+}
+.capiro-vnext-root .b360-guardrail-text {
+  font-size: 12.5px;
+  color: var(--capiro-color-text-primary);
+  line-height: 1.55;
+}
+/* Parent Budget Package reference (R4 §4.1). The prototype's button treatment
+   minus the click affordance — the package workspace lands with Budget Cycle 360. */
+.capiro-vnext-root .b360-parent-package {
+  display: inline-block;
+  border: 1px solid var(--capiro-color-border-default);
+  background: var(--capiro-color-bg-surface);
+  border-radius: var(--capiro-radius-control);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── PE impacts table (CapiroTable inside the dossier card chrome) ───────── */
+.capiro-vnext-root .b360-petable {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.capiro-vnext-root .b360-petable-title {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.capiro-vnext-root .b360-petable-count {
+  margin-left: auto;
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .b360-petable-table tr:last-child td { border-bottom: none; }
+.capiro-vnext-root .b360-col-num,
+.capiro-vnext-root .b360-num-cell { text-align: right; }
+.capiro-vnext-root .b360-num-cell { font-family: var(--capiro-type-family-mono); font-size: 12.5px; }
+.capiro-vnext-root .b360-num-cell.muted { color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .b360-num-cell.strong { font-weight: 600; }
+.capiro-vnext-root .b360-pe-cell { min-width: 0; }
+.capiro-vnext-root .b360-pe-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  display: block;
+  font-family: inherit;
+  max-width: 100%;
+}
+.capiro-vnext-root .b360-pe-btn:hover .b360-pe-code { text-decoration: underline; }
+.capiro-vnext-root .b360-pe-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--capiro-focus-ring);
+  border-radius: var(--capiro-radius-control);
+}
+.capiro-vnext-root .b360-pe-code {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  color: var(--capiro-color-text-accent);
+  font-weight: 600;
+}
+.capiro-vnext-root .b360-pe-name {
+  display: block;
+  font-size: 12px;
+  color: var(--capiro-color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .b360-basis {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: var(--capiro-radius-control);
+}
+.capiro-vnext-root .b360-basis.explicit {
+  color: var(--capiro-color-success);
+  background: var(--capiro-color-success-soft);
+}
+.capiro-vnext-root .b360-basis.inferred {
+  color: var(--capiro-color-warning);
+  background: var(--capiro-color-warning-soft);
+}
+.capiro-vnext-root .b360-impact-note {
+  font-size: 11.5px;
+  color: var(--capiro-color-text-muted);
+  margin-top: 11px;
+  line-height: 1.55;
+}
+
+/* ── Provisions ──────────────────────────────────────────────────────────── */
+.capiro-vnext-root .b360-prov-list { display: flex; flex-direction: column; gap: 10px; }
+.capiro-vnext-root .b360-prov-card {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  padding: 14px 16px;
+}
+.capiro-vnext-root .b360-prov-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 7px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .b360-prov-sec {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--capiro-color-text-accent);
+}
+.capiro-vnext-root .b360-prov-title { font-size: var(--capiro-type-size-body-sm); font-weight: 600; flex: 1; }
+.capiro-vnext-root .b360-prov-summary {
+  margin: 0 0 7px;
+  font-size: 12.5px;
+  color: var(--capiro-color-text-secondary);
+  line-height: 1.55;
+}
+.capiro-vnext-root .b360-prov-source { font-size: 11px; color: var(--capiro-color-text-muted); }
+
+/* ── Hearings ────────────────────────────────────────────────────────────── */
+.capiro-vnext-root .b360-hearing-list { display: flex; flex-direction: column; gap: 12px; }
+.capiro-vnext-root .b360-hearing-card {
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  padding: 15px 16px;
+}
+.capiro-vnext-root .b360-hearing-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.capiro-vnext-root .b360-hearing-glyph { display: inline-flex; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .b360-hearing-title { font-size: 13.5px; font-weight: 600; flex: 1; }
+.capiro-vnext-root .b360-hearing-date {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .b360-hearing-committee {
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+  margin-bottom: 12px;
+}
+.capiro-vnext-root .b360-mention {
+  border-left: 2.5px solid var(--capiro-color-info-rail);
+  background: var(--capiro-color-info-soft);
+  border-radius: 0 var(--capiro-radius-control) var(--capiro-radius-control) 0;
+  padding: 9px 13px;
+  margin-bottom: 7px;
+}
+.capiro-vnext-root .b360-mention-meta {
+  display: flex;
+  gap: 9px;
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+  margin-bottom: 4px;
+}
+.capiro-vnext-root .b360-mention-ts { font-family: var(--capiro-type-family-mono); }
+.capiro-vnext-root .b360-mention-speaker { font-weight: 600; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .b360-mention-quote {
+  font-size: 12.5px;
+  color: var(--capiro-color-text-primary);
+  font-style: italic;
+  line-height: 1.55;
+}
+
+/* ── Evidence ────────────────────────────────────────────────────────────── */
+.capiro-vnext-root .b360-ev-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.capiro-vnext-root .b360-ev-synced { margin-left: auto; font-size: 11.5px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .b360-source-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--capiro-color-border-divider);
+}
+.capiro-vnext-root .b360-source-label {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--capiro-color-text-primary);
+  min-width: 0;
+}
+.capiro-vnext-root .b360-source-link { color: var(--capiro-color-text-accent); text-decoration: none; }
+.capiro-vnext-root .b360-source-link:hover { text-decoration: underline; }
+.capiro-vnext-root .b360-source-as {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  color: var(--capiro-color-text-muted);
+  white-space: nowrap;
+}
+.capiro-vnext-root .b360-legend { display: flex; flex-direction: column; gap: 9px; }
+.capiro-vnext-root .b360-legend-row { display: flex; align-items: center; gap: 11px; }
+.capiro-vnext-root .b360-legend-desc { font-size: 12px; color: var(--capiro-color-text-secondary); }
+
+/* ── Narrow viewports ────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .capiro-vnext-root .b360-kpi-strip { grid-template-columns: 1fr; }
+  .capiro-vnext-root .b360-ov-grid { grid-template-columns: 1fr; }
+  .capiro-vnext-root .b360-inner { padding: 16px 16px 48px; }
+}
