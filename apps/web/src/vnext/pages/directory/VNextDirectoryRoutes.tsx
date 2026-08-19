@@ -3,7 +3,9 @@ import { Navigate, useLocation } from 'react-router-dom';
 import {
   DIRECTORY_LEGACY_ROUTE,
   DIRECTORY_ROUTES,
+  matchDirectoryProfilePath,
   resolveLegacyDirectoryTarget,
+  type DirectoryProfileMatch,
 } from './directory-routes.js';
 
 const CongressionalStaffVNext = lazy(async () => ({
@@ -22,8 +24,44 @@ const CommitteeStaffVNext = lazy(async () => ({
   default: (await import('./CommitteeStaffVNext.js')).CommitteeStaffVNext,
 }));
 
+const MemberProfileVNext = lazy(async () => ({
+  default: (await import('./MemberProfileVNext.js')).MemberProfileVNext,
+}));
+
+const StaffProfileVNext = lazy(async () => ({
+  default: (await import('./StaffProfileVNext.js')).StaffProfileVNext,
+}));
+
+const CommitteeProfileVNext = lazy(async () => ({
+  default: (await import('./CommitteeProfileVNext.js')).CommitteeProfileVNext,
+}));
+
+const StateLegislatorProfileVNext = lazy(async () => ({
+  default: (await import('./StateLegislatorProfileVNext.js')).StateLegislatorProfileVNext,
+}));
+
+const DistrictProfileVNext = lazy(async () => ({
+  default: (await import('./DistrictProfileVNext.js')).DistrictProfileVNext,
+}));
+
 function RouteLoading() {
   return <div className="capiro-vnext-route-loading">Loading…</div>;
+}
+
+/** The five deep-linkable profile destinations, dispatched on parsed params. */
+function ProfileRoute({ match }: { match: DirectoryProfileMatch }) {
+  switch (match.kind) {
+    case 'member':
+      return <MemberProfileVNext memberId={match.memberId} />;
+    case 'staff':
+      return <StaffProfileVNext staffId={match.staffId} />;
+    case 'committee':
+      return <CommitteeProfileVNext committeeId={match.committeeId} />;
+    case 'stateLegislator':
+      return <StateLegislatorProfileVNext id={match.id} />;
+    case 'district':
+      return <DistrictProfileVNext state={match.state} districtNo={match.districtNo} />;
+  }
 }
 
 /**
@@ -31,16 +69,15 @@ function RouteLoading() {
  *
  * The four list surfaces are peer routes over one canonical directory dataset;
  * `/directory` is the backward-compatible entry point and redirects to
- * Congressional Staff with the query string preserved verbatim. Profile
- * destinations stay on the canonical routes (`/directory/staff/:staffId` is one
- * identity for both staff surfaces), so only the *list* surfaces and the legacy
- * redirect are intercepted here — profile paths fall through to canonical.
+ * Congressional Staff with the query string preserved verbatim.
  *
- * Committee Staff (`?view=hierarchy|roster`), Department of War and State
- * Legislators land as their own surfaces in later phases; until their vNext
- * bodies exist they render the Congressional shell's peers via canonical fall
- * -through in `VNextRouter` (the route is only claimed once its surface is
- * ready). Congressional Staff is the first surface wired end to end.
+ * The deep-linkable profile destinations (`/directory/members/:memberId`,
+ * `/directory/staff/:staffId`, `/directory/committees/:committeeId`,
+ * `/directory/state-legislators/:id`, `/directory/districts/:state/:no`) are
+ * claimed here too (Phase 2 old-UI purge) — `/directory/staff/:staffId` stays
+ * one identity for both staff surfaces. VNextRouter intercepts above the
+ * canonical param `<Route>`s, so params are parsed from the pathname by
+ * `matchDirectoryProfilePath` rather than `useParams`.
  */
 export function VNextDirectoryRoutes() {
   const location = useLocation();
@@ -83,6 +120,15 @@ export function VNextDirectoryRoutes() {
     );
   }
 
+  const profileMatch = matchDirectoryProfilePath(location.pathname);
+  if (profileMatch) {
+    return (
+      <Suspense fallback={<RouteLoading />}>
+        <ProfileRoute match={profileMatch} />
+      </Suspense>
+    );
+  }
+
   // Not a vNext-owned directory path yet — caller (VNextRouter) falls through.
   return null;
 }
@@ -90,17 +136,16 @@ export function VNextDirectoryRoutes() {
 /**
  * Whether vNext claims this directory pathname. `VNextRouter` uses this to
  * decide between rendering the vNext module and falling through to the
- * canonical page. Only the legacy redirect and the surfaces with a native
- * vNext body are claimed; profile routes stay canonical.
+ * canonical page. Claimed: the legacy redirect, all four list surfaces, and
+ * the five deep-linkable profile routes (Phase 2 old-UI purge).
  */
 export function isVNextDirectoryPath(pathname: string): boolean {
-  // Claimed today: the legacy redirect plus all four list surfaces. Profile
-  // routes stay canonical throughout.
   return (
     pathname === DIRECTORY_LEGACY_ROUTE ||
     pathname === DIRECTORY_ROUTES.congressionalStaff ||
     pathname === DIRECTORY_ROUTES.departmentOfWar ||
     pathname === DIRECTORY_ROUTES.stateLegislators ||
-    pathname === DIRECTORY_ROUTES.committeeStaff
+    pathname === DIRECTORY_ROUTES.committeeStaff ||
+    matchDirectoryProfilePath(pathname) !== null
   );
 }

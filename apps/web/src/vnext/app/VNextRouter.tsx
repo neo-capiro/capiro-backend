@@ -41,9 +41,9 @@ const VNextClientCrmRoute = lazy(async () => ({
  * `/directory/congressional-staff`) have native vNext presentations and are
  * substituted here. The Strategies module is a complete native rebuild (no old
  * pages/strategy/* components) over the same backend endpoints. The Directory
- * module claims only the surfaces with a native vNext body (legacy redirect +
- * Congressional Staff in this phase); the remaining list surfaces and all
- * profile routes fall through to canonical. LegiWatch was intercepted here
+ * module claims the legacy redirect, all four list surfaces, and the five
+ * deep-linkable profile routes (see isVNextDirectoryPath /
+ * matchDirectoryProfilePath). LegiWatch was intercepted here
  * previously — see git history on this file if reviving it. Everything else
  * falls through to the canonical page via Outlet.
  *
@@ -84,10 +84,9 @@ export function VNextRouter() {
     return <VNextStrategiesRoutes />;
   }
 
-  // Directory: the legacy `/directory` redirect plus the surfaces with a native
-  // vNext body (Congressional Staff in this phase). All other directory paths —
-  // the remaining list surfaces and every profile route — fall through to the
-  // canonical page below.
+  // Directory: the legacy `/directory` redirect, the four list surfaces, and
+  // the five deep-linkable profile routes (members/staff/committees/
+  // state-legislators/districts) — all natively vNext as of Phase 2.
   if (isVNextDirectoryPath(location.pathname)) {
     return <VNextDirectoryRoutes />;
   }

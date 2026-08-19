@@ -61,3 +61,63 @@ export function resolveLegacyDirectoryTarget(search: string): string {
 export function isDirectoryListPath(pathname: string): boolean {
   return (Object.values(DIRECTORY_ROUTES) as string[]).includes(pathname);
 }
+
+/**
+ * A matched deep-linkable directory profile path. Mirrors the canonical
+ * App.tsx route params exactly:
+ *   /directory/members/:memberId
+ *   /directory/staff/:staffId
+ *   /directory/committees/:committeeId
+ *   /directory/state-legislators/:id       (OpenStates "ocd-person/…", encoded)
+ *   /directory/districts/:state/:districtNo
+ */
+export type DirectoryProfileMatch =
+  | { kind: 'member'; memberId: string }
+  | { kind: 'staff'; staffId: string }
+  | { kind: 'committee'; committeeId: string }
+  | { kind: 'stateLegislator'; id: string }
+  | { kind: 'district'; state: string; districtNo: string };
+
+/**
+ * `useParams` decodes URI components; VNextRouter intercepts ABOVE the
+ * canonical param `<Route>`s, so the module must decode the raw pathname
+ * segments itself to hand pages the same values canonical pages saw. A
+ * malformed escape sequence falls back to the raw segment rather than
+ * throwing.
+ */
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/**
+ * Extract the profile params from a directory profile pathname, or null when
+ * the path is not a claimable profile. Canonical `:param` routes match exactly
+ * one non-empty segment, so anything shallower or deeper returns null and
+ * falls through to canonical routing (the 404 page, exactly as before).
+ */
+export function matchDirectoryProfilePath(pathname: string): DirectoryProfileMatch | null {
+  if (!pathname.startsWith(`${DIRECTORY_LEGACY_ROUTE}/`)) return null;
+  // Ignore React Router's tolerated trailing slash so `/members/x/` ≡ `/members/x`.
+  const segments = pathname
+    .slice(DIRECTORY_LEGACY_ROUTE.length + 1)
+    .replace(/\/+$/, '')
+    .split('/');
+  const [section, ...params] = segments;
+  if (!section || params.some((p) => p === '')) return null;
+
+  if (params.length === 1 && params[0]) {
+    const param = decodeSegment(params[0]);
+    if (section === 'members') return { kind: 'member', memberId: param };
+    if (section === 'staff') return { kind: 'staff', staffId: param };
+    if (section === 'committees') return { kind: 'committee', committeeId: param };
+    if (section === 'state-legislators') return { kind: 'stateLegislator', id: param };
+  }
+  if (section === 'districts' && params.length === 2 && params[0] && params[1]) {
+    return { kind: 'district', state: decodeSegment(params[0]), districtNo: decodeSegment(params[1]) };
+  }
+  return null;
+}

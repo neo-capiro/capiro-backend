@@ -5,15 +5,11 @@ import type { DirectoryDistrictDetail } from './directory-api.js';
 import { DirectoryProfilePhoto } from './DirectoryProfilePhoto.js';
 import { DistrictBoundaryPreview } from './DistrictBoundaryPreview.js';
 import { orNotProvided } from './directory-profile-helpers.js';
+// districtLabel moved to directory-profile-shared.ts (UI-free) so the vNext
+// district page can share it.
+import { districtLabel } from './directory-profile-shared.js';
 
 const { Title, Text } = Typography;
-
-/** WY's at-large convention; mirrors the API's own '00' path-segment code. */
-function districtLabel(district: DirectoryDistrictDetail): string {
-  return district.districtNo === '00'
-    ? `${district.state} At-Large`
-    : `${district.state}-${district.districtNo}`;
-}
 
 /**
  * Prop-driven district profile — deep-linkable via
