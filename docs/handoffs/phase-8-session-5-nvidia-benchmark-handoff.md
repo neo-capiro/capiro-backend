@@ -2,11 +2,11 @@
 
 ## Verdict
 
-**SESSION5_P0_RUNTIME_IMPLEMENTED_RE_REVIEW_REQUIRED**
+**SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED**
 
 Do **not** redeploy the benchmark stack or submit a paid NVIDIA TransformJob yet.
 
-A real-runtime review found that the earlier provider-ready implementation was still simulation-oriented. The branch now contains a separate `nvidia_real_batch_v2` live path addressing those P0s, but the exact current tip has **not** completed the required clean-checkout DB/CDK/Docker/test sweep. GitHub Actions is still failing at repository startup before jobs execute. No live NVIDIA benchmark is claimed.
+A real-runtime review found that the earlier provider-ready implementation was still simulation-oriented. The separate `nvidia_real_batch_v2` path passed the final local runtime/CDK re-review at local head `858939ba1fc4a8e6a88bf298a0f2b4f07c2682c1`. No live NVIDIA benchmark is claimed. The remote PR head remains `53e80207b8dcbda209905205953c3bc3dbdfe893` because no push was performed in this assignment.
 
 ## Coordinates and authorization
 
@@ -136,9 +136,9 @@ The prior v1 simulation/scoring code remains for historical provider-ready cover
 
 ## Validation truth
 
-An earlier implementation milestone passed an isolated **15/15** P0 test harness, but the branch was tightened afterward with strict live-gold, provider-identity, and payload-size changes. **Do not treat 15/15 as current-tip acceptance.**
+An earlier implementation milestone passed an isolated **15/15** P0 test harness, but the branch was tightened afterward with strict live-gold, provider-identity, and payload-size changes. **Do not treat 15/15 as current-tip acceptance.** The final Session 5 suite passed **34/34**, and the isolated CDK suite passed **6/6**.
 
-Likewise, pre-P0 Session 2/3/4 DB/Docker results were real at the time but do not validate this materially changed tip.
+Likewise, pre-P0 Session 2/3/4 DB/Docker results were real at the time but do not validate this materially changed tip. The final Session 2/3 DB rehearsal integration phases still failed in the same four defense-api integration files; those are retained as explicit baseline/environment blockers rather than reported as green.
 
 The current GitHub Actions run is repository-level `startup_failure` before jobs execute. Therefore a clean Linux/Docker runner must rerun the full gate set below before deployment is reconsidered.
 
@@ -214,4 +214,6 @@ Zero-idle evidence must include:
 - Persistent NVIDIA endpoint: **none**
 - Session 6: **not started**
 
-The correct verdict remains `SESSION5_P0_RUNTIME_IMPLEMENTED_RE_REVIEW_REQUIRED`.
+The correct verdict is `SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED`.
+
+Next action: prepare/approve source-grounded gold, then separately request authorization for an isolated observational/live run. Do not deploy the stack, submit a paid TransformJob, create an evidence file, or start Session 6 here.

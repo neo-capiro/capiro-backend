@@ -1,6 +1,6 @@
 {
   "schemaVersion": "phase8_session5_live_benchmark_manifest_v1",
-  "status": "p0_runtime_implemented_re_review_required",
+  "status": "p0_runtime_accepted_live_corpus_blocked",
   "executionModel": "sagemaker_batch_transform",
   "persistentEndpointAllowed": false,
   "productionDefaultChangeAllowed": false,
@@ -126,7 +126,7 @@
     "requiresZeroIdleGpuProof": true
   },
   "blockedBy": [
-    "P0 real-Batch runtime changes require fresh code/CDK/Docker re-review before any redeploy or paid work",
+    "no paid or observational run is authorized by this assignment; request separate authorization only after source-grounded gold is approved",
     "scanned-image stratum has no accepted source-grounded gold",
     "R-2 and Navy BA6 gold are incomplete or conflicted",
     "P-1 and O-1/OP-5 lack accepted normalized gold artifacts",

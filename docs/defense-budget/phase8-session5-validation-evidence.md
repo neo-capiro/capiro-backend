@@ -4,11 +4,28 @@ This file separates **historical evidence** from validation that actually applie
 
 ## Current verdict
 
-`SESSION5_P0_RUNTIME_IMPLEMENTED_RE_REVIEW_REQUIRED`
+`SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED`
 
 Do **not** redeploy the isolated benchmark stack or submit a paid NVIDIA TransformJob yet.
 
-No redeploy or paid NVIDIA benchmark has been performed after the P0 real-runtime review.
+No redeploy or paid NVIDIA benchmark has been performed after the P0 real-runtime review. The final local runtime/CDK review passed at `858939ba1fc4a8e6a88bf298a0f2b4f07c2682c1`.
+
+## Final exact-tip re-review
+
+Remote state was fetched first. The remote Session 5 head remained `53e80207b8dcbda209905205953c3bc3dbdfe893`; local fixes were committed at `858939ba1fc4a8e6a88bf298a0f2b4f07c2682c1` and were not pushed during this assignment.
+
+- `pnpm install --frozen-lockfile`: PASS;
+- shared/auth/defense-contracts/defense-domain/defense-client builds: PASS;
+- all listed Node syntax checks: PASS;
+- Session 5 Node tests: **34/34 PASS**;
+- `node scripts/verify-phase8-session5.mjs`: PASS (`SESSION5_P0_RUNTIME_PASS`);
+- CDK typecheck: PASS;
+- isolated Session 5 CDK Jest: **6/6 PASS**;
+- clean no-cache Docker build: PASS;
+- image containment: PASS (`1001`, no exposed ports, no CUDA/NVIDIA device/static credentials/database/Clerk secrets, CLI reconciliation commands present);
+- Session 2 boundary: PASS; Session 3 boundary/admin/parity: PASS, parity **52/52**; Session 4 enforced replay: PASS (`SESSION4_SOURCE_PARITY_PASS`).
+
+The Session 2 DB and Session 3 DB rehearsals reached their disposable PostgreSQL integration suites but failed in the same four defense-api integration files: `health.service.integration.spec.ts`, `programs-admin-security.integration.spec.ts`, `programs.service.integration.spec.ts`, and `promotion/manual-override-repository.integration.spec.ts`. These remain explicit environment/baseline blockers and are not reported as passes. No production database was touched.
 
 ## Why the prior provider-ready conclusion was insufficient
 
@@ -53,7 +70,7 @@ During implementation, before the later strict-gold/provider-identity/payload-si
 - modular Node syntax checks;
 - P0 real-Batch/AWS tests: **15/15**.
 
-Those tests were useful development evidence. **They do not validate the current branch head** because additional P0 code and tests were added afterward. Do not quote 15/15 as a final current-tip result.
+Those tests were useful development evidence. **They do not validate the final branch head** because additional P0 code and tests were added afterward. Do not quote 15/15 as a final current-tip result. The final current-tip Session 5 suite is **34/34**.
 
 The final branch now also contains additional tests for:
 
@@ -80,7 +97,7 @@ The branch has since changed materially. These results establish the prerequisit
 
 ## Current GitHub Actions state
 
-Repository Actions still fails at the repository startup layer before Session 5 jobs execute. The current P0 tip therefore does not have a valid Actions test run. A startup failure is not a pass and is not evidence against the code either; use a functioning clean Linux/Docker runner for the required revalidation.
+Repository Actions still fails at the repository startup layer before Session 5 jobs execute. This assignment used the functioning local Linux Docker engine (`desktop-linux`) instead. A startup failure is not a pass and is not evidence against the code either.
 
 ## Required fresh re-review gate before redeploy
 
@@ -172,6 +189,8 @@ node scripts/verify-phase8-session5.mjs --enforce-live-benchmark
 ```
 
 No evidence file has been fabricated.
+
+The runtime verdict is `SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED`. Next action: prepare/approve source-grounded gold, then separately request authorization for an isolated observational/live run. Do not deploy or submit paid NVIDIA work from this assignment.
 
 ## Scope / mutation evidence
 
