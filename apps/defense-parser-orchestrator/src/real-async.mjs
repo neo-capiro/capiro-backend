@@ -757,6 +757,7 @@ export class AsyncNvidiaCoordinator {
 
     if (job.status === 'ENDPOINT_DRAINING') {
       if (description) {
+        if (description.EndpointStatus === 'Deleting') return job;
         await this.ports.endpointClient.deleteEndpoint(endpointName);
         return job;
       }
