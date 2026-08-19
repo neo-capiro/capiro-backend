@@ -9,20 +9,11 @@ import {
 import { SECTOR_COLORS, type SectorTag } from '@capiro/shared';
 
 /* ── Formatting helpers ────────────────────────────────────────────────── */
+// Moved to utils-shared.ts (UI-free) so the vNext intelligence module can
+// import them without reaching this antd-heavy file; re-exported here so the
+// canonical public API is unchanged.
 
-export function formatMoney(n: number | null | undefined): string {
-  if (n == null) return '-';
-  if (n >= 1e12) return `$${(n / 1e12).toFixed(2)}T`;
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
-  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`;
-  return `$${n}`;
-}
-
-export function formatNum(n: number | null | undefined): string {
-  if (n == null) return '-';
-  return n.toLocaleString();
-}
+export { formatMoney, formatNum } from './utils-shared.js';
 
 /* ── Issue palette ─────────────────────────────────────────────────────── */
 

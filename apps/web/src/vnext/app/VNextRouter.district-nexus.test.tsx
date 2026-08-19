@@ -98,11 +98,13 @@ describe('VNextRouter — District Nexus claim (Phase 2)', () => {
 
   it('does NOT claim other /intelligence surfaces — they fall through to canonical', () => {
     for (const path of [
-      '/intelligence/federal-spending',
-      // NOTE: /intelligence/opportunities was the second example here until the
-      // Funding Opportunities vNext port claimed it (Phase 2) — it is no longer
-      // canonical on this surface, so a still-canonical sibling stands in.
-      '/intelligence/issues/tax-policy',
+      // NOTE: /intelligence/opportunities, then /intelligence/federal-spending
+      // and /intelligence/issues/:code, were examples here until the Funding
+      // Opportunities (Phase 2) and intelligence deep-link (Phase 3) vNext
+      // ports claimed them. Only PERMANENTLY-canonical redirect routes may
+      // stand in (Phase 3 briefing lesson 3).
+      '/intelligence/bills/119-hr-8800',
+      '/intelligence/client/client-1',
       '/intelligence/district-nexus/some-subpage',
     ]) {
       const { unmount } = renderAt(path);

@@ -1,0 +1,474 @@
+/*
+ * Intelligence deep-link module — vNext (Untitled UI) presentation layer.
+ * Phase 3 old-UI purge: Federal Spending, Issue Leaderboard, Knowledge Graph,
+ * Changes Inbox, Intelligence Center stub.
+ *
+ * Layout mirrors the canonical pages (same wrapping, same information order);
+ * colour and chrome come from the vNext token layer (foundations/tokens.css +
+ * untitled-ui-tokens.css) instead of Ant Design tokens.
+ *
+ * The pill tone table below follows the established module convention
+ * (funding-opportunities-vnext.css, strategies-tokens.css): a module-local
+ * block of Untitled UI v8 palette literals, exposed as --intel-tone-*
+ * variables that only this module reads. Tone NAMES keep the canonical
+ * surfaces' antd colour vocabulary (blue = info, gold = notable, red =
+ * critical / new entrant, orange = shared-lobbyist overlap, green = direct
+ * vehicle access) so the legacy semantic distinctions survive the reskin.
+ */
+
+.capiro-vnext-root .intel {
+  /* Pill tone table [bg, ring, fg] — Untitled UI v8 palette. */
+  --intel-tone-gray-bg: #f2f4f7;    --intel-tone-gray-ring: #e4e7ec;    --intel-tone-gray-fg: #475467;
+  --intel-tone-success-bg: #ecfdf3; --intel-tone-success-ring: #abefc6; --intel-tone-success-fg: #027a48;
+  --intel-tone-warning-bg: #fff6ed; --intel-tone-warning-ring: #f9dbaf; --intel-tone-warning-fg: #b93815;
+  --intel-tone-error-bg: #fef3f2;   --intel-tone-error-ring: #fecdca;   --intel-tone-error-fg: #b42318;
+  --intel-tone-blue-bg: #eff8ff;    --intel-tone-blue-ring: #b2ddff;    --intel-tone-blue-fg: #175cd3;
+  --intel-tone-gold-bg: #fefbe8;    --intel-tone-gold-ring: #feee95;    --intel-tone-gold-fg: #a15c07;
+  --intel-tone-cyan-bg: #ecfdff;    --intel-tone-cyan-ring: #a5f0fc;    --intel-tone-cyan-fg: #0e7090;
+  --intel-tone-purple-bg: #f4f3ff;  --intel-tone-purple-ring: #d9d6fe;  --intel-tone-purple-fg: #5925dc;
+  /* Knowledge-graph canvas: the cytoscape stylesheet paints light node labels
+     for a dark canvas, so the canvas ground stays this fixed dark value. */
+  --intel-graph-canvas-bg: #0b1220;
+  /* Intelligence Center "coming soon" banner (canonical gradient, UUI-toned). */
+  --intel-banner-from: #eef1ff;
+  --intel-banner-to: #f6f8fb;
+  --intel-banner-ring: #d7dcff;
+  --intel-banner-accent: #2447ff;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-04);
+  padding: var(--capiro-space-06) var(--capiro-space-08);
+  font-family: var(--capiro-type-family-sans);
+  color: var(--capiro-color-text-primary);
+  background: var(--capiro-color-bg-page);
+}
+
+/* ── Page header ─────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .intel .intel-head {
+  display: flex;
+  gap: var(--capiro-space-05);
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .intel .intel-head__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .intel .intel-head__icon {
+  display: inline-flex;
+  color: var(--capiro-color-icon-accent);
+}
+
+.capiro-vnext-root .intel .intel-head__title {
+  margin: 0;
+  font-size: var(--capiro-type-size-title-md);
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--capiro-color-text-heading);
+}
+
+.capiro-vnext-root .intel .intel-head__subtitle {
+  margin: 4px 0 0;
+  max-width: 760px;
+  font-size: 12px;
+  line-height: var(--capiro-type-line-body-sm);
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .intel .intel-muted { font-size: 12px; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .intel .intel-micro { font-size: 11px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .intel .intel-capitalize,
+.capiro-vnext-root .intel-drawer-body .intel-capitalize { text-transform: capitalize; }
+
+/* ── Pills ───────────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .intel .intel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 1px 8px;
+  border: 1px solid var(--intel-tone-gray-ring);
+  border-radius: 999px;
+  background: var(--intel-tone-gray-bg);
+  color: var(--intel-tone-gray-fg);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .intel .intel-pill--success { background: var(--intel-tone-success-bg); border-color: var(--intel-tone-success-ring); color: var(--intel-tone-success-fg); }
+.capiro-vnext-root .intel .intel-pill--warning { background: var(--intel-tone-warning-bg); border-color: var(--intel-tone-warning-ring); color: var(--intel-tone-warning-fg); }
+.capiro-vnext-root .intel .intel-pill--error   { background: var(--intel-tone-error-bg);   border-color: var(--intel-tone-error-ring);   color: var(--intel-tone-error-fg); }
+.capiro-vnext-root .intel .intel-pill--blue    { background: var(--intel-tone-blue-bg);    border-color: var(--intel-tone-blue-ring);    color: var(--intel-tone-blue-fg); }
+.capiro-vnext-root .intel .intel-pill--gold    { background: var(--intel-tone-gold-bg);    border-color: var(--intel-tone-gold-ring);    color: var(--intel-tone-gold-fg); }
+.capiro-vnext-root .intel .intel-pill--cyan    { background: var(--intel-tone-cyan-bg);    border-color: var(--intel-tone-cyan-ring);    color: var(--intel-tone-cyan-fg); }
+.capiro-vnext-root .intel .intel-pill--purple  { background: var(--intel-tone-purple-bg);  border-color: var(--intel-tone-purple-ring);  color: var(--intel-tone-purple-fg); }
+
+.capiro-vnext-root .intel button.intel-pill--action { cursor: pointer; }
+.capiro-vnext-root .intel button.intel-pill--action:hover { filter: brightness(0.96); }
+.capiro-vnext-root .intel button.intel-pill--action:focus-visible {
+  outline: 2px solid var(--capiro-color-action-primary-default);
+  outline-offset: 1px;
+}
+
+/* ── Alerts ──────────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .intel .intel-alert {
+  position: relative;
+  display: flex;
+  gap: var(--capiro-space-03);
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  background: var(--capiro-color-bg-surface);
+}
+
+.capiro-vnext-root .intel .intel-alert__rail { flex: 0 0 3px; align-self: stretch; border-radius: 2px; background: var(--capiro-color-neutral-rail); }
+.capiro-vnext-root .intel .intel-alert--info .intel-alert__rail { background: var(--capiro-color-info-rail); }
+.capiro-vnext-root .intel .intel-alert--success .intel-alert__rail { background: var(--capiro-color-success-rail); }
+.capiro-vnext-root .intel .intel-alert--warning .intel-alert__rail { background: var(--intel-tone-warning-fg); }
+.capiro-vnext-root .intel .intel-alert--error .intel-alert__rail { background: var(--capiro-color-danger-rail); }
+
+.capiro-vnext-root .intel .intel-alert__body { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.capiro-vnext-root .intel .intel-alert__message { font-size: 13px; font-weight: 600; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .intel .intel-alert__description { font-size: 12px; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .intel .intel-alert__action { flex: 0 0 auto; }
+.capiro-vnext-root .intel .intel-alert__close {
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--capiro-color-text-muted);
+}
+
+/* ── Section card ────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .intel .intel-card {
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  background: var(--capiro-color-bg-surface);
+  padding: var(--capiro-space-04);
+}
+
+.capiro-vnext-root .intel .intel-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--capiro-space-03);
+  margin-bottom: var(--capiro-space-03);
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .intel .intel-card__heading {
+  margin: 0;
+  font-size: var(--capiro-type-size-title-sm);
+  font-weight: 600;
+  color: var(--capiro-color-text-heading);
+}
+
+/* ── Stat tiles ──────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .intel .intel-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--capiro-space-03);
+}
+
+.capiro-vnext-root .intel .intel-stat {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-widget);
+  background: var(--capiro-color-bg-surface);
+}
+
+.capiro-vnext-root .intel .intel-stat__label { font-size: 12px; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .intel .intel-stat__value { font-size: 22px; font-weight: 600; color: var(--capiro-color-text-heading); font-variant-numeric: tabular-nums; }
+.capiro-vnext-root .intel .intel-stat__value--danger { color: var(--capiro-color-danger); }
+.capiro-vnext-root .intel .intel-stat__value--warning { color: var(--intel-tone-warning-fg); }
+
+/* ── Skeleton stack ──────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .intel .intel-skeleton-rows { display: grid; gap: 10px; padding: var(--capiro-space-04) 0; }
+
+/* ── Segmented switch ────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .intel .intel-seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .intel .intel-seg__option {
+  border: 0;
+  padding: 5px 12px;
+  border-radius: calc(var(--capiro-radius-control) - 3px);
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--capiro-color-text-secondary);
+  cursor: pointer;
+}
+
+.capiro-vnext-root .intel .intel-seg__option[aria-selected='true'] {
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-heading);
+  box-shadow: 0 1px 2px var(--capiro-primitive-overlay-ink-16);
+}
+
+.capiro-vnext-root .intel .intel-seg__option:focus-visible {
+  outline: 2px solid var(--capiro-color-action-primary-default);
+  outline-offset: 1px;
+}
+
+/* ── Tables (shared chrome on top of .capiro-table) ──────────────────────── */
+
+.capiro-vnext-root .intel .intel-row { cursor: pointer; }
+.capiro-vnext-root .intel .intel-row:hover td { background: var(--capiro-color-bg-subtle); }
+.capiro-vnext-root .intel .intel-row:focus-visible {
+  outline: 2px solid var(--capiro-color-action-primary-default);
+  outline-offset: -2px;
+}
+
+.capiro-vnext-root .intel .intel-cell-num { text-align: right; font-variant-numeric: tabular-nums; }
+.capiro-vnext-root .intel th.intel-cell-num { text-align: right; }
+
+.capiro-vnext-root .intel .intel-primary-cell { display: grid; gap: 2px; }
+.capiro-vnext-root .intel .intel-primary-cell strong { font-weight: 600; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .intel .intel-primary-cell span { font-size: 11px; color: var(--capiro-color-text-muted); }
+
+.capiro-vnext-root .intel .intel-th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .intel .intel-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--capiro-space-03);
+  padding-top: var(--capiro-space-03);
+  font-size: 12px;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── Filter bars ─────────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .intel .intel-scope-bar {
+  display: flex;
+  gap: var(--capiro-space-03);
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .intel .intel-scope-bar .capiro-field { min-width: 220px; }
+.capiro-vnext-root .intel .intel-scope-bar .intel-scope-bar__search { flex: 1 1 320px; }
+
+.capiro-vnext-root .intel .intel-filter-panel {
+  display: flex;
+  gap: var(--capiro-space-03);
+  align-items: end;
+  flex-wrap: wrap;
+  padding: var(--capiro-space-03) var(--capiro-space-04);
+  border: 1px solid var(--capiro-color-border-quiet);
+  border-radius: var(--capiro-radius-widget);
+  background: var(--capiro-color-bg-subtle);
+}
+
+.capiro-vnext-root .intel .intel-active-filters {
+  display: flex;
+  gap: var(--capiro-space-02);
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .intel .intel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px 2px 10px;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: 999px;
+  background: var(--capiro-color-bg-surface);
+  font-size: 12px;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .intel .intel-chip__close {
+  border: 0;
+  padding: 0 2px;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .intel .intel-status-line {
+  display: flex;
+  gap: var(--capiro-space-02);
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .intel .intel-status-line strong { color: var(--capiro-color-text-primary); }
+
+/* ── Drawer content (shared) ─────────────────────────────────────────────── */
+
+.capiro-vnext-root .intel-drawer-body { display: flex; flex-direction: column; gap: var(--capiro-space-04); }
+.capiro-vnext-root .intel-drawer-body .intel-drawer-eyebrow {
+  font-family: var(--capiro-type-family-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .intel-drawer-body .intel-drawer-meta { display: flex; align-items: center; gap: var(--capiro-space-02); flex-wrap: wrap; font-size: 12px; color: var(--capiro-color-text-secondary); }
+.capiro-vnext-root .intel-drawer-body .intel-drawer-description { margin: 0; font-size: 13px; line-height: var(--capiro-type-line-body-sm); color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .intel-drawer-body .intel-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--capiro-space-03); }
+.capiro-vnext-root .intel-drawer-body .intel-detail-item { display: grid; gap: 2px; }
+.capiro-vnext-root .intel-drawer-body .intel-detail-item span { font-size: 11px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .intel-drawer-body .intel-detail-item strong { font-size: 13px; font-weight: 600; color: var(--capiro-color-text-primary); overflow-wrap: anywhere; }
+.capiro-vnext-root .intel-drawer-body .intel-drawer-note {
+  padding: 10px 12px;
+  border: 1px solid var(--capiro-color-border-information);
+  border-radius: var(--capiro-radius-widget);
+  background: var(--capiro-color-info-soft);
+  font-size: 12px;
+  color: var(--capiro-color-text-information);
+}
+.capiro-vnext-root .intel-drawer-body .intel-drawer-actions { display: flex; gap: var(--capiro-space-02); flex-wrap: wrap; }
+.capiro-vnext-root .intel-drawer-body .intel-raw-data {
+  margin: 4px 0 0;
+  padding: 12px;
+  border-radius: var(--capiro-radius-widget);
+  background: var(--capiro-color-bg-sunken);
+  font-family: var(--capiro-type-family-mono);
+  font-size: 11px;
+  overflow: auto;
+  max-height: 320px;
+}
+.capiro-vnext-root .intel-drawer-body .intel-drawer-section { display: grid; gap: 4px; }
+.capiro-vnext-root .intel-drawer-body .intel-drawer-section > span:first-child { font-size: 12px; color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .intel-drawer-body .intel-drawer-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* ── Changes Inbox ───────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .intel .intel-row--read td { color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .intel .intel-title--unread { font-weight: 600; color: var(--capiro-color-text-primary); }
+.capiro-vnext-root .intel .intel-title--read { color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .intel .intel-desc-cell {
+  display: block;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── Knowledge Graph ─────────────────────────────────────────────────────── */
+
+/* The vNext shell scrolls the page (nothing above this pane has a definite
+   height), so the canvas owns a definite viewport-derived height — NEVER
+   flex-grown content height. Pinned by intelligence-layout.contract.test.ts,
+   the same declared-intent gate District Nexus uses for its map split. */
+.capiro-vnext-root .intel .intel-graph-canvas {
+  height: clamp(420px, calc(100vh - 300px), 640px);
+  border-radius: var(--capiro-radius-widget);
+  overflow: hidden;
+  background: var(--intel-graph-canvas-bg);
+}
+
+.capiro-vnext-root .intel .intel-graph-controls {
+  display: flex;
+  gap: var(--capiro-space-02);
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .intel .intel-graph-controls .capiro-field { min-width: 200px; }
+
+/* ── Intelligence Center (coming soon) ───────────────────────────────────── */
+
+.capiro-vnext-root .intel .intel-coming-banner {
+  padding: 24px 28px;
+  border: 1px solid var(--intel-banner-ring);
+  border-radius: var(--capiro-radius-surface);
+  background: linear-gradient(135deg, var(--intel-banner-from) 0%, var(--intel-banner-to) 100%);
+  box-shadow: var(--capiro-primitive-shadow-widget);
+}
+
+.capiro-vnext-root .intel .intel-coming-banner__eyebrow {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--intel-banner-accent);
+}
+
+.capiro-vnext-root .intel .intel-coming-banner__title {
+  margin: 0 0 8px;
+  font-size: var(--capiro-type-size-title-lg);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--capiro-color-text-heading);
+}
+
+.capiro-vnext-root .intel .intel-coming-banner__body {
+  margin: 0;
+  max-width: 900px;
+  font-size: 15px;
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .intel .intel-coming-banner__body strong { color: var(--capiro-color-text-primary); }
+
+/* Bounded like canonical (82vh, floor 700px) — a viewport-derived definite
+   height, not a flex chain. */
+.capiro-vnext-root .intel .intel-coming-preview {
+  width: 100%;
+  height: max(82vh, 700px);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-surface);
+  background: var(--capiro-color-bg-surface);
+}
+
+/* ── Single-column collapse ──────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .capiro-vnext-root .intel { padding: var(--capiro-space-04); }
+  .capiro-vnext-root .intel-drawer-body .intel-detail-grid { grid-template-columns: 1fr; }
+  .capiro-vnext-root .intel .intel-graph-canvas { height: min(70vh, 520px); }
+}

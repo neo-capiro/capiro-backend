@@ -28,6 +28,10 @@ import {
 } from '../pages/funding-opportunities/VNextFundingOpportunitiesRoutes.js';
 import { isVNextDistrictNexusPath } from '../pages/district-nexus/district-nexus-route.js';
 import {
+  isVNextIntelligencePath,
+  VNextIntelligenceRoutes,
+} from '../pages/intelligence/VNextIntelligenceRoutes.js';
+import {
   isVNextBillPath,
   VNextBillRoutes,
 } from '../pages/bills/VNextBillRoutes.js';
@@ -160,6 +164,17 @@ export function VNextRouter() {
         <VNextDistrictNexusPage />
       </Suspense>
     );
+  }
+
+  // Intelligence deep links (Phase 3): Federal Spending, the issue
+  // leaderboard, the knowledge graph, the changes inbox, and the
+  // Intelligence Center "coming soon" stub — the five routes that used to
+  // fall through to canonical antd pages. Hearing rooms, opportunities and
+  // District Nexus belong to their own modules above; redirects
+  // (/intelligence, /intelligence/hearing-watch, bills/client paths, the
+  // catch-all) stay canonical <Navigate>s.
+  if (isVNextIntelligencePath(location.pathname)) {
+    return <VNextIntelligenceRoutes />;
   }
 
   // Data Explorer ("Intelligence Center"): the 18-source explorer at
