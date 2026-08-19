@@ -62,7 +62,9 @@ async function main() {
 
   if (command === 'benchmark') {
     const corpus = await readJson(args.corpus);
-    if (args['enforce-live'] === 'true') validateLiveBenchmarkCorpus(corpus);
+    if (args['enforce-live'] === 'true') {
+      validateLiveBenchmarkCorpus(corpus, { requireScorableGold: true });
+    }
     const result = evaluateBenchmark(corpus, {
       materialImprovementThreshold: Number(
         args['improvement-threshold'] ?? 0.05,
