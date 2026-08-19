@@ -3,15 +3,16 @@
  * view (design handoff 2026-08-16, "Layout" + "Scope bar" sections).
  *
  * The handoff draws THREE dropdown chips (Client, Calendar, Horizon) plus a
- * view-aware live-status pill. Only two of the three chips have anything real
- * behind them here:
+ * view-aware live-status pill. Only Client has anything real behind it here:
+ * the shared cross-app client-scope control (`useShellClientContext`, already
+ * driving the topbar on every vNext page) — this bar just renders it as the
+ * handoff's chip instead of inventing a second client selector.
  *
- *  - Client: the shared cross-app client-scope control (`useShellClientContext`,
- *    already driving the topbar on every vNext page) — this bar just renders
- *    it as the handoff's chip instead of inventing a second client selector.
- *  - Horizon: real — `buildFiscalAxis(start, end)` already takes an arbitrary
- *    fiscal-year window, so this literally changes what's rendered. Editor-only:
- *    no other view has a windowed timeline to narrow.
+ * Horizon was removed (2026-08-19, Neo): the editor's timeline always shows
+ * the rolling 3-FY window now, matching `app.capiro.ai/strategies/:id`, which
+ * has never had a narrowable horizon either — see StrategyEditorVNext.tsx's
+ * `calendar` comment. There is no other view with a windowed timeline to
+ * narrow, so this chip has no remaining reason to exist.
  *
  * The handoff's "Calendar: Federal · Federal + state · State only" chip is
  * OMITTED. `ReferenceCalendars` (strategies-api.ts) only ever carries `congress`
@@ -28,37 +29,6 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useShellClientContext } from '../../adapters/legacy/useShellClientContext.js';
 import { CapiroCheckIcon } from '../../components/icons/index.js';
 import './scope-bar.css';
-
-export type HorizonKey = '3fy' | '2fy' | '1fy';
-
-/** Fiscal years each horizon spans. */
-export const HORIZON_YEARS: Record<HorizonKey, number> = { '1fy': 1, '2fy': 2, '3fy': 3 };
-
-const fyShort = (fy: number) => `FY${String(fy).slice(2)}`;
-
-/**
- * Horizon options labelled from the window the editor is ACTUALLY drawing.
- *
- * These were three frozen strings ('FY27–FY29', 'FY27 only', 'FY27–FY28')
- * matching an axis that was itself hard-coded to start at FY27. The axis is now
- * anchored on the live fiscal year (lib/timeline.ts currentFiscalYear — the same
- * rule api-strategy uses to date every reference row it generates), so the
- * labels have to be derived from that same `startFy` or the chip advertises a
- * window the timeline does not show.
- */
-export function horizonOptions(
-  startFy: number,
-): ReadonlyArray<{ key: HorizonKey; label: string; sub: string }> {
-  const label = (key: HorizonKey) => {
-    const years = HORIZON_YEARS[key];
-    return years === 1 ? `${fyShort(startFy)} only` : `${fyShort(startFy)}–${fyShort(startFy + years - 1)}`;
-  };
-  return [
-    { key: '3fy', label: label('3fy'), sub: '36 months' },
-    { key: '1fy', label: label('1fy'), sub: '12 months' },
-    { key: '2fy', label: label('2fy'), sub: '24 months' },
-  ];
-}
 
 export interface ScopeBarStatus {
   tone: 'success' | 'warning' | 'error' | 'gray';
@@ -143,15 +113,12 @@ function ScopeChipRow({ selected, label, sub, onSelect }: { selected: boolean; l
 export function ScopeBar({
   clientLabel = 'CLIENT',
   fixedClientName,
-  horizon,
   status,
 }: {
   /** "CLIENT" with the strategy's own client name in the editor, "PORTFOLIO" elsewhere. */
   clientLabel?: string;
   /** Editor only: the strategy's own client is fixed, not a scope the editor can change. */
   fixedClientName?: string;
-  /** Editor only — no other view has a windowed timeline to narrow. */
-  horizon?: { value: HorizonKey; onChange: (value: HorizonKey) => void; startFy: number };
   status: ScopeBarStatus;
 }) {
   const clientContext = useShellClientContext();
@@ -188,30 +155,6 @@ export function ScopeBar({
             )}
           </ScopeChip>
         )}
-
-        {horizon ? (
-          <ScopeChip
-            label="HORIZON"
-            value={horizonOptions(horizon.startFy).find((o) => o.key === horizon.value)?.label ?? ''}
-          >
-            {(close) => (
-              <>
-                {horizonOptions(horizon.startFy).map((option) => (
-                  <ScopeChipRow
-                    key={option.key}
-                    selected={horizon.value === option.key}
-                    label={option.label}
-                    sub={option.sub}
-                    onSelect={() => {
-                      horizon.onChange(option.key);
-                      close();
-                    }}
-                  />
-                ))}
-              </>
-            )}
-          </ScopeChip>
-        ) : null}
       </div>
 
       <span className={`st-pill${status.tone === 'gray' ? '' : ` st-pill--${status.tone}`}`}>
