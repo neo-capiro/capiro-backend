@@ -34,11 +34,18 @@
     "endpoint": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["endpointName", "endpointConfigName", "modelArn", "createdAt", "inServiceAt", "deletedAt"],
+      "required": ["endpointName", "endpointConfigName", "modelArn", "executionModel", "identitySha256", "outputLocation", "failureLocation", "maxEndpointLifetimeSeconds", "reservedCostUsd", "settledCostUsd", "createdAt", "inServiceAt", "deletedAt"],
       "properties": {
         "endpointName": { "type": "string", "minLength": 1 },
         "endpointConfigName": { "type": "string", "minLength": 1 },
         "modelArn": { "type": "string", "minLength": 20 },
+        "executionModel": { "const": "sagemaker_async_inference" },
+        "identitySha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "outputLocation": { "type": "string", "pattern": "^s3://" },
+        "failureLocation": { "type": "string", "pattern": "^s3://" },
+        "maxEndpointLifetimeSeconds": { "type": "integer", "minimum": 60, "maximum": 90000 },
+        "reservedCostUsd": { "type": "number", "minimum": 0, "maximum": 150 },
+        "settledCostUsd": { "type": "number", "minimum": 0, "maximum": 150 },
         "createdAt": { "type": "string", "format": "date-time" },
         "inServiceAt": { "type": "string", "format": "date-time" },
         "deletedAt": { "type": "string", "format": "date-time" }
@@ -52,6 +59,9 @@
         "required": ["inferenceId", "sourceSha256", "pageNumber", "pngSha256", "payloadSha256", "renderingSha256", "outputLocation", "rawOutputSha256", "normalizedOutputSha256"],
         "properties": {
           "inferenceId": { "type": "string" },
+          "endpointName": { "type": "string", "minLength": 1 },
+          "endpointConfigName": { "type": "string", "minLength": 1 },
+          "executionModel": { "const": "sagemaker_async_inference" },
           "sourceSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
           "pageNumber": { "type": "integer", "minimum": 1 },
           "pngSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },

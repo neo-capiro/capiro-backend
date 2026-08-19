@@ -20,6 +20,8 @@ export const SESSION5_MODEL_PACKAGE_ARN =
   'arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587';
 export const PINNED_MODEL_USES_MODEL_DATA_SOURCE = true;
 
+const MAX_COMPLETION_PUBLISH_ATTEMPTS = 3;
+
 export function assertPinnedModelDataSourceRequiresAsync({ executionModel, modelDataSource }) {
   if (modelDataSource === true && executionModel === 'sagemaker_batch_transform') {
     throw new Session5RefusalError(
@@ -197,13 +199,25 @@ export function validateAsyncExecutionConfig(config) {
       'Session 5 permits exactly one GPU instance',
     );
   }
+  const hourlyRate = Number(config.marketplaceUsdPerHostHour) + Number(config.instanceUsdPerHour);
   if (
     !Number.isInteger(config.maxEndpointLifetimeSeconds) ||
-    config.maxEndpointLifetimeSeconds < 60
+    config.maxEndpointLifetimeSeconds < 60 ||
+    !Number.isFinite(hourlyRate) ||
+    config.maxEndpointLifetimeSeconds > Math.floor((config.effectiveSpendCapUsd * 3600) / hourlyRate)
   ) {
     throw new Session5RefusalError(
       'ENDPOINT_LIFETIME_REQUIRED',
-      'Async endpoint lifetime must be bounded to at least 60 seconds',
+      'Async endpoint lifetime must be bounded by the effective authorized spend cap',
+    );
+  }
+  if (
+    Number(config.marketplaceUsdPerHostHour) < SESSION5_MIN_MARKETPLACE_RATE_USD ||
+    Number(config.instanceUsdPerHour) < SESSION5_MIN_INSTANCE_RATE_USD
+  ) {
+    throw new Session5RefusalError(
+      'RATE_FLOOR_REQUIRED',
+      'Async benchmark rates must not understate approved provider rates',
     );
   }
   if (config.instanceType !== 'ml.g5.xlarge') {
@@ -380,12 +394,58 @@ export class SafeAwsCliSageMakerAsyncInferenceAdapter {
     }
   }
 
+  async listTags(resourceArn) {
+    const response = await this.runner.invoke('sagemaker', 'list-tags', { ResourceArn: resourceArn });
+    return response.Tags || [];
+  }
+
+  async describeModel(name) {
+    try {
+      return await this.runner.invoke('sagemaker', 'describe-model', { ModelName: name });
+    } catch (error) {
+      if (endpointNotFound(error)) return null;
+      throw error;
+    }
+  }
+
+  async validateEndpointConfig(input) {
+    const configExisting = await this.describeEndpointConfig(input.endpointConfigName);
+    if (!configExisting) throw new Session5RefusalError('ENDPOINT_CONFIG_IDENTITY_MISMATCH', 'Existing endpoint config is missing');
+    this.#assertConfigIdentity(configExisting, input);
+    const modelName = configExisting.ProductionVariants?.[0]?.ModelName;
+    const model = await this.describeModel(modelName);
+    if (model?.PrimaryContainer?.ModelPackageName !== input.modelPackageArn) {
+      throw new Session5RefusalError('MODEL_IDENTITY_MISMATCH', 'Existing endpoint config does not point to the pinned model package');
+    }
+    return configExisting;
+  }
+
+  #assertConfigIdentity(configExisting, input) {
+    const configuredModel = configExisting.ProductionVariants?.[0]?.ModelName;
+    const configuredInstance = configExisting.ProductionVariants?.[0]?.InstanceType;
+    if (
+      configuredModel !== input.modelName ||
+      configuredInstance !== input.instanceType ||
+      !configExisting.AsyncInferenceConfig ||
+      configExisting.AsyncInferenceConfig.OutputConfig?.S3OutputPath !== input.outputLocation ||
+      (input.failureLocation && configExisting.AsyncInferenceConfig.OutputConfig?.S3FailurePath !== input.failureLocation) ||
+      (input.kmsKeyId && configExisting.AsyncInferenceConfig.OutputConfig?.KmsKeyId !== input.kmsKeyId)
+    ) {
+      throw new Session5RefusalError('ENDPOINT_CONFIG_IDENTITY_MISMATCH', `Existing endpoint config ${input.endpointConfigName} does not match the pinned async identity`);
+    }
+  }
+
   async ensureEndpoint(input) {
     const existing = await this.describeEndpoint(input.endpointName);
     if (existing) {
       if (existing.EndpointConfigName && existing.EndpointConfigName !== input.endpointConfigName) {
         throw new Session5RefusalError('ENDPOINT_IDENTITY_MISMATCH', `Existing endpoint ${input.endpointName} points at an unexpected endpoint config`);
       }
+      const tags = existing.EndpointArn ? await this.listTags(existing.EndpointArn) : existing.Tags;
+      if (!Array.isArray(tags) || !tags.some((tag) => tag.Key === 'CapiroEndpointIdentity' && tag.Value === input.identitySha256)) {
+        throw new Session5RefusalError('ENDPOINT_IDENTITY_MISMATCH', `Existing endpoint ${input.endpointName} is not tagged with the requested immutable identity`);
+      }
+      await this.validateEndpointConfig(input);
       return Object.freeze({
         ...input,
         endpointArn: existing.EndpointArn,
@@ -402,18 +462,7 @@ export class SafeAwsCliSageMakerAsyncInferenceAdapter {
     if (configExisting) {
       const configuredModel = configExisting.ProductionVariants?.[0]?.ModelName;
       const configuredInstance = configExisting.ProductionVariants?.[0]?.InstanceType;
-      if (
-        configuredModel !== input.modelName ||
-        configuredInstance !== input.instanceType ||
-        !configExisting.AsyncInferenceConfig ||
-        configExisting.AsyncInferenceConfig.OutputConfig?.S3OutputPath !== input.outputLocation ||
-        (input.failureLocation && configExisting.AsyncInferenceConfig.OutputConfig?.S3FailurePath !== input.failureLocation)
-      ) {
-        throw new Session5RefusalError(
-          'ENDPOINT_CONFIG_IDENTITY_MISMATCH',
-          `Existing endpoint config ${input.endpointConfigName} does not match the pinned async identity`,
-        );
-      }
+      this.#assertConfigIdentity(configExisting, input);
     } else {
       await this.runner.invoke('sagemaker', 'create-endpoint-config', {
         EndpointConfigName: input.endpointConfigName,
@@ -621,8 +670,9 @@ function transition(job, status, at, patch = {}) {
     COMPLETION_PENDING: ['RESUME_PUBLISHED', 'COMPLETION_PENDING'],
     RESUME_PUBLISHED: ['ENDPOINT_DRAINING'],
     ENDPOINT_DRAINING: ['ENDPOINT_DELETED'],
-    ENDPOINT_DELETED: ['COMPLETE'],
+    ENDPOINT_DELETED: ['COMPLETE', 'FAILED'],
     COMPLETE: [],
+    FAILED: [],
   }[job.status] || [];
   if (!allowed.includes(status)) {
     throw new Session5RefusalError(
@@ -687,6 +737,20 @@ export class AsyncNvidiaCoordinator {
     const providerExisting = await this.ports.endpointClient.describeEndpoint(endpoint.endpointName);
     const providerConfigExisting = await this.ports.endpointClient.describeEndpointConfig(endpoint.endpointConfigName);
     if (providerExisting || providerConfigExisting) {
+      if (providerExisting && !this.ports.endpointClient.validateEndpointConfig) {
+        throw new Session5RefusalError('ORPHAN_IDENTITY_UNVERIFIABLE', 'Cannot safely drain an orphaned endpoint without endpoint identity validation');
+      }
+      if (this.ports.endpointClient.validateEndpointConfig) {
+        await this.ports.endpointClient.validateEndpointConfig({
+          ...endpoint,
+          modelName: this.config.sagemakerModelName,
+          modelPackageArn: this.config.modelPackageArn,
+          instanceType: this.config.instanceType,
+          outputLocation: `s3://${this.config.outputBucket}/${this.config.outputPrefix}/`,
+          failureLocation: `s3://${this.config.outputBucket}/${this.config.failurePrefix}/`,
+          kmsKeyId: this.config.kmsKeyId,
+        });
+      }
       const orphan = {
         schemaVersion: 'phase8_session5_async_job_v1',
         jobId: endpoint.endpointName,
@@ -774,6 +838,7 @@ export class AsyncNvidiaCoordinator {
           endpointName,
           endpointConfigName: job.endpoint.endpointConfigName,
           identitySha256: job.endpoint.identitySha256,
+          modelPackageArn: this.config.modelPackageArn,
           modelName: this.config.sagemakerModelName,
           instanceType: this.config.instanceType,
           outputLocation: `s3://${this.config.outputBucket}/${this.config.outputPrefix}/`,
@@ -789,7 +854,11 @@ export class AsyncNvidiaCoordinator {
           failureMessage: String(error?.message ?? error),
           updatedAt: now,
         });
-        return this.drain(job);
+        return this.drain({
+          ...job,
+          failureCode: 'ENDPOINT_CREATE_FAILED',
+          failureMessage: String(error?.message ?? error),
+        });
       }
       job = transition(job, 'ENDPOINT_CREATING', now, {
         endpointCreatedAt: run.createdAt || job.endpointCreatedAt || now,
@@ -802,6 +871,8 @@ export class AsyncNvidiaCoordinator {
       });
       await this.ports.jobStore.put(job);
       await this.ports.endpointClient.configureScaleToZero(endpointName);
+      job = { ...job, scaleToZeroConfigured: true, updatedAt: this.clock() };
+      await this.ports.jobStore.put(job);
     }
 
     const current = await this.ports.endpointClient.describeEndpoint(endpointName);
@@ -848,6 +919,11 @@ export class AsyncNvidiaCoordinator {
       await this.ports.jobStore.put(job);
     }
     if (job.status === 'ENDPOINT_CREATING') {
+      if (job.scaleToZeroConfigured !== true) {
+        await this.ports.endpointClient.configureScaleToZero(endpointName);
+        job = { ...job, scaleToZeroConfigured: true, updatedAt: now };
+        await this.ports.jobStore.put(job);
+      }
       job = transition(job, 'ENDPOINT_READY', now, {
         endpointReadyAt: current.LastModifiedTime || now,
       });
@@ -857,6 +933,9 @@ export class AsyncNvidiaCoordinator {
       return this.#submitRequests(job);
     }
     if (job.status === 'REQUESTS_SUBMITTED') {
+      if (!Array.isArray(job.invocations) || job.invocations.length !== job.pages.length) {
+        return this.drain({ ...job, failureCode: 'PARTIAL_ASYNC_SUBMISSION' });
+      }
       job = transition(job, 'REQUESTS_RECONCILING', now);
       await this.ports.jobStore.put(job);
     }
@@ -868,7 +947,30 @@ export class AsyncNvidiaCoordinator {
       await this.ports.jobStore.put(job);
     }
     if (job.status === 'COMPLETION_PENDING') {
+      if (Number(job.completionPublishAttempts || 0) >= MAX_COMPLETION_PUBLISH_ATTEMPTS) {
+        const failed = {
+          ...job,
+          dlqPublishPending: true,
+          failureCode: 'COMPLETION_PUBLISH_EXHAUSTED',
+          updatedAt: this.clock(),
+        };
+        await this.ports.jobStore.put(failed);
+        if (this.ports.dlq) await this.ports.dlq.publish(failed);
+        return failed;
+      }
       return this.#publishCompletion(job);
+    }
+    if (job.dlqPublishPending === true && this.ports.dlq) {
+      try {
+        await this.ports.dlq.publish(job);
+        const cleared = { ...job, dlqPublishPending: false, dlqPublishedAt: this.clock(), updatedAt: this.clock() };
+        await this.ports.jobStore.put(cleared);
+        return cleared;
+      } catch (error) {
+        const pending = { ...job, dlqPublishError: String(error?.message || error), updatedAt: this.clock() };
+        await this.ports.jobStore.put(pending);
+        return pending;
+      }
     }
     if (job.status === 'RESUME_PUBLISHED') return this.drain(job);
     return job;
@@ -943,6 +1045,9 @@ export class AsyncNvidiaCoordinator {
   }
 
   async #reconcileOutputs(job) {
+    if (!Array.isArray(job.invocations) || job.invocations.length !== job.pages.length || job.invocations.some((invocation) => !invocation.outputLocation)) {
+      return this.drain({ ...job, failureCode: 'PARTIAL_ASYNC_SUBMISSION' });
+    }
     const normalizedArtifacts = [];
     for (const invocation of job.invocations || []) {
       const output = await this.ports.endpointClient.listAsyncOutput(
@@ -980,6 +1085,11 @@ export class AsyncNvidiaCoordinator {
         });
       }
     }
+    const expectedPageNumbers = new Set((job.pages || []).map((page) => page.pageNumber));
+    const observedPageNumbers = new Set(normalizedArtifacts.map((artifact) => artifact.pageNumber));
+    if (observedPageNumbers.size !== expectedPageNumbers.size || [...expectedPageNumbers].some((pageNumber) => !observedPageNumbers.has(pageNumber))) {
+      return this.drain({ ...job, failureCode: 'ASYNC_OUTPUT_CARDINALITY_MISMATCH' });
+    }
     let verified = transition(job, 'ARTIFACT_VERIFIED', this.clock(), {
       normalizedArtifacts,
     });
@@ -1009,6 +1119,7 @@ export class AsyncNvidiaCoordinator {
     const published = transition(job, 'RESUME_PUBLISHED', this.clock(), {
       completionPublishAttempts: attempts,
       completionPublishedAt: this.clock(),
+      resultPublishedAt: this.clock(),
       completionPublishError: null,
     });
     await this.ports.jobStore.put(published);
@@ -1016,7 +1127,7 @@ export class AsyncNvidiaCoordinator {
   }
 
   async drain(job) {
-    if (!['ENDPOINT_DRAINING', 'ENDPOINT_DELETED', 'COMPLETE'].includes(job.status)) {
+    if (!['ENDPOINT_DRAINING', 'ENDPOINT_DELETED', 'COMPLETE', 'FAILED'].includes(job.status)) {
       job = transition(job, 'ENDPOINT_DRAINING', this.clock(), {
         endpointDeleteRequestedAt: this.clock(),
       });
@@ -1047,6 +1158,30 @@ export class AsyncNvidiaCoordinator {
       return deleted;
     }
     if (job.status === 'ENDPOINT_DELETED') {
+      if (job.failureCode) {
+        const failed = transition(job, 'FAILED', this.clock(), {
+          failureCode: job.failureCode,
+          failureMessage: job.failureMessage,
+          endpointDeletedAt: job.endpointDeletedAt || this.clock(),
+        });
+        await this.ports.jobStore.put(failed);
+        if (this.ports.dlq) {
+          try {
+            await this.ports.dlq.publish(failed);
+            const published = { ...failed, dlqPublishPending: false, dlqPublishedAt: this.clock(), updatedAt: this.clock() };
+            await this.ports.jobStore.put(published);
+            return published;
+          } catch (error) {
+            const pending = { ...failed, dlqPublishPending: true, dlqPublishError: String(error?.message ?? error), updatedAt: this.clock() };
+            await this.ports.jobStore.put(pending);
+            return pending;
+          }
+        }
+        return failed;
+      }
+      if (!job.resultPublishedAt) {
+        throw new Session5RefusalError('ASYNC_RESULT_NOT_PUBLISHED', 'Cannot settle a successful run before completion output is durably published');
+      }
       const actualCostUsd = this.#reconciledEndpointCost(job);
       if (job.reservationId) {
         await this.ports.reservationLedger.settle({
@@ -1062,6 +1197,21 @@ export class AsyncNvidiaCoordinator {
       });
       await this.ports.jobStore.put(complete);
       return complete;
+    }
+    if (job.status === 'FAILED') {
+      if (job.dlqPublishPending === true && this.ports.dlq) {
+        try {
+          await this.ports.dlq.publish(job);
+          const cleared = { ...job, dlqPublishPending: false, dlqPublishedAt: this.clock(), updatedAt: this.clock() };
+          await this.ports.jobStore.put(cleared);
+          return cleared;
+        } catch (error) {
+          const pending = { ...job, dlqPublishError: String(error?.message ?? error), updatedAt: this.clock() };
+          await this.ports.jobStore.put(pending);
+          return pending;
+        }
+      }
+      return job;
     }
     const deleted = transition(job, 'ENDPOINT_DELETED', this.clock(), {
       endpointDeletedAt: this.clock(),

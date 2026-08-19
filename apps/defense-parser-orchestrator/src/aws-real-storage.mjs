@@ -55,7 +55,7 @@ export class AwsCliS3RealBatchStore {
     return stdout.trim() ? JSON.parse(stdout) : {};
   }
 
-  async #putText(bucket, key, contents, contentType, metadata = '') {
+  async #putText(bucket, key, contents, contentType, metadata = '', conditions = {}) {
     return withTempFile('capiro-s5-real-', contents, async (path) => {
       const args = [
         's3api',
@@ -70,6 +70,8 @@ export class AwsCliS3RealBatchStore {
         contentType,
       ];
       if (metadata) args.push('--metadata', metadata);
+      if (conditions.ifMatch) args.push('--if-match', conditions.ifMatch);
+      if (conditions.ifNoneMatch) args.push('--if-none-match', conditions.ifNoneMatch);
       await this.#exec(args);
       return { bucket, key, s3Uri: `s3://${bucket}/${key}` };
     });
@@ -273,6 +275,8 @@ export class AwsCliS3RealBatchStore {
       .replaceAll('.', '');
     const eventKey = `${this.jobPrefix}/events/${job.jobId}/${timestamp}-${job.status}-${stateHash}.json`;
     const latestKey = `${this.jobPrefix}/latest/${job.jobId}.json`;
+    const prior = await this.#head(this.bucket, latestKey);
+    if (prior?.Metadata?.sha256 === stateHash) return job;
     await this.#putText(
       this.bucket,
       eventKey,
@@ -286,6 +290,7 @@ export class AwsCliS3RealBatchStore {
       canonicalJson(job),
       'application/json',
       `sha256=${stateHash},status=${job.status}`,
+      prior?.ETag ? { ifMatch: prior.ETag } : { ifNoneMatch: '*' },
     );
     return job;
   }
@@ -330,6 +335,10 @@ export class SafeAwsCliSageMakerBatchTransformAdapter {
   }
 
   async ensureTransformJob({ transformJobName, batch, manifest, config }) {
+    throw new Session5RefusalError(
+      'BATCH_TRANSFORM_DISABLED',
+      'The pinned ModelDataSource package cannot use the Batch Transform execution path',
+    );
     const existing = await this.#describeIfExists(transformJobName);
     if (existing) {
       return this.#handleFromDescription(existing, manifest, config);

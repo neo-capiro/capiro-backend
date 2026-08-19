@@ -122,6 +122,9 @@ export class AwsCliDynamoReservationLedger {
     }
     const effectiveCap = Number(existing.effectiveCapUsd?.N ?? 0);
     const hardCap = Number(existing.hardCapUsd?.N ?? effectiveCap);
+    if (!Number.isFinite(effectiveCap) || !Number.isFinite(hardCap) || effectiveCap <= 0 || hardCap <= 0) {
+      throw new Session5RefusalError('RESERVATION_CAP_METADATA_MISSING', 'Reservation is missing immutable cap metadata');
+    }
     if (actual > hardCap) {
       throw new Session5RefusalError(
         'RECONCILED_COST_EXCEEDS_HARD_CAP',

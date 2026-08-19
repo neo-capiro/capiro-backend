@@ -87,6 +87,7 @@ test('exact package async config is bounded and never permits Batch execution', 
   assert.throws(() => validateAsyncExecutionConfig({ ...c, executionMode: 'sagemaker_batch_transform' }), (e) => e.code === 'ASYNC_MODE_REQUIRED');
   assert.throws(() => validateAsyncExecutionConfig({ ...c, maxConcurrentGpuJobs: 2 }), (e) => e.code === 'UNAUTHORIZED_CONCURRENCY');
   assert.throws(() => validateAsyncExecutionConfig({ ...c, maxEndpointLifetimeSeconds: 0 }), (e) => e.code === 'ENDPOINT_LIFETIME_REQUIRED');
+  assert.throws(() => config({ NVIDIA_MAX_ENDPOINT_LIFETIME_SECONDS: '999999' }), (e) => e.code === 'ENDPOINT_LIFETIME_REQUIRED');
 });
 
 test('async config rejects under-reserving rates and submission rejects disabled parsing', async () => {
@@ -161,6 +162,7 @@ test('async submit discovers and drains an orphaned endpoint before reserving ne
     endpointClient: {
       async describeEndpoint(name) { return endpointPresent && name === identity.endpointName ? { EndpointStatus: 'InService', CreationTime: '2026-08-19T00:00:00Z' } : null; },
       async describeEndpointConfig() { return null; },
+      async validateEndpointConfig() { return {}; },
       async deleteEndpoint() { endpointPresent = false; },
       async deregisterScaleToZero() {},
       async listPersistentEndpoints() { return []; },
@@ -170,10 +172,39 @@ test('async submit discovers and drains an orphaned endpoint before reserving ne
   assert.equal(draining.status, 'ENDPOINT_DRAINING');
   const deleted = await coordinator.reconcile(identity.endpointName);
   assert.equal(deleted.status, 'ENDPOINT_DELETED');
+  jobs.set(identity.endpointName, { ...jobs.get(identity.endpointName), resultPublishedAt: '2026-08-19T00:00:00.000Z' });
   const result = await coordinator.reconcile(identity.endpointName);
   assert.equal(result.status, 'COMPLETE');
   assert.equal(reserved, false);
   assert.equal(jobs.get(identity.endpointName).status, 'COMPLETE');
+});
+
+test('orphan provider identity is verified before draining', async () => {
+  const c = config();
+  const identity = buildAsyncEndpointIdentity({ corpusSha256: SOURCE, modelPackageArn: MODEL_ARN, modelVersion: MODEL_VERSION, runtimeContractVersion: ASYNC_RUNTIME_CONTRACT_VERSION, modelName: c.sagemakerModelName, executionRoleArn: c.executionRoleArn, instanceType: c.instanceType, outputBucket: c.outputBucket, outputPrefix: c.outputPrefix, failureBucket: c.outputBucket, failurePrefix: c.failurePrefix, kmsKeyId: c.kmsKeyId });
+  const coordinator = new AsyncNvidiaCoordinator({
+    jobStore: { async get() { return null; }, async put() {} },
+    reservationLedger: { async reserve() {} },
+    endpointClient: { async describeEndpoint() { return { EndpointStatus: 'InService' }; }, async describeEndpointConfig() { return {}; }, async listPersistentEndpoints() { return []; } },
+  }, c);
+  await assert.rejects(
+    () => coordinator.submit({ corpusSha256: SOURCE, pages: Array.from({ length: 10 }, (_, i) => page(i + 1)) }),
+    (error) => error.code === 'ORPHAN_IDENTITY_UNVERIFIABLE',
+  );
+});
+
+test('async completion refuses incomplete invocation cardinality before provider output processing', async () => {
+  const c = config();
+  const endpoint = buildAsyncEndpointIdentity({ corpusSha256: SOURCE, modelPackageArn: MODEL_ARN, modelVersion: MODEL_VERSION, runtimeContractVersion: ASYNC_RUNTIME_CONTRACT_VERSION, modelName: c.sagemakerModelName, executionRoleArn: c.executionRoleArn, instanceType: c.instanceType, outputBucket: c.outputBucket, outputPrefix: c.outputPrefix, failureBucket: c.outputBucket, failurePrefix: c.failurePrefix, kmsKeyId: c.kmsKeyId });
+  const pages = [page(1), page(2)];
+  const job = { jobId: endpoint.endpointName, status: 'REQUESTS_RECONCILING', endpoint, pages, invocations: [{ inferenceId: 's1', outputLocation: 's3://output/x' }], createdAt: '2026-08-19T00:00:00.000Z', history: [] };
+  let saved;
+  const result = await new AsyncNvidiaCoordinator({
+    jobStore: { async get() { return job; }, async put(next) { saved = next; } },
+    endpointClient: { async describeEndpoint() { return { EndpointStatus: 'InService' }; }, async deregisterScaleToZero() {}, async describeEndpointConfig() { return null; }, async listPersistentEndpoints() { return []; }, async deleteEndpoint() {} },
+  }, c).reconcile(job.jobId);
+  assert.equal(result.failureCode, 'PARTIAL_ASYNC_SUBMISSION');
+  assert.equal(saved.failureCode, 'PARTIAL_ASYNC_SUBMISSION');
 });
 
 test('reconcile does not re-submit deletion for an endpoint already deleting', async () => {
@@ -248,6 +279,21 @@ test('async output location outside the configured inference key fails closed', 
   await assert.rejects(
     () => adapter.ensureEndpoint({ ...identity, modelName: 'capiro-model', instanceType: 'ml.g5.xlarge', outputLocation: 's3://output/out/' }),
     (e) => e.code === 'ENDPOINT_CONFIG_IDENTITY_MISMATCH',
+  );
+});
+
+test('existing endpoint reuse requires immutable identity tagging', async () => {
+  const c = config();
+  const identity = buildAsyncEndpointIdentity({ corpusSha256: SOURCE, modelPackageArn: MODEL_ARN, modelVersion: MODEL_VERSION, runtimeContractVersion: ASYNC_RUNTIME_CONTRACT_VERSION, modelName: c.sagemakerModelName, executionRoleArn: c.executionRoleArn, instanceType: c.instanceType, outputBucket: c.outputBucket, outputPrefix: c.outputPrefix, failureBucket: c.outputBucket, failurePrefix: c.failurePrefix, kmsKeyId: c.kmsKeyId });
+  const adapter = new SafeAwsCliSageMakerAsyncInferenceAdapter({
+    async invoke(service, command) {
+      if (command === 'describe-endpoint') return { EndpointConfigName: identity.endpointConfigName, Tags: [] };
+      throw new Error(`unexpected ${service}/${command}`);
+    },
+  });
+  await assert.rejects(
+    () => adapter.ensureEndpoint({ ...identity, modelName: c.sagemakerModelName, instanceType: c.instanceType }),
+    (e) => e.code === 'ENDPOINT_IDENTITY_MISMATCH',
   );
 });
 

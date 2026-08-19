@@ -50,60 +50,28 @@ class FakeRunner {
   }
 }
 
-test('safe adapter sends provider-supported application/json while splitting and assembling records by line', async () => {
+test('legacy Batch adapter refuses the pinned ModelDataSource package before any provider call', async () => {
   const runner = new FakeRunner();
   const adapter = new SafeAwsCliSageMakerBatchTransformAdapter(runner);
-  const manifest = {
-    s3Uri: 's3://in/batch/input.jsonl',
-    bucket: 'in',
-    key: 'batch/input.jsonl',
-  };
-  const handle = await adapter.ensureTransformJob({
-    transformJobName: 'capiro-s5-abc-a01',
-    batch: { batchId: 'b1' },
-    manifest,
-    config: {
-      transformModelName: 'model',
-      outputBucket: 'out',
-      outputPrefix: 'prefix',
-      instanceType: 'ml.g5.xlarge',
-    },
-  });
-  const call = runner.calls.find((c) => c.operation === 'create-transform-job');
-  assert.equal(call.input.TransformInput.ContentType, 'application/json');
-  assert.equal(call.input.TransformInput.SplitType, 'Line');
-  assert.equal(call.input.TransformOutput.Accept, 'application/json');
-  assert.equal(call.input.TransformOutput.AssembleWith, 'Line');
-  assert.equal(call.input.MaxConcurrentTransforms, 1);
-  assert.equal(call.input.TransformResources.InstanceCount, 1);
-  assert.equal(handle.transformJobName, 'capiro-s5-abc-a01');
+  await assert.rejects(
+    () => adapter.ensureTransformJob({ transformJobName: 'blocked', batch: {}, manifest: {}, config: {} }),
+    (error) => error.code === 'BATCH_TRANSFORM_DISABLED',
+  );
+  assert.equal(runner.calls.length, 0);
 });
 
-test('safe adapter is idempotent by deterministic transform job name', async () => {
+test('legacy Batch adapter is idempotently unavailable', async () => {
   const runner = new FakeRunner();
   const adapter = new SafeAwsCliSageMakerBatchTransformAdapter(runner);
-  const manifest = {
-    s3Uri: 's3://in/x.jsonl',
-    bucket: 'in',
-    key: 'x.jsonl',
-  };
-  const args = {
-    transformJobName: 'capiro-s5-same-a01',
-    batch: { batchId: 'same' },
-    manifest,
-    config: {
-      transformModelName: 'model',
-      outputBucket: 'out',
-      outputPrefix: 'prefix',
-      instanceType: 'ml.g5.xlarge',
-    },
-  };
-  await adapter.ensureTransformJob(args);
-  await adapter.ensureTransformJob(args);
-  assert.equal(
-    runner.calls.filter((c) => c.operation === 'create-transform-job').length,
-    1,
+  await assert.rejects(
+    () => adapter.ensureTransformJob({ transformJobName: 'blocked', batch: {}, manifest: {}, config: {} }),
+    (error) => error.code === 'BATCH_TRANSFORM_DISABLED',
   );
+  await assert.rejects(
+    () => adapter.ensureTransformJob({ transformJobName: 'blocked', batch: {}, manifest: {}, config: {} }),
+    (error) => error.code === 'BATCH_TRANSFORM_DISABLED',
+  );
+  assert.equal(runner.calls.length, 0);
 });
 
 test('provider output resolver requires exactly one input-correlated .out object', async () => {
@@ -189,6 +157,14 @@ test('real Batch port factory is hard-disabled after the ModelDataSource compati
   const { createAwsRealBatchPorts } = await import('../src/aws-real-runtime.mjs');
   assert.throws(
     () => createAwsRealBatchPorts(),
+    (error) => error.code === 'BATCH_TRANSFORM_DISABLED',
+  );
+});
+
+test('legacy Batch adapter cannot submit a transform job', async () => {
+  const adapter = new SafeAwsCliSageMakerBatchTransformAdapter({ async invoke() { throw new Error('runner must not be called'); } });
+  await assert.rejects(
+    () => adapter.ensureTransformJob({ transformJobName: 'blocked', batch: {}, manifest: {}, config: {} }),
     (error) => error.code === 'BATCH_TRANSFORM_DISABLED',
   );
 });
