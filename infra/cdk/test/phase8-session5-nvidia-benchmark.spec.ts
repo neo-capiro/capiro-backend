@@ -71,7 +71,7 @@ describe('Phase8Session5NvidiaBenchmark', () => {
     expect(json).toContain('s3:GetBucketLocation');
     expect(json).not.toContain('sagemaker:CreateTransformJob');
     expect(json).not.toContain('sagemaker:DescribeTransformJob');
-    expect(json).not.toContain('resources\": [\"*\"]');
+    expect(json).not.toContain('resources": ["*"]');
     expect(json).toContain('capiro-s5-async-');
     expect(json).toContain('sagemaker:AddTags');
     expect(json).toContain('sagemaker:ListTags');
