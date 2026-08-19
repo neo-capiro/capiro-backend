@@ -115,6 +115,9 @@ export class Phase8Session5NvidiaBenchmark extends Construct {
 
     this.model = new sagemaker.CfnModel(this, 'NemotronParseModel', {
       executionRoleArn: this.transformRole.roleArn,
+      // AWS Marketplace model packages require network isolation. The Batch
+      // Transform role still has only the isolated evidence-prefix access.
+      enableNetworkIsolation: true,
       primaryContainer: {
         modelPackageName: props.modelPackageArn,
       },

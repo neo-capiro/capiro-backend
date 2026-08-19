@@ -40,7 +40,11 @@ async function main() {
     const mimeType = page.mimeType ?? 'image/png';
     assert(mimeType === 'image/png', `page ${page.pageNumber} must use image/png`);
     const providerPayload = {
-      model: 'nvidia/nemotron-parse',
+      // NVIDIA's documented Nemotron Parse VLM interface is OpenAI-compatible.
+      // markdown_bbox returns structured text, classes, and bounding boxes in the
+      // tool-call arguments; do not send the internal Session 5 provenance here.
+      model: 'nvidia/nemoretriever-parse',
+      tools: [{ type: 'function', function: { name: 'markdown_bbox' } }],
       messages: [{
         role: 'user',
         content: [{

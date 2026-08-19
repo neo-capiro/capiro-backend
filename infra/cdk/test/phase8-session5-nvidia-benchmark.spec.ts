@@ -28,6 +28,7 @@ describe('Phase8Session5NvidiaBenchmark', () => {
   it('pins the Marketplace model package and retains encrypted evidence', () => {
     const template = synth();
     template.hasResourceProperties('AWS::SageMaker::Model', {
+      EnableNetworkIsolation: true,
       PrimaryContainer: {
         ModelPackageName:
           'arn:aws:sagemaker:us-east-1:111111111111:model-package/capiro-nemotron-parse/7',
