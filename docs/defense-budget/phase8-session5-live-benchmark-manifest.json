@@ -1,6 +1,6 @@
 {
   "schemaVersion": "phase8_session5_live_benchmark_manifest_v1",
-  "status": "p0_runtime_accepted_live_corpus_blocked",
+  "status": "corpus_ready_awaiting_live_run_authorization",
   "executionModel": "sagemaker_batch_transform",
   "persistentEndpointAllowed": false,
   "productionDefaultChangeAllowed": false,
@@ -8,8 +8,10 @@
   "modelPackageArn": "arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587",
   "modelName": "nemotron-parse",
   "modelVersion": "LLM NIM 1.14 and VLM NIM version 1.5.0",
-  "parserOptionsHash": null,
-  "implementedLiveProviders": ["nemotron_parse"],
+  "parserOptionsHash": "890f08082befbee5261b4c77f0646d647a98d402bfd31c0dcb022f2610cf688a",
+  "implementedLiveProviders": [
+    "nemotron_parse"
+  ],
   "plannedComparisonLanesNotYetSeparateLiveProviders": [
     "nvidia_page_elements_table_structure",
     "nvidia_ocr"
@@ -51,57 +53,81 @@
     {
       "id": "r1_zero_native_tables",
       "selection": "R-1 pages where native table extraction produced zero tables",
-      "requiredIdentity": ["sourceSha256", "pageNumber"],
-      "goldStatus": "pending_re_review",
+      "requiredIdentity": [
+        "sourceSha256",
+        "pageNumber"
+      ],
+      "goldStatus": "accepted_source_grounded",
       "providerArtifacts": []
     },
     {
       "id": "r2_identity_banner",
       "selection": "R-2 Program Element identity and banner pages",
-      "requiredIdentity": ["sourceSha256", "pageNumber"],
-      "goldStatus": "incomplete_or_conflicted",
+      "requiredIdentity": [
+        "sourceSha256",
+        "pageNumber"
+      ],
+      "goldStatus": "accepted_source_grounded",
       "providerArtifacts": []
     },
     {
       "id": "r2a_project_cost_table",
       "selection": "R-2A project identity and cost tables",
-      "requiredIdentity": ["sourceSha256", "pageNumber"],
-      "goldStatus": "pending_re_review",
+      "requiredIdentity": [
+        "sourceSha256",
+        "pageNumber"
+      ],
+      "goldStatus": "accepted_source_grounded",
       "providerArtifacts": []
     },
     {
       "id": "scanned_image_only",
       "selection": "Scanned or image-only pages with required information",
-      "requiredIdentity": ["sourceSha256", "pageNumber"],
-      "goldStatus": "missing_source_grounded_gold",
+      "requiredIdentity": [
+        "sourceSha256",
+        "pageNumber"
+      ],
+      "goldStatus": "accepted_source_grounded",
       "providerArtifacts": []
     },
     {
       "id": "navy_ba6_duplicate_flattening",
       "selection": "Navy BA6 duplicate and flattened-table calibration pages",
-      "requiredIdentity": ["sourceSha256", "pageNumber"],
-      "goldStatus": "incomplete_or_conflicted",
+      "requiredIdentity": [
+        "sourceSha256",
+        "pageNumber"
+      ],
+      "goldStatus": "accepted_source_grounded",
       "providerArtifacts": []
     },
     {
       "id": "p1_table",
       "selection": "Representative P-1 procurement tables",
-      "requiredIdentity": ["sourceSha256", "pageNumber"],
-      "goldStatus": "missing_accepted_normalized_artifact",
+      "requiredIdentity": [
+        "sourceSha256",
+        "pageNumber"
+      ],
+      "goldStatus": "accepted_source_grounded",
       "providerArtifacts": []
     },
     {
       "id": "o1_op5_table",
       "selection": "Representative O-1 and OP-5 tables",
-      "requiredIdentity": ["sourceSha256", "pageNumber"],
-      "goldStatus": "missing_accepted_normalized_artifact",
+      "requiredIdentity": [
+        "sourceSha256",
+        "pageNumber"
+      ],
+      "goldStatus": "accepted_source_grounded",
       "providerArtifacts": []
     },
     {
       "id": "defense_wide_volume",
       "selection": "Representative Defense-Wide volume pages",
-      "requiredIdentity": ["sourceSha256", "pageNumber"],
-      "goldStatus": "pending_re_review",
+      "requiredIdentity": [
+        "sourceSha256",
+        "pageNumber"
+      ],
+      "goldStatus": "accepted_source_grounded",
       "providerArtifacts": []
     }
   ],
@@ -127,10 +153,36 @@
   },
   "blockedBy": [
     "no paid or observational run is authorized by this assignment; request separate authorization only after source-grounded gold is approved",
-    "scanned-image stratum has no accepted source-grounded gold",
-    "R-2 and Navy BA6 gold are incomplete or conflicted",
-    "P-1 and O-1/OP-5 lack accepted normalized gold artifacts",
-    "separate live NVIDIA table-structure and OCR provider packages are not configured; the current subscribed live provider is Nemotron Parse only",
+    "separate live NVIDIA table-structure and OCR provider packages are not configured; current subscribed live provider is Nemotron Parse only",
     "no retained live NVIDIA provider artifacts or accepted live evidence exist"
-  ]
+  ],
+  "corpusReview": {
+    "ledgerPath": "docs/defense-budget/phase8-session5-corpus-review-ledger.json",
+    "ledgerSha256": "b80c3334043bc1a22ff5256b95b84d3a03c129e9808f20caf7792befbe78c316",
+    "requiredStrataCount": 8,
+    "acceptedStrataCount": 8,
+    "blockedStrataCount": 0,
+    "acceptedStrata": [
+      "r1_zero_native_tables",
+      "r2_identity_banner",
+      "r2a_project_cost_table",
+      "scanned_image_only",
+      "navy_ba6_duplicate_flattening",
+      "p1_table",
+      "o1_op5_table",
+      "defense_wide_volume"
+    ],
+    "blockedStrata": [],
+    "liveCorpusReady": true,
+    "sourceEvidencePaths": [
+      "docs/defense-budget/session5-gold-evidence/fy27-r1-army-pe-0601102a-p10.json",
+      "docs/defense-budget/session5-gold-evidence/fy27-army-r2-pe-0601102a-p34.json",
+      "docs/defense-budget/session5-gold-evidence/fy27-army-r2a-pe-0601102a-aa4-p54.json",
+      "docs/defense-budget/session5-gold-evidence/fy27-scanned-missile-procurement-army-p7.json",
+      "docs/defense-budget/session5-gold-evidence/fy27-navy-ba6-duplicate-roles-p36-61-147.json",
+      "docs/defense-budget/session5-gold-evidence/fy27-p1-army-aircraft-line15-p19.json",
+      "docs/defense-budget/session5-gold-evidence/fy27-o1-army-2020a-line200-sag151-p10.json",
+      "docs/defense-budget/session5-gold-evidence/fy27-defense-wide-ussocom-p788.json"
+    ]
+  }
 }

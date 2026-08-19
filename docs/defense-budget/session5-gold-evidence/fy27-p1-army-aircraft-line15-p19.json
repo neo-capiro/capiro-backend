@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "phase8_session5_gold_evidence_v1",
+  "id": "fy27-p1-army-aircraft-line15-p19",
+  "stratum": "p1_table",
+  "pageClass": "complex_table",
+  "source": {
+    "sourceDocumentId": "fy2027-p1",
+    "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/FY2027_p1.pdf",
+    "sourcePdfSha256": "b8d5248257590856ee33ddb1b401ec2efcdfea219c05b5bc8ea1068d9000d0a6",
+    "fiscalYear": 2027,
+    "family": "procurement",
+    "exhibit": "P-1",
+    "authority": "dod-comptroller",
+    "component": "ARMY",
+    "physicalPage": 19,
+    "printedPage": "14",
+    "title": "2031A Aircraft Procurement, Army P-1 detail",
+    "sourceLocator": "C:/Users/neoma/Downloads/pe-fy2027-corpus"
+  },
+  "review": {
+    "reviewStatus": "accepted",
+    "reviewMethod": "deterministic_pdf_bytes_plus_visual_source_page_review",
+    "reviewer": "openai/gpt-5.6-luna-pro",
+    "reviewedAt": "2026-08-19T00:00:00Z",
+    "independentSecondReview": "independent-source-page-review",
+    "secondReviewerProcess": "source-page visual inspection compared against deterministic text/block extraction and recomputed PDF SHA-256; parser output was not used as acceptance authority",
+    "incomplete": false,
+    "conflicted": false,
+    "hashBasis": "source PDF bytes SHA-256 plus evidence canonical JSON SHA-256",
+    "notes": [
+      "Physical page 19 is the right-hand continuation of the split P-1 table; visual review paired the FY2027 request columns with the line rows from the same printed table.",
+      "Selected line 15 is procurement-native and is not mapped to a PE."
+    ]
+  },
+  "excerpt": {
+    "text": "Exhibit P-1 2031A Detail, Dollars in Thousands, physical page 19 printed Page 14: line 15 MQ-1 PAYLOAD; FY2027 discretionary request 53,190; FY2027 mandatory blank; FY2027 total 53,190.",
+    "units": "Dollars in Thousands",
+    "columnInterpretation": "Continuation page carries the FY2027 request values; procurement identity remains account/line/title."
+  },
+  "gold": {
+    "peIdentities": [],
+    "projectIdentities": [],
+    "lineIdentities": [
+      "appropriation=2031A Aircraft Procurement, Army; line=15; title=MQ-1 PAYLOAD; ident code=A; sec=U"
+    ],
+    "money": [
+      {
+        "value": "53,190",
+        "unit": "dollars in thousands",
+        "fy": 2027,
+        "evidencePage": 19
+      }
+    ],
+    "tableCells": [
+      "P-1 line 15|MQ-1 PAYLOAD|FY2027 discretionary request=53,190|FY2027 mandatory request=blank|FY2027 total=53,190"
+    ]
+  },
+  "contentSha256": "fe1a320ad18d65d20afe154cbf5a9021e3379afb4202296e6a9c59bc04d90d92"
+}

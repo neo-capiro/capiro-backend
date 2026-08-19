@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "phase8_session5_gold_evidence_v1",
+  "id": "fy27-scanned-missile-procurement-army-p7",
+  "stratum": "scanned_image_only",
+  "pageClass": "scanned_image",
+  "source": {
+    "sourceDocumentId": "fy2027-missile-procurement-army",
+    "sourceUrl": "file:///C:/Users/neoma/Downloads/pe-fy2027-corpus/Missile_Procurement_Army.pdf",
+    "sourcePdfSha256": "e47707f50d29ebf796a3db57877d104001c5679ce783f308ed1cd47cca1107f4",
+    "fiscalYear": 2027,
+    "family": "procurement",
+    "exhibit": "P-1",
+    "authority": "dod-comptroller",
+    "component": "ARMY",
+    "physicalPage": 7,
+    "printedPage": "Volume 1 - iv",
+    "title": "FY2027 President’s Budget Exhibit P-1 DoW Component Summary",
+    "sourceLocator": "C:/Users/neoma/Downloads/pe-fy2027-corpus/Missile_Procurement_Army.pdf (immutable local source bytes; official FY2027 DoD Comptroller document identity visible on page)"
+  },
+  "review": {
+    "reviewStatus": "accepted",
+    "reviewMethod": "deterministic_pdf_bytes_plus_visual_source_page_review",
+    "reviewer": "openai/gpt-5.6-luna-pro",
+    "reviewedAt": "2026-08-19T00:00:00Z",
+    "independentSecondReview": "independent-source-page-review",
+    "secondReviewerProcess": "source-page visual inspection compared against deterministic text/block extraction and recomputed PDF SHA-256; parser output was not used as acceptance authority",
+    "incomplete": false,
+    "conflicted": false,
+    "hashBasis": "source PDF bytes SHA-256 plus evidence canonical JSON SHA-256",
+    "notes": [
+      "Page has one full-page image and no meaningful embedded text beyond a control-character extraction; manual visual review reads the budget page.",
+      "This is useful scanned budget data, not a blank or TOC: the image contains the appropriation summary and a FY27 mandatory-total correction footnote."
+    ]
+  },
+  "excerpt": {
+    "text": "Image-only page visibly states FY 2027 President’s Budget, Exhibit P-1, Dollars in Thousands, Missile Procurement Army appropriation summary, and footnote: FY27 P&F total ... correct total is $24.483 billion.",
+    "units": "Dollars in Thousands for table; USD billions in footnote",
+    "columnInterpretation": "The row table itself shows FY2025/FY2026 columns; the FY2027 scorable assertion is the explicit footnote correction, not an inferred row amount."
+  },
+  "gold": {
+    "peIdentities": [],
+    "projectIdentities": [],
+    "lineIdentities": [
+      "role=P-1 image-only footnote; appropriation=Missile Procurement, Army; FY2027 mandatory/P&F corrected total"
+    ],
+    "money": [
+      {
+        "value": "24.483",
+        "unit": "USD billions",
+        "fy": 2027,
+        "evidencePage": 7
+      }
+    ],
+    "tableCells": [
+      "Appropriation Summary|Missile Procurement, Army|FY2025 Actuals=7,456,184|FY2026 Enacted=7,287,263|FY2026 PL 119-21 Spend Plan=672,598|FY2026 Total=7,959,861",
+      "FY27 P&F footnote|correct total=$24.483 billion"
+    ]
+  },
+  "contentSha256": "e9973a7cf190db6d46dfbe416dc48c7cbbe848735389c8f8adbdcbc29e5728e0"
+}

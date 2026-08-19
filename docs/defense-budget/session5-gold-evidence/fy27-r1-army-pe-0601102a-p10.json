@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "phase8_session5_gold_evidence_v1",
+  "id": "fy27-r1-army-pe-0601102a-p10",
+  "stratum": "r1_zero_native_tables",
+  "pageClass": "complex_table",
+  "source": {
+    "sourceDocumentId": "fy2027-r1",
+    "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/FY2027_r1.pdf",
+    "sourcePdfSha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+    "fiscalYear": 2027,
+    "family": "rdte",
+    "exhibit": "R-1",
+    "authority": "dod-comptroller",
+    "component": "ARMY",
+    "physicalPage": 10,
+    "printedPage": "5",
+    "title": "FY2027 R-1 Total Obligational Authority",
+    "sourceLocator": "C:/Users/neoma/Downloads/pe-fy2027-corpus"
+  },
+  "review": {
+    "reviewStatus": "accepted",
+    "reviewMethod": "deterministic_pdf_bytes_plus_visual_source_page_review",
+    "reviewer": "openai/gpt-5.6-luna-pro",
+    "reviewedAt": "2026-08-19T00:00:00Z",
+    "independentSecondReview": "independent-source-page-review",
+    "secondReviewerProcess": "source-page visual inspection compared against deterministic text/block extraction and recomputed PDF SHA-256; parser output was not used as acceptance authority",
+    "incomplete": false,
+    "conflicted": false,
+    "hashBasis": "source PDF bytes SHA-256 plus evidence canonical JSON SHA-256",
+    "notes": [
+      "Visible R-1 row 1 identifies PE 0601102A Defense Research Sciences; FY2027 discretionary and total request are 215,322 ($ thousands).",
+      "Native table extraction lane is intentionally represented by the page class; gold remains source text/visual truth."
+    ]
+  },
+  "excerpt": {
+    "text": "R-1 line 1 PE 0601102A Defense Research Sciences; FY2027 request 215,322; header Dollars in Thousands.",
+    "units": "Dollars in Thousands",
+    "columnInterpretation": "FY2027 discretionary request and total request are the printed 215,322 row values."
+  },
+  "gold": {
+    "peIdentities": [
+      "PE=0601102A; title=Defense Research Sciences; line=1; role=R-1"
+    ],
+    "projectIdentities": [],
+    "lineIdentities": [
+      "role=R-1; line=1; field=FY2027 request; value=215,322; unit=dollars in thousands"
+    ],
+    "money": [
+      {
+        "value": "215,322",
+        "unit": "dollars in thousands",
+        "fy": 2027,
+        "evidencePage": 10
+      }
+    ],
+    "tableCells": [
+      "row=1|PE=0601102A|title=Defense Research Sciences|FY2027 total=215,322"
+    ]
+  },
+  "contentSha256": "b7ac7e9692714090e53883843b215bc7c80b190dfa4d047504777b408fa7f7e4"
+}

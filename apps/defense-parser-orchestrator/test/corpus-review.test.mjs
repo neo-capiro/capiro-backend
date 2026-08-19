@@ -117,19 +117,15 @@ function syntheticReadyLedger() {
   return { ledger, evidenceByPath };
 }
 
-test('committed corpus ledger truthfully accepts three strata and blocks five', async () => {
+test('committed corpus ledger truthfully accepts all eight strata', async () => {
   const { ledger, evidenceByPath } = await loadCorpusReviewLedger(
     'docs/defense-budget/phase8-session5-corpus-review-ledger.json',
   );
   const analysis = validateCorpusReviewLedger(ledger, evidenceByPath);
-  assert.equal(analysis.acceptedStrata.length, 3);
-  assert.equal(analysis.blockedStrata.length, 5);
-  assert.equal(analysis.liveCorpusReady, false);
-  assert.deepEqual(analysis.acceptedStrata, [
-    'r1_zero_native_tables',
-    'r2_identity_banner',
-    'r2a_project_cost_table',
-  ]);
+  assert.equal(analysis.acceptedStrata.length, 8);
+  assert.equal(analysis.blockedStrata.length, 0);
+  assert.equal(analysis.liveCorpusReady, true);
+  assert.deepEqual(analysis.acceptedStrata, [...SESSION5_REQUIRED_STRATA]);
 });
 
 test('tampered evidence content hash is rejected', () => {

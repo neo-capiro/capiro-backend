@@ -2,9 +2,9 @@
 
 ## Verdict
 
-**SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED**
+**SESSION5_CORPUS_READY_AWAITING_LIVE_RUN_AUTHORIZATION**
 
-Do **not** redeploy the benchmark stack or submit a paid NVIDIA TransformJob yet.
+Runtime safety verdict remains **SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED**. The source-grounded corpus is now accepted, but live execution is still separately unauthorized. Do **not** deploy the benchmark stack or submit a paid NVIDIA TransformJob.
 
 A real-runtime review found that the earlier provider-ready implementation was still simulation-oriented. The separate `nvidia_real_batch_v2` path passed the final local runtime/CDK re-review at local head `f1641cae1aae71477948106ec7da50aaaf6ebaa6`. No live NVIDIA benchmark is claimed. The final verified PR head is `f1641cae1aae71477948106ec7da50aaaf6ebaa6`.
 
@@ -109,13 +109,10 @@ The live CLI gate can require **scorable** source-grounded gold. Every accepted 
 - at least one scorable assertion;
 - exact value/unit/FY/evidence-page identity for money assertions.
 
-Known blockers remain:
+The eight required source-grounded strata are now accepted in the Session 5 corpus ledger. The remaining live boundary is authorization and provider availability:
 
-- scanned/image-only: missing source-grounded gold;
-- R-2 and Navy BA6: incomplete/conflicted;
-- P-1 and O-1/OP-5: missing accepted normalized artifacts;
-- remaining strata need re-review;
-- separate live NVIDIA table-structure and OCR provider packages are not configured; those are comparison intents, not current provider implementations.
+- separate live NVIDIA table-structure and OCR provider packages are not configured; those are comparison intents, not current provider implementations;
+- no live NVIDIA provider artifacts or accepted live benchmark evidence exist because execution is not authorized by this assignment.
 
 A provider run may be observational, but model output may not be used to create its own acceptance gold.
 
@@ -147,6 +144,9 @@ The current GitHub Actions run is repository-level `startup_failure` before jobs
 ```bash
 pnpm install --frozen-lockfile
 pnpm --filter @capiro/defense-contracts build
+node --test apps/defense-parser-orchestrator/test/*.test.mjs
+node scripts/verify-phase8-session5.mjs
+node scripts/verify-phase8-session5-corpus.mjs
 node --check apps/defense-parser-orchestrator/src/session5.mjs
 node --check apps/defense-parser-orchestrator/src/real-batch-config.mjs
 node --check apps/defense-parser-orchestrator/src/real-batch-provider.mjs
@@ -214,6 +214,6 @@ Zero-idle evidence must include:
 - Persistent NVIDIA endpoint: **none**
 - Session 6: **not started**
 
-The correct verdict is `SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED`.
+The correct corpus verdict is `SESSION5_CORPUS_READY_AWAITING_LIVE_RUN_AUTHORIZATION`.
 
-Next action: prepare/approve source-grounded gold, then separately request authorization for an isolated observational/live run. Do not deploy the stack, submit a paid TransformJob, create an evidence file, or start Session 6 here.
+The runtime safety verdict remains `SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED` until a separately authorized live run produces retained provider evidence. Do not deploy the stack, submit a paid TransformJob, create a live evidence file, or start Session 6 here.

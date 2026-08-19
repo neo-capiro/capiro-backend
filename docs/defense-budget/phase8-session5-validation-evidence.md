@@ -1,221 +1,111 @@
 # Phase 8 Session 5 validation evidence
 
-This file separates **historical evidence** from validation that actually applies to the current real-Batch implementation.
+Current corpus verdict:
 
-## Current verdict
+`SESSION5_CORPUS_READY_AWAITING_LIVE_RUN_AUTHORIZATION`
+
+Runtime verdict remains:
 
 `SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED`
 
-Do **not** redeploy the isolated benchmark stack or submit a paid NVIDIA TransformJob yet.
+The corpus is source-grounded and ready. Live NVIDIA execution remains separately unauthorized. No stack deployment, SageMaker model creation, TransformJob submission, endpoint creation, or GPU spend occurred.
 
-No redeploy or paid NVIDIA benchmark has been performed after the P0 real-runtime review. The final local runtime/CDK review passed at `f1641cae1aae71477948106ec7da50aaaf6ebaa6`.
+## Branch coordinates
 
-## Final exact-tip re-review
+- Repository: `neo-capiro/capirov2`
+- Branch: `agent/phase8-session5-nvidia-benchmark`
+- Session 5 remote head before this corpus closeout: `47cceede54aea238feb9ad2dad06f1d1f90218e0`
+- Base branch: `agent/phase8-session4-after-s3`
+- Current base SHA: `a5094361f9da82e70090f73da46b11108e6a8b45`
+- `origin/main`: `e33b4bf9607ee61b912681fcb09ef3a2cd51d284`
 
-Remote state was fetched first. The Session 5 remote head advanced from `53e80207b8dcbda209905205953c3bc3dbdfe893` to the final verified head `f1641cae1aae71477948106ec7da50aaaf6ebaa6`.
+## Corpus review
 
-- `pnpm install --frozen-lockfile`: PASS;
-- shared/auth/defense-contracts/defense-domain/defense-client builds: PASS;
-- all listed Node syntax checks: PASS;
-- Session 5 Node tests: **35/35 PASS**;
-- `node scripts/verify-phase8-session5.mjs`: PASS (`SESSION5_P0_RUNTIME_PASS`);
-- CDK typecheck: PASS;
-- isolated Session 5 CDK Jest: **6/6 PASS**;
-- clean no-cache Docker build: PASS;
-- image containment: PASS (`1001`, no exposed ports, no CUDA/NVIDIA device/static credentials/database/Clerk secrets, CLI reconciliation commands present);
-- Session 2 boundary: PASS; Session 3 boundary/admin/parity: PASS, parity **52/52**; Session 4 enforced replay: PASS (`SESSION4_SOURCE_PARITY_PASS`).
+The ledger validates eight accepted strata and zero blocked strata:
 
-The Session 2 DB and Session 3 DB rehearsals reached their disposable PostgreSQL integration suites but failed in the same four defense-api integration files: `health.service.integration.spec.ts`, `programs-admin-security.integration.spec.ts`, `programs.service.integration.spec.ts`, and `promotion/manual-override-repository.integration.spec.ts`. These remain explicit environment/baseline blockers and are not reported as passes. No production database was touched.
+- `r1_zero_native_tables`: `FY2027_r1.pdf`, physical page 10, source SHA `1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a`, evidence SHA `b7ac7e9692714090e53883843b215bc7c80b190dfa4d047504777b408fa7f7e4`.
+- `r2_identity_banner`: `RDTE_Vol_1_Budget_Activity_1.pdf`, physical page 34, source SHA `02f719c0d9d528284a70ec84b5e90e1a6a2008ebc5f610a56236db0a10e112c0`, evidence SHA `ced05e36c4106d204223062e46f067da803ff85cf8b8ccdb117c120abb290618`.
+- `r2a_project_cost_table`: `RDTE_Vol_1_Budget_Activity_1.pdf`, physical page 54, source SHA `02f719c0d9d528284a70ec84b5e90e1a6a2008ebc5f610a56236db0a10e112c0`, evidence SHA `a04c7f83be2ed5e84d0b0c6dba8ffd31d1b4dfb2e05e0c8aab706b536e61337f`.
+- `scanned_image_only`: `Missile_Procurement_Army.pdf`, physical page 7, source SHA `e47707f50d29ebf796a3db57877d104001c5679ce783f308ed1cd47cca1107f4`, evidence SHA `e9973a7cf190db6d46dfbe416dc48c7cbbe848735389c8f8adbdcbc29e5728e0`.
+- `navy_ba6_duplicate_flattening`: `FY2027_r1.pdf` physical page 36 plus companion `NAVY_RDTE_BA6.pdf` pages 61 and 147; primary source SHA `1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a`, companion SHA `3ccc4c32bd21af187a2399dc991be4e6a55637736f7e6c66779485d5f83bd3f6`, evidence SHA `b91708eac7588e62e14a0ca933112d8081b77273f777dc10b2b0f0565160285b`.
+- `p1_table`: `FY2027_p1.pdf`, physical page 19 / printed page 14, source SHA `b8d5248257590856ee33ddb1b401ec2efcdfea219c05b5bc8ea1068d9000d0a6`, evidence SHA `fe1a320ad18d65d20afe154cbf5a9021e3379afb4202296e6a9c59bc04d90d92`.
+- `o1_op5_table`: `FY2027_o1.pdf`, physical page 10 / printed page 5, source SHA `8c209bc2af590e460977649ba4e37645fd2ee8e3c8dbf61c227b7d3a27079c4d`, evidence SHA `09941d565b06d8484647b1136a6ce0fc8a9dd9a377a5cb4e3f42b66e356f3bc6`.
+- `defense_wide_volume`: `OM_Volume1_Part1.pdf`, physical page 788 / printed `USSOCOM 784`, source SHA `99b8ea818a0df267b509665bbe5df9fb4d4128083dfa63b38b9fa17d653386f9`, evidence SHA `1f36d5839d09e629e7f509faa470734780790a6eeb58fd2a01248637e070b8ef`.
 
-## Why the prior provider-ready conclusion was insufficient
+The scanned page was independently inspected visually and has full-page image content plus a useful FY27 P-1 appropriation summary and explicit correction footnote; it is not a blank or TOC page. The Navy entry retains R-1, R-2, and executive-summary roles separately and does not flatten conflicting values into one canonical assertion. P-1 and O-1 retain procurement/O&M-native identities rather than converting them to PEs.
 
-The previous provider-ready gates did not prove that the SageMaker Batch path could safely execute against the real NVIDIA model package. Real-runtime review identified:
+Ledger content SHA: `b80c3334043bc1a22ff5256b95b84d3a03c129e9808f20caf7792befbe78c316`.
 
-- unsupported `application/jsonlines` MIME on the provider path;
-- an invented aggregate provider-output shape;
-- no polling/reconciliation driver;
-- no deployed completion queue/outbox;
-- non-atomic spend/concurrency accounting and caller-supplied cost;
-- timestamped paid-job identities and incomplete cache identity;
-- provider identity that could label a real Nemotron Parse run as a separate table/OCR provider;
-- insufficient accepted source-grounded gold to close the live benchmark.
+## Frozen corpus and Nemotron preparation
 
-Those are implemented as a separate `nvidia_real_batch_v2` path rather than waived.
+- Frozen corpus: `.session5-live/frozen-corpus.json`
+- Final corpus SHA: `a4bf213ea908f6dff2988e1ec3c78d0d5359a8e085554cb1915721b687fc8e98`
+- Exact entry count: 8
+- Prepared page/payload count: 10 (the Navy role-separated stratum uses three source-role pages across two PDFs; the other strata use one page each)
+- Maximum provider payload: 485,140 bytes, below the 5,500,000-byte hard limit
+- Parser options SHA: `890f08082befbee5261b4c77f0646d647a98d402bfd31c0dcb022f2610cf688a`
+- Rendering configuration SHA: `800a38fb9e8a4f8e014febe9822a5ca075596cf03d8544ab2aa67d9856f8a2fc`
+- Renderer: PyMuPDF 1.28.2, RGB PNG, alpha false, 150 DPI
+- Every prepared page rechecked PDF SHA, physical page, decoded PNG bytes, image SHA, rendering SHA, provider payload SHA, requested route intent, and actual `nemotron_parse` identity.
+- No Capiro provenance was included in the provider payload.
+- Separate NVIDIA OCR provider: no; recorded as not configured.
+- Separate NVIDIA table provider: no; recorded as not configured.
+- Cached LlamaParse: not available for these newly selected pages; no paid rerun was performed.
+- Deterministic baseline: retained as the comparison provider; no paid baseline rerun was performed.
 
-## P0 changes now in branch
+## Projected execution (not authorized or run)
 
-- provider MIME: `application/json` with `SplitType=Line` / `AssembleWith=Line`;
-- provider-native request lines + immutable hashed Capiro input sidecars;
-- JSONL `.out` normalization via `markdown_bbox` tool output;
-- raw provider-response hash + normalized artifact hash;
-- requested route intent retained separately from the actual provider identity;
-- current live provider truthfully recorded as `nemotron_parse` for the subscribed Nemotron package;
-- reconciliation commands that re-read SageMaker provider facts;
-- timeout stop/watchdog with terminal-state settlement;
-- durable `COMPLETION_PENDING` outbox and recoverable DLQ publication;
-- deterministic TransformJob identity by immutable batch + paid attempt;
-- v2 cache identity includes requested/actual method, rendered-image, provider-payload and rendering-config hashes;
-- cache body/identity/key validation before reuse;
-- DynamoDB atomic concurrency/spend reservation ledger;
-- USD 50 initial effective cap and USD 150 absolute ceiling;
-- direct runtime emission of `NvidiaActiveGpuJobs` / `NvidiaMonthlySpendUsd`;
-- CDK completion queue, DynamoDB ledger, correct IAM, network isolation, and no endpoint resources;
-- source-grounded/scorable gold preflight for all required strata;
-- provider payload materializer requires PNG rendering provenance and refuses oversized records before Batch submission.
+Using 10 prepared pages, `maxPagesPerJob=8`, `maxJobSeconds=1800`, one `ml.g5.xlarge` instance, and the configured minimum reservation rate:
 
-## P0 milestone evidence — NOT current-tip acceptance
+- TransformJob count: 2
+- Projected host hours: 1.0
+- Projected Marketplace cost: USD 1.00
+- Projected infrastructure cost: USD 1.00
+- Projected total: USD 2.00
+- Initial cap: USD 50
+- Hard cap: USD 150
+- Extended budget authorization: false
+- Maximum concurrency: 1
+- Reservation projection at the USD 5/hour floor: USD 5.00 total
 
-During implementation, before the later strict-gold/provider-identity/payload-size tightenings, an isolated harness passed:
+The projection is within the initial USD 50 target. No NVIDIA execution was started.
 
-- modular Node syntax checks;
-- P0 real-Batch/AWS tests: **15/15**.
+## Validation performed after the final corpus/code changes
 
-Those tests were useful development evidence. **They do not validate the final branch head** because additional P0 code and tests were added afterward. Do not quote 15/15 as a final current-tip result. The final current-tip Session 5 suite is **34/34**.
+- `pnpm install --frozen-lockfile`: PASS.
+- Shared/auth/defense-contracts/defense-domain/defense-client builds: PASS.
+- Session 5 Node tests: **40/40 PASS**.
+- `node scripts/verify-phase8-session5.mjs`: PASS (`SESSION5_P0_RUNTIME_PASS`).
+- `node scripts/verify-phase8-session5-corpus.mjs`: PASS (`SESSION5_CORPUS_READY_PASS`, accepted=8, blocked=0).
+- Corpus review tests and live-gold tests: **8/8 PASS**.
+- `pnpm --filter @capiro/infra-cdk typecheck`: PASS.
+- Focused Session 5 CDK Jest: **6/6 PASS**.
+- Session 2 boundary: PASS.
+- Session 2 DB rehearsal: PASS, **36 checks** (downstream defense-api suite reported 64/64).
+- Session 3 boundary/admin: PASS.
+- Session 3 parity: **52/52 PASS**.
+- Session 3 DB rehearsal: PASS, **86 checks**.
+- Session 4 replay with `--enforce-replay`: PASS (`SESSION4_SOURCE_PARITY_PASS`).
+- No-cache Docker build: PASS, image `capiro-defense-parser-orchestrator:phase8-session5`.
+- Docker containment: PASS, UID `1001:1001`, no exposed ports, no CUDA/NVIDIA runtime, no static credentials, no Clerk secret, no `DATABASE_URL`, reconciliation CLI present.
+- `git diff --check`: PASS.
 
-The final branch now also contains additional tests for:
+## Mutation statement
 
-- strict scorable live-gold acceptance;
-- requested route intent vs actual Nemotron provider identity;
-- provider sidecar identity consistency;
-- oversized provider payload refusal.
+- PR merged: no
+- Benchmark stack deployed: no
+- SageMaker model created: no
+- Paid TransformJob submitted: no
+- GPU spend: USD 0
+- Production routing changed: no
+- Parser default changed: no
+- Production/shared DB changed: no
+- Production data changed: no
+- EventBridge changed: no
+- Production IAM/secrets changed: no
+- Snapshot activated: no
+- Canonical promotion executed: no
+- Persistent endpoint created: no
+- Session 6 started: no
 
-These require a fresh clean-checkout run before deployment eligibility can be reassessed.
-
-## Pre-P0 historical gates — also not current-tip acceptance
-
-Before the P0 runtime rewrite, the agent genuinely reran and passed:
-
-- Session 2 DB rehearsal: 36 checks;
-- Session 3 parity: 52/52;
-- Session 3 DB rehearsal: 86 checks;
-- defense-api DB suite: 64/64;
-- Session 4 source parity and enforced replay;
-- no-cache orchestrator image and containment;
-- focused Session 5 tests and CDK tests.
-
-The branch has since changed materially. These results establish the prerequisite baseline only; they must be rerun before deployment.
-
-## Current GitHub Actions state
-
-Repository Actions still fails at the repository startup layer before Session 5 jobs execute. This assignment used the functioning local Linux Docker engine (`desktop-linux`) instead. A startup failure is not a pass and is not evidence against the code either.
-
-## Final status by required corpus stratum
-
-| Stratum | Status | Blocker |
-|---|---|---|
-| r1_zero_native_tables | blocked: pending re-review | no accepted source-grounded scorable gold |
-| r2_identity_banner | blocked: incomplete/conflicted | gold is not acceptable |
-| r2a_project_cost_table | blocked: pending re-review | no accepted source-grounded scorable gold |
-| scanned_image_only | blocked: missing source-grounded gold | image-only source evidence is not accepted |
-| navy_ba6_duplicate_flattening | blocked: incomplete/conflicted | gold is not acceptable |
-| p1_table | blocked: missing accepted normalized gold | no accepted artifact |
-| o1_op5_table | blocked: missing accepted normalized gold | no accepted artifact |
-| defense_wide_volume | blocked: pending re-review | no accepted source-grounded scorable gold |
-
-## Required fresh re-review gate before redeploy
-
-Run from a clean checkout of the exact current Session 5 SHA:
-
-```bash
-pnpm install --frozen-lockfile
-pnpm --filter @capiro/defense-contracts build
-node --check apps/defense-parser-orchestrator/src/session5.mjs
-node --check apps/defense-parser-orchestrator/src/real-batch-config.mjs
-node --check apps/defense-parser-orchestrator/src/real-batch-provider.mjs
-node --check apps/defense-parser-orchestrator/src/real-batch-cost.mjs
-node --check apps/defense-parser-orchestrator/src/real-batch-coordinator.mjs
-node --check apps/defense-parser-orchestrator/src/aws-real-storage.mjs
-node --check apps/defense-parser-orchestrator/src/aws-real-ledger.mjs
-node --check apps/defense-parser-orchestrator/src/aws-real-runtime.mjs
-node --check apps/defense-parser-orchestrator/src/cli.mjs
-node --check apps/defense-parser-orchestrator/scripts/materialize-live-inputs.mjs
-node --test apps/defense-parser-orchestrator/test/*.test.mjs
-node scripts/verify-phase8-session5.mjs
-pnpm --filter @capiro/infra-cdk typecheck
-pnpm --filter @capiro/infra-cdk exec jest test/phase8-session5-nvidia-benchmark.spec.ts --runInBand
-
-pnpm verify:phase8-session2
-pnpm verify:phase8-session2:db
-pnpm verify:phase8-session3
-pnpm verify:phase8-session3:admin
-pnpm verify:phase8-session3:parity
-pnpm verify:phase8-session3:db
-
-PHASE8_SESSION4_REPLAY_EVIDENCE=docs/defense-budget/phase8-session4-fy27-replay-evidence.json \
-node scripts/verify-phase8-session4.mjs --enforce-replay
-
-docker build --no-cache -f apps/defense-parser-orchestrator/Dockerfile \
-  -t capiro-defense-parser-orchestrator:phase8-session5 .
-test "$(docker run --rm --entrypoint id capiro-defense-parser-orchestrator:phase8-session5 -u)" = '1001'
-git diff --check
-```
-
-Then independently inspect the CDK and live provider path. Passing tests alone do not authorize redeploy.
-
-## Current AWS / Marketplace facts already established
-
-- Account: `967807252336`
-- Region: `us-east-1`
-- Exact package ARN: `arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587`
-- Listing/model version: `LLM NIM 1.14 and VLM NIM version 1.5.0`
-- Marketplace package requires `EnableNetworkIsolation: true`
-- supported Batch instance verified by the agent: `ml.g5.xlarge`
-- authorized initial target: **USD 50**
-- hard incremental ceiling: **USD 150**
-- max concurrent GPU jobs: **1**
-- routing: benchmark
-- benchmark accepted: false
-
-The earlier failed CloudFormation attempt occurred before GPU/model/job creation because network isolation was absent. The empty bucket/stack were removed; the unused KMS key was scheduled for deletion. No paid NVIDIA work occurred.
-
-## Provider truth / planned comparison lanes
-
-The subscribed live Marketplace package currently implements **Nemotron Parse**. The legacy benchmark vocabulary also contains desired `nvidia_page_elements_table_structure` and `nvidia_ocr` lanes. Those remain route/comparison intents, not claims that separate provider packages are configured.
-
-The v2 runtime therefore records:
-
-- `requestedParserMethod`: governed desired lane;
-- `parserMethod`: actual provider invoked (`nemotron_parse` for the current package).
-
-Do not report a Nemotron Parse execution as a separate table-structure or OCR provider observation.
-
-## Gold-corpus blocker
-
-Even if the runtime passes re-review, `SESSION5_COMPLETE` cannot be asserted until accepted, source-grounded, **scorable** gold covers all eight strata. The strict live CLI gate requires:
-
-- accepted review status;
-- source evidence SHA;
-- immutable source SHA and physical page;
-- explicit identity/money/table assertion arrays;
-- at least one scorable assertion;
-- exact money values with unit/FY/evidence page when money is part of the gold;
-- no incomplete/conflicted flag.
-
-Current manifest records the known gaps explicitly.
-
-The live verifier must remain closed until a genuine evidence file exists:
-
-```bash
-PHASE8_SESSION5_LIVE_BENCHMARK_EVIDENCE=\
-  docs/defense-budget/phase8-session5-live-benchmark-evidence.json \
-node scripts/verify-phase8-session5.mjs --enforce-live-benchmark
-```
-
-No evidence file has been fabricated.
-
-The runtime verdict is `SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED`. Next action: prepare/approve source-grounded gold, then separately request authorization for an isolated observational/live run. Do not deploy or submit paid NVIDIA work from this assignment.
-
-## Scope / mutation evidence
-
-Since the P0 real-runtime blocker was identified:
-
-- redeployed stack: **no**
-- paid TransformJob: **no**
-- persistent endpoint: **no**
-- production routing/default change: **no**
-- production/shared DB/data change: **no**
-- production schedules: **no**
-- production IAM/secrets: **no**
-- snapshot activation: **no**
-- canonical promotion: **no**
-- Session 6: **not started**
+Live benchmark evidence is intentionally absent until separate live-run authorization.

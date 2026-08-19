@@ -383,6 +383,17 @@ if (enforceLive) {
       'live evidence confirms no production default route changed',
     );
   }
+} else if (manifest.status === 'corpus_ready_awaiting_live_run_authorization') {
+  check(
+    manifest.corpusReview?.liveCorpusReady === true &&
+      manifest.corpusReview?.acceptedStrataCount === REQUIRED_BENCHMARK_STRATA.length &&
+      manifest.corpusReview?.blockedStrataCount === 0,
+    'ordinary verification confirms source-grounded corpus is ready while live execution remains unauthorized',
+  );
+  check(
+    !existsSync(p('docs', 'defense-budget', 'phase8-session5-live-benchmark-evidence.json')),
+    'live benchmark evidence is absent before live-run authorization',
+  );
 } else {
   check(
     ['p0_runtime_implemented_re_review_required', 'p0_runtime_accepted_live_corpus_blocked'].includes(manifest.status) &&
