@@ -1,13 +1,13 @@
 {
   "schemaVersion": "phase8_session5_live_benchmark_manifest_v1",
-  "status": "provider_ready_live_run_required",
+  "status": "p0_runtime_implemented_re_review_required",
   "executionModel": "sagemaker_batch_transform",
   "persistentEndpointAllowed": false,
   "productionDefaultChangeAllowed": false,
   "sourceCorpus": "real FY27 source-grounded calibration corpus",
-  "modelPackageArn": null,
+  "modelPackageArn": "arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587",
   "modelName": "nemotron-parse",
-  "modelVersion": null,
+  "modelVersion": "LLM NIM 1.14 and VLM NIM version 1.5.0",
   "parserOptionsHash": null,
   "spendControls": {
     "currency": "USD",
@@ -15,55 +15,86 @@
     "initialBenchmarkTargetCapUsd": 50,
     "maxConcurrentGpuJobs": 1,
     "routingMode": "benchmark",
-    "benchmarkAccepted": false
+    "benchmarkAccepted": false,
+    "requiresAtomicReservationLedger": true,
+    "extendedBudgetAuthorized": false
+  },
+  "runtimeContract": {
+    "version": "nvidia_real_batch_v2",
+    "inputContentType": "application/json",
+    "splitType": "Line",
+    "outputAccept": "application/json",
+    "assembleWith": "Line",
+    "providerOutputNormalization": "provider JSONL plus immutable hashed input sidecar",
+    "completionMode": "reconciliation/outbox",
+    "cacheIdentityIncludes": [
+      "sourceSha256",
+      "pageNumber",
+      "parserMethod",
+      "modelName",
+      "modelVersion",
+      "parserOptionsHash",
+      "renderedImageSha256",
+      "providerPayloadSha256",
+      "renderingConfigSha256",
+      "runtimeContractVersion"
+    ]
   },
   "requiredStrata": [
     {
       "id": "r1_zero_native_tables",
       "selection": "R-1 pages where native table extraction produced zero tables",
       "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "goldStatus": "pending_re_review",
       "providerArtifacts": []
     },
     {
       "id": "r2_identity_banner",
       "selection": "R-2 Program Element identity and banner pages",
       "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "goldStatus": "incomplete_or_conflicted",
       "providerArtifacts": []
     },
     {
       "id": "r2a_project_cost_table",
       "selection": "R-2A project identity and cost tables",
       "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "goldStatus": "pending_re_review",
       "providerArtifacts": []
     },
     {
       "id": "scanned_image_only",
       "selection": "Scanned or image-only pages with required information",
       "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "goldStatus": "missing_source_grounded_gold",
       "providerArtifacts": []
     },
     {
       "id": "navy_ba6_duplicate_flattening",
       "selection": "Navy BA6 duplicate and flattened-table calibration pages",
       "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "goldStatus": "incomplete_or_conflicted",
       "providerArtifacts": []
     },
     {
       "id": "p1_table",
       "selection": "Representative P-1 procurement tables",
       "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "goldStatus": "missing_accepted_normalized_artifact",
       "providerArtifacts": []
     },
     {
       "id": "o1_op5_table",
       "selection": "Representative O-1 and OP-5 tables",
       "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "goldStatus": "missing_accepted_normalized_artifact",
       "providerArtifacts": []
     },
     {
       "id": "defense_wide_volume",
       "selection": "Representative Defense-Wide volume pages",
       "requiredIdentity": ["sourceSha256", "pageNumber"],
+      "goldStatus": "pending_re_review",
       "providerArtifacts": []
     }
   ],
@@ -81,14 +112,17 @@
     "falseIdentityCases": 0,
     "evidenceBindingRegressions": 0,
     "unexplainedDifferences": 0,
+    "requiresAcceptedGoldForEveryStratum": true,
     "requiresMaterialPageClassRecovery": true,
     "requiresPinnedReplay": true,
     "requiresAcceptedCostAndThroughput": true,
     "requiresZeroIdleGpuProof": true
   },
   "blockedBy": [
-    "approved NVIDIA AWS Marketplace model-package ARN and version are not committed",
-    "no retained NVIDIA provider-output artifacts exist for the real FY27 corpus",
-    "no isolated live benchmark execution evidence has been supplied"
+    "P0 real-Batch runtime changes require fresh code/CDK/Docker re-review before any redeploy or paid work",
+    "scanned-image stratum has no accepted source-grounded gold",
+    "R-2 and Navy BA6 gold are incomplete or conflicted",
+    "P-1 and O-1/OP-5 lack accepted normalized gold artifacts",
+    "no retained live NVIDIA provider artifacts or accepted live evidence exist"
   ]
 }
