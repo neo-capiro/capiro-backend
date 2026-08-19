@@ -22,6 +22,10 @@ import {
   isVNextEngagementPath,
   VNextEngagementRoutes,
 } from '../pages/engagement/VNextEngagementRoutes.js';
+import {
+  isVNextFundingOpportunitiesPath,
+  VNextFundingOpportunitiesRoutes,
+} from '../pages/funding-opportunities/VNextFundingOpportunitiesRoutes.js';
 import { isVNextDistrictNexusPath } from '../pages/district-nexus/district-nexus-route.js';
 import {
   isVNextBillPath,
@@ -130,6 +134,14 @@ export function VNextRouter() {
   // Reports) — claimed for every tenant since GA on 2026-08-18.
   if (isVNextEngagementPath(location.pathname)) {
     return <VNextEngagementRoutes />;
+  }
+
+  // Funding Opportunities: the list (Inbox · Explore · Pipeline) and the
+  // deep-linkable detail, both at their canonical URLs. The
+  // `funding_opportunities` feature flag stays in-page, exactly as the
+  // canonical pages gate it.
+  if (isVNextFundingOpportunitiesPath(location.pathname)) {
+    return <VNextFundingOpportunitiesRoutes />;
   }
 
   // District Nexus: the firm-wide district map at /intelligence/district-nexus.

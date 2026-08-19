@@ -1,5 +1,18 @@
 import { Button, Card, Space, Tag, Tooltip, Typography } from 'antd';
 import { formatSourceDate } from './funding-opportunities-api.js';
+import {
+  formatDibbsPartIdentity,
+  formatDibbsQuantity,
+  type DibbsAwardContext,
+  type DibbsSolicitationFacts,
+} from './dibbs-card-shared.js';
+
+// The UI-free types and formatting rules moved to dibbs-card-shared.ts so the
+// vNext presentation can consume them without reaching this antd file
+// (Phase 2 extraction pattern). Re-exported here so this file's public API is
+// unchanged.
+export { formatDibbsPartIdentity, formatDibbsQuantity } from './dibbs-card-shared.js';
+export type { DibbsAwardContext, DibbsSolicitationFacts } from './dibbs-card-shared.js';
 
 const { Text } = Typography;
 
@@ -43,71 +56,10 @@ const { Text } = Typography;
  * route, which is P41's own "add part/NSN profile gaps and review links" line.
  */
 
-/** The stored DIBBS solicitation facts this card renders. Mirrors `tango_dibbs_solicitation`. */
-export interface DibbsSolicitationFacts {
-  /** `'rfq' | 'rfp'`. An award is not a value here — awards have their own row component. */
-  documentType: 'rfq' | 'rfp';
-  solicitation: string;
-  /** The provider's own display spelling, when it gave one. Never parsed. */
-  solicitationFormatted: string | null;
-  nsn: string | null;
-  partNumber: string | null;
-  nomenclature: string | null;
-  /** RFQ only, exact decimal as a string. Never a float — see the mapper. */
-  quantity: string | null;
-  /** RFQ only. The unit `quantity` is counted in. */
-  unitOfIssue: string | null;
-  /** RFQ only. */
-  setAside: string | null;
-  /** RFP only. */
-  buyerCode: string | null;
-  closesDate: string | null;
-  /** The provider's own judgement. `null` says nothing and is rendered as nothing. */
-  isOpen: boolean | null;
-  documentUrl: string | null;
-  /** RFP only. */
-  techDocsUrl: string | null;
-}
-
-/** What `describeDibbsAwardIntelligence` returned for a prior award on this item. */
-export interface DibbsAwardContext {
-  awardNumber: string;
-  awardeeLegalBusinessName: string | null;
-  isOwnAward: boolean;
-  /** True when the numeric price is absent, whatever the display text says. */
-  priceIsUnknown: boolean;
-  /** The provider's own rendering, kept verbatim. May exist while the numeric price does not. */
-  totalContractPriceText: string | null;
-  awardDate: string | null;
-}
-
 const DOCUMENT_TYPE_LABELS: Readonly<Record<DibbsSolicitationFacts['documentType'], string>> = {
   rfq: 'DLA request for quote',
   rfp: 'DLA request for proposal',
 };
-
-/**
- * Quantity and unit as one phrase, or the reason there isn't one.
- *
- * Exported so the test asserts the same function the card renders, rather than
- * a re-implementation of the rule that could drift from it.
- */
-export function formatDibbsQuantity(facts: DibbsSolicitationFacts): string {
-  if (facts.documentType === 'rfp') return 'Not stated on a request for proposal';
-  if (facts.quantity == null || facts.quantity === '') return 'Not stated by the source';
-  // A quantity without its unit should be impossible; treated as unstated, not guessed.
-  if (facts.unitOfIssue == null || facts.unitOfIssue === '') return 'Not stated by the source';
-  return `${facts.quantity} ${facts.unitOfIssue}`;
-}
-
-/** The line-item identity, or an explicit statement that the provider gave none. */
-export function formatDibbsPartIdentity(facts: DibbsSolicitationFacts): string {
-  const parts: string[] = [];
-  if (facts.nsn) parts.push(`NSN ${facts.nsn}`);
-  if (facts.partNumber) parts.push(`Part ${facts.partNumber}`);
-  if (parts.length === 0) return 'No NSN or part number stated';
-  return parts.join(' · ');
-}
 
 export function DibbsOpportunityCard({
   facts,
