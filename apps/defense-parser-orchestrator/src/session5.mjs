@@ -339,7 +339,7 @@ function methodForPageClass(pageClass) {
 }
 
 export function buildInputManifest(batch) {
-  const records = batch.pages.map((page) => ({
+  const records = batch.pages.map((page) => page.providerPayload ?? ({
     schemaVersion: 'nvidia_batch_page_v1',
     batchId: batch.batchId,
     sourceDocumentId: batch.sourceDocumentId,
@@ -524,6 +524,7 @@ export class NvidiaBatchCoordinator {
         parserMethod: route.parserMethod,
         cacheKey,
         escalationReason: route.reason,
+        providerPayload: rawPage.providerPayload,
       };
       if (existing) cached.push({ ...page, artifact: existing });
       else selected.push(page);

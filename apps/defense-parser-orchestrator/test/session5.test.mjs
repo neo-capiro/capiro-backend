@@ -171,6 +171,20 @@ test('planning deduplicates immutable cached pages and emits deterministic JSONL
   assert.equal(JSON.parse(manifest.trim()).cacheKey, plan.batches[0].pages[0].cacheKey);
 });
 
+test('planning preserves a provider-native payload rather than sending internal provenance to NVIDIA', async () => {
+  const { ports, state } = createTestPorts();
+  const coordinator = new NvidiaBatchCoordinator(ports, config());
+  const providerPayload = {
+    model: 'nvidia/nemotron-parse',
+    messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: 'data:image/png;base64,AA==' } }] }],
+    max_tokens: 2000,
+  };
+  const plan = await coordinator.plan(request([{ ...complexPage(1), providerPayload }]));
+  await coordinator.submit(plan);
+  const manifest = state.manifests.get(plan.batches[0].batchId);
+  assert.deepEqual(JSON.parse(manifest.body.trim()), providerPayload);
+});
+
 test('submission enforces concurrency and hard monthly budget before starting GPU work', async () => {
   const { ports } = createTestPorts();
   const coordinator = new NvidiaBatchCoordinator(ports, config({ monthlyGpuBudgetUsd: 0 }));
