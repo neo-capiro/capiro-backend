@@ -13,7 +13,6 @@ import {
 export function buildProviderManifest(batch) {
   const records = [];
   const sidecarRecords = [];
-
   for (let index = 0; index < batch.pages.length; index += 1) {
     const page = batch.pages[index];
     if (!page.providerPayload || typeof page.providerPayload !== 'object') {
@@ -43,7 +42,6 @@ export function buildProviderManifest(batch) {
       escalationReason: page.escalationReason,
     });
   }
-
   const body = `${records.join('\n')}\n`;
   const sidecarWithoutHash = {
     schemaVersion: 'nvidia_batch_input_sidecar_v2',
@@ -58,7 +56,6 @@ export function buildProviderManifest(batch) {
     outputAccept: REAL_BATCH_OUTPUT_ACCEPT,
     records: sidecarRecords,
   };
-
   return Object.freeze({
     body,
     bodySha256: sha256Hex(body),
@@ -71,19 +68,11 @@ export function buildProviderManifest(batch) {
 
 export function parseJsonLines(text) {
   if (typeof text !== 'string') {
-    throw new Session5RefusalError(
-      'INVALID_PROVIDER_OUTPUT',
-      'Provider output must be text',
-    );
+    throw new Session5RefusalError('INVALID_PROVIDER_OUTPUT', 'Provider output must be text');
   }
-  const lines = text
-    .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0);
+  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (lines.length === 0) {
-    throw new Session5RefusalError(
-      'EMPTY_PROVIDER_OUTPUT',
-      'Provider output contains no records',
-    );
+    throw new Session5RefusalError('EMPTY_PROVIDER_OUTPUT', 'Provider output contains no records');
   }
   return lines.map((line, index) => {
     try {
@@ -104,7 +93,6 @@ function normalizeDetections(parsed) {
     value = value[0];
   }
   if (!Array.isArray(value)) value = [value];
-
   return value.map((entry, index) => {
     if (!entry || typeof entry !== 'object') {
       throw new Session5RefusalError(
@@ -167,20 +155,13 @@ export function extractNemotronMarkdownBBox(response) {
 export function normalizeProviderOutputJsonLines(input) {
   const sidecar = input.sidecar;
   if (!sidecar || sidecar.schemaVersion !== 'nvidia_batch_input_sidecar_v2') {
-    throw new Session5RefusalError(
-      'SIDECAR_REQUIRED',
-      'A v2 input sidecar is required',
-    );
+    throw new Session5RefusalError('SIDECAR_REQUIRED', 'A v2 input sidecar is required');
   }
   const sidecarWithoutHash = { ...sidecar };
   delete sidecarWithoutHash.contentSha256;
   if (sha256Hex(sidecarWithoutHash) !== sidecar.contentSha256) {
-    throw new Session5RefusalError(
-      'SIDECAR_HASH_MISMATCH',
-      'Input sidecar hash is invalid',
-    );
+    throw new Session5RefusalError('SIDECAR_HASH_MISMATCH', 'Input sidecar hash is invalid');
   }
-
   const lines = parseJsonLines(input.rawOutputText);
   if (lines.length !== sidecar.records.length) {
     throw new Session5RefusalError(
@@ -188,14 +169,10 @@ export function normalizeProviderOutputJsonLines(input) {
       `Provider returned ${lines.length} records for ${sidecar.records.length} input records`,
     );
   }
-
   const pages = lines.map((line, index) => {
     const record = sidecar.records[index];
     if (record.lineIndex !== index) {
-      throw new Session5RefusalError(
-        'SIDECAR_ORDER_MISMATCH',
-        'Sidecar line ordering is invalid',
-      );
+      throw new Session5RefusalError('SIDECAR_ORDER_MISMATCH', 'Sidecar line ordering is invalid');
     }
     if (record.actualParserMethod !== sidecar.parserMethod) {
       throw new Session5RefusalError(
@@ -204,10 +181,7 @@ export function normalizeProviderOutputJsonLines(input) {
       );
     }
     const blocks = extractNemotronMarkdownBBox(line.value);
-    const markdown = blocks
-      .map((block) => block.text)
-      .filter(Boolean)
-      .join('\n\n');
+    const markdown = blocks.map((block) => block.text).filter(Boolean).join('\n\n');
     const withoutHash = {
       schemaVersion: 'nvidia_normalized_page_artifact_v2',
       sourceDocumentId: sidecar.sourceDocumentId,
@@ -243,7 +217,6 @@ export function normalizeProviderOutputJsonLines(input) {
       contentSha256: sha256Hex(withoutHash),
     });
   });
-
   const outputWithoutHash = {
     schemaVersion: 'nvidia_normalized_batch_artifact_v2',
     batchId: sidecar.batchId,
@@ -259,32 +232,31 @@ export function normalizeProviderOutputJsonLines(input) {
 
 export function verifyNormalizedPageArtifact(artifact, expected) {
   if (!artifact || artifact.schemaVersion !== 'nvidia_normalized_page_artifact_v2') {
-    throw new Session5RefusalError(
-      'INVALID_CACHE_ARTIFACT',
-      'Cached page artifact is not v2',
-    );
+    throw new Session5RefusalError('INVALID_CACHE_ARTIFACT', 'Cached page artifact is not v2');
   }
   const withoutHash = { ...artifact };
   delete withoutHash.contentSha256;
   if (sha256Hex(withoutHash) !== artifact.contentSha256) {
-    throw new Session5RefusalError(
-      'CACHE_HASH_MISMATCH',
-      'Cached artifact content hash is invalid',
-    );
+    throw new Session5RefusalError('CACHE_HASH_MISMATCH', 'Cached artifact content hash is invalid');
   }
   const actualIdentity = buildLivePageIdentity(artifact);
-  const expectedIdentity = buildLivePageIdentity(expected);
+  const expectedIdentity = buildLivePageIdentity({
+    ...expected,
+    requestedParserMethod:
+      expected.requestedParserMethod ?? artifact.requestedParserMethod,
+  });
   if (canonicalJson(actualIdentity) !== canonicalJson(expectedIdentity)) {
-    throw new Session5RefusalError(
-      'CACHE_IDENTITY_MISMATCH',
-      'Cached artifact identity is stale',
-    );
+    throw new Session5RefusalError('CACHE_IDENTITY_MISMATCH', 'Cached artifact identity is stale');
   }
-  if (artifact.cacheKey !== buildLivePageCacheKey(expected)) {
-    throw new Session5RefusalError(
-      'CACHE_KEY_MISMATCH',
-      'Cached artifact key is inconsistent',
-    );
+  if (
+    artifact.cacheKey !==
+    buildLivePageCacheKey({
+      ...expected,
+      requestedParserMethod:
+        expected.requestedParserMethod ?? artifact.requestedParserMethod,
+    })
+  ) {
+    throw new Session5RefusalError('CACHE_KEY_MISMATCH', 'Cached artifact key is inconsistent');
   }
   return artifact;
 }
