@@ -1,0 +1,199 @@
+{
+  "schemaVersion": "phase8_session5_corpus_review_ledger_v1",
+  "sourceBranchBaseSha": "9ca4ce81c89b50554b51a23f6a3d9fa22d6e349e",
+  "reviewedAt": "2026-08-19T00:00:00Z",
+  "requiredStrata": [
+    "r1_zero_native_tables",
+    "r2_identity_banner",
+    "r2a_project_cost_table",
+    "scanned_image_only",
+    "navy_ba6_duplicate_flattening",
+    "p1_table",
+    "o1_op5_table",
+    "defense_wide_volume"
+  ],
+  "model": {
+    "modelPackageArn": "arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587",
+    "modelName": "nemotron-parse",
+    "modelVersion": "LLM NIM 1.14 and VLM NIM version 1.5.0",
+    "parserOptionsHash": null
+  },
+  "entries": [
+    {
+      "id": "fy27-r1-army-pe-0601102a-p10",
+      "stratum": "r1_zero_native_tables",
+      "pageClass": "complex_table",
+      "status": "accepted",
+      "evidencePath": "docs/defense-budget/session5-gold-evidence/fy27-r1-army-pe-0601102a-p10.json",
+      "sourceSummary": {
+        "sourcePdfSha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+        "physicalPage": 10,
+        "printedPage": "5"
+      },
+      "blockers": []
+    },
+    {
+      "id": "fy27-army-r2-pe-0601102a-p34",
+      "stratum": "r2_identity_banner",
+      "pageClass": "identity_banner",
+      "status": "accepted",
+      "evidencePath": "docs/defense-budget/session5-gold-evidence/fy27-army-r2-pe-0601102a-p34.json",
+      "sourceSummary": {
+        "sourcePdfSha256": "02f719c0d9d528284a70ec84b5e90e1a6a2008ebc5f610a56236db0a10e112c0",
+        "physicalPage": 34,
+        "printedPage": "Army Page 2 of 69 / Volume 1a-2"
+      },
+      "blockers": []
+    },
+    {
+      "id": "fy27-army-r2a-pe-0601102a-aa4-p54",
+      "stratum": "r2a_project_cost_table",
+      "pageClass": "complex_table",
+      "status": "accepted",
+      "evidencePath": "docs/defense-budget/session5-gold-evidence/fy27-army-r2a-pe-0601102a-aa4-p54.json",
+      "sourceSummary": {
+        "sourcePdfSha256": "02f719c0d9d528284a70ec84b5e90e1a6a2008ebc5f610a56236db0a10e112c0",
+        "physicalPage": 54,
+        "printedPage": "Army Page 22 of 69 / Volume 1a-22"
+      },
+      "blockers": []
+    },
+    {
+      "id": "fy27-scanned-useful-page-unresolved",
+      "stratum": "scanned_image_only",
+      "pageClass": "scanned_image",
+      "status": "blocked",
+      "evidencePath": null,
+      "candidate": null,
+      "blockers": [
+        {
+          "code": "NO_USEFUL_SCANNED_GOLD",
+          "message": "The accepted first-real-cycle audit found only blank/scanned front matter with zero funding data; no useful FY27 image-only page has source-grounded gold."
+        },
+        {
+          "code": "RAW_CORPUS_NOT_MOUNTED",
+          "message": "The 65-PDF local FY27 corpus and audit artifacts are not present in this repository or connected file library for a fresh page-level review."
+        }
+      ]
+    },
+    {
+      "id": "fy27-navy-ba6-duplicate-flattening-unresolved",
+      "stratum": "navy_ba6_duplicate_flattening",
+      "pageClass": "complex_table",
+      "status": "blocked",
+      "evidencePath": null,
+      "candidate": {
+        "sourceDocumentId": "fy2027-r1",
+        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/FY2027_r1.pdf",
+        "sourcePdfSha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+        "physicalPage": 36,
+        "printedPage": "31",
+        "excerpt": "191 0605853N Management, Technical & International Support 06 U ... 124,898 124,898"
+      },
+      "blockers": [
+        {
+          "code": "CONFLICTING_PROVENANCE_ROLES",
+          "message": "The accepted audit found 81 conflicting Navy BA6 PE/FY/field triples caused by R-1, R-2, and executive-summary values being flattened without provenance roles."
+        },
+        {
+          "code": "COMPANION_SOURCE_BYTES_REQUIRED",
+          "message": "The conflicting R-2 and executive-summary source bytes and audit records are required before one source role can be accepted as gold."
+        }
+      ]
+    },
+    {
+      "id": "fy27-p1-army-aircraft-candidate",
+      "stratum": "p1_table",
+      "pageClass": "complex_table",
+      "status": "blocked",
+      "evidencePath": null,
+      "candidate": {
+        "sourceDocumentId": "fy2027-p1",
+        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/FY2027_p1.pdf",
+        "sourcePdfSha256": null,
+        "physicalPage": 15,
+        "printedPage": "10",
+        "excerpt": "2031A Detail; Budget Activity 01: Aircraft; line-item rows including MQ-1 UAV, Future UAS Family, and Small Unmanned Aircraft Systems."
+      },
+      "blockers": [
+        {
+          "code": "SOURCE_PDF_SHA_REQUIRED",
+          "message": "The official P-1 page was reviewed, but the exact source PDF bytes are not available in the working environment to compute and retain the required SHA-256."
+        },
+        {
+          "code": "NORMALIZED_GOLD_REQUIRED",
+          "message": "The split left/right P-1 table layout needs an accepted normalized row-to-FY27 association before exact line money can become gold."
+        }
+      ]
+    },
+    {
+      "id": "fy27-o1-army-cyberspace-candidate",
+      "stratum": "o1_op5_table",
+      "pageClass": "complex_table",
+      "status": "blocked",
+      "evidencePath": null,
+      "candidate": {
+        "sourceDocumentId": "fy2027-o1",
+        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/FY2027_o1.pdf",
+        "sourcePdfSha256": null,
+        "physicalPage": 10,
+        "printedPage": "5",
+        "excerpt": "2020A 200 151 Cyberspace Activities - Cyberspace Operations ... FY 2027 total 366,311 (thousands)."
+      },
+      "blockers": [
+        {
+          "code": "SOURCE_PDF_SHA_REQUIRED",
+          "message": "The official O-1 page was reviewed, but exact source PDF bytes are unavailable in the working environment to compute the required SHA-256."
+        },
+        {
+          "code": "ACCEPTED_NORMALIZED_ARTIFACT_REQUIRED",
+          "message": "No accepted O-1/OP-5 normalized artifact is retained in the branch or connected library."
+        }
+      ]
+    },
+    {
+      "id": "fy27-defense-wide-ussocom-candidate",
+      "stratum": "defense_wide_volume",
+      "pageClass": "mixed_visual_layout",
+      "status": "blocked",
+      "evidencePath": null,
+      "candidate": {
+        "sourceDocumentId": "fy2027-defense-wide-om-volume1-part1",
+        "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/budget_justification/pdfs/01_Operation_and_Maintenance/O_M_VOL_1_PART_1/OM_Volume1_Part1.pdf",
+        "sourcePdfSha256": null,
+        "physicalPage": 788,
+        "printedPage": "USSOCOM 784",
+        "excerpt": "USSOCOM FY 2027 Request 10,891,050 (thousands); page describes SAG 1PL6 Combat Development Activities."
+      },
+      "blockers": [
+        {
+          "code": "SOURCE_PDF_SHA_REQUIRED",
+          "message": "The official Defense-Wide volume page was reviewed, but exact source bytes are unavailable to compute the required SHA-256."
+        },
+        {
+          "code": "ACCEPTED_PAGE_ASSERTION_PACKAGE_REQUIRED",
+          "message": "A source-hash-bound page assertion package and second-pass review are still required."
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "requiredStrataCount": 8,
+    "acceptedStrataCount": 3,
+    "blockedStrataCount": 5,
+    "acceptedStrata": [
+      "r1_zero_native_tables",
+      "r2_identity_banner",
+      "r2a_project_cost_table"
+    ],
+    "blockedStrata": [
+      "scanned_image_only",
+      "navy_ba6_duplicate_flattening",
+      "p1_table",
+      "o1_op5_table",
+      "defense_wide_volume"
+    ],
+    "liveCorpusReady": false
+  },
+  "contentSha256": "0876aece9d5da0e6165c3a866ece1ef0880a027fb31e4a44eb245162686c008a"
+}
