@@ -191,6 +191,18 @@ Read-only checks against the intended benchmark account established:
 
 No CDK deployment, SageMaker model creation, transform submission, provider invocation, or paid GPU operation was attempted. The local Docker Desktop Linux engine is unavailable, preventing no-cache image and disposable-DB reruns on this host.
 
+## Spend authorization — 2026-08-18
+
+Neo authorized **USD 150** as the hard total incremental AWS/NVIDIA cap for Session 5, with an initial benchmark target of **no more than USD 50**. This is now the sole approved budget authority:
+
+- `NVIDIA_MONTHLY_GPU_BUDGET_USD=150`
+- initial planned submissions must total no more than USD 50
+- `NVIDIA_MAX_CONCURRENT_GPU_JOBS=1`
+- `NVIDIA_ROUTING_MODE=benchmark`
+- `NVIDIA_BENCHMARK_ACCEPTED=false`
+
+The Marketplace listing discovered for the required product is `nemotron-parse` by NVIDIA, delivered as an Amazon SageMaker model, latest listing version `LLM NIM 1.14 and VLM NIM version 1.5.0`. Its public listing shows `ml.g5.2xlarge` Batch inference at USD 1.00/host-hour. The listing is **not** an account-specific approved model package; this account still has no MachineLearningProduct acceptance and no SageMaker model package. The approval therefore does not permit deployment or submission until the exact accepted, version-pinned ARN is retrievable in account `967807252336` / `us-east-1`.
+
 ## Remaining blocker
 
 A true `SESSION5_COMPLETE` verdict requires real provider evidence. Specifically:

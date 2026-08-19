@@ -44,7 +44,7 @@ Read-only AWS checks were run as `arn:aws:iam::967807252336:user/capirocli` in `
 - The existing account-wide monthly budget is USD 500, but it is not a Session 5-approved hard GPU cap. Its observed month-to-date spend is USD 1,421.283 and forecast is USD 2,728.831, so it cannot be repurposed or treated as authority for a paid benchmark.
 - Docker Desktop's Linux engine is unavailable on this host, so Docker/no-cache image and disposable-DB gates cannot be rerun locally until the daemon is available.
 
-This establishes a hard pre-spend stop: no usable approved, version-pinned NVIDIA Nemotron Parse Marketplace model-package ARN exists in the actual target account/region, and no explicit Session 5 GPU spend cap has been approved. No CDK deployment or SageMaker job submission was attempted.
+This established a hard pre-spend stop at the time. On 2026-08-18 Neo subsequently authorized a USD 150 hard incremental AWS/NVIDIA ceiling, with an initial benchmark target of no more than USD 50; the runtime must retain `NVIDIA_MAX_CONCURRENT_GPU_JOBS=1`, `NVIDIA_ROUTING_MODE=benchmark`, and `NVIDIA_BENCHMARK_ACCEPTED=false`. The approved spend ceiling removes only the budget blocker. No CDK deployment or SageMaker job submission has been attempted because a usable account/region-specific, version-pinned NVIDIA Marketplace model package is still absent.
 
 ## Current verdict
 

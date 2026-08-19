@@ -9,6 +9,14 @@
   "modelName": "nemotron-parse",
   "modelVersion": null,
   "parserOptionsHash": null,
+  "spendControls": {
+    "currency": "USD",
+    "hardTotalIncrementalCapUsd": 150,
+    "initialBenchmarkTargetCapUsd": 50,
+    "maxConcurrentGpuJobs": 1,
+    "routingMode": "benchmark",
+    "benchmarkAccepted": false
+  },
   "requiredStrata": [
     {
       "id": "r1_zero_native_tables",
