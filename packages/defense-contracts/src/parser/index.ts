@@ -47,7 +47,13 @@ export interface DefenseSourcePage {
 export interface DefenseExactValue {
   /** Exact decimal text from the source. Never a floating-point parse artifact. */
   readonly value: string;
-  readonly unit: 'dollars' | 'thousands' | 'millions' | 'quantity' | 'percent' | 'unknown';
+  readonly unit:
+    | 'dollars'
+    | 'thousands'
+    | 'millions'
+    | 'quantity'
+    | 'percent'
+    | 'unknown';
   readonly printedText: string;
 }
 
@@ -97,3 +103,4 @@ export interface DefenseParserJobResult {
 }
 
 export * from './nvidia-batch.js';
+export * from './nvidia-real-batch.js';
