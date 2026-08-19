@@ -272,7 +272,22 @@ const ACCEPTED_FINDINGS = [
   'CVE-2026-7017',
   'CVE-2026-48959',
   'CVE-2026-57432',
-].map((name) => ({ name, packageName: 'perl' }));
+].map((name) => ({ name, packageName: 'perl' }))
+  // Reviewed 2026-08-19: CVE-2026-14456 (openssl, HIGH, CVSS 7.5) is an unbounded
+  // pending-channel queue in OpenSSL's QUIC *server* listener. The advisory states
+  // the issue "is present since OpenSSL 3.5 when the QUIC server implementation
+  // was added"; this image ships openssl 3.0.20-1~deb12u2, and the 3.0.x branch
+  // carries no QUIC server implementation at all, so the vulnerable code is not
+  // present in the shipped binary. It is additionally unreachable by design:
+  // engagement-api is a Nest HTTP service behind capiro-prod-alb, serves no
+  // QUIC/HTTP-3, and node's TLS never constructs OpenSSL QUIC Listener objects.
+  // Impact is availability-only (CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H) --
+  // no confidentiality or integrity effect. ECR reports no fixed_in_version and
+  // the runtime stage already runs `apt-get upgrade -y`, so the image carries the
+  // newest openssl Debian bookworm publishes; there is no patch to take. Exact
+  // CVE ID + package match only: any other openssl finding, or a new CVE against
+  // openssl, still fails the gate.
+  .concat([{ name: 'CVE-2026-14456', packageName: 'openssl' }]);
 
 const packageNameOf = (finding) =>
   (finding.attributes ?? []).find((a) => a.key === 'package_name')?.value;
