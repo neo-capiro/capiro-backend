@@ -5,6 +5,7 @@ import {
   createClientFacility,
   deleteClientFacility,
   getClientFacilities,
+  resolveClientFacilityDistrict,
   updateClientFacility,
   DISTRICT_PATTERN,
   GEOCODE_STATUS_LABEL,
@@ -106,6 +107,10 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
     // The shared key — District Nexus and the Overview pulse read this too.
     queryKey: ['client-facilities', clientId],
     queryFn: () => getClientFacilities(api, clientId),
+    // Geocoding is intentionally asynchronous. Keep the source/status visible
+    // while the backend works, then stop polling as soon as it settles.
+    refetchInterval: (query) =>
+      query.state.data?.some(isFacilityResolutionPending) ? 2000 : false,
   });
   const facilities = facilitiesQ.data ?? [];
 
@@ -119,10 +124,24 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
 
   const save = useMutation({
     mutationFn: ({ id, payload }: { id: string | null; payload: FacilityPayload }) =>
-      id ? updateClientFacility(api, clientId, id, payload) : createClientFacility(api, clientId, payload),
+      id
+        ? updateClientFacility(api, clientId, id, payload)
+        : createClientFacility(api, clientId, payload),
     onSuccess: (_facility, { id }) => {
       toast.success(id ? 'Facility updated' : 'Facility added');
       setEditing(null);
+      invalidate();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  const resolve = useMutation({
+    mutationFn: (id: string) => resolveClientFacilityDistrict(api, clientId, id),
+    onSuccess: (facility) => {
+      qc.setQueryData<ClientFacility[]>(['client-facilities', clientId], (current) =>
+        current?.map((item) => (item.id === facility.id ? facility : item)),
+      );
+      toast.success('District resolution requested');
       invalidate();
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -141,8 +160,9 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
   return (
     <div className="capiro-facmod">
       <p className="capiro-facmod__hint">
-        Facilities are what give this client a congressional footprint — each one’s state and district
-        drive District Nexus, representative matching, and every district-based recommendation.
+        Facilities are what give this client a congressional footprint — each one’s state and
+        district drive District Nexus, representative matching, and every district-based
+        recommendation.
       </p>
 
       {facilitiesQ.isLoading ? (
@@ -150,7 +170,11 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
       ) : facilitiesQ.isError ? (
         <div className="capiro-facmod__error">
           <span>Could not load facilities.</span>
-          <CapiroButton variant="secondary" size="compact" onClick={() => void facilitiesQ.refetch()}>
+          <CapiroButton
+            variant="secondary"
+            size="compact"
+            onClick={() => void facilitiesQ.refetch()}
+          >
             Retry
           </CapiroButton>
         </div>
@@ -166,6 +190,7 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
                 <li key={facility.id} className="capiro-facmod__row is-editing">
                   <FacilityForm
                     initial={draftOf(facility)}
+                    resolution={facility}
                     saving={save.isPending}
                     onCancel={() => setEditing(null)}
                     onSubmit={(payload) => save.mutate({ id: facility.id, payload })}
@@ -176,8 +201,17 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
                   <span className="capiro-facmod__who">
                     <span className="capiro-facmod__name">{facility.name}</span>
                     <span className="capiro-facmod__meta">{facilityMeta(facility)}</span>
+                    <FacilityResolutionSummary
+                      facility={facility}
+                      resolving={resolve.isPending && resolve.variables === facility.id}
+                      onResolve={() => resolve.mutate(facility.id)}
+                    />
                   </span>
-                  <CapiroButton variant="secondary" size="compact" onClick={() => setEditing(facility.id)}>
+                  <CapiroButton
+                    variant="secondary"
+                    size="compact"
+                    onClick={() => setEditing(facility.id)}
+                  >
                     Edit
                   </CapiroButton>
                   <button
@@ -225,8 +259,8 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
         onClose={() => setConfirmDelete(null)}
       >
         <p className="capiro-facmod__confirm">
-          Remove <strong>{confirmDelete?.name}</strong>? Its district contribution disappears from this
-          client’s footprint.
+          Remove <strong>{confirmDelete?.name}</strong>? Its district contribution disappears from
+          this client’s footprint.
         </p>
         <div className="capiro-facmod__footer">
           <span className="capiro-facmod__spacer" />
@@ -247,6 +281,109 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
   );
 }
 
+type ResolutionTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
+
+type FacilityResolutionState = {
+  source: string;
+  sourceTone: ResolutionTone;
+  geocoder: string;
+  geocoderTone: ResolutionTone;
+};
+
+function isFacilityResolutionPending(facility: ClientFacility): boolean {
+  return facility.geocodeStatus === 'pending';
+}
+
+function isManualFacility(facility: ClientFacility): boolean {
+  return facility.districtSource === 'user' || facility.districtSource === 'manual';
+}
+
+function facilityResolutionState(facility: ClientFacility): FacilityResolutionState {
+  const status = facility.geocodeStatus;
+  const manual = isManualFacility(facility);
+  const source = manual
+    ? { label: 'Manual', tone: 'warning' as const }
+    : status === 'pending'
+      ? { label: 'Pending', tone: 'info' as const }
+      : status === 'ambiguous'
+        ? { label: 'Ambiguous', tone: 'warning' as const }
+        : status === 'error'
+          ? { label: 'Error', tone: 'danger' as const }
+          : status === 'no_match'
+            ? { label: 'Unresolved', tone: 'warning' as const }
+            : facility.districtSource === 'geocoded' ||
+                facility.districtSource === 'geocoder' ||
+                status === 'matched'
+              ? { label: 'Automatic', tone: 'success' as const }
+              : facility.congressionalDistrict
+                ? { label: 'Manual', tone: 'warning' as const }
+                : { label: 'Unresolved', tone: 'warning' as const };
+
+  const geocoder =
+    status === 'matched'
+      ? { label: 'Matched', tone: 'success' as const }
+      : status === 'no_match'
+        ? { label: 'No match', tone: 'warning' as const }
+        : status === 'pending'
+          ? { label: 'Pending', tone: 'info' as const }
+          : status === 'ambiguous'
+            ? { label: 'Ambiguous', tone: 'warning' as const }
+            : status === 'error'
+              ? { label: 'Error', tone: 'danger' as const }
+              : { label: 'Not run', tone: 'neutral' as const };
+
+  return {
+    source: source.label,
+    sourceTone: source.tone,
+    geocoder: geocoder.label,
+    geocoderTone: geocoder.tone,
+  };
+}
+
+function canResolveFacility(facility: ClientFacility): boolean {
+  if (
+    isFacilityResolutionPending(facility) ||
+    (isManualFacility(facility) && Boolean(facility.congressionalDistrict))
+  ) {
+    return false;
+  }
+  return (
+    !facility.congressionalDistrict ||
+    ['no_match', 'ambiguous', 'error'].includes(facility.geocodeStatus ?? '')
+  );
+}
+
+function FacilityResolutionSummary({
+  facility,
+  resolving,
+  onResolve,
+}: {
+  facility: ClientFacility;
+  resolving: boolean;
+  onResolve?: () => void;
+}) {
+  const state = facilityResolutionState(facility);
+  return (
+    <span className="capiro-facmod__resolution" aria-label={`District resolution: ${state.source}`}>
+      <span className={`capiro-facmod__source capiro-facmod__source--${state.sourceTone}`}>
+        Source: {state.source}
+      </span>
+      <span className={`capiro-facmod__geocoder capiro-facmod__geocoder--${state.geocoderTone}`}>
+        Geocoder: {state.geocoder}
+      </span>
+      {facility.stateHouseDistrict ? <span>State House {facility.stateHouseDistrict}</span> : null}
+      {facility.stateSenateDistrict ? (
+        <span>State Senate {facility.stateSenateDistrict}</span>
+      ) : null}
+      {canResolveFacility(facility) && onResolve ? (
+        <CapiroButton variant="quiet" size="compact" loading={resolving} onClick={onResolve}>
+          Resolve district
+        </CapiroButton>
+      ) : null}
+    </span>
+  );
+}
+
 /** "Seattle, WA · WA-07 · 240 employees · Geocoded" — every part omitted when absent. */
 function facilityMeta(facility: ClientFacility): string {
   const district = formatFacilityDistrict(facility.state, facility.congressionalDistrict);
@@ -254,7 +391,9 @@ function facilityMeta(facility: ClientFacility): string {
   const parts = [
     place || null,
     district || null,
-    facility.employeeCount != null ? `${facility.employeeCount.toLocaleString('en-US')} employees` : null,
+    facility.employeeCount != null
+      ? `${facility.employeeCount.toLocaleString('en-US')} employees`
+      : null,
     facility.geocodeStatus ? (GEOCODE_STATUS_LABEL[facility.geocodeStatus] ?? null) : null,
   ].filter(Boolean);
   return parts.length ? parts.join(' · ') : 'No location recorded';
@@ -262,11 +401,13 @@ function facilityMeta(facility: ClientFacility): string {
 
 function FacilityForm({
   initial,
+  resolution,
   saving,
   onCancel,
   onSubmit,
 }: {
   initial: Draft;
+  resolution?: ClientFacility;
   saving: boolean;
   onCancel: () => void;
   onSubmit: (payload: FacilityPayload) => void;
@@ -345,6 +486,12 @@ function FacilityForm({
         submit();
       }}
     >
+      {resolution ? (
+        <div className="capiro-facmod__edit-resolution">
+          <span className="capiro-facmod__label">Current district resolution</span>
+          <FacilityResolutionSummary facility={resolution} resolving={false} />
+        </div>
+      ) : null}
       <div className="capiro-facmod__grid">
         <div className="capiro-facmod__span2">
           <CapiroInput

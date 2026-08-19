@@ -1,5 +1,7 @@
 import {
   computeFacilityGeocode,
+  facilityAddressHash,
+  normalizedFacilityAddress,
   STATE_DISTRICT_MAX_LEN,
   type FacilityGeocodeInput,
 } from './facility-geocode.util.js';
@@ -36,6 +38,20 @@ const MATCHED = {
   matchedAddress: 'x',
 };
 
+describe('facility address identity', () => {
+  it('normalizes harmless whitespace/case differences to one stable hash', () => {
+    const a = {
+      addressLine: ' 400  S Monroe St ',
+      city: ' Tallahassee',
+      state: 'fl',
+      zip: '32301 ',
+    };
+    const b = { addressLine: '400 S Monroe St', city: 'Tallahassee', state: 'FL', zip: '32301' };
+    expect(normalizedFacilityAddress(a)).toBe(normalizedFacilityAddress(b));
+    expect(facilityAddressHash(a)).toBe(facilityAddressHash(b));
+  });
+});
+
 describe('computeFacilityGeocode', () => {
   beforeEach(() => geocodeAddress.mockReset());
 
@@ -51,6 +67,7 @@ describe('computeFacilityGeocode', () => {
       stateSenateDistrict: '3',
       geocodedAt: expect.any(Date),
       geocodeStatus: 'matched',
+      geocodeInputHash: expect.any(String),
     });
     expect(out.status).toBe('matched');
     expect(out.discrepancy).toBeNull();
@@ -72,7 +89,7 @@ describe('computeFacilityGeocode', () => {
     expect(out.update).toBeNull();
   });
 
-  it('a hand-entered district that disagrees with the geocode is OVERWRITTEN (geocoded wins) but logged as a discrepancy', async () => {
+  it('a hand-entered district that disagrees with the geocode is preserved but logged as a discrepancy', async () => {
     geocodeAddress.mockResolvedValue(MATCHED);
     const handEntered: FacilityGeocodeInput = {
       ...BASE,
@@ -80,8 +97,8 @@ describe('computeFacilityGeocode', () => {
       districtSource: 'user',
     };
     const out = await computeFacilityGeocode(handEntered);
-    expect(out.update?.congressionalDistrict).toBe('02');
-    expect(out.update?.districtSource).toBe('geocoded');
+    expect(out.update?.congressionalDistrict).toBeUndefined();
+    expect(out.update?.districtSource).toBeUndefined();
     expect(out.discrepancy).toEqual({ handEntered: '05', geocoded: '02' });
   });
 
@@ -141,6 +158,7 @@ describe('computeFacilityGeocode', () => {
       stateSenateDistrict: '3',
       geocodedAt: expect.any(Date),
       geocodeStatus: 'no_match',
+      geocodeInputHash: expect.any(String),
     });
   });
 
@@ -154,7 +172,11 @@ describe('computeFacilityGeocode', () => {
       stateSenateDistrict: null,
       matchedAddress: null,
     });
-    const alreadyNoMatch: FacilityGeocodeInput = { ...BASE, geocodeStatus: 'no_match' };
+    const alreadyNoMatch: FacilityGeocodeInput = {
+      ...BASE,
+      geocodeStatus: 'no_match',
+      geocodeInputHash: '81695fafda34cc10f93731f80b4faeaf',
+    };
     const out = await computeFacilityGeocode(alreadyNoMatch);
     expect(out.update).toBeNull();
   });
@@ -163,7 +185,7 @@ describe('computeFacilityGeocode', () => {
     const empty: FacilityGeocodeInput = { ...BASE, addressLine: null };
     const out = await computeFacilityGeocode(empty);
     expect(geocodeAddress).not.toHaveBeenCalled();
-    expect(out.update).toBeNull();
+    expect(out.update).toEqual(expect.objectContaining({ geocodeInputHash: expect.any(String) }));
     expect(out.status).toBe('no_match');
   });
 

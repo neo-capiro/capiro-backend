@@ -8,7 +8,11 @@
  * would change (M1-C), so a re-run only touches rows whose resolved geocode
  * actually differs from what's stored.
  */
-import { geocodeAddress, type GeocodeStatus } from '../external/census-geocoder/census-geocoder.client.js';
+import { createHash } from 'node:crypto';
+import {
+  geocodeAddress,
+  type GeocodeStatus,
+} from '../external/census-geocoder/census-geocoder.client.js';
 import { normalizeDistrictCode } from './district-code.util.js';
 
 /**
@@ -17,6 +21,21 @@ import { normalizeDistrictCode } from './district-code.util.js';
  * of a value whose length we do not control — the Census layer BASENAME.
  */
 export const STATE_DISTRICT_MAX_LEN = 64;
+
+/** The canonical address identity shared by inline resolution and the backfill job. */
+export function normalizedFacilityAddress(
+  f: Pick<FacilityGeocodeInput, 'addressLine' | 'city' | 'state' | 'zip'>,
+): string {
+  return [f.addressLine, f.city, f.state, f.zip]
+    .map((value) => (value ?? '').trim().toLowerCase().replace(/\s+/g, ' '))
+    .join('|');
+}
+
+export function facilityAddressHash(
+  f: Pick<FacilityGeocodeInput, 'addressLine' | 'city' | 'state' | 'zip'>,
+): string {
+  return createHash('md5').update(normalizedFacilityAddress(f)).digest('hex');
+}
 
 /**
  * Clamp a Census state-legislative BASENAME to the column width.
@@ -53,6 +72,7 @@ export interface FacilityGeocodeInput {
   latitude: number | null;
   longitude: number | null;
   geocodeStatus: string | null;
+  geocodeInputHash?: string | null;
 }
 
 export interface FacilityGeocodeUpdate {
@@ -64,6 +84,7 @@ export interface FacilityGeocodeUpdate {
   stateSenateDistrict: string | null;
   geocodedAt: Date;
   geocodeStatus: GeocodeStatus;
+  geocodeInputHash: string;
 }
 
 export interface FacilityGeocodeOutcome {
@@ -84,16 +105,35 @@ function hasGeocodableAddress(f: FacilityGeocodeInput): boolean {
  * network/API failure resolves to `status: 'error'` with no update, so a
  * transient outage never corrupts a previously-good district.
  */
-export async function computeFacilityGeocode(f: FacilityGeocodeInput): Promise<FacilityGeocodeOutcome> {
+export async function computeFacilityGeocode(
+  f: FacilityGeocodeInput,
+): Promise<FacilityGeocodeOutcome> {
+  const geocodeInputHash = facilityAddressHash(f);
   if (!hasGeocodableAddress(f)) {
-    return { update: null, status: 'no_match', discrepancy: null };
+    return {
+      update:
+        f.geocodeInputHash === geocodeInputHash
+          ? null
+          : {
+              latitude: f.latitude,
+              longitude: f.longitude,
+              stateHouseDistrict: f.stateHouseDistrict,
+              stateSenateDistrict: f.stateSenateDistrict,
+              geocodedAt: new Date(),
+              geocodeStatus: 'no_match',
+              geocodeInputHash,
+            },
+      status: 'no_match',
+      discrepancy: null,
+    };
   }
   const result = await geocodeAddress(f.addressLine!, f.city!, f.state!, f.zip ?? '');
   if (result.status !== 'matched') {
     // Record the attempt (status) but never clobber a previously-good
     // district/lat-lng with nulls on a transient no_match/ambiguous/error —
     // only write status + timestamp so the UI can show "last attempt failed".
-    const statusChanged = f.geocodeStatus !== result.status;
+    const statusChanged =
+      f.geocodeStatus !== result.status || f.geocodeInputHash !== geocodeInputHash;
     return {
       update: statusChanged
         ? {
@@ -103,6 +143,7 @@ export async function computeFacilityGeocode(f: FacilityGeocodeInput): Promise<F
             stateSenateDistrict: f.stateSenateDistrict,
             geocodedAt: new Date(),
             geocodeStatus: result.status,
+            geocodeInputHash,
           }
         : null,
       status: result.status,
@@ -119,7 +160,8 @@ export async function computeFacilityGeocode(f: FacilityGeocodeInput): Promise<F
     f.congressionalDistrict &&
     result.congressionalDistrict &&
     f.districtSource !== 'geocoded' &&
-    normalizeDistrictCode(f.congressionalDistrict) !== normalizeDistrictCode(result.congressionalDistrict)
+    normalizeDistrictCode(f.congressionalDistrict) !==
+      normalizeDistrictCode(result.congressionalDistrict)
       ? { handEntered: f.congressionalDistrict, geocoded: result.congressionalDistrict }
       : null;
 
@@ -135,6 +177,7 @@ export async function computeFacilityGeocode(f: FacilityGeocodeInput): Promise<F
     f.stateHouseDistrict === stateHouseDistrict &&
     f.stateSenateDistrict === stateSenateDistrict &&
     f.geocodeStatus === 'matched' &&
+    (f.geocodeInputHash == null || f.geocodeInputHash === geocodeInputHash) &&
     (f.congressionalDistrict === result.congressionalDistrict || f.districtSource !== 'geocoded');
   if (unchanged) {
     return { update: null, status: 'matched', discrepancy };
@@ -144,17 +187,17 @@ export async function computeFacilityGeocode(f: FacilityGeocodeInput): Promise<F
     update: {
       latitude: result.latitude,
       longitude: result.longitude,
-      // Keep the geocoded value even over a disagreeing hand-entry (PD1/M1.2:
-      // "keep the geocoded value but log the discrepancy") — but never
-      // overwrite it if this specific facility's district is missing from the
-      // geocode result (a partial match keeps whatever federal district it had).
-      ...(result.congressionalDistrict
+      // Preserve an explicit manual congressional-district correction. The
+      // geocoder still refreshes coordinates/state districts, but it must not
+      // silently replace a user decision made in the profile editor.
+      ...(result.congressionalDistrict && !(f.districtSource === 'user' && f.congressionalDistrict)
         ? { congressionalDistrict: result.congressionalDistrict, districtSource: 'geocoded' }
         : {}),
       stateHouseDistrict,
       stateSenateDistrict,
       geocodedAt: new Date(),
       geocodeStatus: 'matched',
+      geocodeInputHash,
     },
     status: 'matched',
     discrepancy,

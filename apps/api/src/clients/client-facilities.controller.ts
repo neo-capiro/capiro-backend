@@ -218,6 +218,15 @@ export class ClientFacilitiesController {
     return this.service.updateFacility(ctx, clientId, id, body);
   }
 
+  @Post(':id/resolve-district')
+  resolveFacilityDistrict(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('id') id: string,
+  ) {
+    return this.service.resolveFacilityDistrict(ctx, clientId, id);
+  }
+
   @Delete(':id')
   deleteFacility(
     @CurrentTenant() ctx: TenantContext,

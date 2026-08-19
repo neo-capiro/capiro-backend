@@ -2,9 +2,9 @@
  * Geocode client facilities — District Impact Engine (Phase 1 M1.2). GLOBAL
  * (cross-tenant scan; each row's write re-scopes to its own tenant).
  *
- * Scans `client_facilities` where `geocoded_at IS NULL OR updated_at >
- * geocoded_at` (never-geocoded, or the address changed since the last
- * geocode), resolves each via the free/keyless Census Geocoder
+ * Scans `client_facilities` where `geocode_input_hash` is null or differs
+ * from the normalized current address hash (never-geocoded, or the address
+ * changed since the last geocode), resolves each via the free/keyless Census Geocoder
  * (census-geocoder.client.ts), and upserts lat/lng + federal/state districts
  * + `districtSource='geocoded'` + `geocodeStatus`. Idempotent — a row whose
  * resolved geocode is unchanged is skipped (facility-geocode.util.ts).
@@ -21,7 +21,11 @@
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
-import { computeFacilityGeocode, type FacilityGeocodeInput } from '../src/clients/facility-geocode.util.js';
+import {
+  computeFacilityGeocode,
+  facilityAddressHash,
+  type FacilityGeocodeInput,
+} from '../src/clients/facility-geocode.util.js';
 dotenvConfig();
 
 const prisma = new PrismaClient();
@@ -59,15 +63,14 @@ async function main() {
     // written back after EVERY attempt (below) so address-less / no-match rows
     // can't perpetually re-select and starve the batch cap.
     const ADDR_HASH_SQL =
-      "md5(lower(coalesce(address_line,'') || '|' || coalesce(city,'') || '|' || coalesce(state,'') || '|' || coalesce(zip,'')))";
+      "md5(regexp_replace(lower(trim(coalesce(address_line,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(city,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(state,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(zip,''))), '\\s+', ' ', 'g'))";
     const rows = await bypassRls((tx) =>
-      tx.$queryRawUnsafe<
-        Array<FacilityGeocodeInput & { tenantId: string; currentHash: string }>
-      >(
+      tx.$queryRawUnsafe<Array<FacilityGeocodeInput & { tenantId: string; currentHash: string }>>(
         `SELECT id, tenant_id AS "tenantId", address_line AS "addressLine", city, state, zip,
                 congressional_district AS "congressionalDistrict", district_source AS "districtSource",
                 state_house_district AS "stateHouseDistrict", state_senate_district AS "stateSenateDistrict",
                 latitude, longitude, geocode_status AS "geocodeStatus",
+                geocode_input_hash AS "geocodeInputHash",
                 ${ADDR_HASH_SQL} AS "currentHash"
            FROM client_facilities
           WHERE geocode_input_hash IS NULL OR geocode_input_hash IS DISTINCT FROM ${ADDR_HASH_SQL}
@@ -81,6 +84,7 @@ async function main() {
 
     for (const row of rows) {
       try {
+        const currentHash = facilityAddressHash(row);
         const outcome = await computeFacilityGeocode(row);
         if (outcome.discrepancy) {
           discrepancies++;
@@ -96,7 +100,7 @@ async function main() {
           await bypassRls((tx) =>
             tx.clientFacility.update({
               where: { id: row.id },
-              data: { geocodeInputHash: row.currentHash },
+              data: { geocodeInputHash: currentHash },
             }),
           );
         } else {
@@ -104,7 +108,7 @@ async function main() {
           await bypassRls((tx) =>
             tx.clientFacility.update({
               where: { id: row.id },
-              data: { ...outcome.update!, geocodeInputHash: row.currentHash },
+              data: { ...outcome.update!, geocodeInputHash: currentHash },
             }),
           );
           if (wasUngeocoded && outcome.status === 'matched') inserted++;

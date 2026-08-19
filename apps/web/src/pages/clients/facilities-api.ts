@@ -1,5 +1,7 @@
 import type { AxiosInstance } from 'axios';
 
+export type FacilityGeocodeStatus = 'matched' | 'no_match' | 'pending' | 'ambiguous' | 'error';
+
 /**
  * Step 2.3 — web API for client facilities (CRUD).
  *
@@ -27,8 +29,8 @@ export interface ClientFacility {
   stateHouseDistrict: string | null;
   stateSenateDistrict: string | null;
   geocodedAt: string | null;
-  /** 'matched' | 'no_match' | 'ambiguous' | 'error' | null (never attempted). */
-  geocodeStatus: string | null;
+  /** 'matched' | 'no_match' | 'pending' | 'ambiguous' | 'error' | null (never attempted). */
+  geocodeStatus: FacilityGeocodeStatus | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -96,6 +98,27 @@ export async function deleteClientFacility(
     )
   ).data;
 }
+
+/** Re-run address resolution for a facility and return the latest persisted record. */
+export async function resolveClientFacilityDistrict(
+  api: AxiosInstance,
+  clientId: string,
+  id: string,
+): Promise<ClientFacility> {
+  return (
+    await api.post<ClientFacility>(
+      `/api/clients/${encodeURIComponent(clientId)}/facilities/${encodeURIComponent(id)}/resolve-district`,
+    )
+  ).data;
+}
+
+export const GEOCODE_STATUS_LABEL: Record<string, string> = {
+  matched: 'Geocoded',
+  no_match: 'No match — confirm address',
+  pending: 'Resolution pending',
+  ambiguous: 'Ambiguous — confirm address',
+  error: 'Geocode failed — will retry',
+};
 
 /**
  * Bare district number ("12") or the at-large sentinel "00". Mirrors the API's
@@ -171,14 +194,6 @@ export const US_HOUSE_SEATS: Readonly<Record<string, number>> = {
   MP: 1,
 };
 
-/** District Impact Engine (Phase 1 M1.4) — geocode-status display labels. */
-export const GEOCODE_STATUS_LABEL: Record<string, string> = {
-  matched: 'Geocoded',
-  no_match: 'No match — confirm address',
-  ambiguous: 'Ambiguous — confirm address',
-  error: 'Geocode failed — will retry',
-};
-
 /** Combine a bare district number + state into the "ST-NN" display form. */
 export function formatFacilityDistrict(
   state: string | null | undefined,
@@ -192,10 +207,60 @@ export function formatFacilityDistrict(
 
 /** US states + DC + territories, two-letter postal codes (for the facility state dropdown). */
 export const US_STATE_CODES: string[] = [
-  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL',
-  'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME',
-  'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH',
-  'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI',
-  'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI',
-  'WY', 'AS', 'GU', 'MP', 'PR', 'VI',
+  'AL',
+  'AK',
+  'AZ',
+  'AR',
+  'CA',
+  'CO',
+  'CT',
+  'DE',
+  'DC',
+  'FL',
+  'GA',
+  'HI',
+  'ID',
+  'IL',
+  'IN',
+  'IA',
+  'KS',
+  'KY',
+  'LA',
+  'ME',
+  'MD',
+  'MA',
+  'MI',
+  'MN',
+  'MS',
+  'MO',
+  'MT',
+  'NE',
+  'NV',
+  'NH',
+  'NJ',
+  'NM',
+  'NY',
+  'NC',
+  'ND',
+  'OH',
+  'OK',
+  'OR',
+  'PA',
+  'RI',
+  'SC',
+  'SD',
+  'TN',
+  'TX',
+  'UT',
+  'VT',
+  'VA',
+  'WA',
+  'WV',
+  'WI',
+  'WY',
+  'AS',
+  'GU',
+  'MP',
+  'PR',
+  'VI',
 ];

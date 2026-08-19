@@ -126,7 +126,33 @@ export class ClientFacilitiesService {
           await tx.clientFacility.update({ where: { id: facilityId }, data: outcome.update });
         }
       })
-      .catch((err) => this.logger.warn(`Inline geocode failed for facility ${facilityId}: ${err.message}`));
+      .catch((err) =>
+        this.logger.warn(`Inline geocode failed for facility ${facilityId}: ${err.message}`),
+      );
+  }
+
+  /** Run the deterministic Census resolver immediately for an explicit retry. */
+  async resolveFacilityDistrict(ctx: TenantContext, clientId: string, id: string) {
+    const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.clientFacility.findFirst({
+        where: { id, tenantId: ctx.tenantId, clientId },
+      });
+      if (!existing) throw new NotFoundException('Facility not found');
+
+      await tx.clientFacility.update({ where: { id }, data: { geocodeStatus: 'pending' } });
+      const current = await tx.clientFacility.findFirst({
+        where: { id, tenantId: ctx.tenantId, clientId },
+      });
+      if (!current) throw new NotFoundException('Facility not found');
+      const outcome = await computeFacilityGeocode(current);
+      if (outcome.update) {
+        await tx.clientFacility.update({ where: { id }, data: outcome.update });
+      }
+      return tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } });
+    });
+    if (!facility) throw new NotFoundException('Facility not found');
+    this.clientKb.indexFacilityFireAndForget(ctx.tenantId, id);
+    return facility;
   }
 
   async listFacilities(ctx: TenantContext, clientId: string) {
@@ -161,11 +187,18 @@ export class ClientFacilitiesService {
           zip: input.zip ?? null,
           congressionalDistrict:
             normalizeDistrictForStorage(input.state, input.congressionalDistrict) ?? null,
-          districtSource: input.districtSource ?? 'user',
+          // The public write API may not forge automatic provenance.
+          districtSource:
+            input.districtSource === 'geocoded' ? 'user' : (input.districtSource ?? 'user'),
           stateHouseDistrict: input.stateHouseDistrict ?? null,
           stateSenateDistrict: input.stateSenateDistrict ?? null,
           employeeCount: input.employeeCount ?? null,
           notes: input.notes ?? null,
+          geocodeStatus:
+            input.addressLine?.trim() && input.city?.trim() && input.state?.trim()
+              ? 'pending'
+              : null,
+          geocodeInputHash: null,
         },
       });
     });
@@ -224,12 +257,13 @@ export class ClientFacilitiesService {
                   normalizeDistrictForStorage(effectiveState, input.congressionalDistrict) ?? null,
               }
             : {}),
-          // A hand-edited district no longer reflects a geocode: when the PATCH
-          // touches congressionalDistrict without an explicit districtSource,
-          // stamp provenance back to 'user'. Explicit districtSource still wins
-          // (the geocoder PATCHes both fields together).
+          // A hand-edited district is always manual. The public API cannot forge
+          // automatic provenance; only the deterministic resolver can write it.
           ...('districtSource' in input
-            ? { districtSource: input.districtSource ?? null }
+            ? {
+                districtSource:
+                  input.districtSource === 'geocoded' ? 'user' : (input.districtSource ?? null),
+              }
             : 'congressionalDistrict' in input
               ? { districtSource: 'user' }
               : {}),
@@ -241,18 +275,16 @@ export class ClientFacilitiesService {
             : {}),
           ...('employeeCount' in input ? { employeeCount: input.employeeCount ?? null } : {}),
           ...('notes' in input ? { notes: input.notes ?? null } : {}),
+          ...('addressLine' in input || 'city' in input || 'state' in input || 'zip' in input
+            ? { geocodeStatus: 'pending', geocodeInputHash: null }
+            : {}),
         },
       });
     });
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, facility.id);
     // Only re-geocode when the address itself changed — an unrelated field
     // edit (notes, employeeCount) shouldn't fire a Census API call.
-    if (
-      'addressLine' in input ||
-      'city' in input ||
-      'state' in input ||
-      'zip' in input
-    ) {
+    if ('addressLine' in input || 'city' in input || 'state' in input || 'zip' in input) {
       this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);
     }
     return facility;

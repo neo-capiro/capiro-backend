@@ -66,7 +66,8 @@ function makePrisma(seed: { clients?: Row[]; facilities?: Row[] }) {
       // fire-and-forget path short-circuits cleanly instead of making a real
       // network call to the Census Geocoder from a unit test, or logging a
       // harmless-but-noisy "findUnique is not a function" warning.
-      findUnique: async (_args: { where: { id: string } }) => null,
+      findUnique: async ({ where }: { where: { id: string } }) =>
+        scopedFacilities().find((f) => f.id === where.id) ?? null,
       create: async ({ data }: { data: Row }) => {
         const row = { id: `facility-${++facilitySeq}`, createdAt: new Date(), ...data };
         store.facilities.push(row);
@@ -168,7 +169,22 @@ describe('ClientFacilitiesService — CRUD', () => {
       districtSource: 'geocoded',
     })) as Row;
 
-    expect(created.districtSource).toBe('geocoded');
+    expect(created.districtSource).toBe('user');
+  });
+
+  test('createFacility marks a complete address pending and never accepts forged geocoded provenance', async () => {
+    const prisma = makePrisma({ clients: [seedClient(TENANT_A)] });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const created = (await svc.createFacility(ctx(TENANT_A), 'client-1', {
+      name: 'Addressed HQ',
+      addressLine: '1 Main St',
+      city: 'Austin',
+      state: 'TX',
+      districtSource: 'geocoded',
+    })) as Row;
+    expect(created.geocodeStatus).toBe('pending');
+    expect(created.districtSource).toBe('user');
+    expect(created.geocodeInputHash).toBeNull();
   });
 
   test('createFacility throws NotFound for an unknown client', async () => {
@@ -178,6 +194,50 @@ describe('ClientFacilitiesService — CRUD', () => {
     await expect(
       svc.createFacility(ctx(TENANT_A), 'client-1', { name: 'X' }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  test('updateFacility never accepts forged geocoded provenance', async () => {
+    const prisma = makePrisma({
+      clients: [seedClient(TENANT_A)],
+      facilities: [{ id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'HQ', state: 'TX' }],
+    });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const updated = (await svc.updateFacility(ctx(TENANT_A), 'client-1', 'f1', {
+      congressionalDistrict: '12',
+      districtSource: 'geocoded',
+    })) as Row;
+    expect(updated.districtSource).toBe('user');
+  });
+
+  test('resolveFacilityDistrict is tenant-scoped and returns the persisted resolution', async () => {
+    const prisma = makePrisma({
+      clients: [seedClient(TENANT_A)],
+      facilities: [
+        {
+          id: 'f1',
+          tenantId: TENANT_A,
+          clientId: 'client-1',
+          name: 'HQ',
+          addressLine: null,
+          city: null,
+          state: null,
+          zip: null,
+          congressionalDistrict: null,
+          districtSource: 'user',
+          stateHouseDistrict: null,
+          stateSenateDistrict: null,
+          latitude: null,
+          longitude: null,
+          geocodeStatus: null,
+          geocodeInputHash: null,
+        },
+      ],
+    });
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    const resolved = (await svc.resolveFacilityDistrict(ctx(TENANT_A), 'client-1', 'f1')) as Row;
+    expect(resolved.id).toBe('f1');
+    expect(resolved.geocodeStatus).toBe('no_match');
+    expect(resolved.geocodeInputHash).toEqual(expect.any(String));
   });
 
   test('updateFacility applies only the provided fields', async () => {
@@ -374,7 +434,7 @@ describe('ClientFacilitiesService — districtSource provenance on PATCH', () =>
     expect(updated.districtSource).toBe('user');
   });
 
-  test('an explicit districtSource in the PATCH wins over the implicit "user" stamp', async () => {
+  test('an explicit geocoded districtSource in the PATCH is treated as user input', async () => {
     // The geocoder PATCHes district + source together; it must stay 'geocoded'.
     const { svc } = svcWith({
       name: 'HQ',
@@ -388,7 +448,7 @@ describe('ClientFacilitiesService — districtSource provenance on PATCH', () =>
       districtSource: 'geocoded',
     })) as Row;
 
-    expect(updated.districtSource).toBe('geocoded');
+    expect(updated.districtSource).toBe('user');
   });
 
   test('a PATCH that does not touch the district leaves districtSource alone', async () => {
@@ -542,7 +602,11 @@ describe('congressional district is normalized to storage form on write', () => 
     // against a geocoded at-large facility.
     const prisma = makePrisma({ clients: [seedClient(TENANT_A)] });
     const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
-    for (const [state, input] of [['WY', '1'], ['VT', '01'], ['DE', '1']] as const) {
+    for (const [state, input] of [
+      ['WY', '1'],
+      ['VT', '01'],
+      ['DE', '1'],
+    ] as const) {
       const created = (await svc.createFacility(ctx(TENANT_A), 'client-1', {
         name: `${state} site`,
         state,
@@ -581,8 +645,22 @@ describe('congressional district is normalized to storage form on write', () => 
     const prisma = makePrisma({
       clients: [seedClient(TENANT_A)],
       facilities: [
-        { id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'Plant', state: 'WA', congressionalDistrict: '01' },
-        { id: 'f2', tenantId: TENANT_A, clientId: 'client-1', name: 'AtLarge', state: 'WY', congressionalDistrict: '00' },
+        {
+          id: 'f1',
+          tenantId: TENANT_A,
+          clientId: 'client-1',
+          name: 'Plant',
+          state: 'WA',
+          congressionalDistrict: '01',
+        },
+        {
+          id: 'f2',
+          tenantId: TENANT_A,
+          clientId: 'client-1',
+          name: 'AtLarge',
+          state: 'WY',
+          congressionalDistrict: '00',
+        },
       ],
     });
     const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
@@ -602,7 +680,14 @@ describe('congressional district is normalized to storage form on write', () => 
     const prisma = makePrisma({
       clients: [seedClient(TENANT_A)],
       facilities: [
-        { id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'Plant', state: 'TX', congressionalDistrict: '16' },
+        {
+          id: 'f1',
+          tenantId: TENANT_A,
+          clientId: 'client-1',
+          name: 'Plant',
+          state: 'TX',
+          congressionalDistrict: '16',
+        },
       ],
     });
     const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
@@ -618,7 +703,14 @@ describe('congressional district is normalized to storage form on write', () => 
     const seed = () => ({
       clients: [seedClient(TENANT_A)],
       facilities: [
-        { id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'Plant', state: 'WA', congressionalDistrict: '07' },
+        {
+          id: 'f1',
+          tenantId: TENANT_A,
+          clientId: 'client-1',
+          name: 'Plant',
+          state: 'WA',
+          congressionalDistrict: '07',
+        },
       ],
     });
 

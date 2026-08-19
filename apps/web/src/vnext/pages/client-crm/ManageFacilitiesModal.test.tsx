@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CapiroToastProvider } from '../../components/feedback/toast.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ManageFacilitiesModal } from './ManageFacilitiesModal.js';
 
 /**
@@ -32,15 +33,15 @@ const FACILITY = {
   state: 'WA',
   zip: '98101',
   congressionalDistrict: '07',
-  districtSource: 'geocoder',
   employeeCount: 240,
   notes: null,
   latitude: 47.6,
   longitude: -122.3,
-  stateHouseDistrict: null,
-  stateSenateDistrict: null,
+  stateHouseDistrict: '41',
+  stateSenateDistrict: '46',
   geocodedAt: '2026-07-01T00:00:00.000Z',
   geocodeStatus: 'matched',
+  districtSource: 'geocoded',
   createdAt: '2026-07-01T00:00:00.000Z',
   updatedAt: '2026-07-01T00:00:00.000Z',
 };
@@ -50,7 +51,14 @@ function renderModal() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <ManageFacilitiesModal open clientId="client-1" clientName="Overland AI" onClose={() => {}} />
+        <CapiroToastProvider>
+          <ManageFacilitiesModal
+            open
+            clientId="client-1"
+            clientName="Overland AI"
+            onClose={() => {}}
+          />
+        </CapiroToastProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -63,6 +71,8 @@ async function openAddForm(): Promise<HTMLElement> {
   fireEvent.click(await screen.findByRole('button', { name: 'Add facility' }));
   return (await screen.findByLabelText('Facility name')).closest('form')!;
 }
+
+afterEach(() => cleanup());
 
 beforeEach(() => {
   getMock.mockReset();
@@ -84,20 +94,109 @@ describe('ManageFacilitiesModal', () => {
     expect(row).toHaveTextContent('Geocoded');
   });
 
+  it('shows the automatic source, geocoded federal district, and state legislative districts', async () => {
+    renderModal();
+
+    const row = (await screen.findByText('Seattle HQ')).closest('li')!;
+    expect(row).toHaveTextContent('Source: Automatic');
+    expect(row).toHaveTextContent('Geocoder: Matched');
+    expect(row).toHaveTextContent('State House 41');
+    expect(row).toHaveTextContent('State Senate 46');
+  });
+
+  it.each([
+    [
+      'manual',
+      { districtSource: 'user', geocodeStatus: 'error' },
+      'Source: Manual',
+      'Geocoder: Error',
+    ],
+    [
+      'unresolved',
+      { districtSource: null, geocodeStatus: 'no_match', congressionalDistrict: null },
+      'Source: Unresolved',
+      'Geocoder: No match',
+    ],
+    [
+      'pending',
+      { districtSource: null, geocodeStatus: 'pending', congressionalDistrict: null },
+      'Source: Pending',
+      'Geocoder: Pending',
+    ],
+    [
+      'ambiguous',
+      { districtSource: null, geocodeStatus: 'ambiguous' },
+      'Source: Ambiguous',
+      'Geocoder: Ambiguous',
+    ],
+    ['error', { districtSource: null, geocodeStatus: 'error' }, 'Source: Error', 'Geocoder: Error'],
+  ])('keeps the %s resolution state visible', async (_name, overrides, source, geocoder) => {
+    getMock.mockResolvedValue({ data: [{ ...FACILITY, ...overrides }] });
+    renderModal();
+
+    const row = (await screen.findByText('Seattle HQ')).closest('li')!;
+    expect(row).toHaveTextContent(source);
+    expect(row).toHaveTextContent(geocoder);
+  });
+
+  it('retries district resolution through the real endpoint', async () => {
+    const unresolved = {
+      ...FACILITY,
+      districtSource: null,
+      geocodeStatus: 'error',
+      congressionalDistrict: null,
+    };
+    const resolved = { ...FACILITY, districtSource: 'geocoded', geocodeStatus: 'matched' };
+    getMock.mockResolvedValueOnce({ data: [unresolved] }).mockResolvedValue({ data: [resolved] });
+    postMock.mockResolvedValue({ data: resolved });
+    renderModal();
+
+    const row = (await screen.findByText('Seattle HQ')).closest('li')!;
+    fireEvent.click(within(row).getByRole('button', { name: 'Resolve district' }));
+
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/clients/client-1/facilities/fac-1/resolve-district',
+      ),
+    );
+    await waitFor(() => expect(row).toHaveTextContent('Source: Automatic'));
+  });
+
+  it('polls facilities while a district resolution is pending', async () => {
+    getMock.mockResolvedValue({
+      data: [
+        {
+          ...FACILITY,
+          districtSource: null,
+          geocodeStatus: 'pending',
+          congressionalDistrict: null,
+        },
+      ],
+    });
+    renderModal();
+    expect(await screen.findByText('Seattle HQ')).toBeInTheDocument();
+    const initialCalls = getMock.mock.calls.length;
+
+    await waitFor(() => expect(getMock.mock.calls.length).toBeGreaterThan(initialCalls), {
+      timeout: 3_000,
+      interval: 100,
+    });
+  });
+
   it('says so plainly when the client has no facilities', async () => {
     getMock.mockResolvedValue({ data: [] });
     renderModal();
 
-    expect(
-      await screen.findByText(/No facilities recorded yet/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/No facilities recorded yet/)).toBeInTheDocument();
   });
 
   it('creates a facility through the real endpoint', async () => {
     postMock.mockResolvedValue({ data: { ...FACILITY, id: 'fac-2' } });
     const form = await openAddForm();
 
-    fireEvent.change(within(form).getByLabelText('Facility name'), { target: { value: 'Austin plant' } });
+    fireEvent.change(within(form).getByLabelText('Facility name'), {
+      target: { value: 'Austin plant' },
+    });
     fireEvent.change(within(form).getByLabelText('City'), { target: { value: 'Austin' } });
     fireEvent.change(within(form).getByLabelText('State'), { target: { value: 'TX' } });
     fireEvent.change(within(form).getByLabelText(/^District/), { target: { value: '35' } });
@@ -120,7 +219,9 @@ describe('ManageFacilitiesModal', () => {
   it('rejects a district the state does not have, before the server does', async () => {
     const form = await openAddForm();
 
-    fireEvent.change(within(form).getByLabelText('Facility name'), { target: { value: 'Tacoma yard' } });
+    fireEvent.change(within(form).getByLabelText('Facility name'), {
+      target: { value: 'Tacoma yard' },
+    });
     fireEvent.change(within(form).getByLabelText('State'), { target: { value: 'WA' } });
     // WA has 10 districts — 14 is a guaranteed server 400.
     fireEvent.change(within(form).getByLabelText(/^District/), { target: { value: '14' } });
@@ -133,7 +234,9 @@ describe('ManageFacilitiesModal', () => {
   it('directs a single-seat state to the at-large sentinel', async () => {
     const form = await openAddForm();
 
-    fireEvent.change(within(form).getByLabelText('Facility name'), { target: { value: 'Cheyenne depot' } });
+    fireEvent.change(within(form).getByLabelText('Facility name'), {
+      target: { value: 'Cheyenne depot' },
+    });
     fireEvent.change(within(form).getByLabelText('State'), { target: { value: 'WY' } });
     fireEvent.change(within(form).getByLabelText(/^District/), { target: { value: '3' } });
     fireEvent.click(within(form).getByRole('button', { name: 'Save facility' }));
@@ -147,11 +250,15 @@ describe('ManageFacilitiesModal', () => {
   it('refuses a district with no state, which the server cannot cross-check', async () => {
     const form = await openAddForm();
 
-    fireEvent.change(within(form).getByLabelText('Facility name'), { target: { value: 'Unknown site' } });
+    fireEvent.change(within(form).getByLabelText('Facility name'), {
+      target: { value: 'Unknown site' },
+    });
     fireEvent.change(within(form).getByLabelText(/^District/), { target: { value: '7' } });
     fireEvent.click(within(form).getByRole('button', { name: 'Save facility' }));
 
-    expect(await within(form).findByText('Pick a state before setting a district')).toBeInTheDocument();
+    expect(
+      await within(form).findByText('Pick a state before setting a district'),
+    ).toBeInTheDocument();
     expect(postMock).not.toHaveBeenCalled();
   });
 
@@ -194,6 +301,8 @@ describe('ManageFacilitiesModal', () => {
     const confirm = await screen.findByRole('dialog', { name: 'Remove facility' });
     fireEvent.click(within(confirm).getByRole('button', { name: 'Remove' }));
 
-    await waitFor(() => expect(deleteMock).toHaveBeenCalledWith('/api/clients/client-1/facilities/fac-1'));
+    await waitFor(() =>
+      expect(deleteMock).toHaveBeenCalledWith('/api/clients/client-1/facilities/fac-1'),
+    );
   });
 });
