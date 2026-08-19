@@ -10,22 +10,13 @@
  * "Discussed in hearings" section + "Track for client" affordance.
  */
 import type { ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Empty, Skeleton, Tag } from 'antd';
-import { useApi } from '../../lib/use-api.js';
-import type { BillDetail } from './explorerTypes.js';
+import { useBillDetail } from './bill-detail-data.js';
 
-/** Read-only single-bill detail. Same query key as the Explorer drill-in so the
- *  two surfaces share one react-query cache entry per bill. */
-export function useBillDetail(billId: string | null | undefined) {
-  const api = useApi();
-  return useQuery<BillDetail | null>({
-    queryKey: ['explorer-bill-detail', billId],
-    queryFn: async () =>
-      (await api.get<BillDetail>(`/api/explorer/congress-bills/${encodeURIComponent(billId ?? '')}`)).data,
-    enabled: Boolean(billId),
-  });
-}
+/** The fetch hook lives in the UI-free `bill-detail-data.ts` (vNext Phase 2
+ *  extraction) and is re-exported here so this module's public API is
+ *  unchanged for the Radar drawer and every other existing importer. */
+export { useBillDetail } from './bill-detail-data.js';
 
 /** Loading skeleton / not-found / rendered detail for a bill. `extra` is rendered
  *  below the standard sections (used by the Radar drawer for hearing links). */

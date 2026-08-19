@@ -31,6 +31,10 @@ const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
 }));
 
+const DataExplorerVNext = lazy(async () => ({
+  default: (await import('../pages/explorer/DataExplorerVNext.js')).DataExplorerVNext,
+}));
+
 /**
  * Presentation-only interception for os.capiro.ai. Authentication, billing and
  * the canonical application route tree remain owned by App.tsx; vNext swaps a
@@ -119,6 +123,18 @@ export function VNextRouter() {
   // Reports) — claimed for every tenant since GA on 2026-08-18.
   if (isVNextEngagementPath(location.pathname)) {
     return <VNextEngagementRoutes />;
+  }
+
+  // Data Explorer ("Intelligence Center"): the 18-source explorer at
+  // /explorer, ?source=/?bill= deep links included. The canonical
+  // /intelligence and /intelligence/* redirects resolve here via their
+  // existing <Navigate to="/explorer">s in App.tsx — no claim needed there.
+  if (location.pathname === '/explorer') {
+    return (
+      <Suspense fallback={<div className="capiro-vnext-route-loading">Loading…</div>}>
+        <DataExplorerVNext />
+      </Suspense>
+    );
   }
 
   // Bill 360: the deep-linkable dossier at /bills/:billId (vNext LegiWatch's
