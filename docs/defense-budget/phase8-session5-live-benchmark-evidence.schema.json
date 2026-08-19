@@ -24,18 +24,9 @@
       "type": "string",
       "pattern": "^[0-9a-f]{40}$"
     },
-    "modelPackageArn": {
-      "type": "string",
-      "minLength": 20
-    },
-    "modelName": {
-      "type": "string",
-      "minLength": 1
-    },
-    "modelVersion": {
-      "type": "string",
-      "minLength": 1
-    },
+    "modelPackageArn": { "type": "string", "minLength": 20 },
+    "modelName": { "type": "string", "minLength": 1 },
+    "modelVersion": { "type": "string", "minLength": 1 },
     "parserOptionsHash": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
@@ -62,14 +53,8 @@
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
         },
-        "missingStrata": {
-          "type": "array",
-          "maxItems": 0
-        },
-        "nvidiaObservationCount": {
-          "type": "integer",
-          "minimum": 1
-        },
+        "missingStrata": { "type": "array", "maxItems": 0 },
+        "nvidiaObservationCount": { "type": "integer", "minimum": 1 },
         "acceptedPageClasses": {
           "type": "array",
           "minItems": 1,
@@ -108,12 +93,23 @@
       "additionalProperties": false,
       "required": [
         "activeJobs",
+        "providerActiveJobs",
+        "spentAndReservedUsd",
         "persistentEndpoints",
         "zeroIdleGpu",
         "checkedAt"
       ],
       "properties": {
         "activeJobs": { "const": 0 },
+        "providerActiveJobs": {
+          "type": "array",
+          "maxItems": 0
+        },
+        "spentAndReservedUsd": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 150
+        },
         "persistentEndpoints": {
           "type": "array",
           "maxItems": 0
