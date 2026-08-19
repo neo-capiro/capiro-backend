@@ -99,6 +99,19 @@ The branch has since changed materially. These results establish the prerequisit
 
 Repository Actions still fails at the repository startup layer before Session 5 jobs execute. This assignment used the functioning local Linux Docker engine (`desktop-linux`) instead. A startup failure is not a pass and is not evidence against the code either.
 
+## Final status by required corpus stratum
+
+| Stratum | Status | Blocker |
+|---|---|---|
+| r1_zero_native_tables | blocked: pending re-review | no accepted source-grounded scorable gold |
+| r2_identity_banner | blocked: incomplete/conflicted | gold is not acceptable |
+| r2a_project_cost_table | blocked: pending re-review | no accepted source-grounded scorable gold |
+| scanned_image_only | blocked: missing source-grounded gold | image-only source evidence is not accepted |
+| navy_ba6_duplicate_flattening | blocked: incomplete/conflicted | gold is not acceptable |
+| p1_table | blocked: missing accepted normalized gold | no accepted artifact |
+| o1_op5_table | blocked: missing accepted normalized gold | no accepted artifact |
+| defense_wide_volume | blocked: pending re-review | no accepted source-grounded scorable gold |
+
 ## Required fresh re-review gate before redeploy
 
 Run from a clean checkout of the exact current Session 5 SHA:
