@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DIRECTORY_ROUTES } from '../../directory/directory-routes.js';
 import {
   Card,
   CardHead,
   Eyebrow,
   PfButton,
+  PfEmptyState,
+  PfSkeleton,
   Pill,
   PILL,
   TabPageHead,
@@ -19,8 +21,13 @@ import { formatDateShort, humanizeEnumToken } from '../../../lib/labels.js';
 import { initialsFor } from '../../../adapters/legacy/useClientCrmOverviewModel.js';
 import { useApi } from '../../../../lib/use-api.js';
 import {
+  addClientTarget,
   getClientTargets,
+  getOfficeRecommendations,
+  refreshOfficeRecommendations,
   type ClientTarget,
+  type OfficeRecommendation,
+  type OfficeRecommendationsResult,
   type TargetDirectory,
 } from '../../../../pages/clients/targets-api.js';
 import { profileHref } from '../../../../pages/clients/targets-normalize.js';
@@ -38,8 +45,9 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
  * while the query is loading or errored, keeping the surface pixel-reviewable
  * (the convention this file family already follows — see WorkTab §9).
  *
- * The network card stays fixture-only: "access path via <person>" has no
- * backing record anywhere, and no wire-audit row claims it does.
+ * The side rail is the office recommender from app Targets ("Suggested by Meri"),
+ * not the retired relationship-network card. Same query keys and mutations as
+ * `TargetsTab` so add/refresh stay cache-coherent across surfaces.
  */
 
 const DISPOSITION_TONE: Record<string, PillTone> = {
@@ -144,7 +152,7 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
         ) : (
           <RelationshipsTableCard />
         )}
-        <NetworkCard client={client} />
+        <TargetRecommendationsCard client={client} targets={realTargets ?? []} />
       </div>
 
       <AddRelationshipModal open={addOpen} clientId={client.id} onClose={() => setAddOpen(false)} />
@@ -923,44 +931,295 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
   );
 }
 
-/* ── Relationship network card ────────────────────────────────────────────── */
+/* ── Target recommendations (office recommender / Suggested by Meri) ─────── */
+
+/** Compact "updated X ago" — same cadence as legacy TargetsTab. */
+function relativeTime(iso: string | null): string {
+  if (!iso) return '';
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return '';
+  const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
+  if (secs < 60) return 'just now';
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `${mins} min${mins === 1 ? '' : 's'} ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`;
+  const days = Math.round(hrs / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+const PARTY_TONE: Record<string, PillTone> = {
+  R: 'error',
+  D: 'blue',
+  I: 'gray',
+};
 
 /**
- * Wire-audit "3 Compose extend" item 4: the relationship network card was a
- * pure fixture (NETWORK_TOP / NETWORK_BOTTOM hardcoded names + "access path
- * via <person>" text). No backing record exists for "access paths" — this
- * product has no such table. The honest treatment is an explicit empty state
- * that names the gap, rather than fixture names that imply real relationships.
- *
- * The targets table (real ClientTargets) IS wired and renders in the table
- * above; this card is the only fixture-only piece on this tab.
+ * Side rail: office recommendations from
+ * GET/POST `/api/clients/:id/target-recommendations`. Same cache keys as
+ * TargetsTab so a refresh from the client shell or an add here is shared.
+ * Styled with portfolio Card / PfButton / Pill primitives (UUI gray + dark
+ * gradient primary) — not the legacy antd meri-panel classes.
  */
-function NetworkCard({ client }: { client: Client }) {
+function TargetRecommendationsCard({
+  client,
+  targets,
+}: {
+  client: Client;
+  targets: ClientTarget[];
+}) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const clientId = client.id;
+
+  const recsQ = useQuery<OfficeRecommendationsResult>({
+    queryKey: ['client-target-recommendations', clientId],
+    queryFn: () => getOfficeRecommendations(api, clientId),
+    enabled: Boolean(clientId),
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+
+  const refreshMutation = useMutation({
+    mutationFn: () => refreshOfficeRecommendations(api, clientId),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ['client-target-recommendations', clientId] });
+    },
+    onSuccess: (data) => {
+      qc.setQueryData(['client-target-recommendations', clientId], data);
+    },
+  });
+
+  const addMutation = useMutation({
+    mutationFn: (memberId: string) => addClientTarget(api, clientId, memberId, 'meri', 'congress'),
+    onMutate: async (memberId) => {
+      await qc.cancelQueries({ queryKey: ['client-targets', clientId] });
+      const prev = qc.getQueryData<ClientTarget[]>(['client-targets', clientId]);
+      const optimistic: ClientTarget = {
+        id: `optimistic-${memberId}`,
+        clientId,
+        memberId,
+        memberName: null,
+        sourceDirectory: 'congress',
+        party: null,
+        state: null,
+        chamber: null,
+        committee: null,
+        tier: null,
+        source: 'meri',
+        addedByUserId: null,
+        addedAt: new Date().toISOString(),
+        representedFacilities: null,
+      };
+      qc.setQueryData<ClientTarget[]>(['client-targets', clientId], [...(prev ?? []), optimistic]);
+      return { prev };
+    },
+    onError: (_e, _id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['client-targets', clientId], ctx.prev);
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ['client-targets', clientId] });
+      void qc.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+
+  const suggestions = useMemo(
+    () =>
+      (recsQ.data?.recommendations ?? [])
+        .filter((r): r is OfficeRecommendation => typeof r?.memberId === 'string' && r.memberId.length > 0)
+        .slice(0, 6),
+    [recsQ.data],
+  );
+
+  const addedIds = useMemo(() => new Set(targets.map((t) => t.memberId)), [targets]);
+  const computedAt = recsQ.data?.computedAt ?? null;
+  const recsLoading = recsQ.isLoading || (recsQ.isFetching && !recsQ.data);
+  const refreshing = refreshMutation.isPending;
+  const openIntel = () =>
+    navigate(`/clients?clientId=${encodeURIComponent(clientId)}&tab=intelligence&view=legislative`);
+
   return (
     <Card>
+      <CardHead
+        withDesc
+        title="Suggested by Meri"
+        description="Ranked by committee jurisdiction over tracked bills, with issue overlap and facility-district nexus when available."
+        action={
+          <PfButton
+            variant="secondary"
+            size="sm"
+            busy={refreshing}
+            disabled={refreshing || recsLoading}
+            onClick={() => refreshMutation.mutate()}
+            title="Recompute recommendations from the latest tracked bills and facilities"
+          >
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </PfButton>
+        }
+      />
+
+      {computedAt && !recsLoading ? (
+        <div style={{ padding: '0 24px 12px', fontSize: 12, fontWeight: 500, color: '#667085' }}>
+          Updated {relativeTime(computedAt)}
+          <span style={{ color: '#98A2B3' }}> · top 6 · weighted score</span>
+        </div>
+      ) : null}
+
+      {recsLoading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 24px 24px' }} aria-busy="true" aria-label="Loading recommendations">
+          {[0, 1, 2].map((i) => (
+            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <PfSkeleton width={28} height={28} style={{ borderRadius: 8 }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <PfSkeleton width="70%" height={14} />
+                <PfSkeleton width="45%" height={12} />
+              </div>
+              <PfSkeleton width={52} height={28} style={{ borderRadius: 8 }} />
+            </div>
+          ))}
+        </div>
+      ) : recsQ.isError || refreshMutation.isError ? (
+        <PfEmptyState
+          title="Couldn't load recommendations"
+          hint="Try again, or confirm tracked bills and facilities are set for this client."
+          action={
+            <PfButton variant="secondary" size="sm" onClick={() => refreshMutation.mutate()} disabled={refreshing} busy={refreshing}>
+              Try again
+            </PfButton>
+          }
+        />
+      ) : suggestions.length === 0 ? (
+        <PfEmptyState
+          title="No Meri suggestions yet"
+          hint="Confirm this client's LDA match and add tracked bills in Intelligence, then refresh to get recommendations."
+          action={
+            <PfButton variant="secondary" size="sm" onClick={openIntel}>
+              Open Intelligence
+            </PfButton>
+          }
+        />
+      ) : (
+        <div role="list" aria-label="Suggested targets">
+          {suggestions.map((m, idx) => {
+            const added = addedIds.has(m.memberId);
+            const adding = addMutation.isPending && addMutation.variables === m.memberId;
+            const partyTone = PARTY_TONE[m.party ?? ''] ?? 'gray';
+            const partyLabel = [m.party, m.state].filter(Boolean).join('-') || '—';
+            return (
+              <div
+                key={m.memberId}
+                role="listitem"
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 12,
+                  padding: '14px 24px',
+                  borderTop: idx === 0 ? '1px solid #EAECF0' : undefined,
+                  borderBottom: '1px solid #EAECF0',
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    flex: '0 0 auto',
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    background: '#F2F4F7',
+                    color: '#475467',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 2,
+                  }}
+                >
+                  {idx + 1}
+                </span>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => navigate(profileHref('congress', m.memberId))}
+                    style={{
+                      textAlign: 'left',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: '#101828',
+                      lineHeight: '20px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    title={m.office}
+                  >
+                    {m.office || m.memberId}
+                  </button>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                    <Pill tone={partyTone} style={{ height: 22 }}>
+                      {partyLabel}
+                    </Pill>
+                    {m.chamber ? (
+                      <span style={{ fontSize: 12, color: '#667085' }}>{m.chamber}</span>
+                    ) : null}
+                    {m.committee ? (
+                      <span
+                        style={{
+                          fontSize: 12,
+                          color: '#667085',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          maxWidth: 160,
+                        }}
+                        title={m.committee}
+                      >
+                        {m.committee}
+                      </span>
+                    ) : null}
+                  </div>
+                  <span style={{ fontSize: 12, color: '#667085' }}>
+                    {m.billCount} tracked bill{m.billCount === 1 ? '' : 's'}
+                    <span style={{ color: '#D0D5DD' }}> · </span>
+                    score {Number(m.score ?? 0).toFixed(2)}
+                  </span>
+                </div>
+                <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                  {added ? (
+                    <Pill tone="success" style={{ height: 28 }}>
+                      Added
+                    </Pill>
+                  ) : (
+                    <PfButton
+                      variant="secondary"
+                      size="sm"
+                      busy={adding}
+                      disabled={adding || addMutation.isPending}
+                      onClick={() => addMutation.mutate(m.memberId)}
+                      style={{ height: 32, padding: '0 12px', fontSize: 13 }}
+                    >
+                      + Add
+                    </PfButton>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
-          padding: '20px 24px',
-          borderBottom: '1px solid #EAECF0',
+          justifyContent: 'flex-end',
+          padding: '12px 24px 16px',
         }}
       >
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>Relationship network</span>
-          <span style={{ display: 'block', marginTop: 3, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
-            Active access paths around the client
-          </span>
-        </span>
-      </div>
-
-      <div style={{ padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-        <Tile initials={initialsFor(client.name)} size={44} dark />
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>{client.name}</span>
-        <span style={{ fontSize: 13, color: '#98A2B3', textAlign: 'center', maxWidth: 320, textWrap: 'pretty' }}>
-          Access-path mapping is not available yet. Tracked targets above show the real relationships this client has on file.
-        </span>
+        <PfButton variant="link" onClick={openIntel}>
+          View all in Intelligence →
+        </PfButton>
       </div>
     </Card>
   );

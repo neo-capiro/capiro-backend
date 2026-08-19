@@ -6,8 +6,9 @@ import { ClientCrmGovernmentProto } from './RelationshipsGovTab.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 
 const getMock = vi.hoisted(() => vi.fn());
+const postMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: getMock }),
+  useApi: () => ({ get: getMock, post: postMock }),
 }));
 
 const client: Client = {
@@ -55,10 +56,65 @@ const TARGET = {
   representedFacilities: [{ id: 'fac-1', name: 'Seattle HQ' }],
 };
 
-function mockTargets(targets: unknown[] = [TARGET]) {
+const REC = {
+  memberId: 'M000999',
+  office: 'Rep. Jordan Hale (WA-07)',
+  party: 'D' as const,
+  state: 'WA',
+  chamber: 'House' as const,
+  committee: 'Appropriations',
+  score: 0.84,
+  tags: ['jurisdiction'],
+  billCount: 3,
+};
+
+function mockApis(opts?: {
+  targets?: unknown[];
+  recommendations?: unknown[];
+  computedAt?: string | null;
+  recsError?: boolean;
+}) {
+  const targets = opts?.targets ?? [TARGET];
+  const recommendations = opts?.recommendations ?? [REC];
+  const computedAt = opts?.computedAt === undefined ? '2026-08-01T12:00:00.000Z' : opts.computedAt;
+
   getMock.mockImplementation((url: string) => {
     if (url === '/api/clients/client-1/targets') return Promise.resolve({ data: targets });
+    if (url === '/api/clients/client-1/target-recommendations') {
+      if (opts?.recsError) return Promise.reject(new Error('recs failed'));
+      return Promise.resolve({ data: { recommendations, computedAt } });
+    }
     return Promise.reject(new Error(`unexpected GET ${url}`));
+  });
+
+  postMock.mockImplementation((url: string, body?: unknown) => {
+    if (url === '/api/clients/client-1/target-recommendations/refresh') {
+      return Promise.resolve({
+        data: { recommendations, computedAt: '2026-08-19T00:00:00.000Z' },
+      });
+    }
+    if (url === '/api/clients/client-1/targets') {
+      const b = body as { memberId: string; source: string; sourceDirectory: string };
+      return Promise.resolve({
+        data: {
+          id: `ct-new-${b.memberId}`,
+          clientId: 'client-1',
+          memberId: b.memberId,
+          memberName: REC.office,
+          sourceDirectory: b.sourceDirectory,
+          party: REC.party,
+          state: REC.state,
+          chamber: REC.chamber,
+          committee: REC.committee,
+          tier: null,
+          source: b.source,
+          addedByUserId: 'user-1',
+          addedAt: '2026-08-19T00:00:00.000Z',
+          representedFacilities: [],
+        },
+      });
+    }
+    return Promise.reject(new Error(`unexpected POST ${url}`));
   });
 }
 
@@ -86,11 +142,12 @@ function renderGov() {
 
 beforeEach(() => {
   getMock.mockReset();
+  postMock.mockReset();
 });
 
 describe('ClientCrmGovernmentProto', () => {
   it('navigates to the Directory vNext congressional staff page when "View directory" is clicked', async () => {
-    mockTargets();
+    mockApis();
     renderGov();
 
     await waitFor(() => expect(screen.getAllByText('Rep. Dana Whitfield').length).toBeGreaterThan(0));
@@ -103,10 +160,11 @@ describe('ClientCrmGovernmentProto', () => {
 describe('ClientCrmGovernmentProto — real targets (items 11-14, wire-audit)', () => {
   beforeEach(() => {
     getMock.mockReset();
+    postMock.mockReset();
   });
 
   it('renders real targets in the cards and table instead of the TARGETS/GOV_ROWS fixtures (items 12/14)', async () => {
-    mockTargets();
+    mockApis();
     renderGov();
 
     await waitFor(() => expect(screen.getAllByText('Rep. Dana Whitfield').length).toBeGreaterThan(0));
@@ -114,15 +172,13 @@ describe('ClientCrmGovernmentProto — real targets (items 11-14, wire-audit)', 
     expect(screen.getByText('Seattle HQ')).toBeInTheDocument();
 
     // The TARGETS fixture's own cards must not leak through as if real.
-    // ("Rep. Jane Doe" also appears in the deliberately-fixture network card,
-    // so assert on strings unique to the targets fixture instead.)
     expect(screen.queryByText('Schedule member meeting before HASC markup')).not.toBeInTheDocument();
     expect(screen.queryByText('FY27 Ground Robotics Funding')).not.toBeInTheDocument();
     expect(screen.queryByText('3 active · from Strategies')).not.toBeInTheDocument();
   });
 
   it('opens the real target drawer with real record fields and no invented narrative (item 13)', async () => {
-    mockTargets();
+    mockApis();
     renderGov();
 
     await waitFor(() => expect(screen.getAllByText('Rep. Dana Whitfield').length).toBeGreaterThan(0));
@@ -145,7 +201,7 @@ describe('ClientCrmGovernmentProto — real targets (items 11-14, wire-audit)', 
    * Assert the outcome the user needs — a directory picker — not a URL.
    */
   it('opens the vNext directory picker from "Add relationship" (item 11)', async () => {
-    mockTargets();
+    mockApis();
     renderGov();
 
     await waitFor(() => expect(screen.getAllByText('Rep. Dana Whitfield').length).toBeGreaterThan(0));
@@ -160,7 +216,7 @@ describe('ClientCrmGovernmentProto — real targets (items 11-14, wire-audit)', 
   });
 
   it('shows an honest empty state instead of the fixture when the client has no targets', async () => {
-    mockTargets([]);
+    mockApis({ targets: [] });
     renderGov();
 
     await waitFor(() =>
@@ -179,19 +235,21 @@ describe('ClientCrmGovernmentProto — real targets (items 11-14, wire-audit)', 
   });
 
   it('counts the filtered set in the footer and names the unfiltered total (polish item 1)', async () => {
-    mockTargets([
-      TARGET,
-      {
-        ...TARGET,
-        id: 'ct-2',
-        memberId: 'S000456',
-        memberName: 'Sen. Alicia Boren',
-        sourceDirectory: 'state',
-        chamber: null,
-        committee: null,
-        tier: 2,
-      },
-    ]);
+    mockApis({
+      targets: [
+        TARGET,
+        {
+          ...TARGET,
+          id: 'ct-2',
+          memberId: 'S000456',
+          memberName: 'Sen. Alicia Boren',
+          sourceDirectory: 'state',
+          chamber: null,
+          committee: null,
+          tier: 2,
+        },
+      ],
+    });
     renderGov();
 
     await waitFor(() => expect(screen.getAllByText('Rep. Dana Whitfield').length).toBeGreaterThan(0));
@@ -212,7 +270,7 @@ describe('ClientCrmGovernmentProto — real targets (items 11-14, wire-audit)', 
   });
 
   it('marks filter chips with aria-pressed and humanizes the added-via source (polish items 4-5)', async () => {
-    mockTargets();
+    mockApis();
     renderGov();
 
     await waitFor(() => expect(screen.getAllByText('Rep. Dana Whitfield').length).toBeGreaterThan(0));
@@ -234,5 +292,76 @@ describe('ClientCrmGovernmentProto — real targets (items 11-14, wire-audit)', 
     renderGov();
 
     expect(screen.getByText('3 active · from Strategies')).toBeInTheDocument();
+  });
+});
+
+describe('ClientCrmGovernmentProto — target recommendations rail', () => {
+  it('replaces Relationship network with Suggested by Meri and wires the real recs API', async () => {
+    mockApis();
+    renderGov();
+
+    await waitFor(() => expect(screen.getByText('Rep. Jordan Hale (WA-07)')).toBeInTheDocument());
+    expect(screen.getByText('Suggested by Meri')).toBeInTheDocument();
+    expect(screen.queryByText('Relationship network')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Access-path mapping is not available/)).not.toBeInTheDocument();
+
+    expect(screen.getByText(/3 tracked bills/)).toBeInTheDocument();
+    expect(screen.getByText(/score 0\.84/)).toBeInTheDocument();
+    expect(getMock).toHaveBeenCalledWith('/api/clients/client-1/target-recommendations');
+  });
+
+  it('adds a recommendation via POST targets with source=meri and marks it Added', async () => {
+    mockApis();
+    renderGov();
+
+    await waitFor(() => expect(screen.getByText('Rep. Jordan Hale (WA-07)')).toBeInTheDocument());
+    const addBtn = screen.getByRole('button', { name: '+ Add' });
+    expect(addBtn).not.toBeDisabled();
+    fireEvent.click(addBtn);
+
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/targets', {
+        memberId: 'M000999',
+        source: 'meri',
+        sourceDirectory: 'congress',
+      }),
+    );
+    await waitFor(() => expect(screen.getByText('Added')).toBeInTheDocument());
+  });
+
+  it('refreshes recommendations via POST .../target-recommendations/refresh', async () => {
+    mockApis();
+    renderGov();
+
+    // Card title mounts immediately; wait until the query settles so Refresh is enabled.
+    await waitFor(() => expect(screen.getByText('Rep. Jordan Hale (WA-07)')).toBeInTheDocument());
+    const refreshBtn = screen.getByRole('button', { name: 'Refresh' });
+    expect(refreshBtn).not.toBeDisabled();
+    fireEvent.click(refreshBtn);
+
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/target-recommendations/refresh'),
+    );
+  });
+
+  it('shows an empty state when there are no recommendations', async () => {
+    mockApis({ recommendations: [] });
+    renderGov();
+
+    await waitFor(() => expect(screen.getByText('No Meri suggestions yet')).toBeInTheDocument());
+    expect(
+      screen.getByText(/Confirm this client's LDA match and add tracked bills/),
+    ).toBeInTheDocument();
+  });
+
+  it('navigates to Intelligence legislative from the rail footer', async () => {
+    mockApis();
+    renderGov();
+
+    await waitFor(() => expect(screen.getByText('Suggested by Meri')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'View all in Intelligence →' }));
+
+    expect(screen.getByTestId('location')).toHaveTextContent('tab=intelligence');
+    expect(screen.getByTestId('location')).toHaveTextContent('view=legislative');
   });
 });
