@@ -215,6 +215,14 @@ function assertPositivePage(pageNumber) {
   }
 }
 
+function actualLiveParserMethod(input) {
+  // The only subscribed/approved live provider in Session 5 is Nemotron Parse.
+  // Legacy routing vocabulary may express a desired table/OCR lane, but that
+  // must never be mislabeled as a provider that was not actually invoked.
+  if (input.modelName === 'nemotron-parse') return 'nemotron_parse';
+  return input.parserMethod;
+}
+
 export function buildLivePageIdentity(input) {
   assertSha(input.sourceSha256, 'sourceSha256');
   assertSha(input.parserOptionsHash, 'parserOptionsHash');
@@ -230,11 +238,14 @@ export function buildLivePageIdentity(input) {
       );
     }
   }
+  const requestedParserMethod = input.requestedParserMethod ?? input.parserMethod;
+  const parserMethod = actualLiveParserMethod({ ...input, parserMethod: requestedParserMethod });
   return Object.freeze({
     sourceSha256: input.sourceSha256,
     pageNumber: input.pageNumber,
     provider: 'nvidia',
-    parserMethod: input.parserMethod,
+    requestedParserMethod,
+    parserMethod,
     modelName: input.modelName,
     modelVersion: input.modelVersion,
     parserOptionsHash: input.parserOptionsHash,
