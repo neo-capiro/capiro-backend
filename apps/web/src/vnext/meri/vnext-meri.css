@@ -3254,7 +3254,18 @@
 /* ── Context sheet ("Manage context") — a richer, scrollable variant of the
    confirm dialog. Was previously unstyled: relied on .vnext-meri__confirm-*
    for the box but had no rules of its own, so every item rendered as bare
-   text with no size/weight/spacing hierarchy. */
+   text with no size/weight/spacing hierarchy.
+
+   Literal hex, not var(--m-*): MeriContextSheet mounts as a sibling of
+   .vnext-meri-page (inside .vnext-meri__confirm-scrim, directly under
+   .capiro-vnext-root — see VNextMeriShell), not a descendant of it. The
+   --m-* custom properties are only declared on .vnext-meri-page/.vnext-meri,
+   so a var() reference here is undefined at this point in the tree — for
+   non-inherited properties (background, box-shadow) that makes the whole
+   declaration compute to its initial value (transparent / none) with no
+   error, silently dropping every card's fill and ring. Every other rule
+   under .vnext-meri__confirm-* already avoids this by hardcoding hex for
+   the same reason. */
 .capiro-vnext-root .vnext-meri__context-sheet {
   width: 520px;
   max-width: calc(100vw - 40px);
@@ -3276,7 +3287,7 @@
   font-size: 17px;
   line-height: 24px;
   font-weight: 600;
-  color: var(--m-gray-900);
+  color: #101828;
 }
 
 .capiro-vnext-root .vnext-meri__context-sheet-note {
@@ -3284,20 +3295,22 @@
   margin-top: 10px;
   font-size: 13px;
   line-height: 20px;
-  color: var(--m-gray-600);
+  color: #475467;
 }
 
 .capiro-vnext-root .vnext-meri__context-sheet-label {
   flex: 0 0 auto;
   margin-top: 18px;
-  font-family: var(--meri-font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.09em;
-  color: var(--m-gray-500);
+  color: #667085;
 }
 
 .capiro-vnext-root .vnext-meri__context-sheet-list {
+  flex: 1 1 120px;
+  min-height: 0;
   margin-top: 10px;
   padding-bottom: 2px;
   display: flex;
@@ -3307,10 +3320,11 @@
 }
 
 .capiro-vnext-root .vnext-meri__context-sheet-item {
+  flex: 0 0 auto;
   padding: 12px 13px;
   border-radius: 9px;
-  background: var(--m-gray-50);
-  box-shadow: inset 0 0 0 1px var(--m-gray-200);
+  background: #F9FAFB;
+  box-shadow: inset 0 0 0 1px #EAECF0;
 }
 
 .capiro-vnext-root .vnext-meri__context-sheet-item.is-excluded {
@@ -3321,23 +3335,42 @@
   font-size: 13.5px;
   line-height: 19px;
   font-weight: 600;
-  color: var(--m-gray-900);
+  color: #101828;
 }
 
 .capiro-vnext-root .vnext-meri__context-sheet-item-meta {
   margin-top: 4px;
-  font-family: var(--meri-font-mono);
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 9.5px;
   font-weight: 500;
   letter-spacing: 0.06em;
-  color: var(--m-gray-500);
+  color: #667085;
 }
 
 .capiro-vnext-root .vnext-meri__context-sheet-item-body {
   margin-top: 6px;
   font-size: 12.5px;
   line-height: 18px;
-  color: var(--m-gray-600);
+  color: #475467;
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-degraded {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #FFFAEB;
+  box-shadow: inset 0 0 0 1px #FEDF89;
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-degraded-item {
+  font-size: 12.5px;
+  line-height: 18px;
+  color: #B54708;
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-degraded-item + .vnext-meri__context-sheet-degraded-item {
+  margin-top: 3px;
 }
 
 .capiro-vnext-root .vnext-meri__confirm-cancel,
