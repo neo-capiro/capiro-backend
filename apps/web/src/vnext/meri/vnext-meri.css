@@ -33,9 +33,13 @@
      doc's desk/index rail only — they are NOT part of the app. */
 
   /* Legacy token aliases (pre-v4 names) → handoff literals */
-  --m-page-backdrop: var(--m-white);
+  /* Neo 2026-08-19: the standalone handoff's all-white canvas read as flat and
+     low-contrast in practice — cards had nowhere to visually lift from. Page
+     and rail surfaces now sit on a soft recessed canvas so raised elements
+     (--m-surface, unchanged white) read as actual cards again. */
+  --m-page-backdrop: #F7F8FA;
   --m-surface: var(--m-white);
-  --m-canvas-standard: var(--m-white);
+  --m-canvas-standard: #F7F8FA;
   --m-canvas-busy: var(--m-gray-50);
   --m-border: var(--m-gray-200);
   --m-border-strong: var(--m-gray-300);
@@ -283,6 +287,7 @@
   gap: 16px;
   background: var(--meri-surface);
   border-bottom: 1px solid var(--meri-border);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   z-index: var(--meri-z-topbar);
 }
 
@@ -333,7 +338,7 @@
   height: 32px;
   padding: 0 12px;
   border-radius: var(--capiro-radius-circular);
-  background: var(--meri-surface);
+  background: var(--m-gray-50);
   box-shadow: var(--meri-shadow-chip), var(--meri-shadow-button);
   white-space: nowrap;
   border: 0;
@@ -342,7 +347,7 @@
 }
 
 .capiro-vnext-root .vnext-meri__scope-trigger:hover {
-  background: var(--meri-surface-2);
+  background: var(--m-gray-100);
 }
 
 .capiro-vnext-root .vnext-meri__scope-label {
@@ -640,7 +645,7 @@
 .capiro-vnext-root .vnext-meri__rail-left {
   flex: 0 0 auto;
   width: var(--meri-rail-left-width);
-  background: var(--meri-surface);
+  background: var(--meri-canvas);
   border-right: 1px solid var(--meri-border);
   display: flex;
   flex-direction: column;
@@ -733,7 +738,7 @@
 }
 
 .capiro-vnext-root .vnext-meri__thread-item:hover {
-  background: var(--meri-surface-2);
+  background: var(--m-white);
 }
 
 .capiro-vnext-root .vnext-meri__thread-item.is-active {
@@ -787,8 +792,8 @@
 .capiro-vnext-root .vnext-meri__thread-empty {
   padding: 20px 14px;
   border-radius: 10px;
-  background: var(--meri-surface-2);
-  box-shadow: var(--meri-shadow-chip);
+  background: var(--m-white);
+  box-shadow: var(--meri-shadow-card);
 }
 
 .capiro-vnext-root .vnext-meri__thread-empty-label {
@@ -2090,7 +2095,7 @@
 
 .capiro-vnext-root .vnext-meri__rail-right {
   flex: 0 0 auto;
-  background: var(--meri-surface);
+  background: var(--meri-canvas);
   border-left: 1px solid var(--meri-border);
   display: flex;
   flex-direction: column;
@@ -3016,7 +3021,7 @@
   margin-bottom: 10px;
   padding: 0 11px;
   border-radius: 8px;
-  background: #F9FAFB;
+  background: #ffffff;
   box-shadow: inset 0 0 0 1px #EAECF0;
 }
 
@@ -3053,7 +3058,7 @@
 .capiro-vnext-root .vnext-meri__section-empty {
   padding: 20px 14px;
   border-radius: 10px;
-  background: #F9FAFB;
+  background: #ffffff;
   box-shadow: inset 0 0 0 1px #EAECF0;
 }
 
@@ -3108,8 +3113,8 @@
 }
 
 .capiro-vnext-root .vnext-meri__thread-item.is-active {
-  background: #F2F4F7;
-  box-shadow: inset 0 0 0 1px #D0D5DD;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #EAECF0, 0 1px 3px rgba(16, 24, 40, 0.06);
 }
 
 .capiro-vnext-root .vnext-meri__thread-item-main {
@@ -3320,11 +3325,11 @@
 
 .capiro-vnext-root .vnext-meri__conversation-scroll.is-standard,
 .capiro-vnext-root .vnext-meri__conversation-scroll.is-empty {
-  background: #ffffff;
+  background: #F7F8FA;
 }
 
 .capiro-vnext-root .vnext-meri__conversation-scroll.is-busy {
-  background: #F9FAFB;
+  background: #F7F8FA;
 }
 
 .capiro-vnext-root .vnext-meri__user-bubble {
