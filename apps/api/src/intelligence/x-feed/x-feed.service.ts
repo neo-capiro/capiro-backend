@@ -45,11 +45,14 @@ const TIMELINE_FETCH_COUNT = 100;
  */
 const TIMELINE_MAX_PAGES = 10;
 
-/** Max posts to return per account in the combined feed. */
+/** Max posts fetched per account for the dashboard's initial page. */
 const FEED_POSTS_PER_ACCOUNT = 5;
 
-/** Max total posts in the combined feed. */
+/** Max total posts retained by the combined feed endpoint. */
 const FEED_MAX_TOTAL = 50;
+
+/** Number of additional posts available through the dashboard's View more action. */
+const FEED_VIEW_MORE_TOTAL = 100;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -206,7 +209,7 @@ export class XFeedService {
 
     const limited = allPosts.slice(
       0,
-      filterAccountId ? FEED_POSTS_PER_ACCOUNT * 2 : FEED_MAX_TOTAL,
+      filterAccountId ? FEED_POSTS_PER_ACCOUNT * 2 : FEED_VIEW_MORE_TOTAL,
     );
 
     return {

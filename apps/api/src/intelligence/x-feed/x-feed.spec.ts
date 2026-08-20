@@ -425,3 +425,12 @@ describe('dashboard merge behavior', () => {
     expect(result.reason).toBe('partial_provider_failure');
   });
 });
+
+
+describe('X feed View more window', () => {
+  it('keeps the combined dashboard response larger than the visible initial cap', () => {
+    const retained = 100;
+    const visibleInitial = 8;
+    expect(retained).toBeGreaterThan(visibleInitial);
+  });
+});

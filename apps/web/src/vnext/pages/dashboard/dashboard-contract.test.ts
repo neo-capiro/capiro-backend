@@ -129,6 +129,10 @@ describe('Dashboard v2 prototype structure', () => {
     expect(view).toContain('sourceCountKnown');
     expect(view).toContain("'X unavailable'");
     expect(view).toContain("'News unavailable'");
+    expect(view).toContain("`View more ${filter === 'x' ? 'X posts'");
+    expect(view).toContain('showAllWire');
+    expect(view).toContain('item.title');
+    expect(view).not.toContain('item.summary');
     expect(view).toContain("'Sources updating'");
   });
 });

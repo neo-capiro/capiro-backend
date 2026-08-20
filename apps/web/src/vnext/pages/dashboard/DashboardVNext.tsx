@@ -43,6 +43,7 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [customizeSection, setCustomizeSection] = useState<'x' | null>(null);
   const [wireFilter, setWireFilter] = useState<WireFilter>('all');
+  const [showAllWire, setShowAllWire] = useState(false);
   const [selectedAttentionId, setSelectedAttentionId] = useState<string | null>(null);
   const [clearedAttentionIds, setClearedAttentionIds] = useState<Set<string>>(() => new Set());
   const [clearingAttentionIds, setClearingAttentionIds] = useState<Set<string>>(() => new Set());
@@ -78,7 +79,8 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
   const wireWindow = wireItems.filter((item) => item.at >= Date.now() - 24 * 60 * 60 * 1000);
   const filteredWire = wireWindow
     .filter((item) => wireFilter === 'all' || item.type === wireFilter)
-    .slice(0, wireLimit);
+    .slice(0, showAllWire ? undefined : wireLimit);
+  const hasMoreWire = wireWindow.filter((item) => wireFilter === 'all' || item.type === wireFilter).length > wireLimit;
 
   const setDensityAnimated = (next: DashboardVNextModel['density']) => {
     if (next === model.density || densityChanging) return;
@@ -193,6 +195,9 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
             onFilter={setWireFilter}
             items={filteredWire}
             windowItems={wireWindow}
+            showAll={showAllWire}
+            hasMore={hasMoreWire}
+            onToggleShowAll={() => setShowAllWire((value) => !value)}
             onManage={() => { setCustomizeSection('x'); setCustomizeOpen(true); }}
             onRefresh={doRefresh}
           />
@@ -309,7 +314,7 @@ function WorkQueue({ model }: { model: DashboardVNextModel }) {
   );
 }
 
-function Wire({ model, filter, onFilter, items, windowItems, onManage, onRefresh }: { model: DashboardVNextModel; filter: WireFilter; onFilter: (next: WireFilter)=>void; items: WireItem[]; windowItems: WireItem[]; onManage: ()=>void; onRefresh: ()=>void }) {
+function Wire({ model, filter, onFilter, items, windowItems, showAll, hasMore, onToggleShowAll, onManage, onRefresh }: { model: DashboardVNextModel; filter: WireFilter; onFilter: (next: WireFilter)=>void; items: WireItem[]; windowItems: WireItem[]; showAll: boolean; hasMore: boolean; onToggleShowAll: () => void; onManage: ()=>void; onRefresh: ()=>void }) {
   const xCount = windowItems.filter((item) => item.type === 'x').length;
   const newsCount = windowItems.filter((item) => item.type === 'news').length;
   const xKnown = sourceCountKnown(model.xFeed.status.state, xCount);
@@ -331,7 +336,8 @@ function Wire({ model, filter, onFilter, items, windowItems, onManage, onRefresh
       <div className="dashv2-wire__list">
         {filter !== 'news' ? <SourceBanner source="x" status={model.xFeed.status.state} hasSubscriptions={model.xFeed.subscriptions.some((sub) => sub.enabled)} onCustomize={onManage} onRetry={onRefresh} /> : null}
         {filter !== 'x' ? <SourceBanner source="news" status={model.news.status.state} hasSubscriptions={model.news.preferences.articleTopics.length > 0 || model.news.preferences.sources.length > 0 || model.news.preferences.agencies.length > 0 || model.news.preferences.customTopics.length > 0} onCustomize={onManage} onRetry={model.retry} /> : null}
-        {items.length === 0 ? <div className="dashv2-wire-empty"><strong>Nothing on this filter</strong><span>No items were returned in the current window.</span></div> : items.map((entry) => entry.type === 'x' ? <XWireRow key={entry.id} post={entry.item}/> : <NewsWireRow key={entry.id} item={entry.item} compact={model.density==='compact'}/>) }
+        {items.length === 0 ? <div className="dashv2-wire-empty"><strong>Nothing on this filter</strong><span>No items were returned in the current window.</span></div> : items.map((entry) => entry.type === 'x' ? <XWireRow key={entry.id} post={entry.item}/> : <NewsWireRow key={entry.id} item={entry.item}/>) }
+        {hasMore ? <button type="button" className="dashv2-wire__more dashv2-link" onClick={onToggleShowAll}>{showAll ? 'Show less' : `View more ${filter === 'x' ? 'X posts' : filter === 'news' ? 'news stories' : 'items'}`}</button> : null}
       </div>
       <footer className="dashv2-wire__foot"><span>{model.xFeed.subscriptions.length} accounts · {model.news.preferences.articleTopics.length} article topics · read-only{wireStaleDisclosure(model)}</span><span className="dashv2-triage__spacer"/><button type="button" className="dashv2-link" onClick={onRefresh}>Refresh</button></footer>
     </aside>
@@ -354,10 +360,10 @@ function XWireRow({ post }: { post: XFeedPostItem }) {
   return <a className="dashv2-wire-row" href={post.xUrl} target="_blank" rel="noreferrer"><span className="dashv2-wire-row__mark">{post.authorAvatarUrl?<img src={post.authorAvatarUrl} alt=""/>:<span className="dashv2-avatar">{initials}</span>}</span><span className="dashv2-wire-row__copy"><span className="dashv2-wire-row__name"><strong>{post.authorDisplayName ?? post.authorUsername}</strong><i className="dashv2-xchip">X</i></span><span className="dashv2-wire-row__byline">@{post.authorUsername} · {relativeTime(post.createdAtX)}</span><span className="dashv2-wire-row__body">{post.text}</span><span className="dashv2-wire-row__foot"><span/><b>View post</b></span></span></a>;
 }
 
-function NewsWireRow({ item, compact }: { item: DashboardVNextModel['news']['items'][number]; compact: boolean }) {
+function NewsWireRow({ item }: { item: DashboardVNextModel['news']['items'][number] }) {
   const source = item.source.split(' · ')[0] || item.source;
   const byline = relativeTime(item.publishedAt ?? '') || item.publishedLabel;
-  return <a className="dashv2-wire-row" href={item.url} target="_blank" rel="noreferrer"><span className="dashv2-wire-row__mark"><span className="dashv2-outlet">{initialsOf(source)}</span></span><span className="dashv2-wire-row__copy"><span className="dashv2-wire-row__name"><strong>{source}</strong></span><span className="dashv2-wire-row__byline">{byline}</span><span className="dashv2-wire-row__headline">{item.title}</span>{!compact && item.summary ? <span className="dashv2-wire-row__body dashv2-wire-row__body--news">{item.summary}</span> : null}<span className="dashv2-wire-row__foot">{item.clients && item.reason ? <span className="dashv2-pill dashv2-pill--brand">{item.reason}</span> : <span/>}<b>Read story</b></span></span></a>;
+  return <a className="dashv2-wire-row" href={item.url} target="_blank" rel="noreferrer"><span className="dashv2-wire-row__mark"><span className="dashv2-outlet">{initialsOf(source)}</span></span><span className="dashv2-wire-row__copy"><span className="dashv2-wire-row__name"><strong>{source}</strong></span><span className="dashv2-wire-row__byline">{byline}</span><span className="dashv2-wire-row__headline">{item.title}</span><span className="dashv2-wire-row__foot">{item.clients && item.reason ? <span className="dashv2-pill dashv2-pill--brand">{item.reason}</span> : <span/>}<b>Read story</b></span></span></a>;
 }
 
 function groupEvents(events: TodayEvent[]) {
