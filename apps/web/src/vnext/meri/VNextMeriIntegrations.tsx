@@ -3,6 +3,7 @@ import {
   useManagedMcpApps,
   type ManagedApp,
 } from '../../components/chat/managed-mcp-apps.js';
+import { ConnectorMark } from './meri-connector-logos.js';
 import './vnext-meri-integrations.css';
 
 export function VNextMeriIntegrations({ onBack }: { onBack: () => void }) {
@@ -96,7 +97,7 @@ function IntegrationCard({
     <article className={`vnext-meri-integration-card vnext-meri-integration-card--${app.id}`}>
       <div className="vnext-meri-integration-card__topline">
         <span className="vnext-meri-integration-card__logo" aria-hidden="true">
-          {app.id === 'hubspot' ? 'H' : 'A'}
+          <ConnectorMark id={app.id} size={22} />
         </span>
         <span
           className={`vnext-meri-integration-card__status${app.connected ? ' is-connected' : ''}`}

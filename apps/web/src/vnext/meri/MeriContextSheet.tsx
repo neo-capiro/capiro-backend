@@ -70,9 +70,12 @@ export function MeriContextSheet({
                 <article key={item.id} className="vnext-meri__context-sheet-item">
                   <div className="vnext-meri__context-sheet-item-title">{item.label}</div>
                   <div className="vnext-meri__context-sheet-item-meta">
-                    {item.type.replace(/_/g, ' ').toUpperCase()} · {item.scope.toUpperCase()} · {item.selection.toUpperCase()}
+                    {item.type.replace(/_/g, ' ').toUpperCase()} · {item.scope.toUpperCase()} SCOPE ·{' '}
+                    {item.selection === 'explicit' ? 'YOU ADDED THIS' : 'AUTO-INCLUDED'}
                   </div>
-                  {item.rationale ? <div className="vnext-meri__context-sheet-item-body">{item.rationale}</div> : null}
+                  {item.rationale ? (
+                    <div className="vnext-meri__context-sheet-item-body">{item.rationale}</div>
+                  ) : null}
                 </article>
               ))}
             </div>

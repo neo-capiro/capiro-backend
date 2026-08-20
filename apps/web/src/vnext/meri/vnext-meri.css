@@ -3251,6 +3251,95 @@
   gap: 9px;
 }
 
+/* ── Context sheet ("Manage context") — a richer, scrollable variant of the
+   confirm dialog. Was previously unstyled: relied on .vnext-meri__confirm-*
+   for the box but had no rules of its own, so every item rendered as bare
+   text with no size/weight/spacing hierarchy. */
+.capiro-vnext-root .vnext-meri__context-sheet {
+  width: 520px;
+  max-width: calc(100vw - 40px);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-head h2 {
+  margin: 3px 0 0;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--m-gray-900);
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-note {
+  flex: 0 0 auto;
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--m-gray-600);
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-label {
+  flex: 0 0 auto;
+  margin-top: 18px;
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-list {
+  margin-top: 10px;
+  padding-bottom: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-item {
+  padding: 12px 13px;
+  border-radius: 9px;
+  background: var(--m-gray-50);
+  box-shadow: inset 0 0 0 1px var(--m-gray-200);
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-item.is-excluded {
+  opacity: 0.85;
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-item-title {
+  font-size: 13.5px;
+  line-height: 19px;
+  font-weight: 600;
+  color: var(--m-gray-900);
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-item-meta {
+  margin-top: 4px;
+  font-family: var(--meri-font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__context-sheet-item-body {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--m-gray-600);
+}
+
 .capiro-vnext-root .vnext-meri__confirm-cancel,
 .capiro-vnext-root .vnext-meri__confirm-delete {
   height: 38px;

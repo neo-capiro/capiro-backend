@@ -11,6 +11,7 @@ import { MeriSourceDetail } from './MeriSourceDetail.js';
 import { MeriArtifactCanvas } from './MeriArtifactCanvas.js';
 import type { CanvasArtifact } from '../../components/chat/MeriCanvas.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
+import { ConnectorMark } from './meri-connector-logos.js';
 import type { MeriContextSection } from './meri-prefs.js';
 import { activeContextLabels, contextPacketSummary } from './meri-context-packet.js';
 import { fetchLatestMeriContextPacket, type MeriContextPacket } from './meri-vnext-api.js';
@@ -385,7 +386,9 @@ export function VNextMeriContextRail({
                   const tone = statusTone(status);
                   return (
                     <button type="button" key={source.id} className="vnext-meri__source-row" onClick={onOpenIntegrations}>
-                      <span className="vnext-meri__source-tile">{source.name.slice(0, 1).toUpperCase()}</span>
+                      <span className="vnext-meri__source-tile">
+                        <ConnectorMark id={source.id} size={14} />
+                      </span>
                       <span className="vnext-meri__source-name">{source.name}</span>
                       <span className={`vnext-meri__source-state is-${tone}`}>{status}</span>
                       <span className={`vnext-meri__source-dot is-${tone}`} />

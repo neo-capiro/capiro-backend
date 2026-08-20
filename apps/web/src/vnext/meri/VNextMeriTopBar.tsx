@@ -12,9 +12,6 @@ interface VNextMeriTopBarProps {
   windowChrome: MeriWindowChrome;
   onNewChat: () => void;
   onSearch: () => void;
-  /** Scope-menu open state is lifted so the composer pill triggers this same menu. */
-  scopeMenuOpen: boolean;
-  onScopeMenuOpenChange: (open: boolean) => void;
   onDock: () => void;
   onToggleMaximize: () => void;
   onClose: () => void;
@@ -43,16 +40,13 @@ export function VNextMeriTopBar({
   windowChrome,
   onNewChat,
   onSearch,
-  scopeMenuOpen,
-  onScopeMenuOpenChange,
   onDock,
   onToggleMaximize,
   onClose,
 }: VNextMeriTopBarProps) {
   const [scopeQuery, setScopeQuery] = useState('');
   const [tipOpen, setTipOpen] = useState(false);
-  const scopeOpen = scopeMenuOpen;
-  const setScopeOpen = onScopeMenuOpenChange;
+  const [scopeOpen, setScopeOpen] = useState(false);
   const scopeRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
 
@@ -83,9 +77,6 @@ export function VNextMeriTopBar({
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null;
       if (scopeRef.current?.contains(target)) return;
-      // The composer carries a second trigger for this same menu; let its own
-      // click handler do the toggling instead of closing out from under it.
-      if (target?.closest('[data-meri-scope-trigger]')) return;
       setScopeOpen(false);
     };
     document.addEventListener('pointerdown', onPointerDown);
@@ -128,7 +119,7 @@ export function VNextMeriTopBar({
         <span className="vnext-meri__brand-divider" />
         <span className="vnext-meri__brand-workspace">
           <MeriIcon name="LayoutAlt01" size={16} color="#98A2B3" />
-          <span className="vnext-meri__brand-label">Undocked Workspace</span>
+          <span className="vnext-meri__brand-label">AI Chief of Staff</span>
         </span>
       </div>
 

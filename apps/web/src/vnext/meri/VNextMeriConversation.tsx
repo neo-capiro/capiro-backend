@@ -37,8 +37,6 @@ interface VNextMeriConversationProps {
   greetingName: string;
   tenantName: string;
   onOpenIntegrations: () => void;
-  /** Opens the single scope menu owned by the top bar. */
-  onOpenScope: () => void;
   /** Expands the rail's Memory section. */
   onOpenMemory: () => void;
   /** Opens the rail's Source Detail view for one of a turn's citations. */
@@ -50,7 +48,6 @@ export function VNextMeriConversation({
   greetingName,
   tenantName,
   onOpenIntegrations,
-  onOpenScope,
   onOpenMemory,
   onOpenSourceDetail,
 }: VNextMeriConversationProps) {
@@ -314,14 +311,6 @@ export function VNextMeriConversation({
                   <VNextMeriReasoningControl conversationId={activeConversationId} />
                 </div>
 
-                <VNextMeriComposer
-                  controller={controller}
-                  variant="landing"
-                  hasThread={false}
-                  onOpenIntegrations={onOpenIntegrations}
-                  onOpenScope={onOpenScope}
-                />
-
                 <MeriStartWork
                   controller={controller}
                   onFillIntent={(text) => {
@@ -374,15 +363,12 @@ export function VNextMeriConversation({
           </div>
         </div>
 
-        {hasThread ? (
-          <VNextMeriComposer
-            controller={controller}
-            variant="pinned"
-            hasThread={true}
-            onOpenIntegrations={onOpenIntegrations}
-            onOpenScope={onOpenScope}
-          />
-        ) : null}
+        <VNextMeriComposer
+          controller={controller}
+          variant="pinned"
+          hasThread={hasThread}
+          onOpenIntegrations={onOpenIntegrations}
+        />
       </main>
     </>
   );

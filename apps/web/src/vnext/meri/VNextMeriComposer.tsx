@@ -17,6 +17,7 @@ import { useCapiroToast } from '../components/feedback/toast.js';
 import { useApi } from '../../lib/use-api.js';
 import { useImpersonation } from '../../state/impersonation.js';
 import { MeriIcon } from './meri-icons.js';
+import { ConnectorMark } from './meri-connector-logos.js';
 import {
   mayApplyWorkspaceImportResponse,
   workspaceDocumentComposerText,
@@ -24,7 +25,6 @@ import {
   workspaceImportDraftsResponse,
   type MeriWorkspaceImportDraft,
 } from './meri-workspace-import.js';
-import { MeriTaskModePicker } from './MeriTaskModePicker.js';
 
 const ATTACH_ACCEPT = '.pdf,.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
 
@@ -34,8 +34,6 @@ interface VNextMeriComposerProps {
   /** Whether the thread has messages (affects placeholder). */
   hasThread: boolean;
   onOpenIntegrations: () => void;
-  /** Opens the single scope menu owned by the top bar. */
-  onOpenScope: () => void;
 }
 
 function stagedAttachmentFailed(attachment: StagedAttachment): boolean {
@@ -61,7 +59,6 @@ export function VNextMeriComposer({
   variant,
   hasThread,
   onOpenIntegrations,
-  onOpenScope,
 }: VNextMeriComposerProps) {
   const toast = useCapiroToast();
   const api = useApi();
@@ -348,7 +345,7 @@ export function VNextMeriComposer({
               onOpenIntegrations();
             }}
           >
-            <span className="vnext-meri__add-popover-tile">H</span>
+            <span className="vnext-meri__add-popover-tile"><ConnectorMark id="hubspot" size={15} /></span>
             <span className="vnext-meri__add-popover-item-body">
               <span className="vnext-meri__add-popover-item-label">Connect HubSpot</span>
               <span className="vnext-meri__add-popover-item-desc">PULL CRM RECORDS</span>
@@ -363,7 +360,7 @@ export function VNextMeriComposer({
               onOpenIntegrations();
             }}
           >
-            <span className="vnext-meri__add-popover-tile">S</span>
+            <span className="vnext-meri__add-popover-tile"><ConnectorMark id="sharepoint" size={15} /></span>
             <span className="vnext-meri__add-popover-item-body">
               <span className="vnext-meri__add-popover-item-label">Connect SharePoint</span>
               <span className="vnext-meri__add-popover-item-desc">BROWSE TEAM DOCUMENTS</span>
@@ -378,7 +375,7 @@ export function VNextMeriComposer({
               onOpenIntegrations();
             }}
           >
-            <span className="vnext-meri__add-popover-tile">A</span>
+            <span className="vnext-meri__add-popover-tile"><ConnectorMark id="airtable" size={15} /></span>
             <span className="vnext-meri__add-popover-item-body">
               <span className="vnext-meri__add-popover-item-label">Connect Airtable</span>
               <span className="vnext-meri__add-popover-item-desc">ATTACH BASE CONTEXT</span>
@@ -508,21 +505,6 @@ export function VNextMeriComposer({
         </div>
 
         <div className="vnext-meri__composer-toolbar">
-          <MeriTaskModePicker controller={controller} disabled={busy} />
-
-          <button
-            type="button"
-            className="vnext-meri__composer-scope-btn"
-            data-meri-scope-trigger
-            disabled={isStreaming}
-            onClick={onOpenScope}
-            aria-haspopup="menu"
-            title="Conversation scope"
-          >
-            <MeriIcon name={selectedClient ? 'Building01' : 'Grid01'} size={13} color="#101828" />
-            SCOPE · {selectedClient ? selectedClient.name.toUpperCase() : 'ALL CLIENTS'}
-          </button>
-
           <button
             type="button"
             className="vnext-meri__composer-context-label"

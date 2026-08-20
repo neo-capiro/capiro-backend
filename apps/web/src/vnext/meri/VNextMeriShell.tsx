@@ -73,9 +73,6 @@ export function VNextMeriShell({
   const skipInitialPreferenceSaveRef = useRef(true);
   const [threadSearch, setThreadSearch] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // The scope menu lives in the top bar but the composer's SCOPE pill is a
-  // second trigger for that same single control, so the open state is lifted.
-  const [scopeMenuOpen, setScopeMenuOpen] = useState(false);
   const [activeSourceDetail, setActiveSourceDetail] = useState<{
     citations: MeriCitation[];
     index: number;
@@ -195,8 +192,6 @@ export function VNextMeriShell({
             windowChrome={windowChrome}
             onNewChat={handleNewChat}
             onSearch={() => setPaletteOpen(true)}
-            scopeMenuOpen={scopeMenuOpen}
-            onScopeMenuOpenChange={setScopeMenuOpen}
             onDock={() => setWindowChrome('docked')}
             onToggleMaximize={() =>
               setWindowChrome((current) => (current === 'maximized' ? 'undocked' : 'maximized'))
@@ -225,7 +220,6 @@ export function VNextMeriShell({
               greetingName={greetingName}
               tenantName={tenantName}
               onOpenIntegrations={handleOpenIntegrations}
-              onOpenScope={() => setScopeMenuOpen(true)}
               onOpenMemory={() => expandSection('memory')}
               onOpenSourceDetail={(citations, index) => {
                 setActiveSourceDetail({ citations, index });
