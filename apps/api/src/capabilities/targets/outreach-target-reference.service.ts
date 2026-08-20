@@ -15,6 +15,22 @@ import {
   type OutreachTargetLocatorV1,
 } from './outreach-target.contract.js';
 
+/**
+ * Resolving a `directory_member` / `directory_staff` locator calls DirectoryService
+ * over HTTP, and that happens INSIDE the caller's Prisma interactive transaction.
+ * Prisma's 5s default aborted those transactions outright
+ * (`P2028 … timeout for this transaction was 5000 ms, however 12814 ms passed`),
+ * which the exception filter surfaced as the misleading
+ * `503 The database is temporarily busy. Please retry.`
+ *
+ * INTERIM. Holding a Postgres transaction open across external HTTP pins one of only
+ * `connection_limit=10` connections for the duration, so this ceiling trades a hard
+ * failure for pool pressure — it does not make the design correct. The real fix is to
+ * resolve directory targets BEFORE opening the transaction and keep the transaction to
+ * the writes; until that lands, this stops healthy-but-slow lookups from failing.
+ */
+export const OUTREACH_REFERENCE_TX_TIMEOUT_MS = 600_000;
+
 @Injectable()
 export class OutreachTargetReferenceService {
   constructor(
@@ -27,8 +43,11 @@ export class OutreachTargetReferenceService {
     ctx: TenantContext,
     locators: readonly unknown[],
   ): Promise<OutreachResolvedTargetRefV1[]> {
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      this.resolveManyWithinTx(tx, ctx, locators),
+    return this.prisma.withTenantUser(
+      ctx.tenantId,
+      ctx.userId,
+      (tx) => this.resolveManyWithinTx(tx, ctx, locators),
+      { timeoutMs: OUTREACH_REFERENCE_TX_TIMEOUT_MS },
     );
   }
 
@@ -59,8 +78,11 @@ export class OutreachTargetReferenceService {
     ctx: TenantContext,
     rawLocator: unknown,
   ): Promise<OutreachResolvedTargetRefV1> {
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      this.resolveOneWithinTx(tx, ctx, normalizeTargetLocatorV1(rawLocator)),
+    return this.prisma.withTenantUser(
+      ctx.tenantId,
+      ctx.userId,
+      (tx) => this.resolveOneWithinTx(tx, ctx, normalizeTargetLocatorV1(rawLocator)),
+      { timeoutMs: OUTREACH_REFERENCE_TX_TIMEOUT_MS },
     );
   }
 

@@ -6,7 +6,10 @@ import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import { CapabilityAuthorizationService } from '../capability-authorization.service.js';
 import type { AuthorizedCapabilityContext } from '../capability-context.js';
 import { CapabilityError } from '../capability-errors.js';
-import { OutreachTargetReferenceService } from '../targets/outreach-target-reference.service.js';
+import {
+  OutreachTargetReferenceService,
+  OUTREACH_REFERENCE_TX_TIMEOUT_MS,
+} from '../targets/outreach-target-reference.service.js';
 import {
   createResolvedContextRefV1,
   normalizeContextSelectionV1,
@@ -67,8 +70,14 @@ export class OutreachContextReferenceService {
     ctx: TenantContext,
     selections: readonly unknown[],
   ): Promise<OutreachResolvedContextRefV1[]> {
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      this.resolveManyWithinTx(tx, ctx, selections),
+    // Delegates target-scoped selections to OutreachTargetReferenceService, whose
+    // directory lookups are HTTP calls made inside this transaction — same P2028
+    // exposure, same interim ceiling.
+    return this.prisma.withTenantUser(
+      ctx.tenantId,
+      ctx.userId,
+      (tx) => this.resolveManyWithinTx(tx, ctx, selections),
+      { timeoutMs: OUTREACH_REFERENCE_TX_TIMEOUT_MS },
     );
   }
 
@@ -88,8 +97,11 @@ export class OutreachContextReferenceService {
     ctx: TenantContext,
     selection: unknown,
   ): Promise<OutreachResolvedContextRefV1> {
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      this.resolveOneWithinTx(tx, ctx, normalizeContextSelectionV1(selection)),
+    return this.prisma.withTenantUser(
+      ctx.tenantId,
+      ctx.userId,
+      (tx) => this.resolveOneWithinTx(tx, ctx, normalizeContextSelectionV1(selection)),
+      { timeoutMs: OUTREACH_REFERENCE_TX_TIMEOUT_MS },
     );
   }
 

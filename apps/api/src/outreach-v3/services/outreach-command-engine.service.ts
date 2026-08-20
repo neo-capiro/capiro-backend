@@ -5,7 +5,10 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { CapabilityAuthorizationService } from '../../capabilities/capability-authorization.service.js';
 import type { AuthorizedCapabilityContext } from '../../capabilities/capability-context.js';
 import { CapabilityError } from '../../capabilities/capability-errors.js';
-import { OutreachTargetReferenceService } from '../../capabilities/targets/outreach-target-reference.service.js';
+import {
+  OutreachTargetReferenceService,
+  OUTREACH_REFERENCE_TX_TIMEOUT_MS,
+} from '../../capabilities/targets/outreach-target-reference.service.js';
 import { OutreachContextReferenceService } from '../../capabilities/context/outreach-context-reference.service.js';
 import {
   OutreachStateRepository,
@@ -59,8 +62,16 @@ export class OutreachCommandEngineService {
 
   async applyBatch(ctx: TenantContext, sessionId: string, input: unknown) {
     const batch = this.parseNormalizeAndValidateBatch(input);
-    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-      this.applyBatchWithinTx(tx, ctx, sessionId, batch),
+    // ADD_TARGET_REFS reauthorizes every locator inside this transaction, and a
+    // directory locator means an HTTP call to DirectoryService — so Prisma's 5s
+    // default killed legitimate multi-target batches with P2028 (surfaced as a
+    // misleading 503 "database is temporarily busy"). See
+    // OUTREACH_REFERENCE_TX_TIMEOUT_MS for why this is interim.
+    return this.prisma.withTenantUser(
+      ctx.tenantId,
+      ctx.userId,
+      (tx) => this.applyBatchWithinTx(tx, ctx, sessionId, batch),
+      { timeoutMs: OUTREACH_REFERENCE_TX_TIMEOUT_MS },
     );
   }
 

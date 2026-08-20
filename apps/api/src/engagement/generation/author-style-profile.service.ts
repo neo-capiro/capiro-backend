@@ -26,7 +26,10 @@ import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ContextCompilerService } from '../../context/context-compiler.service.js';
-import { LlmCompletionService } from '../llm-completion.service.js';
+import {
+  LlmCompletionService,
+  LLM_LONG_GENERATION_TIMEOUT_MS,
+} from '../llm-completion.service.js';
 import { engagementAuthorExampleAnalysisEnabled } from '../../common/tenant-flags.js';
 import { SPOTLIGHT_CLOSE, SPOTLIGHT_OPEN } from '../outreach-prompt/prompt-spec-v2.js';
 import type { ResolvedAiCredential } from '../ai-credential-resolver.service.js';
@@ -313,6 +316,9 @@ export class AuthorStyleProfileService {
       jsonSchema: PROFILE_JSON_SCHEMA as unknown as Record<string, unknown>,
       jsonSchemaName: 'author_style_profile',
       maxTokens: 900,
+      // Awaited inline by GenerationGatewayService, so its 90s default was a
+      // hidden third wall in the same request as the plan and draft calls.
+      timeoutMs: LLM_LONG_GENERATION_TIMEOUT_MS,
     });
 
     const parsed = safeParse(result.text);

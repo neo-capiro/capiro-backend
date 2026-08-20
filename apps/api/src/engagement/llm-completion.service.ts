@@ -106,6 +106,21 @@ export interface LlmCompletionResult {
 }
 
 const DEFAULT_TIMEOUT_MS = 90_000;
+
+/**
+ * Per-call ceiling for the governed outreach generation path (message plan →
+ * draft → author style), passed explicitly by those three call sites.
+ *
+ * The 90s default above is right for interactive assistant calls but far too low
+ * here: these run gpt-5 at `max` reasoning effort, and an abort is deliberately
+ * NOT retried (see complete()), so a slow-but-healthy call became a hard
+ * `503 … request timed out after 90s`. Left as an explicit per-call override
+ * rather than a higher global default so unrelated callers keep failing fast.
+ *
+ * Bounded, not unlimited: the ALB caps any single request at 4000s no matter what,
+ * and a caller may make several of these sequentially.
+ */
+export const LLM_LONG_GENERATION_TIMEOUT_MS = 900_000;
 const DEFAULT_MAX_RETRIES = 2;
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504, 529]);
 
