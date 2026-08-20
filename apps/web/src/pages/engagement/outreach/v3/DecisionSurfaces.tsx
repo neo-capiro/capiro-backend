@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -1049,6 +1050,21 @@ const DELIVERY_PATTERN_TITLE: Record<Exclude<OutreachV3DeliveryPattern, 'undecid
   shared_thread: 'Shared thread',
 };
 
+/**
+ * The one delivery pair the rest of the system refuses outright, stated once so
+ * the disabled control, its tooltip, and the submit guard cannot drift apart:
+ * `buildOutreachV3GenerationPlan` pushes SHARED_THREAD_HIGH_PERSONALIZATION for
+ * it (making `plan.eligible` false), `assertDeliveryCompatibility` in the API
+ * reducer rejects it with a 422, and `deliveryCommands` throws before it can be
+ * sent. This surface used to offer the pairing as a freely selectable option
+ * and surfaced none of that until Confirm delivery, so the refusal now happens
+ * at the point of choice.
+ */
+const SHARED_THREAD_HIGH_REASON = 'High personalization is unavailable on a shared thread';
+const SHARED_THREAD_HIGH_DETAIL =
+  'Every recipient would see the per-recipient detail it pulls in, so generation refuses the pairing.';
+const SHARED_THREAD_HIGH_MESSAGE = `${SHARED_THREAD_HIGH_REASON}. ${SHARED_THREAD_HIGH_DETAIL}`;
+
 function DeliverySurface({
   session,
   busy,
@@ -1062,7 +1078,13 @@ function DeliverySurface({
   const [personalization, setPersonalization] = useState<OutreachV3Personalization>(
     delivery.personalization,
   );
+  // Recipient visibility is the one delivery consequence no later step can
+  // undo, so a shared thread is confirmed only once it has been acknowledged
+  // explicitly. This stays local to the surface: it gates the batch and is not
+  // itself a command, so nothing new reaches the campaign spec.
+  const [sharedVisibilityAccepted, setSharedVisibilityAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const sharedThreadReasonId = useId();
 
   // Real, already-fetched strategy recommendation — the same capability and
   // field shape DeliveryDecisionSurface.tsx's "accepted" contract already
@@ -1100,9 +1122,35 @@ function DeliverySurface({
         ? 'Blocked by shared thread + high'
         : 'Not blocked by this selection';
 
+  // Choosing a pattern must not strand the pair in a state the reducer would
+  // reject. Shared thread forbids High only, so an already-chosen High steps
+  // down to Light — the highest level still allowed — rather than all the way to
+  // None. Leaving the shared thread retires the acknowledgement, so returning to
+  // it asks again instead of inheriting stale consent.
+  const selectPattern = (next: Exclude<OutreachV3DeliveryPattern, 'undecided'>) => {
+    setPattern(next);
+    setError(null);
+    if (next === 'shared_thread') {
+      if (personalization === 'high') setPersonalization('light');
+    } else {
+      setSharedVisibilityAccepted(false);
+    }
+  };
+
   const submit = async () => {
     if (pattern === 'undecided' || personalization === 'undecided') {
       setError('Choose a delivery pattern and personalization level.');
+      return;
+    }
+    // Reachable without a click: a session that already holds the pairing opens
+    // on it, and the control shows saved state as it is rather than silently
+    // rewriting it on mount.
+    if (pattern === 'shared_thread' && personalization === 'high') {
+      setError(SHARED_THREAD_HIGH_MESSAGE);
+      return;
+    }
+    if (pattern === 'shared_thread' && !sharedVisibilityAccepted) {
+      setError('Acknowledge that recipients can see one another and may reply all.');
       return;
     }
     setError(null);
@@ -1124,38 +1172,77 @@ function DeliverySurface({
             title={DELIVERY_PATTERN_TITLE.personalized_separate}
             description="Each recipient gets an independently reviewable message. Recipients are hidden from one another."
             icon={<Mail />}
-            onClick={() => setPattern('personalized_separate')}
+            onClick={() => selectPattern('personalized_separate')}
           />
           <ChoiceCard
             selected={pattern === 'uniform_separate'}
             title={DELIVERY_PATTERN_TITLE.uniform_separate}
             description="One approved message is delivered separately to each recipient."
             icon={<Mail />}
-            onClick={() => setPattern('uniform_separate')}
+            onClick={() => selectPattern('uniform_separate')}
           />
           <ChoiceCard
             selected={pattern === 'shared_thread'}
             title={DELIVERY_PATTERN_TITLE.shared_thread}
             description="One email thread with the recipient list visible to everyone."
             icon={<UsersRound />}
-            onClick={() => setPattern('shared_thread')}
+            onClick={() => selectPattern('shared_thread')}
             footerWarning
           />
 
           <span className="ov3-section-label">Personalization level</span>
-          <div className="ov3-segmented" role="group" aria-label="Personalization level">
-            {(['high', 'light', 'none'] as OutreachV3Personalization[]).map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={personalization === value ? 'is-selected' : ''}
-                aria-pressed={personalization === value}
-                onClick={() => setPersonalization(value)}
-              >
-                {sentence(value)}
-              </button>
-            ))}
+          <div
+            className="ov3-segmented"
+            role="group"
+            aria-label="Personalization level"
+            aria-describedby={pattern === 'shared_thread' ? sharedThreadReasonId : undefined}
+          >
+            {(['high', 'light', 'none'] as OutreachV3Personalization[]).map((value) => {
+              const blocked = pattern === 'shared_thread' && value === 'high';
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  className={personalization === value ? 'is-selected' : ''}
+                  aria-pressed={personalization === value}
+                  disabled={blocked}
+                  title={blocked ? SHARED_THREAD_HIGH_MESSAGE : undefined}
+                  onClick={() => setPersonalization(value)}
+                >
+                  {sentence(value)}
+                </button>
+              );
+            })}
           </div>
+          {pattern === 'shared_thread' ? (
+            <>
+              {/* The disabled button's reason, visible rather than tooltip-only,
+                  and wired to the group it disables a control in. */}
+              <div className="ov3-recovery is-warning" id={sharedThreadReasonId}>
+                <AlertTriangle size={18} aria-hidden="true" />
+                <div>
+                  <strong>{SHARED_THREAD_HIGH_REASON}</strong>
+                  <p>{SHARED_THREAD_HIGH_DETAIL}</p>
+                </div>
+              </div>
+              <label className="ov3-acknowledgement">
+                <input
+                  type="checkbox"
+                  checked={sharedVisibilityAccepted}
+                  onChange={(event) => {
+                    setSharedVisibilityAccepted(event.target.checked);
+                    setError(null);
+                  }}
+                />
+                <span>
+                  <strong>I understand every recipient can see the other addresses.</strong>
+                  <small>
+                    They may reply all. Only group-safe facts may appear in the shared message.
+                  </small>
+                </span>
+              </label>
+            </>
+          ) : null}
           <div className="ov3-recovery is-info">
             <ShieldCheck size={18} />
             <div>

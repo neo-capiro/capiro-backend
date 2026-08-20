@@ -219,12 +219,120 @@ describe('DecisionSurfaces — delivery stage (item 8)', () => {
     expect(screen.getByText('Blocked until delivery is set')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Shared thread/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'High' }));
-    // The one pairing buildOutreachV3GenerationPlan blocks outright.
-    expect(screen.getByText('Blocked by shared thread + high')).toBeInTheDocument();
-
     fireEvent.click(screen.getByRole('button', { name: 'Light' }));
     expect(screen.getByText('Not blocked by this selection')).toBeInTheDocument();
+  });
+
+  /**
+   * The blocked pairing is no longer reachable by clicking — High is disabled
+   * under a shared thread — but a session that already holds it must still say
+   * so instead of reading "Not blocked by this selection". The stored pair is
+   * shown as it is, selected and disabled, so the row and the control agree.
+   */
+  it('still reports the blocked pairing when the session already holds it', () => {
+    render(
+      <DecisionSurfaces
+        {...props({ session: session({ pattern: 'shared_thread', personalization: 'high' }) })}
+      />,
+    );
+
+    expect(screen.getByText('Blocked by shared thread + high')).toBeInTheDocument();
+    const high = screen.getByRole('button', { name: 'High' });
+    expect(high).toHaveAttribute('aria-pressed', 'true');
+    expect(high).toBeDisabled();
+  });
+
+  /**
+   * The gap this closes: the segmented personalization group had no gating and
+   * submit only checked for 'undecided', so shared_thread + high was one click
+   * away from Confirm — and only `deliveryCommands` (or the reducer's 422)
+   * refused it, after the fact. `buildOutreachV3GenerationPlan` pushes
+   * SHARED_THREAD_HIGH_PERSONALIZATION for that pair, so the refusal has to
+   * happen at the point of choice.
+   */
+  it('disables High under a shared thread and names the reason on screen', () => {
+    render(<DecisionSurfaces {...props()} />);
+
+    expect(screen.getByRole('button', { name: 'High' })).not.toBeDisabled();
+    expect(
+      screen.queryByText(/High personalization is unavailable on a shared thread/i),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Shared thread/i }));
+
+    expect(screen.getByRole('button', { name: 'High' })).toBeDisabled();
+    expect(
+      screen.getByText('High personalization is unavailable on a shared thread'),
+    ).toBeInTheDocument();
+    // The constraint forbids High only — the other two levels stay reachable.
+    expect(screen.getByRole('button', { name: 'Light' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'None' })).not.toBeDisabled();
+  });
+
+  it('downgrades an already-selected High to Light when shared thread is chosen', () => {
+    render(
+      <DecisionSurfaces
+        {...props({
+          session: session({ pattern: 'personalized_separate', personalization: 'high' }),
+        })}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'High' })).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: /Shared thread/i }));
+
+    // Light, not None: shared thread forbids High only, so the downgrade stops
+    // at the highest level still allowed.
+    expect(screen.getByRole('button', { name: 'Light' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'High' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'High' })).toBeDisabled();
+  });
+
+  it('will not confirm a shared thread until recipient visibility is acknowledged', () => {
+    const applyCommands = vi.fn(async () => undefined);
+    render(<DecisionSurfaces {...props({ applyCommands })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Shared thread/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Light' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm delivery' }));
+
+    expect(applyCommands).not.toHaveBeenCalled();
+    expect(
+      screen.getByText('Acknowledge that recipients can see one another and may reply all.'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm delivery' }));
+
+    // The acknowledgement gates the batch; it is not itself a command, so the
+    // committed batch stays exactly the two it always was.
+    expect(applyCommands).toHaveBeenCalledWith([
+      { type: 'SET_DELIVERY_PATTERN', schemaVersion: 1, payload: { value: 'shared_thread' } },
+      { type: 'SET_PERSONALIZATION', schemaVersion: 1, payload: { value: 'light' } },
+    ]);
+  });
+
+  it('asks for the acknowledgement on shared thread only, and asks again on return', () => {
+    render(<DecisionSurfaces {...props()} />);
+    expect(screen.queryByRole('checkbox')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /Shared thread/i }));
+    const acknowledgement = screen.getByRole('checkbox');
+    expect(acknowledgement).toHaveAccessibleName(/every recipient can see the other addresses/i);
+    fireEvent.click(acknowledgement);
+    expect(screen.getByRole('checkbox')).toBeChecked();
+
+    // Leaving retires the gate entirely and restores High.
+    fireEvent.click(screen.getByRole('button', { name: /Personalized separate/i }));
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByRole('button', { name: 'High' })).not.toBeDisabled();
+    expect(
+      screen.queryByText('High personalization is unavailable on a shared thread'),
+    ).not.toBeInTheDocument();
+
+    // Coming back re-asks rather than inheriting the stale consent.
+    fireEvent.click(screen.getByRole('button', { name: /Shared thread/i }));
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
   });
 
   it('describes the pattern its heading names instead of always claiming independent review', () => {

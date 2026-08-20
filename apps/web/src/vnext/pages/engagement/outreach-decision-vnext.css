@@ -3262,7 +3262,8 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-:where(.capiro-vnext-root .engagement-vnext) .ov3-inline-choice button:disabled {
+:where(.capiro-vnext-root .engagement-vnext) .ov3-inline-choice button:disabled,
+:where(.capiro-vnext-root .engagement-vnext) .ov3-segmented button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
