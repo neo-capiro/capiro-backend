@@ -1,181 +1,724 @@
-  <div style="padding-top:64px;">
-
-    <div class="page-hero">
-      <div class="page-hero-inner">
-        <div class="section-label">The Platform</div>
-        <h1>Meet Meri.<br>Your AI Chief of Staff.</h1>
-        <p>Meri automates 80% of your back-office work. It knows your clients, your meetings, your deadlines, and your history. It produces finished work and acts on your behalf. Without waiting to be asked.</p>
+  <header class="pagehead">
+    <div class="pagehead-inner">
+      <div class="eyebrow">The platform</div>
+      <h1>Screen by screen.</h1>
+      <p class="pagehead-sub">Every module of Capiro, shown as it actually works. Real screens from the product &mdash; the intelligence layer, the plan, the client record, and the work that comes out of them.</p>
+      <div class="pagehead-actions">
+        <button class="btn-dark" onclick="openModal()">Request a demo</button>
+        <a class="btn-dark-wide" href="#dashboard" style="margin-top:0;background:#FFFFFF;color:#0A1A2E;box-shadow:inset 0 0 0 1px #D0D5DD,0 1px 2px rgba(16,24,40,0.05)">
+          Start the tour
+          <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
+        </a>
       </div>
     </div>
+    <div class="pagehead-meta">
+      <span><i></i>Ten modules</span>
+      <span><i></i>One shared record</span>
+      <span><i></i>Every figure traceable to a filing</span>
+    </div>
+  </header>
 
-    <section style="background:var(--navy-deep);padding:100px 48px;">
-      <div style="max-width:1160px;margin:0 auto;">
+  <nav class="modnav" aria-label="Modules">
+    <div class="modnav-inner">
+      <a class="modchip" href="#dashboard">Dashboard</a>
+      <a class="modchip" href="#meri">Meri</a>
+      <a class="modchip" href="#portfolio">Portfolio</a>
+      <a class="modchip" href="#strategies">Strategies</a>
+      <a class="modchip" href="#workspace">Workspace</a>
+      <a class="modchip" href="#engagement">Engagement</a>
+      <a class="modchip" href="#legiwatch">LegiWatch</a>
+      <a class="modchip" href="#program-elements">Program Elements</a>
+      <a class="modchip" href="#district-nexus">District Nexus</a>
+      <a class="modchip" href="#directory">Directory</a>
+    </div>
+  </nav>
 
-        <!-- Top: text left, screenshot right -->
-        <div style="display:grid;grid-template-columns:0.85fr 1.15fr;gap:56px;align-items:start;margin-bottom:40px;">
-          <div>
-            <div class="section-label">Meri &mdash; Orchestrating Agent</div>
-            <h2 style="font-family:var(--serif);font-size:clamp(32px,3.5vw,48px);color:var(--white);line-height:1.05;letter-spacing:-1px;margin-bottom:16px;font-weight:400;">Meri knows what you<br>need before you ask.</h2>
-            <p style="font-size:17px;color:var(--steel-dim);font-weight:300;line-height:1.7;max-width:340px;">Every morning, Meri surfaces what matters. Which meetings need prep, which deadlines are closing, which clients have gone quiet.</p>
-          </div>
-          <div style="position:relative;">
-            <div style="position:absolute;inset:-20px;background:radial-gradient(ellipse at center,rgba(58,111,247,0.12) 0%,transparent 70%);pointer-events:none;border-radius:20px;"></div>
-            <img loading="lazy" decoding="async" src="assets/shot-1.jpg" alt="Meri in action" style="width:100%;border-radius:12px;border:1px solid rgba(59,130,246,0.2);box-shadow:0 24px 64px rgba(0,0,0,0.5);position:relative;z-index:1;display:block;">
-          </div>
+  <!-- 01 Dashboard -->
+  <section class="mod" id="dashboard">
+    <div class="mod-inner">
+      <div class="mod-head">
+        <div class="mod-copy">
+          <div class="kicker"><b>Dashboard</b><s></s>The morning surface</div>
+          <h2>One screen that answers what needs attention.</h2>
+          <p class="mod-lead">What is happening today, what work is open, and what moved overnight &mdash; on one page, before you have opened anything else.</p>
         </div>
-
-        <!-- Bottom: three boxes full width -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--navy-border);border:1px solid var(--navy-border);">
-          <div style="background:var(--navy-mid);padding:28px;">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="width:8px;height:8px;border-radius:50%;background:#22C55E;flex-shrink:0;"></div><div style="font-size:15px;color:var(--white);font-weight:400;">Proactive briefings</div></div>
-            <p style="font-size:15px;color:var(--steel-dim);font-weight:300;line-height:1.6;">Meeting in 48 hours with no prep notes? Meri flags it and offers to create the brief. You say yes. It is done.</p>
-          </div>
-          <div style="background:var(--navy-mid);padding:28px;border-left:1px solid var(--navy-border);">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="width:8px;height:8px;border-radius:50%;background:#22C55E;flex-shrink:0;"></div><div style="font-size:15px;color:var(--white);font-weight:400;">Full context, always</div></div>
-            <p style="font-size:15px;color:var(--steel-dim);font-weight:300;line-height:1.6;">Meri knows what page you are on, which client you are working with, what was said last time. You never re-explain.</p>
-          </div>
-          <div style="background:var(--navy-mid);padding:28px;border-left:1px solid var(--navy-border);">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><div style="width:8px;height:8px;border-radius:50%;background:#22C55E;flex-shrink:0;"></div><div style="font-size:15px;color:var(--white);font-weight:400;">Scheduled intelligence</div></div>
-            <p style="font-size:15px;color:var(--steel-dim);font-weight:300;line-height:1.6;">Tell Meri to run a weekly research brief on every client. It runs read-only and waits in your history every Monday.</p>
-          </div>
+        <div class="mod-aside">
+          <p>Every item on this screen names the client it belongs to and the program element it sits under, so the queue reads as a book of business rather than a list of alerts.</p>
         </div>
-
       </div>
-    </section>
-
-    <div style="border-top:1px solid var(--navy-border);border-bottom:1px solid var(--navy-border);background:var(--navy);padding:56px 48px;">
-      <div style="max-width:1160px;margin:0 auto;">
-        <div style="text-align:center;margin-bottom:48px;"><div class="section-label" style="text-align:center;">What Meri does</div><h2 style="font-family:var(--serif);font-size:clamp(28px,3vw,40px);color:var(--white);font-weight:400;letter-spacing:-0.5px;">Answers. Drafts. Acts. Remembers.</h2></div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--navy-border);border:1px solid var(--navy-border);">
-          <div style="background:var(--navy-deep);padding:32px 28px;"><div style="margin-bottom:16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div><div style="font-family:var(--serif);font-size:18px;color:var(--white);font-weight:400;margin-bottom:10px;">Answers questions</div><p style="font-size:15px;color:var(--steel-dim);font-weight:300;line-height:1.6;">Ask about your clients, bills, LDA filings, defense budgets, member positions, and the news. Every answer grounded in Capiro data first.</p></div>
-          <div style="background:var(--navy-deep);padding:32px 28px;border-left:1px solid var(--navy-border);"><div style="margin-bottom:16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div style="font-family:var(--serif);font-size:18px;color:var(--white);font-weight:400;margin-bottom:10px;">Drafts finished work</div><p style="font-size:15px;color:var(--steel-dim);font-weight:300;line-height:1.6;">Briefings, memos, white papers, outreach emails, talking points. Real Office files you can download and send. Not summaries. Finished work.</p></div>
-          <div style="background:var(--navy-deep);padding:32px 28px;border-left:1px solid var(--navy-border);"><div style="margin-bottom:16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div style="font-family:var(--serif);font-size:18px;color:var(--white);font-weight:400;margin-bottom:10px;">Takes action</div><p style="font-size:15px;color:var(--steel-dim);font-weight:300;line-height:1.6;">Connected to your email and calendar, Meri drafts and sends messages on your behalf. Toggle Write mode and it fills in page fields directly.</p></div>
-          <div style="background:var(--navy-deep);padding:32px 28px;border-left:1px solid var(--navy-border);"><div style="margin-bottom:16px;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><div style="font-family:var(--serif);font-size:18px;color:var(--white);font-weight:400;margin-bottom:10px;">Shows its work</div><p style="font-size:15px;color:var(--steel-dim);font-weight:300;line-height:1.6;">Every answer is cited. Every claim is confidence-rated. If internal data and the web disagree, Meri tells you. Your name is on the memo.</p></div>
+      <figure class="mod-figure">
+        <img src="/assets/deck/shot-dashboard.jpg" alt="The Capiro dashboard: items that need attention, a day-to-week calendar, the work queue, and a filterable intelligence feed" width="1741" height="1255" loading="lazy" decoding="async">
+      </figure>
+      <div class="mod-figcap">Dashboard &middot; All clients &middot; Mon Aug 10</div>
+      <div class="mod-points">
+        <div class="mod-point">
+          <div class="mod-point-n">01</div>
+          <div class="mod-point-t">The things that need you today</div>
+          <p class="mod-point-d">Critical, deadline and hearing items, each carrying its client and its program element rather than a bare headline.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">02</div>
+          <div class="mod-point-t">Now, today, tomorrow, the week</div>
+          <p class="mod-point-d">One column, four horizons, and a live marker on the current time. No separate calendar to reconcile.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">03</div>
+          <div class="mod-point-t">Deadlines carry their source</div>
+          <p class="mod-point-d">Federal Register, SAM.gov, HAC&#8209;D. The origin travels with the date, so a date can be checked rather than trusted.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">04</div>
+          <div class="mod-point-t">Open work names its blocker</div>
+          <p class="mod-point-d">Draft ready, in progress, needs sources. The state is the next action, so nothing sits in a queue unexplained.</p>
         </div>
       </div>
     </div>
+  </section>
 
-    
-    <section style="background:var(--navy-deep);padding:120px 48px;">
-      <div style="max-width:1160px;margin:0 auto;">
-        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:80px;align-items:center;">
-          <div style="position:relative;"><div style="position:absolute;inset:-24px;background:radial-gradient(ellipse at 30% 50%,rgba(58,111,247,0.12) 0%,transparent 65%);pointer-events:none;border-radius:20px;"></div><img loading="lazy" decoding="async" src="assets/shot-2.jpg" alt="Capiro Workspace" style="width:100%;height:100%;object-fit:cover;object-position:top left;display:block;border-radius:12px;border:1px solid rgba(59,130,246,0.2);box-shadow:0 32px 80px rgba(0,0,0,0.55);"></div>
-          <div>
-            <div class="section-label">01 &mdash; Workspace</div>
-            <h2 style="font-family:var(--serif);font-size:clamp(28px,3vw,40px);color:var(--white);line-height:1.05;letter-spacing:-0.8px;margin-bottom:20px;font-weight:400;">Where every client objective becomes a written ask.</h2>
-            <p style="font-size:16px;color:var(--steel-dim);font-weight:300;line-height:1.7;margin-bottom:28px;">The Workspace is where you turn a client's objectives into the documents that travel up the Hill. One spot for templates, active workflows, and full fiscal-year strategies. Meri drafts the long-form pieces you would normally spend a week on.</p>
-            <div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Library of every submission type and authorization track</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Kanban of every active deliverable across the firm</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>FY-scoped strategy plans per client capability</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Meri drafts from context. You review and approve.</div></div>
+  <!-- 02 Meri -->
+  <section class="mod alt" id="meri">
+    <div class="mod-inner">
+      <div class="mod-head">
+        <div class="mod-copy">
+          <div class="kicker"><b>Meri</b><s></s>AI chief of staff</div>
+          <h2>Work starts in one place.</h2>
+          <p class="mod-lead">One start-work surface holds the skills and the prompts. Both write an editable intent into the composer, and the composer is the only place work begins.</p>
+        </div>
+        <div class="mod-aside">
+          <p>Meri reads Capiro intelligence, your workspace records, institutional memory and connected applications &mdash; so you do not re-explain your clients on every question.</p>
+        </div>
+      </div>
+      <figure class="mod-figure">
+        <img src="/assets/deck/shot-meri.jpg" alt="Meri's undocked workspace: skills and prompts above the composer, with conversation context and connected sources beside it" width="1775" height="1195" loading="lazy" decoding="async">
+      </figure>
+      <div class="mod-figcap">Meri &middot; New thread &middot; Portfolio scope</div>
+      <div class="mod-points">
+        <div class="mod-point">
+          <div class="mod-point-n">01</div>
+          <div class="mod-point-t">Skills and prompts, one surface</div>
+          <p class="mod-point-d">Two tabs over the same surface. Both fill the composer; neither auto-sends.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">02</div>
+          <div class="mod-point-t">A skill that needs a client says so</div>
+          <p class="mod-point-d">At portfolio scope it opens the scope selector first, then fills the intent.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">03</div>
+          <div class="mod-point-t">Three task modes, one composer</div>
+          <p class="mod-point-d">Standard, research and write share the same box, the same scope control and the same send state.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">04</div>
+          <div class="mod-point-t">Sources state their condition</div>
+          <p class="mod-point-d">Connected, reauth needed, available &mdash; each said in words, not colour alone.</p>
+        </div>
+      </div>
+
+      <div class="mod-sub">
+        <div class="mod-head">
+          <div class="mod-copy">
+            <div class="kicker"><b>Meri</b><s></s>Skill result</div>
+            <h3>Analysis the client can audit.</h3>
+            <p class="mod-lead">A federal-market read on an outside organisation, with the chart generated from a server-side spec and every computed number marked as computed.</p>
+          </div>
+        </div>
+        <figure class="mod-figure">
+          <img src="/assets/deck/shot-meri-research.jpg" alt="A research result: where the money comes from, where it touches the portfolio, and a stacked-bar chart marked as derived" width="1775" height="1418" loading="lazy" decoding="async">
+        </figure>
+        <div class="mod-figcap">Meri &middot; Research a company &middot; Derived figures marked</div>
+        <div class="mod-points">
+          <div class="mod-point">
+            <div class="mod-point-n">01</div>
+            <div class="mod-point-t">Derived is marked derived</div>
+            <p class="mod-point-d">A computed figure carries <em>inference, not quoted</em>, so it is never read as a source figure.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">02</div>
+            <div class="mod-point-t">The chart renders a spec</div>
+            <p class="mod-point-d">Chart type, series and values come from the analysis artifact. The client does not choose them.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">03</div>
+            <div class="mod-point-t">Provenance under every chart</div>
+            <p class="mod-point-d">Source datasets, row count and generated-at. Without the marker, the chart does not render.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">04</div>
+            <div class="mod-point-t">Deep research is offered, not started</div>
+            <p class="mod-point-d">Clicking opens clarifying questions rather than launching a blind run on your budget.</p>
           </div>
         </div>
       </div>
-    </section>
-
-    
-    <section style="background:var(--navy);padding:120px 48px;">
-      <div style="max-width:1160px;margin:0 auto;">
-        <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:80px;align-items:center;">
-          <div>
-            <div class="section-label">02 &mdash; Engagement Manager</div>
-            <h2 style="font-family:var(--serif);font-size:clamp(28px,3vw,40px);color:var(--white);line-height:1.05;letter-spacing:-0.8px;margin-bottom:20px;font-weight:400;">Send the right outreach to the right people, automatically.</h2>
-            <p style="font-size:16px;color:var(--steel-dim);font-weight:300;line-height:1.7;margin-bottom:28px;">Meri pulls context from your meeting history, connected inbox, and client portfolio to draft personalized outreach for every recipient. Add who you are reaching, give it context, and Meri handles the rest.</p>
-            <div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Individual, list, or group outreach campaigns</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>One personalized draft per contact, automatically</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Connected to your email and calendar</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Saves 2.5 hours of email production per day</div></div>
-          </div>
-          <div style="position:relative;"><div style="position:absolute;inset:-24px;background:radial-gradient(ellipse at 70% 50%,rgba(58,111,247,0.12) 0%,transparent 65%);pointer-events:none;border-radius:20px;"></div><img loading="lazy" decoding="async" src="assets/shot-3.jpg" alt="Engagement Manager" style="width:100%;height:100%;object-fit:cover;object-position:top left;display:block;border-radius:12px;border:1px solid rgba(59,130,246,0.2);box-shadow:0 32px 80px rgba(0,0,0,0.55);"></div>
-        </div>
-      </div>
-    </section>
-
-    
-    <section style="background:var(--navy-deep);padding:120px 48px;">
-      <div style="max-width:1160px;margin:0 auto;">
-        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:80px;align-items:center;">
-          <div style="position:relative;"><div style="position:absolute;inset:-24px;background:radial-gradient(ellipse at 30% 50%,rgba(58,111,247,0.12) 0%,transparent 65%);pointer-events:none;border-radius:20px;"></div><img loading="lazy" decoding="async" src="assets/shot-4.jpg" alt="Client Portfolio" style="width:100%;height:100%;object-fit:cover;object-position:top left;display:block;border-radius:12px;border:1px solid rgba(59,130,246,0.2);box-shadow:0 32px 80px rgba(0,0,0,0.55);"></div>
-          <div>
-            <div class="section-label">03 &mdash; Portfolio</div>
-            <h2 style="font-family:var(--serif);font-size:clamp(28px,3vw,40px);color:var(--white);line-height:1.05;letter-spacing:-0.8px;margin-bottom:20px;font-weight:400;">Every client. Every capability. Every cycle.</h2>
-            <p style="font-size:16px;color:var(--steel-dim);font-weight:300;line-height:1.7;margin-bottom:28px;">The Portfolio is your client operating record. Company information, capabilities, people, facilities, workflows, and documents in one structured view. Ask Meri anything about a client and it pulls from full context instantly.</p>
-            <div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Structured client profiles with full capability mapping</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Linked workflows, documents, and intelligence</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Submission history and outcomes tracked per client</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Meri uses portfolio context in every deliverable</div></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    
-    <section style="background:var(--navy);padding:120px 48px;">
-      <div style="max-width:1160px;margin:0 auto;">
-        <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:80px;align-items:center;">
-          <div>
-            <div class="section-label">04 &mdash; Congressional Directory</div>
-            <h2 style="font-family:var(--serif);font-size:clamp(28px,3vw,40px);color:var(--white);line-height:1.05;letter-spacing:-0.8px;margin-bottom:20px;font-weight:400;">537 members. 14,344 staffers. Updated daily.</h2>
-            <p style="font-size:16px;color:var(--steel-dim);font-weight:300;line-height:1.7;margin-bottom:28px;">Every Member of Congress, every committee assignment, every key staffer, updated daily from official sources. The Directory is embedded in every workflow so Meri always knows who to target.</p>
-            <div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>537 Members, 437 House, 100 Senate</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>14,344 staffers with contact information</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Full committee and subcommittee assignments</div></div><div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Embedded in submissions, targeting, and outreach</div></div>
-          </div>
-          <div style="position:relative;"><div style="position:absolute;inset:-24px;background:radial-gradient(ellipse at 70% 50%,rgba(58,111,247,0.12) 0%,transparent 65%);pointer-events:none;border-radius:20px;"></div><img loading="lazy" decoding="async" src="assets/shot-5.jpg" alt="Congressional Directory" style="width:100%;height:100%;object-fit:cover;object-position:top left;display:block;border-radius:12px;border:1px solid rgba(59,130,246,0.2);box-shadow:0 32px 80px rgba(0,0,0,0.55);"></div>
-        </div>
-      </div>
-    </section>
-
-    <section style="background:var(--navy-deep);padding:120px 48px;">
-      <div style="max-width:1160px;margin:0 auto;">
-        <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:80px;align-items:center;">
-          <div style="position:relative;">
-            <div style="position:absolute;inset:-24px;background:radial-gradient(ellipse at 30% 50%,rgba(58,111,247,0.12) 0%,transparent 65%);pointer-events:none;border-radius:20px;"></div>
-            <img loading="lazy" decoding="async" src="assets/shot-6.jpg" alt="Capiro Dashboard" style="width:100%;border-radius:12px;border:1px solid rgba(59,130,246,0.2);box-shadow:0 32px 80px rgba(0,0,0,0.55);position:relative;z-index:1;display:block;">
-          </div>
-          <div>
-            <div class="section-label">05 &mdash; Dashboard</div>
-            <h2 style="font-family:var(--serif);font-size:clamp(28px,3vw,40px);color:var(--white);line-height:1.05;letter-spacing:-0.8px;margin-bottom:20px;font-weight:400;">Everything that needs attention. Right when you open the platform.</h2>
-            <p style="font-size:16px;color:var(--steel-dim);font-weight:300;line-height:1.7;margin-bottom:28px;">Your Needs Attention queue, Meri's daily briefing, this week's meetings, open workflows, outreach drafts, and upcoming deadlines. One view. Nothing missed.</p>
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              <div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Meri's morning briefing surfaces what changed overnight</div>
-              <div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Client engagement and outreach drafts in one view</div>
-              <div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>Open workflows and upcoming deadlines always visible</div>
-              <div style="display:flex;align-items:center;gap:12px;font-size:15px;color:var(--steel);font-weight:300;"><span style="color:var(--blue-bright);flex-shrink:0;">&#10003;</span>50 new signals processed overnight before you arrive</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section style="background:var(--navy);padding:100px 48px;border-top:1px solid var(--navy-border);">
-      <div style="max-width:1160px;margin:0 auto;">
-        <div class="section-label">Integrations</div>
-        <h2 style="font-family:var(--serif);font-size:clamp(30px,3vw,44px);color:var(--white);line-height:1.05;letter-spacing:-0.8px;margin-bottom:16px;font-weight:400;">Works with the tools<br>you already use.</h2>
-        <p style="font-size:17px;color:var(--steel-dim);font-weight:300;line-height:1.7;max-width:560px;margin-bottom:56px;">Meri connects directly to your CRM, calendar, meeting notes, and files. Full context the moment you turn it on. No migration. No starting from a blank slate.</p>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--navy-border);border:1px solid var(--navy-border);">
-          <div style="background:var(--navy-deep);padding:36px;"><div style="font-size:15px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:24px;">CRM</div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">SF</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">Salesforce</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Contacts and accounts</div></div></div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">HS</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">HubSpot</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Contacts and pipeline</div></div></div></div>
-          <div style="background:var(--navy-deep);padding:36px;border-left:1px solid var(--navy-border);"><div style="font-size:15px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:24px;">Project Management</div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">As</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">Asana</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Tasks and deadlines</div></div></div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">Mo</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">Monday.com</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Boards and workflows</div></div></div></div>
-          <div style="background:var(--navy-deep);padding:36px;border-left:1px solid var(--navy-border);"><div style="font-size:15px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:24px;">Communication</div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">Sl</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">Slack</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Alerts and notifications</div></div></div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">MT</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">Microsoft Teams</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Alerts and notifications</div></div></div></div>
-          <div style="background:var(--navy-deep);padding:36px;border-top:1px solid var(--navy-border);"><div style="font-size:15px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:24px;">Meeting Intelligence</div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">Kr</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">Krisp</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Meeting transcripts</div></div></div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">Ot</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">Otter.ai</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Meeting transcripts</div></div></div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">Fi</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">Fireflies.ai</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Meeting transcripts</div></div></div></div>
-          <div style="background:var(--navy-deep);padding:36px;border-top:1px solid var(--navy-border);border-left:1px solid var(--navy-border);"><div style="font-size:15px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:24px;">Storage</div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">GD</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">Google Drive</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Documents and files</div></div></div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">SP</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">SharePoint</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Documents and files</div></div></div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">OD</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">OneDrive</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Documents and files</div></div></div></div>
-          <div style="background:var(--navy-deep);padding:36px;border-top:1px solid var(--navy-border);border-left:1px solid var(--navy-border);"><div style="font-size:15px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:24px;">Email and Calendar</div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">Ol</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">Outlook</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Email and calendar sync</div></div></div><div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><div style="width:38px;height:38px;background:rgba(58,111,247,0.08);border:1px solid var(--navy-border);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px;font-weight:600;color:var(--blue-bright);">Gm</div><div><div style="font-size:15px;color:var(--white);font-weight:400;margin-bottom:2px;">Gmail</div><div style="font-size:15px;color:var(--text-muted);font-weight:300;">Email and calendar sync</div></div></div></div>
-        </div>
-      </div>
-    </section>
-
-    <section style="background:var(--navy-deep);padding:100px 48px;border-top:1px solid var(--navy-border);">
-      <div style="max-width:1160px;margin:0 auto;">
-        <div class="section-label">Under the hood</div>
-        <h2 style="font-family:var(--serif);font-size:clamp(30px,3vw,44px);color:var(--white);line-height:1.05;letter-spacing:-0.8px;margin-bottom:16px;font-weight:400;">An enterprise-grade platform purpose-built<br>for the legislative environment.</h2>
-        <p style="font-size:17px;color:var(--steel-dim);font-weight:300;line-height:1.7;max-width:600px;margin-bottom:56px;">Capiro runs proprietary data pipelines, agentic workflows, and a relationship graph that general enterprise tools are not designed to support.</p>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--navy-border);border:1px solid var(--navy-border);">
-          <div style="background:var(--navy);padding:40px 36px;"><div style="font-size:15px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:16px;">Intelligence Engine</div><div style="font-family:var(--serif);font-size:22px;color:var(--white);font-weight:400;letter-spacing:-0.2px;margin-bottom:12px;">46 purpose-built AI agents.</div><p style="font-size:15px;color:var(--steel-dim);font-weight:300;line-height:1.65;">One orchestrating agent managing 46 sub-agents, each with a defined scope. 17 ML models running continuously including gradient-boosted classifiers, NLP attribution, time-series forecasting, and graph centrality analysis.</p></div>
-          <div style="background:var(--navy);padding:40px 36px;border-left:1px solid var(--navy-border);"><div style="font-size:15px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:16px;">Federal Data</div><div style="font-family:var(--serif);font-size:22px;color:var(--white);font-weight:400;letter-spacing:-0.2px;margin-bottom:12px;">75+ live federal sources. 50M+ records.</div><p style="font-size:15px;color:var(--steel-dim);font-weight:300;line-height:1.65;">Congress, DoD, FEC, SAM.gov, USASpending, Federal Register, LegiStorm, and more, continuously ingested. 1,536-dimension semantic embeddings. Find any program, precedent, staffer, or submission in seconds.</p></div>
-          <div style="background:var(--navy);padding:40px 36px;border-top:1px solid var(--navy-border);"><div style="font-size:15px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:16px;">Relationship Graph</div><div style="font-family:var(--serif);font-size:22px;color:var(--white);font-weight:400;letter-spacing:-0.2px;margin-bottom:12px;">Neo4j-powered influence mapping.</div><p style="font-size:15px;color:var(--steel-dim);font-weight:300;line-height:1.65;">Maps influence, committee membership, coalition paths, and access routes across the entire legislative ecosystem. Every relationship connected to every submission across your full practice history.</p></div>
-          <div style="background:var(--navy);padding:40px 36px;border-top:1px solid var(--navy-border);border-left:1px solid var(--navy-border);"><div style="font-size:15px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:var(--blue-bright);margin-bottom:16px;">Security</div><div style="font-family:var(--serif);font-size:22px;color:var(--white);font-weight:400;letter-spacing:-0.2px;margin-bottom:12px;">Enterprise-grade. Tenant-isolated.</div><p style="font-size:15px;color:var(--steel-dim);font-weight:300;line-height:1.65;">Multi-tenant isolated environments. No cross-org data access. Role-based controls. Full audit log on every action. Your data never trains a shared model. SOC 2 and FedRAMP in roadmap.</p></div>
-        </div>
-      </div>
-    </section>
-
-    
-  <div class="cta-section">
-    <div class="cta-eyebrow">See it in action</div>
-    <h2 class="cta-headline" style="font-weight:400;">Measured by outcomes.</h2>
-    <p class="cta-sub">See the platform running against a real client request. No commitment required.</p>
-    <div class="cta-actions">
-      <button class="btn-navy" onclick="openModal()">Request a demo</button>
-      <a href="mailto:info@capiro.ai" style="color:#6B7280;font-size:15px;font-weight:300;text-decoration:none;" onmouseover="this.style.color='#374151'" onmouseout="this.style.color='#6B7280'">info@capiro.ai &rarr;</a>
     </div>
-  </div>
+  </section>
 
-  </div>
+  <!-- 03 Portfolio -->
+  <section class="mod" id="portfolio">
+    <div class="mod-inner">
+      <div class="mod-head">
+        <div class="mod-copy">
+          <div class="kicker"><b>Portfolio</b><s></s>Client record</div>
+          <h2>The account and its public record, in one place.</h2>
+          <p class="mod-lead">The client profile, its federal footprint, and the advocacy history behind it &mdash; each figure traceable to a filing rather than to a spreadsheet someone kept.</p>
+        </div>
+        <div class="mod-aside">
+          <p>Lobbying disclosures, federal awards, political giving and the districts a client sits in are read from the public record as-is, then attributed on the page.</p>
+        </div>
+      </div>
+      <figure class="mod-figure">
+        <img src="/assets/deck/shot-portfolio.jpg" alt="A client record: profile and account team, the federal footprint as reported, and the advocacy history as a pipeline" width="1709" height="1403" loading="lazy" decoding="async">
+      </figure>
+      <div class="mod-figcap">Portfolio &middot; Client record &middot; Overview of six tabs</div>
+      <div class="mod-points">
+        <div class="mod-point">
+          <div class="mod-point-n">01</div>
+          <div class="mod-point-t">Six tabs, one record</div>
+          <p class="mod-point-d">Overview, capabilities, relationships, work, intelligence and files &mdash; not six systems that disagree.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">02</div>
+          <div class="mod-point-t">Filings carry their form and quarter</div>
+          <p class="mod-point-d">The latest filing is named down to the form and the period, so it is checkable against the source.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">03</div>
+          <div class="mod-point-t">Advocacy history is a pipeline</div>
+          <p class="mod-point-d">Requested, submitted, sponsor, amendment, made in order, House passed &mdash; with dates, and an evidence trail behind each step.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">04</div>
+          <div class="mod-point-t">Profile gaps are counted</div>
+          <p class="mod-point-d">One gap, named, with a sync action beside it. Meri drafts the missing fields for your review rather than filling them silently.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 Strategies -->
+  <section class="mod alt" id="strategies">
+    <div class="mod-inner">
+      <div class="mod-head">
+        <div class="mod-copy">
+          <div class="kicker"><b>Strategies</b><s></s>Working timeline</div>
+          <h2>The plan sits on the real calendar.</h2>
+          <p class="mod-lead">Every strategy is a plan aligned to the appropriations, authorization, regulatory and procurement calendars &mdash; not a generic project board with dates typed into it.</p>
+        </div>
+        <div class="mod-aside">
+          <p>Three fiscal years, centred on today, with the legislative, PPBE and firm-phase calendars as reference layers under the steps.</p>
+        </div>
+      </div>
+      <figure class="mod-figure">
+        <img src="/assets/deck/shot-strategies.jpg" alt="A strategy on the working timeline: three fiscal years, reference layers, typed steps, and plan health" width="1776" height="1213" loading="lazy" decoding="async">
+      </figure>
+      <div class="mod-figcap">Strategies &middot; Working timeline &middot; FY27&ndash;FY29</div>
+      <div class="mod-points">
+        <div class="mod-point">
+          <div class="mod-point-n">01</div>
+          <div class="mod-point-t">Reference layers, not plan content</div>
+          <p class="mod-point-d">Legislative, PPBE and firm phases are the context the plan is aligned to, and a partner can strip them back to steps alone.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">02</div>
+          <div class="mod-point-t">Steps are typed</div>
+          <p class="mod-point-d">Action, gate, milestone, decision and risk each carry different fields, because they are not the same kind of thing.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">03</div>
+          <div class="mod-point-t">Plan health is arithmetic</div>
+          <p class="mod-point-d">Ten of twelve steps have owners; two proposals need review. The gap is stated rather than assumed.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">04</div>
+          <div class="mod-point-t">Meri reads the plan, never writes it</div>
+          <p class="mod-point-d">Ask the assistant scoped to this plan and changes come back as reviewable proposals on their own layer.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 Workspace -->
+  <section class="mod" id="workspace">
+    <div class="mod-inner">
+      <div class="mod-head">
+        <div class="mod-copy">
+          <div class="kicker"><b>Workspace</b><s></s>Document editor</div>
+          <h2>The draft and its reasoning, side by side.</h2>
+          <p class="mod-lead">The agent panel on the left, the document in the middle, and the plan that produced it on the right &mdash; so a reviewer can see the paper and the argument for it at once.</p>
+        </div>
+        <div class="mod-aside">
+          <p>Draft, refine, review and deliver are the states of one document, not four folders. While the agent is drafting, the file cannot be edited underneath it.</p>
+        </div>
+      </div>
+      <figure class="mod-figure">
+        <img src="/assets/deck/shot-workspace.jpg" alt="The document editor: agent revisions on the left, the client paper in the middle, and the approved direction, assumptions and evidence on the right" width="1776" height="1404" loading="lazy" decoding="async">
+      </figure>
+      <div class="mod-figcap">Workspace &middot; Document editor &middot; Outline v2 &middot; Six sources</div>
+      <div class="mod-points">
+        <div class="mod-point">
+          <div class="mod-point-n">01</div>
+          <div class="mod-point-t">Agent edits are logged and applied</div>
+          <p class="mod-point-d">Every revision says what changed and marks itself applied, so the document has a history rather than a mystery.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">02</div>
+          <div class="mod-point-t">Every plan field says who set it</div>
+          <p class="mod-point-d">User, suggested, retrieved. The document knows which parts are yours.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">03</div>
+          <div class="mod-point-t">Assumptions are visible and confirmable</div>
+          <p class="mod-point-d">Each one is stated in words, with confirm and reject beside it, before it hardens into a claim.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">04</div>
+          <div class="mod-point-t">Sections declare their evidence</div>
+          <p class="mod-point-d">Word ranges and evidence counts per section &mdash; including an explicit &ldquo;no evidence&rdquo;.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 Engagement -->
+  <section class="mod alt" id="engagement">
+    <div class="mod-inner">
+      <div class="mod-head">
+        <div class="mod-copy">
+          <div class="kicker"><b>Engagement</b><s></s>Meetings</div>
+          <h2>Every meeting arrives prepared.</h2>
+          <p class="mod-lead">Calendar-synced meetings with a drafted prep pack, Meri attendance, and a human approval before anything is used in the room.</p>
+        </div>
+        <div class="mod-aside">
+          <p>Meetings are synced from the firm mailbox rather than re-entered by hand, so the calendar you already keep is the calendar the prep is built from.</p>
+        </div>
+      </div>
+      <figure class="mod-figure">
+        <img src="/assets/deck/shot-meetings.jpg" alt="The meetings surface: a day view with prep state on each row, beside a prep pack with ordered talking points and explicit watch-outs" width="1776" height="1229" loading="lazy" decoding="async">
+      </figure>
+      <div class="mod-figcap">Engagement &middot; Meetings &middot; Prep drafted, then approved</div>
+      <div class="mod-points">
+        <div class="mod-point">
+          <div class="mod-point-n">01</div>
+          <div class="mod-point-t">Prep state sits on the row</div>
+          <p class="mod-point-d">Prep approved, Meri attending, generate prep &mdash; the row says what is missing without opening it.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">02</div>
+          <div class="mod-point-t">Talking points are ordered</div>
+          <p class="mod-point-d">Specific, numbered, and drawn from client context and recent activity rather than from a template.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">03</div>
+          <div class="mod-point-t">Watch-outs are explicit</div>
+          <p class="mod-point-d">Where two records conflict, the pack says so and names the conflict before you walk in.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">04</div>
+          <div class="mod-point-t">Approval never implies sharing</div>
+          <p class="mod-point-d">Regenerate, edit, export and approve are four distinct controls, and approving is not sending.</p>
+        </div>
+      </div>
+
+      <div class="mod-sub">
+        <div class="mod-head">
+          <div class="mod-copy">
+            <div class="kicker"><b>Engagement</b><s></s>Outreach</div>
+            <h3>Governed outreach, stage by stage.</h3>
+            <p class="mod-lead">Describe the outreach in your own words. Goal, targets, delivery, context, drafts and send are six gated stages, and one stage is in progress at a time.</p>
+          </div>
+        </div>
+        <figure class="mod-figure">
+          <img src="/assets/deck/shot-outreach.jpg" alt="An outreach campaign: the goal in the operator's own words, Meri's read-back, and six gated stages down the right" width="1767" height="1008" loading="lazy" decoding="async">
+        </figure>
+        <div class="mod-figcap">Engagement &middot; Outreach campaign &middot; Six governed stages</div>
+        <div class="mod-points">
+          <div class="mod-point">
+            <div class="mod-point-n">01</div>
+            <div class="mod-point-t">It starts from your words</div>
+            <p class="mod-point-d">Client, sponsor and audience stay optional until you choose them.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">02</div>
+            <div class="mod-point-t">Four intents, not a form</div>
+            <p class="mod-point-d">Share an update, make an ask, invite people, or something else.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">03</div>
+            <div class="mod-point-t">Meri reads the goal back</div>
+            <p class="mod-point-d">Topic, outcome, ask and sponsor, restated for you to correct before anything is drafted.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">04</div>
+            <div class="mod-point-t">Nothing runs ahead of the operator</div>
+            <p class="mod-point-d">The remaining stages wait. The campaign brief is the record, on one line, editable and audited.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 LegiWatch -->
+  <section class="mod" id="legiwatch">
+    <div class="mod-inner">
+      <div class="mod-head">
+        <div class="mod-copy">
+          <div class="kicker"><b>LegiWatch</b><s></s>Hearings</div>
+          <h2>The week ahead, counted against the book.</h2>
+          <p class="mod-lead">Public proceedings on one calendar, counted against the portfolio rather than merely listed &mdash; with unattended recording, a live room while a hearing runs, and matched client moments.</p>
+        </div>
+        <div class="mod-aside">
+          <p>Capture starts before the gavel, stops at adjournment, and delivers the transcript, the matched moments and the client impact into the session record.</p>
+        </div>
+      </div>
+      <figure class="mod-figure">
+        <img src="/assets/deck/shot-hearings.jpg" alt="The hearings calendar for one week with client matches per proceeding, a live session beside it, and scheduled unattended recordings" width="1750" height="1371" loading="lazy" decoding="async">
+      </figure>
+      <div class="mod-figcap">LegiWatch &middot; Hearings &middot; Aug 10&ndash;16</div>
+      <div class="mod-points">
+        <div class="mod-point">
+          <div class="mod-point-n">01</div>
+          <div class="mod-point-t">Counted, not just listed</div>
+          <p class="mod-point-d">The week is measured against your portfolio, and each card carries its committee and its client matches.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">02</div>
+          <div class="mod-point-t">Postponed stays on the calendar</div>
+          <p class="mod-point-d">Struck through rather than removed, so the change itself stays visible.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">03</div>
+          <div class="mod-point-t">Four proceeding states</div>
+          <p class="mod-point-d">Live now, hearing, markup, recording queued &mdash; each with a dot and a word.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">04</div>
+          <div class="mod-point-t">Session history states its outcome</div>
+          <p class="mod-point-d">Recap ready, reviewed, or failed-recoverable with the cause named.</p>
+        </div>
+      </div>
+
+      <div class="mod-sub">
+        <div class="mod-head">
+          <div class="mod-copy">
+            <div class="kicker"><b>LegiWatch</b><s></s>Morning digest</div>
+            <h3>A calm summary, and what cannot wait.</h3>
+            <p class="mod-lead">What changed, which clients are affected, and which decisions are due &mdash; assembled at 7:00 AM with its source confidence stated on the page.</p>
+          </div>
+        </div>
+        <figure class="mod-figure">
+          <img src="/assets/deck/shot-digest.jpg" alt="The Policy Morning Brief: the decision count, what changed since yesterday with provenance, decisions due with owners, and brief controls" width="1750" height="1344" loading="lazy" decoding="async">
+        </figure>
+        <div class="mod-figcap">LegiWatch &middot; Morning digest &middot; Source confidence stated</div>
+        <div class="mod-points">
+          <div class="mod-point">
+            <div class="mod-point-n">01</div>
+            <div class="mod-point-t">It opens with the decision count</div>
+            <p class="mod-point-d">Four decisions today, and the highest-impact issue named first.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">02</div>
+            <div class="mod-point-t">Each change carries its provenance</div>
+            <p class="mod-point-d">Client, severity and procedural path, in machine-readable form under every line.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">03</div>
+            <div class="mod-point-t">Unknowns are retained, not dropped</div>
+            <p class="mod-point-d">Explicit unknowns are kept in the brief rather than smoothed over.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">04</div>
+            <div class="mod-point-t">Generating a brief is not sending it</div>
+            <p class="mod-point-d">Export, send and schedule are three distinct actions.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 08 Program Elements -->
+  <section class="mod alt" id="program-elements">
+    <div class="mod-inner">
+      <div class="mod-head">
+        <div class="mod-copy">
+          <div class="kicker"><b>Program Elements</b><s></s>Defense budget intelligence</div>
+          <h2>Defense funding, line by line.</h2>
+          <p class="mod-lead">Budget lines followed from request through Congress to enacted outcomes, each with its evidence state and a recommended action &mdash; server-paginated, so a filter changes the answer, not the page.</p>
+        </div>
+        <div class="mod-aside">
+          <p>A position carries its stage: a number without a stage means nothing. Deltas are shown in dollars and percent, because the two answer different questions.</p>
+        </div>
+      </div>
+      <figure class="mod-figure">
+        <img src="/assets/deck/shot-program-elements.jpg" alt="Defense budget lines with PE code, request, current position and stage, delta, evidence state and a recommended action per line" width="1776" height="997" loading="lazy" decoding="async">
+      </figure>
+      <div class="mod-figcap">Program Elements &middot; Explore &middot; FY27</div>
+      <div class="mod-points">
+        <div class="mod-point">
+          <div class="mod-point-n">01</div>
+          <div class="mod-point-t">Every line is its PE code</div>
+          <p class="mod-point-d">Program, code, component and appropriation type on one row.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">02</div>
+          <div class="mod-point-t">Evidence state is separate from the number</div>
+          <p class="mod-point-d">Verified, conflicting, partial, review &mdash; never folded into the figure itself.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">03</div>
+          <div class="mod-point-t">A recommended action per line</div>
+          <p class="mod-point-d">Protect funding, restore funding, monitor, review mark &mdash; attached to the line, not to a memo.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">04</div>
+          <div class="mod-point-t">Multi-year trend in place</div>
+          <p class="mod-point-d">Five fiscal years of the same line without leaving the row.</p>
+        </div>
+      </div>
+
+      <div class="mod-sub">
+        <div class="mod-head">
+          <div class="mod-copy">
+            <div class="kicker"><b>Program Elements</b><s></s>Movement</div>
+            <h3>What changed, and what it means.</h3>
+            <p class="mod-lead">Official budget movement with materiality, the stage that produced it, and a written decision posture &mdash; so a partner reads a position, not a diff.</p>
+          </div>
+        </div>
+        <figure class="mod-figure">
+          <img src="/assets/deck/shot-movement.jpg" alt="Budget movement: a movement tape of official position events, a distribution of affected clients, and a written decision posture" width="1776" height="1267" loading="lazy" decoding="async">
+        </figure>
+        <div class="mod-figcap">Program Elements &middot; Movement &middot; FY27</div>
+        <div class="mod-points">
+          <div class="mod-point">
+            <div class="mod-point-n">01</div>
+            <div class="mod-point-t">&ldquo;Official change&rdquo; is a label</div>
+            <p class="mod-point-d">Official change, new stage and no material change are three different events, not three words for one.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">02</div>
+            <div class="mod-point-t">Silence is a finding</div>
+            <p class="mod-point-d">No material change is reported, rather than left out as an absence of data.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">03</div>
+            <div class="mod-point-t">Distribution, not just a list</div>
+            <p class="mod-point-d">Bubble size is affected clients; position is movement against request.</p>
+          </div>
+          <div class="mod-point">
+            <div class="mod-point-n">04</div>
+            <div class="mod-point-t">The next window is stated</div>
+            <p class="mod-point-d">The advocacy clock is explicit, so the posture comes with a date attached.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 09 District Nexus -->
+  <section class="mod" id="district-nexus">
+    <div class="mod-inner">
+      <div class="mod-head">
+        <div class="mod-copy">
+          <div class="kicker"><b>District Nexus</b><s></s>Congressional footprint</div>
+          <h2>A footprint you can defend.</h2>
+          <p class="mod-lead">Verified client facilities, public funding and representation translated into a congressional footprint &mdash; with every gap in the data named on the page.</p>
+        </div>
+        <div class="mod-aside">
+          <p>Real district geometry, with CONUS, Alaska, Hawaii and Puerto Rico as separate views fitted to the client footprint rather than squeezed into one frame.</p>
+        </div>
+      </div>
+      <figure class="mod-figure">
+        <img src="/assets/deck/shot-district-nexus.jpg" alt="Client footprint by congressional district: districts, employees, contracts and grants, a real-geometry map, and a scored nexus table" width="2000" height="1031" loading="lazy" decoding="async">
+      </figure>
+      <div class="mod-figcap">District Nexus &middot; 119th Congress</div>
+      <div class="mod-points">
+        <div class="mod-point">
+          <div class="mod-point-n">01</div>
+          <div class="mod-point-t">Nexus strength is a scored band</div>
+          <p class="mod-point-d">Zero through 80+, and &ldquo;no verified nexus&rdquo; is kept as its own state rather than reported as a zero.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">02</div>
+          <div class="mod-point-t">Blank is not zero</div>
+          <p class="mod-point-d">Where districts are not fully reported, the figure says so instead of guessing.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">03</div>
+          <div class="mod-point-t">Unplaced funding is called out</div>
+          <p class="mod-point-d">Contracts and grants that could not be tied to a district are named, not quietly dropped from the total.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">04</div>
+          <div class="mod-point-t">Coverage sits beside the score</div>
+          <p class="mod-point-d">Every district carries its nexus score and how much of it is actually evidenced.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 Directory -->
+  <section class="mod alt" id="directory">
+    <div class="mod-inner">
+      <div class="mod-head">
+        <div class="mod-copy">
+          <div class="kicker"><b>Directory</b><s></s>Committee staff</div>
+          <h2>Committee structure, from the source.</h2>
+          <p class="mod-lead">Authorizing and appropriations staff as a source-backed office structure, with the lines claiming only what the record supports.</p>
+        </div>
+        <div class="mod-aside">
+          <p>Personal-office staff, committee staff, Department of War and state legislators sit behind one canonical identity per person &mdash; the same person across engagement, outreach and the quick log.</p>
+        </div>
+      </div>
+      <figure class="mod-figure">
+        <img src="/assets/deck/shot-directory.jpg" alt="Committee staff drawn as a hierarchy: the committee at the root, bipartisan leadership at one level, subcommittees below, and a profile rail" width="1776" height="1256" loading="lazy" decoding="async">
+      </figure>
+      <div class="mod-figcap">Directory &middot; Committee staff &middot; Hierarchy or roster</div>
+      <div class="mod-points">
+        <div class="mod-point">
+          <div class="mod-point-n">01</div>
+          <div class="mod-point-t">Bipartisan leadership is a relationship</div>
+          <p class="mod-point-d">Chair and ranking member sit at the same level, joined by a dashed line.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">02</div>
+          <div class="mod-point-t">The legend defines the lines</div>
+          <p class="mod-point-d">Solid is formal structure, dashed blue is a working relationship, muted is unfilled.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">03</div>
+          <div class="mod-point-t">It claims only what the source supports</div>
+          <p class="mod-point-d">Office placement, never an implied person-to-person reporting line.</p>
+        </div>
+        <div class="mod-point">
+          <div class="mod-point-n">04</div>
+          <div class="mod-point-t">Unfilled seats stay visible</div>
+          <p class="mod-point-d">A pending assignment is shown muted rather than omitted from the chart.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it is built -->
+  <section class="tenets">
+    <div class="tenets-inner">
+      <div class="eyebrow">How it is built</div>
+      <h2>Nothing on the screen claims more than it can show.</h2>
+      <p class="tenets-lead">The same rules run through every module above. They are the reason a partner can put a Capiro screen in front of a client.</p>
+      <div class="tenets-grid">
+        <div class="tenet">
+          <div class="tenet-k">Provenance</div>
+          <div class="tenet-t">Every figure names its source.</div>
+          <p class="tenet-d">Dates carry the register they came from; filings carry their form and quarter; charts carry their datasets, row count and generated-at.</p>
+        </div>
+        <div class="tenet">
+          <div class="tenet-k">Derivation</div>
+          <div class="tenet-t">Computed is never quoted.</div>
+          <p class="tenet-d">A derived number is labelled as inference. If the server returns no reading, the strip is omitted rather than filled in.</p>
+        </div>
+        <div class="tenet">
+          <div class="tenet-k">Gaps</div>
+          <div class="tenet-t">Missing is a state, not a zero.</div>
+          <p class="tenet-d">Blank stays blank, unknowns are retained, unplaced funding is named, and &ldquo;no material change&rdquo; is reported as a finding.</p>
+        </div>
+        <div class="tenet">
+          <div class="tenet-k">Governance</div>
+          <div class="tenet-t">The agent proposes; a person applies.</div>
+          <p class="tenet-d">Meri drafts, reads back and proposes. Approval, export and send are separate actions, and every stage is gated and logged.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Integrations -->
+  <section class="integ">
+    <div class="integ-inner">
+      <div class="eyebrow">Integrations</div>
+      <h2>Works with the tools you already use.</h2>
+      <p class="integ-lead">Capiro connects to your mailbox, calendar, CRM, meeting notes and files, so it has full context the moment you turn it on. No migration, and no starting from a blank slate.</p>
+      <div class="integ-grid">
+        <div class="integ-card">
+          <div class="eyebrow">Email &amp; calendar</div>
+          <div class="integ-list">
+            <div class="integ-row"><span class="integ-mark">Ol</span><span class="integ-name">Outlook<span class="integ-what">Mailbox and calendar sync</span></span></div>
+            <div class="integ-row"><span class="integ-mark">Gm</span><span class="integ-name">Gmail<span class="integ-what">Mailbox and calendar sync</span></span></div>
+          </div>
+        </div>
+        <div class="integ-card">
+          <div class="eyebrow">CRM</div>
+          <div class="integ-list">
+            <div class="integ-row"><span class="integ-mark">SF</span><span class="integ-name">Salesforce<span class="integ-what">Contacts and accounts</span></span></div>
+            <div class="integ-row"><span class="integ-mark">HS</span><span class="integ-name">HubSpot<span class="integ-what">Contacts and pipeline</span></span></div>
+          </div>
+        </div>
+        <div class="integ-card">
+          <div class="eyebrow">Files &amp; storage</div>
+          <div class="integ-list">
+            <div class="integ-row"><span class="integ-mark">SP</span><span class="integ-name">SharePoint<span class="integ-what">Documents and files</span></span></div>
+            <div class="integ-row"><span class="integ-mark">OD</span><span class="integ-name">OneDrive<span class="integ-what">Documents and files</span></span></div>
+            <div class="integ-row"><span class="integ-mark">GD</span><span class="integ-name">Google Drive<span class="integ-what">Documents and files</span></span></div>
+          </div>
+        </div>
+        <div class="integ-card">
+          <div class="eyebrow">Meeting intelligence</div>
+          <div class="integ-list">
+            <div class="integ-row"><span class="integ-mark">Ot</span><span class="integ-name">Otter.ai<span class="integ-what">Meeting transcripts</span></span></div>
+            <div class="integ-row"><span class="integ-mark">Fi</span><span class="integ-name">Fireflies.ai<span class="integ-what">Meeting transcripts</span></span></div>
+            <div class="integ-row"><span class="integ-mark">Kr</span><span class="integ-name">Krisp<span class="integ-what">Meeting transcripts</span></span></div>
+          </div>
+        </div>
+        <div class="integ-card">
+          <div class="eyebrow">Communication</div>
+          <div class="integ-list">
+            <div class="integ-row"><span class="integ-mark">Sl</span><span class="integ-name">Slack<span class="integ-what">Alerts and notifications</span></span></div>
+            <div class="integ-row"><span class="integ-mark">MT</span><span class="integ-name">Microsoft Teams<span class="integ-what">Alerts and notifications</span></span></div>
+          </div>
+        </div>
+        <div class="integ-card">
+          <div class="eyebrow">Project management</div>
+          <div class="integ-list">
+            <div class="integ-row"><span class="integ-mark">As</span><span class="integ-name">Asana<span class="integ-what">Tasks and deadlines</span></span></div>
+            <div class="integ-row"><span class="integ-mark">Mo</span><span class="integ-name">Monday.com<span class="integ-what">Boards and workflows</span></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Under the hood -->
+  <section class="integ alt">
+    <div class="integ-inner">
+      <div class="eyebrow">Under the hood</div>
+      <h2>An enterprise platform purpose-built for the legislative environment.</h2>
+      <p class="integ-lead">Capiro runs its own data pipelines, agentic workflows and relationship graph &mdash; the parts general enterprise tools are not designed to support.</p>
+      <div class="integ-grid hood-grid">
+        <div class="hood-card">
+          <div class="eyebrow">Intelligence engine</div>
+          <div class="hood-t">46 purpose-built AI agents.</div>
+          <p class="hood-d">One orchestrating agent managing 46 sub-agents, each with a defined scope, alongside 17 ML models running continuously &mdash; gradient-boosted classifiers, NLP attribution, time-series forecasting and graph centrality analysis.</p>
+        </div>
+        <div class="hood-card">
+          <div class="eyebrow">Federal data</div>
+          <div class="hood-t">75+ live federal sources. 50M+ records.</div>
+          <p class="hood-d">Congress, DoD, FEC, SAM.gov, USASpending, the Federal Register and LegiStorm, continuously ingested, with 1,536-dimension semantic embeddings so a program, precedent, staffer or submission is findable in seconds.</p>
+        </div>
+        <div class="hood-card">
+          <div class="eyebrow">Relationship graph</div>
+          <div class="hood-t">Influence mapped, not inferred.</div>
+          <p class="hood-d">Committee membership, coalition paths and access routes across the legislative ecosystem, with every relationship connected to every submission across your full practice history.</p>
+        </div>
+        <div class="hood-card">
+          <div class="eyebrow">Security</div>
+          <div class="hood-t">Tenant-isolated by default.</div>
+          <p class="hood-d">Multi-tenant isolated environments with no cross-organisation data access, role-based controls and a full audit log on every action. Your data never trains a shared model. SOC 2 and FedRAMP are on the roadmap.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta flat">
+    <div class="cta-scrim"></div>
+    <div class="cta-inner">
+      <h2>See it against a real client request.</h2>
+      <p class="cta-sub">Bring a live ask from your book and we will run it through the modules above. About 30 minutes, tailored to your practice.</p>
+      <button class="btn-white" onclick="openModal()">Request a demo</button>
+    </div>
+  </section>

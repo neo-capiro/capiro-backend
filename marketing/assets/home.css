@@ -264,6 +264,134 @@ h1,h2,h3,p{margin:0}
 .btn-schedule,.btn-schedule:hover{display:inline-flex;align-items:center;height:48px;padding:0 24px;border-radius:8px;background:#0A1A2E;color:#FFFFFF;font-size:15px;font-weight:600}
 .btn-schedule:hover{background:#294E68}
 
+/* ---- workflow rail: tinted product mockups ---- */
+/* Each card's media panel is a flat brand tint with the product screenshot
+   inset on top, bleeding past the panel's bottom edge. The shot is a deliberate
+   3:2 detail crop (assets/deck/zoom-*.jpg) so the UI stays legible at card
+   width, which means object-fit:cover trims almost nothing. */
+.rail-media.tint{padding:26px 26px 0;background:#F5F3EF}
+.rail-media.t-navy{background:#0A1A2E}
+.rail-media.t-steel{background:#294E68}
+.rail-media.t-slate{background:#1D3350}
+.rail-media.t-sand{background:#E7E0D3}
+.rail-media.t-sage{background:#D6E0DA}
+.rail-media.t-mist{background:#DAE2EC}
+.rail-media.t-clay{background:#E6DBD1}
+.rail-shot{display:block;width:100%;height:calc(100% + 34px);object-fit:cover;object-position:top left;border-radius:8px 8px 0 0;background:#FFFFFF;box-shadow:0 12px 16px -4px rgba(6,15,30,0.24),0 4px 6px -2px rgba(6,15,30,0.10)}
+.rail-media.tint>.rail-shot{border:1px solid rgba(16,24,40,0.10)}
+.rail-media.t-navy>.rail-shot,.rail-media.t-steel>.rail-shot,.rail-media.t-slate>.rail-shot{border:1px solid rgba(255,255,255,0.16)}
+
+/* ---- interior page hero (light) ---- */
+.pagehead{background:#F5F3EF;border-bottom:1px solid #E7E2D9}
+.pagehead-inner{max-width:1200px;margin:0 auto;padding:calc(var(--nav-h,73px) + clamp(52px,6vw,88px)) 24px clamp(30px,3.4vw,44px)}
+.pagehead h1{margin:16px 0 0;max-width:19ch;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:clamp(44px,6.2vw,86px);line-height:0.98;letter-spacing:-0.03em;color:#101828}
+.pagehead-sub{margin:22px 0 0;max-width:62ch;font-size:clamp(17px,1.5vw,20px);line-height:1.6;color:#475467}
+.pagehead-actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:32px}
+.pagehead-meta{display:flex;flex-wrap:wrap;gap:10px 28px;max-width:1200px;margin:0 auto;padding:0 24px 30px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#8B8375}
+.pagehead-meta span{display:inline-flex;align-items:center;gap:9px}
+.pagehead-meta i{width:5px;height:5px;background:#C2703B}
+
+/* ---- module index strip ---- */
+.modnav{position:sticky;top:var(--nav-h,73px);z-index:40;background:rgba(255,255,255,0.94);backdrop-filter:blur(12px);border-bottom:1px solid #EAECF0}
+.modnav-inner{max-width:1200px;margin:0 auto;padding:12px 24px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 40px),transparent 100%);mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 40px),transparent 100%)}
+.modnav-inner::-webkit-scrollbar{display:none}
+.modchip,.modchip:hover{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:9999px;background:#FFFFFF;box-shadow:inset 0 0 0 1px #EAECF0;font-size:13px;font-weight:600;color:#344054;white-space:nowrap}
+.modchip:hover{background:#F9FAFB;box-shadow:inset 0 0 0 1px #D0D5DD;color:#0A1A2E}
+
+/* ---- module section ---- */
+/* scroll-margin clears both the fixed nav and the sticky module strip. */
+.mod{background:#FFFFFF;border-top:1px solid #EAECF0;scroll-margin-top:calc(var(--nav-h,73px) + 61px)}
+.mod.alt{background:#F5F3EF;border-top-color:#E7E2D9}
+.mod-inner{max-width:1200px;margin:0 auto;padding:clamp(60px,7.5vw,106px) 24px}
+.mod-head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px 40px}
+.mod-copy{flex:1 1 480px;min-width:0}
+.kicker{display:flex;align-items:center;gap:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#98A2B3}
+.kicker b{font-weight:600;color:#294E68}
+.kicker s{width:14px;height:1px;background:#D0D5DD;text-decoration:none}
+.mod-copy h2{margin:14px 0 0;max-width:24ch;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:clamp(31px,3.7vw,50px);line-height:1.04;letter-spacing:-0.02em;color:#101828}
+.mod-lead{margin:18px 0 0;max-width:58ch;font-size:17px;line-height:1.65;color:#475467}
+.mod-aside{flex:0 1 300px;padding-left:24px;border-left:2px solid #E4E7EC}
+.mod.alt .mod-aside{border-left-color:#DED8CD}
+.mod-aside p{margin:0;font-size:14.5px;line-height:1.6;color:#667085}
+.mod-figure{margin:clamp(30px,3.6vw,48px) 0 0;border-radius:14px;overflow:hidden;background:#FFFFFF;box-shadow:inset 0 0 0 1px #EAECF0,0 20px 24px -4px rgba(16,24,40,0.10),0 8px 8px -4px rgba(16,24,40,0.04)}
+.mod-figure img{display:block;width:100%;height:auto}
+.mod-figcap{display:flex;flex-wrap:wrap;gap:6px 18px;margin:14px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:0.13em;text-transform:uppercase;color:#98A2B3}
+.mod-points{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(232px,100%),1fr));gap:clamp(22px,2.6vw,34px);margin-top:clamp(30px,3.6vw,46px)}
+.mod-point-n{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:0.14em;color:#B0B7C3}
+.mod-point-t{margin-top:9px;font-size:15.5px;font-weight:600;line-height:1.4;color:#101828}
+.mod-point-d{margin:7px 0 0;font-size:14.5px;line-height:1.6;color:#475467}
+/* A module with two screens: the second sits under a hairline. */
+.mod-sub{margin-top:clamp(44px,5vw,72px);padding-top:clamp(38px,4.4vw,58px);border-top:1px solid #EAECF0}
+.mod.alt .mod-sub{border-top-color:#DED8CD}
+.mod-sub h3{margin:14px 0 0;max-width:26ch;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:clamp(26px,2.8vw,36px);line-height:1.08;letter-spacing:-0.02em;color:#101828}
+
+/* ---- how it is built (dark band) ---- */
+.tenets{background:#060F1E}
+.tenets-inner{max-width:1200px;margin:0 auto;padding:clamp(60px,7.5vw,104px) 24px}
+.tenets-inner .eyebrow{color:#6E8098}
+.tenets-inner h2{margin:14px 0 0;max-width:22ch;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:clamp(30px,3.5vw,46px);line-height:1.05;letter-spacing:-0.02em;color:#FFFFFF}
+.tenets-lead{margin:18px 0 0;max-width:58ch;font-size:17px;line-height:1.65;color:#A9BACD}
+.tenets-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(248px,100%),1fr));gap:1px;margin-top:clamp(36px,4.4vw,56px);background:rgba(255,255,255,0.12)}
+.tenet{background:#060F1E;padding:clamp(22px,2.4vw,30px)}
+.tenet-k{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#7FD1AE}
+.tenet-t{margin-top:12px;font-family:'Instrument Serif',Georgia,serif;font-size:22px;line-height:1.14;letter-spacing:-0.01em;color:#FFFFFF}
+.tenet-d{margin:10px 0 0;font-size:14.5px;line-height:1.6;color:#93A7BD}
+
+/* ---- integrations / under the hood ---- */
+.integ{background:#FFFFFF;border-top:1px solid #EAECF0}
+.integ.alt{background:#F5F3EF;border-top-color:#E7E2D9}
+.integ-inner{max-width:1200px;margin:0 auto;padding:clamp(60px,7.5vw,104px) 24px}
+.integ-inner h2{margin:14px 0 0;max-width:24ch;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:clamp(30px,3.5vw,46px);line-height:1.05;letter-spacing:-0.02em;color:#101828}
+.integ-lead{margin:18px 0 0;max-width:58ch;font-size:17px;line-height:1.65;color:#475467}
+.integ-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(322px,100%),1fr));gap:clamp(18px,2vw,24px);margin-top:clamp(36px,4.4vw,54px)}
+/* Four cards read better 2-up than 3+1, so the hood grid takes a wider track. */
+.hood-grid{grid-template-columns:repeat(auto-fit,minmax(min(430px,100%),1fr))}
+.integ-card{padding:24px;border-radius:14px;background:#FFFFFF;box-shadow:inset 0 0 0 1px #EAECF0,0 1px 2px rgba(16,24,40,0.05)}
+.integ-card .eyebrow{color:#294E68}
+.integ-list{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.integ-row{display:flex;align-items:center;gap:12px}
+.integ-mark{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;background:#F9FAFB;box-shadow:inset 0 0 0 1px #EAECF0;font-size:12px;font-weight:700;color:#294E68}
+.integ-name{font-size:14.5px;font-weight:600;color:#101828}
+.integ-what{display:block;margin-top:2px;font-size:13px;font-weight:400;color:#667085}
+.hood-card{padding:clamp(24px,2.6vw,32px);border-radius:14px;background:#FFFFFF;box-shadow:inset 0 0 0 1px #EAECF0,0 1px 2px rgba(16,24,40,0.05)}
+.hood-t{margin-top:12px;font-family:'Instrument Serif',Georgia,serif;font-size:23px;line-height:1.14;letter-spacing:-0.01em;color:#101828}
+.hood-d{margin:10px 0 0;font-size:14.5px;line-height:1.62;color:#475467}
+
+/* ---- insights ---- */
+.insights{background:#FFFFFF;border-top:1px solid #EAECF0}
+.insights-inner{max-width:1200px;margin:0 auto;padding:clamp(56px,7vw,96px) 24px}
+.ins-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:clamp(26px,3vw,38px)}
+.ins-count{margin-right:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#98A2B3}
+.ins-status{padding:22px 24px;border-radius:12px;background:#F9FAFB;box-shadow:inset 0 0 0 1px #EAECF0;font-size:15px;line-height:1.6;color:#475467}
+.ins-strong{font-weight:600;color:#101828}
+.ins-link,.ins-link:hover{font-weight:600;color:#294E68}
+.insights-grid{display:none;grid-template-columns:repeat(auto-fill,minmax(min(318px,100%),1fr));gap:clamp(20px,2.4vw,28px)}
+.ins-card,.ins-card:hover{display:flex;flex-direction:column;border-radius:14px;overflow:hidden;background:#FFFFFF;box-shadow:inset 0 0 0 1px #EAECF0,0 1px 2px rgba(16,24,40,0.05);transition:box-shadow .2s ease,transform .2s ease}
+.ins-card:hover{box-shadow:inset 0 0 0 1px #D0D5DD,0 12px 16px -4px rgba(16,24,40,0.10);transform:translateY(-2px)}
+.ins-thumb{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;background:#F2F4F7;border-bottom:1px solid #EAECF0}
+.ins-card-body{display:flex;flex-direction:column;flex:1 1 auto;padding:22px}
+.ins-date{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:0.13em;text-transform:uppercase;color:#98A2B3}
+.ins-title{margin-top:10px;font-family:'Instrument Serif',Georgia,serif;font-size:24px;line-height:1.14;letter-spacing:-0.01em;color:#101828}
+.ins-excerpt{margin:10px 0 0;font-size:14.5px;line-height:1.6;color:#475467;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.ins-readmore{margin-top:auto;padding-top:18px;font-size:13.5px;font-weight:600;color:#294E68}
+.ins-subscribe{display:flex;flex-wrap:wrap;align-items:center;gap:24px;margin-top:clamp(36px,4.4vw,56px);padding:clamp(26px,3vw,36px);border-radius:16px;background:#F5F3EF;box-shadow:inset 0 0 0 1px #E7E2D9}
+.ins-subscribe-text{flex:1 1 320px;min-width:0}
+.ins-sub-title{font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:1.12;letter-spacing:-0.01em;color:#101828}
+.ins-subscribe-text p{margin:8px 0 0;font-size:15px;line-height:1.6;color:#475467}
+
+/* ---- topic strip ---- */
+.topics{background:#F5F3EF;border-top:1px solid #E7E2D9}
+.topics-inner{max-width:1200px;margin:0 auto;padding:clamp(56px,7vw,92px) 24px}
+.topics-inner h2{margin:14px 0 0;max-width:24ch;font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:clamp(28px,3.2vw,42px);line-height:1.06;letter-spacing:-0.02em;color:#101828}
+.topics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(248px,100%),1fr));gap:clamp(22px,2.6vw,34px);margin-top:clamp(32px,4vw,48px)}
+.topic-n{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;letter-spacing:0.14em;color:#B0A896}
+.topic-t{margin-top:9px;font-family:'Instrument Serif',Georgia,serif;font-size:23px;line-height:1.14;letter-spacing:-0.01em;color:#101828}
+.topic-d{margin:8px 0 0;font-size:14.5px;line-height:1.6;color:#475467}
+
+/* ---- interior page CTA (the .cta chrome without a photo) ---- */
+.cta.flat{background:#0A1A2E}
+.cta.flat .cta-scrim{background:linear-gradient(115deg,rgba(41,78,104,0.62) 0%,rgba(6,15,30,0) 66%)}
+
 /* ---- responsive ---- */
 /* The design's own strategy is flex-wrap + clamp(), which carries the layout
    down to about tablet width on its own. Below that the nav collapses to a
@@ -284,6 +412,11 @@ h1,h2,h3,p{margin:0}
   .nav-cta,.nav.is-scrolled .nav-cta{background:#0A1A2E;color:#FFFFFF;height:46px;justify-content:center}
   /* Clear the frame's bottom corners (66px inset + 26px corner). */
   .hero-inner{padding-bottom:120px}
+  /* Two stacked sticky bars would eat the viewport on a phone. */
+  .modnav{position:static}
+  .mod{scroll-margin-top:calc(var(--nav-h,65px) + 12px)}
+  .mod-aside{flex:1 1 100%;padding-left:18px}
+  .pagehead-actions>*{flex:1 1 100%;justify-content:center}
 }
 
 /* Phone. */
@@ -302,4 +435,14 @@ h1,h2,h3,p{margin:0}
   .rail-media{height:auto;min-height:200px}
   .workflow-controls{width:100%}
   .workflow-controls .btn-dark{flex:1 1 auto;justify-content:center}
+  .rail-media.tint{padding:16px 16px 0}
+  .pagehead h1{font-size:clamp(36px,10.5vw,54px)}
+  /* A whole app window scaled to 340px is unreadable, so let the reader pan it
+     at a legible scale instead. clip on the block + auto on the inline axis
+     keeps the rounded corners while allowing the horizontal scroll. */
+  .mod-figure{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+  .mod-figure img{width:auto;max-width:none;height:min(56vh,400px)}
+  .mod-figcap::after{content:' / scroll to pan';color:#C0C6D0}
+  .ins-subscribe{gap:18px}
+  .ins-subscribe .btn-dark{width:100%;justify-content:center}
 }

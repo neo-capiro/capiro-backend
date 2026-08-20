@@ -1,0 +1,233 @@
+{
+  "dashboard": {
+    "raster": "02-dashboard",
+    "box": [
+      211,
+      181,
+      1952,
+      1436
+    ],
+    "shot": [
+      1741,
+      1255
+    ],
+    "shot_bytes": 261921
+  },
+  "portfolio": {
+    "raster": "03-portfolio-client-record",
+    "box": [
+      211,
+      183,
+      1920,
+      1586
+    ],
+    "shot": [
+      1709,
+      1403
+    ],
+    "shot_bytes": 222714
+  },
+  "meri": {
+    "raster": "04-meri-landing",
+    "box": [
+      212,
+      181,
+      1987,
+      1376
+    ],
+    "shot": [
+      1775,
+      1195
+    ],
+    "shot_bytes": 216433,
+    "zoom": [
+      1030,
+      687
+    ],
+    "zoom_bytes": 81227
+  },
+  "meri-research": {
+    "raster": "05-meri-research",
+    "box": [
+      212,
+      182,
+      1987,
+      1600
+    ],
+    "shot": [
+      1775,
+      1418
+    ],
+    "shot_bytes": 216511
+  },
+  "strategies": {
+    "raster": "08-strategies-timeline",
+    "box": [
+      211,
+      183,
+      1987,
+      1396
+    ],
+    "shot": [
+      1776,
+      1213
+    ],
+    "shot_bytes": 226084,
+    "zoom": [
+      1137,
+      758
+    ],
+    "zoom_bytes": 102913
+  },
+  "workspace": {
+    "raster": "10-workspace-editor",
+    "box": [
+      211,
+      182,
+      1987,
+      1586
+    ],
+    "shot": [
+      1776,
+      1404
+    ],
+    "shot_bytes": 300248,
+    "zoom": [
+      1066,
+      711
+    ],
+    "zoom_bytes": 105807
+  },
+  "meetings": {
+    "raster": "11-engagement-meetings",
+    "box": [
+      211,
+      182,
+      1987,
+      1411
+    ],
+    "shot": [
+      1776,
+      1229
+    ],
+    "shot_bytes": 214428
+  },
+  "outreach": {
+    "raster": "12-engagement-outreach",
+    "box": [
+      211,
+      182,
+      1978,
+      1190
+    ],
+    "shot": [
+      1767,
+      1008
+    ],
+    "shot_bytes": 153358
+  },
+  "hearings": {
+    "raster": "14-legiwatch-hearings",
+    "box": [
+      211,
+      182,
+      1961,
+      1553
+    ],
+    "shot": [
+      1750,
+      1371
+    ],
+    "shot_bytes": 222319
+  },
+  "digest": {
+    "raster": "15-legiwatch-digest",
+    "box": [
+      211,
+      182,
+      1961,
+      1526
+    ],
+    "shot": [
+      1750,
+      1344
+    ],
+    "shot_bytes": 242266,
+    "zoom": [
+      1050,
+      700
+    ],
+    "zoom_bytes": 95112
+  },
+  "program-elements": {
+    "raster": "16-pe-explore",
+    "box": [
+      211,
+      183,
+      1987,
+      1180
+    ],
+    "shot": [
+      1776,
+      997
+    ],
+    "shot_bytes": 174090,
+    "zoom": [
+      1172,
+      781
+    ],
+    "zoom_bytes": 110201
+  },
+  "movement": {
+    "raster": "17-pe-movement",
+    "box": [
+      211,
+      183,
+      1987,
+      1450
+    ],
+    "shot": [
+      1776,
+      1267
+    ],
+    "shot_bytes": 225094
+  },
+  "district-nexus": {
+    "raster": "20-district-nexus",
+    "box": [
+      211,
+      182,
+      2331,
+      1275
+    ],
+    "shot": [
+      2000,
+      1031
+    ],
+    "shot_bytes": 218924,
+    "zoom": [
+      1314,
+      876
+    ],
+    "zoom_bytes": 162374
+  },
+  "directory": {
+    "raster": "22-directory-committee",
+    "box": [
+      211,
+      184,
+      1987,
+      1440
+    ],
+    "shot": [
+      1776,
+      1256
+    ],
+    "shot_bytes": 204733,
+    "zoom": [
+      1172,
+      781
+    ],
+    "zoom_bytes": 110699
+  }
+}

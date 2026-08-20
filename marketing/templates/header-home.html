@@ -12,11 +12,11 @@
 <meta property="og:title" content="{{OG_TITLE}}">
 <meta property="og:description" content="{{DESCRIPTION}}">
 <meta property="og:url" content="{{CANONICAL}}">
-<meta property="og:image" content="https://capiro.ai/assets/hero-poster.jpg">
+<meta property="og:image" content="{{OG_IMAGE}}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{OG_TITLE}}">
 <meta name="twitter:description" content="{{DESCRIPTION}}">
-<meta name="twitter:image" content="https://capiro.ai/assets/hero-poster.jpg">
+<meta name="twitter:image" content="{{OG_IMAGE}}">
 <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,13 +26,14 @@
 <body>
 {{TRACKING_BODY}}{{ICONS}}<nav class="nav" id="siteNav">
   <div class="nav-inner">
-    <a class="nav-logo" href="#top"><img src="/assets/logo.png" alt="Capiro" width="960" height="325"></a>
+    <a class="nav-logo" href="/"><img src="/assets/logo.png" alt="Capiro" width="960" height="325"></a>
     <button class="nav-burger" id="navBurger" onclick="toggleNav()" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
       <span></span><span></span><span></span>
     </button>
     <div class="nav-links" id="navLinks">
       <div class="nav-menu">
-        <a href="#platform" onclick="closeNav()">Platform</a>
+        <a href="/platform">Platform</a>
+        <a href="/solutions">Solutions</a>
         <a href="/insights">Insights</a>
       </div>
       <div class="nav-actions">

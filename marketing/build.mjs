@@ -20,6 +20,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = process.env.OUT_DIR || HERE;
 const SITE = 'https://capiro.ai';
 const LASTMOD = '2026-07-03';
+// Default share image; a page may override it with `ogImage` below. Link previews
+// are the first thing a prospect sees, so the product pages ship their own card.
 const OG_IMAGE = SITE + '/assets/hero-poster.jpg';
 
 // Paid-acquisition tracking. Both IDs empty => NO tags emitted (zero prod impact).
@@ -75,10 +77,11 @@ const read = (...p) => readFileSync(join(HERE, ...p), 'utf8').replace(/\r\n/g, '
 const header = read('templates', 'header.html');
 const footer = read('templates', 'footer.html');
 
-// The home page ships its own chrome: a light theme, a transparent-over-hero nav
-// and its own stylesheet (assets/home.css). The other six pages keep the shared
-// dark-theme header/footer and assets/styles.css untouched. Selected per page
-// via `chrome: 'home'` below.
+// The 'home' chrome is the light theme: assets/home.css, the Untitled UI type and
+// colour scale, and a nav that is transparent over a dark hero and solid elsewhere
+// (main.js decides from the presence of .hero). /, /platform and /insights use it.
+// /solutions, /pricing, /privacy and /terms still use the older dark-theme chrome
+// and assets/styles.css. Selected per page via `chrome: 'home'` below.
 const CHROME = {
   default: { header, footer },
   home: { header: read('templates', 'header-home.html'), footer: read('templates', 'footer-home.html') },
@@ -93,9 +96,10 @@ const PAGES = [
     description: 'Capiro is the operating system for government affairs teams. Meri, your AI Chief of Staff, tracks legislation, drafts outreach, and manages every client and capability in one platform. Measured by outcomes.',
   },
   {
-    slug: 'platform', out: 'platform.html', body: 'platform.html',
-    title: 'Platform — Meri, Your AI Chief of Staff | Capiro',
-    description: 'Meet Meri: the AI Chief of Staff that tracks legislation, drafts outreach, and remembers every client objective so your government affairs team can act, not just monitor.',
+    slug: 'platform', out: 'platform.html', body: 'platform.html', chrome: 'home',
+    ogImage: SITE + '/assets/deck/og-platform.jpg',
+    title: 'Platform — Every Module, Screen by Screen | Capiro',
+    description: 'See every Capiro module as it actually works: the dashboard, Meri, portfolio, strategies, workspace, engagement, LegiWatch, program elements, district nexus and directory — in real product screens.',
   },
   {
     slug: 'solutions', out: 'solutions.html', body: 'solutions.html',
@@ -103,9 +107,10 @@ const PAGES = [
     description: 'From lobbying firms to corporate government affairs teams and associations — see how Capiro adapts to every sector and practice type.',
   },
   {
-    slug: 'insights', out: 'insights.html', body: 'insights.html',
+    slug: 'insights', out: 'insights.html', body: 'insights.html', chrome: 'home',
+    ogImage: SITE + '/assets/deck/og-insights.jpg',
     title: 'Insights — The Cycle by Capiro',
-    description: 'The Cycle: analysis and updates on government affairs, legislative trends, and how AI is changing advocacy work.',
+    description: 'The Cycle: analysis on government affairs, defense budgets, and what AI actually changes about advocacy work. Written for practitioners.',
   },
   {
     slug: 'pricing', out: 'pricing.html', body: 'pricing.html',
@@ -194,6 +199,7 @@ for (const page of PAGES) {
     .replaceAll('{{OG_TITLE}}', attr(page.title))
     .replaceAll('{{DESCRIPTION}}', attr(page.description))
     .replaceAll('{{CANONICAL}}', attr(canonical))
+    .replaceAll('{{OG_IMAGE}}', attr(page.ogImage || OG_IMAGE))
     .replace('{{HEAD_EXTRA}}', jsonLd(page, canonical))
     .replace('{{TRACKING_HEAD}}', trackingHead())
     .replace('{{TRACKING_BODY}}', trackingBody())

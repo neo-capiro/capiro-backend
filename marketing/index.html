@@ -120,13 +120,14 @@
 </svg>
 <nav class="nav" id="siteNav">
   <div class="nav-inner">
-    <a class="nav-logo" href="#top"><img src="/assets/logo.png" alt="Capiro" width="960" height="325"></a>
+    <a class="nav-logo" href="/"><img src="/assets/logo.png" alt="Capiro" width="960" height="325"></a>
     <button class="nav-burger" id="navBurger" onclick="toggleNav()" aria-label="Menu" aria-expanded="false" aria-controls="navLinks">
       <span></span><span></span><span></span>
     </button>
     <div class="nav-links" id="navLinks">
       <div class="nav-menu">
-        <a href="#platform" onclick="closeNav()">Platform</a>
+        <a href="/platform">Platform</a>
+        <a href="/solutions">Solutions</a>
         <a href="/insights">Insights</a>
       </div>
       <div class="nav-actions">
@@ -244,125 +245,104 @@
       <div class="rail" data-rail="workflow">
 
         <div class="rail-card">
-          <div class="rail-media">
-            <div class="mock-shell">
-              <div class="mock-cols">
-                <div class="mock-col-a">
-                  <div class="mock-video">
-                    <div class="mock-live"><i></i>LIVE</div>
-                    <div class="mock-badge-wrap"><span class="mock-badge">HASC</span></div>
-                  </div>
-                  <div class="mock-timerow"><span>LIVESTREAM</span><span>00:43:17</span></div>
-                  <div class="mock-panel">
-                    <div class="mock-panel-head"><span>LIVE TRANSCRIPT</span><span class="dim">11 HITS</span></div>
-                    <div class="mock-hit">
-                      <span class="mock-hit-time">17:42</span>
-                      <span class="mock-hit-text">Autonomy is tied directly to contested-logistics readiness.</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="mock-col-b">
-                  <div class="mock-panel">
-                    <div class="mock-tag amber">MATCHED &middot; 17:42</div>
-                    <div class="mock-h">Autonomy tied to contested logistics</div>
-                    <div class="mock-p">Acme Company &middot; Boresight</div>
-                  </div>
-                  <div class="mock-panel">
-                    <div class="mock-tag blue">CLIENT IMPACT</div>
-                    <div class="mock-h">4 clients &middot; 11 moments</div>
-                    <div class="mock-p">Autonomy &middot; funding &middot; readiness</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="rail-body">
-            <div class="eyebrow">Monitoring</div>
-            <div class="rail-name">LegiWatch</div>
-            <p>Watch a hearing live with transcript capture running, matched moments flagged against your watchlists, and client impact scored as it happens.</p>
-            <a class="card-link" href="/platform">
-              How it works
-              <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
-            </a>
-          </div>
-        </div>
-
-        <div class="rail-card">
-          <div class="rail-media">
-            <img src="/assets/card-strategies.png" alt="Capiro Strategies" loading="lazy" decoding="async">
-          </div>
-          <div class="rail-body">
-            <div class="eyebrow">Planning</div>
-            <div class="rail-name">Strategies</div>
-            <p>A working roadmap across the appropriations, authorization and procurement calendars, with every step, gate and risk on the same three-year window.</p>
-            <a class="card-link" href="/platform">
-              How it works
-              <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
-            </a>
-          </div>
-        </div>
-
-        <div class="rail-card">
-          <div class="rail-media">
-            <img src="/assets/card-directory.png" alt="Capiro Directory" loading="lazy" decoding="async">
-          </div>
-          <div class="rail-body">
-            <div class="eyebrow">Relationships</div>
-            <div class="rail-name">Directory</div>
-            <p>Source-backed committee and office structure, so you can see who reports to whom, who holds the file, and where the decision actually sits.</p>
-            <a class="card-link" href="/platform">
-              How it works
-              <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
-            </a>
-          </div>
-        </div>
-
-        <div class="rail-card">
-          <div class="rail-media">
-            <img src="/assets/card-workspace.png" alt="Capiro Workspace" loading="lazy" decoding="async">
-          </div>
-          <div class="rail-body">
-            <div class="eyebrow">Production</div>
-            <div class="rail-name">Workspace</div>
-            <p>The Document Agent drafts the paper beside you, holds the approved brief in view, and tracks every revision from outline to approved delivery.</p>
-            <a class="card-link" href="/platform">
-              How it works
-              <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
-            </a>
-          </div>
-        </div>
-
-        <div class="rail-card">
-          <div class="rail-media">
-            <div class="chat-shell">
-              <div class="chat-userrow">
-                <span class="chat-user">What changed for Acme Company this week?</span>
-              </div>
-              <div class="chat-reply">
-                <span class="chat-avatar">M</span>
-                <div class="chat-body">
-                  <div class="chat-text">Ground Robotics is cut $22.7M below the Army request. Markup prep is ready.</div>
-                  <div class="chat-chart">
-                    <div class="chat-chart-head">
-                      <span>FY27 GROUND ROBOTICS &middot; $M</span>
-                      <span class="dim">DERIVED</span>
-                    </div>
-                    <div class="chat-bars">
-                      <span style="height:46px"></span><span style="height:41px"></span><span class="cut" style="height:29px"></span><span style="height:36px"></span>
-                    </div>
-                    <div class="chat-axis">
-                      <span>PB</span><span>AUTH</span><span>HAC-D</span><span>SAC-D</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div class="rail-media tint t-navy">
+            <img class="rail-shot" src="/assets/deck/zoom-meri.jpg" alt="Meri's start-work surface: skills and prompts on one page, above the composer" width="1030" height="687" loading="lazy" decoding="async">
           </div>
           <div class="rail-body">
             <div class="eyebrow">AI chief of staff</div>
             <div class="rail-name">Meri</div>
-            <p>Meri works across Capiro, so you don't have to explain your clients, priorities, and work every time you ask a question.</p>
-            <a class="card-link" href="/platform">
+            <p>Skills and prompts on one surface. Every task writes an editable intent into the composer, scoped to the client you name &mdash; and nothing sends itself.</p>
+            <a class="card-link" href="/platform#meri">
+              How it works
+              <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <div class="rail-media tint t-sand">
+            <img class="rail-shot" src="/assets/deck/zoom-digest.jpg" alt="The Policy Morning Brief: what changed since yesterday and the decisions due today" width="1050" height="700" loading="lazy" decoding="async">
+          </div>
+          <div class="rail-body">
+            <div class="eyebrow">Monitoring</div>
+            <div class="rail-name">LegiWatch</div>
+            <p>A morning brief that opens with the decision count. Every change carries its provenance, and the unknowns are retained rather than smoothed over.</p>
+            <a class="card-link" href="/platform#legiwatch">
+              How it works
+              <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <div class="rail-media tint t-steel">
+            <img class="rail-shot" src="/assets/deck/zoom-strategies.jpg" alt="A strategy plotted on the working timeline across three fiscal years" width="1137" height="758" loading="lazy" decoding="async">
+          </div>
+          <div class="rail-body">
+            <div class="eyebrow">Planning</div>
+            <div class="rail-name">Strategies</div>
+            <p>Client goals become plans on the real calendar &mdash; appropriations, authorization and procurement, across three fiscal years centred on today.</p>
+            <a class="card-link" href="/platform#strategies">
+              How it works
+              <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <div class="rail-media tint t-slate">
+            <img class="rail-shot" src="/assets/deck/zoom-program-elements.jpg" alt="Defense budget lines with position, delta, evidence state and a recommended action" width="1172" height="781" loading="lazy" decoding="async">
+          </div>
+          <div class="rail-body">
+            <div class="eyebrow">Defense budgets</div>
+            <div class="rail-name">Program Elements</div>
+            <p>Budget lines followed from request through Congress to enacted outcome, each with its stage, its delta, and the state of the evidence behind it.</p>
+            <a class="card-link" href="/platform#program-elements">
+              How it works
+              <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <div class="rail-media tint t-clay">
+            <img class="rail-shot" src="/assets/deck/zoom-workspace.jpg" alt="A client document open beside the plan that produced it" width="1066" height="711" loading="lazy" decoding="async">
+          </div>
+          <div class="rail-body">
+            <div class="eyebrow">Production</div>
+            <div class="rail-name">Workspace</div>
+            <p>The draft and its reasoning, side by side. Four phases on one document, with every assumption stated in words and open to confirmation.</p>
+            <a class="card-link" href="/platform#workspace">
+              How it works
+              <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <div class="rail-media tint t-sage">
+            <img class="rail-shot" src="/assets/deck/zoom-directory.jpg" alt="Committee structure drawn from the source record, chair and ranking member at the same level" width="1172" height="781" loading="lazy" decoding="async">
+          </div>
+          <div class="rail-body">
+            <div class="eyebrow">Relationships</div>
+            <div class="rail-name">Directory</div>
+            <p>Source-backed committee and office structure. Solid lines are formal structure, dashed lines are working relationships, and unfilled seats stay visible.</p>
+            <a class="card-link" href="/platform#directory">
+              How it works
+              <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="rail-card">
+          <div class="rail-media tint t-mist">
+            <img class="rail-shot" src="/assets/deck/zoom-district-nexus.jpg" alt="Client facilities, funding and representation mapped by congressional district" width="1314" height="876" loading="lazy" decoding="async">
+          </div>
+          <div class="rail-body">
+            <div class="eyebrow">Footprint</div>
+            <div class="rail-name">District Nexus</div>
+            <p>Client facilities, federal funding and representation translated into a congressional footprint &mdash; with every gap in the underlying data named.</p>
+            <a class="card-link" href="/platform#district-nexus">
               How it works
               <svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" style="color:#294E68"><use href="#i-arrow-right"/></svg>
             </a>
@@ -557,6 +537,8 @@
       <div class="footer-col-title">Product</div>
       <div class="footer-links">
         <a href="/platform">Platform</a>
+        <a href="/solutions">Solutions</a>
+        <a href="/pricing">Pricing</a>
       </div>
     </div>
     <div class="footer-col">

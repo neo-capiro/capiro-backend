@@ -13,8 +13,12 @@ function closeNav(){var l=document.getElementById('navLinks'),b=document.getElem
   var nav=document.getElementById('siteNav');
   if(!nav)return;
   var on=false;
+  // Only the home page puts the nav over a dark hero; the interior pages open on
+  // a light .pagehead, so there the nav must be solid from the first paint or the
+  // white nav text lands on cream.
+  var overHero=!!document.querySelector('.hero');
   function sync(){
-    var s=window.scrollY>90;
+    var s=!overHero||window.scrollY>90;
     if(s!==on){on=s;nav.classList.toggle('is-scrolled',s);}
   }
   window.addEventListener('scroll',sync,{passive:true});
@@ -53,7 +57,9 @@ function showInsightsFallback(){
   var grid=document.getElementById('insights-grid');
   var status=document.getElementById('insights-status');
   if(grid)grid.style.display='none';
-  if(status){status.innerHTML='New issues of <strong style="color:var(--white);font-weight:500;">The Cycle</strong> appear here as they publish. <a href="https://capirohq.substack.com" target="_blank" rel="noopener" style="color:var(--blue-bright);text-decoration:none;">Read the latest on Substack &rarr;</a>';status.style.display='block';}
+  // Classed, not inline-styled: /insights is a light page and the old inline
+  // var(--white) / var(--blue-bright) are dark-theme tokens that do not exist there.
+  if(status){status.innerHTML='New issues of <strong class="ins-strong">The Cycle</strong> appear here as they publish. <a class="ins-link" href="https://capirohq.substack.com" target="_blank" rel="noopener">Read the latest on Substack &rarr;</a>';status.style.display='block';}
 }
 function loadInsights(){
   if(_insightsLoaded)return;_insightsLoaded=true;
@@ -68,6 +74,9 @@ function loadInsights(){
       grid.innerHTML=items.map(renderInsightCard).join('');
       grid.style.display='grid';
       if(status)status.style.display='none';
+      // Present only on the rebuilt /insights; say what actually loaded.
+      var count=document.querySelector('.ins-count');
+      if(count)count.textContent='Latest from The Cycle · '+items.length+(items.length===1?' issue':' issues');
     })
     .catch(function(){_insightsLoaded=false;showInsightsFallback();});
 }
