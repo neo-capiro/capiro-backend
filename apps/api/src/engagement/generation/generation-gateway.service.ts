@@ -27,7 +27,10 @@ import type { LedgerEntry } from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import type { AppConfig } from '../../config/config.schema.js';
 import { EngagementAiService } from '../engagement-ai.service.js';
-import { LlmCompletionService } from '../llm-completion.service.js';
+import {
+  LlmCompletionService,
+  LLM_LONG_GENERATION_TIMEOUT_MS,
+} from '../llm-completion.service.js';
 import { OutreachDraftService } from '../outreach-draft.service.js';
 import { AttachmentScannerService } from '../attachment-scanner.service.js';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
@@ -511,6 +514,9 @@ export class GenerationGatewayService {
         jsonSchemaName: 'outreach_draft',
         cacheSystem: true,
         cacheUserStatic: true,
+        // The draft call is the slowest in the path; the 90s LlmCompletionService
+        // default aborted healthy gpt-5 max-effort generations outright.
+        timeoutMs: LLM_LONG_GENERATION_TIMEOUT_MS,
         // The PINNED effort, for the same reason as the pinned model: every chunk
         // of one campaign must reason at the same depth.
         ...(pinned.reasoningEffort ? { reasoningEffort: pinned.reasoningEffort } : {}),

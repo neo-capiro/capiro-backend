@@ -191,16 +191,28 @@ describe('configureApiHttpApp', () => {
   });
 
   describe('configureApiHttpServerTimeouts', () => {
-    it('sets keepAliveTimeout to 305000', () => {
-      const server = { keepAliveTimeout: 0, headersTimeout: 0 };
+    const configured = () => {
+      const server = { keepAliveTimeout: 0, headersTimeout: 0, requestTimeout: 300_000 };
       configureApiHttpServerTimeouts(server);
-      expect(server.keepAliveTimeout).toBe(305_000);
+      return server;
+    };
+
+    // The ALB's idle timeout is 4000s (AWS max). Node's keep-alive must outlast it,
+    // or Node closes a socket the ALB still thinks it can reuse and the next request
+    // through that socket fails as a 502.
+    it('keeps keepAliveTimeout above the 4000s ALB idle timeout', () => {
+      expect(configured().keepAliveTimeout).toBeGreaterThan(4_000_000);
     });
 
-    it('sets headersTimeout to 310000', () => {
-      const server = { keepAliveTimeout: 0, headersTimeout: 0 };
-      configureApiHttpServerTimeouts(server);
-      expect(server.headersTimeout).toBe(310_000);
+    it('keeps headersTimeout above keepAliveTimeout', () => {
+      const server = configured();
+      expect(server.headersTimeout).toBeGreaterThan(server.keepAliveTimeout);
+    });
+
+    // Node >=18 defaults requestTimeout to 300s and destroys the socket mid-response.
+    // Governed outreach generation legitimately exceeds that, so Node must not cap it.
+    it('disables requestTimeout so long generations are not cut off', () => {
+      expect(configured().requestTimeout).toBe(0);
     });
   });
 });

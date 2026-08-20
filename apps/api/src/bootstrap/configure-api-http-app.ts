@@ -164,14 +164,27 @@ export function configureApiHttpApp(
 /**
  * Shared server timeout configuration.
  *
- * Behind the ALB these must outlast the ALB idle timeout (300s):
- *   - keepAliveTimeout: 305s
- *   - headersTimeout: 310s (must exceed keepAliveTimeout)
+ * The ALB's `idle_timeout.timeout_seconds` is **4000s** (AWS's maximum), NOT the
+ * 300s this function assumed until 2026-08-19. Node's own limits must outlast the
+ * ALB's, or Node closes a keep-alive socket the ALB still believes it can reuse and
+ * the next request through it dies as a 502:
+ *   - keepAliveTimeout: 4005s (> ALB 4000s)
+ *   - headersTimeout:   4010s (must exceed keepAliveTimeout)
+ *
+ * `requestTimeout` is the one that kills long-running work: Node >=18 defaults it
+ * to 300s and destroys the socket mid-response when a handler outlives it. Governed
+ * outreach generation legitimately runs for many minutes (gpt-5 at `max` reasoning
+ * effort, up to 3 sequential samples plus a message plan per sample), so 300s is far
+ * too low. Setting it to 0 disables Node's cap and leaves the ALB's 4000s as the only
+ * ceiling — there is no way to exceed that, so ~66 minutes is the real hard limit on
+ * any single request regardless of what this file says.
  */
 export function configureApiHttpServerTimeouts(server: {
   keepAliveTimeout: number;
   headersTimeout: number;
+  requestTimeout: number;
 }): void {
-  server.keepAliveTimeout = 305_000;
-  server.headersTimeout = 310_000;
+  server.keepAliveTimeout = 4_005_000;
+  server.headersTimeout = 4_010_000;
+  server.requestTimeout = 0;
 }

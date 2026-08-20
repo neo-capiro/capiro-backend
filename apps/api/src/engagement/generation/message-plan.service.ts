@@ -16,7 +16,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { ProviderUsage, TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../../config/config.schema.js';
-import { LlmCompletionService } from '../llm-completion.service.js';
+import {
+  LlmCompletionService,
+  LLM_LONG_GENERATION_TIMEOUT_MS,
+} from '../llm-completion.service.js';
 import type { ResolvedAiCredential } from '../ai-credential-resolver.service.js';
 import { SPOTLIGHT_CLOSE, SPOTLIGHT_OPEN } from '../outreach-prompt/prompt-spec-v2.js';
 import {
@@ -132,6 +135,9 @@ export class MessagePlanService {
       jsonSchema: MESSAGE_PLAN_JSON_SCHEMA as unknown as Record<string, unknown>,
       jsonSchemaName: 'message_plan',
       maxTokens: 2000,
+      // Runs at the same pinned reasoning effort as the draft, so it inherits the
+      // same long ceiling rather than LlmCompletionService's 90s interactive default.
+      timeoutMs: LLM_LONG_GENERATION_TIMEOUT_MS,
       ...(request.reasoningEffort ? { reasoningEffort: request.reasoningEffort } : {}),
       // RC8 (zero-trust Wave 1) pinned temperature: 0.2 here to cut sampling
       // variance on figure-heavy plans. Removed: the pinned outreach planning
