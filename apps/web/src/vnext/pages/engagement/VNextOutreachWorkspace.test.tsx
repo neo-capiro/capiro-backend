@@ -970,14 +970,14 @@ describe('VNextOutreachWorkspace', () => {
     function renderApproachStage() {
       refineCalls.length = 0;
       useOutreachV3SessionMock.mockReturnValue(baseController({ stage: 'ready_for_generation' }));
-      onGet('/drafts', () => [DRAFTS_FIXTURE[0]]);
+      onGet('/drafts', () => [DRAFTS_FIXTURE[0]!]);
       onGet('/generation/plan', () => PLAN_FIXTURE);
       // null => approachCurrent is false => the approach grid renders, which is
       // the pre-approval surface that was missing the control.
       onGet('/generation/approach-approval', () => null);
       onPost('/refine', (url, body) => {
         refineCalls.push({ url, body });
-        return DRAFTS_FIXTURE[0].current;
+        return DRAFTS_FIXTURE[0]!.current;
       });
       return renderWorkspace('drafts');
     }
@@ -1028,8 +1028,8 @@ describe('VNextOutreachWorkspace', () => {
       fireEvent.click(within(refine).getByRole('button', { name: /Refine/ }));
 
       await waitFor(() => expect(refineCalls).toHaveLength(1));
-      expect(refineCalls[0].url).toContain('/drafts/artifact-r1/refine');
-      expect(refineCalls[0].body).toMatchObject({
+      expect(refineCalls[0]!.url).toContain('/drafts/artifact-r1/refine');
+      expect(refineCalls[0]!.body).toMatchObject({
         baseVersionId: 'version-r1',
         instruction: 'warmer opening',
       });
