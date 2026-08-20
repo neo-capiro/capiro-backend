@@ -1,0 +1,69 @@
+name: Phase 8 Session 6 Federal Funding Events
+
+on:
+  push:
+    paths:
+      - 'apps/api/prisma/migrations/20261120220000_phase8_session6_federal_funding_events/**'
+      - 'apps/defense-api/scripts/ingest-federal-funding.mjs'
+      - 'apps/defense-api/package.json'
+      - 'packages/defense-domain/src/federal-funding/**'
+      - 'packages/defense-contracts/src/public/federal-funding.ts'
+      - 'packages/defense-contracts/src/index.ts'
+      - 'scripts/*phase8-session6*'
+      - 'docs/defense-budget/phase8-session6-*'
+      - '.github/workflows/phase8-session6-federal-funding.yml'
+  pull_request:
+    paths:
+      - 'apps/api/prisma/migrations/20261120220000_phase8_session6_federal_funding_events/**'
+      - 'apps/defense-api/scripts/ingest-federal-funding.mjs'
+      - 'apps/defense-api/package.json'
+      - 'packages/defense-domain/src/federal-funding/**'
+      - 'packages/defense-contracts/src/public/federal-funding.ts'
+      - 'packages/defense-contracts/src/index.ts'
+      - 'scripts/*phase8-session6*'
+      - 'docs/defense-budget/phase8-session6-*'
+      - '.github/workflows/phase8-session6-federal-funding.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  federal-funding-foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+      - name: Pin pnpm
+        run: corepack prepare pnpm@9.12.0 --activate
+      - name: Frozen workspace install
+        run: pnpm install --frozen-lockfile
+      - name: Build shared defense packages
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-client build
+      - name: Federal Funding Event domain tests
+        run: node scripts/test-phase8-session6-federal-funding-domain.mjs
+      - name: Static foundation + real-source corpus gate
+        run: node scripts/verify-phase8-session6.mjs --enforce-corpus
+      - name: Defense Prisma validation
+        run: pnpm --filter @capiro/defense-api prisma:validate
+      - name: Disposable Session 6 database rehearsal
+        run: node scripts/verify-phase8-session6-db.mjs
+      - name: Preserve accepted Session 4/5 boundaries
+        env:
+          PHASE8_SESSION4_REPLAY_EVIDENCE: docs/defense-budget/phase8-session4-fy27-replay-evidence.json
+        run: |
+          node scripts/verify-phase8-session4.mjs --enforce-replay
+          node scripts/verify-phase8-session5.mjs --enforce-provider-decision
+      - name: Diff hygiene
+        run: git diff --check origin/${{ github.base_ref || 'main' }}...HEAD
