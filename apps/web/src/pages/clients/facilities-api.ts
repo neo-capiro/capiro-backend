@@ -91,6 +91,18 @@ export async function updateClientFacility(
   ).data;
 }
 
+export async function retryClientFacilityGeocode(
+  api: AxiosInstance,
+  clientId: string,
+  id: string,
+): Promise<ClientFacility> {
+  return (
+    await api.post<ClientFacility>(
+      `/api/clients/${encodeURIComponent(clientId)}/facilities/${encodeURIComponent(id)}/geocode`,
+    )
+  ).data;
+}
+
 export async function deleteClientFacility(
   api: AxiosInstance,
   clientId: string,
