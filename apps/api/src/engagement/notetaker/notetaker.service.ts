@@ -900,6 +900,24 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(
         `createAsyncTranscript failed (session ${sessionId}): ${(err as Error).message}`,
       );
+      // Prod 2026-08-20: reconcile/call_ended can race ahead of recording.done.
+      // Recall then returns HTTP 400 "Recording is not done." — that is retryable,
+      // not terminal. Release the claim back to a pre-transcript status so a later
+      // recording.done / bot.done / reconcile can claim again. Hard-failing here
+      // stranded a fully-recorded Capiro onboarding session with no notes.
+      if (isRecordingNotDoneYet(err)) {
+        await this.prisma.withTenant(tenantId, (tx) =>
+          tx.meetingBotSession.updateMany({
+            where: { id: sessionId, tenantId, transcriptId: null },
+            data: {
+              recordingId: null,
+              status: 'recording',
+              error: null,
+            },
+          }),
+        );
+        return;
+      }
       await this.prisma.withTenant(tenantId, (tx) =>
         tx.meetingBotSession.updateMany({
           where: { id: sessionId, tenantId, transcriptId: null },
@@ -1139,6 +1157,38 @@ export class NotetakerService implements OnModuleInit, OnModuleDestroy {
 
 function asString(v: unknown): string | null {
   return typeof v === 'string' && v.length > 0 ? v : null;
+}
+
+/**
+ * True when Recall rejected create_transcript because the recording media is
+ * not finalized yet. The provider surfaces this as HTTP 400 with a body like
+ * `{"non_field_errors":["Recording is not done."]}` (and the outer message
+ * `Recall API error (HTTP 400)`). Detect on message + optional `detail` so we
+ * stay robust whether the throw is a typed RecallApiHttpError or a plain Error
+ * carrying the same text.
+ */
+export function isRecordingNotDoneYet(err: unknown): boolean {
+  const parts: string[] = [];
+  if (err instanceof Error) parts.push(err.message);
+  if (err && typeof err === 'object') {
+    const anyErr = err as {
+      detail?: unknown;
+      getResponse?: () => unknown;
+    };
+    if (typeof anyErr.detail === 'string') parts.push(anyErr.detail);
+    // Nest HttpException response may be a string or `{ message, ... }`.
+    if (typeof anyErr.getResponse === 'function') {
+      try {
+        const res = anyErr.getResponse();
+        if (typeof res === 'string') parts.push(res);
+        else if (res && typeof res === 'object') parts.push(JSON.stringify(res));
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  const blob = parts.join(' ').toLowerCase();
+  return blob.includes('recording is not done');
 }
 
 /**

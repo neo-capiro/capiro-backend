@@ -59,6 +59,92 @@ describe('note existence is not approval', () => {
     expect(createArgs!.data).not.toHaveProperty('approvedAt');
     expect(createArgs!.data).not.toHaveProperty('sharedAt');
   });
+
+  test('createMeetingNote opens withTenant with extended timeout headroom', async () => {
+    // Prod 2026-08-20: Meri notes save failed after a successful transcript because
+    // prisma.withTenant defaulted to 5000ms and the interactive tx expired mid-write.
+    let capturedOpts: { timeoutMs?: number } | undefined;
+    const prisma = {
+      withTenant: (
+        _tenantId: string,
+        fn: (scoped: unknown) => unknown,
+        opts?: { timeoutMs?: number },
+      ) => {
+        capturedOpts = opts;
+        return fn({
+          meeting: { findFirst: async () => ({ id: 'm1', clientId: 'c1' }) },
+          meetingNote: { create: async () => ({ id: 'n1' }) },
+        });
+      },
+    };
+    const service = Object.create(EngagementService.prototype) as EngagementService;
+    const s = service as unknown as Record<string, unknown>;
+    s.prisma = prisma;
+    s.notesCrypto = {
+      encrypt: () => ({ bodyCiphertext: 'ct', iv: 'iv', authTag: 'tag', keyVersion: 'v1' }),
+    };
+
+    await service.createMeetingNote(ctx, 'm1', { body: 'raw notes' });
+
+    expect(capturedOpts?.timeoutMs).toBeGreaterThanOrEqual(20_000);
+  });
+
+  test('generateMeetingDebriefDraft context load opens withTenant with extended timeout headroom', async () => {
+    // Same 5s default that killed Meri notes also wraps the heavy prep/debrief
+    // context pack (recent threads + association SQL). First-click prep fails
+    // under cold Aurora; retry often succeeds once warm.
+    let capturedOpts: { timeoutMs?: number } | undefined;
+    const prisma = {
+      withTenant: async (
+        _tenantId: string,
+        fn: (scoped: unknown) => unknown,
+        opts?: { timeoutMs?: number },
+      ) => {
+        capturedOpts = opts;
+        return fn({
+          meeting: {
+            findFirst: async () => ({
+              id: 'm1',
+              clientId: null,
+              client: null,
+              attendees: [],
+              attachments: [],
+              preps: [],
+              tasks: [],
+              subject: 'x',
+              startsAt: new Date(),
+              endsAt: new Date(),
+            }),
+          },
+        });
+      },
+    };
+    const service = Object.create(EngagementService.prototype) as EngagementService;
+    const s = service as unknown as Record<string, unknown>;
+    s.prisma = prisma;
+    s.listMeetingNotes = async () => [];
+    s.clientContext = async () => null;
+    s.directoryProfilesForMeeting = async () => [];
+    s.loadUserVoiceBlock = async () => null;
+    s.recordAiUsage = async () => undefined;
+    s.ai = {
+      generateMeetingDebrief: async () => ({
+        recap: 'r',
+        actionItems: [],
+        notes: 'n',
+        provider: 'openai',
+        model: 'm',
+      }),
+    };
+    s.resolveEffectiveMeetingClientId = async () => null;
+
+    await service.generateMeetingDebriefDraft(ctx, 'm1', {
+      method: 'upload',
+      sourceText: 'hello transcript',
+    });
+
+    expect(capturedOpts?.timeoutMs).toBeGreaterThanOrEqual(20_000);
+  });
 });
 
 describe('approveMeetingNote', () => {

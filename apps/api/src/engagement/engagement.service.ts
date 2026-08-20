@@ -995,6 +995,16 @@ type UserAiTemplate = {
 };
 type AiTemplateItem = SystemAiTemplate | UserAiTemplate;
 
+/**
+ * Interactive-tx headroom for heavy meeting context packs and encrypted note
+ * writes. Prisma's default is 5000ms; cold Aurora association/thread queries
+ * (and even a slow note insert under pool pressure) exceed that — prod
+ * 2026-08-20 Meri notes save failed after a good transcript with
+ * "Transaction already closed ... 5000 ms". Sync paths already pass 20s;
+ * keep meeting AI/note paths on the same floor.
+ */
+const MEETING_CONTEXT_TX_TIMEOUT_MS = 20_000;
+
 @Injectable()
 export class EngagementService {
   private readonly logger = new Logger(EngagementService.name);
@@ -5801,27 +5811,31 @@ export class EngagementService {
     input: { body: string; confidential?: boolean; accessLevel?: string },
   ) {
     const encrypted = this.notesCrypto.encrypt(input.body);
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const meeting = await tx.meeting.findFirst({
-        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-      });
-      if (!meeting) throw new NotFoundException('Meeting not found');
-      return tx.meetingNote.create({
-        data: {
-          tenantId: ctx.tenantId,
-          meetingId,
-          clientId: meeting.clientId,
-          authorUserId: ctx.userId,
-          bodyCiphertext: encrypted.bodyCiphertext,
-          iv: encrypted.iv,
-          authTag: encrypted.authTag,
-          keyVersion: encrypted.keyVersion,
-          confidential: input.confidential ?? true,
-          accessLevel: input.accessLevel ?? 'tenant_admins_and_author',
-        },
-        select: noteMetadataSelect(),
-      });
-    });
+    return this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
+        const meeting = await tx.meeting.findFirst({
+          where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+        });
+        if (!meeting) throw new NotFoundException('Meeting not found');
+        return tx.meetingNote.create({
+          data: {
+            tenantId: ctx.tenantId,
+            meetingId,
+            clientId: meeting.clientId,
+            authorUserId: ctx.userId,
+            bodyCiphertext: encrypted.bodyCiphertext,
+            iv: encrypted.iv,
+            authTag: encrypted.authTag,
+            keyVersion: encrypted.keyVersion,
+            confidential: input.confidential ?? true,
+            accessLevel: input.accessLevel ?? 'tenant_admins_and_author',
+          },
+          select: noteMetadataSelect(),
+        });
+      },
+      { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS },
+    );
   }
 
   async updateMeetingNote(
@@ -5997,102 +6011,107 @@ export class EngagementService {
     const sourceText = input.sourceText.trim();
     if (!sourceText) throw new BadRequestException('sourceText is required');
 
-    const context = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const meeting = await tx.meeting.findFirst({
-        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-        include: {
-          client: true,
-          attendees: true,
-          attachments: { orderBy: { createdAt: 'desc' } },
-          preps: { orderBy: { createdAt: 'desc' }, take: 1 },
-          tasks: {
-            where: {
-              status: { notIn: [EngagementTaskStatus.done, EngagementTaskStatus.canceled] },
-            },
-          },
-        },
-      });
-      if (!meeting) throw new NotFoundException('Meeting not found');
-
-      const effectiveClientId = await this.resolveEffectiveMeetingClientId(tx, ctx, meeting);
-      const effectiveClient =
-        effectiveClientId && effectiveClientId !== meeting.clientId
-          ? await tx.client.findUnique({ where: { id: effectiveClientId } })
-          : meeting.client;
-
-      const meetingAssociationWhere = effectiveClientId
-        ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, effectiveClientId)
-        : null;
-      const recentMeetings = meetingAssociationWhere
-        ? await tx.meeting.findMany({
-            where: {
-              AND: [
-                {
-                  tenantId: ctx.tenantId,
-                  id: { not: meeting.id },
-                  ...ownMeetingWhere(ctx.userId),
-                },
-                meetingAssociationWhere,
-              ],
-            },
-            select: {
-              id: true,
-              subject: true,
-              startsAt: true,
-              endsAt: true,
-              location: true,
-              associationReason: true,
-            },
-            orderBy: { startsAt: 'desc' },
-            take: 5,
-          })
-        : [];
-
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      // Fetch recent email threads from last 30 days associated to this client only.
-      // Do NOT infer context from attendee/to/cc domains, which can pull unrelated people.
-      const threadFilters: Prisma.MailThreadWhereInput[] = [];
-      if (effectiveClientId) {
-        threadFilters.push(
-          await this.clientMailThreadAssociationWhere(tx, ctx.tenantId, effectiveClientId),
-        );
-      }
-
-      const recentThreads = threadFilters.length
-        ? await tx.mailThread.findMany({
-            where: {
-              tenantId: ctx.tenantId,
-              ...ownMailThreadWhere(ctx.userId),
-              lastMessageAt: { gte: thirtyDaysAgo },
-              OR: threadFilters,
-            },
-            select: {
-              id: true,
-              subject: true,
-              snippet: true,
-              lastMessageAt: true,
-              status: true,
-              messages: {
-                select: {
-                  fromEmail: true,
-                  fromName: true,
-                  subject: true,
-                  bodyText: true,
-                  sentAt: true,
-                },
-                orderBy: { sentAt: 'desc' },
-                take: 3,
+    const context = await this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
+        const meeting = await tx.meeting.findFirst({
+          where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+          include: {
+            client: true,
+            attendees: true,
+            attachments: { orderBy: { createdAt: 'desc' } },
+            preps: { orderBy: { createdAt: 'desc' }, take: 1 },
+            tasks: {
+              where: {
+                status: { notIn: [EngagementTaskStatus.done, EngagementTaskStatus.canceled] },
               },
             },
-            orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
-            take: 15,
-          })
-        : [];
+          },
+        });
+        if (!meeting) throw new NotFoundException('Meeting not found');
 
-      return { meeting, client: effectiveClient, effectiveClientId, recentMeetings, recentThreads };
-    });
+        const effectiveClientId = await this.resolveEffectiveMeetingClientId(tx, ctx, meeting);
+        const effectiveClient =
+          effectiveClientId && effectiveClientId !== meeting.clientId
+            ? await tx.client.findUnique({ where: { id: effectiveClientId } })
+            : meeting.client;
+
+        const meetingAssociationWhere = effectiveClientId
+          ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, effectiveClientId)
+          : null;
+        const recentMeetings = meetingAssociationWhere
+          ? await tx.meeting.findMany({
+              where: {
+                AND: [
+                  {
+                    tenantId: ctx.tenantId,
+                    id: { not: meeting.id },
+                    ...ownMeetingWhere(ctx.userId),
+                  },
+                  meetingAssociationWhere,
+                ],
+              },
+              select: {
+                id: true,
+                subject: true,
+                startsAt: true,
+                endsAt: true,
+                location: true,
+                associationReason: true,
+              },
+              orderBy: { startsAt: 'desc' },
+              take: 5,
+            })
+          : [];
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        // Fetch recent email threads from last 30 days associated to this client only.
+        // Do NOT infer context from attendee/to/cc domains, which can pull unrelated people.
+        const threadFilters: Prisma.MailThreadWhereInput[] = [];
+        if (effectiveClientId) {
+          threadFilters.push(
+            await this.clientMailThreadAssociationWhere(tx, ctx.tenantId, effectiveClientId),
+          );
+        }
+
+        const recentThreads = threadFilters.length
+          ? await tx.mailThread.findMany({
+              where: {
+                tenantId: ctx.tenantId,
+                ...ownMailThreadWhere(ctx.userId),
+                lastMessageAt: { gte: thirtyDaysAgo },
+                OR: threadFilters,
+              },
+              select: {
+                id: true,
+                subject: true,
+                snippet: true,
+                lastMessageAt: true,
+                status: true,
+                messages: {
+                  select: {
+                    fromEmail: true,
+                    fromName: true,
+                    subject: true,
+                    bodyText: true,
+                    sentAt: true,
+                  },
+                  orderBy: { sentAt: 'desc' },
+                  take: 3,
+                },
+              },
+              orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
+              take: 15,
+            })
+          : [];
+
+        return { meeting, client: effectiveClient, effectiveClientId, recentMeetings, recentThreads };
+    
+      },
+      { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS },
+    );
 
     const [visibleNotes, clientContext, directoryProfiles] = await Promise.all([
       this.listMeetingNotes(ctx, meetingId)
@@ -6476,117 +6495,122 @@ export class EngagementService {
       }),
     );
 
-    const context = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const meeting = await tx.meeting.findFirst({
-        where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
-        include: {
-          client: true,
-          attendees: true,
-          tasks: {
-            where: {
-              status: { notIn: [EngagementTaskStatus.done, EngagementTaskStatus.canceled] },
-            },
-          },
-        },
-      });
-      if (!meeting) throw new NotFoundException('Meeting not found');
-
-      // Use the current association rules, not only the stored meeting.clientId.
-      const attendeeEmails = meeting.attendees
-        .map((a) => a.email)
-        .filter((e): e is string => Boolean(e));
-      const correctClientId = await this.resolveEffectiveMeetingClientId(tx, ctx, meeting);
-
-      // Fetch the correct client based on the association result.
-      const client = correctClientId
-        ? await tx.client.findUnique({
-            where: { id: correctClientId },
-            select: {
-              id: true,
-              name: true,
-              website: true,
-              primaryContactEmail: true,
-              intakeData: true,
-            },
-          })
-        : null;
-
-      const meetingAssociationWhere = correctClientId
-        ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, correctClientId)
-        : null;
-      // Firm-wide prep context: prior meetings are scoped to the tenant + the
-      // matched client, NOT to the requesting user. Any operator preparing for
-      // this client sees the firm's collective meeting history with them.
-      const recentMeetings = meetingAssociationWhere
-        ? await tx.meeting.findMany({
-            where: {
-              AND: [
-                {
-                  tenantId: ctx.tenantId,
-                  id: { not: meeting.id },
-                },
-                meetingAssociationWhere,
-              ],
-            },
-            select: {
-              id: true,
-              subject: true,
-              startsAt: true,
-              associationReason: true,
-              attendees: { select: { email: true, name: true } },
-            },
-            orderBy: { startsAt: 'desc' },
-            take: 5,
-          })
-        : [];
-
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      // Firm-wide prep context: pull email threads associated with the matched
-      // client across the tenant's connections (not just the requesting user's
-      // mailbox), so prep reflects the firm's full correspondence with the
-      // client. Still scoped to client-linked threads only — we never pull by
-      // attendee/to/cc domains, so unrelated coworker inbox content is excluded.
-      const threadFilters: Prisma.MailThreadWhereInput[] = [];
-      if (correctClientId) {
-        threadFilters.push(
-          await this.clientMailThreadAssociationWhere(tx, ctx.tenantId, correctClientId),
-        );
-      }
-
-      const recentThreads = threadFilters.length
-        ? await tx.mailThread.findMany({
-            where: {
-              tenantId: ctx.tenantId,
-              lastMessageAt: { gte: thirtyDaysAgo },
-              OR: threadFilters,
-            },
-            select: {
-              id: true,
-              subject: true,
-              snippet: true,
-              lastMessageAt: true,
-              status: true,
-              messages: {
-                select: {
-                  fromEmail: true,
-                  fromName: true,
-                  subject: true,
-                  bodyText: true,
-                  sentAt: true,
-                },
-                orderBy: { sentAt: 'desc' },
-                take: 3,
+    const context = await this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
+        const meeting = await tx.meeting.findFirst({
+          where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
+          include: {
+            client: true,
+            attendees: true,
+            tasks: {
+              where: {
+                status: { notIn: [EngagementTaskStatus.done, EngagementTaskStatus.canceled] },
               },
             },
-            orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
-            take: 15,
-          })
-        : [];
+          },
+        });
+        if (!meeting) throw new NotFoundException('Meeting not found');
 
-      return { meeting, client, recentMeetings, recentThreads };
-    });
+        // Use the current association rules, not only the stored meeting.clientId.
+        const attendeeEmails = meeting.attendees
+          .map((a) => a.email)
+          .filter((e): e is string => Boolean(e));
+        const correctClientId = await this.resolveEffectiveMeetingClientId(tx, ctx, meeting);
+
+        // Fetch the correct client based on the association result.
+        const client = correctClientId
+          ? await tx.client.findUnique({
+              where: { id: correctClientId },
+              select: {
+                id: true,
+                name: true,
+                website: true,
+                primaryContactEmail: true,
+                intakeData: true,
+              },
+            })
+          : null;
+
+        const meetingAssociationWhere = correctClientId
+          ? await this.clientMeetingAssociationWhere(tx, ctx.tenantId, correctClientId)
+          : null;
+        // Firm-wide prep context: prior meetings are scoped to the tenant + the
+        // matched client, NOT to the requesting user. Any operator preparing for
+        // this client sees the firm's collective meeting history with them.
+        const recentMeetings = meetingAssociationWhere
+          ? await tx.meeting.findMany({
+              where: {
+                AND: [
+                  {
+                    tenantId: ctx.tenantId,
+                    id: { not: meeting.id },
+                  },
+                  meetingAssociationWhere,
+                ],
+              },
+              select: {
+                id: true,
+                subject: true,
+                startsAt: true,
+                associationReason: true,
+                attendees: { select: { email: true, name: true } },
+              },
+              orderBy: { startsAt: 'desc' },
+              take: 5,
+            })
+          : [];
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        // Firm-wide prep context: pull email threads associated with the matched
+        // client across the tenant's connections (not just the requesting user's
+        // mailbox), so prep reflects the firm's full correspondence with the
+        // client. Still scoped to client-linked threads only — we never pull by
+        // attendee/to/cc domains, so unrelated coworker inbox content is excluded.
+        const threadFilters: Prisma.MailThreadWhereInput[] = [];
+        if (correctClientId) {
+          threadFilters.push(
+            await this.clientMailThreadAssociationWhere(tx, ctx.tenantId, correctClientId),
+          );
+        }
+
+        const recentThreads = threadFilters.length
+          ? await tx.mailThread.findMany({
+              where: {
+                tenantId: ctx.tenantId,
+                lastMessageAt: { gte: thirtyDaysAgo },
+                OR: threadFilters,
+              },
+              select: {
+                id: true,
+                subject: true,
+                snippet: true,
+                lastMessageAt: true,
+                status: true,
+                messages: {
+                  select: {
+                    fromEmail: true,
+                    fromName: true,
+                    subject: true,
+                    bodyText: true,
+                    sentAt: true,
+                  },
+                  orderBy: { sentAt: 'desc' },
+                  take: 3,
+                },
+              },
+              orderBy: [{ lastMessageAt: 'desc' }, { updatedAt: 'desc' }],
+              take: 15,
+            })
+          : [];
+
+        return { meeting, client, recentMeetings, recentThreads };
+    
+      },
+      { timeoutMs: MEETING_CONTEXT_TX_TIMEOUT_MS },
+    );
 
     const directoryProfiles = await this.directoryProfilesForMeeting(context.meeting);
     // Firm identity + author voice + client strategic memory — the same steering

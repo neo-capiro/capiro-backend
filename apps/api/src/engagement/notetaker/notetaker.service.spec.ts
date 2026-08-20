@@ -363,6 +363,37 @@ describe('NotetakerService.handleBotEvent (at-least-once webhook semantics)', ()
     );
   });
 
+  test('Recording is not done is retryable — releases claim without failing the session', async () => {
+    // Prod 2026-08-20: reconcile/call_ended raced ahead of recording.done and
+    // hard-failed the session on Recall HTTP 400 {"non_field_errors":["Recording is not done."]}.
+    // That must leave the session recoverable so recording.done can claim again.
+    const tx = makeTx();
+    tx.meetingBotSession.findFirst.mockResolvedValue(baseSession);
+    const { service, bot } = makeService(tx);
+    bot.createAsyncTranscript.mockRejectedValue(
+      new Error('Recall API error (HTTP 400)'),
+    );
+    // Attach the vendor detail the way RecallProvider surfaces it.
+    const err = Object.assign(new Error('Recall API error (HTTP 400)'), {
+      detail: JSON.stringify({ non_field_errors: ['Recording is not done.'] }),
+      httpStatus: 400,
+    });
+    bot.createAsyncTranscript.mockRejectedValue(err);
+
+    await service.handleBotEvent(makeEvent({ kind: 'recording_ready', recordingId: 'r1' }));
+
+    const failCalls = tx.meetingBotSession.updateMany.mock.calls.filter((call: unknown[]) => {
+      const arg = call[0] as { data?: { status?: string } };
+      return arg?.data?.status === 'failed';
+    });
+    expect(failCalls).toHaveLength(0);
+    expect(tx.meetingBotSession.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ recordingId: null, status: 'recording' }),
+      }),
+    );
+  });
+
   test('bot.done falls back to Retrieve Bot when no recording webhook arrived', async () => {
     const tx = makeTx();
     tx.meetingBotSession.findFirst.mockResolvedValue(baseSession);
