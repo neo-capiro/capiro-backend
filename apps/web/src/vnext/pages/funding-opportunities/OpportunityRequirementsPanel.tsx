@@ -16,8 +16,9 @@ import { FovAlert, FovCard, FovPill, FovSkeletonRows } from './fov-ui.js';
  *
  * Unchanged rules: NO REQUIREMENT WITHOUT A CITATION (the verbatim excerpt is
  * never optional and never collapsed behind a toggle); an empty panel says
- * WHICH kind of empty (flag off / nothing archived / no text / read and none
- * found); candidate and accepted are never the same badge.
+ * WHICH kind of empty (flag off / source unsupported / nothing archived / no
+ * text / read and none found); candidate and accepted are never the same
+ * badge.
  */
 export function OpportunityRequirementsPanel({
   source,
@@ -28,6 +29,14 @@ export function OpportunityRequirementsPanel({
 }) {
   const api = useApi();
   const flag = useIntelFeature(FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE);
+  // Requirement extraction only runs on SAM.gov solicitation documents — the
+  // API itself refuses (400) any other source, since a Grants.gov notice
+  // states its own terms in the notice text rather than a separate
+  // solicitation package. Skip the call entirely for non-SAM.gov sources
+  // rather than let an expected, by-design 400 render as a generic request
+  // failure — the panel's whole point is that an empty state always says
+  // WHICH kind of empty it is.
+  const supportsRequirements = source === 'sam_gov';
 
   const query = useQuery<OpportunityRequirementsResponse>({
     queryKey: ['funding-opportunity-requirements', source, sourceRecordId],
@@ -35,7 +44,7 @@ export function OpportunityRequirementsPanel({
       (await api.get<OpportunityRequirementsResponse>(requirementsApiPath(source, sourceRecordId)))
         .data,
     retry: false,
-    enabled: flag.ready && flag.enabled,
+    enabled: flag.ready && flag.enabled && supportsRequirements,
   });
 
   const body = (): ReactNode => {
@@ -45,6 +54,14 @@ export function OpportunityRequirementsPanel({
         <span className="fov-muted" data-testid="fo-requirements-not-enabled">
           Document analysis is not enabled for this workspace. This says nothing about what this
           solicitation requires — its documents have not been read.
+        </span>
+      );
+    }
+    if (!supportsRequirements) {
+      return (
+        <span className="fov-muted" data-testid="fo-requirements-not-supported">
+          Requirement extraction runs on SAM.gov solicitation documents. Grants.gov states its
+          terms in the notice itself, so there is no separate document to read here.
         </span>
       );
     }
