@@ -159,3 +159,4 @@ export type DefenseInternalOperationId =
   | 'defense.promotion.execute'
   | 'defense.promotion.rollback'
   | 'defense.promotion.resume';
+export * from './cross-domain.js';

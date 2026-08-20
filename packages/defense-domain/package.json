@@ -64,6 +64,12 @@
       "require": "./dist/federal-funding/index.js",
       "import": "./dist/federal-funding/index.js",
       "default": "./dist/federal-funding/index.js"
+    },
+    "./pe-read": {
+      "types": "./dist/pe-read/index.d.ts",
+      "require": "./dist/pe-read/index.js",
+      "import": "./dist/pe-read/index.js",
+      "default": "./dist/pe-read/index.js"
     }
   },
   "files": [
@@ -74,5 +80,9 @@
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@capiro/shared": "workspace:*",
+    "simple-statistics": "^7.8.8"
   }
 }

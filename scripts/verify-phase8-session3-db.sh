@@ -1,0 +1,556 @@
+#!/usr/bin/env bash
+# Disposable PostgreSQL 16 rehearsal for Phase 8 Session 3 (Workstream E):
+# the defense-api Program Elements full-surface DB boundary.
+#
+# Proves, against a real empty database, in order — extending (not
+# replacing) every Session 2 negative control:
+#   1. the full authoritative migration ledger applies from zero, including
+#      the new Session 3 migration (capiro_defense_resolve_member + table grants)
+#   2. capiro_defense_serve still holds no excessive authority after the new grants
+#   3. capiro_defense_resolve_member resolves (userId, role) correctly and only
+#      for capiro_defense_serve (capiro_defense_job has no EXECUTE grant)
+#   4. own-tenant reads/writes work; foreign-tenant reads/writes do not
+#      (watch, data-issue, alert-pref — the Session 3 overlay tables)
+#   5. serve still cannot promote, activate a snapshot, DDL, or mutate a
+#      job-only/canonical table (repeats every Session 2 check verbatim)
+#   6. serve CAN propose a manual override (INSERT) and approve it (UPDATE),
+#      but CANNOT delete an override record (immutable/versioned invariant)
+#   7. the Workstream E full-surface read grants are exactly SELECT (plus the
+#      two FK re-point writes a program merge needs), and the HTTP plane
+#      CANNOT write a conference forecast, a budget action, a capability
+#      match, or the PE<->acquisition-program crosswalk
+#   8. the governed Program-graph admin boundary: capiro_defense_serve is
+#      SELECT-only on program/program_alias/pe_program_match/person_role/
+#      program_office_program_link/provision_pe_link, every mutation is a
+#      search_path-locked SECURITY DEFINER function that rechecks an ACTIVE
+#      capiro_admin membership, a standard_user / removed-admin / foreign-tenant
+#      actor is refused, and audit rows land on audit_logs.occurred_at
+#   9. the parser plane still has no database role or credential
+#
+# NEVER connects to a shared database. The container (if this script started
+# it) is destroyed on exit, same convention as verify-phase8-session2-db.sh.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+API_ROOT="$REPO_ROOT/apps/api"
+
+IMAGE="${P8S3_REHEARSAL_PG_IMAGE:-pgvector/pgvector:pg16}"
+PORT="${P8S3_REHEARSAL_PG_PORT:-55449}"
+NAME="p8s3-defense-rehearsal"
+SUPERUSER="capiro"
+SUPERPASS="capiro"
+DB_NAME="capiro"
+
+SERVE_LOGIN="p8s3_serve_rehearsal"
+JOB_LOGIN="p8s3_job_rehearsal"
+LOGIN_PASSWORD="p8s3-rehearsal-pw"
+
+PASS_COUNT=0
+log()  { echo "[p8s3-db-rehearsal] $*"; }
+fail() { echo "[p8s3-db-rehearsal] FAILED: $*" >&2; exit 1; }
+ok()   { PASS_COUNT=$((PASS_COUNT + 1)); echo "[p8s3-db-rehearsal]   ok  $*"; }
+
+SELF_MANAGED=0
+if [ -n "${REHEARSAL_DATABASE_URL:-}" ]; then
+  log "Using externally supplied REHEARSAL_DATABASE_URL"
+else
+  SELF_MANAGED=1
+  docker rm -f "$NAME" >/dev/null 2>&1 || true
+  docker run -d --name "$NAME" \
+    -e POSTGRES_USER="$SUPERUSER" -e POSTGRES_PASSWORD="$SUPERPASS" -e POSTGRES_DB="$DB_NAME" \
+    -p "$PORT:5432" "$IMAGE" >/dev/null
+  for _ in $(seq 1 60); do
+    docker exec "$NAME" pg_isready -U "$SUPERUSER" -d "$DB_NAME" >/dev/null 2>&1 && break
+    sleep 1
+  done
+  docker exec "$NAME" pg_isready -U "$SUPERUSER" -d "$DB_NAME" >/dev/null 2>&1 \
+    || fail "PostgreSQL did not become ready"
+  REHEARSAL_DATABASE_URL="postgresql://$SUPERUSER:$SUPERPASS@localhost:$PORT/$DB_NAME"
+fi
+
+cleanup() {
+  if [ "$SELF_MANAGED" = "1" ] && [ "${P8S3_REHEARSAL_KEEP:-0}" != "1" ]; then
+    docker rm -f "$NAME" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+ADMIN=(psql "$REHEARSAL_DATABASE_URL" -v ON_ERROR_STOP=1 -q)
+run_sql()   { "${ADMIN[@]}" -c "$1" >/dev/null || fail "expected success: $1"; }
+q()         { "${ADMIN[@]}" -tAc "$1"; }
+login_url() {
+  REHEARSAL_DATABASE_URL_="$REHEARSAL_DATABASE_URL" node -e '
+    const u = new URL(process.env.REHEARSAL_DATABASE_URL_);
+    u.username = process.argv[1];
+    u.password = process.argv[2];
+    process.stdout.write(u.toString());
+  ' "$1" "$LOGIN_PASSWORD"
+}
+expect_fail() {
+  local label="$1"; local url="$2"; local sql="$3"
+  if psql "$url" -v ON_ERROR_STOP=1 -tAc "$sql" >/dev/null 2>&1; then
+    fail "$label — the database ACCEPTED a statement it must refuse"
+  fi
+  ok "$label — refused"
+}
+expect_ok() {
+  local label="$1"; local url="$2"; local sql="$3"
+  psql "$url" -v ON_ERROR_STOP=1 -tAc "$sql" >/dev/null 2>&1 \
+    || fail "$label — the database refused a statement it must accept"
+  ok "$label"
+}
+
+# =============================================================================
+log "1. Migration-from-zero: the full ledger, INCLUDING the new Session 3 migration"
+# =============================================================================
+run_sql "$(cat "$REPO_ROOT/docker/postgres/init/01-extensions.sql")"
+ok "extensions and capiro_app bootstrapped"
+
+(cd "$API_ROOT" && DATABASE_URL="$REHEARSAL_DATABASE_URL" npx prisma migrate deploy \
+  --schema prisma/schema.prisma >/dev/null) \
+  || fail "migration-from-zero failed: the ledger (incl. Session 3's migration) does not apply cleanly"
+ok "MIGRATION_FROM_ZERO: full ledger including 20261120210000_phase8_defense_serve_user_resolver applied cleanly"
+
+[ "$(q "SELECT count(*) FROM pg_proc WHERE proname='capiro_defense_resolve_member';")" = "1" ] \
+  || fail "capiro_defense_resolve_member function missing after migrate deploy"
+ok "capiro_defense_resolve_member function exists"
+
+# =============================================================================
+log "2. capiro_defense_serve still holds no excessive authority after new grants"
+# =============================================================================
+for attr in rolcanlogin rolsuper rolcreatedb rolcreaterole rolbypassrls rolreplication; do
+  [ "$(q "SELECT $attr FROM pg_roles WHERE rolname='capiro_defense_serve';")" = "f" ] \
+    || fail "capiro_defense_serve has $attr after Session 3 grants"
+done
+ok "capiro_defense_serve remains NOLOGIN/NOSUPERUSER/NOCREATEDB/NOCREATEROLE/NOBYPASSRLS/NOREPLICATION"
+[ "$(q "SELECT pg_has_role('capiro_defense_serve', 'capiro_pe_promoter', 'member');")" = "f" ] \
+  || fail "capiro_defense_serve is a member of capiro_pe_promoter after Session 3 grants"
+ok "capiro_defense_serve still not a member of the promoter role"
+
+# =============================================================================
+log "3. Real login roles"
+# =============================================================================
+run_sql "DROP ROLE IF EXISTS $SERVE_LOGIN; CREATE ROLE $SERVE_LOGIN LOGIN PASSWORD '$LOGIN_PASSWORD';"
+run_sql "DROP ROLE IF EXISTS $JOB_LOGIN; CREATE ROLE $JOB_LOGIN LOGIN PASSWORD '$LOGIN_PASSWORD';"
+run_sql "GRANT capiro_defense_serve TO $SERVE_LOGIN WITH INHERIT TRUE;"
+run_sql "GRANT capiro_defense_job TO $JOB_LOGIN WITH INHERIT TRUE;"
+run_sql "ALTER ROLE $SERVE_LOGIN SET statement_timeout = '15s';"
+ok "serve/job rehearsal logins created and granted capability membership"
+
+SERVE_URL="$(login_url "$SERVE_LOGIN")"
+JOB_URL="$(login_url "$JOB_LOGIN")"
+
+# =============================================================================
+log "4. Fixtures: two tenants, one Program Element, minimum Session 3 overlay rows"
+# =============================================================================
+TENANT_A="cccccccc-0000-0000-0000-000000000001"
+TENANT_B="cccccccc-0000-0000-0000-000000000002"
+USER_A="dddddddd-0000-0000-0000-000000000001"
+USER_B="dddddddd-0000-0000-0000-000000000002"
+
+run_sql "
+INSERT INTO program_element (pe_code, title, source) VALUES ('0601102A', 'Session 3 Rehearsal PE', 'p8s3-rehearsal');
+INSERT INTO tenants (id, slug, name, status, clerk_org_id) VALUES
+  ('$TENANT_A', 'p8s3-tenant-a', 'Phase 8 Session 3 Tenant A', 'active', 'org_p8s3_a'),
+  ('$TENANT_B', 'p8s3-tenant-b', 'Phase 8 Session 3 Tenant B', 'active', 'org_p8s3_b');
+INSERT INTO users (id, clerk_user_id, email) VALUES
+  ('$USER_A', 'clerk_user_p8s3_a', 'p8s3-user-a@rehearsal.test'),
+  ('$USER_B', 'clerk_user_p8s3_b', 'p8s3-user-b@rehearsal.test');
+INSERT INTO tenant_memberships (tenant_id, user_id, role, status) VALUES
+  ('$TENANT_A', '$USER_A', 'standard_user', 'active'),
+  ('$TENANT_B', '$USER_B', 'capiro_admin', 'active');
+INSERT INTO program_element_watch (user_id, tenant_id, pe_code) VALUES
+  ('$USER_A', '$TENANT_A', '0601102A');
+"
+ok "two tenants, one user each, one owned PE watch fixture seeded"
+
+# =============================================================================
+log "5. capiro_defense_resolve_member resolves (userId, role) correctly"
+# =============================================================================
+RESOLVED_USER="$(psql "$SERVE_URL" -tAc "SELECT user_id::text FROM capiro_defense_resolve_member('$TENANT_A'::uuid, 'clerk_user_p8s3_a');")"
+[ "$RESOLVED_USER" = "$USER_A" ] \
+  || fail "capiro_defense_resolve_member resolved userId '$RESOLVED_USER', expected $USER_A"
+RESOLVED_ROLE="$(psql "$SERVE_URL" -tAc "SELECT role FROM capiro_defense_resolve_member('$TENANT_A'::uuid, 'clerk_user_p8s3_a');")"
+[ "$RESOLVED_ROLE" = "standard_user" ] \
+  || fail "capiro_defense_resolve_member resolved role '$RESOLVED_ROLE', expected standard_user"
+ok "capiro_defense_resolve_member resolves the real (userId, role) for an active membership"
+
+RESOLVED_ADMIN_ROLE="$(psql "$SERVE_URL" -tAc "SELECT role FROM capiro_defense_resolve_member('$TENANT_B'::uuid, 'clerk_user_p8s3_b');")"
+[ "$RESOLVED_ADMIN_ROLE" = "capiro_admin" ] \
+  || fail "capiro_defense_resolve_member did not resolve capiro_admin role correctly"
+ok "capiro_defense_resolve_member resolves capiro_admin role correctly (admin-route gating depends on this)"
+
+RESOLVED_FOREIGN="$(psql "$SERVE_URL" -tAc "SELECT count(*) FROM capiro_defense_resolve_member('$TENANT_B'::uuid, 'clerk_user_p8s3_a');")"
+[ "$RESOLVED_FOREIGN" = "0" ] \
+  || fail "capiro_defense_resolve_member resolved a membership across tenants that does not exist"
+ok "capiro_defense_resolve_member returns no row for a user with no membership in that tenant"
+
+EXECUTE_DENIED="$(psql "$JOB_URL" -tAc "SELECT * FROM capiro_defense_resolve_member('$TENANT_A'::uuid, 'clerk_user_p8s3_a');" 2>&1)" || true
+echo "$EXECUTE_DENIED" | grep -qi "permission denied" \
+  || fail "capiro_defense_job could execute capiro_defense_resolve_member, which it was never granted"
+ok "capiro_defense_job holds no EXECUTE grant on capiro_defense_resolve_member"
+
+# =============================================================================
+log "6. Own-tenant reads/writes on Session 3 overlay tables work; foreign-tenant do not"
+# =============================================================================
+tenant_scoped_count() {
+  psql "$SERVE_URL" -tAc "
+WITH _ctx AS (SELECT set_config('app.current_tenant', '$1', true))
+SELECT count(*) FROM program_element_watch, _ctx;"
+}
+OWN_ROWS="$(tenant_scoped_count "$TENANT_A")"
+[ "$OWN_ROWS" = "1" ] || fail "own-tenant read returned $OWN_ROWS rows, expected 1"
+ok "own-tenant read on program_element_watch returns the owned fixture"
+
+FOREIGN_ROWS="$(tenant_scoped_count "$TENANT_B")"
+[ "$FOREIGN_ROWS" = "0" ] || fail "foreign-tenant read returned $FOREIGN_ROWS rows, expected 0 (RLS leak)"
+ok "foreign-tenant read returns zero rows"
+
+expect_ok "own-tenant data-issue write" "$SERVE_URL" "
+BEGIN;
+SELECT set_config('app.current_tenant', '$TENANT_A', true);
+SELECT set_config('app.current_user', '$USER_A', true);
+INSERT INTO program_element_data_issue (tenant_id, reported_by_user_id, pe_code, issue_type, description, status, created_at, updated_at)
+VALUES ('$TENANT_A'::uuid, '$USER_A'::uuid, '0601102A', 'other', 'rehearsal', 'open', now(), now());
+COMMIT;"
+
+expect_fail "foreign-tenant data-issue write (insert for a tenant that is not app.current_tenant)" "$SERVE_URL" "
+BEGIN;
+SELECT set_config('app.current_tenant', '$TENANT_A', true);
+INSERT INTO program_element_data_issue (tenant_id, reported_by_user_id, pe_code, issue_type, description, status, created_at, updated_at)
+VALUES ('$TENANT_B'::uuid, '$USER_B'::uuid, '0601102A', 'other', 'rehearsal-cross-tenant', 'open', now(), now());
+COMMIT;"
+
+# =============================================================================
+log "7. Every Session 2 negative control still holds after Session 3's new grants"
+# =============================================================================
+expect_fail "serve mutates the active-snapshot pointer" "$SERVE_URL" \
+  "INSERT INTO defense_budget_active_snapshot (domain, environment, snapshot_id, activation_id) VALUES ('defense_budget', 'rehearsal', gen_random_uuid(), gen_random_uuid());"
+expect_fail "serve mutates a canonical row" "$SERVE_URL" \
+  "UPDATE defense_budget_canonical_row SET money_value_millions = 1;"
+expect_fail "serve mutates a canonical snapshot" "$SERVE_URL" \
+  "UPDATE defense_budget_canonical_snapshot SET status = 'ACTIVE';"
+expect_fail "serve mutates a job-only table (program_element_ingest_run)" "$SERVE_URL" \
+  "INSERT INTO program_element_ingest_run (source) VALUES ('p8s3-rehearsal');"
+expect_fail "serve creates a table (DDL)" "$SERVE_URL" "CREATE TABLE serve_should_not_create_p8s3 (id int);"
+expect_fail "serve alters an existing table (migration authority)" "$SERVE_URL" \
+  "ALTER TABLE program_element ADD COLUMN p8s3_should_not_exist text;"
+expect_fail "serve becomes a member of the promoter role" "$SERVE_URL" \
+  "SET ROLE capiro_pe_promoter;"
+expect_fail "job mutates a serve-only overlay table (program_element_watch)" "$JOB_URL" \
+  "INSERT INTO program_element_watch (user_id, tenant_id, pe_code) VALUES ('$USER_A', '$TENANT_A', '0601102A');"
+expect_fail "job mutates the active-snapshot pointer" "$JOB_URL" \
+  "INSERT INTO defense_budget_active_snapshot (domain, environment, snapshot_id, activation_id) VALUES ('defense_budget', 'rehearsal', gen_random_uuid(), gen_random_uuid());"
+ok "every Session 2 negative control still passes with Session 3's additive grants in place"
+
+# =============================================================================
+log "8. Serve CAN propose/approve a governed override, but CANNOT delete one"
+# =============================================================================
+OVERRIDE_ID="eeeeeeee-0000-0000-0000-000000000001"
+expect_ok "serve proposes a manual override (INSERT)" "$SERVE_URL" "
+INSERT INTO defense_budget_manual_override (
+  override_id, canonical_entity, canonical_natural_key, fiscal_year, funding_field,
+  money_original_value, money_original_unit, money_value_millions,
+  author_actor_id, reason, evidence_ids,
+  status, version, effective_from, proposed_at, override_hash
+) VALUES (
+  '$OVERRIDE_ID'::uuid, 'canonical_rdte_program_element_year', '0601102A|2027', 2027, 'request',
+  '5', 'millions', 5,
+  '$USER_A', 'rehearsal proposal', '[\"reconciliation_review_queue:rehearsal\"]'::jsonb,
+  'proposed', 1, now(), now(), repeat('0', 64)
+);"
+expect_ok "serve approves a manual override (UPDATE)" "$SERVE_URL" "
+UPDATE defense_budget_manual_override
+SET status = 'approved', approved_at = now(), approver_actor_id = '$USER_B', approver_role = 'capiro_admin'
+WHERE override_id = '$OVERRIDE_ID'::uuid;"
+expect_fail "serve deletes a manual override (immutability invariant)" "$SERVE_URL" \
+  "DELETE FROM defense_budget_manual_override WHERE override_id = '$OVERRIDE_ID'::uuid;"
+ok "governed override propose/approve/no-delete invariant holds for capiro_defense_serve"
+
+# =============================================================================
+log "9. Workstream E full-surface read grants: readable where required, no more"
+# =============================================================================
+# The 49-route contract reads materially more than the earlier curated set. Each
+# relation below is asserted SELECT-able by serve, and the write side is asserted
+# refused where a write would break a stated invariant.
+for relation in \
+  program_element_detail_mv \
+  program_element_acquisition_program \
+  conference_probability \
+  budget_action \
+  capability \
+  capability_budget_line_match \
+  person_role \
+  program_office_program_link; do
+  expect_ok "serve SELECTs $relation (required by the frozen read contract)" "$SERVE_URL" \
+    "SELECT 1 FROM $relation LIMIT 1;"
+done
+
+# context_embeddings is served ONLY through two narrow SECURITY DEFINER functions.
+# A direct table grant cannot work: the table's FORCE-RLS policy references the
+# CRM's clients / client_memory_access tables, and PostgreSQL requires privileges
+# on every table a policy expression touches -- so a plain GRANT SELECT fails at
+# read time with "permission denied for table clients". Granting the defense HTTP
+# role read access to `clients` to work around that would hand it the CRM client
+# list, which is exactly the coupling Workstream E removes.
+expect_fail "serve reads context_embeddings directly (CRM-coupled RLS policy)" "$SERVE_URL" \
+  "SELECT 1 FROM context_embeddings LIMIT 1;"
+expect_ok "serve reads PE mission vectors via capiro_defense_related_pe_vectors" "$SERVE_URL" \
+  "SELECT count(*) FROM capiro_defense_related_pe_vectors('0601102A', 'amazon.titan-embed-text-v2:0', 0.7, 8);"
+expect_ok "serve searches PE mission vectors via capiro_defense_search_pe_vectors" "$SERVE_URL" \
+  "SELECT count(*) FROM capiro_defense_search_pe_vectors(('[' || array_to_string(array_fill(0.01::float8, ARRAY[1024]), ',') || ']'), 'amazon.titan-embed-text-v2:0', 0.35, 5);"
+expect_fail "job executes the PE-vector reader (serve-only capability)" "$JOB_URL" \
+  "SELECT count(*) FROM capiro_defense_related_pe_vectors('0601102A', 'amazon.titan-embed-text-v2:0', 0.7, 8);"
+
+# The vector functions must be STABLE (cannot write) and scoped to the GLOBAL
+# source_type='pe' partition, so no tenant-scoped or client-scoped embedding is
+# reachable through them even though the function owner bypasses RLS.
+for fn in capiro_defense_related_pe_vectors capiro_defense_search_pe_vectors; do
+  [ "$(q "SELECT provolatile FROM pg_proc WHERE proname='$fn';")" = "s" ] \
+    || fail "$fn is not STABLE - a SECURITY DEFINER read function must not be able to write"
+  [ "$(q "SELECT prosecdef FROM pg_proc WHERE proname='$fn';")" = "t" ] \
+    || fail "$fn is not SECURITY DEFINER"
+  [ "$(q "SELECT count(*) FROM pg_proc WHERE proname='$fn' AND prosrc LIKE '%tenant_id IS NULL%';")" = "1" ] \
+    || fail "$fn does not restrict to the global (tenant_id IS NULL) embedding partition"
+done
+ok "PE mission vectors are reachable only via the two global-scoped SECURITY DEFINER readers"
+
+# A tenant-scoped 'pe' embedding with an IDENTICAL vector must never come back
+# through the reader -- proof the scoping is real, not merely written down.
+run_sql "
+INSERT INTO program_element (pe_code, title, source)
+VALUES ('0601LEAK', 'Tenant Scoped Leak Probe', 'p8s3-rehearsal');
+INSERT INTO context_embeddings (tenant_id, source_type, source_id, model, content_text, content_hash, embedding)
+VALUES
+  (NULL, 'pe', '0601102A', 'p8s3-probe-model', 'src', 'p8s3-h1',
+   ('[' || array_to_string(array_fill(0.05::float8, ARRAY[1024]), ',') || ']')::vector),
+  ('$TENANT_A', 'pe', '0601LEAK', 'p8s3-probe-model', 'tenant scoped', 'p8s3-h2',
+   ('[' || array_to_string(array_fill(0.05::float8, ARRAY[1024]), ',') || ']')::vector);
+"
+LEAKED="$(psql "$SERVE_URL" -tAc "SELECT count(*) FROM capiro_defense_related_pe_vectors('0601102A', 'p8s3-probe-model', 0.7, 8) WHERE pe_code = '0601LEAK';")"
+[ "$LEAKED" = "0" ] \
+  || fail "a TENANT-SCOPED embedding leaked through capiro_defense_related_pe_vectors"
+ok "a tenant-scoped embedding with an identical vector is NOT reachable through the reader"
+
+# GAI-25: the HTTP read path computes a conference forecast in memory and must
+# NEVER persist one. Enforced by the database, not only by the absence of code.
+expect_fail "serve INSERTs a conference forecast (a read must not write)" "$SERVE_URL" \
+  "INSERT INTO conference_probability (pe_code, fy, predicted, ci_low, ci_high, confidence, model_version)
+   VALUES ('0601102A', 2027, 1, 1, 1, 0.5, 'conference-probability-v1');"
+expect_fail "serve UPDATEs a conference forecast" "$SERVE_URL" \
+  "UPDATE conference_probability SET predicted = 2 WHERE pe_code = '0601102A';"
+
+# Derived/job-owned money-graph tables are read-only to the HTTP plane.
+expect_fail "serve INSERTs a budget action (job-owned derivation)" "$SERVE_URL" \
+  "INSERT INTO budget_action (pe_code, fy, stage, action, baseline, derived_by)
+   VALUES ('0601102A', 2027, 'HASC', 'add', 'request', 'p8s3-rehearsal');"
+expect_fail "serve INSERTs a capability match (curated, job-owned)" "$SERVE_URL" \
+  "INSERT INTO capability_budget_line_match (capability_id, pe_code, confidence, matched_on, derived_by)
+   VALUES (gen_random_uuid(), '0601102A', 'high', 'rehearsal', 'p8s3-rehearsal');"
+expect_fail "serve writes the PE<->acquisition-program crosswalk (governed elsewhere)" "$SERVE_URL" \
+  "INSERT INTO program_element_acquisition_program (pe_code, acq_program_code)
+   VALUES ('0601102A', '999');"
+
+# The FK tables a program merge re-points are READ-ONLY to serve. The re-point
+# itself happens inside capiro_defense_merge_programs (step 10), so serve needs
+# no write grant here at all -- superseding the earlier posture where it held
+# UPDATE on person_role / program_office_program_link / provision_pe_link.
+expect_fail "serve UPDATEs person_role directly (the merge re-point is governed)" "$SERVE_URL" \
+  "UPDATE person_role SET program_id = program_id WHERE false;"
+expect_fail "serve INSERTs a person_role (personnel records are not serve-owned)" "$SERVE_URL" \
+  "INSERT INTO person_role (person_id, role_title, role_type, source, observed_at, contact_use)
+   VALUES (gen_random_uuid(), 'PM', 'pm', 'p8s3-rehearsal', now(), 'candidate');"
+expect_fail "serve DELETEs a person_role" "$SERVE_URL" \
+  "DELETE FROM person_role WHERE false;"
+ok "full-surface read grants are exactly SELECT - every Program-graph write is governed"
+
+# =============================================================================
+log "10. Governed Program-graph admin boundary (ported from PR #1044)"
+# =============================================================================
+# Authoritative half of this boundary: the granted privileges are read out of
+# information_schema, and the allow/deny cases are executed as the real roles.
+# The static verifier (verify-phase8-session3-admin-boundary.mjs) checks the
+# source; SQL formatting cannot fool the checks below.
+
+# 10a. The serve role must hold SELECT and NOTHING ELSE on the global graph.
+#      One query, not one per table: every psql round-trip goes through the
+#      docker-exec shim and costs seconds, and this is a permanent gate.
+GRAPH_PRIVS="$(q "
+  SELECT string_agg(t.relation || '=' || COALESCE(p.privs, 'NONE'), ' ' ORDER BY t.relation)
+  FROM (VALUES ('program'),('program_alias'),('pe_program_match'),
+               ('person_role'),('program_office_program_link'),('provision_pe_link')) AS t(relation)
+  LEFT JOIN (
+    SELECT table_name, string_agg(DISTINCT privilege_type, ',' ORDER BY privilege_type) AS privs
+    FROM information_schema.table_privileges
+    WHERE grantee = 'capiro_defense_serve'
+    GROUP BY table_name
+  ) p ON p.table_name = t.relation;
+")"
+EXPECTED_GRAPH_PRIVS="pe_program_match=SELECT person_role=SELECT program=SELECT program_alias=SELECT program_office_program_link=SELECT provision_pe_link=SELECT"
+[ "$GRAPH_PRIVS" = "$EXPECTED_GRAPH_PRIVS" ] \
+  || fail "capiro_defense_serve privileges on the global Program graph are '$GRAPH_PRIVS' (expected '$EXPECTED_GRAPH_PRIVS')"
+ok "serve holds exactly SELECT on all six global Program graph tables, and nothing more"
+
+# 10b. Every governed function in ONE query: SECURITY DEFINER, empty search_path,
+#      executable by serve, NOT by job, NOT by PUBLIC.
+FN_AUDIT="$(q "
+  SELECT string_agg(
+           p.proname || ':' ||
+           CASE WHEN p.prosecdef THEN 'secdef' ELSE 'NOT_SECDEF' END || ',' ||
+           CASE WHEN p.proconfig @> ARRAY['search_path=\"\"'] THEN 'locked' ELSE 'NOT_LOCKED' END || ',' ||
+           CASE WHEN has_function_privilege('capiro_defense_serve', p.oid, 'EXECUTE') THEN 'serve' ELSE 'NO_SERVE' END || ',' ||
+           CASE WHEN has_function_privilege('capiro_defense_job', p.oid, 'EXECUTE') THEN 'JOB_CAN' ELSE 'job_denied' END || ',' ||
+           CASE WHEN has_function_privilege('public', p.oid, 'EXECUTE') THEN 'PUBLIC_CAN' ELSE 'public_denied' END,
+           ' ' ORDER BY p.proname)
+  FROM pg_proc p
+  WHERE p.proname IN ('capiro_defense_resolve_program_match','capiro_defense_create_program_alias',
+                      'capiro_defense_update_program_alias','capiro_defense_delete_program_alias',
+                      'capiro_defense_merge_programs');
+")"
+[ "$(printf '%s' "$FN_AUDIT" | grep -c 'secdef,locked,serve,job_denied,public_denied')" = "1" ] \
+  && [ "$(printf '%s' "$FN_AUDIT" | tr ' ' '\n' | grep -c 'secdef,locked,serve,job_denied,public_denied')" = "5" ] \
+  || fail "governed function posture is wrong: $FN_AUDIT"
+ok "all 5 governed mutations: SECURITY DEFINER, search_path-locked, serve-only (job and PUBLIC denied)"
+
+# 10c. The internal admin gate is not a membership oracle the serve role can probe.
+[ "$(q "SELECT has_function_privilege('capiro_defense_serve', p.oid, 'EXECUTE') FROM pg_proc p WHERE p.proname='capiro_defense_require_admin';")" = "f" ] \
+  || fail "capiro_defense_serve can call capiro_defense_require_admin directly"
+ok "capiro_defense_require_admin is internal-only (serve cannot probe membership through it)"
+
+# 10d. Fixtures: one admin actor, one standard actor, two programs, one alias, one match.
+ADMIN_ACTOR="dddddddd-0000-0000-0000-0000000000e1"
+STD_ACTOR="dddddddd-0000-0000-0000-0000000000e2"
+KEEP_PROG="aaaaaaaa-0000-0000-0000-00000000000a"
+LOSE_PROG="aaaaaaaa-0000-0000-0000-00000000000b"
+GOV_MATCH="bbbbbbbb-0000-0000-0000-00000000000c"
+GOV_ALIAS="bbbbbbbb-0000-0000-0000-00000000000d"
+run_sql "
+INSERT INTO users (id, clerk_user_id, email) VALUES
+  ('$ADMIN_ACTOR', 'clerk_p8s3_gov_admin', 'p8s3-gov-admin@rehearsal.test'),
+  ('$STD_ACTOR', 'clerk_p8s3_gov_std', 'p8s3-gov-std@rehearsal.test');
+INSERT INTO tenant_memberships (tenant_id, user_id, role, status) VALUES
+  ('$TENANT_A', '$ADMIN_ACTOR', 'capiro_admin', 'active'),
+  ('$TENANT_A', '$STD_ACTOR', 'standard_user', 'active');
+INSERT INTO program (id, canonical_name, status, updated_at) VALUES
+  ('$KEEP_PROG', 'Governed Keeper', 'active', now()),
+  ('$LOSE_PROG', 'Governed Loser', 'active', now());
+INSERT INTO program_alias (id, program_id, alias, alias_normalized, alias_type, source, confidence, updated_at)
+VALUES ('$GOV_ALIAS', '$LOSE_PROG', 'GOVERNED ONLY', 'GOVERNED ONLY', 'former_name', 'manual', 1, now());
+INSERT INTO pe_program_match (id, pe_code, program_id, score, evidence_tier, status, weak_signal, updated_at)
+VALUES ('$GOV_MATCH', '0601102A', '$KEEP_PROG', 0.75, 'award_match', 'candidate', false, now());
+"
+ok "governed-admin fixtures seeded (admin actor, standard actor, keeper/loser programs)"
+
+# 10e. A standard_user actor is REFUSED, and the row is untouched.
+expect_fail "standard_user resolves a Program match (in-DB admin recheck)" "$SERVE_URL" \
+  "SELECT capiro_defense_resolve_program_match('$TENANT_A'::uuid, '$STD_ACTOR'::uuid, '$GOV_MATCH'::uuid, 'reject', NULL);"
+[ "$(q "SELECT status FROM pe_program_match WHERE id='$GOV_MATCH';")" = "candidate" ] \
+  || fail "the refused standard_user call still mutated pe_program_match"
+ok "the refused standard_user call left the row untouched"
+
+expect_fail "standard_user merges programs" "$SERVE_URL" \
+  "SELECT capiro_defense_merge_programs('$TENANT_A'::uuid, '$STD_ACTOR'::uuid, '$KEEP_PROG'::uuid, '$LOSE_PROG'::uuid);"
+[ "$(q "SELECT status FROM program WHERE id='$LOSE_PROG';")" = "active" ] \
+  || fail "the refused standard_user merge still retired the loser"
+ok "the refused standard_user merge left the loser active"
+
+# A membership whose access was REVOKED must not pass either. MembershipStatus is
+# invited/active/removed, and the recheck asserts status=active, so any non-active
+# value is excluded by the same condition.
+run_sql "UPDATE tenant_memberships SET status='removed' WHERE tenant_id='$TENANT_A' AND user_id='$ADMIN_ACTOR';"
+expect_fail "REMOVED capiro_admin membership resolves a match" "$SERVE_URL" \
+  "SELECT capiro_defense_resolve_program_match('$TENANT_A'::uuid, '$ADMIN_ACTOR'::uuid, '$GOV_MATCH'::uuid, 'accept', NULL);"
+run_sql "UPDATE tenant_memberships SET status='active' WHERE tenant_id='$TENANT_A' AND user_id='$ADMIN_ACTOR';"
+ok "a REMOVED capiro_admin membership is refused (the recheck requires status=active)"
+
+# A foreign tenant's admin cannot act on this tenant's behalf.
+expect_fail "admin of another tenant resolves this tenant's match" "$SERVE_URL" \
+  "SELECT capiro_defense_resolve_program_match('$TENANT_B'::uuid, '$ADMIN_ACTOR'::uuid, '$GOV_MATCH'::uuid, 'accept', NULL);"
+ok "an admin membership in a DIFFERENT tenant does not authorize the mutation"
+
+# 10f. The capiro_admin actor SUCCEEDS.
+expect_ok "capiro_admin resolves a Program match" "$SERVE_URL" \
+  "SELECT capiro_defense_resolve_program_match('$TENANT_A'::uuid, '$ADMIN_ACTOR'::uuid, '$GOV_MATCH'::uuid, 'accept', ' notes ');"
+[ "$(q "SELECT status FROM pe_program_match WHERE id='$GOV_MATCH';")" = "accepted" ] \
+  || fail "the governed resolve did not apply"
+[ "$(q "SELECT decision_notes FROM pe_program_match WHERE id='$GOV_MATCH';")" = "notes" ] \
+  || fail "the governed resolve did not trim decision notes"
+ok "capiro_admin resolve applied, notes trimmed"
+
+# 10g. Audit row uses the REAL physical timestamp column.
+[ "$(q "SELECT count(*) FROM information_schema.columns WHERE table_name='audit_logs' AND column_name='created_at';")" = "0" ] \
+  || fail "audit_logs.created_at exists - the column assumption in this check is wrong"
+[ "$(q "SELECT count(*) FROM audit_logs WHERE tenant_id='$TENANT_A' AND action='program.match.resolve' AND occurred_at IS NOT NULL;")" = "1" ] \
+  || fail "the governed resolve did not write exactly one audit row with occurred_at"
+ok "governed audit row written to audit_logs.occurred_at (there is no created_at column)"
+
+# 10h. Graph-safe merge through the function: loser retired, alias moved.
+expect_ok "capiro_admin merges programs" "$SERVE_URL" \
+  "SELECT capiro_defense_merge_programs('$TENANT_A'::uuid, '$ADMIN_ACTOR'::uuid, '$KEEP_PROG'::uuid, '$LOSE_PROG'::uuid);"
+[ "$(q "SELECT status FROM program WHERE id='$LOSE_PROG';")" = "merged" ] \
+  || fail "the merge did not retire the loser"
+[ "$(q "SELECT count(*) FROM program WHERE id='$LOSE_PROG';")" = "1" ] \
+  || fail "the merge DELETED the loser - it must be retired, never hard-deleted"
+[ "$(q "SELECT program_id FROM program_alias WHERE id='$GOV_ALIAS';")" = "$KEEP_PROG" ] \
+  || fail "the loser's non-colliding alias was not repointed to the keeper"
+[ "$(q "SELECT metadata_jsonb->>'mergedInto' FROM program WHERE id='$LOSE_PROG';")" = "$KEEP_PROG" ] \
+  || fail "the retired loser does not record mergedInto"
+ok "governed merge retired (not deleted) the loser and repointed its alias"
+
+expect_fail "re-merging an already-merged program" "$SERVE_URL" \
+  "SELECT capiro_defense_merge_programs('$TENANT_A'::uuid, '$ADMIN_ACTOR'::uuid, '$KEEP_PROG'::uuid, '$LOSE_PROG'::uuid);"
+ok "an already-merged program cannot be merged again"
+
+# 10i. A curated MDAP seed cannot be rejected through the queue.
+SEED_MATCH="bbbbbbbb-0000-0000-0000-00000000000e"
+run_sql "
+INSERT INTO pe_program_match (id, pe_code, project_code, program_id, score, evidence_tier, status, weak_signal, updated_at)
+VALUES ('$SEED_MATCH', '0601102A', 'SEED1', '$KEEP_PROG', 1.0, 'mdap_curated', 'accepted', false, now());
+"
+expect_fail "capiro_admin rejects a curated MDAP seed match" "$SERVE_URL" \
+  "SELECT capiro_defense_resolve_program_match('$TENANT_A'::uuid, '$ADMIN_ACTOR'::uuid, '$SEED_MATCH'::uuid, 'reject', NULL);"
+expect_ok "capiro_admin re-accepts a curated MDAP seed match (idempotent)" "$SERVE_URL" \
+  "SELECT capiro_defense_resolve_program_match('$TENANT_A'::uuid, '$ADMIN_ACTOR'::uuid, '$SEED_MATCH'::uuid, 'accept', NULL);"
+ok "curated MDAP seeds are protected from rejection but remain idempotently acceptable"
+
+# 10j. Direct DML by the serve role is refused on every graph table.
+expect_fail "serve UPDATEs program directly" "$SERVE_URL" \
+  "UPDATE program SET status='merged' WHERE id='$KEEP_PROG';"
+expect_fail "serve INSERTs a program_alias directly" "$SERVE_URL" \
+  "INSERT INTO program_alias (id, program_id, alias, alias_normalized, alias_type, source, confidence) VALUES (gen_random_uuid(), '$KEEP_PROG', 'X', 'X', 'acronym', 'manual', 1);"
+expect_fail "serve DELETEs a program_alias directly" "$SERVE_URL" \
+  "DELETE FROM program_alias WHERE id='$GOV_ALIAS';"
+expect_fail "serve UPDATEs pe_program_match directly" "$SERVE_URL" \
+  "UPDATE pe_program_match SET status='rejected' WHERE id='$GOV_MATCH';"
+expect_fail "serve UPDATEs person_role directly" "$SERVE_URL" \
+  "UPDATE person_role SET program_id='$KEEP_PROG' WHERE false;"
+expect_fail "serve UPDATEs program_office_program_link directly" "$SERVE_URL" \
+  "UPDATE program_office_program_link SET program_id='$KEEP_PROG' WHERE false;"
+expect_fail "serve UPDATEs provision_pe_link directly" "$SERVE_URL" \
+  "UPDATE provision_pe_link SET program_id='$KEEP_PROG' WHERE false;"
+ok "the serve role cannot perform ANY direct DML on the global Program graph"
+
+expect_ok "serve still READS the global Program graph" "$SERVE_URL" \
+  "SELECT count(*) FROM program;"
+ok "the graph remains readable to serve - the lockdown removed writes only"
+
+# =============================================================================
+log "11. The parser plane still has no database role or credential"
+# =============================================================================
+PARSER_ROLE_COUNT="$(q "SELECT count(*) FROM pg_roles WHERE rolname LIKE 'capiro_defense_parser%';")"
+[ "$PARSER_ROLE_COUNT" = "0" ] || fail "a parser database role exists"
+ok "no capiro_defense_parser* role exists in this database"
+
+# =============================================================================
+log "12. Downstream: defense-api's own test suite, database-backed"
+# =============================================================================
+log "handing REHEARSAL_DATABASE_URL / REHEARSAL_SERVE_URL to pnpm --filter @capiro/defense-api test"
+(cd "$REPO_ROOT" && \
+  REHEARSAL_DATABASE_URL="$REHEARSAL_DATABASE_URL" \
+  REHEARSAL_SERVE_URL="$SERVE_URL" \
+  pnpm --filter @capiro/defense-api test) \
+  || fail "defense-api's database-backed acceptance tests failed"
+ok "defense-api's database-backed tests pass against this real, migrated database (incl. Session 3 bug-fix regressions)"
+
+echo "[p8s3-db-rehearsal] SESSION3_DB_REHEARSAL_PASS ($PASS_COUNT checks)"
