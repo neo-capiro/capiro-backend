@@ -207,8 +207,8 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
                     <span className="capiro-directory-cell capiro-directory-cell--person">
                       <IdentityMark kind="person" size="sm" name={staffer.fullName} aria-hidden="true" />
                       <span className="capiro-directory-cell__stack">
-                        <span className="capiro-directory-cell__primary">
-                          {staffer.fullName}
+                        <span className="capiro-directory-cell__primary-row">
+                          <span className="capiro-directory-cell__primary">{staffer.fullName}</span>
                           {staffer.isCurrent ? null : <CapiroBadge>Former</CapiroBadge>}
                         </span>
                         <span className="capiro-directory-cell__secondary">{staffer.title || '—'}</span>

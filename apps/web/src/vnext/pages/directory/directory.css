@@ -1128,6 +1128,24 @@
   white-space: nowrap;
 }
 
+/* A "Former" badge sitting inside the ellipsis-truncating primary line would
+   itself get silently clipped the moment name+badge overflow the column —
+   there is no visible failure, the badge just vanishes. This row keeps the
+   name as the only thing that truncates; the badge never shrinks. */
+.capiro-vnext-root .capiro-directory-cell__primary-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-directory-cell__primary-row .capiro-directory-cell__primary {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-directory-cell__primary-row .capiro-badge {
+  flex: 0 0 auto;
+}
+
 .capiro-vnext-root .capiro-directory-cell__primary {
   font-family: var(--uui-font-family);
   font-size: 12.5px;

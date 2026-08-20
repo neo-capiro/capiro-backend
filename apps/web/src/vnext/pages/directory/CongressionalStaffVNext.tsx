@@ -434,12 +434,15 @@ function OfficeRows({
                         never given their member's headshot, so initials stand. */}
                     <IdentityMark kind="person" size="sm" name={person.fullName} aria-hidden="true" />
                     <span className="capiro-directory-cell__stack">
-                      <span className="capiro-directory-cell__primary">
-                        {person.fullName}
+                      <span className="capiro-directory-cell__primary-row">
+                        <span className="capiro-directory-cell__primary">{person.fullName}</span>
                         {/* isCurrent is scoped to THIS office — someone who moved
                             on from this member's staff, not necessarily off the
                             Hill entirely (StaffProfileVNext shows their other
-                            positions, per-position, if any are current). */}
+                            positions, per-position, if any are current). A
+                            sibling of the truncating name span, not a child of
+                            it — otherwise a long name silently clips the badge
+                            along with the ellipsis, with no visible failure. */}
                         {person.isCurrent ? null : <CapiroBadge>Former</CapiroBadge>}
                       </span>
                       <span className="capiro-directory-cell__secondary">{person.title || 'Staffer'}</span>
