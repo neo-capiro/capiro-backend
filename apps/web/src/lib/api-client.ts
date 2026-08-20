@@ -38,6 +38,17 @@ export const GENERATION_TIMEOUT_MS = 175_000;
  */
 const GENERATION_URL_PATTERNS: RegExp[] = [
   /generate/i, // generate-document, generate-section, generate-batch, actions/generate
+  // NOT covered by /generate/i above — "generation" is generat+ion, so it never
+  // matched. Outreach V3 puts sample and full draft generation under
+  // .../generation/samples and .../generation/full, and both make real model
+  // calls per recipient. Observed live on os.capiro.ai: "Generate samples" died
+  // with "timeout of 30000ms exceeded" while the server completed successfully
+  // ~20s later and persisted the drafts, so the user saw a failure that had
+  // actually worked.
+  /\/generation\//i,
+  // "Refine with Meri": one governed gateway call rewriting a single draft.
+  // Measured at 61s live, i.e. twice the default ceiling.
+  /\/drafts\/[^/]+\/refine$/i,
   /ai-fill/i,
   /ai-enhance/i,
   /artifacts/i, // POST .../artifacts (artifact generation)
