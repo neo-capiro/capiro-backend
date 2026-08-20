@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "phase8_session6_federal_funding_corpus_v1",
+  "createdAt": "2026-08-20T00:00:00Z",
+  "purpose": "Initial source-grounded corpus for Federal Funding Event Workstream I. Stated statutory amounts remain provision facts unless an authoritative source maps them to a native target.",
+  "semanticRule": "enacted broad purpose != OMB allotment != DoD/service allocation != inferred relevance != obligation != outlay",
+  "sources": [
+    {
+      "sourceKey": "pl119-21-title-ii-armed-services-reconciliation-2025",
+      "measureType": "reconciliation",
+      "authorityType": "mandatory",
+      "fiscalYear": 2025,
+      "title": "Public Law 119-21 — Title II, Committee on Armed Services",
+      "legislationId": "H.R. 1 (119th Congress)",
+      "publicLawNumber": "119-21",
+      "officialUrl": "https://www.govinfo.gov/content/pkg/PLAW-119publ21/pdf/PLAW-119publ21.pdf",
+      "sourceSha256": null,
+      "sourceSha256RequiredAtIngest": true,
+      "provisions": [
+        {
+          "section": "20002(1)",
+          "purposeText": "Expansion of the Accelerated Training in Defense Manufacturing program for the shipbuilding industrial base.",
+          "statedAmountUsd": "250000000.00",
+          "availabilityEnd": "2029-09-30",
+          "evidencePage": 43,
+          "targetType": "capability",
+          "targetNativeKey": "shipbuilding-industrial-base-workforce",
+          "mappingMaturity": "capability_inference",
+          "authoritativeAmountUsd": null,
+          "inferredRelevance": true,
+          "reviewState": "candidate",
+          "note": "Statute proves the purpose amount, not an exact PE/project allocation."
+        },
+        {
+          "section": "20003(a)(1)",
+          "purposeText": "Development and testing of directed-energy capabilities by the Under Secretary for Research and Engineering.",
+          "statedAmountUsd": "250000000.00",
+          "availabilityEnd": "2029-09-30",
+          "evidencePage": 45,
+          "targetType": "capability",
+          "targetNativeKey": "directed-energy",
+          "mappingMaturity": "capability_inference",
+          "authoritativeAmountUsd": null,
+          "inferredRelevance": true,
+          "reviewState": "candidate",
+          "note": "Purpose-level relevance only; no exact native program identity is asserted."
+        },
+        {
+          "section": "20004(a)(1)",
+          "purposeText": "Development, production, and integration of Navy and Air Force long-range anti-ship missiles.",
+          "statedAmountUsd": "400000000.00",
+          "availabilityEnd": "2029-09-30",
+          "evidencePage": 45,
+          "targetType": "capability",
+          "targetNativeKey": "long-range-anti-ship-missiles",
+          "mappingMaturity": "capability_inference",
+          "authoritativeAmountUsd": null,
+          "inferredRelevance": true,
+          "reviewState": "candidate",
+          "note": "The statutory amount remains at the provision layer until a source proves a native target allocation."
+        },
+        {
+          "section": "20005(a)(2)",
+          "purposeText": "Expansion of the small unmanned aerial system industrial base.",
+          "statedAmountUsd": "1400000000.00",
+          "availabilityEnd": "2029-09-30",
+          "evidencePage": 49,
+          "targetType": "capability",
+          "targetNativeKey": "small-unmanned-aerial-systems",
+          "mappingMaturity": "capability_inference",
+          "authoritativeAmountUsd": null,
+          "inferredRelevance": true,
+          "reviewState": "candidate",
+          "note": "Broad-purpose reconciliation funding must not be converted into exact PE dollars."
+        }
+      ]
+    },
+    {
+      "sourceKey": "pl118-50-division-a-israel-security-supplemental-2024",
+      "measureType": "emergency_supplemental",
+      "authorityType": "discretionary",
+      "fiscalYear": 2024,
+      "title": "Israel Security Supplemental Appropriations Act, 2024",
+      "legislationId": "H.R. 815 (118th Congress), Division A",
+      "publicLawNumber": "118-50",
+      "officialUrl": "https://www.congress.gov/118/plaws/publ50/PLAW-118publ50.pdf",
+      "sourceSha256": null,
+      "sourceSha256RequiredAtIngest": true,
+      "provisions": [
+        {
+          "section": "Division A, Title I — Operation and Maintenance, Defense-Wide",
+          "purposeText": "Additional Operation and Maintenance, Defense-Wide funding to respond to the situation in Israel.",
+          "statedAmountUsd": "4400000000.00",
+          "availabilityEnd": "2025-09-30",
+          "evidencePage": 2,
+          "targetType": "appropriation_account",
+          "targetNativeKey": "Operation and Maintenance, Defense-Wide",
+          "mappingMaturity": "account_level",
+          "authoritativeAmountUsd": "4400000000.00",
+          "inferredRelevance": false,
+          "reviewState": "verified",
+          "note": "Exact statutory account-level amount; not a PE allocation."
+        }
+      ]
+    },
+    {
+      "sourceKey": "pl118-50-division-b-ukraine-security-supplemental-2024",
+      "measureType": "emergency_supplemental",
+      "authorityType": "discretionary",
+      "fiscalYear": 2024,
+      "title": "Ukraine Security Supplemental Appropriations Act, 2024",
+      "legislationId": "H.R. 815 (118th Congress), Division B",
+      "publicLawNumber": "118-50",
+      "officialUrl": "https://www.congress.gov/118/plaws/publ50/PLAW-118publ50.pdf",
+      "sourceSha256": null,
+      "sourceSha256RequiredAtIngest": true,
+      "provisions": [
+        {
+          "section": "Division B, Title I — Operation and Maintenance, Defense-Wide",
+          "purposeText": "Additional Operation and Maintenance, Defense-Wide funding to respond to the situation in Ukraine and related expenses.",
+          "statedAmountUsd": "27930780000.00",
+          "availabilityEnd": "2024-12-31",
+          "evidencePage": 13,
+          "targetType": "appropriation_account",
+          "targetNativeKey": "Operation and Maintenance, Defense-Wide",
+          "mappingMaturity": "account_level",
+          "authoritativeAmountUsd": "27930780000.00",
+          "inferredRelevance": false,
+          "reviewState": "verified",
+          "note": "The law separately specifies subpurposes/transfers; this row records only the exact top-level account amount."
+        }
+      ]
+    },
+    {
+      "sourceKey": "pl118-50-division-c-indo-pacific-security-supplemental-2024",
+      "measureType": "emergency_supplemental",
+      "authorityType": "discretionary",
+      "fiscalYear": 2024,
+      "title": "Indo-Pacific Security Supplemental Appropriations Act, 2024",
+      "legislationId": "H.R. 815 (118th Congress), Division C",
+      "publicLawNumber": "118-50",
+      "officialUrl": "https://www.congress.gov/118/plaws/publ50/PLAW-118publ50.pdf",
+      "sourceSha256": null,
+      "sourceSha256RequiredAtIngest": true,
+      "provisions": [
+        {
+          "section": "Division C, Title I — Operation and Maintenance, Defense-Wide",
+          "purposeText": "Additional Operation and Maintenance, Defense-Wide funding to respond to the situation in Taiwan and related expenses.",
+          "statedAmountUsd": "1900000000.00",
+          "availabilityEnd": "2025-09-30",
+          "evidencePage": 31,
+          "targetType": "appropriation_account",
+          "targetNativeKey": "Operation and Maintenance, Defense-Wide",
+          "mappingMaturity": "account_level",
+          "authoritativeAmountUsd": "1900000000.00",
+          "inferredRelevance": false,
+          "reviewState": "verified",
+          "note": "Exact statutory account-level amount; transfer authority does not establish a downstream PE allocation."
+        }
+      ]
+    }
+  ]
+}

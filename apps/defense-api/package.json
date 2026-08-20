@@ -11,6 +11,10 @@
     "test": "tsx --test src/**/*.spec.ts",
     "verify:boundary": "node ../../scripts/verify-phase8-session2.mjs",
     "verify:session4": "node ../../scripts/verify-phase8-session4.mjs",
+    "verify:session6": "node ../../scripts/verify-phase8-session6.mjs --enforce-corpus",
+    "verify:session6:db": "node ../../scripts/verify-phase8-session6-db.mjs",
+    "prepare:session6:federal-funding": "node ../../scripts/prepare-phase8-session6-federal-funding-corpus.mjs",
+    "ingest:session6:federal-funding": "node scripts/ingest-federal-funding.mjs",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "verify:session4:replay": "node ../../scripts/phase8-session4-fy27-replay.mjs --out docs/defense-budget/phase8-session4-fy27-replay-evidence.json"

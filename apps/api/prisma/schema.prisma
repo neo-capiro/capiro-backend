@@ -4508,6 +4508,10 @@ model SourceDocument {
   budgetPackageVehicles    BudgetPackageVehicle[]
   fundingPositions         FundingPosition[]
   interimFundingPeriods    BudgetInterimFundingPeriod[]
+  // Phase 8 Session 6 — Federal Funding Event foundation source bindings.
+  federalFundingMeasures            FederalFundingMeasure[]
+  federalFundingProvisions          FederalFundingProvision[]
+  federalFundingAllocationEvidence  FederalFundingAllocation[] @relation("FederalFundingAllocationEvidence")
 
   @@unique([sourceKey, sha256], map: "source_document_source_key_sha256_key")
   @@index([documentType, fiscalYear, budgetCycle, component], map: "source_document_type_fy_cycle_component_idx")
@@ -10802,4 +10806,156 @@ model KnowledgeEpisodeProjectionJob {
   // the SQL migration; Prisma cannot represent its WHERE predicate without
   // changing the index semantics.
   @@map("knowledge_episode_projection_jobs")
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// Phase 8 Session 6 — Federal Funding Event foundation (Workstreams H / I).
+//
+// GLOBAL, source-grounded facts. Deliberately separate from
+// ProgramElementYear: supplemental/reconciliation/CR/rescission/transfer/
+// reprogramming facts are funding VEHICLES/EVENTS, not annual PE stage
+// columns. Congress broad purpose != OMB apportionment/allotment != DoD/
+// service allocation != Capiro inferred relevance != obligation != outlay.
+//
+// measure -> provision -> allocation. Authoritative dollars on an allocation
+// require a verified exact/account-level mapping with evidence; a capability
+// inference/candidate can never carry authoritative_amount_usd (enforced by
+// the federal_funding_allocation_* CHECK constraints below AND independently
+// in the SQL migration — this Prisma model documents but does not replace
+// those DB-owned invariants).
+//
+// Roles (SQL-owned, see migration
+// 20261120220000_phase8_session6_federal_funding_events):
+//   capiro_defense_serve: SELECT only.
+//   capiro_defense_job:   SELECT, INSERT, UPDATE — no DELETE.
+//   PUBLIC:               revoked entirely.
+//
+// Kept OUT of apps/defense-api/prisma/schema.prisma for Session 6: this is
+// the domain/ingestion foundation only, not the HTTP/product cutover.
+model FederalFundingMeasure {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  measureType       String    @map("measure_type")
+  status            String    @default("draft")
+  authorityType     String    @map("authority_type")
+  fiscalYear        Int?      @map("fiscal_year")
+  availabilityStart DateTime? @map("availability_start") @db.Date
+  availabilityEnd   DateTime? @map("availability_end") @db.Date
+  legislationId     String?   @map("legislation_id")
+  publicLawNumber   String?   @map("public_law_number")
+  title             String
+  sourceDocumentId  String    @map("source_document_id") @db.Uuid
+  sourcePage        Int?      @map("source_page")
+  // SHA-256 identity of the (measure_type, legislation_id/public_law, title, ...)
+  // used for dedupe; format enforced by federal_funding_measure_dedup_key_chk.
+  dedupKey          String    @map("dedup_key") @db.Char(64)
+  metadata          Json      @default("{}") @map("metadata_jsonb")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sourceDocument SourceDocument               @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  provisions     FederalFundingProvision[]
+
+  // measure_type / status / authority_type value sets and the availability
+  // start<=end check are SQL CHECK constraints (federal_funding_measure_*_chk)
+  // — intentionally not re-asserted here; the DB is the source of truth.
+  @@unique([dedupKey], map: "federal_funding_measure_dedup_key_key")
+  @@index([measureType, fiscalYear, status], map: "federal_funding_measure_type_fy_status_idx")
+  @@index([publicLawNumber], map: "federal_funding_measure_public_law_idx")
+  @@index([sourceDocumentId], map: "federal_funding_measure_source_document_idx")
+  @@map("federal_funding_measure")
+}
+
+model FederalFundingProvision {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  measureId          String    @map("measure_id") @db.Uuid
+  section            String?
+  agency             String?
+  component          String?
+  appropriationTitle String?   @map("appropriation_title")
+  tas                String?
+  // Broad enacted/reconciliation/supplemental purpose amount as the source
+  // states it. NOT an allocation — see federal_funding_allocation for the
+  // separate, independently-evidenced allocation grain.
+  statedAmountUsd    Decimal?  @map("stated_amount_usd") @db.Decimal(20, 2)
+  purposeText        String    @map("purpose_text")
+  designation        String?
+  transferAuthority  String?   @map("transfer_authority")
+  availabilityStart  DateTime? @map("availability_start") @db.Date
+  availabilityEnd    DateTime? @map("availability_end") @db.Date
+  sourceDocumentId   String    @map("source_document_id") @db.Uuid
+  sourcePage         Int?      @map("source_page")
+  evidenceSha256     String    @map("evidence_sha256") @db.Char(64)
+  dedupKey           String    @map("dedup_key") @db.Char(64)
+  metadata           Json      @default("{}") @map("metadata_jsonb")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  measure        FederalFundingMeasure        @relation(fields: [measureId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sourceDocument SourceDocument               @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  allocations    FederalFundingAllocation[]
+
+  // availability start<=end, source_page>0, evidence_sha256/dedup_key hex-64
+  // format are SQL CHECK constraints (federal_funding_provision_*_chk) —
+  // DB-owned, not re-asserted here.
+  @@unique([dedupKey], map: "federal_funding_provision_dedup_key_key")
+  @@index([measureId], map: "federal_funding_provision_measure_idx")
+  @@index([agency, component, tas], map: "federal_funding_provision_account_idx")
+  @@index([sourceDocumentId], map: "federal_funding_provision_source_document_idx")
+  @@map("federal_funding_provision")
+}
+
+model FederalFundingAllocation {
+  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provisionId               String    @map("provision_id") @db.Uuid
+  targetType                String    @map("target_type")
+  targetNativeKey           String?   @map("target_native_key")
+  targetId                  String?   @map("target_id")
+  allocationStage           String    @map("allocation_stage")
+  mappingMaturity           String    @map("mapping_maturity")
+  reviewState               String    @default("candidate") @map("review_state")
+  // Exact/account-level allocated dollars. NULL unless the DB-owned
+  // federal_funding_allocation_authoritative_dollars_chk is satisfied:
+  // mappingMaturity in (exact_identifier, exact_line_item, account_level),
+  // targetType <> capability, inferredRelevance = false,
+  // reviewState = verified, an identity is present, and evidence is present.
+  // Prisma cannot express this multi-column CHECK — it is SQL-owned; do not
+  // assume application code alone can guarantee this invariant.
+  authoritativeAmountUsd    Decimal?  @map("authoritative_amount_usd") @db.Decimal(20, 2)
+  inferredRelevance         Boolean   @default(false) @map("inferred_relevance")
+  confidence                Decimal?  @db.Decimal(5, 4)
+  baseRequestStatus         String    @default("unknown") @map("base_request_status")
+  potentialDoubleCount      Boolean   @default(false) @map("potential_double_count")
+  fundingPosture            String    @default("unknown") @map("funding_posture")
+  evidenceSourceDocumentId  String    @map("evidence_source_document_id") @db.Uuid
+  evidencePage              Int?      @map("evidence_page")
+  evidenceSha256            String    @map("evidence_sha256") @db.Char(64)
+  // Required by federal_funding_allocation_obligation_ref_chk when
+  // allocationStage = 'obligated'.
+  obligationReference       String?   @map("obligation_reference")
+  executionReference        String?   @map("execution_reference")
+  dedupKey                  String    @map("dedup_key") @db.Char(64)
+  metadata                  Json      @default("{}") @map("metadata_jsonb")
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  provision             FederalFundingProvision @relation(fields: [provisionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  evidenceSourceDocument SourceDocument          @relation("FederalFundingAllocationEvidence", fields: [evidenceSourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  // target_type / allocation_stage / mapping_maturity / review_state /
+  // base_request_status / funding_posture value sets, confidence 0..1,
+  // evidence_page>0, evidence_sha256/dedup_key hex-64 format, AND the four
+  // safety CHECKs (authoritative_dollars, inference_money, capability_money,
+  // unmapped_identity) plus the obligation_ref check are all SQL-owned
+  // (federal_funding_allocation_*_chk in the migration). This model
+  // deliberately does NOT restate weaker application-level assumptions in
+  // place of them.
+  @@unique([dedupKey], map: "federal_funding_allocation_dedup_key_key")
+  @@index([provisionId], map: "federal_funding_allocation_provision_idx")
+  @@index([targetType, targetId, targetNativeKey], map: "federal_funding_allocation_target_idx")
+  @@index([reviewState, mappingMaturity], map: "federal_funding_allocation_review_idx")
+  @@index([evidenceSourceDocumentId], map: "federal_funding_allocation_evidence_document_idx")
+  // Partial index (WHERE potential_double_count = TRUE) is created by the SQL
+  // migration; Prisma cannot express the WHERE predicate without changing
+  // index semantics, so it is intentionally omitted here (SQL-owned).
+  @@map("federal_funding_allocation")
 }
