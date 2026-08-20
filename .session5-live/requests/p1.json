@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "phase8_session5_live_render_request_v1",
+  "sourceSha256": "b8d5248257590856ee33ddb1b401ec2efcdfea219c05b5bc8ea1068d9000d0a6",
+  "pages": [
+    {
+      "id": "fy27-p1-army-aircraft-line15-p19",
+      "stratum": "p1_table",
+      "pageClass": "complex_table",
+      "sourcePdfPath": "../source/FY2027_p1.pdf",
+      "sourcePdfSha256": "b8d5248257590856ee33ddb1b401ec2efcdfea219c05b5bc8ea1068d9000d0a6",
+      "pageNumber": 19,
+      "requestedParserMethod": "table_structure",
+      "parserMethod": "nemotron_parse",
+      "renderedImagePath": "../rendered/08-fy27-p1-army-aircraft-line15-p19.png",
+      "mimeType": "image/png",
+      "maxTokens": 2000,
+      "renderingConfig": {
+        "renderer": "pymupdf",
+        "rendererVersion": "1.28.2",
+        "dpi": 150,
+        "colorSpace": "RGB",
+        "alpha": false
+      },
+      "renderedImageProvenance": {
+        "sourcePdfSha256": "b8d5248257590856ee33ddb1b401ec2efcdfea219c05b5bc8ea1068d9000d0a6",
+        "pageNumber": 19,
+        "renderer": "pymupdf",
+        "rendererVersion": "1.28.2",
+        "dpi": 150,
+        "decodedPngBytes": true
+      }
+    }
+  ]
+}

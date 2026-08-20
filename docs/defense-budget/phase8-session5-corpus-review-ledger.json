@@ -1,0 +1,145 @@
+{
+  "schemaVersion": "phase8_session5_corpus_review_ledger_v1",
+  "sourceBranchBaseSha": "a5094361f9da82e70090f73da46b11108e6a8b45",
+  "reviewedAt": "2026-08-19T00:00:00Z",
+  "requiredStrata": [
+    "r1_zero_native_tables",
+    "r2_identity_banner",
+    "r2a_project_cost_table",
+    "scanned_image_only",
+    "navy_ba6_duplicate_flattening",
+    "p1_table",
+    "o1_op5_table",
+    "defense_wide_volume"
+  ],
+  "model": {
+    "modelPackageArn": "arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587",
+    "modelName": "nemotron-parse",
+    "modelVersion": "LLM NIM 1.14 and VLM NIM version 1.5.0",
+    "parserOptionsHash": "890f08082befbee5261b4c77f0646d647a98d402bfd31c0dcb022f2610cf688a"
+  },
+  "entries": [
+    {
+      "id": "fy27-r1-army-pe-0601102a-p10",
+      "stratum": "r1_zero_native_tables",
+      "pageClass": "complex_table",
+      "status": "accepted",
+      "evidencePath": "docs/defense-budget/session5-gold-evidence/fy27-r1-army-pe-0601102a-p10.json",
+      "sourceSummary": {
+        "sourcePdfSha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+        "physicalPage": 10,
+        "printedPage": "5"
+      },
+      "blockers": []
+    },
+    {
+      "id": "fy27-army-r2-pe-0601102a-p34",
+      "stratum": "r2_identity_banner",
+      "pageClass": "identity_banner",
+      "status": "accepted",
+      "evidencePath": "docs/defense-budget/session5-gold-evidence/fy27-army-r2-pe-0601102a-p34.json",
+      "sourceSummary": {
+        "sourcePdfSha256": "02f719c0d9d528284a70ec84b5e90e1a6a2008ebc5f610a56236db0a10e112c0",
+        "physicalPage": 34,
+        "printedPage": "Army Page 2 of 69 / Volume 1a-2"
+      },
+      "blockers": []
+    },
+    {
+      "id": "fy27-army-r2a-pe-0601102a-aa4-p54",
+      "stratum": "r2a_project_cost_table",
+      "pageClass": "complex_table",
+      "status": "accepted",
+      "evidencePath": "docs/defense-budget/session5-gold-evidence/fy27-army-r2a-pe-0601102a-aa4-p54.json",
+      "sourceSummary": {
+        "sourcePdfSha256": "02f719c0d9d528284a70ec84b5e90e1a6a2008ebc5f610a56236db0a10e112c0",
+        "physicalPage": 54,
+        "printedPage": "Army Page 22 of 69 / Volume 1a-22"
+      },
+      "blockers": []
+    },
+    {
+      "id": "fy27-scanned-missile-procurement-army-p7",
+      "stratum": "scanned_image_only",
+      "pageClass": "scanned_image",
+      "status": "accepted",
+      "evidencePath": "docs/defense-budget/session5-gold-evidence/fy27-scanned-missile-procurement-army-p7.json",
+      "sourceSummary": {
+        "sourcePdfSha256": "e47707f50d29ebf796a3db57877d104001c5679ce783f308ed1cd47cca1107f4",
+        "physicalPage": 7,
+        "printedPage": "Volume 1 - iv"
+      },
+      "blockers": []
+    },
+    {
+      "id": "fy27-navy-ba6-duplicate-roles-p36-61-147",
+      "stratum": "navy_ba6_duplicate_flattening",
+      "pageClass": "complex_table",
+      "status": "accepted",
+      "evidencePath": "docs/defense-budget/session5-gold-evidence/fy27-navy-ba6-duplicate-roles-p36-61-147.json",
+      "sourceSummary": {
+        "sourcePdfSha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+        "physicalPage": 36,
+        "printedPage": "31"
+      },
+      "blockers": []
+    },
+    {
+      "id": "fy27-p1-army-aircraft-line15-p19",
+      "stratum": "p1_table",
+      "pageClass": "complex_table",
+      "status": "accepted",
+      "evidencePath": "docs/defense-budget/session5-gold-evidence/fy27-p1-army-aircraft-line15-p19.json",
+      "sourceSummary": {
+        "sourcePdfSha256": "b8d5248257590856ee33ddb1b401ec2efcdfea219c05b5bc8ea1068d9000d0a6",
+        "physicalPage": 19,
+        "printedPage": "14"
+      },
+      "blockers": []
+    },
+    {
+      "id": "fy27-o1-army-2020a-line200-sag151-p10",
+      "stratum": "o1_op5_table",
+      "pageClass": "complex_table",
+      "status": "accepted",
+      "evidencePath": "docs/defense-budget/session5-gold-evidence/fy27-o1-army-2020a-line200-sag151-p10.json",
+      "sourceSummary": {
+        "sourcePdfSha256": "8c209bc2af590e460977649ba4e37645fd2ee8e3c8dbf61c227b7d3a27079c4d",
+        "physicalPage": 10,
+        "printedPage": "5"
+      },
+      "blockers": []
+    },
+    {
+      "id": "fy27-defense-wide-ussocom-p788",
+      "stratum": "defense_wide_volume",
+      "pageClass": "mixed_visual_layout",
+      "status": "accepted",
+      "evidencePath": "docs/defense-budget/session5-gold-evidence/fy27-defense-wide-ussocom-p788.json",
+      "sourceSummary": {
+        "sourcePdfSha256": "99b8ea818a0df267b509665bbe5df9fb4d4128083dfa63b38b9fa17d653386f9",
+        "physicalPage": 788,
+        "printedPage": "USSOCOM 784"
+      },
+      "blockers": []
+    }
+  ],
+  "summary": {
+    "requiredStrataCount": 8,
+    "acceptedStrataCount": 8,
+    "blockedStrataCount": 0,
+    "acceptedStrata": [
+      "r1_zero_native_tables",
+      "r2_identity_banner",
+      "r2a_project_cost_table",
+      "scanned_image_only",
+      "navy_ba6_duplicate_flattening",
+      "p1_table",
+      "o1_op5_table",
+      "defense_wide_volume"
+    ],
+    "blockedStrata": [],
+    "liveCorpusReady": true
+  },
+  "contentSha256": "b80c3334043bc1a22ff5256b95b84d3a03c129e9808f20caf7792befbe78c316"
+}

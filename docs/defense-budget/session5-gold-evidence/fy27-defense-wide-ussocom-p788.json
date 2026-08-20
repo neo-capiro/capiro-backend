@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "phase8_session5_gold_evidence_v1",
+  "id": "fy27-defense-wide-ussocom-p788",
+  "stratum": "defense_wide_volume",
+  "pageClass": "mixed_visual_layout",
+  "source": {
+    "sourceDocumentId": "fy2027-defense-wide-om-volume1-part1",
+    "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/budget_justification/pdfs/01_Operation_and_Maintenance/O_M_VOL_1_PART_1/OM_Volume1_Part1.pdf",
+    "sourcePdfSha256": "99b8ea818a0df267b509665bbe5df9fb4d4128083dfa63b38b9fa17d653386f9",
+    "fiscalYear": 2027,
+    "family": "om",
+    "exhibit": "OP-5",
+    "authority": "dod-comptroller",
+    "component": "USSOCOM",
+    "physicalPage": 788,
+    "printedPage": "USSOCOM 784",
+    "title": "United States Special Operations Command Defense-Wide O&M",
+    "sourceLocator": "C:/Users/neoma/Downloads/pe-fy2027-corpus",
+    "scope": "Defense-Wide; USSOCOM"
+  },
+  "review": {
+    "reviewStatus": "accepted",
+    "reviewMethod": "deterministic_pdf_bytes_plus_visual_source_page_review",
+    "reviewer": "openai/gpt-5.6-luna-pro",
+    "reviewedAt": "2026-08-19T00:00:00Z",
+    "independentSecondReview": "independent-source-page-review",
+    "secondReviewerProcess": "source-page visual inspection compared against deterministic text/block extraction and recomputed PDF SHA-256; parser output was not used as acceptance authority",
+    "incomplete": false,
+    "conflicted": false,
+    "hashBasis": "source PDF bytes SHA-256 plus evidence canonical JSON SHA-256",
+    "notes": [
+      "Physical page 788 was visually reviewed as mixed layout: summary table, narrative, bullet SAG descriptions; exact deterministic extraction independently matched the selected row."
+    ]
+  },
+  "excerpt": {
+    "text": "USSOCOM physical page 788, printed SOCOM 784: Operation and Maintenance, Defense-Wide Summary ($ in thousands), FY2027 Request 10,891,050; narrative identifies 1PL6 Combat Development Activities.",
+    "units": "$ in thousands",
+    "columnInterpretation": "USSOCOM scope and SAG identity are explicit on the same mixed-layout page."
+  },
+  "gold": {
+    "peIdentities": [],
+    "projectIdentities": [],
+    "lineIdentities": [
+      "scope=Defense-Wide; command=USSOCOM; BA=01 Operating Forces; SAG=1PL6; title=Combat Development Activities"
+    ],
+    "money": [
+      {
+        "value": "10,891,050",
+        "unit": "dollars in thousands",
+        "fy": 2027,
+        "evidencePage": 788
+      }
+    ],
+    "tableCells": [
+      "USSOCOM summary|FY2027 Request=10,891,050|SAG 1PL6 Combat Development Activities"
+    ]
+  },
+  "contentSha256": "1f36d5839d09e629e7f509faa470734780790a6eeb58fd2a01248637e070b8ef"
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "phase8_session5_gold_evidence_v1",
+  "id": "fy27-army-r2-pe-0601102a-p34",
+  "stratum": "r2_identity_banner",
+  "pageClass": "identity_banner",
+  "source": {
+    "sourceDocumentId": "fy2027-r2-army-vol1-ba1",
+    "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/RDTE_Vol_1_Budget_Activity_1.pdf",
+    "sourcePdfSha256": "02f719c0d9d528284a70ec84b5e90e1a6a2008ebc5f610a56236db0a10e112c0",
+    "fiscalYear": 2027,
+    "family": "rdte",
+    "exhibit": "R-2",
+    "authority": "dod-comptroller",
+    "component": "ARMY",
+    "physicalPage": 34,
+    "printedPage": "Army Page 2 of 69 / Volume 1a-2",
+    "title": "PE 0601102A Defense Research Sciences",
+    "sourceLocator": "C:/Users/neoma/Downloads/pe-fy2027-corpus"
+  },
+  "review": {
+    "reviewStatus": "accepted",
+    "reviewMethod": "deterministic_pdf_bytes_plus_visual_source_page_review",
+    "reviewer": "openai/gpt-5.6-luna-pro",
+    "reviewedAt": "2026-08-19T00:00:00Z",
+    "independentSecondReview": "independent-source-page-review",
+    "secondReviewerProcess": "source-page visual inspection compared against deterministic text/block extraction and recomputed PDF SHA-256; parser output was not used as acceptance authority",
+    "incomplete": false,
+    "conflicted": false,
+    "hashBasis": "source PDF bytes SHA-256 plus evidence canonical JSON SHA-256",
+    "notes": [
+      "Visual source-page review confirms the R-2 identity banner and appropriation/budget activity."
+    ]
+  },
+  "excerpt": {
+    "text": "Exhibit R-2 identity banner: 2040 Research, Development, Test & Evaluation, Army / BA 1 Basic Research; PE 0601102A / Defense Research Sciences.",
+    "units": "COST ($ in Millions)",
+    "columnInterpretation": "Identity banner plus FY2027 current budget row establishes the source-native PE identity."
+  },
+  "gold": {
+    "peIdentities": [
+      "PE=0601102A; title=Defense Research Sciences; appropriation=2040; BA=1; role=R-2"
+    ],
+    "projectIdentities": [],
+    "lineIdentities": [
+      "role=R-2 identity banner; R-1 line=1"
+    ],
+    "money": [
+      {
+        "value": "215.322",
+        "unit": "millions",
+        "fy": 2027,
+        "evidencePage": 34
+      }
+    ],
+    "tableCells": [
+      "Appropriation/Budget Activity=2040 / 1|PE=0601102A / Defense Research Sciences"
+    ]
+  },
+  "contentSha256": "ced05e36c4106d204223062e46f067da803ff85cf8b8ccdb117c120abb290618"
+}

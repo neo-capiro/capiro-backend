@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "phase8_session5_gold_evidence_v1",
+  "id": "fy27-o1-army-2020a-line200-sag151-p10",
+  "stratum": "o1_op5_table",
+  "pageClass": "complex_table",
+  "source": {
+    "sourceDocumentId": "fy2027-o1",
+    "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/FY2027_o1.pdf",
+    "sourcePdfSha256": "8c209bc2af590e460977649ba4e37645fd2ee8e3c8dbf61c227b7d3a27079c4d",
+    "fiscalYear": 2027,
+    "family": "om",
+    "exhibit": "O-1",
+    "authority": "dod-comptroller",
+    "component": "ARMY",
+    "physicalPage": 10,
+    "printedPage": "5",
+    "title": "2020A Operation and Maintenance, Army",
+    "sourceLocator": "C:/Users/neoma/Downloads/pe-fy2027-corpus"
+  },
+  "review": {
+    "reviewStatus": "accepted",
+    "reviewMethod": "deterministic_pdf_bytes_plus_visual_source_page_review",
+    "reviewer": "openai/gpt-5.6-luna-pro",
+    "reviewedAt": "2026-08-19T00:00:00Z",
+    "independentSecondReview": "independent-source-page-review",
+    "secondReviewerProcess": "source-page visual inspection compared against deterministic text/block extraction and recomputed PDF SHA-256; parser output was not used as acceptance authority",
+    "incomplete": false,
+    "conflicted": false,
+    "hashBasis": "source PDF bytes SHA-256 plus evidence canonical JSON SHA-256",
+    "notes": [
+      "Visual review confirms row and headers; repository OP-5 artifact was used only as supporting lineage and its FY2027 identity was checked against this FY2027 O-1 source page."
+    ]
+  },
+  "excerpt": {
+    "text": "Exhibit O-1, physical page 10 / printed Page 5: 2020A, line 200, SAG 151, Cyberspace Activities - Cyberspace Operations; FY2027 discretionary 366,311, mandatory blank, total 366,311 ($ in Thousands).",
+    "units": "Dollars in Thousands",
+    "columnInterpretation": "The official source page is FY2027 and the O&M native identity is retained; no PE conversion."
+  },
+  "gold": {
+    "peIdentities": [],
+    "projectIdentities": [],
+    "lineIdentities": [
+      "appropriation account=2020A; line=200; SAG/BLI=151; title=Cyberspace Activities - Cyberspace Operations; native family=O&M"
+    ],
+    "money": [
+      {
+        "value": "366,311",
+        "unit": "dollars in thousands",
+        "fy": 2027,
+        "evidencePage": 10
+      }
+    ],
+    "tableCells": [
+      "O-1 row|2020A|line 200|SAG 151|title Cyberspace Activities - Cyberspace Operations|FY2027 discretionary=366,311|mandatory=blank|total=366,311"
+    ]
+  },
+  "contentSha256": "09941d565b06d8484647b1136a6ce0fc8a9dd9a377a5cb4e3f42b66e356f3bc6"
+}

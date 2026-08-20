@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "phase8_session5_live_render_request_v1",
+  "sourceSha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+  "pages": [
+    {
+      "id": "fy27-r1-army-pe-0601102a-p10",
+      "stratum": "r1_zero_native_tables",
+      "pageClass": "complex_table",
+      "sourcePdfPath": "../source/FY2027_r1.pdf",
+      "sourcePdfSha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+      "pageNumber": 10,
+      "requestedParserMethod": "table_structure",
+      "parserMethod": "nemotron_parse",
+      "renderedImagePath": "../rendered/01-fy27-r1-army-pe-0601102a-p10.png",
+      "mimeType": "image/png",
+      "maxTokens": 2000,
+      "renderingConfig": {
+        "renderer": "pymupdf",
+        "rendererVersion": "1.28.2",
+        "dpi": 150,
+        "colorSpace": "RGB",
+        "alpha": false
+      },
+      "renderedImageProvenance": {
+        "sourcePdfSha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+        "pageNumber": 10,
+        "renderer": "pymupdf",
+        "rendererVersion": "1.28.2",
+        "dpi": 150,
+        "decodedPngBytes": true
+      }
+    },
+    {
+      "id": "fy27-navy-ba6-r1-pe-0605853n-p36",
+      "stratum": "navy_ba6_duplicate_flattening",
+      "pageClass": "complex_table",
+      "sourcePdfPath": "../source/FY2027_r1.pdf",
+      "sourcePdfSha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+      "pageNumber": 36,
+      "requestedParserMethod": "table_structure",
+      "parserMethod": "nemotron_parse",
+      "renderedImagePath": "../rendered/02-fy27-navy-ba6-r1-pe-0605853n-p36.png",
+      "mimeType": "image/png",
+      "maxTokens": 2000,
+      "renderingConfig": {
+        "renderer": "pymupdf",
+        "rendererVersion": "1.28.2",
+        "dpi": 150,
+        "colorSpace": "RGB",
+        "alpha": false
+      },
+      "renderedImageProvenance": {
+        "sourcePdfSha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+        "pageNumber": 36,
+        "renderer": "pymupdf",
+        "rendererVersion": "1.28.2",
+        "dpi": 150,
+        "decodedPngBytes": true
+      }
+    }
+  ]
+}

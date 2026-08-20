@@ -1,0 +1,146 @@
+name: Phase 8 Session 5 NVIDIA Benchmark
+
+on:
+  push:
+    paths:
+      - 'apps/defense-parser-orchestrator/**'
+      - 'packages/defense-contracts/src/parser/**'
+      - 'infra/cdk/bin/phase8-session5-nvidia-benchmark.ts'
+      - 'infra/cdk/lib/phase8-session5-nvidia-benchmark.ts'
+      - 'infra/cdk/test/phase8-session5-nvidia-benchmark.spec.ts'
+      - 'scripts/verify-phase8-session5.mjs'
+      - 'scripts/phase8-session5-provider-decision.mjs'
+      - 'docs/defense-budget/phase8-session5-*'
+      - 'docs/defense-budget/PHASE-8-SESSION-5-ACCEPTANCE-AMENDMENT.md'
+      - 'docs/handoffs/phase-8-session-5-*'
+      - '.github/workflows/phase8-session5-nvidia-benchmark.yml'
+  pull_request:
+    paths:
+      - 'apps/defense-parser-orchestrator/**'
+      - 'packages/defense-contracts/src/parser/**'
+      - 'infra/cdk/bin/phase8-session5-nvidia-benchmark.ts'
+      - 'infra/cdk/lib/phase8-session5-nvidia-benchmark.ts'
+      - 'infra/cdk/test/phase8-session5-nvidia-benchmark.spec.ts'
+      - 'scripts/verify-phase8-session5.mjs'
+      - 'scripts/phase8-session5-provider-decision.mjs'
+      - 'docs/defense-budget/phase8-session5-*'
+      - 'docs/defense-budget/PHASE-8-SESSION-5-ACCEPTANCE-AMENDMENT.md'
+      - 'docs/handoffs/phase-8-session-5-*'
+      - '.github/workflows/phase8-session5-nvidia-benchmark.yml'
+  workflow_dispatch:
+    inputs:
+      enforce_live_benchmark:
+        description: 'Require retained real FY27 NVIDIA evidence and zero-idle proof'
+        required: true
+        default: false
+        type: boolean
+      evidence_path:
+        description: 'Repository-relative live evidence JSON path'
+        required: false
+        default: 'docs/defense-budget/phase8-session5-live-benchmark-evidence.json'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  p0-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Pin pnpm
+        run: corepack prepare pnpm@9.12.0 --activate
+
+      - name: Frozen workspace install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared parser contract
+        run: pnpm --filter @capiro/defense-contracts build
+
+      - name: Syntax and unit tests
+        run: |
+          node --check apps/defense-parser-orchestrator/src/session5.mjs
+          node --check apps/defense-parser-orchestrator/src/real-batch-config.mjs
+          node --check apps/defense-parser-orchestrator/src/real-batch-provider.mjs
+          node --check apps/defense-parser-orchestrator/src/real-batch-cost.mjs
+          node --check apps/defense-parser-orchestrator/src/real-batch-coordinator.mjs
+          node --check apps/defense-parser-orchestrator/src/aws-real-storage.mjs
+          node --check apps/defense-parser-orchestrator/src/aws-real-ledger.mjs
+          node --check apps/defense-parser-orchestrator/src/aws-real-runtime.mjs
+          node --check apps/defense-parser-orchestrator/src/cli.mjs
+          node --check apps/defense-parser-orchestrator/src/provider-decision.mjs
+          node --check apps/defense-parser-orchestrator/scripts/materialize-live-inputs.mjs
+          node --test apps/defense-parser-orchestrator/test/*.test.mjs
+
+      - name: P0 real-Batch architecture gate
+        run: node scripts/verify-phase8-session5.mjs
+
+      # Session 5 closed through the negative provider path. This gate proves the
+      # decision artifact still holds: no provider output, no accuracy claim, no
+      # NVIDIA routing, and zero idle GPU capacity.
+      - name: Negative provider-decision closeout gate
+        run: node scripts/verify-phase8-session5.mjs --enforce-provider-decision
+
+      - name: CDK typecheck and focused synth assertions
+        run: |
+          pnpm --filter @capiro/infra-cdk typecheck
+          pnpm --filter @capiro/infra-cdk exec jest \
+            test/phase8-session5-nvidia-benchmark.spec.ts --runInBand
+
+      - name: Re-run accepted Session 4 source/replay boundary
+        env:
+          PHASE8_SESSION4_REPLAY_EVIDENCE: docs/defense-budget/phase8-session4-fy27-replay-evidence.json
+        run: |
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-client build
+          pnpm --filter @capiro/defense-api verify:session4
+          node scripts/verify-phase8-session4.mjs --enforce-replay
+
+      - name: Build isolated orchestrator image without cache
+        run: |
+          docker build --no-cache \
+            -f apps/defense-parser-orchestrator/Dockerfile \
+            -t capiro-defense-parser-orchestrator:phase8-session5 .
+          test "$(docker run --rm --entrypoint id capiro-defense-parser-orchestrator:phase8-session5 -u)" = '1001'
+          docker run --rm capiro-defense-parser-orchestrator:phase8-session5 help
+
+      - name: Prove no HTTP port, GPU runtime, or static credential is shipped
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(docker inspect -f '{{json .Config.ExposedPorts}}' capiro-defense-parser-orchestrator:phase8-session5)" = 'null'
+          docker run --rm --entrypoint sh capiro-defense-parser-orchestrator:phase8-session5 -lc '
+            ! find / -iname "*cuda*" -o -iname "*nvidia-smi*" 2>/dev/null | grep -q .
+            ! env | grep -E "^(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_SESSION_TOKEN|CLERK_SECRET_KEY|DATABASE_URL)="
+          '
+
+      - name: Diff hygiene
+        run: git diff --check origin/${{ github.base_ref || 'main' }}...HEAD
+
+  live-benchmark-evidence:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.enforce_live_benchmark }}
+    needs: p0-runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Enforce source-grounded benchmark and zero-idle proof
+        env:
+          PHASE8_SESSION5_LIVE_BENCHMARK_EVIDENCE: ${{ inputs.evidence_path }}
+        run: node scripts/verify-phase8-session5.mjs --enforce-live-benchmark

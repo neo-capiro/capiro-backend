@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://capiro.ai/schemas/phase8-session5-corpus-review-ledger-v1.json",
+  "title": "Phase 8 Session 5 corpus review ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "sourceBranchBaseSha",
+    "reviewedAt",
+    "requiredStrata",
+    "model",
+    "entries",
+    "summary",
+    "contentSha256"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "phase8_session5_corpus_review_ledger_v1"
+    },
+    "sourceBranchBaseSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "reviewedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "requiredStrata": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "uniqueItems": true
+    },
+    "model": {
+      "type": "object"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 8
+    },
+    "summary": {
+      "type": "object"
+    },
+    "contentSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

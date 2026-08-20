@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "phase8_session5_live_render_request_v1",
+  "sourceSha256": "99b8ea818a0df267b509665bbe5df9fb4d4128083dfa63b38b9fa17d653386f9",
+  "pages": [
+    {
+      "id": "fy27-defense-wide-ussocom-p788",
+      "stratum": "defense_wide_volume",
+      "pageClass": "mixed_visual_layout",
+      "sourcePdfPath": "../source/OM_Volume1_Part1.pdf",
+      "sourcePdfSha256": "99b8ea818a0df267b509665bbe5df9fb4d4128083dfa63b38b9fa17d653386f9",
+      "pageNumber": 788,
+      "requestedParserMethod": "table_structure",
+      "parserMethod": "nemotron_parse",
+      "renderedImagePath": "../rendered/10-fy27-defense-wide-ussocom-p788.png",
+      "mimeType": "image/png",
+      "maxTokens": 2000,
+      "renderingConfig": {
+        "renderer": "pymupdf",
+        "rendererVersion": "1.28.2",
+        "dpi": 150,
+        "colorSpace": "RGB",
+        "alpha": false
+      },
+      "renderedImageProvenance": {
+        "sourcePdfSha256": "99b8ea818a0df267b509665bbe5df9fb4d4128083dfa63b38b9fa17d653386f9",
+        "pageNumber": 788,
+        "renderer": "pymupdf",
+        "rendererVersion": "1.28.2",
+        "dpi": 150,
+        "decodedPngBytes": true
+      }
+    }
+  ]
+}

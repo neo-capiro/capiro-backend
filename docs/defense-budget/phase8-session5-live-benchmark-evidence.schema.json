@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://capiro.ai/schemas/phase8-session5-live-benchmark-evidence-v2.json",
+  "title": "Phase 8 Session 5 live NVIDIA async benchmark evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "repositorySha",
+    "executionModel",
+    "modelPackageArn",
+    "modelName",
+    "modelVersion",
+    "corpusSha256",
+    "parserOptionsHash",
+    "renderingConfigSha256",
+    "endpoint",
+    "invocations",
+    "benchmarkResult",
+    "zeroIdleProof",
+    "productionDefaultChanged",
+    "generatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "phase8_session5_live_benchmark_evidence_v2" },
+    "repositorySha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "executionModel": { "const": "sagemaker_async_inference" },
+    "modelPackageArn": { "const": "arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587" },
+    "modelName": { "const": "nemotron-parse" },
+    "modelVersion": { "type": "string", "minLength": 1 },
+    "corpusSha256": { "const": "a4bf213ea908f6dff2988e1ec3c78d0d5359a8e085554cb1915721b687fc8e98" },
+    "parserOptionsHash": { "const": "890f08082befbee5261b4c77f0646d647a98d402bfd31c0dcb022f2610cf688a" },
+    "renderingConfigSha256": { "const": "800a38fb9e8a4f8e014febe9822a5ca075596cf03d8544ab2aa67d9856f8a2fc" },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpointName", "endpointConfigName", "modelArn", "executionModel", "identitySha256", "outputLocation", "failureLocation", "maxEndpointLifetimeSeconds", "reservedCostUsd", "settledCostUsd", "createdAt", "inServiceAt", "deletedAt"],
+      "properties": {
+        "endpointName": { "type": "string", "minLength": 1 },
+        "endpointConfigName": { "type": "string", "minLength": 1 },
+        "modelArn": { "type": "string", "minLength": 20 },
+        "executionModel": { "const": "sagemaker_async_inference" },
+        "identitySha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "outputLocation": { "type": "string", "pattern": "^s3://" },
+        "failureLocation": { "type": "string", "pattern": "^s3://" },
+        "maxEndpointLifetimeSeconds": { "type": "integer", "minimum": 60, "maximum": 90000 },
+        "reservedCostUsd": { "type": "number", "minimum": 0, "maximum": 150 },
+        "settledCostUsd": { "type": "number", "minimum": 0, "maximum": 150 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "inServiceAt": { "type": "string", "format": "date-time" },
+        "deletedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "invocations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["inferenceId", "sourceSha256", "pageNumber", "pngSha256", "payloadSha256", "renderingSha256", "outputLocation", "rawOutputSha256", "normalizedOutputSha256"],
+        "properties": {
+          "inferenceId": { "type": "string" },
+          "endpointName": { "type": "string", "minLength": 1 },
+          "endpointConfigName": { "type": "string", "minLength": 1 },
+          "executionModel": { "const": "sagemaker_async_inference" },
+          "sourceSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "pageNumber": { "type": "integer", "minimum": 1 },
+          "pngSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "payloadSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "renderingSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "outputLocation": { "type": "string", "pattern": "^s3://" },
+          "rawOutputSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "normalizedOutputSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "benchmarkResult": {
+      "type": "object",
+      "required": ["schemaVersion", "runId", "corpusSha256", "missingStrata", "nvidiaObservationCount", "acceptedPageClasses", "liveBenchmarkAccepted", "pageClassDecisions", "contentSha256"],
+      "properties": {
+        "schemaVersion": { "const": "phase8_session5_benchmark_result_v1" },
+        "runId": { "type": "string" },
+        "corpusSha256": { "const": "a4bf213ea908f6dff2988e1ec3c78d0d5359a8e085554cb1915721b687fc8e98" },
+        "missingStrata": { "type": "array", "maxItems": 0 },
+        "nvidiaObservationCount": { "type": "integer", "minimum": 1 },
+        "acceptedPageClasses": { "type": "array", "minItems": 1 },
+        "liveBenchmarkAccepted": { "const": true },
+        "pageClassDecisions": { "type": "object" },
+        "contentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "additionalProperties": true
+    },
+    "zeroIdleProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activeJobs", "spentAndReservedUsd", "persistentEndpoints", "zeroIdleGpu", "checkedAt"],
+      "properties": {
+        "activeJobs": { "const": 0 },
+        "spentAndReservedUsd": { "type": "number", "minimum": 0, "maximum": 150 },
+        "persistentEndpoints": { "type": "array", "maxItems": 0 },
+        "zeroIdleGpu": { "const": true },
+        "checkedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "productionDefaultChanged": { "const": false },
+    "generatedAt": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "phase8_session5_gold_evidence_v1",
+  "id": "fy27-army-r2a-pe-0601102a-aa4-p54",
+  "stratum": "r2a_project_cost_table",
+  "pageClass": "complex_table",
+  "source": {
+    "sourceDocumentId": "fy2027-r2-army-vol1-ba1",
+    "sourceUrl": "https://comptroller.war.gov/Portals/45/Documents/defbudget/FY2027/RDTE_Vol_1_Budget_Activity_1.pdf",
+    "sourcePdfSha256": "02f719c0d9d528284a70ec84b5e90e1a6a2008ebc5f610a56236db0a10e112c0",
+    "fiscalYear": 2027,
+    "family": "rdte",
+    "exhibit": "R-2A",
+    "authority": "dod-comptroller",
+    "component": "ARMY",
+    "physicalPage": 54,
+    "printedPage": "Army Page 22 of 69 / Volume 1a-22",
+    "title": "PE 0601102A project AA4 Training and Human Science Research",
+    "sourceLocator": "C:/Users/neoma/Downloads/pe-fy2027-corpus"
+  },
+  "review": {
+    "reviewStatus": "accepted",
+    "reviewMethod": "deterministic_pdf_bytes_plus_visual_source_page_review",
+    "reviewer": "openai/gpt-5.6-luna-pro",
+    "reviewedAt": "2026-08-19T00:00:00Z",
+    "independentSecondReview": "independent-source-page-review",
+    "secondReviewerProcess": "source-page visual inspection compared against deterministic text/block extraction and recomputed PDF SHA-256; parser output was not used as acceptance authority",
+    "incomplete": false,
+    "conflicted": false,
+    "hashBasis": "source PDF bytes SHA-256 plus evidence canonical JSON SHA-256",
+    "notes": [
+      "Visual source-page review confirms the R-2A project header and cost-table columns."
+    ]
+  },
+  "excerpt": {
+    "text": "R-2A: PE 0601102A Defense Research Sciences; project AA4 Training and Human Science Research; FY2027 Base 10.662, OOC -, Total 10.662 ($ in Millions).",
+    "units": "COST ($ in Millions)",
+    "columnInterpretation": "The project row is explicitly under the FY2027 Base/OOC/Total headers."
+  },
+  "gold": {
+    "peIdentities": [
+      "PE=0601102A; title=Defense Research Sciences"
+    ],
+    "projectIdentities": [
+      "project=AA4; title=Training and Human Science Research"
+    ],
+    "lineIdentities": [
+      "role=R-2A; R-1 line=1"
+    ],
+    "money": [
+      {
+        "value": "10.662",
+        "unit": "millions",
+        "fy": 2027,
+        "evidencePage": 54
+      }
+    ],
+    "tableCells": [
+      "project=AA4|FY2027 Base=10.662|FY2027 OOC=-|FY2027 Total=10.662"
+    ]
+  },
+  "contentSha256": "a04c7f83be2ed5e84d0b0c6dba8ffd31d1b4dfb2e05e0c8aab706b536e61337f"
+}

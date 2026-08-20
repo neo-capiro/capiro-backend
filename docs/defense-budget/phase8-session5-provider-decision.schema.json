@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://capiro.ai/schemas/phase8-session5-provider-decision-v1.json",
+  "title": "Phase 8 Session 5 negative provider decision (NVIDIA not adopted)",
+  "description": "Evidence for Session 5 closeout path B (PROVIDER_NOT_ADOPTED). This artifact asserts the ABSENCE of provider output. It is not interchangeable with phase8-session5-live-benchmark-evidence.json and may never carry an accuracy claim.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "decision",
+    "status",
+    "operationallyBlocked",
+    "provider",
+    "modelPackageArn",
+    "modelName",
+    "modelVersion",
+    "instanceTypeTested",
+    "evaluatedRepositorySha",
+    "executionPathsEvaluated",
+    "batchResult",
+    "asyncResult",
+    "asyncAttempts",
+    "endpointReachedInService",
+    "successfulInvokeEndpointAsync",
+    "providerOutputsProduced",
+    "accuracyBenchmarkCompleted",
+    "productionParser",
+    "productionDecision",
+    "productionRoutingChanged",
+    "nvidiaRoutingEnabled",
+    "providerNeutralContractPresent",
+    "phase2StillMandatory",
+    "settledBenchmarkSpendUsd",
+    "activeReservedSpendUsd",
+    "zeroIdleProven",
+    "zeroIdleProof",
+    "generatedAt",
+    "contentSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "phase8_session5_provider_decision_v1" },
+    "decision": { "const": "NVIDIA_NOT_ADOPTED" },
+    "status": { "const": "OPERATIONALLY_BLOCKED" },
+    "operationallyBlocked": { "const": true },
+
+    "provider": { "const": "nemotron_parse" },
+    "modelPackageArn": {
+      "const": "arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587"
+    },
+    "modelName": { "const": "nemotron-parse" },
+    "modelVersion": { "type": "string", "minLength": 1 },
+    "marketplaceProductId": { "type": "string", "minLength": 1 },
+    "instanceTypeTested": { "const": "ml.g5.xlarge" },
+    "awsAccountId": { "type": "string", "pattern": "^[0-9]{12}$" },
+    "awsRegion": { "type": "string", "minLength": 1 },
+    "evaluatedRepositorySha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+
+    "corpusSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "parserOptionsHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "renderingConfigSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+
+    "executionPathsEvaluated": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "enum": ["sagemaker_batch_transform", "sagemaker_async_inference"]
+      }
+    },
+    "batchResult": { "const": "MODELDATASOURCE_UNSUPPORTED" },
+    "batchDetail": { "type": "string", "minLength": 1 },
+    "asyncResult": { "const": "ENDPOINT_NEVER_INSERVICE" },
+    "asyncAttempts": { "type": "integer", "minimum": 1 },
+    "asyncDetail": { "type": "string", "minLength": 1 },
+    "asyncObservations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "strongestSupportedExplanation": { "type": "string", "minLength": 1 },
+    "internalSageMakerFailureReasonRetained": { "const": false },
+
+    "endpointReachedInService": { "const": false },
+    "successfulInvokeEndpointAsync": { "const": 0 },
+    "providerOutputsProduced": { "const": 0 },
+    "accuracyBenchmarkCompleted": { "const": false },
+    "liveBenchmarkEvidenceExists": { "const": false },
+    "pageClassRoutingDecisionsFromLiveOutput": { "const": 0 },
+
+    "productionParser": { "const": "DETERMINISTIC_PRIMARY" },
+    "productionDecision": { "const": "DETERMINISTIC_PRIMARY" },
+    "productionRoutingChanged": { "const": false },
+    "nvidiaRoutingEnabled": { "const": false },
+    "deterministicParsingAvailable": { "const": true },
+    "providerNeutralContractPresent": { "const": true },
+    "phase2StillMandatory": { "const": true },
+
+    "settledBenchmarkSpendUsd": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 150
+    },
+    "activeReservedSpendUsd": { "const": 0 },
+    "spendCurrency": { "const": "USD" },
+
+    "zeroIdleProven": { "const": true },
+    "zeroIdleProof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activeEndpoints",
+        "activeEndpointConfigs",
+        "activeTransformJobs",
+        "activeScalableTargets",
+        "activeGpuCapacity",
+        "ledgerActiveJobs",
+        "activeReservations",
+        "checkedAt"
+      ],
+      "properties": {
+        "activeEndpoints": { "const": 0 },
+        "activeEndpointConfigs": { "const": 0 },
+        "activeTransformJobs": { "const": 0 },
+        "activeScalableTargets": { "const": 0 },
+        "activeGpuCapacity": { "const": 0 },
+        "ledgerActiveJobs": { "const": 0 },
+        "activeReservations": { "const": 0 },
+        "ledgerSettledSpendUsd": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 150
+        },
+        "cloudFormationStackStatus": { "type": "string", "minLength": 1 },
+        "cloudFormationDriftStatus": { "type": "string", "minLength": 1 },
+        "checkedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "acceptanceAmendment": { "type": "string", "minLength": 1 },
+    "futureNvidiaAdoptionRequires": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "contentSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

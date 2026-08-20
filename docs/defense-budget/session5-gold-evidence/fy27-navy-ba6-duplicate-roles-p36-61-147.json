@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "phase8_session5_gold_evidence_v1",
+  "id": "fy27-navy-ba6-duplicate-roles-p36-61-147",
+  "stratum": "navy_ba6_duplicate_flattening",
+  "pageClass": "complex_table",
+  "source": {
+    "sourceDocumentId": "fy2027-r1",
+    "sourceUrl": "file:///C:/Users/neoma/Downloads/pe-fy2027-corpus/FY2027_r1.pdf",
+    "sourcePdfSha256": "1aa8846edb69d4c3a54e03b383b0cabb77f93433162b8139ab8cbb55bcc7882a",
+    "fiscalYear": 2027,
+    "family": "rdte",
+    "exhibit": "R-1",
+    "authority": "dod-comptroller",
+    "component": "NAVY",
+    "physicalPage": 36,
+    "printedPage": "31",
+    "title": "Navy R-1 PE/funding row 0605853N",
+    "sourceLocator": "C:/Users/neoma/Downloads/pe-fy2027-corpus/FY2027_r1.pdf; companion role pages in C:/Users/neoma/Downloads/pe-fy2027-corpus/NAVY_RDTE_BA6.pdf",
+    "companionSources": [
+      {
+        "sourceDocumentId": "fy2027-r2-navy-ba6",
+        "sourcePdfSha256": "3ccc4c32bd21af187a2399dc991be4e6a55637736f7e6c66779485d5f83bd3f6",
+        "physicalPage": 61,
+        "printedPage": "Volume 4 - lix",
+        "role": "executive_summary",
+        "locator": "NAVY_RDTE_BA6.pdf"
+      },
+      {
+        "sourceDocumentId": "fy2027-r2-navy-ba6",
+        "sourcePdfSha256": "3ccc4c32bd21af187a2399dc991be4e6a55637736f7e6c66779485d5f83bd3f6",
+        "physicalPage": 147,
+        "printedPage": "Volume 4 - 83 / R-1 Page 1 of 42",
+        "role": "r2_summary",
+        "locator": "NAVY_RDTE_BA6.pdf"
+      }
+    ]
+  },
+  "review": {
+    "reviewStatus": "accepted",
+    "reviewMethod": "deterministic_pdf_bytes_plus_visual_source_page_review",
+    "reviewer": "openai/gpt-5.6-luna-pro",
+    "reviewedAt": "2026-08-19T00:00:00Z",
+    "independentSecondReview": "independent-source-page-review",
+    "secondReviewerProcess": "source-page visual inspection compared against deterministic text/block extraction and recomputed PDF SHA-256; parser output was not used as acceptance authority",
+    "incomplete": false,
+    "conflicted": false,
+    "hashBasis": "source PDF bytes SHA-256 plus evidence canonical JSON SHA-256",
+    "notes": [
+      "Role-separated source review compared R-1 physical page 36, executive-summary physical page 61, and R-2 physical page 147 from the same immutable Navy BA6 PDF.",
+      "R-1 request is retained as R-1; R-2 total is retained as R-2 in millions; executive-summary reconciliation rows are retained as executive context. No canonical collapse or highest-value selection was performed."
+    ]
+  },
+  "excerpt": {
+    "text": "R-1 p36: line 191 PE 0605853N Management, Technical & International Support, FY2027 request/total 124,898 ($K). Executive summary p61/p62: BLI 0605853N appears twice with distinct FY2026 reconciliation-bin roles INDOPACOM Capabilities 29,150 and Low-Cost Weapons 39,142, with FY2027 dashes. R-2 p147: same PE total FY2027 124.898 ($M).",
+    "units": "R-1 $K; R-2 $M; executive summary $K",
+    "columnInterpretation": "Roles remain separate; semantically equivalent R-1/R-2 values are not flattened, and executive FY2026 contextual rows are not promoted to FY2027 canonical money."
+  },
+  "gold": {
+    "peIdentities": [
+      "role=R-1; PE=0605853N; title=Management, Technical & International Support",
+      "role=R-2; PE=0605853N; title=Management, Technical & Intl Supt",
+      "role=executive_summary; BLI=0605853N"
+    ],
+    "projectIdentities": [],
+    "lineIdentities": [
+      "role=R-1; line=191; field=FY2027 request; value=124,898; unit=dollars in thousands",
+      "role=R-2; total program element; FY2027 Base=124.898; FY2027 OOC=-; FY2027 Total=124.898; unit=millions",
+      "role=executive_summary; BLI=0605853N; reconciliation bin=INDOPACOM Capabilities; FY2026=29,150; FY2027=-",
+      "role=executive_summary; BLI=0605853N; reconciliation bin=Low-Cost Weapons; FY2026=39,142; FY2027=-"
+    ],
+    "money": [
+      {
+        "value": "124,898",
+        "unit": "dollars in thousands",
+        "fy": 2027,
+        "evidencePage": 36
+      },
+      {
+        "value": "124.898",
+        "unit": "millions",
+        "fy": 2027,
+        "evidencePage": 147
+      }
+    ],
+    "tableCells": [
+      "role=R-1|line=191|PE=0605853N|FY2027 total request=124,898",
+      "role=R-2|PE=0605853N|FY2027 total=124.898",
+      "role=executive_summary|BLI=0605853N|INDOPACOM Capabilities|FY2026=29,150|FY2027=-",
+      "role=executive_summary|BLI=0605853N|Low-Cost Weapons|FY2026=39,142|FY2027=-"
+    ]
+  },
+  "contentSha256": "b91708eac7588e62e14a0ca933112d8081b77273f777dc10b2b0f0565160285b"
+}
