@@ -62,6 +62,14 @@ describe('isGenerationUrl', () => {
       '/api/workspace/assistant',
       // "Let Meri draft an edit": single AI rewrite, can exceed 30s.
       '/api/workspace/documents/doc123/comments/c456/suggest',
+      // Outreach V3 draft generation. These are NOT matched by /generate/i —
+      // "generation" is generat+ion — so they silently ran on the 30s default.
+      // Observed live: "Generate samples" reported "timeout of 30000ms
+      // exceeded" while the server had already persisted the drafts.
+      '/api/engagement/outreach-v3/sessions/s1/generation/samples',
+      '/api/engagement/outreach-v3/sessions/s1/generation/full',
+      // "Refine with Meri": one governed gateway call, measured at 61s live.
+      '/api/engagement/outreach-v3/sessions/s1/drafts/a1/refine',
     ];
     for (const url of generationUrls) {
       expect(isGenerationUrl(url), url).toBe(true);

@@ -11,6 +11,49 @@ interface MeriContextSheetProps {
 }
 
 /**
+ * A semicolon-joined list of bare internal codes (e.g.
+ * "coverage_manifest_incomplete; source_unavailable:clients") turned into
+ * plain words, or null if `text` doesn't actually look like one — every
+ * semicolon-separated part must have no whitespace before its optional
+ * ":qualifier", which real prose (spaces throughout) never satisfies.
+ */
+function codeListItems(text: string): string[] | null {
+  const parts = text
+    .split(';')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const looksLikeCodeList =
+    parts.length > 0 && parts.every((part) => !/\s/.test(part.split(':')[0] ?? ''));
+  if (!looksLikeCodeList) return null;
+  return parts.map((part) => {
+    const [code, qualifier] = part.split(':');
+    const words = (code ?? '').replace(/[_-]/g, ' ').trim();
+    const label = words.charAt(0).toUpperCase() + words.slice(1);
+    return qualifier ? `${label} (${qualifier.replace(/[_-]/g, ' ').trim()})` : label;
+  });
+}
+
+/**
+ * The server's degradedReason is sometimes a plain sentence (a real string a
+ * person wrote), sometimes a bare code list, and sometimes a hybrid — a
+ * human-written label, then ": ", then a code list (e.g. "Missing required
+ * layers: firm-identity; coverage_manifest_incomplete; source_unavailable:
+ * clients", confirmed live) — shipped straight to users unreadable. The
+ * label's colon is followed by a space; each code's own qualifier colon
+ * (":clients") is not, which is what tells them apart.
+ */
+export function readableDegradedReasons(raw: string): string[] {
+  const prefixMatch = raw.match(/^([^:;]+):\s+([\s\S]+)$/);
+  const label = prefixMatch?.[1];
+  const rest = prefixMatch?.[2];
+  if (label !== undefined && rest !== undefined) {
+    const items = codeListItems(rest);
+    if (items) return [`${label.trim()}:`, ...items];
+  }
+  return codeListItems(raw) ?? [raw];
+}
+
+/**
  * Read-only context inspector for a durable conversation packet. Context is
  * compiled server-side; this sheet never pretends a browser toggle can change
  * what the next model turn receives.
@@ -60,8 +103,14 @@ export function MeriContextSheet({
         {packet && !loading && !error ? (
           <>
             {packet.degraded ? (
-              <div className="vnext-meri__attachment-notice" role="alert">
-                {packet.degradedReason ?? 'The context packet is degraded.'}
+              <div className="vnext-meri__context-sheet-degraded" role="alert">
+                {readableDegradedReasons(packet.degradedReason ?? 'The context packet is degraded.').map(
+                  (reason) => (
+                    <div key={reason} className="vnext-meri__context-sheet-degraded-item">
+                      {reason}
+                    </div>
+                  ),
+                )}
               </div>
             ) : null}
             <div className="vnext-meri__context-sheet-label">INCLUDED · {packet.items.length}</div>

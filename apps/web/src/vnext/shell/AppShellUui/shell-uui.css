@@ -82,26 +82,18 @@
   background: var(--uui-gray-50); box-shadow: inset 0 0 0 1px var(--uui-gray-200);
   font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-gray-700); white-space: nowrap;
 }
-/*
- * Centered on the full bar, not on the leftover space between brand and
- * actions. `flex: 1; justify-content: center` centered search only within
- * whatever room was left after brand/actions — fine while both sides were
- * similar widths, but actions has grown (Meri + bell + profile chip) well
- * past the brand wordmark, so that midpoint drifted left of true center.
- * Positioning off the bar itself keeps it centered regardless of how much
- * gets added to either side; `min(...)` keeps it from ever growing wide
- * enough to overlap brand/actions on a narrow viewport.
- */
+/* Left-aligned after the brand block. The top navigation should read as one
+ * left-to-right navigation row; do not center the search control in the bar. */
 .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search {
-  position: absolute;
-  left: 50%;
-  top: 0;
+  position: static;
   height: 100%;
-  transform: translateX(-50%);
+  transform: none;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  flex: 0 1 min(480px, 40vw);
   width: min(480px, 40vw);
+  margin-left: 8px;
 }
 .capiro-vnext-root .capiro-vnext-uui .uui-topbar__actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 

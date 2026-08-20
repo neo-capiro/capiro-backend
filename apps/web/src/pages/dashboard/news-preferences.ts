@@ -27,6 +27,9 @@ export interface NewsPreferences {
   policyTopics: NewsPolicyTopic[];
   signalKinds: NewsSignalKind[];
   customTopics: string[];
+  articleTopics: string[];
+  sources: string[];
+  agencies: string[];
   lookback: NewsLookback;
 }
 
@@ -53,6 +56,9 @@ export const DEFAULT_NEWS_PREFERENCES: NewsPreferences = {
   policyTopics: TOPIC_OPTIONS.map((option) => option.value),
   signalKinds: ['capability', 'issue', 'program', 'alias'],
   customTopics: [],
+  articleTopics: [],
+  sources: [],
+  agencies: [],
   lookback: '48h',
 };
 
@@ -90,6 +96,9 @@ export function useNewsPreferences(
               .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
               .slice(0, 20)
           : [],
+        articleTopics: stringArray(parsed.articleTopics, 30),
+        sources: stringArray(parsed.sources, 30),
+        agencies: stringArray(parsed.agencies, 30),
         lookback:
           parsed.lookback === '24h' || parsed.lookback === '7d' || parsed.lookback === '48h'
             ? parsed.lookback
@@ -111,6 +120,12 @@ export function useNewsPreferences(
   };
 
   return [preferences, persist];
+}
+
+function stringArray(value: unknown, max: number): string[] {
+  return Array.isArray(value)
+    ? [...new Set(value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0).map((item) => item.trim()).slice(0, max))]
+    : [];
 }
 
 export function validSubset<T extends string>(value: unknown, allowed: T[]): T[] {

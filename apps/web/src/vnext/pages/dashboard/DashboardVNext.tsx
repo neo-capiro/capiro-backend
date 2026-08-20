@@ -330,10 +330,10 @@ function Wire({ model, filter, onFilter, items, windowItems, onManage, onRefresh
       <div className="dashv2-wire__filters"><div className="dashv2-segmented">{(['all','x','news'] as const).map((value)=><button key={value} type="button" data-selected={filter===value||undefined} onClick={()=>onFilter(value)}>{value==='all'?'All':value==='x'?'X':'News'}</button>)}</div><button type="button" className="dashv2-link" onClick={onManage}>Manage accounts</button></div>
       <div className="dashv2-wire__list">
         {filter !== 'news' ? <SourceBanner source="x" status={model.xFeed.status.state} hasSubscriptions={model.xFeed.subscriptions.some((sub) => sub.enabled)} onCustomize={onManage} onRetry={onRefresh} /> : null}
-        {filter !== 'x' ? <SourceBanner source="news" status={model.news.status.state} hasSubscriptions={model.news.preferences.policyTopics.length > 0 || model.news.preferences.customTopics.length > 0} onCustomize={onManage} onRetry={model.retry} /> : null}
+        {filter !== 'x' ? <SourceBanner source="news" status={model.news.status.state} hasSubscriptions={model.news.preferences.articleTopics.length > 0 || model.news.preferences.sources.length > 0 || model.news.preferences.agencies.length > 0 || model.news.preferences.customTopics.length > 0} onCustomize={onManage} onRetry={model.retry} /> : null}
         {items.length === 0 ? <div className="dashv2-wire-empty"><strong>Nothing on this filter</strong><span>No items were returned in the current window.</span></div> : items.map((entry) => entry.type === 'x' ? <XWireRow key={entry.id} post={entry.item}/> : <NewsWireRow key={entry.id} item={entry.item} compact={model.density==='compact'}/>) }
       </div>
-      <footer className="dashv2-wire__foot"><span>{model.xFeed.subscriptions.length} accounts · {model.news.preferences.policyTopics.length} news topics · read-only{wireStaleDisclosure(model)}</span><span className="dashv2-triage__spacer"/><button type="button" className="dashv2-link" onClick={onRefresh}>Refresh</button></footer>
+      <footer className="dashv2-wire__foot"><span>{model.xFeed.subscriptions.length} accounts · {model.news.preferences.articleTopics.length} article topics · read-only{wireStaleDisclosure(model)}</span><span className="dashv2-triage__spacer"/><button type="button" className="dashv2-link" onClick={onRefresh}>Refresh</button></footer>
     </aside>
   );
 }

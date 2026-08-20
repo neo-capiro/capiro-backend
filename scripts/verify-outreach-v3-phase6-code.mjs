@@ -154,6 +154,14 @@ run('Preview route manifest drift', 'node', [
   'scripts/engagement-phase3-preview-route-patterns.mjs',
   '--check',
 ]);
+run('vNext outreach-decision css generator controls', 'node', [
+  '--test',
+  'scripts/port-outreach-decision-vnext-css.spec.mjs',
+]);
+run('vNext outreach-decision css drift', 'node', [
+  'scripts/port-outreach-decision-vnext-css.mjs',
+  '--check',
+]);
 run('Web typecheck', 'pnpm', ['--filter', '@capiro/web', 'typecheck']);
 run('Outreach V3 focused tests', 'pnpm', [
   '--filter',

@@ -32,6 +32,39 @@ describe('NewsDashboardController filters', () => {
     });
   });
 
+
+
+  it('uses the shared Data Explorer corpus when requested', () => {
+    const news = { getSharedNewsDashboard: jest.fn().mockReturnValue({ available: true }) };
+    const controller = new NewsDashboardController(news as unknown as NewsCatcherDashboardService);
+
+    controller.dashboard(ctx, undefined, undefined, undefined, undefined, undefined, 'explorer', 'counter UAS', 'Politico', 'Defense Department');
+
+    expect(news.getSharedNewsDashboard).toHaveBeenCalledWith({
+      query: 'counter UAS',
+      sources: ['Politico'],
+      topics: undefined,
+      agencies: ['Defense Department'],
+      lookback: undefined,
+    });
+  });
+
+
+  it('accepts repeated shared-corpus query parameters', () => {
+    const news = { getSharedNewsDashboard: jest.fn().mockReturnValue({ available: true }) };
+    const controller = new NewsDashboardController(news as unknown as NewsCatcherDashboardService);
+
+    controller.dashboard(ctx, undefined, undefined, undefined, undefined, undefined, 'explorer', undefined, ['politico', 'axios'], ['DoD', 'Army']);
+
+    expect(news.getSharedNewsDashboard).toHaveBeenCalledWith({
+      query: undefined,
+      sources: ['politico', 'axios'],
+      topics: undefined,
+      agencies: ['DoD', 'Army'],
+      lookback: undefined,
+    });
+  });
+
   it('fails closed when a client filter is not a UUID', () => {
     const news = { getDashboard: jest.fn() };
     const controller = new NewsDashboardController(

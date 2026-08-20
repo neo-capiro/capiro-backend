@@ -10,6 +10,10 @@ import { CapiroSidebar } from './Sidebar/index.js';
 import { isClientContextEnabledForPath } from '../adapters/legacy/useShellClientContext.js';
 import { VNEXT_ROUTE_MANIFEST } from '../adapters/routes/routeManifest.js';
 import { topbarSectionLabel } from './AppShellUui/index.js';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const shellCss = readFileSync(resolve(process.cwd(), 'src/vnext/shell/AppShellUui/shell-uui.css'), 'utf8');
 
 function OverlayProbe({ id, label }: { id: 'search' | 'profile'; label: string }) {
   const { isOpen, containerRef, toggle } = useShellOverlay(id);
@@ -172,5 +176,14 @@ describe('topbar section identity', () => {
   it('does not match a sibling route that merely shares a path prefix', () => {
     // '/engagementx' must not be treated as inside '/engagement'.
     expect(topbarSectionLabel('/engagementx', routes)).toBe('Dashboard');
+  });
+});
+
+describe('topbar alignment', () => {
+  it('keeps the top navigation left-aligned after the brand block', () => {
+    expect(shellCss).toContain('justify-content: flex-start;');
+    expect(shellCss).toContain('position: static;');
+    expect(shellCss).not.toContain('left: 50%;');
+    expect(shellCss).not.toContain('transform: translateX(-50%);');
   });
 });
