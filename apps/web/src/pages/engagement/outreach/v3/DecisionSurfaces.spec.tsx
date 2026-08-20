@@ -66,7 +66,28 @@ function session(overrides: Partial<OutreachV3SessionEnvelope['spec']['delivery'
   };
 }
 
-function strategyResult(): CapabilityResult<OutreachV3StrategyData> {
+/** The goal stage with nothing captured yet — the state the live walkthrough hit. */
+function emptyGoalSession(): OutreachV3SessionEnvelope {
+  const base = session();
+  return {
+    ...base,
+    spec: {
+      ...base.spec,
+      goal: {
+        goal: null,
+        objective: null,
+        topic: null,
+        desiredOutcome: null,
+        ask: { mode: 'undecided', text: null },
+        whyNow: null,
+      },
+    },
+  };
+}
+
+function strategyResult(
+  overrides: Partial<OutreachV3StrategyData & Record<string, unknown>> = {},
+): CapabilityResult<OutreachV3StrategyData> {
   return {
     capability: 'recommend_outreach_strategy',
     schemaVersion: 1,
@@ -81,6 +102,7 @@ function strategyResult(): CapabilityResult<OutreachV3StrategyData> {
       warnings: [],
       recommendedPattern: 'uniform_separate',
       recommendedPersonalization: 'light',
+      ...overrides,
     } as OutreachV3StrategyData & Record<string, unknown>,
     provenance: [],
   } as CapabilityResult<OutreachV3StrategyData>;
@@ -183,5 +205,70 @@ describe('DecisionSurfaces — delivery stage (item 8)', () => {
       { type: 'SET_DELIVERY_PATTERN', schemaVersion: 1, payload: { value: 'uniform_separate' } },
       { type: 'SET_PERSONALIZATION', schemaVersion: 1, payload: { value: 'light' } },
     ]);
+  });
+
+  /**
+   * The row used to read a hardcoded "Not enabled in Phase 6", which is false:
+   * drafting is enabled and every gate reads the generation plan's `eligible`.
+   * The only part of that plan this stage owns is the delivery pair, so the row
+   * now tracks the live selection.
+   */
+  it('derives Draft authority from the live delivery selection', () => {
+    render(<DecisionSurfaces {...props()} />);
+    expect(screen.queryByText('Not enabled in Phase 6')).not.toBeInTheDocument();
+    expect(screen.getByText('Blocked until delivery is set')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Shared thread/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'High' }));
+    // The one pairing buildOutreachV3GenerationPlan blocks outright.
+    expect(screen.getByText('Blocked by shared thread + high')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Light' }));
+    expect(screen.getByText('Not blocked by this selection')).toBeInTheDocument();
+  });
+
+  it('describes the pattern its heading names instead of always claiming independent review', () => {
+    render(
+      <DecisionSurfaces
+        {...props({ strategy: strategyResult({ recommendedPattern: 'shared_thread' }) })}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Shared thread' })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Every recipient sees the others and can reply to all of them/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/keeps target scope independently reviewable/),
+    ).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * Placeholder exemplars used to read as real, plausible campaign copy, so a form
+ * of empty required fields looked filled until submit refused it.
+ */
+describe('DecisionSurfaces — goal stage example text and required-but-empty state', () => {
+  it('marks exemplars as examples and required-but-empty fields as unfilled', () => {
+    render(<DecisionSurfaces {...props({ stage: 'goal', session: emptyGoalSession() })} />);
+
+    const goal = screen.getByLabelText(/^Campaign goal/i) as HTMLInputElement;
+    expect(goal.value).toBe('');
+    expect(goal.placeholder).toBe('e.g. Protect FY27 Ground Robotics funding');
+    expect(goal.getAttribute('aria-required')).toBe('true');
+    expect(goal.closest('.ov3-field')?.className).toContain('is-unfilled');
+
+    // Objective is required by goalCommands, so the surface must say so too.
+    expect(screen.getByLabelText(/^Objective/i).closest('.ov3-field')?.className).toContain(
+      'is-unfilled',
+    );
+    // Optional fields keep their exemplar but claim no required state either way.
+    const whyNow = screen.getByLabelText(/^Why now/i);
+    expect(whyNow.closest('.ov3-field')?.className).toBe('ov3-field');
+    expect(whyNow.getAttribute('aria-required')).toBeNull();
+
+    fireEvent.change(goal, { target: { value: 'Protect the FY27 mark' } });
+    expect(goal.closest('.ov3-field')?.className).toContain('is-filled');
+    expect(goal.closest('.ov3-field')?.className).not.toContain('is-unfilled');
   });
 });

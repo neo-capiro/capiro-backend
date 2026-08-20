@@ -52,6 +52,9 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
   },
   OutreachV3DraftsController: {
     revise: { action: 'outreach_v3_generate' },
+    // Unlike revise, refine is ALWAYS a model call — there is no manual/revert
+    // body shape for it, so it has no conditionalRouteMetadata exemption.
+    refine: { action: 'outreach_v3_generate' },
   },
   OutreachV3SendController: {
     testSend: { action: 'outreach_v3_test_send', testMode: true },

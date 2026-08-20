@@ -24,10 +24,15 @@ import { VNextCurrentDecisionSurface } from './VNextCurrentDecisionSurface.js';
 import { GoalDecisionSurface } from '../../../pages/engagement/outreach/v3/GoalDecisionSurface.js';
 import {
   outreachV3StyleSamples,
+  type OutreachV3CampaignSpec,
+  type OutreachV3Readiness,
   type OutreachV3Stage,
 } from '../../../pages/engagement/outreach/v3/contracts.js';
 import { StyleSamplesSurface } from '../../../pages/engagement/outreach/v3/StyleSamplesSurface.js';
-import { useOutreachV3Session } from '../../../pages/engagement/outreach/v3/useOutreachV3Session.js';
+import {
+  outreachV3PlanningBlockerCodes,
+  useOutreachV3Session,
+} from '../../../pages/engagement/outreach/v3/useOutreachV3Session.js';
 import { useApi } from '../../../lib/use-api.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
 import {
@@ -47,6 +52,7 @@ import {
   listOutreachV3Drafts,
   listOutreachReplyCandidates,
   proposeOutreachReplyLearning,
+  refineOutreachV3Draft,
   refreshOutreachV3SendIntent,
   retryOutreachV3GenerationItem,
   reviseOutreachV3Draft,
@@ -443,6 +449,209 @@ function SectionStatus({ state }: { state: SectionToneState }) {
   );
 }
 
+function acceptedContextCount(spec: OutreachV3CampaignSpec): number {
+  return (
+    spec.context.requiredPolicyRefs.length +
+    spec.context.writingGuidanceRefs.length +
+    spec.context.campaignFactRefs.length +
+    spec.context.targetSpecificRefs.length +
+    spec.context.groupSafeRefs.length
+  );
+}
+
+/**
+ * Reads a canonical readiness boolean, falling back to a spec-derived value.
+ *
+ * Every field on OutreachV3Readiness is optional because an older cached
+ * envelope can predate the readiness contract. Where the server did answer we
+ * always trust it — it owns this decision — and only compute locally when the
+ * field is genuinely absent.
+ */
+function readinessFlag(
+  readiness: OutreachV3Readiness,
+  key: keyof OutreachV3Readiness,
+  fallback: boolean,
+): boolean {
+  const value = readiness[key];
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+/**
+ * Whether a step's OWN decisions are actually satisfied.
+ *
+ * Deliberately independent of both position and which step is open. The
+ * previous implementation derived "Complete" from `index < reachedIndex`, and
+ * because `reachedIndex` is floored at 5 (Drafts is always reachable), every
+ * planning step rendered "Complete" from the moment the builder mounted —
+ * including the steps still holding the blocker that stalled the campaign.
+ *
+ * Observed live: Targets and Context both displayed COMPLETE while
+ * TARGET_CRITERIA_MISSING and CONTEXT_NOT_REVIEWED were the only two blockers
+ * preventing generation. The campaign silently could not advance and the UI
+ * pointed at nothing. Status now answers "is this step done?" instead of
+ * "have we walked past it?".
+ *
+ * Being open no longer flips the label either — status used to depend on
+ * `candidate.key === step`, so merely expanding a section changed COMPLETE to
+ * IN PROGRESS.
+ */
+function stepSatisfied(
+  step: EngagementOutreachStep,
+  session: NonNullable<ReturnType<typeof useOutreachV3Session>['session']>,
+  drafts: OutreachV3DraftArtifact[],
+  hasSendIntent: boolean,
+): boolean {
+  const { spec, readiness } = session;
+  const flag = (key: keyof OutreachV3Readiness, fallback: boolean) =>
+    readinessFlag(readiness, key, fallback);
+
+  switch (step) {
+    case 'goal':
+      return (
+        flag('goalReady', Boolean(spec.goal.goal && spec.goal.objective)) &&
+        flag('sponsorResolved', spec.sponsor.kind !== 'undecided')
+      );
+    case 'targets':
+      return (
+        flag('targetCriteriaReady', spec.targeting.criteria !== null) &&
+        flag('targetsReady', spec.targeting.selectedTargetRefs.length > 0)
+      );
+    case 'delivery':
+      return flag(
+        'deliveryReady',
+        spec.delivery.pattern !== 'undecided' && spec.delivery.personalization !== 'undecided',
+      );
+    case 'context':
+      return (
+        flag('contextReady', acceptedContextCount(spec) > 0) &&
+        flag('contextEvidenceReady', true)
+      );
+    // Optional: complete only once it actually holds something, so it never
+    // claims the user supplied examples they did not.
+    case 'samples':
+      return outreachV3StyleSamples(spec).length > 0;
+    // Strategy is confirmed inside this step, so both halves must hold: the
+    // angle/tone/length AND at least one generated draft.
+    case 'drafts':
+      return (
+        flag(
+          'strategyReady',
+          Boolean(
+            spec.strategy.campaignAngle &&
+              spec.strategy.tone &&
+              spec.strategy.length !== 'undecided',
+          ),
+        ) && drafts.length > 0
+      );
+    case 'send':
+      return hasSendIntent;
+    default:
+      return false;
+  }
+}
+
+/**
+ * Human-readable copy for every canonical readiness blocker, plus which step
+ * resolves it. Without this the user sees a stalled campaign and no cause: the
+ * codes are never surfaced anywhere in the vNext builder today.
+ */
+const BLOCKER_GUIDANCE: Record<
+  string,
+  { step: EngagementOutreachStep; label: string }
+> = {
+  GOAL_MISSING: { step: 'goal', label: 'Set the campaign goal and objective.' },
+  SPONSOR_UNDECIDED: { step: 'goal', label: 'Choose who this campaign is on behalf of.' },
+  SPONSOR_SCOPE_INVALID: {
+    step: 'goal',
+    label: 'The sponsor scope does not match the selected clients.',
+  },
+  TARGET_CRITERIA_MISSING: {
+    step: 'targets',
+    label: 'Save the audience criteria for this campaign.',
+  },
+  TARGETS_MISSING: { step: 'targets', label: 'Add at least one target.' },
+  TARGETS_NOT_IMPLEMENTED_YET: {
+    step: 'targets',
+    label: 'Target selection is unavailable in this runtime.',
+  },
+  DELIVERY_UNDECIDED: {
+    step: 'delivery',
+    label: 'Choose a delivery pattern and a personalization level.',
+  },
+  CONTEXT_NOT_REVIEWED: {
+    step: 'context',
+    label: 'Accept at least one governed context source.',
+  },
+  CONTEXT_HAS_UNVERIFIED_EVIDENCE: {
+    step: 'context',
+    label: 'Some accepted evidence is still unverified.',
+  },
+  CONTEXT_NOT_IMPLEMENTED_YET: {
+    step: 'context',
+    label: 'Context review is unavailable in this runtime.',
+  },
+  STRATEGY_INCOMPLETE: {
+    step: 'drafts',
+    label: 'Confirm the campaign angle, tone and length.',
+  },
+  PENDING_PROPOSALS: {
+    step: 'goal',
+    label: 'Apply or reject the pending Meri proposals first.',
+  },
+  SHARED_THREAD_HIGH_PERSONALIZATION: {
+    step: 'delivery',
+    label: 'A shared thread cannot use high personalization.',
+  },
+};
+
+/**
+ * The blocking-work banner.
+ *
+ * Uses PLANNING blocker codes, which exclude the three availability blockers
+ * (GENERATION/DRAFTS/PREFLIGHT_NOT_AVAILABLE) that every real gate already
+ * filters out — surfacing those would tell the user to fix something that is
+ * not actually blocking them and that they cannot act on.
+ */
+function BlockingWorkNotice({
+  session,
+  onJump,
+}: {
+  session: NonNullable<ReturnType<typeof useOutreachV3Session>['session']>;
+  onJump: (step: EngagementOutreachStep) => void;
+}) {
+  const codes = outreachV3PlanningBlockerCodes(session.readiness);
+  if (!codes.length) return null;
+  return (
+    <div className="uui-outreach-blocking" role="status">
+      <CircleAlert size={17} />
+      <div>
+        <strong>
+          {codes.length === 1
+            ? 'One step still needs attention before drafts can be generated'
+            : `${codes.length} steps still need attention before drafts can be generated`}
+        </strong>
+        <ul>
+          {codes.map((code) => {
+            const guidance = BLOCKER_GUIDANCE[code];
+            return (
+              <li key={code}>
+                {/* Falls back to the shared humanizer so an unmapped code
+                    still reads as words rather than SCREAMING_SNAKE_CASE. */}
+                <span>{guidance?.label ?? humanizeBlockerCode(code)}</span>
+                {guidance ? (
+                  <button type="button" onClick={() => onJump(guidance.step)}>
+                    Go to {USER_STEPS.find((s) => s.key === guidance.step)?.label ?? guidance.step}
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 /**
  * The builder's own heading.
  *
@@ -589,6 +798,152 @@ function DraftEditModal({
   );
 }
 
+/**
+ * One recipient's draft, in full.
+ *
+ * Extracted so the single-draft view and the "review all" view render the
+ * SAME markup — the point of review-all is to read exactly what will be sent,
+ * so a second, summarised code path would defeat it and could drift.
+ */
+function DraftPreviewCard({
+  draft,
+  onEdit,
+  onApproveDraft,
+  approvalBusy,
+  onRefine,
+  refineBusy,
+  refineError,
+}: {
+  draft: OutreachV3DraftArtifact;
+  onEdit: (draft: OutreachV3DraftArtifact) => void;
+  onApproveDraft: (draft: OutreachV3DraftArtifact) => void;
+  approvalBusy: boolean;
+  onRefine: (draft: OutreachV3DraftArtifact, instruction: string) => void;
+  refineBusy: boolean;
+  refineError: unknown;
+}) {
+  const [instruction, setInstruction] = useState('');
+  const current = draft.current;
+  if (!current) return null;
+
+  const submitRefine = () => {
+    const trimmed = instruction.trim();
+    if (!trimmed || refineBusy) return;
+    onRefine(draft, trimmed);
+    setInstruction('');
+  };
+
+  return (
+    <article className="uui-draft-preview">
+      <header>
+        <div>
+          <strong>{current.recipientKey}</strong>
+          <span className="uui-state-pill" data-tone={statusTone(current.approvalStatus)}>
+            {current.approvalStatus}
+          </span>
+          <span className="uui-version-pill">V{current.version}</span>
+        </div>
+        <small>
+          Immutable ·{' '}
+          {new Intl.DateTimeFormat(undefined, {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+          }).format(new Date(current.createdAt))}
+        </small>
+      </header>
+      <dl>
+        <div>
+          <dt>To</dt>
+          <dd>{current.recipientKey}</dd>
+        </div>
+        <div>
+          <dt>Subject</dt>
+          <dd>{current.subject}</dd>
+        </div>
+      </dl>
+      <div className="uui-draft-body">
+        {current.body.split('\n').map((paragraph, index) => (
+          <p key={`${index}-${paragraph.slice(0, 20)}`}>{paragraph || <br />}</p>
+        ))}
+      </div>
+      <section className="uui-provenance">
+        <span className="uui-eyebrow">What Meri used</span>
+        <p>
+          {current.contextNote ||
+            'Governed campaign context and the exact recipient snapshot.'}
+        </p>
+      </section>
+      <section className="uui-draft-refine">
+        <span className="uui-eyebrow">Refine with Meri</span>
+        <p>
+          Describe the change in your own words. Meri rewrites this draft against the same
+          governed context and saves the result as a new immutable version — approval clears so
+          you re-read it before sending.
+        </p>
+        <div className="uui-draft-refine__row">
+          <input
+            value={instruction}
+            placeholder="e.g. warmer opening, tighten the ask, mention the district"
+            disabled={refineBusy}
+            onChange={(event) => setInstruction(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                submitRefine();
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="uui-button uui-button--primary"
+            disabled={refineBusy || !instruction.trim()}
+            onClick={submitRefine}
+          >
+            {refineBusy ? <Loader2 className="uui-spin" size={15} /> : <Sparkles size={15} />}{' '}
+            {refineBusy ? 'Refining…' : 'Refine'}
+          </button>
+        </div>
+        {refineError ? (
+          <p className="uui-field-error">{safeOutreachV3Error(refineError)}</p>
+        ) : null}
+      </section>
+      <footer>
+        <button type="button" className="uui-button" onClick={() => onEdit(draft)}>
+          Edit manually
+        </button>
+        <details>
+          <summary className="uui-button">
+            <FileClock size={15} /> History
+          </summary>
+          <div>
+            {draft.history.map((item) => (
+              <span key={item.id}>
+                V{item.version} · {item.auditStatus} · {item.approvalStatus}
+              </span>
+            ))}
+          </div>
+        </details>
+        <button
+          type="button"
+          className="uui-button uui-button--primary"
+          disabled={approvalBusy || current.approvalStatus === 'approved'}
+          onClick={() => onApproveDraft(draft)}
+        >
+          {current.approvalStatus === 'approved' ? (
+            <>
+              <Check size={15} /> Approved
+            </>
+          ) : (
+            'Approve exact version'
+          )}
+        </button>
+      </footer>
+    </article>
+  );
+}
+
 function DraftPanel({
   session,
   plan,
@@ -605,6 +960,10 @@ function DraftPanel({
   onEdit,
   onApproveDraft,
   approvalBusy,
+  onRefine,
+  refineBusyId,
+  refineErrorId,
+  refineError,
 }: {
   session: NonNullable<ReturnType<typeof useOutreachV3Session>['session']>;
   plan: OutreachV3GenerationPlan | null;
@@ -625,8 +984,18 @@ function DraftPanel({
   onEdit: (draft: OutreachV3DraftArtifact) => void;
   onApproveDraft: (draft: OutreachV3DraftArtifact) => void;
   approvalBusy: boolean;
+  onRefine: (draft: OutreachV3DraftArtifact, instruction: string) => void;
+  /** Artifact id currently being refined, so only that card shows progress. */
+  refineBusyId: string | null;
+  /** Artifact id whose refine failed, so the error lands on the right card. */
+  refineErrorId: string | null;
+  refineError: unknown;
 }) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // Off by default: the recipient rail is the faster way to move between a
+  // handful of drafts. Turned on, every draft is rendered in full so the whole
+  // set can be read end to end before anything is sent.
+  const [reviewAll, setReviewAll] = useState(false);
   const strategyHeadline = draftStrategyHeadline(session);
   const failedItems = job?.items?.filter((item) => item.status === 'failed') ?? [];
   const samples = plan
@@ -851,114 +1220,75 @@ function DraftPanel({
               {drafts.filter((artifact) => artifact.current?.approvalStatus !== 'approved').length}{' '}
               needs review
             </span>
+            {/* Read every draft in full without clicking through the rail. The
+                whole point of a review step is that nothing gets sent before
+                the entire set has actually been read. */}
+            <button
+              type="button"
+              className="uui-draft-review-toggle"
+              aria-pressed={reviewAll}
+              onClick={() => setReviewAll((current) => !current)}
+            >
+              {reviewAll ? 'One at a time' : `Review all ${drafts.length}`}
+            </button>
           </div>
-          <div className="uui-draft-layout">
-            <nav className="uui-draft-recipient-list" aria-label="Draft recipients">
-              {drafts.map((artifact) => (
-                <button
-                  type="button"
-                  key={artifact.id}
-                  data-selected={artifact.id === selected?.id || undefined}
-                  onClick={() => setSelectedKey(artifact.generationKey)}
-                >
-                  <span>
-                    <strong>{artifact.current?.recipientKey || artifact.generationKey}</strong>
-                    <small>Version {artifact.current?.version ?? artifact.currentVersion}</small>
-                  </span>
-                  <span
-                    className="uui-state-pill"
-                    data-tone={statusTone(
-                      artifact.current?.approvalStatus ??
-                        artifact.current?.auditStatus ??
-                        'pending',
-                    )}
-                  >
-                    {artifact.current?.approvalStatus === 'approved'
-                      ? 'Approved'
-                      : artifact.current?.auditStatus === 'held'
-                        ? 'Held'
-                        : 'Ready for review'}
-                  </span>
-                </button>
-              ))}
-            </nav>
-            {selected?.current ? (
-              <article className="uui-draft-preview">
-                <header>
-                  <div>
-                    <strong>{selected.current.recipientKey}</strong>
-                    <span
-                      className="uui-state-pill"
-                      data-tone={statusTone(selected.current.approvalStatus)}
-                    >
-                      {selected.current.approvalStatus}
-                    </span>
-                    <span className="uui-version-pill">V{selected.current.version}</span>
-                  </div>
-                  <small>
-                    Immutable ·{' '}
-                    {new Intl.DateTimeFormat(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    }).format(new Date(selected.current.createdAt))}
-                  </small>
-                </header>
-                <dl>
-                  <div>
-                    <dt>To</dt>
-                    <dd>{selected.current.recipientKey}</dd>
-                  </div>
-                  <div>
-                    <dt>Subject</dt>
-                    <dd>{selected.current.subject}</dd>
-                  </div>
-                </dl>
-                <div className="uui-draft-body">
-                  {selected.current.body.split('\n').map((paragraph, index) => (
-                    <p key={`${index}-${paragraph.slice(0, 20)}`}>{paragraph || <br />}</p>
-                  ))}
-                </div>
-                <section className="uui-provenance">
-                  <span className="uui-eyebrow">What Meri used</span>
-                  <p>
-                    {selected.current.contextNote ||
-                      'Governed campaign context and the exact recipient snapshot.'}
-                  </p>
-                </section>
-                <footer>
-                  <button type="button" className="uui-button" onClick={() => onEdit(selected)}>
-                    Revise
-                  </button>
-                  <details>
-                    <summary className="uui-button">
-                      <FileClock size={15} /> History
-                    </summary>
-                    <div>
-                      {selected.history.map((item) => (
-                        <span key={item.id}>
-                          V{item.version} · {item.auditStatus} · {item.approvalStatus}
-                        </span>
-                      ))}
-                    </div>
-                  </details>
+          <div className="uui-draft-layout" data-review-all={reviewAll || undefined}>
+            {reviewAll ? null : (
+              <nav className="uui-draft-recipient-list" aria-label="Draft recipients">
+                {drafts.map((artifact) => (
                   <button
                     type="button"
-                    className="uui-button uui-button--primary"
-                    disabled={approvalBusy || selected.current.approvalStatus === 'approved'}
-                    onClick={() => onApproveDraft(selected)}
+                    key={artifact.id}
+                    data-selected={artifact.id === selected?.id || undefined}
+                    onClick={() => setSelectedKey(artifact.generationKey)}
                   >
-                    {selected.current.approvalStatus === 'approved' ? (
-                      <>
-                        <Check size={15} /> Approved
-                      </>
-                    ) : (
-                      'Approve exact version'
-                    )}
+                    <span>
+                      <strong>{artifact.current?.recipientKey || artifact.generationKey}</strong>
+                      <small>Version {artifact.current?.version ?? artifact.currentVersion}</small>
+                    </span>
+                    <span
+                      className="uui-state-pill"
+                      data-tone={statusTone(
+                        artifact.current?.approvalStatus ??
+                          artifact.current?.auditStatus ??
+                          'pending',
+                      )}
+                    >
+                      {artifact.current?.approvalStatus === 'approved'
+                        ? 'Approved'
+                        : artifact.current?.auditStatus === 'held'
+                          ? 'Held'
+                          : 'Ready for review'}
+                    </span>
                   </button>
-                </footer>
-              </article>
+                ))}
+              </nav>
+            )}
+            {reviewAll ? (
+              <div className="uui-draft-review-all">
+                {drafts.map((artifact) => (
+                  <DraftPreviewCard
+                    key={artifact.id}
+                    draft={artifact}
+                    onEdit={onEdit}
+                    onApproveDraft={onApproveDraft}
+                    approvalBusy={approvalBusy}
+                    onRefine={onRefine}
+                    refineBusy={refineBusyId === artifact.id}
+                    refineError={refineErrorId === artifact.id ? refineError : null}
+                  />
+                ))}
+              </div>
+            ) : selected ? (
+              <DraftPreviewCard
+                draft={selected}
+                onEdit={onEdit}
+                onApproveDraft={onApproveDraft}
+                approvalBusy={approvalBusy}
+                onRefine={onRefine}
+                refineBusy={refineBusyId === selected.id}
+                refineError={refineErrorId === selected.id ? refineError : null}
+              />
             ) : null}
             <aside className="uui-draft-side-note">
               <ShieldCheck size={20} />
@@ -1879,6 +2209,35 @@ export function VNextOutreachWorkspace({
       await qc.invalidateQueries({ queryKey: ['outreach-v3', 'approach-approval', sessionId] });
     },
   });
+  /**
+   * "Refine with Meri" — Outreach V2 parity.
+   *
+   * Sends a natural-language instruction plus the draft's CURRENT text to the
+   * governed generation gateway in revision mode; the model's output lands as
+   * a new immutable version. Distinct from `revise` above, which is a manual
+   * subject/body edit where the user retypes the draft themselves.
+   *
+   * Refining necessarily clears approach approval and any computed preflight,
+   * because both are pinned to exact version IDs that no longer exist.
+   */
+  const refine = useMutation({
+    mutationFn: ({
+      draft,
+      instruction,
+    }: {
+      draft: OutreachV3DraftArtifact;
+      instruction: string;
+    }) =>
+      refineOutreachV3Draft(api, sessionId!, draft.id, {
+        baseVersionId: draft.current!.id,
+        instruction,
+      }),
+    onSuccess: async () => {
+      setPreflight(null);
+      await qc.invalidateQueries({ queryKey: ['outreach-v3', 'drafts', sessionId] });
+      await qc.invalidateQueries({ queryKey: ['outreach-v3', 'approach-approval', sessionId] });
+    },
+  });
   const approveDraft = useMutation({
     mutationFn: (versionId: string) => approveOutreachV3Draft(api, sessionId!, versionId),
     onSuccess: async () => {
@@ -2090,31 +2449,46 @@ export function VNextOutreachWorkspace({
             </button>
           ))}
         </nav>
+        <BlockingWorkNotice session={session} onJump={selectStep} />
         <div className="uui-outreach-sections">
           {USER_STEPS.map((candidate, index) => {
             const waiting = index > reachedIndex;
-            const inProgress = candidate.key === step && !waiting;
-            // An OPTIONAL step is only "Complete" once it actually holds something.
-            // Without this, Examples would read Complete the moment planning passed
-            // it — telling the user they had supplied examples when they had not.
-            const optionalSatisfied =
-              candidate.key === 'samples' ? outreachV3StyleSamples(session.spec).length > 0 : true;
-            const locked =
-              (index < planningIndex && optionalSatisfied) ||
-              (candidate.key === 'drafts' && currentDrafts.length > 0 && step !== 'drafts') ||
-              (candidate.key === 'send' && Boolean(activeIntent));
+            // Truthful status: "is this step actually done?", never "have we
+            // walked past it?" and never "is it open right now?". Both of the
+            // old signals lied — see stepSatisfied for the live evidence.
+            const satisfied = stepSatisfied(
+              candidate.key,
+              session,
+              currentDrafts,
+              Boolean(activeIntent),
+            );
             // `state` drives both the tone/color (data-state, unchanged) and,
-            // via SECTION_STATUS_LABEL, the corrected displayed word.
+            // via SECTION_STATUS_LABEL, the displayed word.
             const state: SectionToneState = waiting
               ? 'waiting'
-              : locked
+              : satisfied
                 ? 'locked'
-                : inProgress
-                  ? 'in-progress'
-                  : index < reachedIndex && optionalSatisfied
-                    ? 'locked'
-                    : 'in-progress';
+                : 'in-progress';
             const open = openSections.has(candidate.key) && !waiting;
+            // Strategy is already confirmed, yet the campaign still cannot
+            // generate because the remaining work is UPSTREAM. stageForStep
+            // falls back to 'strategy' here, which re-renders the already-filled
+            // strategy form — so pressing "Confirm strategy" applies its
+            // commands successfully and appears to do nothing. That exact
+            // dead-end was hit live (state version advanced 2 -> 9 while
+            // TARGET_CRITERIA_MISSING and CONTEXT_NOT_REVIEWED never cleared).
+            const draftsStalledUpstream =
+              candidate.key === 'drafts' &&
+              controller.stage !== 'ready_for_generation' &&
+              readinessFlag(
+                session.readiness,
+                'strategyReady',
+                Boolean(
+                  session.spec.strategy.campaignAngle &&
+                    session.spec.strategy.tone &&
+                    session.spec.strategy.length !== 'undecided',
+                ),
+              );
             return (
               <section
                 key={candidate.key}
@@ -2131,13 +2505,13 @@ export function VNextOutreachWorkspace({
                   <span className="uui-outreach-section__number">{candidate.number}</span>
                   <strong>{candidate.label}</strong>
                   <small>
-                    {/* The optional step always shows its summary: "Optional — no
-                        examples added" is the single most useful thing a collapsed
-                        Examples header can say, and it never reaches state
-                        'locked' while empty. */}
-                    {state === 'locked' || candidate.optional
-                      ? summaryForStep(candidate.key, session, currentDrafts, preflight)
-                      : ''}
+                    {/* Always shown once reachable, complete or not. The summary
+                        is exactly the evidence a user needs to see that a step
+                        is NOT done — "0 governed sources" was previously hidden
+                        precisely when the badge wrongly claimed Complete. */}
+                    {waiting
+                      ? ''
+                      : summaryForStep(candidate.key, session, currentDrafts, preflight)}
                   </small>
                   <SectionStatus state={state} />
                   {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -2183,7 +2557,32 @@ export function VNextOutreachWorkspace({
                           draft.current && approveDraft.mutate(draft.current.id)
                         }
                         approvalBusy={approachMutation.isPending || approveDraft.isPending}
+                        onRefine={(draft, instruction) => {
+                          if (draft.current) refine.mutate({ draft, instruction });
+                        }}
+                        refineBusyId={
+                          refine.isPending ? (refine.variables?.draft.id ?? null) : null
+                        }
+                        refineErrorId={
+                          refine.isError ? (refine.variables?.draft.id ?? null) : null
+                        }
+                        refineError={refine.error}
                       />
+                    ) : draftsStalledUpstream ? (
+                      <div className="uui-outreach-drafts">
+                        <div className="uui-recovery-panel is-warning">
+                          <AlertTriangle size={18} />
+                          <div>
+                            <strong>Strategy is confirmed — earlier steps are still open</strong>
+                            <p>
+                              The campaign angle, tone and length are saved. Generation stays
+                              blocked until the steps below are finished, so there is nothing to
+                              re-confirm here.
+                            </p>
+                          </div>
+                        </div>
+                        <BlockingWorkNotice session={session} onJump={selectStep} />
+                      </div>
                     ) : candidate.key === 'send' ? (
                       <SendPanel
                         sessionId={sessionId}

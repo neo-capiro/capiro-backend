@@ -23,6 +23,12 @@
     },
     {
       "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/refine",
+      "handler": "refine",
+      "humanDecisionOnly": true
+    },
+    {
+      "method": "POST",
       "path": "/api/engagement/outreach-v3/sessions/:sessionId/drafts/:versionId/approval",
       "handler": "approveVersion",
       "humanDecisionOnly": true

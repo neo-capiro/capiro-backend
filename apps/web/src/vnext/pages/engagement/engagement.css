@@ -1830,6 +1830,146 @@
   line-height: 18px;
 }
 
+/* Review-all: drop the recipient rail and stack every draft full-width so the
+   whole set can be read top to bottom before anything is sent. */
+.capiro-vnext-root .uui-draft-review-toggle {
+  height: 26px;
+  margin-left: auto;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--eng-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--eng-accent-border);
+  color: var(--eng-accent);
+  font-family: var(--eng-font-mono);
+  font-size: 10px;
+  line-height: 26px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.capiro-vnext-root .uui-draft-review-toggle[aria-pressed='true'] {
+  background: var(--eng-accent);
+  box-shadow: none;
+  color: #fff;
+}
+.capiro-vnext-root .uui-draft-layout[data-review-all] {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.85fr);
+}
+.capiro-vnext-root .uui-draft-review-all {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Refine with Meri: a one-line instruction, not a chat. Sits between the
+   provenance note and the footer so the user reads what the draft was built
+   from before asking for a change. */
+.capiro-vnext-root .uui-draft-refine {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--eng-border);
+  background: var(--eng-muted);
+}
+.capiro-vnext-root .uui-draft-refine p {
+  margin: 0;
+  color: var(--eng-ink-3);
+  font-size: 12px;
+  line-height: 18px;
+}
+.capiro-vnext-root .uui-draft-refine__row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.capiro-vnext-root .uui-draft-refine__row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--eng-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-border);
+  color: var(--eng-ink-1);
+  font-size: 13px;
+}
+.capiro-vnext-root .uui-draft-refine__row input:focus-visible {
+  outline: 2px solid var(--eng-accent);
+  outline-offset: 1px;
+}
+.capiro-vnext-root .uui-draft-refine__row input:disabled {
+  color: var(--eng-ink-4);
+}
+.capiro-vnext-root .uui-draft-refine__row button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Blocking-work notice: the readiness blockers that actually stall the
+   campaign, each with a jump to the step that clears it. Previously these
+   codes were never surfaced anywhere in the builder. */
+.capiro-vnext-root .uui-outreach-blocking {
+  display: flex;
+  gap: 11px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--eng-warning-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-warning-border);
+  color: var(--eng-warning);
+}
+.capiro-vnext-root .uui-outreach-blocking > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.capiro-vnext-root .uui-outreach-blocking strong {
+  display: block;
+  font-size: 13px;
+  line-height: 18px;
+}
+.capiro-vnext-root .uui-outreach-blocking ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.capiro-vnext-root .uui-outreach-blocking li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 18px;
+}
+.capiro-vnext-root .uui-outreach-blocking li button {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--eng-bg);
+  box-shadow: inset 0 0 0 1px var(--eng-warning-border);
+  color: inherit;
+  font-family: var(--eng-font-mono);
+  font-size: 10px;
+  line-height: 24px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* Review-all drops the rail, so the two-column narrow layout below (which
+   assumes a rail in column 1) would squeeze the stacked drafts into ~190px.
+   Collapse to a single column instead. */
+@media (max-width: 1179px) {
+  .capiro-vnext-root .uui-draft-layout[data-review-all] {
+    grid-template-columns: 1fr;
+  }
+}
+
 .capiro-vnext-root .uui-send-panel {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr);

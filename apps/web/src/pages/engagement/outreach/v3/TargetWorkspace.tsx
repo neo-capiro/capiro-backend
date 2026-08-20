@@ -217,6 +217,197 @@ function validEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+/**
+ * Send-readiness is a FOUR-condition server predicate, not an email check.
+ * `deriveTargetCoverage` (apps/api/src/capabilities/targets/target-coverage.ts)
+ * computes, per selected target:
+ *
+ *   readyForSending = emailStatus === 'available' && roleStatus === 'current'
+ *     && profileStatus !== 'unavailable' && !duplicateEmail
+ *
+ * and `sendReadyCount` — the number the Audience coverage meter shows — is
+ * just how many of those came back true. The per-target rows used to test
+ * `emailStatus === 'available'` alone and print "Email ready", so a target
+ * with an email but a HISTORICAL role read as ready while the meter directly
+ * beneath it counted zero. Everything below exists so both read one verdict.
+ *
+ * `PROFILE_LIMITED` is deliberately absent: the server reports it as health
+ * but it does NOT block sending (only `profileStatus === 'unavailable'`
+ * does), so listing it as a reason would claim a blocker the meter never
+ * counted. `short` is for the aggregate coverage line, `detail` for the row.
+ */
+const SEND_BLOCKERS: Record<string, { short: string; detail: string }> = {
+  EMAIL_MISSING: { short: 'no email', detail: 'No email address on file' },
+  EMAIL_INVALID: { short: 'unusable email', detail: 'The email address on file is not usable' },
+  ROLE_HISTORICAL: { short: 'former role', detail: 'Former role — no longer in this office' },
+  ROLE_UNKNOWN: { short: 'role unconfirmed', detail: 'The current role could not be confirmed' },
+  PROFILE_UNAVAILABLE: { short: 'profile unavailable', detail: 'The directory profile is unavailable' },
+  DUPLICATE_EMAIL: {
+    short: 'duplicate email',
+    detail: 'Shares an email address with another selected target',
+  },
+};
+
+/**
+ * `ready` and `blocked` are proven states. `unknown` means a condition of the
+ * server predicate genuinely is not knowable from what this surface holds —
+ * it is never a polite way of saying "probably fine", and it is never counted
+ * toward the meter.
+ */
+type SendReadiness = {
+  state: 'ready' | 'blocked' | 'unknown';
+  /** Blocking health codes, as returned by the coverage endpoint. */
+  codes: string[];
+  /** Explanation for a state no health code accounts for. */
+  note: string | null;
+};
+
+const SEND_READINESS_LABELS: Record<SendReadiness['state'], string> = {
+  ready: 'Send ready',
+  blocked: 'Not send-ready',
+  unknown: 'Readiness unknown',
+};
+
+const READY: SendReadiness = { state: 'ready', codes: [], note: null };
+const UNKNOWN: SendReadiness = { state: 'unknown', codes: [], note: null };
+
+function blocked(codes: string[]): SendReadiness {
+  // A false `readyForSending` with no recognized blocking code would otherwise
+  // render as a bare "Not send-ready" with nothing to act on.
+  return codes.length
+    ? { state: 'blocked', codes, note: null }
+    : { state: 'blocked', codes: [], note: 'The blocking condition was not reported' };
+}
+
+/** Every reason line to show under a target row, in server code order. */
+function readinessReasons(readiness: SendReadiness): string[] {
+  const fromCodes = readiness.codes.map((code) => SEND_BLOCKERS[code]?.detail ?? sentence(code));
+  return readiness.note ? [...fromCodes, readiness.note] : fromCodes;
+}
+
+/**
+ * Per-target health rows from
+ * `GET …/targets/coverage` → `coverage.health` (`TargetHealthResultV1`).
+ *
+ * The shared `OutreachV3TargetCoverageResponse` declares only the aggregate
+ * counters plus an `unknown` index signature, so the rows are narrowed here
+ * rather than by widening a contract two other surfaces also consume. Using
+ * the server's own rows — instead of re-deriving readiness — is what makes the
+ * badges and the meter provably consistent: they are the same numbers.
+ */
+function coverageHealth(
+  coverage: TargetWorkspaceProps['coverage'],
+): Array<{ targetKey: string; readyForSending: boolean; codes: string[] }> | null {
+  const rows = coverage?.coverage.health;
+  if (!Array.isArray(rows)) return null;
+  const parsed: Array<{ targetKey: string; readyForSending: boolean; codes: string[] }> = [];
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue;
+    const { targetKey, readyForSending, healthCodes } = row as Record<string, unknown>;
+    if (typeof targetKey !== 'string' || typeof readyForSending !== 'boolean') continue;
+    parsed.push({
+      targetKey,
+      readyForSending,
+      codes: (Array.isArray(healthCodes) ? healthCodes : []).filter(
+        (code): code is string => typeof code === 'string' && code in SEND_BLOCKERS,
+      ),
+    });
+  }
+  return parsed;
+}
+
+/**
+ * Groups the selected targets that share an email address, exactly as
+ * `duplicatesByEmail` does server-side — same `email?.toLowerCase()` key, no
+ * trimming — so the two can never disagree about who is a duplicate.
+ */
+function duplicateEmailKeys(selected: readonly OutreachV3ResolvedTargetRef[]): Set<string> {
+  const byEmail = new Map<string, string[]>();
+  for (const target of selected) {
+    const email = target.email?.toLowerCase();
+    if (!email) continue;
+    byEmail.set(email, [...(byEmail.get(email) ?? []), target.targetKey]);
+  }
+  return new Set([...byEmail.values()].filter((keys) => keys.length > 1).flat());
+}
+
+/**
+ * Mirrors the server predicate over a selected target, used only until the
+ * coverage response for the current spec lands (and for a target the response
+ * has no row for). It is an exact mirror rather than an approximation because
+ * `deriveTargetCoverage` reads the very same `selectedTargetRefs` this
+ * component holds — same inputs, same four conditions — so a badge never has
+ * to flip its verdict when coverage arrives.
+ */
+function selectedReadiness(
+  target: OutreachV3ResolvedTargetRef,
+  duplicates: Set<string>,
+): SendReadiness {
+  const codes: string[] = [];
+  if (target.emailStatus === 'missing') codes.push('EMAIL_MISSING');
+  if (target.emailStatus === 'invalid') codes.push('EMAIL_INVALID');
+  if (target.roleStatus === 'historical') codes.push('ROLE_HISTORICAL');
+  if (target.roleStatus === 'unknown') codes.push('ROLE_UNKNOWN');
+  if (target.profileStatus === 'unavailable') codes.push('PROFILE_UNAVAILABLE');
+  if (duplicates.has(target.targetKey)) codes.push('DUPLICATE_EMAIL');
+  if (codes.length) return blocked(codes);
+  // `emailStatus` is required by the server contract but OPTIONAL on this
+  // one, so an absent value has to be handled. The server would read the same
+  // absent field and score `emailStatus === 'available'` false, so this is not
+  // send-ready — but it is not a named blocker either, so it reports unknown
+  // rather than inventing a "ready" the meter would not agree with.
+  if (target.emailStatus !== 'available') {
+    return { state: 'unknown', codes: [], note: 'No email status was reported for this target' };
+  }
+  return READY;
+}
+
+/**
+ * A search result is not a selected target: `TargetCandidateV1` carries no
+ * `profileStatus`, and duplicate detection is a property of the SELECTED set,
+ * so two of the four server conditions are unknowable here. A candidate can
+ * therefore be proven NOT ready but never proven ready — it reports unknown
+ * instead of claiming readiness. An already-selected candidate is resolved
+ * from the coverage rows instead, so both lists say the same thing about the
+ * same person.
+ */
+function candidateReadiness(candidate: OutreachV3TargetCandidate): SendReadiness {
+  const codes: string[] = [];
+  if (candidate.emailStatus !== 'available') codes.push('EMAIL_MISSING');
+  if (candidate.roleStatus === 'historical') codes.push('ROLE_HISTORICAL');
+  if (candidate.roleStatus === 'unknown') codes.push('ROLE_UNKNOWN');
+  if (codes.length) return blocked(codes);
+  return {
+    state: 'unknown',
+    codes: [],
+    note: 'Email on file and role current; the profile and duplicate-email checks run once this target is added',
+  };
+}
+
+/** "former role (2) · no email (1)", most frequent first. */
+function blockerSummary(readiness: readonly SendReadiness[]): string[] {
+  const counts = new Map<string, number>();
+  for (const entry of readiness) {
+    for (const code of entry.codes) counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
+    .map(([code, count]) => `${SEND_BLOCKERS[code]?.short ?? sentence(code)} (${count})`);
+}
+
+/**
+ * The one row-level readiness element. Its `title` carries the reasons even
+ * where the surrounding card has no room for a reason line.
+ */
+function ReadinessCell({ readiness }: { readiness: SendReadiness }) {
+  const reasons = readinessReasons(readiness);
+  return (
+    <span title={reasons.length ? reasons.join(' · ') : undefined}>
+      {SEND_READINESS_LABELS[readiness.state]}
+    </span>
+  );
+}
+
 function PanelHeader({ selectedCount }: { selectedCount: number }) {
   return (
     <header className="ov3-panel-header">
@@ -365,8 +556,15 @@ function SavedAudiencesPanel({
           // "Updated" has no real backing field on SavedAudience/
           // SavedAudienceMember (no timestamp anywhere in the contract) — a
           // date here would be fabricated, so this shows a real, computed
-          // line (email-ready coverage) instead. See phase report.
-          const emailReady = audience.members.filter((member) => Boolean(member.email)).length;
+          // line instead. See phase report.
+          //
+          // This counts EMAIL PRESENCE, not send-readiness, and says so:
+          // `SavedAudienceMember` carries no role, profile, or duplicate
+          // information, and an audience member is not a selected target, so
+          // three of the four conditions behind `sendReadyCount` cannot be
+          // evaluated here at all. It previously read "N of M email-ready",
+          // which invited exactly the comparison it cannot support.
+          const withEmail = audience.members.filter((member) => Boolean(member.email)).length;
           return (
             <article key={audience.id} className="ov3-target-card">
               <header>
@@ -374,7 +572,8 @@ function SavedAudiencesPanel({
                 <div>
                   <strong>{audience.name}</strong>
                   <p>
-                    {sentence(audience.kind)} · {emailReady} of {audience.members.length} email-ready
+                    {sentence(audience.kind)} · {withEmail} of {audience.members.length} with an
+                    email address
                   </p>
                 </div>
                 <span className="eng-pill eng-pill--navy" aria-label={`${audience.members.length} members`}>
@@ -662,9 +861,53 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
     : undefined;
   const relationship = relationships.data as OutreachV3RelationshipResponse | undefined;
   const snapshotChanged = profile?.selectionSnapshot.status === 'changed';
-  const coverageSelectedCount = coverage?.coverage.selectedCount ?? selected.length;
-  const coverageSendReadyCount =
-    coverage?.coverage.sendReadyCount ?? selected.filter((target) => Boolean(target.email)).length;
+
+  /**
+   * ONE readiness verdict per selected target, shared by the per-target rows
+   * and by the Audience coverage meter below them.
+   *
+   * The server rows are authoritative, and are trusted only while
+   * `coverage.specHash` still describes the current spec — a response for an
+   * older spec is about a different selection. Rows the response does not
+   * cover (a target added since it was issued) fall back to the exact local
+   * mirror of the same predicate. Because every consumer reads this one map,
+   * a row can no longer claim readiness the meter does not count.
+   */
+  const readinessByKey = useMemo(() => {
+    const duplicates = duplicateEmailKeys(selected);
+    const map = new Map<string, SendReadiness>(
+      selected.map((target) => [target.targetKey, selectedReadiness(target, duplicates)]),
+    );
+    const rows = coverage?.specHash === session.specHash ? coverageHealth(coverage) : null;
+    for (const row of rows ?? []) {
+      if (!map.has(row.targetKey)) continue;
+      map.set(row.targetKey, row.readyForSending ? READY : blocked(row.codes));
+    }
+    return map;
+  }, [coverage, selected, session.specHash]);
+
+  /**
+   * `selected.length` rather than `coverage.coverage.selectedCount`: the
+   * server counts the same array this component holds, so the two are equal by
+   * construction, and reading the local one removes a way for the header count
+   * and the meter to disagree while a coverage response is in flight.
+   *
+   * The old `??` fallbacks here were the second half of the reported defect —
+   * `coverage.sendReadyCount` and `selected.filter(t => Boolean(t.email))`
+   * measure different things, so the meter changed meaning depending on
+   * whether the response had landed, and a server-returned 0 is not nullish so
+   * the fallback could never reconcile them anyway.
+   */
+  const selectedReadinessList = useMemo(
+    // The map is seeded from `selected`, so the fallback is unreachable; it
+    // resolves to unknown rather than ready so no future change to the map can
+    // make an absent verdict count toward the meter.
+    () => selected.map((target) => readinessByKey.get(target.targetKey) ?? UNKNOWN),
+    [readinessByKey, selected],
+  );
+  const sendReadyCount = selectedReadinessList.filter((entry) => entry.state === 'ready').length;
+  const notSendReadyCount = selected.length - sendReadyCount;
+  const coverageBlockers = blockerSummary(selectedReadinessList);
 
   return (
     <section
@@ -827,6 +1070,7 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
           ) : source === 'selected' ? (
             <SelectedTargetList
               selected={selected}
+              readinessByKey={readinessByKey}
               busy={busy}
               onProfile={openProfile}
               onRemove={removeTarget}
@@ -861,6 +1105,13 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
             <div className="ov3-card-list">
               {visibleCandidates.map((candidate) => {
                 const selectedTarget = selectedByKey.get(candidate.targetKey);
+                // An already-added candidate is the same person as a row in
+                // the Selected tab, so it reads the same coverage-backed
+                // verdict rather than the weaker candidate-only one.
+                const readiness = selectedTarget
+                  ? readinessByKey.get(candidate.targetKey) ?? candidateReadiness(candidate)
+                  : candidateReadiness(candidate);
+                const reasons = readiness.state === 'blocked' ? readinessReasons(readiness) : [];
                 return (
                   <article
                     key={candidate.recommendationRef}
@@ -892,9 +1143,18 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
                     )}
                     <div className="ov3-target-card__meta">
                       <span>{candidate.organization || candidate.jurisdiction.chamber || 'Directory'}</span>
-                      <span>{candidate.emailStatus === 'available' ? 'Email ready' : 'Email missing'}</span>
+                      {/* Readiness rides in the meta row here, not in the
+                          header pill the Selected tab uses for it: an
+                          unselected candidate's verdict is usually "unknown"
+                          by construction, and promoting that to the card's
+                          most prominent element on every search row would say
+                          less than the role status it would displace. */}
+                      <ReadinessCell readiness={readiness} />
                       <span>{Math.round(candidate.score * 100)}% match</span>
                     </div>
+                    {reasons.length ? (
+                      <p className="ov3-target-card__why">Blocking send: {reasons.join('; ')}.</p>
+                    ) : null}
                     <footer>
                       <button type="button" className="ov3-button is-quiet" onClick={() => void openProfile(candidate.locator)}>
                         View profile
@@ -1087,18 +1347,27 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
               <Loader2 className="ov3-spin" size={18} />
             ) : (
               <>
-                <strong>{coverageSelectedCount} selected</strong>
-                <p>{coverageSendReadyCount} email-ready</p>
+                <strong>{selected.length} selected</strong>
+                {/* "send-ready", the same words the per-target rows use, so
+                    the two numbers read as the same measurement. This said
+                    "email-ready" while counting a four-condition predicate. */}
+                <p>{sendReadyCount} send-ready</p>
                 <div className="ov3-meter">
                   <span
                     style={{
                       width: `${Math.min(
                         100,
-                        (coverageSendReadyCount / Math.max(coverageSelectedCount, 1)) * 100,
+                        (sendReadyCount / Math.max(selected.length, 1)) * 100,
                       )}%`,
                     }}
                   />
                 </div>
+                {notSendReadyCount > 0 ? (
+                  <p className="ov3-muted-copy">
+                    {notSendReadyCount} not send-ready
+                    {coverageBlockers.length ? ` · ${coverageBlockers.join(' · ')}` : ''}
+                  </p>
+                ) : null}
                 {coverage?.snapshotRevalidation.some((entry) => entry.status === 'changed') ? (
                   <p className="ov3-muted-copy">One or more selected profile snapshots changed.</p>
                 ) : null}
@@ -1131,11 +1400,14 @@ export function TargetWorkspace(props: TargetWorkspaceProps) {
 
 function SelectedTargetList({
   selected,
+  readinessByKey,
   busy,
   onProfile,
   onRemove,
 }: {
   selected: OutreachV3ResolvedTargetRef[];
+  /** The same verdicts the Audience coverage meter counts. */
+  readinessByKey: Map<string, SendReadiness>;
   busy: boolean;
   onProfile: (locator: OutreachV3TargetLocator) => Promise<void>;
   onRemove: (targetKey: string) => Promise<void>;
@@ -1151,34 +1423,46 @@ function SelectedTargetList({
   }
   return (
     <div className="ov3-card-list">
-      {selected.map((target) => (
-        <article key={target.targetKey} className="ov3-target-card is-selected">
-          <header>
-            <span className="ov3-avatar">{target.displayName.slice(0, 2).toUpperCase()}</span>
-            <div><strong>{target.displayName}</strong><p>{target.title || target.organization || 'Target'}</p></div>
-            <StatusPill tone={target.roleStatus === 'current' ? 'success' : 'warning'}>
-              {sentence(target.roleStatus)}
-            </StatusPill>
-          </header>
-          <div className="ov3-target-card__meta">
-            <span>{target.sourceSnapshot?.system ? sentence(target.sourceSnapshot.system) : sentence(target.locator.source)}</span>
-            <span>{target.emailStatus === 'available' ? 'Email ready' : 'Email unavailable'}</span>
-            <span>Verified {formatDate(target.sourceSnapshot?.lastVerifiedAt)}</span>
-          </div>
-          <footer>
-            <button type="button" className="ov3-button is-quiet" onClick={() => void onProfile(target.locator)}>
-              View profile <ChevronRight size={14} />
-            </button>
-            <span />
-            <button type="button" className="ov3-button is-secondary" disabled>
-              <Check size={15} /> Added
-            </button>
-            <button type="button" className="ov3-button is-quiet" disabled={busy} onClick={() => void onRemove(target.targetKey)}>
-              <X size={15} /> Remove
-            </button>
-          </footer>
-        </article>
-      ))}
+      {selected.map((target) => {
+        const readiness = readinessByKey.get(target.targetKey) ?? UNKNOWN;
+        const reasons = readinessReasons(readiness);
+        return (
+          <article key={target.targetKey} className="ov3-target-card is-selected">
+            <header>
+              <span className="ov3-avatar">{target.displayName.slice(0, 2).toUpperCase()}</span>
+              <div><strong>{target.displayName}</strong><p>{target.title || target.organization || 'Target'}</p></div>
+              <StatusPill tone={readiness.state === 'ready' ? 'success' : 'warning'}>
+                {SEND_READINESS_LABELS[readiness.state]}
+              </StatusPill>
+            </header>
+            <div className="ov3-target-card__meta">
+              <span>{target.sourceSnapshot?.system ? sentence(target.sourceSnapshot.system) : sentence(target.locator.source)}</span>
+              {/* Role stays visible in its own right — it is one of the four
+                  send conditions, not a substitute for the verdict above. */}
+              <span>Role {target.roleStatus}</span>
+              <span>Verified {formatDate(target.sourceSnapshot?.lastVerifiedAt)}</span>
+            </div>
+            {reasons.length ? (
+              <p className="ov3-target-card__why">
+                {readiness.state === 'blocked' ? 'Blocking send' : 'Not counted as send-ready'}:{' '}
+                {reasons.join('; ')}.
+              </p>
+            ) : null}
+            <footer>
+              <button type="button" className="ov3-button is-quiet" onClick={() => void onProfile(target.locator)}>
+                View profile <ChevronRight size={14} />
+              </button>
+              <span />
+              <button type="button" className="ov3-button is-secondary" disabled>
+                <Check size={15} /> Added
+              </button>
+              <button type="button" className="ov3-button is-quiet" disabled={busy} onClick={() => void onRemove(target.targetKey)}>
+                <X size={15} /> Remove
+              </button>
+            </footer>
+          </article>
+        );
+      })}
     </div>
   );
 }

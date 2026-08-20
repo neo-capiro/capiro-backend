@@ -35,7 +35,14 @@ import type { OutreachV3NamedPreflightCheck } from './engagement-api.js';
  * already rely on, so those tests are unaffected.
  */
 const useOutreachV3SessionMock = vi.fn();
-vi.mock('../../../pages/engagement/outreach/v3/useOutreachV3Session.js', () => ({
+// Only the HOOK is stubbed. The module also exports pure readiness helpers
+// (outreachV3PlanningBlockerCodes) that the workspace now calls directly, so
+// the real exports must be preserved — replacing the module wholesale left
+// that helper undefined at runtime.
+vi.mock('../../../pages/engagement/outreach/v3/useOutreachV3Session.js', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('../../../pages/engagement/outreach/v3/useOutreachV3Session.js')
+  >()),
   useOutreachV3Session: (...args: unknown[]) => useOutreachV3SessionMock(...args),
 }));
 
@@ -542,29 +549,135 @@ describe('VNextOutreachWorkspace', () => {
   });
 
   describe('accordion status vocabulary (item 3)', () => {
-    it('shows Complete for answered sections, In progress for the current one, and Locked for not-yet-reached ones', () => {
-      // stage='targets', no drafts yet: Goal precedes the current planning
-      // stage (answered/complete), Targets is the open/current step, Send has
-      // not been reached. Exercises all three states in one render.
+    const PLANNING_LABELS = ['Goal', 'Targets', 'Delivery', 'Context'] as const;
+
+    const sectionOf = (container: HTMLElement, label: string) =>
+      Array.from(container.querySelectorAll('.uui-outreach-section__header strong'))
+        .find((node) => node.textContent === label)!
+        .closest('section')! as HTMLElement;
+
+    /** Every planning decision actually made, per the canonical readiness contract. */
+    function readySession(): OutreachV3SessionEnvelope {
+      const envelope = session();
+      envelope.readiness = {
+        goalReady: true,
+        sponsorResolved: true,
+        targetCriteriaReady: true,
+        targetsReady: true,
+        deliveryReady: true,
+        contextReady: true,
+        contextEvidenceReady: true,
+        strategyReady: false,
+        blockers: [],
+      };
+      return envelope;
+    }
+
+    it('reads Locked for steps that are not yet reachable', () => {
       const { container } = renderWorkspace('targets');
-      const sectionHeading = (label: string) =>
-        Array.from(container.querySelectorAll('.uui-outreach-section__header strong')).find(
-          (node) => node.textContent === label,
-        )!;
-
-      const goalSection = sectionHeading('Goal').closest('section')!;
-      const targetsSection = sectionHeading('Targets').closest('section')!;
-      const sendSection = sectionHeading('Send').closest('section')!;
-
-      expect(within(goalSection).getByText('Complete')).toBeInTheDocument();
-      expect(within(goalSection).queryByText('Locked')).not.toBeInTheDocument();
-
-      expect(within(targetsSection).getByText('In progress')).toBeInTheDocument();
-
-      // This is the actual bug fix: previously said "Waiting" here (backwards
-      // — the mockup's vocabulary is LOCKED for not-yet-reachable sections).
+      const sendSection = sectionOf(container, 'Send');
       expect(within(sendSection).getByText('Locked')).toBeInTheDocument();
       expect(within(sendSection).queryByText('Waiting')).not.toBeInTheDocument();
+    });
+
+    it('never claims Complete for a step whose required decisions are still missing', () => {
+      // THE defect this pins. Status used to be derived from position
+      // (`index < reachedIndex`), and because reachedIndex is floored at 5
+      // (Drafts is always reachable) every planning step read "Complete" from
+      // the first render. Observed live on os.capiro.ai: Targets and Context
+      // both displayed COMPLETE while TARGET_CRITERIA_MISSING and
+      // CONTEXT_NOT_REVIEWED were the only two blockers preventing generation,
+      // so the campaign silently could not advance and nothing pointed at the
+      // cause. The default fixture spec is empty, so none of these are done.
+      const { container } = renderWorkspace('drafts');
+      for (const label of PLANNING_LABELS) {
+        const section = sectionOf(container, label);
+        expect(
+          within(section).queryByText('Complete'),
+          `${label} must not read Complete while incomplete`,
+        ).not.toBeInTheDocument();
+        expect(within(section).getByText('In progress')).toBeInTheDocument();
+      }
+    });
+
+    it("reads Complete once the step's own decisions are satisfied", () => {
+      useOutreachV3SessionMock.mockReturnValue(baseController({ session: readySession() }));
+      const { container } = renderWorkspace('drafts');
+      for (const label of PLANNING_LABELS) {
+        expect(
+          within(sectionOf(container, label)).getByText('Complete'),
+          `${label} should read Complete`,
+        ).toBeInTheDocument();
+      }
+    });
+
+    it('keeps a finished step reading Complete even while it is the open step', () => {
+      // Status used to also depend on `candidate.key === step`, so merely
+      // expanding a finished section flipped its label Complete -> In progress.
+      useOutreachV3SessionMock.mockReturnValue(baseController({ session: readySession() }));
+      const { container } = renderWorkspace('goal');
+      const goalSection = sectionOf(container, 'Goal');
+      expect(within(goalSection).getByText('Complete')).toBeInTheDocument();
+      expect(within(goalSection).queryByText('In progress')).not.toBeInTheDocument();
+    });
+
+    it('shows the incomplete summary instead of hiding it behind a false Complete', () => {
+      // "0 governed sources" is exactly the evidence that Context is not done,
+      // and it used to be suppressed precisely when the badge wrongly claimed
+      // Complete (the summary only rendered for state === 'locked').
+      const { container } = renderWorkspace('drafts');
+      const contextSection = sectionOf(container, 'Context');
+      expect(
+        within(contextSection).getByText('0 governed sources · 0 excluded'),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe('blocking-work notice', () => {
+    it('names the real readiness blockers and offers a jump to the step that clears each', () => {
+      useOutreachV3SessionMock.mockReturnValue(
+        baseController({
+          session: {
+            ...session(),
+            readiness: {
+              blockers: [
+                'TARGET_CRITERIA_MISSING',
+                'CONTEXT_NOT_REVIEWED',
+                'DRAFTS_NOT_AVAILABLE',
+              ],
+            },
+          },
+        }),
+      );
+      const { container } = renderWorkspace('targets');
+      const notice = container.querySelector('.uui-outreach-blocking')! as HTMLElement;
+
+      expect(
+        within(notice).getByText('Save the audience criteria for this campaign.'),
+      ).toBeInTheDocument();
+      expect(
+        within(notice).getByText('Accept at least one governed context source.'),
+      ).toBeInTheDocument();
+      expect(within(notice).getByRole('button', { name: 'Go to Targets' })).toBeInTheDocument();
+      expect(within(notice).getByRole('button', { name: 'Go to Context' })).toBeInTheDocument();
+
+      // Availability blockers are deliberately filtered out: every real gate
+      // already ignores them (planningBlockers), so surfacing one would tell
+      // the user to fix something that is not blocking and cannot be acted on.
+      expect(within(notice).queryByText(/drafts not available/i)).not.toBeInTheDocument();
+    });
+
+    it('renders nothing once no planning blocker remains', () => {
+      useOutreachV3SessionMock.mockReturnValue(
+        baseController({
+          session: {
+            ...session(),
+            readiness: { blockers: ['GENERATION_NOT_AVAILABLE', 'PREFLIGHT_NOT_AVAILABLE'] },
+          },
+        }),
+      );
+      const { container } = renderWorkspace('targets');
+      expect(container.querySelector('.uui-outreach-blocking')).toBeNull();
     });
   });
 

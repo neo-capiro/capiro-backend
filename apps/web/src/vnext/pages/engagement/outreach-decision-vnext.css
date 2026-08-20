@@ -1867,6 +1867,33 @@
   resize: vertical;
 }
 
+/* Placeholders in these fields are worked examples, not saved content, and
+   they used to read as real campaign copy. Italic + muted keeps them well
+   below body text (--ov3-ink) while staying above the 4.5:1 AA floor, and
+   `opacity: 1` normalizes the browser default fade that would drop them under
+   it. The `e.g.` prefix is added by the Field component. */
+:where(.capiro-vnext-root .engagement-vnext) .ov3-field input::placeholder,
+:where(.capiro-vnext-root .engagement-vnext) .ov3-field textarea::placeholder {
+  color: var(--ov3-muted);
+  font-style: italic;
+  opacity: 1;
+}
+
+/* A required field with no value reads as an unfilled slot — recessed well,
+   firmer edge — and keeps its REQUIRED marker live. Once it holds a value the
+   well turns the normal surface colour and the marker goes quiet, so filled and
+   empty are distinguishable at a glance. Both states are additive classes only
+   the Field component sets, so every other .ov3-field caller is unaffected. */
+:where(.capiro-vnext-root .engagement-vnext) .ov3-field.is-unfilled input,
+:where(.capiro-vnext-root .engagement-vnext) .ov3-field.is-unfilled textarea {
+  background: var(--ov3-subtle);
+  border-color: var(--ov3-border-strong);
+}
+
+:where(.capiro-vnext-root .engagement-vnext) .ov3-field.is-filled em {
+  color: var(--ov3-muted);
+}
+
 :where(.capiro-vnext-root .engagement-vnext) .ov3-field-grid {
   display: grid;
   gap: 10px;

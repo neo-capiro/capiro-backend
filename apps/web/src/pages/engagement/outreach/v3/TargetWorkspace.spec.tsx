@@ -1,7 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { OutreachV3SessionEnvelope, OutreachV3TargetCandidate } from './contracts.js';
+import type {
+  OutreachV3ResolvedTargetRef,
+  OutreachV3SessionEnvelope,
+  OutreachV3TargetCandidate,
+  OutreachV3TargetCoverageResponse,
+} from './contracts.js';
 import { TargetWorkspace, type TargetWorkspaceProps } from './TargetWorkspace.js';
 import { listSavedOutreachAudiences } from '../../../../vnext/pages/engagement/engagement-api.js';
 
@@ -86,6 +91,69 @@ const candidate: OutreachV3TargetCandidate = {
     issueAreas: ['Ground Robotics'],
   },
 };
+
+/**
+ * A selected target ref, defaulting to the state the reported defect was found
+ * in: a real email address AND a historical role, which the server scores as
+ * NOT send-ready.
+ */
+function resolvedTarget(
+  overrides: Partial<OutreachV3ResolvedTargetRef> = {},
+): OutreachV3ResolvedTargetRef {
+  return {
+    targetKey: 'directory_member:adams',
+    locator: { source: 'directory_member', id: 'adams' },
+    displayName: 'Alma Adams',
+    title: 'Representative',
+    organization: 'House',
+    email: 'adams@example.test',
+    clientId: null,
+    roleStatus: 'historical',
+    emailStatus: 'available',
+    profileStatus: 'complete',
+    snapshotHash: 'snap-1',
+    jurisdiction: {
+      governmentLevel: 'federal',
+      chamber: 'House',
+      state: 'NC',
+      district: '12',
+      committees: [],
+      issueAreas: [],
+    },
+    sourceSnapshot: { system: 'legistorm', lastVerifiedAt: '2026-08-01T00:00:00.000Z' },
+    ...overrides,
+  };
+}
+
+function withSelected(targets: OutreachV3ResolvedTargetRef[]): OutreachV3SessionEnvelope {
+  const envelope = session();
+  envelope.spec.targeting.selectedTargetRefs = targets;
+  return envelope;
+}
+
+/**
+ * Mirrors the real `GET …/targets/coverage` payload: `coverage.health` is the
+ * per-target `TargetHealthResultV1[]` the server already returns, and
+ * `sendReadyCount` is derived from it exactly as `deriveTargetCoverage` does,
+ * so a fixture cannot express a badge/meter pair the server could not produce.
+ */
+function coverageResponse(
+  health: Array<{ targetKey: string; readyForSending: boolean; healthCodes: string[] }>,
+): OutreachV3TargetCoverageResponse {
+  return {
+    sessionId: 'session-1',
+    stateVersion: 3,
+    // Must match session().specHash — a coverage response for another spec
+    // describes a different selection and is not trusted.
+    specHash: 'hash-3',
+    coverage: {
+      selectedCount: health.length,
+      sendReadyCount: health.filter((entry) => entry.readyForSending).length,
+      health,
+    },
+    snapshotRevalidation: [],
+  };
+}
 
 function props(): TargetWorkspaceProps {
   return {
@@ -221,6 +289,129 @@ describe('TargetWorkspace', () => {
     });
   });
 
+  describe('send-readiness', () => {
+    // The reported defect: per-target rows tested `emailStatus === 'available'`
+    // alone and printed "Email ready", while the Audience coverage meter
+    // directly below counted the server's four-condition `sendReadyCount` and
+    // showed 0. Live repro: Rep. Alma Adams and Rep. Pete Aguilar both read
+    // "EMAIL READY" while also carrying a HISTORICAL role badge.
+    it('does not call a target with an email but a non-current role "Email ready"', () => {
+      const value = props();
+      value.session = withSelected([resolvedTarget()]);
+      value.coverage = coverageResponse([
+        { targetKey: 'directory_member:adams', readyForSending: false, healthCodes: ['ROLE_HISTORICAL'] },
+      ]);
+      renderWorkspace(value);
+      fireEvent.click(screen.getByRole('tab', { name: /^Selected/ }));
+
+      expect(screen.queryByText('Email ready')).not.toBeInTheDocument();
+      expect(screen.getByText('Not send-ready')).toBeInTheDocument();
+    });
+
+    it('names the specific blocking reason rather than a generic warning', () => {
+      const value = props();
+      value.session = withSelected([resolvedTarget()]);
+      value.coverage = coverageResponse([
+        {
+          targetKey: 'directory_member:adams',
+          readyForSending: false,
+          healthCodes: ['ROLE_HISTORICAL', 'PROFILE_LIMITED'],
+        },
+      ]);
+      renderWorkspace(value);
+      fireEvent.click(screen.getByRole('tab', { name: /^Selected/ }));
+
+      expect(
+        screen.getByText(/Blocking send: Former role — no longer in this office\./i),
+      ).toBeInTheDocument();
+      // PROFILE_LIMITED is reported as health but does NOT block sending, so
+      // quoting it as a reason would claim a blocker the meter never counted.
+      expect(screen.queryByText(/limited/i)).not.toBeInTheDocument();
+    });
+
+    it('reads the badge and the coverage meter off the same server health rows', () => {
+      const value = props();
+      value.session = withSelected([
+        resolvedTarget(),
+        resolvedTarget({
+          targetKey: 'directory_member:aguilar',
+          displayName: 'Pete Aguilar',
+          email: 'aguilar@example.test',
+          roleStatus: 'current',
+        }),
+      ]);
+      value.coverage = coverageResponse([
+        { targetKey: 'directory_member:adams', readyForSending: false, healthCodes: ['ROLE_HISTORICAL'] },
+        { targetKey: 'directory_member:aguilar', readyForSending: true, healthCodes: [] },
+      ]);
+      renderWorkspace(value);
+      fireEvent.click(screen.getByRole('tab', { name: /^Selected/ }));
+
+      expect(screen.getByText('Send ready')).toBeInTheDocument();
+      expect(screen.getByText('Not send-ready')).toBeInTheDocument();
+      // The meter's own wording now matches the rows it summarizes.
+      expect(screen.getByText('1 send-ready')).toBeInTheDocument();
+      expect(screen.getByText(/1 not send-ready · former role \(1\)/i)).toBeInTheDocument();
+    });
+
+    it('keeps the meter honest with no coverage response, where email presence used to be counted', () => {
+      // Previously `coverage?.coverage.sendReadyCount ?? selected.filter(t =>
+      // Boolean(t.email)).length` — a DIFFERENT predicate from both the badge
+      // and the server, so this exact case reported "1 email-ready" for a
+      // target no send could ever go to.
+      const value = props();
+      value.session = withSelected([resolvedTarget()]);
+      value.coverage = undefined;
+      renderWorkspace(value);
+
+      expect(screen.getByText('0 send-ready')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('tab', { name: /^Selected/ }));
+      expect(screen.getByText('Not send-ready')).toBeInTheDocument();
+    });
+
+    it('detects duplicate emails across the selection without a coverage response', () => {
+      const value = props();
+      value.session = withSelected([
+        resolvedTarget({ roleStatus: 'current' }),
+        resolvedTarget({
+          targetKey: 'directory_staff:shared',
+          displayName: 'Shared Inbox',
+          roleStatus: 'current',
+          email: 'ADAMS@example.test',
+        }),
+      ]);
+      value.coverage = undefined;
+      renderWorkspace(value);
+      fireEvent.click(screen.getByRole('tab', { name: /^Selected/ }));
+
+      expect(
+        screen.getAllByText(/Shares an email address with another selected target/i),
+      ).toHaveLength(2);
+      expect(screen.getByText('0 send-ready')).toBeInTheDocument();
+    });
+
+    it('reports a search result as readiness unknown rather than ready', () => {
+      // A TargetCandidateV1 carries no profileStatus, and duplicate detection
+      // is a property of the selected set, so two of the four server
+      // conditions are unknowable for an unselected candidate. It may be
+      // proven not-ready, never proven ready.
+      renderWorkspace(props());
+
+      expect(screen.getByText('Readiness unknown')).toBeInTheDocument();
+      expect(screen.queryByText('Email ready')).not.toBeInTheDocument();
+      expect(screen.queryByText('Send ready')).not.toBeInTheDocument();
+    });
+
+    it('states the blocker on a search result that is provably not send-ready', () => {
+      const value = props();
+      value.targetCandidates = [{ ...candidate, emailStatus: 'missing', email: null }];
+      renderWorkspace(value);
+
+      expect(screen.getByText('Not send-ready')).toBeInTheDocument();
+      expect(screen.getByText(/Blocking send: No email address on file\./i)).toBeInTheDocument();
+    });
+  });
+
   describe('Saved audiences (item 4)', () => {
     it('was previously hard-disabled', () => {
       // Documents the bug this phase fixes: the tab used to render with
@@ -271,9 +462,15 @@ describe('TargetWorkspace', () => {
       ).toBeInTheDocument();
       expect(await screen.findByText('HASC Staff')).toBeInTheDocument();
       // "Updated" has no backing field on SavedAudience/SavedAudienceMember
-      // (no timestamp anywhere in the contract) — real, computed email-ready
-      // coverage is shown instead of a fabricated date.
-      expect(screen.getByText(/1 of 2 email-ready/i)).toBeInTheDocument();
+      // (no timestamp anywhere in the contract) — a real, computed count is
+      // shown instead of a fabricated date.
+      //
+      // It must NOT say "email-ready": SavedAudienceMember carries only an
+      // email, so this counts email presence, whereas send-readiness is a
+      // four-condition predicate. The old wording invited a comparison with
+      // the Audience coverage meter that the data cannot support.
+      expect(screen.getByText(/1 of 2 with an email address/i)).toBeInTheDocument();
+      expect(screen.queryByText(/email-ready/i)).not.toBeInTheDocument();
       expect(screen.getByLabelText('2 members')).toHaveClass('eng-pill', 'eng-pill--navy');
     });
 

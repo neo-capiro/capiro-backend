@@ -33,7 +33,7 @@ export const ENGAGEMENT_ROUTE_MANIFEST_SHA256 =
 export const ENGAGEMENT_ROUTE_MANIFEST_SCHEMA_VERSION = 1;
 
 /** Distinct primary + additive manifest paths covered below. */
-export const ENGAGEMENT_PREVIEW_ROUTE_COUNT = 129;
+export const ENGAGEMENT_PREVIEW_ROUTE_COUNT = 130;
 
 export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/associations/override$',
@@ -102,6 +102,7 @@ export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/outreach-v3/sessions/[^/]+/context/review$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/context/strategy$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/drafts$',
+  '^/api/engagement/outreach-v3/sessions/[^/]+/drafts/[^/]+/refine$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/drafts/[^/]+/versions$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/drafts/[^/]+$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/drafts/[^/]+/approval$',

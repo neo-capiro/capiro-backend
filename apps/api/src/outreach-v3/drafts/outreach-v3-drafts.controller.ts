@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   NotFoundException,
   Param,
   ParseUUIDPipe,
@@ -18,9 +19,12 @@ import {
   OutreachDraftService,
   type DraftEditKind,
 } from '../../engagement/outreach-draft.service.js';
+import { MAX_USER_INSTRUCTION_CHARS } from '../../engagement/generation/evidence-packet.types.js';
+import { EngagementRuntimeAction } from '../../engagement/runtime/engagement-runtime-action.decorator.js';
 import { OutreachV3ExceptionFilter } from '../api/outreach-v3-exception.filter.js';
 import { OutreachV3StateGuard } from '../api/outreach-v3-state.guard.js';
 import { OutreachV3DraftApprovalService } from './outreach-v3-draft-approval.service.js';
+import { OutreachV3DraftRefineService } from './outreach-v3-draft-refine.service.js';
 import { OutreachV3DraftsGuard } from './outreach-v3-drafts.guard.js';
 
 @Controller('engagement/outreach-v3/sessions/:sessionId/drafts')
@@ -31,6 +35,7 @@ export class OutreachV3DraftsController {
   constructor(
     private readonly approvals: OutreachV3DraftApprovalService,
     private readonly drafts: OutreachDraftService,
+    private readonly refinements: OutreachV3DraftRefineService,
   ) {}
 
   @Get()
@@ -66,6 +71,29 @@ export class OutreachV3DraftsController {
       throw new NotFoundException('Draft artifact not found.');
     }
     return this.drafts.createEditedVersion(ctx, artifactId, revisionBody(body));
+  }
+
+  /**
+   * "Refine with Meri" — a governed model edit of this slot's current version.
+   * Append-only like revise(): the model output lands as a new immutable
+   * version that advances the artifact, never as an unaccepted candidate.
+   */
+  @Post(':artifactId/refine')
+  @EngagementRuntimeAction('outreach_v3_generate')
+  async refine(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @Param('artifactId', ParseUUIDPipe) artifactId: string,
+    @Body() body: unknown,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    // Same pre-write ownership check as revise(), and here it is also a
+    // pre-SPEND check: a foreign artifact must never reach a model call.
+    const artifacts = await this.drafts.listForOutreach(ctx, sessionId);
+    if (!artifacts.some((artifact) => artifact.id === artifactId)) {
+      throw new NotFoundException('Draft artifact not found.');
+    }
+    return this.refinements.refine(ctx, sessionId, artifactId, refineBody(body), authHeader);
   }
 
   /** Human-only exact-version author approval. */
@@ -113,4 +141,30 @@ function revisionBody(value: unknown): {
     body: record.body,
     editKind,
   };
+}
+
+function refineBody(value: unknown): { baseVersionId: string; instruction: string } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new BadRequestException('Request body must be an object.');
+  }
+  const record = value as Record<string, unknown>;
+  const allowed = new Set(['baseVersionId', 'instruction']);
+  if (Object.keys(record).some((key) => !allowed.has(key))) {
+    throw new BadRequestException('Request body contains an unsupported field.');
+  }
+  if (typeof record.baseVersionId !== 'string' || typeof record.instruction !== 'string') {
+    throw new BadRequestException('baseVersionId and instruction are required.');
+  }
+  const instruction = record.instruction.trim();
+  if (!instruction) {
+    throw new BadRequestException('instruction must not be empty.');
+  }
+  // The gateway clips a directive far above this; the route refuses instead, so
+  // a truncated instruction is never silently sent to a model as the objective.
+  if (instruction.length > MAX_USER_INSTRUCTION_CHARS) {
+    throw new BadRequestException(
+      `instruction must be ${MAX_USER_INSTRUCTION_CHARS} characters or fewer.`,
+    );
+  }
+  return { baseVersionId: record.baseVersionId.trim(), instruction };
 }

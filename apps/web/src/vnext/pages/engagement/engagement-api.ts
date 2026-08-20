@@ -365,6 +365,27 @@ export async function reviseOutreachV3Draft(
   ).data;
 }
 
+/**
+ * "Refine with Meri". Returns the new CURRENT version — the server always
+ * advances the artifact, so there is no candidate to accept or discard.
+ */
+export async function refineOutreachV3Draft(
+  api: AxiosInstance,
+  sessionId: string,
+  artifactId: string,
+  input: {
+    baseVersionId: string;
+    instruction: string;
+  },
+) {
+  return (
+    await api.post<OutreachV3DraftVersion>(
+      sessionPath(sessionId, `/drafts/${encodeURIComponent(artifactId)}/refine`),
+      input,
+    )
+  ).data;
+}
+
 export async function approveOutreachV3Draft(
   api: AxiosInstance,
   sessionId: string,

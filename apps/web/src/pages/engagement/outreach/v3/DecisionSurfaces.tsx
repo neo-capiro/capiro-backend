@@ -280,7 +280,7 @@ function Field({
   label,
   value,
   onChange,
-  placeholder,
+  example,
   required,
   multiline,
   type = 'text',
@@ -288,13 +288,28 @@ function Field({
   label: string;
   value: string;
   onChange: (value: string) => void;
-  placeholder?: string;
+  /**
+   * Illustrative content only — never a saved value. It reaches the DOM as the
+   * input's placeholder prefixed with `e.g.` and styled as example text (see
+   * `.ov3-field input::placeholder`).
+   *
+   * This used to be a plain `placeholder`, and the exemplars read as real,
+   * plausible campaign copy ("Protect FY27 Ground Robotics funding"). A form of
+   * empty required fields therefore looked fully filled until submit refused
+   * it, so the prefix and the styling are load-bearing, not decoration.
+   */
+  example?: string;
   required?: boolean;
   multiline?: boolean;
   type?: 'text' | 'email' | 'search';
 }) {
+  // A required field with nothing in it gets a visibly unfilled well and keeps
+  // its REQUIRED marker live; once it holds a value the marker goes quiet. That
+  // makes filled and empty distinguishable while scanning, without clicking in.
+  const unfilled = Boolean(required) && value.trim().length === 0;
+  const placeholder = example ? `e.g. ${example}` : undefined;
   return (
-    <label className="ov3-field">
+    <label className={cx('ov3-field', required && (unfilled ? 'is-unfilled' : 'is-filled'))}>
       <span>
         {label}
         {required ? <em>Required</em> : null}
@@ -304,6 +319,7 @@ function Field({
           rows={3}
           value={value}
           placeholder={placeholder}
+          aria-required={required ? true : undefined}
           onChange={(event) => onChange(event.target.value)}
         />
       ) : (
@@ -311,6 +327,7 @@ function Field({
           type={type}
           value={value}
           placeholder={placeholder}
+          aria-required={required ? true : undefined}
           onChange={(event) => onChange(event.target.value)}
         />
       )}
@@ -411,7 +428,7 @@ function GoalSurface({ session, busy, applyCommands }: DecisionSurfacesProps) {
             label="Campaign goal"
             required
             value={draft.goal}
-            placeholder="Protect FY27 Ground Robotics funding"
+            example="Protect FY27 Ground Robotics funding"
             onChange={(value) => setDraft((current) => ({ ...current, goal: value }))}
           />
           <div className="ov3-field-grid">
@@ -419,13 +436,14 @@ function GoalSurface({ session, busy, applyCommands }: DecisionSurfacesProps) {
               label="Topic"
               required
               value={draft.topic}
-              placeholder="FY27 Ground Robotics funding"
+              example="FY27 Ground Robotics funding"
               onChange={(value) => setDraft((current) => ({ ...current, topic: value }))}
             />
             <Field
               label="Objective"
+              required
               value={draft.objective}
-              placeholder="Educate staff before the next mark"
+              example="Educate staff before the next mark"
               onChange={(value) => setDraft((current) => ({ ...current, objective: value }))}
             />
           </div>
@@ -450,14 +468,14 @@ function GoalSurface({ session, busy, applyCommands }: DecisionSurfacesProps) {
               label="Explicit ask"
               required
               value={draft.askText}
-              placeholder="Request a 30-minute staff briefing"
+              example="Request a 30-minute staff briefing"
               onChange={(value) => setDraft((current) => ({ ...current, askText: value }))}
             />
           ) : null}
           <Field
             label="Why now"
             value={draft.whyNow}
-            placeholder="The current mark is below the request"
+            example="The current mark is below the request"
             onChange={(value) => setDraft((current) => ({ ...current, whyNow: value }))}
             multiline
           />
@@ -628,7 +646,7 @@ function SponsorSurface({
           label="Coalition or association name"
           required
           value={label}
-          placeholder="Autonomous Systems Coalition"
+          example="Autonomous Systems Coalition"
           onChange={setLabel}
         />
       ) : null}
@@ -1059,6 +1077,28 @@ function DeliverySurface({
       })
     | undefined;
   const recommendedPattern = recommendation?.recommendedPattern;
+  // Whatever the aside's heading names, so its blurb below describes the same
+  // pattern. A recommended "Shared thread" is the one pattern that does NOT
+  // keep target scope independently reviewable, and the blurb used to claim it
+  // did regardless of what Meri had recommended.
+  const describedPattern: Exclude<OutreachV3DeliveryPattern, 'undecided'> =
+    recommendedPattern && recommendedPattern !== 'undecided'
+      ? recommendedPattern
+      : 'personalized_separate';
+
+  // Real draft authority for the selection on screen. Drafting itself is
+  // enabled — every gate reads the generation plan's `eligible` — and the only
+  // part of that plan this stage owns is the delivery pair: an undecided pair
+  // leaves DELIVERY_UNDECIDED standing, and shared thread with high
+  // personalization adds SHARED_THREAD_HIGH_PERSONALIZATION. Anything else
+  // clears this stage but says nothing about the rest of the plan, so the
+  // wording stays scoped to the selection.
+  const draftAuthority =
+    pattern === 'undecided' || personalization === 'undecided'
+      ? 'Blocked until delivery is set'
+      : pattern === 'shared_thread' && personalization === 'high'
+        ? 'Blocked by shared thread + high'
+        : 'Not blocked by this selection';
 
   const submit = async () => {
     if (pattern === 'undecided' || personalization === 'undecided') {
@@ -1137,7 +1177,9 @@ function DeliverySurface({
                 : 'Personalized separate · light'}
           </h3>
           <p>
-            This keeps target scope independently reviewable without overusing personal details.
+            {describedPattern === 'shared_thread'
+              ? 'Every recipient sees the others and can reply to all of them, so the thread is reviewed as a single message.'
+              : 'This keeps target scope independently reviewable without overusing personal details.'}
           </p>
           {recommendation?.rationale?.length ? (
             <div className="ov3-consequence-chips">
@@ -1152,7 +1194,7 @@ function DeliverySurface({
           <dl className="ov3-detail-list">
             <div><dt>Selected targets</dt><dd>{session.spec.targeting.selectedTargetRefs.length}</dd></div>
             <div><dt>Recipient visibility</dt><dd>{pattern === 'shared_thread' ? 'Visible' : 'Hidden'}</dd></div>
-            <div><dt>Draft authority</dt><dd>Not enabled in Phase 6</dd></div>
+            <div><dt>Draft authority</dt><dd>{draftAuthority}</dd></div>
           </dl>
         </aside>
       </div>
@@ -1468,7 +1510,7 @@ function StrategySurface({
             label="Campaign angle"
             required
             value={campaignAngle}
-            placeholder="Protect funding through staff education"
+            example="Protect funding through staff education"
             onChange={setCampaignAngle}
             multiline
           />
@@ -1476,7 +1518,7 @@ function StrategySurface({
             label="Tone"
             required
             value={tone}
-            placeholder="Direct · professional · evidence-led"
+            example="Direct · professional · evidence-led"
             onChange={setTone}
           />
           <span className="ov3-section-label">Length</span>
@@ -1499,7 +1541,7 @@ function StrategySurface({
               required
               value={customInstruction}
               onChange={setCustomInstruction}
-              placeholder="No more than 180 words with three short paragraphs"
+              example="No more than 180 words with three short paragraphs"
             />
           ) : null}
           <div className="ov3-recovery is-info">

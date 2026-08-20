@@ -77,9 +77,10 @@ describe('Outreach V3 exact draft approval architecture', () => {
     expect(manifest.featureFlag).toBe('OUTREACH_V3_DRAFTS_ENABLED');
     expect(manifest.disabledBehavior).toBe(404);
     // Frozen against the real OutreachV3DraftsController surface: read paths
-    // plus append-only revise plus exact-version approval. Draft mutation is
-    // append-only (each revise creates a new immutable version) rather than
-    // absent, which is what `appendOnlyDraftMutation` records.
+    // plus append-only revise plus governed refine plus exact-version approval.
+    // Draft mutation is append-only (each revise/refine creates a new immutable
+    // version) rather than absent, which is what `appendOnlyDraftMutation`
+    // records.
     expect(manifest.routes).toEqual([
       {
         method: 'GET',
@@ -95,6 +96,12 @@ describe('Outreach V3 exact draft approval architecture', () => {
         method: 'POST',
         path: '/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/versions',
         handler: 'revise',
+        humanDecisionOnly: true,
+      },
+      {
+        method: 'POST',
+        path: '/api/engagement/outreach-v3/sessions/:sessionId/drafts/:artifactId/refine',
+        handler: 'refine',
         humanDecisionOnly: true,
       },
       {
