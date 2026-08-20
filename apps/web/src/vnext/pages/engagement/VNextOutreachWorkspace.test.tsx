@@ -958,4 +958,81 @@ describe('VNextOutreachWorkspace', () => {
       });
     });
   });
+  describe('Refine with Meri is offered on every draft, at every stage', () => {
+    // The reported gap: "i dont see the option to edit drafts with meri".
+    // The refine control originally lived only inside DraftPreviewCard, which
+    // renders AFTER approach approval — so the representative samples the user
+    // is explicitly asked to review offered only a manual editor. Approach
+    // approval is also unreachable while any sample is audit-held, so for a
+    // held campaign there was no Meri affordance on any draft at all.
+    const refineCalls: Array<{ url: string; body: unknown }> = [];
+
+    function renderApproachStage() {
+      refineCalls.length = 0;
+      useOutreachV3SessionMock.mockReturnValue(baseController({ stage: 'ready_for_generation' }));
+      onGet('/drafts', () => [DRAFTS_FIXTURE[0]]);
+      onGet('/generation/plan', () => PLAN_FIXTURE);
+      // null => approachCurrent is false => the approach grid renders, which is
+      // the pre-approval surface that was missing the control.
+      onGet('/generation/approach-approval', () => null);
+      onPost('/refine', (url, body) => {
+        refineCalls.push({ url, body });
+        return DRAFTS_FIXTURE[0].current;
+      });
+      return renderWorkspace('drafts');
+    }
+
+    it('renders the refine control on a representative sample before approval', async () => {
+      const { container } = renderApproachStage();
+      const sampleList = await waitFor(() => {
+        const node = container.querySelector('.uui-sample-list');
+        expect(node).not.toBeNull();
+        return node as HTMLElement;
+      });
+      const refine = sampleList.querySelector('.uui-draft-refine');
+      expect(refine, 'a sample card must offer Refine with Meri').not.toBeNull();
+      expect(within(refine as HTMLElement).getByText('Refine with Meri')).toBeInTheDocument();
+      expect(
+        within(refine as HTMLElement).getByRole('button', { name: /Refine/ }),
+      ).toBeInTheDocument();
+    });
+
+    it('shows the sample body in full rather than a truncated slice', async () => {
+      const { container } = renderApproachStage();
+      const sampleList = await waitFor(() => {
+        const node = container.querySelector('.uui-sample-list');
+        expect(node).not.toBeNull();
+        return node as HTMLElement;
+      });
+      // The old card sliced body to 220 chars and appended an ellipsis; you
+      // cannot judge or refine a draft you can only partly see.
+      expect(sampleList.querySelector('.uui-draft-body')).not.toBeNull();
+      expect(within(sampleList).getByText(/Body r1/)).toBeInTheDocument();
+    });
+
+    it('sends the typed instruction to the refine endpoint for that sample', async () => {
+      const { container } = renderApproachStage();
+      const sampleList = await waitFor(() => {
+        const node = container.querySelector('.uui-sample-list');
+        expect(node).not.toBeNull();
+        return node as HTMLElement;
+      });
+      const refine = sampleList.querySelector('.uui-draft-refine') as HTMLElement;
+      const input = refine.querySelector('input') as HTMLInputElement;
+
+      // Empty instruction must not fire a model call.
+      fireEvent.click(within(refine).getByRole('button', { name: /Refine/ }));
+      expect(refineCalls).toHaveLength(0);
+
+      fireEvent.change(input, { target: { value: 'warmer opening' } });
+      fireEvent.click(within(refine).getByRole('button', { name: /Refine/ }));
+
+      await waitFor(() => expect(refineCalls).toHaveLength(1));
+      expect(refineCalls[0].url).toContain('/drafts/artifact-r1/refine');
+      expect(refineCalls[0].body).toMatchObject({
+        baseVersionId: 'version-r1',
+        instruction: 'warmer opening',
+      });
+    });
+  });
 });

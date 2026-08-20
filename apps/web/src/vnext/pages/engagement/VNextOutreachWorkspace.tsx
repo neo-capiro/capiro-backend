@@ -805,6 +805,78 @@ function DraftEditModal({
  * SAME markup — the point of review-all is to read exactly what will be sent,
  * so a second, summarised code path would defeat it and could drift.
  */
+/**
+ * "Refine with Meri" — one natural-language instruction against one draft.
+ *
+ * Shared by the representative-sample cards AND the full draft preview so every
+ * draft is adjustable with Meri at every stage it is shown. This control used to
+ * live inline in DraftPreviewCard only, and that card renders only after
+ * approach approval — so the samples the user is explicitly asked to review had
+ * no Meri affordance at all, just a manual "Edit sample" editor. Reported from
+ * the live surface: "i dont see the option to edit drafts with meri".
+ */
+function DraftRefineControl({
+  draft,
+  onRefine,
+  refineBusy,
+  refineError,
+  compact,
+}: {
+  draft: OutreachV3DraftArtifact;
+  onRefine: (draft: OutreachV3DraftArtifact, instruction: string) => void;
+  refineBusy: boolean;
+  refineError: unknown;
+  /** Drops the explanatory paragraph where the surrounding card already explains it. */
+  compact?: boolean;
+}) {
+  const [instruction, setInstruction] = useState('');
+  const disabled = refineBusy || !draft.current;
+
+  const submit = () => {
+    const trimmed = instruction.trim();
+    if (!trimmed || disabled) return;
+    onRefine(draft, trimmed);
+    setInstruction('');
+  };
+
+  return (
+    <section className="uui-draft-refine" data-compact={compact || undefined}>
+      <span className="uui-eyebrow">Refine with Meri</span>
+      {compact ? null : (
+        <p>
+          Describe the change in your own words. Meri rewrites this draft against the same
+          governed context and saves the result as a new immutable version — approval clears so
+          you re-read it before sending.
+        </p>
+      )}
+      <div className="uui-draft-refine__row">
+        <input
+          value={instruction}
+          placeholder="e.g. warmer opening, tighten the ask, mention the district"
+          disabled={disabled}
+          onChange={(event) => setInstruction(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              submit();
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="uui-button uui-button--primary"
+          disabled={disabled || !instruction.trim()}
+          onClick={submit}
+        >
+          {refineBusy ? <Loader2 className="uui-spin" size={15} /> : <Sparkles size={15} />}{' '}
+          {refineBusy ? 'Refining…' : 'Refine'}
+        </button>
+      </div>
+      {refineError ? <p className="uui-field-error">{safeOutreachV3Error(refineError)}</p> : null}
+    </section>
+  );
+}
+
 function DraftPreviewCard({
   draft,
   onEdit,
@@ -822,16 +894,8 @@ function DraftPreviewCard({
   refineBusy: boolean;
   refineError: unknown;
 }) {
-  const [instruction, setInstruction] = useState('');
   const current = draft.current;
   if (!current) return null;
-
-  const submitRefine = () => {
-    const trimmed = instruction.trim();
-    if (!trimmed || refineBusy) return;
-    onRefine(draft, trimmed);
-    setInstruction('');
-  };
 
   return (
     <article className="uui-draft-preview">
@@ -875,40 +939,12 @@ function DraftPreviewCard({
             'Governed campaign context and the exact recipient snapshot.'}
         </p>
       </section>
-      <section className="uui-draft-refine">
-        <span className="uui-eyebrow">Refine with Meri</span>
-        <p>
-          Describe the change in your own words. Meri rewrites this draft against the same
-          governed context and saves the result as a new immutable version — approval clears so
-          you re-read it before sending.
-        </p>
-        <div className="uui-draft-refine__row">
-          <input
-            value={instruction}
-            placeholder="e.g. warmer opening, tighten the ask, mention the district"
-            disabled={refineBusy}
-            onChange={(event) => setInstruction(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                submitRefine();
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="uui-button uui-button--primary"
-            disabled={refineBusy || !instruction.trim()}
-            onClick={submitRefine}
-          >
-            {refineBusy ? <Loader2 className="uui-spin" size={15} /> : <Sparkles size={15} />}{' '}
-            {refineBusy ? 'Refining…' : 'Refine'}
-          </button>
-        </div>
-        {refineError ? (
-          <p className="uui-field-error">{safeOutreachV3Error(refineError)}</p>
-        ) : null}
-      </section>
+      <DraftRefineControl
+        draft={draft}
+        onRefine={onRefine}
+        refineBusy={refineBusy}
+        refineError={refineError}
+      />
       <footer>
         <button type="button" className="uui-button" onClick={() => onEdit(draft)}>
           Edit manually
@@ -1096,21 +1132,41 @@ function DraftPanel({
                   >
                     {artifact.current?.auditStatus ?? 'Pending'}
                   </span>
+                  {artifact.current ? (
+                    <span className="uui-version-pill">V{artifact.current.version}</span>
+                  ) : null}
                 </div>
-                <p>
-                  {artifact.current?.body.slice(0, 220)}
-                  {(artifact.current?.body.length ?? 0) > 220 ? '…' : ''}
-                </p>
+                {/* Full text, not a 220-character slice. This is the surface that
+                    asks the user to approve the approach and now to refine it, and
+                    the old truncation cut mid-sentence — you cannot judge or adjust
+                    a draft you can only see the first paragraph of. */}
+                {artifact.current?.subject ? (
+                  <p className="uui-sample-subject">
+                    <strong>Subject:</strong> {artifact.current.subject}
+                  </p>
+                ) : null}
+                <div className="uui-draft-body">
+                  {(artifact.current?.body ?? '').split('\n').map((paragraph, index) => (
+                    <p key={`${index}-${paragraph.slice(0, 20)}`}>{paragraph || <br />}</p>
+                  ))}
+                </div>
+                <DraftRefineControl
+                  draft={artifact}
+                  onRefine={onRefine}
+                  refineBusy={refineBusyId === artifact.id}
+                  refineError={refineErrorId === artifact.id ? refineError : null}
+                  compact
+                />
                 <button type="button" className="uui-button" onClick={() => onEdit(artifact)}>
-                  Edit sample
+                  Edit manually
                 </button>
               </article>
             ))}
           </section>
           <div className="uui-approach-actions">
             <p>
-              Approach approval is pinned to these exact sample version IDs. Editing any sample
-              clears it.
+              Approach approval is pinned to these exact sample version IDs. Editing or
+              refining any sample creates a new version and clears it.
             </p>
             <button
               type="button"
