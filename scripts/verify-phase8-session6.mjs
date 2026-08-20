@@ -106,6 +106,47 @@ if (!exists(contractsPath)) {
   }
 }
 
+const preparePath = 'scripts/prepare-phase8-session6-federal-funding-corpus.mjs';
+if (!exists(preparePath)) {
+  fail('Missing source acquisition/hash materializer');
+} else {
+  const prepare = read(preparePath);
+  for (const token of [
+    "allowedHosts = new Set(['www.govinfo.gov', 'govinfo.gov', 'www.congress.gov', 'congress.gov'])",
+    'sourceSha256 && source.sourceSha256 !== downloaded.sha256',
+    'Unsafe authoritative allocation',
+    'phase8_session6_prepared_federal_funding_corpus_v1',
+  ]) {
+    if (!prepare.includes(token)) fail(`Source materializer missing fail-closed token: ${token}`);
+  }
+}
+
+const ingestPath = 'apps/defense-api/scripts/ingest-federal-funding.mjs';
+if (!exists(ingestPath)) {
+  fail('Missing governed defense-job ingestion command');
+} else {
+  const ingest = read(ingestPath);
+  for (const token of [
+    "process.env.PHASE8_SESSION6_COMMIT_AUTHORIZED !== 'true'",
+    'DRY_RUN_PASS',
+    'superseded_by_document_id IS NULL',
+    'Expected exactly one registered live source_document',
+    'Unsafe authoritative allocation',
+    'federal_funding_measure',
+    'federal_funding_provision',
+    'federal_funding_allocation',
+  ]) {
+    if (!ingest.includes(token)) fail(`Ingestion command missing governance token: ${token}`);
+  }
+  if (ingest.includes('program_element_year')) {
+    fail('Session 6 ingestion command writes or references ProgramElementYear');
+  }
+}
+
+for (const dbGate of ['scripts/verify-phase8-session6-db.mjs', 'scripts/verify-phase8-session6-db.sh']) {
+  if (!exists(dbGate)) fail(`Missing Session 6 database negative-control gate: ${dbGate}`);
+}
+
 const corpusPath = 'docs/defense-budget/phase8-session6-federal-funding-corpus.json';
 if (enforceCorpus) {
   if (!exists(corpusPath)) {
@@ -126,6 +167,9 @@ if (enforceCorpus) {
       if (!source.officialUrl || !source.sourceKey || !source.fiscalYear) {
         fail(`Corpus source is missing official identity: ${source.sourceKey ?? '<unknown>'}`);
       }
+      if (!/^https:\/\/(www\.)?(govinfo\.gov|congress\.gov)\//.test(source.officialUrl)) {
+        fail(`Corpus source is not an official allowed URL: ${source.sourceKey}`);
+      }
       if (!Array.isArray(source.provisions) || source.provisions.length < 1) {
         fail(`Corpus source has no source-grounded provisions: ${source.sourceKey}`);
       }
@@ -133,8 +177,15 @@ if (enforceCorpus) {
         if (!provision.section || !provision.purposeText || !provision.evidencePage) {
           fail(`Corpus provision lacks section/purpose/page: ${source.sourceKey}`);
         }
-        if (provision.mappingMaturity === 'capability_inference' && provision.authoritativeAmountUsd !== null) {
-          fail(`Capability inference carries authoritative dollars: ${source.sourceKey}/${provision.section}`);
+        if (
+          provision.authoritativeAmountUsd !== null &&
+          (provision.mappingMaturity === 'capability_inference' ||
+            provision.mappingMaturity === 'unmapped' ||
+            provision.targetType === 'capability' ||
+            provision.inferredRelevance === true ||
+            provision.reviewState !== 'verified')
+        ) {
+          fail(`Unsafe corpus allocation: ${source.sourceKey}/${provision.section}`);
         }
       }
     }
