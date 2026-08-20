@@ -9,6 +9,7 @@ import {
   toUsaSpendingDistrictCode,
 } from '../common/district-code.util.js';
 import { computeFacilityGeocode } from './facility-geocode.util.js';
+import { nextGeocodeAttempt } from './geocode-retry.js';
 
 /**
  * Normalize a congressional district to STORAGE form before it is written.
@@ -117,13 +118,38 @@ export class ClientFacilitiesService {
         const facility = await tx.clientFacility.findUnique({ where: { id: facilityId } });
         if (!facility) return;
         const outcome = await computeFacilityGeocode(facility);
+        const attemptCount = (facility.geocodeAttemptCount ?? 0) + 1;
+        const retry = nextGeocodeAttempt(
+          outcome.status,
+          attemptCount,
+          Boolean(facility.addressLine?.trim() && facility.city?.trim() && facility.state?.trim()),
+          new Date(),
+        );
         if (outcome.discrepancy) {
           this.logger.warn(
             `Geocode discrepancy for facility ${facilityId}: hand="${outcome.discrepancy.handEntered}" geocoded="${outcome.discrepancy.geocoded}"`,
           );
         }
         if (outcome.update) {
-          await tx.clientFacility.update({ where: { id: facilityId }, data: outcome.update });
+          await tx.clientFacility.update({
+            where: { id: facilityId },
+            data: {
+              ...outcome.update,
+              geocodeAttemptCount: attemptCount,
+              geocodeNextAttemptAt: retry.nextAttemptAt,
+              geocodeLastError: outcome.status === 'error' ? 'Census geocoder request failed' : null,
+              geocodeMatchedAddress: null,
+            },
+          });
+        } else {
+          await tx.clientFacility.update({
+            where: { id: facilityId },
+            data: {
+              geocodeAttemptCount: attemptCount,
+              geocodeNextAttemptAt: retry.nextAttemptAt,
+              geocodeLastError: outcome.status === 'error' ? 'Census geocoder request failed' : null,
+            },
+          });
         }
       })
       .catch((err) =>
@@ -302,5 +328,24 @@ export class ClientFacilitiesService {
     });
     this.clientKb.purgeFireAndForget(ctx.tenantId, 'client_facility', id);
     return result;
+  }
+
+  async retryGeocode(ctx: TenantContext, clientId: string, id: string) {
+    const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.clientFacility.findFirst({
+        where: { id, tenantId: ctx.tenantId, clientId },
+      });
+      if (!existing) throw new NotFoundException('Facility not found');
+      return tx.clientFacility.update({
+        where: { id },
+        data: {
+          geocodeNextAttemptAt: new Date(),
+          geocodeStatus: existing.geocodeStatus === 'manual_review' ? null : existing.geocodeStatus,
+          geocodeLastError: null,
+        },
+      });
+    });
+    this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);
+    return facility;
   }
 }

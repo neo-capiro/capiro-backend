@@ -26,6 +26,7 @@ import {
   facilityAddressHash,
   type FacilityGeocodeInput,
 } from '../src/clients/facility-geocode.util.js';
+import { hasGeocodableAddress, nextGeocodeAttempt } from '../src/clients/geocode-retry.js';
 dotenvConfig();
 
 const prisma = new PrismaClient();
@@ -71,9 +72,12 @@ async function main() {
                 state_house_district AS "stateHouseDistrict", state_senate_district AS "stateSenateDistrict",
                 latitude, longitude, geocode_status AS "geocodeStatus",
                 geocode_input_hash AS "geocodeInputHash",
+                geocode_attempt_count AS "geocodeAttemptCount",
                 ${ADDR_HASH_SQL} AS "currentHash"
            FROM client_facilities
-          WHERE geocode_input_hash IS NULL OR geocode_input_hash IS DISTINCT FROM ${ADDR_HASH_SQL}
+          WHERE (geocode_input_hash IS NULL OR geocode_input_hash IS DISTINCT FROM ${ADDR_HASH_SQL})
+             OR (geocode_status IN ('error', 'no_match', 'ambiguous')
+                 AND (geocode_next_attempt_at IS NULL OR geocode_next_attempt_at <= NOW()))
           ORDER BY (geocode_input_hash IS NOT NULL), updated_at ASC
           LIMIT $1`,
         BATCH_CAP,
@@ -92,28 +96,25 @@ async function main() {
             `[geocode-facilities] DISCREPANCY facility=${row.id} hand="${outcome.discrepancy.handEntered}" geocoded="${outcome.discrepancy.geocoded}"`,
           );
         }
-        if (!outcome.update) {
-          skipped++;
-          // Stamp the hash even when nothing else changed (unchanged, no-match,
-          // or address-less) so this row won't re-select until its address
-          // actually changes — the fix for the starvation the old watermark had.
-          await bypassRls((tx) =>
-            tx.clientFacility.update({
-              where: { id: row.id },
-              data: { geocodeInputHash: currentHash },
-            }),
-          );
-        } else {
-          const wasUngeocoded = row.geocodeStatus == null;
-          await bypassRls((tx) =>
-            tx.clientFacility.update({
-              where: { id: row.id },
-              data: { ...outcome.update!, geocodeInputHash: currentHash },
-            }),
-          );
-          if (wasUngeocoded && outcome.status === 'matched') inserted++;
-          else updated++;
-        }
+        const addressReady = hasGeocodableAddress(row.addressLine, row.city, row.state);
+        const attemptCount = (row.geocodeAttemptCount ?? 0) + (addressReady ? 1 : 0);
+        const retry = nextGeocodeAttempt(outcome.status, attemptCount, addressReady, new Date());
+        const wasUngeocoded = row.geocodeStatus == null;
+        await bypassRls((tx) => tx.clientFacility.update({
+          where: { id: row.id },
+          data: {
+            ...(outcome.update ?? {}),
+            ...(retry.status === 'manual_review' ? { geocodeStatus: 'manual_review' } : {}),
+            geocodeInputHash: currentHash,
+            geocodeAttemptCount: attemptCount,
+            geocodeNextAttemptAt: retry.nextAttemptAt,
+            geocodeLastError: outcome.status === 'error' ? 'Census geocoder request failed' : null,
+            geocodeMatchedAddress: null,
+          },
+        }));
+        if (wasUngeocoded && outcome.status === 'matched') inserted++;
+        else if (outcome.update || outcome.status !== 'matched') updated++;
+        else skipped++;
       } catch (err) {
         errors++;
         if (!firstError) firstError = `facility ${row.id}: ${(err as Error).message}`;

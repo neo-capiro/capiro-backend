@@ -1,6 +1,6 @@
 import type { AxiosInstance } from 'axios';
 
-export type FacilityGeocodeStatus = 'matched' | 'no_match' | 'pending' | 'ambiguous' | 'error';
+export type FacilityGeocodeStatus = 'matched' | 'no_match' | 'pending' | 'ambiguous' | 'error' | 'manual_review';
 
 /**
  * Step 2.3 — web API for client facilities (CRUD).
@@ -31,6 +31,10 @@ export interface ClientFacility {
   geocodedAt: string | null;
   /** 'matched' | 'no_match' | 'pending' | 'ambiguous' | 'error' | null (never attempted). */
   geocodeStatus: FacilityGeocodeStatus | null;
+  geocodeAttemptCount?: number;
+  geocodeNextAttemptAt?: string | null;
+  geocodeLastError?: string | null;
+  geocodeMatchedAddress?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -118,6 +122,7 @@ export const GEOCODE_STATUS_LABEL: Record<string, string> = {
   pending: 'Resolution pending',
   ambiguous: 'Ambiguous — confirm address',
   error: 'Geocode failed — will retry',
+  manual_review: 'Manual review required — confirm address',
 };
 
 /**

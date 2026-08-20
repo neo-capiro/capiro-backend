@@ -26,6 +26,7 @@ import {
   formatFacilityDistrict,
   getClientFacilities,
   updateClientFacility,
+  retryClientFacilityGeocode,
   type ClientFacility,
   type FacilityPayload,
 } from './facilities-api.js';
@@ -94,6 +95,15 @@ export function FacilitiesEditor({ clientId, canManage = true }: FacilitiesEdito
     onError: (err) => message.error(errorMessage(err)),
   });
 
+  const retryMutation = useMutation({
+    mutationFn: (id: string) => retryClientFacilityGeocode(api, clientId, id),
+    onSuccess: () => {
+      message.success('Address resolution queued');
+      qc.invalidateQueries({ queryKey: ['client-facilities', clientId] });
+    },
+    onError: (err) => message.error(errorMessage(err)),
+  });
+
   function openAdd() {
     setEditor({ open: true, editing: null });
   }
@@ -133,6 +143,8 @@ export function FacilitiesEditor({ clientId, canManage = true }: FacilitiesEdito
               facility={facility}
               canManage={canManage}
               onEdit={() => openEdit(facility)}
+              onRetry={() => retryMutation.mutate(facility.id)}
+              retrying={retryMutation.isPending && retryMutation.variables === facility.id}
               onDelete={() =>
                 modal.confirm({
                   title: 'Remove this facility?',
@@ -173,11 +185,15 @@ function FacilityCard({
   facility,
   canManage,
   onEdit,
+  onRetry,
+  retrying,
   onDelete,
 }: {
   facility: ClientFacility;
   canManage: boolean;
   onEdit: () => void;
+  onRetry: () => void;
+  retrying: boolean;
   onDelete: () => void;
 }) {
   const district = formatFacilityDistrict(facility.state, facility.congressionalDistrict);
@@ -242,6 +258,16 @@ function FacilityCard({
           <Typography.Text type="warning" style={{ fontSize: 11 }}>
             {GEOCODE_STATUS_LABEL[facility.geocodeStatus] ?? facility.geocodeStatus}
           </Typography.Text>
+        ) : null}
+        {facility.geocodeStatus && facility.geocodeStatus !== 'matched' && facility.geocodeStatus !== 'manual_review' ? (
+          <Button
+            size="small"
+            type="link"
+            onClick={onRetry}
+            loading={retrying}
+          >
+            Retry now
+          </Button>
         ) : null}
         {facility.notes ? (
           <Typography.Text type="secondary" style={{ fontSize: 11, marginTop: 4 }}>

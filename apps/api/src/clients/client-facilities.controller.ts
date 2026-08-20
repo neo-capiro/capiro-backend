@@ -227,6 +227,15 @@ export class ClientFacilitiesController {
     return this.service.resolveFacilityDistrict(ctx, clientId, id);
   }
 
+  @Post(':id/geocode')
+  retryGeocode(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('id') id: string,
+  ) {
+    return this.service.retryGeocode(ctx, clientId, id);
+  }
+
   @Delete(':id')
   deleteFacility(
     @CurrentTenant() ctx: TenantContext,
