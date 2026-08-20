@@ -5,6 +5,7 @@ import type {
   DashboardDensity,
   DashboardVNextModel,
 } from '../../adapters/legacy/useDashboardVNextModel.js';
+import type { DefaultXFeedAccount } from './x-feed-defaults.js';
 
 const DENSITIES: ReadonlyArray<{ value: DashboardDensity; label: string; sub: string }> = [
   { value: 'presentation', label: 'Presentation', sub: 'More breathing room · fewer rows' },
@@ -22,10 +23,17 @@ export function CustomizeDrawer({ model, onClose, onDensityChange, initialSectio
   const [xDraft, setXDraft] = useState('');
   const [xError, setXError] = useState<string | null>(null);
   const [addingX, setAddingX] = useState(false);
+  const [defaultXCategory, setDefaultXCategory] = useState('All categories');
+  const [defaultXDraft, setDefaultXDraft] = useState<string[]>([]);
+  const [defaultXDirty, setDefaultXDirty] = useState(false);
   const [customDraft, setCustomDraft] = useState(() => model.news.preferences.customTopics.join(', '));
   const workOrder = model.order.filter((key): key is WorkKey => key === 'today' || key === 'work');
   const wireEnabled = model.visibility.news || model.visibility.xFeed;
   const prefs = model.news.preferences;
+  const defaultXAccounts = model.xFeed.defaultAccounts;
+  const selectedDefaultUsernames = defaultXDirty ? defaultXDraft : model.xFeed.selectedDefaultUsernames;
+  const defaultXCategories = ['All categories', ...new Set(defaultXAccounts.map((account) => account.category))];
+  const visibleDefaultXAccounts = defaultXAccounts.filter((account) => defaultXCategory === 'All categories' || account.category === defaultXCategory);
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -76,6 +84,18 @@ export function CustomizeDrawer({ model, onClose, onDensityChange, initialSectio
     catch { setXError('Could not add this account. Check the handle and try again.'); }
     finally { setAddingX(false); }
   };
+  const toggleDefaultX = (account: DefaultXFeedAccount) => {
+    const selected = selectedDefaultUsernames.some((username) => username.toLowerCase() === account.username.toLowerCase());
+    setDefaultXDraft(selected
+      ? selectedDefaultUsernames.filter((username) => username.toLowerCase() !== account.username.toLowerCase())
+      : [...selectedDefaultUsernames, account.username]);
+    setDefaultXDirty(true);
+  };
+  const saveDefaultX = async () => {
+    await model.xFeed.applyDefaultAccounts(selectedDefaultUsernames);
+    setDefaultXDirty(false);
+  };
+
   const saveCustomTopics = () => {
     const customTopics = customDraft.split(',').map((value) => value.trim()).filter(Boolean).slice(0, 20).map((value) => value.slice(0, 120));
     model.news.setPreferences({ ...model.news.preferences, customTopics });
@@ -126,8 +146,14 @@ export function CustomizeDrawer({ model, onClose, onDensityChange, initialSectio
           <div ref={xSectionRef} className="dashv2-drawer-anchor" />
           <SectionHead label="X accounts" hint={`${model.xFeed.subscriptions.length} subscribed`} />
           <p className="dashv2-drawer__helper">Posts are read-only and refresh with the dashboard.</p>
+          {defaultXAccounts.length > 0 ? <div className="dashv2-default-x">
+            <div className="dashv2-default-x__head"><span><strong>Default X account library</strong><small>Select the feeds you want enabled. You can change this at any time.</small></span><span className="dashv2-pill dashv2-pill--brand">{selectedDefaultUsernames.length} selected</span></div>
+            <div className="dashv2-default-x__controls"><select aria-label="Filter default X accounts" value={defaultXCategory} onChange={(event) => setDefaultXCategory(event.target.value)}>{defaultXCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select><button type="button" className="dashv2-link" onClick={() => { setDefaultXDraft(defaultXAccounts.map((account) => account.username)); setDefaultXDirty(true); }}>Select all</button><button type="button" className="dashv2-link" onClick={() => { setDefaultXDraft([]); setDefaultXDirty(true); }}>Clear all</button></div>
+            <div className="dashv2-default-x__list">{visibleDefaultXAccounts.map((account) => { const checked = selectedDefaultUsernames.some((username) => username.toLowerCase() === account.username.toLowerCase()); return <label key={account.username} className="dashv2-default-x__option"><input type="checkbox" checked={checked} onChange={() => toggleDefaultX(account)} /><span><strong>{account.displayName}</strong><small>@{account.username} · {account.rationale}</small></span></label>; })}</div>
+            {defaultXDirty ? <button type="button" className="dashv2-primary dashv2-default-x__save" onClick={() => void saveDefaultX()}>Save default accounts</button> : null}
+          </div> : null}
           {model.xFeed.subscriptions.map((sub) => <div key={sub.id} className="dashv2-account"><span className="dashv2-avatar dashv2-avatar--tiny">{initials(sub.displayName ?? sub.username)}</span><span className="dashv2-account__copy"><strong>@{sub.username}</strong>{sub.displayName ? <small>{sub.displayName}</small> : null}</span><button type="button" className="dashv2-account__remove" aria-label={`Remove @${sub.username}`} onClick={() => void model.xFeed.removeSource(sub.id)}><DashboardIcon name="XClose" size={16} /></button></div>)}
-          <div className="dashv2-add-row"><input value={xDraft} onChange={(e)=>setXDraft(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'){e.preventDefault();void addX();}}} placeholder="@username" aria-label="X username"/><CapiroButton variant="secondary" size="standard" disabled={addingX} onClick={() => void addX()}>{addingX?'Adding…':'Add'}</CapiroButton></div>
+          <SectionHead label="Add a manual account" hint="Any public handle" /><div className="dashv2-add-row"><input value={xDraft} onChange={(e)=>setXDraft(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'){e.preventDefault();void addX();}}} placeholder="@username" aria-label="X username"/><CapiroButton variant="secondary" size="standard" disabled={addingX} onClick={() => void addX()}>{addingX?'Adding…':'Add'}</CapiroButton></div>
           {xError ? <p className="dashv2-drawer__error">{xError}</p> : null}
 
           <div className="dashv2-drawer__divider" />

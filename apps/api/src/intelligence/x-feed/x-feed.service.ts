@@ -13,6 +13,7 @@ import {
 import type { TenantContext } from '@capiro/shared';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { DEFAULT_X_FEED_ACCOUNTS } from './x-feed-default-library.js';
 
 /**
  * Maximum number of X accounts a single user can subscribe to.
@@ -337,6 +338,29 @@ export class XFeedService {
       subscriptionId: subscription.id,
       accountId: account.id,
       username: account.username,
+    };
+  }
+
+  async applyDefaultSubscriptions(ctx: TenantContext, usernames: string[]) {
+    const allowed = new Map(DEFAULT_X_FEED_ACCOUNTS.map((account) => [account.username.toLowerCase(), account.username]));
+    const selected = [...new Set(usernames
+      .map((username) => allowed.get(username.trim().replace(/^@+/, '').toLowerCase()))
+      .filter((username): username is string => Boolean(username)))];
+    const current = await this.getSubscriptions(ctx);
+    const existingDefault = new Set(current.filter((sub) => allowed.has(sub.username.toLowerCase())).map((sub) => sub.username.toLowerCase()));
+
+    for (const username of selected) {
+      await this.addSubscription(ctx, username);
+    }
+    for (const sub of current) {
+      if (allowed.has(sub.username.toLowerCase()) && !selected.some((username) => username.toLowerCase() === sub.username.toLowerCase())) {
+        await this.removeSubscription(ctx, sub.id);
+      }
+    }
+    return {
+      selected,
+      subscriptions: await this.getSubscriptions(ctx),
+      added: selected.filter((username) => !existingDefault.has(username.toLowerCase())).length,
     };
   }
 

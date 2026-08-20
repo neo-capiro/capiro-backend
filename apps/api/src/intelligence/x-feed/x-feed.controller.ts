@@ -15,7 +15,8 @@ import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../../auth/roles.decorator.js';
 import { RolesGuard } from '../../auth/roles.guard.js';
 import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
-import { AddXFeedSubscriptionDto } from './x-feed.dto.js';
+import { AddXFeedSubscriptionDto, ApplyXFeedDefaultsDto } from './x-feed.dto.js';
+import { DEFAULT_X_FEED_ACCOUNTS } from './x-feed-default-library.js';
 import { XFeedService } from './x-feed.service.js';
 
 /**
@@ -52,6 +53,21 @@ export class XFeedController {
     @Body() input: AddXFeedSubscriptionDto,
   ) {
     return this.xFeed.addSubscription(ctx, input.username);
+  }
+
+  /** Curated default-account catalog; selection is user-controlled in the UI. */
+  @Get('defaults')
+  defaults() {
+    return DEFAULT_X_FEED_ACCOUNTS;
+  }
+
+  /** Apply the selected curated accounts, preserving manual subscriptions. */
+  @Post('defaults')
+  applyDefaults(
+    @CurrentTenant() ctx: TenantContext,
+    @Body() input: ApplyXFeedDefaultsDto,
+  ) {
+    return this.xFeed.applyDefaultSubscriptions(ctx, input.usernames);
   }
 
   /** Remove a subscription. */

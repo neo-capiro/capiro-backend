@@ -173,6 +173,9 @@ describe('Dashboard v2 customization and chrome', () => {
     expect(drawer).toContain("type WorkKey = 'today' | 'work'");
     expect(drawer).toContain('The Wire');
     expect(drawer).toContain('X accounts');
+    expect(drawer).toContain('Default X account library');
+    expect(drawer).toContain('Filter default X accounts');
+    expect(drawer).toContain('Add a manual account');
     expect(drawer).toContain('News subscriptions');
     expect(drawer).toContain('Information density');
   });

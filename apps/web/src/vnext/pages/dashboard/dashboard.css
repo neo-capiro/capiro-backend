@@ -226,6 +226,19 @@
 .capiro-vnext-root .capiro-vnext-uui .dashv2-switch[data-on] i { left: 22px; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-drawer__helper { margin: -2px 0 12px; font-size: 13px; line-height: 19px; color: var(--uui-gray-500); }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-account { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin-bottom: 8px; border-radius: 8px; background: var(--uui-gray-50); box-shadow: inset 0 0 0 1px var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x { margin: 12px 0 16px; padding: 12px; border-radius: 10px; background: var(--uui-gray-50); box-shadow: inset 0 0 0 1px var(--uui-gray-200); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__head span:first-child { display: grid; gap: 3px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__head small { color: var(--uui-gray-500); font-size: 12px; line-height: 17px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__controls { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__controls select { min-width: 0; flex: 1; height: 36px; padding: 0 8px; border: 1px solid var(--uui-gray-300); border-radius: 7px; background: var(--uui-white); color: var(--uui-gray-700); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__list { display: grid; gap: 4px; max-height: 360px; overflow-y: auto; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__option { display: flex; align-items: flex-start; gap: 8px; padding: 7px 6px; border-radius: 6px; cursor: pointer; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__option:hover { background: var(--uui-white); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__option input { margin-top: 3px; accent-color: var(--uui-brand-solid); }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__option span { display: grid; gap: 2px; min-width: 0; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__option small { color: var(--uui-gray-500); font-size: 11px; line-height: 15px; }
+.capiro-vnext-root .capiro-vnext-uui .dashv2-default-x__save { width: 100%; justify-content: center; margin-top: 10px; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-avatar--tiny { width: 28px; height: 28px; flex: 0 0 28px; font-size: 10px; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-account__copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-account__copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; color: var(--uui-gray-700); }

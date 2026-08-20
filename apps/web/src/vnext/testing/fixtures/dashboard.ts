@@ -352,6 +352,9 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
     resolveHandle: async () => null,
     refreshing: false,
     refresh: () => {},
+    defaultAccounts: [],
+    selectedDefaultUsernames: [],
+    applyDefaultAccounts: async () => {},
   },
 };
 

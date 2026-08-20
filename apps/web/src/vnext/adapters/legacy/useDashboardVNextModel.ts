@@ -16,6 +16,7 @@ import type {
   PortfolioAlertsResponse,
 } from '../../../pages/intelligence/types.js';
 import type { MeriState } from '../../../pages/engagement/meetings/meetings-types.js';
+import type { DefaultXFeedAccount } from '../../pages/dashboard/x-feed-defaults.js';
 
 /**
  * Dashboard vNext controller.
@@ -270,6 +271,9 @@ export interface DashboardVNextModel {
     resolveHandle: (username: string) => Promise<XFeedResolveResult | null>;
     refreshing: boolean;
     refresh: () => void;
+    defaultAccounts: DefaultXFeedAccount[];
+    selectedDefaultUsernames: string[];
+    applyDefaultAccounts: (usernames: string[]) => Promise<void>;
   };
   visibility: DashboardVisibility;
   setVisibility: (next: DashboardVisibility) => void;
@@ -901,6 +905,13 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     staleTime: 60_000,
   });
 
+  const xFeedDefaults = useQuery<DefaultXFeedAccount[]>({
+    queryKey: ['x-feed-defaults'],
+    queryFn: async () => (await api.get<DefaultXFeedAccount[]>('/api/intelligence/x-feed/defaults')).data,
+    staleTime: 60 * 60 * 1000,
+    enabled: visibility.xFeed,
+  });
+
   const xFeedAddMutation = useMutation({
     mutationFn: async (username: string) =>
       (await api.post('/api/intelligence/x-feed/subscriptions', { username })).data,
@@ -946,6 +957,9 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         resolveHandle: async () => null,
         refreshing: false,
         refresh: () => {},
+        defaultAccounts: xFeedDefaults.data ?? [],
+        selectedDefaultUsernames: [],
+        applyDefaultAccounts: async () => {},
       };
     }
 
@@ -988,6 +1002,9 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         },
         refreshing: xFeedRefreshMutation.isPending,
         refresh: () => void xFeedRefreshMutation.mutate(),
+        defaultAccounts: xFeedDefaults.data ?? [],
+        selectedDefaultUsernames: [],
+        applyDefaultAccounts: async () => {},
       };
     }
 
@@ -1021,6 +1038,9 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         },
         refreshing: xFeedRefreshMutation.isPending,
         refresh: () => void xFeedRefreshMutation.mutate(),
+        defaultAccounts: xFeedDefaults.data ?? [],
+        selectedDefaultUsernames: [],
+        applyDefaultAccounts: async () => {},
       };
     }
 
@@ -1053,6 +1073,9 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         },
         refreshing: xFeedRefreshMutation.isPending,
         refresh: () => void xFeedRefreshMutation.mutate(),
+        defaultAccounts: xFeedDefaults.data ?? [],
+        selectedDefaultUsernames: [],
+        applyDefaultAccounts: async () => {},
       };
     }
 
@@ -1088,6 +1111,9 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         },
         refreshing: xFeedRefreshMutation.isPending,
         refresh: () => void xFeedRefreshMutation.mutate(),
+        defaultAccounts: xFeedDefaults.data ?? [],
+        selectedDefaultUsernames: [],
+        applyDefaultAccounts: async () => {},
       };
     }
 
@@ -1121,6 +1147,9 @@ export function useDashboardVNextModel(): DashboardVNextModel {
         },
         refreshing: xFeedRefreshMutation.isPending,
         refresh: () => void xFeedRefreshMutation.mutate(),
+        defaultAccounts: xFeedDefaults.data ?? [],
+        selectedDefaultUsernames: [],
+        applyDefaultAccounts: async () => {},
       };
     }
 
@@ -1146,6 +1175,13 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       },
       refreshing: xFeedRefreshMutation.isPending,
       refresh: () => void xFeedRefreshMutation.mutate(),
+      defaultAccounts: xFeedDefaults.data ?? [],
+      selectedDefaultUsernames: subs.filter((sub) => xFeedDefaults.data?.some((account) => account.username.toLowerCase() === sub.username.toLowerCase())).map((sub) => sub.username),
+      applyDefaultAccounts: async (usernames: string[]) => {
+        await api.post('/api/intelligence/x-feed/defaults', { usernames });
+        void queryClient.invalidateQueries({ queryKey: ['x-feed-subscriptions'] });
+        void queryClient.invalidateQueries({ queryKey: ['x-feed-dashboard'] });
+      },
     };
   }, [
     visibility.xFeed,
@@ -1158,6 +1194,7 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     xFeedAddMutation,
     xFeedRemoveMutation,
     xFeedRefreshMutation,
+    xFeedDefaults.data,
     api,
   ]);
 
