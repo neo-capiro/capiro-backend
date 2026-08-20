@@ -131,6 +131,8 @@ describe('Dashboard v2 prototype structure', () => {
     expect(view).toContain("'News unavailable'");
     expect(view).toContain("`View more ${filter === 'x' ? 'X posts'");
     expect(view).toContain('showAllWire');
+    expect(view).toContain('wireWindow');
+    expect(view).toContain('slice(0, showAllWire ? undefined : wireLimit)');
     expect(view).toContain('item.title');
     expect(view).not.toContain('item.summary');
     expect(view).toContain("'Sources updating'");

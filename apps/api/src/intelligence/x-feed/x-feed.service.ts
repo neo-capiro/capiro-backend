@@ -49,10 +49,10 @@ const TIMELINE_MAX_PAGES = 10;
 /** Max posts fetched per account for the dashboard's initial page. */
 const FEED_POSTS_PER_ACCOUNT = 5;
 
-/** Max total posts retained by the combined feed endpoint. */
-const FEED_MAX_TOTAL = 50;
+/** Max total posts retained by the combined feed endpoint and View more window. */
+const FEED_MAX_TOTAL = 100;
 
-/** Number of additional posts available through the dashboard's View more action. */
+/** Number of posts available through the dashboard's expanded View more action. */
 const FEED_VIEW_MORE_TOTAL = 100;
 
 type JsonRecord = Record<string, unknown>;
@@ -639,7 +639,7 @@ export class XFeedService {
       accountId,
       username,
       account,
-      FEED_POSTS_PER_ACCOUNT,
+      FEED_VIEW_MORE_TOTAL,
     );
 
     const seen = new Set(newPosts.map((p) => p.xPostId));
@@ -649,7 +649,7 @@ export class XFeedService {
     ].sort(
       (a, b) => new Date(b.createdAtX).getTime() - new Date(a.createdAtX).getTime(),
     );
-    return merged.slice(0, FEED_POSTS_PER_ACCOUNT);
+    return merged.slice(0, FEED_VIEW_MORE_TOTAL);
   }
 
   private async fetchTimelineWindow(

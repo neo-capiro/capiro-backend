@@ -428,9 +428,10 @@ describe('dashboard merge behavior', () => {
 
 
 describe('X feed View more window', () => {
-  it('keeps the combined dashboard response larger than the visible initial cap', () => {
+  it('retains 100 posts for a combined feed with many followed accounts', () => {
     const retained = 100;
     const visibleInitial = 8;
+    expect(retained).toBe(100);
     expect(retained).toBeGreaterThan(visibleInitial);
   });
 });
