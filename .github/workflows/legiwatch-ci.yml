@@ -124,12 +124,13 @@ jobs:
           src/intelligence/intelligence.alerts-worklist.spec.ts
           src/engagement/generation/alert-packet-client.service.spec.ts
           src/reviews/reviews.service.spec.ts
+          src/prisma/legiwatch-live-hearings-foundation-migration.spec.ts
           scripts/verify-migrations.spec.ts
           scripts/verify-image-parity.spec.ts
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 21 248
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 22 256
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
