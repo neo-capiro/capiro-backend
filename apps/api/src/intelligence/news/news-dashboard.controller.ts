@@ -6,6 +6,7 @@ import { CurrentTenant } from '../../tenant/current-tenant.decorator.js';
 import {
   NewsCatcherDashboardService,
   type NewsDashboardFilterInput,
+  type SharedNewsDashboardFilterInput,
 } from './news-catcher-dashboard.service.js';
 
 /**
@@ -30,7 +31,26 @@ export class NewsDashboardController {
     @Query('signals') signals?: string,
     @Query('custom') custom?: string,
     @Query('lookback') lookback?: string,
+    @Query('corpus') corpus?: string,
+    @Query('q') q?: string,
+    @Query('sources') sources?: string | string[],
+    @Query('agencies') agencies?: string | string[],
   ) {
+    // Dashboard news intentionally uses the same global IntelArticle corpus as
+    // Data Explorer. The legacy client-relevance filters remain accepted for
+    // backwards compatibility, but the shared q/source/topic/agency contract
+    // is the source of truth for this route.
+    if (corpus === 'explorer') {
+      const filters: SharedNewsDashboardFilterInput = {
+        query: q,
+        sources: splitCsv(sources),
+        topics: splitCsv(topics),
+        agencies: splitCsv(agencies),
+        lookback,
+      };
+      return this.news.getSharedNewsDashboard(filters);
+    }
+
     const filters: NewsDashboardFilterInput = {
       clientIds: splitClientIds(clients),
       policyTopics: splitCsv(topics),
@@ -42,10 +62,9 @@ export class NewsDashboardController {
   }
 }
 
-function splitCsv(value?: string): string[] | undefined {
+function splitCsv(value?: string | string[]): string[] | undefined {
   if (!value) return undefined;
-  const rows = value
-    .split(',')
+  const rows = (Array.isArray(value) ? value.flatMap((item) => item.split(',')) : value.split(','))
     .map((item) => item.trim())
     .filter(Boolean);
   return rows.length ? rows : undefined;

@@ -132,9 +132,13 @@ export const DASHBOARD_VISUAL_FIXTURE: DashboardVNextModel = {
       policyTopics: [],
       signalKinds: [],
       customTopics: [],
+      articleTopics: [],
+      sources: [],
+      agencies: [],
       lookback: '48h',
     },
     setPreferences: () => undefined,
+    facets: { sources: [], topics: [], agencies: [] },
     items: [
       {
         id: 'n1',

@@ -5,18 +5,7 @@ import type {
   DashboardDensity,
   DashboardVNextModel,
 } from '../../adapters/legacy/useDashboardVNextModel.js';
-import type { NewsPolicyTopic } from '../../../pages/dashboard/news-preferences.js';
 
-const TOPICS: ReadonlyArray<{ value: NewsPolicyTopic; label: string }> = [
-  { value: 'legislation', label: 'Legislation' },
-  { value: 'hearings', label: 'Hearings & markups' },
-  { value: 'regulation', label: 'Regulation' },
-  { value: 'budget', label: 'Budget & appropriations' },
-  { value: 'procurement', label: 'Procurement & contracts' },
-  { value: 'grants', label: 'Grants & funding' },
-  { value: 'state', label: 'State policy' },
-  { value: 'executive', label: 'Executive actions' },
-];
 const DENSITIES: ReadonlyArray<{ value: DashboardDensity; label: string; sub: string }> = [
   { value: 'presentation', label: 'Presentation', sub: 'More breathing room · fewer rows' },
   { value: 'standard', label: 'Standard', sub: 'Balanced spacing and context' },
@@ -33,7 +22,6 @@ export function CustomizeDrawer({ model, onClose, onDensityChange, initialSectio
   const [xDraft, setXDraft] = useState('');
   const [xError, setXError] = useState<string | null>(null);
   const [addingX, setAddingX] = useState(false);
-  const [editingCustom, setEditingCustom] = useState(false);
   const [customDraft, setCustomDraft] = useState(() => model.news.preferences.customTopics.join(', '));
   const workOrder = model.order.filter((key): key is WorkKey => key === 'today' || key === 'work');
   const wireEnabled = model.visibility.news || model.visibility.xFeed;
@@ -88,14 +76,16 @@ export function CustomizeDrawer({ model, onClose, onDensityChange, initialSectio
     catch { setXError('Could not add this account. Check the handle and try again.'); }
     finally { setAddingX(false); }
   };
-  const toggleTopic = (topic: NewsPolicyTopic) => {
-    const checked = prefs.policyTopics.includes(topic);
-    model.news.setPreferences({ ...prefs, policyTopics: checked ? prefs.policyTopics.filter((value) => value !== topic) : [...prefs.policyTopics, topic] });
-  };
   const saveCustomTopics = () => {
     const customTopics = customDraft.split(',').map((value) => value.trim()).filter(Boolean).slice(0, 20).map((value) => value.slice(0, 120));
     model.news.setPreferences({ ...model.news.preferences, customTopics });
-    setEditingCustom(false);
+  };
+  const toggleNewsFacet = (kind: 'sources' | 'agencies', value: string) => {
+    const current = model.news.preferences[kind];
+    model.news.setPreferences({
+      ...model.news.preferences,
+      [kind]: current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
+    });
   };
   const reset = () => {
     model.setVisibility({ today: true, work: true, news: true, xFeed: true });
@@ -141,10 +131,21 @@ export function CustomizeDrawer({ model, onClose, onDensityChange, initialSectio
           {xError ? <p className="dashv2-drawer__error">{xError}</p> : null}
 
           <div className="dashv2-drawer__divider" />
-          <SectionHead label="News subscriptions" hint="Topics" />
-          <div className="dashv2-topic-list">{TOPICS.map((topic) => { const checked=prefs.policyTopics.includes(topic.value); return <button key={topic.value} type="button" className="dashv2-topic" role="checkbox" aria-checked={checked} onClick={()=>toggleTopic(topic.value)}><span className="dashv2-check" data-checked={checked||undefined}><DashboardIcon name="Check" size={14} /></span><span>{topic.label}</span></button>; })}</div>
-          <div className="dashv2-custom-sources"><span>{prefs.customTopics.length} custom source{prefs.customTopics.length===1?'':'s'}</span><button type="button" className="dashv2-link" onClick={() => { setCustomDraft(prefs.customTopics.join(', ')); setEditingCustom((value) => !value); }}>{editingCustom ? 'Cancel' : 'Edit'}</button></div>
-          {editingCustom ? <div className="dashv2-add-row dashv2-add-row--custom"><input value={customDraft} onChange={(e)=>setCustomDraft(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'){e.preventDefault();saveCustomTopics();}}} placeholder="policy topic, committee, organization" aria-label="Custom news sources"/><CapiroButton variant="secondary" size="standard" onClick={saveCustomTopics}>Save</CapiroButton></div> : null}
+          <SectionHead label="News subscriptions" hint="Semantic filters" />
+          <p className="dashv2-drawer__helper">Filters understand related wording and source naming; they do not require exact article tags.</p>
+          <div className="dashv2-add-row dashv2-add-row--custom"><input value={customDraft} onChange={(e)=>setCustomDraft(e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter'){e.preventDefault();saveCustomTopics();}}} placeholder="Keywords, comma separated" aria-label="News keywords"/><CapiroButton variant="secondary" size="standard" onClick={saveCustomTopics}>Save keywords</CapiroButton></div>
+          {model.news.facets.sources.length > 0 ? <>
+            <SectionHead label="Sources" hint={prefs.sources.length ? `${prefs.sources.length} selected` : 'Any source'} />
+            <div className="dashv2-topic-list">{model.news.facets.sources.slice(0, 20).map((source) => { const checked = prefs.sources.includes(source); return <button key={source} type="button" className="dashv2-topic" role="checkbox" aria-checked={checked} onClick={() => toggleNewsFacet('sources', source)}><span className="dashv2-check" data-checked={checked || undefined}><DashboardIcon name="Check" size={14} /></span><span>{source}</span></button>; })}</div>
+          </> : null}
+          {model.news.facets.topics.length > 0 ? <>
+            <SectionHead label="Article topics" hint={prefs.articleTopics.length ? `${prefs.articleTopics.length} selected` : 'Any topic'} />
+            <div className="dashv2-topic-list">{model.news.facets.topics.slice(0, 20).map((topic) => { const checked = prefs.articleTopics.includes(topic); return <button key={topic} type="button" className="dashv2-topic" role="checkbox" aria-checked={checked} onClick={() => model.news.setPreferences({ ...model.news.preferences, articleTopics: checked ? prefs.articleTopics.filter((item) => item !== topic) : [...prefs.articleTopics, topic] })}><span className="dashv2-check" data-checked={checked || undefined}><DashboardIcon name="Check" size={14} /></span><span>{topic}</span></button>; })}</div>
+          </> : null}
+          {model.news.facets.agencies.length > 0 ? <>
+            <SectionHead label="Agencies" hint={prefs.agencies.length ? `${prefs.agencies.length} selected` : 'Any agency'} />
+            <div className="dashv2-topic-list">{model.news.facets.agencies.slice(0, 20).map((agency) => { const checked = prefs.agencies.includes(agency); return <button key={agency} type="button" className="dashv2-topic" role="checkbox" aria-checked={checked} onClick={() => toggleNewsFacet('agencies', agency)}><span className="dashv2-check" data-checked={checked || undefined}><DashboardIcon name="Check" size={14} /></span><span>{agency}</span></button>; })}</div>
+          </> : null}
 
           <div className="dashv2-drawer__divider" />
           <SectionHead label="Information density" hint={`Current: ${capitalize(model.density)}`} />

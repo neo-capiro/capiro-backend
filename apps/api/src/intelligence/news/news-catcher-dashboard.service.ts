@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { buildSemanticIntelArticleWhere } from '../../explorer/news-semantic-matching.js';
 
 const DEFAULT_BASE_URL = 'https://v3-api.newscatcherapi.com/api';
 const DEFAULT_CACHE_MS = 30 * 60 * 1000;
@@ -171,6 +172,35 @@ export interface NewsDashboardResponse {
   coverageLimited: boolean;
 }
 
+export interface SharedNewsDashboardFilterInput {
+  query?: string;
+  sources?: string[];
+  topics?: string[];
+  agencies?: string[];
+  lookback?: string;
+}
+
+export interface SharedNewsDashboardResponse {
+  available: boolean;
+  provider: 'intel-article';
+  items: Array<{
+    id: string;
+    title: string;
+    source: string;
+    url: string;
+    imageUrl: null;
+    summary: string | null;
+    publishedAt: string;
+    clientMatches: Array<{ id: string; name: string }>;
+    topics: string[];
+    relevanceReason: string;
+    duplicateCount: number | null;
+  }>;
+  generatedAt: string;
+  cached: boolean;
+  reason?: 'no_articles' | 'provider_unavailable';
+}
+
 @Injectable()
 export class NewsCatcherDashboardService {
   private readonly logger = new Logger(NewsCatcherDashboardService.name);
@@ -181,6 +211,50 @@ export class NewsCatcherDashboardService {
   private readonly inflight = new Map<string, Promise<NewsDashboardResponse>>();
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async getSharedNewsDashboard(
+    input: SharedNewsDashboardFilterInput = {},
+  ): Promise<SharedNewsDashboardResponse> {
+    const generatedAt = new Date().toISOString();
+    const where = buildSemanticIntelArticleWhere({
+      query: input.query,
+      sources: input.sources,
+      topics: input.topics,
+      agencies: input.agencies,
+    });
+    const lookback = parseLookback(input.lookback);
+    if (lookback) {
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+        { publishedAt: { gte: new Date(Date.now() - lookback) } },
+      ];
+    }
+    const rows = await this.prisma.intelArticle.findMany({
+      where,
+      orderBy: { publishedAt: 'desc' },
+      take: 8,
+    });
+    return {
+      available: true,
+      provider: 'intel-article',
+      items: rows.map((article) => ({
+        id: article.id,
+        title: article.title,
+        source: article.source,
+        url: article.url,
+        imageUrl: null,
+        summary: article.summary,
+        publishedAt: article.publishedAt.toISOString(),
+        clientMatches: [],
+        topics: article.topics ?? [],
+        relevanceReason: 'Matched the shared Intelligence Center news filters.',
+        duplicateCount: null,
+      })),
+      generatedAt,
+      cached: false,
+      ...(rows.length === 0 ? { reason: 'no_articles' as const } : {}),
+    };
+  }
 
   async getDashboard(
     tenantId: string,
@@ -1063,6 +1137,13 @@ function cacheMs(): number {
 
 function timeoutMs(): number {
   return envPositiveInt('NEWSCATCHER_TIMEOUT_MS', DEFAULT_TIMEOUT_MS);
+}
+
+function parseLookback(value: string | undefined): number | null {
+  if (value === '24h') return 24 * 60 * 60 * 1000;
+  if (value === '48h') return 48 * 60 * 60 * 1000;
+  if (value === '7d') return 7 * 24 * 60 * 60 * 1000;
+  return null;
 }
 
 function envPositiveInt(name: string, fallback: number): number {

@@ -236,6 +236,7 @@ export interface DashboardVNextModel {
     preferences: NewsPreferences;
     setPreferences: (next: NewsPreferences) => void;
     unavailableReason: string | null;
+    facets: { sources: string[]; topics: string[]; agencies: string[] };
   };
   today: {
     status: ModuleStatus;
@@ -422,14 +423,11 @@ export function useDashboardVNextModel(): DashboardVNextModel {
 
   const newsParams = useMemo(
     () => ({
-      ...(newsPreferences.clientIds.length
-        ? { clients: newsPreferences.clientIds.join(',') }
-        : {}),
-      topics: newsPreferences.policyTopics.join(','),
-      signals: newsPreferences.signalKinds.join(','),
-      ...(newsPreferences.customTopics.length
-        ? { custom: newsPreferences.customTopics.join(',') }
-        : {}),
+      corpus: 'explorer',
+      q: newsPreferences.customTopics.join(','),
+      sources: newsPreferences.sources.join(','),
+      topics: newsPreferences.articleTopics.join(','),
+      agencies: newsPreferences.agencies.join(','),
       lookback: newsPreferences.lookback,
     }),
     [newsPreferences],
@@ -446,6 +444,12 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     staleTime: 15 * 60 * 1000,
     retry: false,
     enabled: visibility.news,
+  });
+
+  const newsFacets = useQuery<{ sources: string[]; topics: string[]; agencies: string[] }>({
+    queryKey: ['explorer-article-facets'],
+    queryFn: async () => (await api.get('/api/explorer/intel-article-facets')).data,
+    staleTime: 10 * 60 * 1000,
   });
 
   const outreach = useQuery<DashOutreach[]>({
@@ -524,13 +528,18 @@ export function useDashboardVNextModel(): DashboardVNextModel {
     const base = {
       preferences: newsPreferences,
       setPreferences: setNewsPreferences,
+      facets: {
+        sources: newsFacets.data?.sources ?? [],
+        topics: newsFacets.data?.topics ?? [],
+        agencies: newsFacets.data?.agencies ?? [],
+      },
     };
 
     /** Subscription breadth, for the EMPTY state's "N active filters". */
     const activeFilters =
-      newsPreferences.policyTopics.length +
-      newsPreferences.signalKinds.length +
-      newsPreferences.clientIds.length +
+      newsPreferences.articleTopics.length +
+      newsPreferences.sources.length +
+      newsPreferences.agencies.length +
       newsPreferences.customTopics.length;
 
     if (!visibility.news) {
@@ -606,9 +615,11 @@ export function useDashboardVNextModel(): DashboardVNextModel {
       publishedLabel: relativeDay(item.publishedAt),
     }));
 
-    const meta = data.coverageLimited
-      ? `${data.monitoredClientCount} of ${data.activeClientCount} clients monitored`
-      : `${data.monitoredClientCount} clients monitored`;
+    const meta = data.provider === 'intel-article'
+      ? 'Shared Data Explorer news'
+      : data.coverageLimited
+        ? `${data.monitoredClientCount} of ${data.activeClientCount} clients monitored`
+        : `${data.monitoredClientCount} clients monitored`;
 
     if (items.length === 0) {
       return {
@@ -1235,6 +1246,7 @@ interface XFeedDashboardResponse {
 
 interface NewsDashboardResponse {
   available: boolean;
+  provider?: 'newscatcher' | 'intel-article';
   items: Array<{
     id: string;
     title: string;
@@ -1247,10 +1259,10 @@ interface NewsDashboardResponse {
     relevanceReason: string;
   }>;
   stale?: boolean;
-  reason?: 'not_configured' | 'no_clients' | 'provider_unavailable';
-  monitoredClientCount: number;
-  activeClientCount: number;
-  coverageLimited: boolean;
+  reason?: 'not_configured' | 'no_clients' | 'provider_unavailable' | 'no_articles';
+  monitoredClientCount?: number;
+  activeClientCount?: number;
+  coverageLimited?: boolean;
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
@@ -1273,7 +1285,7 @@ export function selectAttentionItems({
 }: {
   alerts: readonly PortfolioAlertItem[];
   changes: readonly IntelligenceChange[];
-  failedSourceReason: 'not_configured' | 'no_clients' | 'provider_unavailable' | null;
+  failedSourceReason: 'not_configured' | 'no_clients' | 'provider_unavailable' | 'no_articles' | null;
 }): AttentionItem[] {
   const items: AttentionItem[] = [];
 
@@ -1436,6 +1448,7 @@ function newsReasonLabel(reason: NewsDashboardResponse['reason']): string {
   if (reason === 'not_configured') return 'News ingestion is not configured.';
   if (reason === 'no_clients') return 'No monitored clients yet.';
   if (reason === 'provider_unavailable') return 'The news provider is unavailable.';
+  if (reason === 'no_articles') return 'No Data Explorer articles match the current filters.';
   return 'News is unavailable.';
 }
 

@@ -4,17 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, Checkbox, Empty, Modal, Select, Skeleton, Tag } from 'antd';
 import { useApi } from '../../lib/use-api.js';
 import { useMe } from '../../lib/me.js';
-import type { Client } from '../clients/clientTypes.js';
+
 import {
   DEFAULT_NEWS_PREFERENCES,
   LOOKBACK_LABELS,
-  SIGNAL_OPTIONS,
-  TOPIC_OPTIONS,
   useNewsPreferences,
   type NewsLookback,
-  type NewsPolicyTopic,
   type NewsPreferences,
-  type NewsSignalKind,
 } from './news-preferences.js';
 
 // The preferences model (types, option catalogs, defaults, and the
@@ -25,12 +21,8 @@ export {
   useNewsPreferences,
   DEFAULT_NEWS_PREFERENCES,
   LOOKBACK_LABELS,
-  SIGNAL_OPTIONS,
-  TOPIC_OPTIONS,
   type NewsLookback,
-  type NewsPolicyTopic,
   type NewsPreferences,
-  type NewsSignalKind,
 } from './news-preferences.js';
 
 interface NewsDashboardItem {
@@ -48,15 +40,21 @@ interface NewsDashboardItem {
 
 interface NewsDashboardResponse {
   available: boolean;
-  provider: 'newscatcher';
+  provider?: 'newscatcher' | 'intel-article';
   items: NewsDashboardItem[];
   generatedAt: string;
   cached: boolean;
   stale?: boolean;
-  reason?: 'not_configured' | 'no_clients' | 'provider_unavailable';
-  monitoredClientCount: number;
-  activeClientCount: number;
-  coverageLimited: boolean;
+  reason?: 'not_configured' | 'no_clients' | 'provider_unavailable' | 'no_articles';
+  monitoredClientCount?: number;
+  activeClientCount?: number;
+  coverageLimited?: boolean;
+}
+
+interface NewsFacets {
+  sources: string[];
+  topics: string[];
+  agencies: string[];
 }
 
 /**
@@ -74,18 +72,19 @@ export function DashboardNewsAndNarrative() {
   }, [me.data?.tenant.id, user?.id]);
   const [preferences, setPreferences] = useNewsPreferences(preferenceKey);
 
-  const clients = useQuery<Client[]>({
-    queryKey: ['clients'],
-    queryFn: async () => (await api.get<Client[]>('/api/clients')).data,
-    staleTime: 60_000,
+  const facets = useQuery<NewsFacets>({
+    queryKey: ['explorer-article-facets'],
+    queryFn: async () => (await api.get<NewsFacets>('/api/explorer/intel-article-facets')).data,
+    staleTime: 10 * 60 * 1000,
   });
 
   const queryParams = useMemo(
     () => ({
-      ...(preferences.clientIds.length ? { clients: preferences.clientIds.join(',') } : {}),
-      topics: preferences.policyTopics.join(','),
-      signals: preferences.signalKinds.join(','),
-      ...(preferences.customTopics.length ? { custom: preferences.customTopics.join(',') } : {}),
+      corpus: 'explorer',
+      q: preferences.customTopics.join(','),
+      sources: preferences.sources.join(','),
+      topics: preferences.articleTopics.join(','),
+      agencies: preferences.agencies.join(','),
       lookback: preferences.lookback,
     }),
     [preferences],
@@ -108,7 +107,7 @@ export function DashboardNewsAndNarrative() {
       data={news.data}
       loading={news.isLoading}
       isError={news.isError}
-      clients={clients.data ?? []}
+      facets={facets.data ?? { sources: [], topics: [], agencies: [] }}
       preferences={preferences}
       onPreferencesChange={setPreferences}
     />
@@ -119,14 +118,14 @@ function NewsPanel({
   data,
   loading,
   isError,
-  clients,
+  facets,
   preferences,
   onPreferencesChange,
 }: {
   data: NewsDashboardResponse | undefined;
   loading: boolean;
   isError: boolean;
-  clients: Client[];
+  facets: NewsFacets;
   preferences: NewsPreferences;
   onPreferencesChange: (next: NewsPreferences) => void;
 }) {
@@ -137,21 +136,17 @@ function NewsPanel({
     if (customizeOpen) setDraft(preferences);
   }, [customizeOpen, preferences]);
 
-  const saveEnabled = draft.policyTopics.length > 0 && draft.signalKinds.length > 0;
-  const clientSummary = preferences.clientIds.length
-    ? `${preferences.clientIds.length} client${preferences.clientIds.length === 1 ? '' : 's'}`
-    : 'All clients';
-  const topicSummary =
-    preferences.policyTopics.length === TOPIC_OPTIONS.length
-      ? 'All policy'
-      : `${preferences.policyTopics.length} topic${preferences.policyTopics.length === 1 ? '' : 's'}`;
+  const saveEnabled = true;
+  const topicSummary = preferences.articleTopics.length
+    ? `${preferences.articleTopics.length} article topic${preferences.articleTopics.length === 1 ? '' : 's'}`
+    : 'All article topics';
 
   return (
     <div className="home-panel home-news-panel">
       <header className="home-panel-head">
         <span className="home-panel-title">News &amp; Narrative</span>
         <span className="open" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Tag>{clientSummary}</Tag>
+          <Tag>Data Explorer corpus</Tag>
           <Tag>{topicSummary}</Tag>
           <Tag>{LOOKBACK_LABELS[preferences.lookback]}</Tag>
           <Button size="small" onClick={() => setCustomizeOpen(true)}>
@@ -222,8 +217,7 @@ function NewsPanel({
       {data?.available ? (
         <div className="home-news-footnote">
           <span>
-            NewsCatcher · {data.monitoredClientCount} client
-            {data.monitoredClientCount === 1 ? '' : 's'} monitored
+            {data.provider === 'intel-article' ? 'Data Explorer news' : 'NewsCatcher'} · {data.provider === 'intel-article' ? 'shared corpus' : `${data.monitoredClientCount ?? 0} clients monitored`}
             {data.stale ? ' · cached fallback' : ''}
           </span>
           {data.coverageLimited ? (
@@ -247,87 +241,34 @@ function NewsPanel({
       >
         <div style={{ display: 'grid', gap: 22, paddingTop: 8 }}>
           <PreferenceSection
-            title="Clients"
-            description="Leave this empty to monitor the full active portfolio."
+            title="News sources"
+            description="Use the same source facets as Data Explorer. Publication names are interpreted semantically."
           >
-            <Select
-              mode="multiple"
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              style={{ width: '100%' }}
-              placeholder="All clients"
-              value={draft.clientIds}
-              options={clients.map((client) => ({ label: client.name, value: client.id }))}
-              onChange={(clientIds: string[]) => setDraft((current) => ({ ...current, clientIds }))}
-            />
+            <Select mode="multiple" allowClear showSearch optionFilterProp="label" style={{ width: '100%' }} placeholder="All sources" value={draft.sources} options={facets.sources.map((source) => ({ label: source, value: source }))} onChange={(sources: string[]) => setDraft((current) => ({ ...current, sources }))} />
           </PreferenceSection>
 
           <PreferenceSection
-            title="Policy coverage"
-            description="Choose the government-affairs subjects that are allowed into the provider query."
+            title="Article topics"
+            description="Use the same Data Explorer topic facets; related wording is included rather than exact tags only."
           >
-            <Checkbox.Group
-              value={draft.policyTopics}
-              onChange={(values) =>
-                setDraft((current) => ({
-                  ...current,
-                  policyTopics: values as NewsPolicyTopic[],
-                }))
-              }
-              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px 16px' }}
-            >
-              {TOPIC_OPTIONS.map((option) => (
-                <Checkbox key={option.value} value={option.value}>
-                  {option.label}
-                </Checkbox>
-              ))}
-            </Checkbox.Group>
+            <Select mode="multiple" allowClear showSearch optionFilterProp="label" style={{ width: '100%' }} placeholder="All article topics" value={draft.articleTopics} options={facets.topics.map((topic) => ({ label: topic, value: topic }))} onChange={(articleTopics: string[]) => setDraft((current) => ({ ...current, articleTopics }))} />
           </PreferenceSection>
 
           <PreferenceSection
-            title="Match news using"
-            description="These controls decide which client intelligence signals qualify and retrieve stories."
+            title="Agencies"
+            description="Use the same agency facets as Data Explorer; synonyms and casing are normalized."
           >
-            <Checkbox.Group
-              value={draft.signalKinds}
-              onChange={(values) =>
-                setDraft((current) => ({
-                  ...current,
-                  signalKinds: values as NewsSignalKind[],
-                }))
-              }
-              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '9px 16px' }}
-            >
-              {SIGNAL_OPTIONS.map((option) => (
-                <Checkbox key={option.value} value={option.value}>
-                  {option.label}
-                </Checkbox>
-              ))}
-            </Checkbox.Group>
+            <Select mode="multiple" allowClear showSearch optionFilterProp="label" style={{ width: '100%' }} placeholder="All agencies" value={draft.agencies} options={facets.agencies.map((agency) => ({ label: agency, value: agency }))} onChange={(agencies: string[]) => setDraft((current) => ({ ...current, agencies }))} />
           </PreferenceSection>
 
           <PreferenceSection
-            title="Custom topics"
-            description="Add specific priorities such as Golden Dome, Counter-UAS, AI export controls, or shipbuilding."
+            title="Keywords"
+            description="Add concepts such as counter-UAS, AI export controls, or shipbuilding. Related wording is included automatically."
           >
-            <Select
-              mode="tags"
-              tokenSeparators={[',']}
-              style={{ width: '100%' }}
-              placeholder="Type a topic and press Enter"
-              value={draft.customTopics}
-              onChange={(customTopics: string[]) =>
-                setDraft((current) => ({
-                  ...current,
-                  customTopics: customTopics.map((topic) => topic.trim()).filter(Boolean).slice(0, 20),
-                }))
-              }
-              options={[]}
-            />
+            <Select mode="tags" tokenSeparators={[',']} style={{ width: '100%' }} placeholder="Type a keyword and press Enter" value={draft.customTopics} onChange={(customTopics: string[]) => setDraft((current) => ({ ...current, customTopics: customTopics.map((topic) => topic.trim()).filter(Boolean).slice(0, 20) }))} options={[]} />
           </PreferenceSection>
 
-          <PreferenceSection title="Time window" description="Control how far back NewsCatcher searches.">
+          <PreferenceSection title="Time window" description="Control how far back the shared Data Explorer news corpus is searched.">
             <Select
               style={{ width: 180 }}
               value={draft.lookback}
@@ -400,6 +341,8 @@ function newsUnavailableMessage(reason: NewsDashboardResponse['reason']): string
       return 'No selected clients have enough news-matching signal yet. Adjust the feed or client profile.';
     case 'provider_unavailable':
       return 'NewsCatcher is unavailable right now. The rest of your dashboard is unaffected.';
+    case 'no_articles':
+      return 'No existing Data Explorer articles match the current semantic filters.';
     default:
       return 'News intelligence is not available right now.';
   }

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { toUsaSpendingDistrictCode } from '../common/district-code.util.js';
 import { dateBoundsInZone } from '../intelligence/time-bounds.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { buildSemanticIntelArticleWhere } from './news-semantic-matching.js';
 
 /**
  * Intelligence Center service.
@@ -1490,16 +1491,12 @@ export class ExplorerService {
   }) {
     const limit = clampPageSize(opts.pageSize);
     const offset = ((opts.page ?? 1) - 1) * limit;
-    const where: Prisma.IntelArticleWhereInput = {};
-    if (opts.q) {
-      where.OR = [
-        { title: { contains: opts.q, mode: 'insensitive' } },
-        { summary: { contains: opts.q, mode: 'insensitive' } },
-      ];
-    }
-    if (opts.sources?.length) where.source = { in: opts.sources };
-    if (opts.topics?.length) where.topics = { hasSome: opts.topics };
-    if (opts.agencies?.length) where.agencies = { hasSome: opts.agencies };
+    const where = buildSemanticIntelArticleWhere({
+      query: opts.q,
+      sources: opts.sources,
+      topics: opts.topics,
+      agencies: opts.agencies,
+    });
 
     const [rows, total] = await Promise.all([
       this.prisma.intelArticle.findMany({
