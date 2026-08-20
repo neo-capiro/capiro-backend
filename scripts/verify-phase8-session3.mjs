@@ -182,7 +182,13 @@ const FORBIDDEN_ANYWHERE = [
     pattern: /(INSERT\s+INTO|UPDATE)\s+"?defense_budget_active_snapshot"?/i,
     label: 'a write to defense_budget_active_snapshot (snapshot-activation code)',
   },
-  { pattern: /nvidia|cuda|nvidia-smi/i, label: 'NVIDIA/CUDA runtime reference', safeIfFileContains: ['FORBIDDEN_SERVE_ENV_PATTERNS'] },
+  // Two files legitimately NAME NVIDIA in order to forbid it: the serve-env
+  // validator (FORBIDDEN_SERVE_ENV_PATTERNS) and Session 4's runtime manifest,
+  // whose forbiddenInHttpTask list declares 'NVIDIA or GPU runtime' as excluded.
+  // A declaration that NVIDIA is out of scope is the guard, not the leak. Anything
+  // that actually wires a GPU client still fails: neither marker appears in such a
+  // file, and the GPU_*CREDENTIAL rule below has no exemption at all.
+  { pattern: /nvidia|cuda|nvidia-smi/i, label: 'NVIDIA/CUDA runtime reference', safeIfFileContains: ['FORBIDDEN_SERVE_ENV_PATTERNS', 'forbiddenInHttpTask'] },
   { pattern: /GPU_[A-Z_]*CREDENTIAL/i, label: 'GPU credential reference' },
   { pattern: /\bPARSER_[A-Z_]*KEY\b/, label: 'parser credential env reference' },
   {

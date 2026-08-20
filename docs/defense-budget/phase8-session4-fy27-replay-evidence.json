@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "fiscalYear": 2027,
+  "sourceDocumentIds": [
+    "source_profile:defense-budget/contracts/__fixtures__/cycle-manifest-minimal.json",
+    "parser_artifact:defense-budget/parser-router/__fixtures__/cross-lang-job.json",
+    "semantic_extraction:defense-budget/contracts/__fixtures__/extraction-result-minimal.json",
+    "phase2_verification:defense-budget/contracts/__fixtures__/r2-minimal.json",
+    "projection_plan:defense-budget/contracts/__fixtures__/r1-minimal.json",
+    "phase6_certification:defense-budget/phase6/__fixtures__/golden-phase6-cycle.json",
+    "phase7_eligibility:defense-budget/contracts/__fixtures__/pdoc-minimal.json",
+    "promotion_inspection:defense-budget/contracts/__fixtures__/committee-minimal.json",
+    "outbox_status:defense-budget/contracts/__fixtures__/r3-performer-minimal.json"
+  ],
+  "sameSourceSha": true,
+  "sameParserIdentity": true,
+  "sameExtractionHash": true,
+  "sameVerificationDecisionHash": true,
+  "sameProjectionPlanHash": true,
+  "sameCertificationHash": true,
+  "sameEligibilityHash": true,
+  "samePromotionInspectionHash": true,
+  "unexplainedDifferences": 0,
+  "canonicalMutationAttempted": false,
+  "legacyGitSha": "c2f0ec71c7ccf6622c529766e78100226ee93745",
+  "defenseApiGitSha": "c2f0ec71c7ccf6622c529766e78100226ee93745",
+  "recordedAt": "2026-08-18T19:28:48.354Z",
+  "notes": [
+    "Dual-path inspect-only replay over immutable FY27 fixture slices.",
+    "Retained root: apps/api/src/defense-budget",
+    "Moved root: apps/defense-api/runtime-source/defense-budget",
+    "retainedLineage=591e9a19d5603550e45a839825c22c811fce5ff871cc5187d2e3c9cdbaf34bb1",
+    "movedLineage=591e9a19d5603550e45a839825c22c811fce5ff871cc5187d2e3c9cdbaf34bb1",
+    "No parser-worker/GPU credentials used. No promotion executed. No DB writes."
+  ]
+}

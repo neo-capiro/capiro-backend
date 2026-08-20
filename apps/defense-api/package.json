@@ -3,15 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "pnpm prisma:generate && nest build",
+    "build": "pnpm prisma:generate && node -e \"try{require('fs').unlinkSync('tsconfig.tsbuildinfo')}catch{}\" && nest build",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "start:prod": "bash scripts/entrypoint.sh serve",
     "typecheck": "pnpm prisma:generate && tsc --noEmit",
     "test": "tsx --test src/**/*.spec.ts",
     "verify:boundary": "node ../../scripts/verify-phase8-session2.mjs",
+    "verify:session4": "node ../../scripts/verify-phase8-session4.mjs",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
-    "prisma:validate": "prisma validate --schema prisma/schema.prisma"
+    "prisma:validate": "prisma validate --schema prisma/schema.prisma",
+    "verify:session4:replay": "node ../../scripts/phase8-session4-fy27-replay.mjs --out docs/defense-budget/phase8-session4-fy27-replay-evidence.json"
   },
   "dependencies": {
     "@capiro/auth": "workspace:*",

@@ -1,0 +1,109 @@
+name: Phase 8 Session 4 Runtime Boundary
+
+on:
+  push:
+    paths:
+      - 'apps/defense-api/**'
+      - 'apps/api/src/defense-budget/**'
+      - 'apps/api/src/program-element/snapshot/**'
+      - 'apps/api/src/program-element/source-document/**'
+      - 'apps/api/src/program-element/deltas/**'
+      - 'apps/api/src/program-element/program-element-change-outbox.service.ts'
+      - 'apps/api/src/program-element/program-element-change-outbox.service.spec.ts'
+      - 'apps/api/scripts/phase6-stage-cycle.ts'
+      - 'apps/api/scripts/plan-defense-budget-promotion-v1.ts'
+      - 'apps/api/scripts/status-defense-budget-promotion-v1.ts'
+      - 'scripts/verify-phase8-session4.mjs'
+      - 'docs/defense-budget/phase8-session4-*'
+      - 'docs/handoffs/phase-8-defense-api-session-4-handoff.md'
+      - '.github/workflows/phase8-session4-runtime.yml'
+  pull_request:
+    paths:
+      - 'apps/defense-api/**'
+      - 'apps/api/src/defense-budget/**'
+      - 'apps/api/src/program-element/snapshot/**'
+      - 'apps/api/src/program-element/source-document/**'
+      - 'apps/api/src/program-element/deltas/**'
+      - 'apps/api/src/program-element/program-element-change-outbox.service.ts'
+      - 'apps/api/src/program-element/program-element-change-outbox.service.spec.ts'
+      - 'apps/api/scripts/phase6-stage-cycle.ts'
+      - 'apps/api/scripts/plan-defense-budget-promotion-v1.ts'
+      - 'apps/api/scripts/status-defense-budget-promotion-v1.ts'
+      - 'scripts/verify-phase8-session4.mjs'
+      - 'docs/defense-budget/phase8-session4-*'
+      - 'docs/handoffs/phase-8-defense-api-session-4-handoff.md'
+      - '.github/workflows/phase8-session4-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Pin pnpm
+        run: corepack prepare pnpm@9.12.0 --activate
+
+      - name: Frozen workspace install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared defense boundaries
+        run: |
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-client build
+
+      - name: Generate authoritative Prisma clients without migrating
+        run: |
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+          pnpm --filter @capiro/defense-api prisma:generate
+
+      - name: Verify exact source lineage and dark architecture
+        run: pnpm --filter @capiro/defense-api verify:session4
+
+      - name: Validate defense-api
+        run: |
+          pnpm --filter @capiro/defense-api prisma:validate
+          pnpm --filter @capiro/defense-api typecheck
+          pnpm --filter @capiro/defense-api test
+          pnpm --filter @capiro/defense-api build
+
+      - name: Re-run trusted Phase 1-7 static gates
+        run: |
+          pnpm --filter @capiro/api exec tsc -p tsconfig.budget-extraction-contract.json --noEmit
+          pnpm --filter @capiro/api exec tsc -p tsconfig.budget-verification-v1.json --noEmit
+          pnpm --filter @capiro/api exec tsc -p tsconfig.budget-parser-router.json --noEmit
+          pnpm --filter @capiro/api exec tsc -p tsconfig.phase6.json --noEmit
+          pnpm --filter @capiro/api typecheck:phase7
+
+      - name: Build dark image and prove source mirror is absent
+        run: |
+          docker build -f apps/defense-api/Dockerfile -t capiro-defense-api:phase8-session4 .
+          test "$(docker run --rm --entrypoint id capiro-defense-api:phase8-session4 -u)" = '1001'
+          docker run --rm --entrypoint sh capiro-defense-api:phase8-session4 -lc \
+            'test ! -e /app/apps/defense-api/runtime-source && ! find /app -type f -name "canonical-promotion-service-v1.ts" -print -quit | grep -q .'
+
+      - name: Diff hygiene
+        run: git diff --check origin/${{ github.base_ref || 'main' }}...HEAD
+
+      - name: Confirm replay remains an explicit release gate
+        shell: bash
+        run: |
+          if node scripts/verify-phase8-session4.mjs --enforce-replay; then
+            echo '::error::Replay gate unexpectedly passed without retained FY27 evidence.'
+            exit 1
+          fi
+          echo 'Real FY27 replay gate correctly remains closed in ordinary CI.'

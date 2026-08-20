@@ -9,6 +9,7 @@ import { RequestContextModule } from './request-context/request-context.module.j
 import { OrgTenantResolverModule } from './auth/org-tenant-resolver.module.js';
 import { JsonLogger } from './observability/json-logger.js';
 import { ProgramElementsModule } from './program-elements/program-elements.module.js';
+import { Phase17RuntimeModule } from './runtime/phase1-7-runtime.module.js';
 
 @Module({
   imports: [
@@ -26,6 +27,10 @@ import { ProgramElementsModule } from './program-elements/program-elements.modul
     // Session 3: full Program Elements surface registered dark. No production
     // traffic is routed here until the later shadow/canary/cutover sessions.
     ProgramElementsModule,
+    // Session 4, dark only: no controllers, schedules, parser workers, promotion
+    // execution, snapshot activation or production ownership change are registered
+    // here. Layered ALONGSIDE Session 3's accepted route surface, not in place of it.
+    Phase17RuntimeModule,
   ],
   providers: [JsonLogger],
 })

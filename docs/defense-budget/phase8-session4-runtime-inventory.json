@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "session": "phase8-session4",
+  "workstream": "F",
+  "branch": "agent/phase8-session4-runtime-closeout",
+  "baseSha": "b00c9e30142e4343fc6f9602b7fca029e42df0cf",
+  "implementationCommit": "4cd437ae9e59f930e388b611c83929fd14ceae64",
+  "status": "adapters_and_fy27_dual_path_replay_implemented",
+  "runtimeOwnerTarget": "apps/defense-api",
+  "sourceParity": {
+    "gate": "scripts/verify-phase8-session4.mjs",
+    "status": "SESSION4_SOURCE_PARITY_PASS"
+  },
+  "compiledBoundary": {
+    "module": "apps/defense-api/src/runtime/phase1-7-runtime.module.ts",
+    "coordinator": "apps/defense-api/src/runtime/phase1-7-runtime.contract.ts",
+    "adapters": "apps/defense-api/src/runtime/phase1-7-runtime.adapters.ts",
+    "mode": "inspect_only",
+    "canonicalMutationMethodExposed": false
+  },
+  "acceptance": {
+    "sourceTreeParity": "pass",
+    "unitAndTypecheckDefenseApi": "pass",
+    "realFy27BehavioralReplay": "pass_dual_path_fixture_inspect",
+    "session3RouteGate": "SESSION3_COMPLETE_on_PR_1044_draft",
+    "productionCutover": "not_authorized"
+  },
+  "mutations": {
+    "aws": false,
+    "productionDatabase": false,
+    "productionData": false,
+    "routing": false,
+    "schedules": false,
+    "iam": false,
+    "secrets": false,
+    "snapshotActivation": false,
+    "canonicalPromotion": false
+  }
+}

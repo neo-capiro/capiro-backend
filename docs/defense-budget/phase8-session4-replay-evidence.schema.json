@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://capiro.ai/schemas/phase8-session4-replay-evidence.schema.json",
+  "title": "Phase 8 Session 4 FY27 Replay Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "fiscalYear",
+    "sourceDocumentIds",
+    "sameSourceSha",
+    "sameParserIdentity",
+    "sameExtractionHash",
+    "sameVerificationDecisionHash",
+    "sameProjectionPlanHash",
+    "sameCertificationHash",
+    "sameEligibilityHash",
+    "samePromotionInspectionHash",
+    "unexplainedDifferences",
+    "canonicalMutationAttempted",
+    "legacyGitSha",
+    "defenseApiGitSha",
+    "recordedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "fiscalYear": { "const": 2027 },
+    "sourceDocumentIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "sameSourceSha": { "const": true },
+    "sameParserIdentity": { "const": true },
+    "sameExtractionHash": { "const": true },
+    "sameVerificationDecisionHash": { "const": true },
+    "sameProjectionPlanHash": { "const": true },
+    "sameCertificationHash": { "const": true },
+    "sameEligibilityHash": { "const": true },
+    "samePromotionInspectionHash": { "const": true },
+    "unexplainedDifferences": { "const": 0 },
+    "canonicalMutationAttempted": { "const": false },
+    "legacyGitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "defenseApiGitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  }
+}
