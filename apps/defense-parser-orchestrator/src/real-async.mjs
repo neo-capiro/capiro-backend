@@ -911,9 +911,6 @@ export class AsyncNvidiaCoordinator {
         },
       });
       await this.ports.jobStore.put(job);
-      await this.ports.endpointClient.configureScaleToZero(endpointName);
-      job = { ...job, scaleToZeroConfigured: true, updatedAt: this.clock() };
-      await this.ports.jobStore.put(job);
     }
 
     const current = await this.ports.endpointClient.describeEndpoint(endpointName);
@@ -925,7 +922,13 @@ export class AsyncNvidiaCoordinator {
         return this.drain(job);
       }
       if (endpointAgeSeconds(job, now) > this.config.maxEndpointLifetimeSeconds) {
-        return this.drain(job);
+        return this.drain({
+          ...job,
+          failureCode: job.failureCode || 'ENDPOINT_LIFETIME_EXCEEDED',
+          failureMessage:
+            job.failureMessage ||
+            'SageMaker endpoint exceeded maxEndpointLifetimeSeconds before reaching InService',
+        });
       }
       return job;
     }
@@ -948,7 +951,13 @@ export class AsyncNvidiaCoordinator {
     }
     if (endpointAgeSeconds(job, now) > this.config.maxEndpointLifetimeSeconds) {
       await this.ports.jobStore.put(job);
-      return this.drain(job);
+      return this.drain({
+        ...job,
+        failureCode: job.failureCode || 'ENDPOINT_LIFETIME_EXCEEDED',
+        failureMessage:
+          job.failureMessage ||
+          'SageMaker endpoint exceeded maxEndpointLifetimeSeconds before reaching InService',
+      });
     }
     if (current.EndpointStatus !== 'InService') {
       if (current.EndpointStatus === 'Deleting') return job;

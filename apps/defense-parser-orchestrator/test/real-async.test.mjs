@@ -595,6 +595,102 @@ test('failed endpoint FailureReason is persisted onto the job before drain', asy
   assert.match(result.failureMessage, /provided role/);
 });
 
+test('scale-to-zero is not registered until the endpoint is InService', async () => {
+  const c = config();
+  const endpoint = identityFor(c);
+  const job = {
+    jobId: endpoint.endpointName,
+    status: 'CAPACITY_RESERVED',
+    endpoint,
+    reservationId: `${endpoint.endpointName}#endpoint`,
+    corpusSha256: SOURCE,
+    attempt: 1,
+    createdAt: '2026-08-20T11:23:34.812Z',
+    updatedAt: '2026-08-20T11:23:34.812Z',
+    history: [],
+    pages: Array.from({ length: 10 }, (_, i) => page(i + 1)),
+  };
+  const store = memoryJobStore(job);
+  let scaleCalls = 0;
+  let describeCalls = 0;
+  const coordinator = new AsyncNvidiaCoordinator({
+    jobStore: store,
+    reservationLedger: { async settle() {}, async release() {}, async snapshot() { return { activeJobs: 1, spentAndReservedUsd: 1 }; } },
+    endpointClient: {
+      async describeEndpoint() {
+        describeCalls += 1;
+        if (describeCalls === 1) return null;
+        return { EndpointStatus: 'Creating', CreationTime: '2026-08-20T11:23:49.434Z', LastModifiedTime: '2026-08-20T11:23:50.012Z' };
+      },
+      async ensureEndpoint() {
+        return { endpointStatus: 'Creating', createdAt: '2026-08-20T11:23:49.434Z', lastModifiedAt: '2026-08-20T11:23:50.012Z' };
+      },
+      async configureScaleToZero() { scaleCalls += 1; throw new Error('RegisterScalableTarget must not run while Creating'); },
+      async listPersistentEndpoints() { return []; },
+    },
+  }, c, () => '2026-08-20T11:23:57.000Z');
+  const result = await coordinator.reconcile(job.jobId);
+  assert.equal(result.status, 'ENDPOINT_CREATING');
+  assert.equal(scaleCalls, 0);
+  assert.notEqual(result.scaleToZeroConfigured, true);
+});
+
+test('lifetime-exceeded drain records ENDPOINT_LIFETIME_EXCEEDED and settles failed cost', async () => {
+  const c = config();
+  const endpoint = identityFor(c);
+  const job = {
+    jobId: endpoint.endpointName,
+    status: 'ENDPOINT_CREATING',
+    endpoint,
+    reservationId: `${endpoint.endpointName}#endpoint`,
+    corpusSha256: SOURCE,
+    attempt: 1,
+    reservedCostUsd: 1,
+    createdAt: '2026-08-20T11:23:34.812Z',
+    endpointCreatedAt: '2026-08-20T11:23:49.434Z',
+    updatedAt: '2026-08-20T11:23:41.856Z',
+    history: [{ from: 'CAPACITY_RESERVED', to: 'ENDPOINT_CREATING', at: '2026-08-20T11:23:41.856Z' }],
+    pages: Array.from({ length: 10 }, (_, i) => page(i + 1)),
+  };
+  const store = memoryJobStore(job);
+  const ledgerCalls = [];
+  let describeCalls = 0;
+  const coordinator = new AsyncNvidiaCoordinator({
+    jobStore: store,
+    reservationLedger: {
+      async settle(input) { ledgerCalls.push({ op: 'settle', ...input }); return { idempotent: false, reconciledCostUsd: input.reconciledCostUsd }; },
+      async release(input) { ledgerCalls.push({ op: 'release', ...input }); throw new Error('lifetime failure must settle, not release'); },
+      async snapshot() { return { activeJobs: 1, spentAndReservedUsd: 1 }; },
+    },
+    endpointClient: {
+      async describeEndpoint() {
+        describeCalls += 1;
+        if (describeCalls <= 2) {
+          return {
+            EndpointStatus: 'Creating',
+            CreationTime: '2026-08-20T11:23:49.434Z',
+            LastModifiedTime: '2026-08-20T11:23:50.012Z',
+          };
+        }
+        return null;
+      },
+      async describeEndpointConfig() { return null; },
+      async deregisterScaleToZero() {},
+      async deleteEndpoint() {},
+      async listPersistentEndpoints() { return []; },
+    },
+    dlq: { async publish() { return {}; } },
+  }, c, () => '2026-08-20T12:02:12.727Z');
+  const draining = await coordinator.reconcile(job.jobId);
+  assert.equal(draining.status, 'ENDPOINT_DELETED');
+  assert.equal(draining.failureCode, 'ENDPOINT_LIFETIME_EXCEEDED');
+  const result = await coordinator.reconcile(job.jobId);
+  assert.equal(result.status, 'FAILED');
+  assert.equal(result.failureCode, 'ENDPOINT_LIFETIME_EXCEEDED');
+  assert.equal(result.reconciledCostUsd, 1);
+  assert.deepEqual(ledgerCalls.map((call) => call.op), ['settle']);
+});
+
 function configEnv() {
   return {
     NVIDIA_PARSING_ENABLED: 'true', NVIDIA_ROUTING_MODE: 'benchmark', NVIDIA_BENCHMARK_ACCEPTED: 'false',

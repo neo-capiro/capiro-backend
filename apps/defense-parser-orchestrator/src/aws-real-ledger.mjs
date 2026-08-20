@@ -132,6 +132,7 @@ export class AwsCliDynamoReservationLedger {
       );
     }
     const delta = actual - reserved;
+    const remainingAfterDelta = effectiveCap - delta;
     try {
       await this.runner.invoke('dynamodb', 'transact-write-items', {
         TransactItems: [
@@ -161,13 +162,13 @@ export class AwsCliDynamoReservationLedger {
                 'settledSpendUsd = if_not_exists(settledSpendUsd, :zero) + :actual, ' +
                 'updatedAt = :at',
               ConditionExpression:
-                'activeJobs >= :one AND spentAndReservedUsd + :delta <= :effectiveCap',
+                'activeJobs >= :one AND spentAndReservedUsd <= :remainingAfterDelta',
               ExpressionAttributeValues: {
                 ':one': { N: '1' },
                 ':zero': { N: '0' },
                 ':delta': { N: decimal(delta) },
                 ':actual': { N: decimal(actual) },
-                ':effectiveCap': { N: decimal(effectiveCap) },
+                ':remainingAfterDelta': { N: decimal(remainingAfterDelta) },
                 ':at': { S: input.at },
               },
             },

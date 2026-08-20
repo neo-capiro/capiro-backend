@@ -153,6 +153,39 @@ test('atomic ledger refuses reconciled cost above the reserved amount before set
   );
 });
 
+test('atomic ledger settle ConditionExpression does not use DynamoDB-illegal arithmetic', async () => {
+  const runner = new FakeRunner();
+  runner.items.set('RESERVATION#r-active', {
+    pk: { S: 'RESERVATION#r-active' },
+    status: { S: 'ACTIVE' },
+    reservedCostUsd: { N: '1' },
+    effectiveCapUsd: { N: '50' },
+    hardCapUsd: { N: '50' },
+    jobId: { S: 'job-active' },
+  });
+  const ledger = new AwsCliDynamoReservationLedger(runner, {
+    ledgerTableName: 'ledger',
+  });
+  const result = await ledger.settle({
+    reservationId: 'r-active',
+    reconciledCostUsd: 1,
+    at: '2026-08-20T12:02:12.727Z',
+  });
+  assert.equal(result.idempotent, false);
+  assert.equal(result.reconciledCostUsd, 1);
+  const tx = runner.calls.find(
+    (call) => call.service === 'dynamodb' && call.operation === 'transact-write-items',
+  ).input;
+  const condition = tx.TransactItems[1].Update.ConditionExpression;
+  assert.equal(/\+/.test(condition), false);
+  assert.match(condition, /activeJobs >= :one/);
+  assert.match(condition, /spentAndReservedUsd <= :remainingAfterDelta/);
+  assert.equal(
+    tx.TransactItems[1].Update.ExpressionAttributeValues[':remainingAfterDelta'].N,
+    '50',
+  );
+});
+
 test('atomic ledger settle of an already SETTLED reservation is idempotent', async () => {
   const runner = new FakeRunner();
   runner.items.set('RESERVATION#r-settled', {
