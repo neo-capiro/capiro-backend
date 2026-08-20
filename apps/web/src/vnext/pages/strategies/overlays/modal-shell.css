@@ -675,31 +675,6 @@
   background: var(--st-error-bg);
 }
 
-/* Quarter-range select (EditLegislativeCalendarOverlay) — same field
-   language as .st-phase-row__input, sized for "FY27 Q1" rather than a
-   free-text value. */
-.capiro-strategies .st-phase-row__select {
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--st-gray-900);
-  border: 1px solid var(--st-gray-200);
-  border-radius: 6px;
-  padding: 4px 6px;
-  background: var(--st-white);
-  min-width: 92px;
-}
-.capiro-strategies .st-phase-row__select:hover { border-color: var(--st-gray-300); }
-.capiro-strategies .st-phase-row__select:focus-visible {
-  outline: none;
-  border-color: var(--st-accent-focus);
-  box-shadow: var(--st-shadow-focus);
-}
-.capiro-strategies .st-phase-row__select.is-dupe {
-  border-color: var(--st-error-ring);
-  background: var(--st-error-bg);
-}
-
 .capiro-strategies .st-phase-row__span {
   font-size: 11px;
   font-weight: 650;

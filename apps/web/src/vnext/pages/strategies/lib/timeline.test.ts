@@ -1,87 +1,178 @@
 import { describe, expect, it } from 'vitest';
-import { buildCalendar, packSpans, qOfDate } from './timeline.js';
+import {
+  assignColumnLanes,
+  axisPosition,
+  buildFiscalAxis,
+  columnLaneCount,
+  columnSpan,
+  currentFiscalYear,
+  monthEndIso,
+  monthIndexOf,
+  monthStartIso,
+  shiftIsoMonths,
+  toDateOnly,
+} from './timeline.js';
 
-describe('buildCalendar (re-exported from pages/strategy/fiscal.ts)', () => {
-  it('shows the rolling 3-FY window anchored on the given "now"', () => {
-    const cal = buildCalendar(new Date(2026, 7, 19)); // Aug 19 2026 -> FY2026
-    expect(cal.fys).toEqual([2026, 2027, 2028]);
-    expect(cal.months).toHaveLength(36);
-    expect(cal.months[0]!.m).toBe('Oct');
-    expect(cal.months[0]!.fyStart).toBe(true);
+const axis = buildFiscalAxis(2027, 2029);
+
+describe('buildFiscalAxis', () => {
+  it('spans inclusive fiscal years with 12 months each', () => {
+    expect(axis.cells).toHaveLength(36);
+    expect(axis.startFy).toBe(2027);
+    expect(axis.endFy).toBe(2029);
   });
 
-  it('rolls to the next FY on October 1 (federal fiscal convention)', () => {
-    expect(buildCalendar(new Date(2026, 8, 30)).fys[0]).toBe(2026); // Sep 30 -> still FY26
-    expect(buildCalendar(new Date(2026, 9, 1)).fys[0]).toBe(2027); // Oct 1 -> FY27
+  it('starts FY27 in October 2026 (federal fiscal convention)', () => {
+    const first = axis.cells[0]!;
+    expect(first.year).toBe(2026);
+    expect(first.month).toBe(10);
+    expect(first.label).toBe('OCT');
+    expect(first.fy).toBe(2027);
   });
 
-  it('places "today" inside the window, never clamped to an edge', () => {
-    const cal = buildCalendar(new Date(2026, 7, 19));
-    // todayQ is in quarter-units from the axis origin; the window is always
-    // 12 quarters (3 FYs), so an interior "today" must land strictly between.
-    expect(cal.todayQ).toBeGreaterThan(0);
-    expect(cal.todayQ).toBeLessThan(12);
+  it('marks a fiscal-year boundary at each October', () => {
+    const boundaries = axis.cells.filter((c) => c.fiscalYearStart);
+    expect(boundaries).toHaveLength(3);
+    expect(boundaries.every((c) => c.month === 10)).toBe(true);
   });
 });
 
-describe('qOfDate', () => {
-  it('is 0 at the axis origin and increases by 1 per quarter', () => {
-    const cal = buildCalendar(new Date(2026, 7, 19));
-    expect(qOfDate(cal.axisStart, cal)).toBe(0);
-    const threeMonthsLater = new Date(cal.axisStart.getFullYear(), cal.axisStart.getMonth() + 3, 1);
-    expect(qOfDate(threeMonthsLater, cal)).toBeCloseTo(1, 5);
+describe('currentFiscalYear', () => {
+  it('rolls to the next FY on October 1', () => {
+    expect(currentFiscalYear(new Date('2026-09-30T00:00:00Z'))).toBe(2026);
+    expect(currentFiscalYear(new Date('2026-10-01T00:00:00Z'))).toBe(2027);
+  });
+
+  it('matches the api-strategy fiscal rule for a mid-year date', () => {
+    // 2026-08-19 sits in FY2026 — the window api-strategy generates its
+    // reference calendars against, and the window the editor must draw.
+    expect(currentFiscalYear(new Date('2026-08-19T00:00:00Z'))).toBe(2026);
   });
 });
 
-describe('packSpans', () => {
-  it('separates overlapping items into distinct lanes', () => {
-    const { items, rows } = packSpans([
-      { id: 'a', s: 0, e: 4 },
-      { id: 'b', s: 2, e: 6 },
-    ]);
-    expect(rows).toBe(2);
-    const byId = new Map(items.map((i) => [i.id, i._row]));
-    expect(byId.get('a')).not.toBe(byId.get('b'));
+describe('axisPosition', () => {
+  it('clamps to [0,1]', () => {
+    expect(axisPosition(axis, new Date('2000-01-01'))).toBe(0);
+    expect(axisPosition(axis, new Date('2099-01-01'))).toBe(1);
   });
 
-  it('reuses a lane for items that do not overlap', () => {
-    const { rows } = packSpans([
-      { id: 'a', s: 0, e: 3 },
-      { id: 'b', s: 3, e: 6 },
-    ]);
-    expect(rows).toBe(1);
+  it('puts a date inside the window strictly between the ends', () => {
+    // The TODAY marker only draws when this is a real interior position; a
+    // window that excludes today is what used to hide it entirely.
+    const inWindow = buildFiscalAxis(2026, 2028);
+    const p = axisPosition(inWindow, new Date('2026-08-19T00:00:00Z'));
+    expect(p).toBeGreaterThan(0);
+    expect(p).toBeLessThan(1);
+  });
+});
+
+describe('monthIndexOf', () => {
+  it('is 0 for the first month and 35 for the last', () => {
+    expect(monthIndexOf(axis, new Date('2026-10-15T00:00:00Z'))).toBe(0);
+    expect(monthIndexOf(axis, new Date('2029-09-01T00:00:00Z'))).toBe(35);
   });
 
-  it('is stable regardless of input order (sorts by start internally)', () => {
-    const a = { id: 'a', s: 0, e: 4 };
-    const b = { id: 'b', s: 2, e: 6 };
-    const first = packSpans([a, b]).items.map((i) => `${i.id}:${i._row}`);
-    const second = packSpans([b, a]).items.map((i) => `${i.id}:${i._row}`);
+  it('goes negative before the axis starts', () => {
+    expect(monthIndexOf(axis, new Date('2026-08-15T00:00:00Z'))).toBe(-2);
+  });
+});
+
+describe('columnSpan', () => {
+  it('covers every month the bar touches', () => {
+    // Jan 29 -> Feb 19 occupies two month columns, not one.
+    const s = columnSpan(axis, '2027-01-29', '2027-02-19');
+    expect(s).toEqual({ start: 3, span: 2, clippedStart: false, clippedEnd: false, trueSpan: 2 });
+  });
+
+  it('clips a bar that starts before the axis instead of dropping it', () => {
+    const s = columnSpan(axis, '2025-01-01', '2027-06-01')!;
+    expect(s.start).toBe(0);
+    expect(s.clippedStart).toBe(true);
+    expect(s.clippedEnd).toBe(false);
+  });
+
+  it('returns null only when fully outside', () => {
+    expect(columnSpan(axis, '2035-01-01', '2036-01-01')).toBeNull();
+    expect(columnSpan(axis, '2020-01-01', '2020-06-01')).toBeNull();
+  });
+
+  it('gives a point-in-time bar one column, and pads it only when asked', () => {
+    const exact = columnSpan(axis, '2027-03-14', null)!;
+    expect(exact.span).toBe(1);
+    expect(exact.trueSpan).toBe(1);
+
+    const padded = columnSpan(axis, '2027-03-14', null, 3)!;
+    expect(padded.span).toBe(3);
+    // The padding grows rightward so the bar still begins on its real month.
+    expect(padded.start).toBe(exact.start);
+    // trueSpan still reports what the dates actually cover.
+    expect(padded.trueSpan).toBe(1);
+  });
+
+  it('pads leftward when there is no room on the right', () => {
+    const padded = columnSpan(axis, '2029-09-01', null, 3)!;
+    expect(padded.span).toBe(3);
+    expect(padded.start).toBe(33);
+  });
+});
+
+describe('assignColumnLanes', () => {
+  it('separates bars that share a month column even when their dates do not overlap', () => {
+    // "Floor & amendments" ends Aug 17 and "Conference" starts Aug 17: disjoint
+    // as instants, same August cell on the grid. Laning by date put them in one
+    // cell and one covered the other.
+    const laned = assignColumnLanes([
+      { id: 'floor', start: 9, span: 2 },
+      { id: 'conference', start: 10, span: 2 },
+    ]);
+    expect(columnLaneCount(laned)).toBe(2);
+  });
+
+  it('reuses a lane for bars in disjoint columns', () => {
+    const laned = assignColumnLanes([
+      { id: 'a', start: 0, span: 3 },
+      { id: 'b', start: 3, span: 3 },
+    ]);
+    expect(columnLaneCount(laned)).toBe(1);
+  });
+
+  it('is stable regardless of input order', () => {
+    const a = { id: 'a', start: 0, span: 4 };
+    const b = { id: 'b', start: 2, span: 4 };
+    const first = assignColumnLanes([a, b]).map((l) => `${l.item.id}:${l.lane}`);
+    const second = assignColumnLanes([b, a]).map((l) => `${l.item.id}:${l.lane}`);
     expect(first).toEqual(second);
   });
+});
 
-  it('pads a short item to minSpan for both packing and the rendered width', () => {
-    const { items } = packSpans([{ id: 'a', s: 5, e: 5.2 }], 1.9);
-    expect(items[0]!._packEnd).toBeCloseTo(5 + 1.9, 5);
+describe('date edits', () => {
+  it('shifts by whole months keeping the day of month', () => {
+    expect(shiftIsoMonths('2027-01-29', 1)).toBe('2027-02-28');
+    expect(shiftIsoMonths('2027-03-14', 2)).toBe('2027-05-14');
+    expect(shiftIsoMonths('2027-01-15', -3)).toBe('2026-10-15');
   });
 
-  it('uses the padded end (not the raw end) to decide lane collisions', () => {
-    // Two items whose RAW spans don't overlap, but whose minSpan-1.9-padded
-    // ends would — this is the legislative-band case (a short milestone
-    // padded wide enough to read its label collides with its neighbor unless
-    // the packer accounts for the padding, not just the true dates).
-    const { rows } = packSpans(
-      [
-        { id: 'a', s: 0, e: 0.5 },
-        { id: 'b', s: 1, e: 1.5 },
-      ],
-      1.9,
-    );
-    expect(rows).toBe(2);
+  it('clamps into a shorter month rather than rolling into the next one', () => {
+    // Jan 31 + 1 month is Feb 28, never Mar 3.
+    expect(shiftIsoMonths('2027-01-31', 1)).toBe('2027-02-28');
+    expect(shiftIsoMonths('2028-01-31', 1)).toBe('2028-02-29');
   });
 
-  it('does not pad an item that is already longer than minSpan', () => {
-    const { items } = packSpans([{ id: 'a', s: 0, e: 5 }], 1.9);
-    expect(items[0]!._packEnd).toBe(5);
+  it('crosses a year boundary in both directions', () => {
+    expect(shiftIsoMonths('2027-11-10', 3)).toBe('2028-02-10');
+    expect(shiftIsoMonths('2027-02-10', -3)).toBe('2026-11-10');
+  });
+
+  it('brackets a month column with a start and end the service will accept', () => {
+    const start = monthStartIso(axis, 0);
+    const end = monthEndIso(axis, 0);
+    expect(start).toBe('2026-10-01');
+    expect(end).toBe('2026-10-31');
+    // ReferenceService.fork rejects endsOn <= startsOn.
+    expect(new Date(end).getTime()).toBeGreaterThan(new Date(start).getTime());
+  });
+
+  it('formats a UTC date as the YYYY-MM-DD the fork DTO requires', () => {
+    expect(toDateOnly(new Date('2026-01-29T00:00:00.000Z'))).toBe('2026-01-29');
   });
 });

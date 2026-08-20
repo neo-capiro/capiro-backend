@@ -1,37 +1,22 @@
 /**
- * Working-timeline regressions (2026-08-19, second pass).
+ * Working-timeline regressions (2026-08-19).
  *
- * The first pass (a CSS-grid month-column model) fixed the missing TODAY
- * marker and stopped labels spilling outside their own box, but Neo's
- * follow-up review — done by opening the SAME strategy on both
- * `app.capiro.ai` (legacy) and `os.capiro.ai` (vNext) side by side — found
- * the grid model itself was wrong relative to that reference:
+ * Three defects this covers, all confirmed against capiro-dev before the fix:
  *
- *  1. Step cards were single-line, fixed-height, ellipsis-truncated. Legacy
- *     cards wrap their title across as many lines as it needs and grow the
- *     row to fit. Truncating "Draft and submit white papers justifying the
- *     plus-up" to "Draft and subm…" reads as broken, not "handled overflow".
- *  2. Month columns shrank to fit the 36-month window on one screen (46px at
- *     the 3-year horizon) — legacy holds every column at a fixed 100px and
- *     scrolls horizontally instead. Compressed columns are what made a
- *     legislative-milestone box roughly HALF as wide as the same event on
- *     legacy, which is what actually drove the illegible-label complaint (the
- *     grid model's ellipsis was a symptom of the width, not a separate bug).
- *  3. There was a Horizon (1FY/2FY/3FY) filter chip. Legacy has never had one;
- *     it always shows the rolling [current FY, +1, +2] window.
- *  4. "Editable" legislative calendar meant a hover-revealed (opacity:0 until
- *     hover) drag handle on the timeline bar itself. Legacy's edit affordance
- *     is a plain, always-visible "Edit calendar" link that opens a form modal
- *     (label + from/to quarter selects) — far more discoverable, and this is
- *     what "replicate the same exact functionality" in the follow-up meant.
- *
- * This file replaces the grid-model tests with ones for the ported model:
- * continuous (date-accurate) positions via `pages/strategy/fiscal.ts`,
- * `packSpans` lane packing, wrapped step titles, no horizon chip, and the
- * "Edit calendar" link navigating to the new overlay route rather than
- * toggling an inline drag mode.
+ *  1. The axis was pinned to FY27 while api-strategy generates every reference
+ *     row, firm phase and seeded plan against `currentFyWindow()` = the LIVE
+ *     fiscal year — so "today" fell off the left edge, `showToday` was false,
+ *     and the TODAY marker never rendered.
+ *  2. Bars were percentage-positioned over a flex ruler, so a label could not
+ *     be bounded by its own bar; here they are grid items whose area IS their
+ *     month range, with the label in its own ellipsizing span.
+ *  3. The legislative band was read-only with a dead "Ask Meri about this
+ *     calendar" control posting to a route the service does not implement,
+ *     rendered in normal flow underneath the absolutely-positioned bars (which
+ *     is what printed text across them). It now edits and forks for real
+ *     through `PUT /strategy-api/reference-calendars/congress`.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -40,8 +25,8 @@ import type { ReferenceRow, StrategyDetail, StrategyNode } from '../../../pages/
 
 const STRATEGY_ID = '11111111-2222-3333-4444-555555555555';
 
-/** Fixed "now" so the calendar, the TODAY marker and the fixtures agree. */
-const NOW = new Date(2026, 7, 19, 12, 0, 0); // Aug 19 2026, local — matches fiscal.ts's local-date model.
+/** Fixed "now" so the axis, the TODAY marker and the fixtures agree. */
+const NOW = new Date('2026-08-19T12:00:00.000Z');
 
 vi.mock('../../adapters/legacy/useShellClientContext.js', () => ({
   useShellClientContext: () => ({
@@ -77,23 +62,19 @@ function node(over: Partial<StrategyNode> & Pick<StrategyNode, 'id' | 'startsOn'
   };
 }
 
-/* Real shapes from capiro-dev (read 2026-08-19): the plan opens in Aug 2026
-   (FY2026) and the legislative baseline runs Jan 2026 – Nov 2027. A long,
-   real title is included deliberately — this is the exact string that used
-   to render as "Draft and subm…". */
-const LONG_TITLE = 'Draft and submit white papers justifying $10M plus-up to target committees';
+/* Real shapes from capiro-dev: the plan opens in Aug 2026 (FY2026) and the
+   legislative baseline runs Jan 2026 – Nov 2027. Under the old FY27 axis the
+   first of each was invisible. */
 const NODES: StrategyNode[] = [
   node({ id: 'n1', title: 'Identify target program elements', startsOn: '2026-08-15', endsOn: '2026-09-30' }),
   node({ id: 'n2', kind: 'decision', title: 'Select final PE targets', startsOn: '2026-10-01', endsOn: null }),
-  node({ id: 'n3', kind: 'action', title: LONG_TITLE, startsOn: '2027-01-15', endsOn: '2027-02-28', ownerUserId: 'u1' }),
-  node({ id: 'n4', kind: 'gate', title: 'Submit congressional funding request', startsOn: '2027-04-28', endsOn: null }),
+  node({ id: 'n3', kind: 'gate', title: 'Submit congressional funding request', startsOn: '2027-04-28', endsOn: null }),
 ];
 
 const CONGRESS: ReferenceRow[] = [
   { id: 'c1', kind: 'congress_milestone', label: "President's Budget", fy: null, startsOn: '2026-01-29T00:00:00.000Z', endsOn: '2026-02-19T00:00:00.000Z', tone: 'ink', position: 0 },
   { id: 'c2', kind: 'congress_milestone', label: 'Floor & amendments', fy: null, startsOn: '2026-07-01T00:00:00.000Z', endsOn: '2026-08-17T00:00:00.000Z', tone: 'notable', position: 1 },
   { id: 'c3', kind: 'congress_milestone', label: 'Conference', fy: null, startsOn: '2026-08-17T00:00:00.000Z', endsOn: '2026-09-22T00:00:00.000Z', tone: 'notable', position: 2 },
-  { id: 'c4', kind: 'congress_milestone', label: 'Continuing resolution risk', fy: null, startsOn: '2026-09-04T00:00:00.000Z', endsOn: '2026-10-06T00:00:00.000Z', tone: 'critical', position: 3 },
 ];
 
 const detail: StrategyDetail = {
@@ -117,6 +98,8 @@ const detail: StrategyDetail = {
   artifacts: [],
 };
 
+const forkMutate = vi.fn();
+
 vi.mock('./strategies-api.js', async () => {
   const actual = await vi.importActual<typeof import('./strategies-api.js')>('./strategies-api.js');
   return {
@@ -127,9 +110,11 @@ vi.mock('./strategies-api.js', async () => {
       data: { congress: CONGRESS, ppbeLanes: [], ppbeCurrentPhases: [], source: { congress: 'baseline' } },
     }),
     useClientsLite: () => ({ data: [{ id: 'client-1', name: 'RTX Corporation' }] }),
-    useTenantMembers: () => ({ data: [{ id: 'm1', clerkUserId: 'u1', email: 'a@b.com', name: 'Sarah Chen' }] }),
+    useTenantMembers: () => ({ data: [] }),
     usePendingWatchCounts: () => ({ data: {} }),
     useWatchReviewState: () => ({ data: { proposals: [] } }),
+    useRevalidateWatch: () => ({ mutate: vi.fn(), isPending: false }),
+    useForkReferenceCalendar: () => ({ mutate: forkMutate, isPending: false, isError: false, error: null }),
   };
 });
 
@@ -140,133 +125,219 @@ function renderEditor() {
       <MemoryRouter initialEntries={[`/strategies/${STRATEGY_ID}`]}>
         <Routes>
           <Route path="/strategies/:strategyId" element={<StrategyEditorVNext />} />
-          <Route path="/strategies/:strategyId/legislative-calendar" element={<div data-testid="legcal-route">legislative-calendar route</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
 
+function bandFor(label: string): HTMLElement {
+  const band = document.querySelector<HTMLElement>(`[aria-label="${label}"]`);
+  if (!band) throw new Error(`no band labelled "${label}"`);
+  return band;
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(NOW);
+  forkMutate.mockReset();
 });
 
-describe('Working timeline — no horizon filter', () => {
-  it('never renders a horizon/scope chip — the window is always the rolling 3-FY range', () => {
-    renderEditor();
-    expect(screen.queryByText('HORIZON')).toBeNull();
-    expect(screen.queryByRole('button', { name: /FY\d\d.*FY\d\d/ })).toBeNull();
-  });
-
-  it('shows exactly the rolling [current FY, +1, +2] window', () => {
-    renderEditor();
-    // "today" (2026-08-19) is in FY2026 -> window is FY26/FY27/FY28. Each FY
-    // label repeats once per quarter (4x), so assert presence/absence, not count.
-    expect(screen.getAllByText('FY26').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('FY27').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('FY28').length).toBeGreaterThan(0);
-    expect(screen.queryAllByText('FY29')).toHaveLength(0);
-    expect(screen.queryAllByText('FY25')).toHaveLength(0);
-  });
-});
-
-describe('Working timeline — TODAY marker', () => {
-  it('renders on-axis (today is always inside the rolling window by construction)', () => {
+describe('Working timeline — axis and TODAY marker', () => {
+  it('anchors the window on the live fiscal year, so today is on the axis', () => {
     const { container } = renderEditor();
+    // FY2026 (today) through FY2028, not the old frozen FY27–FY29.
+    expect(screen.getByText('FY26')).toBeTruthy();
+    expect(screen.getByText('FY28')).toBeTruthy();
+    expect(screen.queryByText('FY29')).toBeNull();
+
+    const pill = screen.getByText('Today');
+    expect(pill).toBeTruthy();
     const line = container.querySelector<HTMLElement>('.st-tl__today-line');
     expect(line).toBeTruthy();
+    // Interior position — 0% or 100% is the off-axis clamp that used to hide it.
+    const left = Number.parseFloat(line!.style.left);
+    expect(left).toBeGreaterThan(0);
+    expect(left).toBeLessThan(100);
   });
 
-  it('marks the current quarter and month on the ruler', () => {
+  it('renders the plan step that starts before the old FY27 axis', () => {
     renderEditor();
-    expect(screen.getByText('Current')).toBeTruthy();
-    const augCells = screen.getAllByText('Aug');
-    expect(augCells.length).toBeGreaterThan(0);
+    expect(screen.getByText('Identify target program elements')).toBeTruthy();
+  });
+
+  it('marks the current month on the ruler', () => {
+    const { container } = renderEditor();
+    const current = container.querySelectorAll('.st-tl__month--current');
+    expect(current).toHaveLength(1);
+    expect(current[0]!.textContent).toBe('AUG');
   });
 });
 
-describe('Working timeline — step cards never truncate', () => {
-  it('renders a long real title in full, with no ellipsis CSS on the title element', () => {
+describe('Working timeline — month-column grid', () => {
+  it('places every bar on its own month range instead of a percentage offset', () => {
     const { container } = renderEditor();
-    const title = [...container.querySelectorAll<HTMLElement>('.st-step__title')].find(
-      (el) => el.textContent === LONG_TITLE,
+    const bars = container.querySelectorAll<HTMLElement>('.st-tl__bar');
+    expect(bars.length).toBeGreaterThan(0);
+    for (const bar of bars) {
+      expect(bar.style.gridColumn).toMatch(/^\d+ \/ span \d+$/);
+      // Nothing is positioned by left/width any more, so nothing can drift off
+      // the ruler or spill past its own box.
+      expect(bar.style.left).toBe('');
+      expect(bar.style.width).toBe('');
+    }
+  });
+
+  it('gives every bar and step label its own ellipsizing span', () => {
+    const { container } = renderEditor();
+    // `text-overflow` is inert on a flex container's anonymous text, which is
+    // why labels used to be chopped mid-glyph. Each label owns a span now.
+    for (const bar of container.querySelectorAll<HTMLElement>('.st-tl__bar')) {
+      expect(bar.querySelector('.st-tl__bar-label')).toBeTruthy();
+    }
+    for (const step of container.querySelectorAll<HTMLElement>('.st-step')) {
+      expect(step.querySelector('.st-step__title')).toBeTruthy();
+      expect(step.querySelector('.st-step__kind-text')).toBeTruthy();
+    }
+  });
+
+  it('lanes bars that share a month column even when their dates do not overlap', () => {
+    const { container } = renderEditor();
+    // "Floor & amendments" ends Aug 17 and "Conference" starts Aug 17 — same
+    // August cell, so they must not land in the same grid row.
+    const rows = [...container.querySelectorAll<HTMLElement>('.st-tl__bar')]
+      .filter((b) => /Floor & amendments|Conference/.test(b.textContent ?? ''))
+      .map((b) => b.style.gridRow);
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows).size).toBe(2);
+  });
+
+  it('widens a point-in-time step enough to render its own label', () => {
+    const { container } = renderEditor();
+    const gate = [...container.querySelectorAll<HTMLElement>('.st-step')].find((s) =>
+      s.textContent?.includes('Submit congressional funding request'),
     );
-    expect(title).toBeTruthy();
-    const cs = getComputedStyle(title!);
-    expect(cs.textOverflow).not.toBe('ellipsis');
-    expect(cs.overflow).not.toBe('hidden');
+    expect(gate).toBeTruthy();
+    const span = Number(gate!.style.gridColumn.split('span ')[1]);
+    expect(span).toBeGreaterThanOrEqual(2);
   });
 
-  it('does not force a single-line height on the step card', () => {
+  it('marks a widened point-in-time step so the padding never asserts a duration', () => {
     const { container } = renderEditor();
-    const card = [...container.querySelectorAll<HTMLElement>('.st-step')].find((el) =>
-      el.textContent?.includes(LONG_TITLE),
+    // n3 is a gate with no endsOn: drawn >1 column for legibility, so it has to
+    // say so — edge modifier, plus the real date in the tooltip and the name.
+    const gate = [...container.querySelectorAll<HTMLElement>('.st-step')].find((s) =>
+      s.textContent?.includes('Submit congressional funding request'),
     )!;
-    expect(getComputedStyle(card).height).not.toBe('72px');
-  });
+    expect(gate.className).toContain('st-step--instant');
+    expect(gate.className).toContain('st-step--gate');
+    expect(gate.title).toMatch(/Submit congressional funding request — \w{3} \d+/);
+    expect(gate.getAttribute('aria-label')).toMatch(/, on \w{3} \d+$/);
 
-  it('shows kind + real date range in the eyebrow, and the owner in the meta line', () => {
-    const { container } = renderEditor();
-    const card = [...container.querySelectorAll<HTMLElement>('.st-step')].find((el) =>
-      el.textContent?.includes(LONG_TITLE),
+    // A step with a real end date is NOT marked — the modifier means "instant",
+    // not "short".
+    const ranged = [...container.querySelectorAll<HTMLElement>('.st-step')].find((s) =>
+      s.textContent?.includes('Identify target program elements'),
     )!;
-    expect(card.querySelector('.st-step__kind')?.textContent).toMatch(/Action · Jan '27/);
-    expect(card.querySelector('.st-step__meta')?.textContent).toBe('Owner · Sarah Chen');
+    expect(ranged.className).not.toContain('st-step--instant');
   });
 });
 
-describe('Working timeline — lane packing (no visual collisions)', () => {
-  function overlaps(a: DOMRect, b: DOMRect) {
-    return !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
-  }
+describe('PPBE band', () => {
+  it('stays read-only — no fork route reaches ppbe_lane_bar', () => {
+    // PUT /reference-calendars/ppbe maps to ppbe_current_phase; the band drawn
+    // here is ppbe_lane_bar, which no endpoint can write. The Edit affordance
+    // is therefore Legislative-only rather than a control that would fail.
+    renderEditor();
+    const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+    expect(editButtons).toHaveLength(1);
+    const gutterRows = [...document.querySelectorAll('.st-tl__gutter-row')];
+    const ppbeRow = gutterRows.find((r) => r.textContent?.startsWith('PPBE'));
+    expect(ppbeRow).toBeTruthy();
+    expect(ppbeRow!.querySelector('.st-tl__gutter-edit')).toBeNull();
+  });
+});
 
-  it('never places two step cards, or two legislative bars, on top of each other', () => {
-    const { container } = renderEditor();
-    for (const selector of ['.st-step', '.st-tl__bar']) {
-      const els = [...container.querySelectorAll<HTMLElement>(selector)];
-      const rects = els.map((el) => el.getBoundingClientRect());
-      for (let i = 0; i < els.length; i++) {
-        for (let j = i + 1; j < els.length; j++) {
-          expect(overlaps(rects[i]!, rects[j]!)).toBe(false);
-        }
-      }
+describe('Legislative calendar editing', () => {
+  it('is read-only until the band is put into edit mode', () => {
+    renderEditor();
+    expect(document.querySelector('.st-tl__bar--draggable')).toBeNull();
+    expect(screen.queryByText(/Save calendar/)).toBeNull();
+  });
+
+  it('moves a milestone by whole months and forks the calendar on save', async () => {
+    renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+    const band = bandFor('Legislative calendar (editing)');
+    // /^Conference,/ — the bar's own aria-label, not its "Remove Conference" sibling.
+    const bar = within(band).getByRole('button', { name: /^Conference,/ });
+    const before = bar.closest<HTMLElement>('.st-tl__slot')!.style.gridColumn;
+
+    // Keyboard nudge — the same edit a drag commits, without synthesising
+    // pointer geometry jsdom has no layout for.
+    fireEvent.keyDown(bar, { key: 'ArrowRight' });
+    const after = within(bandFor('Legislative calendar (editing)'))
+      .getByRole('button', { name: /^Conference,/ })
+      .closest<HTMLElement>('.st-tl__slot')!.style.gridColumn;
+    expect(after).not.toBe(before);
+    expect(Number(after.split(' / ')[0])).toBe(Number(before.split(' / ')[0]) + 1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save calendar' }));
+    await waitFor(() => expect(forkMutate).toHaveBeenCalledTimes(1));
+
+    const rows = forkMutate.mock.calls[0]![0] as Array<{ label: string; startsOn: string; endsOn: string }>;
+    expect(rows).toHaveLength(CONGRESS.length);
+    // The whole set is sent (the service REPLACES the tenant's rows).
+    expect(rows.map((r) => r.label)).toContain("President's Budget");
+
+    const moved = rows.find((r) => r.label === 'Conference')!;
+    // Shifted a month with the day of month intact — not snapped to the 1st.
+    expect(moved.startsOn).toBe('2026-09-17');
+    expect(moved.endsOn).toBe('2026-10-22');
+
+    // Untouched rows keep their exact dates, in the YYYY-MM-DD the DTO requires.
+    const untouched = rows.find((r) => r.label === "President's Budget")!;
+    expect(untouched.startsOn).toBe('2026-01-29');
+    expect(untouched.endsOn).toBe('2026-02-19');
+
+    // Every row satisfies the service's endsOn > startsOn precondition.
+    for (const r of rows) {
+      expect(r.startsOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(new Date(r.endsOn).getTime()).toBeGreaterThan(new Date(r.startsOn).getTime());
     }
   });
-});
 
-describe('Legislative calendar — editable via an always-visible link', () => {
-  it('renders "Edit calendar" without needing to hover', () => {
+  it('adds a milestone and does not save until something actually changed', () => {
     renderEditor();
-    const link = screen.getByRole('button', { name: /Edit calendar/i });
-    // No opacity:0-until-hover gate — the whole point of the follow-up fix.
-    expect(getComputedStyle(link).opacity).not.toBe('0');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByRole('button', { name: 'Save calendar' })).toHaveProperty('disabled', true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add milestone' }));
+    expect(screen.getByRole('button', { name: 'Save calendar' })).toHaveProperty('disabled', false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save calendar' }));
+    const rows = forkMutate.mock.calls[0]![0] as Array<{ label: string }>;
+    expect(rows).toHaveLength(CONGRESS.length + 1);
+    expect(rows.map((r) => r.label)).toContain('New milestone');
   });
 
-  it('opens the legislative-calendar overlay route on click, not an inline drag mode', () => {
+  it('drops uncommitted edits on cancel', () => {
     renderEditor();
-    fireEvent.click(screen.getByRole('button', { name: /Edit calendar/i }));
-    expect(screen.getByTestId('legcal-route')).toBeTruthy();
-    // The old inline editor's affordances must be gone.
-    expect(screen.queryByRole('button', { name: 'Save calendar' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add milestone' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(forkMutate).not.toHaveBeenCalled();
+    expect(screen.queryByText('New milestone')).toBeNull();
   });
 
-  it('renders every seeded legislative milestone, including the long one, in full', () => {
+  it('removes a milestone from the set it sends', () => {
     renderEditor();
-    const band = within(document.querySelector('.st-tl__row--legislative.st-tl__band') as HTMLElement);
-    for (const row of CONGRESS) {
-      const label = band.getByText(row.label);
-      expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth + 1);
-    }
-  });
-});
-
-describe('PPBE band — read-only, no edit affordance', () => {
-  it('has no fork route for ppbe_lane_bar, so there is no Edit control on it', () => {
-    renderEditor();
-    const ppbeRow = [...document.querySelectorAll('.st-tl__gutter-row')].find((r) =>
-      r.textContent?.includes('PPBE'),
-    )!;
-    expect(within(ppbeRow as HTMLElement).queryByText(/^Edit$/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Conference' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save calendar' }));
+    const rows = forkMutate.mock.calls[0]![0] as Array<{ label: string }>;
+    expect(rows.map((r) => r.label)).not.toContain('Conference');
+    expect(rows).toHaveLength(CONGRESS.length - 1);
   });
 });

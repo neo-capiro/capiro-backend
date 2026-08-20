@@ -39,11 +39,6 @@ const NewStrategyOverlay = lazy(() =>
 const FirmPhasesOverlay = lazy(() =>
   import('./overlays/FirmPhasesOverlay.js').then((m) => ({ default: m.FirmPhasesOverlay })),
 );
-const EditLegislativeCalendarOverlay = lazy(() =>
-  import('./overlays/EditLegislativeCalendarOverlay.js').then((m) => ({
-    default: m.EditLegislativeCalendarOverlay,
-  })),
-);
 const ExportOverlay = lazy(() =>
   import('./overlays/ExportOverlay.js').then((m) => ({ default: m.ExportOverlay })),
 );
@@ -138,7 +133,6 @@ export function VNextStrategiesRoutes() {
           <Route path="/strategies/:strategyId" element={<StrategyEditorVNext />} />
           <Route path="/strategies/:strategyId/history" element={<Overlay caller={<StrategyEditorVNext />}><HistoryOverlay /></Overlay>} />
           <Route path="/strategies/:strategyId/export" element={<Overlay caller={<StrategyEditorVNext />}><ExportOverlay /></Overlay>} />
-          <Route path="/strategies/:strategyId/legislative-calendar" element={<Overlay caller={<StrategyEditorVNext />}><EditLegislativeCalendarOverlay /></Overlay>} />
 
           {/* Context library + overlays. */}
           <Route
