@@ -128,26 +128,6 @@ export async function resolveClientFacilityDistrict(
   ).data;
 }
 
-/**
- * Queue a fresh geocode attempt for a facility whose address never resolved.
- *
- * Backs `POST :id/geocode` on ClientFacilitiesController (added alongside the
- * retryable-geocoding work). Distinct from resolveClientFacilityDistrict above:
- * that re-derives the district from an already-matched address, this re-runs the
- * geocoder itself and clears the retry backoff.
- */
-export async function retryClientFacilityGeocode(
-  api: AxiosInstance,
-  clientId: string,
-  id: string,
-): Promise<ClientFacility> {
-  return (
-    await api.post<ClientFacility>(
-      `/api/clients/${encodeURIComponent(clientId)}/facilities/${encodeURIComponent(id)}/geocode`,
-    )
-  ).data;
-}
-
 export const GEOCODE_STATUS_LABEL: Record<string, string> = {
   matched: 'Geocoded',
   no_match: 'No match — confirm address',
