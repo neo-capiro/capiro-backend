@@ -154,12 +154,23 @@ describe('THE RULE: no requirement renders without its citation', () => {
   });
 });
 
-describe('four kinds of empty, and only one is about the solicitation', () => {
+describe('five kinds of empty, and only one is about the solicitation', () => {
   test('the flag off says so, and never asks the API', async () => {
     flags.funding_opportunities_documents = false;
     wrap(<OpportunityRequirementsPanel source="sam_gov" sourceRecordId={SAM_ID} />);
     const el = await screen.findByTestId('fo-requirements-not-enabled');
     expect(el).toHaveTextContent(/says nothing about what this solicitation requires/i);
+    expect(apiGetMock).not.toHaveBeenCalled();
+  });
+
+  test('a source the API refuses by design is stated as unsupported, never as a failure', async () => {
+    // The API itself 400s "Requirement extraction runs on SAM.gov solicitation
+    // documents" for any other source. The panel must recognize this BEFORE
+    // calling the API, not render the resulting 400 as a generic failure.
+    wrap(<OpportunityRequirementsPanel source="grants_gov" sourceRecordId="g-1" />);
+    const el = await screen.findByTestId('fo-requirements-not-supported');
+    expect(el).toHaveTextContent(/runs on SAM\.gov solicitation documents/i);
+    expect(screen.queryByTestId('fo-requirements-error')).toBeNull();
     expect(apiGetMock).not.toHaveBeenCalled();
   });
 

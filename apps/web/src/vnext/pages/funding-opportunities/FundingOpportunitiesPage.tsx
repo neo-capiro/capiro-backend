@@ -22,7 +22,7 @@ interface ClientLite {
   status?: string;
 }
 
-export const OPPORTUNITY_VIEWS = ['inbox', 'explore'] as const;
+export const OPPORTUNITY_VIEWS = ['explore', 'inbox'] as const;
 export type OpportunityView = (typeof OPPORTUNITY_VIEWS)[number];
 
 /**
@@ -54,7 +54,7 @@ export function FundingOpportunitiesPage() {
    * lands on a working page rather than on a 404.
    */
   const view: OpportunityView = inboxAvailable
-    ? readEnum<OpportunityView>(url.get('view'), OPPORTUNITY_VIEWS, 'inbox')
+    ? readEnum<OpportunityView>(url.get('view'), OPPORTUNITY_VIEWS, 'explore')
     : 'explore';
 
   const clients = useQuery<ClientLite[]>({
@@ -72,7 +72,7 @@ export function FundingOpportunitiesPage() {
   }
 
   function setView(next: OpportunityView) {
-    url.set({ view: next === 'inbox' ? null : next, cursor: null, page: null });
+    url.set({ view: next === 'explore' ? null : next, cursor: null, page: null });
   }
 
   function refresh() {
@@ -140,8 +140,8 @@ export function FundingOpportunitiesPage() {
           onChange={setView}
           ariaLabel="Funding Opportunities view"
           options={[
-            { value: 'inbox', label: 'Triage inbox' },
             { value: 'explore', label: 'Explore federal opportunities' },
+            { value: 'inbox', label: 'Triage inbox' },
           ]}
         />
       ) : null}

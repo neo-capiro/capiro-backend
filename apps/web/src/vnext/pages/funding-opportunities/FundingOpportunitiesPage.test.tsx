@@ -72,15 +72,10 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-const { requestMeriContextPromptMock, apiGetMock, apiPostMock, apiPatchMock } = vi.hoisted(() => ({
-  requestMeriContextPromptMock: vi.fn(),
+const { apiGetMock, apiPostMock, apiPatchMock } = vi.hoisted(() => ({
   apiGetMock: vi.fn(),
   apiPostMock: vi.fn(),
   apiPatchMock: vi.fn(),
-}));
-
-vi.mock('../../../components/chat/meri-prompt.js', () => ({
-  requestMeriContextPrompt: requestMeriContextPromptMock,
 }));
 
 vi.mock('../../../lib/use-api.js', () => ({
@@ -343,7 +338,7 @@ beforeEach(() => {
   apiPostMock.mockResolvedValue({ data: {} });
   apiPatchMock.mockResolvedValue({ data: {} });
   setSearchParamsMock.mockClear();
-  requestMeriContextPromptMock.mockClear();
+  navigateMock.mockClear();
   flag = { enabled: true, ready: true };
   flags.funding_opportunities_client_inbox = false;
   flags.funding_opportunities_forecasts = false;
@@ -602,17 +597,18 @@ describe('workflow actions', () => {
     expect(screen.getByText(/Select a client to save or pursue/i)).toBeInTheDocument();
   });
 
-  test('Ask Meri opens a new client-scoped assessment with source facts', async () => {
+  test('Ask Meri navigates to the vNext workspace with a client-scoped assessment prompt', async () => {
+    // vNext's Meri is a dedicated route (VNextApp) that bypasses AppShellUui
+    // entirely — the legacy chat-drawer event bus (requestMeriContextPrompt /
+    // MeriOverlay) is never mounted here, so this must navigate, not dispatch.
     mockApi(listResponse({ opportunities: [contract()] }));
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Ask Meri/ }));
-    expect(requestMeriContextPromptMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        clientId: 'client-1',
-        newSession: true,
-        prompt: expect.stringContaining('W911-26-R-0001'),
-      }),
-    );
+    expect(navigateMock).toHaveBeenCalledWith(expect.stringMatching(/^\/meri\/new\?/));
+    const url = navigateMock.mock.calls.at(-1)?.[0] as string;
+    const params = new URLSearchParams(url.split('?')[1]);
+    expect(params.get('meriClient')).toBe('client-1');
+    expect(params.get('meriPrompt')).toContain('W911-26-R-0001');
   });
 
   test('assign owner opens a real modal and patches the workflow', async () => {
@@ -841,7 +837,7 @@ describe('informational and closed notices never offer a pursuit', () => {
 
 // ── P11: the shell, the flag, and URL-restorable state ──────────────────────
 
-describe('the inbox flag decides what the DEFAULT is, and nothing else', () => {
+describe('the inbox flag decides whether the inbox is reachable at all', () => {
   test('with the flag off there is no view switcher and no inbox request at all', async () => {
     mockApi(listResponse());
     renderPage();
@@ -859,10 +855,13 @@ describe('the inbox flag decides what the DEFAULT is, and nothing else', () => {
     expect(screen.queryByTestId('fo-inbox')).not.toBeInTheDocument();
   });
 
-  test('with the flag ON the inbox is the landing view, not the catalog', async () => {
+  test('with the flag ON, explore is still the landing view, but the inbox is reachable via the switcher', async () => {
     flags.funding_opportunities_client_inbox = true;
     mockApi(listResponse(), emptyInbox());
     renderPage();
+    expect(await screen.findByTestId('fo-explore')).toBeInTheDocument();
+    expect(screen.getByLabelText('Funding Opportunities view')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Triage inbox' }));
     expect(await screen.findByTestId('fo-inbox')).toBeInTheDocument();
     expect(screen.queryByTestId('fo-kpis')).not.toBeInTheDocument();
   });
@@ -903,10 +902,23 @@ describe('the inbox flag decides what the DEFAULT is, and nothing else', () => {
 
 // ── The triage inbox, exercised through the page (canonical inbox suite subset) ──
 
-describe('the inbox is the default, and it is client-first', () => {
+describe('Explore federal opportunities is the default view', () => {
+  test('with no view param at all, the page lands on Explore, not the inbox', async () => {
+    flags.funding_opportunities_client_inbox = true;
+    urlStore.set('?clientId=client-1');
+    mockApi(listResponse());
+    renderPage();
+    expect(await screen.findByRole('tab', { name: /Explore federal opportunities/, selected: true })).toBeInTheDocument();
+    expect(screen.queryByTestId('fo-inbox')).toBeNull();
+  });
+});
+
+describe('the inbox is client-first', () => {
   beforeEach(() => {
     flags.funding_opportunities_client_inbox = true;
-    urlStore.set('');
+    // Explore federal opportunities is now the page's default view — the
+    // inbox is reached via ?view=inbox, no longer via an absent param.
+    urlStore.set('?view=inbox');
   });
 
   test('it lands on needs_review without being asked', async () => {
@@ -958,7 +970,7 @@ describe('the inbox is the default, and it is client-first', () => {
   });
 
   test('an unknown queue in the URL falls back to needs_review rather than 400ing', async () => {
-    urlStore.set('?filter=urgent');
+    urlStore.set('?view=inbox&filter=urgent');
     mockApi(listResponse(), emptyInbox());
     renderPage();
     await waitFor(() => expect(inboxUrls.length).toBeGreaterThan(0));

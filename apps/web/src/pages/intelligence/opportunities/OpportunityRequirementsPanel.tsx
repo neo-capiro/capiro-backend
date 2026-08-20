@@ -24,9 +24,16 @@ const { Paragraph, Text } = Typography;
  *
  * ── An empty panel says WHICH kind of empty ──────────────────────────────────
  *
- * Four causes, and only the last is a fact about the solicitation:
+ * Five causes, and only the last is a fact about the solicitation:
  *
  *   flag off              the workspace has not enabled document analysis.
+ *   source not supported  extraction only runs on SAM.gov solicitation
+ *                         documents — a Grants.gov notice states its own terms
+ *                         in the notice text, so there is no separate
+ *                         document to read. Checked BEFORE the API is ever
+ *                         called, so the query never runs and never has a
+ *                         chance to be misread as the request-failure case
+ *                         below.
  *   no documents archived nothing has been fetched to read.
  *   no text available     the documents are archived but unread — and the WHY
  *                         comes from P30 (`not_entitled` is a billing fact,
@@ -54,6 +61,14 @@ export function OpportunityRequirementsPanel({
 }) {
   const api = useApi();
   const flag = useIntelFeature(FUNDING_OPPORTUNITIES_DOCUMENTS_FEATURE);
+  // Requirement extraction only runs on SAM.gov solicitation documents — the
+  // API itself refuses (400) any other source, since a Grants.gov notice
+  // states its own terms in the notice text rather than a separate
+  // solicitation package. Skip the call entirely for non-SAM.gov sources
+  // rather than let an expected, by-design 400 render as a generic request
+  // failure — this panel's whole point is that an empty state always says
+  // WHICH kind of empty it is.
+  const supportsRequirements = source === 'sam_gov';
 
   const query = useQuery<OpportunityRequirementsResponse>({
     queryKey: ['funding-opportunity-requirements', source, sourceRecordId],
@@ -61,7 +76,7 @@ export function OpportunityRequirementsPanel({
       (await api.get<OpportunityRequirementsResponse>(requirementsApiPath(source, sourceRecordId)))
         .data,
     retry: false,
-    enabled: flag.ready && flag.enabled,
+    enabled: flag.ready && flag.enabled && supportsRequirements,
   });
 
   const body = () => {
@@ -71,6 +86,14 @@ export function OpportunityRequirementsPanel({
         <Text type="secondary" style={{ fontSize: 12 }} data-testid="fo-requirements-not-enabled">
           Document analysis is not enabled for this workspace. This says nothing about what this
           solicitation requires — its documents have not been read.
+        </Text>
+      );
+    }
+    if (!supportsRequirements) {
+      return (
+        <Text type="secondary" style={{ fontSize: 12 }} data-testid="fo-requirements-not-supported">
+          Requirement extraction runs on SAM.gov solicitation documents. Grants.gov states its
+          terms in the notice itself, so there is no separate document to read here.
         </Text>
       );
     }

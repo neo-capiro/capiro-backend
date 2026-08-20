@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroSkeleton } from '../../components/feedback/index.js';
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { useApi } from '../../../lib/use-api.js';
-import { requestMeriContextPrompt } from '../../../components/chat/meri-prompt.js';
+import {
+  MERI_VNEXT_PATH,
+  MERI_WINDOW_CLIENT_QUERY,
+  MERI_WINDOW_PROMPT_QUERY,
+} from '../../../components/chat/meri-window.js';
 import {
   readEnum,
   readEnumList,
@@ -92,6 +97,7 @@ export function FundingOpportunityExplore({ clientId }: { clientId: string | und
   const qc = useQueryClient();
   const toast = useCapiroToast();
   const url = useUrlState();
+  const navigate = useNavigate();
 
   const tab = readEnum<ExploreTab>(url.get('tab'), EXPLORE_TABS, 'all');
   const search = url.get('q') ?? '';
@@ -267,23 +273,28 @@ export function FundingOpportunityExplore({ clientId }: { clientId: string | und
   function askMeriAboutOpportunity(opportunity: FundingOpportunity) {
     if (!clientId) return;
     const sourceLabel = opportunity.source === 'grants_gov' ? 'Grants.gov' : 'SAM.gov';
-    requestMeriContextPrompt({
-      clientId,
-      newSession: true,
-      prompt: [
-        `Assess this ${sourceLabel} funding opportunity for the selected client.`,
-        `Title: ${opportunity.title}`,
-        `Reference: ${opportunity.sourceReference ?? opportunity.sourceRecordId}`,
-        `Agency: ${[opportunity.agency, opportunity.subAgency, opportunity.office].filter(Boolean).join(' / ') || 'not stated'}`,
-        `Deadline: ${opportunity.responseDeadline ?? opportunity.responseDeadlineNote ?? 'not stated'}`,
-        `Current deterministic relevance: ${opportunity.relevanceScore}/100.`,
-        `Eligibility state: ${opportunity.eligibility.state} — ${opportunity.eligibility.reason}`,
-        opportunity.sourceUrl ? `Source: ${opportunity.sourceUrl}` : '',
-        'Explain the match, identify missing facts or eligibility risks, recommend pursue/watch/dismiss, and give concrete next steps. Keep source facts, Capiro context, and inferences clearly separated.',
-      ]
-        .filter(Boolean)
-        .join('\n'),
-    });
+    const prompt = [
+      `Assess this ${sourceLabel} funding opportunity for the selected client.`,
+      `Title: ${opportunity.title}`,
+      `Reference: ${opportunity.sourceReference ?? opportunity.sourceRecordId}`,
+      `Agency: ${[opportunity.agency, opportunity.subAgency, opportunity.office].filter(Boolean).join(' / ') || 'not stated'}`,
+      `Deadline: ${opportunity.responseDeadline ?? opportunity.responseDeadlineNote ?? 'not stated'}`,
+      `Current deterministic relevance: ${opportunity.relevanceScore}/100.`,
+      `Eligibility state: ${opportunity.eligibility.state} — ${opportunity.eligibility.reason}`,
+      opportunity.sourceUrl ? `Source: ${opportunity.sourceUrl}` : '',
+      'Explain the match, identify missing facts or eligibility risks, recommend pursue/watch/dismiss, and give concrete next steps. Keep source facts, Capiro context, and inferences clearly separated.',
+    ]
+      .filter(Boolean)
+      .join('\n');
+    // requestMeriContextPrompt/MeriOverlay is the LEGACY chat-drawer mechanism
+    // and is not mounted anywhere in the vNext shell (AppShellUui) — calling
+    // it here silently did nothing but set the client filter. vNext's Meri is
+    // a dedicated route that bypasses AppShellUui entirely (VNextApp), reached
+    // by navigating to /meri/new with the one-time launch context in the URL.
+    const params = new URLSearchParams();
+    params.set(MERI_WINDOW_PROMPT_QUERY, prompt);
+    params.set(MERI_WINDOW_CLIENT_QUERY, clientId);
+    navigate(`${MERI_VNEXT_PATH}/new?${params.toString()}`);
   }
 
   const data = listQuery.data;
