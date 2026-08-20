@@ -12,9 +12,33 @@ import {
   ROUTING_DECISIONS,
   sha256Hex,
 } from '../apps/defense-parser-orchestrator/src/session5.mjs';
+import { evaluateProviderDecision } from '../apps/defense-parser-orchestrator/src/provider-decision.mjs';
 
 const root = resolve(process.cwd());
-const enforceLive = new Set(process.argv.slice(2)).has('--enforce-live-benchmark');
+const flags = new Set(process.argv.slice(2));
+const enforceLive = flags.has('--enforce-live-benchmark');
+const enforceProviderDecision = flags.has('--enforce-provider-decision');
+
+// Session 5 closes through exactly one path. Asserting both at once would let a
+// negative decision borrow the positive path's credibility.
+if (enforceLive && enforceProviderDecision) {
+  console.error(
+    '[phase8-session5] --enforce-live-benchmark and --enforce-provider-decision are mutually exclusive',
+  );
+  process.exit(2);
+}
+
+const PROVIDER_DECISION_PATH = [
+  'docs',
+  'defense-budget',
+  'phase8-session5-provider-decision.json',
+];
+const LIVE_EVIDENCE_PATH = [
+  'docs',
+  'defense-budget',
+  'phase8-session5-live-benchmark-evidence.json',
+];
+const PROVIDER_NOT_ADOPTED_STATUS = 'provider_not_adopted_operationally_blocked';
 const failures = [];
 const passes = [];
 const p = (...x) => join(root, ...x);
@@ -102,6 +126,20 @@ const infraTest = read(
 const tests =
   read('apps', 'defense-parser-orchestrator', 'test', 'real-batch.test.mjs') +
   read('apps', 'defense-parser-orchestrator', 'test', 'aws-real-runtime.test.mjs');
+const defenseConfigValidation = read(
+  'apps',
+  'defense-api',
+  'src',
+  'config',
+  'defense-config.validation.ts',
+);
+const runtimeManifest = read(
+  'apps',
+  'defense-api',
+  'src',
+  'runtime',
+  'phase1-7-runtime.manifest.ts',
+);
 const manifestText = read(
   'docs',
   'defense-budget',
@@ -368,6 +406,41 @@ check(
   'manifest pins approved spend/concurrency authorization',
 );
 
+// --- No active production NVIDIA route -------------------------------------
+// These hold regardless of which closeout path Session 5 takes.
+check(
+  legacy.includes("let decision = 'DETERMINISTIC_PRIMARY'") ||
+    legacy.includes("decision: 'DETERMINISTIC_PRIMARY'"),
+  'deterministic parsing remains the default routing decision',
+);
+check(
+  legacy.includes("benchmarkDecision === 'NVIDIA_PRIMARY' && policy.benchmarkAccepted === true"),
+  'NVIDIA can never be preferred unless benchmark acceptance is explicitly true',
+);
+check(
+  manifest.nvidiaBenchmarkAccepted === false,
+  'manifest keeps NVIDIA benchmark acceptance false, so no NVIDIA route can be preferred',
+);
+check(
+  defenseConfigValidation.includes('/^NVIDIA_/') &&
+    defenseConfigValidation.includes('/^DEFENSE_PARSER_MODEL_/'),
+  'defense-api serve task forbids NVIDIA and parser-model credentials',
+);
+check(
+  runtimeManifest.includes('forbiddenInHttpTask') &&
+    runtimeManifest.includes('NVIDIA or GPU runtime'),
+  'public HTTP service has no GPU runtime responsibility',
+);
+check(
+  !/aws_events|events\.Rule|Schedule\.(cron|rate)/.test(infra),
+  'benchmark control plane has no schedule that could auto-create GPU capacity',
+);
+check(
+  infra.includes('persistentEndpointCount') ||
+    infra.includes('PersistentEndpointCount'),
+  'CDK publishes an explicit zero persistent-endpoint contract',
+);
+
 if (enforceLive) {
   const evidencePath =
     process.env.PHASE8_SESSION5_LIVE_BENCHMARK_EVIDENCE ||
@@ -380,7 +453,7 @@ if (enforceLive) {
     const evidence = JSON.parse(readFileSync(evidencePath, 'utf8'));
     const result = evidence.benchmarkResult;
     check(
-      evidence.schemaVersion === 'phase8_session5_live_benchmark_evidence_v1',
+      evidence.schemaVersion === 'phase8_session5_live_benchmark_evidence_v2',
       'live evidence schema is versioned',
     );
     check(
@@ -420,6 +493,77 @@ if (enforceLive) {
       'live evidence confirms no production default route changed',
     );
   }
+} else if (enforceProviderDecision) {
+  // --- Closeout path B: PROVIDER_NOT_ADOPTED -------------------------------
+  // A negative decision is only acceptable when nothing was produced, nothing
+  // was scored, nothing is running, and production routing is untouched.
+  const decisionPath =
+    process.env.PHASE8_SESSION5_PROVIDER_DECISION || p(...PROVIDER_DECISION_PATH);
+  check(
+    existsSync(decisionPath),
+    `provider-decision evidence exists at ${decisionPath}`,
+  );
+  if (existsSync(decisionPath)) {
+    let decision = null;
+    try {
+      decision = JSON.parse(readFileSync(decisionPath, 'utf8'));
+    } catch {
+      check(false, 'provider-decision evidence is valid JSON');
+    }
+    if (decision) {
+      const verdict = evaluateProviderDecision(decision);
+      for (const failure of verdict.failures) {
+        check(false, `provider decision: ${failure}`);
+      }
+      check(
+        verdict.acceptable,
+        'provider decision satisfies every negative-closeout requirement',
+      );
+      check(
+        decision.acceptanceAmendment ===
+          'docs/defense-budget/PHASE-8-SESSION-5-ACCEPTANCE-AMENDMENT.md' &&
+          existsSync(p('docs', 'defense-budget', 'PHASE-8-SESSION-5-ACCEPTANCE-AMENDMENT.md')),
+        'provider decision cites an existing Session 5 acceptance amendment',
+      );
+    }
+  }
+  // The negative path may not be used to paper over provider output that
+  // exists but was never evaluated, nor to sit beside fabricated evidence.
+  check(
+    !existsSync(p(...LIVE_EVIDENCE_PATH)),
+    'no live-benchmark evidence file exists alongside the negative decision',
+  );
+  check(
+    manifest.status === PROVIDER_NOT_ADOPTED_STATUS &&
+      manifest.providerDecision?.decision === 'NVIDIA_NOT_ADOPTED' &&
+      manifest.providerDecision?.status === 'OPERATIONALLY_BLOCKED' &&
+      manifest.providerDecision?.accuracyBenchmarkCompleted === false &&
+      manifest.providerDecision?.nvidiaRoutingEnabled === false,
+    'manifest records the negative provider decision',
+  );
+  check(
+    manifest.providerDecision?.evidencePath === PROVIDER_DECISION_PATH.join('/'),
+    'manifest points at the separate provider-decision artifact',
+  );
+} else if (manifest.status === PROVIDER_NOT_ADOPTED_STATUS) {
+  // Ordinary (unflagged) verification once Session 5 closed negatively.
+  check(
+    existsSync(p(...PROVIDER_DECISION_PATH)),
+    'provider-decision evidence is present for the negative closeout',
+  );
+  check(
+    !existsSync(p(...LIVE_EVIDENCE_PATH)),
+    'live benchmark evidence remains absent after the negative decision',
+  );
+  check(
+    manifest.providerDecision?.decision === 'NVIDIA_NOT_ADOPTED' &&
+      manifest.providerDecision?.accuracyBenchmarkCompleted === false,
+    'manifest keeps the negative decision without claiming a benchmark',
+  );
+  check(
+    manifest.executionModel === 'sagemaker_async_inference',
+    'manifest still records the exact evaluated execution model',
+  );
 } else if (
   manifest.status === 'corpus_ready_awaiting_live_run_authorization' ||
   manifest.status === 'async_runtime_ready_awaiting_live_run_authorization'
@@ -455,8 +599,12 @@ if (failures.length) {
   for (const f of failures) console.error(`- ${f}`);
   process.exit(1);
 }
-console.log(
-  enforceLive
-    ? '[phase8-session5] SESSION5_LIVE_BENCHMARK_PASS'
-    : '[phase8-session5] SESSION5_P0_RUNTIME_PASS',
-);
+let verdict = '[phase8-session5] SESSION5_P0_RUNTIME_PASS';
+if (enforceLive) {
+  verdict = '[phase8-session5] SESSION5_LIVE_BENCHMARK_PASS';
+} else if (enforceProviderDecision) {
+  verdict = '[phase8-session5] SESSION5_COMPLETE_NVIDIA_NOT_ADOPTED';
+} else if (manifest.status === PROVIDER_NOT_ADOPTED_STATUS) {
+  verdict = '[phase8-session5] SESSION5_P0_RUNTIME_PASS_NVIDIA_NOT_ADOPTED';
+}
+console.log(verdict);

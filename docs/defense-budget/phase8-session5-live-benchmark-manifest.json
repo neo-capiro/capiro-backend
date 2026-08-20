@@ -1,6 +1,6 @@
 {
   "schemaVersion": "phase8_session5_live_benchmark_manifest_v2",
-  "status": "async_runtime_ready_awaiting_live_run_authorization",
+  "status": "provider_not_adopted_operationally_blocked",
   "executionModel": "sagemaker_async_inference",
   "persistentEndpointAllowed": false,
   "endpointLifecycle": "orchestrator_owned_ephemeral_create_reconcile_delete",
@@ -22,9 +22,10 @@
   "hostingPreflight": {
     "modelDataSourceObserved": true,
     "batchTransformCompatibility": false,
-    "asyncInferenceCompatibility": "supported_by_realtime_hosting_instance_list",
+    "asyncInferenceCompatibility": "refuted_by_live_attempts_marketplace_package_excludes_async_inference",
     "asyncCompatibilityNotLiveProven": true,
-    "supportedAsyncInstanceType": "ml.g5.xlarge"
+    "supportedAsyncInstanceType": "ml.g5.xlarge",
+    "note": "The realtime-hosting instance list made Async Inference look like a compatible replacement candidate. Two governed live attempts refuted it: the pinned Marketplace product explicitly excludes SageMaker Asynchronous Inference."
   },
   "spendControls": {
     "currency": "USD",
@@ -102,9 +103,35 @@
     "liveCorpusReady": true,
     "requiredStrataCount": 8
   },
+  "asyncAttempt": {
+    "attempts": 2,
+    "createEndpointAccepted": true,
+    "marketplaceImageAndModelResolved": true,
+    "terminalObservedStatus": "Creating",
+    "observedStatusMessage": "Launching 1 instance(s)",
+    "currentInstanceCount": 0,
+    "reachedInService": false,
+    "successfulInvokeEndpointAsync": 0,
+    "providerOutputsProduced": 0,
+    "internalSageMakerFailureReasonRetained": false,
+    "strongestSupportedExplanation": "The pinned Marketplace product explicitly excludes SageMaker Asynchronous Inference, and two governed endpoint attempts never reached InService."
+  },
+  "providerDecision": {
+    "decision": "NVIDIA_NOT_ADOPTED",
+    "status": "OPERATIONALLY_BLOCKED",
+    "accuracyBenchmarkCompleted": false,
+    "nvidiaRoutingEnabled": false,
+    "productionParser": "DETERMINISTIC_PRIMARY",
+    "productionRoutingChanged": false,
+    "settledBenchmarkSpendUsd": 1,
+    "activeReservedSpendUsd": 0,
+    "evidencePath": "docs/defense-budget/phase8-session5-provider-decision.json",
+    "acceptanceAmendment": "docs/defense-budget/PHASE-8-SESSION-5-ACCEPTANCE-AMENDMENT.md",
+    "futureAdoptionRequiresSeparateApproval": true
+  },
   "blockedBy": [
-    "async live-run authorization has not been granted",
-    "no endpoint may be created during this assignment",
-    "no retained live NVIDIA provider artifacts or accepted live evidence exist"
+    "the pinned Marketplace package/runtime cannot reach governed inference through either approved Session 5 execution path",
+    "no retained live NVIDIA provider artifacts or accepted live evidence exist",
+    "any future NVIDIA runtime/artifact change is a new architecture decision requiring separate approval"
   ]
 }

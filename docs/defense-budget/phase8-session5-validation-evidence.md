@@ -1,14 +1,16 @@
 # Phase 8 Session 5 validation evidence
 
-Current corpus verdict:
+Current Session 5 verdict:
 
-`SESSION5_CORPUS_READY_AWAITING_LIVE_RUN_AUTHORIZATION`
+`SESSION5_COMPLETE_NVIDIA_NOT_ADOPTED`
 
-Runtime verdict remains:
+Corpus verdict:
 
-`SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED`
+`SESSION5_CORPUS_READY_PASS` (8/8 strata accepted, 0 blocked)
 
-The corpus is source-grounded and ready. Live NVIDIA execution remains separately unauthorized. No stack deployment, SageMaker model creation, TransformJob submission, endpoint creation, or GPU spend occurred.
+The corpus below is source-grounded and accepted, and it was never scored against provider output. Session 5 closed through the negative provider path: the pinned NVIDIA Nemotron Parse Marketplace package could not reach governed inference, so no Nemotron output, accuracy score, or live benchmark evidence exists. See `docs/handoffs/phase-8-session-5-nvidia-benchmark-handoff.md` and `docs/defense-budget/phase8-session5-provider-decision.json`.
+
+**Correction to the earlier revision of this file.** An earlier version of this document stated that no stack deployment, SageMaker model creation, endpoint creation, or GPU spend had occurred. That was accurate when written but is no longer: the benchmark control plane was later deployed, the pinned Marketplace SageMaker model was created, two Async endpoint attempts were made (neither reached `InService`), and **USD 1.00** of settled spend was incurred. No TransformJob was ever submitted, and no `InvokeEndpointAsync` ever succeeded.
 
 ## Branch coordinates
 

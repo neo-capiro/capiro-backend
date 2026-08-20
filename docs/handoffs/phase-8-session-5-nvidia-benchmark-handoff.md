@@ -1,269 +1,242 @@
-# Phase 8 Session 5 — NVIDIA Async Inference handoff
+# Phase 8 Session 5 — closeout handoff (NVIDIA not adopted)
 
-## Current verdict
+> Supersedes the previous
+> `SESSION5_ASYNC_RUNTIME_READY_AWAITING_LIVE_RUN_AUTHORIZATION` handoff. The
+> prior text remains in git history.
 
-**SESSION5_ASYNC_RUNTIME_READY_AWAITING_LIVE_RUN_AUTHORIZATION**
+## Session 5 result
 
-The replacement async execution adapter is implemented and locally independently re-reviewed. No endpoint was created and no async invocation was submitted in this assignment. The live benchmark remains explicitly unauthorized.
+```text
+SESSION5_COMPLETE_NVIDIA_NOT_ADOPTED
+
+providerDecision           = NVIDIA_NOT_ADOPTED
+providerOperationalStatus  = OPERATIONALLY_BLOCKED
+productionParser           = DETERMINISTIC_PRIMARY
+nvidiaRoutingEnabled       = false
+activeGpuCapacity          = 0
+activeReservations         = 0
+liveNemotronOutputs        = 0
+accuracyBenchmarkCompleted = false
+session6Started            = false
+```
+
+Session 5 closed as a **negative adoption decision**, not as a successful NVIDIA
+benchmark. Plain `SESSION5_COMPLETE` is deliberately not redefined.
 
 ## Exact coordinates
 
 - Repository: `neo-capiro/capirov2`
 - Branch: `agent/phase8-session5-nvidia-benchmark`
-- Last implementation baseline before this adapter: `eb72e95c4a7f9902b2e9dc95207b3618d5259964`
+- Draft PR: #1069 (open, draft, unmerged)
+- Base: `agent/phase8-session4-after-s3`
 - AWS account/region: `967807252336` / `us-east-1`
-- Pinned Marketplace package: `arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587`
-- Model/version: `nemotron-parse` / `LLM NIM 1.14 and VLM NIM version 1.5.0`
+- Live-attempt / diagnostic baseline head: `b41898bbb5e15c1ab73e536d0e9e52f9b0788833`
 - Frozen corpus SHA: `a4bf213ea908f6dff2988e1ec3c78d0d5359a8e085554cb1915721b687fc8e98`
 - Parser options SHA: `890f08082befbee5261b4c77f0646d647a98d402bfd31c0dcb022f2610cf688a`
 - Rendering config SHA: `800a38fb9e8a4f8e014febe9822a5ca075596cf03d8544ab2aa67d9856f8a2fc`
-- Corpus: 8/8 accepted, 0 blocked, 10 prepared pages
+- Corpus: 8/8 strata accepted, 0 blocked, 10 prepared pages
 
-## Hosting preflight
+## Why
 
-The exact `DescribeModelPackage` result reported:
+The exact approved Marketplace package/runtime cannot reach governed inference
+through either approved Session 5 execution path.
 
-- `ModelDataSource`: present, with the pinned NVIDIA manifest S3 prefix
-- `SupportedContentTypes`: `application/json`
-- `SupportedResponseMIMETypes`: `application/json`
-- `SupportedRealtimeInferenceInstanceTypes`: includes `ml.g5.xlarge`
-- `SupportedTransformInstanceTypes`: includes `ml.g5.xlarge`, but this does not override the ModelDataSource Batch restriction
-- Marketplace product: `prod-jpaccpvt6aut4`
-- Container digest: `sha256:df067fc805581e2d1bfee3da87b5fe437115927098d931e48a162b70d51a5615`
-- `CertifyForMarketplace`: `true`
+- **Provider evaluated:** `arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587`
+- **Model/version:** `nemotron-parse` / `LLM NIM 1.14 and VLM NIM version 1.5.0`
+- **Marketplace product:** `prod-jpaccpvt6aut4`
+- **Instance tested:** `ml.g5.xlarge`
 
-The prior live Batch retry was rejected by SageMaker with:
-`SageMaker Batch currently doesn't support Model entity with container definitions which use ModelDataSource attribute`.
-No Batch Transform retry is permitted.
+### Batch Transform path
 
-The exact realtime-hosting instance support makes Async Inference the compatible replacement candidate. This is a capability proof from the package metadata, not live async execution evidence.
+Blocked. The exact Marketplace model resolves through `ModelDataSource`, and
+SageMaker rejected Batch Transform for that model form:
 
-## Async lifecycle
+```text
+SageMaker Batch currently doesn't support Model entity with container
+definitions which use ModelDataSource attribute
+```
 
-The active runtime is `sagemaker_async_inference`:
+TransformJobs created: `0`. Paid GPU spend on that path: `USD 0`.
 
-`CAPACITY_RESERVED -> ENDPOINT_CREATING -> ENDPOINT_READY -> REQUESTS_SUBMITTED -> REQUESTS_RECONCILING -> ARTIFACT_VERIFIED -> COMPLETION_PENDING -> RESUME_PUBLISHED -> ENDPOINT_DRAINING -> ENDPOINT_DELETED -> COMPLETE`
+### Async Inference path
 
-The endpoint and endpoint config are orchestrator-owned and deterministic. The CDK construct creates the pinned isolated model/control plane only; it does not create a persistent endpoint. Existing endpoint/config identities are rediscovered and checked before reuse. Orphaned deterministic resources refuse a new reservation until reconciled.
+Operationally blocked. Two governed post-IAM endpoint attempts:
 
-- Endpoint names derive from the corpus SHA, exact package ARN, model/version, runtime contract, endpoint configuration, output/failure locations, instance type, execution role, and KMS identity. Async inference IDs derive from endpoint identity, source/page, payload SHA, and attempt.
+- `CreateEndpoint` accepted;
+- Marketplace image/model resolution succeeded;
+- endpoint remained `Creating`;
+- status approximately `Launching 1 instance(s)`;
+- `CurrentInstanceCount = 0`;
+- never reached `InService`;
+- `InvokeEndpointAsync = 0`;
+- no provider output.
 
-## Zero-idle and crash recovery
+The strongest supported explanation is Marketplace Async incompatibility: the
+pinned Marketplace product **explicitly excludes** SageMaker Asynchronous
+Inference. The exact internal SageMaker failure reason was **not retained**, so
+no AWS failure reason is asserted anywhere in the evidence.
 
-- Endpoint variant autoscaling: `MinCapacity=0`, `MaxCapacity=1`
-- Explicit delete is still mandatory after completion or failure
-- Hard endpoint lifetime: `NVIDIA_MAX_ENDPOINT_LIFETIME_SECONDS`, default 1,800 seconds
-- Watch/reconcile discovers an endpoint after local state loss
-- CreateEndpoint uncertainty is resolved by deterministic rediscovery
-- Endpoint/config deletion is idempotent for not-found responses
-- Endpoint config is deleted only after endpoint absence is observed
-- `async-drain` and `async-zero-idle` are explicit operators' commands
-- Zero-idle requires ledger active capacity zero and no Session 5 async endpoints
+## Benchmark truth (do not overstate)
 
-## Spend and provenance
+- no endpoint ever reached `InService`;
+- `InvokeEndpointAsync = 0`;
+- no Nemotron output exists;
+- no live source-grounded NVIDIA accuracy scoring occurred;
+- `docs/defense-budget/phase8-session5-live-benchmark-evidence.json` does
+  **not** exist, and its absence is correct;
+- the enforced live verifier never passed;
+- no NVIDIA page class was accepted as primary or fallback based on live output.
 
-The atomic DynamoDB ledger reserves the maximum bounded endpoint wall-clock cost before endpoint creation. With the current test rate assumptions (USD 1 Marketplace + USD 1 instance/hour) and 1,800-second lifetime, the projection is USD 1.00. Actual settlement is derived from observed endpoint timestamps after endpoint and config deletion; caller-provided cost is not accepted. USD 150 remains unavailable unless extended authorization is explicitly set; current effective cap is USD 50.
+No live evidence file was fabricated to satisfy the previous verifier.
 
-Each async invocation binds source SHA, physical page, rendered PNG SHA, provider payload SHA, rendering SHA, model/version, endpoint identity, deterministic inference ID, exact S3 output location, raw output SHA, and normalized output SHA through an immutable sidecar.
+## Production parser decision
 
-## IAM and CDK
+`DETERMINISTIC_PRIMARY`.
 
-The isolated orchestrator role now has only the Async Inference lifecycle actions, `InvokeEndpointAsync`, scoped role passing to the model execution role, the exact DynamoDB/S3/SQS/KMS controls, and the bounded autoscaling actions. `CreateTransformJob`, `DescribeTransformJob`, `StopTransformJob`, and related Batch execution permissions were removed from the active role. No production DB, Clerk, snapshot, canonical, routing, EventBridge, or unrelated IAM permissions were added.
+## NVIDIA state
 
-## Validation at this worktree
+Dark / disabled. Not adopted. No production routing change.
 
-- Full Session 5 Node suite: 63/63 passed at final commit `7068fadee`
-- The suite includes direct controls for hard-cap reconciliation, endpoint/config/model identity, orphan draining, deletion races, partial submission, scale-to-zero recovery, durable failure/DLQ handling, output cardinality, and direct Batch-adapter refusal
-- Audit repair commits `32af413d4` and `7068fadee` are pushed to the branch
-- P0 verifier: `SESSION5_P0_RUNTIME_PASS`
-- Corpus verifier: `SESSION5_CORPUS_READY_PASS accepted=8 blocked=0`
-- Async CDK-focused tests: 6/6 passed
-- Defense contracts build: passed
-- Async/CDK typecheck: passed
-- Session 2 DB rehearsal: 36 checks passed
-- Session 3 parity: 52/52 passed
-- Session 3 DB rehearsal: 86 checks passed
-- Session 4 enforced replay: `SESSION4_SOURCE_PARITY_PASS`
-- Docker containment: `SESSION4_IMAGE_CONTAINMENT_PASS (8 checks)`
+## Spend
 
-- The current audit repair set is not yet committed or pushed. Do not claim `SESSION5_COMPLETE`; no provider output, score, accepted live benchmark evidence, or live zero-idle run exists.
+Historical Session 5 settled spend: **USD 1.00**.
 
-## No-deployment boundary
+`spentAndReservedUsd = 1` is historical settled spend, **not** an active GPU
+reservation. Active reserved spend is `0`.
 
-- No endpoint created in this assignment
-- No `InvokeEndpointAsync` submitted
-- No GPU spend incurred
-- No Batch Transform retry
-- No alternative model/package/container
-- No BYOC/NGC/ECR
-- No production or shared DB/data/routing/default/EventBridge/snapshot/canonical mutation
-- PR #1069 remains unmerged
-- Session 6 not started
+## AWS (read-only verification, no mutation this session)
 
-Live authorization must explicitly permit creating the deterministic async endpoint and invoking the frozen 10-page corpus before any paid AWS command is run.
+```text
+endpoints              = 0
+endpointConfigs        = 0
+TransformJobs          = 0
+scalableTargets        = 0
+activeGpuCapacity      = 0
+ledger.activeJobs      = 0
+activeReservations     = 0   (5 ledger reservations, all terminal: 4 RELEASED, 1 SETTLED)
+ledger.settledSpendUsd = 1
+CloudFormation         = UPDATE_COMPLETE
+Drift                  = IN_SYNC
+SageMaker models       = 1 (pinned control-plane model only; no endpoint)
+notebook instances     = 0
+```
 
-## Prior Batch attempt retained
+Stack `CapiroPhase8Session5NvidiaBenchmark` was **not** destroyed.
+Decommissioning belongs to its proper later workstream (Workstream R /
+Session 12) and requires separate authorization.
 
-The previously performed isolated Batch attempt remains factual: quota was initially zero, quota was approved to one, Batch Transform created zero jobs, paid GPU spend was USD 0, active jobs were zero, endpoints were zero, and the reservation ledger ended at activeJobs zero and spentAndReservedUsd zero. Its ModelDataSource incompatibility is the reason the active adapter is now Async Inference.
+## Acceptance amendment
 
+Session 5 could not close under the original acceptance contract, which assumed
+a successful live provider benchmark. A narrow amendment now permits a negative
+provider decision:
 
-Runtime safety verdict remains **SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED**. The source-grounded corpus is now accepted, but live execution is still separately unauthorized. Do **not** deploy the benchmark stack or submit a paid NVIDIA TransformJob.
+- `docs/defense-budget/PHASE-8-SESSION-5-ACCEPTANCE-AMENDMENT.md`
+  (`PHASE8-S5-ACCEPTANCE-AMENDMENT-1`)
 
-A real-runtime review found that the earlier provider-ready implementation was still simulation-oriented. The separate `nvidia_real_batch_v2` path passed the local runtime/CDK re-review before corpus closeout. No live NVIDIA benchmark is claimed. The current corpus-closeout commit is `fac3c1fb21dfd4b02fe3c7cf316eaf45b99df8d7`.
+It amends only Session 5 **provider acceptance** — Workstream G's gate, the
+Session 5 sequencing entry, and final acceptance criteria 7/10 in
+`PHASE-8-DEFENSE-API-NVIDIA-MIGRATION-V3.md`. It does not declare the benchmark
+successful, does not imply Nemotron was scored, does not weaken
+wrong-money/wrong-unit/wrong-FY/false-identity protections, does not remove
+Phase 2, does not change production routing, does not permit a persistent GPU
+endpoint, does not authorize a different NVIDIA runtime, and does not remove the
+zero-idle requirement.
 
-## Coordinates and authorization
+## Closeout gates
 
-- Repository: `neo-capiro/capirov2`
-- Base: `agent/phase8-session4-after-s3` @ `a5094361f9da82e70090f73da46b11108e6a8b45`
-- Branch: `agent/phase8-session5-nvidia-benchmark`
-- Draft PR: #1069
-- AWS account/region: `967807252336` / `us-east-1`
-- Marketplace package: `arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587`
-- Marketplace/model version: `LLM NIM 1.14 and VLM NIM version 1.5.0`
-- Supported live instance verified earlier: `ml.g5.xlarge`
-- Initial benchmark cap: **USD 50**
-- Hard incremental ceiling: **USD 150**
-- Max concurrent GPU jobs: **1**
-- Routing: `benchmark`
-- Benchmark accepted: `false`
+Session 5 now closes through exactly one of two mutually exclusive paths. The
+verifier refuses both enforcement flags at once.
 
-## P0 corrections implemented
+```bash
+# Path A (unchanged, never passed):
+PHASE8_SESSION5_LIVE_BENCHMARK_EVIDENCE=docs/defense-budget/phase8-session5-live-benchmark-evidence.json \
+node scripts/verify-phase8-session5.mjs --enforce-live-benchmark
 
-### Real provider contract
+# Path B (the accepted path):
+node scripts/verify-phase8-session5.mjs --enforce-provider-decision
+# -> [phase8-session5] SESSION5_COMPLETE_NVIDIA_NOT_ADOPTED
+```
 
-- SageMaker input/output MIME is `application/json`; line-oriented JSON records use `SplitType=Line` / `AssembleWith=Line`.
-- Provider-native requests contain only the Nemotron Parse payload.
-- Internal source/model/render/cache provenance lives in an immutable hashed sidecar, not in fabricated provider output.
-- Real `.out` JSONL is joined to that sidecar and normalized into Capiro-owned v2 artifacts.
-- Raw provider response SHA, sidecar SHA, normalized content SHA, source SHA, physical page, model/version/options and rendering identity are verified before cache/resume.
+Negative-decision evidence:
+`docs/defense-budget/phase8-session5-provider-decision.json`
+(schema `phase8_session5_provider_decision_v1`; schema file
+`docs/defense-budget/phase8-session5-provider-decision.schema.json`;
+regenerate with `scripts/phase8-session5-provider-decision.mjs`).
 
-### Nemotron payload boundary
+It does **not** impersonate the live-benchmark evidence file: distinct path,
+distinct schema version, and Path B fails outright if a live-benchmark evidence
+file exists at all.
 
-- live model: `nvidia/nemotron-parse`;
-- PNG/base64 `image_url`;
-- `markdown_bbox` tool;
-- `temperature: 0.0`;
-- explicit rendering config with renderer/version/DPI;
-- rendered-image SHA + provider-payload SHA + rendering-config SHA;
-- no arbitrary default 2,000-token truncation;
-- provider record refuses before submission when it exceeds the bounded payload-size limit.
+## Preserved safety findings
 
-### Requested route vs actual provider
+These are accepted Session 5 deliverables and must not be removed or weakened.
 
-The existing benchmark vocabulary contains desired table/OCR lanes, but the currently subscribed live Marketplace provider is Nemotron Parse. The v2 identity therefore records separately:
+**Provider-neutral architecture**
+- NVIDIA remains behind the provider-neutral parser contract;
+- no NVIDIA output can write canonical Program Element truth directly;
+- Phase 2 remains mandatory;
+- source/page/model/options provenance remains immutable;
+- deterministic parsing remains supported and primary.
 
-- `requestedParserMethod`: governed route intent, such as table-structure or OCR;
-- `parserMethod`: provider that actually executed; currently `nemotron_parse`.
+**Zero-idle controls**
+- endpoint variant autoscaling `MinCapacity=0`, `MaxCapacity=1`;
+- explicit delete mandatory after completion or failure;
+- hard endpoint lifetime bound (`NVIDIA_MAX_ENDPOINT_LIFETIME_SECONDS`, 1800s);
+- `async-drain` / `async-zero-idle` operator commands;
+- zero-idle requires ledger active capacity zero and no Session 5 endpoints.
 
-A real Nemotron run may not be reported as a distinct table-structure/OCR provider result.
+**Failure-path hardening**
+- idempotent endpoint/config teardown;
+- failed-endpoint reservation handling;
+- timestamp-derived failed lifecycle cost settlement;
+- explicit `ENDPOINT_LIFETIME_EXCEEDED`;
+- compact DLQ envelope;
+- scale-to-zero only after `InService`;
+- legal/idempotent DynamoDB settlement.
 
-### Reconciliation / recovery
+**Architecture-neutral work kept for any future provider**
+Provider contract, provider provenance structure, page-class routing framework,
+spend controls, teardown controls, zero-idle enforcement, provider decision
+framework, parser normalization, and failure-state handling all remain. The
+NVIDIA provider is kept dark/disabled and can be re-approached under a
+separately approved phase.
 
-- CLI adds `reconcile --job-id`, `reconcile --all`, `retry`, and `watch`.
-- `handle-event` accepts only a job ID; caller-supplied provider status/cost/output is not trusted.
-- reconciliation re-reads SageMaker status/timestamps;
-- watchdog requests `StopTransformJob` after the configured limit but does not settle/release spend until SageMaker is terminal;
-- PLANNED/RESERVED/MANIFEST states are recoverable after crash;
-- TransformJob names are deterministic from immutable batch identity + paid attempt.
+## No active production NVIDIA route
 
-### Completion outbox / DLQ
+Now statically gated by `scripts/verify-phase8-session5.mjs`:
 
-- CDK creates a dedicated FIFO completion queue and grants send permission;
-- state machine uses `ARTIFACT_VERIFIED -> COMPLETION_PENDING -> RESUME_PUBLISHED`;
-- completion publication is retryable;
-- exhausted completion publication moves to the durable DLQ path;
-- DLQ publication failure is itself persisted/retried.
+- deterministic parsing remains the default routing decision;
+- NVIDIA can never be preferred unless benchmark acceptance is explicitly true
+  (and the manifest pins `nvidiaBenchmarkAccepted: false`);
+- `defense-api` serve task forbids `NVIDIA_*` and `DEFENSE_PARSER_MODEL_*` env;
+- the public HTTP service has no GPU runtime responsibility;
+- the benchmark control plane has no schedule that could auto-create GPU
+  capacity;
+- CDK publishes an explicit zero persistent-endpoint contract;
+- the orchestrator image contains no GPU runtime;
+- `defense-api` has no parser-orchestrator import.
 
-### Atomic spend and concurrency
-
-- CDK adds encrypted/PITR DynamoDB reservation ledger;
-- reservation creation + control-row update occur in one transaction;
-- transaction enforces active-jobs limit and spent+reserved capacity;
-- initial effective spend cap is **USD 50**;
-- use of the **USD 150** ceiling requires explicit `NVIDIA_EXTENDED_BUDGET_AUTHORIZED=true`;
-- code refuses any hard cap above 150;
-- terminal cost is reconciled from SageMaker provider timestamps plus configured infrastructure/Marketplace rates, never caller input;
-- runtime emits `NvidiaActiveGpuJobs` and `NvidiaMonthlySpendUsd`.
-
-### Cache / idempotency
-
-v2 cache identity binds:
-
-- source SHA / physical page;
-- requested route intent / actual parser method;
-- model name/version;
-- parser-options hash;
-- rendered-image SHA;
-- exact provider-payload SHA;
-- rendering-config SHA;
-- runtime-contract version.
-
-Cache body hash, identity and key are checked before reuse. Provider job identity contains no timestamp.
-
-### FY27 gold acceptance
-
-The live CLI gate can require **scorable** source-grounded gold. Every accepted stratum must have:
-
-- `reviewStatus=accepted`;
-- source evidence SHA;
-- immutable source SHA and physical page;
-- no incomplete/conflicted flag;
-- explicit identity/money/table assertion arrays;
-- at least one scorable assertion;
-- exact value/unit/FY/evidence-page identity for money assertions.
-
-The eight required source-grounded strata are now accepted in the Session 5 corpus ledger. The remaining live boundary is authorization and provider availability:
-
-- separate live NVIDIA table-structure and OCR provider packages are not configured; those are comparison intents, not current provider implementations;
-- no live NVIDIA provider artifacts or accepted live benchmark evidence exist because execution is not authorized by this assignment.
-
-A provider run may be observational, but model output may not be used to create its own acceptance gold.
-
-## Changed surface
-
-- `apps/defense-parser-orchestrator/src/real-batch*.mjs`
-- `apps/defense-parser-orchestrator/src/aws-real-*.mjs`
-- `apps/defense-parser-orchestrator/src/cli.mjs`
-- `apps/defense-parser-orchestrator/scripts/materialize-live-inputs.mjs`
-- `packages/defense-contracts/src/parser/nvidia-real-batch.ts`
-- `infra/cdk/bin/phase8-session5-nvidia-benchmark.ts`
-- `infra/cdk/lib/phase8-session5-nvidia-benchmark.ts`
-- `infra/cdk/test/phase8-session5-nvidia-benchmark.spec.ts`
-- Session 5 P0 unit tests and verifier
-- live manifest/evidence schema/workflow/docs
-
-The prior v1 simulation/scoring code remains for historical provider-ready coverage. The live CLI uses the v2 coordinator and ports.
-
-## Validation truth
-
-An earlier implementation milestone passed an isolated **15/15** P0 test harness, but the branch was tightened afterward with strict live-gold, provider-identity, and payload-size changes. **Do not treat 15/15 as current-tip acceptance.** The current Session 5 suite passed **40/40**, and the isolated CDK suite passed **6/6**.
-
-The current clean validation reran the Session 2 DB rehearsal (36 checks), Session 3 DB rehearsal (86 checks), Session 3 parity (52/52), Session 4 enforced replay, and Docker containment successfully. These are current-tip results, not historical carry-forward.
-
-The GitHub Actions startup-failure observation predates this corpus-closeout commit and is not treated as current local validation. A clean Linux/Docker runner should rerun the full gate set before deployment is reconsidered.
-
-## Required clean re-review before redeploy
+## Re-verification commands
 
 ```bash
 pnpm install --frozen-lockfile
+
+pnpm --filter @capiro/shared build
+pnpm --filter @capiro/auth build
 pnpm --filter @capiro/defense-contracts build
+pnpm --filter @capiro/defense-domain build
+pnpm --filter @capiro/defense-client build
+
 node --test apps/defense-parser-orchestrator/test/*.test.mjs
+
 node scripts/verify-phase8-session5.mjs
+node scripts/verify-phase8-session5.mjs --enforce-provider-decision
 node scripts/verify-phase8-session5-corpus.mjs
-node --check apps/defense-parser-orchestrator/src/session5.mjs
-node --check apps/defense-parser-orchestrator/src/real-batch-config.mjs
-node --check apps/defense-parser-orchestrator/src/real-batch-provider.mjs
-node --check apps/defense-parser-orchestrator/src/real-batch-cost.mjs
-node --check apps/defense-parser-orchestrator/src/real-batch-coordinator.mjs
-node --check apps/defense-parser-orchestrator/src/aws-real-storage.mjs
-node --check apps/defense-parser-orchestrator/src/aws-real-ledger.mjs
-node --check apps/defense-parser-orchestrator/src/aws-real-runtime.mjs
-node --check apps/defense-parser-orchestrator/src/cli.mjs
-node --check apps/defense-parser-orchestrator/scripts/materialize-live-inputs.mjs
-node --test apps/defense-parser-orchestrator/test/*.test.mjs
-node scripts/verify-phase8-session5.mjs
+
 pnpm --filter @capiro/infra-cdk typecheck
-pnpm --filter @capiro/infra-cdk exec jest test/phase8-session5-nvidia-benchmark.spec.ts --runInBand
+pnpm --filter @capiro/infra-cdk exec jest \
+  test/phase8-session5-nvidia-benchmark.spec.ts --runInBand
 
 pnpm verify:phase8-session2
 pnpm verify:phase8-session2:db
@@ -272,51 +245,50 @@ pnpm verify:phase8-session3:admin
 pnpm verify:phase8-session3:parity
 pnpm verify:phase8-session3:db
 
+pnpm --filter @capiro/defense-api verify:session4
 PHASE8_SESSION4_REPLAY_EVIDENCE=docs/defense-budget/phase8-session4-fy27-replay-evidence.json \
-node scripts/verify-phase8-session4.mjs --enforce-replay
+  node scripts/verify-phase8-session4.mjs --enforce-replay
+pnpm verify:phase8-session4:image
 
-docker build --no-cache -f apps/defense-parser-orchestrator/Dockerfile \
-  -t capiro-defense-parser-orchestrator:phase8-session5 .
-test "$(docker run --rm --entrypoint id capiro-defense-parser-orchestrator:phase8-session5 -u)" = '1001'
 git diff --check
 ```
 
-Then independently review the real provider path/CDK. Passing tests alone do not authorize redeploy.
+## Next session
 
-## Deployment and live-completion gates
+**Session 6 — Federal Funding Event foundation + ingestion** (Workstreams H, I).
 
-Redeploy becomes eligible only after the exact-tip clean gate set and re-review have no P0/P1 live-path issue.
+> **DO NOT START SESSION 6 UNTIL THE USER REVIEWS AND ACCEPTS THIS SESSION 5
+> CLOSEOUT.**
 
-`SESSION5_COMPLETE` remains impossible until the source-grounded gold corpus is accepted, real provider outputs are retained/scored, zero-idle is proven, and this genuinely passes:
+## Merge-readiness handoff
 
-```bash
-PHASE8_SESSION5_LIVE_BENCHMARK_EVIDENCE=\
-  docs/defense-budget/phase8-session5-live-benchmark-evidence.json \
-node scripts/verify-phase8-session5.mjs --enforce-live-benchmark
-```
+Closing Session 5 does **not** authorize merging the stacked Phase 8 PRs. The
+stack is:
 
-Zero-idle evidence must include:
+- Session 3 — PR #1058
+- Session 4 — PR #1062
+- Session 5 — PR #1069 (draft, unmerged)
 
-- atomic ledger `activeJobs = 0`;
-- direct SageMaker Session 5 active TransformJobs = `[]`;
-- persistent endpoints = `[]`;
-- `zeroIdleGpu = true`.
+The next step is a **separate merge/readiness decision**. Do not blindly merge
+all three, do not rebase accepted work unnecessarily, do not force-push, and do
+not delete historical/security branches.
 
-## Scope statement
+Note: GitHub Actions is billing-blocked on this repository, so CI has produced no
+green run for this branch. All recorded results are local exact-head results.
 
-- Merge: **none**
-- Redeploy after P0 discovery: **none**
-- Paid NVIDIA work after P0 discovery: **none**
-- Production/shared DB migration: **none**
-- Production data mutation: **none**
-- Production routing/default: **unchanged**
-- Production schedules: **unchanged**
-- Production IAM/secrets: **unchanged**
-- Snapshot activation: **none**
-- Canonical promotion: **none**
-- Persistent NVIDIA endpoint: **none**
+## Scope statement for this closeout assignment
+
+- AWS mutation: **none** (read-only verification only)
+- Endpoint created: **none**
+- `InvokeEndpointAsync`: **none**
+- GPU capacity launched: **none**
+- Quota request: **none**
+- Model package / instance type change: **none**
+- Alternative NVIDIA runtime (NGC/NIM, BYOC/ECR, AWS Batch EC2 GPU): **none**
+- Provider/GPU spend: **USD 0 additional**
+- Production routing / defaults / schedules / IAM / secrets: **unchanged**
+- Production or shared DB migration / data mutation: **none**
+- Snapshot activation / canonical promotion: **none**
+- Stack destroyed: **no**
+- PR merged: **none**
 - Session 6: **not started**
-
-The correct corpus verdict is `SESSION5_CORPUS_READY_AWAITING_LIVE_RUN_AUTHORIZATION`.
-
-The runtime safety verdict remains `SESSION5_P0_RUNTIME_ACCEPTED_LIVE_CORPUS_BLOCKED` until a separately authorized live run produces retained provider evidence. Do not deploy the stack, submit a paid TransformJob, create a live evidence file, or start Session 6 here.
