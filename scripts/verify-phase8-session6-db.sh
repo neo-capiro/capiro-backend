@@ -135,7 +135,12 @@ expect_fail "job cannot delete allocations" "$JOB_URL" "DELETE FROM federal_fund
 ok "role boundary preserves read-only HTTP and immutable job facts"
 
 log "7. Alternative funding did not leak into ProgramElementYear"
-LEAKS="$(q "SELECT count(*) FROM information_schema.columns WHERE table_name='program_element_year' AND column_name ~* '(supplement|reconciliation|rescission|reprogram|continuing)';")"
+# NOTE: matches the vehicle/event CONCEPT ("reprogramming"), not the
+# pre-existing (pre-Session-6) legitimate `reprogrammed` execution-dollars
+# column that has been part of the PE funding ladder since the original
+# foundation commit. A bare `reprogram` substring false-positives against
+# that column; `reprogramming` (with the vehicle-noun suffix) does not.
+LEAKS="$(q "SELECT count(*) FROM information_schema.columns WHERE table_name='program_element_year' AND column_name ~* '(supplement|reconciliation|rescission|transfer|reprogramming|continuing)';")"
 [ "$LEAKS" = "0" ] || fail "alternative funding columns leaked into program_element_year"
 ok "ProgramElementYear remains annual-stage only"
 

@@ -55,6 +55,12 @@ jobs:
         run: node scripts/test-phase8-session6-federal-funding-domain.mjs
       - name: Static foundation + real-source corpus gate
         run: node scripts/verify-phase8-session6.mjs --enforce-corpus
+      - name: Authoritative apps/api Prisma validation + generation
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
       - name: Defense Prisma validation
         run: pnpm --filter @capiro/defense-api prisma:validate
       - name: Disposable Session 6 database rehearsal

@@ -71,8 +71,77 @@ const authoritativeSchema = read('apps/api/prisma/schema.prisma');
 const peYearMatch = /model\s+ProgramElementYear\s*\{([\s\S]*?)\n\}/m.exec(authoritativeSchema);
 if (!peYearMatch) {
   fail('Unable to locate ProgramElementYear in authoritative Prisma schema');
-} else if (/supplemental|reconciliation|rescission|reprogramming|continuing.?resolution/i.test(peYearMatch[1])) {
+} else if (/supplemental|reconciliation|rescission|transfer|reprogramming|continuing.?resolution/i.test(peYearMatch[1])) {
   fail('Alternative funding leaked into ProgramElementYear annual-stage model');
+}
+
+// The authoritative apps/api Prisma schema must truthfully model the three
+// Session 6 tables the migration ledger creates. This regression (models
+// missing from schema.prisma while the migration.sql created the tables)
+// happened once during Session 6 closeout; guard against it recurring.
+const prismaModelChecks = [
+  {
+    model: 'FederalFundingMeasure',
+    dbTable: 'federal_funding_measure',
+    requiredFields: [
+      'measureType', 'authorityType', 'fiscalYear', 'publicLawNumber', 'title',
+      'sourceDocumentId', 'dedupKey',
+    ],
+  },
+  {
+    model: 'FederalFundingProvision',
+    dbTable: 'federal_funding_provision',
+    requiredFields: [
+      'measureId', 'statedAmountUsd', 'purposeText', 'sourceDocumentId',
+      'evidenceSha256', 'dedupKey',
+    ],
+  },
+  {
+    model: 'FederalFundingAllocation',
+    dbTable: 'federal_funding_allocation',
+    requiredFields: [
+      'provisionId', 'targetType', 'mappingMaturity', 'reviewState',
+      'authoritativeAmountUsd', 'inferredRelevance', 'evidenceSourceDocumentId',
+      'evidenceSha256', 'dedupKey',
+    ],
+  },
+];
+for (const check of prismaModelChecks) {
+  const modelMatch = new RegExp(`model\\s+${check.model}\\s*\\{([\\s\\S]*?)\\n\\}`, 'm').exec(
+    authoritativeSchema,
+  );
+  if (!modelMatch) {
+    fail(
+      `Authoritative Prisma schema (apps/api/prisma/schema.prisma) is missing model ${check.model} ` +
+        `for migrated table "${check.dbTable}" — migration ledger and Prisma desired schema are inconsistent`,
+    );
+    continue;
+  }
+  if (!new RegExp(`@@map\\("${check.dbTable}"\\)`).test(modelMatch[1])) {
+    fail(`Prisma model ${check.model} does not @@map to "${check.dbTable}"`);
+  }
+  for (const field of check.requiredFields) {
+    if (!new RegExp(`\\b${field}\\b`).test(modelMatch[1])) {
+      fail(`Prisma model ${check.model} is missing expected field ${field}`);
+    }
+  }
+}
+if (!/federalFundingMeasures\s+FederalFundingMeasure\[\]/.test(authoritativeSchema)) {
+  fail('SourceDocument is missing the FederalFundingMeasure back-relation');
+}
+if (!/federalFundingProvisions\s+FederalFundingProvision\[\]/.test(authoritativeSchema)) {
+  fail('SourceDocument is missing the FederalFundingProvision back-relation');
+}
+if (!/federalFundingAllocationEvidence\s+FederalFundingAllocation\[\]/.test(authoritativeSchema)) {
+  fail('SourceDocument is missing the FederalFundingAllocation evidence back-relation');
+}
+
+const defenseApiSchema = read('apps/defense-api/prisma/schema.prisma');
+if (/model\s+FederalFunding(Measure|Provision|Allocation)\b/.test(defenseApiSchema)) {
+  fail(
+    'Session 6 Federal Funding models must not appear in the curated defense-api HTTP Prisma ' +
+      'subset yet — Session 6 is the domain/ingestion foundation, not the HTTP/product cutover',
+  );
 }
 
 const domainPath = 'packages/defense-domain/src/federal-funding/index.ts';
@@ -140,6 +209,16 @@ if (!exists(ingestPath)) {
   }
   if (ingest.includes('program_element_year')) {
     fail('Session 6 ingestion command writes or references ProgramElementYear');
+  }
+  // Regression guard: $queryRawUnsafe does not know column types, so every
+  // UUID foreign key placeholder MUST be explicitly cast or Postgres will
+  // reject the statement (discovered during Session 6 closeout — the
+  // measure_id/provision_id/source_document_id placeholders were passed as
+  // bare text and every INSERT failed against a real database).
+  for (const uuidCast of ['$1::uuid', '$7::uuid', '$13::uuid']) {
+    if (!ingest.includes(uuidCast)) {
+      fail(`Ingestion command is missing an expected UUID cast (${uuidCast}) on a raw SQL placeholder`);
+    }
   }
 }
 

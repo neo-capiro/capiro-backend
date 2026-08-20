@@ -89,7 +89,7 @@ try {
            measure_type, status, authority_type, fiscal_year, availability_start,
            availability_end, legislation_id, public_law_number, title,
            source_document_id, source_page, dedup_key, metadata_jsonb
-         ) VALUES ($1, 'enacted', $2, $3, NULL, NULL, $4, $5, $6, $7, NULL, $8,
+         ) VALUES ($1, 'enacted', $2, $3, NULL, NULL, $4, $5, $6, $7::uuid, NULL, $8,
            jsonb_build_object('sourceKey', $9::text, 'phase', 'phase8-session6'))
          ON CONFLICT (dedup_key) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
          RETURNING id`,
@@ -114,8 +114,8 @@ try {
              stated_amount_usd, purpose_text, designation, transfer_authority,
              availability_start, availability_end, source_document_id, source_page,
              evidence_sha256, dedup_key, metadata_jsonb
-           ) VALUES ($1, $2, 'Department of Defense', NULL, $3, NULL, $4::numeric,
-             $5, NULL, NULL, NULL, $6::date, $7, $8, $9, $10,
+           ) VALUES ($1::uuid, $2, 'Department of Defense', NULL, $3, NULL, $4::numeric,
+             $5, NULL, NULL, NULL, $6::date, $7::uuid, $8, $9, $10,
              jsonb_build_object('note', $11::text))
            ON CONFLICT (dedup_key) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
            RETURNING id`,
@@ -143,8 +143,8 @@ try {
              confidence, base_request_status, potential_double_count, funding_posture,
              evidence_source_document_id, evidence_page, evidence_sha256,
              obligation_reference, execution_reference, dedup_key, metadata_jsonb
-           ) VALUES ($1, $2, $3, NULL, $4, $5, $6, $7::numeric, $8, $9::numeric,
-             $10, $11, $12, $13, $14, $15, NULL, NULL, $16,
+           ) VALUES ($1::uuid, $2, $3, NULL, $4, $5, $6, $7::numeric, $8, $9::numeric,
+             $10, $11, $12, $13::uuid, $14, $15, NULL, NULL, $16,
              jsonb_build_object('sourceKey', $17::text, 'phase', 'phase8-session6'))
            ON CONFLICT (dedup_key) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
           provisionId,
