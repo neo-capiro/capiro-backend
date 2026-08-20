@@ -32,4 +32,17 @@ describe('readableDegradedReasons', () => {
       'The context packet is degraded.',
     ]);
   });
+
+  it('splits a human-written label from the code list that follows it', () => {
+    expect(
+      readableDegradedReasons(
+        'Missing required layers: firm-identity; coverage_manifest_incomplete; source_unavailable:clients',
+      ),
+    ).toEqual([
+      'Missing required layers:',
+      'Firm identity',
+      'Coverage manifest incomplete',
+      'Source unavailable (clients)',
+    ]);
+  });
 });
