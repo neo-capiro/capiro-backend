@@ -65,7 +65,11 @@
     "verify:phase8-session4:image": "bash scripts/verify-phase8-session4-image.sh",
     "verify:phase8-session5": "node scripts/verify-phase8-session5.mjs",
     "verify:phase8-session5:corpus": "node scripts/verify-phase8-session5-corpus.mjs",
-    "verify:phase8-session5:provider-decision": "node scripts/verify-phase8-session5.mjs --enforce-provider-decision"
+    "verify:phase8-session5:provider-decision": "node scripts/verify-phase8-session5.mjs --enforce-provider-decision",
+    "verify:phase8-session6": "node scripts/verify-phase8-session6.mjs --enforce-corpus",
+    "verify:phase8-session6:db": "node scripts/verify-phase8-session6-db.mjs",
+    "verify:phase8-session6:domain": "pnpm --filter @capiro/defense-domain build && node scripts/test-phase8-session6-federal-funding-domain.mjs",
+    "prepare:phase8-session6:corpus": "node scripts/prepare-phase8-session6-federal-funding-corpus.mjs"
   },
   "devDependencies": {
     "turbo": "^2.1.3",
