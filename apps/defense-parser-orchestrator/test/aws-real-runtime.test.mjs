@@ -153,6 +153,63 @@ test('atomic ledger refuses reconciled cost above the reserved amount before set
   );
 });
 
+test('atomic ledger settle of an already SETTLED reservation is idempotent', async () => {
+  const runner = new FakeRunner();
+  runner.items.set('RESERVATION#r-settled', {
+    pk: { S: 'RESERVATION#r-settled' },
+    status: { S: 'SETTLED' },
+    reservedCostUsd: { N: '1' },
+    reconciledCostUsd: { N: '1' },
+    effectiveCapUsd: { N: '50' },
+    hardCapUsd: { N: '50' },
+    jobId: { S: 'job-settled' },
+  });
+  const ledger = new AwsCliDynamoReservationLedger(runner, {
+    ledgerTableName: 'ledger',
+  });
+  const result = await ledger.settle({
+    reservationId: 'r-settled',
+    reconciledCostUsd: 1,
+    at: '2026-08-20T03:50:00Z',
+  });
+  assert.equal(result.idempotent, true);
+  assert.equal(
+    runner.calls.filter(
+      (call) => call.service === 'dynamodb' && call.operation === 'transact-write-items',
+    ).length,
+    0,
+  );
+});
+
+test('atomic ledger refuses to settle a RELEASED reservation', async () => {
+  const runner = new FakeRunner();
+  runner.items.set('RESERVATION#r-released', {
+    pk: { S: 'RESERVATION#r-released' },
+    status: { S: 'RELEASED' },
+    reservedCostUsd: { N: '1' },
+    effectiveCapUsd: { N: '50' },
+    hardCapUsd: { N: '50' },
+    jobId: { S: 'job-released' },
+  });
+  const ledger = new AwsCliDynamoReservationLedger(runner, {
+    ledgerTableName: 'ledger',
+  });
+  await assert.rejects(
+    () => ledger.settle({
+      reservationId: 'r-released',
+      reconciledCostUsd: 1,
+      at: '2026-08-20T03:50:00Z',
+    }),
+    (error) => error.code === 'RESERVATION_STATE_REFUSAL',
+  );
+  assert.equal(
+    runner.calls.filter(
+      (call) => call.service === 'dynamodb' && call.operation === 'transact-write-items',
+    ).length,
+    0,
+  );
+});
+
 test('real Batch port factory is hard-disabled after the ModelDataSource compatibility block', async () => {
   const { createAwsRealBatchPorts } = await import('../src/aws-real-runtime.mjs');
   assert.throws(

@@ -19,8 +19,49 @@ const SESSION5_MIN_INSTANCE_RATE_USD = 1;
 export const SESSION5_MODEL_PACKAGE_ARN =
   'arn:aws:sagemaker:us-east-1:865070037744:model-package/nvidia-nemotron-parse-6673990e627d314f8aceb69f5e816587';
 export const PINNED_MODEL_USES_MODEL_DATA_SOURCE = true;
+export const ASYNC_DLQ_SCHEMA_VERSION = 'nvidia_parser_async_dlq_v1';
+export const ASYNC_DLQ_MAX_BYTES = 256 * 1024;
+const ASYNC_DLQ_FAILURE_MESSAGE_MAX = 500;
 
 const MAX_COMPLETION_PUBLISH_ATTEMPTS = 3;
+
+function summarizeFailureMessage(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  return text.length <= ASYNC_DLQ_FAILURE_MESSAGE_MAX
+    ? text
+    : `${text.slice(0, ASYNC_DLQ_FAILURE_MESSAGE_MAX)}…`;
+}
+
+export function buildAsyncFailureDlqEnvelope(job, config = {}) {
+  const endpoint = job?.endpoint || {};
+  const latestKey = `${config.outputPrefix || 'phase8/nvidia/async/output'}/job-state-v2/latest/${job.jobId}.json`;
+  return Object.freeze({
+    schemaVersion: ASYNC_DLQ_SCHEMA_VERSION,
+    executionModel: ASYNC_EXECUTION_MODEL,
+    jobId: job.jobId,
+    endpointName: endpoint.endpointName || null,
+    endpointConfigName: endpoint.endpointConfigName || null,
+    corpusSha256: job.corpusSha256 || null,
+    failureCode: job.failureCode || null,
+    failureMessage: summarizeFailureMessage(job.failureMessage),
+    providerStatus: job.endpointProviderStatus || null,
+    attempt: job.attempt ?? null,
+    createdAt: job.createdAt || null,
+    failedAt: job.updatedAt || null,
+    endpointCreatedAt: job.endpointCreatedAt || null,
+    endpointDeletedAt: job.endpointDeletedAt || null,
+    reconciledCostUsd: Number.isFinite(Number(job.reconciledCostUsd))
+      ? Number(job.reconciledCostUsd)
+      : null,
+    pageCount: Array.isArray(job.pages) ? job.pages.length : 0,
+    jobStateReference: Object.freeze({
+      store: 's3',
+      bucket: config.outputBucket || null,
+      key: latestKey,
+    }),
+  });
+}
 
 export function assertPinnedModelDataSourceRequiresAsync({ executionModel, modelDataSource }) {
   if (modelDataSource === true && executionModel === 'sagemaker_batch_transform') {
@@ -896,8 +937,14 @@ export class AsyncNvidiaCoordinator {
       updatedAt: now,
     };
     if (current.EndpointStatus === 'Failed') {
+      job = {
+        ...job,
+        failureCode: 'ENDPOINT_FAILED',
+        failureMessage: current.FailureReason || job.failureMessage || null,
+        updatedAt: now,
+      };
       await this.ports.jobStore.put(job);
-      return this.drain({ ...job, failureCode: 'ENDPOINT_FAILED' });
+      return this.drain(job);
     }
     if (endpointAgeSeconds(job, now) > this.config.maxEndpointLifetimeSeconds) {
       await this.ports.jobStore.put(job);
@@ -955,14 +1002,14 @@ export class AsyncNvidiaCoordinator {
           updatedAt: this.clock(),
         };
         await this.ports.jobStore.put(failed);
-        if (this.ports.dlq) await this.ports.dlq.publish(failed);
+        if (this.ports.dlq) await this.#publishCompactDlq(failed);
         return failed;
       }
       return this.#publishCompletion(job);
     }
     if (job.dlqPublishPending === true && this.ports.dlq) {
       try {
-        await this.ports.dlq.publish(job);
+        await this.#publishCompactDlq(job);
         const cleared = { ...job, dlqPublishPending: false, dlqPublishedAt: this.clock(), updatedAt: this.clock() };
         await this.ports.jobStore.put(cleared);
         return cleared;
@@ -1159,10 +1206,13 @@ export class AsyncNvidiaCoordinator {
     }
     if (job.status === 'ENDPOINT_DELETED') {
       if (job.failureCode) {
-        if (job.reservationId) {
-          await this.ports.reservationLedger.release({
+        const actualCostUsd = this.#reconciledEndpointCost(job);
+        if (job.reservationId && job.reservationSettledAt == null) {
+          await this.ports.reservationLedger.settle({
             reservationId: job.reservationId,
-            reason: job.failureCode,
+            reconciledCostUsd: actualCostUsd,
+            effectiveCapUsd: this.config.effectiveSpendCapUsd,
+            hardCapUsd: this.config.hardIncrementalCapUsd,
             at: this.clock(),
           });
         }
@@ -1170,11 +1220,13 @@ export class AsyncNvidiaCoordinator {
           failureCode: job.failureCode,
           failureMessage: job.failureMessage,
           endpointDeletedAt: job.endpointDeletedAt || this.clock(),
+          reconciledCostUsd: actualCostUsd,
+          reservationSettledAt: job.reservationSettledAt || this.clock(),
         });
         await this.ports.jobStore.put(failed);
         if (this.ports.dlq) {
           try {
-            await this.ports.dlq.publish(failed);
+            await this.#publishCompactDlq(failed);
             const published = { ...failed, dlqPublishPending: false, dlqPublishedAt: this.clock(), updatedAt: this.clock() };
             await this.ports.jobStore.put(published);
             return published;
@@ -1208,7 +1260,7 @@ export class AsyncNvidiaCoordinator {
     if (job.status === 'FAILED') {
       if (job.dlqPublishPending === true && this.ports.dlq) {
         try {
-          await this.ports.dlq.publish(job);
+          await this.#publishCompactDlq(job);
           const cleared = { ...job, dlqPublishPending: false, dlqPublishedAt: this.clock(), updatedAt: this.clock() };
           await this.ports.jobStore.put(cleared);
           return cleared;
@@ -1225,6 +1277,18 @@ export class AsyncNvidiaCoordinator {
     });
     await this.ports.jobStore.put(deleted);
     return deleted;
+  }
+
+  async #publishCompactDlq(job) {
+    const envelope = buildAsyncFailureDlqEnvelope(job, this.config);
+    const encoded = canonicalJson(envelope);
+    if (encoded.length > ASYNC_DLQ_MAX_BYTES) {
+      throw new Session5RefusalError(
+        'DLQ_ENVELOPE_TOO_LARGE',
+        `Compact DLQ envelope is ${encoded.length} bytes`,
+      );
+    }
+    await this.ports.dlq.publish(envelope);
   }
 
   #reconciledEndpointCost(job) {

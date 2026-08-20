@@ -341,6 +341,260 @@ test('reservation is released when the first durable job write fails', async () 
  assert.equal(reserved, 1); assert.equal(released, 1);
 });
 
+function identityFor(c) {
+  return buildAsyncEndpointIdentity({
+    corpusSha256: SOURCE,
+    modelPackageArn: MODEL_ARN,
+    modelVersion: MODEL_VERSION,
+    runtimeContractVersion: ASYNC_RUNTIME_CONTRACT_VERSION,
+    modelName: c.sagemakerModelName,
+    executionRoleArn: c.executionRoleArn,
+    instanceType: c.instanceType,
+    outputBucket: c.outputBucket,
+    outputPrefix: c.outputPrefix,
+    failureBucket: c.outputBucket,
+    failurePrefix: c.failurePrefix,
+    kmsKeyId: c.kmsKeyId,
+  });
+}
+
+function memoryJobStore(seed) {
+  const jobs = new Map(seed ? [[seed.jobId, seed]] : []);
+  return {
+    jobs,
+    async get(id) { return jobs.get(id) ?? null; },
+    async put(job) { jobs.set(job.jobId, job); return job; },
+  };
+}
+
+test('failed endpoint teardown settles reconciled cost from provider timestamps and does not release', async () => {
+  const c = config();
+  const endpoint = identityFor(c);
+  const job = {
+    jobId: endpoint.endpointName,
+    status: 'ENDPOINT_DELETED',
+    endpoint,
+    reservationId: `${endpoint.endpointName}#endpoint`,
+    failureCode: 'ENDPOINT_FAILED',
+    failureMessage: 'The provided role is invalid',
+    endpointCreatedAt: '2026-08-20T03:11:23.465Z',
+    endpointDeletedAt: '2026-08-20T03:45:49.859Z',
+    endpointProviderStatus: 'Failed',
+    corpusSha256: SOURCE,
+    attempt: 1,
+    reservedCostUsd: 1,
+    reconciledCostUsd: 49,
+    createdAt: '2026-08-20T03:11:04.520Z',
+    updatedAt: '2026-08-20T03:45:49.859Z',
+    history: [{ from: 'ENDPOINT_DRAINING', to: 'ENDPOINT_DELETED', at: '2026-08-20T03:45:49.859Z' }],
+    pages: Array.from({ length: 10 }, (_, i) => page(i + 1)),
+  };
+  const store = memoryJobStore(job);
+  const ledgerCalls = [];
+  const dlqMessages = [];
+  const coordinator = new AsyncNvidiaCoordinator({
+    jobStore: store,
+    reservationLedger: {
+      async settle(input) { ledgerCalls.push({ op: 'settle', ...input }); return { idempotent: false, reconciledCostUsd: input.reconciledCostUsd }; },
+      async release(input) { ledgerCalls.push({ op: 'release', ...input }); return { idempotent: false }; },
+      async snapshot() { return { activeJobs: 0, spentAndReservedUsd: 0 }; },
+    },
+    endpointClient: {
+      async describeEndpoint() { return null; },
+      async describeEndpointConfig() { return null; },
+      async deregisterScaleToZero() {},
+      async listPersistentEndpoints() { return []; },
+    },
+    dlq: { async publish(message) { dlqMessages.push(message); return message; } },
+  }, c, () => '2026-08-20T03:47:07.789Z');
+  const result = await coordinator.reconcile(job.jobId);
+  assert.equal(result.status, 'FAILED');
+  assert.equal(result.failureCode, 'ENDPOINT_FAILED');
+  assert.equal(result.endpointCreatedAt, '2026-08-20T03:11:23.465Z');
+  assert.equal(result.endpointDeletedAt, '2026-08-20T03:45:49.859Z');
+  assert.equal(result.reconciledCostUsd, 1);
+  assert.equal(result.reservationReleasedAt, undefined);
+  assert.ok(result.reservationSettledAt);
+  assert.deepEqual(ledgerCalls.map((call) => call.op), ['settle']);
+  assert.equal(ledgerCalls[0].reconciledCostUsd, 1);
+  assert.equal(ledgerCalls[0].reservationId, job.reservationId);
+  assert.equal(store.jobs.get(job.jobId).reconciledCostUsd, 1);
+});
+
+test('failed endpoint cost settlement is idempotent and never double-decrements the ledger', async () => {
+  const c = config();
+  const endpoint = identityFor(c);
+  const job = {
+    jobId: endpoint.endpointName,
+    status: 'FAILED',
+    endpoint,
+    reservationId: `${endpoint.endpointName}#endpoint`,
+    failureCode: 'ENDPOINT_FAILED',
+    failureMessage: 'The provided role is invalid',
+    endpointCreatedAt: '2026-08-20T03:11:23.465Z',
+    endpointDeletedAt: '2026-08-20T03:45:49.859Z',
+    reconciledCostUsd: 1,
+    reservationSettledAt: '2026-08-20T03:47:07.789Z',
+    dlqPublishPending: true,
+    corpusSha256: SOURCE,
+    attempt: 1,
+    reservedCostUsd: 1,
+    createdAt: '2026-08-20T03:11:04.520Z',
+    updatedAt: '2026-08-20T03:47:07.789Z',
+    history: [{ from: 'ENDPOINT_DELETED', to: 'FAILED', at: '2026-08-20T03:47:07.789Z' }],
+    pages: Array.from({ length: 10 }, (_, i) => page(i + 1)),
+  };
+  const store = memoryJobStore(job);
+  const ledgerCalls = [];
+  const dlqMessages = [];
+  const coordinator = new AsyncNvidiaCoordinator({
+    jobStore: store,
+    reservationLedger: {
+      async settle(input) { ledgerCalls.push({ op: 'settle', ...input }); return { idempotent: true, reconciledCostUsd: input.reconciledCostUsd }; },
+      async release(input) { ledgerCalls.push({ op: 'release', ...input }); return { idempotent: false }; },
+      async snapshot() { return { activeJobs: 0, spentAndReservedUsd: 0 }; },
+    },
+    endpointClient: {
+      async describeEndpoint() { return null; },
+      async describeEndpointConfig() { return null; },
+      async deregisterScaleToZero() {},
+      async listPersistentEndpoints() { return []; },
+    },
+    dlq: { async publish(message) { dlqMessages.push(message); return message; } },
+  }, c, () => '2026-08-20T03:50:25.410Z');
+  const first = await coordinator.reconcile(job.jobId);
+  const second = await coordinator.reconcile(job.jobId);
+  assert.equal(first.status, 'FAILED');
+  assert.equal(second.status, 'FAILED');
+  assert.equal(first.reconciledCostUsd, 1);
+  assert.equal(second.reconciledCostUsd, 1);
+  assert.deepEqual(ledgerCalls, []);
+  assert.equal(first.dlqPublishPending, false);
+  assert.equal(second.dlqPublishPending, false);
+  assert.equal(dlqMessages.length, 1);
+  assert.equal(dlqMessages[0].jobId, job.jobId);
+});
+
+test('failed 10-page job publishes a compact DLQ envelope under the transport bound', async () => {
+  const { ASYNC_DLQ_MAX_BYTES, buildAsyncFailureDlqEnvelope } = await import('../src/real-async.mjs');
+  const c = config();
+  const endpoint = identityFor(c);
+  const hugePages = Array.from({ length: 10 }, (_, i) => ({
+    ...page(i + 1),
+    id: `page-${i + 1}`,
+    providerPayload: {
+      model: 'nvidia/nemotron-parse',
+      messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: `data:image/png;base64,${'A'.repeat(200_000)}` } }] }],
+      temperature: 0,
+      tools: [{ type: 'function', function: { name: 'markdown_bbox' } }],
+    },
+  }));
+  const job = {
+    jobId: endpoint.endpointName,
+    status: 'ENDPOINT_DELETED',
+    schemaVersion: 'nvidia_async_job_v2',
+    endpoint,
+    reservationId: `${endpoint.endpointName}#endpoint`,
+    failureCode: 'ENDPOINT_FAILED',
+    failureMessage: 'The provided role is invalid. Please ensure the role exists.',
+    endpointCreatedAt: '2026-08-20T03:11:23.465Z',
+    endpointDeletedAt: '2026-08-20T03:45:49.859Z',
+    endpointProviderStatus: 'Failed',
+    corpusSha256: SOURCE,
+    attempt: 1,
+    reservedCostUsd: 1,
+    createdAt: '2026-08-20T03:11:04.520Z',
+    updatedAt: '2026-08-20T03:45:49.859Z',
+    history: [{ from: 'ENDPOINT_DRAINING', to: 'ENDPOINT_DELETED', at: '2026-08-20T03:45:49.859Z' }],
+    pages: hugePages,
+    executionRoleArn: 'arn:aws:iam::967807252336:role/secret-role',
+    kmsKeyId: 'arn:aws:kms:us-east-1:967807252336:key/secret',
+  };
+  const envelope = buildAsyncFailureDlqEnvelope(job, c);
+  const encoded = canonicalJson(envelope);
+  assert.equal(envelope.schemaVersion, 'nvidia_parser_async_dlq_v1');
+  assert.equal(envelope.jobId, job.jobId);
+  assert.equal(envelope.endpointName, endpoint.endpointName);
+  assert.equal(envelope.endpointConfigName, endpoint.endpointConfigName);
+  assert.equal(envelope.corpusSha256, SOURCE);
+  assert.equal(envelope.failureCode, 'ENDPOINT_FAILED');
+  assert.equal(envelope.pageCount, 10);
+  assert.equal(envelope.pages, undefined);
+  assert.equal(envelope.providerPayload, undefined);
+  assert.ok(envelope.jobStateReference);
+  assert.match(envelope.jobStateReference.key, new RegExp(`${job.jobId}\\.json$`));
+  assert.ok(encoded.length < ASYNC_DLQ_MAX_BYTES);
+  assert.ok(encoded.length < 65536);
+  assert.equal(JSON.stringify(envelope).includes('data:image/png;base64'), false);
+  assert.equal(JSON.stringify(envelope).includes('secret-role'), false);
+  assert.equal(JSON.stringify(envelope).includes('kms'), false);
+
+  const store = memoryJobStore(job);
+  const dlqMessages = [];
+  const coordinator = new AsyncNvidiaCoordinator({
+    jobStore: store,
+    reservationLedger: {
+      async settle(input) { return { idempotent: false, reconciledCostUsd: input.reconciledCostUsd }; },
+      async release() { throw new Error('must not release after consumed lifecycle'); },
+      async snapshot() { return { activeJobs: 0, spentAndReservedUsd: 0 }; },
+    },
+    endpointClient: {
+      async describeEndpoint() { return null; },
+      async describeEndpointConfig() { return null; },
+      async deregisterScaleToZero() {},
+      async listPersistentEndpoints() { return []; },
+    },
+    dlq: { async publish(message) { dlqMessages.push(message); return message; } },
+  }, c, () => '2026-08-20T03:47:07.789Z');
+  const result = await coordinator.reconcile(job.jobId);
+  assert.equal(result.status, 'FAILED');
+  assert.equal(result.dlqPublishPending, false);
+  assert.equal(dlqMessages.length, 1);
+  assert.equal(dlqMessages[0].pages, undefined);
+  assert.equal(dlqMessages[0].jobId, job.jobId);
+  assert.ok(canonicalJson(dlqMessages[0]).length < ASYNC_DLQ_MAX_BYTES);
+});
+
+test('failed endpoint FailureReason is persisted onto the job before drain', async () => {
+  const c = config();
+  const endpoint = identityFor(c);
+  const job = {
+    jobId: endpoint.endpointName,
+    status: 'ENDPOINT_CREATING',
+    endpoint,
+    reservationId: `${endpoint.endpointName}#endpoint`,
+    corpusSha256: SOURCE,
+    attempt: 1,
+    createdAt: '2026-08-20T03:11:04.520Z',
+    endpointCreatedAt: '2026-08-20T03:11:23.465Z',
+    updatedAt: '2026-08-20T03:11:16.211Z',
+    history: [{ from: 'CAPACITY_RESERVED', to: 'ENDPOINT_CREATING', at: '2026-08-20T03:11:16.211Z' }],
+    pages: Array.from({ length: 10 }, (_, i) => page(i + 1)),
+  };
+  const store = memoryJobStore(job);
+  const coordinator = new AsyncNvidiaCoordinator({
+    jobStore: store,
+    reservationLedger: { async settle() {}, async release() {}, async snapshot() { return { activeJobs: 1, spentAndReservedUsd: 1 }; } },
+    endpointClient: {
+      async describeEndpoint() {
+        return {
+          EndpointStatus: 'Failed',
+          FailureReason: 'The provided role arn:aws:iam::967807252336:role/session5 is invalid.',
+          CreationTime: '2026-08-20T03:11:23.465Z',
+          LastModifiedTime: '2026-08-20T03:43:26.190Z',
+        };
+      },
+      async deleteEndpoint() {},
+      async describeEndpointConfig() { return {}; },
+      async deregisterScaleToZero() {},
+      async listPersistentEndpoints() { return []; },
+    },
+  }, c, () => '2026-08-20T03:44:28.039Z');
+  const result = await coordinator.reconcile(job.jobId);
+  assert.equal(result.failureCode, 'ENDPOINT_FAILED');
+  assert.match(result.failureMessage, /provided role/);
+});
+
 function configEnv() {
   return {
     NVIDIA_PARSING_ENABLED: 'true', NVIDIA_ROUTING_MODE: 'benchmark', NVIDIA_BENCHMARK_ACCEPTED: 'false',
