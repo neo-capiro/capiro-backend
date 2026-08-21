@@ -15,3 +15,4 @@ export * from './watcher.js';
 export * from './signals.js';
 export * from './progression.js';
 export * from './health.js';
+export * from './discovery/index.js';
