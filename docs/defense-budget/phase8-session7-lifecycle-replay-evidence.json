@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "phase8_session7_lifecycle_replay_evidence_v1",
+  "fiscalYear": 2024,
+  "corpus": ".session7-lifecycle/prepared-corpus.json",
+  "sources": [
+    {
+      "sourceKey": "fy2024-pb-dod-budget-request-overview",
+      "officialUrl": "https://comptroller.defense.gov/Portals/45/Documents/defbudget/FY2024/FY2024_Budget_Request_Overview_Book.pdf",
+      "sourceSha256": "bb7f61e61dad284bad3b852c873f613e70d0f679bf665a862dc7f70ea9f75d36",
+      "byteSize": 10520285,
+      "contentExcerptAvailable": false
+    },
+    {
+      "sourceKey": "fy2024-hasc-report-118-125",
+      "officialUrl": "https://www.govinfo.gov/content/pkg/CRPT-118hrpt125/pdf/CRPT-118hrpt125.pdf",
+      "sourceSha256": "5f777aa98b4203a9a52e664e28fef407ed96f1e18d6e92f77de648f3b766ebf0",
+      "byteSize": 1709880,
+      "contentExcerptAvailable": true
+    },
+    {
+      "sourceKey": "fy2024-sasc-report-118-58",
+      "officialUrl": "https://www.govinfo.gov/content/pkg/CRPT-118srpt58/pdf/CRPT-118srpt58.pdf",
+      "sourceSha256": "20a0aa5b70a66565ab32a9e3e925be1ca80daef7d98bd491679257821d51e13b",
+      "byteSize": 1419242,
+      "contentExcerptAvailable": true
+    },
+    {
+      "sourceKey": "fy2024-house-ndaa-hr2670-reported",
+      "officialUrl": "https://www.govinfo.gov/content/pkg/BILLS-118hr2670rh/pdf/BILLS-118hr2670rh.pdf",
+      "sourceSha256": "59fd96a8097f959808694f651d1664da15d7db860277539de8412ce0bf8f167d",
+      "byteSize": 2424880,
+      "contentExcerptAvailable": true
+    },
+    {
+      "sourceKey": "fy2024-house-ndaa-hr2670-engrossed",
+      "officialUrl": "https://www.govinfo.gov/content/pkg/BILLS-118hr2670eh/pdf/BILLS-118hr2670eh.pdf",
+      "sourceSha256": "a3a8026a7d77b6114ceb685860c698c462e3614251b8dd4cc22170dc4682c813",
+      "byteSize": 2861264,
+      "contentExcerptAvailable": true
+    },
+    {
+      "sourceKey": "fy2024-ndaa-enacted-pl118-31",
+      "officialUrl": "https://www.govinfo.gov/content/pkg/PLAW-118publ31/pdf/PLAW-118publ31.pdf",
+      "sourceSha256": "a8354786883aaa0934336186cb7a0949267cdde9ddecad695ac80369e0564fa9",
+      "byteSize": 2684775,
+      "contentExcerptAvailable": true
+    },
+    {
+      "sourceKey": "fy2024-hacd-report-118-121",
+      "officialUrl": "https://www.govinfo.gov/content/pkg/CRPT-118hrpt121/pdf/CRPT-118hrpt121.pdf",
+      "sourceSha256": "daeddc2215aedefb792d9f168b2aac2ee150135d30302d8b0fb40a2175281bcf",
+      "byteSize": 8536888,
+      "contentExcerptAvailable": true
+    },
+    {
+      "sourceKey": "fy2024-sacd-report-118-81",
+      "officialUrl": "https://www.govinfo.gov/content/pkg/CRPT-118srpt81/pdf/CRPT-118srpt81.pdf",
+      "sourceSha256": "d00a6d5c3b1634770c4edd4cb1426bc7fad41111a47f6cdba06561009055c261",
+      "byteSize": 885426,
+      "contentExcerptAvailable": true
+    },
+    {
+      "sourceKey": "fy2024-consolidated-appropriations-pl118-42-no-defense-division",
+      "officialUrl": "https://www.govinfo.gov/content/pkg/PLAW-118publ42/pdf/PLAW-118publ42.pdf",
+      "sourceSha256": "eddb25e8906bcd98fe5e33b81f1cdf1981139283e2b6fb7182b5841df3a8dc50",
+      "byteSize": 1293690,
+      "contentExcerptAvailable": true
+    },
+    {
+      "sourceKey": "fy2024-appropriations-enacted-pl118-47",
+      "officialUrl": "https://www.govinfo.gov/content/pkg/PLAW-118publ47/pdf/PLAW-118publ47.pdf",
+      "sourceSha256": "0e6eef8689e407ceeff7c8cef3b9e3088daa9b8625d68b7005e6479d944c2e27",
+      "byteSize": 1205097,
+      "contentExcerptAvailable": true
+    },
+    {
+      "sourceKey": "fy2024-ukraine-supplemental-pl118-50",
+      "officialUrl": "https://www.govinfo.gov/content/pkg/PLAW-118publ50/pdf/PLAW-118publ50.pdf",
+      "sourceSha256": "baa093f0ae9b3df80c2da0e0ec533e5715bcc90c94cd01d4f0e66802a4bff2fd",
+      "byteSize": 480617,
+      "contentExcerptAvailable": true
+    }
+  ],
+  "checks": 61,
+  "passed": 61,
+  "failed": 0,
+  "nvidiaRouting": "disabled",
+  "activeGpuCapacity": 0,
+  "awsMutated": false,
+  "productionDatabaseMutated": false
+}

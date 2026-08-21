@@ -4512,6 +4512,8 @@ model SourceDocument {
   federalFundingMeasures            FederalFundingMeasure[]
   federalFundingProvisions          FederalFundingProvision[]
   federalFundingAllocationEvidence  FederalFundingAllocation[] @relation("FederalFundingAllocationEvidence")
+  // Phase 8 Session 7 — lifecycle watcher observations bound to immutable source identity.
+  defenseBudgetObservations         DefenseBudgetSourceObservation[] @relation("DefenseBudgetObservationSource")
 
   @@unique([sourceKey, sha256], map: "source_document_source_key_sha256_key")
   @@index([documentType, fiscalYear, budgetCycle, component], map: "source_document_type_fy_cycle_component_idx")
@@ -10958,4 +10960,250 @@ model FederalFundingAllocation {
   // migration; Prisma cannot express the WHERE predicate without changing
   // index semantics, so it is intentionally omitted here (SQL-owned).
   @@map("federal_funding_allocation")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 8 Session 7 — Annual Defense Budget Cycle Controller + Defense Budget
+// Lifecycle Watcher control plane.
+//
+// Control-plane state only. There is deliberately NO monetary field in any model
+// below: a missing or not-filed source is a recorded state, never zero funding,
+// and dollars come only from the governed Session 6 evidence-bound ingestion
+// path. Immutable source identity stays with SourceDocument.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DefenseBudgetCycle {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fiscalYear      Int       @map("fiscal_year")
+  // request | authorization | appropriations | alternative_funding | execution
+  authorityTrack  String    @map("authority_track")
+  status          String    @default("draft")
+  templateVersion String    @map("template_version")
+  // discovery | template | operator
+  bootstrapOrigin String    @map("bootstrap_origin")
+  openedAt        DateTime  @default(now()) @map("opened_at") @db.Timestamptz(6)
+  closedAt        DateTime? @map("closed_at") @db.Timestamptz(6)
+  dedupKey        String    @map("dedup_key") @db.Char(64)
+  metadata        Json      @default("{}") @map("metadata_jsonb")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  expectedSources DefenseBudgetExpectedSource[]
+  observations    DefenseBudgetSourceObservation[]
+  outbox          DefenseBudgetIngestionOutbox[]
+  signals         DefenseBudgetLifecycleSignal[]
+
+  // Cycle identity is (fiscalYear, authorityTrack). This unique constraint is
+  // what makes "authorization and appropriations never overwrite each other"
+  // structural: they are separate rows and cannot address one another.
+  @@unique([fiscalYear, authorityTrack], map: "defense_budget_cycle_fy_track_key")
+  @@unique([dedupKey], map: "defense_budget_cycle_dedup_key_key")
+  @@index([status, fiscalYear], map: "defense_budget_cycle_status_idx")
+  @@map("defense_budget_cycle")
+}
+
+model DefenseBudgetExpectedSource {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cycleId         String   @map("cycle_id") @db.Uuid
+  fiscalYear      Int      @map("fiscal_year")
+  authorityTrack  String   @map("authority_track")
+  stage           String
+  sourceFamily    String   @map("source_family")
+  // house | senate | joint | null
+  chamber         String?
+  committee       String?
+  // ARMY | NAVY | USMC | AF | SF | DW | null
+  component       String?
+  adapterId       String   @map("adapter_id")
+  label           String
+  // expected | not_filed | published | superseded | withdrawn | unavailable |
+  // review_required. NEVER zero funding.
+  expectedState   String   @default("expected") @map("expected_state")
+  optional        Boolean  @default(false)
+  templateVersion String   @map("template_version")
+  expectedFrom    DateTime @map("expected_from") @db.Timestamptz(6)
+  expectedTo      DateTime @map("expected_to") @db.Timestamptz(6)
+  reviewReason    String?  @map("review_reason")
+  dedupKey        String   @map("dedup_key") @db.Char(64)
+  metadata        Json     @default("{}") @map("metadata_jsonb")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  cycle        DefenseBudgetCycle              @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  observations DefenseBudgetSourceObservation[]
+
+  @@unique([dedupKey], map: "defense_budget_expected_source_dedup_key_key")
+  @@index([cycleId, stage], map: "defense_budget_expected_source_cycle_idx")
+  @@index([expectedState, fiscalYear], map: "defense_budget_expected_source_state_idx")
+  @@index([adapterId], map: "defense_budget_expected_source_adapter_idx")
+  @@map("defense_budget_expected_source")
+}
+
+model DefenseBudgetSourceObservation {
+  id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expectedSourceId          String   @map("expected_source_id") @db.Uuid
+  cycleId                   String   @map("cycle_id") @db.Uuid
+  adapterId                 String   @map("adapter_id")
+  discoveredUrl             String   @map("discovered_url")
+  // ETag / Last-Modified are conditional-fetch optimisations ONLY.
+  httpEtag                  String?  @map("http_etag")
+  httpLastModified          String?  @map("http_last_modified")
+  // Authoritative content identity.
+  contentSha256             String   @map("content_sha256") @db.Char(64)
+  byteSize                  Int?     @map("byte_size")
+  observationState          String   @default("discovered") @map("observation_state")
+  // first_discovery | unchanged | changed | replacement_url | superseding_version
+  revisionKind              String   @map("revision_kind")
+  classifiedFiscalYear      Int?     @map("classified_fiscal_year")
+  classifiedAuthorityTrack  String?  @map("classified_authority_track")
+  classifiedStage           String?  @map("classified_stage")
+  classifiedSourceFamily    String?  @map("classified_source_family")
+  classificationConfidence  Decimal? @map("classification_confidence") @db.Decimal(4, 3)
+  reviewReasons             Json     @default("[]") @map("review_reasons")
+  sourceDocumentId          String?  @map("source_document_id") @db.Uuid
+  supersededByObservationId String?  @map("superseded_by_observation_id") @db.Uuid
+  firstSeenAt               DateTime @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt                DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  seenCount                 Int      @default(1) @map("seen_count")
+  dedupKey                  String   @map("dedup_key") @db.Char(64)
+  metadata                  Json     @default("{}") @map("metadata_jsonb")
+  createdAt                 DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  expectedSource DefenseBudgetExpectedSource @relation(fields: [expectedSourceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cycle          DefenseBudgetCycle          @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument SourceDocument?             @relation("DefenseBudgetObservationSource", fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  supersededBy DefenseBudgetSourceObservation?  @relation("DefenseBudgetObservationVersion", fields: [supersededByObservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  supersedes   DefenseBudgetSourceObservation[] @relation("DefenseBudgetObservationVersion")
+
+  outbox      DefenseBudgetIngestionOutbox[]
+  signalsFrom DefenseBudgetLifecycleSignal[] @relation("DefenseBudgetSignalFrom")
+  signalsTo   DefenseBudgetLifecycleSignal[] @relation("DefenseBudgetSignalTo")
+
+  // Idempotency: the same bytes for the same expected source are ONE
+  // observation, so two watcher runs seeing the same source cannot diverge.
+  @@unique([expectedSourceId, contentSha256], map: "defense_budget_source_observation_expected_sha_key")
+  @@unique([dedupKey], map: "defense_budget_source_observation_dedup_key_key")
+  // Parent key for the ingestion outbox's composite foreign key. Prisma needs
+  // it declared so the generated desired schema matches the migration.
+  @@unique([id, observationState], map: "defense_budget_source_observation_id_state_key")
+  @@index([cycleId, observationState], map: "defense_budget_source_observation_cycle_state_idx")
+  @@index([contentSha256], map: "defense_budget_source_observation_sha_idx")
+  @@index([sourceDocumentId], map: "defense_budget_source_observation_source_document_idx")
+  // The review-backlog partial index (WHERE observation_state =
+  // 'review_required') is SQL-owned; Prisma cannot express the predicate.
+  @@map("defense_budget_source_observation")
+}
+
+model DefenseBudgetWatcherAdapter {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adapterId           String    @map("adapter_id")
+  status              String    @default("idle")
+  cursor              Json      @default("{}") @map("cursor_jsonb")
+  checkpoint          Json      @default("{}") @map("checkpoint_jsonb")
+  lastCheckAt         DateTime? @map("last_check_at") @db.Timestamptz(6)
+  lastSuccessAt       DateTime? @map("last_success_at") @db.Timestamptz(6)
+  nextCheckAt         DateTime? @map("next_check_at") @db.Timestamptz(6)
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+  lastErrorClass      String?   @map("last_error_class")
+  lastErrorMessage    String?   @map("last_error_message")
+  leaseOwner          String?   @map("lease_owner")
+  leaseExpiresAt      DateTime? @map("lease_expires_at") @db.Timestamptz(6)
+  // SQL CHECK pins this to FALSE: source discovery never requires GPU capacity.
+  requiresGpu         Boolean   @default(false) @map("requires_gpu")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  runs DefenseBudgetWatcherRun[]
+
+  @@unique([adapterId], map: "defense_budget_watcher_adapter_adapter_id_key")
+  @@index([nextCheckAt], map: "defense_budget_watcher_adapter_next_check_idx")
+  @@map("defense_budget_watcher_adapter")
+}
+
+model DefenseBudgetWatcherRun {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adapterId       String    @map("adapter_id")
+  runKey          String    @map("run_key")
+  status          String    @default("running")
+  startedAt       DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt      DateTime? @map("finished_at") @db.Timestamptz(6)
+  discoveredCount Int       @default(0) @map("discovered_count")
+  unchangedCount  Int       @default(0) @map("unchanged_count")
+  changedCount    Int       @default(0) @map("changed_count")
+  reviewCount     Int       @default(0) @map("review_count")
+  queuedCount     Int       @default(0) @map("queued_count")
+  blockedCount    Int       @default(0) @map("blocked_count")
+  attempt         Int       @default(1)
+  errorClass      String?   @map("error_class")
+  errorMessage    String?   @map("error_message")
+  nextCheckAt     DateTime? @map("next_check_at") @db.Timestamptz(6)
+  metadata        Json      @default("{}") @map("metadata_jsonb")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  adapter DefenseBudgetWatcherAdapter @relation(fields: [adapterId], references: [adapterId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([adapterId, runKey], map: "defense_budget_watcher_run_adapter_run_key")
+  @@index([status, startedAt], map: "defense_budget_watcher_run_status_idx")
+  @@map("defense_budget_watcher_run")
+}
+
+model DefenseBudgetIngestionOutbox {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  observationId    String    @map("observation_id") @db.Uuid
+  // Denormalised so the composite FK below (ON UPDATE CASCADE) plus the
+  // queueable CHECK make an ambiguous observation impossible to enqueue.
+  observationState String    @map("observation_state")
+  cycleId          String    @map("cycle_id") @db.Uuid
+  jobKind          String    @map("job_kind")
+  state            String    @default("pending")
+  attempts         Int       @default(0)
+  availableAt      DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
+  leasedBy         String?   @map("leased_by")
+  leasedUntil      DateTime? @map("leased_until") @db.Timestamptz(6)
+  lastError        String?   @map("last_error")
+  dedupKey         String    @map("dedup_key") @db.Char(64)
+  metadata         Json      @default("{}") @map("metadata_jsonb")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  observation DefenseBudgetSourceObservation @relation(fields: [observationId, observationState], references: [id, observationState], onDelete: Restrict, onUpdate: Cascade)
+  cycle       DefenseBudgetCycle             @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  // A changed source queues EXACTLY ONE job; a repeated observation or a
+  // concurrent worker collides here instead of double-enqueueing.
+  @@unique([observationId, jobKind], map: "defense_budget_ingestion_outbox_observation_job_key")
+  @@unique([dedupKey], map: "defense_budget_ingestion_outbox_dedup_key_key")
+  @@index([state, availableAt], map: "defense_budget_ingestion_outbox_ready_idx")
+  @@index([cycleId], map: "defense_budget_ingestion_outbox_cycle_idx")
+  @@map("defense_budget_ingestion_outbox")
+}
+
+model DefenseBudgetLifecycleSignal {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cycleId           String   @map("cycle_id") @db.Uuid
+  signalKind        String   @map("signal_kind")
+  fiscalYear        Int      @map("fiscal_year")
+  authorityTrack    String   @map("authority_track")
+  fromStage         String   @map("from_stage")
+  toStage           String   @map("to_stage")
+  fromObservationId String   @map("from_observation_id") @db.Uuid
+  toObservationId   String   @map("to_observation_id") @db.Uuid
+  emittedAt         DateTime @default(now()) @map("emitted_at") @db.Timestamptz(6)
+  dedupKey          String   @map("dedup_key") @db.Char(64)
+  // A SQL CHECK refuses any funding-amount key at any nesting depth: a signal
+  // is a notification, never a funding assertion.
+  payload           Json     @default("{}") @map("payload_jsonb")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  cycle           DefenseBudgetCycle             @relation(fields: [cycleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  fromObservation DefenseBudgetSourceObservation @relation("DefenseBudgetSignalFrom", fields: [fromObservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  toObservation   DefenseBudgetSourceObservation @relation("DefenseBudgetSignalTo", fields: [toObservationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([dedupKey], map: "defense_budget_lifecycle_signal_dedup_key_key")
+  @@index([cycleId, signalKind], map: "defense_budget_lifecycle_signal_cycle_idx")
+  @@index([emittedAt], map: "defense_budget_lifecycle_signal_emitted_idx")
+  @@map("defense_budget_lifecycle_signal")
 }

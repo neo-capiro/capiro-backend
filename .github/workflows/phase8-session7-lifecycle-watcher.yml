@@ -1,0 +1,118 @@
+name: Phase 8 Session 7 Lifecycle Controller and Source Watcher
+
+on:
+  push:
+    paths:
+      - 'apps/api/prisma/migrations/20261120230000_phase8_session7_budget_cycle_lifecycle/**'
+      - 'apps/api/prisma/schema.prisma'
+      - 'apps/defense-api/src/budget-lifecycle/**'
+      - 'apps/defense-api/scripts/run-lifecycle-watcher.mjs'
+      - 'apps/defense-api/src/app.module.ts'
+      - 'apps/defense-api/package.json'
+      - 'packages/defense-domain/src/budget-lifecycle/**'
+      - 'packages/defense-domain/src/index.ts'
+      - 'packages/defense-contracts/src/public/budget-lifecycle.ts'
+      - 'packages/defense-contracts/src/index.ts'
+      - 'scripts/*phase8-session7*'
+      - 'docs/defense-budget/phase8-session7-*'
+      - '.github/workflows/phase8-session7-lifecycle-watcher.yml'
+  pull_request:
+    paths:
+      - 'apps/api/prisma/migrations/20261120230000_phase8_session7_budget_cycle_lifecycle/**'
+      - 'apps/api/prisma/schema.prisma'
+      - 'apps/defense-api/src/budget-lifecycle/**'
+      - 'apps/defense-api/scripts/run-lifecycle-watcher.mjs'
+      - 'apps/defense-api/src/app.module.ts'
+      - 'apps/defense-api/package.json'
+      - 'packages/defense-domain/src/budget-lifecycle/**'
+      - 'packages/defense-domain/src/index.ts'
+      - 'packages/defense-contracts/src/public/budget-lifecycle.ts'
+      - 'packages/defense-contracts/src/index.ts'
+      - 'scripts/*phase8-session7*'
+      - 'docs/defense-budget/phase8-session7-*'
+      - '.github/workflows/phase8-session7-lifecycle-watcher.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle-control-plane:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+      - name: Pin pnpm
+        run: corepack prepare pnpm@9.12.0 --activate
+      - name: Frozen workspace install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared defense packages
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-client build
+
+      - name: Lifecycle domain gate
+        run: node scripts/test-phase8-session7-lifecycle-domain.mjs
+
+      - name: defense-api typecheck and build
+        run: |
+          pnpm --filter @capiro/defense-api typecheck
+          pnpm --filter @capiro/defense-api build
+
+      - name: Control-loop unit tests
+        run: pnpm --filter @capiro/defense-api exec tsx --test src/budget-lifecycle/lifecycle-watcher.spec.ts
+
+      # Downloads real official sources from GovInfo and the DoD Comptroller,
+      # hashes them, and asserts the corpus's claimed-present and claimed-absent
+      # evidence patterns really are (and are not) in the published text.
+      - name: Materialise the real official lifecycle corpus
+        run: node scripts/prepare-phase8-session7-lifecycle-corpus.mjs
+
+      - name: Historical lifecycle replay against real sources
+        run: |
+          node scripts/phase8-session7-lifecycle-replay.mjs \
+            --out docs/defense-budget/phase8-session7-lifecycle-replay-evidence.json
+
+      - name: Static control-plane gate
+        run: node scripts/verify-phase8-session7.mjs --enforce-replay
+
+      - name: Authoritative apps/api Prisma validation and generation
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+
+      - name: Defense Prisma validation
+        run: pnpm --filter @capiro/defense-api prisma:validate
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+
+      - name: Disposable Session 7 database rehearsal
+        run: node scripts/verify-phase8-session7-db.mjs
+
+      - name: Preserve accepted Session 2-6 boundaries
+        env:
+          PHASE8_SESSION4_REPLAY_EVIDENCE: docs/defense-budget/phase8-session4-fy27-replay-evidence.json
+        run: |
+          node scripts/verify-phase8-session2.mjs
+          node scripts/verify-phase8-session3.mjs
+          node scripts/verify-phase8-session4.mjs --enforce-replay
+          node scripts/verify-phase8-session5.mjs --enforce-provider-decision
+          node scripts/verify-phase8-session6.mjs --enforce-corpus
+
+      - name: Session 6 domain gate stays green
+        run: node scripts/test-phase8-session6-federal-funding-domain.mjs
+
+      - name: Diff hygiene
+        run: git diff --check origin/${{ github.base_ref || 'main' }}...HEAD
