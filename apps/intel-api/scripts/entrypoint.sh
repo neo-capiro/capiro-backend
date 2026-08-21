@@ -136,7 +136,19 @@ case "${1:-serve}" in
     # registered in src/tasks/task-runner.ts.
     VERB="${2:?verb required (e.g. verify-sourcedata)}"
     shift 2
-    exec node dist/tasks/task-runner.js "$VERB" "$@"
+    # Preserve the old operator-facing verb names while routing them away from
+    # the removed process-local queue implementation.
+    case "$VERB" in
+      hearing-stream-preflight)
+        exec node dist/hearing/capture/public-capture-task-runner.js preflight "$@"
+        ;;
+      hearing-capture-worker)
+        exec node dist/hearing/capture/public-capture-task-runner.js worker "$@"
+        ;;
+      *)
+        exec node dist/tasks/task-runner.js "$VERB" "$@"
+        ;;
+    esac
     ;;
   *)
     echo "Unknown command: $1 (expected: serve | migrate | enable-feature | public-capture-preflight | public-capture-worker | public-capture-status | task <verb>)" >&2
