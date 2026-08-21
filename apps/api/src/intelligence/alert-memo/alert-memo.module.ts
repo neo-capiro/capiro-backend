@@ -4,7 +4,6 @@ import { AiCredentialResolverService } from '../../ai-credentials/ai-credential-
 import { CapiroTruthModule } from '../../capiro-truth/capiro-truth.module.js';
 import { ClientDocumentsModule } from '../../client-documents/client-documents.module.js';
 import { ContextModule } from '../../context/context.module.js';
-import { ContextCompilerService } from '../../context/context-compiler.service.js';
 import { ReviewsModule } from '../../reviews/reviews.module.js';
 import { ReviewsService } from '../../reviews/reviews.service.js';
 import { PrismaModule } from '../../prisma/prisma.module.js';
@@ -13,16 +12,19 @@ import { AlertMemoController } from './alert-memo.controller.js';
 import { AlertMemoService } from './alert-memo.service.js';
 import {
   createGovernedAlertMemoService,
+  PHASE22_BLOCKED_LEGACY_CONTEXT_COMPILER,
   RAW_ALERT_MEMO_SERVICE,
 } from './governed-alert-deliverables.factory.js';
 import { HearingRecapController } from './hearing-recap.controller.js';
 import { HearingRecapService } from './hearing-recap.service.js';
 import { DeliverableEngagementPort } from './deliverable-engagement.port.js';
+import { LegiWatchContextPlaneService } from './legiwatch-context-plane.service.js';
 
 /**
- * Alert Memo and Hearing Recap consume neutral credential, truth, document,
- * context, review, and Prisma boundaries. No broad EngagementModule import is
- * required for document mutation or bill truth.
+ * Phase 22: Alert Memo reasoning consumes shared Context Plane client/history
+ * context while bill/hearing/PE/regulation truth remains on the existing Capiro
+ * truth + intel evidence rails. The raw legacy compiler dependency is blocked in
+ * DI, so the governed wrapper is the only live context acquisition seam.
  */
 @Module({
   imports: [
@@ -36,25 +38,24 @@ import { DeliverableEngagementPort } from './deliverable-engagement.port.js';
   controllers: [AlertMemoController, HearingRecapController],
   providers: [
     DeliverableEngagementPort,
+    LegiWatchContextPlaneService,
     {
       provide: RAW_ALERT_MEMO_SERVICE,
       useFactory: (
         credentials: AiCredentialResolverService,
-        contextCompiler: ContextCompilerService,
         engagementPort: DeliverableEngagementPort,
         prisma: PrismaService,
         reviews: ReviewsService,
       ) =>
         new AlertMemoService(
           credentials,
-          contextCompiler,
+          PHASE22_BLOCKED_LEGACY_CONTEXT_COMPILER as never,
           engagementPort as never,
           prisma,
           reviews,
         ),
       inject: [
         AiCredentialResolverService,
-        ContextCompilerService,
         DeliverableEngagementPort,
         PrismaService,
         ReviewsService,
@@ -63,7 +64,7 @@ import { DeliverableEngagementPort } from './deliverable-engagement.port.js';
     {
       provide: AlertMemoService,
       useFactory: createGovernedAlertMemoService,
-      inject: [RAW_ALERT_MEMO_SERVICE, ContextCompilerService],
+      inject: [RAW_ALERT_MEMO_SERVICE, LegiWatchContextPlaneService],
     },
     HearingRecapService,
   ],

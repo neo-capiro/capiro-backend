@@ -310,8 +310,11 @@ export class OutreachJobService implements OnModuleInit, OnModuleDestroy {
     // resolveJobIdentity() now throws instead of returning null, and that throw
     // is deliberately left uncaught here so the whole submission rejects before
     // any job or item row exists.
+    // Phase 26 cutover: pinning is no longer flag-gated. With the flag off a
+    // generate job was queued UNPINNED, which is the mid-campaign voice split
+    // this pin exists to prevent.
     let pinnedIdentity: PinnedGenerationIdentity | null = null;
-    if (input.kind === 'generate' && this.gateway.enabled) {
+    if (input.kind === 'generate') {
       pinnedIdentity = await this.resolveJobIdentity(ctx, input);
     }
 

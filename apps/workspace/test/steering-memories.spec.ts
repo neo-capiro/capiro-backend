@@ -46,90 +46,17 @@ const VOICE_ROW = {
   sections: [human('Style', 'Plain, direct sentences.')],
 };
 
-function makeAdapter(opts: { userRows: Array<{ id: string }>; memoryRows: unknown[] }) {
-  const executeRaw = jest.fn().mockResolvedValue(undefined);
-  const queryRaw = jest.fn().mockImplementation((strings: TemplateStringsArray) => {
-    const sql = strings.join('?');
-    if (sql.includes('FROM users')) return Promise.resolve(opts.userRows);
-    if (sql.includes('FROM memory_items')) return Promise.resolve(opts.memoryRows);
-    return Promise.resolve([]);
-  });
-  const tx = { $executeRaw: executeRaw, $queryRaw: queryRaw };
-  const prisma = {
-    // The clerk->user resolution runs OUTSIDE the transaction (top-level
-    // $queryRaw); the steering query + trace INSERT run inside $transaction.
-    $queryRaw: queryRaw,
-    $executeRaw: executeRaw,
-    $transaction: jest.fn((fn: (t: unknown) => Promise<unknown>) => fn(tx)),
-  } as unknown as PrismaService;
-  const service = new WorkspaceContextCompilerService(prisma);
-  return { service, executeRaw, queryRaw };
-}
+/**
+ * Phase 21 moved governed-memory loading out of the Workspace service: the
+ * compiler is now a thin backend Context Plane client, not a Prisma reader.
+ * The former "adapter contract" block here asserted the retired behaviour
+ * (direct memory_items reads, GUC setting, local trace INSERT) and could no
+ * longer even compile. Its replacement is
+ * src/generation/context-compiler.canonical-memory.spec.ts, which covers the
+ * HTTP contract and both fail-closed paths. The packet-recomposition contract
+ * below is still live behaviour and is retained unchanged.
+ */
 
-const sqlOf = (mock: jest.Mock, n: number): string =>
-  (mock.mock.calls[n]![0] as TemplateStringsArray).join('|');
-const paramsOf = (mock: jest.Mock, n: number): unknown[] => mock.mock.calls[n]!.slice(1);
-
-describe('WorkspaceContextCompilerService (adapter contract)', () => {
-  it('resolves the Clerk owner, sets BOTH GUCs, binds the resolved uuid', async () => {
-    const { service, executeRaw, queryRaw } = makeAdapter({
-      userRows: [{ id: CAPIRO_UUID }],
-      memoryRows: [FIRM_ROW, VOICE_ROW],
-    });
-    const packet = await service.compileForClerkOwner(
-      { tenantId: 't1', surface: 'workspace-gen', layers: ['firm-identity', 'user-voice'] },
-      CLERK_ID,
-    );
-
-    // users resolution ran with the CLERK id…
-    expect(sqlOf(queryRaw, 0)).toContain('FROM users');
-    expect(paramsOf(queryRaw, 0)).toContain(CLERK_ID);
-    // …both GUCs set, user GUC with the RESOLVED uuid…
-    expect(sqlOf(executeRaw, 0)).toContain('app.current_tenant');
-    expect(sqlOf(executeRaw, 1)).toContain('app.current_user');
-    expect(paramsOf(executeRaw, 1)).toContain(CAPIRO_UUID);
-    // …and the memory query binds the uuid, never the Clerk id.
-    const memCall = queryRaw.mock.calls.findIndex((c) =>
-      (c[0] as TemplateStringsArray).join('').includes('FROM memory_items'),
-    );
-    expect(paramsOf(queryRaw, memCall)).toContain(CAPIRO_UUID);
-    expect(paramsOf(queryRaw, memCall)).not.toContain(CLERK_ID);
-
-    expect(packet.rendered.map((r) => r.type)).toEqual(['firm-soul', 'user-voice']);
-  });
-
-  it('unknown Clerk owner: compiles firm-only with userId null, sets no user GUC', async () => {
-    const { service, executeRaw } = makeAdapter({
-      userRows: [],
-      memoryRows: [FIRM_ROW],
-    });
-    const packet = await service.compileForClerkOwner(
-      { tenantId: 't1', surface: 'workspace-gen', layers: ['firm-identity', 'user-voice'] },
-      CLERK_ID,
-    );
-    const gucCalls = executeRaw.mock.calls.map((c) => (c[0] as TemplateStringsArray).join(''));
-    expect(gucCalls.some((s) => s.includes('app.current_user'))).toBe(false);
-    expect(packet.rendered.map((r) => r.type)).toEqual(['firm-soul']);
-  });
-
-  it('the steering query carries no status filter; superseded rows become exclusions', async () => {
-    const { service, queryRaw } = makeAdapter({
-      userRows: [{ id: CAPIRO_UUID }],
-      memoryRows: [FIRM_ROW, { ...VOICE_ROW, id: 'mi-old', status: 'superseded' }],
-    });
-    const packet = await service.compileForClerkOwner(
-      { tenantId: 't1', surface: 'workspace-gen', layers: ['firm-identity', 'user-voice'] },
-      CLERK_ID,
-    );
-    const memCall = queryRaw.mock.calls.findIndex((c) =>
-      (c[0] as TemplateStringsArray).join('').includes('FROM memory_items'),
-    );
-    expect(sqlOf(queryRaw, memCall)).not.toMatch(/status\s*=/i);
-    expect(packet.exclusions).toEqual([
-      expect.objectContaining({ id: 'mi-old', reason: 'superseded' }),
-    ]);
-  });
-});
 
 describe('GenerationService.loadSteeringMemories (packet recomposition)', () => {
   interface SteeringOut {
@@ -229,6 +156,17 @@ describe('GenerationService.loadSteeringMemories (packet recomposition)', () => 
         surface: 'workspace-gen',
         layers: ['firm-identity', 'user-voice'],
         ref: { draftId: 'draft-1' },
+        // Phase 21 made Workspace generation packet-required, so the request now
+        // carries the governed contract explicitly. These are asserted rather
+        // than loosened away: `persistence: 'required'` and `contractVersion: 2`
+        // are the fields that stop an ungoverned provider call.
+        contractVersion: 2,
+        persistence: 'required',
+        render: 'all',
+        tokenBudget: 12_000,
+        budgetUnit: 'tokens',
+        ethicalWallAllowed: true,
+        traceId: expect.any(String),
       },
       CLERK_ID,
     );
@@ -308,10 +246,16 @@ describe('GenerationService.loadSteeringMemories (packet recomposition)', () => 
     const out = await call(service, CLERK_ID);
     expect(out.contextPacketId).toBeNull();
     expect(out.degraded).toBe(true);
-    expect(out.degradedReasons).toContain('context_packet_not_persisted');
+    expect(out.degradedReasons).toContain('context_plane_packet_not_persisted');
   });
 
-  it('a compile failure is non-fatal: empty context, no throw, marked degraded', async () => {
+  /**
+   * Phase 21 made both Workspace operations packet-required, so a Context Plane
+   * outage is now FAIL-CLOSED. This test previously asserted the opposite (an
+   * empty, "degraded" context returned to the caller), which is precisely the
+   * path that would let generation continue into an ungoverned provider call.
+   */
+  it('a compile failure is fail-closed: it reaches the caller instead of degrading', async () => {
     const compiler = {
       resolveClientIdByExactName: jest.fn(async () => null),
       resolveEthicalWallAllowedForClerkOwner: jest.fn(async () => true),
@@ -326,16 +270,10 @@ describe('GenerationService.loadSteeringMemories (packet recomposition)', () => 
       compiler,
       {} as CollaboratorsService,
     );
-    const out = await call(service);
+
+    await expect(call(service)).rejects.toThrow('db down');
     expect(
       (compiler as unknown as { compileForClerkOwner: jest.Mock }).compileForClerkOwner,
     ).toHaveBeenCalledTimes(1);
-    expect(out).toEqual({
-      memoryFiles: [],
-      contextPacketId: null,
-      contextTraceHash: null,
-      degraded: true,
-      degradedReasons: ['context_compilation_failed'],
-    });
   });
 });

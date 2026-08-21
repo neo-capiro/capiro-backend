@@ -6,6 +6,7 @@ import { createDefaultRerankingProvider } from '../reranking/reranking-provider.
 import { RERANKING_PROVIDER } from '../reranking/reranking-provider.js';
 import { CorePrismaRetrievalAdapter } from './adapters/core-prisma-retrieval.adapter.js';
 import { InstitutionalKnowledgeRetrievalAdapter } from './adapters/institutional-knowledge-retrieval.adapter.js';
+import { StrategyWorkRetrievalAdapter } from './adapters/strategy-work-retrieval.adapter.js';
 import { SemanticDataCatalogService } from './data-catalog/semantic-data-catalog.service.js';
 import { ExactLexicalRetrievalService } from './exact-lexical-retrieval.service.js';
 import { RetrievalPlannerV2Service } from './retrieval-planner-v2.service.js';
@@ -17,8 +18,9 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
 /**
  * Shared Retrieval V2 plane. Domain systems remain authoritative; this module
  * selects/query-composes them and emits coverage proof. Phase 11 exact lexical,
- * Phase 13 reranking, and Phase 14 retrieval-priority scoring are rails inside
- * this same plane, not separate indexes, vector stores, graphs or feature RAGs.
+ * Phase 13 reranking, Phase 14 retrieval-priority scoring, and Phase 25's
+ * read-only Strategy/Steward projection are rails inside this same plane, not
+ * separate indexes, vector stores, graphs or feature RAGs.
  */
 @Module({
   imports: [PrismaModule, KnowledgeModule, EmbeddingsModule],
@@ -34,13 +36,19 @@ import { RetrievalV2Service } from './retrieval-v2.service.js';
     RetrievalScoringService,
     CorePrismaRetrievalAdapter,
     InstitutionalKnowledgeRetrievalAdapter,
+    StrategyWorkRetrievalAdapter,
     {
       provide: RETRIEVAL_SOURCE_ADAPTERS,
       useFactory: (
         core: CorePrismaRetrievalAdapter,
         institutional: InstitutionalKnowledgeRetrievalAdapter,
-      ) => [core, institutional],
-      inject: [CorePrismaRetrievalAdapter, InstitutionalKnowledgeRetrievalAdapter],
+        strategyWork: StrategyWorkRetrievalAdapter,
+      ) => [core, institutional, strategyWork],
+      inject: [
+        CorePrismaRetrievalAdapter,
+        InstitutionalKnowledgeRetrievalAdapter,
+        StrategyWorkRetrievalAdapter,
+      ],
     },
     RetrievalV2Service,
   ],

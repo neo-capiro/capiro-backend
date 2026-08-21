@@ -358,7 +358,7 @@ export const configSchema = z.object({
   // is an explicit out-of-band environment change, never a code-deploy effect.
   ENGAGEMENT_GENERATION_GATEWAY: z
     .string()
-    .default('false')
+    .default('true')
     .transform((v) => ['true', '1', 'yes', 'on'].includes(v.trim().toLowerCase())),
 
   ENGAGEMENT_EMAIL_CONTEXT_SCOPE: z.enum(['mine', 'firm_shared']).default('mine'),

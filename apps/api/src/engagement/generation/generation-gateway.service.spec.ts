@@ -150,6 +150,33 @@ function makeGateway(opts: {
   );
   const drafts = { upsertGeneratedVersion };
   const scanner = { scanRequired: false, providerName: 'none' };
+  const contextPlane = {
+    resolve: jest.fn(async () => ({
+      packetId: 'gov-1',
+      packet: {
+        items: [{ layer: 'user-voice', id: 'm1', type: 'user-voice', slug: 'me', chars: 10 }],
+        exclusions: [],
+      },
+      kind: 'governed_packet',
+      retrievalCompleteness: 'complete',
+      retrievalStopReason: 'complete',
+      evidence: [],
+      standingMemory: [{ layer: 'user-voice', id: 'm1', type: 'user-voice', slug: 'me', chars: 10 }],
+      standingMemoryExclusions: [],
+      failures: [],
+      coverage: {
+        complete: true,
+        requestedDomains: ['clients'],
+        searchedDomains: ['clients'],
+        missingDomains: [],
+        partialDomains: [],
+        stopReason: 'complete',
+        truncated: false,
+        recordsReturned: 0,
+      },
+      promptBlock: 'COVERAGE:\ncomplete=true',
+    })),
+  };
 
   const svc = new GenerationGatewayService(
     config,
@@ -162,8 +189,9 @@ function makeGateway(opts: {
     styles as never,
     drafts as never,
     scanner as never,
+    contextPlane as never,
   );
-  return { svc, complete, packets, plans, upsertGeneratedVersion, ai };
+  return { svc, complete, packets, plans, upsertGeneratedVersion, ai, contextPlane };
 }
 
 function request(over: Partial<GenerationRequest> = {}): GenerationRequest {
@@ -198,7 +226,7 @@ function request(over: Partial<GenerationRequest> = {}): GenerationRequest {
 
 describe('happy path', () => {
   test('produces a sendable result with a manifest and a persisted version', async () => {
-    const { svc, upsertGeneratedVersion } = makeGateway();
+    const { svc, upsertGeneratedVersion, contextPlane } = makeGateway();
     const result = await svc.generate(CTX, request(), enrichment(), [CRED]);
     expect(result.outcome).toBe('ready');
     expect(result.sendable).toBe(true);
@@ -206,6 +234,7 @@ describe('happy path', () => {
     expect(result.manifest.contextPacketId).toBe('packet-1');
     expect(result.manifest.promptSpecVersion).toBe(GATEWAY_PROMPT_SPEC_VERSION);
     expect(upsertGeneratedVersion).toHaveBeenCalledTimes(1);
+    expect(contextPlane.resolve).toHaveBeenCalledTimes(1);
   });
 
   test('the manifest reports the resolved policy and the mailbox scope verbatim', async () => {

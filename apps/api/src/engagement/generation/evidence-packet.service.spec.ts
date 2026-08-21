@@ -51,18 +51,6 @@ function makeService(opts: {
     withTenant: async (_t: string, fn: (tx: unknown) => Promise<unknown>) =>
       fn({ contextPacket: { create } }),
   };
-  const contextCompiler = {
-    compile: jest.fn(async () => {
-      if (opts.compilerThrows) throw new Error('steering unavailable');
-      return {
-        items: [{ layer: 'user-voice', id: 'm1', type: 'user-voice', slug: 'me', chars: 10 }],
-        exclusions: [
-          { layer: 'client-steering', id: 'm2', type: 'client-soul', slug: 'c', reason: 'revoked' },
-        ],
-        rendered: [],
-      };
-    }),
-  };
   const sources = {
     resolveSelectedItems: jest.fn(async () => ({
       evidence: opts.resolved?.evidence ?? [],
@@ -71,12 +59,50 @@ function makeService(opts: {
     })),
     resolveRelevantEmail: jest.fn(async () => ({ evidence: [], failures: [] })),
   };
-  const svc = new EvidencePacketService(
-    prisma as never,
-    contextCompiler as never,
-    sources as never,
-  );
-  return { svc, create, created, contextCompiler, sources };
+  // Phase 26: EvidencePacketService no longer compiles its own standing memory;
+  // the governed packet supplied on every request is the only source.
+  const svc = new EvidencePacketService(prisma as never, sources as never);
+  return { svc, create, created, sources };
+}
+
+/**
+ * Minimal governed Context Plane result. Phase 26 made this REQUIRED on every
+ * request: the gateway is the only generation path, so a packet always exists
+ * and there is no compiler fallback left to exercise.
+ */
+function governed(): CompileOutreachPacketRequest['governedContext'] {
+  return {
+    packetId: 'gov-default',
+    packet: {
+      items: [{ layer: 'firm-identity', id: 'g1', type: 'firm-soul', slug: 'firm', chars: 8 }],
+      exclusions: [
+        { layer: 'client-steering', id: 'g2', type: 'client-soul', slug: 'c', reason: 'revoked' },
+      ],
+      rendered: [],
+    },
+    kind: 'governed_packet',
+    retrievalCompleteness: 'complete',
+    retrievalStopReason: 'complete',
+    evidence: [],
+    standingMemory: [
+      { layer: 'firm-identity', id: 'g1', type: 'firm-soul', slug: 'firm', chars: 8 },
+    ],
+    standingMemoryExclusions: [
+      { layer: 'client-steering', id: 'g2', type: 'client-soul', slug: 'c', reason: 'revoked' },
+    ],
+    failures: [],
+    coverage: {
+      complete: true,
+      requestedDomains: [],
+      searchedDomains: [],
+      missingDomains: [],
+      partialDomains: [],
+      recordsReturned: 0,
+      truncated: false,
+      stopReason: 'complete',
+    },
+    promptBlock: '',
+  };
 }
 
 function request(over: Partial<CompileOutreachPacketRequest> = {}): CompileOutreachPacketRequest {
@@ -98,6 +124,7 @@ function request(over: Partial<CompileOutreachPacketRequest> = {}): CompileOutre
     now: NOW,
     packetId: 'packet-1',
     recipientIdentityResolved: true,
+    governedContext: governed(),
     ...over,
   };
 }
@@ -245,9 +272,25 @@ describe('failures are never silently converted to empty context', () => {
     expect(packet.failures[0]?.code).toBe('RECIPIENT_IDENTITY_UNRESOLVED');
   });
 
-  test('a steering-memory failure is recorded but is NOT critical', async () => {
-    const { svc } = makeService({ compilerThrows: true });
-    const packet = await svc.compileOutreachPacket(CTX, request());
+  /**
+   * Phase 26 removed the local standing-memory compile, so a steering shortfall
+   * is now reported BY the Context Plane and rides through
+   * governedContext.failures. The invariant under test is unchanged: it must be
+   * recorded, and it must not be treated as critical.
+   */
+  test('a governed steering-memory failure is recorded but is NOT critical', async () => {
+    const { svc } = makeService();
+    const context = governed();
+    context.failures = [
+      {
+        sourceType: 'standingMemory',
+        code: 'STEERING_MEMORY_UNAVAILABLE',
+        severity: 'informational',
+        userMessage:
+          'Your saved voice and client steering memory could not be loaded, so the draft is written in the default register.',
+      },
+    ];
+    const packet = await svc.compileOutreachPacket(CTX, request({ governedContext: context }));
     expect(packet.failures.map((f) => f.code)).toContain('STEERING_MEMORY_UNAVAILABLE');
     expect(packet.criticalFailureCount).toBe(0);
   });
@@ -290,13 +333,52 @@ describe('persistence', () => {
   });
 });
 
-describe('standing memory rides through the Context Compiler', () => {
-  test('the compiler is called rather than memory_items being queried directly', async () => {
-    const { svc, contextCompiler } = makeService();
+describe('standing memory comes only from the governed Context Plane packet', () => {
+  test('the packet supplies standing memory and its exclusions', async () => {
+    const { svc } = makeService();
     const packet = await svc.compileOutreachPacket(CTX, request());
-    expect(contextCompiler.compile).toHaveBeenCalledTimes(1);
     expect(packet.standingMemory).toHaveLength(1);
     expect(packet.standingMemoryExclusions).toHaveLength(1);
+  });
+
+  test('a governed Context Plane packet is the authoritative standing-memory source', async () => {
+    const { svc } = makeService();
+    const packet = await svc.compileOutreachPacket(
+      CTX,
+      request({
+        governedContext: {
+          packetId: 'gov-1',
+          packet: {
+            items: [{ layer: 'firm-identity', id: 'g1', type: 'firm-soul', slug: 'firm', chars: 8 }],
+            exclusions: [],
+          },
+          kind: 'governed_packet',
+          retrievalCompleteness: 'complete',
+          retrievalStopReason: 'complete',
+          evidence: [],
+          standingMemory: [
+            { layer: 'firm-identity', id: 'g1', type: 'firm-soul', slug: 'firm', chars: 8 },
+          ],
+          standingMemoryExclusions: [],
+          failures: [],
+          coverage: {
+            complete: true,
+            requestedDomains: [],
+            searchedDomains: [],
+            missingDomains: [],
+            partialDomains: [],
+            stopReason: 'complete',
+            truncated: false,
+            recordsReturned: 0,
+          },
+          promptBlock: 'COVERAGE:\ncomplete=true',
+        },
+      }),
+    );
+    expect(packet.standingMemory.map((item) => item.id)).toEqual(['g1']);
+    expect(packet.evidence.some((item) => item.ref.sourceType === 'context_plane:coverage')).toBe(
+      true,
+    );
   });
 });
 

@@ -11,15 +11,19 @@ import { ContextPersistenceBoundaryService } from './context-persistence-boundar
 import { ContextPlaneAuditService } from './context-plane-audit.service.js';
 import { ContextPlaneGatewayService } from './context-plane-gateway.service.js';
 import { ContextResolverService } from './context-resolver.service.js';
+import { InternalStrategyContextController } from './internal-strategy-context.controller.js';
+import { StrategyContextPlaneService } from './strategy-context-plane.service.js';
 
 /**
  * One shared Context Plane module. Phase 15 resolves scope, Phase 16 normalizes
  * five layers, Phase 17 compiles coverage-aware governed ContextPacket V2, and
  * Phase 18 exposes the registered-operation enforcement gateway. Product
- * migration exceptions are removed in Phases 19-25.
+ * migration exceptions are removed in Phases 19-25. The Phase 25 controller is
+ * backend-only and lets isolated api-strategy consume this same boundary.
  */
 @Module({
   imports: [PrismaModule, KnowledgeModule, RetrievalModule],
+  controllers: [InternalStrategyContextController],
   providers: [
     ContextPersistenceBoundaryService,
     ContextCompilerService,
@@ -28,6 +32,7 @@ import { ContextResolverService } from './context-resolver.service.js';
     ContextPacketV2Service,
     ContextPlaneAuditService,
     ContextPlaneGatewayService,
+    StrategyContextPlaneService,
     {
       provide: APP_INTERCEPTOR,
       useClass: ContextPersistenceBoundaryInterceptor,
@@ -41,6 +46,7 @@ import { ContextResolverService } from './context-resolver.service.js';
     ContextPacketV2Service,
     ContextPlaneAuditService,
     ContextPlaneGatewayService,
+    StrategyContextPlaneService,
   ],
 })
 export class ContextModule {}

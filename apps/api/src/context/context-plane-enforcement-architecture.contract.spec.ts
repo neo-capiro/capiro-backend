@@ -14,7 +14,7 @@ const corePath = join(
 
 const read = (path: string) => readFileSync(path, 'utf8');
 
-describe('Knowledge Plane Phase 18 architecture contract', () => {
+describe('Knowledge Plane Phase 26 enforcement architecture contract', () => {
   test('packet-required operations use the Phase 15 -> 17 shared pipeline only', () => {
     const gateway = read(gatewayPath);
 
@@ -40,28 +40,29 @@ describe('Knowledge Plane Phase 18 architecture contract', () => {
     expect(core).not.toContain('skipContextPlane');
   });
 
-  test('adopted Meri operations are governed while remaining product paths stay explicit reviewed debt', () => {
+  test('every adopted product operation is governed and the live registry carries no migration scaffolding', () => {
     const registry = read(registryPath);
 
-    for (const adopted of ["id: 'meri.chat'", "id: 'meri.research'", "id: 'research.generate-report'"]) {
+    for (const adopted of [
+      "id: 'meri.chat'",
+      "id: 'meri.research'",
+      "id: 'research.generate-report'",
+      "id: 'outreach.generate'",
+      "id: 'workspace.generate'",
+      "id: 'workspace.editor-assist'",
+      "id: 'legiwatch.generate-report'",
+      "id: 'crm.fill-with-meri'",
+      "id: 'meetings.prep-debrief'",
+      "id: 'strategies.generate'",
+    ]) {
       expect(registry).toContain(adopted);
     }
     expect(registry).toContain('governedOperation({');
-    for (const marker of [
-      'apps/api/src/engagement/',
-      'apps/workspace/',
-      'apps/api/src/workspace-assistant/',
-      'apps/api/src/intelligence/alert-memo/',
-      'apps/intel-api/',
-      'apps/api/src/clients/',
-      'apps/api-strategy/src/context/',
-    ]) {
-      expect(registry).toContain(marker);
-    }
-    expect(registry).toContain('approvalBasis: APPROVAL_BASIS');
-    expect(registry).not.toContain('phase19-meri-chat-adoption');
-    expect(registry).not.toContain('phase19-meri-research-adoption');
-    expect(registry).not.toContain('phase19-research-report-adoption');
+    expect(registry).not.toContain('defineContextMigrationException');
+    expect(registry).not.toContain('migrationOperation({');
+    expect(registry).not.toContain('approvalBasis');
+    expect(registry).not.toContain('legacyPaths: [');
+    expect(registry).toContain('context_operation_migration_debt_remains');
   });
 
   test('enforcement decisions are auditable without copying prompts, responses, or retrieved bodies', () => {

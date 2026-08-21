@@ -50,16 +50,6 @@ function makeService(opts: {
         outreachRecord: { findMany },
       }),
   };
-  const contextCompiler = {
-    compile: jest.fn(async () => ({
-      rendered:
-        opts.voiceMemory == null
-          ? []
-          : [{ layer: 'user-voice', type: 'user-voice', body: opts.voiceMemory }],
-      items: [],
-      exclusions: [],
-    })),
-  };
   const complete = jest.fn(async () => {
     if (opts.extractThrows) throw new Error('provider down');
     return {
@@ -78,22 +68,22 @@ function makeService(opts: {
       usage: { inputTokens: 10, outputTokens: 5 },
     };
   });
-  const svc = new AuthorStyleProfileService(
-    prisma as never,
-    contextCompiler as never,
-    { complete } as never,
-  );
-  return { svc, complete, findMany };
+  // Phase 26: voice memory is projected from the governed packet by the caller,
+  // so this service no longer holds a compiler of its own.
+  const svc = new AuthorStyleProfileService(prisma as never, { complete } as never);
+  // Phase 26: voice memory is supplied by the caller from the governed packet.
+  const voiceMemory = opts.voiceMemory ?? null;
+  return { svc, complete, findMany, voiceMemory };
 }
 
 describe('no raw example text ever reaches the prompt', () => {
   test('the rendered profile block contains no example content', async () => {
-    const { svc } = makeService({
+    const { svc, voiceMemory } = makeService({
       consent: true,
       examples: [{ body: SECRET_EXAMPLE }],
       voiceMemory: 'Direct, warm, no jargon.',
     });
-    const profile = await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW });
+    const profile = await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW, voiceMemory });
     expect(profile).not.toBeNull();
     const block = svc.renderProfileBlock(profile!);
     expect(block).not.toMatch(/CONFIDENTIAL/);
@@ -104,27 +94,27 @@ describe('no raw example text ever reaches the prompt', () => {
   });
 
   test('the profile object has no field a raw body could hide in', async () => {
-    const { svc } = makeService({ consent: true, examples: [{ body: SECRET_EXAMPLE }] });
-    const profile = await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW });
+    const { svc, voiceMemory } = makeService({ consent: true, examples: [{ body: SECRET_EXAMPLE }] });
+    const profile = await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW, voiceMemory });
     expect(JSON.stringify(profile)).not.toMatch(/CONFIDENTIAL/);
   });
 });
 
 describe('examples are client-scoped and consent-gated (§4.17)', () => {
   test('with NO consent, examples are not even queried', async () => {
-    const { svc, findMany, complete } = makeService({
+    const { svc, findMany, complete, voiceMemory } = makeService({
       consent: false,
       voiceMemory: 'Direct and warm.',
     });
-    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW });
+    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW, voiceMemory });
     expect(findMany).not.toHaveBeenCalled();
     // …and no extraction call is made either.
     expect(complete).not.toHaveBeenCalled();
   });
 
   test('with consent, the query is scoped to the CAMPAIGN client', async () => {
-    const { svc, findMany } = makeService({ consent: true, examples: [{ body: 'x' }] });
-    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW });
+    const { svc, findMany, voiceMemory } = makeService({ consent: true, examples: [{ body: 'x' }] });
+    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW, voiceMemory });
     const calls = findMany.mock.calls as unknown as Array<[{ where: Record<string, unknown> }]>;
     const where = calls[0]![0].where;
     expect(where.clientId).toBe('c1');
@@ -132,45 +122,45 @@ describe('examples are client-scoped and consent-gated (§4.17)', () => {
   });
 
   test('with NO campaign client there is no safe scope, so no examples are read', async () => {
-    const { svc, findMany } = makeService({ consent: true, voiceMemory: 'Direct.' });
-    await svc.getProfile(CTX, null, { creds: [CRED], now: NOW });
+    const { svc, findMany, voiceMemory } = makeService({ consent: true, voiceMemory: 'Direct.' });
+    await svc.getProfile(CTX, null, { creds: [CRED], now: NOW, voiceMemory });
     expect(findMany).not.toHaveBeenCalled();
   });
 });
 
 describe('degradation never blocks factual generation (§4.18)', () => {
   test('an extractor failure falls back to voice memory', async () => {
-    const { svc } = makeService({
+    const { svc, voiceMemory } = makeService({
       consent: true,
       examples: [{ body: SECRET_EXAMPLE }],
       voiceMemory: 'Direct, warm, no jargon.',
       extractThrows: true,
     });
-    const profile = await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW });
+    const profile = await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW, voiceMemory });
     expect(profile).not.toBeNull();
     expect(profile!.derivedFrom).toEqual(['voice_memory']);
   });
 
   test('no voice memory and no consented examples yields null, not an error', async () => {
-    const { svc } = makeService({ voiceMemory: null });
-    await expect(svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW })).resolves.toBeNull();
+    const { svc, voiceMemory } = makeService({ voiceMemory: null });
+    await expect(svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW, voiceMemory })).resolves.toBeNull();
   });
 });
 
 describe('extraction is not repeated per recipient', () => {
   test('a second call with the same sources reuses the cached profile', async () => {
-    const { svc, complete } = makeService({ consent: true, examples: [{ body: SECRET_EXAMPLE }] });
-    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW });
-    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW });
-    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW });
+    const { svc, complete, voiceMemory } = makeService({ consent: true, examples: [{ body: SECRET_EXAMPLE }] });
+    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW, voiceMemory });
+    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW, voiceMemory });
+    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW, voiceMemory });
     expect(complete).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('voice-memory-only path', () => {
   test('needs no LLM call at all', async () => {
-    const { svc, complete } = makeService({ voiceMemory: 'Short, direct, no jargon.' });
-    const profile = await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW });
+    const { svc, complete, voiceMemory } = makeService({ voiceMemory: 'Short, direct, no jargon.' });
+    const profile = await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW, voiceMemory });
     expect(complete).not.toHaveBeenCalled();
     expect(profile?.sentenceLength).toBe('short');
     expect(profile?.toneTags).toContain('direct');
@@ -180,8 +170,8 @@ describe('voice-memory-only path', () => {
 
 describe('untrusted-sample handling', () => {
   test('examples are spotlighted in the extraction prompt', async () => {
-    const { svc, complete } = makeService({ consent: true, examples: [{ body: SECRET_EXAMPLE }] });
-    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW });
+    const { svc, complete, voiceMemory } = makeService({ consent: true, examples: [{ body: SECRET_EXAMPLE }] });
+    await svc.getProfile(CTX, 'c1', { creds: [CRED], now: NOW, voiceMemory });
     const call = (complete.mock.calls as unknown as Array<[{ system: string; userVolatile: string }]>)[0]![0];
     expect(call.userVolatile).toMatch(/<<<EXTERNAL_CONTENT/);
     expect(call.system).toMatch(/untrusted sample DATA/);

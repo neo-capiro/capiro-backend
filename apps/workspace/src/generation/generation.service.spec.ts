@@ -25,6 +25,7 @@ interface Harness {
   config: () => Record<string, unknown>;
   versions: () => Array<{ id: string; label: string }>;
   promptsFor: (section: string) => number;
+  promptFor: (section: string) => string | undefined;
   setSectionOutcome: (section: string, outcome: SectionOutcome) => void;
   compileCalls: () => Array<Record<string, unknown>>;
 }
@@ -44,6 +45,8 @@ function harness(
     /** Simulate a walled client the caller holds no grant for (closeout §6). */
     ethicalWallDenied?: boolean;
     snapshotFails?: boolean;
+    retrievalEvidence?: string;
+    compileFails?: boolean;
   } = {},
 ): Harness {
   const sections = opts.sections ?? ['Overview', 'Request'];
@@ -56,6 +59,7 @@ function harness(
   const versions: Array<{ id: string; label: string }> = [];
   const outcomes = new Map<string, SectionOutcome>();
   const promptCounts = new Map<string, number>();
+  const promptBodies = new Map<string, string>();
   const compileCalls: Array<Record<string, unknown>> = [];
 
   const prisma = {
@@ -117,6 +121,7 @@ function harness(
     resolveEthicalWallAllowedForClerkOwner: async () => opts.ethicalWallDenied !== true,
     compileForClerkOwner: async (request: Record<string, unknown>) => {
       compileCalls.push(request);
+      if (opts.compileFails) throw new Error('context_plane_transport_failed');
       return {
         packetId: PACKET,
         version: 1,
@@ -154,6 +159,9 @@ function harness(
         traceHash: 'trace-hash-1',
         persisted: opts.packetPersisted ?? true,
         compiledAt: '2026-07-28T00:00:00.000Z',
+        ...(opts.retrievalEvidence
+          ? { supplementalEvidence: opts.retrievalEvidence }
+          : {}),
       };
     },
   } as unknown as WorkspaceContextCompilerService;
@@ -175,6 +183,7 @@ function harness(
     const prompt = payload.messages[0]?.content ?? '';
     const section = /Draft the "([^"]+)" section/.exec(prompt)?.[1] ?? 'unknown';
     promptCounts.set(section, (promptCounts.get(section) ?? 0) + 1);
+    promptBodies.set(section, prompt);
     const outcome = outcomes.get(section) ?? { kind: 'ok' as const };
     if (outcome.kind === 'http') {
       return {
@@ -198,6 +207,7 @@ function harness(
     config: () => config,
     versions: () => versions,
     promptsFor: (section) => promptCounts.get(section) ?? 0,
+    promptFor: (section) => promptBodies.get(section),
     setSectionOutcome: (section, outcome) => outcomes.set(section, outcome),
     compileCalls: () => compileCalls,
   };
@@ -325,6 +335,26 @@ describe('GenerationService generation runs', () => {
 
     expect(run.status).toBe('complete_with_warnings');
     expect(run.invalidCitations).toEqual([{ section: 'Overview', token: '[S:pe:0603851F]' }]);
+  });
+
+  it('passes the bounded shared Retrieval V2 evidence to every generated section', async () => {
+    const h = harness({ retrievalEvidence: '[clients:client-1] Distinctive retrieval body' });
+    const run = runOf(await h.service.generateAllSectionsInProcess(TENANT, DRAFT, 'clerk_owner'));
+
+    expect(run.status).toBe('complete');
+    expect(h.promptFor('Overview')).toContain('Distinctive retrieval body');
+    expect(h.promptFor('Request')).toContain('Distinctive retrieval body');
+    expect(h.compileCalls()).toHaveLength(1);
+  });
+
+  it('holds generation closed when the required Context Plane result is unavailable', async () => {
+    const h = harness({ compileFails: true });
+    const run = h.service.generateAllSectionsInProcess(TENANT, DRAFT, 'clerk_owner');
+
+    await expect(run).rejects.toThrow('context_plane_transport_failed');
+    expect(h.promptsFor('Overview')).toBe(0);
+    expect(h.promptsFor('Request')).toBe(0);
+    expect(h.config().sectionContent).toEqual({});
   });
 
   it('records the durable context packet and the credential that actually ran', async () => {

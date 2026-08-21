@@ -1,155 +1,96 @@
 import type { TenantContext } from '@capiro/shared';
-import { ContextPacketPersistenceError } from '@capiro/meriv2-core';
 import {
   createGovernedAlertMemoService,
   createGovernedDistrictBriefService,
+  PHASE22_BLOCKED_LEGACY_CONTEXT_COMPILER,
 } from './governed-alert-deliverables.factory.js';
+import type { AlertMemoService } from './alert-memo.service.js';
+import type { DistrictBriefService } from './district-brief.service.js';
 
 const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as TenantContext;
+const alert = {
+  alertId: 'alert-1',
+  sourceType: 'bill',
+  title: 'H.R. 8800 floor update',
+} as never;
 
-function compiler(result: unknown = { rendered: [], exclusions: [] }) {
-  return { compile: jest.fn().mockResolvedValue(result) };
+const governed = {
+  steering: '## Client Soul\nClient identity.\n\n## Firm Playbook\nFirm instructions.',
+  supplementalContext:
+    '<capiro_legiwatch_context_plane>\nSUPPLEMENTAL CLIENT/HISTORY CONTEXT:\n[contacts:c1] relationship history\n</capiro_legiwatch_context_plane>',
+  memoryFilesUsed: ['client-soul', 'firm-playbook'],
+  contextExcluded: [
+    { title: 'firm-playbook', reason: 'superseded' },
+    { title: 'Restricted item', reason: 'unauthorized' },
+  ],
+};
+
+/**
+ * Explicit `this` shape for the legacy loader seam. The fakes below are object
+ * literals cast to the real service type, so `this` needs an annotation for the
+ * retained-seam call to typecheck.
+ */
+interface RawSteeringSeam {
+  loadSteering: (...args: unknown[]) => Promise<unknown>;
 }
 
-type MemoLoader = (
-  value: TenantContext,
-  clientId: string,
-  clientName: string,
-) => Promise<{
-  steering: string;
-  memoryFilesUsed: string[];
-  contextExcluded: Array<{ title: string; reason: string }>;
-}>;
-
-type BriefLoader = (
-  value: TenantContext,
-  clientId: string,
-  clientName: string,
-) => Promise<{ steering: string; memoryFilesUsed: string[] }>;
-
-describe('governed alert deliverable context loaders', () => {
-  it.each(['memo', 'district-brief'] as const)(
-    'rethrows a required %s persistence failure before generation',
-    async (surface) => {
-      const failure = new ContextPacketPersistenceError(
-        'context_packet_error',
-        'attempt-1',
-        surface,
-      );
-      const contextCompiler = compiler();
-      contextCompiler.compile.mockRejectedValueOnce(failure);
-
-      if (surface === 'memo') {
-        const service = createGovernedAlertMemoService(
-          {} as never,
-          contextCompiler as never,
-        ) as unknown as { loadSteering: MemoLoader };
-        await expect(service.loadSteering(ctx, 'client-1', 'Acme')).rejects.toBe(failure);
-      } else {
-        const service = createGovernedDistrictBriefService(
-          {} as never,
-          contextCompiler as never,
-        ) as unknown as { loadSteering: BriefLoader };
-        await expect(service.loadSteering(ctx, 'client-1', 'Acme')).rejects.toBe(failure);
-      }
-    },
-  );
-
-  it('retains neutral memo fallback for an ordinary context outage', async () => {
-    const contextCompiler = compiler();
-    contextCompiler.compile.mockRejectedValueOnce(new Error('temporarily unavailable'));
-    const service = createGovernedAlertMemoService(
-      {} as never,
-      contextCompiler as never,
-    ) as unknown as { loadSteering: MemoLoader };
-
-    const result = await service.loadSteering(ctx, 'client-1', 'Acme');
-    expect(result.steering).toContain('No client knowledge files on record for Acme');
-    expect(result.memoryFilesUsed).toEqual([]);
-    expect(result.contextExcluded).toEqual([]);
+describe('governed alert deliverable context loaders — Phase 22', () => {
+  test('the raw legacy compiler is structurally disabled after adoption', async () => {
+    await expect(PHASE22_BLOCKED_LEGACY_CONTEXT_COMPILER.compile()).rejects.toThrow(
+      'phase22_legacy_context_compiler_disabled',
+    );
   });
 
-  it('retains neutral district-brief fallback for an ordinary context outage', async () => {
-    const contextCompiler = compiler();
-    contextCompiler.compile.mockRejectedValueOnce(new Error('temporarily unavailable'));
-    const service = createGovernedDistrictBriefService(
-      {} as never,
-      contextCompiler as never,
-    ) as unknown as { loadSteering: BriefLoader };
+  test('memo wrapper receives canonical steering/exclusions from the shared LegiWatch Context Plane', async () => {
+    let loaded: unknown;
+    const raw = {
+      loadSteering: async () => {
+        throw new Error('legacy loader should not execute');
+      },
+      generate: async function (this: RawSteeringSeam) {
+        loaded = await this.loadSteering(ctx, 'client-1', 'Acme');
+        return { ok: true };
+      },
+    } as unknown as AlertMemoService;
+    const contextPlane = { resolve: jest.fn().mockResolvedValue(governed) };
+    const service = createGovernedAlertMemoService(raw, contextPlane as never);
 
-    const result = await service.loadSteering(ctx, 'client-1', 'Acme');
-    expect(result.steering).toContain('No client knowledge files on record for Acme');
-    expect(result.memoryFilesUsed).toEqual([]);
-  });
+    await service.generate(ctx, 'client-1', alert, 'Acme');
 
-  it('composes memo steering in canonical order and withholds restricted identity', async () => {
-    const contextCompiler = compiler({
-      rendered: [
-        { type: 'playbook', title: 'Playbook', body: 'Firm instructions.' },
-        { type: 'client-compass', title: 'Compass', body: 'Strategic direction.' },
-        { type: 'client-soul', title: 'Soul', body: 'Client identity.' },
-        { type: 'client-people', title: 'People', body: 'Relationships.' },
-      ],
-      exclusions: [
-        { type: 'playbook', slug: 'old', reason: 'superseded' },
-        { reason: 'unauthorized' },
-      ],
+    expect(loaded).toEqual({
+      steering: `${governed.steering}\n\n${governed.supplementalContext}`,
+      memoryFilesUsed: governed.memoryFilesUsed,
+      contextExcluded: governed.contextExcluded,
     });
-    const service = createGovernedAlertMemoService(
-      {} as never,
-      contextCompiler as never,
-    ) as unknown as { loadSteering: MemoLoader };
-
-    const result = await service.loadSteering(ctx, 'client-1', 'Acme');
-    expect(result.steering.indexOf('## Soul')).toBeLessThan(result.steering.indexOf('## Compass'));
-    expect(result.steering.indexOf('## Compass')).toBeLessThan(
-      result.steering.indexOf('## People'),
-    );
-    expect(result.steering.indexOf('## People')).toBeLessThan(
-      result.steering.indexOf('## Playbook'),
-    );
-    expect(result.memoryFilesUsed).toEqual([
-      'client-soul',
-      'client-compass',
-      'client-people',
-      'firm-playbook',
-    ]);
-    expect(result.contextExcluded).toEqual([
-      { title: 'firm-playbook', reason: 'superseded' },
-      { title: 'Restricted item', reason: 'unauthorized' },
-    ]);
-    expect(contextCompiler.compile).toHaveBeenCalledWith(
-      expect.objectContaining({
-        surface: 'memo',
-        render: 'all',
-        charBudget: 8000,
-      }),
-    );
+    expect(contextPlane.resolve).toHaveBeenCalledTimes(1);
   });
 
-  it('composes district-brief steering from the same governed sources', async () => {
-    const contextCompiler = compiler({
-      rendered: [
-        { type: 'client-soul', title: 'Soul', body: 'Client identity.' },
-        { type: 'playbook', title: 'Playbook', body: 'Firm instructions.' },
-      ],
-      exclusions: [],
-    });
-    const service = createGovernedDistrictBriefService(
-      {} as never,
-      contextCompiler as never,
-    ) as unknown as { loadSteering: BriefLoader };
+  test('district-brief wrapper uses the same operation while carrying facility focus', async () => {
+    let loaded: unknown;
+    const raw = {
+      loadSteering: async () => {
+        throw new Error('legacy loader should not execute');
+      },
+      generate: async function (this: RawSteeringSeam) {
+        loaded = await this.loadSteering(ctx, 'client-1', 'Acme');
+        return { ok: true };
+      },
+    } as unknown as DistrictBriefService;
+    const contextPlane = { resolve: jest.fn().mockResolvedValue(governed) };
+    const service = createGovernedDistrictBriefService(raw, contextPlane as never);
 
-    const result = await service.loadSteering(ctx, 'client-1', 'Acme');
-    expect(result.steering).toBe(
-      '## Soul\nClient identity.\n\n## Playbook\nFirm instructions.',
-    );
-    expect(result.memoryFilesUsed).toEqual(['client-soul', 'firm-playbook']);
-    expect(contextCompiler.compile).toHaveBeenCalledWith(
+    await service.generate(ctx, 'client-1', 'facility-1', alert);
+
+    expect(loaded).toEqual({
+      steering: `${governed.steering}\n\n${governed.supplementalContext}`,
+      memoryFilesUsed: governed.memoryFilesUsed,
+    });
+    expect(contextPlane.resolve).toHaveBeenCalledWith(
+      ctx,
       expect.objectContaining({
-        surface: 'district-brief',
-        render: 'all',
-        charBudget: 8000,
+        clientId: 'client-1',
+        alertId: 'alert-1',
+        facilityId: 'facility-1',
       }),
     );
   });

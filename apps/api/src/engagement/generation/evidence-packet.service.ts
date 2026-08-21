@@ -24,8 +24,9 @@ import { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { ContextCompilerService } from '../../context/context-compiler.service.js';
 import { EvidenceSourceService, type SelectedContextItemRef } from './evidence-source.service.js';
+import type { OutreachGovernedContext } from './outreach-context-plane.service.js';
+import { projectStandingMemory } from './outreach-context-plane.service.js';
 import {
   canonicalJson,
   compareEvidence,
@@ -108,6 +109,17 @@ export interface CompileOutreachPacketRequest {
    * when the gateway path is turned on.
    */
   authHeader?: string;
+  /**
+   * Phase 20 governed Context Plane result — REQUIRED.
+   *
+   * Phase 26 removed the legacy generation path, so every Outreach packet is
+   * compiled behind GenerationGatewayService and therefore always has a shared
+   * ContextPacket. It is the authoritative standing-memory and
+   * autonomous-retrieval source; selected items remain user-curated evidence and
+   * are still resolved separately. There is deliberately no fallback that
+   * compiles a second, independent standing-memory packet.
+   */
+  governedContext: OutreachGovernedContext;
 }
 
 /** Thrown when the packet cannot be persisted and the gateway is fail-closed. */
@@ -125,7 +137,6 @@ export class EvidencePacketService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly contextCompiler: ContextCompilerService,
     private readonly sources: EvidenceSourceService,
   ) {}
 
@@ -154,22 +165,39 @@ export class EvidencePacketService {
     directives.push(...resolved.directives);
     failures.push(...resolved.failures);
 
-    // ---- 3. Standing memory through the Context Compiler ----
-    // NOT a direct memory_items query: the compiler owns the withTenantUser
-    // tenancy discipline and the ethical-wall gate, and duplicating either is how
-    // three production bugs happened before it existed.
-    const standing = await this.loadStandingMemory(ctx, request.clientId);
-    if (standing.failed) {
-      failures.push(
-        sourceFailure(
-          'standingMemory',
-          'STEERING_MEMORY_UNAVAILABLE',
-          'informational',
-          'Your saved voice and client steering memory could not be loaded, so the draft is written in the default register.',
-        ),
-      );
+    // ---- 3. Standing memory / autonomous retrieval from the Context Plane ----
+    // Phase 20: the shared ContextPacket is authoritative. Do not compile a
+    // second independent standing-memory packet that can disagree with it.
+    const standing = projectStandingMemory(request.governedContext.packet);
+    {
+      // Any standing-memory or retrieval shortfall is reported BY the Context
+      // Plane and rides through governedContext.failures, so it still surfaces
+      // instead of becoming a silently empty context.
+      evidence.push(...request.governedContext.evidence);
+      failures.push(...request.governedContext.failures);
+      if (request.governedContext.promptBlock.trim()) {
+        const coverage = boundEvidenceText(request.governedContext.promptBlock);
+        evidence.push({
+          ref: {
+            sourceType: 'context_plane:coverage',
+            sourceId: request.governedContext.packetId ?? 'context-plane-coverage',
+            title: 'Context Plane coverage',
+            clientId: request.clientId,
+            sourceCreatedAt: null,
+            authoritativeAsOf: null,
+            retrievedAt: request.now.toISOString(),
+            trust: 'server_record',
+            provenance: {
+              retrievalCompleteness: request.governedContext.retrievalCompleteness,
+              retrievalStopReason: request.governedContext.retrievalStopReason,
+              truncated: coverage.truncated,
+            },
+          },
+          evidenceText: coverage.text,
+          scope: 'all',
+        });
+      }
     }
-
     // ---- 4/5. Enrichment channels, each failing VISIBLY ----
     for (const channel of request.enrichments) {
       try {
@@ -289,9 +317,10 @@ export class EvidencePacketService {
   /**
    * Persist the packet to `context_packet` as packet_version=2.
    *
-   * NOTE: writes SYNCHRONOUSLY, unlike ContextCompilerService.persistPacket which
-   * is fire-and-forget by design. The compiler's trace remains fire-and-forget for
-   * every non-Engagement surface (§3.c1 step 10) — this method does not change it.
+   * NOTE: writes SYNCHRONOUSLY, unlike the shared Context Plane compiler's own
+   * packet persistence, which is fire-and-forget by design. That trace remains
+   * fire-and-forget for every non-Engagement surface (§3.c1 step 10) — this
+   * method does not change it.
    */
   private async persist(packet: EvidencePacketV2, failClosed: boolean): Promise<void> {
     try {
@@ -353,41 +382,6 @@ export class EvidencePacketService {
     }
   }
 
-  /** Compile standing memory, reporting failure rather than swallowing it. */
-  private async loadStandingMemory(
-    ctx: TenantContext,
-    clientId: string | null,
-  ): Promise<{ items: StandingMemoryRef[]; exclusions: StandingMemoryExclusion[]; failed: boolean }> {
-    try {
-      const compiled = await this.contextCompiler.compile({
-        tenantId: ctx.tenantId,
-        userId: ctx.userId,
-        clientId,
-        surface: 'outreach',
-        layers: ['user-voice', 'firm-identity', 'client-steering', 'client-people'],
-      });
-      return {
-        items: compiled.items.map((i) => ({
-          layer: String(i.layer),
-          id: String(i.id),
-          type: String(i.type),
-          slug: String(i.slug),
-          chars: Number(i.chars ?? 0),
-        })),
-        exclusions: compiled.exclusions.map((x) => ({
-          layer: String(x.layer),
-          id: String(x.id),
-          type: String(x.type),
-          slug: String(x.slug),
-          reason: String(x.reason),
-        })),
-        failed: false,
-      };
-    } catch (e) {
-      this.logger.warn(`standing-memory compile failed: ${(e as Error).message}`);
-      return { items: [], exclusions: [], failed: true };
-    }
-  }
 }
 
 /**

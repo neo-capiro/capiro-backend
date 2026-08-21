@@ -1,194 +1,180 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { WorkspaceContextCompilerService } from './context-compiler.service';
-import type { PrismaService } from '../prisma/prisma.service';
 
-const ROW = {
-  id: '11111111-1111-4111-8111-111111111111',
-  type: 'playbook',
-  slug: 'firm',
-  title: 'FY27 position',
-  clientId: null,
-  ownerUserId: null,
-  visibility: 'tenant',
-  status: 'active',
-  legacyStatus: 'active',
-  governedStatus: 'active',
-  sections: [{ owner: 'human', heading: 'Memory', body: 'Support the verified plus-up.' }],
-  memoryClass: 'institutional_authoritative',
-  governedAuthority: 'firm_approved',
-  sourceType: 'user_message',
-  sourceId: '33333333-3333-4333-8333-333333333333',
-  sourceVersion: 'candidate:33333333-3333-4333-8333-333333333333',
-  approvedByUserId: '44444444-4444-4444-8444-444444444444',
-  approvedAt: '2026-07-30T00:00:00.000Z',
-  asOf: '2026-07-30T00:00:00.000Z',
-  sensitivity: 'normal',
-  conflictStatus: 'none',
+const TENANT = '11111111-1111-4111-8111-111111111111';
+const DRAFT = '22222222-2222-4222-8222-222222222222';
+const CLIENT = '33333333-3333-4333-8333-333333333333';
+const CLERK = 'user_phase21';
+
+const PACKET = {
+  version: 2 as const,
+  tenantId: TENANT,
+  effectiveTenantId: TENANT,
+  surface: 'workspace-gen' as const,
+  packetId: '44444444-4444-4444-8444-444444444444',
+  generatedPacketId: '44444444-4444-4444-8444-444444444444',
+  persistedPacketId: '44444444-4444-4444-8444-444444444444',
+  persisted: true,
+  userId: '55555555-5555-4555-8555-555555555555',
+  actorUserId: '55555555-5555-4555-8555-555555555555',
+  clientId: CLIENT,
+  ref: { draftId: DRAFT },
+  items: [],
+  exclusions: [],
+  rendered: [],
+  traceHash: 'phase21-trace',
+  contractVersion: 2 as const,
+  traceId: null,
+  promptVersion: 'workspace-phase21',
+  policyVersion: 'workspace-phase21',
+  compilerVersion: 'phase21',
+  requiredLayers: [],
+  health: { status: 'healthy' as const, reasons: [] },
+  totalTokenBudget: 12000,
+  usedTokens: 0,
+  truncated: false,
+  incomplete: false,
 };
 
-function sqlText(strings: unknown): string {
-  if (Array.isArray(strings)) return strings.join('?');
-  const sql = strings as { strings?: string[]; raw?: string[] };
-  return (sql.strings ?? sql.raw ?? []).join('?');
-}
+describe('Workspace Context Plane client — Phase 21', () => {
+  const originalBase = process.env.API_BASE_URL;
+  const originalSecret = process.env.INTERNAL_SERVICE_SECRET;
 
-describe('Workspace canonical governed memory — Phase 8', () => {
-  function harness(options: { canary?: boolean; surfaceCanary?: boolean } = {}) {
-    const sql: string[] = [];
-    const queries: Array<{ sql: string; values: unknown[] }> = [];
-    const executions: Array<{ sql: string; values: unknown[] }> = [];
-    const tx = {
-      $executeRaw: jest.fn(async (arg: unknown, ...values: unknown[]) => {
-        executions.push({ sql: sqlText(arg), values });
-        return 1;
-      }),
-      $queryRaw: jest.fn(async (arg: unknown, ...values: unknown[]) => {
-        const text = sqlText(arg);
-        sql.push(text);
-        queries.push({ sql: text, values });
-        if (text.includes('FROM memory_items')) return [ROW];
-        if (text.includes('FROM context_packet')) return [{ id: String(values[0]) }];
-        return [];
-      }),
-    };
-    const prisma = {
-      $transaction: jest.fn(async (fn: (value: typeof tx) => unknown) => fn(tx)),
-      $queryRaw: jest.fn(async (arg: unknown) => {
-        const text = sqlText(arg);
-        if (text.includes('FROM tenants')) {
-          return [
-            {
-              settings: {
-                clioFeatureFlags: {
-                  'meriv2.contextPacketV2': options.canary !== false,
-                  'meriv2.contextPacketV2.workspace-gen': options.surfaceCanary !== false,
-                },
-              },
-            },
-          ];
-        }
-        return [];
-      }),
-    } as unknown as PrismaService;
-    return {
-      service: new WorkspaceContextCompilerService(prisma),
-      sql,
-      queries,
-      executions,
-    };
-  }
-
-  const original = process.env.MERIV2_CONTEXT_PACKET_V2;
   beforeEach(() => {
-    delete process.env.MERIV2_CONTEXT_PACKET_V2;
-  });
-  afterEach(() => {
-    if (original === undefined) delete process.env.MERIV2_CONTEXT_PACKET_V2;
-    else process.env.MERIV2_CONTEXT_PACKET_V2 = original;
+    process.env.API_BASE_URL = 'https://api.example.test';
+    process.env.INTERNAL_SERVICE_SECRET = 'phase21-secret';
   });
 
-  it('off keeps v1 free of unapplied governed columns', async () => {
-    const h = harness();
-    const packet = await h.service.compileForClerkOwner({
-      tenantId: 't1',
-      surface: 'workspace-gen',
-      layers: ['firm-playbook'],
-      contractVersion: 2,
+  afterEach(() => {
+    jest.restoreAllMocks();
+    if (originalBase === undefined) delete process.env.API_BASE_URL;
+    else process.env.API_BASE_URL = originalBase;
+    if (originalSecret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
+    else process.env.INTERNAL_SERVICE_SECRET = originalSecret;
+  });
+
+  it('routes document generation through the backend Context Plane with the service secret', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          packet: PACKET,
+          governedContext: { prompt: 'governed retrieval body' },
+          supplementalEvidence: 'distinctive retrieval body',
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        },
+      ),
+    );
+    const service = new WorkspaceContextCompilerService();
+
+    const packet = await service.compileForClerkOwner(
+      {
+        tenantId: TENANT,
+        surface: 'workspace-gen',
+        layers: ['firm-identity', 'user-voice'],
+        ref: { draftId: DRAFT },
+      },
+      CLERK,
+    );
+
+    expect(packet).toMatchObject({
+      ...PACKET,
+      governedContext: { prompt: 'governed retrieval body' },
+      supplementalEvidence: 'distinctive retrieval body',
     });
-    expect(packet.version).toBe(1);
-    expect(packet).not.toHaveProperty('rolloutMode');
-    expect(h.sql.find((text) => text.includes('FROM memory_items'))).not.toContain(
-      'memory_authority',
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe('https://api.example.test/api/internal/workspace/context/compile');
+    expect((init?.headers as Record<string, string>)['x-internal-service-secret']).toBe(
+      'phase21-secret',
+    );
+    expect(JSON.parse(String(init?.body))).toEqual(
+      expect.objectContaining({
+        tenantId: TENANT,
+        clerkUserId: CLERK,
+        operationId: 'workspace.generate',
+      }),
     );
   });
 
-  it('enforce returns the exact canonical id and authority', async () => {
-    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
-    const h = harness();
-    const packet = await h.service.compileForClerkOwner({
-      tenantId: 't1',
-      surface: 'workspace-gen',
-      layers: ['firm-playbook'],
-    });
-    expect(packet.version).toBe(2);
-    const memoryQuery = h.queries.find((entry) => entry.sql.includes('FROM memory_items'));
-    expect(memoryQuery).toBeDefined();
-    expect(
-      memoryQuery!.values.some((value) =>
-        sqlText(value).includes('governed_status AS "governedStatus"'),
+  it('routes editor/comment assistance to workspace.editor-assist', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          packet: { ...PACKET, surface: 'workspace-editor' },
+          governedContext: { prompt: 'editor governed prompt' },
+          supplementalEvidence: 'editor retrieval evidence',
+        }),
+        { status: 200 },
       ),
-    ).toBe(true);
-    expect(packet.items).toEqual([
-      expect.objectContaining({
-        id: ROW.id,
-        authority: 'firm_approved',
-        memoryClass: 'institutional_authoritative',
-      }),
-    ]);
-  });
+    );
+    const service = new WorkspaceContextCompilerService();
 
-  it('Workspace excludes a governed terminal row when legacy status is active', async () => {
-    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
-    const h = harness();
-    const original = ROW.governedStatus;
-    ROW.governedStatus = 'expired';
-    try {
-      const packet = await h.service.compileForClerkOwner({
-        tenantId: 't1',
+    await service.compileForClerkOwner(
+      {
+        tenantId: TENANT,
         surface: 'workspace-gen',
-        layers: ['firm-playbook'],
-      });
-      expect(packet.version).toBe(2);
-      if (packet.version !== 2) throw new Error('expected v2');
-      expect(packet.items).toEqual([]);
-      expect(packet.exclusions).toEqual([
-        expect.objectContaining({ id: ROW.id, reason: 'expired' }),
-      ]);
-    } finally {
-      ROW.governedStatus = original;
-    }
+        layers: ['firm-identity', 'user-voice'],
+        ref: {},
+      },
+      CLERK,
+    );
+
+    const [, init] = fetchSpy.mock.calls[0]!;
+    expect(JSON.parse(String(init?.body))).toEqual(
+      expect.objectContaining({ operationId: 'workspace.editor-assist' }),
+    );
   });
 
-  it('a tenant umbrella without the exact Workspace surface canary remains on v1', async () => {
-    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
-    const packet = await harness({ surfaceCanary: false }).service.compileForClerkOwner({
-      tenantId: 't1',
-      surface: 'workspace-gen',
-      layers: ['firm-playbook'],
-    });
-    expect(packet.version).toBe(1);
+  it('delegates exact client lookup and ethical-wall authorization to apps/api', async () => {
+    const fetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ clientId: CLIENT }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ allowed: true }), { status: 200 }));
+    const service = new WorkspaceContextCompilerService();
+
+    await expect(service.resolveClientIdByExactName(TENANT, 'Acme')).resolves.toBe(CLIENT);
+    await expect(
+      service.resolveEthicalWallAllowedForClerkOwner(TENANT, CLERK, CLIENT),
+    ).resolves.toBe(true);
+
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/resolve-client');
+    expect(String(fetchSpy.mock.calls[1]?.[0])).toContain('/authorize-client');
   });
 
-  it('persists the server-resolved effective tenant rather than replacing it with tenantId', async () => {
-    process.env.MERIV2_CONTEXT_PACKET_V2 = 'enforce';
-    const h = harness();
-    const packet = await h.service.compileForClerkOwner({
-      tenantId: 'tenant-1',
-      effectiveTenantId: 'effective-tenant-1',
-      surface: 'workspace-gen',
-      layers: ['firm-playbook'],
-    });
-    const insert = h.executions.find((entry) => entry.sql.includes('INSERT INTO context_packet'));
-    expect(insert).toBeDefined();
-    expect(insert!.values[1]).toBe('tenant-1');
-    expect(insert!.values[2]).toBe('effective-tenant-1');
-    expect(packet.effectiveTenantId).toBe('effective-tenant-1');
-    expect(packet.persisted).toBe(true);
+  it('fails closed when the governed runtime projection is missing', async () => {
+    jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ packet: PACKET }), { status: 200 }),
+    );
+    const service = new WorkspaceContextCompilerService();
+    await expect(
+      service.compileForClerkOwner(
+        {
+          tenantId: TENANT,
+          surface: 'workspace-gen',
+          layers: ['firm-identity'],
+          ref: { draftId: DRAFT },
+        },
+        CLERK,
+      ),
+    ).rejects.toThrow('workspace_context_plane_governed_projection_missing');
   });
 
-  it('shadow persists both packets but returns unchanged v1', async () => {
-    process.env.MERIV2_CONTEXT_PACKET_V2 = 'shadow';
-    const h = harness();
-    const packet = await h.service.compileForClerkOwner({
-      tenantId: 't1',
-      surface: 'workspace-gen',
-      layers: ['firm-playbook'],
-    });
-    expect(packet.version).toBe(1);
-    expect(packet).not.toHaveProperty('rolloutMode');
-    expect(packet).not.toHaveProperty('shadowComparison');
-    expect(
-      h.executions.filter((entry) => entry.sql.includes('INSERT INTO context_packet')),
-    ).toHaveLength(2);
+  it('fails closed when the backend service secret is unavailable', async () => {
+    delete process.env.INTERNAL_SERVICE_SECRET;
+    const service = new WorkspaceContextCompilerService();
+    await expect(
+      service.compileForClerkOwner(
+        {
+          tenantId: TENANT,
+          surface: 'workspace-gen',
+          layers: ['firm-identity'],
+          ref: { draftId: DRAFT },
+        },
+        CLERK,
+      ),
+    ).rejects.toThrow('workspace_context_plane_internal_secret_missing');
   });
 });

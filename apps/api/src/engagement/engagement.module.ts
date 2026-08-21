@@ -22,6 +22,11 @@ import {
   createGovernedEngagementService,
   RAW_ENGAGEMENT_SERVICE,
 } from './governed-engagement.factory.js';
+import {
+  createGovernedMeetingAiService,
+  RAW_ENGAGEMENT_AI_SERVICE,
+} from './governed-meeting-ai.factory.js';
+import { MeetingContextPlaneService } from './meeting-context-plane.service.js';
 import { OutreachJobService } from './outreach-job.service.js';
 import { RaceSafeOutreachJobService } from './race-safe-outreach-job.service.js';
 import { NotetakerService } from './notetaker/notetaker.service.js';
@@ -30,7 +35,6 @@ import { MicrosoftGraphSyncService } from './microsoft/microsoft-graph-sync.serv
 import { MicrosoftOAuthService } from './microsoft/microsoft-oauth.service.js';
 import { TokenCryptoService } from './microsoft/token-crypto.service.js';
 import { ContextModule } from '../context/context.module.js';
-import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { ContextPersistenceBoundaryService } from '../context/context-persistence-boundary.service.js';
 import { GoogleOAuthService } from './google/google-oauth.service.js';
 import { GoogleSyncService } from './google/google-sync.service.js';
@@ -54,6 +58,7 @@ import { MessagePlanService } from './generation/message-plan.service.js';
 import { GenerationVerifierService } from './generation/generation-verifier.service.js';
 import { GenerationGatewayService } from './generation/generation-gateway.service.js';
 import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
+import { OutreachContextPlaneService } from './generation/outreach-context-plane.service.js';
 import { EngagementRuntimeModule } from './runtime/engagement-runtime.module.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 import { guardEngagementAiService } from './runtime/engagement-ai-runtime.boundary.js';
@@ -142,6 +147,7 @@ import {
         guardGmailSendService(raw, runtime),
       inject: [RAW_GMAIL_SEND_SERVICE, EngagementRuntimePolicyService],
     },
+    MeetingContextPlaneService,
     { provide: RAW_ENGAGEMENT_SERVICE, useClass: EngagementService },
     {
       provide: EngagementService,
@@ -149,7 +155,7 @@ import {
       inject: [
         RAW_ENGAGEMENT_SERVICE,
         ContextPersistenceBoundaryService,
-        ContextCompilerService,
+        MeetingContextPlaneService,
         EngagementRuntimePolicyService,
       ],
     },
@@ -179,7 +185,7 @@ import {
     OutcomeService,
     ClientAssociationService,
     {
-      provide: EngagementAiService,
+      provide: RAW_ENGAGEMENT_AI_SERVICE,
       useFactory: (
         config: ConfigService<AppConfig, true>,
         lobbyIntel: LobbyIntelService,
@@ -198,6 +204,11 @@ import {
         AiCredentialResolverService,
         EngagementRuntimePolicyService,
       ],
+    },
+    {
+      provide: EngagementAiService,
+      useFactory: createGovernedMeetingAiService,
+      inject: [RAW_ENGAGEMENT_AI_SERVICE],
     },
     MeetingNotesCryptoService,
     EngagementMailSender,
@@ -221,6 +232,7 @@ import {
     GenerationVerifierService,
     GenerationGatewayService,
     AlertPacketClientService,
+    OutreachContextPlaneService,
   ],
   exports: [
     EngagementRuntimeModule,

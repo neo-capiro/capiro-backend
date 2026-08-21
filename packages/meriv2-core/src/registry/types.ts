@@ -59,17 +59,22 @@ export interface MeriContextPacketSummary {
 }
 
 /**
- * Phase 19 model-facing projection of the shared Context Plane.
+ * Model-facing projection of the shared Context Plane.
  *
- * The prompt is runtime-only and may contain authorized steering/evidence bodies.
- * The packet summary is deliberately body-free and safe to persist/display. The
- * retrieval projection is a compatibility contract for Meri surfaces; its truth
- * comes from Retrieval V2 / ContextPacket V2 rather than a Meri-owned coverage
- * engine.
+ * Phase 19 introduced this transport for Meri/research. Workspace, Outreach and
+ * Strategies reuse the same runtime-only prompt plus body-free packet/coverage
+ * projection so their orchestrators never need another context compiler.
  */
 export interface MeriGovernedTurnContext {
   version: 1;
-  operationId: 'meri.chat' | 'meri.research' | 'research.generate-report';
+  operationId:
+    | 'meri.chat'
+    | 'meri.research'
+    | 'research.generate-report'
+    | 'workspace.generate'
+    | 'workspace.editor-assist'
+    | 'outreach.generate'
+    | 'strategies.generate';
   prompt: string;
   contextPacket: MeriContextPacketSummary;
   retrieval: {

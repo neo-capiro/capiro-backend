@@ -5,31 +5,45 @@ import { VersioningService } from '../strategy/versioning.service.js';
 import { FirmPhasesModule } from '../firm-phases/firm-phases.module.js';
 import { ReferenceModule } from '../reference/reference.module.js';
 import { ContextModule } from '../context/context.module.js';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { StrategyAiCredentialResolver } from './strategy-ai-credential.resolver.js';
 import { StrategyAttachmentResolver } from './strategy-attachment.resolver.js';
 import { StrategyOrchestratorClient } from './strategy-orchestrator.client.js';
 import { StrategyConversationService } from './strategy-conversation.service.js';
+import { StrategyContextPlaneClient } from './strategy-context-plane.client.js';
+import {
+  createGovernedStrategyMeriService,
+  RAW_STRATEGY_MERI_SERVICE,
+} from './governed-strategy-meri.factory.js';
 
 /**
- * Strategy Planner Meri (G5). PrismaService + FlagsModule (guards) + ConfigModule
- * are @Global; VersioningService is stateless so provided locally (parity with
- * StrategyModule). The resolver + orchestrator client own the D19 creds hop.
- * ContextModule exports the Stage E StewardService — draft/assistant forward
- * stewardFacts + stewardHealth from it (wire-contract 2).
+ * Strategy Planner Meri. The raw service retains the mature Strategy mutation,
+ * verifier, versioning and conversation pipeline. The exported MeriService is a
+ * thin governed wrapper that resolves one shared Context Plane bundle before
+ * every draft/edit/document reasoning call.
  */
 @Module({
   imports: [FirmPhasesModule, ReferenceModule, ContextModule],
   controllers: [MeriController],
   providers: [
-    MeriService,
     VersioningService,
     StrategyAiCredentialResolver,
     StrategyAttachmentResolver,
     StrategyOrchestratorClient,
     StrategyConversationService,
+    StrategyContextPlaneClient,
+    {
+      provide: RAW_STRATEGY_MERI_SERVICE,
+      useClass: MeriService,
+    },
+    {
+      provide: MeriService,
+      useFactory: createGovernedStrategyMeriService,
+      inject: [RAW_STRATEGY_MERI_SERVICE, StrategyContextPlaneClient, PrismaService],
+    },
   ],
-  // Stage C: AgentsModule replays ChangeSet ops through MeriService.applyEditSet.
-  // Phase 4 will append Watch-acceptance messages via StrategyConversationService.
+  // AgentsModule replays ChangeSet ops through the same governed service. The
+  // non-reasoning apply/verify methods pass through unchanged.
   exports: [MeriService, StrategyConversationService],
 })
 export class MeriModule {}

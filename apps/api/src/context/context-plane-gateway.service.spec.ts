@@ -41,7 +41,6 @@ function governedOperation(): ContextPlaneOperationRegistration {
     }),
     resolverSurface: 'research',
     owner: 'test',
-    legacyPaths: [],
   };
 }
 
@@ -69,7 +68,7 @@ function harness(mode: 'off' | 'shadow' | 'enforce' = 'enforce') {
   return { service, resolver, packets, compiler, audit, context };
 }
 
-describe('ContextPlaneGatewayService Phase 18/19', () => {
+describe('ContextPlaneGatewayService Phase 18-26', () => {
   afterEach(() => jest.restoreAllMocks());
 
   test('unregistered operation is denied and audited before resolver/retrieval', async () => {
@@ -94,63 +93,36 @@ describe('ContextPlaneGatewayService Phase 18/19', () => {
     );
   });
 
-  test('remaining reviewed Phase 20-25 migration exception exits before retrieval and is audited', async () => {
-    const h = harness();
-    const result = await h.service.requestContext({
-      operationId: 'outreach.generate',
-      resolverRequest: resolverRequest('outreach'),
-      contextRequest: contextRequest('outreach'),
-    });
+  test.each([
+    ['strategies.generate', 'strategy', 'strategy', 25],
+    ['meetings.prep-debrief', 'engagement', 'memo', 24],
+    ['crm.fill-with-meri', 'client-profile', 'research', 23],
+    ['legiwatch.generate-report', 'legiwatch', 'memo', 22],
+    ['workspace.generate', 'workspace-gen', 'workspace-gen', 21],
+    ['workspace.editor-assist', 'workspace-editor', 'workspace-editor', 21],
+    ['outreach.generate', 'outreach', 'outreach', 20],
+    ['meri.chat', 'chat', 'chat', 19],
+    ['meri.research', 'research', 'research', 19],
+    ['research.generate-report', 'research', 'research', 19],
+  ] as const)(
+    '%s is packet-required',
+    async (operationId, resolverSurface, packetSurface, phase) => {
+      const h = harness('enforce');
+      const resolverReq = resolverRequest(resolverSurface);
+      const compilerReq = contextRequest(packetSurface);
 
-    expect(result.kind).toBe('migration_exception');
-    expect(h.resolver.resolveAndRetrieve).not.toHaveBeenCalled();
-    expect(h.packets.compile).not.toHaveBeenCalled();
-    expect(h.audit.record).toHaveBeenCalledWith(
-      expect.objectContaining({
-        product: 'outreach',
-        decision: expect.objectContaining({
-          reason: 'migration_exception',
-          migrationTargetPhase: 20,
-        }),
-      }),
-    );
-  });
+      const result = await h.service.requestContext({
+        operationId,
+        resolverRequest: resolverReq,
+        contextRequest: compilerReq,
+        currentPhase: phase,
+      });
 
-  test('remaining migration exception expires automatically when its adoption phase begins', async () => {
-    const h = harness();
-    await expect(
-      h.service.requestContext({
-        operationId: 'outreach.generate',
-        resolverRequest: resolverRequest('outreach'),
-        contextRequest: contextRequest('outreach'),
-        currentPhase: 20,
-      }),
-    ).rejects.toMatchObject({ status: 403 });
-
-    expect(h.resolver.resolveAndRetrieve).not.toHaveBeenCalled();
-    expect(h.audit.record).toHaveBeenCalledWith(
-      expect.objectContaining({
-        decision: expect.objectContaining({ reason: 'migration_exception_expired' }),
-      }),
-    );
-  });
-
-  test('Phase 19 Meri chat is now packet-required', async () => {
-    const h = harness('enforce');
-    const resolverReq = resolverRequest('chat');
-    const compilerReq = contextRequest('chat');
-
-    const result = await h.service.requestContext({
-      operationId: 'meri.chat',
-      resolverRequest: resolverReq,
-      contextRequest: compilerReq,
-      currentPhase: 19,
-    });
-
-    expect(result.kind).toBe('governed_packet');
-    expect(h.resolver.resolveAndRetrieve).toHaveBeenCalledWith(resolverReq);
-    expect(h.packets.compile).toHaveBeenCalledWith(compilerReq, h.context, undefined);
-  });
+      expect(result.kind).toBe('governed_packet');
+      expect(h.resolver.resolveAndRetrieve).toHaveBeenCalledWith(resolverReq);
+      expect(h.packets.compile).toHaveBeenCalledWith(compilerReq, h.context, undefined);
+    },
+  );
 
   test('packet-required operation can only reach reasoning through resolver and ContextPacket V2', async () => {
     jest.spyOn(operationRegistry, 'contextPlaneOperation').mockReturnValue(governedOperation());

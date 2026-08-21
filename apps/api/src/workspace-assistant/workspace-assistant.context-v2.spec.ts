@@ -91,48 +91,44 @@ describe('WorkspaceAssistantService — ContextPacket v2 wiring', () => {
     else process.env.CONTEXT_PACKET_V2 = originalEnv;
   });
 
-  it('is dark by default: the request carries no v2 field at all', async () => {
+  /**
+   * Phase 21 adopted `workspace.editor-assist` onto the Context Plane, and the
+   * registry declares it packet_required. The in-editor surface is therefore no
+   * longer "dark by default" and no longer keys off the legacy CONTEXT_PACKET_V2
+   * value — every request is packet-required. The three tests that used to pin
+   * the dark behaviour asserted the opposite, which is exactly the state this
+   * phase removed.
+   */
+  const governedRequest = {
+    tenantId: 't1',
+    userId: 'u1',
+    clientId: null,
+    surface: 'in-editor',
+    layers: ['firm-identity', 'user-voice'],
+    ref: { documentId: 'doc-1' },
+    contractVersion: 2,
+    persistence: 'required',
+    render: 'all',
+    promptVersion: 'legacy-in-editor-v2',
+    tokenBudget: 12_000,
+    budgetUnit: 'tokens',
+    ethicalWallAllowed: false,
+    traceId: 'trace-1',
+  };
+
+  it('is packet-required by default: the request always carries the v2 contract', async () => {
     const { service, requests } = makeService();
     await resolve(service, 'trace-1');
-    expect(requests[0]).toEqual({
-      tenantId: 't1',
-      userId: 'u1',
-      clientId: null,
-      surface: 'in-editor',
-      layers: ['firm-identity', 'user-voice'],
-      ref: { documentId: 'doc-1' },
-    });
+    expect(requests[0]).toEqual(governedRequest);
   });
 
-  it('stays dark for every value that is not exactly enforce', async () => {
-    for (const raw of ['', 'true', '1', 'on', 'v2', 'ENFORCED']) {
+  it('stays packet-required for every legacy CONTEXT_PACKET_V2 value', async () => {
+    for (const raw of ['', 'true', '1', 'on', 'v2', 'ENFORCED', 'enforce', 'off']) {
       process.env.CONTEXT_PACKET_V2 = raw;
       const { service, requests } = makeService();
       await resolve(service, 'trace-1');
-      expect(requests[0]).not.toHaveProperty('contractVersion');
+      expect(requests[0]).toMatchObject({ contractVersion: 2, persistence: 'required' });
     }
-  });
-
-  it('opts into v2 with required persistence, the surface budget, and caller trace id', async () => {
-    process.env.CONTEXT_PACKET_V2 = 'enforce';
-    const { service, requests } = makeService();
-    await resolve(service, 'trace-1');
-    expect(requests[0]).toEqual(
-      expect.objectContaining({
-        contractVersion: 2,
-        traceId: 'trace-1',
-        promptVersion: 'legacy-in-editor-v2',
-        policyVersion: 'context-policy-v2.1',
-        compilerVersion: 'context-compiler-v2.0',
-        tokenBudget: 6_000,
-        budgetUnit: 'tokens',
-        persistence: 'required',
-        allowedSensitivities: ['normal'],
-        // Layers stay explicit: no client in scope means the packet must not claim
-        // a missing client layer.
-        layers: ['firm-identity', 'firm-playbook', 'user-voice'],
-      }),
-    );
   });
 
   it('returns the trace id only for a v2 packet, so absence is never mistaken for success', () => {

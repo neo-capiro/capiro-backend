@@ -142,6 +142,9 @@ function makeOwnerHarness(records: Array<Record<string, unknown>>): OwnerHarness
   patch.logger = { warn: () => {}, error: () => {}, log: () => {} };
   patch.versionedOutreach = false;
   patch.prisma = { withTenant: (_t: string, fn: (t: unknown) => unknown) => fn(tx) };
+  // Ownership is resolved by getOutreachRecord() BEFORE any generation work, so
+  // these ordering proofs stub the first governed collaborator instead.
+  patch.gateway = {};
 
   return { service, records: state, findFirstWheres, findManyWheres };
 }
@@ -315,8 +318,11 @@ describe('generateOutreachDraft owner isolation (§3.a4)', () => {
   function harness() {
     const h = makeOwnerHarness([baseRecord()]);
     const patch = h.service as unknown as Record<string, unknown>;
-    patch.outreachContext = async () => {
-      throw new Error('REACHED outreachContext');
+    // Phase 26 made the governed gateway the only generation path, so the first
+    // collaborator past the ownership gate is the gateway hand-off, not the
+    // legacy outreachContext loader. The ordering proof is unchanged.
+    patch.generateBatchEmailsViaGateway = async () => {
+      throw new Error('REACHED governed generation');
     };
     return h;
   }
@@ -326,7 +332,7 @@ describe('generateOutreachDraft owner isolation (§3.a4)', () => {
     const caught = await h.service
       .generateOutreachDraft(userA, RECORD_ID, {})
       .catch((e: unknown) => e);
-    expect((caught as Error).message).toBe('REACHED outreachContext');
+    expect((caught as Error).message).toBe('REACHED governed generation');
   });
 
   test('another same-tenant user is refused BEFORE generation, with no AI spend', async () => {

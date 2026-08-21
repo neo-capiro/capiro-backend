@@ -25,7 +25,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { ContextCompilerService } from '../../context/context-compiler.service.js';
 import {
   LlmCompletionService,
   LLM_LONG_GENERATION_TIMEOUT_MS,
@@ -101,7 +100,6 @@ export class AuthorStyleProfileService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly contextCompiler: ContextCompilerService,
     private readonly llm: LlmCompletionService,
   ) {}
 
@@ -120,9 +118,16 @@ export class AuthorStyleProfileService {
       creds?: ResolvedAiCredential[];
       now?: Date;
       runtimeAction?: 'outreach_generate' | 'outreach_v3_generate';
+      /**
+       * The author's user-voice layer, projected from the governed ContextPacket
+       * the caller already holds. Phase 26 removed this service's own
+       * single-layer compile so the governed generation path no longer reaches
+       * around ContextPlaneGatewayService for voice memory.
+       */
+      voiceMemory?: string | null;
     },
   ): Promise<AuthorStyleProfile | null> {
-    const voiceMemory = await this.loadVoiceMemory(ctx, clientId);
+    const voiceMemory = opts?.voiceMemory?.trim() ? opts.voiceMemory : null;
     const examples = await this.loadConsentedExamples(ctx, clientId);
 
     if (!voiceMemory && !examples.length) return null;
@@ -204,29 +209,6 @@ export class AuthorStyleProfileService {
 
   // ── Sources ───────────────────────────────────────────────────────────────
 
-  /** The author's human-authored voice memory, via the Context Compiler. */
-  private async loadVoiceMemory(
-    ctx: TenantContext,
-    clientId: string | null,
-  ): Promise<string | null> {
-    try {
-      const packet = await this.contextCompiler.compile({
-        tenantId: ctx.tenantId,
-        userId: ctx.userId,
-        clientId,
-        surface: 'outreach',
-        layers: ['user-voice'],
-      });
-      const parts = packet.rendered
-        .filter((r) => r.layer === 'user-voice')
-        .map((r) => r.body.trim())
-        .filter(Boolean);
-      return parts.length ? parts.join('\n\n') : null;
-    } catch (e) {
-      this.logger.warn(`voice-memory load failed: ${(e as Error).message}`);
-      return null;
-    }
-  }
 
   /**
    * At most three of the author's own sent outreach bodies, for the SAME client,

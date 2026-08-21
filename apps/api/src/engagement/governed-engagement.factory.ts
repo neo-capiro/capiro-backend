@@ -1,8 +1,12 @@
+import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
-import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { ContextPersistenceBoundaryService } from '../context/context-persistence-boundary.service.js';
-import { rethrowRequiredContextPersistence } from '../context/context-required-persistence.js';
 import { EngagementService } from './engagement.service.js';
+import { MeetingContextPlaneService } from './meeting-context-plane.service.js';
+import {
+  currentMeetingGovernedContext,
+  runWithMeetingGovernedContext,
+} from './meeting-context-runtime.js';
 import { EngagementRuntimePolicyService } from './runtime/engagement-runtime-policy.service.js';
 import type { EngagementExternalAction } from './runtime/engagement-runtime.types.js';
 
@@ -10,11 +14,15 @@ export const RAW_ENGAGEMENT_SERVICE = Symbol('RAW_ENGAGEMENT_SERVICE');
 
 type GenerateDraft = EngagementService['generateOutreachDraft'];
 type GenerateBatch = EngagementService['generateBatchEmails'];
+type GenerateMeetingPrep = EngagementService['generateMeetingPrep'];
+type GenerateMeetingDebrief = EngagementService['generateMeetingDebriefDraft'];
 
 interface GovernedEngagementMethods {
   loadUserVoiceBlock: (ctx: TenantContext, clientId: string | null) => Promise<string | null>;
   generateOutreachDraft: GenerateDraft;
   generateBatchEmails: GenerateBatch;
+  generateMeetingPrep: GenerateMeetingPrep;
+  generateMeetingDebriefDraft: GenerateMeetingDebrief;
 }
 
 interface RuntimeMethodMetadata {
@@ -59,72 +67,88 @@ function activeMainRuntimePolicy(): EngagementRuntimePolicyService {
  * Preserve the existing EngagementService implementation while hardening the
  * exact context-loader and externally sensitive public entry points.
  *
- * The controller guard remains the first boundary. This proxy is the independent
- * service boundary for workers, internal callers, or future controller refactors:
- * it asserts runtime policy before enrichment, database writes, S3 access,
- * transcription, model calls, or provider sends can begin.
- *
- * `openOutreachInConnectedEmail` is intentionally absent from the external map:
- * it updates local workflow state and returns a mailto: URL; it never calls an
- * email provider. Treating it as a send made the preview reject a safe local action.
- *
- * Nest always injects the validated runtime policy. The explicit active fallback
- * exists only for direct unit construction of this factory and preserves the
- * historical main-API behavior in those tests.
+ * Phase 24 adds a prep/debrief boundary here because this is the common public
+ * seam used by controllers, workers, and the notes-first notetaker pipeline. One
+ * Context Plane bundle is resolved before any prep/debrief write or provider
+ * call, kept request-local with AsyncLocalStorage, and consumed by both the
+ * legacy steering helper and the governed EngagementAiService provider seam.
  */
 export function createGovernedEngagementService(
   service: EngagementService,
   boundary: ContextPersistenceBoundaryService,
-  contextCompiler: ContextCompilerService,
+  meetingContext: MeetingContextPlaneService,
   runtimePolicy: EngagementRuntimePolicyService = activeMainRuntimePolicy(),
 ): EngagementService {
   const methods = service as unknown as GovernedEngagementMethods;
 
   methods.loadUserVoiceBlock = async (ctx, clientId) => {
-    try {
-      const packet = await contextCompiler.compile({
-        tenantId: ctx.tenantId,
-        userId: ctx.userId,
-        clientId,
-        surface: 'outreach',
-        layers: ['user-voice', 'firm-identity', 'client-steering', 'client-people'],
-      });
-
-      const parts: string[] = [];
-      for (const item of packet.rendered) {
-        switch (item.layer) {
-          case 'user-voice':
-            parts.push(
-              item.type === 'user-voice'
-                ? `WRITE IN THIS AUTHOR'S VOICE (mirror the style and any sample writings below closely; do not invent facts):\n${item.body}`
-                : `About the author:\n${item.body}`,
-            );
-            break;
-          case 'firm-identity':
-            parts.push(
-              `Firm ${item.type === 'firm-soul' ? 'identity (Firm Soul)' : 'direction (Firm Compass)'}:\n${item.body}`,
-            );
-            break;
-          case 'client-people':
-            parts.push(`Client relationships & commitments (from memory):\n${item.body}`);
-            break;
-          default:
-            parts.push(`Client strategic memory (${item.type}):\n${item.body}`);
-        }
+    const activeMeeting = currentMeetingGovernedContext();
+    if (activeMeeting) {
+      if ((clientId ?? null) !== activeMeeting.clientId) {
+        throw new Error('phase24_meeting_context_legacy_loader_client_mismatch');
       }
-      return parts.length ? parts.join('\n\n') : null;
-    } catch (error) {
-      rethrowRequiredContextPersistence(error);
-      return null;
+      // The shared packet is authoritative for meeting steering. Do not compile
+      // another ContextPacket through the historical helper during this run.
+      return activeMeeting.modelContextBlock;
     }
+
+    /**
+     * Phase 26 retired the legacy Outreach generation path. Every Outreach draft
+     * now runs through GenerationGatewayService, which resolves its own governed
+     * ContextPacket via OutreachContextPlaneService — it never calls this legacy
+     * steering helper. Reaching this line therefore means some caller found a
+     * route to the provider that does not hold a governed bundle, which is
+     * exactly the bypass this phase removed. Fail closed rather than compiling a
+     * second, ungoverned ContextPacket.
+     */
+    throw new Error('phase26_engagement_context_plane_required');
   };
 
   const generateDraft = methods.generateOutreachDraft.bind(service);
   const generateBatch = methods.generateBatchEmails.bind(service);
+  const generateMeetingPrep = methods.generateMeetingPrep.bind(service);
+  const generateMeetingDebrief = methods.generateMeetingDebriefDraft.bind(service);
+
   methods.generateOutreachDraft = ((...args: Parameters<GenerateDraft>) =>
     boundary.guard(() => generateDraft(...args))) as GenerateDraft;
   methods.generateBatchEmails = ((...args: Parameters<GenerateBatch>) =>
     boundary.guard(() => generateBatch(...args))) as GenerateBatch;
+
+  methods.generateMeetingPrep = (async (
+    ctx: TenantContext,
+    meetingId: string,
+    additionalContext?: string,
+  ) => {
+    const bundle = await meetingContext.resolve(ctx, {
+      meetingId,
+      mode: 'prep',
+      userInstruction: additionalContext ?? null,
+    });
+    return runWithMeetingGovernedContext(bundle, () =>
+      boundary.guard(() => generateMeetingPrep(ctx, meetingId, additionalContext)),
+    );
+  }) as GenerateMeetingPrep;
+
+  methods.generateMeetingDebriefDraft = (async (
+    ctx: TenantContext,
+    meetingId: string,
+    input: Parameters<GenerateMeetingDebrief>[2],
+  ) => {
+    // Match the raw service's validation before doing retrieval or durable
+    // packet work. An invalid request must not create a packet/audit trail or
+    // spend any provider/context-plane capacity.
+    if (!input?.sourceText?.trim()) {
+      throw new BadRequestException('sourceText is required');
+    }
+    const bundle = await meetingContext.resolve(ctx, {
+      meetingId,
+      mode: 'debrief',
+      sourceMethod: input.method,
+    });
+    return runWithMeetingGovernedContext(bundle, () =>
+      boundary.guard(() => generateMeetingDebrief(ctx, meetingId, input)),
+    );
+  }) as GenerateMeetingDebrief;
 
   return guardEngagementServiceRuntime(service, runtimePolicy);
 }

@@ -9,6 +9,31 @@ function compiler(result: unknown = { rendered: [] }) {
   return { compile: jest.fn().mockResolvedValue(result) };
 }
 
+function meetingContext() {
+  return {
+    resolve: jest.fn().mockRejectedValue(
+      new Error('meeting Context Plane should not run in Outreach compatibility tests'),
+    ),
+  };
+}
+
+/**
+ * Phase 24 binds the prep/debrief seams inside the factory, so every fake handed
+ * to createGovernedEngagementService must expose them. These Outreach-focused
+ * tests must never reach them; stubs that throw prove that rather than hiding it.
+ */
+function withMeetingSeams(raw: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...raw,
+    generateMeetingPrep: jest.fn(async () => {
+      throw new Error('meeting prep must not run in Outreach compatibility tests');
+    }),
+    generateMeetingDebriefDraft: jest.fn(async () => {
+      throw new Error('meeting debrief must not run in Outreach compatibility tests');
+    }),
+  };
+}
+
 describe('createGovernedEngagementService', () => {
   it.each(['generateOutreachDraft', 'generateBatchEmails'] as const)(
     'blocks %s after a swallowed required persistence failure',
@@ -30,9 +55,9 @@ describe('createGovernedEngagementService', () => {
         }),
       };
       const service = createGovernedEngagementService(
-        raw as never,
+        withMeetingSeams(raw) as never,
         boundary,
-        compiler() as never,
+        meetingContext() as never,
       ) as unknown as {
         generateOutreachDraft: (...args: unknown[]) => Promise<unknown>;
         generateBatchEmails: (...args: unknown[]) => Promise<unknown>;
@@ -42,16 +67,16 @@ describe('createGovernedEngagementService', () => {
     },
   );
 
-  it('returns successful results unchanged', async () => {
+  it('returns successful Outreach results unchanged', async () => {
     const boundary = new ContextPersistenceBoundaryService();
     const raw = {
       generateOutreachDraft: jest.fn(async () => ({ ok: 'draft' })),
       generateBatchEmails: jest.fn(async () => ({ ok: 'batch' })),
     };
     const service = createGovernedEngagementService(
-      raw as never,
+      withMeetingSeams(raw) as never,
       boundary,
-      compiler() as never,
+      meetingContext() as never,
     ) as unknown as {
       generateOutreachDraft: () => Promise<unknown>;
       generateBatchEmails: () => Promise<unknown>;
@@ -61,70 +86,29 @@ describe('createGovernedEngagementService', () => {
     await expect(service.generateBatchEmails()).resolves.toEqual({ ok: 'batch' });
   });
 
-  it('rethrows a required persistence failure from the context loader before generation', async () => {
-    const boundary = new ContextPersistenceBoundaryService();
-    const failure = new ContextPacketPersistenceError(
-      'context_packet_error',
-      'attempt-2',
-      'outreach',
+  /**
+   * Phase 26 retired the legacy Outreach generation path, so this loader is no
+   * longer a compile seam. Three tests here used to pin its ContextCompiler
+   * behaviour (persistence rethrow, neutral fallback, block labels); that
+   * behaviour is intentionally gone. Outreach now resolves its own governed
+   * packet inside GenerationGatewayService, and meeting runs get the shared
+   * packet from the branch above. Reaching this loader outside a meeting run
+   * would mean a provider call without governed context, so it fails closed.
+   */
+  it('fails closed outside a meeting run instead of compiling ungoverned context', async () => {
+    const service = createGovernedEngagementService(
+      withMeetingSeams({
+        generateOutreachDraft: jest.fn(),
+        generateBatchEmails: jest.fn(),
+      }) as never,
+      new ContextPersistenceBoundaryService(),
+      meetingContext() as never,
+    ) as unknown as {
+      loadUserVoiceBlock: (value: TenantContext, clientId: string | null) => Promise<string | null>;
+    };
+
+    await expect(service.loadUserVoiceBlock(ctx, 'client-1')).rejects.toThrow(
+      'phase26_engagement_context_plane_required',
     );
-    const contextCompiler = compiler();
-    contextCompiler.compile.mockRejectedValueOnce(failure);
-    const service = createGovernedEngagementService(
-      {
-        generateOutreachDraft: jest.fn(),
-        generateBatchEmails: jest.fn(),
-      } as never,
-      boundary,
-      contextCompiler as never,
-    ) as unknown as {
-      loadUserVoiceBlock: (value: TenantContext, clientId: string | null) => Promise<string | null>;
-    };
-
-    await expect(service.loadUserVoiceBlock(ctx, 'client-1')).rejects.toBe(failure);
-  });
-
-  it('retains the historical neutral fallback for an ordinary context outage', async () => {
-    const contextCompiler = compiler();
-    contextCompiler.compile.mockRejectedValueOnce(new Error('context temporarily unavailable'));
-    const service = createGovernedEngagementService(
-      {
-        generateOutreachDraft: jest.fn(),
-        generateBatchEmails: jest.fn(),
-      } as never,
-      new ContextPersistenceBoundaryService(),
-      contextCompiler as never,
-    ) as unknown as {
-      loadUserVoiceBlock: (value: TenantContext, clientId: string | null) => Promise<string | null>;
-    };
-
-    await expect(service.loadUserVoiceBlock(ctx, 'client-1')).resolves.toBeNull();
-  });
-
-  it('composes the same voice, firm, strategy, and relationship labels', async () => {
-    const contextCompiler = compiler({
-      rendered: [
-        { layer: 'user-voice', type: 'user-voice', body: 'Direct and concise.' },
-        { layer: 'firm-identity', type: 'firm-soul', body: 'Trusted counsel.' },
-        { layer: 'client-steering', type: 'client-compass', body: 'Protect the program.' },
-        { layer: 'client-people', type: 'client-people', body: 'Commitment to follow up.' },
-      ],
-    });
-    const service = createGovernedEngagementService(
-      {
-        generateOutreachDraft: jest.fn(),
-        generateBatchEmails: jest.fn(),
-      } as never,
-      new ContextPersistenceBoundaryService(),
-      contextCompiler as never,
-    ) as unknown as {
-      loadUserVoiceBlock: (value: TenantContext, clientId: string | null) => Promise<string | null>;
-    };
-
-    const block = await service.loadUserVoiceBlock(ctx, 'client-1');
-    expect(block).toContain("WRITE IN THIS AUTHOR'S VOICE");
-    expect(block).toContain('Firm identity (Firm Soul)');
-    expect(block).toContain('Client strategic memory (client-compass)');
-    expect(block).toContain('Client relationships & commitments');
   });
 });

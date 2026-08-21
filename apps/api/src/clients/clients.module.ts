@@ -16,6 +16,11 @@ import { ClientActivityController } from './client-activity.controller.js';
 import { ClientActivityService } from './client-activity.service.js';
 import { ClientProfileFillController } from './client-profile-fill.controller.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
+import { ClientProfileFillContextPlaneService } from './client-profile-fill-context-plane.service.js';
+import {
+  createGovernedClientProfileFillService,
+  RAW_CLIENT_PROFILE_FILL_SERVICE,
+} from './governed-client-profile-fill.factory.js';
 import { ClientAccountOwnerController } from './client-account-owner.controller.js';
 import { ClientAccountOwnerService } from './client-account-owner.service.js';
 import { ClientTeamController } from './client-team.controller.js';
@@ -25,6 +30,7 @@ import { EngagementModule } from '../engagement/engagement.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
+import { ContextModule } from '../context/context.module.js';
 
 @Module({
   // RepresentationModule (not folded in here) so DirectoryModule can ALSO
@@ -35,6 +41,7 @@ import { DirectoryModule } from '../directory/directory.module.js';
     IntelligenceModule,
     DirectoryModule,
     RepresentationModule,
+    ContextModule,
     // G3: OutcomeService for the submission-outcome mirror.
     EngagementModule,
   ],
@@ -58,7 +65,20 @@ import { DirectoryModule } from '../directory/directory.module.js';
     ClientFacilitiesService,
     ClientTargetsService,
     ClientTargetRecommendationsService,
-    ClientProfileFillService,
+    ClientProfileFillContextPlaneService,
+    {
+      provide: RAW_CLIENT_PROFILE_FILL_SERVICE,
+      useClass: ClientProfileFillService,
+    },
+    {
+      provide: ClientProfileFillService,
+      useFactory: createGovernedClientProfileFillService,
+      inject: [
+        RAW_CLIENT_PROFILE_FILL_SERVICE,
+        ClientProfileFillContextPlaneService,
+        ClientPeopleService,
+      ],
+    },
     ClientActivityService,
     ClientFilesService,
     ClientAccountOwnerService,

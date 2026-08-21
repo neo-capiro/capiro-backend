@@ -109,7 +109,6 @@ import {
 import { MeetingNotesCryptoService } from './meeting-notes-crypto.service.js';
 import { EngagementMailSender, sendProviderSlug } from './mail-sender.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
-import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { editRatio } from '../common/text-distance.js';
 import {
   billIdFromItemId,
@@ -479,6 +478,8 @@ export interface GenerateBatchEmailInput {
   recipients: OutreachRecipientInput[];
   insights?: string[];
   additionalContext?: string;
+  /** Freeform objective, when the caller supplies one instead of a template. */
+  objective?: string;
   tone?: string;
   // v2 wizard additions, older callers that omit these are unaffected.
   direction?: 'on-behalf' | 'to-clients';
@@ -1029,7 +1030,6 @@ export class EngagementService {
     private readonly federalSpending: FederalSpendingService,
     private readonly mailSender: EngagementMailSender,
     private readonly clientKb: ClientKbService,
-    private readonly contextCompiler: ContextCompilerService,
     private readonly draft: OutreachDraftService,
     // Phase 1 — the governed generation stack.
     private readonly gateway: GenerationGatewayService,
@@ -2347,57 +2347,21 @@ export class EngagementService {
   }
 
   /**
-   * Few-shot voice grounding for AI drafting: the author's "My Writing Style"
-   * (+ profile) memory file, and the client's soul/compass when client-scoped.
-   * Returns a compact text block to drop into the draft context, or null.
-   * RLS-scoped (own user files + tenant-visible client files). Best-effort.
+   * Legacy steering seam, retained only so the class keeps a declaration for
+   * the governed override installed by createGovernedEngagementService.
+   *
+   * Phase 26: the raw implementation used to compile an ungoverned ContextPacket
+   * through the shared compiler. Outreach now runs exclusively through the
+   * governed GenerationGateway and never calls this; meeting prep/debrief reach
+   * the override, which projects the shared packet. Executing THIS body would
+   * mean an unwrapped service instance reached a provider without governed
+   * context, so it fails closed instead of quietly recompiling.
    */
   private async loadUserVoiceBlock(
-    ctx: TenantContext,
-    clientId: string | null,
+    _ctx: TenantContext,
+    _clientId: string | null,
   ): Promise<string | null> {
-    try {
-      // Context Compiler v1 (G1): loading, the withTenantUser/1C tenancy
-      // discipline, governance filtering and the packet trace live in
-      // ContextCompilerService; this method only composes the outreach block
-      // labels from the compiled packet. Block text is unchanged.
-      const packet = await this.contextCompiler.compile({
-        tenantId: ctx.tenantId,
-        userId: ctx.userId,
-        clientId,
-        surface: 'outreach',
-        layers: ['user-voice', 'firm-identity', 'client-steering', 'client-people'],
-      });
-
-      const parts: string[] = [];
-      for (const r of packet.rendered) {
-        switch (r.layer) {
-          case 'user-voice':
-            parts.push(
-              r.type === 'user-voice'
-                ? `WRITE IN THIS AUTHOR'S VOICE (mirror the style and any sample writings below closely; do not invent facts):\n${r.body}`
-                : `About the author:\n${r.body}`,
-            );
-            break;
-          case 'firm-identity':
-            parts.push(
-              `Firm ${r.type === 'firm-soul' ? 'identity (Firm Soul)' : 'direction (Firm Compass)'}:\n${r.body}`,
-            );
-            break;
-          // client-people = the human-authored relationship file (their team,
-          // Hill offices, commitments made, key conversations) — labeled
-          // distinctly from strategic memory.
-          case 'client-people':
-            parts.push(`Client relationships & commitments (from memory):\n${r.body}`);
-            break;
-          default:
-            parts.push(`Client strategic memory (${r.type}):\n${r.body}`);
-        }
-      }
-      return parts.length ? parts.join('\n\n') : null;
-    } catch {
-      return null;
-    }
+    throw new Error('phase26_engagement_context_plane_required');
   }
 
   async generateOutreachDraft(
@@ -2448,34 +2412,50 @@ export class EngagementService {
               ),
             }
           : input.metadata;
-    const context = await this.outreachContext(
-      ctx,
-      record,
-      recipients,
-      mergeJsonObjects(requestMetadata ?? {}, { direction, contextPool }),
-    );
     const promptTemplate =
       input.promptTemplate ?? readMetadataString(record.metadata, 'promptTemplate') ?? null;
-    // Few-shot voice grounding: the author's writing-style file + the client's
-    // soul/compass, so drafts sound like the user and respect client strategy.
-    const voiceBlock = await this.loadUserVoiceBlock(ctx, record.client?.id ?? null);
-    const contextWithVoice = voiceBlock ? { ...context, userWritingStyle: voiceBlock } : context;
-    const generated = await this.ai.generateOutreachDraft(
-      {
-        workflow: record.type as OutreachType,
-        client: record.client ? pruneForAi(record.client) : null,
-        meeting: record.meeting ? pruneForAi(record.meeting) : null,
-        objective: input.objective ?? readMetadataString(record.metadata, 'objective'),
-        recipients: recipients.map(pruneForAi),
-        context: contextWithVoice,
-        promptTemplate,
-        existingSubject: record.subject,
-        existingBody: outboundTemplateBody(record, requestMetadata) ?? record.body,
-      },
-      ctx,
-    );
-    await this.recordAiUsage(ctx, 'outreach_draft', generated);
+    const objective = input.objective ?? readMetadataString(record.metadata, 'objective');
+    const existingBody = outboundTemplateBody(record, requestMetadata) ?? record.body ?? null;
 
+    // Phase 20: the live single-record regenerate route uses the same governed
+    // GenerationGateway / Context Plane seam as Classic batch and Outreach V3.
+    /**
+     * Phase 26 cutover: the governed GenerationGateway is the ONLY generation
+     * path. The former flag-off branch below this point compiled an ungoverned
+     * ContextPacket through the shared compiler and called the provider without
+     * a Context Plane packet; it has been removed rather than left reachable.
+     */
+    const templateId = promptTemplate || 'system-outreach-message';
+    const gatewayRecipients: OutreachRecipientInput[] = recipients.length
+      ? recipients
+      : [{ name: record.client?.name ?? 'Recipient' }];
+    const batch = await this.generateBatchEmailsViaGateway(
+      ctx,
+      {
+        ...(record.client?.id ? { clientId: record.client.id } : {}),
+        templateId,
+        outreachRecordId: this.versionedOutreach ? id : undefined,
+        recipients: gatewayRecipients,
+        ...(objective ? { objective } : {}),
+        tone: 'professional',
+        direction,
+        audienceKind: gatewayRecipients.length > 1 ? 'group' : 'individual',
+        ...(existingBody?.trim()
+          ? {
+              ...(record.subject ? { existingSubject: record.subject } : {}),
+              existingBody,
+              ...(objective ? { reviseInstruction: objective } : {}),
+            }
+          : {}),
+      },
+      { versionedRecordId: this.versionedOutreach ? id : null },
+    );
+    const generated = batch.results[0];
+    if (!generated || generated.status === 'error' || !generated.body?.trim()) {
+      throw new BadRequestException(
+        generated?.error ?? 'Governed generation could not produce a draft.',
+      );
+    }
     const draftSubject =
       record.type === 'campaign'
         ? resolveGeneratedCampaignDraft(
@@ -2492,29 +2472,24 @@ export class EngagementService {
             mergeJsonObjects(record.metadata, requestMetadata ?? {}),
           )
         : generated.body;
-
     const nextMetadata = mergeJsonObjects(
       mergeJsonObjects(record.metadata, {
         ...(requestMetadata ?? {}),
-        objective: input.objective ?? readMetadataString(record.metadata, 'objective') ?? null,
+        objective: objective ?? null,
         promptTemplate,
         clioContextNote: generated.contextNote,
         ai: {
-          provider: generated.provider,
-          model: generated.model,
+          provider: generated.manifest?.provider ?? null,
+          model: generated.manifest?.model ?? null,
           generatedAt: generatedAt.toISOString(),
-          promptSpecVersion: generated.promptSpecVersion ?? 'v1',
-          // G3 edit-distance instrumentation: the AS-GENERATED text, preserved
-          // immutably here because human edits overwrite subject/body in place.
-          // Send-time computes editRatio(generatedBody, sent body) — the
-          // blueprint's "draft usefulness" flywheel signal.
+          promptSpecVersion: generated.manifest?.promptSpecVersion ?? 'v2.2-gateway',
           generatedSubject: draftSubject ?? null,
           generatedBody: draftBody ?? null,
+          contextPacketId: generated.manifest?.contextPacketId ?? null,
         },
       }),
       { direction, contextPool },
     );
-
     return this.updateOutreachRecord(ctx, id, {
       direction,
       subject: draftSubject,
@@ -3348,786 +3323,20 @@ export class EngagementService {
       );
     }
 
-    // ── Phase 1 §3.g3 — the governed gateway ────────────────────────────────
-    // When ENGAGEMENT_GENERATION_GATEWAY is on, generation runs through
-    // GenerationGatewayService and this method contributes only the enrichment
-    // channels. The whole legacy branch below is kept verbatim for the flag-off
-    // window (removed after the Phase 3 eval gates, §6.8) — a rollback must not
-    // land on a path that has been quietly refactored underneath it.
-    if (this.gateway.enabled) {
-      return this.generateBatchEmailsViaGateway(ctx, input, {
-        versionedRecordId,
-        budgetWarning: budget.softWarn
-          ? `Your organization has used ${Math.round(budget.ratio * 100)}% of today's outreach AI limit.`
-          : undefined,
-        authHeader,
-      });
-    }
-
-    // A 'group' batch is ONE shared email whose single recipient is a stand-in
-    // for the whole group; per-member enrichment (directory profile, that
-    // member's press / meeting / email history) must NOT be hoisted, or the
-    // draft tailors itself to one member (see buildOutreachPrompt group branch).
-    const isGroup = audienceKind === 'group';
-
-    // Revision ("Improve") mode: the wizard re-POSTs ONE draft with the user's
-    // current (possibly hand-edited) body + a freeform instruction. Guarded to a
-    // single recipient so a multi-recipient batch can never be revised against
-    // one body. Triggers PromptSpec v2 revision mode (edit-in-place, change
-    // nothing else) via existingBody + objective=instruction.
-    const isReviseSingle = Boolean(existingBody) && input.recipients.length === 1;
-
-    // Defense-in-depth dedup (A13): the wizard already POSTs unique recipients,
-    // but a duplicated recipientKey would otherwise fan out a redundant, billable
-    // AI call and produce two results under the same key. See dedupeOutreachRecipients.
-    const recipients = dedupeOutreachRecipients(input.recipients);
-
-    const systemTemplate = SYSTEM_AI_TEMPLATES.find((t) => t.id === templateId);
-    let templatePrompt: string;
-
-    if (systemTemplate) {
-      templatePrompt = systemTemplate.prompt;
-    } else {
-      // Phase 0 §3.h1: owner-scoped, same as previewAiTemplate — a campaign can
-      // only be drafted with the caller's OWN custom prompt (system templates
-      // stay globally available through SYSTEM_AI_TEMPLATES above).
-      const dbTemplate = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.outreachAiTemplate.findFirst({
-          where: { id: templateId, tenantId: ctx.tenantId, userId: ctx.userId },
-        }),
-      );
-      if (!dbTemplate) throw new NotFoundException('Template not found');
-      templatePrompt = dbTemplate.prompt;
-
-      await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.outreachAiTemplate.update({
-          where: { id: templateId },
-          data: { usageCount: { increment: 1 } },
-        }),
-      );
-    }
-
-    // Resolve the logged-in user so generated drafts are signed by the
-    // actual sender (not a hardcoded placeholder name).
-    const senderUser = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.user.findFirst({
-        where: { id: ctx.userId },
-        select: { firstName: true, lastName: true, title: true, email: true },
-      }),
-    );
-    const senderName =
-      [senderUser?.firstName, senderUser?.lastName].filter(Boolean).join(' ').trim() || null;
-    const senderSignature = senderName
-      ? [senderName, senderUser?.title?.trim() || null].filter(Boolean).join('\n')
-      : null;
-
-    let client: Record<string, unknown> | null = null;
-    // Rendered to a compact STRING (not the raw object): PromptSpec v2 only
-    // renders string context values, so an object was silently dropped when v2
-    // went live. See renderClientRelationshipSnapshot.
-    let clientContextForCampaign: string | null = null;
-    if (clientId) {
-      const [row, context] = await Promise.all([
-        this.prisma.withTenant(ctx.tenantId, (tx) =>
-          tx.client.findFirst({ where: { id: clientId, tenantId: ctx.tenantId } }),
-        ),
-        this.clientContext(ctx, clientId).catch(() => null),
-      ]);
-      if (row) client = pruneForAi(row);
-      if (context) clientContextForCampaign = renderClientRelationshipSnapshot(context);
-    }
-
-    const insightsContext = insights?.length
-      ? `Selected intelligence insights:\n${insights.join('\n')}`
-      : null;
-
-    // Accuracy fix (2026-07-11): replace thin client-supplied bill/PE bodies with
-    // an AUTHORITATIVE block from our own tables (canonical status + every
-    // congressional mark) BEFORE they become prompt text — the fix for reversed
-    // funding direction, omitted chamber cuts, and "stalled bill read as
-    // advancing". Best-effort per item; a lookup miss keeps the original body.
-    // Normalize BEFORE enrichment/rendering. The Phase 1 wire contract renamed
-    // the free-text fields (`note` -> `userInstruction`, or `customNoteText` for a
-    // custom note) and the wizard stopped sending `note`/`title`/`body` entirely
-    // (toContextItemPayload). Only the gateway branch was taught to read the new
-    // names, so on THIS path every user instruction and every custom note's text
-    // was silently dropped from the prompt and each item rendered as
-    // `- [kind] undefined`. Normalizing here makes the legacy branch understand
-    // the contract its own clients actually speak — which matters even with the
-    // gateway on, because this branch is the rollback target.
-    const normalizedContextItems = (contextItems ?? []).map(normalizeSelectedContextItem);
-
-    const { items: enrichedContextItems, truthByItemId: outreachTruthByItemId } =
-      await this.enrichOutreachContextItems(
-        normalizedContextItems,
-        ctx,
-        clientId ?? null,
-        authHeader,
-      );
-
-    // Bucket the v2 wizard's scoped context items so we can hand the AI
-    // shared-context-vs-recipient-context distinctly per draft below.
-    const sharedItems = enrichedContextItems.filter((c) => c.scope === 'all');
-    const recipientScopedItems = new Map<string, typeof sharedItems>();
-    for (const c of enrichedContextItems) {
-      if (c.scope === 'all') continue;
-      const bucket = recipientScopedItems.get(c.scope) ?? [];
-      bucket.push(c);
-      recipientScopedItems.set(c.scope, bucket);
-    }
-    const formatItems = (items: OutreachSelectedContextItemInput[]) =>
-      items
-        .map((c) => {
-          // A custom note IS its text — there is no server record behind it. Label
-          // it by how the user marked it: an instruction is something to DO, a fact
-          // is something that may be STATED. Defaulting to instruction is what
-          // stops "dinner went well" becoming invented narration about a dinner.
-          if (c.kind === 'note') {
-            const text = c.customNoteText?.trim();
-            if (!text) return null;
-            return c.noteUse === 'fact'
-              ? `- [note] Your note (stated by you as fact, may be used): ${text}`
-              : `- [note] Your instruction (follow it; do NOT assert it as a fact): ${text}`;
-          }
-          const instruction = c.userInstruction?.trim()
-            ? `\n  Instruction: ${c.userInstruction.trim()}`
-            : '';
-          const body = c.body ? `\n  ${c.body}` : '';
-          // Titles are no longer sent by the client (Phase 1 §3.b1), and only
-          // bill/programElement/intel get a server-derived body. Fall back to the
-          // item id rather than rendering the literal string "undefined", which is
-          // what the old `${c.title}` produced for every item.
-          const label = c.title?.trim() || c.id;
-          return `- [${c.kind}] ${label}${body}${instruction}`;
-        })
-        .filter((line): line is string => Boolean(line))
-        .join('\n');
-    const sharedContextText = sharedItems.length
-      ? `Shared context (every recipient):\n${formatItems(sharedItems)}`
-      : null;
-
-    // ---- Tier-1 context enrichment (computed once per campaign) ----
-    // These channels mirror the single-record generateOutreachDraft path, which
-    // the batch generator historically skipped — leaving campaign drafts voice-
-    // ungrounded, history-blind, and unaware of the client's own legislative
-    // agenda or who the recipient actually is. All are best-effort: a null/empty
-    // result simply omits that context, never blocks a draft.
-
-    // Author voice: sender writing-style + client soul/compass memory. Recipient-
-    // invariant, so resolve once and reuse. Hoisted into the prompt's AUTHOR
-    // VOICE section by buildOutreachPrompt (it reads context.userWritingStyle).
-    const voiceBlock = await this.loadUserVoiceBlock(ctx, clientId ?? null).catch(() => null);
-    // W5.6: append the author's own recent sent-outreach excerpts (PII-stripped)
-    // so drafts mirror their voice. Outreach-only (not in the shared voice block).
-    const voiceFewShots = await this.outreachVoiceFewShots(ctx, clientId ?? null).catch(() => null);
-    const userWritingStyle = [voiceBlock, voiceFewShots].filter(Boolean).join('\n\n') || null;
-
-    // Client's tracked legislation with latest action — a timely "reason to write
-    // now" hook. Client-level, so resolve once.
-    const trackedBillsBlock = clientId
-      ? await this.outreachTrackedBillsBlock(ctx, clientId).catch(() => null)
-      : null;
-
-    // W5 context channels, all client-level (resolved once): the watchlist
-    // priority issues, the tracked-bill ids (for the per-recipient vote join),
-    // and the upcoming-hearings window (filtered per recipient by committee).
-    const watchlistBlock = clientId
-      ? await this.outreachClientWatchlistBlock(ctx, clientId).catch(() => null)
-      : null;
-    const trackedBillIds = clientId
-      ? await this.outreachTrackedBillIds(ctx, clientId).catch(() => [])
-      : [];
-
-    // Rich client-profile context (OUTREACH_CLIENT_PROFILE, per-tenant flag). When
-    // ON, resolve the recipient-INVARIANT profile blocks once per campaign — the
-    // "people this client works with" roster and the coordinated target-office
-    // map. Off (or no clientId) → null, so the context object omits them and the
-    // prompt is byte-identical to today.
-    const clientProfileOn =
-      !!clientId &&
-      outreachClientProfileEnabled(
-        (
-          await this.prisma
-            .withTenant(ctx.tenantId, (tx) =>
-              tx.tenant.findFirst({ where: { id: ctx.tenantId }, select: { settings: true } }),
-            )
-            .catch(() => null)
-        )?.settings,
-      );
-    const clientPeopleBlock =
-      clientProfileOn && clientId
-        ? await this.outreachClientPeopleBlock(ctx, clientId).catch(() => null)
-        : null;
-    const clientTargetOfficesBlock =
-      clientProfileOn && clientId
-        ? await this.outreachClientTargetOfficesBlock(ctx, clientId).catch(() => null)
-        : null;
-    const upcomingHearings = await this.outreachUpcomingHearings().catch(() => []);
-
-    // Congressional directory profiles for the recipients, resolved in ONE
-    // directory scan for the whole batch (the dataset is cached in-memory but
-    // scanning it per recipient would be wasteful), then looked up by email
-    // inside the per-recipient worker below.
-    const batchRecipientEmails = unique(
-      recipients
-        .map((r) => (r as Record<string, unknown>).email?.toString()?.trim().toLowerCase() ?? '')
-        .filter(Boolean),
-    );
-    const directoryByEmail = new Map<string, DirectoryEmailMatch>();
-    if (batchRecipientEmails.length) {
-      // Size the cap to the batch: findContactsByEmails truncates the COMBINED
-      // match list (not per-email), so a fixed cap would silently drop profiles
-      // for large audiences (e.g. a committee-wide send).
-      const matches = await this.directory
-        .findContactsByEmails(batchRecipientEmails, Math.max(batchRecipientEmails.length, 200))
-        .catch(() => [] as DirectoryEmailMatch[]);
-      for (const match of matches) {
-        const key = match.attendeeEmail.toLowerCase();
-        if (!directoryByEmail.has(key)) directoryByEmail.set(key, match);
-      }
-    }
-
-    // Recipient correspondence (meetings they attended + client mail threads),
-    // resolved in TWO queries for the WHOLE batch and bucketed by email — never
-    // per-recipient, which would fan out ~5 client-scoped queries × recipients.
-    const { meetingsByEmail, threadsByEmail } = await this.batchRecipientCorrespondence(
-      ctx,
-      clientId ?? null,
-      batchRecipientEmails,
-    );
-
-    // ---- Tier-2 context enrichment (computed once per campaign) ----
-
-    // Client's live action recommendations (recommendedAction + why-it-matters),
-    // a near-ready ask. Client-level.
-    const actionsBlock = clientId
-      ? await this.outreachActionsBlock(ctx, clientId).catch(() => null)
-      : null;
-
-    // Office-recommender "why this office is a fit for the client" reasoning
-    // (one manual-refresh cache row per client), indexed by directory member id
-    // for per-recipient lookup by directoryContactId.
-    const { byMember: targetRecByMember, computedAt: targetRecComputedAt } = clientId
-      ? await this.outreachTargetRecommendations(ctx, clientId).catch(() => ({
-          byMember: new Map<string, OfficeRecommendation>(),
-          computedAt: null as string | null,
-        }))
-      : { byMember: new Map<string, OfficeRecommendation>(), computedAt: null as string | null };
-
-    // Recent member press for the recipients, batched by bioguide (bioguide comes
-    // from the directory match resolved above; member_press_item is a GLOBAL,
-    // non-RLS table so it is read directly, not via withTenant).
-    const batchBioguideIds = unique(
-      Array.from(directoryByEmail.values())
-        .map((match) => match.member?.bioguideId ?? '')
-        .filter(Boolean),
-    );
-    const pressByBioguide = await this.outreachMemberPress(batchBioguideIds).catch(
-      () => new Map<string, unknown[]>(),
-    );
-
-    // W5 batched per-recipient channels: prior-outreach dedup (by email) and the
-    // recipient's votes on tracked bills (by bioguide). One query each.
-    const priorContactByEmail = await this.outreachPriorContactByEmail(
-      ctx,
-      clientId ?? null,
-      batchRecipientEmails,
-    ).catch(() => new Map<string, { sentAt: Date; subject: string | null }>());
-    const votesByBioguide = await this.outreachRelevantVotesByBioguide(
-      batchBioguideIds,
-      trackedBillIds,
-    ).catch(() => new Map<string, string>());
-
-    // Generate per-recipient drafts with bounded concurrency. This was a
-    // sequential await-loop, so a campaign's wall-clock was sum-of-all-calls
-    // and large batches timed out before every draft came back. Running a few
-    // at a time keeps total latency roughly batch/CONCURRENCY while staying
-    // well under the AI provider's rate limits. Results stay in recipient
-    // order (mapWithConcurrency guarantees it) and every recipient still gets
-    // an entry, because the worker catches its own errors and yields a blank
-    // draft — identical to the old per-iteration try/catch behavior.
-    const OUTREACH_GEN_CONCURRENCY = 4;
-    // Resolve the auditor mode ONCE per campaign (all recipients share the
-    // tenant) — the per-recipient worker below reads this via closure so a
-    // batch never fans out N tenant.settings reads (Phase 2 per-tenant flag).
-    const campaignAuditorMode = await resolveTenantAuditorMode(this.prisma, ctx.tenantId);
-    const generateForRecipient = async (
-      recipient: (typeof recipients)[number],
-      index: number,
-      creds: ResolvedAiCredential[],
-    ): Promise<{ result: OutreachBatchDraftResult; provider: string | null }> => {
-      // Must match the frontend's recipientKey() chain (id first) so generated
-      // drafts land under the key the wizard looks them up by. Previously this
-      // started at directoryContactId, so to-clients recipients (which have
-      // `id` but no directoryContactId) got keyed by email and the wizard
-      // showed "no draft". The final fallback is the recipient's original
-      // index (was `results.length` in the old sequential loop — identical
-      // PHASE-0-NOTE: contextNoteFromVersion is set by the versioned branch from
-      // the persisted audit outcome, so the internal note the lobbyist sees comes
-      // from the SAME verdict that decided sendability.
-      // value, but stable now that generation runs concurrently).
-      const recipientId =
-        (recipient as Record<string, unknown>).id?.toString() ||
-        (recipient as Record<string, unknown>).directoryContactId?.toString() ||
-        (recipient as Record<string, unknown>).email?.toString() ||
-        (recipient as Record<string, unknown>).name?.toString() ||
-        String(index);
-
-      // Per-recipient scoped context, drawn from contextItems[].scope == this
-      // recipient's stable key. The wizard's recipient key is the same fallback
-      // chain used by recipientKey() on the frontend, so look up by every
-      // identifier we have rather than guessing.
-      const recipientKeyCandidates = [
-        (recipient as Record<string, unknown>).id?.toString(),
-        (recipient as Record<string, unknown>).directoryContactId?.toString(),
-        (recipient as Record<string, unknown>).email?.toString(),
-        (recipient as Record<string, unknown>).name?.toString(),
-      ].filter((s): s is string => Boolean(s));
-      const personalItems = recipientKeyCandidates.flatMap(
-        (k) => recipientScopedItems.get(k) ?? [],
-      );
-      const personalContextText = personalItems.length
-        ? `Personalized context for this recipient:\n${formatItems(personalItems)}`
-        : null;
-      const combinedContextNotes = [sharedContextText, personalContextText]
-        .filter((s): s is string => Boolean(s))
-        .join('\n\n');
-
-      /** Internal note carried back from the persisted audit verdict (versioned path). */
-      let contextNoteFromVersion: string | undefined;
-
-      try {
-        // Per-recipient enrichment: directory profile + "why this office fits"
-        // reasoning (Tier-1/2), the recipient's prior correspondence, and their
-        // recent press. Keyed on email (directory/meetings/mail) and on the
-        // recipient's directory member id (target recs, joined to bioguide for
-        // press). Failures degrade to nothing via the batch helpers.
-        const recipientEmailLower =
-          (recipient as Record<string, unknown>).email?.toString()?.trim().toLowerCase() || null;
-        const directoryMatch = recipientEmailLower
-          ? (directoryByEmail.get(recipientEmailLower) ?? null)
-          : null;
-        const recipientDirectoryId =
-          (recipient as Record<string, unknown>).directoryContactId?.toString() || null;
-        const targetRec = recipientDirectoryId
-          ? targetRecByMember.get(recipientDirectoryId)
-          : undefined;
-        // Directory profile ("who") + target rationale ("why them") form one
-        // hoisted RECIPIENT PROFILE section.
-        const recipientProfile =
-          [
-            formatRecipientDirectoryProfile(directoryMatch),
-            formatTargetRationale(targetRec, targetRecComputedAt),
-          ]
-            .filter(Boolean)
-            .join(' ') || null;
-        const bioguideId = directoryMatch?.member?.bioguideId || null;
-        const recentNews = bioguideId ? (pressByBioguide.get(bioguideId) ?? []) : [];
-        const meetingHistory = recipientEmailLower
-          ? (meetingsByEmail.get(recipientEmailLower) ?? [])
-          : [];
-        const emailHistory = recipientEmailLower
-          ? (threadsByEmail.get(recipientEmailLower) ?? [])
-          : [];
-
-        // W5 per-recipient channels (all per-member ⇒ suppressed for a group,
-        // like the other per-member enrichment above; watchlist is client-level
-        // and included for groups too).
-        const relevantVotes = bioguideId ? (votesByBioguide.get(bioguideId) ?? null) : null;
-        const upcomingHearingsBlock = this.renderRecipientHearings(
-          upcomingHearings,
-          directoryMatch?.member?.committees ?? [],
-        );
-        const priorContact = recipientEmailLower
-          ? (priorContactByEmail.get(recipientEmailLower) ?? null)
-          : null;
-        const priorOutreachBlock = priorContact
-          ? `Your firm last emailed this recipient on ${priorContact.sentAt
-              .toISOString()
-              .slice(
-                0,
-                10,
-              )}${priorContact.subject ? ` re: "${priorContact.subject}"` : ''} — do not repeat that ask verbatim; acknowledge or build on it.`
-          : null;
-
-        const context: Record<string, unknown> = {
-          tone: tone ?? 'professional',
-          ...(direction ? { direction } : {}),
-          ...(senderName ? { senderName } : {}),
-          ...(senderSignature ? { senderSignature } : {}),
-          ...(userWritingStyle ? { userWritingStyle } : {}),
-          // Per-member fields (profile, that member's press / meeting / email
-          // history) are suppressed for a group: they describe ONE member and
-          // would bias a one-email-to-all group draft toward that member.
-          ...(recipientProfile && !isGroup ? { recipientProfile } : {}),
-          ...(trackedBillsBlock ? { trackedBills: trackedBillsBlock } : {}),
-          ...(actionsBlock ? { actionRecommendations: actionsBlock } : {}),
-          ...(watchlistBlock ? { clientWatchlist: watchlistBlock } : {}),
-          ...(recentNews.length && !isGroup ? { recentNews } : {}),
-          ...(meetingHistory.length && !isGroup ? { meetingHistory } : {}),
-          ...(emailHistory.length && !isGroup ? { emailHistory } : {}),
-          ...(relevantVotes && !isGroup ? { relevantVotes } : {}),
-          ...(upcomingHearingsBlock && !isGroup ? { upcomingHearings: upcomingHearingsBlock } : {}),
-          ...(priorOutreachBlock && !isGroup ? { priorOutreach: priorOutreachBlock } : {}),
-          ...(insightsContext ? { insights: insightsContext } : {}),
-          ...(additionalContext ? { additionalContext } : {}),
-          ...(combinedContextNotes ? { contextItems: combinedContextNotes } : {}),
-          ...(clientContextForCampaign ? { clientContext: clientContextForCampaign } : {}),
-          // Rich client-profile blocks (OUTREACH_CLIENT_PROFILE) — client-level /
-          // recipient-invariant, resolved once above (null when the flag is off).
-          ...(clientPeopleBlock ? { clientPeople: clientPeopleBlock } : {}),
-          ...(clientTargetOfficesBlock ? { clientTargetOffices: clientTargetOfficesBlock } : {}),
-        };
-
-        const generated = await this.ai.generateOutreachDraft(
-          {
-            workflow: 'campaign',
-            client,
-            recipients: [recipient as unknown as Record<string, unknown>],
-            context,
-            promptTemplate: 'custom',
-            // In revise mode the freeform instruction becomes the objective the
-            // revision-mode prompt edits toward; otherwise the campaign prompt.
-            objective: isReviseSingle && reviseInstruction ? reviseInstruction : templatePrompt,
-            ...(audienceKind ? { audienceKind } : {}),
-            ...(isReviseSingle ? { existingSubject, existingBody } : {}),
-          },
-          ctx,
-          // Campaign-sticky provider (M2/W3.2): use the pinned credential(s) the
-          // batch resolved once, so every recipient in this send uses the same
-          // provider+model — no mid-campaign voice split from a per-recipient
-          // fallback.
-          { creds },
-        );
-        // One usage event per recipient draft; rides inside the concurrent
-        // worker so metering overlaps generation instead of serializing it.
-        await this.recordAiUsage(ctx, 'outreach_campaign', generated);
-
-        // ── Phase 0 versioned path ────────────────────────────────────────────
-        // Persist the draft as an IMMUTABLE version and let OutreachDraftService
-        // audit that exact row. The inline auditor below is NOT run in this mode:
-        // it audited transient text and failed OPEN, which is precisely the hole
-        // Phase 0 closes. (The legacy branch keeps it verbatim so turning the
-        // flag off never leaves generation unaudited.)
-        if (versioned) {
-          const ledgerEntries = buildOutreachLedgerEntries(
-            [...sharedItems, ...personalItems],
-            outreachTruthByItemId,
-          );
-          const generationKeys = resolveGenerationKeys(recipient, recipientId);
-          try {
-            const refs: OutreachBatchDraftVersionRef[] = [];
-            for (const generationKey of generationKeys) {
-              // Phase 2 §3.f2 — persists as a normal version UNLESS this
-              // slot's current version was manually authored, in which case
-              // it comes back as a non-current CANDIDATE instead. The wizard
-              // routes a candidate through the compare/merge UI rather than
-              // silently replacing the user's edit.
-              const version = await this.draft.upsertGeneratedVersionOrCandidate(ctx, {
-                outreachRecordId: versionedRecordId!,
-                generationKey,
-                recipientKey: recipientId,
-                audienceKind: audienceKind === 'group' ? 'group' : 'individual',
-                recipientSnapshot: pruneForAi(
-                  recipient as unknown as Record<string, unknown>,
-                ) as Record<string, unknown>,
-                subject: generated.subject,
-                body: generated.body,
-                provider: generated.provider ?? null,
-                model: generated.model ?? null,
-                // The spec version the AI layer ACTUALLY used for this draft (it
-                // reports 'v2.1' under the v2 flag, 'v1' otherwise) — read from
-                // the result rather than re-derived, so the send-time v2 gate
-                // judges what was really used.
-                promptSpecVersion: generated.promptSpecVersion ?? null,
-                auditLedger: ledgerEntries,
-              });
-              refs.push({
-                generationKey,
-                artifactId: version.artifactId,
-                versionId: version.id,
-                version: version.version,
-                generationStatus: version.generationStatus,
-                auditStatus: version.auditStatus,
-                approvalStatus: version.approvalStatus,
-                ...(version.reviewRequestId ? { reviewRequestId: version.reviewRequestId } : {}),
-                sendable: version.sendable,
-                ...(version.mode === 'candidate'
-                  ? { isCandidate: true, baseVersion: version.baseVersion }
-                  : {}),
-              });
-              if (version.contextNote) contextNoteFromVersion = version.contextNote;
-            }
-            const primary = refs[0]!;
-            return {
-              result: {
-                recipientId,
-                // The HELD text is preserved verbatim — a held draft is real
-                // content awaiting review, never a failure placeholder.
-                subject: generated.subject,
-                body: generated.body,
-                status: primary.sendable ? 'ready' : 'held',
-                generationKey: primary.generationKey,
-                artifactId: primary.artifactId,
-                versionId: primary.versionId,
-                version: primary.version,
-                generationStatus: primary.generationStatus,
-                auditStatus: primary.auditStatus,
-                approvalStatus: primary.approvalStatus,
-                ...(primary.reviewRequestId ? { reviewRequestId: primary.reviewRequestId } : {}),
-                sendable: primary.sendable,
-                // Phase e — mirror the primary ref's candidate status flat, the
-                // same way every other version field above is mirrored. Without
-                // this, the async job worker (which reads only these flat
-                // fields, never `versions[]`) cannot tell a candidate from a
-                // normal current-advancing generation.
-                ...(primary.isCandidate
-                  ? { isCandidate: true, baseVersion: primary.baseVersion }
-                  : {}),
-                versions: refs,
-                ...(contextNoteFromVersion ? { contextNote: contextNoteFromVersion } : {}),
-              },
-              provider: generated.provider,
-            };
-          } catch (persistErr) {
-            // Generation SUCCEEDED but the version could not be persisted. The
-            // transient text is deliberately dropped: returning it as ready
-            // would hand the wizard sendable content the server has no immutable,
-            // audited record of (plan edge case 2).
-            this.logger.error(
-              `outreach draft version persistence FAILED for recipient ${recipientId} — ` +
-                `the generated draft is discarded rather than returned unsendable-but-visible: ` +
-                `${(persistErr as Error).message}`,
-            );
-            return {
-              result: {
-                recipientId,
-                subject: '',
-                body: '',
-                status: 'error' as const,
-                generationStatus: 'generation_failed' as const,
-                error: 'DRAFT_PERSIST_FAILED',
-                ...(generationKeys[0] ? { generationKey: generationKeys[0] } : {}),
-              },
-              provider: generated.provider,
-            };
-          }
-        }
-
-        // Wave-2 post-hoc grounding auditor on the OUTREACH surface — SHADOW by
-        // default (MERI_AUDITOR_MODE off = no-op). Re-derives ground truth from
-        // the SAME PE/bill truth blocks already fed into THIS recipient's prompt
-        // (via enrichOutreachContextItems/outreachTruthByItemId — only items
-        // actually in scope for this recipient: shared + their personal items)
-        // and flags any contradiction in the drafted body. Fully guarded: a bug
-        // here can NEVER turn a good draft into an error, and it never touches
-        // subject/body — degraded mode (annotate/enforce only) appends a line
-        // to the INTERNAL contextNote the lobbyist sees, never the recipient.
-        let auditorContextNote: string | undefined;
-        // held: set true only when the auditor returns decision==='hold' (enforce
-        // mode + a finding on this blocking surface). It flips the returned
-        // status to 'held', which the wizard treats as non-sendable — the draft
-        // is shown for review (with the internal contextNote) but excluded from
-        // the send. Inert under shadow/annotate (decision is never 'hold' there).
-        let recipientHeld = false;
-        const auditorMode = campaignAuditorMode;
-        if (auditorMode !== 'off' && generated.body.trim().length > 0) {
-          try {
-            const usedItems = [...sharedItems, ...personalItems];
-            const ledgerEntries: LedgerEntry[] = [];
-            for (const item of usedItems) {
-              const truth = outreachTruthByItemId.get(item.id);
-              if (!truth) continue;
-              if (truth.kind === 'bill') {
-                const b = truth.raw;
-                ledgerEntries.push({
-                  tool: 'get_bill_status',
-                  serialized: item.body ?? '',
-                  result: {
-                    billId: b.id,
-                    status: b.status,
-                    statusAt: b.statusAt ? new Date(b.statusAt).toISOString() : null,
-                    ...(b.sponsorName ? { sponsor: { name: b.sponsorName } } : {}),
-                  },
-                });
-              } else {
-                const pe = truth.raw;
-                ledgerEntries.push({
-                  tool: 'get_pe_budget_timeline',
-                  serialized: item.body ?? '',
-                  result: {
-                    peCode: pe.peCode,
-                    years: pe.years,
-                    currentCycleFy: pe.currentCycleFy ?? null,
-                    identifierKind:
-                      pe.budgetExhibitType && /procurement line item/i.test(pe.budgetExhibitType)
-                        ? 'procurement_line_item'
-                        : 'pe',
-                    generatedAt: new Date().toISOString(),
-                  },
-                });
-              }
-            }
-
-            const verdict = runAuditor({
-              output: generated.body,
-              ledger: { entries: ledgerEntries },
-              surface: 'outreach',
-              mode: auditorMode,
-            });
-            if (verdict.findings.length > 0) {
-              this.logger.warn(
-                `[meri-auditor:${auditorMode}] outreach recipient ${recipientId} — ${verdict.findings.length} finding(s), ` +
-                  `top=${verdict.topSeverity}, decision=${verdict.decision}: ` +
-                  verdict.findings.map((f) => `${f.check}/${f.severity}`).join(', '),
-              );
-              await this.prisma.withTenant(ctx.tenantId, (tx) =>
-                tx.meriAuditLedger.create({
-                  data: {
-                    tenantId: ctx.tenantId,
-                    surface: 'outreach',
-                    mode: auditorMode,
-                    decision: verdict.decision,
-                    topSeverity: verdict.topSeverity ?? null,
-                    findingCount: verdict.findings.length,
-                    findings: verdict.findings as unknown as Prisma.InputJsonValue,
-                    outputChars: generated.body.length,
-                  },
-                }),
-              );
-              // Degraded mode (v3 plan §3.6): outreach bodies stay recipient-
-              // facing and citation-free — never a banner in body/subject.
-              // ANNOTATE/ENFORCE instead append to the INTERNAL contextNote;
-              // inert while mode is shadow (the default) — this branch never
-              // runs and auditorContextNote stays undefined.
-              if (auditorMode === 'annotate' || auditorMode === 'enforce') {
-                const checks = [...new Set(verdict.findings.map((f) => f.check))].join(', ');
-                auditorContextNote = `⚠️ Unverified — ${verdict.findings.length} grounding finding(s) held for review (${checks}). Treat flagged claims as unconfirmed until a reviewer clears them.`;
-              }
-              // Enforce = hold: mark this recipient's draft non-sendable. Inert
-              // under shadow/annotate (decision is 'hold' only in enforce mode).
-              recipientHeld = verdict.decision === 'hold';
-              if (recipientHeld) {
-                await this.persistOutreachHold(ctx, {
-                  recipientId,
-                  recipientName: (recipient as Record<string, unknown>).name?.toString() ?? null,
-                  clientId: clientId ?? null,
-                  subject: generated.subject,
-                  body: generated.body,
-                  findings: verdict.findings,
-                });
-              }
-            }
-          } catch (auditErr) {
-            this.logger.warn(
-              `[meri-auditor] outreach audit failed for recipient ${recipientId} (draft unaffected): ${(auditErr as Error).message}`,
-            );
-          }
-        }
-
-        return {
-          result: {
-            recipientId,
-            subject: generated.subject,
-            body: generated.body,
-            status: (recipientHeld ? 'held' : 'ready') as 'ready' | 'held',
-            ...(auditorContextNote ? { contextNote: auditorContextNote } : {}),
-          },
-          provider: generated.provider,
-        };
-      } catch (err) {
-        this.logger.warn(
-          `Batch email generation failed for recipient ${recipientId}: ${(err as Error).message}`,
-        );
-        // Tag the failure explicitly so the wizard classifies it as 'error'
-        // from the moment it responds — never a blank draft masquerading as
-        // 'ready'. Sendability gates on this status, not on empty content.
-        //
-        // Phase 0: an ordinary generation failure creates NO version (there is no
-        // text to audit), but it DOES create the empty artifact row so the slot
-        // has a stable id the user can author a manual version against. The
-        // error message is replaced by a sanitized code — a raw provider string
-        // is telemetry, not something to hand a browser.
-        let generationKey: string | undefined;
-        if (versioned && versionedRecordId) {
-          const keys = resolveGenerationKeys(recipient, recipientId);
-          generationKey = keys[0];
-          for (const key of keys) {
-            await this.draft
-              .ensureArtifact(ctx, {
-                outreachRecordId: versionedRecordId,
-                generationKey: key,
-                recipientKey: recipientId,
-                audienceKind: audienceKind === 'group' ? 'group' : 'individual',
-                recipientSnapshot: pruneForAi(
-                  recipient as unknown as Record<string, unknown>,
-                ) as Record<string, unknown>,
-                subject: '',
-                body: '',
-              })
-              .catch((e) =>
-                this.logger.warn(
-                  `could not create empty draft artifact for ${key}: ${(e as Error).message}`,
-                ),
-              );
-          }
-        }
-        return {
-          result: {
-            recipientId,
-            subject: '',
-            body: '',
-            status: 'error' as const,
-            error: versioned ? 'GENERATION_FAILED' : (err as Error).message,
-            ...(versioned ? { generationStatus: 'generation_failed' as const } : {}),
-            ...(generationKey ? { generationKey } : {}),
-          },
-          provider: null,
-        };
-      }
-    };
-
-    // Campaign-sticky provider (M2/W3.2): resolve the credential order ONCE for
-    // the whole campaign (Anthropic-first per D2 when configured). Empty ⇒ AI is
-    // not configured; fail the whole batch loudly rather than emitting N per-item
-    // "not configured" errors.
-    const campaignCreds = await this.ai.resolveOutreachCredentials(ctx);
-    if (!campaignCreds.length) {
-      throw new ServiceUnavailableException(
-        'Outreach drafting is not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY (or a tenant AI key).',
-      );
-    }
-
-    // Establish + pin the provider on recipient #1 (which ALSO warms the v2 prompt
-    // cache: its cache WRITE lands before the fan-out so drafts 2..N read the
-    // cached byte-stable prefix — W3.3). Recipient #1 may fall back across the full
-    // ordered list; whichever provider wins is then PINNED for every other
-    // recipient so one send never mixes provider voices. If #1 fails outright,
-    // there is nothing to pin, so the rest fall back across the full list too.
-    let results: Array<OutreachBatchDraftResult>;
-    if (recipients.length > 1) {
-      const head = await generateForRecipient(recipients[0]!, 0, campaignCreds);
-      const pinnedCreds =
-        head.provider != null
-          ? campaignCreds.filter((c) => c.provider === head.provider)
-          : campaignCreds;
-      const tail = await mapWithConcurrency(
-        recipients.slice(1),
-        OUTREACH_GEN_CONCURRENCY,
-        (recipient, i) => generateForRecipient(recipient, i + 1, pinnedCreds).then((r) => r.result),
-      );
-      results = [head.result, ...tail];
-    } else {
-      results = [(await generateForRecipient(recipients[0]!, 0, campaignCreds)).result];
-    }
-
-    // Soft-warn banner (W3.4): surfaced once the tenant crosses 80% of the daily
-    // budget so the human sees it coming before the hard-stop.
-    const budgetWarning = budget.softWarn
-      ? `Your organization has used ${Math.round(budget.ratio * 100)}% of today's outreach AI limit.`
-      : undefined;
-
-    return { results, ...(budgetWarning ? { budgetWarning } : {}) };
+    /**
+     * Phase 26 cutover: batch generation runs through the governed gateway
+     * unconditionally. The legacy branch that used to follow (its own prompt
+     * assembly, auditor and sendability decision, fed by an ungoverned
+     * ContextPacket) has been removed, so there is no reachable Outreach
+     * generation path that skips the Context Plane.
+     */
+    return this.generateBatchEmailsViaGateway(ctx, input, {
+      versionedRecordId,
+      budgetWarning: budget.softWarn
+        ? `Your organization has used ${Math.round(budget.ratio * 100)}% of today's outreach AI limit.`
+        : undefined,
+      authHeader,
+    });
   }
 
   /**
@@ -4417,6 +3626,7 @@ export class EngagementService {
       })),
       templateId: input.templateId,
       templatePrompt: o.templatePrompt,
+      ...(input.objective ? { objective: input.objective } : {}),
       tone: normalizeGatewayTone(input.tone),
       length: null,
       direction: input.direction ?? null,
@@ -9214,6 +8424,17 @@ export class EngagementService {
 
     const clientId = campaign.clientId;
     const client = clientId ? await this.clientContext(ctx, clientId).catch(() => null) : null;
+    const firstRecipient = campaign.recipients[0] ?? null;
+    // Phase 26 cutover: campaign follow-up context is always governed. This was
+    // flag-gated, so with the flag off the provider was called with the raw
+    // custom context and no Context Plane packet at all.
+    const governed = await this.gateway.resolveGovernedContext(ctx, {
+      clientId: clientId ?? null,
+      recipientName: firstRecipient?.name ?? null,
+      recipientEmail: firstRecipient?.email ?? null,
+      objective: customContext ?? 'Draft the campaign follow-up email.',
+    });
+    const campaignContext = [customContext, governed.promptBlock].filter(Boolean).join('\n\n') || null;
 
     const result = await this.ai.generateCampaignEmail(
       {
@@ -9229,7 +8450,7 @@ export class EngagementService {
           office: r.office,
         })),
         campaignType: campaign.type,
-        customContext,
+        customContext: campaignContext,
       },
       ctx,
     );

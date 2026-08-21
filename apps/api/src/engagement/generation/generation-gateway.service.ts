@@ -20,7 +20,7 @@
  *   - Provider/model are chosen ONCE, recorded in the packet, and reused — a
  *     campaign never splits across two provider voices mid-flight.
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { recordAiUsageEvent, type ProviderUsage, type TenantContext } from '@capiro/shared';
 import type { LedgerEntry } from '@capiro/meriv2-core';
@@ -65,6 +65,10 @@ import {
   GATEWAY_PROMPT_SPEC_VERSION,
 } from './gateway-prompt.js';
 import { supportsReasoning, type ReasoningEffort } from './reasoning-effort.js';
+import {
+  OutreachContextPlaneService,
+  projectUserVoice,
+} from './outreach-context-plane.service.js';
 import type {
   GenerationRequest,
   GenerationResult,
@@ -105,6 +109,7 @@ export class GenerationGatewayService {
     private readonly styles: AuthorStyleProfileService,
     private readonly drafts: OutreachDraftService,
     private readonly scanner: AttachmentScannerService,
+    private readonly contextPlane: OutreachContextPlaneService,
   ) {
     this.enabled = config.get('ENGAGEMENT_GENERATION_GATEWAY', { infer: true });
     this.envEmailScope = config.get('ENGAGEMENT_EMAIL_CONTEXT_SCOPE', { infer: true });
@@ -244,6 +249,25 @@ export class GenerationGatewayService {
   }
 
   /**
+   * Phase 20: leftover Classic drafting paths that have not yet been rewritten
+   * onto generate() still must obtain the shared governed packet before they
+   * spend a model call. Authorization stays server-derived.
+   */
+  async resolveGovernedContext(
+    ctx: TenantContext,
+    input: {
+      clientId: string | null;
+      recipientName: string | null;
+      recipientEmail: string | null;
+      objective: string;
+      outreachRecordId?: string | null;
+    },
+  ) {
+    const { wallAllowsClient } = await this.resolveEmailScope(ctx, input.clientId);
+    return this.contextPlane.resolve(ctx, { ...input, wallAllowsClient });
+  }
+
+  /**
    * Generate ONE unit (one recipient slot, or one shared group message).
    *
    * Never throws for an expected failure: a blocked policy, a critical source
@@ -337,6 +361,42 @@ export class GenerationGatewayService {
       request.clientId,
     );
 
+    // ── 3. Shared Context Plane packet (Phase 20) ──
+    // Classic, V3, batch, async, and revision all enter here. Authorization is
+    // derived from server state; the browser cannot widen client/mailbox scope.
+    let governed;
+    try {
+      governed = await this.contextPlane.resolve(ctx, {
+        clientId: request.clientId,
+        recipientName: recipient.name,
+        recipientEmail: recipient.email,
+        objective: request.reviseInstruction ?? request.objective ?? request.templatePrompt,
+        outreachRecordId: request.outreachRecordId ?? null,
+        wallAllowsClient,
+      });
+    } catch (e) {
+      if (e instanceof ForbiddenException) {
+        return this.blocked(
+          request,
+          'CONTEXT_PLANE_DENIED',
+          'Governed context could not be authorized for this draft.',
+          now,
+          policy,
+        );
+      }
+      const message = (e as Error).message ?? '';
+      if (message.startsWith('context_plane_phase20_operation_not_adopted')) {
+        return this.blocked(
+          request,
+          'CONTEXT_PLANE_NOT_ADOPTED',
+          'Outreach generation is not yet adopted onto the Context Plane.',
+          now,
+          policy,
+        );
+      }
+      throw e;
+    }
+
     // ── 3/4. Compile + persist the Evidence Packet ──
     const directives = this.buildRequestDirectives(ctx, request, policy);
     let packet: EvidencePacketV2;
@@ -369,7 +429,8 @@ export class GenerationGatewayService {
         // §4.7: under the gateway, a packet that cannot be persisted stops the
         // generation. There is no such thing as a sendable draft with no record
         // of what it was grounded in.
-        failClosedOnPersist: this.enabled,
+        // Phase 26: the gateway is the only generation path, so this is always on.
+        failClosedOnPersist: true,
         now,
         ...(request.packetId ? { packetId: request.packetId } : {}),
         // Forwarded so EvidenceSourceService can rehydrate an 'intel' item from
@@ -377,6 +438,7 @@ export class GenerationGatewayService {
         // explicit undefined) so a caller with no header stays byte-identical.
         ...(request.authHeader ? { authHeader: request.authHeader } : {}),
         recipientIdentityResolved: Boolean(recipient.email || recipient.name),
+        governedContext: governed,
       });
     } catch (e) {
       if (e instanceof EvidencePacketPersistError) {
@@ -415,6 +477,9 @@ export class GenerationGatewayService {
         creds: pinnedCreds,
         now,
         runtimeAction: request.runtimeAction,
+        // Voice memory comes from the packet this gateway already resolved, so
+        // the style profile no longer compiles a second one of its own.
+        voiceMemory: projectUserVoice(governed.packet),
       })
       .catch(() => null);
 

@@ -1,218 +1,188 @@
-import type { MeriContext } from '@capiro/meriv2-core';
+import type { MeriContext, MeriGovernedTurnContext } from '@capiro/meriv2-core';
+import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { StrategyContextPackService } from './strategy-context-pack.service.js';
-import type { ApiToolExecutorRepo } from '../api-tool-executor.repo.js';
 
-const CTX = { tenantId: 't', userId: 'u', clerkUserId: 'c', role: 'standard_user' } as MeriContext;
+const CLIENT = '11111111-1111-4111-8111-111111111111';
+const CTX = {
+  tenantId: '22222222-2222-4222-8222-222222222222',
+  userId: '33333333-3333-4333-8333-333333333333',
+  clerkUserId: 'user_test',
+  role: 'standard_user',
+  contextPacket: {
+    packetId: '44444444-4444-4444-8444-444444444444',
+    persisted: true,
+    surface: 'strategy',
+    clientId: CLIENT,
+    items: [],
+    exclusions: [],
+    unauthorizedCount: 0,
+    degraded: false,
+  },
+} as MeriContext;
 
-/** Build a pack service over a stubbed executor whose per-tool result is canned. */
-function build(results: Record<string, unknown>) {
-  const calls: Array<{ name: string; input: Record<string, unknown> }> = [];
-  const execute = jest.fn(
-    async (_ctx: MeriContext, name: string, input: Record<string, unknown>) => {
-      calls.push({ name, input });
-      if (!(name in results)) throw new Error(`unexpected tool ${name}`);
-      return results[name];
+function governed(
+  overrides: Partial<MeriGovernedTurnContext> = {},
+): MeriGovernedTurnContext {
+  return {
+    version: 1,
+    operationId: 'strategies.generate',
+    prompt: '<capiro_strategy_context_plane>governed client history</capiro_strategy_context_plane>',
+    contextPacket: {
+      packetId: '44444444-4444-4444-8444-444444444444',
+      persisted: true,
+      surface: 'strategy',
+      clientId: CLIENT,
+      items: [
+        {
+          id: 'memory-1',
+          label: 'Client compass',
+          type: 'client-compass',
+          scope: 'client',
+          authority: 'human-authored',
+          selection: 'automatic',
+        },
+      ],
+      exclusions: [],
+      unauthorizedCount: 0,
+      degraded: false,
     },
-  );
-  const svc = new StrategyContextPackService({ execute } as unknown as ApiToolExecutorRepo);
-  return { svc, calls };
+    retrieval: {
+      plan: {
+        version: 1,
+        queryClass: 'lookup',
+        subjectScope: 'client',
+        targetHint: null,
+        recipeTool: null,
+        requireCompleteCoverage: false,
+        requiredDomains: ['clients', 'strategies_work', 'mail'],
+        timeWindow: null,
+      },
+      coverage: {
+        version: 1,
+        complete: true,
+        requestedDomains: ['clients', 'strategies_work', 'mail'],
+        searchedDomains: ['clients', 'strategies_work', 'mail'],
+        missingDomains: [],
+        partialDomains: [],
+        requestedEntityCount: 1,
+        searchedEntityCount: 1,
+        recordsEvaluated: 8,
+        recordsReturned: 5,
+        paginationComplete: true,
+        truncated: false,
+        sourceHealth: [],
+        unavailableSources: [],
+        toolsInvoked: [],
+        stopReason: 'complete',
+      },
+    },
+    ...overrides,
+  };
 }
 
-// Canned tool results using the REAL tool response shapes (matching
-// apps/api meri-tools.service.ts): tracked bills under `bills`, intelligence as
-// a `data` string, memory rows carrying `clientId`.
-const RICH = {
-  get_client_context: {
-    tool: 'get_client_context',
-    context: { client: { name: 'Aerovance' }, description: 'defense sensors' },
-    profile: {
-      capabilities: [{ x: 1 }],
-      people: [{ x: 1 }, { x: 2 }],
-      facilities: [],
-      submissionHistory: [],
+describe('StrategyContextPackService — governed Context Plane projection', () => {
+  const service = new StrategyContextPackService();
+
+  test('projects the already-compiled prompt without running a second retrieval path', async () => {
+    const input = governed();
+    const pack = await runWithGovernedMeriContext(input, () =>
+      service.compile({ ctx: CTX, clientId: CLIENT, query: 'win the plus-up', slim: false }),
+    );
+
+    expect(pack.text).toBe(input.prompt);
+    expect(pack.provenance.sections).toEqual([
+      { name: 'ContextPacket V2', count: 1 },
+      { name: 'Shared Retrieval V2', count: 5 },
+    ]);
+    expect(pack.health).toEqual({
+      status: 'ok',
+      missingRequired: [],
+      omittedOptional: [],
+    });
+  });
+
+  test.each(['workspace.generate', 'outreach.generate'] as const)(
+    'accepts destination-owned %s context for Strategy execution drafting',
+    async (operationId) => {
+      const packetSurface = operationId === 'workspace.generate' ? 'workspace-gen' : 'outreach';
+      const input = governed({
+        operationId,
+        contextPacket: { ...governed().contextPacket, surface: packetSurface },
+      });
+      const ctx = { ...CTX, contextPacket: input.contextPacket } as MeriContext;
+      const pack = await runWithGovernedMeriContext(input, () =>
+        service.compile({ ctx, clientId: CLIENT, query: 'draft artifact', slim: false }),
+      );
+      expect(pack.text).toContain('governed client history');
     },
-  },
-  search_client_knowledge: {
-    results: [{ id: 'd1', title: 'FY27 ask', snippet: '...', score: 0.7 }],
-  },
-  search_tracked_bills: {
-    tool: 'search_tracked_bills',
-    clientId: 'client-1',
-    total: 1,
-    bills: [{ id: 'hr1' }],
-  },
-  query_intelligence: {
-    tool: 'query_intelligence',
-    data: 'Surging LDA issues: shipbuilding, munitions',
-  },
-  query_knowledge_graph: {
-    summary: 'client ↔ HAC-D',
-    nodes: [{ id: 'n1', type: 'client', label: 'Aerovance' }],
-  },
-  search_memory: {
-    summary: '1 memory item',
-    results: [{ memoryItemId: 'm1', clientId: 'client-1', title: 'debrief', relevance: 0.6 }],
-  },
-};
+  );
 
-describe('StrategyContextPackService — full pack', () => {
-  it('assembles the 8-tab + KG + prior-engagement sections and never calls query_debriefs', async () => {
-    const { svc, calls } = build(RICH);
-    const pack = await svc.compile({
-      ctx: CTX,
-      clientId: 'client-1',
-      query: 'win the plus-up',
-      slim: false,
-    });
-
-    const names = pack.provenance.sections.map((s) => s.name);
-    expect(names).toEqual(
-      expect.arrayContaining([
-        'Client profile',
-        'Relevant documents',
-        'Tracked bills',
-        'Intelligence',
-        'Knowledge graph',
-        'Prior engagement',
-      ]),
-    );
-    // Wall-safety: the un-walled query_debriefs is NEVER used.
-    expect(calls.some((c) => c.name === 'query_debriefs')).toBe(false);
-    // Documents are relevance-retrieved top-K over client_doc_chunk with the goal.
-    const kb = calls.find((c) => c.name === 'search_client_knowledge')!;
-    expect(kb.input).toMatchObject({
-      clientId: 'client-1',
-      kind: 'client_doc_chunk',
-      query: 'win the plus-up',
-    });
-    // CTX-2: the knowledge graph is client-anchored (seeded on the client node),
-    // never a firm-wide (seedless) walk.
-    const kg = calls.find((c) => c.name === 'query_knowledge_graph')!;
-    expect(kg.input).toMatchObject({ seed: 'client:client-1' });
-    // Prior engagement rides the WALL-RIDING search_memory (not query_debriefs).
-    expect(calls.some((c) => c.name === 'search_memory')).toBe(true);
-    expect(pack.text).toContain('## Prior engagement');
-    // Tracked bills + Intelligence sections render from their real shapes.
-    expect(pack.text).toContain('## Tracked bills');
-    expect(pack.text).toContain('## Intelligence');
-    expect(pack.text).toContain('shipbuilding');
-  });
-});
-
-describe('StrategyContextPackService — cross-client scoping (CTX-4)', () => {
-  it('drops prior-engagement memory rows that belong to a DIFFERENT client', async () => {
-    const bleed = {
-      ...RICH,
-      search_memory: {
-        summary: '2 items',
-        results: [
-          {
-            memoryItemId: 'm-other',
-            clientId: 'client-2',
-            title: 'other client debrief',
-            relevance: 0.9,
-          },
-          { memoryItemId: 'm-gen', clientId: null, title: 'tenant-general note', relevance: 0.5 },
-        ],
+  test('marks required shared domains missing instead of treating zero coverage as healthy', async () => {
+    const input = governed({
+      retrieval: {
+        ...governed().retrieval,
+        coverage: {
+          ...governed().retrieval.coverage,
+          complete: false,
+          searchedDomains: ['mail'],
+          missingDomains: ['clients', 'strategies_work'],
+          recordsReturned: 0,
+          paginationComplete: false,
+          stopReason: 'required_sources_unavailable',
+        },
       },
-    };
-    const { svc } = build(bleed);
-    const pack = await svc.compile({ ctx: CTX, clientId: 'client-1', query: 'goal', slim: false });
-
-    // The other client's memory must not appear; the tenant-general (null) row is kept.
-    expect(pack.text).not.toContain('other client debrief');
-    expect(pack.text).toContain('tenant-general note');
-    const eng = pack.provenance.sections.find((s) => s.name === 'Prior engagement');
-    expect(eng?.count).toBe(1);
-  });
-
-  it('omits prior engagement entirely when every memory row is another client', async () => {
-    const allOther = {
-      ...RICH,
-      search_memory: {
-        summary: '1 item',
-        results: [{ memoryItemId: 'm-other', clientId: 'client-2', title: 'x', relevance: 0.9 }],
-      },
-    };
-    const { svc } = build(allOther);
-    const pack = await svc.compile({ ctx: CTX, clientId: 'client-1', query: 'goal', slim: false });
-    expect(pack.provenance.sections.map((s) => s.name)).not.toContain('Prior engagement');
-    expect(pack.provenance.omitted).toEqual(expect.arrayContaining(['Prior engagement']));
-  });
-});
-
-describe('StrategyContextPackService — walled client', () => {
-  it('omits memory/KG sections when the wall-riding tools return empty (no leak), keeps tenant-scoped profile', async () => {
-    // A walled client: search_memory + query_knowledge_graph fail-closed → empty.
-    const walled = {
-      ...RICH,
-      query_knowledge_graph: { summary: '', nodes: [] },
-      search_memory: { results: [] },
-    };
-    const { svc } = build(walled);
-    const pack = await svc.compile({ ctx: CTX, clientId: 'client-1', query: 'goal', slim: false });
-
-    const names = pack.provenance.sections.map((s) => s.name);
-    expect(names).toContain('Client profile'); // client-own, tenant-scoped
-    expect(names).not.toContain('Knowledge graph'); // walled → empty → omitted
-    expect(names).not.toContain('Prior engagement'); // walled → empty → omitted
-    expect(pack.provenance.omitted).toEqual(
-      expect.arrayContaining(['Knowledge graph', 'Prior engagement']),
+    });
+    const pack = await runWithGovernedMeriContext(input, () =>
+      service.compile({ ctx: CTX, clientId: CLIENT, query: 'goal', slim: false }),
     );
-    expect(pack.text).not.toContain('## Prior engagement');
-  });
-});
-
-describe('StrategyContextPackService — slim (rail assistant)', () => {
-  it('fetches only profile + documents + KG, not tracker/intel/engagement', async () => {
-    const { svc, calls } = build(RICH);
-    await svc.compile({ ctx: CTX, clientId: 'client-1', query: 'push a step', slim: true });
-    const fetched = new Set(calls.map((c) => c.name));
-    expect(fetched.has('get_client_context')).toBe(true);
-    expect(fetched.has('search_client_knowledge')).toBe(true);
-    expect(fetched.has('query_knowledge_graph')).toBe(true);
-    expect(fetched.has('search_tracked_bills')).toBe(false);
-    expect(fetched.has('query_intelligence')).toBe(false);
-    expect(fetched.has('search_memory')).toBe(false);
-  });
-});
-
-describe('StrategyContextPackService — A8 pack health', () => {
-  it('is "ok" when every section resolves — only the documented Targets gap is optional-omitted', async () => {
-    const { svc } = build(RICH);
-    const pack = await svc.compile({ ctx: CTX, clientId: 'client-1', query: 'goal', slim: false });
-
-    expect(pack.health.status).toBe('ok');
-    expect(pack.health.missingRequired).toEqual([]);
-    expect(pack.health.omittedOptional).toEqual(['Targets (no read tool)']);
-  });
-
-  it('stays "ok" for a walled client — KG/prior-engagement land in omittedOptional, never missingRequired', async () => {
-    const walled = {
-      ...RICH,
-      query_knowledge_graph: { summary: '', nodes: [] },
-      search_memory: { results: [] },
-    };
-    const { svc } = build(walled);
-    const pack = await svc.compile({ ctx: CTX, clientId: 'client-1', query: 'goal', slim: false });
-
-    expect(pack.health.status).toBe('ok');
-    expect(pack.health.missingRequired).toEqual([]);
-    expect(pack.health.omittedOptional).toEqual(
-      expect.arrayContaining(['Knowledge graph', 'Prior engagement', 'Targets (no read tool)']),
-    );
-    expect(pack.health.omittedOptional).not.toContain('Client profile');
-  });
-
-  it('degrades to "degraded" with "Client profile" in missingRequired (never omittedOptional) when the profile fetch fails', async () => {
-    // Drop the get_client_context stub so the mock executor throws, exercising
-    // the run() catch path — the only way `omitted` can contain 'Client profile'.
-    const { get_client_context: _unused, ...noProfile } = RICH;
-    const { svc } = build(noProfile);
-    const pack = await svc.compile({ ctx: CTX, clientId: 'client-1', query: 'goal', slim: false });
 
     expect(pack.health.status).toBe('degraded');
-    expect(pack.health.missingRequired).toEqual(['Client profile']);
-    expect(pack.health.omittedOptional).not.toContain('Client profile');
+    expect(pack.health.missingRequired).toEqual(['clients', 'strategies_work']);
+    expect(pack.provenance.omitted).toEqual(
+      expect.arrayContaining([
+        'Retrieval domain: clients',
+        'Retrieval domain: strategies_work',
+      ]),
+    );
+  });
+
+  test('records optional source gaps without reclassifying them as required', async () => {
+    const input = governed({
+      retrieval: {
+        ...governed().retrieval,
+        coverage: {
+          ...governed().retrieval.coverage,
+          complete: false,
+          missingDomains: ['mail'],
+          stopReason: 'mail_unavailable',
+        },
+      },
+    });
+    const pack = await runWithGovernedMeriContext(input, () =>
+      service.compile({ ctx: CTX, clientId: CLIENT, query: 'goal', slim: true }),
+    );
+    expect(pack.health.status).toBe('degraded');
+    expect(pack.health.missingRequired).toEqual([]);
+    expect(pack.health.omittedOptional).toEqual(['mail']);
+  });
+
+  test('fails closed when called without the governed runtime', async () => {
+    await expect(
+      service.compile({ ctx: CTX, clientId: CLIENT, query: 'goal', slim: false }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  test('fails closed on packet/client drift', async () => {
+    const input = governed({
+      contextPacket: {
+        ...governed().contextPacket,
+        clientId: '55555555-5555-4555-8555-555555555555',
+      },
+    });
+    await expect(
+      runWithGovernedMeriContext(input, () =>
+        service.compile({ ctx: CTX, clientId: CLIENT, query: 'goal', slim: false }),
+      ),
+    ).rejects.toMatchObject({ status: 403 });
   });
 });

@@ -3,11 +3,11 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
 import {
-  contextPacketV2Overrides,
   IN_EDITOR_READ_TOOLS,
   inEditorToolErrorCategory,
   inEditorToolLabel,
   type CompiledContextPacket,
+  type MeriGovernedTurnContext,
 } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import { MeriToolsService } from '../meri/meri-tools.service.js';
@@ -71,6 +71,13 @@ export interface AssistantStep {
  * the MeriV2 in-editor response so flag routing does not change the telemetry a
  * caller can rely on.
  */
+type WorkspaceAssistantContextPacket = CompiledContextPacket & {
+  /** Runtime-only governed Context Plane projection; never persisted. */
+  governedContext?: Pick<MeriGovernedTurnContext, 'prompt'>;
+  /** Runtime-only bounded Retrieval V2 evidence; never persisted. */
+  supplementalEvidence?: string;
+};
+
 export interface AssistantContextMetadata {
   /** Durable context_packet row id; null when the trace was not persisted. */
   contextPacketId: string | null;
@@ -480,7 +487,7 @@ export class WorkspaceAssistantService {
 
   /** Attach the run's context + execution metadata to any result shape. */
   private finish(
-    packet: CompiledContextPacket,
+    packet: WorkspaceAssistantContextPacket,
     execution: AssistantExecutionMetadata,
     result: Omit<AssistantResult, keyof AssistantContextMetadata | 'execution'>,
   ): AssistantResult {
@@ -512,7 +519,7 @@ export class WorkspaceAssistantService {
     ctx: TenantContext,
     dto: WorkspaceAssistantDto,
     traceId: string,
-  ): Promise<CompiledContextPacket> {
+  ): Promise<WorkspaceAssistantContextPacket> {
     const clientId = dto.clientId?.trim() || null;
     // Server-derived ethical-wall decision for the v2 compile (closeout §6),
     // resolved on the same transaction as the client-existence check and for the
@@ -541,18 +548,17 @@ export class WorkspaceAssistantService {
         ? ['firm-identity', 'user-voice', 'client-steering', 'client-people']
         : ['firm-identity', 'user-voice'],
       ref: { documentId: dto.document?.id ?? null },
-      // ContextPacket v2, dark by default. `contextPacketV2Overrides` returns {}
-      // unless CONTEXT_PACKET_V2=enforce, so this request is byte-for-byte the
-      // pre-v2 one until the switch is armed. Layers stay EXPLICIT (they encode
-      // "no client in scope ⇒ do not claim a missing client layer") and
-      // `persistence` is deliberately left unset so a trace-write failure cannot
-      // 500 this route.
-      ...contextPacketV2Overrides(process.env.CONTEXT_PACKET_V2, {
-        surface: 'in-editor',
-        traceId,
-        promptVersion: PROMPT_VERSION,
-        ethicalWallAllowed,
-      }),
+      // Phase 21 is packet-required. The shared Context Plane owns enforcement,
+      // persistence, and the governed runtime projection for this editor turn.
+      // Layers stay explicit: no client scope means no client-layer claim.
+      contractVersion: 2,
+      persistence: 'required',
+      render: 'all',
+      tokenBudget: 12_000,
+      budgetUnit: 'tokens',
+      traceId,
+      promptVersion: PROMPT_VERSION,
+      ethicalWallAllowed,
     });
   }
 

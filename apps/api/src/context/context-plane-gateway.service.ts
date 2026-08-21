@@ -1,10 +1,18 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Optional,
+  type OnApplicationBootstrap,
+  type OnApplicationShutdown,
+} from '@nestjs/common';
+import type { ModuleRef } from '@nestjs/core';
 import {
   CONTEXT_PLANE_ENFORCEMENT_PHASE,
   evaluateContextOperationEnforcement,
   type ContextOperationEnforcementDecision,
   type ContextRequest,
 } from '@capiro/meriv2-core';
+import { PrismaService } from '../prisma/prisma.service.js';
 import { ContextCompilerService } from './context-compiler.service.js';
 import {
   ContextPlaneAuditService,
@@ -22,6 +30,7 @@ import type {
   ContextResolutionRequest,
   ContextRetrievalResult,
 } from './context-resolver.types.js';
+import { MeetingsContextPlaneRuntime } from './meetings-context-plane.runtime.js';
 
 export interface ContextPlaneGatewayRequest {
   operationId: string;
@@ -54,15 +63,44 @@ export type ContextPlaneGatewayResult =
  * path is fixed: Phase 15 resolver/retrieval -> Phase 16 layer bridge -> Phase
  * 17 ContextPacket V2. No provider-specific or feature-specific RAG is exposed
  * from this service.
+ *
+ * Phase 24 also installs the compatibility runtime that guards the two mature
+ * meeting AI methods. The runtime is constructed here so it cannot exist without
+ * the same gateway instance that enforces operation/scope/surface policy.
  */
 @Injectable()
-export class ContextPlaneGatewayService {
+export class ContextPlaneGatewayService
+  implements OnApplicationBootstrap, OnApplicationShutdown
+{
+  private meetingsRuntime: MeetingsContextPlaneRuntime | null = null;
+
   constructor(
     private readonly resolver: ContextResolverService,
     private readonly packets: ContextPacketV2Service,
     private readonly compiler: ContextCompilerService,
     private readonly audit: ContextPlaneAuditService,
+    @Optional() private readonly prisma?: PrismaService,
+    @Optional() private readonly moduleRef?: ModuleRef,
   ) {}
+
+  onApplicationBootstrap(): void {
+    // Unit tests instantiate this service directly with the four historical
+    // dependencies. The optional Nest-only dependencies are present in the real
+    // application and own the Phase 24 runtime installation.
+    if (!this.moduleRef) return;
+    if (!this.prisma) throw new Error('phase24_meetings_prisma_dependency_required');
+    this.meetingsRuntime = new MeetingsContextPlaneRuntime(
+      this,
+      this.prisma,
+      this.moduleRef,
+    );
+    this.meetingsRuntime.install();
+  }
+
+  onApplicationShutdown(): void {
+    this.meetingsRuntime?.restoreForTest();
+    this.meetingsRuntime = null;
+  }
 
   async requestContext(request: ContextPlaneGatewayRequest): Promise<ContextPlaneGatewayResult> {
     const operation = operationRegistry.contextPlaneOperation(request.operationId);
