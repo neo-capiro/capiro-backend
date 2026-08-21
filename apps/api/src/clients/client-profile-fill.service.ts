@@ -26,9 +26,11 @@ import {
   asRecord,
   asString,
   asStringArray,
+  buildCompanySearchQueries,
   capabilitySearchTerms,
   emailDomain,
   extractJsonObject,
+  extractSyncedMailParticipants,
   fillFindingHash,
   isPrivateOrLocalIp,
   metaDescription,
@@ -770,7 +772,7 @@ export class ClientProfileFillService {
       clientId: null as string | null,
       email: { endsWith: `@${domain}` },
     }));
-    const [contacts, existingPeople] = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const [contacts, existingPeople, mailRows] = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const contactRows = await tx.engagementContact.findMany({
         where: {
           tenantId: ctx.tenantId,
@@ -796,9 +798,25 @@ export class ClientProfileFillService {
         where: { tenantId: ctx.tenantId, clientId },
         select: { name: true, email: true },
       });
-      return [contactRows, peopleRows] as const;
+      const messageRows = await tx.mailMessage.findMany({
+        where: { tenantId: ctx.tenantId, removedAt: null, thread: { clientId } },
+        select: {
+          fromEmail: true,
+          fromName: true,
+          toRecipients: true,
+          ccRecipients: true,
+          bccRecipients: true,
+          thread: { select: { participants: true } },
+        },
+        take: 500,
+        orderBy: { receivedAt: 'desc' },
+      });
+      return [contactRows, peopleRows, messageRows] as const;
     });
 
+    const mailParticipants = extractSyncedMailParticipants(
+      mailRows.map((row) => ({ ...row, threadParticipants: row.thread?.participants })),
+    );
     const personEmails = new Set(existingPeople.map((person) => person.email?.toLowerCase()).filter(Boolean));
     const personNames = new Set(existingPeople.map((person) => normalizedName(person.name)).filter(Boolean));
     let count = 0;
@@ -840,6 +858,35 @@ export class ClientProfileFillService {
             },
           },
         ],
+      });
+      if (inserted) count++;
+    }
+    for (const participant of mailParticipants) {
+      const email = participant.email;
+      const name = participant.name?.trim() || email;
+      if (personEmails.has(email) || personNames.has(normalizedName(name))) continue;
+      const participantDomain = emailDomain(email);
+      if (!participantDomain || !matchDomains.includes(participantDomain)) continue;
+      const inserted = await this.addFinding(ctx.tenantId, clientId, runId, {
+        kind: 'person',
+        targetKey: `person:${email}`,
+        source: 'synced_email',
+        factKind: 'fact',
+        currentValue: null,
+        proposedValue: {
+          name,
+          title: null,
+          email,
+          phone: null,
+          role: 'client_contact',
+          notes: 'Extracted from synced email participants',
+        },
+        confidence: 0.8,
+        evidence: [{
+          label: `Synced email participant on ${participantDomain}`,
+          source: 'synced_email',
+          metadata: { association: 'mail_participant_domain' },
+        }],
       });
       if (inserted) count++;
     }
@@ -1076,7 +1123,10 @@ export class ClientProfileFillService {
 
   private async gatherPublicWeb(ctx: TenantContext, clientId: string, runId: string) {
     const client = await this.getClientSnapshot(ctx.tenantId, clientId);
-    const results = await this.searchCompany(client.name);
+    // Public web is the fallback for thin internal data, but it also runs for
+    // every public_web request so a client with weak/stale internal records is
+    // not treated as a dead end.
+    const results = await this.searchCompany(client);
     const website = normalizeWebsite(client.website);
     let homepage: { url: string; html: string; text: string; description: string | null } | null = null;
     let websiteFetchError: string | null = null;
@@ -1478,17 +1528,20 @@ export class ClientProfileFillService {
     }
   }
 
-  private async searchCompany(name: string): Promise<NormalizedWebResult[]> {
-    const queries = [
-      `"${name}" company products capabilities`,
-      `"${name}" leadership team`,
-      `"${name}" headquarters facilities locations`,
-    ];
+  private async searchCompany(client: ClientSnapshot): Promise<NormalizedWebResult[]> {
+    const queries = buildCompanySearchQueries(client);
     const out: NormalizedWebResult[] = [];
-    for (const query of queries) {
-      const rows = await this.searchPublicWeb(query, 5).catch(() => []);
-      out.push(...rows);
-    }
+    // Run independent web queries concurrently, then preserve deterministic
+    // query/result order. One provider failure must not suppress the others.
+    const batches = await Promise.all(
+      queries.map((query) => this.searchPublicWeb(query, 5).catch((error) => {
+        this.logger.warn(
+          `Fill with Meri web search failed for ${JSON.stringify(query)}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return [];
+      })),
+    );
+    for (const rows of batches) out.push(...rows);
     const seen = new Set<string>();
     return out.filter((row) => {
       const normalized = normalizeComparableUrl(row.url) ?? row.url;
