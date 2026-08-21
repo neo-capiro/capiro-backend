@@ -6,6 +6,13 @@
     "rootDir": "."
   },
   "include": [
+    // Ambient declarations for untyped dependencies. This narrow project pulls
+    // parts of src/engagement in TRANSITIVELY (through import chains from the
+    // files listed below) without listing them, so without this entry the
+    // hand-written declaration in src/types is invisible and every transitively
+    // reached use of an untyped module reports an implicit-any error that has
+    // nothing to do with the code under test.
+    "src/types/**/*.d.ts",
     "src/defense-budget/promotion/**/*.ts",
     "src/defense-budget/projection-plan/**/*.ts",
     "src/program-element/snapshot/**/*.ts",

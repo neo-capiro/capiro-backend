@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "phase8_session8_discovery_corpus_v1",
+  "note": "Real discovery-channel sources for the Phase 8 Session 8 live-crawl replay. Bytes are never committed: the prepare script downloads each resource from its official publisher, hashes it, and pins the SHA into the prepared corpus under the gitignored workdir. Unlike Session 7, whose corpus is documents, this corpus is the DISCOVERY channel itself - robots policies, sitemap indexes, year sitemaps and MODS metadata records - because that is what Session 8 has to get right. Every expectedStatus below is the status the host actually returned when this corpus was written, including the refusals.",
+  "fiscalYear": 2024,
+  "userAgent": "Capiro-Phase8-Session8-SourceDiscovery/1.0 (+official-source-discovery; contact: platform@capiro.ai)",
+  "resources": [
+    {
+      "resourceKey": "govinfo-robots",
+      "adapterId": "govinfo-committee-reports",
+      "resourceKind": "robots",
+      "officialUrl": "https://www.govinfo.gov/robots.txt",
+      "expectedStatus": 200,
+      "assertContains": ["User-agent: *", "Disallow: /search/", "Sitemap: https://www.govinfo.gov/sitemap/CRPT_sitemap_index.xml"],
+      "assertAbsent": ["Disallow: /sitemap/", "Disallow: /content/"],
+      "note": "The sitemap channel this session crawls is explicitly listed and explicitly not disallowed. /search/ is disallowed and must never be requested."
+    },
+    {
+      "resourceKey": "congress-robots",
+      "adapterId": "congress-gov",
+      "resourceKind": "robots",
+      "officialUrl": "https://www.congress.gov/robots.txt",
+      "expectedStatus": 200,
+      "assertContains": ["Crawl-delay: 2", "Disallow: /"],
+      "assertAbsent": [],
+      "expectedCrawlDelaySeconds": 2,
+      "expectedRegistryIntervalMs": 1000,
+      "expectedEffectiveIntervalMs": 2000,
+      "note": "The publisher is STRICTER than our registry: crawl-delay 2s against a 1000ms registry minimum, so the effective interval must be 2000ms. The file also terminates a long AI-crawler user-agent group with a site-wide Disallow, which is why group selection has to be correct."
+    },
+    {
+      "resourceKey": "comptroller-robots",
+      "adapterId": "dod-comptroller",
+      "resourceKind": "robots",
+      "officialUrl": "https://comptroller.defense.gov/robots.txt",
+      "expectedStatus": 403,
+      "assertContains": [],
+      "assertAbsent": [],
+      "expectedRobotsUnavailable": true,
+      "note": "Akamai answers robots.txt with 403. RFC 9309 treats a 4xx as unavailable, meaning unrestricted - not banned. The flag must still be recorded."
+    },
+    {
+      "resourceKey": "govinfo-crpt-sitemap-index",
+      "adapterId": "govinfo-committee-reports",
+      "resourceKind": "sitemap_index",
+      "officialUrl": "https://www.govinfo.gov/sitemap/CRPT_sitemap_index.xml",
+      "expectedStatus": 200,
+      "assertContains": ["<sitemapindex", "CRPT_2023_sitemap.xml", "<lastmod>"],
+      "assertAbsent": [],
+      "note": "Requires no API key. Entry order is arbitrary in the real file, so extraction must sort."
+    },
+    {
+      "resourceKey": "govinfo-crpt-2023-sitemap",
+      "adapterId": "govinfo-committee-reports",
+      "resourceKind": "sitemap",
+      "officialUrl": "https://www.govinfo.gov/sitemap/CRPT_2023_sitemap.xml",
+      "expectedStatus": 200,
+      "assertContains": ["/app/details/CRPT-118hrpt125", "/app/details/CRPT-118hrpt121"],
+      "assertAbsent": [],
+      "expectedMinimumEntries": 400,
+      "expectedPackageIds": ["CRPT-118hrpt125", "CRPT-118hrpt121"],
+      "note": "Contains both Session 7 committee reports. loc is an /app/details/ page, NOT the PDF the watcher fetches, so the content URL must be derived."
+    },
+    {
+      "resourceKey": "govinfo-bills-2023-sitemap",
+      "adapterId": "govinfo-bills",
+      "resourceKind": "sitemap",
+      "officialUrl": "https://www.govinfo.gov/sitemap/BILLS_2023_sitemap.xml",
+      "expectedStatus": 200,
+      "assertContains": ["BILLS-118hr2670rh", "BILLS-118hr2670eh"],
+      "assertAbsent": [],
+      "expectedMinimumEntries": 10000,
+      "expectedPackageIds": ["BILLS-118hr2670rh", "BILLS-118hr2670eh", "BILLS-118hr2670enr"],
+      "note": "Over 13000 entries in one year file. This is why resolution has to be the filter and why the request budget has to be bounded and resumable."
+    },
+    {
+      "resourceKey": "mods-hasc-report",
+      "adapterId": "govinfo-committee-reports",
+      "resourceKind": "metadata",
+      "officialUrl": "https://www.govinfo.gov/metadata/pkg/CRPT-118hrpt125/mods.xml",
+      "expectedStatus": 200,
+      "assertContains": ["NATIONAL DEFENSE AUTHORIZATION ACT FOR FISCAL YEAR 2024"],
+      "assertAbsent": [],
+      "expectedTitle": "NATIONAL DEFENSE AUTHORIZATION ACT FOR FISCAL YEAR 2024",
+      "expectedAuthorityTrack": "authorization",
+      "expectedStage": "hasc_report",
+      "expectedFiscalYear": 2024,
+      "note": "Key-free metadata carrying the exact phrase the Session 7 classifier keys on."
+    },
+    {
+      "resourceKey": "mods-hacd-report",
+      "adapterId": "govinfo-committee-reports",
+      "resourceKind": "metadata",
+      "officialUrl": "https://www.govinfo.gov/metadata/pkg/CRPT-118hrpt121/mods.xml",
+      "expectedStatus": 200,
+      "assertContains": ["DEPARTMENT OF DEFENSE APPROPRIATIONS BILL, 2024"],
+      "assertAbsent": [],
+      "expectedTitle": "DEPARTMENT OF DEFENSE APPROPRIATIONS BILL, 2024",
+      "expectedAuthorityTrack": "appropriations",
+      "expectedStage": "hac_d_report",
+      "expectedFiscalYear": 2024,
+      "assertTitleLacksFiscalYearPhrase": true,
+      "note": "The Session 7 trap, now proven through the live discovery channel: this title contains no 'fiscal year' phrase at all, so FY2024 must come from the appropriations-bill wording. It must resolve onto appropriations, never authorization."
+    },
+    {
+      "resourceKey": "mods-ndaa-bill-reported",
+      "adapterId": "govinfo-bills",
+      "resourceKind": "metadata",
+      "officialUrl": "https://www.govinfo.gov/metadata/pkg/BILLS-118hr2670rh/mods.xml",
+      "expectedStatus": 200,
+      "assertContains": ["National Defense Authorization Act for Fiscal Year 2024"],
+      "assertAbsent": [],
+      "expectedAuthorityTrack": "authorization",
+      "expectedFiscalYear": 2024,
+      "note": "The reported-in-House version Session 7 replayed as the first half of its version chain."
+    },
+    {
+      "resourceKey": "mods-omnibus-no-defense-division",
+      "adapterId": "govinfo-public-laws",
+      "resourceKind": "metadata",
+      "officialUrl": "https://www.govinfo.gov/metadata/pkg/PLAW-118publ42/mods.xml",
+      "expectedStatus": 200,
+      "assertContains": ["consolidated appropriations"],
+      "assertAbsent": [],
+      "expectedFiscalYear": 2024,
+      "note": "A genuine FY2024 omnibus with NO defence division. Right year, right vehicle class, wrong subject. Discovery must not emit it onto the defence appropriations track on title alone."
+    },
+    {
+      "resourceKey": "comptroller-budget-materials",
+      "adapterId": "dod-comptroller",
+      "resourceKind": "listing",
+      "officialUrl": "https://comptroller.defense.gov/Budget-Materials/",
+      "expectedStatus": 403,
+      "assertContains": [],
+      "assertAbsent": [],
+      "expectedUnreachable": true,
+      "note": "Akamai refuses a plain client. Recorded as a publisher refusal so it is never mistaken for an absence of documents. Making this host yield is an egress/allowlisting question for the deployment session, not a code defect."
+    },
+    {
+      "resourceKey": "army-budget-materials",
+      "adapterId": "army-budget",
+      "resourceKind": "listing",
+      "officialUrl": "https://asafm.army.mil/Budget-Materials/",
+      "expectedStatus": 403,
+      "assertContains": [],
+      "assertAbsent": [],
+      "expectedUnreachable": true,
+      "note": "Same Akamai refusal as the comptroller."
+    },
+    {
+      "resourceKey": "senate-armed-services-legislation",
+      "adapterId": "sasc",
+      "resourceKind": "listing",
+      "officialUrl": "https://www.armed-services.senate.gov/legislation",
+      "expectedStatus": 200,
+      "assertContains": [],
+      "assertAbsent": [],
+      "note": "Reachable. Yields few direct document links because the page is largely script-rendered; whatever IS linked on-host is extracted, and nothing is invented for what is not."
+    }
+  ]
+}

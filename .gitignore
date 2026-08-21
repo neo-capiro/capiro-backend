@@ -90,3 +90,4 @@ apps/web/artifacts/vnext-visual/
 # Phase 8 Session 7 lifecycle corpus workdir — downloaded official source bytes
 # and the prepared corpus are materialised locally, never committed.
 .session7-lifecycle/
+.session8-discovery/

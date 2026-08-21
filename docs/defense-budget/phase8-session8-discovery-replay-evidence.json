@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "phase8_session8_discovery_replay_evidence_v1",
+  "fiscalYear": 2024,
+  "corpus": ".session8-discovery/prepared-corpus.json",
+  "userAgent": "Capiro-Phase8-Session8-SourceDiscovery/1.0 (+official-source-discovery; contact: platform@capiro.ai)",
+  "checks": 37,
+  "passed": 37,
+  "failed": 0,
+  "channel": {
+    "apiKeyRequired": false,
+    "note": "api.govinfo.gov and api.congress.gov both answer API_KEY_MISSING without a credential; the sitemap channel needs none."
+  },
+  "observed": {
+    "crptSitemapIndexYearFiles": 32,
+    "crpt2023Entries": 497,
+    "bills2023Entries": 13354,
+    "bills2023PrefilterSurvivors": 11391,
+    "bills2023PrefilterNote": "An id-shape prefilter cannot know subject. Most of a 2023 bill sitemap is congress 118 hr/s, so a COLD BILLS backfill needs roughly one MODS request per survivor and spans many bounded runs. Steady-state incremental crawling is small because it is driven by sitemap lastmod deltas.",
+    "congressGovCrawlDelaySeconds": 2,
+    "congressGovRegistryIntervalMs": 1000,
+    "congressGovEffectiveIntervalMs": 2000,
+    "sascListingOnHostDocuments": 1,
+    "publisherNativeAdapters": [
+      "army-budget",
+      "dod-comptroller",
+      "dod-comptroller-reprogramming",
+      "dod-contract-announcements",
+      "hasc",
+      "house-appropriations",
+      "navy-budget",
+      "saf-fm-budget",
+      "sasc",
+      "senate-appropriations"
+    ]
+  },
+  "resolutions": [
+    {
+      "packageId": "CRPT-118hrpt125",
+      "title": "NATIONAL DEFENSE AUTHORIZATION ACT FOR FISCAL YEAR 2024",
+      "outcome": "resolved",
+      "authorityTrack": "authorization",
+      "stage": "hasc_report",
+      "expectedSourceDedupKey": "fb4bac09b5df8faf07ba2a57fb827d5de7dc3b90c1f59693fe3489ee6fab0174"
+    },
+    {
+      "packageId": "CRPT-118hrpt121",
+      "title": "DEPARTMENT OF DEFENSE APPROPRIATIONS BILL, 2024",
+      "titleStatesFiscalYearPhrase": false,
+      "outcome": "resolved",
+      "authorityTrack": "appropriations",
+      "stage": "hac_d_report",
+      "expectedSourceDedupKey": "72420565a4fd050db0e51c3edfb0d1e6d7f081ffcb14130c4986d7d795280141"
+    },
+    {
+      "packageId": "BILLS-118hr2670rh",
+      "title": "To authorize appropriations for fiscal year 2024 for military activities of the Department of Defense and for military construction, and for defense activities of the Department of Energy, to prescribe military personnel strengths for such fiscal year, and for other purposes.",
+      "alternativeTitles": [
+        "National Defense Authorization Act for Fiscal Year 2024"
+      ],
+      "outcome": "resolved",
+      "authorityTrack": "authorization",
+      "stage": "house_auth_action"
+    },
+    {
+      "packageId": "PLAW-118publ42",
+      "title": "An act making consolidated appropriations for the fiscal year ending September 30, 2024, and for other purposes.",
+      "alternativeTitles": [
+        "Consolidated Appropriations Act, 2024",
+        "Public Law 118-42"
+      ],
+      "outcome": "unresolved_not_defense_subject",
+      "expectedSourceDedupKey": null,
+      "note": "A genuine FY2024 omnibus with no defence division. Correctly refuses to resolve."
+    }
+  ],
+  "refusedPublishers": [
+    {
+      "officialUrl": "https://comptroller.defense.gov/robots.txt",
+      "statusCode": 403,
+      "note": "Recorded as a publisher refusal, never as an absence of documents."
+    },
+    {
+      "officialUrl": "https://comptroller.defense.gov/Budget-Materials/",
+      "statusCode": 403,
+      "note": "Recorded as a publisher refusal, never as an absence of documents."
+    },
+    {
+      "officialUrl": "https://asafm.army.mil/Budget-Materials/",
+      "statusCode": 403,
+      "note": "Recorded as a publisher refusal, never as an absence of documents."
+    }
+  ]
+}

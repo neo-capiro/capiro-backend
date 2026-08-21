@@ -11214,3 +11214,76 @@ model DefenseBudgetLifecycleSignal {
   @@index([emittedAt], map: "defense_budget_lifecycle_signal_emitted_idx")
   @@map("defense_budget_lifecycle_signal")
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Phase 8 Session 8 — live official-source discovery provenance.
+//
+// A live crawler examines far more than it emits and is regularly refused
+// outright, so the crawl itself has to be auditable: without these rows,
+// "found nothing", "was turned away" and "discarded everything" are
+// indistinguishable. Provenance only — no monetary column exists here, and the
+// DB rehearsal measures that against information_schema.
+// ───────────────────────────────────────────────────────────────────────────
+
+model DefenseBudgetDiscoveryCrawl {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adapterId           String   @map("adapter_id")
+  runKey              String   @map("run_key")
+  requestUrl          String   @map("request_url")
+  resourceKind        String   @map("resource_kind")
+  statusCode          Int?     @map("status_code")
+  status              String
+  contentSha256       String?  @map("content_sha256") @db.Char(64)
+  byteSize            Int?     @map("byte_size")
+  itemsSeen           Int      @default(0) @map("items_seen")
+  robotsUnavailable   Boolean  @default(false) @map("robots_unavailable")
+  effectiveIntervalMs Int      @map("effective_interval_ms")
+  startedAt           DateTime @map("started_at") @db.Timestamptz(6)
+  finishedAt          DateTime @map("finished_at") @db.Timestamptz(6)
+  failureReason       String?  @map("failure_reason")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  candidates DefenseBudgetDiscoveryCandidate[]
+
+  @@index([adapterId, startedAt(sort: Desc)], map: "dbdc_adapter_started_idx")
+  @@index([runKey], map: "dbdc_run_key_idx")
+  @@index([status], map: "dbdc_status_idx")
+  @@map("defense_budget_discovery_crawl")
+}
+
+model DefenseBudgetDiscoveryCandidate {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  crawlId                String   @map("crawl_id") @db.Uuid
+  adapterId              String   @map("adapter_id")
+  runKey                 String   @map("run_key")
+  candidateUrl           String   @map("candidate_url")
+  packageId              String?  @map("package_id")
+  title                  String?
+  resolution             String
+  // Resolved <=> non-null, enforced by a database CHECK in both directions so a
+  // fabricated identity is unrepresentable rather than merely discouraged.
+  expectedSourceDedupKey String?  @map("expected_source_dedup_key") @db.Char(64)
+  classifiedFiscalYear   Int?     @map("classified_fiscal_year")
+  reason                 String
+  emitted                Boolean
+  observedAt             DateTime @map("observed_at") @db.Timestamptz(6)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  crawl DefenseBudgetDiscoveryCrawl @relation(fields: [crawlId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([adapterId, runKey, candidateUrl], map: "dbdcand_run_url_uidx")
+  @@index([crawlId], map: "dbdcand_crawl_idx")
+  @@index([resolution], map: "dbdcand_resolution_idx")
+  @@map("defense_budget_discovery_candidate")
+}
+
+model DefenseBudgetDiscoveryHostBudget {
+  host                 String   @id
+  nextRequestAllowedAt DateTime @map("next_request_allowed_at") @db.Timestamptz(6)
+  lastReservedAt       DateTime @default(now()) @map("last_reserved_at") @db.Timestamptz(6)
+  reservationCount     BigInt   @default(0) @map("reservation_count")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("defense_budget_discovery_host_budget")
+}
