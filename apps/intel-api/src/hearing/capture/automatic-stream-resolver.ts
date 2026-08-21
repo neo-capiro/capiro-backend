@@ -27,12 +27,15 @@ export interface AutomaticStreamResolverPort {
 
 export interface AutomaticStreamResolutionAttempt {
   target: StreamResolutionTarget;
+  rawResult: ResolverResultLike;
   outcome: ClassifiedStreamResolution;
   skipped: boolean;
 }
 
 export interface AutomaticStreamResolutionResult {
   selected: ClassifiedStreamResolution;
+  /** Raw provider result selected by the ranking pass. Kept in memory only. */
+  rawResult: ResolverResultLike;
   selectedTarget?: StreamResolutionTarget;
   attempts: AutomaticStreamResolutionAttempt[];
 }
@@ -65,51 +68,77 @@ export class AutomaticStreamResolver {
   }): Promise<AutomaticStreamResolutionResult> {
     const targets = buildStreamResolutionTargets(input).slice(0, this.maxAttempts);
     const attempts: AutomaticStreamResolutionAttempt[] = [];
-    let best: { target?: StreamResolutionTarget; outcome: ClassifiedStreamResolution } | undefined;
+    let best:
+      | {
+          target?: StreamResolutionTarget;
+          rawResult: ResolverResultLike;
+          outcome: ClassifiedStreamResolution;
+        }
+      | undefined;
 
     for (const target of targets) {
       if (!target.automaticProbeAllowed) {
-        const outcome = classifyStreamResolution(
+        const rawResult: ResolverResultLike =
           target.policyHint === 'BROWSER_ONLY'
-            ? { status: 'unresolvable', reference: target.url, note: 'YouTube browser-only source' }
+            ? {
+                status: 'unresolvable',
+                reference: target.url,
+                note: 'YouTube browser-only source',
+              }
             : target.policyHint === 'LICENSE_REQUIRED'
-              ? { status: 'unresolvable', reference: target.url, note: 'C-SPAN license required' }
-              : { status: 'unresolvable', reference: target.url, note: 'Unknown provider review required' },
-          input.context,
-        );
-        attempts.push({ target, outcome, skipped: true });
-        best = chooseBetter(best, { target, outcome });
+              ? {
+                  status: 'unresolvable',
+                  reference: target.url,
+                  note: 'C-SPAN license required',
+                }
+              : {
+                  status: 'unresolvable',
+                  reference: target.url,
+                  note: 'Unknown provider review required',
+                };
+        const outcome = classifyStreamResolution(rawResult, input.context);
+        attempts.push({ target, rawResult, outcome, skipped: true });
+        best = chooseBetter(best, { target, rawResult, outcome });
         continue;
       }
 
-      let raw: ResolverResultLike;
+      let rawResult: ResolverResultLike;
       try {
-        raw = await this.resolver.resolve({ pageUrl: target.url, hearingId: input.hearingId });
+        rawResult = await this.resolver.resolve({
+          pageUrl: target.url,
+          hearingId: input.hearingId,
+        });
       } catch (error) {
-        raw = {
+        rawResult = {
           status: 'unresolvable',
           reference: target.url,
           note: `Could not resolve via automatic target: ${boundedError(error)}`,
         };
       }
-      const outcome = classifyStreamResolution(raw, input.context);
-      attempts.push({ target, outcome, skipped: false });
+      const outcome = classifyStreamResolution(rawResult, input.context);
+      attempts.push({ target, rawResult, outcome, skipped: false });
       if (outcome.state === 'READY_FOR_SERVER_CAPTURE') {
-        return { selected: outcome, selectedTarget: target, attempts };
+        return { selected: outcome, rawResult, selectedTarget: target, attempts };
       }
-      best = chooseBetter(best, { target, outcome });
+      best = chooseBetter(best, { target, rawResult, outcome });
     }
 
-    if (best) return { selected: best.outcome, selectedTarget: best.target, attempts };
+    if (best) {
+      return {
+        selected: best.outcome,
+        rawResult: best.rawResult,
+        selectedTarget: best.target,
+        attempts,
+      };
+    }
+    const rawResult: ResolverResultLike = {
+      status: 'unresolvable',
+      reference: input.officialPageUrl,
+      note: 'No stream found on the committee page',
+    };
     return {
-      selected: classifyStreamResolution(
-        {
-          status: 'unresolvable',
-          reference: input.officialPageUrl,
-          note: 'No stream found on the committee page',
-        },
-        input.context,
-      ),
+      selected: classifyStreamResolution(rawResult, input.context),
+      rawResult,
       attempts,
     };
   }
@@ -183,8 +212,18 @@ function classifyTarget(
 }
 
 function chooseBetter(
-  current: { target?: StreamResolutionTarget; outcome: ClassifiedStreamResolution } | undefined,
-  candidate: { target?: StreamResolutionTarget; outcome: ClassifiedStreamResolution },
+  current:
+    | {
+        target?: StreamResolutionTarget;
+        rawResult: ResolverResultLike;
+        outcome: ClassifiedStreamResolution;
+      }
+    | undefined,
+  candidate: {
+    target?: StreamResolutionTarget;
+    rawResult: ResolverResultLike;
+    outcome: ClassifiedStreamResolution;
+  },
 ) {
   if (!current) return candidate;
   const rank = (outcome: ClassifiedStreamResolution): number => {
