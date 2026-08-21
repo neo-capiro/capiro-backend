@@ -3,7 +3,9 @@
 **Prepared:** 2026-08-21
 **Repository:** `neo-capiro/capirov2`
 **Base `main` at session start:** `9c302d26064a5f82643a722104dd9e3751181859` (Session 7 merge; verified, no drift)
+**Base `main` at close:** `418d8de8a7c5b8a3397aeedaf35472c4b34c3a46` — main advanced 4 commits mid-session (District Nexus Release 1 / PR #1125, Knowledge Plane Phase 26 gates, an os portfolio-alerts fix). The branch was **rebased** onto it and every gate below was re-run on the rebased candidate. Two files overlapped, both purely additive: `apps/api/prisma/schema.prisma` auto-merged, `package.json` was a scripts-block conflict resolved by keeping both sides.
 **Session 8 branch:** `agent/phase8-session8-live-source-discovery`
+**PR:** [#1153](https://github.com/neo-capiro/capirov2/pull/1153) — **DRAFT, not merged**
 **Workstream:** K — Live official-source discovery
 
 ---
