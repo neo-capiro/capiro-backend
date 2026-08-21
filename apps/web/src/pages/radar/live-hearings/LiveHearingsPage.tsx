@@ -125,8 +125,55 @@ function statusTone(value?: string): string {
   if (['RECOVERING', 'WAITING_FOR_STREAM', 'WAITING_FOR_BROADCAST', 'POSTPONED'].includes(status)) {
     return 'warning';
   }
+  // "Complete with gaps" is truthfully never the same visual as a clean
+  // completion — the prototype's own state vocabulary (hearingRoomState:
+  // 'gaps') keeps a warning-toned pill distinct from 'complete'.
+  if (status === 'COMPLETE_WITH_GAPS') return 'gaps';
   if (['COMPLETE', 'COMPLETED', 'ENDED'].includes(status)) return 'complete';
   return 'neutral';
+}
+
+/**
+ * Source-health vocabulary — mirrors the prototype's LH_HEALTH map
+ * (healthy / degraded / review required / custom adapter required /
+ * unavailable). Unknown values still render truthfully via a title-cased
+ * fallback rather than being coerced into one of the five labels, since we
+ * cannot confirm the committee-room API emits exactly this enum.
+ */
+function sourceHealthTone(value?: string): { label: string; tone: string } {
+  const status = (value ?? '').toUpperCase();
+  if (status === 'HEALTHY') return { label: 'Healthy', tone: 'success' };
+  if (status === 'DEGRADED') return { label: 'Degraded', tone: 'warning' };
+  if (status === 'REVIEW' || status === 'REVIEW_REQUIRED') {
+    return { label: 'Review required', tone: 'warning' };
+  }
+  if (status === 'CUSTOM' || status === 'CUSTOM_ADAPTER_REQUIRED') {
+    return { label: 'Custom adapter required', tone: 'neutral' };
+  }
+  if (status === 'UNAVAILABLE') return { label: 'Unavailable', tone: 'neutral' };
+  return { label: titleCase(value), tone: 'neutral' };
+}
+
+/**
+ * Left-edge accent for a hearing row/card, grounded in real fields only:
+ * live capture, proceeding kind (markup vs hearing), and resolved
+ * public-access/stream state. Matches the prototype's calendar-chip state
+ * matrix (live / hearing / markup / unavailable).
+ */
+function eventEdgeTone(event: CanonicalHearingEvent): 'live' | 'markup' | 'unavailable' | 'hearing' {
+  if (isLiveEvent(event)) return 'live';
+  const access = (event.publicAccessStatus ?? '').toUpperCase();
+  const stream = (event.streamState ?? '').toUpperCase();
+  if (
+    access === 'CLOSED' ||
+    access === 'CLASSIFIED' ||
+    access === 'NOT_STREAMED' ||
+    ['NO_PUBLIC_STREAM', 'POLICY_BLOCKED', 'SOURCE_ERROR'].includes(stream)
+  ) {
+    return 'unavailable';
+  }
+  if ((event.eventType ?? '').toUpperCase().includes('MARKUP')) return 'markup';
+  return 'hearing';
 }
 
 function SourceHealthBanner({
@@ -216,7 +263,10 @@ function EventCard({
 }) {
   const server = serverCaptureCapability(event);
   return (
-    <article className={`lh-event-card${compact ? ' lh-event-card--compact' : ''}`}>
+    <article
+      className={`lh-event-card${compact ? ' lh-event-card--compact' : ''}`}
+      data-edge={eventEdgeTone(event)}
+    >
       <div className="lh-event-card__time">
         <span>{formatDateTime(event.scheduledStart, event.timeZone)}</span>
         {event.location ? <small>{event.location}</small> : null}
@@ -612,6 +662,12 @@ function IntelligencePanel({ items }: { items: HearingIntelligenceItem[] }) {
       {items.map((item) => (
         <article className="lh-insight" key={item.id}>
           <div className="lh-insight__meta">
+            {/* HearingIntelligenceItem carries no client/tenant field today —
+                everything rendered here is the canonical public read, so the
+                tag says exactly that rather than implying client relevance
+                the API does not (yet) provide. See report: Phase 6 overlay
+                gap. */}
+            <span className="lh-fact-tag">Public record</span>
             <span>{titleCase(item.insightType)}</span>
             {item.preliminary ? <span className="lh-preliminary">Preliminary</span> : null}
             {item.startMs !== undefined ? <span>{Math.floor(item.startMs / 1000)}s</span> : null}
@@ -667,7 +723,10 @@ function PublicTranscript({
       {segments.map((segment) => (
         <div className="lh-transcript__segment" key={segment.id}>
           {segment.gapBefore ? (
-            <div className="lh-transcript__gap">Capture gap recorded before this segment</div>
+            // The API exposes only a boolean `gapBefore` — no duration or
+            // recovery reason — so the banner never fabricates a seconds
+            // count or a "stream recovered" claim it cannot verify.
+            <div className="lh-transcript__gap">Transcript gap recorded</div>
           ) : null}
           <span className="lh-transcript__time">{Math.floor(segment.startMs / 1000)}s</span>
           <p>
@@ -1028,8 +1087,8 @@ function CommitteeRoomView({
               Official committee site
             </a>
           ) : null}
-          <span className={`lh-status lh-status--${statusTone(room.data.sourceHealth)}`}>
-            Source {titleCase(room.data.sourceHealth)}
+          <span className={`lh-status lh-status--${sourceHealthTone(room.data.sourceHealth).tone}`}>
+            Source {sourceHealthTone(room.data.sourceHealth).label}
           </span>
         </div>
       </header>
