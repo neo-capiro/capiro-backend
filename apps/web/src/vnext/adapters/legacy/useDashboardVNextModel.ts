@@ -467,8 +467,11 @@ export function useDashboardVNextModel(): DashboardVNextModel {
   const workspaceDrafts = useQuery<DashWorkspaceDraft[]>({
     queryKey: ['dashboard-workspace-drafts'],
     queryFn: async () =>
-      (await api.get<DashWorkspaceDraft[]>('/workspace-api/drafts', { params: { scope: 'all' } }))
-        .data,
+      (
+        await api.get<{ drafts: DashWorkspaceDraft[] }>('/workspace-api/drafts', {
+          params: { scope: 'all' },
+        })
+      ).data.drafts,
     staleTime: 60_000,
     retry: false,
     enabled: visibility.work,
