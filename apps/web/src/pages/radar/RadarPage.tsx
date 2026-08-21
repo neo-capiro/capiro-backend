@@ -2,7 +2,9 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AudioOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
 import LegacyRadarPage from './LegacyRadarPage.js';
+import { LiveHearingsCanonicalSurface } from './live-hearings/LiveHearingsCanonicalSurface.js';
 import { LiveHearingsPage } from './live-hearings/LiveHearingsPage.js';
+import { legiwatchLiveHearingsV2Enabled } from './live-hearings/legiwatch-live-hearings-flags.js';
 import './LegiWatchShell.css';
 
 export {
@@ -19,6 +21,7 @@ type LegiWatchSection = 'bill-tracker' | 'live-hearings' | 'settings';
 type BillTrackerView = 'feed' | 'bills';
 
 const LEGACY_TABS = new Set<LegacyRadarTab>(['feed', 'bills', 'hearings', 'watchlist']);
+const LIVE_HEARINGS_V2_ENABLED = legiwatchLiveHearingsV2Enabled();
 
 const SECTIONS: ReadonlyArray<{
   id: LegiWatchSection;
@@ -163,7 +166,11 @@ export function RadarPage() {
 
       <div className="legiwatch-shell__content">
         {section === 'live-hearings' ? (
-          <LiveHearingsPage />
+          LIVE_HEARINGS_V2_ENABLED ? (
+            <LiveHearingsCanonicalSurface />
+          ) : (
+            <LiveHearingsPage />
+          )
         ) : (
           <div className="legiwatch-shell__legacy">
             <LegacyRadarPage />
