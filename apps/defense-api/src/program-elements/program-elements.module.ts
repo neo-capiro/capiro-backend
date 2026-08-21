@@ -15,6 +15,13 @@ import {
   UnconfiguredClientRelevancePort,
   UnconfiguredEmbeddingPort,
 } from './cross-domain/ports.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import {
+  BOUND_CROSS_DOMAIN_PROVIDERS,
+  bindCrossDomainProviders,
+  type BoundProviders,
+} from './cross-domain/provider-runtime.factory.js';
+import { PrismaProviderAuditSink } from './cross-domain/prisma-provider-audit.sink.js';
 
 /**
  * Session 3 — full Program Elements / Budget Lines / Programs surface.
@@ -25,10 +32,18 @@ import {
  * directly, so the real per-request order is exactly that — verified Clerk
  * session, then resolved Capiro membership, then role check.
  *
- * The two cross-domain ports are bound to their dark-posture implementations.
- * They exist as INJECTION TOKENS rather than direct imports so Session 9 can bind
- * a real provider without touching a single read service — and so nothing in this
- * module can reach into another bounded context's code today.
+ * The two cross-domain ports exist as INJECTION TOKENS rather than direct
+ * imports, which is what let Session 9 bind real providers without touching a
+ * single read service — and what still stops this module reaching into another
+ * bounded context's code.
+ *
+ * Session 9 wires them through `bindCrossDomainProviders`, the one decision point
+ * that chooses dark or live. It is DARK BY DEFAULT: with no provider
+ * configuration present both ports resolve to the same unconfigured
+ * implementations Sessions 2-8 shipped, so an unconfigured deployment behaves
+ * exactly as it did before. A provider appears only when explicitly selected, and
+ * a provider that cannot be constructed degrades to dark rather than failing the
+ * read route.
  */
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -40,8 +55,29 @@ import {
     ProgramsService,
     ConferenceProbabilityReadService,
     DefenseMemberResolverGuard,
-    { provide: CLIENT_RELEVANCE_PORT, useClass: UnconfiguredClientRelevancePort },
-    { provide: EMBEDDING_PORT, useClass: UnconfiguredEmbeddingPort },
+    // Kept registered so the dark implementations remain constructible and are
+    // what the factory falls back to.
+    UnconfiguredClientRelevancePort,
+    UnconfiguredEmbeddingPort,
+    // Bound ONCE. Both ports are derived from the same binding so they share one
+    // runner, one clock and one concurrency-gate map: binding twice would give
+    // each port its own gates and silently double the effective in-flight cap.
+    {
+      provide: BOUND_CROSS_DOMAIN_PROVIDERS,
+      useFactory: (prisma: PrismaService) =>
+        bindCrossDomainProviders({ audit: new PrismaProviderAuditSink(prisma) }),
+      inject: [PrismaService],
+    },
+    {
+      provide: EMBEDDING_PORT,
+      useFactory: (bound: BoundProviders) => bound.embedding,
+      inject: [BOUND_CROSS_DOMAIN_PROVIDERS],
+    },
+    {
+      provide: CLIENT_RELEVANCE_PORT,
+      useFactory: (bound: BoundProviders) => bound.clientRelevance,
+      inject: [BOUND_CROSS_DOMAIN_PROVIDERS],
+    },
   ],
 })
 export class ProgramElementsModule {}

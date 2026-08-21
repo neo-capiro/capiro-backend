@@ -11287,3 +11287,41 @@ model DefenseBudgetDiscoveryHostBudget {
 
   @@map("defense_budget_discovery_host_budget")
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Phase 8 Session 9 — cross-domain provider invocation audit.
+//
+// Both ports Session 9 wires degrade silently by contract, so without this an
+// empty capability search is unattributable: a genuinely empty result, an
+// unconfigured provider, a throttle and an expired credential all look alike.
+//
+// Holds no query text, no PE-code list, no vector, no secret and no monetary
+// column — only digests, counts and outcomes. The DB rehearsal measures the
+// absence of monetary columns rather than trusting this comment.
+// ───────────────────────────────────────────────────────────────────────────
+
+model DefenseProviderInvocation {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider        String
+  operation       String
+  outcome         String
+  model           String?
+  tenantId        String   @map("tenant_id")
+  payloadSha256   String   @map("payload_sha256") @db.Char(64)
+  idempotencyKey  String   @map("idempotency_key") @db.Char(64)
+  attempts        Int
+  latencyMs       Int      @map("latency_ms")
+  failureClass    String?  @map("failure_class")
+  reason          String
+  resultDimension Int?     @map("result_dimension")
+  resultCount     Int?     @map("result_count")
+  startedAt       DateTime @map("started_at") @db.Timestamptz(6)
+  finishedAt      DateTime @map("finished_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([provider, startedAt(sort: Desc)], map: "dpi_provider_started_idx")
+  @@index([outcome], map: "dpi_outcome_idx")
+  @@index([tenantId, startedAt(sort: Desc)], map: "dpi_tenant_started_idx")
+  @@index([idempotencyKey], map: "dpi_idempotency_idx")
+  @@map("defense_provider_invocation")
+}
