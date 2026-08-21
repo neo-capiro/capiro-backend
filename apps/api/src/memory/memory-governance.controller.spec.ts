@@ -36,6 +36,7 @@ describe('MemoryGovernanceController', () => {
       projectionHealth: jest.fn(async () => ({ enabled: true, counts: {} })),
       retryProjection: jest.fn(async () => ({ outcome: 'projection_retry_queued' })),
       listClients: jest.fn(async () => ({ enabled: true, clients: [] })),
+      approve: jest.fn(async () => ({ outcome: 'approved' })),
       confirm: jest.fn(async () => ({ outcome: 'confirmed' })),
       markStale: jest.fn(async () => ({ outcome: 'marked_stale' })),
       revoke: jest.fn(async () => ({ outcome: 'revoked' })),
@@ -50,6 +51,7 @@ describe('MemoryGovernanceController', () => {
     await controller.projectionHealth(ctx);
     await controller.retryProjection(ctx, 'job-1');
     await controller.listClients(ctx);
+    await controller.approve(ctx, 'item-1', { reason: 'Reviewed and approved as firm identity.' });
     await controller.confirm(ctx, 'item-1');
     await controller.markStale(ctx, 'item-1', { reason: 'Needs reconfirmation.' });
     await controller.revoke(ctx, 'item-1', { reason: 'No longer applicable.' });
@@ -62,6 +64,11 @@ describe('MemoryGovernanceController', () => {
     expect(governance.projectionHealth).toHaveBeenCalledWith(ctx);
     expect(governance.retryProjection).toHaveBeenCalledWith(ctx, 'job-1');
     expect(governance.listClients).toHaveBeenCalledWith(ctx);
+    expect(governance.approve).toHaveBeenCalledWith(
+      ctx,
+      'item-1',
+      'Reviewed and approved as firm identity.',
+    );
     expect(governance.confirm).toHaveBeenCalledWith(ctx, 'item-1');
     expect(governance.markStale).toHaveBeenCalledWith(ctx, 'item-1', 'Needs reconfirmation.');
     expect(governance.revoke).toHaveBeenCalledWith(ctx, 'item-1', 'No longer applicable.');

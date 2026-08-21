@@ -50,6 +50,10 @@ export class MemoryGovernanceService {
     return this.reads.listClients(ctx);
   }
 
+  approve(ctx: TenantContext, itemId: string, reason: string) {
+    return this.actions.approve(ctx, itemId, reason);
+  }
+
   confirm(ctx: TenantContext, itemId: string) {
     return this.actions.confirm(ctx, itemId);
   }

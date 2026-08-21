@@ -21,6 +21,7 @@ interface LockedItem {
   clientId: string | null;
   governedStatus: string;
   memoryScope: string;
+  memoryClass: string;
   assertedByUserId: string | null;
   approvedByUserId: string | null;
   approvedAt: Date | null;
@@ -61,6 +62,69 @@ export class MemoryGovernanceActionService {
     private readonly transitions: MemoryTransitionAuditService,
     private readonly store: MemoryStoreService,
   ) {}
+
+  /**
+   * Promotes a `pending_review` item to `active` and records the first human
+   * approval. This is the ONLY code path that can do so for a `memory_items`
+   * row directly — the candidate commit path (`finishCandidate`) never
+   * applies here because a migrated legacy row has no `memory_candidate` row
+   * to commit. Deliberately narrow: refuses a still-`legacy_unclassified`
+   * item rather than classifying it (classification is a separate, offline
+   * reviewer decision — see `memory-governance-backfill-store.ts`), and never
+   * touches `memory_class`/`memory_authority`/`source_*`, so provenance and
+   * classification stay exactly as the reviewer found them.
+   */
+  async approve(ctx: TenantContext, itemId: string, reason: string) {
+    this.requireEnabled();
+    const cleanReason = requiredReason(reason, 'A reason is required to approve memory.');
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const row = await this.lockItem(tx, ctx.tenantId, itemId);
+      await this.requireOperation(tx, ctx, itemId, 'approve');
+      const status = normalizeStatus(row.governedStatus);
+      if (status !== 'pending_review') {
+        throw new BadRequestException(`Memory in ${status} status cannot be approved.`);
+      }
+      if (row.memoryClass === 'legacy_unclassified') {
+        throw new BadRequestException(
+          'Memory item is not yet classified; classify it before approval.',
+        );
+      }
+      if (row.assertedByUserId && row.assertedByUserId === ctx.userId) {
+        throw new ForbiddenException(
+          'Approval must come from someone other than the proposer.',
+        );
+      }
+      assertMemoryTransition('pending_review', 'active');
+
+      const changed = await tx.$executeRaw`
+        UPDATE memory_items
+        SET governed_status = 'active',
+            approved_by_user_id = ${ctx.userId}::uuid,
+            approved_at = now(),
+            updated_at = now()
+        WHERE tenant_id = ${ctx.tenantId}::uuid AND id = ${itemId}::uuid
+          AND governed_status = 'pending_review'
+      `;
+      if (changed !== 1) throw new Error('Memory approval was not atomic.');
+
+      await this.transitions.record(tx, ctx.tenantId, {
+        subject: { memoryItemId: itemId },
+        actorUserId: ctx.userId,
+        clientId: row.clientId,
+        fromStatus: 'pending_review',
+        toStatus: 'active',
+        reasonCode: 'approved',
+        reason: cleanReason,
+        metadata: { surface: 'memory_governance_center', migratedLegacyApproval: true },
+      });
+      return {
+        outcome: 'approved' as const,
+        itemId,
+        governedStatus: 'active' as const,
+        approvedByUserId: ctx.userId,
+      };
+    });
+  }
 
   async confirm(ctx: TenantContext, itemId: string) {
     this.requireEnabled();
@@ -325,6 +389,7 @@ export class MemoryGovernanceActionService {
              client_id::text AS "clientId",
              governed_status AS "governedStatus",
              memory_scope AS "memoryScope",
+             memory_class AS "memoryClass",
              asserted_by_user_id::text AS "assertedByUserId",
              approved_by_user_id::text AS "approvedByUserId",
              approved_at AS "approvedAt",

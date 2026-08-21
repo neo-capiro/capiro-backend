@@ -72,6 +72,15 @@ export class MemoryGovernanceController {
     return this.governance.listClients(ctx);
   }
 
+  @Post('items/:id/approve')
+  async approve(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+  ) {
+    return { ok: true, ...(await this.governance.approve(ctx, id, body?.reason ?? '')) };
+  }
+
   @Post('items/:id/confirm')
   async confirm(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
     return { ok: true, ...(await this.governance.confirm(ctx, id)) };

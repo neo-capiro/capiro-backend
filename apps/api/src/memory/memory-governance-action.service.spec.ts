@@ -2,9 +2,11 @@ import { describe, expect, it, jest } from '@jest/globals';
 import {
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { fourEyesSatisfied } from '@capiro/meriv2-core';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryGovernanceActionService } from './memory-governance-action.service.js';
@@ -50,6 +52,7 @@ function withCenter<T>(enabled: boolean, fn: () => Promise<T>): Promise<T> {
 function harness(
   overrides: {
     governedStatus?: string;
+    memoryClass?: string;
     assertedByUserId?: string | null;
     approvedByUserId?: string | null;
     secondApprovedByUserId?: string | null;
@@ -63,6 +66,7 @@ function harness(
     clientId: CLIENT,
     governedStatus: overrides.governedStatus ?? 'active',
     memoryScope: 'firm',
+    memoryClass: overrides.memoryClass ?? 'institutional_authoritative',
     assertedByUserId: overrides.assertedByUserId ?? 'proposer-1',
     approvedByUserId: overrides.approvedByUserId ?? 'reviewer-1',
     approvedAt: new Date('2026-07-31T12:00:00.000Z'),
@@ -182,6 +186,119 @@ describe('MemoryGovernanceActionService', () => {
       );
       expect(h.tx.$queryRaw).not.toHaveBeenCalled();
     });
+  });
+
+  it('approves a classified pending-review item into active and records the transition', async () => {
+    await withCenter(true, async () => {
+      const h = harness({ governedStatus: 'pending_review' });
+      await expect(
+        h.service.approve(ctx, ITEM, 'Reviewed against the firm playbook; approved.'),
+      ).resolves.toMatchObject({
+        outcome: 'approved',
+        governedStatus: 'active',
+        approvedByUserId: USER,
+      });
+      expect(h.tx.$executeRaw).toHaveBeenCalledTimes(1);
+      expect(h.record).toHaveBeenCalledWith(
+        h.tx,
+        TENANT,
+        expect.objectContaining({
+          actorUserId: USER,
+          fromStatus: 'pending_review',
+          toStatus: 'active',
+          reasonCode: 'approved',
+          reason: 'Reviewed against the firm playbook; approved.',
+        }),
+      );
+    });
+  });
+
+  it('requires a non-empty reason to approve', async () => {
+    await withCenter(true, async () => {
+      const h = harness({ governedStatus: 'pending_review' });
+      await expect(h.service.approve(ctx, ITEM, '   ')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+    });
+  });
+
+  it('denies approval when the server authorization decision refuses it', async () => {
+    await withCenter(true, async () => {
+      const h = harness({ governedStatus: 'pending_review', operationAllowed: false });
+      await expect(h.service.approve(ctx, ITEM, 'Approved.')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+    });
+  });
+
+  it('refuses to approve its own proposal', async () => {
+    await withCenter(true, async () => {
+      const h = harness({ governedStatus: 'pending_review', assertedByUserId: USER });
+      await expect(h.service.approve(ctx, ITEM, 'Approved.')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+    });
+  });
+
+  it('refuses to approve a still-unclassified migrated legacy item', async () => {
+    await withCenter(true, async () => {
+      const h = harness({ governedStatus: 'pending_review', memoryClass: 'legacy_unclassified' });
+      await expect(h.service.approve(ctx, ITEM, 'Approved.')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+      expect(h.record).not.toHaveBeenCalled();
+    });
+  });
+
+  it.each(['active', 'rejected', 'revoked', 'stale', 'conflicted', 'superseded'])(
+    'refuses to approve a memory item that is already %s',
+    async (governedStatus) => {
+      await withCenter(true, async () => {
+        const h = harness({ governedStatus });
+        await expect(h.service.approve(ctx, ITEM, 'Approved.')).rejects.toBeInstanceOf(
+          BadRequestException,
+        );
+        expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+      });
+    },
+  );
+
+  it('reports the item not found for a wrong-tenant or nonexistent id', async () => {
+    await withCenter(true, async () => {
+      const h = harness({ governedStatus: 'pending_review' });
+      h.tx.$queryRaw.mockResolvedValueOnce([]);
+      await expect(h.service.approve(ctx, ITEM, 'Approved.')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(h.tx.$executeRaw).not.toHaveBeenCalled();
+    });
+  });
+
+  it('does not by itself satisfy an enabled four-eyes policy', async () => {
+    // approve() records only the FIRST human approval. When four-eyes is
+    // enabled for a scope, filterGovernedMemory must still treat the item as
+    // unapproved until an independent secondApprove also lands — proving the
+    // new write path composes with the existing recall-time gate rather than
+    // duplicating or bypassing it.
+    const approvedOnly = {
+      assertedByUserId: 'proposer-1',
+      approvedByUserId: USER,
+      secondApprovedByUserId: null,
+      secondApprovedAt: null,
+    };
+    expect(fourEyesSatisfied(approvedOnly, false)).toBe(true);
+    expect(fourEyesSatisfied(approvedOnly, true)).toBe(false);
+
+    const bothApproved = {
+      ...approvedOnly,
+      secondApprovedByUserId: 'reviewer-2',
+      secondApprovedAt: new Date('2026-08-21T00:00:00.000Z'),
+    };
+    expect(fourEyesSatisfied(bothApproved, true)).toBe(true);
   });
 
   it('confirms stale memory and records stale to active in the same transaction', async () => {
