@@ -49,7 +49,8 @@ import {
   outreachCampaignIdFromPath,
   type EngagementDestination,
 } from './engagement-route-state.js';
-import { VNextOutreachWorkspace, type EngagementOutreachStep } from './VNextOutreachWorkspace.js';
+import type { EngagementOutreachStep } from './VNextOutreachWorkspace.js';
+import { VNextOutreachOperatorWorkspace } from './VNextOutreachOperatorWorkspace.js';
 import { VNextOutreachHome } from './VNextOutreachHome.js';
 import { VNextMeetingsWorkspace } from './VNextMeetingsWorkspace.js';
 import { VNextMeetingLibrary } from './VNextMeetingLibrary.js';
@@ -157,7 +158,7 @@ export function VNextEngagementRoutes() {
   switch (destination) {
     case 'outreach':
       body = outreachCampaignId ? (
-        <VNextOutreachWorkspace
+        <VNextOutreachOperatorWorkspace
           sessionId={outreachCampaignId}
           clients={activeClients}
           selectedClientId={clientFilter.selectedClientId}
