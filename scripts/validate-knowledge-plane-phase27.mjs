@@ -71,7 +71,11 @@ if (skipTests) {
 } else {
   const SUITES = [
     ['meriv2-core learning contract suite', 'packages/meriv2-core', ['--testPathPattern', 'src/learning']],
-    ['api learning-signal suite', 'apps/api', ['--testPathPattern', 'src/learning']],
+    [
+      'api learning-signal suite',
+      'apps/api',
+      ['--testPathPattern', 'src/learning|learning-signal-resilience'],
+    ],
   ];
   for (const [name, dir, args] of SUITES) {
     const out = run(npx, ['jest', '--runInBand', '--forceExit', ...args], dir);
