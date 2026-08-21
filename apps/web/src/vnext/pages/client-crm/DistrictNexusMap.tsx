@@ -159,7 +159,7 @@ export function DistrictNexusMap({
       return x;
     };
     const svg = mk('svg', { width: w, height: h, viewBox: `0 0 ${w} ${h}`, role: 'img', 'aria-label': 'Congressional district nexus map' });
-    (svg as any).setAttribute('style', 'display:block;border-radius:10px;background:#FCFCFD');
+    (svg as any).setAttribute('style', 'display:block;border-radius:10px;background:#FAF9F6');
 
     const defs = mk('defs', {});
     const grad = mk('radialGradient', { id: 'dnm-glow' });
@@ -169,9 +169,9 @@ export function DistrictNexusMap({
     svg.appendChild(defs);
 
     if (d3.geoGraticule10) {
-      svg.appendChild(mk('path', { d: path(d3.geoGraticule10()), fill: 'none', stroke: '#F2F4F7', 'stroke-width': 1 }));
+      svg.appendChild(mk('path', { d: path(d3.geoGraticule10()), fill: 'none', stroke: '#F2F0EB', 'stroke-width': 1 }));
     }
-    svg.appendChild(mk('path', { d: path(usaRef.current), fill: '#F2F4F7', stroke: '#D0D5DD', 'stroke-width': 1, 'stroke-linejoin': 'round' }));
+    svg.appendChild(mk('path', { d: path(usaRef.current), fill: '#F2F0EB', stroke: '#E0DCD4', 'stroke-width': 1, 'stroke-linejoin': 'round' }));
 
     const rad = w < 820 ? (s: number) => 4 + (s / 100) * 5 : (s: number) => 5 + (s / 100) * 7;
     const pts = districts
@@ -242,11 +242,11 @@ export function DistrictNexusMap({
       const ly = p.y + (p.lv || 0);
       const anchor = p.la === 'l' ? 'end' : 'start';
       const code = mk('text', { x: lx, y: ly - 1, 'text-anchor': anchor });
-      code.setAttribute('style', `font:600 12px Inter,ui-sans-serif,system-ui,sans-serif;fill:${on ? '#101828' : '#344054'};letter-spacing:.02em;paint-order:stroke;stroke:#FCFCFD;stroke-width:3px`);
+      code.setAttribute('style', `font:600 12px Inter,ui-sans-serif,system-ui,sans-serif;fill:${on ? '#101828' : '#344054'};letter-spacing:.02em;paint-order:stroke;stroke:#FAF9F6;stroke-width:3px`);
       code.textContent = p.code;
       svg.appendChild(code);
       const meta = mk('text', { x: lx, y: ly + 13, 'text-anchor': anchor });
-      meta.setAttribute('style', 'font:500 11px Inter,ui-sans-serif,system-ui,sans-serif;fill:#667085;paint-order:stroke;stroke:#FCFCFD;stroke-width:3px');
+      meta.setAttribute('style', 'font:500 11px Inter,ui-sans-serif,system-ui,sans-serif;fill:#667085;paint-order:stroke;stroke:#FAF9F6;stroke-width:3px');
       meta.textContent = `Nexus ${p.score}`;
       svg.appendChild(meta);
     });
@@ -255,7 +255,7 @@ export function DistrictNexusMap({
 
     const legend = document.createElement('div');
     legend.style.cssText =
-      'position:absolute;left:14px;bottom:12px;display:flex;align-items:center;gap:14px;padding:7px 11px;border-radius:8px;background:rgba(255,255,255,.92);box-shadow:inset 0 0 0 1px #EAECF0;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;color:#667085;letter-spacing:.04em;text-transform:uppercase';
+      'position:absolute;left:14px;bottom:12px;display:flex;align-items:center;gap:14px;padding:7px 11px;border-radius:8px;background:rgba(255,255,255,.92);border:1px solid #E8E5DF;font:600 11px Inter,ui-sans-serif,system-ui,sans-serif;color:#667085;letter-spacing:.04em;text-transform:uppercase';
     ([['#101828', 'Strong'], ['#475467', 'Moderate'], ['#98A2B3', 'Developing']] as const).forEach(([c, l]) => {
       const s = document.createElement('span');
       s.style.cssText = 'display:inline-flex;align-items:center;gap:6px';
@@ -285,9 +285,9 @@ export function DistrictNexusMap({
           fontWeight: 500,
           lineHeight: '19px',
           color: '#667085',
-          background: '#F9FAFB',
+          background: '#FAF9F6',
           borderRadius: 10,
-          boxShadow: 'inset 0 0 0 1px #EAECF0',
+          border: '1px solid #E8E5DF',
         }}
       >
         Map geometry unavailable offline. District list remains available.

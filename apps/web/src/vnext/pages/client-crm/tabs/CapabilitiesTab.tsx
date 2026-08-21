@@ -208,13 +208,14 @@ function SecondaryBtn({ children, onClick, disabled }: { children: React.ReactNo
         height: 40,
         padding: '0 16px',
         borderRadius: 8,
-        background: hover ? '#F9FAFB' : '#ffffff',
+        background: hover ? '#FAF9F6' : '#ffffff',
         color: hover ? '#101828' : '#344054',
         fontSize: 14,
         fontWeight: 600,
         lineHeight: '20px',
         whiteSpace: 'nowrap',
-        boxShadow: 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+        border: '1px solid #E0DCD4',
+        boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
       }}
     >
       {children}
@@ -344,8 +345,8 @@ function CapabilityAreasCard({
                 height: 24,
                 padding: '0 10px',
                 borderRadius: 9999,
-                background: '#F9FAFB',
-                boxShadow: 'inset 0 0 0 1px #EAECF0',
+                background: '#FAF9F6',
+                border: '1px solid #E8E5DF',
                 color: '#344054',
                 fontSize: 12,
                 fontWeight: 500,
@@ -387,8 +388,8 @@ function CapabilityAreaCard({ area, onOpen }: { area: CapabilityAreaView; onOpen
     gap: 12,
     padding: '18px 18px 16px',
     borderRadius: 10,
-    background: '#FCFCFD',
-    boxShadow: hover && onOpen ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0',
+    background: '#FAF9F6',
+    border: hover && onOpen ? '1px solid #E0DCD4' : '1px solid #E8E5DF',
   } as const;
 
   const inner = (
@@ -413,8 +414,8 @@ function CapabilityAreaCard({ area, onOpen }: { area: CapabilityAreaView; onOpen
                 height: 22,
                 padding: '0 8px',
                 borderRadius: 6,
-                background: '#F2F4F7',
-                boxShadow: 'inset 0 0 0 1px #EAECF0',
+                background: '#F2F0EB',
+                border: '1px solid #E8E5DF',
                 color: '#344054',
                 fontSize: 12,
                 fontWeight: 500,
@@ -432,7 +433,7 @@ function CapabilityAreaCard({ area, onOpen }: { area: CapabilityAreaView; onOpen
           alignItems: 'center',
           gap: 16,
           paddingTop: 12,
-          boxShadow: 'inset 0 1px 0 #EAECF0',
+          boxShadow: 'inset 0 1px 0 #E8E5DF',
           flexWrap: 'wrap',
         }}
       >
@@ -537,7 +538,7 @@ function RegistrationsCard({ client }: { client: Client }) {
               alignItems: 'baseline',
               gap: 16,
               padding: '11px 0',
-              boxShadow: 'inset 0 -1px 0 #F2F4F7',
+              boxShadow: 'inset 0 -1px 0 #F2F0EB',
             }}
           >
             <span
@@ -643,9 +644,9 @@ function PastPerformanceCard({ client }: { client: Client }) {
                 alignItems: 'center',
                 gap: 16,
                 padding: '10px 24px',
-                background: '#F9FAFB',
-                borderTop: '1px solid #EAECF0',
-                borderBottom: '1px solid #EAECF0',
+                background: '#FAF9F6',
+                borderTop: '1px solid #E8E5DF',
+                borderBottom: '1px solid #E8E5DF',
                 fontSize: 12,
                 fontWeight: 600,
                 letterSpacing: '.04em',
@@ -695,9 +696,9 @@ function SubmissionRow({ row }: { row: SubmissionWithCapability }) {
         alignItems: 'center',
         gap: 16,
         padding: '13px 24px',
-        borderBottom: '1px solid #F2F4F7',
+        borderBottom: '1px solid #F2F0EB',
         textAlign: 'left',
-        background: hover ? '#F9FAFB' : 'transparent',
+        background: hover ? '#FAF9F6' : 'transparent',
       }}
     >
       <span style={{ flex: '0 0 auto', width: 72, fontSize: 13, fontWeight: 600, color: '#101828' }}>
@@ -750,9 +751,9 @@ function PerfRow({ perf }: { perf: (typeof CAP_PERF)[number] }) {
         alignItems: 'center',
         gap: 16,
         padding: '13px 24px',
-        borderBottom: '1px solid #F2F4F7',
+        borderBottom: '1px solid #F2F0EB',
         textAlign: 'left',
-        background: hover ? '#F9FAFB' : 'transparent',
+        background: hover ? '#FAF9F6' : 'transparent',
       }}
     >
       <span

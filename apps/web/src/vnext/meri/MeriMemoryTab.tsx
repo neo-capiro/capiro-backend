@@ -34,16 +34,16 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 function scopeChip(memory: MeriLearnedMemory): { label: string; bg: string; fg: string } {
-  if (memory.scope === 'user_private') return { label: 'PERSONAL', bg: '#F2F4F7', fg: '#344054' };
+  if (memory.scope === 'user_private') return { label: 'PERSONAL', bg: '#F2F0EB', fg: '#344054' };
   if (memory.scope === 'client') {
     return {
       label: memory.clientName ? `CLIENT · ${memory.clientName.toUpperCase()}` : 'CLIENT',
-      bg: '#F2F4F7',
+      bg: '#F2F0EB',
       fg: '#344054',
     };
   }
-  if (memory.scope === 'firm') return { label: 'FIRM', bg: '#F2F4F7', fg: '#344054' };
-  return { label: (memory.scope || 'UNSCOPED').toUpperCase(), bg: '#F2F4F7', fg: '#344054' };
+  if (memory.scope === 'firm') return { label: 'FIRM', bg: '#F2F0EB', fg: '#344054' };
+  return { label: (memory.scope || 'UNSCOPED').toUpperCase(), bg: '#F2F0EB', fg: '#344054' };
 }
 
 function dateLabel(value: string | null | undefined): string | null {
@@ -96,7 +96,7 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
             height: 24,
             padding: '0 9px',
             borderRadius: 6,
-            background: '#F2F4F7',
+            background: '#F2F0EB',
             fontFamily: MONO,
             fontSize: 9,
             fontWeight: 500,
@@ -116,7 +116,7 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
               padding: '0 9px',
               borderRadius: 6,
               background: '#FFFAEB',
-              boxShadow: 'inset 0 0 0 1px #FEDF89',
+              border: '1px solid #FEDF89',
             }}
           >
             <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#F79009' }} />
@@ -149,7 +149,7 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
                 padding: '13px 14px',
                 borderRadius: 10,
                 background: '#ffffff',
-                boxShadow: `0 0 0 1px ${pending ? '#FEDF89' : '#EAECF0'}, 0px 1px 2px rgba(16,24,40,.05)`,
+                boxShadow: `0 0 0 1px ${pending ? '#FEDF89' : '#E8E5DF'}, 0px 1px 2px rgba(16,24,40,.05)`,
               }}
             >
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 7 }}>
@@ -215,8 +215,8 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
                     marginTop: 11,
                     padding: '11px 12px',
                     borderRadius: 9,
-                    background: '#F9FAFB',
-                    boxShadow: 'inset 0 0 0 1px #EAECF0',
+                    background: '#FAF9F6',
+                    border: '1px solid #E8E5DF',
                   }}
                 >
                   <textarea
@@ -234,11 +234,10 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
                       width: '100%',
                       minHeight: 54,
                       padding: '9px 10px',
-                      border: 0,
+                      border: '1px solid #E0DCD4',
                       outline: 'none',
                       borderRadius: 7,
                       background: '#ffffff',
-                      boxShadow: 'inset 0 0 0 1px #D0D5DD',
                       fontSize: 12.5,
                       lineHeight: '19px',
                       color: '#101828',
@@ -270,9 +269,8 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
                         height: 28,
                         padding: '0 10px',
                         borderRadius: 7,
-                        border: 0,
+                        border: '1px solid #E0DCD4',
                         background: '#ffffff',
-                        boxShadow: 'inset 0 0 0 1px #D0D5DD',
                         fontSize: 12.5,
                         fontWeight: 600,
                         color: '#344054',
@@ -336,7 +334,7 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
                       gap: 7,
                       marginTop: 12,
                       paddingTop: 11,
-                      borderTop: '1px solid #F2F4F7',
+                      borderTop: '1px solid #F2F0EB',
                     }}
                   >
                     {mayMutate ? (
@@ -352,9 +350,8 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
                             height: 28,
                             padding: '0 10px',
                             borderRadius: 7,
-                            border: 0,
+                            border: '1px solid #E0DCD4',
                             background: '#ffffff',
-                            boxShadow: 'inset 0 0 0 1px #D0D5DD',
                             fontSize: 12.5,
                             fontWeight: 600,
                             color: '#344054',
@@ -370,9 +367,8 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
                             height: 28,
                             padding: '0 10px',
                             borderRadius: 7,
-                            border: 0,
+                            border: '1px solid #FECDCA',
                             background: '#ffffff',
-                            boxShadow: 'inset 0 0 0 1px #FECDCA',
                             fontSize: 12.5,
                             fontWeight: 600,
                             color: '#B42318',
@@ -395,9 +391,8 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
                             height: 28,
                             padding: '0 10px',
                             borderRadius: 7,
-                            border: 0,
+                            border: '1px solid #E0DCD4',
                             background: '#ffffff',
-                            boxShadow: 'inset 0 0 0 1px #D0D5DD',
                             fontSize: 12.5,
                             fontWeight: 600,
                             color: '#344054',
@@ -422,8 +417,8 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
             style={{
               padding: '20px 14px',
               borderRadius: 10,
-              background: '#F9FAFB',
-              boxShadow: 'inset 0 0 0 1px #EAECF0',
+              background: '#FAF9F6',
+              border: '1px solid #E8E5DF',
               fontSize: 13,
               lineHeight: '19px',
               color: '#475467',
@@ -447,8 +442,8 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
                 gap: 10,
                 padding: '10px 12px',
                 borderRadius: 8,
-                background: '#F9FAFB',
-                boxShadow: 'inset 0 0 0 1px #EAECF0',
+                background: '#FAF9F6',
+                border: '1px solid #EDEAE4',
               }}
             >
               <MeriIcon name="Trash01" size={13} color="#667085" />
@@ -463,9 +458,8 @@ export function MeriMemoryTab({ memories, forgotten, onSave, onForget, onUndo, o
                   height: 26,
                   padding: '0 10px',
                   borderRadius: 6,
-                  border: 0,
+                  border: '1px solid #E0DCD4',
                   background: '#ffffff',
-                  boxShadow: 'inset 0 0 0 1px #D0D5DD',
                   fontSize: 12,
                   fontWeight: 600,
                   color: '#344054',

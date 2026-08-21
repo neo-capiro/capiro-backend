@@ -60,7 +60,7 @@ describe('context rail — exclusive Context/Memory switcher, not a 4-way accord
 });
 
 describe('top-bar scope pill — divider and meta text use the tokens that actually resolve to the spec hex values', () => {
-  test('the divider uses the #EAECF0-resolving token, not one that resolves to a different gray', () => {
+  test('the divider uses the #E8E5DF-resolving token, not one that resolves to a different gray', () => {
     const css = readMeri('vnext-meri.css');
     const block = css.slice(css.indexOf('.vnext-meri__scope-divider {'), css.indexOf('.vnext-meri__scope-divider {') + 150);
     expect(block).toContain('var(--m-gray-200)');

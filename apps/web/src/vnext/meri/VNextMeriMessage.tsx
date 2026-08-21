@@ -66,7 +66,7 @@ export function VNextMeriMessage({
               padding: 12,
               borderRadius: 12,
               background: '#ffffff',
-              boxShadow: 'inset 0 0 0 1px #98A2B3, 0 0 0 4px #F2F4F7',
+              boxShadow: 'inset 0 0 0 1px #98A2B3, 0 0 0 4px #F2F0EB',
             }}
           >
             <textarea
@@ -102,7 +102,7 @@ export function VNextMeriMessage({
               <button
                 type="button"
                 onClick={() => controller.setEditingMessageId(null)}
-                style={{ height: 32, padding: '0 12px', borderRadius: 8, boxShadow: 'inset 0 0 0 1px #D0D5DD', fontSize: 13, fontWeight: 600, color: '#344054', background: 'transparent' }}
+                style={{ height: 32, padding: '0 12px', borderRadius: 8, border: '1px solid #E0DCD4', fontSize: 13, fontWeight: 600, color: '#344054', background: 'transparent' }}
               >
                 Cancel
               </button>

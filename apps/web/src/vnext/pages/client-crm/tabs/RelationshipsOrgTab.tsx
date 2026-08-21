@@ -136,12 +136,12 @@ function RealPersonCard({ person, onOpen }: { person: ClientPerson; onOpen: () =
         alignItems: 'center',
         padding: '14px 12px',
         borderRadius: 10,
-        background: hover ? '#FCFCFD' : '#ffffff',
-        boxShadow: person.reviewRequired
-          ? 'inset 0 0 0 1px #FEDF89'
+        background: hover ? '#FAF9F6' : '#ffffff',
+        border: person.reviewRequired
+          ? '1px solid #FEDF89'
           : hover
-            ? 'inset 0 0 0 1px #D0D5DD'
-            : 'inset 0 0 0 1px #EAECF0',
+            ? '1px solid #E0DCD4'
+            : '1px solid #E8E5DF',
       }}
     >
       {person.hierarchyLevel ? <Eyebrow tight>{LEVEL_META[person.hierarchyLevel].label}</Eyebrow> : null}
@@ -183,7 +183,7 @@ function LoosePeopleGroup({
 }) {
   if (people.length === 0) return null;
   return (
-    <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #EAECF0' }}>
+    <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
       <Eyebrow>
         {title} · {people.length}
       </Eyebrow>
@@ -276,7 +276,7 @@ function OrgChartCard({
             {depthRows.map((row, li) => (
               <span key={li} style={{ display: 'block' }}>
                 {li > 0 ? (
-                  <span style={{ display: 'block', height: 18, width: 1, background: '#EAECF0', margin: '0 auto' }} aria-hidden />
+                  <span style={{ display: 'block', height: 18, width: 1, background: '#E8E5DF', margin: '0 auto' }} aria-hidden />
                 ) : null}
                 <span style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
                   {row.map((p) => (
@@ -303,7 +303,7 @@ function OrgChartCard({
           ORG.map((level, li) => (
             <span key={li} style={{ display: 'block' }}>
               {li > 0 ? (
-                <span style={{ display: 'block', height: 18, width: 1, background: '#EAECF0', margin: '0 auto' }} aria-hidden />
+                <span style={{ display: 'block', height: 18, width: 1, background: '#E8E5DF', margin: '0 auto' }} aria-hidden />
               ) : null}
               <span style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
                 {level.map((p) =>
@@ -347,7 +347,7 @@ function PersonCard({ person }: { person: OrgPerson }) {
         padding: '14px 12px',
         borderRadius: 10,
         background: '#ffffff',
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
+        border: '1px solid #E8E5DF',
       }}
     >
       <Eyebrow tight>{person.level}</Eyebrow>
@@ -401,7 +401,7 @@ function PersonCard({ person }: { person: OrgPerson }) {
   );
 }
 
-/** Open role — dashed feel via the #F9FAFB fill; not clickable as a contact. */
+/** Open role — dashed feel via the #FAF9F6 fill; not clickable as a contact. */
 function GhostPersonCard({ person }: { person: OrgPerson }) {
   return (
     <span
@@ -413,8 +413,8 @@ function GhostPersonCard({ person }: { person: OrgPerson }) {
         alignItems: 'center',
         padding: '14px 12px',
         borderRadius: 10,
-        background: '#F9FAFB',
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
+        background: '#FAF9F6',
+        border: '1px solid #E8E5DF',
       }}
     >
       <Eyebrow tight>{person.level}</Eyebrow>
@@ -428,7 +428,7 @@ function GhostPersonCard({ person }: { person: OrgPerson }) {
           width: 32,
           height: 32,
           borderRadius: '50%',
-          background: '#F2F4F7',
+          background: '#F2F0EB',
           color: '#98A2B3',
           fontSize: 10,
           fontWeight: 600,
@@ -471,7 +471,7 @@ function HierarchySettingsCard({ model, onEdit }: { model: OrganizationModel; on
           <SettingField label="Rule set" value="Built-in title rules (not editable)" />
         </div>
 
-        <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid #EAECF0' }}>
+        <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
           <Eyebrow>Visible levels</Eyebrow>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
             {/* Real level metadata from the model — the LEVELS fixture this
@@ -485,7 +485,7 @@ function HierarchySettingsCard({ model, onEdit }: { model: OrganizationModel; on
                   gap: 12,
                   padding: '10px 12px',
                   borderRadius: 8,
-                  background: '#F9FAFB',
+                  background: '#FAF9F6',
                 }}
               >
                 <span style={{ flex: '0 0 auto', fontSize: 14, fontWeight: 500, color: '#101828' }}>

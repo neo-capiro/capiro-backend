@@ -22,13 +22,14 @@ interface StepTone {
   pillBg: string;
   pillFg: string;
   ring: string;
+  halo?: string;
   spin?: boolean;
 }
 
 const STEP_TONE: Record<TrustStep['status'], StepTone> = {
-  done: { state: 'DONE', icon: 'Check', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F4F7', pillFg: '#344054', ring: 'inset 0 0 0 1px #EAECF0' },
-  running: { state: 'RUNNING', icon: 'Loading01', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F4F7', pillFg: '#101828', ring: 'inset 0 0 0 1px #D0D5DD,0 0 0 3px #F2F4F7', spin: true },
-  error: { state: 'FAILED', icon: 'XClose', dotBg: '#FEF3F2', dotFg: '#B42318', pillBg: '#FEF3F2', pillFg: '#B42318', ring: 'inset 0 0 0 1px #FECDCA' },
+  done: { state: 'DONE', icon: 'Check', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F0EB', pillFg: '#344054', ring: '#E8E5DF' },
+  running: { state: 'RUNNING', icon: 'Loading01', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F0EB', pillFg: '#101828', ring: '#E0DCD4', halo: '0 0 0 3px #F2F0EB', spin: true },
+  error: { state: 'FAILED', icon: 'XClose', dotBg: '#FEF3F2', dotFg: '#B42318', pillBg: '#FEF3F2', pillFg: '#B42318', ring: '#FECDCA' },
 };
 
 export function MeriAgentSteps({ steps }: { steps: TrustStep[] }) {
@@ -47,7 +48,8 @@ export function MeriAgentSteps({ steps }: { steps: TrustStep[] }) {
               padding: '11px 13px',
               borderRadius: 9,
               background: '#ffffff',
-              boxShadow: tone.ring,
+              border: `1px solid ${tone.ring}`,
+              boxShadow: tone.halo,
             }}
           >
             <span

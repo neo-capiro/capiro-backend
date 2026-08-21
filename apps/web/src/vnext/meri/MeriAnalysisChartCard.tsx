@@ -63,10 +63,10 @@ type ViewMode = 'chart' | 'data' | 'image';
 /* v4 Meri chart palette — ink-first Untitled-UI grays with the module's
    rust accent last (series colors in the v4 analysis fixture are ink and
    gray-400). Waterfall deltas reuse the module's success/error text colors. */
-const COLORS = ['#101828', '#98A2B3', '#475467', '#D0D5DD', '#B54708', '#667085'];
+const COLORS = ['#101828', '#98A2B3', '#475467', '#E0DCD4', '#B54708', '#667085'];
 const POSITIVE = '#027A48';
 const NEGATIVE = '#B42318';
-const GRID = '#EAECF0';
+const GRID = '#E8E5DF';
 const MUTED = '#667085';
 const BODY = '#344054';
 const INK = '#101828';
@@ -74,7 +74,7 @@ const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
 const SANS = "var(--meri-font-sans, Inter, sans-serif)";
 
 const tooltipStyle = {
-  border: '1px solid #EAECF0',
+  border: '1px solid #E8E5DF',
   borderRadius: 8,
   boxShadow: '0 12px 16px -4px rgba(16, 24, 40, 0.08)',
   color: INK,
@@ -113,7 +113,7 @@ function CartesianAxes({
         <XAxis
           type="number"
           tick={monoTick}
-          axisLine={{ stroke: '#D0D5DD' }}
+          axisLine={{ stroke: '#E0DCD4' }}
           tickLine={false}
           tickFormatter={(value) => axisTick(value, spec)}
           label={
@@ -145,7 +145,7 @@ function CartesianAxes({
       <XAxis
         dataKey={spec.xKey}
         tick={monoTick}
-        axisLine={{ stroke: '#D0D5DD' }}
+        axisLine={{ stroke: '#E0DCD4' }}
         tickLine={false}
         minTickGap={16}
         label={
@@ -294,7 +294,7 @@ function ScatterVisual({
           dataKey="x"
           name={spec.xAxisLabel ?? spec.xKey}
           tick={monoTick}
-          axisLine={{ stroke: '#D0D5DD' }}
+          axisLine={{ stroke: '#E0DCD4' }}
           tickLine={false}
         />
         <YAxis

@@ -17,9 +17,9 @@
  * vNext modules, keeps the literal navy instead of unifying on shell indigo.
  * `warn`/`err` numerically match the `--eng-warning-*` / `--eng-error-*`
  * tokens engagement.css already carried before this file existed. `gray`'s
- * ring (#E4E7EC) is the same corrected v3 gray-200 Strategies adopted
- * (#EAECF0 → #E4E7EC) — deliberately not the older value `--eng-border` still
- * uses elsewhere in this module.
+ * ring is the warm gray-200 (WARM-SURFACE-PALETTE.md) — historically it was
+ * the corrected cool v3 gray-200 Strategies adopted, forked from the older
+ * value `--eng-border` carried; the warm remap collapsed that distinction.
  */
 .capiro-vnext-root .engagement-vnext {
   --eng-tone-navy-bg: #edf3f7;
@@ -27,8 +27,8 @@
   --eng-tone-navy-fg: #294e68;
   --eng-tone-navy-dot: #294e68;
 
-  --eng-tone-gray-bg: #f2f4f7;
-  --eng-tone-gray-ring: #e4e7ec;
+  --eng-tone-gray-bg: var(--uui-gray-100, #f2f0eb);
+  --eng-tone-gray-ring: var(--uui-gray-200, #e8e5df);
   --eng-tone-gray-fg: #475467;
   --eng-tone-gray-dot: #98a2b3;
 
@@ -57,7 +57,7 @@
   padding: 0 10px;
   border-radius: 9999px;
   background: var(--eng-tone-gray-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-tone-gray-ring);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
   color: var(--eng-tone-gray-fg);
   font-family: var(--eng-font-mono);
   font-size: 11px;
@@ -89,7 +89,7 @@
 /* Tones — each overrides background/ring/fg and its dot's background. */
 .capiro-vnext-root .eng-pill--navy {
   background: var(--eng-tone-navy-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-tone-navy-ring);
+  box-shadow: 0 0 0 1px var(--eng-tone-navy-ring);
   color: var(--eng-tone-navy-fg);
 }
 .capiro-vnext-root .eng-pill--navy .eng-pill__dot {
@@ -97,7 +97,7 @@
 }
 .capiro-vnext-root .eng-pill--gray {
   background: var(--eng-tone-gray-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-tone-gray-ring);
+  box-shadow: 0 0 0 1px var(--eng-tone-gray-ring);
   color: var(--eng-tone-gray-fg);
 }
 .capiro-vnext-root .eng-pill--gray .eng-pill__dot {
@@ -105,7 +105,7 @@
 }
 .capiro-vnext-root .eng-pill--warn {
   background: var(--eng-tone-warn-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-tone-warn-ring);
+  box-shadow: 0 0 0 1px var(--eng-tone-warn-ring);
   color: var(--eng-tone-warn-fg);
 }
 .capiro-vnext-root .eng-pill--warn .eng-pill__dot {
@@ -113,7 +113,7 @@
 }
 .capiro-vnext-root .eng-pill--err {
   background: var(--eng-tone-err-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-tone-err-ring);
+  box-shadow: 0 0 0 1px var(--eng-tone-err-ring);
   color: var(--eng-tone-err-fg);
 }
 .capiro-vnext-root .eng-pill--err .eng-pill__dot {

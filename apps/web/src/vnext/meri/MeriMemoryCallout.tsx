@@ -32,8 +32,8 @@ export function MeriMemoryCallout({ memories, onOpenMemory }: MeriMemoryCalloutP
         margin: '0 18px 16px',
         padding: '13px 15px',
         borderRadius: 10,
-        background: '#F9FAFB',
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
+        background: '#FAF9F6',
+        border: '1px solid #E8E5DF',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
@@ -67,9 +67,8 @@ export function MeriMemoryCallout({ memories, onOpenMemory }: MeriMemoryCalloutP
           marginTop: 10,
           padding: '0 10px',
           borderRadius: 7,
-          border: 0,
+          border: '1px solid #E0DCD4',
           background: '#ffffff',
-          boxShadow: 'inset 0 0 0 1px #D0D5DD',
           fontSize: 12.5,
           fontWeight: 600,
           color: '#344054',

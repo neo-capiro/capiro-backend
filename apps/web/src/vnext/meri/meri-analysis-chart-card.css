@@ -12,8 +12,9 @@
   display: block;
   margin: 0;
   border-radius: 10px;
-  background: var(--meri-surface, #ffffff);
-  box-shadow: var(--meri-shadow-chip, inset 0 0 0 1px #eaecf0);
+  /* Raised data card: stays white on the warmer assistant surface. */
+  background: var(--m-white, #ffffff);
+  border: 1px solid var(--meri-border, #E8E5DF);
   overflow: hidden;
 }
 
@@ -67,10 +68,9 @@
   justify-content: center;
   height: 26px;
   padding: 0 10px;
-  border: 0;
+  border: 1px solid var(--meri-border, #E8E5DF);
   border-radius: 7px;
   background: var(--meri-surface, #ffffff);
-  box-shadow: var(--meri-shadow-chip, inset 0 0 0 1px #eaecf0);
   font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
   font-size: 10px;
   font-weight: 500;
@@ -80,12 +80,12 @@
 }
 
 .capiro-vnext-root .meri-acc-actions button:hover {
-  background: var(--meri-surface-2, #f9fafb);
+  background: var(--meri-surface-2, #FAF9F6);
 }
 
 .capiro-vnext-root .meri-acc-actions button.is-active {
-  background: var(--meri-accent-soft, #f2f4f7);
-  box-shadow: inset 0 0 0 1px var(--meri-border-strong, #d0d5dd);
+  background: var(--meri-accent-soft, #F2F0EB);
+  border-color: var(--meri-border-strong, #E0DCD4);
   color: var(--meri-ink, #101828);
 }
 
@@ -93,7 +93,7 @@
   margin: 0 16px;
   padding: 11px 13px;
   border-radius: 8px;
-  background: var(--meri-accent-soft, #f2f4f7);
+  background: var(--meri-accent-soft, #F2F0EB);
   font-size: 13px;
   line-height: 20px;
   color: var(--meri-text-secondary, #344054);
@@ -120,10 +120,9 @@
   gap: 7px;
   height: 26px;
   padding: 0 10px;
-  border: 0;
+  border: 1px solid var(--meri-border, #E8E5DF);
   border-radius: 7px;
   background: var(--meri-surface, #ffffff);
-  box-shadow: var(--meri-shadow-chip, inset 0 0 0 1px #eaecf0);
   font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
   font-size: 10px;
   font-weight: 500;
@@ -133,7 +132,7 @@
 }
 
 .capiro-vnext-root .meri-acc-series-toggles button[aria-pressed='false'] {
-  background: var(--meri-surface-2, #f9fafb);
+  background: var(--meri-surface-2, #FAF9F6);
   color: var(--meri-text-faint, #98a2b3);
 }
 
@@ -173,7 +172,7 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 2px solid var(--meri-border-strong, #d0d5dd);
+  border: 2px solid var(--meri-border-strong, #E0DCD4);
   border-top-color: var(--meri-ink, #101828);
   animation: meri-acc-spin 0.7s linear infinite;
 }
@@ -209,7 +208,7 @@
 
 .capiro-vnext-root .meri-acc-data-table th {
   padding: 8px 10px;
-  border-bottom: 1px solid var(--meri-border, #eaecf0);
+  border-bottom: 1px solid var(--meri-border, #E8E5DF);
   text-align: left;
   font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
   font-size: 10px;
@@ -222,7 +221,7 @@
 
 .capiro-vnext-root .meri-acc-data-table td {
   padding: 9px 10px;
-  border-bottom: 1px solid var(--meri-accent-soft, #f2f4f7);
+  border-bottom: 1px solid var(--meri-accent-soft, #F2F0EB);
   font-size: 13px;
   color: var(--meri-text-secondary, #344054);
 }
@@ -262,7 +261,7 @@
 .capiro-vnext-root .meri-acc-heatmap-cell {
   padding: 8px;
   border-radius: 4px;
-  background: var(--meri-surface-2, #f9fafb);
+  background: var(--meri-surface-2, #FAF9F6);
   font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
   font-size: 11px;
   text-align: right;
@@ -378,8 +377,8 @@
   gap: 8px 14px;
   margin-top: 14px;
   padding: 11px 16px;
-  border-top: 1px solid var(--meri-border, #eaecf0);
-  background: var(--meri-surface-2, #f9fafb);
+  border-top: 1px solid var(--meri-border, #E8E5DF);
+  background: var(--meri-surface-2, #FAF9F6);
   font-family: var(--meri-font-mono, 'IBM Plex Mono', monospace);
   font-size: 9px;
   font-weight: 500;
@@ -420,7 +419,5 @@
   width: min(980px, 100%);
   max-height: calc(100vh - 56px);
   overflow-y: auto;
-  box-shadow:
-    var(--meri-shadow-chip, inset 0 0 0 1px #eaecf0),
-    var(--m-shadow-modal, 0 24px 48px -12px rgba(16, 24, 40, 0.3));
+  box-shadow: var(--m-shadow-modal, 0 24px 48px -12px rgba(16, 24, 40, 0.3));
 }

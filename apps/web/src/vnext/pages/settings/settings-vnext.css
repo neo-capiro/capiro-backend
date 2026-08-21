@@ -542,7 +542,7 @@
   place-items: center;
   flex: none;
   color: var(--capiro-color-text-inverse-primary);
-  box-shadow: inset 0 0 0 1px var(--capiro-color-bg-navigation-hover);
+  border: 1px solid var(--capiro-color-bg-navigation-hover);
 }
 .capiro-vnext-root .settings-vnext .stv-tile--logo {
   background: var(--stv-surface);

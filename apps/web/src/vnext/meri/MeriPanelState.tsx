@@ -14,9 +14,9 @@ interface MeriPanelStateProps {
 }
 
 const TONE: Record<MeriPanelStateProps['tone'], { icon: MeriIconName; bg: string; ring: string; fg: string; spin?: boolean }> = {
-  loading: { icon: 'Loading01', bg: '#F9FAFB', ring: '#EAECF0', fg: '#667085', spin: true },
+  loading: { icon: 'Loading01', bg: '#FAF9F6', ring: '#E8E5DF', fg: '#667085', spin: true },
   error: { icon: 'AlertCircle', bg: '#FEF3F2', ring: '#FECDCA', fg: '#B42318' },
-  empty: { icon: 'InfoCircle', bg: '#F9FAFB', ring: '#EAECF0', fg: '#667085' },
+  empty: { icon: 'InfoCircle', bg: '#FAF9F6', ring: '#E8E5DF', fg: '#667085' },
 };
 
 export function MeriPanelState({ tone, children }: MeriPanelStateProps) {
@@ -31,7 +31,7 @@ export function MeriPanelState({ tone, children }: MeriPanelStateProps) {
         padding: '12px 13px',
         borderRadius: 9,
         background: spec.bg,
-        boxShadow: `inset 0 0 0 1px ${spec.ring}`,
+        border: `1px solid ${spec.ring}`,
       }}
     >
       <span

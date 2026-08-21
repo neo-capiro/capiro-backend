@@ -198,7 +198,7 @@ export const MERI_CONTEXT_PACKET: MeriContextPacket = {
 /* ── Tone tables (from the prototype's VSTAT / CLAIM / STEP / EXC) ───────── */
 
 const VSTAT: Record<MeriEvidenceStatTone, { bg: string; ring: string; fg: string }> = {
-  n: { bg: '#ffffff', ring: '#EAECF0', fg: '#344054' },
+  n: { bg: '#ffffff', ring: '#E8E5DF', fg: '#344054' },
   g: { bg: '#ECFDF3', ring: '#ABEFC6', fg: '#027A48' },
   w: { bg: '#FFFAEB', ring: '#FEDF89', fg: '#B54708' },
   b: { bg: '#FEF3F2', ring: '#FECDCA', fg: '#B42318' },
@@ -209,31 +209,31 @@ const CLAIM_STYLE: Record<
   { state: string; icon: MeriIconName; dotBg: string; dotFg: string; fg: string }
 > = {
   verified: { state: 'VERIFIED · TIED TO A CITED LOCATOR', icon: 'Check', dotBg: '#101828', dotFg: '#ffffff', fg: '#027A48' },
-  inference: { state: 'INFERENCE · DERIVED, NOT QUOTED', icon: 'Diamond01', dotBg: '#F2F4F7', dotFg: '#344054', fg: '#344054' },
+  inference: { state: 'INFERENCE · DERIVED, NOT QUOTED', icon: 'Diamond01', dotBg: '#F2F0EB', dotFg: '#344054', fg: '#344054' },
   unsupported: { state: 'UNSUPPORTED · NO EVIDENCE FOUND', icon: 'AlertTriangle', dotBg: '#FFFAEB', dotFg: '#B54708', fg: '#B54708' },
   conflict: { state: 'SOURCES DISAGREE', icon: 'SwitchVertical01', dotBg: '#FFFAEB', dotFg: '#B54708', fg: '#B54708' },
-  low: { state: 'LOW CONFIDENCE · SINGLE WEAK SOURCE', icon: 'HelpCircle', dotBg: '#F2F4F7', dotFg: '#667085', fg: '#667085' },
+  low: { state: 'LOW CONFIDENCE · SINGLE WEAK SOURCE', icon: 'HelpCircle', dotBg: '#F2F0EB', dotFg: '#667085', fg: '#667085' },
 };
 
 const STEP_STYLE: Record<
   MeriWorkStepState,
-  { state: string; icon: MeriIconName; dotBg: string; dotFg: string; pillBg: string; pillFg: string; ring: string }
+  { state: string; icon: MeriIconName; dotBg: string; dotFg: string; pillBg: string; pillFg: string; ring: string; halo?: string }
 > = {
-  done: { state: 'DONE', icon: 'Check', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F4F7', pillFg: '#344054', ring: 'inset 0 0 0 1px #EAECF0' },
-  running: { state: 'RUNNING', icon: 'Loading01', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F4F7', pillFg: '#101828', ring: 'inset 0 0 0 1px #D0D5DD,0 0 0 3px #F2F4F7' },
-  queued: { state: 'QUEUED', icon: 'Clock', dotBg: '#F2F4F7', dotFg: '#98A2B3', pillBg: '#F9FAFB', pillFg: '#667085', ring: 'inset 0 0 0 1px #EAECF0' },
-  failed: { state: 'FAILED', icon: 'XClose', dotBg: '#FEF3F2', dotFg: '#B42318', pillBg: '#FEF3F2', pillFg: '#B42318', ring: 'inset 0 0 0 1px #FECDCA' },
-  skipped: { state: 'SKIPPED', icon: 'SlashCircle01', dotBg: '#F2F4F7', dotFg: '#98A2B3', pillBg: '#F9FAFB', pillFg: '#667085', ring: 'inset 0 0 0 1px #EAECF0' },
+  done: { state: 'DONE', icon: 'Check', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F0EB', pillFg: '#344054', ring: '#E8E5DF' },
+  running: { state: 'RUNNING', icon: 'Loading01', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F0EB', pillFg: '#101828', ring: '#E0DCD4', halo: '0 0 0 3px #F2F0EB' },
+  queued: { state: 'QUEUED', icon: 'Clock', dotBg: '#F2F0EB', dotFg: '#98A2B3', pillBg: '#FAF9F6', pillFg: '#667085', ring: '#E8E5DF' },
+  failed: { state: 'FAILED', icon: 'XClose', dotBg: '#FEF3F2', dotFg: '#B42318', pillBg: '#FEF3F2', pillFg: '#B42318', ring: '#FECDCA' },
+  skipped: { state: 'SKIPPED', icon: 'SlashCircle01', dotBg: '#F2F0EB', dotFg: '#98A2B3', pillBg: '#FAF9F6', pillFg: '#667085', ring: '#E8E5DF' },
 };
 
 const EXC_STYLE: Record<MeriContextExclusionTone, { bg: string; fg: string }> = {
-  n: { bg: '#F2F4F7', fg: '#344054' },
+  n: { bg: '#F2F0EB', fg: '#344054' },
   w: { bg: '#FFFAEB', fg: '#B54708' },
   b: { bg: '#FEF3F2', fg: '#B42318' },
 };
 
 const SCOPE_STYLE: Record<MeriContextItem['scope'], { bg: string; fg: string }> = {
-  FIRM: { bg: '#F2F4F7', fg: '#344054' },
+  FIRM: { bg: '#F2F0EB', fg: '#344054' },
   CLIENT: { bg: '#ECFDF3', fg: '#027A48' },
   PERSONAL: { bg: '#FFFAEB', fg: '#B54708' },
 };
@@ -281,8 +281,8 @@ export function MeriEvidenceTray({
   return (
     <div
       style={{
-        borderTop: '1px solid #EAECF0',
-        background: '#F9FAFB',
+        borderTop: '1px solid #E8E5DF',
+        background: '#FAF9F6',
         animation: 'vnext-meri-rise .14s ease',
       }}
     >
@@ -292,7 +292,7 @@ export function MeriEvidenceTray({
           alignItems: 'center',
           gap: 6,
           padding: '11px 18px',
-          borderBottom: '1px solid #EAECF0',
+          borderBottom: '1px solid #E8E5DF',
           flexWrap: 'wrap',
         }}
         role="tablist"
@@ -315,7 +315,8 @@ export function MeriEvidenceTray({
                 padding: '0 11px',
                 borderRadius: 7,
                 background: on ? '#ffffff' : 'transparent',
-                boxShadow: on ? 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)' : 'none',
+                border: on ? '1px solid #E0DCD4' : '1px solid transparent',
+                boxShadow: on ? '0px 1px 2px rgba(16,24,40,.05)' : 'none',
               }}
             >
               <MeriIcon name={t.icon} size={13} color={on ? '#101828' : '#667085'} />
@@ -348,7 +349,7 @@ export function MeriEvidenceTray({
                 padding: '12px 13px',
                 borderRadius: 9,
                 background: '#ffffff',
-                boxShadow: 'inset 0 0 0 1px #EAECF0',
+                border: '1px solid #E8E5DF',
                 textAlign: 'left',
               }}
             >
@@ -361,7 +362,7 @@ export function MeriEvidenceTray({
                   width: 26,
                   height: 26,
                   borderRadius: 7,
-                  background: '#F2F4F7',
+                  background: '#F2F0EB',
                 }}
               >
                 <MeriIcon name={source.icon} size={13} color="#101828" />
@@ -416,7 +417,7 @@ export function MeriEvidenceTray({
                     padding: '0 10px',
                     borderRadius: 7,
                     background: tone.bg,
-                    boxShadow: `inset 0 0 0 1px ${tone.ring}`,
+                    border: `1px solid ${tone.ring}`,
                     fontFamily: MONO,
                     fontSize: 9.5,
                     fontWeight: 500,
@@ -441,7 +442,7 @@ export function MeriEvidenceTray({
                     padding: '12px 13px',
                     borderRadius: 9,
                     background: '#ffffff',
-                    boxShadow: 'inset 0 0 0 1px #EAECF0',
+                    border: '1px solid #E8E5DF',
                   }}
                 >
                   <span
@@ -474,7 +475,7 @@ export function MeriEvidenceTray({
 
       {tab === 'work' ? (
         <div style={{ padding: '14px 18px 16px' }}>
-          <div style={{ padding: '12px 13px', borderRadius: 9, background: '#ffffff', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
+          <div style={{ padding: '12px 13px', borderRadius: 9, background: '#ffffff', border: '1px solid #E8E5DF' }}>
             <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
               PLAN
             </div>
@@ -491,7 +492,7 @@ export function MeriEvidenceTray({
                   padding: '0 10px',
                   borderRadius: 7,
                   background: '#ffffff',
-                  boxShadow: 'inset 0 0 0 1px #EAECF0',
+                  border: '1px solid #E8E5DF',
                   fontFamily: MONO,
                   fontSize: 9.5,
                   fontWeight: 500,
@@ -516,7 +517,8 @@ export function MeriEvidenceTray({
                     padding: '11px 13px',
                     borderRadius: 9,
                     background: '#ffffff',
-                    boxShadow: style.ring,
+                    border: `1px solid ${style.ring}`,
+                    boxShadow: style.halo,
                   }}
                 >
                   <span
@@ -564,7 +566,7 @@ export function MeriEvidenceTray({
               );
             })}
           </div>
-          <div style={{ marginTop: 12, padding: '11px 13px', borderRadius: 9, background: '#ffffff', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
+          <div style={{ marginTop: 12, padding: '11px 13px', borderRadius: 9, background: '#ffffff', border: '1px solid #E8E5DF' }}>
             <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
               ASSUMPTIONS STATED IN THE ANSWER
             </div>
@@ -597,7 +599,7 @@ export function MeriEvidenceTray({
       {tab === 'ctx' ? (
         <div style={{ padding: '14px 18px 16px' }}>
           {context.degraded ? (
-            <div style={{ marginBottom: 12, padding: '11px 13px', borderRadius: 9, background: '#FFFAEB', boxShadow: 'inset 0 0 0 1px #FEDF89' }}>
+            <div style={{ marginBottom: 12, padding: '11px 13px', borderRadius: 9, background: '#FFFAEB', border: '1px solid #FEDF89' }}>
               <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.09em', color: '#B54708' }}>
                 CONTEXT DEGRADED
               </div>
@@ -615,7 +617,7 @@ export function MeriEvidenceTray({
               return (
                 <div
                   key={item.name}
-                  style={{ padding: '12px 13px', borderRadius: 9, background: '#ffffff', boxShadow: 'inset 0 0 0 1px #EAECF0' }}
+                  style={{ padding: '12px 13px', borderRadius: 9, background: '#ffffff', border: '1px solid #E8E5DF' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 13, lineHeight: '19px', fontWeight: 600, color: '#101828' }}>
@@ -645,7 +647,7 @@ export function MeriEvidenceTray({
                         height: 19,
                         padding: '0 6px',
                         borderRadius: 4,
-                        background: '#F2F4F7',
+                        background: '#F2F0EB',
                         fontFamily: MONO,
                         fontSize: 8.5,
                         fontWeight: 500,
@@ -693,7 +695,7 @@ export function MeriEvidenceTray({
                     padding: '10px 13px',
                     borderRadius: 9,
                     background: '#ffffff',
-                    boxShadow: 'inset 0 0 0 1px #EAECF0',
+                    border: '1px solid #E8E5DF',
                   }}
                 >
                   <span
@@ -737,7 +739,7 @@ export function MeriEvidenceTray({
               gap: 10,
               marginTop: 14,
               paddingTop: 12,
-              borderTop: '1px solid #EAECF0',
+              borderTop: '1px solid #E8E5DF',
             }}
           >
             <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.07em', color: '#98A2B3' }}>
@@ -755,7 +757,8 @@ export function MeriEvidenceTray({
                 padding: '0 12px',
                 borderRadius: 8,
                 background: '#ffffff',
-                boxShadow: 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+                border: '1px solid #E0DCD4',
+                boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
               }}
             >
               <MeriIcon name="Sliders02" size={13} color="#344054" />

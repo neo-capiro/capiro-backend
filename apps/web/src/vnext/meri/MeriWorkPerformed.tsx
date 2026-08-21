@@ -126,8 +126,8 @@ export function MeriWorkPerformed({ intent, tier, steps, planSteps, isStreaming 
             marginTop: 10,
             padding: '11px 13px',
             borderRadius: 9,
-            background: '#F9FAFB',
-            boxShadow: 'inset 0 0 0 1px #EAECF0',
+            background: '#FAF9F6',
+            border: '1px solid #E8E5DF',
           }}
         >
           <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>

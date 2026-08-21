@@ -60,15 +60,16 @@ function ContextToggle({
           borderRadius: 9999,
           background: on
             ? 'linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%)'
-            : '#F2F4F7',
-          boxShadow: on ? 'inset 0 1px 0 rgba(255,255,255,.14)' : 'inset 0 0 0 1px #D0D5DD',
+            : '#F2F0EB',
+          border: on ? '1px solid transparent' : '1px solid #E0DCD4',
+          boxShadow: on ? 'inset 0 1px 0 rgba(255,255,255,.14)' : undefined,
         }}
       >
         <span
           style={{
             position: 'absolute',
-            top: 2,
-            left: on ? 18 : 2,
+            top: 1,
+            left: on ? 17 : 1,
             width: 18,
             height: 18,
             borderRadius: 9999,
@@ -115,7 +116,7 @@ export function MeriManageContext({
 
   return (
     <div style={{ animation: 'vnext-meri-rise .2s cubic-bezier(.2,0,0,1)' }}>
-      <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid #EAECF0' }}>
+      <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid #E8E5DF' }}>
         <div style={{ fontSize: 15, lineHeight: '22px', fontWeight: 600, color: '#101828' }}>
           Manage conversation context
         </div>
@@ -132,8 +133,8 @@ export function MeriManageContext({
             marginTop: 12,
             padding: '0 11px',
             borderRadius: 8,
-            background: '#F9FAFB',
-            boxShadow: 'inset 0 0 0 1px #EAECF0',
+            background: '#FAF9F6',
+            border: '1px solid #E8E5DF',
           }}
         >
           <MeriIcon name="SearchLg" size={14} color="#98A2B3" />
@@ -153,7 +154,7 @@ export function MeriManageContext({
         </div>
       </div>
 
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #EAECF0' }}>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid #E8E5DF' }}>
         <div
           style={{
             fontFamily: MONO,
@@ -176,7 +177,7 @@ export function MeriManageContext({
                 padding: '11px 12px',
                 borderRadius: 9,
                 background: '#ffffff',
-                boxShadow: 'inset 0 0 0 1px #EAECF0',
+                border: '1px solid #E8E5DF',
               }}
             >
               <span
@@ -188,7 +189,7 @@ export function MeriManageContext({
                   width: 26,
                   height: 26,
                   borderRadius: 7,
-                  background: '#F2F4F7',
+                  background: '#F2F0EB',
                 }}
               >
                 <MeriIcon name={item.icon ?? 'File05'} size={13} color="#101828" />
@@ -234,7 +235,7 @@ export function MeriManageContext({
         </div>
       </div>
 
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #EAECF0' }}>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid #E8E5DF' }}>
         <div
           style={{
             fontFamily: MONO,
@@ -258,8 +259,8 @@ export function MeriManageContext({
                   gap: 10,
                   padding: '11px 12px',
                   borderRadius: 9,
-                  background: '#F9FAFB',
-                  boxShadow: 'inset 0 0 0 1px #EAECF0',
+                  background: '#FAF9F6',
+                  border: '1px solid #E8E5DF',
                 }}
               >
                 <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -279,7 +280,7 @@ export function MeriManageContext({
                     height: 26,
                     padding: '0 10px',
                     borderRadius: 7,
-                    boxShadow: 'inset 0 0 0 1px #D0D5DD',
+                    border: '1px solid #E0DCD4',
                     fontSize: 12,
                     fontWeight: 600,
                     color: '#344054',
@@ -310,7 +311,7 @@ export function MeriManageContext({
           <ContextToggle label="Automatically include new Strategy nodes" initialOn={false} />
           <ContextToggle label="Show context used beneath each answer" initialOn={true} />
         </div>
-        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #EAECF0' }}>
+        <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid #E8E5DF' }}>
           <div
             style={{
               fontFamily: MONO,
@@ -333,7 +334,7 @@ export function MeriManageContext({
                 height: 34,
                 padding: '0 13px',
                 borderRadius: 8,
-                boxShadow: 'inset 0 0 0 1px #D0D5DD',
+                border: '1px solid #E0DCD4',
                 fontSize: 13,
                 fontWeight: 600,
                 color: '#344054',

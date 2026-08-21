@@ -76,7 +76,8 @@
   padding: 6px 12px;
   border-radius: var(--uui-radius-control);
   background: var(--uui-white);
-  box-shadow: inset 0 0 0 1px var(--uui-gray-300), var(--uui-shadow-button);
+  border: 1px solid var(--uui-gray-300);
+  box-shadow: var(--uui-shadow-button);
   font-size: var(--uui-text-sm);
   line-height: var(--uui-line-sm);
   font-weight: var(--uui-weight-semibold);
@@ -539,7 +540,7 @@
   font-size: 12.5px;
   line-height: 1.5;
   background: var(--uui-gray-50);
-  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
+  border: 1px solid var(--uui-gray-200);
   color: var(--uui-gray-600);
 }
 .capiro-vnext-root .dnx-hint b {
@@ -553,7 +554,7 @@
 }
 .capiro-vnext-root .dnx-hint.dnx-notable {
   background: var(--uui-warning-bg);
-  box-shadow: inset 0 0 0 1px var(--uui-warning-ring);
+  border-color: var(--uui-warning-ring);
   color: var(--uui-warning-fg);
 }
 .capiro-vnext-root .dnx-hint.dnx-notable b,
@@ -562,7 +563,7 @@
 }
 .capiro-vnext-root .dnx-hint.dnx-info {
   background: var(--uui-blue-bg);
-  box-shadow: inset 0 0 0 1px var(--uui-blue-ring);
+  border-color: var(--uui-blue-ring);
   color: var(--uui-blue-fg);
 }
 .capiro-vnext-root .dnx-hint.dnx-info b,
@@ -761,7 +762,7 @@
    the capiro-table base. */
 .capiro-vnext-root .dnx-htablewrap {
   border-radius: var(--uui-radius-control);
-  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
+  border: 1px solid var(--uui-gray-200);
   overflow: hidden;
 }
 .capiro-vnext-root .dnx-htable {
@@ -872,7 +873,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
+  border: 1px solid var(--uui-gray-200);
   border-radius: var(--uui-radius-control);
   background: var(--uui-white);
 }

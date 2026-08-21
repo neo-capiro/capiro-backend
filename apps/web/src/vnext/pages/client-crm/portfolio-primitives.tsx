@@ -46,9 +46,9 @@ export type PillTone = 'gray' | 'brand' | 'blue' | 'error' | 'warning' | 'succes
 
 /** [bg, ring, text, dot] — verbatim from the prototype PILL array. */
 export const PILL: Record<PillTone, [string, string, string, string]> = {
-  gray: ['#F9FAFB', '#EAECF0', '#344054', '#667085'],
-  brand: ['#F2F4F7', '#D0D5DD', '#101828', '#101828'],
-  blue: ['#F2F4F7', '#D0D5DD', '#101828', '#344054'],
+  gray: ['#FAF9F6', '#E8E5DF', '#344054', '#667085'],
+  brand: ['#F2F0EB', '#E0DCD4', '#101828', '#101828'],
+  blue: ['#F2F0EB', '#E0DCD4', '#101828', '#344054'],
   error: ['#FEF3F2', '#FECDCA', '#B42318', '#F04438'],
   warning: ['#FFFAEB', '#FEDF89', '#B54708', '#F79009'],
   success: ['#ECFDF3', '#ABEFC6', '#027A48', '#12B76A'],
@@ -58,7 +58,7 @@ export type EvidenceTier = 'Public record' | 'Client-verified' | 'Inferred';
 
 /** Evidence-tier palette (§1.3) — verbatim from the prototype TIER array. */
 export const TIER: Record<EvidenceTier, [string, string, string, string]> = {
-  'Public record': ['#F2F4F7', '#D0D5DD', '#101828', '#101828'],
+  'Public record': ['#F2F0EB', '#E0DCD4', '#101828', '#101828'],
   'Client-verified': ['#ECFDF3', '#ABEFC6', '#027A48', '#12B76A'],
   Inferred: ['#FFFAEB', '#FEDF89', '#B54708', '#F79009'],
 };
@@ -105,7 +105,7 @@ export function Pill({
         padding: dims.padding,
         borderRadius: 9999,
         background: bg,
-        boxShadow: `inset 0 0 0 1px ${ring}`,
+        border: `1px solid ${ring}`,
         color: fg,
         fontSize: dims.fontSize,
         fontWeight: 500,
@@ -135,7 +135,7 @@ export function EvidenceChip({ tier, label, style }: { tier: EvidenceTier; label
         padding: '0 8px 0 6px',
         borderRadius: 6,
         background: bg,
-        boxShadow: `inset 0 0 0 1px ${ring}`,
+        border: `1px solid ${ring}`,
         color: fg,
         fontSize: 12,
         fontWeight: 600,
@@ -162,7 +162,7 @@ export function FitChip({ score, suffix = '%', style }: { score: number; suffix?
         padding: '0 8px',
         borderRadius: 6,
         background: bg,
-        boxShadow: `inset 0 0 0 1px ${ring}`,
+        border: `1px solid ${ring}`,
         color: fg,
         fontSize: 12,
         fontWeight: 600,
@@ -195,8 +195,8 @@ export function Chip({
         height: 26,
         padding: '0 10px',
         borderRadius: 8,
-        background: selected ? '#F2F4F7' : '#F9FAFB',
-        boxShadow: selected ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0',
+        background: selected ? '#F2F0EB' : '#FAF9F6',
+        border: selected ? '1px solid #E0DCD4' : '1px solid #E8E5DF',
         color: selected ? '#101828' : '#344054',
         fontSize: 13,
         fontWeight: 500,
@@ -284,9 +284,9 @@ export function PfButton({
           width: 40,
           height: 40,
           borderRadius: 8,
-          boxShadow: 'inset 0 0 0 1px #D0D5DD',
+          border: '1px solid #E0DCD4',
           color: '#475467',
-          background: hovered ? '#F9FAFB' : 'transparent',
+          background: hovered ? '#FAF9F6' : 'transparent',
           ...disabledStyle,
           ...style,
         }}
@@ -336,15 +336,14 @@ export function PfButton({
         height,
         padding,
         borderRadius: 8,
-        background: primary ? (hovered ? GRADIENT_DARK_HOVER : GRADIENT_DARK) : hovered ? '#F9FAFB' : '#ffffff',
+        background: primary ? (hovered ? GRADIENT_DARK_HOVER : GRADIENT_DARK) : hovered ? '#FAF9F6' : '#ffffff',
         color: primary ? '#ffffff' : hovered ? '#101828' : '#344054',
         fontSize: 14,
         fontWeight: 600,
         lineHeight: '20px',
         whiteSpace: 'nowrap',
-        boxShadow: primary
-          ? '0px 1px 2px rgba(16,24,40,.05)'
-          : 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+        border: primary ? undefined : '1px solid #E0DCD4',
+        boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
         ...disabledStyle,
         ...style,
       }}
@@ -390,7 +389,7 @@ export function PfSkeleton({
         width,
         height,
         borderRadius: 6,
-        background: '#F2F4F7',
+        background: '#F2F0EB',
         ...style,
       }}
     />
@@ -439,12 +438,12 @@ export interface MilestoneStep {
   state: MilestoneState;
 }
 
-const MILESTONE_NODE: Record<MilestoneState, { bg: string; ring: string; mark: string; markFg: string; fg: string }> = {
-  done: { bg: GRADIENT_DARK, ring: 'none', mark: '✓', markFg: '#ffffff', fg: '#101828' },
-  current: { bg: '#ffffff', ring: 'inset 0 0 0 2px #101828', mark: '', markFg: '#101828', fg: '#101828' },
-  gap: { bg: '#FFFAEB', ring: 'inset 0 0 0 1px #FEDF89', mark: '!', markFg: '#B54708', fg: '#B54708' },
-  closed: { bg: '#F2F4F7', ring: 'inset 0 0 0 1px #D0D5DD', mark: '·', markFg: '#475467', fg: '#475467' },
-  pending: { bg: '#F9FAFB', ring: 'inset 0 0 0 1px #EAECF0', mark: '', markFg: '#98A2B3', fg: '#667085' },
+const MILESTONE_NODE: Record<MilestoneState, { bg: string; ring: string; border: string; mark: string; markFg: string; fg: string }> = {
+  done: { bg: GRADIENT_DARK, ring: 'none', border: '1px solid transparent', mark: '✓', markFg: '#ffffff', fg: '#101828' },
+  current: { bg: '#ffffff', ring: 'inset 0 0 0 2px #101828', border: '1px solid transparent', mark: '', markFg: '#101828', fg: '#101828' },
+  gap: { bg: '#FFFAEB', ring: 'none', border: '1px solid #FEDF89', mark: '!', markFg: '#B54708', fg: '#B54708' },
+  closed: { bg: '#F2F0EB', ring: 'none', border: '1px solid #E0DCD4', mark: '·', markFg: '#475467', fg: '#475467' },
+  pending: { bg: '#FAF9F6', ring: 'none', border: '1px solid #E8E5DF', mark: '', markFg: '#98A2B3', fg: '#667085' },
 };
 
 /**
@@ -464,7 +463,7 @@ export function MilestoneTrack({ steps, nodeSize = 18 }: { steps: MilestoneStep[
         return (
           <span key={`${step.label}-${i}`} style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <span style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-              <span style={{ flex: 1, height: 2, background: i === 0 ? 'transparent' : leftDark ? '#101828' : '#EAECF0' }} />
+              <span style={{ flex: 1, height: 2, background: i === 0 ? 'transparent' : leftDark ? '#101828' : '#E8E5DF' }} />
               <span
                 style={{
                   flex: '0 0 auto',
@@ -476,6 +475,7 @@ export function MilestoneTrack({ steps, nodeSize = 18 }: { steps: MilestoneStep[
                   borderRadius: '50%',
                   background: node.bg,
                   boxShadow: node.ring,
+                  border: node.border,
                   color: node.markFg,
                   fontSize: nodeSize >= 24 ? 11 : 11,
                   fontWeight: nodeSize >= 24 ? 700 : 600,
@@ -483,7 +483,7 @@ export function MilestoneTrack({ steps, nodeSize = 18 }: { steps: MilestoneStep[
               >
                 {node.mark}
               </span>
-              <span style={{ flex: 1, height: 2, background: i === steps.length - 1 ? 'transparent' : rightDark ? '#101828' : '#EAECF0' }} />
+              <span style={{ flex: 1, height: 2, background: i === steps.length - 1 ? 'transparent' : rightDark ? '#101828' : '#E8E5DF' }} />
             </span>
             <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '0 4px', textAlign: 'center', minWidth: 0 }}>
             <span style={{ fontSize: nodeSize >= 24 ? 11 : 12, fontWeight: 600, lineHeight: '16px', color: node.fg, textWrap: 'pretty', overflowWrap: 'break-word', textTransform: nodeSize >= 24 ? 'uppercase' : 'none', letterSpacing: nodeSize >= 24 ? '.02em' : 0 }}>
@@ -517,7 +517,7 @@ export function TimelineRail({
 }) {
   return (
     <div style={{ flex: '0 0 auto', width: gutterWidth, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: padTop }}>
-      <span style={{ width: 2, height: padTop, background: first ? 'transparent' : '#EAECF0' }} />
+      <span style={{ width: 2, height: padTop, background: first ? 'transparent' : '#E8E5DF' }} />
       <span
         style={{
           flex: '0 0 auto',
@@ -528,7 +528,7 @@ export function TimelineRail({
           boxShadow: live ? 'inset 0 0 0 2.5px #101828' : 'none',
         }}
       />
-      <span style={{ flex: 1, width: 2, background: last ? 'transparent' : '#EAECF0', minHeight: 6 }} />
+      <span style={{ flex: 1, width: 2, background: last ? 'transparent' : '#E8E5DF', minHeight: 6 }} />
     </div>
   );
 }
@@ -560,7 +560,7 @@ export function Tile({
         width: size,
         height: size,
         borderRadius: round ? '50%' : size >= 40 ? 8 : 6,
-        background: src ? '#F2F4F7' : dark ? GRADIENT_DARK : '#F2F4F7',
+        background: src ? '#F2F0EB' : dark ? GRADIENT_DARK : '#F2F0EB',
         color: dark && !src ? '#ffffff' : '#101828',
         fontSize,
         fontWeight: 600,
@@ -597,7 +597,7 @@ export function Avatar({
         height: size,
         marginLeft: overlap ? -8 : 0,
         borderRadius: '50%',
-        background: dark ? GRADIENT_DARK : '#F2F4F7',
+        background: dark ? GRADIENT_DARK : '#F2F0EB',
         color: dark ? '#ffffff' : '#101828',
         fontSize,
         fontWeight: 600,
@@ -648,7 +648,7 @@ export function SegmentedTabs<V extends string>({
         padding: 4,
         borderRadius: 10,
         background: '#ffffff',
-        boxShadow: '0 0 0 1px #EAECF0',
+        boxShadow: '0 0 0 1px #E8E5DF',
       }}
     >
       {options.map((opt, index) => (
@@ -698,8 +698,8 @@ function SegmentedItem({
         borderRadius: 8,
         fontSize: 14,
         fontWeight: 600,
-        background: active ? '#F9FAFB' : 'transparent',
-        boxShadow: active ? 'inset 0 0 0 1px #EAECF0' : 'none',
+        background: active ? '#FAF9F6' : 'transparent',
+        border: active ? '1px solid #E8E5DF' : '1px solid transparent',
         color: active ? '#101828' : hover ? '#101828' : '#667085',
         whiteSpace: 'nowrap',
       }}
@@ -717,7 +717,7 @@ export function Card({ children, style }: { children: ReactNode; style?: CSSProp
       style={{
         background: '#ffffff',
         borderRadius: 12,
-        boxShadow: '0 0 0 1px #EAECF0,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)',
+        boxShadow: '0 0 0 1px #E8E5DF,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)',
         overflow: 'hidden',
         ...style,
       }}
@@ -753,7 +753,7 @@ export function CardHead({
           alignItems: 'flex-start',
           gap: 16,
           padding: '20px 24px',
-          borderBottom: '1px solid #EAECF0',
+          borderBottom: '1px solid #E8E5DF',
           flexWrap: 'wrap',
         }}
       >
@@ -768,7 +768,7 @@ export function CardHead({
     );
   }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px', borderBottom: '1px solid #EAECF0' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px', borderBottom: '1px solid #E8E5DF' }}>
       <h3 style={CARD_HEAD_TITLE}>{title}</h3>
       <span style={{ flex: 1 }} />
       {action}
@@ -784,8 +784,8 @@ export function CardFoot({ left, right }: { left: ReactNode; right?: ReactNode }
         alignItems: 'center',
         gap: 8,
         padding: '13px 24px',
-        borderTop: '1px solid #EAECF0',
-        background: '#FCFCFD',
+        borderTop: '1px solid #E8E5DF',
+        background: '#FAF9F6',
         flexWrap: 'wrap',
       }}
     >

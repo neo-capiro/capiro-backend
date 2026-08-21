@@ -208,7 +208,8 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
             width: 320,
             borderRadius: 8,
             background: '#ffffff',
-            boxShadow: 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+            border: '1px solid #E0DCD4',
+            boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
           }}
         >
           <UIcon name="SearchLg" size={20} color="#667085" />
@@ -380,8 +381,8 @@ function TimelineEntry({ entry: e }: { entry: HistEntry }) {
         display: 'flex',
         gap: 16,
         padding: '16px 24px',
-        borderBottom: '1px solid #F2F4F7',
-        background: hover ? '#F9FAFB' : 'transparent',
+        borderBottom: '1px solid #F2F0EB',
+        background: hover ? '#FAF9F6' : 'transparent',
       }}
     >
       <span
@@ -507,7 +508,7 @@ function ControlsCard({
           ))}
         </div>
 
-        <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #EAECF0' }}>
+        <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
           <Eyebrow>Open commitments</Eyebrow>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
             {rows.length === 0 ? (
@@ -525,7 +526,7 @@ function ControlsCard({
           </div>
         </div>
 
-        <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #EAECF0' }}>
+        <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
           <Eyebrow>Pinned account note</Eyebrow>
           {/* While loading, a skeleton — the old fixture fallback was a
               sentence of invented client preference that read exactly like a
@@ -562,8 +563,8 @@ function QuickAddRow({ label, onClick }: { label: string; onClick: () => void })
         padding: '11px 14px',
         borderRadius: 8,
         textAlign: 'left',
-        background: hover ? '#F2F4F7' : '#F9FAFB',
-        boxShadow: hover ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0',
+        background: hover ? '#F2F0EB' : '#FAF9F6',
+        border: hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF',
       }}
     >
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#667085', flex: '0 0 auto' }} aria-hidden />
@@ -641,8 +642,8 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
         height: 32,
         padding: '0 12px',
         borderRadius: 8,
-        background: active ? '#F2F4F7' : hover ? '#F9FAFB' : 'transparent',
-        boxShadow: active ? 'inset 0 0 0 1px #D0D5DD' : 'none',
+        background: active ? '#F2F0EB' : hover ? '#FAF9F6' : 'transparent',
+        border: active ? '1px solid #E0DCD4' : '1px solid transparent',
         color: active ? '#101828' : '#667085',
         fontSize: 13,
         fontWeight: 600,

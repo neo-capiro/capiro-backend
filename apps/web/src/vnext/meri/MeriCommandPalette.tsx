@@ -203,7 +203,7 @@ export function MeriCommandPalette({
             alignItems: 'center',
             gap: 11,
             padding: '14px 16px',
-            borderBottom: '1px solid #EAECF0',
+            borderBottom: '1px solid #E8E5DF',
           }}
         >
           <MeriIcon name="SearchLg" size={17} color="#98A2B3" />
@@ -245,8 +245,8 @@ export function MeriCommandPalette({
                 margin: 6,
                 padding: '16px 14px',
                 borderRadius: 10,
-                background: '#F9FAFB',
-                boxShadow: 'inset 0 0 0 1px #EAECF0',
+                background: '#FAF9F6',
+                border: '1px solid #E8E5DF',
                 fontSize: 13,
                 lineHeight: '19px',
                 color: '#475467',
@@ -273,7 +273,7 @@ export function MeriCommandPalette({
                 width: '100%',
                 padding: '10px 12px',
                 borderRadius: 8,
-                background: hoveredKey === result.key ? '#F9FAFB' : 'transparent',
+                background: hoveredKey === result.key ? '#FAF9F6' : 'transparent',
               }}
             >
               <span
@@ -285,7 +285,7 @@ export function MeriCommandPalette({
                   width: 26,
                   height: 26,
                   borderRadius: 7,
-                  background: '#F2F4F7',
+                  background: '#F2F0EB',
                 }}
               >
                 <MeriIcon name={result.icon} size={13} color="#101828" />

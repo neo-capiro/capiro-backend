@@ -9,7 +9,8 @@
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--st-gray-50);
+  /* Page ground = canvas tier (WARM-SURFACE-PALETTE.md). */
+  background: var(--uui-surface-canvas, #f4f3f0);
   font-family: var(--st-font-sans);
 }
 
@@ -114,7 +115,7 @@
   font-size: 13px;
   font-weight: 600;
   background: var(--st-white);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border: 1px solid var(--st-gray-200);
   color: var(--st-gray-900);
   white-space: nowrap;
   text-decoration: none;
@@ -130,7 +131,7 @@
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__chip.is-stale .st-ctxdoc__chip-value { color: var(--st-warning-fg); }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__chip.is-link {
   color: var(--st-accent);
-  box-shadow: inset 0 0 0 1px var(--st-accent-tint-border);
+  border-color: var(--st-accent-tint-border);
   background: var(--st-accent-tint);
   max-width: min(320px, 100%);
   overflow: hidden;
@@ -317,7 +318,10 @@
    other two rail cards use. */
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__card--muted {
   background: var(--st-gray-50);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border: 1px solid var(--st-gray-200);
+  /* The old inset ring also replaced the base card's --st-shadow-card-sm;
+     keep that suppression explicit now that the ring is a real border. */
+  box-shadow: none;
 }
 .capiro-vnext-root .capiro-strategies .st-ctxdoc__card-label {
   display: block;
@@ -411,7 +415,7 @@
      passed, matching the tone the "Active" document-state pill already uses
      for a verified/good state (design QA: was incorrectly indigo/info). */
   background: var(--st-success-bg);
-  box-shadow: inset 0 0 0 1px var(--st-success-ring);
+  border: 1px solid var(--st-success-ring);
   color: var(--st-success-fg);
   flex-shrink: 0;
 }

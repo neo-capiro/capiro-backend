@@ -73,7 +73,7 @@ export function MeriCoverageWarning({ retrieval }: { retrieval: ChatMessageRetri
         padding: '13px 15px',
         borderRadius: 10,
         background: spec.bg,
-        boxShadow: `inset 0 0 0 1px ${spec.ring}`,
+        border: `1px solid ${spec.ring}`,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>

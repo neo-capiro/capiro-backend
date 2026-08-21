@@ -42,7 +42,7 @@ export function MeriGroundingWarning({ items, onInspectEvidence }: MeriGrounding
         padding: '14px 15px',
         borderRadius: 10,
         background: '#FFFAEB',
-        boxShadow: 'inset 0 0 0 1px #FEDF89',
+        border: '1px solid #FEDF89',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
@@ -68,7 +68,7 @@ export function MeriGroundingWarning({ items, onInspectEvidence }: MeriGrounding
               padding: '11px 12px',
               borderRadius: 8,
               background: '#ffffff',
-              boxShadow: 'inset 0 0 0 1px #FEDF89',
+              border: '1px solid #FEDF89',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

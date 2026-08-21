@@ -69,8 +69,8 @@ export function MeriMessageFeedback({
     padding: 0,
     ...(active
       ? {
-          background: 'var(--meri-accent-soft, #F2F4F7)',
-          boxShadow: 'inset 0 0 0 1px var(--meri-border-strong, #D0D5DD)',
+          background: 'var(--meri-accent-soft, #F2F0EB)',
+          borderColor: 'var(--meri-border-strong, #E0DCD4)',
         }
       : {}),
   });
@@ -129,8 +129,8 @@ export function MeriMessageFeedback({
               maxWidth: 460,
               borderRadius: 12,
               background: 'var(--meri-surface, #ffffff)',
-              boxShadow:
-                'var(--meri-shadow-chip, inset 0 0 0 1px #EAECF0), var(--m-shadow-modal, 0 24px 48px -12px rgba(16, 24, 40, 0.3))',
+              border: '1px solid var(--meri-border, #E8E5DF)',
+              boxShadow: 'var(--m-shadow-modal, 0 24px 48px -12px rgba(16, 24, 40, 0.3))',
               padding: '18px 20px 16px',
             }}
           >
@@ -234,10 +234,9 @@ export function MeriMessageFeedback({
                   width: '100%',
                   marginTop: 7,
                   padding: '9px 11px',
-                  border: 0,
+                  border: '1px solid var(--meri-border-strong, #E0DCD4)',
                   borderRadius: 8,
                   background: 'var(--meri-surface, #ffffff)',
-                  boxShadow: 'inset 0 0 0 1px var(--meri-border-strong, #D0D5DD)',
                   font: 'inherit',
                   fontSize: 13,
                   lineHeight: '19px',

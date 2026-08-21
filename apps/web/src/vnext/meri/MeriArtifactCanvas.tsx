@@ -119,7 +119,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
           BACK TO CONTEXT
         </button>
       </div>
-      <div style={{ padding: '12px 20px 14px', borderBottom: '1px solid #EAECF0' }}>
+      <div style={{ padding: '12px 20px 14px', borderBottom: '1px solid #E8E5DF' }}>
         <div style={{ fontFamily: MONO, fontSize: 9.5, fontWeight: 500, letterSpacing: '.08em', color: '#667085' }}>
           {metaLabel}
         </div>
@@ -137,7 +137,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
               height: 30,
               padding: '0 11px',
               borderRadius: 8,
-              boxShadow: 'inset 0 0 0 1px #D0D5DD',
+              border: '1px solid #E0DCD4',
               background: 'transparent',
               cursor: 'pointer',
             }}
@@ -177,7 +177,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
               padding: '10px 12px',
               borderRadius: 8,
               background: '#FEF3F2',
-              boxShadow: 'inset 0 0 0 1px #FECDCA',
+              border: '1px solid #FECDCA',
               fontSize: 12.5,
               lineHeight: '18px',
               color: '#B42318',
@@ -193,7 +193,7 @@ export function MeriArtifactCanvas({ artifact, onClose, apiBaseUrl, getAuthHeade
             padding: '22px 20px',
             borderRadius: 8,
             background: '#ffffff',
-            boxShadow: '0 0 0 1px #EAECF0, 0px 2px 6px rgba(16,24,40,.06)',
+            boxShadow: '0 0 0 1px #E8E5DF, 0px 2px 6px rgba(16,24,40,.06)',
             fontSize: 13,
             lineHeight: '20px',
             color: '#344054',

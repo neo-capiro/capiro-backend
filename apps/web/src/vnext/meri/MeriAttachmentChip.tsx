@@ -33,7 +33,7 @@ export interface MeriAttachmentChipSpec {
 
 /** Prototype fixture — screen Q, nine states. */
 export const MERI_ATTACHMENT_STATES: MeriAttachmentChipSpec[] = [
-  { name: 'FY27-position.pdf', state: 'UPLOADING · 62%', icon: 'UploadCloud02', ring: '#D0D5DD', fg: '#667085' },
+  { name: 'FY27-position.pdf', state: 'UPLOADING · 62%', icon: 'UploadCloud02', ring: '#E0DCD4', fg: '#667085' },
   { name: 'HASC-report.pdf', state: 'READY', icon: 'File05', ring: '#ABEFC6', fg: '#027A48' },
   { name: 'client-brief.docx', state: 'PARSED · 14 PAGES', icon: 'File04', ring: '#ABEFC6', fg: '#027A48' },
   { name: 'exposure.csv', state: 'PARSED · 412 ROWS', icon: 'Rows03', ring: '#ABEFC6', fg: '#027A48' },
@@ -63,7 +63,7 @@ export function attachmentChipSpec(attachment: {
   const GOOD = { ring: '#ABEFC6', fg: '#027A48' };
   const WARN = { ring: '#FEDF89', fg: '#B54708' };
   const BAD = { ring: '#FECDCA', fg: '#B42318' };
-  const NEUTRAL = { ring: '#D0D5DD', fg: '#667085' };
+  const NEUTRAL = { ring: '#E0DCD4', fg: '#667085' };
 
   const kindIcon: MeriIconName =
     attachment.kind === 'image' ? 'Eye' : attachment.kind === 'docx' ? 'File04' : 'File05';
@@ -130,7 +130,7 @@ export function MeriAttachmentChip({ name, state, icon, ring, fg, onRemove }: Me
         padding: '0 12px',
         borderRadius: 9,
         background: '#ffffff',
-        boxShadow: `inset 0 0 0 1px ${ring}`,
+        border: `1px solid ${ring}`,
       }}
     >
       <MeriIcon name={icon} size={14} color={fg} />
@@ -181,7 +181,7 @@ export function MeriAttachmentManyAdvisory({ count }: { count: number }) {
         padding: '11px 13px',
         borderRadius: 9,
         background: '#FFFAEB',
-        boxShadow: 'inset 0 0 0 1px #FEDF89',
+        border: '1px solid #FEDF89',
         fontSize: 12.5,
         lineHeight: '19px',
         color: '#B54708',

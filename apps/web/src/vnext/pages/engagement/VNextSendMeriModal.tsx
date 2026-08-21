@@ -140,7 +140,9 @@ export function VNextSendMeriModal({
           gap: 9,
           padding: '10px 12px',
           marginBottom: 16,
-          background: 'var(--bg-sunken, #f9fafb)',
+          // Send-with-Meri panel — the assistant tier (WARM-SURFACE-PALETTE.md),
+          // not the generic sunken fill.
+          background: 'var(--eng-surface-assistant, #fffdfa)',
           borderRadius: 8,
         }}
       >

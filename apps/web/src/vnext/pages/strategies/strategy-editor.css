@@ -249,8 +249,8 @@
 .capiro-vnext-root .capiro-strategies .st-tl__monthrow {
   height: 28px;
   border-bottom: 1px solid var(--st-gray-200);
-  /* Reference draws #FCFCFD; --st-gray-50 (#F9FAFB) is the nearest token and
-     the two are imperceptibly close (see the note this file already carried). */
+  /* Reference drew a recessed near-white; --st-gray-50 (#FAF9F6) is the warm
+     mapping (see the note this file already carried). */
   background: var(--st-gray-50);
 }
 .capiro-vnext-root .capiro-strategies .st-tl__month {
@@ -315,7 +315,7 @@
   height: var(--st-refbar-h);
   margin: 0 3px;
   padding: 0 10px;
-  border: none;
+  border: 1px solid var(--st-gray-200);
   border-radius: var(--st-refbar-radius);
   font: inherit;
   font-size: 12px;
@@ -324,7 +324,6 @@
   min-width: 0;
   overflow: hidden;
   background: var(--st-gray-50);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
   color: var(--st-gray-600);
 }
 .capiro-vnext-root .capiro-strategies .st-tl__bar-label {
@@ -348,28 +347,28 @@
    changeable from strategies-tokens.css alone. */
 .capiro-vnext-root .capiro-strategies .st-tl__bar--active {
   background: var(--st-refbar-active);
-  box-shadow: none;
+  border-color: transparent;
   color: var(--st-white);
   font-weight: 600;
 }
 .capiro-vnext-root .capiro-strategies .st-tl__bar--critical {
   background: var(--st-warning-bg);
-  box-shadow: inset 0 0 0 1px var(--st-warning-ring);
+  border-color: var(--st-warning-ring);
   color: var(--st-warning-fg);
 }
 .capiro-vnext-root .capiro-strategies .st-tl__bar--success {
   background: var(--st-success-bg);
-  box-shadow: inset 0 0 0 1px var(--st-success-ring);
+  border-color: var(--st-success-ring);
   color: var(--st-success-fg);
 }
 .capiro-vnext-root .capiro-strategies .st-tl__bar--phase {
   background: var(--st-firmphase-bg);
-  box-shadow: inset 0 0 0 1px var(--st-firmphase-ring);
+  border-color: var(--st-firmphase-ring);
   color: var(--st-firmphase-label);
 }
 .capiro-vnext-root .capiro-strategies .st-tl__bar--watch {
   background: var(--st-watch-bg);
-  box-shadow: inset 0 0 0 1px var(--st-watch-ring);
+  border-color: var(--st-watch-ring);
   color: var(--st-watch-label);
 }
 

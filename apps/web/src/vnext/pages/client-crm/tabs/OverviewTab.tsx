@@ -146,8 +146,8 @@ function ProfileCard({ model, onEditProfile }: { model: ClientCrmOverviewModel; 
                   height: 24,
                   padding: '0 10px',
                   borderRadius: 9999,
-                  background: '#F2F4F7',
-                  boxShadow: 'inset 0 0 0 1px #D0D5DD',
+                  background: '#F2F0EB',
+                  border: '1px solid #E0DCD4',
                   color: '#101828',
                   fontSize: 12,
                   fontWeight: 500,
@@ -313,8 +313,9 @@ function AccountTeamSlot({
               // Overlap so a roster of four stays compact in a two-up card.
               marginLeft: index === 0 ? 0 : -7,
               borderRadius: 9999,
-              background: '#F2F4F7',
-              boxShadow: '0 0 0 2px #ffffff, inset 0 0 0 1px #D0D5DD',
+              background: '#F2F0EB',
+              boxShadow: '0 0 0 2px #ffffff',
+              border: '1px solid #E0DCD4',
               color: '#475467',
               fontSize: 10.5,
               fontWeight: 600,
@@ -462,14 +463,14 @@ function FederalFootprintCard({ model, onOpen }: { model: ClientCrmOverviewModel
       flex: 1,
       minWidth: 172,
       padding: '18px 24px 20px',
-      boxShadow: i === 0 ? 'none' : 'inset 1px 0 0 #EAECF0',
+      boxShadow: i === 0 ? 'none' : 'inset 1px 0 0 #E8E5DF',
       display: 'flex',
       flexDirection: 'column',
       gap: 3,
     }) as const;
   return (
     <Card>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '20px 24px 18px', borderBottom: '1px solid #EAECF0', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '20px 24px 18px', borderBottom: '1px solid #E8E5DF', flexWrap: 'wrap' }}>
         <span style={{ flex: 1, minWidth: 240 }}>
           <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>Federal footprint</span>
           <span style={{ display: 'block', marginTop: 4, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
@@ -615,7 +616,7 @@ function AdvocacyHistoryCard({ client }: { client: Client }) {
 /** Loading placeholder mirroring one submission row's layout. */
 function AdvocacySkeletonRow({ last }: { last: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px 0', borderBottom: last ? 'none' : '1px solid #F2F4F7' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px 0', borderBottom: last ? 'none' : '1px solid #F2F0EB' }}>
       <span style={{ flex: '0 0 auto', width: 64 }}>
         <PfSkeleton width={40} height={13} />
       </span>
@@ -632,7 +633,7 @@ function AdvocacySkeletonRow({ last }: { last: boolean }) {
 function SubmissionHistoryRowView({ row }: { row: SubmissionWithCapability }) {
   const tone = (OUTCOME_TONE[row.outcomeType] ?? 'gray') as PillTone;
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '14px 0', borderTop: '1px solid #F2F4F7' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '14px 0', borderTop: '1px solid #F2F0EB' }}>
       <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, fontWeight: 600, color: '#101828' }}>
         {row.fiscalYear}
       </span>
@@ -673,10 +674,10 @@ const LOG_FIELD = {
   height: 40,
   padding: '0 12px',
   borderRadius: 8,
-  border: 0,
+  border: '1px solid #E0DCD4',
   outline: 'none',
   background: '#ffffff',
-  boxShadow: 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+  boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
   fontSize: 14,
   color: '#101828',
 } as const;
@@ -910,7 +911,7 @@ function WorkPulseCard({ model, onOpenWork }: { model: ClientCrmOverviewModel; o
             nothing in the Strategy API measures completion — so the bar was a
             permanently-empty decoration. The reason renders instead. */}
         {workStatus.state === 'ready' && (work.readinessReason || work.nextStep) ? (
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #EAECF0', fontSize: 13, lineHeight: '19px', color: '#667085', textWrap: 'pretty' }}>
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #E8E5DF', fontSize: 13, lineHeight: '19px', color: '#667085', textWrap: 'pretty' }}>
             {work.nextStep ?? work.readinessReason}
           </div>
         ) : null}
@@ -945,7 +946,7 @@ function IntelligencePulseCard({
           <MetricCell metric={intelligence.regulatoryMatters} label="Regulatory matters" />
         </PulseBody>
         {intelligenceStatus.state === 'ready' && intelligence.signals.length > 0 ? (
-          <div style={{ display: 'flex', gap: 8, marginTop: 24, paddingTop: 20, borderTop: '1px solid #EAECF0', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 24, paddingTop: 20, borderTop: '1px solid #E8E5DF', flexWrap: 'wrap' }}>
             {intelligence.signals.map((signal, i) => (
               <Pill key={signal} tone={i === 0 ? 'error' : i === 1 ? 'brand' : 'gray'} dotless={i === 2} size="lg">
                 {signal}

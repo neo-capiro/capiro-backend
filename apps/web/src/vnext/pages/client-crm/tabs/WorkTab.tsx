@@ -375,8 +375,8 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
                 height: 28,
                 padding: '0 12px 0 10px',
                 borderRadius: 9999,
-                background: '#F2F4F7',
-                boxShadow: 'inset 0 0 0 1px #D0D5DD',
+                background: '#F2F0EB',
+                border: '1px solid #E0DCD4',
                 color: '#101828',
                 fontSize: 12,
                 fontWeight: 600,
@@ -621,7 +621,7 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
                   </div>
                 </div>
               </div>
-              <div style={{ borderTop: '1px solid #EAECF0', padding: '16px 24px 8px' }}>
+              <div style={{ borderTop: '1px solid #E8E5DF', padding: '16px 24px 8px' }}>
                 <span
                   style={{
                     fontSize: 11,
@@ -656,8 +656,8 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
                         height: 22,
                         padding: '0 8px',
                         borderRadius: 6,
-                        background: '#F9FAFB',
-                        boxShadow: 'inset 0 0 0 1px #EAECF0',
+                        background: '#FAF9F6',
+                        border: '1px solid #E8E5DF',
                         color: '#344054',
                         fontSize: 12,
                         fontWeight: 500,
@@ -696,7 +696,7 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
           {/* §9.3 Upcoming work */}
           <Card>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px', borderBottom: '1px solid #EAECF0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 24px', borderBottom: '1px solid #E8E5DF' }}>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>Upcoming work</span>
                 <span style={{ display: 'block', marginTop: 3, fontSize: 14, color: '#475467' }}>
@@ -716,7 +716,7 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
                 <UpcomingRow
                   key={row.id}
                   row={row}
-                  bg={i % 2 === 1 ? '#FCFCFD' : '#ffffff'}
+                  bg={i % 2 === 1 ? '#FAF9F6' : '#ffffff'}
                   onOpen={() => navigate('/strategies')}
                 />
               ))
@@ -749,7 +749,7 @@ function EmptyFeaturedCard({ onCreate }: { onCreate: () => void }) {
       style={{
         background: '#ffffff',
         borderRadius: 12,
-        boxShadow: '0 0 0 1px #EAECF0',
+        boxShadow: '0 0 0 1px #E8E5DF',
         padding: '40px 24px',
         display: 'flex',
         flexDirection: 'column',
@@ -784,8 +784,8 @@ function NodeRow({ row, onOpen }: { row: NodeRowModel; onOpen: () => void }) {
         alignItems: 'center',
         gap: 14,
         padding: '12px 24px',
-        borderTop: '1px solid #F2F4F7',
-        background: hover ? '#F9FAFB' : 'transparent',
+        borderTop: '1px solid #F2F0EB',
+        background: hover ? '#FAF9F6' : 'transparent',
       }}
     >
       <span
@@ -864,8 +864,8 @@ function UpcomingRow({ row, bg, onOpen }: { row: UpcomingModel; bg: string; onOp
         alignItems: 'center',
         gap: 14,
         padding: '13px 24px',
-        borderBottom: '1px solid #F2F4F7',
-        background: hover ? '#F9FAFB' : bg,
+        borderBottom: '1px solid #F2F0EB',
+        background: hover ? '#FAF9F6' : bg,
       }}
     >
       <span
@@ -918,7 +918,7 @@ function UpcomingRow({ row, bg, onOpen }: { row: UpcomingModel; bg: string; onOp
 function RiskPanel({ risk, onOpen }: { risk: RiskModel; onOpen: () => void }) {
   const [hover, setHover] = useState(false);
   return (
-    <div style={{ padding: '14px 16px', borderRadius: 10, background: '#FFFAEB', boxShadow: 'inset 0 0 0 1px #FEDF89' }}>
+    <div style={{ padding: '14px 16px', borderRadius: 10, background: '#FFFAEB', border: '1px solid #FEDF89' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
         <span style={{ flex: '0 0 auto', marginTop: 5, width: 8, height: 8, borderRadius: '50%', background: '#F79009' }} />
         <div style={{ flex: 1, minWidth: 0 }}>

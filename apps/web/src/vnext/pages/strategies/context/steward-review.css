@@ -6,7 +6,8 @@
 
 .capiro-vnext-root .capiro-strategies .st-steward {
   min-height: 100%;
-  background: var(--st-gray-50);
+  /* Page ground = canvas tier (WARM-SURFACE-PALETTE.md). */
+  background: var(--uui-surface-canvas, #f4f3f0);
   font-family: var(--st-font-sans);
 }
 
@@ -291,12 +292,14 @@
   padding: 0 10px;
   height: 36px;
   background: var(--st-white);
-  border: 0;
-  box-shadow: inset 0 0 0 1px var(--st-gray-300);
+  border: 1px solid var(--st-gray-300);
   border-radius: 8px;
   color: var(--st-gray-400);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__search:focus-within {
+  /* Focus ring kept as-is (contract rule 4); the base edge is a border now,
+     so hide it here or the accent ring would double against the gray edge. */
+  border-color: transparent;
   box-shadow: inset 0 0 0 1px var(--st-accent-focus), var(--st-shadow-focus);
 }
 .capiro-vnext-root .capiro-strategies .st-steward__search input {
@@ -345,7 +348,7 @@
   min-width: 0;
   background: var(--st-gray-50);
   border-radius: 10px;
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border: 1px solid var(--st-gray-200);
   padding: 16px;
 }
 .capiro-vnext-root .capiro-strategies .st-steward__well-hint {

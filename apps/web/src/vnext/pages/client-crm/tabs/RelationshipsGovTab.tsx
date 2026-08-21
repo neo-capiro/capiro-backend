@@ -192,9 +192,9 @@ function RealCurrentTargetsPanel({
   return (
     <section
       style={{
-        background: '#F9FAFB',
+        background: '#FAF9F6',
         borderRadius: 12,
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
+        border: '1px solid #E8E5DF',
         padding: '20px 20px 22px',
       }}
     >
@@ -240,7 +240,7 @@ function RealTargetCard({
       style={{
         background: '#ffffff',
         borderRadius: 10,
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
+        border: '1px solid #E8E5DF',
         padding: '16px 18px',
         display: 'flex',
         flexDirection: 'column',
@@ -263,8 +263,8 @@ function RealTargetCard({
             padding: 10,
             borderRadius: 8,
             textAlign: 'left',
-            background: hover ? '#F9FAFB' : 'transparent',
-            boxShadow: hover ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0',
+            background: hover ? '#FAF9F6' : 'transparent',
+            border: hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF',
           }}
         >
           <Tile initials={initialsFor(targetName(t))} size={40} dark round />
@@ -292,7 +292,7 @@ function RealTargetCard({
         </span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12, borderTop: '1px solid #EAECF0' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12, borderTop: '1px solid #E8E5DF' }}>
         <TargetField
           label="Represents"
           value={
@@ -369,7 +369,8 @@ function RealRelationshipsTableCard({
             flex: 1,
             minWidth: 200,
             borderRadius: 8,
-            boxShadow: 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+            border: '1px solid #E0DCD4',
+            boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
           }}
         >
           <UIcon name="SearchLg" size={20} color="#667085" />
@@ -405,9 +406,9 @@ function RealRelationshipsTableCard({
               alignItems: 'center',
               gap: 12,
               padding: '10px 24px',
-              background: '#F9FAFB',
-              borderTop: '1px solid #EAECF0',
-              borderBottom: '1px solid #EAECF0',
+              background: '#FAF9F6',
+              borderTop: '1px solid #E8E5DF',
+              borderBottom: '1px solid #E8E5DF',
               fontSize: 12,
               fontWeight: 600,
               letterSpacing: '.04em',
@@ -537,9 +538,9 @@ function RealGovRow({ target: t, onOpen }: { target: ClientTarget; onOpen: () =>
         alignItems: 'center',
         gap: 12,
         padding: '13px 24px',
-        borderBottom: '1px solid #EAECF0',
+        borderBottom: '1px solid #E8E5DF',
         textAlign: 'left',
-        background: hover ? '#F9FAFB' : 'transparent',
+        background: hover ? '#FAF9F6' : 'transparent',
       }}
     >
       <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -571,9 +572,9 @@ function CurrentTargetsPanel() {
   return (
     <section
       style={{
-        background: '#F9FAFB',
+        background: '#FAF9F6',
         borderRadius: 12,
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
+        border: '1px solid #E8E5DF',
         padding: '20px 20px 22px',
       }}
     >
@@ -600,7 +601,7 @@ function TargetCard({ target: t, slot }: { target: (typeof TARGETS)[number]; slo
       style={{
         background: '#ffffff',
         borderRadius: 10,
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
+        border: '1px solid #E8E5DF',
         padding: '16px 18px',
         display: 'flex',
         flexDirection: 'column',
@@ -618,7 +619,7 @@ function TargetCard({ target: t, slot }: { target: (typeof TARGETS)[number]; slo
         </span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12, borderTop: '1px solid #EAECF0' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12, borderTop: '1px solid #E8E5DF' }}>
         <TargetField label="Linked strategy" value={t.strategy} />
         <TargetField label="Current ask" value={t.ask} />
       </div>
@@ -651,7 +652,7 @@ function TargetMiniCard({
         padding: 10,
         borderRadius: 8,
         textAlign: 'left',
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
+        border: '1px solid #E8E5DF',
       }}
     >
       <Tile initials={t.init} size={40} dark round={t.kind === 'person'} />
@@ -788,7 +789,8 @@ function RelationshipsTableCard() {
             flex: 1,
             minWidth: 200,
             borderRadius: 8,
-            boxShadow: 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+            border: '1px solid #E0DCD4',
+            boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
           }}
         >
           <UIcon name="SearchLg" size={20} color="#667085" />
@@ -817,9 +819,9 @@ function RelationshipsTableCard() {
               alignItems: 'center',
               gap: 12,
               padding: '10px 24px',
-              background: '#F9FAFB',
-              borderTop: '1px solid #EAECF0',
-              borderBottom: '1px solid #EAECF0',
+              background: '#FAF9F6',
+              borderTop: '1px solid #E8E5DF',
+              borderBottom: '1px solid #E8E5DF',
               fontSize: 12,
               fontWeight: 600,
               letterSpacing: '.04em',
@@ -865,7 +867,7 @@ function GovRow({ row: r }: { row: (typeof GOV_ROWS)[number] }) {
         alignItems: 'center',
         gap: 12,
         padding: '13px 24px',
-        borderBottom: '1px solid #EAECF0',
+        borderBottom: '1px solid #E8E5DF',
         textAlign: 'left',
       }}
     >
@@ -918,8 +920,8 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
         height: 32,
         padding: '0 12px',
         borderRadius: 8,
-        background: active ? '#F2F4F7' : hover ? '#F9FAFB' : 'transparent',
-        boxShadow: active ? 'inset 0 0 0 1px #D0D5DD' : 'none',
+        background: active ? '#F2F0EB' : hover ? '#FAF9F6' : 'transparent',
+        border: active ? '1px solid #E0DCD4' : '1px solid transparent',
         color: active ? '#101828' : '#667085',
         fontSize: 13,
         fontWeight: 600,
@@ -1115,8 +1117,8 @@ function TargetRecommendationsCard({
                   alignItems: 'flex-start',
                   gap: 12,
                   padding: '14px 24px',
-                  borderTop: idx === 0 ? '1px solid #EAECF0' : undefined,
-                  borderBottom: '1px solid #EAECF0',
+                  borderTop: idx === 0 ? '1px solid #E8E5DF' : undefined,
+                  borderBottom: '1px solid #E8E5DF',
                 }}
               >
                 <span
@@ -1126,7 +1128,7 @@ function TargetRecommendationsCard({
                     width: 28,
                     height: 28,
                     borderRadius: 8,
-                    background: '#F2F4F7',
+                    background: '#F2F0EB',
                     color: '#475467',
                     fontSize: 12,
                     fontWeight: 600,
@@ -1181,7 +1183,7 @@ function TargetRecommendationsCard({
                   </div>
                   <span style={{ fontSize: 12, color: '#667085' }}>
                     {m.billCount} tracked bill{m.billCount === 1 ? '' : 's'}
-                    <span style={{ color: '#D0D5DD' }}> · </span>
+                    <span style={{ color: '#E0DCD4' }}> · </span>
                     score {Number(m.score ?? 0).toFixed(2)}
                   </span>
                 </div>

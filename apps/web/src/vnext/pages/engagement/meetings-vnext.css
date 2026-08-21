@@ -5,9 +5,9 @@
  * outreach-v3.css / planning-surfaces.css for the same pattern).
  *
  * Reuses engagement.css's design tokens (--eng-*), engagement-tones.css's
- * --eng-tone-gray-ring (the corrected v3 #E4E7EC hairline — deliberately NOT
- * --eng-border, which still carries the older #EAECF0 elsewhere in this
- * module — see engagement-tones.css's header comment), and the shell's
+ * --eng-tone-gray-ring (the warm hairline; historically the corrected cool v3
+ * gray-200, forked from the older value --eng-border carried — see
+ * engagement-tones.css's header comment), and the shell's
  * --uui-btn-metal-* tokens (untitled-ui-tokens.css, global) for the gradient
  * button/segment treatment — no new gradient literal invented here.
  *
@@ -187,7 +187,7 @@
   padding: 20px;
   border-radius: 12px;
   background: #fffbfa;
-  box-shadow: inset 0 0 0 1px #fecdca;
+  box-shadow: 0 0 0 1px #fecdca;
   animation: uiRise 180ms ease both;
 }
 .capiro-vnext-root .vmtg-error__icon {
@@ -312,7 +312,8 @@
 .capiro-vnext-root .vmtg-weekstrip button[data-selected] .vmtg-weekstrip__date {
   color: var(--eng-accent);
 }
-/* UI-parity §4.3: navy when non-zero, #D0D5DD when zero (the middot). */
+/* UI-parity §4.3: navy when non-zero, the strong border gray when zero (the
+   middot). */
 .capiro-vnext-root .vmtg-weekstrip__count {
   font-family: var(--eng-font-mono);
   font-size: 11px;

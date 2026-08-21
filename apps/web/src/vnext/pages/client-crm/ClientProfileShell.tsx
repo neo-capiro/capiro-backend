@@ -131,7 +131,7 @@ export function ClientProfileShell({
           gap: 10,
           height: 44,
           background: '#ffffff',
-          borderBottom: '1px solid #EAECF0',
+          borderBottom: '1px solid #E8E5DF',
           flexWrap: 'nowrap',
           overflow: 'hidden',
         }}
@@ -174,7 +174,7 @@ export function ClientProfileShell({
               ? `Sources read ${refreshedLabel}`
               : 'Reading sources…'}
         </span>
-        <span style={{ color: '#D0D5DD' }}>·</span>
+        <span style={{ color: '#E0DCD4' }}>·</span>
         {profileGapCount > 0 ? (
           <CrumbButton
             label={`${profileGapCount} profile gap${profileGapCount === 1 ? '' : 's'}`}
@@ -190,7 +190,7 @@ export function ClientProfileShell({
           to .cap-pf-client__identity in client-crm.css so it re-centers at
           1440px (with a 32px floor) instead of the shell's escaped 1280px
           cap, and drops to 16px at 779px. */}
-      <div className="cap-pf-client__identity" style={{ background: '#ffffff', borderBottom: '1px solid #EAECF0' }}>
+      <div className="cap-pf-client__identity" style={{ background: '#ffffff', borderBottom: '1px solid #E8E5DF' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
           {/* 48px dark tile */}
           <span
@@ -203,7 +203,7 @@ export function ClientProfileShell({
               width: 48,
               height: 48,
               borderRadius: 10,
-              background: client.logoUrl ? '#F2F4F7' : GRADIENT_DARK,
+              background: client.logoUrl ? '#F2F0EB' : GRADIENT_DARK,
               color: '#ffffff',
               fontSize: 15,
               fontWeight: 600,
@@ -228,7 +228,7 @@ export function ClientProfileShell({
                   padding: '0 10px 0 8px',
                   borderRadius: 9999,
                   background: st,
-                  boxShadow: `inset 0 0 0 1px ${sr}`,
+                  border: `1px solid ${sr}`,
                   color: sf,
                   fontSize: 12,
                   fontWeight: 500,
@@ -254,8 +254,8 @@ export function ClientProfileShell({
                     height: 26,
                     padding: '0 10px',
                     borderRadius: 8,
-                    background: '#F9FAFB',
-                    boxShadow: 'inset 0 0 0 1px #EAECF0',
+                    background: '#FAF9F6',
+                    border: '1px solid #E8E5DF',
                     color: '#344054',
                     fontSize: 13,
                     fontWeight: 500,
@@ -301,7 +301,7 @@ export function ClientProfileShell({
 /* ── small shell pieces ───────────────────────────────────────────────────── */
 
 function Sep() {
-  return <span style={{ color: '#D0D5DD', fontSize: 13 }}>/</span>;
+  return <span style={{ color: '#E0DCD4', fontSize: 13 }}>/</span>;
 }
 
 function CrumbButton({ label, strong = false, onClick }: { label: string; strong?: boolean; onClick?: () => void }) {
@@ -347,11 +347,10 @@ function AccountOwnerControl({ clientId, canAssign }: { clientId: string; canAss
           style={{
             height: 28,
             maxWidth: 190,
-            border: 0,
+            border: '1px solid #E8E5DF',
             borderRadius: 7,
             padding: '0 24px 0 8px',
-            background: '#F9FAFB',
-            boxShadow: 'inset 0 0 0 1px #EAECF0',
+            background: '#FAF9F6',
             color: owner.error ? '#B42318' : '#344054',
             fontSize: 13,
             fontWeight: 600,
@@ -445,9 +444,9 @@ function AddFocusButton({ client, existing }: { client: Client; existing: string
           height: 26,
           padding: '0 10px',
           borderRadius: 8,
-          boxShadow: 'inset 0 0 0 1px #D0D5DD',
+          border: '1px solid #E0DCD4',
           color: hover ? '#344054' : '#475467',
-          background: hover ? '#F9FAFB' : 'transparent',
+          background: hover ? '#FAF9F6' : 'transparent',
           fontSize: 13,
           fontWeight: 600,
           whiteSpace: 'nowrap',
@@ -481,9 +480,8 @@ function AddFocusButton({ client, existing }: { client: Client; existing: string
           width: 148,
           padding: '0 8px',
           borderRadius: 8,
-          border: 0,
+          border: `1px solid ${duplicate ? '#FDA29B' : '#E0DCD4'}`,
           outline: 'none',
-          boxShadow: `inset 0 0 0 1px ${duplicate ? '#FDA29B' : '#D0D5DD'}`,
           background: '#ffffff',
           fontSize: 13,
           color: '#101828',
@@ -497,7 +495,7 @@ function AddFocusButton({ client, existing }: { client: Client; existing: string
           height: 26,
           padding: '0 10px',
           borderRadius: 8,
-          background: !trimmed || duplicate ? '#F2F4F7' : GRADIENT_DARK,
+          background: !trimmed || duplicate ? '#F2F0EB' : GRADIENT_DARK,
           color: !trimmed || duplicate ? '#98A2B3' : '#ffffff',
           fontSize: 13,
           fontWeight: 600,
@@ -750,7 +748,7 @@ function OverflowMenu({
             width: 248,
             background: '#ffffff',
             borderRadius: 12,
-            boxShadow: '0 0 0 1px #EAECF0,0px 12px 16px -4px rgba(16,24,40,.08)',
+            boxShadow: '0 0 0 1px #E8E5DF,0px 12px 16px -4px rgba(16,24,40,.08)',
             padding: 6,
             animation: 'capPfFade .12s ease',
           }}
@@ -782,9 +780,9 @@ function MenuTrigger({ open, onClick, name }: { open: boolean; onClick: () => vo
         width: 40,
         height: 40,
         borderRadius: 8,
-        boxShadow: 'inset 0 0 0 1px #D0D5DD',
+        border: '1px solid #E0DCD4',
         color: '#475467',
-        background: hover ? '#F9FAFB' : 'transparent',
+        background: hover ? '#FAF9F6' : 'transparent',
       }}
     >
       <UIcon name="DotsHorizontal" size={20} />
@@ -808,7 +806,7 @@ function MenuItem({ item }: { item: { label: string; danger?: boolean; onSelect:
         borderRadius: 8,
         fontSize: 14,
         color: item.danger ? '#B42318' : '#101828',
-        background: hover ? '#F9FAFB' : 'transparent',
+        background: hover ? '#FAF9F6' : 'transparent',
         textTransform: 'none',
         letterSpacing: 0,
         fontWeight: 400,

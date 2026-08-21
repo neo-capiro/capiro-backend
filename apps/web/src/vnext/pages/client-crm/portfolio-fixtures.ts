@@ -83,12 +83,12 @@ export const TABS = [
 ];
 
 export const PILL = {
-  gray: ['#F9FAFB', '#EAECF0', '#344054', '#667085'],
-  brand: ['#F2F4F7', '#D0D5DD', '#101828', '#101828'],
+  gray: ['#FAF9F6', '#E8E5DF', '#344054', '#667085'],
+  brand: ['#F2F0EB', '#E0DCD4', '#101828', '#101828'],
   error: ['#FEF3F2', '#FECDCA', '#B42318', '#F04438'],
   warning: ['#FFFAEB', '#FEDF89', '#B54708', '#F79009'],
   success: ['#ECFDF3', '#ABEFC6', '#027A48', '#12B76A'],
-  blue: ['#F2F4F7', '#D0D5DD', '#101828', '#344054']
+  blue: ['#F2F0EB', '#E0DCD4', '#101828', '#344054']
 };
 
 export const CLIENTS = [
@@ -335,7 +335,7 @@ export const EV = {
 };
 
 export const TIER = {
-  'Public record': ['#F2F4F7', '#D0D5DD', '#101828', '#101828'],
+  'Public record': ['#F2F0EB', '#E0DCD4', '#101828', '#101828'],
   'Client-verified': ['#ECFDF3', '#ABEFC6', '#027A48', '#12B76A'],
   'Inferred': ['#FFFAEB', '#FEDF89', '#B54708', '#F79009']
 };
@@ -428,11 +428,11 @@ export const LIFE = {
 };
 
 export const NODE = {
-  done: { bg: 'linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%)', ring: 'none', mark: '✓', markFg: '#ffffff', fg: '#101828' },
-  current: { bg: '#ffffff', ring: 'inset 0 0 0 2px #101828', mark: '', markFg: '#101828', fg: '#101828' },
-  gap: { bg: '#FFFAEB', ring: 'inset 0 0 0 1px #FEDF89', mark: '!', markFg: '#B54708', fg: '#B54708' },
-  closed: { bg: '#F2F4F7', ring: 'inset 0 0 0 1px #D0D5DD', mark: '·', markFg: '#475467', fg: '#475467' },
-  pending: { bg: '#F9FAFB', ring: 'inset 0 0 0 1px #EAECF0', mark: '', markFg: '#98A2B3', fg: '#667085' }
+  done: { bg: 'linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%)', ring: 'none', border: '1px solid transparent', mark: '✓', markFg: '#ffffff', fg: '#101828' },
+  current: { bg: '#ffffff', ring: 'inset 0 0 0 2px #101828', border: '1px solid transparent', mark: '', markFg: '#101828', fg: '#101828' },
+  gap: { bg: '#FFFAEB', ring: 'none', border: '1px solid #FEDF89', mark: '!', markFg: '#B54708', fg: '#B54708' },
+  closed: { bg: '#F2F0EB', ring: 'none', border: '1px solid #E0DCD4', mark: '·', markFg: '#475467', fg: '#475467' },
+  pending: { bg: '#FAF9F6', ring: 'none', border: '1px solid #E8E5DF', mark: '', markFg: '#98A2B3', fg: '#667085' }
 };
 
 export const SPARK = [34, 41, 38, 47, 52, 49, 63, 74, 68];

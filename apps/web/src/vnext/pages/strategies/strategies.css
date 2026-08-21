@@ -13,7 +13,9 @@
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--st-gray-50);
+  /* Page ground behind cards = the canvas tier (#f4f3f0), not the quiet
+     fill — three-tier hierarchy per WARM-SURFACE-PALETTE.md. */
+  background: var(--uui-surface-canvas, #f4f3f0);
 }
 
 /*
@@ -130,7 +132,7 @@
   line-height: 18px;
   font-weight: 500;
   background: var(--st-gray-50);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border: 1px solid var(--st-gray-200);
   color: var(--st-gray-700);
   white-space: nowrap;
 }
@@ -149,19 +151,19 @@
    That duplicate block has been deleted; this is the one tone source of
    truth for every pill, page-level or inside a modal. */
 .capiro-vnext-root .capiro-strategies .st-pill--accent,
-.capiro-vnext-root .capiro-strategies .st-pill--info { background: var(--st-info-bg); box-shadow: inset 0 0 0 1px var(--st-info-ring); color: var(--st-info-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--info { background: var(--st-info-bg); border-color: var(--st-info-ring); color: var(--st-info-fg); }
 .capiro-vnext-root .capiro-strategies .st-pill--accent::before,
 .capiro-vnext-root .capiro-strategies .st-pill--info::before { background: var(--st-info-dot); }
-.capiro-vnext-root .capiro-strategies .st-pill--success { background: var(--st-success-bg); box-shadow: inset 0 0 0 1px var(--st-success-ring); color: var(--st-success-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--success { background: var(--st-success-bg); border-color: var(--st-success-ring); color: var(--st-success-fg); }
 .capiro-vnext-root .capiro-strategies .st-pill--success::before { background: var(--st-success-dot); }
-.capiro-vnext-root .capiro-strategies .st-pill--warning { background: var(--st-warning-bg); box-shadow: inset 0 0 0 1px var(--st-warning-ring); color: var(--st-warning-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--warning { background: var(--st-warning-bg); border-color: var(--st-warning-ring); color: var(--st-warning-fg); }
 .capiro-vnext-root .capiro-strategies .st-pill--warning::before { background: var(--st-warning-dot); }
 .capiro-vnext-root .capiro-strategies .st-pill--error,
-.capiro-vnext-root .capiro-strategies .st-pill--danger { background: var(--st-error-bg); box-shadow: inset 0 0 0 1px var(--st-error-ring); color: var(--st-error-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--danger { background: var(--st-error-bg); border-color: var(--st-error-ring); color: var(--st-error-fg); }
 .capiro-vnext-root .capiro-strategies .st-pill--error::before,
 .capiro-vnext-root .capiro-strategies .st-pill--danger::before { background: var(--st-error-dot); }
 /* Purple — Milestone kind only (see strategies-tokens.css). */
-.capiro-vnext-root .capiro-strategies .st-pill--purple { background: var(--st-purple-bg); box-shadow: inset 0 0 0 1px var(--st-purple-ring); color: var(--st-purple-fg); }
+.capiro-vnext-root .capiro-strategies .st-pill--purple { background: var(--st-purple-bg); border-color: var(--st-purple-ring); color: var(--st-purple-fg); }
 .capiro-vnext-root .capiro-strategies .st-pill--purple::before { background: var(--st-purple-dot); }
 
 /* ---- dark governance banner (policy copy, §7.8/§7.9) ---- */
@@ -313,7 +315,7 @@
   gap: 2px;
 }
 .capiro-vnext-root .capiro-strategies .st-segmented button {
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   font: inherit;
   font-size: 14px;
@@ -326,7 +328,7 @@
 }
 .capiro-vnext-root .capiro-strategies .st-segmented button[aria-pressed='true'] {
   background: var(--st-gray-50);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border-color: var(--st-gray-200);
   color: var(--st-gray-900);
 }
 .capiro-vnext-root .capiro-strategies .st-segmented button:focus-visible { outline: none; box-shadow: var(--st-shadow-focus); }

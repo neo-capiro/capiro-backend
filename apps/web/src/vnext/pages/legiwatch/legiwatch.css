@@ -1,7 +1,7 @@
 /* ============================================================================
    LegiWatch vNext — design tokens (LEGIWATCH-HANDOFF Appendix A, verbatim).
    Values are read out of the prototype, NOT rounded to a 4px/8px grid.
-   A 13px font, a 206px cell, an 11px radius and a #FCFCFD fill are deliberate.
+   A 13px font, a 206px cell, an 11px radius and a #FAF9F6 fill are deliberate.
 
    ── BREAKPOINTS ───────────────────────────────────────────────────────────
    This file uses the surface-canonical pair from foundations/responsive.css —
@@ -75,20 +75,20 @@
   --lw-body: #475467;
   --lw-meta: #667085;
   --lw-faint: #98A2B3;
-  --lw-control: #D0D5DD;
-  --lw-line: #EAECF0;
-  --lw-hover: #F2F4F7;
-  --lw-page: #F9FAFB;
-  --lw-selected: #FCFCFD;
+  --lw-control: #E0DCD4;
+  --lw-line: #E8E5DF;
+  --lw-hover: #F2F0EB;
+  --lw-page: #F4F3F0;
+  --lw-selected: #FAF9F6;
   --lw-surface: #ffffff;
 
   /* brand + status 4-tuples [bg, ring, fg, dot] */
-  --lw-gray-bg: #F9FAFB;  --lw-gray-ring: #EAECF0;  --lw-gray-fg: #344054;  --lw-gray-dot: #667085;
+  --lw-gray-bg: #FAF9F6;  --lw-gray-ring: #E8E5DF;  --lw-gray-fg: #344054;  --lw-gray-dot: #667085;
   --lw-brand-bg: #EDF3F7; --lw-brand-ring: #C3D5E1; --lw-brand-fg: #294E68; --lw-brand-dot: #294E68;
   --lw-error-bg: #FEF3F2; --lw-error-ring: #FECDCA; --lw-error-fg: #B42318; --lw-error-dot: #F04438;
   --lw-warn-bg: #FFFAEB;  --lw-warn-ring: #FEDF89;  --lw-warn-fg: #B54708;  --lw-warn-dot: #B98900;
   --lw-succ-bg: #ECFDF3;  --lw-succ-ring: #ABEFC6;  --lw-succ-fg: #027A48;  --lw-succ-dot: #12B76A;
-  --lw-dark-bg: #F2F4F7;  --lw-dark-ring: #D0D5DD;  --lw-dark-fg: #101828;  --lw-dark-dot: #101828;
+  --lw-dark-bg: #F2F0EB;  --lw-dark-ring: #E0DCD4;  --lw-dark-fg: #101828;  --lw-dark-dot: #101828;
 
   --lw-link: #294E68;
   --lw-link-hover: #1F3D52;
@@ -98,16 +98,19 @@
   --lw-scrim: rgba(16, 24, 40, .45);
   --lw-scrim-heavy: rgba(16, 24, 40, .6);
 
-  /* A.3 shadows */
-  --lw-shadow-card: 0 0 0 1px #EAECF0, 0px 1px 3px rgba(16, 24, 40, .1);
-  --lw-ring-hairline: inset 0 0 0 1px #EAECF0;
-  --lw-ring-control: inset 0 0 0 1px #D0D5DD;
+  /* A.3 shadows — the warm-palette pass converted the 1px INSET hairline rings
+     to real borders at every consumer in this file; the ring tokens below stay
+     defined (outer-ring form, warm colors) for box-shadow consumers outside
+     this file (e.g. overlays/CreateWatchOverlay.tsx). */
+  --lw-shadow-card: 0 0 0 1px #E8E5DF, 0px 1px 3px rgba(16, 24, 40, .1);
+  --lw-ring-hairline: 0 0 0 1px #E8E5DF;
+  --lw-ring-control: 0 0 0 1px #E0DCD4;
   --lw-ring-selected: inset 0 0 0 2px #101828;
-  --lw-ring-active: inset 0 0 0 1px #101828;
-  --lw-shadow-seg-on: 0 0 0 1px #D0D5DD, 0px 1px 2px rgba(16, 24, 40, .05);
-  --lw-shadow-input: inset 0 0 0 1px #D0D5DD, 0px 1px 2px rgba(16, 24, 40, .05);
+  --lw-ring-active: 0 0 0 1px #101828;
+  --lw-shadow-seg-on: 0 0 0 1px #E0DCD4, 0px 1px 2px rgba(16, 24, 40, .05);
+  --lw-shadow-input: 0 0 0 1px #E0DCD4, 0px 1px 2px rgba(16, 24, 40, .05);
   --lw-shadow-input-focus: inset 0 0 0 1px #4A7A9B, 0 0 0 4px #EDF3F7;
-  --lw-shadow-dropdown: 0 0 0 1px #EAECF0, 0px 12px 16px -4px rgba(16, 24, 40, .08), 0px 4px 6px -2px rgba(16, 24, 40, .03);
+  --lw-shadow-dropdown: 0 0 0 1px #E8E5DF, 0px 12px 16px -4px rgba(16, 24, 40, .08), 0px 4px 6px -2px rgba(16, 24, 40, .03);
   --lw-shadow-drawer: -8px 0 24px rgba(16, 24, 40, .14);
   --lw-shadow-modal: 0px 24px 48px -12px rgba(16, 24, 40, .24);
   --lw-shadow-toast: 0px 12px 16px -4px rgba(16, 24, 40, .24);
@@ -166,17 +169,17 @@
 .capiro-vnext-root .lw .lw-pill__dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
 .capiro-vnext-root .lw .lw-pill--22 { height: 22px; padding: 0 8px; }
 .capiro-vnext-root .lw .lw-pill--26 { height: 26px; padding: 0 10px; }
-.capiro-vnext-root .lw .lw-pill--gray   { background: var(--lw-gray-bg);  box-shadow: inset 0 0 0 1px var(--lw-gray-ring);  color: var(--lw-gray-fg); }
+.capiro-vnext-root .lw .lw-pill--gray   { background: var(--lw-gray-bg);  border: 1px solid var(--lw-gray-ring);  color: var(--lw-gray-fg); }
 .capiro-vnext-root .lw .lw-pill--gray .lw-pill__dot { background: var(--lw-gray-dot); }
-.capiro-vnext-root .lw .lw-pill--brand  { background: var(--lw-brand-bg); box-shadow: inset 0 0 0 1px var(--lw-brand-ring); color: var(--lw-brand-fg); }
+.capiro-vnext-root .lw .lw-pill--brand  { background: var(--lw-brand-bg); border: 1px solid var(--lw-brand-ring); color: var(--lw-brand-fg); }
 .capiro-vnext-root .lw .lw-pill--brand .lw-pill__dot { background: var(--lw-brand-dot); }
-.capiro-vnext-root .lw .lw-pill--error  { background: var(--lw-error-bg); box-shadow: inset 0 0 0 1px var(--lw-error-ring); color: var(--lw-error-fg); }
+.capiro-vnext-root .lw .lw-pill--error  { background: var(--lw-error-bg); border: 1px solid var(--lw-error-ring); color: var(--lw-error-fg); }
 .capiro-vnext-root .lw .lw-pill--error .lw-pill__dot { background: var(--lw-error-dot); }
-.capiro-vnext-root .lw .lw-pill--warning { background: var(--lw-warn-bg); box-shadow: inset 0 0 0 1px var(--lw-warn-ring); color: var(--lw-warn-fg); }
+.capiro-vnext-root .lw .lw-pill--warning { background: var(--lw-warn-bg); border: 1px solid var(--lw-warn-ring); color: var(--lw-warn-fg); }
 .capiro-vnext-root .lw .lw-pill--warning .lw-pill__dot { background: var(--lw-warn-dot); }
-.capiro-vnext-root .lw .lw-pill--success { background: var(--lw-succ-bg); box-shadow: inset 0 0 0 1px var(--lw-succ-ring); color: var(--lw-succ-fg); }
+.capiro-vnext-root .lw .lw-pill--success { background: var(--lw-succ-bg); border: 1px solid var(--lw-succ-ring); color: var(--lw-succ-fg); }
 .capiro-vnext-root .lw .lw-pill--success .lw-pill__dot { background: var(--lw-succ-dot); }
-.capiro-vnext-root .lw .lw-pill--dark   { background: var(--lw-dark-bg);  box-shadow: inset 0 0 0 1px var(--lw-dark-ring);  color: var(--lw-dark-fg); }
+.capiro-vnext-root .lw .lw-pill--dark   { background: var(--lw-dark-bg);  border: 1px solid var(--lw-dark-ring);  color: var(--lw-dark-fg); }
 .capiro-vnext-root .lw .lw-pill--dark .lw-pill__dot { background: var(--lw-dark-dot); }
 
 /* ---- button recipe (A.3) --------------------------------------------------- */
@@ -191,15 +194,14 @@
   font-family: var(--lw-sans);
   font-size: 13px;
   font-weight: 600;
-  border: 0;
+  border: 1px solid var(--lw-control);
   background: var(--lw-surface);
-  box-shadow: var(--lw-ring-control);
   color: var(--lw-label);
   cursor: pointer;
   white-space: nowrap;
 }
 .capiro-vnext-root .lw .lw-btn:hover { background: var(--lw-page); }
-.capiro-vnext-root .lw .lw-btn--primary { background: var(--lw-ink); color: #fff; box-shadow: none; }
+.capiro-vnext-root .lw .lw-btn--primary { background: var(--lw-ink); color: #fff; border-color: transparent; }
 .capiro-vnext-root .lw .lw-btn--primary:hover { background: #1D2939; }
 .capiro-vnext-root .lw .lw-btn:disabled { opacity: .55; cursor: not-allowed; }
 .capiro-vnext-root .lw .lw-btn--40 { height: 40px; }
@@ -208,7 +210,7 @@
 /* on ink panels the primary inverts */
 .capiro-vnext-root .lw .lw-on-ink .lw-btn--primary { background: #fff; color: var(--lw-ink); }
 .capiro-vnext-root .lw .lw-on-ink .lw-btn--primary:hover { background: var(--lw-hover); }
-.capiro-vnext-root .lw .lw-on-ink .lw-btn { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .24); background: transparent; color: #fff; }
+.capiro-vnext-root .lw .lw-on-ink .lw-btn { border-color: rgba(255, 255, 255, .24); background: transparent; color: #fff; }
 .capiro-vnext-root .lw .lw-on-ink .lw-btn:hover { background: rgba(255, 255, 255, .08); }
 
 /* ---- segmented switch (A.3) ------------------------------------------------ */
@@ -218,7 +220,7 @@
   padding: 4px;
   border-radius: 9px;
   background: var(--lw-page);
-  box-shadow: var(--lw-ring-hairline);
+  border: 1px solid var(--lw-line);
 }
 .capiro-vnext-root .lw .lw-seg__item {
   height: 30px;
@@ -445,7 +447,7 @@
   gap: 8px;
   padding: 0 12px;
   border-radius: 8px;
-  box-shadow: var(--lw-ring-control);
+  border: 1px solid var(--lw-control);
   background: var(--lw-surface);
 }
 .capiro-vnext-root .lw .lw-search input {
@@ -496,7 +498,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  box-shadow: inset 1px 1px 0 #EAECF0;
+  box-shadow: inset 1px 1px 0 #E8E5DF;
   background: var(--lw-surface);
 }
 .capiro-vnext-root .lw .lw-cal__day.is-today { background: var(--lw-selected); }
@@ -542,13 +544,12 @@
   width: 100%;
   padding: 9px 10px;
   border-radius: 8px;
-  border: 0;
+  border: 1px solid var(--lw-line);
   border-left: 3px solid transparent;
   text-align: left;
   cursor: pointer;
   display: block;
   background: var(--lw-page);
-  box-shadow: inset 0 0 0 1px var(--lw-line);
 }
 .capiro-vnext-root .lw .lw-chip:hover { background: var(--lw-hover); }
 .capiro-vnext-root .lw .lw-chip__row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
@@ -562,7 +563,7 @@
 .capiro-vnext-root .lw .lw-chip__meta { margin-top: 4px; font-family: var(--lw-mono); font-size: 10px; letter-spacing: .03em; color: var(--lw-faint); overflow-wrap: anywhere; word-break: normal; }
 .capiro-vnext-root .lw .lw-cal__empty { overflow-wrap: anywhere; }
 
-.capiro-vnext-root .lw .lw-chip--live { background: var(--lw-error-bg); box-shadow: inset 0 0 0 1px var(--lw-error-ring); border-left-color: var(--lw-error-dot); }
+.capiro-vnext-root .lw .lw-chip--live { background: var(--lw-error-bg); border-color: var(--lw-error-ring); border-left-color: var(--lw-error-dot); }
 .capiro-vnext-root .lw .lw-chip--live .lw-chip__time { color: var(--lw-error-fg); }
 .capiro-vnext-root .lw .lw-chip--hearing { border-left-color: var(--lw-brand-fg); }
 .capiro-vnext-root .lw .lw-chip--markup { border-left-color: var(--lw-faint); }
@@ -596,9 +597,8 @@
   width: 32px;
   height: 32px;
   border-radius: 7px;
-  border: 0;
+  border: 1px solid var(--lw-control);
   background: var(--lw-surface);
-  box-shadow: var(--lw-ring-control);
   color: var(--lw-meta);
   display: inline-flex;
   align-items: center;
@@ -702,7 +702,7 @@
   padding: 12px 14px;
   border-radius: 10px;
   background: var(--lw-page);
-  box-shadow: var(--lw-ring-hairline);
+  border: 1px solid var(--lw-line);
 }
 .capiro-vnext-root .lw .lw-hrow:hover { background: var(--lw-hover); }
 .capiro-vnext-root .lw .lw-hrow__title { font-size: 14px; font-weight: 600; color: var(--lw-ink); }
@@ -717,7 +717,7 @@
   gap: 12px;
   padding: 12px 14px;
   border-radius: 10px;
-  box-shadow: var(--lw-ring-hairline);
+  border: 1px solid var(--lw-line);
 }
 .capiro-vnext-root .lw .lw-rrow__when { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--lw-ink); }
 .capiro-vnext-root .lw .lw-rrow__title { margin-top: 6px; font-size: 14px; font-weight: 600; color: var(--lw-ink); text-wrap: pretty; }
@@ -742,7 +742,7 @@
   padding: 14px;
   border-radius: 10px;
   background: var(--lw-page);
-  box-shadow: var(--lw-ring-hairline);
+  border: 1px solid var(--lw-line);
 }
 .capiro-vnext-root .lw .lw-note__label {
   font-family: var(--lw-mono);
@@ -790,9 +790,8 @@
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  box-shadow: var(--lw-ring-control);
   background: var(--lw-surface);
-  border: 0;
+  border: 1px solid var(--lw-control);
   flex: 0 0 auto;
   margin-top: 2px;
   cursor: pointer;
@@ -801,7 +800,7 @@
   justify-content: center;
   color: transparent;
 }
-.capiro-vnext-root .lw .lw-prow__check.is-on { background: var(--lw-ink); box-shadow: none; color: #fff; }
+.capiro-vnext-root .lw .lw-prow__check.is-on { background: var(--lw-ink); border-color: var(--lw-ink); color: #fff; }
 .capiro-vnext-root .lw .lw-prow__main { flex: 1 1 200px; min-width: 0; }
 .capiro-vnext-root .lw .lw-prow__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .capiro-vnext-root .lw .lw-prow__src { font-family: var(--lw-mono); font-size: 11px; font-weight: 500; letter-spacing: .04em; color: var(--lw-meta); text-transform: uppercase; }
@@ -842,7 +841,7 @@
   width: 100%;
   padding: 7px 9px;
   border-radius: 7px;
-  border: 0;
+  border: 1px solid transparent;
   background: transparent;
   font-size: 13px;
   font-weight: 500;
@@ -851,7 +850,7 @@
   text-align: left;
 }
 .capiro-vnext-root .lw .lw-rail__opt:hover { background: var(--lw-page); }
-.capiro-vnext-root .lw .lw-rail__opt.is-active { background: var(--lw-page); color: var(--lw-ink); font-weight: 600; box-shadow: var(--lw-ring-active); }
+.capiro-vnext-root .lw .lw-rail__opt.is-active { background: var(--lw-page); color: var(--lw-ink); font-weight: 600; border-color: var(--lw-ink); }
 .capiro-vnext-root .lw .lw-rail__count { font-family: var(--lw-mono); font-size: 11px; color: var(--lw-meta); }
 
 /* packet drawer (desktop right drawer / mobile bottom sheet — same tree) */
@@ -1098,7 +1097,7 @@
 .capiro-vnext-root .lw .lw-bcard__meta { margin-top: 6px; display: flex; align-items: center; justify-content: space-between; font-family: var(--lw-mono); font-size: 11px; color: var(--lw-meta); }
 
 /* recs strip */
-.capiro-vnext-root .lw .lw-reccard { padding: 14px; border-radius: 10px; box-shadow: var(--lw-ring-hairline); background: var(--lw-surface); }
+.capiro-vnext-root .lw .lw-reccard { padding: 14px; border-radius: 10px; border: 1px solid var(--lw-line); background: var(--lw-surface); }
 .capiro-vnext-root .lw .lw-recs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
@@ -1138,7 +1137,7 @@
 }
 
 /* stat tile */
-.capiro-vnext-root .lw .lw-stat { padding: 12px; border-radius: 10px; background: var(--lw-page); box-shadow: var(--lw-ring-hairline); }
+.capiro-vnext-root .lw .lw-stat { padding: 12px; border-radius: 10px; background: var(--lw-page); border: 1px solid var(--lw-line); }
 .capiro-vnext-root .lw .lw-stat__value { font-size: 20px; line-height: 29px; font-weight: 600; color: var(--lw-ink); font-family: var(--lw-mono); }
 .capiro-vnext-root .lw .lw-stat__label { margin-top: 3px; font-size: 11px; color: var(--lw-meta); font-family: var(--lw-mono); letter-spacing: .04em; text-transform: uppercase; }
 
@@ -1231,8 +1230,8 @@
 }
 
 /* transcription setup blocks (A.10) */
-.capiro-vnext-root .lw .lw-block { padding: 14px; border-radius: 10px; background: var(--lw-page); box-shadow: var(--lw-ring-hairline); }
-.capiro-vnext-root .lw .lw-block--ring { background: var(--lw-surface); box-shadow: var(--lw-ring-control); }
+.capiro-vnext-root .lw .lw-block { padding: 14px; border-radius: 10px; background: var(--lw-page); border: 1px solid var(--lw-line); }
+.capiro-vnext-root .lw .lw-block--ring { background: var(--lw-surface); border-color: var(--lw-control); }
 .capiro-vnext-root .lw .lw-block--ink { background: var(--lw-ink); }
 .capiro-vnext-root .lw .lw-block__label { font-family: var(--lw-mono); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--lw-meta); }
 .capiro-vnext-root .lw .lw-block--ink .lw-block__label { color: var(--lw-faint); }
@@ -1245,18 +1244,18 @@
 /* capture radio cards */
 .capiro-vnext-root .lw .lw-radio {
   display: flex; gap: 14px; padding: 14px; border-radius: 10px;
-  background: var(--lw-surface); box-shadow: var(--lw-ring-hairline);
-  cursor: pointer; border: 0; width: 100%; text-align: left;
+  background: var(--lw-surface); border: 1px solid var(--lw-line);
+  cursor: pointer; width: 100%; text-align: left;
 }
 .capiro-vnext-root .lw .lw-radio:hover { background: var(--lw-selected); }
-.capiro-vnext-root .lw .lw-radio.is-selected { background: var(--lw-selected); box-shadow: var(--lw-ring-selected); }
+.capiro-vnext-root .lw .lw-radio.is-selected { background: var(--lw-selected); border-color: var(--lw-ink); box-shadow: var(--lw-ring-selected); }
 .capiro-vnext-root .lw .lw-radio:disabled { opacity: .55; cursor: not-allowed; }
 .capiro-vnext-root .lw .lw-radio__ring {
   width: 20px; height: 20px; border-radius: 50%;
-  box-shadow: inset 0 0 0 1px var(--lw-control);
+  border: 1px solid var(--lw-control);
   flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
 }
-.capiro-vnext-root .lw .lw-radio.is-selected .lw-radio__ring { box-shadow: inset 0 0 0 1px var(--lw-ink); }
+.capiro-vnext-root .lw .lw-radio.is-selected .lw-radio__ring { border-color: var(--lw-ink); }
 .capiro-vnext-root .lw .lw-radio__fill { width: 8px; height: 8px; border-radius: 50%; background: var(--lw-ink); }
 .capiro-vnext-root .lw .lw-radio__title { font-size: 15px; font-weight: 600; color: var(--lw-ink); }
 .capiro-vnext-root .lw .lw-radio__desc { margin-top: 3px; font-size: 13px; line-height: 20px; color: var(--lw-body); }

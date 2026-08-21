@@ -42,18 +42,22 @@
   --uui-weight-medium: 500;
   --uui-weight-semibold: 600;
 
-  /* Neutrals. */
+  /* Neutrals. Warm surface palette (WARM-SURFACE-PALETTE.md, from the
+     Outreach redesign `Capiro Outreach - Untitled UI.dc.html`): the cool
+     grey surface/border set is replaced by a warm one so the hierarchy
+     reads as three tiers — warm canvas, white data surfaces, and the
+     warmer-than-white assistant tier. The text ramp (gray-400 and up)
+     stays cool per the handoff. */
   --uui-white: #ffffff;
   --uui-gray-25: #fdfdfd;
-  --uui-gray-50: #f9fafb;
-  --uui-gray-100: #f2f4f7;
-  /* v3 corrected this from #eaecf0 to the handoff's literal border-default
-     hex — a ~6/channel darkening. gray-200 is used exclusively as a border/
-     divider color across shell + dashboard, so updating it here (rather than
-     adding a parallel --uui-border-default) propagates correctly everywhere
-     without creating two near-duplicate neutrals to keep in sync. */
-  --uui-gray-200: #e4e7ec;
-  --uui-gray-300: #d0d5dd;
+  --uui-gray-50: #faf9f6;
+  --uui-gray-100: #f2f0eb;
+  /* gray-200 is used exclusively as a border/divider color across shell +
+     dashboard, so updating it here (rather than adding a parallel
+     --uui-border-default) propagates correctly everywhere without creating
+     two near-duplicate neutrals to keep in sync. */
+  --uui-gray-200: #e8e5df;
+  --uui-gray-300: #e0dcd4;
   --uui-gray-400: #98a2b3;
   --uui-gray-500: #667085;
   --uui-gray-600: #475467;
@@ -139,9 +143,8 @@
   --uui-shadow-menu: 0 0 0 1px var(--uui-gray-200), 0px 12px 16px -4px rgba(16, 24, 40, 0.08), 0px 4px 6px -2px rgba(16, 24, 40, 0.03);
   --uui-shadow-drawer: 0px 24px 48px -12px rgba(16, 24, 40, 0.18);
   --uui-shadow-focus: inset 0 0 0 1px var(--uui-focus-ring), 0 0 0 4px var(--uui-focus-ring-outer);
-  /* Neutral focus ring for filled inputs/search (gray-400/gray-100 already
-     equal the handoff's literal #98A2B3/#F2F4F7 — no new hex needed). The
-     brand-tinted --uui-shadow-focus above stays for non-input elements. */
+  /* Neutral focus ring for filled inputs/search. The brand-tinted
+     --uui-shadow-focus above stays for non-input elements. */
   --uui-shadow-input-focus: inset 0 0 0 1px var(--uui-gray-400), 0 0 0 4px var(--uui-gray-100);
   --uui-shadow-input: inset 0 0 0 1px var(--uui-gray-300), 0px 1px 2px rgba(16, 24, 40, 0.05);
   --uui-shadow-button: 0px 1px 2px rgba(16, 24, 40, 0.05);
@@ -171,7 +174,14 @@
   --uui-chrome-icon-idle: #7c8698;
   --uui-chrome-divider: rgba(255, 255, 255, 0.14);
 
-  /* Canvas/sunken surfaces — v3's surface hierarchy below "raised" white. */
-  --uui-surface-canvas: #eff1f5;
-  --uui-surface-sunken: #f7f8fa;
+  /* Canvas/sunken surfaces — v3's surface hierarchy below "raised" white,
+     on the warm ramp: #f4f3f0 canvas → #ffffff data surfaces → #fffdfa
+     assistant. Keep that ordering — never a white card on a white
+     background, and never a Meri surface cooler than the data surface. */
+  --uui-surface-canvas: #f4f3f0;
+  --uui-surface-sunken: #faf9f6;
+  /* The assistant tier — Meri rails, Meri panels and the Meri launcher read
+     this, never --uui-white or a module surface token. Aliases the
+     foundation token so the two roots cannot drift apart. */
+  --uui-surface-assistant: var(--capiro-surface-assistant, #fffdfa);
 }

@@ -245,7 +245,7 @@
   padding: 14px;
   border-radius: 10px;
   background: var(--st-gray-50);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border: 1px solid var(--st-gray-200);
 }
 /* Label wrapper around the 15px checkbox. It exists only to carry the mobile
    touch target below — the checkbox keeps its own aria-label, and the wrapper
@@ -270,7 +270,7 @@
   width: 20px;
   height: 20px;
   border-radius: 6px;
-  box-shadow: inset 0 0 0 1px var(--st-gray-300);
+  border: 1px solid var(--st-gray-300);
   background-color: var(--st-white);
   background-repeat: no-repeat;
   background-position: center;
@@ -279,7 +279,7 @@
 }
 .capiro-vnext-root .capiro-strategies .st-agents__op-check:checked {
   background-color: var(--st-accent);
-  box-shadow: inset 0 0 0 1px var(--st-accent);
+  border-color: var(--st-accent);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.3l3 3 6-6.6'/%3E%3C/svg%3E");
 }
 .capiro-vnext-root .capiro-strategies .st-agents__op-check:disabled {
@@ -312,7 +312,7 @@
   letter-spacing: 0.04em;
   color: var(--st-accent);
   background: var(--st-accent-tint);
-  box-shadow: inset 0 0 0 1px var(--st-accent-tint-border);
+  border: 1px solid var(--st-accent-tint-border);
   border-radius: 4px;
   padding: 1px 6px;
   margin-right: 4px;
@@ -327,7 +327,7 @@
 }
 .capiro-vnext-root .capiro-strategies .st-agents__op-kind--decision {
   background: var(--st-accent-tint);
-  box-shadow: inset 0 0 0 1px var(--st-accent-tint-border);
+  border-color: var(--st-accent-tint-border);
   color: var(--st-kind-decision);
 }
 .capiro-vnext-root .capiro-strategies .st-agents__op-kind--decision::before { background: var(--st-kind-decision); }
@@ -376,12 +376,12 @@
   text-align: right;
   overflow-wrap: anywhere;
   background: var(--st-gray-50);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border: 1px solid var(--st-gray-200);
   color: var(--st-gray-500);
 }
 .capiro-vnext-root .capiro-strategies .st-agents__chip--after {
   background: var(--st-white);
-  box-shadow: inset 0 0 0 1px var(--st-gray-300);
+  border-color: var(--st-gray-300);
   color: var(--st-gray-900);
   font-weight: 600;
 }
@@ -434,7 +434,7 @@
   padding: 16px;
   border-radius: 10px;
   background: var(--st-gray-50);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border: 1px solid var(--st-gray-200);
 }
 .capiro-vnext-root .capiro-strategies .st-agents__cs-panel-well .st-section-label { margin-bottom: 4px; }
 .capiro-vnext-root .capiro-strategies .st-agents__cs-panel-actions {
@@ -488,7 +488,7 @@
   flex-wrap: wrap;
   gap: 10px 14px;
   background: var(--st-warning-bg);
-  box-shadow: inset 0 0 0 1px var(--st-warning-ring);
+  border: 1px solid var(--st-warning-ring);
   color: var(--st-warning-fg);
   border-radius: 10px;
   padding: 10px 14px;
@@ -505,7 +505,7 @@
   font-size: 12px;
   color: var(--st-warning-fg);
   background: var(--st-warning-bg);
-  box-shadow: inset 0 0 0 1px var(--st-warning-ring);
+  border: 1px solid var(--st-warning-ring);
   border-radius: 8px;
   padding: 6px 12px;
   margin-bottom: 10px;
@@ -516,7 +516,7 @@
   line-height: 1.5;
   color: var(--st-error-fg);
   background: var(--st-error-bg);
-  box-shadow: inset 0 0 0 1px var(--st-error-ring);
+  border: 1px solid var(--st-error-ring);
   border-radius: 8px;
   padding: 9px 12px;
   display: block;
@@ -590,7 +590,7 @@
   flex-wrap: wrap;
   gap: 12px;
   background: var(--st-white);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border: 1px solid var(--st-gray-200);
   border-radius: 10px;
   padding: 12px 14px;
 }
@@ -635,7 +635,7 @@
   flex-wrap: wrap;
   gap: 10px 14px;
   background: var(--st-warning-bg);
-  box-shadow: inset 0 0 0 1px var(--st-warning-ring);
+  border: 1px solid var(--st-warning-ring);
   color: var(--st-warning-fg);
   border-radius: 8px;
   padding: 10px 14px;
@@ -653,7 +653,7 @@
   border-radius: 8px;
   padding: 12px 14px;
   background: var(--st-accent-tint);
-  box-shadow: inset 0 0 0 1px var(--st-accent-tint-border);
+  border: 1px solid var(--st-accent-tint-border);
 }
 .capiro-vnext-root .capiro-strategies .st-agents__send-preview-title {
   margin: 0 0 8px;
@@ -753,7 +753,7 @@
   padding: 0 10px 0 8px;
   border-radius: 9999px;
   background: var(--st-gray-50);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border: 1px solid var(--st-gray-200);
   color: var(--st-gray-700);
   font-size: 11px;
   font-weight: 600;
@@ -784,11 +784,16 @@
   background: var(--st-gray-100);
   color: var(--st-gray-500);
   font-size: 16px;
+  /* The tone classes used to paint this tile's ring via their inset
+     box-shadow; now that .st-pill tones are border-color-only (strategies.css)
+     the tile needs its own border box for them to color. Transparent in the
+     untoned default, exactly as before. */
+  border: 1px solid transparent;
 }
-.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--accent { background: var(--st-info-bg); color: var(--st-info-fg); }
-.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--warning { background: var(--st-warning-bg); color: var(--st-warning-fg); }
-.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--success { background: var(--st-success-bg); color: var(--st-success-fg); }
-.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--error { background: var(--st-error-bg); color: var(--st-error-fg); }
+.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--accent { background: var(--st-info-bg); border-color: var(--st-info-ring); color: var(--st-info-fg); }
+.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--warning { background: var(--st-warning-bg); border-color: var(--st-warning-ring); color: var(--st-warning-fg); }
+.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--success { background: var(--st-success-bg); border-color: var(--st-success-ring); color: var(--st-success-fg); }
+.capiro-vnext-root .capiro-strategies .st-agents__task-icon.st-pill--error { background: var(--st-error-bg); border-color: var(--st-error-ring); color: var(--st-error-fg); }
 
 /* ---- run "Plan" well (design handoff — a labeled #F9FAFB box) ----------------------- */
 .capiro-vnext-root .capiro-strategies .st-agents__plan-well {
@@ -798,7 +803,7 @@
   padding: 16px;
   border-radius: 10px;
   background: var(--st-gray-50);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  border: 1px solid var(--st-gray-200);
 }
 .capiro-vnext-root .capiro-strategies .st-agents__plan-well-label {
   flex: none;
@@ -821,7 +826,11 @@
    explains why there is no send control. */
 .capiro-vnext-root .capiro-strategies .st-agents__security {
   background: var(--st-error-bg);
-  box-shadow: inset 0 0 0 1px var(--st-error-ring);
+  border: 1px solid var(--st-error-ring);
+  /* The old inset ring also suppressed the shared .st-card shadow (equal
+     specificity, later sheet); keep that suppression explicit now that the
+     ring is a real border. */
+  box-shadow: none;
 }
 /* Design handoff — this card is ONE flat 20px/22px-padded box (no
    header/body split); the shared `.st-card__header`+`.st-card__body` combo

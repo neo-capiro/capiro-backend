@@ -1,6 +1,6 @@
 .ws-quick-intake {
   min-height: 100%;
-  background: var(--ws-page-bg, #f9fafb);
+  background: var(--ws-page-bg, #f4f3f0);
   color: var(--ws-ink, #101828);
   padding-bottom: 96px;
 }
@@ -42,7 +42,7 @@
 .ws-quick-goal-card,
 .ws-quick-template-section,
 .ws-quick-sources-section {
-  border: 1px solid var(--ws-line, #eaecf0);
+  border: 1px solid var(--ws-line, #e8e5df);
   background: #fff;
   box-shadow: 0 1px 2px rgb(16 24 40 / 3%);
 }
@@ -103,8 +103,8 @@
   width: 100%;
   min-height: 152px;
   resize: vertical;
-  border: 1px solid var(--ws-control-ring, #d0d5dd);
-  background: var(--ws-paper, #fefdfa);
+  border: 1px solid var(--ws-control-ring, #e0dcd4);
+  background: var(--ws-paper, #fffdfa);
   padding: 18px 20px;
   color: var(--ws-ink, #101828);
   font: 400 17px/1.55 Inter, system-ui, sans-serif;
@@ -138,7 +138,7 @@
 
 .ws-quick-goal-card select {
   min-height: 40px;
-  border: 1px solid var(--ws-control-ring, #d0d5dd);
+  border: 1px solid var(--ws-control-ring, #e0dcd4);
   border-radius: 7px;
   background: #fff;
   padding: 0 12px;
@@ -175,7 +175,7 @@
 
 .ws-quick-template-card {
   min-height: 174px;
-  border: 1px solid var(--ws-line, #eaecf0);
+  border: 1px solid var(--ws-line, #e8e5df);
   border-radius: 10px;
   background: #fff;
   padding: 16px;
@@ -226,9 +226,11 @@
 
 .ws-quick-source-card {
   min-width: 0;
-  border: 1px solid var(--ws-line, #eaecf0);
+  border: 1px solid var(--ws-line, #e8e5df);
   border-radius: 10px;
-  background: var(--ws-page-bg, #f9fafb);
+  /* Quiet fill inside the white sources section, not a page ground —
+     --ws-page-bg now means the canvas tier, so this takes the quiet literal. */
+  background: #faf9f6;
   padding: 16px;
 }
 
@@ -259,7 +261,7 @@
   display: grid;
   min-height: 56px;
   place-items: center;
-  border: 1px dashed var(--ws-control-ring, #d0d5dd);
+  border: 1px dashed var(--ws-control-ring, #e0dcd4);
   border-radius: 8px;
   background: #fff;
   color: var(--ws-navy, #294e68);
@@ -281,7 +283,7 @@
   min-height: 82px;
   margin-top: 10px;
   resize: vertical;
-  border: 1px solid var(--ws-control-ring, #d0d5dd);
+  border: 1px solid var(--ws-control-ring, #e0dcd4);
   border-radius: 8px;
   background: #fff;
   padding: 10px 12px;
@@ -306,7 +308,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid var(--ws-line, #eaecf0);
+  border: 1px solid var(--ws-line, #e8e5df);
   border-radius: 7px;
   background: #fff;
   padding: 9px 10px;
@@ -350,7 +352,7 @@
   display: grid;
   min-height: 142px;
   place-items: center;
-  border: 1px dashed var(--ws-control-ring, #d0d5dd);
+  border: 1px dashed var(--ws-control-ring, #e0dcd4);
   border-radius: 8px;
   background: #fff;
   padding: 16px;
@@ -380,7 +382,7 @@
   min-height: 58px;
   align-items: flex-start;
   gap: 8px;
-  border: 1px solid var(--ws-line, #eaecf0);
+  border: 1px solid var(--ws-line, #e8e5df);
   border-radius: 7px;
   background: #fff;
   padding: 9px;
@@ -417,7 +419,7 @@
   justify-content: space-between;
   gap: 18px;
   width: auto;
-  border: 1px solid var(--ws-line, #eaecf0);
+  border: 1px solid var(--ws-line, #e8e5df);
   border-radius: 12px;
   background: rgb(255 255 255 / 96%);
   box-shadow: 0 14px 34px rgb(16 24 40 / 13%);
@@ -458,7 +460,7 @@
 
 .ws-quick-generating__card {
   width: min(520px, 100%);
-  border: 1px solid var(--ws-line, #eaecf0);
+  border: 1px solid var(--ws-line, #e8e5df);
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 30px 80px rgb(16 24 40 / 24%);

@@ -179,7 +179,7 @@ function PathVotesTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>[
                 style={{
                   width: 10, height: 10, borderRadius: '50%', marginTop: 5, flex: '0 0 auto',
                   background: m.state === 'done' ? 'var(--lw-succ-dot)' : m.state === 'current' ? 'var(--lw-brand-dot)' : m.state === 'failed' ? 'var(--lw-error-dot)' : 'var(--lw-control)',
-                  boxShadow: m.state === 'current' ? '0 0 0 3px #EDF3F7' : m.state === 'done' ? '0 0 0 3px #F9FAFB' : 'none',
+                  boxShadow: m.state === 'current' ? '0 0 0 3px #EDF3F7' : m.state === 'done' ? '0 0 0 3px #FAF9F6' : 'none',
                 }}
               />
               <div>

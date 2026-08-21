@@ -99,7 +99,7 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
         >
           START WORK
         </span>
-        <span style={{ flex: 1, height: 1, background: '#EAECF0' }} />
+        <span style={{ flex: 1, height: 1, background: '#E8E5DF' }} />
         <div
           role="tablist"
           aria-label="Start work"
@@ -109,8 +109,8 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
             gap: 2,
             padding: 2,
             borderRadius: 8,
-            background: '#F9FAFB',
-            boxShadow: 'inset 0 0 0 1px #EAECF0',
+            background: '#FAF9F6',
+            border: '1px solid #E8E5DF',
           }}
         >
           {(['SKILLS', 'PROMPTS'] as StartTab[]).map((label) => {
@@ -127,7 +127,7 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
                   padding: '0 10px',
                   borderRadius: 6,
                   background: on ? '#ffffff' : 'transparent',
-                  boxShadow: on ? 'inset 0 0 0 1px #D0D5DD' : 'none',
+                  border: on ? '1px solid #E0DCD4' : '1px solid transparent',
                   fontFamily: MONO,
                   fontSize: 9.5,
                   fontWeight: 500,
@@ -180,11 +180,11 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
               gap: 11,
               padding: 14,
               borderRadius: 11,
-              background: hoveredTitle === card.title ? '#F9FAFB' : '#ffffff',
+              background: hoveredTitle === card.title ? '#FAF9F6' : '#ffffff',
               boxShadow:
                 hoveredTitle === card.title
-                  ? '0 0 0 1px #D0D5DD'
-                  : '0 0 0 1px #EAECF0,0px 1px 2px rgba(16,24,40,.05)',
+                  ? '0 0 0 1px #E0DCD4'
+                  : '0 0 0 1px #E8E5DF,0px 1px 2px rgba(16,24,40,.05)',
               textAlign: 'left',
             }}
           >
@@ -197,7 +197,7 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
                 width: 28,
                 height: 28,
                 borderRadius: 8,
-                background: '#F2F4F7',
+                background: '#F2F0EB',
               }}
             >
               <MeriIcon name={card.icon} size={14} color="#101828" />
@@ -235,7 +235,7 @@ export function MeriStartWork({ controller, onFillIntent, disabled = false }: Me
                       padding: '0 6px',
                       borderRadius: 4,
                       background: '#FFFAEB',
-                      boxShadow: 'inset 0 0 0 1px #FEDF89',
+                      border: '1px solid #FEDF89',
                       fontFamily: MONO,
                       fontSize: 8.5,
                       fontWeight: 500,

@@ -1,17 +1,18 @@
 /* Native Outreach V3 visual closeout. Loaded after engagement.css. */
 .capiro-vnext-root .engagement-vnext {
-  --eng-bg: var(--uui-gray-50, #f9fafb);
+  --eng-bg: var(--uui-gray-50, #faf9f6);
   --eng-surface: var(--uui-white, #fff);
   --eng-recessed: var(--uui-gray-25, #fdfdfd);
-  --eng-muted: var(--uui-gray-100, #f2f4f7);
-  /* Hardcoded, NOT `var(--uui-gray-200)`: the shell's gray-200 is #EAECF0 and
-     this module's ring is #E4E7EC (UI-parity §1.1). Routing through the shell
-     token would silently resolve back to #EAECF0 — the fallback only applies
-     when the variable is undefined, and it isn't. engagement-tones.css had
-     already forked this same value locally for the pill rings; this is the
-     single source of truth now. */
-  --eng-border: #e4e7ec;
-  --eng-border-strong: var(--uui-gray-300, #d0d5dd);
+  --eng-muted: var(--uui-gray-100, #f2f0eb);
+  /* Hardcoded, NOT `var(--uui-gray-200)` (UI-parity §1.1): historically the
+     shell's cool gray-200 and this module's ring were two different values,
+     and routing through the shell token would have silently resolved to the
+     shell's — the fallback only applies when the variable is undefined, and
+     it isn't. The warm remap (WARM-SURFACE-PALETTE.md) maps both onto the
+     same warm hairline, but the literal stays so this file remains the
+     module's single source of truth for the ring value. */
+  --eng-border: #e8e5df;
+  --eng-border-strong: var(--uui-gray-300, #e0dcd4);
   --eng-ink: var(--uui-gray-900, #101828);
   --eng-ink-2: var(--uui-gray-600, #475467);
   --eng-ink-3: var(--uui-gray-500, #667085);
@@ -43,7 +44,7 @@
 }
 .outreach-v3-complete-host {
   min-width: 0;
-  background: #eff1f5;
+  background: #f4f3f0;
 }
 .outreach-v3-route-toolbar {
   min-height: 58px;
@@ -51,7 +52,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 20px;
-  border-bottom: 1px solid #e4e7ec;
+  border-bottom: 1px solid #e8e5df;
   background: var(--uui-white, #fff);
 }
 .outreach-v3-route-toolbar__back,
@@ -75,11 +76,11 @@
   background: var(--uui-white, #fff);
   color: var(--uui-gray-700, #344054);
   /* Secondary = white with the standard outer ring (UI-parity §1.5). */
-  box-shadow: 0 0 0 1px #e4e7ec;
+  box-shadow: 0 0 0 1px #e8e5df;
 }
 .outreach-v3-route-toolbar__back:hover,
 .outreach-v3-route-toolbar__secondary:hover {
-  background: #f9fafb;
+  background: #faf9f6;
 }
 .outreach-v3-route-toolbar__copy {
   min-width: 0;

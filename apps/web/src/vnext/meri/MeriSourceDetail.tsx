@@ -71,7 +71,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
           BACK TO CONTEXT
         </button>
       </div>
-      <div style={{ padding: '12px 20px 14px', borderBottom: '1px solid #EAECF0' }}>
+      <div style={{ padding: '12px 20px 14px', borderBottom: '1px solid #E8E5DF' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             type="button"
@@ -86,7 +86,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
               width: 26,
               height: 26,
               borderRadius: 7,
-              boxShadow: 'inset 0 0 0 1px #EAECF0',
+              border: '1px solid #E8E5DF',
               color: '#667085',
               opacity: count <= 1 ? 0.5 : 1,
             }}
@@ -106,7 +106,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
               width: 26,
               height: 26,
               borderRadius: 7,
-              boxShadow: 'inset 0 0 0 1px #EAECF0',
+              border: '1px solid #E8E5DF',
               color: '#667085',
               opacity: count <= 1 ? 0.5 : 1,
             }}
@@ -136,7 +136,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
                 padding: '0 8px',
                 borderRadius: 6,
                 background: '#ECFDF3',
-                boxShadow: 'inset 0 0 0 1px #ABEFC6',
+                border: '1px solid #ABEFC6',
               }}
             >
               <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#12B76A' }} />
@@ -160,7 +160,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
               height: 24,
               padding: '0 9px',
               borderRadius: 6,
-              background: '#F2F4F7',
+              background: '#F2F0EB',
               fontFamily: MONO,
               fontSize: 9,
               fontWeight: 500,
@@ -182,7 +182,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
                 height: 24,
                 padding: '0 9px',
                 borderRadius: 6,
-                boxShadow: 'inset 0 0 0 1px #D0D5DD',
+                border: '1px solid #E0DCD4',
                 textDecoration: 'none',
               }}
             >
@@ -195,7 +195,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
         </div>
       </div>
 
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #EAECF0' }}>
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid #E8E5DF' }}>
         <div style={{ fontFamily: MONO, fontSize: 9.5, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
           EXCERPT
         </div>
@@ -235,7 +235,7 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
             gap: 11,
             marginTop: 16,
             paddingTop: 14,
-            borderTop: '1px solid #EAECF0',
+            borderTop: '1px solid #E8E5DF',
           }}
         >
           <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 500, color: '#344054' }}>
@@ -255,17 +255,17 @@ export function MeriSourceDetail({ citations, initialIndex, scopeLabel, onClose 
               width: 38,
               height: 22,
               borderRadius: 9999,
-              border: 0,
-              background: inContext ? 'var(--m-metal-bg, linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%))' : '#F2F4F7',
-              boxShadow: inContext ? 'inset 0 1px 0 rgba(255,255,255,.14)' : 'inset 0 0 0 1px #D0D5DD',
+              border: inContext ? '1px solid transparent' : '1px solid #E0DCD4',
+              background: inContext ? 'var(--m-metal-bg, linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%))' : '#F2F0EB',
+              boxShadow: inContext ? 'inset 0 1px 0 rgba(255,255,255,.14)' : undefined,
               cursor: 'pointer',
             }}
           >
             <span
               style={{
                 position: 'absolute',
-                top: 2,
-                left: inContext ? 18 : 2,
+                top: 1,
+                left: inContext ? 17 : 1,
                 width: 18,
                 height: 18,
                 borderRadius: 9999,

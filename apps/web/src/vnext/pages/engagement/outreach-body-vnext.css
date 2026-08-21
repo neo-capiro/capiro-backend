@@ -61,7 +61,7 @@
 .capiro-vnext-root .engagement-vnext,
 .capiro-vnext-root .engagement-vnext .ov3-root {
   /* Surfaces */
-  --ov3-canvas: var(--eng-bg, #f9fafb);
+  --ov3-canvas: var(--eng-bg, #faf9f6);
   --ov3-surface: var(--eng-surface, #ffffff);
   --ov3-subtle: var(--eng-accent-soft, #edf3f7);
   --ov3-selected: var(--eng-accent-soft, #edf3f7);
@@ -77,8 +77,8 @@
   --ov3-active: var(--eng-accent, #294e68);
 
   /* Borders */
-  --ov3-border: var(--eng-border, #e4e7ec);
-  --ov3-border-quiet: var(--eng-border, #e4e7ec);
+  --ov3-border: var(--eng-border, #e8e5df);
+  --ov3-border-quiet: var(--eng-border, #e8e5df);
   --ov3-border-strong: var(--eng-accent-border, #c3d5e1);
 
   /* Status — warning/danger align with engagement's own amber/red; success
@@ -131,7 +131,7 @@
  */
 .capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-class-guide article.is-guidance,
 .capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-card.is-guidance {
-  background: var(--eng-muted, #f2f4f7);
+  background: var(--eng-muted, #f2f0eb);
   border-color: var(--eng-border-strong, #acb7c6);
 }
 .capiro-vnext-root .engagement-vnext .ov3-root .ov3-context-class-guide article.is-evidence,

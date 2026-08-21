@@ -57,7 +57,7 @@
   border: 0;
   border-radius: 9999px;
   background: var(--eng-recessed);
-  box-shadow: inset 0 0 0 1px var(--eng-border);
+  box-shadow: 0 0 0 1px var(--eng-border);
   color: var(--eng-ink-3);
   font-family: var(--eng-font-mono);
   font-size: 11px;
@@ -71,7 +71,7 @@
 }
 .capiro-vnext-root .uui-outreach-home__filters button[data-active] {
   background: var(--eng-tone-navy-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-tone-navy-ring);
+  box-shadow: 0 0 0 1px var(--eng-tone-navy-ring);
   color: var(--eng-tone-navy-fg);
 }
 
@@ -82,7 +82,7 @@
   padding: 11px 14px;
   border-radius: 10px;
   background: var(--eng-tone-err-bg);
-  box-shadow: inset 0 0 0 1px var(--eng-tone-err-ring);
+  box-shadow: 0 0 0 1px var(--eng-tone-err-ring);
   color: var(--eng-tone-err-fg);
   font-size: 13px;
 }
@@ -91,7 +91,7 @@
   overflow: hidden;
   border-radius: 12px;
   background: var(--eng-surface);
-  box-shadow: inset 0 0 0 1px var(--eng-border);
+  box-shadow: 0 0 0 1px var(--eng-border);
 }
 
 /* One grid definition shared by the header and every row, so the columns can
@@ -193,7 +193,7 @@
   padding: 54px 24px;
   border-radius: 12px;
   background: var(--eng-surface);
-  box-shadow: inset 0 0 0 1px var(--eng-border);
+  box-shadow: 0 0 0 1px var(--eng-border);
   color: var(--eng-ink-3);
   text-align: center;
 }
@@ -219,7 +219,7 @@
   height: 58px;
   border-radius: 12px;
   background: var(--eng-recessed);
-  box-shadow: inset 0 0 0 1px var(--eng-border);
+  box-shadow: 0 0 0 1px var(--eng-border);
 }
 
 /* Narrow widths: drop the two timestamp columns rather than let the row

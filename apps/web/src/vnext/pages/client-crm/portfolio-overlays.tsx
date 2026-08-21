@@ -105,7 +105,7 @@ export function PfDrawer({
           animation: 'capPfSlideIn .2s ease',
         }}
       >
-        <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'flex-start', gap: 12, padding: '24px 28px 18px', borderBottom: '1px solid #EAECF0' }}>
+        <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'flex-start', gap: 12, padding: '24px 28px 18px', borderBottom: '1px solid #E8E5DF' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{eyebrow}</div>
             <h2 style={{ margin: '8px 0 0', fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828', textWrap: 'pretty' }}>{title}</h2>
@@ -115,7 +115,7 @@ export function PfDrawer({
         </div>
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '22px 28px 28px' }}>{children}</div>
         {footer ? (
-          <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 28px', borderTop: '1px solid #EAECF0', background: '#ffffff' }}>
+          <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 28px', borderTop: '1px solid #E8E5DF', background: '#ffffff' }}>
             <span style={{ flex: 1 }} />
             {footer}
           </div>
@@ -179,7 +179,7 @@ export function PfModal({
         </div>
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 28px 20px' }}>{children}</div>
         {footer || footerLeft ? (
-          <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 28px', borderTop: '1px solid #EAECF0', flexWrap: 'wrap' }}>
+          <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 12, padding: '16px 28px', borderTop: '1px solid #E8E5DF', flexWrap: 'wrap' }}>
             {footerLeft}
             <span style={{ flex: 1 }} />
             {footer}
@@ -271,8 +271,8 @@ function CloseButton({ onClick }: { onClick: () => void }) {
         height: 32,
         borderRadius: 8,
         color: hover ? '#101828' : '#667085',
-        background: hover ? '#F9FAFB' : 'transparent',
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
+        background: hover ? '#FAF9F6' : 'transparent',
+        border: '1px solid #E8E5DF',
       }}
     >
       <UIcon name="XClose" size={16} />
@@ -348,7 +348,7 @@ export function GhostFooterBtn({ children, onClick }: { children: ReactNode; onC
         padding: '0 16px',
         borderRadius: 8,
         color: hover ? '#101828' : '#475467',
-        background: hover ? '#F9FAFB' : 'transparent',
+        background: hover ? '#FAF9F6' : 'transparent',
         fontSize: 14,
         fontWeight: 600,
       }}
@@ -381,7 +381,7 @@ function UpperLink({ children, danger = false, onClick }: { children: ReactNode;
 
 function SubPanel({ title, action, borderTop = false, children }: { title: ReactNode; action?: ReactNode; borderTop?: boolean; children: ReactNode }) {
   return (
-    <div style={borderTop ? { paddingTop: 20, borderTop: '1px solid #EAECF0' } : undefined}>
+    <div style={borderTop ? { paddingTop: 20, borderTop: '1px solid #E8E5DF' } : undefined}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: '#101828' }}>{title}</h3>
         <span style={{ flex: 1 }} />
@@ -404,8 +404,8 @@ function ReadField({ label, value, truncate = false }: { label: string; value: R
           marginTop: 6,
           padding: '0 14px',
           borderRadius: 8,
-          background: '#F9FAFB',
-          boxShadow: 'inset 0 0 0 1px #EAECF0',
+          background: '#FAF9F6',
+          border: '1px solid #E8E5DF',
           fontSize: 14,
           color: '#101828',
           ...(truncate ? { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } : {}),
@@ -461,7 +461,7 @@ export function PersonDrawer({ person, onClose }: { person: PersonRecord; onClos
             gap: 8,
             padding: 14,
             borderRadius: 10,
-            background: '#F2F4F7',
+            background: '#F2F0EB',
             boxShadow: 'inset 0 0 0 1.5px #101828',
           }}
         >
@@ -500,8 +500,8 @@ export function PersonDrawer({ person, onClose }: { person: PersonRecord; onClos
               marginTop: 12,
               padding: '0 10px 0 8px',
               borderRadius: 9999,
-              background: '#F2F4F7',
-              boxShadow: 'inset 0 0 0 1px #D0D5DD',
+              background: '#F2F0EB',
+              border: '1px solid #E0DCD4',
               color: '#101828',
               fontSize: 12,
               fontWeight: 500,
@@ -513,7 +513,7 @@ export function PersonDrawer({ person, onClose }: { person: PersonRecord; onClos
         </SubPanel>
 
         <SubPanel title="Notes" borderTop>
-          <p style={{ margin: '12px 0 0', padding: 14, borderRadius: 8, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+          <p style={{ margin: '12px 0 0', padding: 14, borderRadius: 8, background: '#FAF9F6', border: '1px solid #E8E5DF', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
             {person.note}
           </p>
         </SubPanel>
@@ -655,7 +655,7 @@ export function TargetDrawer({
           <SubPanel title="Why this target" borderTop>
             <div style={{ display: 'flex', flexDirection: 'column', marginTop: 8 }}>
               {target.why.map(([label, value]) => (
-                <span key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 0', borderBottom: '1px solid #F2F4F7' }}>
+                <span key={label} style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 0', borderBottom: '1px solid #F2F0EB' }}>
                   <span style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 8, width: 118, fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: GRADIENT_DARK }} />
                     {label}
@@ -713,7 +713,7 @@ export function StrategyDrawer({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18 }}>
             <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Strategy readiness</span>
-            <span style={{ flex: 1, height: 8, borderRadius: 4, background: '#F2F4F7', overflow: 'hidden' }}>
+            <span style={{ flex: 1, height: 8, borderRadius: 4, background: '#F2F0EB', overflow: 'hidden' }}>
               <span style={{ display: 'block', height: 8, width: '68%', borderRadius: 4, background: GRADIENT_DARK }} />
             </span>
             <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>68%</span>
@@ -723,7 +723,7 @@ export function StrategyDrawer({
         <SubPanel title="Live Strategy nodes" action={<UpperLink>Open timeline</UpperLink>} borderTop>
           <div style={{ display: 'flex', flexDirection: 'column', marginTop: 8 }}>
             {nodes.map((n) => (
-              <span key={n.title} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #F2F4F7' }}>
+              <span key={n.title} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #F2F0EB' }}>
                 <span
                   style={{
                     flex: '0 0 auto',
@@ -757,7 +757,7 @@ export function StrategyDrawer({
           </div>
         </SubPanel>
 
-        <div style={{ paddingTop: 20, borderTop: '1px solid #EAECF0' }}>
+        <div style={{ paddingTop: 20, borderTop: '1px solid #E8E5DF' }}>
           <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Linked context</div>
           <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             <Pill tone="brand" size="lg">Target · Rep. Jane Doe</Pill>
@@ -788,14 +788,14 @@ export function DataHealthDrawer({
     >
       <DrawerStack>
         {/* completeness */}
-        <div style={{ padding: 20, borderRadius: 12, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
+        <div style={{ padding: 20, borderRadius: 12, background: '#FAF9F6', border: '1px solid #E8E5DF' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 36, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828', lineHeight: 1.1 }}>92%</span>
             <span style={{ flex: 1 }} />
             <Pill tone="warning" size="lg">1 setup gap</Pill>
           </div>
           <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Profile complete</div>
-          <span style={{ display: 'block', marginTop: 14, height: 8, borderRadius: 4, background: '#EAECF0', overflow: 'hidden' }}>
+          <span style={{ display: 'block', marginTop: 14, height: 8, borderRadius: 4, background: '#E8E5DF', overflow: 'hidden' }}>
             <span style={{ display: 'block', height: 8, width: '92%', borderRadius: 4, background: '#12B76A' }} />
           </span>
         </div>
@@ -803,7 +803,7 @@ export function DataHealthDrawer({
         <SubPanel title="Connected sources" action={<UpperLink>Sync all</UpperLink>}>
           <div style={{ display: 'flex', flexDirection: 'column', marginTop: 8 }}>
             {SOURCES.map((src) => (
-              <span key={src.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #F2F4F7' }}>
+              <span key={src.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid #F2F0EB' }}>
                 <span style={{ flex: '0 0 auto', width: 8, height: 8, borderRadius: '50%', background: src.ui === 'warning' ? '#F79009' : '#12B76A' }} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828' }}>{src.label}</span>
                 <Pill tone={src.ui === 'warning' ? 'warning' : 'success'}>{src.status}</Pill>
@@ -814,7 +814,7 @@ export function DataHealthDrawer({
         </SubPanel>
 
         <SubPanel title="Open setup gap" borderTop>
-          <div style={{ marginTop: 12, padding: 16, borderRadius: 10, background: '#FFFAEB', boxShadow: 'inset 0 0 0 1px #FEDF89' }}>
+          <div style={{ marginTop: 12, padding: 16, borderRadius: 10, background: '#FFFAEB', border: '1px solid #FEDF89' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
               <span style={{ flex: '0 0 auto', marginTop: 5, width: 8, height: 8, borderRadius: '50%', background: '#F79009' }} />
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -860,8 +860,8 @@ export function HierarchyModal({ onClose }: { onClose: () => void }) {
             height: 28,
             padding: '0 12px 0 10px',
             borderRadius: 9999,
-            background: '#F9FAFB',
-            boxShadow: 'inset 0 0 0 1px #EAECF0',
+            background: '#FAF9F6',
+            border: '1px solid #E8E5DF',
             color: '#344054',
             fontSize: 12,
             fontWeight: 500,
@@ -879,7 +879,7 @@ export function HierarchyModal({ onClose }: { onClose: () => void }) {
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingTop: 12, borderTop: '1px solid #EAECF0' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingTop: 12, borderTop: '1px solid #E8E5DF' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <ReadField label="Mode" value="Automatic from titles" />
           <ReadField label="Rule set" value="Corporate standard v3" />
@@ -901,9 +901,9 @@ export function HierarchyModal({ onClose }: { onClose: () => void }) {
             })}
           </div>
         </div>
-        <div style={{ paddingTop: 16, borderTop: '1px solid #EAECF0' }}>
+        <div style={{ paddingTop: 16, borderTop: '1px solid #E8E5DF' }}>
           <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Manual overrides</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, padding: '14px 16px', borderRadius: 8, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, padding: '14px 16px', borderRadius: 8, background: '#FAF9F6', border: '1px solid #E8E5DF', flexWrap: 'wrap' }}>
             <span style={{ flex: 1, minWidth: 180 }}>
               <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#101828' }}>Stephanie Bonk</span>
               <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085' }}>VP title → Executive leadership</span>
@@ -924,7 +924,7 @@ function LevelToggleRow({ active, label, keywords, onToggle }: { active: boolean
       onClick={onToggle}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 12, padding: '11px 14px', borderRadius: 8, background: hover ? '#F2F4F7' : active ? '#F9FAFB' : 'transparent' }}
+      style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 12, padding: '11px 14px', borderRadius: 8, background: hover ? '#F2F0EB' : active ? '#FAF9F6' : 'transparent' }}
     >
       <span
         style={{
@@ -936,7 +936,7 @@ function LevelToggleRow({ active, label, keywords, onToggle }: { active: boolean
           height: 18,
           borderRadius: 5,
           background: active ? GRADIENT_DARK : '#ffffff',
-          boxShadow: active ? 'none' : 'inset 0 0 0 1px #D0D5DD',
+          border: active ? '1px solid transparent' : '1px solid #E0DCD4',
           color: '#ffffff',
           fontSize: 11,
           fontWeight: 700,
@@ -1006,7 +1006,7 @@ export function MoveToFolderModal({
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 44, padding: '0 14px', borderRadius: 8, background: '#ffffff', boxShadow: 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 44, padding: '0 14px', borderRadius: 8, background: '#ffffff', border: '1px solid #E0DCD4', boxShadow: '0px 1px 2px rgba(16,24,40,.05)' }}>
           <UIcon name="SearchLg" size={20} color="#667085" />
           <input
             value={query}
@@ -1016,7 +1016,7 @@ export function MoveToFolderModal({
             style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontSize: 14, color: '#101828' }}
           />
         </div>
-        <div style={{ padding: 8, borderRadius: 10, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0', maxHeight: 280, overflowY: 'auto' }}>
+        <div style={{ padding: 8, borderRadius: 10, background: '#FAF9F6', border: '1px solid #E8E5DF', maxHeight: 280, overflowY: 'auto' }}>
           {shown.map((f) => (
             <FolderRow key={f.label} folder={f} selected={selected === f.label} onSelect={() => setSelected(f.label)} />
           ))}
@@ -1041,8 +1041,8 @@ export function MoveToFolderModal({
               height: 32,
               padding: '0 12px 0 10px',
               borderRadius: 9999,
-              background: '#F2F4F7',
-              boxShadow: 'inset 0 0 0 1px #D0D5DD',
+              background: '#F2F0EB',
+              border: '1px solid #E0DCD4',
               color: '#101828',
               fontSize: 13,
               fontWeight: 600,
@@ -1058,7 +1058,7 @@ export function MoveToFolderModal({
             {error}
           </p>
         ) : null}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 16px', borderRadius: 8, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 16px', borderRadius: 8, background: '#FAF9F6', border: '1px solid #E8E5DF' }}>
           <span style={{ flex: '0 0 auto', marginTop: 5, width: 6, height: 6, borderRadius: '50%', background: '#667085' }} />
           <span style={{ flex: 1, minWidth: 0, fontSize: 13, lineHeight: '19px', color: '#475467', textWrap: 'pretty' }}>
             No physical copy is created for smart-linked Strategy, meeting, or Outreach artifacts.
@@ -1139,12 +1139,12 @@ function FolderRow({ folder, selected, onSelect }: { folder: FolderNode; selecte
         gap: 8,
         padding: `9px 12px 9px ${indent}px`,
         borderRadius: 8,
-        background: selected ? '#F2F4F7' : hover ? '#F2F4F7' : 'transparent',
+        background: selected ? '#F2F0EB' : hover ? '#F2F0EB' : 'transparent',
         marginBottom: 2,
       }}
     >
       <span style={{ flex: '0 0 auto', width: 12, fontSize: 11, color: '#98A2B3' }}>{folder.count != null ? '▾' : '·'}</span>
-      <span style={{ flex: '0 0 auto', width: 18, height: 14, borderRadius: 3, background: selected ? GRADIENT_DARK : '#D0D5DD' }} />
+      <span style={{ flex: '0 0 auto', width: 18, height: 14, borderRadius: 3, background: selected ? GRADIENT_DARK : '#E0DCD4' }} />
       <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: selected ? 600 : 400, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {folder.label}
       </span>

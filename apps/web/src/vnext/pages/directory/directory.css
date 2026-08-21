@@ -158,7 +158,7 @@
   height: auto;
   padding: 9px 14px;
   margin-bottom: -1px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 8px 8px 0 0;
   background: transparent;
   box-shadow: none;
@@ -176,7 +176,8 @@
   background: var(--uui-white);
   color: var(--uui-gray-900);
   font-weight: 600;
-  box-shadow: inset 0 0 0 1px var(--uui-gray-200), inset 0 2px 0 var(--capiro-color-text-accent);
+  border-color: var(--uui-gray-200);
+  box-shadow: inset 0 2px 0 var(--capiro-color-text-accent);
 }
 
 .capiro-vnext-root .capiro-directory-tabs .capiro-top-nav-item--current:hover {
@@ -316,10 +317,9 @@
   height: 36px;
   gap: 7px;
   padding: 0 var(--capiro-space-03);
-  border: 0;
+  border: 1px solid var(--uui-gray-200);
   border-radius: var(--capiro-radius-circular);
   background: var(--uui-white);
-  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
   cursor: pointer;
   font-family: var(--uui-font-family);
   font-size: 14px;
@@ -333,7 +333,7 @@
 .capiro-vnext-root .capiro-directory-filter__pill:focus-visible { outline: none; box-shadow: var(--capiro-focus-ring); }
 
 .capiro-vnext-root .capiro-directory-filter__pill--selected {
-  box-shadow: inset 0 0 0 1px var(--capiro-color-text-accent);
+  border-color: var(--capiro-color-text-accent);
   background: var(--capiro-color-bg-accent-soft);
   color: var(--capiro-color-text-accent);
 }
@@ -725,7 +725,7 @@
   align-items: flex-start;
   gap: 10px;
   padding: 12px 14px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: var(--uui-radius-card);
   background: var(--uui-white);
   box-shadow: var(--uui-shadow-card);
@@ -767,11 +767,13 @@
    above it — a ring, not a drop shadow (matches the prototype's tier
    distinction between "org chart" and "roster pool"). */
 .capiro-vnext-root .capiro-directory-node--person {
-  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
+  border-color: var(--uui-gray-200);
+  box-shadow: none;
   max-width: 240px;
 }
 .capiro-vnext-root .capiro-directory-node--selected {
-  box-shadow: inset 0 0 0 2px var(--capiro-color-text-accent);
+  border: 2px solid var(--capiro-color-text-accent);
+  box-shadow: none;
   background: var(--capiro-color-bg-accent-soft);
 }
 /* Dimmed so a former staffer reads as the exception at a glance, scanning the
@@ -2278,12 +2280,12 @@
   padding: 2px;
   border-radius: var(--uui-radius-control);
   background: var(--uui-gray-100);
-  box-shadow: inset 0 0 0 1px var(--uui-gray-200);
+  border: 1px solid var(--uui-gray-200);
   align-self: flex-start;
 }
 
 .capiro-vnext-root .capiro-dirpage-segmented button {
-  border: 0;
+  border: 1px solid transparent;
   padding: 6px 12px;
   border-radius: var(--uui-radius-control);
   background: transparent;
@@ -2304,7 +2306,7 @@
 
 .capiro-vnext-root .capiro-dirpage-segmented button[data-selected] {
   background: var(--uui-white);
-  box-shadow: inset 0 0 0 1px var(--uui-gray-300);
+  border-color: var(--uui-gray-300);
   color: var(--uui-gray-900);
 }
 

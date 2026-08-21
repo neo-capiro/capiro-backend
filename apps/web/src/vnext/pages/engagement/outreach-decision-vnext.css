@@ -541,8 +541,8 @@
   padding: 0 12px;
   border: 0;
   border-radius: 8px;
-  background: #f9fafb;
-  box-shadow: inset 0 0 0 1px #e4e7ec;
+  background: #faf9f6;
+  box-shadow: 0 0 0 1px #e8e5df;
 }
 :where(.capiro-vnext-root .engagement-vnext) .ov3-target-workspace.is-compact .ov3-search-bar input {
   background: transparent;
@@ -1324,6 +1324,9 @@
 }
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-conversation {
+  /* Meri chat panel — the assistant tier (WARM-SURFACE-PALETTE.md), warmer
+     than the white data surface the sibling panels keep. */
+  background: var(--eng-surface-assistant, #fffdfa);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2962,8 +2965,8 @@
 :where(.capiro-vnext-root .engagement-vnext) .ov3-goal-readback__goal {
   padding: 14px 16px;
   border-radius: 10px;
-  background: #f9fafb;
-  box-shadow: inset 0 0 0 1px #e4e7ec;
+  background: #faf9f6;
+  box-shadow: 0 0 0 1px #e8e5df;
   font-size: 14px;
   line-height: 21px;
   color: #101828;
@@ -3155,7 +3158,7 @@
 :where(.capiro-vnext-root .engagement-vnext) .ov3-delivery-card.is-selected {
   background: var(--ov3-selected);
   border-color: var(--ov3-active);
-  box-shadow: inset 0 0 0 1px var(--ov3-active);
+  box-shadow: 0 0 0 1px var(--ov3-active);
 }
 
 :where(.capiro-vnext-root .engagement-vnext) .ov3-delivery-card__icon {

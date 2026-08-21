@@ -18,7 +18,7 @@
 
 .capiro-vnext-root .intel {
   /* Pill tone table [bg, ring, fg] — Untitled UI v8 palette. */
-  --intel-tone-gray-bg: #f2f4f7;    --intel-tone-gray-ring: #e4e7ec;    --intel-tone-gray-fg: #475467;
+  --intel-tone-gray-bg: #f2f0eb;    --intel-tone-gray-ring: #e8e5df;    --intel-tone-gray-fg: #475467;
   --intel-tone-success-bg: #ecfdf3; --intel-tone-success-ring: #abefc6; --intel-tone-success-fg: #027a48;
   --intel-tone-warning-bg: #fff6ed; --intel-tone-warning-ring: #f9dbaf; --intel-tone-warning-fg: #b93815;
   --intel-tone-error-bg: #fef3f2;   --intel-tone-error-ring: #fecdca;   --intel-tone-error-fg: #b42318;

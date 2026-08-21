@@ -126,7 +126,9 @@
   height: 32px;
   border-radius: 8px;
   background: var(--st-white);
-  box-shadow: inset 0 0 0 1px var(--st-gray-200);
+  /* The kit button already carries a 1px border (primitives.css) — recolor it
+     rather than layering a second edge. */
+  border-color: var(--st-gray-200);
   color: var(--st-gray-500);
 }
 
@@ -296,7 +298,7 @@
 }
 
 /* Uppercase micro-label role — `--st-accent-deep-eyebrow` (#98A2B3), not
-   `-label` (#D0D5DD is the body-copy shade; using it here under-contrasts
+   `-label` (#E0DCD4 is the body-copy shade; using it here under-contrasts
    the eyebrow against every dark panel in the reference). */
 .capiro-strategies .st-dark-panel__label {
   margin: 0 0 10px;
@@ -710,7 +712,7 @@
 }
 
 /* Renders on the (light) modal body, not a dark panel — gray-600, not the
-   dark-panel body tone (`--st-accent-deep-label` is a near-white D0D5DD that
+   dark-panel body tone (`--st-accent-deep-label` is a near-white E0DCD4 that
    under-contrasts against white/gray-50). Individual usages still override
    to success/error fg for a specific status line. */
 .capiro-strategies .st-rule {
@@ -1284,7 +1286,7 @@
   height: 20px;
   border-radius: 6px;
   background: var(--st-white);
-  box-shadow: inset 0 0 0 1px var(--st-error-ring);
+  border: 1px solid var(--st-error-ring);
   color: var(--st-error-fg);
   display: grid;
   place-items: center;

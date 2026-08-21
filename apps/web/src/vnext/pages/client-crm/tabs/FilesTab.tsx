@@ -625,8 +625,8 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                 gap: 12,
                 padding: '10px 16px',
                 borderRadius: 8,
-                background: entry.status === 'failed' ? '#FEF3F2' : '#F9FAFB',
-                boxShadow: entry.status === 'failed' ? 'inset 0 0 0 1px #FECDCA' : 'inset 0 0 0 1px #EAECF0',
+                background: entry.status === 'failed' ? '#FEF3F2' : '#FAF9F6',
+                border: entry.status === 'failed' ? '1px solid #FECDCA' : '1px solid #E8E5DF',
               }}
             >
               <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -654,7 +654,8 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
             maxWidth: 360,
             borderRadius: 8,
             background: '#ffffff',
-            boxShadow: 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+            border: '1px solid #E0DCD4',
+            boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
           }}
         >
           <UIcon name="SearchLg" size={18} color="#667085" />
@@ -683,8 +684,8 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
             gap: 12,
             padding: '12px 18px',
             borderRadius: 10,
-            background: '#F2F4F7',
-            boxShadow: 'inset 0 0 0 1px #D0D5DD',
+            background: '#F2F0EB',
+            border: '1px solid #E0DCD4',
             flexWrap: 'wrap',
           }}
         >
@@ -716,7 +717,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
           style={{
             background: '#ffffff',
             borderRadius: 12,
-            boxShadow: '0 0 0 1px #EAECF0,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)',
+            boxShadow: '0 0 0 1px #E8E5DF,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)',
             overflow: 'hidden',
           }}
         >
@@ -748,7 +749,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
               <FolderTreeRow key={folder.id} folder={folder} active={folder.id === folderId} onPick={() => pickFolder(folder.id)} />
             ))}
           </div>
-          <div style={{ padding: '16px 20px 20px', borderTop: '1px solid #EAECF0' }}>
+          <div style={{ padding: '16px 20px 20px', borderTop: '1px solid #E8E5DF' }}>
             <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
               Client storage
             </div>
@@ -774,7 +775,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                 <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: storageOver ? '#B54708' : '#101828' }}>
                   {`${formatBytes(storedBytes)} of ${formatBytes(CLIENT_STORAGE_QUOTA_BYTES)}`}
                 </div>
-                <span style={{ display: 'block', marginTop: 8, height: 6, borderRadius: 3, background: '#F2F4F7', overflow: 'hidden' }}>
+                <span style={{ display: 'block', marginTop: 8, height: 6, borderRadius: 3, background: '#F2F0EB', overflow: 'hidden' }}>
                   <span
                     style={{
                       display: 'block',
@@ -800,7 +801,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                 <div style={{ marginTop: 6, fontSize: 16, fontWeight: 600, color: '#98A2B3' }} aria-busy={filesQuery.isPending}>
                   {filesQuery.isPending ? 'Measuring…' : 'Storage unavailable'}
                 </div>
-                <span style={{ display: 'block', marginTop: 8, height: 6, borderRadius: 3, background: '#F2F4F7' }} />
+                <span style={{ display: 'block', marginTop: 8, height: 6, borderRadius: 3, background: '#F2F0EB' }} />
               </>
             )}
             <p style={{ margin: '12px 0 0', fontSize: 13, lineHeight: '19px', color: '#667085', textWrap: 'pretty' }}>
@@ -815,7 +816,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
           style={{
             background: '#ffffff',
             borderRadius: 12,
-            boxShadow: '0 0 0 1px #EAECF0,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)',
+            boxShadow: '0 0 0 1px #E8E5DF,0px 1px 3px rgba(16,24,40,.1),0px 1px 2px rgba(16,24,40,.06)',
             overflow: 'hidden',
           }}
         >
@@ -866,9 +867,9 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                   alignItems: 'center',
                   gap: 14,
                   padding: '10px 24px',
-                  background: '#F9FAFB',
-                  borderTop: '1px solid #EAECF0',
-                  borderBottom: '1px solid #EAECF0',
+                  background: '#FAF9F6',
+                  borderTop: '1px solid #E8E5DF',
+                  borderBottom: '1px solid #E8E5DF',
                   fontSize: 12,
                   fontWeight: 600,
                   letterSpacing: '.04em',
@@ -911,7 +912,7 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                     row={row}
                     real={real}
                     checked={selected.has(row.id)}
-                    bg={selected.has(row.id) ? '#F2F4F7' : i % 2 === 1 ? '#FCFCFD' : '#ffffff'}
+                    bg={selected.has(row.id) ? '#F2F0EB' : i % 2 === 1 ? '#FAF9F6' : '#ffffff'}
                     menuOpen={menuRowId === row.id}
                     onToggle={() => toggleRow(row.id)}
                     onToggleMenu={() => setMenuRowId((prev) => (prev === row.id ? null : row.id))}
@@ -936,8 +937,8 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
               alignItems: 'center',
               gap: 12,
               padding: '14px 24px',
-              background: '#FCFCFD',
-              borderTop: '1px solid #EAECF0',
+              background: '#FAF9F6',
+              borderTop: '1px solid #E8E5DF',
               flexWrap: 'wrap',
             }}
           >
@@ -1099,10 +1100,10 @@ function NewFolderModal({
             height: 40,
             padding: '0 12px',
             borderRadius: 8,
-            border: 0,
+            border: '1px solid #E0DCD4',
             outline: 'none',
             background: '#ffffff',
-            boxShadow: 'inset 0 0 0 1px #D0D5DD,0px 1px 2px rgba(16,24,40,.05)',
+            boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
             fontSize: 14,
             color: '#101828',
           }}
@@ -1140,8 +1141,8 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
         height: 36,
         padding: '0 12px',
         borderRadius: 8,
-        background: active ? '#F2F4F7' : hover ? '#F9FAFB' : '#ffffff',
-        boxShadow: 'inset 0 0 0 1px #D0D5DD',
+        background: active ? '#F2F0EB' : hover ? '#FAF9F6' : '#ffffff',
+        border: '1px solid #E0DCD4',
         color: active ? '#101828' : '#344054',
         fontSize: 13,
         fontWeight: 600,
@@ -1168,8 +1169,8 @@ function SortButton({ label, onClick }: { label: string; onClick: () => void }) 
         height: 32,
         padding: '0 10px',
         borderRadius: 8,
-        background: hover ? '#F2F4F7' : 'transparent',
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
+        background: hover ? '#F2F0EB' : 'transparent',
+        border: '1px solid #E8E5DF',
         fontSize: 12,
         fontWeight: 600,
         letterSpacing: '.04em',
@@ -1201,8 +1202,8 @@ function FolderTreeRow({ folder, active, onPick }: { folder: FolderTreeNode; act
         padding: `8px 10px 8px ${12 + folder.depth * 16}px`,
         borderRadius: 8,
         marginBottom: 2,
-        background: active ? '#F2F4F7' : hover ? '#F9FAFB' : 'transparent',
-        boxShadow: active ? 'inset 0 0 0 1px #D0D5DD' : 'none',
+        background: active ? '#F2F0EB' : hover ? '#FAF9F6' : 'transparent',
+        border: active ? '1px solid #E0DCD4' : '1px solid transparent',
       }}
     >
       <span style={{ flex: '0 0 auto', width: 12, fontSize: 11, color: '#98A2B3' }}>{caret}</span>
@@ -1257,7 +1258,7 @@ function Checkbox({
           height: 18,
           borderRadius: 4,
           background: checked ? GRADIENT_DARK : '#ffffff',
-          boxShadow: checked ? 'inset 0 0 0 1px #101828' : 'inset 0 0 0 1px #D0D5DD',
+          border: checked ? '1px solid #101828' : '1px solid #E0DCD4',
           color: '#ffffff',
           fontSize: 10,
           fontWeight: 700,
@@ -1304,8 +1305,8 @@ function FileRow({
         alignItems: 'center',
         gap: 14,
         padding: '12px 24px',
-        borderBottom: '1px solid #EAECF0',
-        background: hover && !checked ? '#F9FAFB' : bg,
+        borderBottom: '1px solid #E8E5DF',
+        background: hover && !checked ? '#FAF9F6' : bg,
       }}
     >
       <Checkbox checked={checked} onToggle={onToggle} ariaLabel={`Select ${row.name}`} />
@@ -1327,8 +1328,8 @@ function FileRow({
             width: 34,
             height: 34,
             borderRadius: 6,
-            background: '#F9FAFB',
-            boxShadow: 'inset 0 0 0 1px #EAECF0',
+            background: '#FAF9F6',
+            border: '1px solid #E8E5DF',
             color: '#475467',
             fontSize: 9,
             fontWeight: 700,
@@ -1361,8 +1362,8 @@ function FileRow({
                   height: 20,
                   padding: '0 8px 0 6px',
                   borderRadius: 9999,
-                  background: '#F2F4F7',
-                  boxShadow: 'inset 0 0 0 1px #D0D5DD',
+                  background: '#F2F0EB',
+                  border: '1px solid #E0DCD4',
                   color: '#101828',
                   fontSize: 11,
                   fontWeight: 500,
@@ -1421,7 +1422,7 @@ function FileRow({
                 padding: 6,
                 borderRadius: 8,
                 background: '#ffffff',
-                boxShadow: '0px 12px 16px -4px rgba(16,24,40,.14),0px 0 0 1px #EAECF0',
+                boxShadow: '0px 12px 16px -4px rgba(16,24,40,.14),0px 0 0 1px #E8E5DF',
               }}
             >
               <MenuItem onClick={onRequestMove}>Move to folder</MenuItem>
@@ -1452,7 +1453,7 @@ function MenuItem({ children, danger = false, onClick }: { children: React.React
         height: 34,
         padding: '0 10px',
         borderRadius: 6,
-        background: hover ? (danger ? '#FEF3F2' : '#F9FAFB') : 'transparent',
+        background: hover ? (danger ? '#FEF3F2' : '#FAF9F6') : 'transparent',
         color: danger ? '#B42318' : '#101828',
         fontSize: 14,
         fontWeight: 500,

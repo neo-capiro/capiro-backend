@@ -131,7 +131,7 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
         margin: '0 18px 16px',
         borderRadius: 10,
         background: '#ffffff',
-        boxShadow: 'inset 0 0 0 1px #EAECF0',
+        border: '1px solid #E8E5DF',
         overflow: 'hidden',
       }}
     >
@@ -159,8 +159,8 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
                   height: 26,
                   padding: '0 10px',
                   borderRadius: 7,
-                  background: on ? '#F2F4F7' : '#ffffff',
-                  boxShadow: on ? 'inset 0 0 0 1px #D0D5DD' : 'inset 0 0 0 1px #EAECF0',
+                  background: on ? '#F2F0EB' : '#ffffff',
+                  border: on ? '1px solid #E0DCD4' : '1px solid #E8E5DF',
                   fontFamily: MONO,
                   fontSize: 10,
                   fontWeight: 500,
@@ -179,7 +179,7 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
               height: 26,
               padding: '0 10px',
               borderRadius: 7,
-              boxShadow: 'inset 0 0 0 1px #EAECF0',
+              border: '1px solid #E8E5DF',
               fontFamily: MONO,
               fontSize: 10,
               fontWeight: 500,
@@ -196,7 +196,7 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
               height: 26,
               padding: '0 10px',
               borderRadius: 7,
-              boxShadow: 'inset 0 0 0 1px #EAECF0',
+              border: '1px solid #E8E5DF',
               fontFamily: MONO,
               fontSize: 10,
               fontWeight: 500,
@@ -218,7 +218,7 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
               width: 26,
               height: 26,
               borderRadius: 7,
-              boxShadow: 'inset 0 0 0 1px #EAECF0',
+              border: '1px solid #E8E5DF',
               color: '#344054',
             }}
           >
@@ -228,7 +228,7 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
       </div>
 
       {spec.insight ? (
-        <div style={{ margin: '0 16px', padding: '11px 13px', borderRadius: 8, background: '#F2F4F7' }}>
+        <div style={{ margin: '0 16px', padding: '11px 13px', borderRadius: 8, background: '#F2F0EB' }}>
           <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 500, letterSpacing: '.09em', color: '#101828' }}>
             INSIGHT ·{' '}
           </span>
@@ -255,8 +255,8 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
                     height: 26,
                     padding: '0 10px',
                     borderRadius: 7,
-                    background: hidden ? '#F9FAFB' : '#ffffff',
-                    boxShadow: 'inset 0 0 0 1px #EAECF0',
+                    background: hidden ? '#FAF9F6' : '#ffffff',
+                    border: '1px solid #E8E5DF',
                   }}
                 >
                   <span
@@ -264,7 +264,7 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
                       width: 9,
                       height: 9,
                       borderRadius: 2,
-                      background: hidden ? '#D0D5DD' : series.color,
+                      background: hidden ? '#E0DCD4' : series.color,
                     }}
                   />
                   <span
@@ -290,7 +290,7 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
                 gap: 20,
                 height: 206,
                 paddingBottom: 10,
-                borderBottom: '1px solid #D0D5DD',
+                borderBottom: '1px solid #E0DCD4',
               }}
             >
               {spec.groups.map((group) => (
@@ -394,7 +394,7 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
                     key={`${col.v}-${i}`}
                     style={{
                       padding: '8px 10px',
-                      borderBottom: '1px solid #EAECF0',
+                      borderBottom: '1px solid #E8E5DF',
                       textAlign: col.align ?? 'left',
                       fontFamily: MONO,
                       fontSize: 10,
@@ -416,7 +416,7 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
                       key={cellIndex}
                       style={{
                         padding: '9px 10px',
-                        borderBottom: '1px solid #F2F4F7',
+                        borderBottom: '1px solid #F2F0EB',
                         textAlign: cell.align ?? 'left',
                         fontFamily: cell.mono ? MONO : 'inherit',
                         fontSize: 13,
@@ -434,12 +434,12 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
       ) : null}
 
       {view === 'image' ? (
-        <div style={{ margin: '12px 16px 0', padding: 20, borderRadius: 9, background: '#F9FAFB', boxShadow: 'inset 0 0 0 1px #EAECF0' }}>
+        <div style={{ margin: '12px 16px 0', padding: 20, borderRadius: 9, background: '#FAF9F6', border: '1px solid #E8E5DF' }}>
           <div
             style={{
               height: 170,
               borderRadius: 7,
-              background: 'repeating-linear-gradient(135deg,#EAECF0 0 8px,#F2F4F7 8px 16px)',
+              background: 'repeating-linear-gradient(135deg,#E8E5DF 0 8px,#F2F0EB 8px 16px)',
             }}
           />
           <div
@@ -465,8 +465,8 @@ export function MeriAnalysisCard({ spec = MERI_ANALYSIS_FIXTURE, onExpand }: Mer
           gap: '8px 14px',
           marginTop: 14,
           padding: '11px 16px',
-          borderTop: '1px solid #EAECF0',
-          background: '#F9FAFB',
+          borderTop: '1px solid #E8E5DF',
+          background: '#FAF9F6',
         }}
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>

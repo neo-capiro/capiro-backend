@@ -48,15 +48,15 @@
   --ws-body: #475467;
   --ws-muted: #667085;
   --ws-faint: #98a2b3;
-  --ws-line: #eaecf0;
-  --ws-control-ring: #d0d5dd;
-  --ws-page-bg: #f9fafb;
-  --ws-sunken: #f2f4f7;
+  --ws-line: #e8e5df;
+  --ws-control-ring: #e0dcd4;
+  --ws-page-bg: #f4f3f0;
+  --ws-sunken: #f2f0eb;
   --ws-selected: #edf3f7;
   --ws-selected-ring: #c3d5e1;
   --ws-cream: #f5f0e3;
   --ws-cream-ink: #8a6027;
-  --ws-paper: #fefdfa;
+  --ws-paper: var(--capiro-surface-assistant, #fffdfa);
   --ws-paper-body: #1d2939;
   --ws-green: #2f6b4f;
   --ws-green-bg: #ecf4ef;
@@ -167,7 +167,7 @@
 }
 
 .ws-vnext-scope-segment button[aria-selected='true'] {
-  background: var(--ws-page-bg);
+  background: #faf9f6;
   color: var(--ws-ink);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
@@ -202,7 +202,7 @@
 }
 
 .ws-vnext-table tbody tr:hover {
-  background: var(--ws-page-bg);
+  background: #faf9f6;
 }
 
 .ws-vnext-doc-title {
@@ -273,7 +273,7 @@
 }
 
 .ws-vnext-attention-card {
-  background: var(--ws-page-bg);
+  background: #faf9f6;
   border: 1px solid var(--ws-line);
   border-radius: 11px;
   padding: 16px;
@@ -539,6 +539,8 @@
   border-right: 1px solid var(--ws-line);
   flex: 0 1 var(--ws-agent-panel-width);
   min-width: var(--ws-agent-panel-collapsed);
+  /* Meri chat surface — assistant tier, warmer than the data/canvas panes. */
+  background: var(--capiro-surface-assistant, #fffdfa);
 }
 
 .ws-vnext-pane--inspector {
@@ -631,13 +633,13 @@
 }
 
 .ws-vnext-msg--agent {
-  background: #eef1f5;
+  background: #f2f0eb;
   align-self: flex-start;
   border-bottom-left-radius: 3px;
 }
 
 .ws-vnext-msg--user {
-  background: #f4f6f9;
+  background: #faf9f6;
   align-self: flex-end;
   border-bottom-right-radius: 3px;
 }
@@ -737,7 +739,9 @@
   font-size: 13px;
   font-family: var(--capiro-type-family-sans);
   color: var(--ws-ink);
-  background: var(--ws-page-bg);
+  /* Sits on the Meri (assistant-tier) panel — stays flush with it, as the old
+     page-bg-on-page-bg pairing did. */
+  background: var(--capiro-surface-assistant, #fffdfa);
   line-height: 18px;
 }
 
@@ -1040,7 +1044,7 @@
   border: 1px solid var(--ws-line);
   border-radius: 8px;
   padding: 12px 16px;
-  background: var(--ws-page-bg);
+  background: #faf9f6;
 }
 
 .ws-vnext-scaffold-section__header {
@@ -1344,7 +1348,7 @@
 
 /* Inspector cards */
 .ws-vnext-card {
-  background: var(--ws-page-bg);
+  background: #faf9f6;
   border: 1px solid var(--ws-line);
   border-radius: 8px;
   padding: 12px;
@@ -1519,7 +1523,7 @@
   width: 90%;
   max-width: 560px;
   max-height: 80vh;
-  background: var(--ws-page-bg);
+  background: #faf9f6;
   border-radius: 15px;
   display: flex;
   flex-direction: column;
@@ -1967,7 +1971,7 @@
 
 .ws-vnext-scope-segment__btn {
   border: 1px solid var(--ws-control-ring);
-  background: var(--ws-page-bg);
+  background: #faf9f6;
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 12px;
@@ -2014,7 +2018,7 @@
 
 .ws-vnext-studio__btn {
   border: 1px solid var(--ws-control-ring);
-  background: var(--ws-page-bg);
+  background: #faf9f6;
   padding: 7px 14px;
   border-radius: 8px;
   font-size: 13px;
@@ -2391,7 +2395,7 @@
   padding: 6px 10px;
   cursor: pointer;
   font-size: 12px;
-  background: var(--ws-page-bg);
+  background: #faf9f6;
   font-family: var(--capiro-type-family-sans);
 }
 
@@ -2582,7 +2586,9 @@
     inset: 0;
     z-index: 100;
     border: 0;
-    background: var(--ws-page-bg);
+    /* No background here: each pane keeps its own opaque ground from the base
+       rules (agent = assistant tier, inspector = page canvas). A shared
+       declaration would stomp the agent pane's warmer Meri surface. */
   }
 
   /* Touch targets. These controls are 24-30px tall by design and the Figma
