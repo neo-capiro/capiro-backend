@@ -225,6 +225,19 @@ describe('confidence is evidence quality, not a win probability', () => {
     expect(r.reasonCodes).toContain('prior_agency_award_history');
   });
 
+  test.each(['agencyHistory', 'officeHistory', 'agency'] as const)(
+    'recognizes the live scorer key %s as prior agency history',
+    (key) => {
+      // SAM emits agencyHistory/officeHistory; grants emit agency. These are the
+      // keys that actually reach recommendOpportunity in production.
+      const r = recommendOpportunity(input({ signalKeys: ['naicsExact', key] }));
+      expect(r.machineRecommendation).toBe('pursue');
+      expect(r.recommendationConfidence).toBe('high');
+      expect(r.reasonCodes).toContain('prior_agency_award_history');
+      expect(r.primaryRisk).not.toBe('No prior award history with this agency.');
+    },
+  );
+
   test('a strong match WITHOUT agency history is only medium', () => {
     // One exact code match is real evidence but a thin basis for committing bid
     // effort, and saying "high" would overstate what is known.

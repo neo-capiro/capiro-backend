@@ -64,7 +64,6 @@ import {
 } from '../src/district-nexus/grant-opportunity-candidates.js';
 import {
   scoreOpportunityRelevance,
-  MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR,
 } from '../src/district-nexus/grant-opportunity-relevance.js';
 
 dotenvConfig();
@@ -73,19 +72,18 @@ const SOURCE = 'generate-grant-opportunity-candidates';
 const EVIDENCE_SOURCE_TYPE = 'deterministic_relevance_v1';
 const RELATIONSHIP_TYPE = 'opportunity_candidate';
 /**
- * The default floor is DERIVED, not written down. The product rule is "an exact
- * prior Assistance Listing, on its own, qualifies a candidate", and
- * MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR is that rule expressed against the
- * scorer's CURRENT denominator.
+ * Numeric backstop only. Evidence quality is owned by
+ * `scoreOpportunityRelevance(...).meetsSuggestionFloor` (1 strong, 2 moderate,
+ * or capability-keyword + distinctive weak topical signal).
  *
- * It used to be the literal `40`, correct only while
- * RELEVANCE_WEIGHTS.assistanceListing was 40 AND the denominator happened to be
- * 100. The Funding Opportunities work added two strong signals, moving the
- * denominator to 140 — at which point a hardcoded 40 would have silently begun
- * EXCLUDING listing-only matches: this shipped producer generating fewer
- * candidates every night with nothing failing to say so.
+ * This used to equal MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR (~29) so that
+ * "listing alone qualifies" was expressed as a score threshold. That rule now
+ * lives on the floor's strong-signal arm. Keeping the numeric default at the
+ * listing floor would silently drop every keyword+sector grant (~18) that the
+ * read path surfaces — the exact miss this change closes. 15 matches the SAM
+ * producer's DEFAULT_MIN_RELEVANCE and sits just under keyword+sector.
  */
-export const DEFAULT_MIN_RELEVANCE = MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR;
+export const DEFAULT_MIN_RELEVANCE = 15;
 
 function hasFlag(argv: string[], name: string): boolean {
   return argv.includes(`--${name}`);
@@ -390,7 +388,11 @@ export async function generateCandidates(
               // guess — computeEligibility treats empty as unrestricted.
               geographicRestrictions: [],
             });
-            const clears = scored.relevanceScore >= options.minRelevance;
+            // Floor first (evidence quality), then the numeric minRelevance
+            // backstop. A keyword+sector fit clears the floor even when the
+            // absolute score is below an Assistance-Listing-only threshold.
+            const clears =
+              scored.meetsSuggestionFloor && scored.relevanceScore >= options.minRelevance;
 
             const existing = existingByGrantId.get(grant.id) ?? null;
 

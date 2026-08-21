@@ -377,13 +377,26 @@ export async function fetchPage(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetchImpl(`${SAM_URL}?${params.toString()}`, { signal: controller.signal });
-    let json: SamSearchResponse;
+    let json: SamSearchResponse | null = null;
     try {
       json = (await res.json()) as SamSearchResponse;
     } catch {
+      // 401 from SAM is often an HTML/login body, not JSON — surface the status
+      // clearly so operators know to rotate SAM_GOV_API_KEY rather than chase a
+      // parse bug.
+      if (res.status === 401 || res.status === 403) {
+        throw new Error(
+          `SAM.gov ${res.status}: unauthorized (non-JSON body). Check SAM_GOV_API_KEY is present, active, and entitled for opportunities/v2/search.`,
+        );
+      }
       throw new Error(`SAM.gov ${res.status}: response was not valid JSON`);
     }
     if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        throw new Error(
+          `SAM.gov ${res.status}: unauthorized. Check SAM_GOV_API_KEY is present, active, and entitled for opportunities/v2/search. Provider said: ${json.error?.message ?? JSON.stringify(json).slice(0, 200)}`,
+        );
+      }
       throw new Error(
         `SAM.gov ${res.status}: ${json.error?.message ?? JSON.stringify(json).slice(0, 200)}`,
       );

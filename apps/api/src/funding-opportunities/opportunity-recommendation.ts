@@ -198,7 +198,24 @@ export interface OpportunityRecommendationResult {
   reasonCodes: RecommendationReasonCode[];
 }
 
-const AGENCY_HISTORY_SIGNALS = new Set(['priorAgency', 'priorAgencyAwardHistory', 'priorOffice']);
+/**
+ * Keys the scorer actually emits for prior-agency evidence.
+ *
+ * Historically this set used speculative names (`priorAgency`,
+ * `priorAgencyAwardHistory`, `priorOffice`) that no rail ever produced. SAM
+ * emits `agencyHistory` / `officeHistory`; the grant scorer emits `agency`.
+ * Without those real keys a strong agency-history match could never raise
+ * confidence or suppress the "no prior award history" risk line.
+ */
+const AGENCY_HISTORY_SIGNALS = new Set([
+  'agencyHistory',
+  'officeHistory',
+  'agency',
+  // Legacy aliases kept so older fixtures / producers still count.
+  'priorAgency',
+  'priorAgencyAwardHistory',
+  'priorOffice',
+]);
 
 function tally(strengths: ReadonlyArray<'strong' | 'moderate' | 'weak'>) {
   let strong = 0;

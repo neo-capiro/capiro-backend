@@ -140,6 +140,16 @@ export interface RelevanceResult {
   eligibilityState: EligibilityState;
   /** Operator-readable justification for eligibilityState. Always populated. */
   reason: string;
+  /**
+   * Whether this pair is strong enough to SURFACE as a suggestion.
+   *
+   * Same bar as SAM for the structured half (1 strong OR 2 moderate), PLUS a
+   * grant-specific path: one moderate capability-keyword hit together with a
+   * distinctive weak topical signal (sector / fundingCategory / knownPartner).
+   * Keyword-only fit used to be invisible because grants have only one moderate
+   * signal; the weak companion is what stops pure noise from clearing the floor.
+   */
+  meetsSuggestionFloor: boolean;
 }
 
 // Fixed total signal weight — the scoring denominator (see scoreOpportunityRelevance).
@@ -391,5 +401,35 @@ export function scoreOpportunityRelevance(
     matchedSignals,
     eligibilityState: eligibility.state,
     reason: eligibility.reason,
+    meetsSuggestionFloor: meetsGrantSuggestionFloor(matchedSignals),
   };
+}
+
+/**
+ * Grant suggestion floor. Exported so the FO service and producers share one
+ * definition rather than re-deriving the band math inline.
+ *
+ *   - 1 strong, OR
+ *   - 2 moderate, OR
+ *   - 1 moderate capabilityKeyword AND 1 distinctive weak topical signal
+ *     (sector / fundingCategory / knownPartner)
+ *
+ * The third arm is grant-specific: this rail has only one moderate signal, so
+ * the strict SAM floor (1 strong / 2 moderate) made every keyword-only fit
+ * invisible even when a real sector token also hit.
+ */
+export function meetsGrantSuggestionFloor(
+  signals: ReadonlyArray<Pick<MatchedSignal, 'signal' | 'strength'>>,
+): boolean {
+  const strong = signals.filter((s) => s.strength === 'strong').length;
+  if (strong >= 1) return true;
+  const moderate = signals.filter((s) => s.strength === 'moderate');
+  if (moderate.length >= 2) return true;
+  const hasKeyword = moderate.some((s) => s.signal === 'capabilityKeyword');
+  if (!hasKeyword) return false;
+  return signals.some(
+    (s) =>
+      s.strength === 'weak' &&
+      (s.signal === 'sector' || s.signal === 'fundingCategory' || s.signal === 'knownPartner'),
+  );
 }

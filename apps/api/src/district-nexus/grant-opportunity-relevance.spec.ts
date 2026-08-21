@@ -1,6 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import {
   computeEligibility,
+  meetsGrantSuggestionFloor,
   scoreOpportunityRelevance,
   MIN_RELEVANCE_ASSISTANCE_LISTING_FLOOR,
   RELEVANCE_MAX_SCORE,
@@ -358,5 +359,50 @@ describe('relevance and eligibility are independent', () => {
     );
     expect(result.relevanceScore).toBe(0);
     expect(result.eligibilityState).toBe('ineligible');
+  });
+});
+
+describe('grant suggestion floor', () => {
+  test('an assistance-listing hit alone clears the floor', () => {
+    const result = scoreOpportunityRelevance(
+      client({ priorAssistanceListings: ['93.778'] }),
+      opportunity({ assistanceListingNumber: '93.778' }),
+    );
+    expect(result.meetsSuggestionFloor).toBe(true);
+    expect(meetsGrantSuggestionFloor(result.matchedSignals)).toBe(true);
+  });
+
+  test('a capability keyword PLUS a distinctive sector token clears the floor', () => {
+    // Keyword alone is moderate; sector is weak. Together they are enough to
+    // surface a grant that previously stayed hidden under the SAM-style floor.
+    const result = scoreOpportunityRelevance(
+      client({ capabilityKeywords: ['hypersonics'], sector: 'Aerospace' }),
+      opportunity({
+        title: 'Hypersonics research for aerospace platforms',
+        description: 'Propulsion and materials for hypersonic flight.',
+      }),
+    );
+    expect(result.matchedSignals.map((s) => s.signal)).toEqual(
+      expect.arrayContaining(['capabilityKeyword', 'sector']),
+    );
+    expect(result.meetsSuggestionFloor).toBe(true);
+  });
+
+  test('a capability keyword alone does NOT clear the floor', () => {
+    const result = scoreOpportunityRelevance(
+      client({ capabilityKeywords: ['hypersonics'] }),
+      opportunity({ title: 'Hypersonics research initiative', description: null }),
+    );
+    expect(result.matchedSignals.map((s) => s.signal)).toEqual(['capabilityKeyword']);
+    expect(result.meetsSuggestionFloor).toBe(false);
+  });
+
+  test('a sector-only weak hit does NOT clear the floor', () => {
+    const result = scoreOpportunityRelevance(
+      client({ sector: 'Aerospace' }),
+      opportunity({ title: 'Aerospace materials program', description: null }),
+    );
+    expect(result.matchedSignals.map((s) => s.signal)).toEqual(['sector']);
+    expect(result.meetsSuggestionFloor).toBe(false);
   });
 });

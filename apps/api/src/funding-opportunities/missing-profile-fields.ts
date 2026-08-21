@@ -55,6 +55,10 @@ function mappingsHref(clientId: string): string {
  *
  * Scoped by source on purpose: telling somebody looking at grant opportunities
  * that their PSC codes are missing is noise — PSC feeds no grant signal.
+ *
+ * Ordered most-actionable-first for the selected rail so the UI's "complete
+ * these fields" list starts with what unlocks the strongest signals, not an
+ * arbitrary field-enumeration order.
  */
 export function missingProfileFields(
   p: ProfileCompleteness,
@@ -64,13 +68,18 @@ export function missingProfileFields(
   const wantSam = source === undefined || source === 'sam_gov';
   const out: MissingProfileField[] = [];
 
-  if (wantGrants && p.applicantTypeCount === 0) {
+  // Contractor identity first when SAM is in play: without it agency-history is
+  // permanently silent even for clients that already hold a UEI.
+  if (wantSam && p.confirmedContractorMappings === 0) {
     out.push({
-      field: 'applicantTypes',
-      label: 'Grants.gov applicant types',
-      impact:
-        'Without them, grant eligibility can only ever be “needs review”, never “eligible”, and the applicant-type relevance signal cannot fire.',
-      href: clientSettingsHref(p.clientId),
+      field: 'contractorIdentity',
+      label: p.hasUei
+        ? 'Confirm federal contractor identity (UEI on file)'
+        : 'Confirmed federal contractor identity',
+      impact: p.hasUei
+        ? 'This client already has a UEI, but no accepted contracting mapping links it to federal award history. Until that mapping is confirmed, the agency-history and contracting-office signals stay silent and pursue confidence cannot rise on prior awards.'
+        : 'Without a confirmed contractor identity, this client has no award history, so the agency-history and contracting-office signals have nothing to compare against.',
+      href: mappingsHref(p.clientId),
     });
   }
 
@@ -79,7 +88,7 @@ export function missingProfileFields(
       field: 'naicsCodes',
       label: 'NAICS codes',
       impact:
-        'NAICS is the strongest contract-matching signal. With none recorded, contract opportunities can only match on PSC, agency history or capability text.',
+        'NAICS is the strongest contract-matching signal. With none recorded, contract opportunities can only match on PSC, agency history or capability text. Prefer full 6-digit codes; shorter industry codes still match within their prefix but exact identity is stronger.',
       href: clientSettingsHref(p.clientId),
     });
   }
@@ -89,7 +98,17 @@ export function missingProfileFields(
       field: 'pscCodes',
       label: 'PSC codes',
       impact:
-        'Product/Service Codes are how SAM.gov classifies what is being bought; without them the product-and-service-category signal cannot fire.',
+        'Product/Service Codes are how SAM.gov classifies what is being bought; without them the product-and-service-category signal cannot fire. Most active notices carry a PSC — missing this field is the single largest structured gap after NAICS.',
+      href: clientSettingsHref(p.clientId),
+    });
+  }
+
+  if (wantGrants && p.applicantTypeCount === 0) {
+    out.push({
+      field: 'applicantTypes',
+      label: 'Grants.gov applicant types',
+      impact:
+        'Without them, grant eligibility can only ever be “needs review”, never “eligible”, and the applicant-type relevance signal cannot fire. Record only the legal forms this client actually qualifies as — not the full Grants.gov enum.',
       href: clientSettingsHref(p.clientId),
     });
   }
@@ -99,18 +118,8 @@ export function missingProfileFields(
       field: 'capabilities',
       label: 'Capabilities',
       impact:
-        'Capability names and keywords drive the text-matching signal on both rails. With no capabilities, a notice can only match on codes and history.',
+        'Capability names and keywords drive the text-matching signal on both rails. With no capabilities, a notice can only match on codes and history. Distinctive multi-word phrases (not generic words like “systems” or “defense”) are what clear the suggestion floor on grants.',
       href: clientSettingsHref(p.clientId),
-    });
-  }
-
-  if (p.confirmedContractorMappings === 0) {
-    out.push({
-      field: 'contractorIdentity',
-      label: 'Confirmed federal contractor identity',
-      impact:
-        'Without a confirmed contractor identity, this client has no award history, so the agency-history and contracting-office signals have nothing to compare against.',
-      href: mappingsHref(p.clientId),
     });
   }
 

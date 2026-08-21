@@ -8,6 +8,8 @@ import {
 } from '../district-nexus/grant-opportunity-relevance.js';
 import {
   computeSamEligibility,
+  expandClientNaicsCodes,
+  agencyFetchVariants,
   scoreSamOpportunityRelevance,
   type SamClientProfile,
   type SamOpportunityProfile,
@@ -1243,10 +1245,14 @@ export class FundingOpportunitiesService {
       const applicantTypes = dedupe(facts.grantProfile.applicantTypes);
       if (listings.length) structuredOr.push({ cfdaNumbers: { hasSome: listings } });
       if (applicantTypes.length) structuredOr.push({ eligibility: { hasSome: applicantTypes } });
+      // Expand Department/Dept spellings so award-history agencies reach SAM-like
+      // grant agency strings at fetch time, not only after scoring.
       structuredOr.push(
-        ...agencies.slice(0, TARGET_TERM_CAP).map((agency) => ({
-          agency: { equals: agency, mode: 'insensitive' as const },
-        })),
+        ...agencyFetchVariants(agencies)
+          .slice(0, TARGET_TERM_CAP)
+          .map((agency) => ({
+            agency: { equals: agency, mode: 'insensitive' as const },
+          })),
       );
       const terms = distinctiveSearchTerms([
         ...facts.grantProfile.capabilityKeywords,
@@ -1333,12 +1339,26 @@ export class FundingOpportunitiesService {
     const textOr: Prisma.SamOpportunityWhereInput[] = [];
     if (facts) {
       const profile = facts.samProfile;
-      if (profile.naicsCodes.length) structuredOr.push({ naicsCode: { in: profile.naicsCodes } });
+      // Expand 4/5-digit profile NAICS so a client holding `33641` still pulls
+      // 6-digit notices like `336411` into the candidate set (same expansion the
+      // scorer uses for exact match).
+      const naicsForFetch = expandClientNaicsCodes(profile.naicsCodes);
+      if (naicsForFetch.length) structuredOr.push({ naicsCode: { in: naicsForFetch } });
       if (profile.pscCodes.length) structuredOr.push({ pscCode: { in: profile.pscCodes } });
+      // Agency history is scored via normAgency; fetch must pull the same
+      // notices. Prisma can't run normAgency, so we expand common Department/Dept
+      // spellings the two catalogs actually hold.
       structuredOr.push(
-        ...profile.priorAgencies.slice(0, TARGET_TERM_CAP).map((agency) => ({
-          agency: { equals: agency, mode: 'insensitive' as const },
-        })),
+        ...agencyFetchVariants(profile.priorAgencies)
+          .slice(0, TARGET_TERM_CAP)
+          .map((agency) => ({
+            agency: { equals: agency, mode: 'insensitive' as const },
+          })),
+        ...agencyFetchVariants(profile.priorAgencies)
+          .slice(0, TARGET_TERM_CAP)
+          .map((agency) => ({
+            subAgency: { equals: agency, mode: 'insensitive' as const },
+          })),
         ...profile.priorOffices.slice(0, TARGET_TERM_CAP).map((office) => ({
           office: { equals: office, mode: 'insensitive' as const },
         })),
@@ -1578,12 +1598,9 @@ export class FundingOpportunitiesService {
           matchedOn: s.matchedOn,
         })),
         eligibility: { state: eligibility.state, reason: eligibility.reason },
-        // The grant scorer has no floor concept of its own; a strong or moderate
-        // signal is the same bar the SAM engine applies, kept identical so the
-        // two rails cannot disagree about what counts as a suggestion.
-        meetsSuggestionFloor:
-          scored.matchedSignals.some((s) => s.strength === 'strong') ||
-          scored.matchedSignals.filter((s) => s.strength === 'moderate').length >= 2,
+        // Floor is owned by the grant scorer so keyword+sector fits can surface
+        // without inventing a second moderate band.
+        meetsSuggestionFloor: scored.meetsSuggestionFloor,
       };
     }
 

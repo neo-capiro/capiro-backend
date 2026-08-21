@@ -170,10 +170,25 @@ describe('resolveTenantIds', () => {
 });
 
 describe('generateCandidates', () => {
+  // Positive fixtures pair an assistance_recipient mapping with prior CFDA
+  // history so they clear the strong-signal floor. Keyword-only capability
+  // matches are deliberately NOT enough under meetsSuggestionFloor.
+  const matchingHistory = [
+    { assistance_listing_number: '12.345', awarding_agency: 'DOD' },
+  ];
+  const assistanceMapping = {
+    clientId: 'client-1',
+    source: 'assistance_recipient',
+    externalId: null,
+    externalName: 'Test Recipient',
+  };
+
   test('dry run writes nothing but still reports a real preview', async () => {
     const { prisma, createCalls, updateCalls } = makePrismaMock({
-      clients: [makeClient({ capabilities: [{ name: 'Advanced Manufacturing', sector: null, tags: [] }] })],
+      clients: [makeClient()],
       grants: [makeGrant()],
+      mappings: [assistanceMapping],
+      priorAssistanceRows: matchingHistory,
     });
 
     const result = await generateCandidates(prisma, { tenantIds: [TENANT], minRelevance: 1, commit: false });
@@ -202,9 +217,14 @@ describe('generateCandidates', () => {
   });
 
   test('a second run updates rather than duplicating', async () => {
-    const client = makeClient({ capabilities: [{ name: 'Advanced Manufacturing', sector: null, tags: [] }] });
+    const client = makeClient();
     const grant = makeGrant();
-    const { prisma, createCalls, updateCalls } = makePrismaMock({ clients: [client], grants: [grant] });
+    const { prisma, createCalls, updateCalls } = makePrismaMock({
+      clients: [client],
+      grants: [grant],
+      mappings: [assistanceMapping],
+      priorAssistanceRows: matchingHistory,
+    });
 
     const first = await generateCandidates(prisma, { tenantIds: [TENANT], minRelevance: 1, commit: true });
     expect(first.inserted).toBe(1);
@@ -223,10 +243,11 @@ describe('generateCandidates', () => {
         makeClient({
           id: 'archived-client',
           status: 'archived',
-          capabilities: [{ name: 'Advanced Manufacturing', sector: null, tags: [] }],
         }),
       ],
       grants: [makeGrant()],
+      mappings: [{ ...assistanceMapping, clientId: 'archived-client' }],
+      priorAssistanceRows: matchingHistory,
     });
 
     const result = await generateCandidates(prisma, { tenantIds: [TENANT], minRelevance: 1, commit: true });
@@ -267,11 +288,13 @@ describe('generateCandidates', () => {
   });
 
   test('a human-created row for the same pair is never read or touched', async () => {
-    const client = makeClient({ capabilities: [{ name: 'Advanced Manufacturing', sector: null, tags: [] }] });
+    const client = makeClient();
     const grant = makeGrant();
     const { prisma, createCalls, updateCalls } = makePrismaMock({
       clients: [client],
       grants: [grant],
+      mappings: [assistanceMapping],
+      priorAssistanceRows: matchingHistory,
       existingLinks: [
         {
           id: 'human-1',
@@ -311,10 +334,12 @@ describe('generateCandidates', () => {
   // the test has no teeth.
   test('keeps evaluating after a grant falls below the floor', async () => {
     const { prisma, createCalls } = makePrismaMock({
-      clients: [makeClient({ capabilities: [{ name: 'Advanced Manufacturing', sector: null, tags: [] }] })],
+      clients: [makeClient()],
+      mappings: [assistanceMapping],
+      priorAssistanceRows: matchingHistory,
       grants: [
-        makeGrant({ id: 'g-miss', title: 'Unrelated Widget Program' }), // no keyword hit -> 0
-        makeGrant({ id: 'g-hit-1' }), // 'Advanced Manufacturing R&D' -> keyword hit, 15
+        makeGrant({ id: 'g-miss', title: 'Unrelated Widget Program', cfdaNumbers: ['99.999'], agency: 'OTHER' }),
+        makeGrant({ id: 'g-hit-1' }),
         makeGrant({ id: 'g-hit-2' }),
       ],
     });
@@ -353,7 +378,9 @@ describe('generateCandidates', () => {
 
   test('a mid-loop failure is counted but does not abandon the remaining grants', async () => {
     const { prisma } = makePrismaMock({
-      clients: [makeClient({ capabilities: [{ name: 'Advanced Manufacturing', sector: null, tags: [] }] })],
+      clients: [makeClient()],
+      mappings: [assistanceMapping],
+      priorAssistanceRows: matchingHistory,
       grants: [makeGrant({ id: 'g-1' }), makeGrant({ id: 'g-boom' }), makeGrant({ id: 'g-3' })],
     });
 
@@ -375,9 +402,11 @@ describe('generateCandidates', () => {
 
   // ── B3: the per-grant findFirst is now a single per-client findMany ────────
   test('fetches existing links once per client, not once per (client, grant) pair', async () => {
-    const client = makeClient({ capabilities: [{ name: 'Advanced Manufacturing', sector: null, tags: [] }] });
+    const client = makeClient();
     const { prisma } = makePrismaMock({
       clients: [client],
+      mappings: [assistanceMapping],
+      priorAssistanceRows: matchingHistory,
       grants: [makeGrant({ id: 'g-1' }), makeGrant({ id: 'g-2' }), makeGrant({ id: 'g-3' })],
     });
 
@@ -392,5 +421,34 @@ describe('generateCandidates', () => {
 
     expect(result.evaluated).toBe(3);
     expect(findManyCalls).toBe(1); // one client -> one batched fetch, not three
+  });
+
+  test('keyword + distinctive sector clears the floor even below the old listing threshold', async () => {
+    const { prisma, createCalls } = makePrismaMock({
+      clients: [
+        makeClient({
+          sectorTag: 'Aerospace',
+          capabilities: [{ name: 'hypersonics', sector: null, tags: [] }],
+        }),
+      ],
+      grants: [
+        makeGrant({
+          id: 'g-kw',
+          title: 'Hypersonics research for aerospace platforms',
+          description: 'Propulsion materials for hypersonic flight.',
+          cfdaNumbers: [],
+          agency: 'NASA',
+        }),
+      ],
+    });
+
+    const result = await generateCandidates(prisma, {
+      tenantIds: [TENANT],
+      minRelevance: DEFAULT_MIN_RELEVANCE,
+      commit: true,
+    });
+
+    expect(result.inserted).toBe(1);
+    expect(createCalls[0]?.data.grantOpportunityId).toBe('g-kw');
   });
 });

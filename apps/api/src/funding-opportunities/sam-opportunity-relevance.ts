@@ -273,9 +273,76 @@ export function normAgency(v: string | null | undefined): string {
   return AGENCY_ABBREVIATIONS[rewritten] ?? rewritten;
 }
 
+/**
+ * Expand an award-history / profile agency name into the spellings both catalogs
+ * actually store, so candidate fetch can use Prisma `equals` while scoring still
+ * uses {@link normAgency}.
+ *
+ * Proven live pairs (capiro-dev):
+ *   federal_award.awarding_sub_tier : 'Department of the Navy'
+ *   sam_opportunity.agency          : 'DEPT OF THE NAVY'
+ *
+ * Kept small and closed — this is not fuzzy matching. Every variant is a
+ * deterministic rewrite of the input string.
+ */
+export function agencyFetchVariants(agencies: readonly string[]): string[] {
+  const out = new Set<string>();
+  for (const raw of agencies) {
+    const base = (raw ?? '').trim();
+    if (!base) continue;
+    out.add(base);
+    const deptAsDept = base.replace(/\bDepartment\b/gi, 'Dept').replace(/\bDEPARTMENT\b/g, 'DEPT');
+    const deptAsDepartment = base
+      .replace(/\bDept\b\.?/gi, 'Department')
+      .replace(/\bDEPT\b/g, 'DEPARTMENT');
+    out.add(deptAsDept);
+    out.add(deptAsDepartment);
+    out.add(base.toUpperCase());
+    out.add(deptAsDept.toUpperCase());
+    out.add(deptAsDepartment.toUpperCase());
+    const normalized = normAgency(base);
+    if (normalized && normalized !== base.toLowerCase()) {
+      const titled = normalized.replace(/\b[a-z]/g, (c) => c.toUpperCase());
+      out.add(titled);
+      out.add(titled.toUpperCase());
+      out.add(titled.replace(/\bDepartment\b/g, 'Dept').toUpperCase());
+    }
+  }
+  return [...out].filter(Boolean);
+}
+
 /** NAICS/PSC codes are compared as uppercase alphanumerics — no spaces, no dots. */
 function normCode(v: string | null | undefined): string {
   return (v ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/**
+ * Expand a client NAICS code so partial entries still participate in matching.
+ *
+ * Live profiles sometimes hold 4- or 5-digit industry codes (e.g. RTX's
+ * `33641`) while SAM notices publish full 6-digit codes. Without expansion a
+ * client NAICS of `33641` never exact-matches `336411` and only the weaker
+ * industry-group band can fire. We keep the original code AND, for 4–5 digit
+ * pure-numeric values, every 6-digit extension in that prefix so exact match
+ * can still land when the notice is inside the client's stated industry.
+ *
+ * Non-numeric / already-6+ codes pass through unchanged.
+ */
+export function expandClientNaicsCodes(codes: readonly string[]): string[] {
+  const out = new Set<string>();
+  for (const raw of codes) {
+    const code = normCode(raw);
+    if (!code) continue;
+    out.add(code);
+    if (/^\d{4,5}$/.test(code)) {
+      const pad = 6 - code.length;
+      const max = 10 ** pad;
+      for (let i = 0; i < max; i += 1) {
+        out.add(code + String(i).padStart(pad, '0'));
+      }
+    }
+  }
+  return [...out];
 }
 
 function tokens(v: string | null | undefined): string[] {
@@ -334,8 +401,13 @@ export function scoreSamOpportunityRelevance(
 
   // ── NAICS ────────────────────────────────────────────────────────────────
   const oppNaics = normCode(opp.naicsCode);
-  const clientNaics = client.naicsCodes.map(normCode).filter(Boolean);
-  if (oppNaics && clientNaics.includes(oppNaics)) {
+  // Raw (unexpanded) client codes — used for industry-group evidence so the
+  // operator still sees the value the profile actually holds.
+  const clientNaicsRaw = client.naicsCodes.map(normCode).filter(Boolean);
+  // Expanded set so a 4/5-digit profile entry can still exact-match a 6-digit
+  // notice inside that industry (see expandClientNaicsCodes).
+  const clientNaicsExact = new Set(expandClientNaicsCodes(client.naicsCodes));
+  if (oppNaics && clientNaicsExact.has(oppNaics)) {
     push(signals, 'naicsExact', opp.naicsCode ?? oppNaics);
   } else if (oppNaics.length >= 4) {
     // 4-digit industry group. A real, checkable relationship ("both are
@@ -344,7 +416,7 @@ export function scoreSamOpportunityRelevance(
     // not as the notice's own code — the operator must be able to see that the
     // last two digits differed.
     const group = oppNaics.slice(0, 4);
-    const hit = clientNaics.find((c) => c.length >= 4 && c.slice(0, 4) === group);
+    const hit = clientNaicsRaw.find((c) => c.length >= 4 && c.slice(0, 4) === group);
     if (hit) push(signals, 'naicsIndustryGroup', `${group} (client ${hit} / notice ${oppNaics})`);
   }
 

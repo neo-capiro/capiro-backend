@@ -54,6 +54,25 @@ describe('hard / high-confidence signals', () => {
     expect(r.meetsSuggestionFloor).toBe(true);
   });
 
+  test('a 5-digit client NAICS still exact-matches a 6-digit notice in that industry', () => {
+    // Live profiles (e.g. RTX) sometimes hold industry-level 4/5-digit codes.
+    // Without expansion those never exact-match SAM's 6-digit notices.
+    const r = scoreSamOpportunityRelevance(
+      client({ naicsCodes: ['33641'] }),
+      opp({ naicsCode: '336411' }),
+    );
+    expect(r.matchedSignals.find((s) => s.signal === 'naicsExact')?.strength).toBe('strong');
+    expect(r.meetsSuggestionFloor).toBe(true);
+  });
+
+  test('a 5-digit client NAICS does not invent an exact match outside its prefix', () => {
+    const r = scoreSamOpportunityRelevance(
+      client({ naicsCodes: ['33641'] }),
+      opp({ naicsCode: '541330' }),
+    );
+    expect(r.matchedSignals.map((s) => s.signal)).not.toContain('naicsExact');
+  });
+
   test('an exact PSC match is strong', () => {
     const r = scoreSamOpportunityRelevance(client({ pscCodes: ['1560'] }), opp({ pscCode: '1560' }));
     expect(r.matchedSignals.find((s) => s.signal === 'pscExact')?.strength).toBe('strong');

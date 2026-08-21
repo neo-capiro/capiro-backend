@@ -229,6 +229,26 @@ describe('SAM date-window completeness', () => {
     ).rejects.toThrow('SAM.gov request failed: [REDACTED] network failure');
   });
 
+  test('a 401 HTML body names the unauthorized key problem instead of "not valid JSON"', async () => {
+    // Live SAM returns HTML `<h1>API_KEY_INVALID</h1>` with status 401. The old
+    // path only said "response was not valid JSON", which sent operators
+    // hunting a parse bug while the real issue was the key.
+    const fetchImpl = jest.fn<typeof fetch>(
+      async () =>
+        new Response('<html><body><h1>API_KEY_INVALID</h1></body></html>', {
+          status: 401,
+          headers: { 'content-type': 'text/html' },
+        }),
+    );
+
+    await expect(
+      fetchPage('runtime-secret', '07/01/2026', '07/01/2026', 0, 100, fetchImpl, 5),
+    ).rejects.toThrow(/unauthorized/i);
+    await expect(
+      fetchPage('runtime-secret', '07/01/2026', '07/01/2026', 0, 100, fetchImpl, 5),
+    ).rejects.toThrow(/SAM_GOV_API_KEY/);
+  });
+
   test('5,001 rows split into multiple windows and all unique rows are returned', async () => {
     const fetcher: SamFetchPage = jest.fn(
       async (_key: string, from: string, to: string, offset: number, limit: number) => {
