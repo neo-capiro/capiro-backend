@@ -99,7 +99,7 @@ case "${1:-serve}" in
         await p.\$transaction(async (tx) => {
           await tx.\$executeRawUnsafe(\"SELECT set_config('app.bypass_rls', 'on', true)\");
           let tid = '${TENANT}';
-          # If not a UUID, resolve via tenants.slug
+          // If not a UUID, resolve via tenants.slug
           if (!/^[0-9a-f-]{36}\$/i.test(tid)) {
             const rows = await tx.\$queryRawUnsafe('select id from tenants where slug = \$1', tid);
             if (!rows || !rows[0]) {
