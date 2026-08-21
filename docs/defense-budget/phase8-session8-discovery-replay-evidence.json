@@ -3,8 +3,8 @@
   "fiscalYear": 2024,
   "corpus": ".session8-discovery/prepared-corpus.json",
   "userAgent": "Capiro-Phase8-Session8-SourceDiscovery/1.0 (+official-source-discovery; contact: platform@capiro.ai)",
-  "checks": 32,
-  "passed": 32,
+  "checks": 37,
+  "passed": 37,
   "failed": 0,
   "channel": {
     "apiKeyRequired": false,
@@ -18,7 +18,20 @@
     "bills2023PrefilterNote": "An id-shape prefilter cannot know subject. Most of a 2023 bill sitemap is congress 118 hr/s, so a COLD BILLS backfill needs roughly one MODS request per survivor and spans many bounded runs. Steady-state incremental crawling is small because it is driven by sitemap lastmod deltas.",
     "congressGovCrawlDelaySeconds": 2,
     "congressGovRegistryIntervalMs": 1000,
-    "congressGovEffectiveIntervalMs": 2000
+    "congressGovEffectiveIntervalMs": 2000,
+    "sascListingOnHostDocuments": 1,
+    "publisherNativeAdapters": [
+      "army-budget",
+      "dod-comptroller",
+      "dod-comptroller-reprogramming",
+      "dod-contract-announcements",
+      "hasc",
+      "house-appropriations",
+      "navy-budget",
+      "saf-fm-budget",
+      "sasc",
+      "senate-appropriations"
+    ]
   },
   "resolutions": [
     {

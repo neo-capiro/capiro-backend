@@ -233,26 +233,79 @@ requires the absence of one, and any non-success requires a stated reason. So
 Making those hosts yield is an egress/allowlisting question for the deployment
 session. It is not something code can assert.
 
-## 9. Known limitation: index-page candidates cannot resolve today
+## 9. Publisher-native document kinds
 
-The Session 7 classifier determines document kind from the official package id
-and returns `review` when there is none:
+The Session 7 classifier resolves document kind from the official GovInfo package
+id and returns `review` when there is none:
 
 ```text
 classifyLifecycleSource({ packageId: null, title: 'DEPARTMENT OF DEFENSE APPROPRIATIONS BILL, 2027' })
-  -> decision: 'review', classification: null,
-     reasons: ['official document kind could not be determined from package id "<none>"']
+  -> decision 'review', classification null,
+     reasons ['official document kind could not be determined from package id "<none>"']
 ```
 
-Every index-page publisher serves documents with no package id. So an on-host
-committee PDF is crawled, extracted, recorded with that exact reason — and not
-emitted, however explicit its title. Synthesising a package id to force a
-resolution would be fabricating an official identity, which is the one thing this
-session must not do.
+Correct for GovInfo, and fatal for everything else: nine of the fourteen adapters
+publish on their own websites and issue no package id at all. Under that rule
+alone live discovery would be GovInfo-only, which is not the session's scope.
 
-Teaching the classifier about publisher-native document kinds is a change to a
-frozen Session 7 contract and belongs to a later session. It is asserted in the
-spec so the limitation cannot change silently.
+**The missing evidence is not in the document — it is who published it.** The
+governed cycle template already binds each mark to exactly one adapter:
+
+```text
+adapterId 'hasc'                 -> authorization / hasc_mark  / HASC  / house
+adapterId 'house-appropriations' -> appropriations / hac_d_mark / HAC-D / house
+```
+
+So reading the stage from the adapter is the template's own binding, read from the
+other direction. A document fetched from `armedservices.house.gov` by the `hasc`
+adapter — a host the registry already proved belongs to that adapter — is a House
+Armed Services document. That is evidence, not a guess.
+
+Four guards keep it from becoming a hole:
+
+1. **Only when the package-id chain resolved nothing.** A GovInfo document is
+   classified byte-for-byte as Session 7 classified it; the branch is unreachable
+   for it. Asserted directly, including confidence `0.95` on both real committee
+   reports.
+2. **Only for the nine listed adapters.** No GovInfo or congress.gov adapter has a
+   profile, so the omnibus ambiguity cannot be rescued by publisher identity — the
+   FY2024 omnibus with no defence division still resolves to nothing.
+3. **The document must still look like what that publisher issues.** A press
+   release on a committee site is not a chairman mark. Where the document's own
+   text resolves a track that *contradicts* the publisher, document evidence wins
+   and the candidate is refused.
+4. **Confidence is capped at 0.7, below the 0.8 accept threshold.** A document
+   with no official package id can be routed but never auto-accepted: the decision
+   is `review`, so it lands in the persisted review backlog and no stage advances
+   on publisher identity alone.
+
+Two pre-existing mapping gaps had to be closed for this to land on real expected
+sources, both of which produced dedup keys nothing could ever match:
+
+- **Reprogramming and transfer collapsed into `alt_supplemental`.** Both are
+  separately registered families, so a real DD-1415 action could never attach to a
+  cycle.
+- **All President's Budget material defaulted to `pb_overview`.** The template
+  registers PB material per exhibit family and component (`pb_r2`/`ARMY`), so no
+  service-comptroller exhibit could ever match. Exhibit designators (`R-1`,
+  `R-2A`, `P-1`, `OP-5`, `C-1`, `DD 1391`, …) now resolve the family, and a gate
+  asserts every family the resolver can emit is one the template registers — the
+  same bug class Session 7's closeout found.
+
+Component comes from the publishing service comptroller, narrowed by the document
+only where the template registers the sibling: SAF/FM's Space Force volumes are a
+distinct `SF` component, while the Navy comptroller's Marine Corps volumes fold
+into `NAVY` because the template registers **zero** `USMC` entries. Narrowing to
+`USMC` would mint a key no cycle expects, turning a real registered Navy exhibit
+into an unresolved candidate.
+
+Measured result: all fourteen adapter classes resolve to a registered expected
+source, and all five authority tracks — request, authorization, appropriations,
+alternative funding and execution — are reachable through live discovery.
+
+One useful side effect: committee sites overwhelmingly write "NDAA", which the
+frozen Session 7 subject pattern deliberately does not match. Publisher identity
+supplies the track instead, so the frozen pattern needed no loosening.
 
 ## 10. What Session 8 does not do
 

@@ -50,6 +50,9 @@ const {
   resolveDiscoveredCandidate,
   bootstrapFiscalYearCycle,
   plausibleCongressesForFiscalYear,
+  extractDocumentLinks,
+  classifyLifecycleSource,
+  PUBLISHER_NATIVE_ADAPTER_IDS,
 } = domain;
 
 const USER_AGENT =
@@ -432,6 +435,110 @@ for (const [key, label] of [
   });
 }
 
+// ── 5. Publisher-native resolution, against the real committee listing ─────
+
+const sascListing = bodyOf('senate-armed-services-legislation');
+const sascLinks = extractDocumentLinks({
+  html: sascListing,
+  pageUrl: 'https://www.armed-services.senate.gov/legislation',
+  officialHosts: ['www.armed-services.senate.gov', 'armed-services.senate.gov'],
+});
+
+let sascOnHostDocuments = 0;
+
+check('the real committee listing yields on-host documents and nothing off-host', () => {
+  sascOnHostDocuments = sascLinks.length;
+  assert.ok(sascLinks.length > 0, 'the live page really does link at least one document');
+  for (const link of sascLinks) {
+    assert.match(link.url, /^https:\/\/(?:www\.)?armed-services\.senate\.gov\//);
+  }
+});
+
+check('a real committee document with no package id is still examined', () => {
+  // The live page's document is "FY27 NDAA SASC Accepted Amendments on June 25th".
+  // It carries no GovInfo package id at all, which is the situation that made
+  // every index-page adapter unresolvable before publisher-native kinds existed.
+  const target = sascLinks[0];
+  assert.ok(target);
+  assert.equal(packageIdFromSitemapLoc(target.url), null, 'no official package id exists');
+});
+
+check('an amendments list is recorded but NOT emitted; a real mark IS', () => {
+  const registered = new Set(
+    bootstrapFiscalYearCycle({ fiscalYear: 2027 }).expectedSources.map((s) => s.dedupKey),
+  );
+  const resolveSasc = (title) =>
+    resolveDiscoveredCandidate({
+      adapterId: 'sasc',
+      url: 'https://www.armed-services.senate.gov/imo/media/doc/example.pdf',
+      packageId: null,
+      title,
+      declaredFiscalYear: null,
+      divisionEvidence: null,
+      horizonFiscalYears: [2026, 2027, 2028],
+      registeredExpectedSourceKeys: registered,
+    });
+
+  // The real title on the live page today. An accepted-amendments list is not the
+  // chairman's mark, so it must stay unresolved - recorded, never invented.
+  const real = resolveSasc(sascLinks[0].text);
+  assert.notEqual(real.outcome, 'resolved');
+  assert.equal(real.expectedSourceDedupKey, null);
+
+  // The document the cycle actually expects from this publisher does resolve,
+  // through publisher identity, with no package id anywhere.
+  const mark = resolveSasc('FY27 NDAA SASC Chairman Mark');
+  assert.equal(mark.outcome, 'resolved');
+  assert.equal(mark.provisionalClassification.authorityTrack, 'authorization');
+  assert.equal(mark.provisionalClassification.stage, 'sasc_mark');
+  assert.ok(registered.has(mark.expectedSourceDedupKey));
+});
+
+check('the abbreviation "NDAA" resolves without loosening the frozen subject pattern', () => {
+  // Committee sites overwhelmingly write "NDAA", which the Session 7 subject
+  // detector does not match by design. Publisher identity supplies the track
+  // instead, so the frozen pattern needs no change.
+  const detected = classifyLifecycleSource({
+    url: 'https://www.armed-services.senate.gov/imo/media/doc/example.pdf',
+    packageId: null,
+    title: 'FY27 NDAA SASC Chairman Mark',
+    declaredFiscalYear: null,
+    contentExcerpt: null,
+    contentExcerptAvailable: false,
+    divisionEvidence: null,
+    adapterId: 'sasc',
+  });
+  assert.ok(detected.classification, 'a real committee mark must classify');
+  assert.equal(detected.classification.authorityTrack, 'authorization');
+  assert.equal(
+    detected.decision,
+    'review',
+    'but with no official package id it must never auto-accept',
+  );
+});
+
+check('publisher identity cannot rescue the omnibus', () => {
+  const registered = new Set(
+    bootstrapFiscalYearCycle({ fiscalYear: 2024 }).expectedSources.map((s) => s.dedupKey),
+  );
+  const mods = parseModsMetadata(bodyOf('mods-omnibus-no-defense-division'));
+  const resolved = resolveDiscoveredCandidate({
+    adapterId: 'govinfo-public-laws',
+    url: govinfoPackagePdfUrl('PLAW-118publ42'),
+    packageId: 'PLAW-118publ42',
+    title: mods.title,
+    alternativeTitles: mods.alternativeTitles,
+    declaredFiscalYear: 2024,
+    divisionEvidence: null,
+    horizonFiscalYears: [2023, 2024, 2025],
+    registeredExpectedSourceKeys: registered,
+  });
+  assert.notEqual(resolved.outcome, 'resolved');
+  for (const adapterId of PUBLISHER_NATIVE_ADAPTER_IDS) {
+    assert.ok(!adapterId.startsWith('govinfo'), `${adapterId} must not be publisher-native`);
+  }
+});
+
 check('a reachable committee page is recorded as reachable', () => {
   const resource = byKey.get('senate-armed-services-legislation');
   assert.equal(resource.statusCode, 200);
@@ -470,6 +577,8 @@ const evidence = {
     congressGovCrawlDelaySeconds: 2,
     congressGovRegistryIntervalMs: 1_000,
     congressGovEffectiveIntervalMs: 2_000,
+    sascListingOnHostDocuments: sascOnHostDocuments,
+    publisherNativeAdapters: [...PUBLISHER_NATIVE_ADAPTER_IDS],
   },
   resolutions: [
     {

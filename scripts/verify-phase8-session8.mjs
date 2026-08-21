@@ -291,6 +291,66 @@ requireTokens(
   'Session 8 GovInfo package algebra',
 );
 
+const publisherNative = requireTokens(
+  'packages/defense-domain/src/budget-lifecycle/discovery/publisher-native-kinds.ts',
+  [
+    'export function resolvePublisherNativeKind',
+    'export function exhibitFamilyFromTitle',
+    'PUBLISHER_NATIVE_CONFIDENCE_CEILING',
+    'PUBLISHER_NATIVE_ADAPTER_IDS',
+    // The template's own adapter bindings, mirrored.
+    "stage: 'hasc_mark'",
+    "stage: 'sasc_mark'",
+    "stage: 'hac_d_mark'",
+    "stage: 'sac_d_mark'",
+    "committee: 'HASC'",
+    "committee: 'HAC-D'",
+    'titlePattern',
+  ],
+  'Session 8 publisher-native kinds',
+);
+if (publisherNative) {
+  const code = stripComments(publisherNative);
+  // A document with no official package id must never be able to auto-accept.
+  if (!/PUBLISHER_NATIVE_CONFIDENCE_CEILING\s*=\s*0\.7/.test(code)) {
+    fail('publisher-native confidence ceiling is not pinned below the accept threshold (0.8)');
+  }
+  // No GovInfo/congress adapter may have a publisher-native profile, or the
+  // omnibus ambiguity could be rescued by publisher identity.
+  if (/govinfo|congress-gov/.test(code)) {
+    fail('a GovInfo/congress.gov adapter has a publisher-native profile; those carry package ids');
+  }
+  // The template registers no USMC component; narrowing to it mints a dead key.
+  if (/'USMC'/.test(code)) {
+    fail('publisher-native kinds narrow to USMC, which the governed template never registers');
+  }
+  if (/amount|usd|dollar|outlay/i.test(code)) {
+    fail('publisher-native kinds reference a monetary concept');
+  }
+}
+
+const classifierExt = read('packages/defense-domain/src/budget-lifecycle/classifier.ts');
+for (const token of [
+  'resolvePublisherNativeKind',
+  'exhibitFamilyFromTitle',
+  // Reprogramming/transfer must map to their own registered families.
+  "'alt_reprogramming'",
+  "'alt_transfer'",
+  'refusing to override document evidence',
+]) {
+  if (!classifierExt.includes(token)) {
+    fail(`Classifier is missing the Session 8 publisher-native token: ${token}`);
+  }
+}
+// The publisher-native branch must be reachable ONLY when the package-id chain
+// resolved nothing, or a GovInfo classification could change.
+{
+  const gate = /if \(stage === null \|\| sourceFamily === null\) \{[\s\S]{0,80}?const native = publisherKind;/;
+  if (!gate.test(classifierExt)) {
+    fail('the publisher-native branch is not gated on the package-id chain having failed');
+  }
+}
+
 requireTokens(
   'packages/defense-domain/src/budget-lifecycle/discovery/listing-extract.ts',
   ['export function extractDocumentLinks', 'export function extractFeedItems', 'officialHosts'],
@@ -469,6 +529,7 @@ if (command) {
 // ── 7. Gates, corpus and evidence ──────────────────────────────────────────
 for (const gate of [
   'scripts/test-phase8-session8-discovery-domain.mjs',
+  'scripts/test-phase8-session8-publisher-native-domain.mjs',
   'scripts/prepare-phase8-session8-discovery-corpus.mjs',
   'scripts/phase8-session8-discovery-replay.mjs',
   'scripts/verify-phase8-session8-db.mjs',

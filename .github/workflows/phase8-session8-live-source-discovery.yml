@@ -58,6 +58,11 @@ jobs:
       - name: Discovery domain gate
         run: node scripts/test-phase8-session8-discovery-domain.mjs
 
+      # Publisher-native document kinds: what makes the nine index-page adapters
+      # resolvable at all, plus the guards that keep it from being a hole.
+      - name: Publisher-native document-kind gate
+        run: node scripts/test-phase8-session8-publisher-native-domain.mjs
+
       - name: defense-api typecheck and build
         run: |
           pnpm --filter @capiro/defense-api typecheck

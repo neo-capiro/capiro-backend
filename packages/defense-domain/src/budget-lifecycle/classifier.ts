@@ -19,6 +19,13 @@ import {
   type LifecycleStage,
   type SourceFamily,
 } from './types.js';
+// Imported by path rather than through the discovery barrel: the barrel also
+// exports candidate resolution, which imports this file, and going through it
+// would create an import cycle.
+import {
+  exhibitFamilyFromTitle,
+  resolvePublisherNativeKind,
+} from './discovery/publisher-native-kinds.js';
 
 export type ClassificationDecision = 'accept' | 'review';
 
@@ -382,15 +389,64 @@ export function classifyLifecycleSource(
   }
 
   // ── Subject track ──────────────────────────────────────────────────────────
-  const subject = detectSubjectTrack(combined, candidate.divisionEvidence ?? null);
-  if (subject.track === 'ambiguous') {
-    reasons.push(subject.reason);
-    return Object.freeze({
-      decision: 'review' as const,
-      classification: null,
-      reasons: Object.freeze(reasons),
-      corroborationDeferred: false,
-    });
+  const detected = detectSubjectTrack(combined, candidate.divisionEvidence ?? null);
+
+  // A publisher-native kind is resolved once and reused for the stage below.
+  // `null` for every GovInfo adapter, so nothing here can reach a package-id
+  // document.
+  const publisherKind = resolvePublisherNativeKind({
+    adapterId: candidate.adapterId,
+    text: combined,
+  });
+
+  // Widened locally rather than in the exported `SubjectTrack` union: the
+  // execution track has no *textual* detector and never will, because an award
+  // announcement is identified by its publisher, not by budget-vehicle wording.
+  // Keeping `SubjectTrack` unchanged keeps `detectSubjectTrack` exhaustive.
+  let subject:
+    | Exclude<SubjectTrack, { track: 'ambiguous' }>
+    | { track: 'execution'; confidence: number };
+  if (detected.track === 'ambiguous') {
+    // Document text alone did not name a track. A service comptroller publishes
+    // only President's Budget material and the reprogramming page only
+    // reprogramming/transfer actions, so for those publishers the track is a
+    // property of the publisher — and the registry has already proved the bytes
+    // came from that publisher's own official host.
+    //
+    // This deliberately cannot rescue the omnibus case: no GovInfo adapter has a
+    // publisher-native profile, so an unproven consolidated appropriations
+    // vehicle still resolves to review exactly as before.
+    if (!publisherKind) {
+      reasons.push(detected.reason);
+      return Object.freeze({
+        decision: 'review' as const,
+        classification: null,
+        reasons: Object.freeze(reasons),
+        corroborationDeferred: false,
+      });
+    }
+    reasons.push(
+      `${detected.reason}; track taken from the publishing adapter ${candidate.adapterId} instead`,
+    );
+    // Built explicitly per track so the alternative-funding variant carries the
+    // stage the publisher resolved, exactly as a textual detection would.
+    subject =
+      publisherKind.authorityTrack === 'alternative_funding'
+        ? {
+            track: 'alternative_funding',
+            stage: publisherKind.stage,
+            confidence: publisherKind.confidence,
+          }
+        : publisherKind.authorityTrack === 'execution'
+          ? { track: 'execution', confidence: publisherKind.confidence }
+          : publisherKind.authorityTrack === 'request'
+            ? { track: 'request', confidence: publisherKind.confidence }
+            : {
+                track: publisherKind.authorityTrack,
+                confidence: publisherKind.confidence,
+              };
+  } else {
+    subject = detected;
   }
 
   // ── Stage / family ─────────────────────────────────────────────────────────
@@ -399,6 +455,10 @@ export function classifyLifecycleSource(
   let chamber: Chamber = shape.chamber;
   let committee: string | null = null;
   let confidence = 'confidence' in subject ? subject.confidence : 0.5;
+  // Set only when the kind came from the publishing adapter, which is
+  // authoritative for the component it publishes for (an Army exhibit is ARMY
+  // whether or not the title repeats the word).
+  let nativeComponent: BudgetComponent = null;
 
   if (subject.track === 'alternative_funding') {
     stage = subject.stage;
@@ -409,11 +469,28 @@ export function classifyLifecycleSource(
           ? 'alt_continuing_resolution'
           : subject.stage === 'rescission'
             ? 'alt_rescission'
-            : 'alt_supplemental';
+            : // Reprogramming and transfer are separately registered families;
+              // collapsing them into alt_supplemental produced a dedup key that
+              // matched no expected source, so a real DD-1415 action could never
+              // be attached to a cycle.
+              subject.stage === 'reprogramming'
+              ? 'alt_reprogramming'
+              : subject.stage === 'transfer'
+                ? 'alt_transfer'
+                : 'alt_supplemental';
     chamber = null;
   } else if (subject.track === 'request') {
     stage = 'president_budget_request';
-    sourceFamily = 'pb_overview';
+    // President's Budget material is registered per EXHIBIT FAMILY, not as one
+    // undifferentiated volume: an Army R-2 is `pb_r2`/ARMY, and only the overview
+    // volume is `pb_overview`. Defaulting everything to the overview produced a
+    // dedup key that no service-comptroller exhibit could ever match.
+    sourceFamily = exhibitFamilyFromTitle(combined) ?? 'pb_overview';
+    chamber = null;
+  } else if (subject.track === 'execution') {
+    // Execution-track material (an award announcement) has no official package
+    // id and no budget-vehicle wording to key on. It is resolved entirely by the
+    // publisher-native branch below, which also caps its confidence.
     chamber = null;
   } else if (shape.kind === 'committee_report') {
     if (!chamber) reasons.push('committee report package id did not resolve a chamber');
@@ -455,6 +532,49 @@ export function classifyLifecycleSource(
     reasons.push(
       `official document kind could not be determined from package id "${candidate.packageId ?? '<none>'}"`,
     );
+  }
+
+  // ── Publisher-native document kinds ────────────────────────────────────────
+  //
+  // Nine of the fourteen registered adapters publish on their own websites and
+  // issue no official package id at all, so the package-id chain above can never
+  // resolve a stage for them. The missing evidence is who published the document:
+  // the governed cycle template already binds each mark to exactly one adapter,
+  // and the registry has already proved the bytes came from that adapter's own
+  // official host.
+  //
+  // Reached ONLY when the package-id chain resolved nothing, so a GovInfo
+  // document's classification is byte-for-byte what Session 7 produced. Confidence
+  // is capped below the accept threshold, so publisher identity can route a
+  // document but can never advance a stage on its own.
+  // A publishing service comptroller is authoritative for the component it
+  // publishes for, and for whether a release is an exhibit or the overview
+  // volume (the overview is registered without a component). Applied whenever the
+  // publisher agrees with the track the document text resolved.
+  if (publisherKind && publisherKind.authorityTrack === subject.track) {
+    nativeComponent = publisherKind.component;
+  }
+
+  if (stage === null || sourceFamily === null) {
+    const native = publisherKind;
+    if (native) {
+      // The publisher's own subject must not contradict the document's text. If
+      // the text resolved a track at all, it wins over the publisher default.
+      if (subject.track !== native.authorityTrack) {
+        reasons.push(
+          `publisher ${candidate.adapterId} issues ${native.authorityTrack} documents but the ` +
+            `document text resolved ${subject.track}; refusing to override document evidence`,
+        );
+      } else {
+        stage = native.stage;
+        sourceFamily = native.sourceFamily;
+        chamber = native.chamber;
+        committee = native.committee;
+        nativeComponent = native.component;
+        confidence = Math.min(confidence, native.confidence);
+        reasons.push(native.reason);
+      }
+    }
   }
 
   if (stage === null || sourceFamily === null || fiscalYear === null) {
@@ -507,7 +627,9 @@ export function classifyLifecycleSource(
     sourceFamily,
     chamber,
     committee,
-    component: detectComponent(combined),
+    // The publishing service comptroller is authoritative for its own component;
+    // otherwise the component comes from the document text, unchanged.
+    component: nativeComponent ?? detectComponent(combined),
     confidence: Number(confidence.toFixed(3)),
   });
 

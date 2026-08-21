@@ -319,22 +319,16 @@ test('an off-host candidate is refused by the same rule the manifest adapter obe
 });
 
 /**
- * A real, disclosed limitation rather than a passing test written to be green.
+ * An index-page committee document, end to end through the live crawler.
  *
- * The Session 7 classifier determines document kind from the official package id
- * and returns `review` when there is none: "official document kind could not be
- * determined from package id". Every index-page publisher serves documents with
- * no package id, so under the frozen classifier an on-host committee PDF cannot
- * resolve, no matter how explicit its title is.
- *
- * The correct behaviour is the fail-closed one asserted here: the candidate is
- * examined, recorded with the real reason, and NOT emitted. Synthesising a
- * package id to force a resolution would be fabricating an official identity,
- * which is exactly what this session forbids. Teaching the classifier about
- * publisher-native document kinds is a change to a frozen Session 7 contract and
- * belongs to a later session.
+ * These publishers issue no official GovInfo package id, so the Session 7
+ * package-id chain resolves nothing for them. The publisher-native extension
+ * closes that using the evidence the package id was standing in for: the
+ * governed cycle template binds `house-appropriations` to exactly one expected
+ * source, `appropriations / hac_d_mark`, and the registry has already proved the
+ * bytes came from that adapter's own official host.
  */
-test('an on-host committee document is recorded but cannot resolve without a package id', async () => {
+test('an on-host committee mark is crawled, resolved and emitted', async () => {
   const responses = new Map<string, RecordedResponse>([
     ['https://appropriations.house.gov/robots.txt', { statusCode: 404, body: null }],
     [
@@ -342,7 +336,8 @@ test('an on-host committee document is recorded but cannot resolve without a pac
       {
         statusCode: 200,
         body:
-          '<a href="/files/dod-fy2027.pdf">DEPARTMENT OF DEFENSE APPROPRIATIONS BILL, 2027</a>',
+          '<a href="/files/dod-fy2027-mark.pdf">Department of Defense Appropriations Bill, 2027 ' +
+          'Subcommittee Mark</a>',
       },
     ],
   ]);
@@ -354,42 +349,59 @@ test('an on-host committee document is recorded but cannot resolve without a pac
     nowIso: NOW,
   });
 
-  // The link WAS found and read: the crawl is real.
   assert.equal(audit.crawls[0]?.resourceKind, 'listing');
   assert.equal(audit.crawls[0]?.itemsSeen, 1);
   assert.equal(audit.crawls[0]?.status, 'succeeded');
 
-  // But it cannot be tied to an expected source, so it is not emitted.
-  assert.equal(result.candidates.length, 0);
-  assert.equal(audit.candidates.length, 1);
+  assert.equal(result.candidates.length, 1, 'a real subcommittee mark must be emitted');
+  const candidate = result.candidates[0];
+  assert.ok(candidate);
+  assert.equal(
+    candidate.url,
+    'https://appropriations.house.gov/files/dod-fy2027-mark.pdf',
+  );
+  assert.ok(
+    FY2027_KEYS.has(candidate.expectedSourceDedupKey),
+    'and it must point at a REGISTERED expected source, not an invented key',
+  );
+
   const recorded = audit.candidates[0];
   assert.ok(recorded);
-  assert.equal(recorded.candidateUrl, 'https://appropriations.house.gov/files/dod-fy2027.pdf');
-  assert.equal(recorded.emitted, false);
-  assert.equal(recorded.expectedSourceDedupKey, null, 'no identity may be invented');
-  assert.match(
-    recorded.reason,
-    /package id/,
-    'the recorded reason must name the real cause, not a vague failure',
-  );
+  assert.equal(recorded.emitted, true);
+  assert.equal(recorded.resolution, 'resolved');
 });
 
-test('the package-id requirement is a classifier property, documented not guessed', async () => {
-  // Asserted directly so this limitation cannot silently change without a failure.
-  const { classifyLifecycleSource } = await import('@capiro/defense-domain');
-  const classified = classifyLifecycleSource({
-    url: 'https://appropriations.house.gov/files/dod-fy2027.pdf',
-    packageId: null,
-    title: 'DEPARTMENT OF DEFENSE APPROPRIATIONS BILL, 2027',
-    declaredFiscalYear: 2027,
-    contentExcerpt: null,
-    contentExcerptAvailable: false,
-    divisionEvidence: null,
+/**
+ * The guard that keeps the extension from being a hole: publisher identity
+ * narrows what a document could be, it does not excuse the document from looking
+ * like it. A press release on a committee site is not a chairman mark.
+ */
+test('a committee press release is crawled, recorded and NOT emitted', async () => {
+  const responses = new Map<string, RecordedResponse>([
+    ['https://appropriations.house.gov/robots.txt', { statusCode: 404, body: null }],
+    [
+      'https://appropriations.house.gov/legislation',
+      {
+        statusCode: 200,
+        body: '<a href="/files/press-fy2027.pdf">Members Announce FY2027 Project Funding</a>',
+      },
+    ],
+  ]);
+  const { discovery, audit } = buildAdapter({ responses });
+
+  const result = await discovery.discover({
     adapterId: 'house-appropriations',
+    cursor: {},
+    nowIso: NOW,
   });
-  assert.equal(classified.decision, 'review');
-  assert.equal(classified.classification, null);
-  assert.match(classified.reasons.join(' '), /package id/);
+
+  assert.equal(result.candidates.length, 0);
+  assert.equal(audit.candidates.length, 1, 'it must still be recorded, not silently dropped');
+  const recorded = audit.candidates[0];
+  assert.ok(recorded);
+  assert.equal(recorded.emitted, false);
+  assert.equal(recorded.expectedSourceDedupKey, null, 'no identity may be invented');
+  assert.ok(recorded.reason.length > 0);
 });
 
 test('pacing is reserved per HOST, so adapters sharing a host serialise', async () => {
