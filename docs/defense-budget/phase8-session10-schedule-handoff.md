@@ -41,7 +41,7 @@ not assumed from memory of a prior session.
 
 ## 3. Files changed
 
-20 files.
+21 files.
 
 ```text
 apps/api/prisma/migrations/20261211120000_phase8_session10_schedule_control_plane/migration.sql
