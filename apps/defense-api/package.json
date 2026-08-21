@@ -17,7 +17,11 @@
     "ingest:session6:federal-funding": "node scripts/ingest-federal-funding.mjs",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
-    "verify:session4:replay": "node ../../scripts/phase8-session4-fy27-replay.mjs --out docs/defense-budget/phase8-session4-fy27-replay-evidence.json"
+    "verify:session4:replay": "node ../../scripts/phase8-session4-fy27-replay.mjs --out docs/defense-budget/phase8-session4-fy27-replay-evidence.json",
+    "verify:session7": "node ../../scripts/verify-phase8-session7.mjs --enforce-replay",
+    "verify:session7:db": "node ../../scripts/verify-phase8-session7-db.mjs",
+    "prepare:session7:corpus": "node ../../scripts/prepare-phase8-session7-lifecycle-corpus.mjs",
+    "watch:session7:lifecycle": "node scripts/run-lifecycle-watcher.mjs"
   },
   "dependencies": {
     "@capiro/auth": "workspace:*",

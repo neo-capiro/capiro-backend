@@ -86,3 +86,7 @@ apps/api/scripts/__tools__/b11/
 # artifact; the manifest's sha256 per capture is the evidence trail, so the
 # PNGs themselves do not belong in git history.
 apps/web/artifacts/vnext-visual/
+
+# Phase 8 Session 7 lifecycle corpus workdir — downloaded official source bytes
+# and the prepared corpus are materialised locally, never committed.
+.session7-lifecycle/

@@ -63,6 +63,8 @@ jobs:
           DATABASE_URL: postgresql://user:pass@localhost:5432/db
       - name: Defense Prisma validation
         run: pnpm --filter @capiro/defense-api prisma:validate
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
       - name: Disposable Session 6 database rehearsal
         run: node scripts/verify-phase8-session6-db.mjs
       - name: Preserve accepted Session 4/5 boundaries

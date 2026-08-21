@@ -69,7 +69,13 @@
     "verify:phase8-session6": "node scripts/verify-phase8-session6.mjs --enforce-corpus",
     "verify:phase8-session6:db": "node scripts/verify-phase8-session6-db.mjs",
     "verify:phase8-session6:domain": "pnpm --filter @capiro/defense-domain build && node scripts/test-phase8-session6-federal-funding-domain.mjs",
-    "prepare:phase8-session6:corpus": "node scripts/prepare-phase8-session6-federal-funding-corpus.mjs"
+    "prepare:phase8-session6:corpus": "node scripts/prepare-phase8-session6-federal-funding-corpus.mjs",
+    "verify:phase8-session7": "node scripts/verify-phase8-session7.mjs",
+    "verify:phase8-session7:enforce": "node scripts/verify-phase8-session7.mjs --enforce-replay",
+    "verify:phase8-session7:db": "node scripts/verify-phase8-session7-db.mjs",
+    "verify:phase8-session7:domain": "pnpm --filter @capiro/defense-domain build && node scripts/test-phase8-session7-lifecycle-domain.mjs",
+    "verify:phase8-session7:replay": "node scripts/phase8-session7-lifecycle-replay.mjs --out docs/defense-budget/phase8-session7-lifecycle-replay-evidence.json",
+    "prepare:phase8-session7:corpus": "node scripts/prepare-phase8-session7-lifecycle-corpus.mjs"
   },
   "devDependencies": {
     "turbo": "^2.1.3",

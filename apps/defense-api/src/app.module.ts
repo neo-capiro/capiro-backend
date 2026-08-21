@@ -10,6 +10,7 @@ import { OrgTenantResolverModule } from './auth/org-tenant-resolver.module.js';
 import { JsonLogger } from './observability/json-logger.js';
 import { ProgramElementsModule } from './program-elements/program-elements.module.js';
 import { Phase17RuntimeModule } from './runtime/phase1-7-runtime.module.js';
+import { BudgetLifecycleModule } from './budget-lifecycle/budget-lifecycle.module.js';
 
 @Module({
   imports: [
@@ -31,6 +32,10 @@ import { Phase17RuntimeModule } from './runtime/phase1-7-runtime.module.js';
     // execution, snapshot activation or production ownership change are registered
     // here. Layered ALONGSIDE Session 3's accepted route surface, not in place of it.
     Phase17RuntimeModule,
+    // Session 7, dark only: annual cycle controller + lifecycle watcher control
+    // plane. No controller, route, schedule, EventBridge watcher, promotion
+    // executor or snapshot activator is registered here.
+    BudgetLifecycleModule,
   ],
   providers: [JsonLogger],
 })

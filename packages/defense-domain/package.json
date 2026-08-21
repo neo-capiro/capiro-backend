@@ -70,6 +70,12 @@
       "require": "./dist/pe-read/index.js",
       "import": "./dist/pe-read/index.js",
       "default": "./dist/pe-read/index.js"
+    },
+    "./budget-lifecycle": {
+      "types": "./dist/budget-lifecycle/index.d.ts",
+      "require": "./dist/budget-lifecycle/index.js",
+      "import": "./dist/budget-lifecycle/index.js",
+      "default": "./dist/budget-lifecycle/index.js"
     }
   },
   "files": [
@@ -84,5 +90,9 @@
   "dependencies": {
     "@capiro/shared": "workspace:*",
     "simple-statistics": "^7.8.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.10",
+    "typescript": "^5.5.4"
   }
 }
