@@ -15,10 +15,21 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { LiveHearingsService } from './live-hearings.service.js';
 
+const CAPTURE_STATES = [
+  'not_covered',
+  'discovered',
+  'stream_ready',
+  'capturing',
+  'captured',
+  'no_public_stream',
+  'blocked',
+] as const;
+
 /**
  * The global ValidationPipe runs whitelist + forbidNonWhitelisted, so every
- * public query field must be declared here. These names are the canonical
- * frontend/backend contract.
+ * public query field must be declared here. Canonical fields are listed first;
+ * the legacy aliases remain accepted during the V2 cutover and are normalized
+ * before the service sees them.
  */
 class CalendarQueryDto {
   @IsOptional()
@@ -33,7 +44,6 @@ class CalendarQueryDto {
   @IsIn(['house', 'senate', 'joint', 'House', 'Senate', 'Joint'])
   chamber?: string;
 
-  /** congress_committee.system_code, or a display-name substring. */
   @IsOptional()
   @IsString()
   committee?: string;
@@ -55,18 +65,9 @@ class CalendarQueryDto {
   streamState?: string;
 
   @IsOptional()
-  @IsIn([
-    'not_covered',
-    'discovered',
-    'stream_ready',
-    'capturing',
-    'captured',
-    'no_public_stream',
-    'blocked',
-  ])
+  @IsIn(CAPTURE_STATES)
   captureState?: string;
 
-  /** 'scheduled' = this user's subscriptions; 'unscheduled' = the complement. */
   @IsOptional()
   @IsIn(['scheduled', 'unscheduled'])
   followState?: 'scheduled' | 'unscheduled';
@@ -87,6 +88,43 @@ class CalendarQueryDto {
   @Min(1)
   @Max(200)
   pageSize?: number;
+
+  // Compatibility aliases used by the first Phase 7 client. They are accepted
+  // deliberately rather than leaking through whitelist validation as 400s.
+  @IsOptional()
+  @IsString()
+  committeeId?: string;
+
+  @IsOptional()
+  @IsString()
+  subcommitteeId?: string;
+
+  @IsOptional()
+  @IsString()
+  captureStatus?: string;
+
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  scheduled?: 'true' | 'false';
+
+  @IsOptional()
+  @IsIn(['true', 'false'])
+  followed?: 'true' | 'false';
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  limit?: number;
 }
 
 class UpdatesQueryDto {
@@ -108,13 +146,17 @@ export class LiveHearingsController {
   ) {}
 
   @Get('calendar')
-  calendar(@CurrentTenant() ctx: TenantContext, @Query() query: CalendarQueryDto) {
-    return this.service.calendar(ctx, query);
+  async calendar(@CurrentTenant() ctx: TenantContext, @Query() query: CalendarQueryDto) {
+    const result = await this.service.calendar(ctx, normalizeCalendarQuery(query));
+    // `rows` is canonical; `items` is a bounded compatibility alias for the
+    // already-shipped Phase 7 normalizer. Both point to the same objects.
+    return { ...result, items: result.rows };
   }
 
   @Get('live')
-  live(@CurrentTenant() ctx: TenantContext) {
-    return this.service.live(ctx);
+  async live(@CurrentTenant() ctx: TenantContext) {
+    const result = await this.service.live(ctx);
+    return { ...result, items: result.rows };
   }
 
   /** Complete current committee/subcommittee catalog, including zero-hearing bodies. */
@@ -173,4 +215,35 @@ export class LiveHearingsController {
       throw new NotFoundException(`committee ${id} not found`);
     }
   }
+}
+
+function normalizeCalendarQuery(query: CalendarQueryDto) {
+  const cursorPage = query.cursor ? Number.parseInt(query.cursor, 10) : undefined;
+  const legacyCaptureState = CAPTURE_STATES.includes(
+    query.captureStatus?.toLowerCase() as (typeof CAPTURE_STATES)[number],
+  )
+    ? query.captureStatus?.toLowerCase()
+    : undefined;
+  const legacyFollowState =
+    query.scheduled === 'true' || query.followed === 'true'
+      ? 'scheduled'
+      : query.scheduled === 'false' || query.followed === 'false'
+        ? 'unscheduled'
+        : undefined;
+
+  return {
+    from: query.from,
+    to: query.to,
+    chamber: query.chamber,
+    committee: query.committee ?? query.committeeId,
+    subcommittee: query.subcommittee ?? query.subcommitteeId,
+    eventType: query.eventType,
+    eventStatus: query.eventStatus,
+    streamState: query.streamState,
+    captureState: query.captureState ?? legacyCaptureState,
+    followState: query.followState ?? legacyFollowState,
+    q: query.q ?? query.search,
+    page: query.page ?? (Number.isFinite(cursorPage) && cursorPage! > 0 ? cursorPage : undefined),
+    pageSize: query.pageSize ?? query.limit,
+  };
 }
