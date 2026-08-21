@@ -377,6 +377,8 @@ export function FundingOpportunitiesPage() {
           <FundingSourceRails
             activeSource={(url.get('source') as SourceRailValue | null) ?? ''}
             freshness={catalogSummary.data?.freshness}
+            catalogTotal={catalogSummary.data?.total}
+            catalogTotalIsCapped={catalogSummary.data?.totalIsCapped}
             forecastsEnabled={forecastsEnabled}
             sbirEnabled={sbirEnabled}
             onChange={(source) =>
@@ -427,15 +429,40 @@ export function FundingOpportunitiesPage() {
   );
 }
 
+/**
+ * Compact relative time for a source-health timestamp — "42m", "3h",
+ * "Yesterday", or a short date once it's stale enough that minutes/hours stop
+ * being useful. Kept local rather than imported from an unrelated module: this
+ * component owns no dependency outside the funding-opportunities API.
+ */
+function compactRelativeTime(iso: string | null): string {
+  if (!iso) return 'Never';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return 'Unknown';
+  const minutes = Math.round((Date.now() - then) / 60000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.round(hours / 24);
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d`;
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 function FundingSourceRails({
   activeSource,
   freshness,
+  catalogTotal,
+  catalogTotalIsCapped,
   forecastsEnabled,
   sbirEnabled,
   onChange,
 }: {
   activeSource: SourceRailValue;
   freshness: OpportunitySourceFreshness[] | undefined;
+  catalogTotal: number | undefined;
+  catalogTotalIsCapped: boolean | undefined;
   forecastsEnabled: boolean;
   sbirEnabled: boolean;
   onChange: (source: SourceRailValue) => void;
@@ -444,11 +471,12 @@ function FundingSourceRails({
   const railMeta = (source: 'grants_gov' | 'sam_gov') => {
     const entry = health.get(source);
     if (!entry) return 'Loading source health';
-    const count =
-      entry.countsUnavailable || entry.activeRecordCount == null
-        ? 'counts unavailable'
-        : `${entry.activeRecordCount.toLocaleString()} active`;
-    return `${count} · ${formatFreshness(entry)}`;
+    if (entry.countsUnavailable || entry.activeRecordCount == null) {
+      return `${compactRelativeTime(entry.lastSyncedAt)} · counts unavailable`;
+    }
+    const active = entry.activeRecordCount.toLocaleString();
+    const ofTotal = entry.recordCount != null ? ` of ${entry.recordCount.toLocaleString()}` : '';
+    return `${compactRelativeTime(entry.lastSyncedAt)} · ${active} active${ofTotal}`;
   };
   const railTone = (source: 'grants_gov' | 'sam_gov') => {
     const entry = health.get(source);
@@ -468,7 +496,10 @@ function FundingSourceRails({
     {
       value: '',
       label: 'All sources',
-      meta: `${3 + Number(forecastsEnabled) + Number(sbirEnabled)} available rails`,
+      meta:
+        catalogTotal == null
+          ? 'Loading catalog totals'
+          : `${catalogTotal.toLocaleString()}${catalogTotalIsCapped ? '+' : ''} active`,
       tone: 'neutral',
     },
     {
@@ -521,6 +552,7 @@ function FundingSourceRails({
             type="button"
             disabled={rail.disabled}
             className={activeSource === rail.value ? 'is-active' : undefined}
+            data-tone={rail.tone}
             onClick={() => onChange(rail.value)}
           >
             <i className={`is-${rail.tone}`} aria-hidden="true" />

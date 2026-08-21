@@ -23,6 +23,7 @@ import {
   type FundingOpportunity,
   type FundingOpportunityListResponse,
   type OpportunityKind,
+  type OpportunitySourceFreshness,
 } from '../../../pages/intelligence/opportunities/funding-opportunities-api.js';
 import { OpportunityCard } from './OpportunityCard.js';
 import { OpportunityFreshnessStrip } from './OpportunityFreshnessStrip.js';
@@ -108,6 +109,15 @@ export function FundingOpportunityExplore({ clientId }: { clientId: string | und
   const kinds = readEnumList<OpportunityKind>(url.get('kind'), ALL_KINDS);
   const eligibility = readEnumList<EligibilityState>(url.get('eligibility'), ALL_ELIGIBILITY);
   const minRelevance = readInt(url.get('minRelevance'), 0, 100);
+  const hasActiveFilters =
+    search !== '' ||
+    agency !== '' ||
+    naics !== '' ||
+    psc !== '' ||
+    setAside !== '' ||
+    kinds.length > 0 ||
+    eligibility.length > 0 ||
+    minRelevance != null;
   const page = readInt(url.get('page'), 1, 100_000) ?? 1;
 
   // Every filter change resets to page 1. A filter applied on page 7 of the
@@ -315,11 +325,17 @@ export function FundingOpportunityExplore({ clientId }: { clientId: string | und
       ) : null}
 
       <div className="fov-kpis" data-testid="fo-kpis">
-        <Kpi label="Active grants" value={counts?.activeGrants} loading={listQuery.isPending} />
+        <Kpi
+          label="Active grants"
+          value={counts?.activeGrants}
+          loading={listQuery.isPending}
+          caption={sourceFreshnessCaption(data?.freshness, 'grants_gov')}
+        />
         <Kpi
           label="Active contract opportunities"
           value={counts?.activeContracts}
           loading={listQuery.isPending}
+          caption={sourceFreshnessCaption(data?.freshness, 'sam_gov')}
         />
         <Kpi label="Saved" value={counts?.saved} loading={listQuery.isPending} />
         <Kpi label="Pursuing" value={counts?.pursuing} loading={listQuery.isPending} />
@@ -402,6 +418,25 @@ export function FundingOpportunityExplore({ clientId }: { clientId: string | und
             }
             aria-label="Minimum relevance"
           />
+          <button
+            type="button"
+            className="fov-filters__reset"
+            disabled={!hasActiveFilters}
+            onClick={() =>
+              patch({
+                q: null,
+                agency: null,
+                naics: null,
+                psc: null,
+                setAside: null,
+                kind: null,
+                eligibility: null,
+                minRelevance: null,
+              })
+            }
+          >
+            Reset filters
+          </button>
         </div>
       </FovCard>
 
@@ -593,10 +628,12 @@ function Kpi({
   label,
   value,
   loading,
+  caption,
 }: {
   label: string;
   value: number | undefined;
   loading: boolean;
+  caption?: string;
 }) {
   return (
     <div className="fov-kpi">
@@ -604,8 +641,31 @@ function Kpi({
       <div className="fov-kpi__value">
         {loading ? <CapiroSkeleton width={48} height={20} /> : (value ?? '—')}
       </div>
+      <div className="fov-kpi__caption">{loading ? '' : (caption ?? '')}</div>
     </div>
   );
+}
+
+/**
+ * "Grants.gov · 42m" — the source name plus a compact relative sync time, from
+ * the SAME freshness array the source rails already render. No new query, no
+ * fabricated number: this is a caption, not a claim beyond what the rail says.
+ */
+function sourceFreshnessCaption(
+  freshness: OpportunitySourceFreshness[] | undefined,
+  source: 'grants_gov' | 'sam_gov',
+): string | undefined {
+  const entry = (freshness ?? []).find((f) => f.source === source);
+  if (!entry || !entry.lastSyncedAt) return undefined;
+  const then = new Date(entry.lastSyncedAt).getTime();
+  if (Number.isNaN(then)) return undefined;
+  const minutes = Math.round((Date.now() - then) / 60000);
+  let when: string;
+  if (minutes < 1) when = 'just now';
+  else if (minutes < 60) when = `${minutes}m ago`;
+  else if (minutes < 60 * 24) when = `${Math.round(minutes / 60)}h ago`;
+  else when = `${Math.round(minutes / (60 * 24))}d ago`;
+  return `${entry.label} · ${when}`;
 }
 
 /**

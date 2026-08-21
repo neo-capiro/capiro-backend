@@ -443,9 +443,11 @@ describe('relevance and eligibility are shown separately', () => {
   test('the matched value is shown, under a human label rather than a machine key', async () => {
     mockApi(listResponse({ opportunities: [grant()] }));
     renderPage();
-    expect(
-      await screen.findByText(/Prior award under this Assistance Listing: 81\.086/),
-    ).toBeInTheDocument();
+    const card = await screen.findByTestId('fo-card-grants_gov:GRANT-1');
+    // Label and matched value are two lines (a stacked "strongest reason"
+    // block, not one joined string), so assert both independently.
+    expect(card).toHaveTextContent('Prior award under this Assistance Listing');
+    expect(card).toHaveTextContent(/matched on\s*"?81\.086"?/);
     expect(screen.queryByText(/assistanceListing:/)).not.toBeInTheDocument();
   });
 });

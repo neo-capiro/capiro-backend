@@ -491,6 +491,76 @@ describe('OutreachCommandEngineService', () => {
     expect(h.repository.appendEvent).not.toHaveBeenCalled();
   });
 
+  /**
+   * The other half of the per-command validation contract, and the regression
+   * behind it: because each command is asserted against the state the previous
+   * one left behind, a batch whose FINAL pair is legal used to be rejected on an
+   * intermediate pair. A session stored as `personalized_separate` + `high`
+   * moving to `shared_thread` + `light` emitted
+   * [SET_DELIVERY_PATTERN, SET_PERSONALIZATION], and the first command was
+   * asserted as (shared_thread, high) against the STORED personalization — 422,
+   * whole batch rolled back, delivery choice silently lost. The web client now
+   * leads with SET_PERSONALIZATION when the target pattern is `shared_thread`
+   * (see `deliveryCommands`), which keeps every intermediate pair legal. The
+   * reducer keeps validating per command; this pins that the reordered batch
+   * commits, so the client-side ordering stays load-bearing rather than
+   * incidental.
+   */
+  it('commits a shared-thread downgrade batch that leads with personalization', async () => {
+    const currentSpec = {
+      ...blank,
+      delivery: { pattern: 'personalized_separate' as const, personalization: 'high' as const },
+    };
+    const h = harness({ currentSpec });
+    const parsed = h.service.parseNormalizeAndValidateBatch(
+      batch({
+        batchId: '00000000-0000-4000-8000-000000000111',
+        commands: [
+          { type: 'SET_PERSONALIZATION', schemaVersion: 1, payload: { value: 'light' } },
+          { type: 'SET_DELIVERY_PATTERN', schemaVersion: 1, payload: { value: 'shared_thread' } },
+        ],
+      }),
+    );
+
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).resolves.toMatchObject({ status: 'applied' });
+    expect(h.repository.insertStateVersion).toHaveBeenCalledTimes(1);
+    const [insertArgs] = h.repository.insertStateVersion.mock.calls as unknown as Array<
+      [unknown, unknown, { specJsonb: { delivery: { pattern: string; personalization: string } } }]
+    >;
+    expect(insertArgs?.[2].specJsonb.delivery).toMatchObject({
+      pattern: 'shared_thread',
+      personalization: 'light',
+    });
+  });
+
+  /**
+   * The same transition in the order that used to be emitted still fails, which
+   * is what makes the ordering above necessary rather than stylistic.
+   */
+  it('still refuses that transition when the pattern leads and the stored personalization is high', async () => {
+    const currentSpec = {
+      ...blank,
+      delivery: { pattern: 'personalized_separate' as const, personalization: 'high' as const },
+    };
+    const h = harness({ currentSpec });
+    const parsed = h.service.parseNormalizeAndValidateBatch(
+      batch({
+        batchId: '00000000-0000-4000-8000-000000000112',
+        commands: [
+          { type: 'SET_DELIVERY_PATTERN', schemaVersion: 1, payload: { value: 'shared_thread' } },
+          { type: 'SET_PERSONALIZATION', schemaVersion: 1, payload: { value: 'light' } },
+        ],
+      }),
+    );
+
+    await expect(
+      h.service.applyBatchWithinTx(h.tx as never, ctx, sessionId, parsed),
+    ).rejects.toMatchObject({ code: 'OUTREACH_COMMAND_BLOCKED', httpStatus: 422 });
+    expect(h.repository.insertStateVersion).not.toHaveBeenCalled();
+  });
+
   it('rolls back a multi-command reduction when a later command violates a cross-field rule', async () => {
     const h = harness();
     const parsed = h.service.parseNormalizeAndValidateBatch(

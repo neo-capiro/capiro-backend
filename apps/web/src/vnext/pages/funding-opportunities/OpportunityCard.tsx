@@ -312,13 +312,16 @@ export function OpportunityCard({
           Every label names the matched VALUE, so an operator can go check it. */}
       {explained.strongest ? (
         <div className="fov-card__signals">
-          <span className="fov-micro">Strongest reason: </span>
+          <span className="fov-micro">Strongest reason</span>
           <FovPill
             tone={FIT_BAND_COLORS[explained.strongest.strength]}
             title={`Matched on "${explained.strongest.matchedOn}"`}
           >
-            {explained.strongest.label}: {explained.strongest.matchedOn}
+            {explained.strongest.label}
           </FovPill>
+          <span className="fov-card__signals-matched">
+            matched on &quot;{explained.strongest.matchedOn}&quot;
+          </span>
         </div>
       ) : null}
 

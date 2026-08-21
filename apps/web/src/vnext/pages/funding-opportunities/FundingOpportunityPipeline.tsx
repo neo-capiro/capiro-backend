@@ -155,9 +155,16 @@ export function FundingOpportunityPipeline({ clientId }: { clientId: string | nu
     >
       <span style={{ fontSize: 12 }}>{card.title ?? card.sourceRecordId ?? card.rowId}</span>{' '}
       {card.stageBasis !== 'recorded' ? (
-        <FovPill title={card.stageExplanation} testId={`fo-pipeline-derived-${card.rowId}`}>
+        <FovPill
+          tone="gold"
+          title={card.stageExplanation}
+          testId={`fo-pipeline-derived-${card.rowId}`}
+        >
           Derived
         </FovPill>
+      ) : null}
+      {card.title && card.sourceRecordId ? (
+        <span className="fov-pipeline__card-ref">{card.sourceRecordId}</span>
       ) : null}
       <div className="fov-row" style={{ marginTop: 4, gap: 4 }}>
         {card.allowedTransitions.length === 0 ? (

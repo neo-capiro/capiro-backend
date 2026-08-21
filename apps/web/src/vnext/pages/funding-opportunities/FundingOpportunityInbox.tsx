@@ -230,10 +230,10 @@ export function FundingOpportunityInbox({
           value,
           title: INBOX_FILTER_DESCRIPTIONS[value],
           label: (
-            <span>
-              {INBOX_FILTER_LABELS[value]}{' '}
+            <>
               <span className="fov-seg__count">{formatInboxCount(counts?.[value])}</span>
-            </span>
+              <span className="fov-seg__label">{INBOX_FILTER_LABELS[value]}</span>
+            </>
           ),
         }))}
       />
@@ -590,6 +590,13 @@ function SourceFactsMissingCard({
   );
 }
 
+/** Two-letter monogram for the row's avatar chip. UI-only derivation, no server field. */
+function initialsFor(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0]![0]! + words[1]![0]!).toUpperCase();
+  return name.slice(0, 2).toUpperCase() || '—';
+}
+
 /**
  * One decision context. Leads with the CLIENT, then the recommendation-relevant
  * facts, then the state. The source rail is a small pill rather than a heading
@@ -611,6 +618,9 @@ function InboxRowCard({
     <FovCard testId={`fo-inbox-row-${row.id}`}>
       <div className="fov-inbox-row__head">
         <span className="fov-row">
+          <span className="fov-inbox-row__avatar" aria-hidden="true">
+            {initialsFor(row.client.name)}
+          </span>
           {/* Every row names its client. Without it a cross-client list is unusable. */}
           <button
             type="button"
@@ -710,6 +720,16 @@ function InboxRowCard({
           <span className="fov-fact__label">Next action</span>
           <span className="fov-fact__value">{row.nextAction ?? 'None recorded'}</span>
         </span>
+      </div>
+
+      {row.eligibility.reason ? (
+        <p className="fov-inbox-row__eligibility-reason">{row.eligibility.reason}</p>
+      ) : null}
+
+      <div className="fov-inbox-row__footer">
+        <CapiroButton size="compact" onClick={onOpenDetail}>
+          Open decision →
+        </CapiroButton>
       </div>
     </FovCard>
   );

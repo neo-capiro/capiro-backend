@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type {
   CapabilityResult,
+  OutreachV3Command,
   OutreachV3SessionEnvelope,
   OutreachV3StrategyData,
 } from './contracts.js';
@@ -305,11 +306,60 @@ describe('DecisionSurfaces — delivery stage (item 8)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm delivery' }));
 
     // The acknowledgement gates the batch; it is not itself a command, so the
-    // committed batch stays exactly the two it always was.
+    // committed batch stays exactly the two commands it always was — in one
+    // batch, personalization first, so no intermediate state is ever
+    // shared_thread + high. See the transition regression test below.
     expect(applyCommands).toHaveBeenCalledWith([
-      { type: 'SET_DELIVERY_PATTERN', schemaVersion: 1, payload: { value: 'shared_thread' } },
       { type: 'SET_PERSONALIZATION', schemaVersion: 1, payload: { value: 'light' } },
+      { type: 'SET_DELIVERY_PATTERN', schemaVersion: 1, payload: { value: 'shared_thread' } },
     ]);
+  });
+
+  /**
+   * The regression this pins: a session stored as `personalized_separate` +
+   * `high` whose user picks Shared thread. `selectPattern` auto-downgrades High
+   * to Light, so the final pair is legal and Confirm is one click away — but the
+   * batch used to lead with SET_DELIVERY_PATTERN, which the reducer asserted as
+   * (shared_thread, high) against the STORED personalization and rejected with a
+   * 422. The whole batch rolled back, so the delivery choice silently failed to
+   * save. Personalization leads now, so the intermediate pair is
+   * `personalized_separate` + `light` — legal — and the pattern lands on
+   * `shared_thread` + `light` — legal.
+   */
+  it('confirms the shared-thread downgrade from a stored high without a forbidden intermediate', () => {
+    let batch: OutreachV3Command[] = [];
+    const applyCommands = vi.fn(async (commands: OutreachV3Command[]) => {
+      batch = commands;
+    });
+    render(
+      <DecisionSurfaces
+        {...props({
+          applyCommands,
+          session: session({ pattern: 'personalized_separate', personalization: 'high' }),
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Shared thread/i }));
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm delivery' }));
+
+    expect(batch).toEqual([
+      { type: 'SET_PERSONALIZATION', schemaVersion: 1, payload: { value: 'light' } },
+      { type: 'SET_DELIVERY_PATTERN', schemaVersion: 1, payload: { value: 'shared_thread' } },
+    ]);
+
+    // Replay the reducer's per-command rule over the batch: fold each command
+    // into the stored pair and assert no step is ever shared_thread + high.
+    let pattern = 'personalized_separate';
+    let personalization = 'high';
+    for (const entry of batch) {
+      const { value } = entry.payload as { value: string };
+      if (entry.type === 'SET_DELIVERY_PATTERN') pattern = value;
+      else personalization = value;
+      expect([pattern, personalization]).not.toEqual(['shared_thread', 'high']);
+    }
+    expect([pattern, personalization]).toEqual(['shared_thread', 'light']);
   });
 
   it('asks for the acknowledgement on shared thread only, and asks again on return', () => {

@@ -131,16 +131,20 @@ describe('DeliveryDecisionSurface', () => {
     fireEvent.click(screen.getByRole('button', { name: /Continue with shared thread/i }));
 
     await waitFor(() => expect(value.applyCommands).toHaveBeenCalledTimes(1));
+    // Personalization leads on a shared thread: the reducer validates each
+    // command against the state the previous one left behind, so landing the
+    // pattern first would assert (shared_thread, <stored personalization>) and
+    // 422 whenever the stored level is `high`. See `deliveryCommands`.
     expect(value.applyCommands).toHaveBeenCalledWith([
-      {
-        type: 'SET_DELIVERY_PATTERN',
-        schemaVersion: 1,
-        payload: { value: 'shared_thread' },
-      },
       {
         type: 'SET_PERSONALIZATION',
         schemaVersion: 1,
         payload: { value: 'none' },
+      },
+      {
+        type: 'SET_DELIVERY_PATTERN',
+        schemaVersion: 1,
+        payload: { value: 'shared_thread' },
       },
     ]);
   });

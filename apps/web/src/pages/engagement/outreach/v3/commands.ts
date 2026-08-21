@@ -139,10 +139,23 @@ export function deliveryCommands(
   if (pattern === 'shared_thread' && personalization === 'high') {
     throw new Error('High per-recipient personalization is incompatible with a shared thread.');
   }
-  return [
-    command('SET_DELIVERY_PATTERN', { value: pattern }),
-    command('SET_PERSONALIZATION', { value: personalization }),
-  ];
+  const setPattern = command('SET_DELIVERY_PATTERN', { value: pattern });
+  const setPersonalization = command('SET_PERSONALIZATION', { value: personalization });
+  /**
+   * Order matters, and it is not cosmetic. The reducer validates each command
+   * against the state the previous one left behind, so an intermediate pair can
+   * be rejected with a 422 even when the pair the user actually chose is legal.
+   * `shared_thread` + `high` is the only forbidden pair, so leading with the
+   * command that moves away from it keeps every intermediate state legal:
+   *   - to shared_thread: personalization first, so the pattern never lands on
+   *     shared_thread while a stored `high` is still in place;
+   *   - away from shared_thread: pattern first, so personalization never lands
+   *     on `high` while a stored `shared_thread` is still in place.
+   * Both commands stay in the same single batch — only their order changes.
+   */
+  return pattern === 'shared_thread'
+    ? [setPersonalization, setPattern]
+    : [setPattern, setPersonalization];
 }
 
 export interface ContextSelectionInput {

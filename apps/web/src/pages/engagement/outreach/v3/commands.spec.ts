@@ -155,6 +155,27 @@ describe('Outreach V3 command builders', () => {
     expect(() => deliveryCommands('shared_thread', 'high')).toThrow(
       'High per-recipient personalization is incompatible with a shared thread.',
     );
+    /**
+     * Pinned on purpose, and inverted for shared_thread. The reducer validates
+     * each command against the state the one before it left behind, so a batch
+     * whose FINAL pair is legal can still be rejected on an intermediate pair:
+     * a stored `personalized_separate` + `high` moving to `shared_thread` +
+     * `light` was asserted as (shared_thread, high) and 422'd, rolling the whole
+     * batch back. Leading with the command that moves away from the single
+     * forbidden pair keeps every intermediate state legal.
+     */
+    expect(deliveryCommands('shared_thread', 'light')).toEqual([
+      { type: 'SET_PERSONALIZATION', schemaVersion: 1, payload: { value: 'light' } },
+      { type: 'SET_DELIVERY_PATTERN', schemaVersion: 1, payload: { value: 'shared_thread' } },
+    ]);
+    expect(deliveryCommands('shared_thread', 'none').map((entry) => entry.type)).toEqual([
+      'SET_PERSONALIZATION',
+      'SET_DELIVERY_PATTERN',
+    ]);
+    expect(deliveryCommands('uniform_separate', 'high').map((entry) => entry.type)).toEqual([
+      'SET_DELIVERY_PATTERN',
+      'SET_PERSONALIZATION',
+    ]);
     const commands = strategyCommands({
       campaignAngle: 'Protect funding through staff education',
       tone: 'Direct and professional',
