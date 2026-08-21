@@ -48,7 +48,7 @@ const CAPTURE_COLUMNS = `id, hearing_id AS "hearingId", status,
   lease_acquired_at AS "leaseAcquiredAt", fencing_token AS "fencingToken",
   captured_ms AS "capturedMs", gaps`;
 
-const ELIGIBLE_PUBLIC_EVENT_TYPES = [
+export const ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES = [
   'hearing',
   'markup',
   'meeting',
@@ -63,6 +63,7 @@ export class OptimisticCaptureWriteError extends Error {
     super('optimistic concurrency conflict for public hearing capture');
   }
 }
+
 export class StaleCaptureFencingTokenError extends Error {
   constructor() {
     super('stale fencing token for public hearing capture');
@@ -126,7 +127,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
          ORDER BY h.id`,
         now,
         this.captureAllPublicEvents,
-        [...ELIGIBLE_PUBLIC_EVENT_TYPES],
+        [...ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES],
       ),
     );
     return rows.map((row) => row.hearingId);
@@ -348,8 +349,8 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
     gaps?: CaptureGap[],
   ): Promise<PublicCaptureRecord> {
     const p = params.length;
-    const terminal = isTerminalStatus(input.next.status);
-    const reason = terminalReasonCode(input.next);
+    const terminal = isTerminalCaptureStatus(input.next.status);
+    const reason = publicCaptureTerminalReasonCode(input.next);
     const rows = await this.prisma.$queryRawUnsafe<CaptureRow[]>(
       `UPDATE public_hearing_capture SET
          status=$${p + 1},
@@ -357,7 +358,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
          failure_code=$${p + 3},
          failure_detail=$${p + 4},
          terminal_reason_code=CASE
-           WHEN $${p + 5}::boolean THEN COALESCE(resolution_reason_code,$${p + 6})
+           WHEN $${p + 5}::boolean THEN $${p + 6}
            ELSE terminal_reason_code
          END,
          last_outcome_at=CASE
@@ -372,7 +373,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
        WHERE ${where}
        RETURNING ${CAPTURE_COLUMNS}`,
       ...params,
-      storageStatus(input.next.status),
+      publicCaptureStorageStatus(input.next.status),
       input.next.status,
       input.next.failureCode ?? null,
       input.next.failureDetail ?? null,
@@ -419,7 +420,9 @@ function mapCapture(row: CaptureRow): PublicCaptureRecord {
   } = row;
   return {
     ...record,
-    status: isDomainStatus(row.domainStatus) ? row.domainStatus : legacyDomainStatus(row.status),
+    status: isDomainStatus(row.domainStatus)
+      ? row.domainStatus
+      : publicCaptureLegacyDomainStatus(row.status),
     failureCode: row.failureCode ?? undefined,
     failureDetail: row.failureDetail ?? undefined,
     lastResolutionAt: row.lastResolutionAt ?? undefined,
@@ -429,7 +432,7 @@ function mapCapture(row: CaptureRow): PublicCaptureRecord {
   };
 }
 
-function storageStatus(status: PublicHearingCaptureStatus): string {
+export function publicCaptureStorageStatus(status: PublicHearingCaptureStatus): string {
   if (status === 'SCHEDULED') return 'scheduled';
   if (status === 'READY') return 'leased';
   if (status === 'CAPTURING' || status === 'RECOVERING') return 'capturing';
@@ -439,7 +442,7 @@ function storageStatus(status: PublicHearingCaptureStatus): string {
   return 'paused';
 }
 
-function legacyDomainStatus(status: string): PublicHearingCaptureStatus {
+export function publicCaptureLegacyDomainStatus(status: string): PublicHearingCaptureStatus {
   switch (status) {
     case 'scheduled':
       return 'SCHEDULED';
@@ -475,11 +478,11 @@ function isDomainStatus(value: string | null | undefined): value is PublicHearin
   ].includes(value ?? '');
 }
 
-function isTerminalStatus(status: PublicHearingCaptureStatus): boolean {
+export function isTerminalCaptureStatus(status: PublicHearingCaptureStatus): boolean {
   return ['COMPLETE', 'COMPLETE_WITH_GAPS', 'FAILED', 'CANCELED', 'BLOCKED'].includes(status);
 }
 
-function terminalReasonCode(next: CaptureStateSnapshot): string | null {
+export function publicCaptureTerminalReasonCode(next: CaptureStateSnapshot): string | null {
   switch (next.status) {
     case 'COMPLETE':
       return 'CAPTURE_COMPLETE';
