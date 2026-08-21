@@ -134,6 +134,21 @@ export class IntelligenceService {
   // best-effort read cache, not a source of truth.
   private readonly portfolioAlertsCache = new Map<string, { expiresAt: number; value: unknown }>();
   private static readonly PORTFOLIO_ALERTS_TTL_MS = 2 * 60 * 1000;
+  /**
+   * Hard wall-clock budget for ONE portfolio-alerts HTTP request.
+   *
+   * Cold roll-ups serially run full profile-v1 per client (up to maxClients)
+   * behind a process-wide gate. Without a request-level budget the handler can
+   * hang open (Chrome shows pending forever) and leave Needs Attention
+   * unresolved — observed live on os.capiro.ai as a brief paint then white
+   * screen while other dashboard calls completed. Fail open with an empty
+   * alerts payload so the dashboard can still paint; the 2-min TTL cache still
+   * serves successful roll-ups once one completes.
+   *
+   * Tests may overwrite this static for a short budget. Not a cancellation of
+   * in-flight Prisma work (same class as PROFILE_V1_SOURCE_BUDGET_MS).
+   */
+  static PORTFOLIO_ALERTS_REQUEST_BUDGET_MS = 12_000;
 
   // In-flight dedupe: concurrent callers with the same cache key share ONE
   // computation instead of each launching their own N-client roll-up (which
@@ -6943,6 +6958,45 @@ export class IntelligenceService {
    * expensive (full aggregate per client), so it is bounded-concurrency and
    * wrapped in a short per-tenant+user TTL cache.
    */
+  private emptyPortfolioAlerts(): {
+    alerts: Array<Record<string, unknown> & { clientId: string; clientName: string }>;
+    total: number;
+    clientCount: number;
+    generatedAt: string;
+  } {
+    return {
+      alerts: [],
+      total: 0,
+      clientCount: 0,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Race an in-flight or fresh portfolio-alerts compute against the hard
+   * request budget. Fail open with empty alerts so HTTP never hangs.
+   */
+  private async withPortfolioAlertsRequestBudget<T extends ReturnType<IntelligenceService['emptyPortfolioAlerts']>>(
+    cacheKey: string,
+    work: Promise<T>,
+  ): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const budget = new Promise<T>((resolve) => {
+      timer = setTimeout(() => {
+        this.logger.warn(
+          `portfolio-alerts: exceeded ${IntelligenceService.PORTFOLIO_ALERTS_REQUEST_BUDGET_MS}ms request budget for ${cacheKey}; failing open`,
+        );
+        resolve(this.emptyPortfolioAlerts() as T);
+      }, IntelligenceService.PORTFOLIO_ALERTS_REQUEST_BUDGET_MS);
+      timer.unref?.();
+    });
+    try {
+      return await Promise.race([work, budget]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   async getPortfolioAlerts(
     tenantId: string,
     userId: string | undefined,
@@ -6967,10 +7021,14 @@ export class IntelligenceService {
 
     // Coalesce concurrent callers for the same key onto one in-flight promise —
     // a dashboard reload (or several open tabs) must not each launch their own
-    // N-client roll-up. Whoever arrives first computes; everyone else awaits it.
+    // N-client roll-up. Whoever arrives first computes; everyone else awaits it
+    // under the same request budget (so waiters also fail open).
     const existing = this.portfolioAlertsInflight.get(cacheKey);
     if (existing) {
-      return existing as unknown as Awaited<ReturnType<typeof this.getPortfolioAlerts>>;
+      return this.withPortfolioAlertsRequestBudget(
+        cacheKey,
+        existing as Promise<Awaited<ReturnType<typeof this.getPortfolioAlerts>>>,
+      );
     }
 
     const compute = this.computePortfolioAlerts(tenantId, userId, limit, maxClients)
@@ -6981,12 +7039,25 @@ export class IntelligenceService {
         });
         return result;
       })
+      .catch((err) => {
+        // Never leave the HTTP request hanging on an unexpected throw; fail open.
+        this.logger.warn(
+          `portfolio-alerts: compute failed for ${cacheKey}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        return this.emptyPortfolioAlerts();
+      })
       .finally(() => {
         this.portfolioAlertsInflight.delete(cacheKey);
       });
 
     this.portfolioAlertsInflight.set(cacheKey, compute);
-    return compute;
+
+    // Race the roll-up against a hard request budget. The in-flight map still
+    // holds `compute` (not the raced promise) so a late success can populate
+    // the TTL cache for the next caller even if this request already failed open.
+    return this.withPortfolioAlertsRequestBudget(cacheKey, compute);
   }
 
   /**

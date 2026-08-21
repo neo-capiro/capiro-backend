@@ -134,30 +134,42 @@ export class DraftsService {
     } else {
       where.OR = [{ ownerId }, { id: { in: sharedIds } }];
     }
+    // Slim list projection only. Returning full ws_draft rows (especially the
+    // giant config JSONB) produced multi-MB dashboard payloads on
+    // GET /workspace-api/drafts?scope=all and froze/whited os.capiro.ai after
+    // first paint. Prisma cannot nested-select keys out of a Json column, so
+    // we omit `config` entirely from the list query. Library agent
+    // phase/status/quality come from GET /agent on open; list stays lean.
     const rows = await this.prisma.wsDraft.findMany({
       where: where as never,
       orderBy: { updatedAt: 'desc' },
-      include: { documents: { select: { id: true } } },
+      select: {
+        id: true,
+        tenantId: true,
+        ownerId: true,
+        lastEditedById: true,
+        docTitle: true,
+        industry: true,
+        product: true,
+        client: true,
+        status: true,
+        isPacket: true,
+        docCount: true,
+        ask: true,
+        createdAt: true,
+        updatedAt: true,
+        documents: { select: { id: true } },
+      },
     });
 
-    // Project agent-state fields from the config JSONB so the library list
-    // can show phase / status / quality without an N+1 fan-out to GET /agent
-    // per row (GAPS §5). The agent state lives at
-    // config.documentAgent.{phase,status,quality.score}.
+    // Never reintroduce config. phase/qualityScore stay undefined on list;
+    // status is the draft column (not agent run-status).
     const drafts = rows.map((row) => {
-      const cfg = row.config as Record<string, unknown>;
-      const agent = cfg.documentAgent as
-        | {
-            phase?: string;
-            status?: string;
-            quality?: { score?: number };
-          }
-        | undefined;
+      const { config: _config, ...rest } = row as typeof row & { config?: unknown };
       return {
-        ...row,
-        phase: agent?.phase ?? undefined,
-        status: agent?.status ?? undefined,
-        qualityScore: agent?.quality?.score ?? null,
+        ...rest,
+        phase: undefined as string | undefined,
+        qualityScore: null as number | null,
       };
     });
 
