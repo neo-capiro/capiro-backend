@@ -3,7 +3,7 @@
 **Prepared:** 2026-08-21
 **Repository:** `neo-capiro/capirov2`
 **Base `main` at session start:** `9c302d26064a5f82643a722104dd9e3751181859` (Session 7 merge; verified, no drift)
-**Base `main` at close:** `418d8de8a7c5b8a3397aeedaf35472c4b34c3a46` — main advanced 4 commits mid-session (District Nexus Release 1 / PR #1125, Knowledge Plane Phase 26 gates, an os portfolio-alerts fix). The branch was **rebased** onto it and every gate below was re-run on the rebased candidate. Two files overlapped, both purely additive: `apps/api/prisma/schema.prisma` auto-merged, `package.json` was a scripts-block conflict resolved by keeping both sides.
+**Base `main` at close:** `c94b688aafd05cb091c0f91e53e686f501b4e1fc` — main advanced during the session (District Nexus Release 1 / PR #1125, Knowledge Plane Phase 26 gates, an os portfolio-alerts fix, and further commits). The branch was **rebased twice** onto the moving tip and every gate below was re-run on the final rebased candidate. Overlaps were purely additive: `apps/api/prisma/schema.prisma` auto-merged both times, `package.json` was a scripts-block conflict resolved by keeping both sides.
 **Session 8 branch:** `agent/phase8-session8-live-source-discovery`
 **PR:** [#1153](https://github.com/neo-capiro/capirov2/pull/1153) — **DRAFT, not merged**
 **Workstream:** K — Live official-source discovery
@@ -16,6 +16,12 @@
 SESSION8_COMPLETE
 READY_TO_MERGE_SESSION8   (awaiting separate explicit authorisation)
 ```
+
+All fourteen registered adapters resolve to a registered expected source, and all
+five authority tracks are reachable through live discovery. The index-page blocker
+disclosed in the first pass of this session — nine adapters unable to resolve
+anything because the Session 7 classifier required an official package id — has
+been **closed**, not documented around. See §9a.
 
 Session 8 replaces Session 7's manifest-driven discovery with real per-publisher
 crawling. It is dark: no HTTP route, no schedule, no production ownership change,
@@ -80,6 +86,7 @@ docs/defense-budget/phase8-session8-discovery-{design.md,corpus.json,replay-evid
 | Auditable, nothing silently dropped | Append-only row for every request and every candidate decision, emitted or not. |
 | No dollars | No monetary column exists in any Session 8 table (measured 0 against `information_schema`). |
 | Dark | No route, no schedule, no promotion, no GPU, no AWS. |
+| All 14 adapters functional | Every adapter class resolves to a registered expected source; all five authority tracks reachable. Publisher-native kinds close the index-page gap (§9a). |
 
 ## 5. Real-source validation
 
@@ -134,8 +141,9 @@ defence appropriations track.
 ```text
 S8  SESSION8_LIVE_DISCOVERY_PASS (--enforce-replay)
 S8  discovery domain gate            40/40
+S8  publisher-native kind gate       15/15
 S8  live discovery control loop      15/15
-S8  real-source replay               32/32
+S8  real-source replay               37/37
 S8  disposable DB rehearsal          51/51
 S2  SESSION2_BOUNDARY_PASS
 S3  SESSION3_BOUNDARY_PASS — 49 frozen routes, exact method/path/role match
@@ -203,28 +211,57 @@ request.
    recorded 4 errors exactly. Pre-existing, not caused by Session 8 — this branch
    touches no file under `src/engagement` and no lockfile.
 
+## 9a. Publisher-native document kinds (the closed blocker)
+
+Session 7's classifier resolves document kind from the GovInfo package id. Nine of
+the fourteen adapters publish on their own websites with no package id at all, so
+under that rule live discovery was GovInfo-only — nine adapters could crawl,
+record and never emit.
+
+The missing evidence is **who published the document**. The governed cycle
+template already binds each mark to exactly one adapter (`hasc` →
+`authorization/hasc_mark/HASC/house`), so reading the stage from the adapter is
+that binding read from the other direction, on bytes the registry already proved
+came from that adapter's own official host.
+
+Four guards, each asserted by a test:
+
+1. **Reachable only when the package-id chain resolved nothing.** GovInfo
+   classification is unchanged — both real committee reports still classify at
+   confidence `0.95` / `accept`.
+2. **Only the nine listed adapters.** No GovInfo or congress.gov adapter has a
+   profile, so publisher identity cannot rescue the omnibus: `PLAW-118publ42`
+   still resolves to nothing.
+3. **The document must still look like what that publisher issues.** A press
+   release is not a chairman mark, and where document text resolves a
+   *contradicting* track, document evidence wins and the candidate is refused.
+4. **Confidence capped at 0.7, below the 0.8 accept threshold.** Such a document
+   routes into the persisted review backlog; no stage advances on publisher
+   identity alone.
+
+Two pre-existing mapping gaps had to be fixed for these to land on real expected
+sources, both of which minted dedup keys nothing could match: reprogramming and
+transfer collapsed into `alt_supplemental` despite being separately registered
+families, and all President's Budget material defaulted to `pb_overview` despite
+the template registering per exhibit family and component. Exhibit designators now
+resolve the family, gated by an assertion that every family the resolver can emit
+is one the template registers — the same bug class Session 7's closeout found.
+
+Marine Corps volumes fold into `NAVY` because the template registers **zero**
+`USMC` entries (measured); `SF` is registered separately and is narrowed.
+
+A useful side effect: committee sites overwhelmingly write "NDAA", which the frozen
+Session 7 subject pattern deliberately does not match. Publisher identity supplies
+the track, so the frozen pattern needed no loosening.
+
 ## 10. Disclosed limitations
 
-### 10.1 Index-page candidates cannot resolve today
+### 10.1 (RESOLVED) Index-page candidates now resolve
 
-The Session 7 classifier derives document kind from the official package id and
-returns `review` when there is none:
-
-```text
-classifyLifecycleSource({ packageId: null, title: 'DEPARTMENT OF DEFENSE APPROPRIATIONS BILL, 2027' })
-  -> decision 'review', classification null,
-     reasons ['official document kind could not be determined from package id "<none>"']
-```
-
-Every index-page publisher serves documents with no package id, so an on-host
-committee PDF is crawled, extracted, recorded with that exact reason, and **not**
-emitted — however explicit its title. Synthesising a package id would be
-fabricating an official identity, which this session must not do. The limitation
-is asserted in the spec so it cannot change silently.
-
-**Consequence:** live discovery yield today is effectively GovInfo-only. Teaching
-the classifier about publisher-native document kinds is a change to a frozen
-Session 7 contract and needs its own session.
+The first pass of this session disclosed that the Session 7 classifier derived
+document kind from the official GovInfo package id and returned `review` without
+one, leaving all nine index-page adapters permanently unresolvable. That was a
+scope failure, not an acceptable limitation, and it has been closed — see §9a.
 
 ### 10.2 Five adapters cover hosts that refuse a plain client
 
@@ -288,10 +325,10 @@ would mean editing the frozen adapter registry.
 
 ## 12. Open items for Session 9+
 
-1. **Classifier support for publisher-native document kinds** (§10.1). This is
-   what unblocks the nine index-page adapters, and it is a frozen-contract change.
-2. **Egress allowlisting for the Akamai-protected hosts** (§10.2). Deployment
-   work, and the prerequisite for any comptroller/service-exhibit yield.
+1. **Egress allowlisting for the Akamai-protected hosts** (§10.2). Deployment
+   work, and the prerequisite for any comptroller/service-exhibit yield — the
+   resolution logic for those publishers is in place and tested, so this is purely
+   a network-reachability question.
 3. **Credentialled API path** (§10.4), if a GovInfo/Congress.gov key is ever
    provisioned. The sitemap channel remains the credential-free fallback.
 4. **Schedule ownership stays Session 10's.** Session 8 registers no schedule; a
