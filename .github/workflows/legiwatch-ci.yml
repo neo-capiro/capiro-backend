@@ -114,6 +114,22 @@ jobs:
       # deploy-truth scripts. `src/intelligence/alert-memo/` also covers the
       # dedicated hearing-recap contract (hearing-recap.spec.ts) — recaps live on
       # that Documents boundary but must never reuse alert-memo/save.
+      #
+      # Live Hearings Phase 3 adds `src/hearing-discovery/` (canonical identity,
+      # projection/diff, the capture-policy ceiling, and the official-source
+      # parsers this phase moved out of the live sync-hearings.ts job) and
+      # `src/live-hearings/` (master-calendar reads + the cross-tenant overlay
+      # boundary). `src/prisma/tenant-scope-guard.spec.ts` is enumerated
+      # explicitly because the new subscription reads are exactly the class of
+      # access it guards. Floors raised 22/256 -> 31/409, measured from a real
+      # local run of exactly this list (31 suites discovered, 409 tests passing).
+      #
+      # KNOWN RED, PRE-EXISTING, NOT FROM THIS PHASE: two suites in this scope
+      # (src/reviews/reviews.service.spec.ts and
+      # src/intelligence/alert-memo/hearing-recap.spec.ts) fail to COMPILE
+      # against EngagementService / ClientDocumentWriterService and contribute 0
+      # tests. They reproduce on main tip and are out of scope here, so this
+      # step's zero-failure bar cannot go green until they are fixed separately.
       - name: Tests — apps/api LegiWatch scope
         run: >
           pnpm --filter @capiro/api exec jest --ci --silent --runInBand
@@ -125,12 +141,15 @@ jobs:
           src/engagement/generation/alert-packet-client.service.spec.ts
           src/reviews/reviews.service.spec.ts
           src/prisma/legiwatch-live-hearings-foundation-migration.spec.ts
+          src/prisma/tenant-scope-guard.spec.ts
+          src/hearing-discovery/
+          src/live-hearings/
           scripts/verify-migrations.spec.ts
           scripts/verify-image-parity.spec.ts
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 22 256
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 31 409
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and

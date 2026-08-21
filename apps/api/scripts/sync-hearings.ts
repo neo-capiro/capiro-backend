@@ -40,6 +40,23 @@ import {
   isDateOnlySentinel,
   safeDate,
 } from './lib/hearing-time.js';
+// Congress.gov + docs.house.gov PARSING moved into the shared discovery core
+// (src/hearing-discovery) in Phase 3, so this daily sync and the Phase 3
+// canonical-discovery adapters cannot drift into two different parsers of the
+// same official payloads. These are the same functions that used to live in
+// this file; only their home moved.
+import {
+  formatLocation,
+  formatWitnesses,
+  meetingPublicUrl,
+  relatedAgendaBills,
+} from '../src/hearing-discovery/adapters/congress-gov-parse.js';
+import {
+  byDayUrl,
+  inferHouseType,
+  parseByDay,
+} from '../src/hearing-discovery/adapters/house-docs-parse.js';
+import { BROWSER_UA } from '../src/hearing-discovery/adapters/source-http.js';
 dotenvConfig();
 
 const CONGRESS_BASE = 'https://api.congress.gov/v3';
@@ -63,11 +80,8 @@ const CURRENT_CONGRESS = TARGET_CONGRESSES[0] ?? 119;
  * uses for `house-event`, so we key rows `cm-<congress>-<eventId>` — they merge
  * with Source 1 (no duplicate; Congress.gov later enriches the same row with
  * systemCode/witnesses, which we never overwrite). House-only; forward-looking. */
-const HOUSE_DOCS_BASE = 'https://docs.house.gov/Committee/Calendar';
 const HOUSE_DOCS_DAYS_AHEAD = Number(process.env.HOUSE_DOCS_DAYS_AHEAD ?? 21);
 const HOUSE_DOCS_ENABLED = (process.env.HOUSE_DOCS_ENABLED ?? 'true').toLowerCase() !== 'false';
-const BROWSER_UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 interface MeetingListItem {
   eventId?: string | null;
@@ -152,69 +166,11 @@ async function fetchJson<T>(url: string): Promise<T | null> {
   }
 }
 
-/**
- * Canonical congress_bill ids for the bills on a meeting agenda (LegiWatch B3),
- * from the detail's relatedItems.bills[]. "HR"/"H.R." → "hr", so a
- * {congress:119,type:"HR",number:8800} becomes "119-hr-8800" (soft ref — the
- * bill may be untracked). Tolerant of the nested `{ bill: [...] }` envelope
- * Congress.gov sometimes uses; skips rows missing any of the three keys.
- */
-function relatedAgendaBills(d: MeetingDetail): Array<{ billId: string; congress: number }> {
-  const raw: unknown = d.relatedItems?.bills;
-  const arr: unknown[] = Array.isArray(raw)
-    ? raw
-    : Array.isArray((raw as { bill?: unknown[] } | null)?.bill)
-      ? ((raw as { bill: unknown[] }).bill ?? [])
-      : [];
-  const out: Array<{ billId: string; congress: number }> = [];
-  const seen = new Set<string>();
-  for (const b of arr as Array<{ type?: unknown; number?: unknown; congress?: unknown }>) {
-    const congress = Number(b?.congress);
-    const type = String(b?.type ?? '')
-      .toLowerCase()
-      .replace(/[.\s]/g, '');
-    const number = String(b?.number ?? '').trim();
-    if (!Number.isFinite(congress) || congress <= 0 || !type || !number) continue;
-    const billId = `${congress}-${type}-${number}`;
-    if (seen.has(billId)) continue;
-    seen.add(billId);
-    out.push({ billId, congress });
-  }
-  return out;
-}
-
-function formatLocation(loc: MeetingDetail['location']): string | null {
-  if (!loc) return null;
-  const parts = [loc.building?.trim(), loc.room ? `Room ${loc.room.trim()}` : null].filter(
-    (p): p is string => !!p,
-  );
-  return parts.length ? parts.join(', ') : null;
-}
-
 function normalizeChamber(raw: string | null | undefined, fallback?: string | null): string {
   const c = (raw || fallback || 'Joint').toLowerCase();
   if (c === 'senate') return 'Senate';
   if (c === 'house') return 'House';
   return raw || fallback || 'Joint';
-}
-
-/** Public-facing congress.gov event page for a committee meeting. The API
- *  also returns this in videos[].url; we prefer that when present and otherwise
- *  construct the canonical form:
- *    https://www.congress.gov/event/{congress}th-Congress/{chamber}-event/{eventId}
- *  NEVER store the api.congress.gov URL — it requires an api_key and renders
- *  an API_KEY_MISSING error in the browser. */
-function meetingPublicUrl(
-  detail: MeetingDetail,
-  congress: number,
-  chamber: string,
-  eventId: string,
-): string | null {
-  const fromVideo = detail.videos?.find((v) => v.url && v.url.includes('congress.gov/event'))?.url;
-  if (fromVideo) return fromVideo;
-  const chamberSlug = chamber.toLowerCase();
-  if (chamberSlug !== 'house' && chamberSlug !== 'senate') return null;
-  return `https://www.congress.gov/event/${congress}th-Congress/${chamberSlug}-event/${eventId}`;
 }
 
 /** Public transcript link for a hearing: prefer Formatted Text (HTM), fall
@@ -256,22 +212,6 @@ async function buildCommitteeNameCache(): Promise<Map<string, string>> {
   return cache;
 }
 
-/** Normalize a witnesses[] payload to "Name, Position, Organization" strings. */
-function formatWitnesses(
-  witnesses:
-    | Array<{ name?: string | null; position?: string | null; organization?: string | null }>
-    | null
-    | undefined,
-): string[] {
-  return (witnesses ?? [])
-    .map((w) =>
-      [w.name?.trim(), w.position?.trim(), w.organization?.trim()]
-        .filter((p): p is string => !!p)
-        .join(', '),
-    )
-    .filter((s) => s.length > 0);
-}
-
 /** Witnesses live on the committee-meeting record (the /hearing endpoint has
  *  none). Fetches the committee-meeting detail by eventId (used by Source 2,
  *  which only has a jacket + associatedMeeting eventID). */
@@ -289,16 +229,8 @@ async function fetchWitnesses(
 
 /* ── docs.house.gov helpers ─────────────────────────────────────────────── */
 
-interface HouseDocsMeeting {
-  eventId: string;
-  committee: string;
-  title: string;
-  time: string | null;
-  location: string | null;
-}
-
 /** Fetch a docs.house.gov page (UTF-8; smart quotes/dashes are normalized to ASCII
- *  downstream by cleanHouseText). */
+ *  downstream by cleanText in the shared discovery core). */
 async function fetchHouseHtml(url: string): Promise<string | null> {
   try {
     const resp = await fetch(url, { headers: { 'User-Agent': BROWSER_UA, Accept: 'text/html' } });
@@ -308,74 +240,6 @@ async function fetchHouseHtml(url: string): Promise<string | null> {
     console.warn(`GET ${url}: ${(err as Error).message}`);
     return null;
   }
-}
-
-const ENTITIES: Record<string, string> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-  nbsp: ' ',
-  rsquo: "'",
-  lsquo: "'",
-  ldquo: '"',
-  rdquo: '"',
-  ndash: '-',
-  mdash: '-',
-  hellip: '...',
-  '#39': "'",
-};
-
-function decodeEntities(s: string): string {
-  return s
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
-    .replace(/&([a-z0-9#]+);/gi, (m, name) => ENTITIES[name] ?? ENTITIES[name.toLowerCase()] ?? m);
-}
-
-/** Strip tags, decode entities, normalize typographic chars to ASCII, collapse space. */
-function cleanHouseText(s: string): string {
-  return decodeEntities(s.replace(/<[^>]+>/g, ' '))
-    .replace(/[‘’′]/g, "'")
-    .replace(/[“”″]/g, '"')
-    .replace(/[–—]/g, '-')
-    .replace(/…/g, '...')
-    .replace(/[ \s]+/g, ' ')
-    .trim();
-}
-
-// One ByDay GridView row: EventID + title (link) + committee (span.text-tiny) + time + location.
-const BYDAY_ROW =
-  /<a href="ByEvent\.aspx\?EventID=(\d+)"\s+title="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<span class="text-tiny" title="([^"]*)"[^>]*>[\s\S]*?<\/span>[\s\S]*?<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>/g;
-
-function parseByDay(html: string): HouseDocsMeeting[] {
-  const out: HouseDocsMeeting[] = [];
-  BYDAY_ROW.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = BYDAY_ROW.exec(html)) !== null) {
-    const eventId = m[1] ?? '';
-    const title = cleanHouseText(m[2] || m[3] || '');
-    const committee = cleanHouseText(m[4] ?? '');
-    const time = cleanHouseText(m[5] ?? '') || null;
-    const location = cleanHouseText(m[6] ?? '') || null;
-    if (eventId && committee) out.push({ eventId, committee, title, time, location });
-  }
-  return out;
-}
-
-function inferHouseType(title: string, committee: string): string {
-  const t = `${title} ${committee}`.toLowerCase();
-  if (/\bmark[- ]?up\b|marking up/.test(t)) return 'markup';
-  if (/\bbusiness meeting\b|organizational meeting|\bmeeting\b/.test(t)) return 'meeting';
-  return 'hearing';
-}
-
-/** MMDDYYYY for a Date's UTC calendar day (matches docs.house.gov DayID + our DATE column). */
-function houseDayId(d: Date): string {
-  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(d.getUTCDate()).padStart(2, '0');
-  return `${mm}${dd}${d.getUTCFullYear()}`;
 }
 
 /**
@@ -400,7 +264,7 @@ async function syncHouseDocsMeetings(
   for (let offset = 0; offset <= HOUSE_DOCS_DAYS_AHEAD; offset++) {
     const day = new Date(base.getTime() + offset * 86400000);
     await new Promise((r) => setTimeout(r, DELAY_MS));
-    const html = await fetchHouseHtml(`${HOUSE_DOCS_BASE}/ByDay.aspx?DayID=${houseDayId(day)}`);
+    const html = await fetchHouseHtml(byDayUrl(day));
     if (html == null) {
       fails++;
       continue;
