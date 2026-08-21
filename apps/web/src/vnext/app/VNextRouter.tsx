@@ -26,6 +26,10 @@ import {
   isVNextFundingOpportunitiesPath,
   VNextFundingOpportunitiesRoutes,
 } from '../pages/funding-opportunities/VNextFundingOpportunitiesRoutes.js';
+import {
+  isVNextDefenseBudgetLifecyclePath,
+  VNextDefenseBudgetLifecycleRoutes,
+} from '../pages/defense-budget-lifecycle/VNextDefenseBudgetLifecycleRoutes.js';
 import { isVNextDistrictNexusPath } from '../pages/district-nexus/district-nexus-route.js';
 import {
   isVNextIntelligencePath,
@@ -161,6 +165,14 @@ export function VNextRouter() {
   // canonical pages gate it.
   if (isVNextFundingOpportunitiesPath(location.pathname)) {
     return <VNextFundingOpportunitiesRoutes />;
+  }
+
+  // Defense Budget Lifecycle (Phase 8 Session 11): a brand-new module with no
+  // canonical counterpart at all — cycle health/coverage and the read-only
+  // review queue over the Session 7-10 discovery control plane, gated to
+  // capiro-internal in-page (same posture as Program Elements v2).
+  if (isVNextDefenseBudgetLifecyclePath(location.pathname)) {
+    return <VNextDefenseBudgetLifecycleRoutes />;
   }
 
   // District Nexus: the firm-wide district map at /intelligence/district-nexus.

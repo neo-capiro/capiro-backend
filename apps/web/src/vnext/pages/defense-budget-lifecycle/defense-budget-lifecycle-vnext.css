@@ -1,0 +1,166 @@
+.dbl-vnext {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  min-height: 100%;
+  background: var(--capiro-color-bg-page);
+  color: var(--capiro-color-text-primary);
+}
+
+.dbl-vnext-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dbl-vnext-title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.dbl-vnext-sub {
+  margin-top: 4px;
+  max-width: 640px;
+  color: var(--capiro-color-text-body-secondary);
+  font-size: 13px;
+}
+
+.dbl-vnext-actions {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+
+.dbl-vnext-link {
+  color: var(--capiro-color-info);
+  font-size: 13px;
+  text-decoration: none;
+}
+.dbl-vnext-link:hover {
+  text-decoration: underline;
+}
+
+.dbl-vnext-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.dbl-vnext-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: 10px;
+  background: var(--capiro-color-bg-surface);
+}
+
+.dbl-vnext-tile-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.dbl-vnext-tile-label {
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+}
+
+.dbl-vnext-card {
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: 10px;
+  background: var(--capiro-color-bg-surface);
+  overflow: hidden;
+}
+
+.dbl-vnext-card-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+}
+
+.dbl-vnext-card-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dbl-vnext-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+
+.dbl-vnext-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  margin: 0;
+}
+
+.dbl-vnext-facts dt {
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+}
+
+.dbl-vnext-facts dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+}
+
+.dbl-vnext-review-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dbl-vnext-review-item {
+  padding: 16px;
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dbl-vnext-review-item:last-child {
+  border-bottom: none;
+}
+
+.dbl-vnext-review-item-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dbl-vnext-review-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--capiro-color-text-body-secondary);
+}
+
+.dbl-vnext-review-reasons {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.dbl-vnext-review-item-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+}
+
+.dbl-vnext-resolve-disabled {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: 6px;
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-muted);
+  font-size: 12px;
+  cursor: not-allowed;
+}

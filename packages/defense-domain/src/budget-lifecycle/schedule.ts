@@ -225,3 +225,92 @@ export function buildScheduleTickSummary(input: {
     failureReason,
   });
 }
+
+// ── Tick-health read model (Session 11) ─────────────────────────────────────
+//
+// `defense_budget_schedule_tick` has held one audited row per tick since
+// Session 10, but nothing ever aggregated the rows into a health view — the
+// Session 10 handoff named this gap explicitly and scoped it to Session 11.
+// This is read-only aggregation over already-persisted tick summaries: it
+// creates no tick, acquires no lease, and calls no adapter.
+
+export interface ScheduleTickRecord {
+  readonly workerId: string;
+  readonly tickKey: string;
+  readonly startedAt: string;
+  readonly finishedAt: string;
+  readonly outcome: ScheduleTickOutcome;
+  readonly adaptersConsidered: number;
+  readonly adaptersDue: number;
+  readonly adaptersSucceeded: number;
+  readonly adaptersFailed: number;
+  readonly adaptersSkippedLease: number;
+  readonly committed: boolean;
+  readonly failureReason: string | null;
+}
+
+export interface ScheduleTickHealth {
+  readonly schemaVersion: 'defense_budget_schedule_tick_health_v1';
+  readonly generatedAt: string;
+  readonly ticksConsidered: number;
+  readonly lastTickAt: string | null;
+  readonly lastTickOutcome: ScheduleTickOutcome | null;
+  readonly lastTickWorkerId: string | null;
+  /** True when no tick has been recorded within `staleAfterHours` of `generatedAt`. */
+  readonly staleSinceLastTick: boolean;
+  readonly completedTicks: number;
+  readonly failedTicks: number;
+  readonly totalAdaptersConsidered: number;
+  readonly totalAdaptersSucceeded: number;
+  readonly totalAdaptersFailed: number;
+  readonly totalAdaptersSkippedLease: number;
+  /** Most recent failure reasons first, capped so a bad run can't flood a UI. */
+  readonly recentFailureReasons: readonly string[];
+}
+
+const MAX_RECENT_FAILURE_REASONS = 10;
+
+export function buildScheduleTickHealth(input: {
+  readonly nowIso: string;
+  readonly ticks: readonly ScheduleTickRecord[];
+  /** How long since the last tick before the view reports staleness. */
+  readonly staleAfterHours?: number;
+}): ScheduleTickHealth {
+  const now = new Date(input.nowIso).getTime();
+  if (Number.isNaN(now)) throw new RangeError(`Invalid instant: ${input.nowIso}`);
+  const staleAfterMs = (input.staleAfterHours ?? 26) * 3_600_000;
+
+  const byRecency = [...input.ticks].sort(
+    (a, b) => new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime(),
+  );
+  const last = byRecency[0] ?? null;
+
+  const lastTickAt = last?.finishedAt ?? null;
+  const staleSinceLastTick =
+    lastTickAt === null || now - new Date(lastTickAt).getTime() > staleAfterMs;
+
+  const recentFailureReasons = byRecency
+    .filter((tick) => tick.failureReason)
+    .slice(0, MAX_RECENT_FAILURE_REASONS)
+    .map((tick) => tick.failureReason as string);
+
+  const sum = (select: (tick: ScheduleTickRecord) => number): number =>
+    input.ticks.reduce((total, tick) => total + select(tick), 0);
+
+  return Object.freeze({
+    schemaVersion: 'defense_budget_schedule_tick_health_v1' as const,
+    generatedAt: input.nowIso,
+    ticksConsidered: input.ticks.length,
+    lastTickAt,
+    lastTickOutcome: last?.outcome ?? null,
+    lastTickWorkerId: last?.workerId ?? null,
+    staleSinceLastTick,
+    completedTicks: input.ticks.filter((tick) => tick.outcome === 'completed').length,
+    failedTicks: input.ticks.filter((tick) => tick.outcome === 'failed').length,
+    totalAdaptersConsidered: sum((tick) => tick.adaptersConsidered),
+    totalAdaptersSucceeded: sum((tick) => tick.adaptersSucceeded),
+    totalAdaptersFailed: sum((tick) => tick.adaptersFailed),
+    totalAdaptersSkippedLease: sum((tick) => tick.adaptersSkippedLease),
+    recentFailureReasons: Object.freeze(recentFailureReasons),
+  });
+}
