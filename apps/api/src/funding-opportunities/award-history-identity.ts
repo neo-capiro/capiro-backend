@@ -202,24 +202,40 @@ function buildRail(input: {
 }
 
 /**
- * Build both identity rails.
+ * Narrow, reusable input to `buildAwardIdentityRails` — everything the rail
+ * decision needs, and nothing that ties it to `ClientProfileFacts` (which
+ * carries NAICS/PSC/capabilities/etc. that no identity decision touches).
+ * District Nexus builds this from `ClientIntelMapping` rows directly rather
+ * than assembling a full funding-opportunities profile just to get an
+ * identity rail out of it — see district-nexus.identity.ts.
+ */
+export interface AwardIdentityInput {
+  uei: string | null;
+  contractingMappings: ProfileMapping[];
+  assistanceMappings: ProfileMapping[];
+}
+
+/**
+ * Build both identity rails from the narrow input contract.
  *
  * Pure. `contractorUeis` is passed in rather than looked up here so the decision
- * logic stays testable without a database — the lookup itself lives in the
- * repository, alongside every other read.
+ * logic stays testable without a database — the lookup itself lives with each
+ * caller's own reads (the funding-opportunities repository for
+ * `buildAwardHistoryIdentity`, `district-nexus.service.ts` for the District
+ * Nexus adapter).
  */
-export function buildAwardHistoryIdentity(
-  facts: ClientProfileFacts,
+export function buildAwardIdentityRails(
+  input: AwardIdentityInput,
   contractorUeis: ContractorUeiIndex = new Map(),
 ): AwardHistoryIdentityV2 {
-  const ownUei = normalizeUei(facts.uei);
+  const ownUei = normalizeUei(input.uei);
 
   return {
     // A `contracting` mapping's externalId is a federal_contractor UUID, so the
     // verified UEI comes from the resolved index, never from externalId itself.
     contract: buildRail({
       ownUei,
-      mappings: facts.contractingMappings,
+      mappings: input.contractingMappings,
       mappingUei: (m) =>
         m.externalId ? normalizeUei(contractorUeis.get(m.externalId) ?? null) : null,
     }),
@@ -227,31 +243,56 @@ export function buildAwardHistoryIdentity(
     // UEI-shaped value IS the verified identifier and anything else is a name.
     assistance: buildRail({
       ownUei,
-      mappings: facts.assistanceMappings,
+      mappings: input.assistanceMappings,
       mappingUei: (m) => normalizeUei(m.externalId),
     }),
   };
 }
 
+/**
+ * Build both identity rails from a full client profile. Delegates to
+ * `buildAwardIdentityRails` — kept as its own export because every existing
+ * caller in funding-opportunities already has a `ClientProfileFacts` in hand.
+ */
+export function buildAwardHistoryIdentity(
+  facts: ClientProfileFacts,
+  contractorUeis: ContractorUeiIndex = new Map(),
+): AwardHistoryIdentityV2 {
+  return buildAwardIdentityRails(
+    {
+      uei: facts.uei,
+      contractingMappings: facts.contractingMappings,
+      assistanceMappings: facts.assistanceMappings,
+    },
+    contractorUeis,
+  );
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * `federal_contractor.id` values worth resolving to a UEI.
+ * Is `id` a `federal_contractor.id` worth resolving to a UEI?
  *
  * NON-UUID VALUES ARE FILTERED OUT, AND THAT IS NOT DEFENSIVE PADDING.
- * The lookup casts this list to `uuid[]`. Postgres rejects the WHOLE statement
- * with 22P02 on the first malformed member, so one legacy or hand-pinned
- * `contracting` mapping whose `externalId` is not a UUID would abort the entire
- * nightly producer run for every tenant — not degrade that one client.
+ * The lookup casts a list of these to `uuid[]`. Postgres rejects the WHOLE
+ * statement with 22P02 on the first malformed member, so one legacy or
+ * hand-pinned `contracting` mapping whose `externalId` is not a UUID would
+ * abort the entire lookup for every tenant/client in the batch — not degrade
+ * that one client.
  *
- * A filtered-out id simply has no resolved UEI, which sends its rail to the name
- * fallback and is recorded in the rail's notes.
+ * A filtered-out id simply has no resolved UEI, which sends its rail to the
+ * name fallback and is recorded in the rail's notes.
  */
+export function isResolvableContractorId(id: string | null | undefined): id is string {
+  return !!id && UUID_RE.test(id);
+}
+
+/** `federal_contractor.id` values worth resolving to a UEI, across a batch of clients. */
 export function contractorIdsToResolve(facts: ClientProfileFacts[]): string[] {
   const ids = new Set<string>();
   for (const client of facts) {
     for (const mapping of client.contractingMappings) {
-      if (mapping.externalId && UUID_RE.test(mapping.externalId)) ids.add(mapping.externalId);
+      if (isResolvableContractorId(mapping.externalId)) ids.add(mapping.externalId);
     }
   }
   return [...ids];

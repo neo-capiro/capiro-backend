@@ -27,7 +27,7 @@
  * client's score no matter how large it is.
  */
 import { districtKeyFor } from './district-nexus.aggregate.js';
-import { CONTRACT_TIER, assistanceTier, componentForRelationship, facilityTier } from './district-nexus.verification.js';
+import { contractTier, assistanceTier, componentForRelationship, facilityTier } from './district-nexus.verification.js';
 import type {
   DistrictKey,
   EvidenceVerificationStatus,
@@ -47,6 +47,13 @@ export interface ContractEvidenceSourceRow {
   amount: number | null;
   actionDate: string | null;
   lastSyncedAt: string | null;
+  /**
+   * Which identifier this row matched the client on. Optional so existing
+   * fixtures keep compiling; absent defaults to `'contractor_name'` — the
+   * conservative direction, since `contractTier` discounts rather than
+   * inflates strength for it.
+   */
+  matchBasis?: 'uei' | 'contractor_name';
 }
 
 export interface AssistanceEvidenceSourceRow {
@@ -61,6 +68,14 @@ export interface AssistanceEvidenceSourceRow {
   lastSyncedAt: string | null;
   /** federal_assistance_award.pop_cd_vintage — 'original' | 'current' | null. */
   popCdVintage: string | null;
+  /**
+   * Which identifier this row matched the client on, computed once by the
+   * caller's query (the same CASE expression `aggregateAssistance` uses) —
+   * never re-derived here by comparing UEI sets after the fact, which is what
+   * let evidence and scoring disagree before this module existed. Optional so
+   * existing fixtures keep compiling; absent defaults to `'recipient_name'`.
+   */
+  matchBasis?: 'uei' | 'recipient_name';
 }
 
 export interface FacilityEvidenceSourceRow {
@@ -74,21 +89,29 @@ export interface FacilityEvidenceSourceRow {
   /** 'user' | 'geocoded' | 'web_import' | null. */
   districtSource: string | null;
   updatedAt: string | null;
+  /**
+   * `ClientFacility.congressionalDistrictCongress` — which Congress's boundary
+   * produced `districtCode`, when the Census geocoder supplied one. Null for a
+   * manually-entered district (never stamped without geocoder evidence) or a
+   * facility geocoded before this column existed.
+   */
+  congressionalDistrictCongress?: number | null;
 }
 
 /**
- * Contracts are matched to a client by contractor NAME — there is no UEI path
- * for the contract rail (the plan's own callout: "the legacy contract rail
- * joins by contractor name; keep it, label it." This is the label). So every
- * contract evidence row is honestly `inferred`, and `federal_award` carries no
- * CD-vintage column at all, so `boundaryVintage` is honestly `unknown` rather
- * than assumed `original`.
+ * Contracts now have a verified-identifier path (Release 1): a row matched by
+ * `recipient_uei` is source-verified, exactly like the assistance rail's UEI
+ * match — see `contractTier`. `federal_award` carries no CD-vintage column at
+ * all, so `boundaryVintage` is honestly `unknown` rather than assumed
+ * `original`; it carries no Congress-number column either, so
+ * `boundaryCongress` is always null here.
  */
 export function contractRowToEvidence(
   row: ContractEvidenceSourceRow,
 ): { districtKey: DistrictKey; evidence: NexusEvidence } | null {
   const districtKey = districtKeyFor(row.state, row.district);
   if (!districtKey) return null;
+  const tier = contractTier(row.matchBasis ?? 'contractor_name');
   return {
     districtKey,
     evidence: {
@@ -99,10 +122,11 @@ export function contractRowToEvidence(
       sourceUpdatedAt: row.lastSyncedAt,
       observedAt: row.actionDate,
       geographyBasis: 'place_of_performance',
-      verificationStatus: CONTRACT_TIER.status,
-      confidence: CONTRACT_TIER.confidence,
+      verificationStatus: tier.status,
+      confidence: tier.confidence,
       externalUseApproved: true,
       boundaryVintage: 'unknown',
+      boundaryCongress: null,
       amount: row.amount,
     },
   };
@@ -110,21 +134,18 @@ export function contractRowToEvidence(
 
 /**
  * Assistance rows carry a real verified-identifier path (UEI), unlike
- * contracts. `matchedUeis` is the client's own confirmed-UEI set (already
- * uppercased, as `isUeiShaped`/`dedupe` produce it in the service) — a row
- * whose `recipientUei` is in that set is source-verified; anything else that
- * still matched (by name only) is inferred, exactly the same distinction
- * `evidenceForDistrict`'s `EvidenceStrength` draws for the basis itself, kept
- * separate here because verification and geography-strength are different axes.
+ * contracts. `row.matchBasis` is computed ONCE by the caller's query (the same
+ * CASE expression `aggregateAssistance` uses to group), never re-derived here
+ * by comparing UEI sets after the fact — that used to let evidence and scoring
+ * disagree, which is exactly what `district-nexus.verification.ts` exists to
+ * prevent.
  */
 export function assistanceRowToEvidence(
   row: AssistanceEvidenceSourceRow,
-  matchedUeis: ReadonlySet<string>,
 ): { districtKey: DistrictKey; evidence: NexusEvidence } | null {
   const districtKey = districtKeyFor(row.state, row.district);
   if (!districtKey) return null;
-  const matchedByUei = !!row.recipientUei && matchedUeis.has(row.recipientUei.toUpperCase());
-  const tier = assistanceTier(matchedByUei ? 'uei' : 'recipient_name');
+  const tier = assistanceTier(row.matchBasis ?? 'recipient_name');
   const vintage: NexusEvidence['boundaryVintage'] =
     row.popCdVintage === 'original' || row.popCdVintage === 'current' ? row.popCdVintage : 'unknown';
   return {
@@ -141,6 +162,9 @@ export function assistanceRowToEvidence(
       confidence: tier.confidence,
       externalUseApproved: true,
       boundaryVintage: vintage,
+      // federal_assistance_award carries no Congress-NUMBER column (only
+      // pop_cd_vintage's 'original'/'current' label) — always null here.
+      boundaryCongress: null,
       amount: row.totalObligated,
     },
   };
@@ -180,6 +204,7 @@ export function facilityRowToEvidence(
     confidence,
     externalUseApproved: false,
     boundaryVintage: 'current',
+    boundaryCongress: row.congressionalDistrictCongress ?? null,
     amount: null,
   };
 
@@ -211,6 +236,8 @@ export interface RelationshipEvidenceSourceRow {
   externalUseApproved: boolean;
   /** The linked award's pop_cd_vintage — irrelevant when a facility supplied the district. */
   popCdVintage: string | null;
+  /** The linked facility's Congress, when `geographyBasis === 'project_site'`. */
+  boundaryCongress?: number | null;
   obligatedAmount: number | null;
   sourceUpdatedAt: string | null;
   observedAt: string | null;
@@ -264,6 +291,7 @@ export function relationshipRowToEvidence(
       // flag IS the approval gate (plan §8.5), not decoration.
       externalUseApproved: row.externalUseApproved,
       boundaryVintage: vintage,
+      boundaryCongress: row.geographyBasis === 'project_site' ? row.boundaryCongress ?? null : null,
       amount: row.obligatedAmount,
     },
   };

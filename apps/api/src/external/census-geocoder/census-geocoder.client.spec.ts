@@ -51,6 +51,7 @@ describe('extractDistricts', () => {
     const r = extractDistricts(FL_MATCH);
     expect(r).toEqual({
       congressionalDistrict: '02',
+      congressionalDistrictCongress: 119,
       stateHouseDistrict: '9',
       stateSenateDistrict: '3',
     });
@@ -60,6 +61,7 @@ describe('extractDistricts', () => {
     const r = extractDistricts(WY_AT_LARGE_MATCH);
     expect(r.congressionalDistrict).toBe('00');
     expect(r.congressionalDistrict).not.toBe('Congressional District (at Large)');
+    expect(r.congressionalDistrictCongress).toBe(119);
     expect(r.stateHouseDistrict).toBe('11');
     expect(r.stateSenateDistrict).toBe('8');
   });
@@ -79,6 +81,10 @@ describe('extractDistricts', () => {
     const r = extractDistricts(drifted);
     expect(r).toEqual({
       congressionalDistrict: '02',
+      // A future Congress number bump is read dynamically, not hardcoded —
+      // this is PD1's other explicit warning, and the whole reason the field
+      // is matched by /^CD\d+$/ rather than a fixed "CD119".
+      congressionalDistrictCongress: 122,
       stateHouseDistrict: '9',
       stateSenateDistrict: '3',
     });
@@ -99,6 +105,7 @@ describe('extractDistricts', () => {
     const r = extractDistricts(unicameral);
     expect(r).toEqual({
       congressionalDistrict: '01',
+      congressionalDistrictCongress: 119,
       stateHouseDistrict: null,
       stateSenateDistrict: '25',
     });
@@ -108,8 +115,22 @@ describe('extractDistricts', () => {
     const r = extractDistricts({ matchedAddress: 'x', coordinates: { x: 0, y: 0 } });
     expect(r).toEqual({
       congressionalDistrict: null,
+      congressionalDistrictCongress: null,
       stateHouseDistrict: null,
       stateSenateDistrict: null,
     });
+  });
+
+  it('a CD layer with no /^CD\\d+$/-shaped field key resolves the Congress to null, never a guess', () => {
+    const noCdField: CensusAddressMatch = {
+      matchedAddress: 'x',
+      coordinates: { x: 0, y: 0 },
+      geographies: {
+        '119th Congressional Districts': [{ BASENAME: '2' }],
+      },
+    };
+    const r = extractDistricts(noCdField);
+    expect(r.congressionalDistrict).toBeNull();
+    expect(r.congressionalDistrictCongress).toBeNull();
   });
 });

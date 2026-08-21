@@ -18,6 +18,7 @@ import type {
   ClientDistrictNexusResponse,
   DistrictNexusDistrictDetailResponse,
   DistrictNexusMapResponse,
+  FacilityCoverageDiagnostic,
 } from './district-nexus.types.js';
 
 /**
@@ -107,5 +108,17 @@ export class DistrictNexusController {
       }
       throw error;
     }
+  }
+
+  /**
+   * Read-only facility geocode/Congress-provenance coverage diagnostic
+   * (Release 1, §14) — not a dashboard, just the counts an operator needs to
+   * judge coverage before deciding whether to run the backfill.
+   */
+  @Get('district-nexus/facility-coverage')
+  getFacilityCoverageDiagnostic(
+    @CurrentTenant() ctx: TenantContext,
+  ): Promise<FacilityCoverageDiagnostic> {
+    return this.service.getFacilityCoverageDiagnostic(ctx.tenantId);
   }
 }

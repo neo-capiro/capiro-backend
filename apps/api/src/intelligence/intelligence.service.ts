@@ -36,6 +36,11 @@ import { OfficeRecommenderService } from './office-recommender.service.js';
 import type { OfficeRecommendation } from './office-recommender.service.js';
 import { resolveStateName, abbrForStateName } from '../common/us-states.js';
 import {
+  buildDistrictNexusIdentity,
+  districtNexusContractorIdsToResolve,
+  type DistrictNexusIdentitySeed,
+} from '../district-nexus/district-nexus.identity.js';
+import {
   districtCodeForHouseMatch,
   normalizeDistrictForCensus,
 } from '../common/district-code.util.js';
@@ -5149,26 +5154,54 @@ export class IntelligenceService {
     since: Date,
   ): Promise<AlertRow[]> {
     try {
-      const mapping = await this.prisma.withTenant(tenantId, (tx) =>
-        tx.clientIntelMapping.findFirst({
-          where: {
-            clientId,
-            source: 'contracting',
-            confirmed: true,
-            reviewStatus: 'confirmed',
-            rollUpAwards: true,
-          },
-          select: { externalId: true },
-        }),
+      // Release 1 fix: `externalId` on a `contracting` mapping is a
+      // `federal_contractor.id` UUID, NOT a contractor name — this used to
+      // compare that UUID against `federal_award.contractor_name`, which can
+      // never match, and read as "no new awards" for every client with a
+      // confirmed contracting mapping. Resolved through the same canonical
+      // identity primitive every other District Nexus award reader uses.
+      const [mapping, client] = await this.prisma.withTenant(tenantId, (tx) =>
+        Promise.all([
+          tx.clientIntelMapping.findFirst({
+            where: {
+              clientId,
+              source: 'contracting',
+              confirmed: true,
+              reviewStatus: 'confirmed',
+              rollUpAwards: true,
+            },
+            select: { externalId: true, externalName: true, matchBasis: true, matchTier: true },
+          }),
+          tx.client.findFirst({ where: { id: clientId }, select: { uei: true } }),
+        ]),
       );
-      const contractorName = mapping?.externalId?.trim();
-      if (!contractorName) return [];
+      if (!mapping) return [];
+
+      const seed: DistrictNexusIdentitySeed = {
+        clientId,
+        clientName: '',
+        uei: client?.uei ?? null,
+        mappings: [
+          {
+            source: 'contracting',
+            externalId: mapping.externalId,
+            externalName: mapping.externalName,
+            matchBasis: mapping.matchBasis,
+            matchTier: mapping.matchTier,
+          },
+        ],
+      };
+      const contractorUeis = await this.resolveContractorUeisForAlerts(
+        districtNexusContractorIdsToResolve([seed]),
+      );
+      const identity = buildDistrictNexusIdentity(seed, contractorUeis);
+      if (identity.contract.basis === 'none') return [];
 
       const awards = await this.prisma.federalAward.findMany({
-        where: {
-          contractorName: { equals: contractorName, mode: 'insensitive' },
-          awardedAt: { gte: since },
-        },
+        where:
+          identity.contract.basis === 'exact_uei'
+            ? { recipientUei: { in: identity.contract.ueis }, awardedAt: { gte: since } }
+            : { contractorName: { in: identity.contract.fallbackNames, mode: 'insensitive' }, awardedAt: { gte: since } },
         orderBy: { awardedAt: 'desc' },
         take: 10,
       });
@@ -5199,6 +5232,18 @@ export class IntelligenceService {
       );
       return [];
     }
+  }
+
+  /** Resolve `federal_contractor.id -> uei`, outside any tenant transaction. See district-nexus.service.ts's twin. */
+  private async resolveContractorUeisForAlerts(
+    contractorIds: string[],
+  ): Promise<Map<string, string | null>> {
+    if (!contractorIds.length) return new Map();
+    const rows = await this.prisma.federalContractor.findMany({
+      where: { id: { in: contractorIds } },
+      select: { id: true, uei: true },
+    });
+    return new Map(rows.map((r) => [r.id, r.uei]));
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -6012,25 +6057,58 @@ export class IntelligenceService {
    * the UI can be honest about coverage. Read-only over a GLOBAL table; no tenant
    * rows are written. The client/mapping lookup IS tenant-scoped.
    */
+  /**
+   * Legacy District Nexus contract-spend rail (pre-v2), kept live alongside
+   * v2 through first release. Release 1 fix (§10): this used to match spend
+   * through the confirmed mapping's `externalName` alone — no UEI path, and
+   * no rail-level exclusivity, unlike the rest of District Nexus. It now
+   * resolves the SAME canonical identity rail `district-nexus.service.ts`
+   * uses (`buildDistrictNexusIdentity`), so legacy spend and v2 can never
+   * disagree about which award rows belong to this client.
+   */
   async getDistrictNexusSpend(clientId: string, tenantId: string) {
-    // 1. Resolve the client's contractor name(s) from confirmed contracting mappings.
-    const mappings = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clientIntelMapping.findMany({
-        where: {
-          clientId,
-          source: 'contracting',
-          confirmed: true,
-          reviewStatus: 'confirmed',
-          rollUpAwards: true,
-        },
-        select: { externalName: true },
-      }),
+    // 1. Resolve the client's confirmed contracting mappings + own UEI.
+    const [mappings, client] = await this.prisma.withTenant(tenantId, (tx) =>
+      Promise.all([
+        tx.clientIntelMapping.findMany({
+          where: {
+            clientId,
+            source: 'contracting',
+            confirmed: true,
+            reviewStatus: 'confirmed',
+            rollUpAwards: true,
+          },
+          select: { externalId: true, externalName: true, matchBasis: true, matchTier: true },
+        }),
+        tx.client.findFirst({ where: { id: clientId }, select: { uei: true } }),
+      ]),
     );
+    // Unchanged public shape (§10): every confirmed mapping's externalName,
+    // independent of which basis the canonical identity below settles on.
     const contractorNames = Array.from(
       new Set(mappings.map((m) => m.externalName.trim()).filter((n) => n.length > 0)),
     );
 
-    if (!contractorNames.length) {
+    // Contractor UUID -> UEI resolution happens OUTSIDE the tenant
+    // transaction (§4) — a global `federal_contractor` reference-table read.
+    const seed: DistrictNexusIdentitySeed = {
+      clientId,
+      clientName: '',
+      uei: client?.uei ?? null,
+      mappings: mappings.map((m) => ({
+        source: 'contracting',
+        externalId: m.externalId,
+        externalName: m.externalName,
+        matchBasis: m.matchBasis,
+        matchTier: m.matchTier,
+      })),
+    };
+    const contractorUeis = await this.resolveContractorUeisForAlerts(
+      districtNexusContractorIdsToResolve([seed]),
+    );
+    const identity = buildDistrictNexusIdentity(seed, contractorUeis);
+
+    if (identity.contract.basis === 'none') {
       return {
         linked: false as const,
         reason: 'no_confirmed_contracting_mapping',
@@ -6044,7 +6122,8 @@ export class IntelligenceService {
       };
     }
 
-    // 2. Aggregate award spend by place-of-performance district (global table, read-only).
+    // 2. Aggregate award spend by place-of-performance district (global
+    // table, read-only) — exactly one basis, never OR'd (§2/§4).
     const spendRows = await this.prisma.$queryRaw<
       Array<{
         pop_state: string | null;
@@ -6052,14 +6131,25 @@ export class IntelligenceService {
         award_count: bigint;
         total_amount: number | null;
       }>
-    >`
-      SELECT pop_state, pop_congressional_district AS pop_district,
-             COUNT(*)::bigint AS award_count,
-             COALESCE(SUM(amount), 0)::float8 AS total_amount
-      FROM federal_award
-      WHERE contractor_name = ANY(${contractorNames}::text[])
-      GROUP BY pop_state, pop_congressional_district
-    `;
+    >(
+      identity.contract.basis === 'exact_uei'
+        ? Prisma.sql`
+            SELECT pop_state, pop_congressional_district AS pop_district,
+                   COUNT(*)::bigint AS award_count,
+                   COALESCE(SUM(amount), 0)::float8 AS total_amount
+            FROM federal_award
+            WHERE recipient_uei = ANY(${identity.contract.ueis}::text[])
+            GROUP BY pop_state, pop_congressional_district
+          `
+        : Prisma.sql`
+            SELECT pop_state, pop_congressional_district AS pop_district,
+                   COUNT(*)::bigint AS award_count,
+                   COALESCE(SUM(amount), 0)::float8 AS total_amount
+            FROM federal_award
+            WHERE lower(contractor_name) = ANY(${identity.contract.fallbackNames}::text[])
+            GROUP BY pop_state, pop_congressional_district
+          `,
+    );
 
     // 3. Join CensusDistrict demographics for the districts we resolved.
     const districtKeys = spendRows

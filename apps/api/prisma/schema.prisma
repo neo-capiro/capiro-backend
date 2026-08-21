@@ -3114,6 +3114,13 @@ model ClientFacility {
   state                 String?   @db.VarChar(2)
   zip                   String?   @db.VarChar(10)
   congressionalDistrict String?   @map("congressional_district") @db.VarChar(2)
+  /// District Nexus Release 1 (§11) — which Congress's boundary produced
+  /// `congressionalDistrict`, when the Census geocoder actually supplied one
+  /// (its `CD<congress>` field, e.g. `CD119`). Additive and nullable: a
+  /// manually-entered district is never stamped without geocoder evidence,
+  /// and a facility geocoded before this column existed stays null rather
+  /// than a guessed backfill.
+  congressionalDistrictCongress Int? @map("congressional_district_congress")
   districtSource        String?   @map("district_source") @db.VarChar(16)
   employeeCount         Int?      @map("employee_count")
   notes                 String?

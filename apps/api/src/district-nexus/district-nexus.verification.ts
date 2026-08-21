@@ -30,6 +30,13 @@ import type { EvidenceVerificationStatus } from './district-nexus.types.js';
 /** How a client was tied to an assistance award. */
 export type AssistanceMatchBasis = 'uei' | 'recipient_name';
 
+/**
+ * How a client was tied to a CONTRACT award (Release 1 — the contract rail now
+ * has a verified-identifier path, via `federal_contractor.id -> uei`
+ * resolution; see `district-nexus.identity.ts`).
+ */
+export type ContractMatchBasis = 'uei' | 'contractor_name';
+
 /** How a facility's district claim was established. */
 export interface FacilityTrustInput {
   /** 'matched' | 'no_match' | 'ambiguous' | 'error' | null. */
@@ -46,16 +53,21 @@ export interface VerificationTier {
 }
 
 /**
- * Contracts have NO verified-identifier path: `federal_award` is joined on
- * `contractor_name` and nothing else (see aggregateContracts). So every contract
- * attribution is honestly inferred. When a UEI rail is added for contracts, this
- * is the one function to change.
+ * The contract rail now has a verified-identifier path: a `federal_award` row
+ * matched by `recipient_uei` (via the client's own UEI or a resolved
+ * `federal_contractor.id -> uei`) is source-verified, exactly like the
+ * assistance rail's UEI match. A row matched only by `contractor_name` remains
+ * honestly inferred — there is no independent confirmation behind a name join.
+ *
+ * `basis` defaults to `'contractor_name'` when omitted so older rows/tests that
+ * predate Release 1 (no `matchBasis` carried yet) keep resolving to the
+ * pre-existing, conservative `inferred` tier rather than silently upgrading.
  */
-export const CONTRACT_TIER: VerificationTier = Object.freeze({
-  status: 'inferred',
-  strength: 'inferred',
-  confidence: null,
-});
+export function contractTier(basis: ContractMatchBasis = 'contractor_name'): VerificationTier {
+  return basis === 'uei'
+    ? { status: 'source_verified', strength: 'sourceAuthoritative', confidence: 1 }
+    : { status: 'inferred', strength: 'inferred', confidence: null };
+}
 
 /** UEI is a verified external identifier; a recipient-name hit is not. */
 export function assistanceTier(basis: AssistanceMatchBasis): VerificationTier {

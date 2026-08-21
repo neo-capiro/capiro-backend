@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import {
-  CONTRACT_TIER,
+  contractTier,
   assistanceTier,
   claimsFullAwardAmount,
   componentForRelationship,
@@ -10,8 +10,24 @@ import {
 } from './district-nexus.verification.js';
 
 describe('one tier table drives both axes', () => {
-  test('CONTRACT_TIER is always inferred — the contract rail has no verified-identifier path', () => {
-    expect(CONTRACT_TIER).toEqual({ status: 'inferred', strength: 'inferred', confidence: null });
+  test('contractTier: a contractor-name match is inferred', () => {
+    expect(contractTier('contractor_name')).toEqual({
+      status: 'inferred',
+      strength: 'inferred',
+      confidence: null,
+    });
+  });
+
+  test('contractTier: a UEI match is source-verified (Release 1 — the contract rail now has a verified-identifier path)', () => {
+    expect(contractTier('uei')).toEqual({
+      status: 'source_verified',
+      strength: 'sourceAuthoritative',
+      confidence: 1,
+    });
+  });
+
+  test('contractTier: an omitted basis defaults conservatively to contractor_name, for callers/fixtures that predate Release 1', () => {
+    expect(contractTier()).toEqual({ status: 'inferred', strength: 'inferred', confidence: null });
   });
 
   test('assistanceTier: a UEI match is source-verified', () => {

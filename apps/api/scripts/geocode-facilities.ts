@@ -68,7 +68,9 @@ async function main() {
     const rows = await bypassRls((tx) =>
       tx.$queryRawUnsafe<Array<FacilityGeocodeInput & { tenantId: string; currentHash: string }>>(
         `SELECT id, tenant_id AS "tenantId", address_line AS "addressLine", city, state, zip,
-                congressional_district AS "congressionalDistrict", district_source AS "districtSource",
+                congressional_district AS "congressionalDistrict",
+                congressional_district_congress AS "congressionalDistrictCongress",
+                district_source AS "districtSource",
                 state_house_district AS "stateHouseDistrict", state_senate_district AS "stateSenateDistrict",
                 latitude, longitude, geocode_status AS "geocodeStatus",
                 geocode_input_hash AS "geocodeInputHash",
@@ -78,6 +80,15 @@ async function main() {
           WHERE (geocode_input_hash IS NULL OR geocode_input_hash IS DISTINCT FROM ${ADDR_HASH_SQL})
              OR (geocode_status IN ('error', 'no_match', 'ambiguous')
                  AND (geocode_next_attempt_at IS NULL OR geocode_next_attempt_at <= NOW()))
+             -- §11 backfill eligibility: a facility already geocoded to a
+             -- district but missing its Congress provenance (a row from
+             -- before this column existed) is re-selected even though its
+             -- address hash is unchanged — the whole point is to fill in a
+             -- fact the address hash gives no other signal changed.
+             OR (geocode_status = 'matched'
+                 AND district_source = 'geocoded'
+                 AND congressional_district IS NOT NULL
+                 AND congressional_district_congress IS NULL)
           ORDER BY (geocode_input_hash IS NOT NULL), updated_at ASC
           LIMIT $1`,
         BATCH_CAP,

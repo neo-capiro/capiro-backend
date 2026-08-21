@@ -63,7 +63,8 @@ export type DataQualityWarningCode =
   | 'inferred_entity_match'
   | 'stale_source'
   | 'unmapped_amount'
-  | 'opportunity_only';
+  | 'opportunity_only'
+  | 'future_boundary_excluded';
 
 export interface DataQualityWarning {
   code: DataQualityWarningCode;
@@ -127,6 +128,8 @@ export interface NexusEvidence {
   /** Whether this fact may appear in external client-facing materials. */
   externalUseApproved: boolean;
   boundaryVintage: BoundaryVintage;
+  /** Which Congress's boundary produced this row's district code, when known. */
+  boundaryCongress: number | null;
   amount: Money;
 }
 
