@@ -244,4 +244,155 @@ describe('ContextPlaneGatewayService Phase 18-26', () => {
       }),
     );
   });
+
+  // -- Stage observability -------------------------------------------------
+  //
+  // Phase 27 cannot establish a quality/cost/latency baseline from durations
+  // that only exist in memory. These land on the EXISTING Context Plane audit
+  // row, so they become queryable in production without a second store.
+  describe('stage telemetry on the audit row', () => {
+    function governedCall(h: ReturnType<typeof harness>) {
+      const compilerReq = contextRequest();
+      compilerReq.layers = ['firm-identity', 'user-voice'];
+      compilerReq.traceId = 'trace-abc';
+      return h.service.requestContext({
+        operationId: 'test.governed-operation',
+        resolverRequest: resolverRequest(),
+        contextRequest: compilerReq,
+      });
+    }
+
+    test('records every stage duration, the trace id and the coverage vector', async () => {
+      jest.spyOn(operationRegistry, 'contextPlaneOperation').mockReturnValue(governedOperation());
+      const h = harness('enforce');
+      h.resolver.resolveAndRetrieve.mockResolvedValue({
+        resolution: {
+          status: 'ready',
+          stopReason: 'context_resolved_for_retrieval',
+          subjectScope: { kind: 'client', clientIds: ['c-1'] },
+          retrievalAllowed: true,
+        },
+        retrieval: {
+          records: [],
+          coverage: {
+            requestedDomains: ['clients', 'mail'],
+            searchedDomains: ['clients'],
+            recordsEvaluated: 4,
+            recordsReturned: 0,
+            paginationComplete: false,
+            unavailableSources: ['mail'],
+            sources: [
+              {
+                domain: 'clients',
+                sourceStatus: 'degraded',
+                coverageComplete: false,
+                truncated: true,
+              },
+              { domain: 'mail', sourceStatus: 'unauthorized', coverageComplete: false },
+            ],
+            complete: false,
+            stopReason: 'source_partial',
+          },
+        },
+      } as never);
+
+      await governedCall(h);
+
+      const recorded = h.audit.record.mock.calls.at(-1)?.[0];
+      expect(recorded.traceId).toBe('trace-abc');
+      expect(recorded.timings).toEqual(expect.objectContaining({ totalMs: expect.any(Number) }));
+      // Compilation is timed at the gateway, so it is always populated here.
+      expect(recorded.timings.compileMs).not.toBeNull();
+      expect(recorded.resolution).toEqual(
+        expect.objectContaining({
+          status: 'ready',
+          subjectScopeKind: 'client',
+          subjectClientCount: 1,
+          retrievalAllowed: true,
+        }),
+      );
+      // zero results !== complete coverage: every degraded state stays distinct.
+      expect(recorded.coverage).toEqual(
+        expect.objectContaining({
+          ran: true,
+          complete: false,
+          recordsReturned: 0,
+          recordsEvaluated: 4,
+          missingDomains: ['mail'],
+          partialDomains: ['clients'],
+          paginationComplete: false,
+          truncated: true,
+          stopReason: 'source_partial',
+        }),
+      );
+      expect(recorded.coverage.unavailableDomains).toEqual(['mail']);
+      expect(recorded.coverage.sourceStatuses).toEqual({
+        clients: 'degraded',
+        mail: 'unauthorized',
+      });
+      expect(recorded.requestedLayers).toEqual(['firm-identity', 'user-voice']);
+    });
+
+    test('retrieval that never ran is incomplete, not complete-with-zero-results', async () => {
+      jest.spyOn(operationRegistry, 'contextPlaneOperation').mockReturnValue(governedOperation());
+      const h = harness('enforce');
+      h.resolver.resolveAndRetrieve.mockResolvedValue({
+        resolution: { status: 'ambiguous', retrievalAllowed: false },
+      } as never);
+
+      await governedCall(h);
+
+      const recorded = h.audit.record.mock.calls.at(-1)?.[0];
+      expect(recorded.coverage).toEqual(
+        expect.objectContaining({
+          ran: false,
+          complete: false,
+          stopReason: 'retrieval_not_run',
+        }),
+      );
+    });
+
+    test('packet layer presence and the reason a layer was dropped are recorded', async () => {
+      jest.spyOn(operationRegistry, 'contextPlaneOperation').mockReturnValue(governedOperation());
+      const h = harness('enforce');
+      h.packets.compile.mockResolvedValue({
+        version: 2,
+        packetId: '33333333-3333-3333-3333-333333333333',
+        traceHash: 'phase18-hash',
+        persisted: true,
+        retrievalCompleteness: 'complete',
+        retrievalStopReason: 'complete',
+        requiredLayers: ['firm-identity', 'user-voice'],
+        health: {
+          status: 'degraded',
+          reasons: ['missing_required_layer'],
+          missingRequiredLayers: ['firm-identity'],
+        },
+        items: [{ id: 'm-1', layer: 'user-voice' }],
+        exclusions: [{ layer: 'firm-identity', reason: 'unapproved' }],
+        rendered: [{ id: 'm-1', layer: 'user-voice', body: 'abcde' }],
+        totalTokenBudget: 8000,
+        usedTokens: 120,
+      } as never);
+
+      await governedCall(h);
+
+      const recorded = h.audit.record.mock.calls.at(-1)?.[0];
+      // 'requested and dropped as unapproved' must stay distinguishable from
+      // 'never requested'. That distinction is what makes an absent
+      // institutional layer diagnosable in production at all.
+      expect(recorded.packet.presentLayers).toEqual(['user-voice']);
+      expect(recorded.packet.missingLayers).toEqual(['firm-identity']);
+      expect(recorded.packet.exclusionReasonsByLayer).toEqual({
+        'firm-identity': ['unapproved'],
+      });
+      expect(recorded.packet.health).toBe('degraded');
+      expect(recorded.packet.healthReasons).toEqual(['missing_required_layer']);
+      expect(recorded.packet.tokenBudget).toBe(8000);
+      expect(recorded.packet.tokensUsed).toBe(120);
+      // Length of rendered context only; the rendered text never leaves.
+      expect(recorded.packet.blockChars).toBe(5);
+      expect(JSON.stringify(recorded)).not.toContain('abcde');
+    });
+  });
 });

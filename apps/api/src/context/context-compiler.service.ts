@@ -25,6 +25,7 @@ import {
   governedRecallSuppressionSql,
 } from '../memory/memory-recall-suppression.helpers.js';
 import { ContextPersistenceBoundaryService } from './context-persistence-boundary.service.js';
+import { contextStageTimer } from './context-stage-timer.service.js';
 
 /** apps/api adapter and server-owned Phase 8 rollout resolver. */
 @Injectable()
@@ -172,6 +173,12 @@ export class ContextCompilerService {
   }
 
   private async persistPacket(packet: TruthfulCompiledContextPacket): Promise<string> {
+    return contextStageTimer.time('persistence', () =>
+      this.persistPacketInner(packet),
+    );
+  }
+
+  private async persistPacketInner(packet: TruthfulCompiledContextPacket): Promise<string> {
     return this.prisma.withTenant(packet.tenantId, async (tx) => {
       await tx.contextPacket.create({
         data: {

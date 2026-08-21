@@ -21,14 +21,19 @@ describe('Knowledge Plane Phase 15 Context Resolver architecture', () => {
 
   test('resolves scope before retrieval and never auto-registers a public entity', () => {
     const source = fs.readFileSync(resolverPath, 'utf8');
-    const resolveIndex = source.indexOf('const resolution = await this.resolve(request)');
-    const retrievalIndex = source.indexOf(
-      'this.retrieval.retrieve(resolution.retrievalRequest)',
-    );
+    // Matched on the CALLS, not on the exact surrounding expression. The
+    // invariant is the ordering — scope resolved before any source is queried —
+    // and pinning `const resolution = await this.resolve(request)` verbatim made
+    // this contract fail the moment the two stages were wrapped for timing,
+    // while the ordering it exists to protect had not changed at all.
+    const resolveIndex = source.indexOf('this.resolve(request)');
+    const retrievalIndex = source.indexOf('this.retrieval.retrieve(resolution.retrievalRequest');
 
     expect(resolveIndex).toBeGreaterThan(-1);
     expect(retrievalIndex).toBeGreaterThan(resolveIndex);
     expect(source).toContain('allowAuthoritativePublicRegistration: false');
+    // The retrieval call must still be gated on the resolver's own permission.
+    expect(source).toContain('!resolution.retrievalAllowed || !resolution.retrievalRequest');
   });
 
   test('requires request and SecurityScope permission before external lookup', () => {

@@ -4,6 +4,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { UniversalEntityResolutionOrchestratorService } from '../knowledge/entities/universal-entity-resolution-orchestrator.service.js';
+import { contextStageTimer } from './context-stage-timer.service.js';
 import type { UniversalEntityResolutionOrchestrationResult } from '../knowledge/entities/universal-entity-resolution-orchestrator.types.js';
 import type { KnowledgeRef } from '../knowledge/knowledge.types.js';
 import { RetrievalV2Service } from '../retrieval/retrieval-v2.service.js';
@@ -130,11 +131,15 @@ export class ContextResolverService {
   async resolveAndRetrieve(
     request: ContextResolutionRequest,
   ): Promise<ContextRetrievalResult> {
-    const resolution = await this.resolve(request);
+    // Resolver and retrieval are timed SEPARATELY. Reporting one combined
+    // number cannot distinguish a slow subject resolution from a slow source.
+    const resolution = await contextStageTimer.time('resolver', () => this.resolve(request));
     if (!resolution.retrievalAllowed || !resolution.retrievalRequest) {
       return { resolution };
     }
-    const retrieval = await this.retrieval.retrieve(resolution.retrievalRequest);
+    const retrieval = await contextStageTimer.time('retrieval', () =>
+      this.retrieval.retrieve(resolution.retrievalRequest!),
+    );
     return { resolution, retrieval };
   }
 

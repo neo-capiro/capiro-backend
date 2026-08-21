@@ -16,8 +16,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { ContextCompilerService } from './context-compiler.service.js';
 import {
   ContextPlaneAuditService,
+  type ContextPlaneAuditCoverageSummary,
   type ContextPlaneAuditInput,
   type ContextPlaneAuditPacketSummary,
+  type ContextPlaneAuditResolutionSummary,
 } from './context-plane-audit.service.js';
 import * as operationRegistry from './context-plane-operation-registry.js';
 import type { ContextPlaneOperationRegistration } from './context-plane-operation-registry.js';
@@ -30,6 +32,7 @@ import type {
   ContextResolutionRequest,
   ContextRetrievalResult,
 } from './context-resolver.types.js';
+import { contextStageTimer } from './context-stage-timer.service.js';
 import { MeetingsContextPlaneRuntime } from './meetings-context-plane.runtime.js';
 
 export interface ContextPlaneGatewayRequest {
@@ -103,6 +106,15 @@ export class ContextPlaneGatewayService
   }
 
   async requestContext(request: ContextPlaneGatewayRequest): Promise<ContextPlaneGatewayResult> {
+    // One measurement scope per governed operation. Opened HERE, at the single
+    // supported boundary, so every adopted operation is instrumented by
+    // construction rather than by per-product opt-in.
+    return contextStageTimer.run(() => this.requestContextInner(request));
+  }
+
+  private async requestContextInner(
+    request: ContextPlaneGatewayRequest,
+  ): Promise<ContextPlaneGatewayResult> {
     const operation = operationRegistry.contextPlaneOperation(request.operationId);
 
     // Tenant/actor equality is checked before ANY tenant-settings lookup. A
@@ -171,10 +183,12 @@ export class ContextPlaneGatewayService
     // RetrievalRequest. Phase 17 must still know that domains were requested so
     // it records them as unchecked/unavailable rather than falsely calling the
     // turn "not requested" and complete.
-    const packet = await this.packets.compile(
-      request.contextRequest,
-      context,
-      request.resolverRequest.retrieval,
+    const packet = await contextStageTimer.time('compile', () =>
+      this.packets.compile(
+        request.contextRequest,
+        context,
+        request.resolverRequest.retrieval,
+      ),
     );
     const decision = evaluateContextOperationEnforcement({
       operationId: request.operationId,
@@ -185,7 +199,14 @@ export class ContextPlaneGatewayService
       currentPhase: request.currentPhase ?? CONTEXT_PLANE_ENFORCEMENT_PHASE,
     });
 
-    await this.auditDecision(request, operation, rolloutMode, decision, packetSummary(packet));
+    await this.auditDecision(
+      request,
+      operation,
+      rolloutMode,
+      decision,
+      packetSummary(packet),
+      context,
+    );
     if (!decision.allowed) throw denied(decision);
 
     return {
@@ -228,20 +249,105 @@ export class ContextPlaneGatewayService
     rolloutMode: ContextPlaneAuditInput['rolloutMode'],
     decision: ContextOperationEnforcementDecision,
     packet: ContextPlaneAuditPacketSummary | null,
+    context?: ContextRetrievalResult,
   ): Promise<void> {
     await this.audit.record({
       tenantId: request.resolverRequest.tenantId,
       actorUserId: request.resolverRequest.actorUserId,
       requestId: request.requestId,
+      traceId: request.contextRequest.traceId ?? null,
       product: operation?.registration.product ?? null,
       resolverSurface: operation?.resolverSurface ?? request.resolverRequest.surface,
       rolloutMode,
       decision,
       packet,
+      timings: contextStageTimer.snapshot(),
+      resolution: context ? resolutionSummary(context) : null,
+      coverage: context ? coverageSummary(context) : null,
+      requestedLayers: [...request.contextRequest.layers],
     });
   }
 }
 
+/**
+ * Resolver outcome, IDs and enums only. Deliberately excludes the task string,
+ * entity names and every retrieved body.
+ */
+function resolutionSummary(context: ContextRetrievalResult): ContextPlaneAuditResolutionSummary {
+  const resolution = context.resolution;
+  return {
+    status: resolution.status ?? null,
+    stopReason: resolution.stopReason ?? null,
+    subjectScopeKind: resolution.subjectScope?.kind ?? null,
+    subjectClientCount: resolution.subjectScope?.clientIds?.length ?? 0,
+    retrievalAllowed: resolution.retrievalAllowed ?? null,
+  };
+}
+
+/**
+ * Coverage is reported as the full state vector, never collapsed into one
+ * success boolean. `zero results !== complete coverage` is the whole point of
+ * the manifest: an unavailable, unauthorized, degraded, pagination-incomplete,
+ * truncated or unsupported source has to stay visibly distinct in telemetry, or
+ * the Phase 27 baseline would score a blind operation as a healthy one.
+ */
+function coverageSummary(
+  context: ContextRetrievalResult,
+): ContextPlaneAuditCoverageSummary {
+  const coverage = context.retrieval?.coverage;
+  if (!coverage) {
+    // Retrieval that never ran is NOT complete coverage.
+    return {
+      ran: false,
+      complete: false,
+      stopReason: 'retrieval_not_run',
+      requestedDomains: [],
+      searchedDomains: [],
+      missingDomains: [],
+      partialDomains: [],
+      unavailableDomains: [],
+      recordsEvaluated: 0,
+      recordsReturned: 0,
+      paginationComplete: false,
+      truncated: false,
+      sourceStatuses: {},
+    };
+  }
+  const sources = coverage.sources ?? [];
+  const statuses: Record<string, string> = {};
+  const partial: string[] = [];
+  // The manifest's own unavailable list is authoritative; per-source status adds
+  // the ones a source self-reported without the manifest hoisting them.
+  const unavailable: string[] = (coverage.unavailableSources ?? []).map(String);
+  let truncated = false;
+  for (const source of sources) {
+    const status = String(source.sourceStatus);
+    statuses[String(source.domain)] = status;
+    if (source.truncated === true) truncated = true;
+    if (status === 'unavailable' || status === 'unauthorized' || status === 'unsupported') {
+      unavailable.push(String(source.domain));
+    } else if (status === 'degraded' || source.coverageComplete === false) {
+      partial.push(String(source.domain));
+    }
+  }
+  const requested = (coverage.requestedDomains ?? []).map(String);
+  const searched = (coverage.searchedDomains ?? []).map(String);
+  return {
+    ran: true,
+    complete: coverage.complete === true,
+    stopReason: coverage.stopReason ?? null,
+    requestedDomains: requested,
+    searchedDomains: searched,
+    missingDomains: requested.filter((domain) => !searched.includes(domain)),
+    partialDomains: [...new Set(partial)],
+    unavailableDomains: [...new Set(unavailable)],
+    recordsEvaluated: coverage.recordsEvaluated ?? 0,
+    recordsReturned: coverage.recordsReturned ?? 0,
+    paginationComplete: coverage.paginationComplete === true,
+    truncated,
+    sourceStatuses: statuses,
+  };
+}
 function rejectedOperation(
   operationId: string,
   operation: ContextPlaneOperationRegistration | undefined,
@@ -268,6 +374,39 @@ function denied(decision: ContextOperationEnforcementDecision): ForbiddenExcepti
 
 function packetSummary(packet: Phase17CompiledContextPacket): ContextPlaneAuditPacketSummary {
   const value = packet as unknown as Record<string, unknown>;
+  const health = asRecord(value.health);
+  const items = Array.isArray(value.items) ? value.items : [];
+  const exclusions = Array.isArray(value.exclusions) ? value.exclusions : [];
+  const rendered = Array.isArray(value.rendered) ? value.rendered : [];
+
+  // Which of the five layers actually SURVIVED into the packet, and for the
+  // ones that did not, the recorded exclusion reasons. This is the difference
+  // between 'firm identity was not requested' and 'firm identity was
+  // requested and dropped as unapproved' — the distinction that made the
+  // missing institutional layer diagnosable at all.
+  const presentLayers = [...new Set(items.map((item) => layerOf(item)).filter(isText))];
+  const reasonsByLayer: Record<string, string[]> = {};
+  for (const exclusion of exclusions) {
+    const record = asRecord(exclusion);
+    const layer = isText(record.layer) ? record.layer : 'unknown';
+    const reason = isText(record.reason) ? record.reason : 'unspecified';
+    const seen = reasonsByLayer[layer] ?? [];
+    if (!seen.includes(reason)) seen.push(reason);
+    reasonsByLayer[layer] = seen;
+  }
+  const requiredLayers = Array.isArray(value.requiredLayers)
+    ? value.requiredLayers.filter(isText)
+    : [];
+  const missingRequired = Array.isArray(health.missingRequiredLayers)
+    ? health.missingRequiredLayers.filter(isText)
+    : [];
+  const missingLayers = [
+    ...new Set([
+      ...missingRequired,
+      ...requiredLayers.filter((layer) => !presentLayers.includes(layer)),
+    ]),
+  ];
+
   return {
     version: packet.version,
     packetId: typeof value.packetId === 'string' ? value.packetId : null,
@@ -277,5 +416,34 @@ function packetSummary(packet: Phase17CompiledContextPacket): ContextPlaneAuditP
       typeof value.retrievalCompleteness === 'string' ? value.retrievalCompleteness : null,
     retrievalStopReason:
       typeof value.retrievalStopReason === 'string' ? value.retrievalStopReason : null,
+    health: isText(health.status) ? health.status : null,
+    healthReasons: Array.isArray(health.reasons) ? health.reasons.filter(isText) : null,
+    itemCount: items.length,
+    exclusionCount: exclusions.length,
+    presentLayers,
+    missingLayers,
+    exclusionReasonsByLayer: reasonsByLayer,
+    tokenBudget: typeof value.totalTokenBudget === 'number' ? value.totalTokenBudget : null,
+    tokensUsed: typeof value.usedTokens === 'number' ? value.usedTokens : null,
+    // Rendered body LENGTH only. The bodies themselves never leave the packet.
+    blockChars: rendered.reduce((sum, entry) => sum + bodyLength(entry), 0),
   };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function isText(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function layerOf(item: unknown): string | undefined {
+  const layer = asRecord(item).layer;
+  return isText(layer) ? layer : undefined;
+}
+
+function bodyLength(entry: unknown): number {
+  const body = asRecord(entry).body;
+  return typeof body === 'string' ? body.length : 0;
 }

@@ -27,6 +27,7 @@ import {
   openAiSupportsReasoningEffort,
   type ReasoningEffort,
 } from './generation/reasoning-effort.js';
+import { contextStageTimer } from '../context/context-stage-timer.service.js';
 
 export type LlmProvider = 'openai' | 'anthropic';
 
@@ -156,6 +157,15 @@ export class LlmCompletionService {
   }
 
   async complete(req: LlmCompletionRequest): Promise<LlmCompletionResult> {
+    // Provider wall-clock is measured around the WHOLE call including retries,
+    // because that is the latency the user actually waits for. The scope's call
+    // counter distinguishes one slow call from several fast ones. Outside an
+    // active Context Plane scope this is a no-op, so non-governed callers and
+    // unit tests are unaffected.
+    return contextStageTimer.time('provider', () => this.completeInner(req));
+  }
+
+  private async completeInner(req: LlmCompletionRequest): Promise<LlmCompletionResult> {
     // Assert the exact caller authority before any network call.
     this.runtimePolicy?.assertExternalAction(req.runtimeAction ?? 'outreach_generate');
     const maxRetries = req.maxRetries ?? DEFAULT_MAX_RETRIES;
@@ -164,8 +174,23 @@ export class LlmCompletionService {
       try {
         const { status, json, retryAfterMs } = await this.callOnce(req);
         if (status >= 200 && status < 300) {
-          return this.parseResult(req.provider, json);
+          const parsed = this.parseResult(req.provider, json);
+          // Counts and enums already available here. No prompt, no completion
+          // text, no provider key.
+          contextStageTimer.recordProvider({
+            status: 'ok',
+            model: req.model,
+            inputTokens: parsed.usage.inputTokens,
+            outputTokens: parsed.usage.outputTokens,
+            cacheReadTokens: parsed.usage.cacheReadTokens ?? null,
+            cacheWriteTokens: parsed.usage.cacheCreationTokens ?? null,
+          });
+          return parsed;
         }
+        // A non-2xx that will be retried or raised is still provider latency and
+        // still a provider status. Recording only successes would make the error
+        // rate look like zero in exactly the incidents it matters for.
+        contextStageTimer.recordProvider({ status: `http_${status}`, model: req.model });
         // Non-2xx. Retry transient statuses; fail typed otherwise.
         if (RETRYABLE_STATUS.has(status) && attempt < maxRetries) {
           const backoff = retryAfterMs ?? this.backoffMs(attempt);

@@ -9,6 +9,10 @@ import { ContextPacketV2Service } from './context-packet-v2.service.js';
 import { ContextPersistenceBoundaryInterceptor } from './context-persistence-boundary.interceptor.js';
 import { ContextPersistenceBoundaryService } from './context-persistence-boundary.service.js';
 import { ContextPlaneAuditService } from './context-plane-audit.service.js';
+import {
+  ContextStageTimerService,
+  contextStageTimer,
+} from './context-stage-timer.service.js';
 import { ContextPlaneGatewayService } from './context-plane-gateway.service.js';
 import { ContextResolverService } from './context-resolver.service.js';
 import { InternalStrategyContextController } from './internal-strategy-context.controller.js';
@@ -31,6 +35,7 @@ import { StrategyContextPlaneService } from './strategy-context-plane.service.js
     ContextLayerService,
     ContextPacketV2Service,
     ContextPlaneAuditService,
+    { provide: ContextStageTimerService, useValue: contextStageTimer },
     ContextPlaneGatewayService,
     StrategyContextPlaneService,
     {
@@ -45,6 +50,7 @@ import { StrategyContextPlaneService } from './strategy-context-plane.service.js
     ContextLayerService,
     ContextPacketV2Service,
     ContextPlaneAuditService,
+    ContextStageTimerService,
     ContextPlaneGatewayService,
     StrategyContextPlaneService,
   ],
