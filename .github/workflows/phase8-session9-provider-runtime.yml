@@ -1,0 +1,124 @@
+name: Phase 8 Session 9 Cross-Domain Provider Runtime
+
+on:
+  push:
+    paths:
+      - 'apps/api/prisma/migrations/20261204120000_phase8_session9_provider_invocation_audit/**'
+      - 'apps/api/prisma/schema.prisma'
+      - 'apps/api/src/intelligence/internal-pe-relevance.controller.ts'
+      - 'apps/api/src/intelligence/intelligence.module.ts'
+      - 'apps/defense-api/src/program-elements/**'
+      - 'apps/defense-api/package.json'
+      - 'packages/defense-domain/src/cross-domain/**'
+      - 'packages/defense-domain/src/index.ts'
+      - 'packages/defense-contracts/src/internal/cross-domain.ts'
+      - 'scripts/*phase8-session9*'
+      - 'docs/defense-budget/phase8-session9-*'
+      - 'docs/runbooks/defense-cross-domain-providers-v1.md'
+      - '.github/workflows/phase8-session9-provider-runtime.yml'
+  pull_request:
+    paths:
+      - 'apps/api/prisma/migrations/20261204120000_phase8_session9_provider_invocation_audit/**'
+      - 'apps/api/prisma/schema.prisma'
+      - 'apps/api/src/intelligence/internal-pe-relevance.controller.ts'
+      - 'apps/api/src/intelligence/intelligence.module.ts'
+      - 'apps/defense-api/src/program-elements/**'
+      - 'apps/defense-api/package.json'
+      - 'packages/defense-domain/src/cross-domain/**'
+      - 'packages/defense-domain/src/index.ts'
+      - 'packages/defense-contracts/src/internal/cross-domain.ts'
+      - 'scripts/*phase8-session9*'
+      - 'docs/defense-budget/phase8-session9-*'
+      - 'docs/runbooks/defense-cross-domain-providers-v1.md'
+      - '.github/workflows/phase8-session9-provider-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # No provider credential is set anywhere in this job. Every gate runs against
+    # the dark posture and scripted transports, which is the posture the session
+    # ships. A credential here would make CI the first live activation.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+      - name: Pin pnpm
+        run: corepack prepare pnpm@9.12.0 --activate
+      - name: Frozen workspace install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared defense packages
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/defense-client build
+
+      - name: Provider domain gate
+        run: node scripts/test-phase8-session9-provider-domain.mjs
+
+      - name: defense-api typecheck and build
+        run: |
+          pnpm --filter @capiro/defense-api typecheck
+          pnpm --filter @capiro/defense-api build
+
+      - name: Provider runtime spec
+        run: pnpm --filter @capiro/defense-api exec tsx --test src/program-elements/cross-domain/provider-runtime.spec.ts
+
+      - name: Static provider runtime gate
+        run: node scripts/verify-phase8-session9.mjs
+
+      - name: Authoritative apps/api Prisma validation and generation
+        run: |
+          pnpm --filter @capiro/api exec prisma validate --schema prisma/schema.prisma
+          pnpm --filter @capiro/api exec prisma generate --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+
+      # Session 7 trap: this step shipped without DATABASE_URL in Sessions 6 and 7
+      # and could never have passed. It needs one even to validate.
+      - name: Defense Prisma validation
+        run: pnpm --filter @capiro/defense-api prisma:validate
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+
+      - name: Disposable Session 9 database rehearsal
+        run: node scripts/verify-phase8-session9-db.mjs
+
+      - name: Preserve accepted Session 2-8 boundaries
+        env:
+          PHASE8_SESSION4_REPLAY_EVIDENCE: docs/defense-budget/phase8-session4-fy27-replay-evidence.json
+        run: |
+          node scripts/verify-phase8-session2.mjs
+          node scripts/verify-phase8-session3.mjs
+          node scripts/verify-phase8-session3-admin-boundary.mjs
+          node scripts/verify-phase8-session4.mjs --enforce-replay
+          node scripts/verify-phase8-session5.mjs --enforce-provider-decision
+          node scripts/verify-phase8-session6.mjs --enforce-corpus
+          node scripts/verify-phase8-session7.mjs
+          node scripts/verify-phase8-session8.mjs
+
+      - name: Session 6, 7 and 8 domain gates stay green
+        run: |
+          node scripts/test-phase8-session6-federal-funding-domain.mjs
+          node scripts/test-phase8-session7-lifecycle-domain.mjs
+          node scripts/test-phase8-session8-discovery-domain.mjs
+          node scripts/test-phase8-session8-publisher-native-domain.mjs
+
+      - name: Session 7 and 8 control loops stay green
+        run: |
+          pnpm --filter @capiro/defense-api exec tsx --test src/budget-lifecycle/lifecycle-watcher.spec.ts
+          pnpm --filter @capiro/defense-api exec tsx --test src/budget-lifecycle/discovery/live-discovery.spec.ts
+
+      - name: Diff hygiene
+        run: git diff --check origin/${{ github.base_ref || 'main' }}...HEAD

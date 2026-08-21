@@ -7,6 +7,9 @@ import { EntityResolutionService } from './entity-resolution.service.js';
 import { ReportCardService } from './report-card.service.js';
 import { ClientPeRelevanceService } from './client-pe-relevance.service.js';
 import { ClientPeRelevanceController } from './client-pe-relevance.controller.js';
+// Phase 8 Session 9: additive backend-only batched relevance for the dark
+// defense-api. Guarded by the existing InternalServiceGuard, PE codes only.
+import { InternalPeRelevanceController } from './internal-pe-relevance.controller.js';
 import { ActionRecommendationService } from './actions/action-recommendation.service.js';
 import { ActionRecommendationReadService } from './actions/action-recommendation-read.service.js';
 import { ActionRecommendationController } from './action-recommendation.controller.js';
@@ -43,6 +46,7 @@ import { XFeedModule } from './x-feed/x-feed.module.js';
   controllers: [
     IntelligenceController,
     ClientPeRelevanceController,
+    InternalPeRelevanceController,
     ActionRecommendationController,
     ArtifactController,
     ProductMetricsController,
