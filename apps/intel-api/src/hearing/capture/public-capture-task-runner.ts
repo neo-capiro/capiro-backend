@@ -37,6 +37,15 @@ interface TaskDependencies {
   workerId?: string;
 }
 
+interface CaptureWorkItem {
+  hearingId: string;
+  captureId: string;
+  job?: PublicCaptureJob;
+}
+
+const WORKER_JOB_LEASE_MS = 5 * 60_000;
+const WORKER_JOB_HEARTBEAT_MS = 60_000;
+
 /**
  * Run one bounded durable capture task invocation.
  *
@@ -140,21 +149,33 @@ export async function runPublicCaptureTask(
         workerId,
         now: now(),
         limit,
-        leaseDurationMs: 30 * 60_000,
+        leaseDurationMs: WORKER_JOB_LEASE_MS,
       });
-  const jobs: Array<PublicCaptureJob | { id?: undefined; hearingId: string; captureId: string }> =
-    explicitHearingId && explicitCaptureId
-      ? [{ hearingId: explicitHearingId, captureId: explicitCaptureId }]
-      : claimed;
   const result: PublicCaptureTaskResult = {
     mode,
-    discovered: jobs.length,
+    discovered: explicitHearingId ? 1 : claimed.length,
     claimed: claimed.length,
     completed: 0,
     requeued: 0,
     failed: 0,
     results: [],
   };
+  const jobs: CaptureWorkItem[] = [];
+
+  if (explicitHearingId && explicitCaptureId) {
+    jobs.push({ hearingId: explicitHearingId, captureId: explicitCaptureId });
+  } else {
+    for (const job of claimed) {
+      if (job.jobType !== 'capture' || !job.captureId) {
+        const error = new Error(`durable capture job has invalid shape: ${job.id}`);
+        result.failed += 1;
+        result.results.push({ jobId: job.id, hearingId: job.hearingId, error: error.message });
+        await queue.fail({ jobId: job.id, workerId, now: now(), error });
+        continue;
+      }
+      jobs.push({ hearingId: job.hearingId, captureId: job.captureId, job });
+    }
+  }
   if (jobs.length === 0) return result;
 
   let coordinator: PublicCaptureWorkerCoordinator;
@@ -169,13 +190,14 @@ export async function runPublicCaptureTask(
       retryQueue: queue,
     });
   } catch (error) {
-    for (const job of claimed) {
+    for (const work of jobs) {
+      if (!work.job) continue;
       const state = await queue.fail({
-        jobId: job.id,
+        jobId: work.job.id,
         workerId,
         now: now(),
         error,
-        retryAt: new Date(now().getTime() + retryDelayMs(job.attempts)),
+        retryAt: new Date(now().getTime() + retryDelayMs(work.job.attempts)),
       });
       if (state === 'REQUEUED') result.requeued += 1;
       else result.failed += 1;
@@ -185,42 +207,89 @@ export async function runPublicCaptureTask(
     return result;
   }
 
-  for (const job of jobs) {
+  for (const work of jobs) {
+    const stopHeartbeat = work.job
+      ? startQueueLeaseHeartbeat(queue, work.job, workerId, now, log)
+      : () => undefined;
     try {
       const outcome = await coordinator.run({
-        captureId: job.captureId,
-        hearingId: job.hearingId,
+        captureId: work.captureId,
+        hearingId: work.hearingId,
         workerId,
       });
-      result.results.push({ hearingId: job.hearingId, captureId: job.captureId, outcome });
-      result.completed += 1;
-      if (job.id) await queue.complete({ jobId: job.id, workerId, now: now() });
-      log(
-        `PUBLIC_CAPTURE_WORKER hearing=${job.hearingId} capture=${job.captureId} ${JSON.stringify(outcome)}`,
-      );
-    } catch (error) {
-      result.failed += 1;
+      stopHeartbeat();
       result.results.push({
-        hearingId: job.hearingId,
-        captureId: job.captureId,
-        error: boundedError(error),
+        hearingId: work.hearingId,
+        captureId: work.captureId,
+        outcome,
       });
-      if (job.id) {
-        const state = await queue.fail({
-          jobId: job.id,
-          workerId,
-          now: now(),
-          error,
-          retryAt: new Date(now().getTime() + retryDelayMs(job.attempts)),
-        });
-        if (state === 'REQUEUED') result.requeued += 1;
+      result.completed += 1;
+      if (work.job) {
+        await queue.complete({ jobId: work.job.id, workerId, now: now() });
       }
       log(
-        `PUBLIC_CAPTURE_WORKER_ERROR hearing=${job.hearingId} capture=${job.captureId} ${boundedError(error)}`,
+        `PUBLIC_CAPTURE_WORKER hearing=${work.hearingId} capture=${work.captureId} ${JSON.stringify(outcome)}`,
+      );
+    } catch (error) {
+      stopHeartbeat();
+      result.failed += 1;
+      result.results.push({
+        hearingId: work.hearingId,
+        captureId: work.captureId,
+        error: boundedError(error),
+      });
+      if (work.job) {
+        try {
+          const state = await queue.fail({
+            jobId: work.job.id,
+            workerId,
+            now: now(),
+            error,
+            retryAt: new Date(now().getTime() + retryDelayMs(work.job.attempts)),
+          });
+          if (state === 'REQUEUED') result.requeued += 1;
+        } catch (queueError) {
+          result.results.push({
+            jobId: work.job.id,
+            stage: 'queue_failure_record',
+            error: boundedError(queueError),
+          });
+        }
+      }
+      log(
+        `PUBLIC_CAPTURE_WORKER_ERROR hearing=${work.hearingId} capture=${work.captureId} ${boundedError(error)}`,
       );
     }
   }
   return result;
+}
+
+function startQueueLeaseHeartbeat(
+  queue: PublicCapturePersistentQueueAdapter,
+  job: PublicCaptureJob,
+  workerId: string,
+  now: () => Date,
+  log: (message: string) => void,
+): () => void {
+  let stopped = false;
+  const timer = setInterval(() => {
+    if (stopped) return;
+    void queue
+      .renewLease({
+        jobId: job.id,
+        workerId,
+        now: now(),
+        leaseDurationMs: WORKER_JOB_LEASE_MS,
+      })
+      .catch((error) => {
+        log(`PUBLIC_CAPTURE_JOB_HEARTBEAT_ERROR job=${job.id} ${boundedError(error)}`);
+      });
+  }, WORKER_JOB_HEARTBEAT_MS);
+  timer.unref();
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+  };
 }
 
 function buildResolver(prisma: PrismaService): PublicCaptureAutomaticResolverAdapter {
