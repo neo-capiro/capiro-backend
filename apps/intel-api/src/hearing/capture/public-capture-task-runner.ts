@@ -1,0 +1,284 @@
+import { hostname } from 'node:os';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { SourceDataRepository } from '../../sourcedata/source-data.repository.js';
+import { StreamResolverService } from '../stream-resolver.service.js';
+import { FfmpegDeepgramCaptureRuntime } from './ffmpeg-deepgram-capture.runtime.js';
+import { PublicCaptureAutomaticResolverAdapter } from './public-capture-automatic-resolver.adapter.js';
+import { PublicCaptureCredentialsAdapter } from './public-capture-credentials.adapter.js';
+import {
+  PublicCaptureOrchestrator,
+  PublicCaptureWorkerCoordinator,
+} from './public-capture.orchestrator.js';
+import {
+  PublicCapturePersistentQueueAdapter,
+  type PublicCaptureJob,
+} from './public-capture-persistent-queue.adapter.js';
+import { PublicHearingCaptureAttemptStore } from './public-hearing-capture-attempt.store.js';
+import { PublicHearingCaptureStore } from './public-hearing-capture.store.js';
+import { PublicHearingTranscriptStore } from './public-hearing-transcript.store.js';
+
+export type PublicCaptureTaskMode = 'preflight' | 'worker' | 'status';
+
+export interface PublicCaptureTaskResult {
+  mode: PublicCaptureTaskMode;
+  discovered: number;
+  claimed: number;
+  completed: number;
+  requeued: number;
+  failed: number;
+  results: Array<Record<string, unknown>>;
+}
+
+interface TaskDependencies {
+  prisma: PrismaService;
+  now?: () => Date;
+  log?: (message: string) => void;
+  workerId?: string;
+}
+
+/**
+ * Run one bounded durable capture task invocation.
+ *
+ * EventBridge/ECS may invoke this runner every minute. Preflight scans canonical
+ * demand and drains due preflight jobs. Worker mode leases durable capture jobs
+ * with SKIP LOCKED. A process crash merely lets the lease expire; it does not
+ * lose the job or create another capture row.
+ */
+export async function runPublicCaptureTask(
+  mode: PublicCaptureTaskMode,
+  args: string[],
+  dependencies: TaskDependencies,
+): Promise<PublicCaptureTaskResult> {
+  const now = dependencies.now ?? (() => new Date());
+  const log = dependencies.log ?? (() => undefined);
+  const flags = parseFlags(args);
+  const workerId =
+    dependencies.workerId ??
+    `public-capture:${mode}:${bounded(hostname(), 80)}:${process.pid}`;
+  const queue = new PublicCapturePersistentQueueAdapter(dependencies.prisma);
+
+  if (mode === 'status') {
+    const counts = await queue.pendingCounts(now());
+    const result: PublicCaptureTaskResult = {
+      mode,
+      discovered: counts.preflight + counts.capture,
+      claimed: 0,
+      completed: 0,
+      requeued: 0,
+      failed: counts.failed,
+      results: [{ ...counts }],
+    };
+    log(`PUBLIC_CAPTURE_STATUS ${JSON.stringify(result)}`);
+    return result;
+  }
+
+  const limit = boundedPositiveInteger(Number(flags['limit'] ?? 25), 200, 'limit');
+  const store = new PublicHearingCaptureStore(dependencies.prisma);
+  const resolver = buildResolver(dependencies.prisma);
+
+  if (mode === 'preflight') {
+    const orchestrator = new PublicCaptureOrchestrator(store, resolver, queue);
+    const claimed = await queue.claimDue({
+      jobType: 'preflight',
+      workerId,
+      now: now(),
+      limit,
+      leaseDurationMs: 5 * 60_000,
+    });
+    const explicit = flags['hearingId']?.trim();
+    const due = explicit ? [explicit] : await store.listDueHearingIds(now());
+    const ids = [...new Set([...claimed.map((job) => job.hearingId), ...due])].slice(0, limit);
+    const claimedByHearing = new Map(claimed.map((job) => [job.hearingId, job]));
+    const result: PublicCaptureTaskResult = {
+      mode,
+      discovered: ids.length,
+      claimed: claimed.length,
+      completed: 0,
+      requeued: 0,
+      failed: 0,
+      results: [],
+    };
+
+    for (const hearingId of ids) {
+      const job = claimedByHearing.get(hearingId);
+      try {
+        const outcome = await orchestrator.reconcile(hearingId);
+        result.results.push({ hearingId, outcome });
+        result.completed += 1;
+        if (job) await queue.complete({ jobId: job.id, workerId, now: now() });
+        log(`PUBLIC_CAPTURE_PREFLIGHT hearing=${hearingId} ${JSON.stringify(outcome)}`);
+      } catch (error) {
+        result.failed += 1;
+        result.results.push({ hearingId, error: boundedError(error) });
+        if (job) {
+          const state = await queue.fail({
+            jobId: job.id,
+            workerId,
+            now: now(),
+            error,
+            retryAt: new Date(now().getTime() + retryDelayMs(job.attempts)),
+          });
+          if (state === 'REQUEUED') result.requeued += 1;
+        }
+        log(`PUBLIC_CAPTURE_PREFLIGHT_ERROR hearing=${hearingId} ${boundedError(error)}`);
+      }
+    }
+    return result;
+  }
+
+  const explicitHearingId = flags['hearingId']?.trim();
+  const explicitCaptureId = flags['captureId']?.trim();
+  if (Boolean(explicitHearingId) !== Boolean(explicitCaptureId)) {
+    throw new Error('worker requires both --hearingId= and --captureId= when either is supplied');
+  }
+
+  const claimed = explicitHearingId
+    ? []
+    : await queue.claimDue({
+        jobType: 'capture',
+        workerId,
+        now: now(),
+        limit,
+        leaseDurationMs: 30 * 60_000,
+      });
+  const jobs: Array<PublicCaptureJob | { id?: undefined; hearingId: string; captureId: string }> =
+    explicitHearingId && explicitCaptureId
+      ? [{ hearingId: explicitHearingId, captureId: explicitCaptureId }]
+      : claimed;
+  const result: PublicCaptureTaskResult = {
+    mode,
+    discovered: jobs.length,
+    claimed: claimed.length,
+    completed: 0,
+    requeued: 0,
+    failed: 0,
+    results: [],
+  };
+  if (jobs.length === 0) return result;
+
+  let coordinator: PublicCaptureWorkerCoordinator;
+  try {
+    const credential = await new PublicCaptureCredentialsAdapter().resolve();
+    const runtime = new FfmpegDeepgramCaptureRuntime(
+      credential.apiKey,
+      new PublicHearingTranscriptStore(dependencies.prisma),
+    );
+    coordinator = new PublicCaptureWorkerCoordinator(store, resolver, runtime, {
+      attempts: new PublicHearingCaptureAttemptStore(dependencies.prisma),
+      retryQueue: queue,
+    });
+  } catch (error) {
+    for (const job of claimed) {
+      const state = await queue.fail({
+        jobId: job.id,
+        workerId,
+        now: now(),
+        error,
+        retryAt: new Date(now().getTime() + retryDelayMs(job.attempts)),
+      });
+      if (state === 'REQUEUED') result.requeued += 1;
+      else result.failed += 1;
+    }
+    if (explicitHearingId) throw error;
+    result.results.push({ error: boundedError(error), stage: 'runtime_initialization' });
+    return result;
+  }
+
+  for (const job of jobs) {
+    try {
+      const outcome = await coordinator.run({
+        captureId: job.captureId,
+        hearingId: job.hearingId,
+        workerId,
+      });
+      result.results.push({ hearingId: job.hearingId, captureId: job.captureId, outcome });
+      result.completed += 1;
+      if (job.id) await queue.complete({ jobId: job.id, workerId, now: now() });
+      log(
+        `PUBLIC_CAPTURE_WORKER hearing=${job.hearingId} capture=${job.captureId} ${JSON.stringify(outcome)}`,
+      );
+    } catch (error) {
+      result.failed += 1;
+      result.results.push({
+        hearingId: job.hearingId,
+        captureId: job.captureId,
+        error: boundedError(error),
+      });
+      if (job.id) {
+        const state = await queue.fail({
+          jobId: job.id,
+          workerId,
+          now: now(),
+          error,
+          retryAt: new Date(now().getTime() + retryDelayMs(job.attempts)),
+        });
+        if (state === 'REQUEUED') result.requeued += 1;
+      }
+      log(
+        `PUBLIC_CAPTURE_WORKER_ERROR hearing=${job.hearingId} capture=${job.captureId} ${boundedError(error)}`,
+      );
+    }
+  }
+  return result;
+}
+
+function buildResolver(prisma: PrismaService): PublicCaptureAutomaticResolverAdapter {
+  const resolver = new StreamResolverService(
+    new ConfigService(),
+    new SourceDataRepository(prisma),
+  );
+  return new PublicCaptureAutomaticResolverAdapter(prisma, resolver);
+}
+
+function parseFlags(args: string[]): Record<string, string> {
+  const output: Record<string, string> = {};
+  for (const value of args) {
+    const match = /^--([^=]+)=(.*)$/.exec(value);
+    if (match?.[1]) output[match[1]] = match[2] ?? '';
+  }
+  return output;
+}
+
+function retryDelayMs(attempts: number): number {
+  return Math.min(15 * 60_000, 30_000 * 2 ** Math.max(0, attempts - 1));
+}
+
+function bounded(value: string, max: number): string {
+  return value.replace(/[\r\n\t]+/g, ' ').trim().slice(0, max);
+}
+
+function boundedError(error: unknown): string {
+  return bounded(error instanceof Error ? error.message : String(error), 1_000);
+}
+
+function boundedPositiveInteger(value: number, max: number, field: string): number {
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`${field} must be positive`);
+  const integer = Math.floor(value);
+  if (integer > max) throw new Error(`${field} must be at most ${max}`);
+  return integer;
+}
+
+async function main(): Promise<void> {
+  const [rawMode, ...args] = process.argv.slice(2);
+  if (!['preflight', 'worker', 'status'].includes(rawMode ?? '')) {
+    throw new Error('usage: public-capture-task-runner <preflight|worker|status> [--key=value]');
+  }
+  const prisma = new PrismaService();
+  try {
+    const result = await runPublicCaptureTask(rawMode as PublicCaptureTaskMode, args, {
+      prisma,
+      log: (message) => console.log(message),
+    });
+    console.log(`PUBLIC_CAPTURE_TASK_DONE ${JSON.stringify(result)}`);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+if (require.main === module) {
+  void main().catch((error) => {
+    console.error(`PUBLIC_CAPTURE_TASK_ERROR ${boundedError(error)}`);
+    process.exitCode = 1;
+  });
+}
