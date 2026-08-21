@@ -132,15 +132,13 @@ export class LiveHearingsController {
 
   @Get('committees/:id/members')
   async committeeMembers(@Param('id') id: string) {
-    const committee = await this.committees.committeeExists(id);
-    if (!committee) throw new NotFoundException(`committee ${id} not found`);
+    await this.assertCommittee(id);
     return this.committees.members(id);
   }
 
   @Get('committees/:id/updates')
   async committeeUpdates(@Param('id') id: string, @Query() query: UpdatesQueryDto) {
-    const committee = await this.committees.committeeExists(id);
-    if (!committee) throw new NotFoundException(`committee ${id} not found`);
+    await this.assertCommittee(id);
     return this.committees.updates(id, query.limit ?? 100);
   }
 
@@ -166,5 +164,13 @@ export class LiveHearingsController {
   @Get('coverage')
   coverage() {
     return this.service.coverage();
+  }
+
+  private async assertCommittee(id: string): Promise<void> {
+    const directory = await this.committees.committees();
+    const normalized = id.trim().toLowerCase();
+    if (!directory.rows.some((row) => row.systemCode.toLowerCase() === normalized)) {
+      throw new NotFoundException(`committee ${id} not found`);
+    }
   }
 }
