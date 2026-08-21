@@ -15,7 +15,13 @@
  *   5. The frozen Session 7-9 files this session builds on are BYTE-IDENTICAL
  *      to origin/main — the only permitted diff under budget-lifecycle/ is the
  *      module registration file itself plus the new schedule/ directory.
- *   6. Gates, scripts and docs exist.
+ *   6. The coordinator's runAdapter() call site supplies no fiscalYear/
+ *      authorityTrack/cycleId, and neither it nor the schedule audit store
+ *      references a lifecycle table directly — scheduling at the adapter
+ *      level cannot collapse the (fiscalYear, authorityTrack) model, because
+ *      the coordinator is structurally incapable of writing lifecycle data
+ *      or overriding what runAdapter/the Session 7 controller decides.
+ *   7. Gates, scripts and docs exist.
  *
  * Prohibition checks strip comments first. Session 7's closeout found this
  * the hard way — five checks failed on the doc comments asserting the very
@@ -225,7 +231,69 @@ try {
   fail(`Could not diff against origin/main to prove the frozen surface is untouched: ${error.message}`);
 }
 
-// ── 6. Gates, scripts and docs exist ────────────────────────────────────────
+// ── 6. runAdapter() delegation: the coordinator is FY/track-blind ──────────
+//
+// Merge-gate proof (requested before merging PR #1168): scheduling at the
+// adapter level must not collapse the (fiscalYear, authorityTrack) model.
+// Structural half — the coordinator's own call site never supplies, and
+// therefore cannot override, a fiscal year or authority track; every
+// lifecycle decision stays inside runAdapter/the Session 7 controller. The
+// behavioural half (two non-adjacent FYs and two tracks genuinely advancing
+// independently from one tick) is proven in
+// schedule-coordinator.spec.ts's "lifecycle-effect independence" suite.
+
+const coordinatorServicePath = 'apps/defense-api/src/budget-lifecycle/schedule/schedule-coordinator.service.ts';
+if (exists(coordinatorServicePath)) {
+  const coordinatorSource = stripComments(read(coordinatorServicePath));
+  const runAdapterCall = coordinatorSource.match(/this\.watcher\.runAdapter\(\{([\s\S]*?)\}\)/);
+  if (!runAdapterCall) {
+    fail(`${coordinatorServicePath} does not call this.watcher.runAdapter(...) — delegation cannot be proven`);
+  } else {
+    const forbidden = ['fiscalYear', 'authorityTrack', 'cycleId', 'expectedSourceId', 'expectedSourceDedupKey'];
+    for (const key of forbidden) {
+      if (new RegExp(`\\b${key}\\b`).test(runAdapterCall[1])) {
+        fail(
+          `${coordinatorServicePath}'s runAdapter() call site supplies "${key}" — the coordinator must ` +
+            'stay FY/track-blind and delegate that decision entirely to runAdapter/the Session 7 controller',
+        );
+      }
+    }
+  }
+  // The coordinator (and its audit store) must be structurally incapable of
+  // writing lifecycle data itself — only Session 7's own store does that.
+  const LIFECYCLE_TABLES = [
+    'defense_budget_cycle',
+    'defense_budget_expected_source',
+    'defense_budget_source_observation',
+    'defense_budget_ingestion_outbox',
+  ];
+  for (const table of LIFECYCLE_TABLES) {
+    if (coordinatorSource.includes(table)) {
+      fail(`${coordinatorServicePath} references ${table} directly; it must delegate all lifecycle writes to runAdapter`);
+    }
+  }
+}
+
+const scheduleAuditStoreFiles = [
+  'apps/defense-api/src/budget-lifecycle/schedule/schedule-audit.port.ts',
+  'apps/defense-api/src/budget-lifecycle/schedule/prisma-schedule-audit.store.ts',
+];
+for (const file of scheduleAuditStoreFiles) {
+  if (!exists(file)) continue;
+  const content = read(file);
+  for (const table of [
+    'defense_budget_cycle',
+    'defense_budget_expected_source',
+    'defense_budget_source_observation',
+    'defense_budget_ingestion_outbox',
+  ]) {
+    if (content.includes(table)) {
+      fail(`${file} references ${table}; the schedule audit store must touch only watcher_adapter (read) and schedule_tick (write)`);
+    }
+  }
+}
+
+// ── 7. Gates, scripts and docs exist ────────────────────────────────────────
 
 requireTokens(
   'apps/defense-api/scripts/run-schedule-controller.mjs',

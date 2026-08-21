@@ -93,7 +93,7 @@ own needs.
 | Migrations | 1 table, 10 CHECK constraints, 3 indexes, least-privilege grants |
 | Configuration | `PHASE8_SESSION10_TICK_AUTHORIZED` gates the one write path; `PHASE8_SESSION8_LIVE_DISCOVERY` (Session 8's own variable, unchanged) still gates live vs. manifest discovery |
 | Test doubles | `InMemoryScheduleAuditStore`, `ThrowingScheduleAuditStore` |
-| Focused tests | Domain (18) + coordinator spec (8) |
+| Focused tests | Domain (18) + coordinator spec (10, including the multi-FY/track lifecycle-effect-independence proof, §5a) |
 | Disposable-Postgres rehearsal | 39 checks, real zero-state PostgreSQL, full 311-migration ledger |
 | Replay/concurrency tests | See engineering-invariant proofs, §5 |
 | Static verifier | `verify-phase8-session10.mjs` |
@@ -105,8 +105,8 @@ own needs.
 
 | Invariant | Where proven | Result |
 |---|---|---|
-| Two overlapping FY tracks execute independently | Inherited from Session 7's DB constraint; scheduler is FY-blind by construction | Structural, asserted by static gate (no FY literal in `schedule.ts`) |
-| One failed source/track does not block unrelated tracks | `schedule-coordinator.spec.ts`, "isolates a throwing adapter..." across `hasc`/`sasc`/`congress-gov` (authorization + appropriations) | PASS |
+| Two overlapping FY tracks execute independently | §5a below — behavioural proof, not just structural absence | PASS |
+| One failed source/track does not block unrelated tracks | §5a below (blocked appropriations document) + `schedule-coordinator.spec.ts`, "isolates a throwing adapter..." across `hasc`/`sasc`/`congress-gov` | PASS |
 | Duplicate scheduler delivery cannot duplicate lifecycle work | `schedule-coordinator.spec.ts`, "a second tick... does not re-run", plus Session 7's own `UNIQUE` constraints underneath | PASS |
 | Two workers racing for the same due work cannot both own it | Session 7's atomic `acquireAdapterLease`, exercised via `schedule-coordinator.spec.ts` "isolates a held lease..." | PASS |
 | Stale leases recover deterministically | Inherited: `acquireAdapterLease`'s `WHERE lease_expires_at <= now` clause; unchanged, not re-tested at the coordinator level beyond confirming the coordinator does not interfere | Structural |
@@ -114,6 +114,46 @@ own needs.
 | Unchanged source bytes still produce no downstream duplicate work | Inherited: Session 7's content-SHA idempotency; the scheduler adds no new content path | Structural, exercised in DB rehearsal indirectly via `defense_budget_watcher_run`/`watcher_adapter` presence checks |
 | Provider runtime stays dark unless explicitly activated | Untouched by this session; `defense-api` typecheck/build re-verified green | PASS |
 | No hidden "current year" assumption | `schedule.ts` contains no `getFullYear`/`CURRENT_FISCAL_YEAR`/fiscal-year literal, asserted by the static gate; domain test "due-ness contains no fiscal-year or calendar-year concept at all" runs the same decision across three different years | PASS |
+
+### 5a. Merge-gate proof: adapter-level scheduling does not collapse `(fiscalYear, authorityTrack)`
+
+Requested before merging PR #1168, since the schedulable unit is the adapter
+while the lifecycle model beneath it is `(fiscalYear, authorityTrack)`. Two
+new tests in `schedule-coordinator.spec.ts` exercise the REAL watcher,
+classifier and `InMemoryLifecycleStore` (not the `Empty`/`Unreachable`
+doubles the rest of the suite uses) through `coordinator.tick()`, using
+Session 7's own proven fixture corpus:
+
+1. **"one adapter's one tick advances two non-adjacent fiscal years
+   independently — no single 'current FY' is chosen."** `govinfo-committee-
+   reports` discovers `FY2024_HASC_REPORT` (Session 7's real fixture) and a
+   same-shape synthetic FY2032 report in the SAME `discover()` call, after
+   FY2032 is bootstrapped *before* FY2024 specifically to rule out a bug that
+   silently prefers whichever year was registered first or most recently.
+   Both `expected_state` transitions to `published`; their `cycleId`s are
+   asserted distinct. The synthetic fixture classifying correctly on the
+   first attempt is itself evidence the classifier is genuinely year-agnostic
+   by construction (Session 7's design intent), not merely by convention.
+2. **"authorization and appropriations advance independently in the same
+   tick; a blocked appropriations document does not stop authorization."**
+   The same adapter discovers `FY2024_HASC_REPORT` (authorization, succeeds)
+   and `FY2024_HACD_REPORT` (appropriations, `blockedReason` set — simulating
+   an unreachable publisher). Authorization reaches `published`; appropriations
+   is asserted NOT `published` (correctly recorded as blocked, not fabricated);
+   their `cycleId`s are asserted distinct even though both are FY2024.
+
+The structural half — proving the coordinator cannot even express a
+different answer — is a static gate (`verify-phase8-session10.mjs`, §6):
+the `this.watcher.runAdapter({...})` call site is parsed and asserted to
+contain none of `fiscalYear`/`authorityTrack`/`cycleId`/`expectedSourceId`/
+`expectedSourceDedupKey`, and neither the coordinator nor
+`ScheduleAuditStore`/`PrismaScheduleAuditStore` is allowed to reference
+`defense_budget_cycle`, `defense_budget_expected_source`,
+`defense_budget_source_observation`, or `defense_budget_ingestion_outbox` by
+name. The coordinator is therefore not merely observed to delegate every
+lifecycle decision to `runAdapter`/the Session 7 controller — it is
+structurally incapable of doing otherwise. Both proofs run in CI on every
+future change to these files, not just at this merge.
 
 ## 6. Database rehearsal
 
@@ -168,8 +208,8 @@ S8  SESSION8_LIVE_DISCOVERY_PASS
     + discovery domain 40/40 + publisher-native domain 15/15 + control loop 15/15
 S9  SESSION9_PROVIDER_RUNTIME_PASS + domain 36/36 + runtime spec 30/30
 S10 SESSION10_SCHEDULE_CONTROL_PLANE_PASS
-    + domain 18/18 + coordinator spec 8/8 + DB rehearsal 39/39
-defense-api: full spec suite 143 run, 135 pass, 0 fail, 8 skipped (pre-existing,
+    + domain 18/18 + coordinator spec 10/10 + DB rehearsal 39/39
+defense-api: full spec suite 145 run, 137 pass, 0 fail, 8 skipped (pre-existing,
     unrelated to this session — network/DB-dependent specs already skipped on main)
 defense-api: typecheck PASS; build PASS
 apps/api: typecheck exits 2 with EXACTLY 16 errors, category-for-category
@@ -213,16 +253,20 @@ disposable rehearsal database above and the fully in-memory coordinator spec.
 
 ## 9. Disclosed limitations
 
-### 9.1 The schedulable unit is the adapter, not (fiscalYear, authorityTrack)
+### 9.1 The schedulable unit is the adapter, not (fiscalYear, authorityTrack) — proven safe, not merely disclosed
 
 Each of the 14 adapters is bound by the governed cycle template to one
 authority track, but not to one fiscal year — a single adapter's crawl can
 surface documents for several fiscal years in one run, exactly as Session 8
-built it. "Per-(fiscalYear, authorityTrack) independence" is therefore
-proven at the level Session 7 already guarantees it (the DB's own
-`UNIQUE (fiscal_year, authority_track)`), not by the scheduler partitioning
-work along that axis — the scheduler was never given fiscal-year information
-to partition by, deliberately, per §5.3 of the design doc.
+built it. This was flagged as a disclosed limitation earlier in Session 10;
+before merge it was upgraded to a proven, CI-enforced guarantee (§5a): one
+adapter's one tick genuinely advances two non-adjacent fiscal years and two
+different authority tracks independently, and the coordinator is statically
+proven incapable of overriding or collapsing that — not by the scheduler
+partitioning work along the `(fiscalYear, authorityTrack)` axis (it was
+never given that information, deliberately, per §5 of the design doc), but
+by every lifecycle decision staying inside `runAdapter`/the Session 7
+controller, unreachable from the coordinator's own call site.
 
 ### 9.2 No live tick has ever run
 
