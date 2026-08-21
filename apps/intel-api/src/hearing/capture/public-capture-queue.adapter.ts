@@ -25,6 +25,14 @@ export class PublicCaptureQueueAdapter implements PublicCaptureQueuePort {
     return { enqueued:true, jobId };
   }
   markDone(dedupeKey:string):void { this.pending.delete(dedupeKey); }
+  async scheduleRetry(input:{dedupeKey:string;captureId:string;hearingId:string;dueAt:Date;mustReresolve:true}):Promise<void> {
+    if (this.pending.has(input.dedupeKey)) return;
+    this.pending.add(input.dedupeKey);
+    const delay=Math.min(this.maxDelayMs,Math.max(0,input.dueAt.getTime()-this.now().getTime()));
+    const handle=this.scheduler.setTimeout(()=>{ this.timers.delete(input.dedupeKey); this.pending.delete(input.dedupeKey);
+      this.events.emit('capture',{version:1,captureId:input.captureId,hearingId:input.hearingId,mustReresolve:true}); },delay);
+    this.timers.set(input.dedupeKey,handle);
+  }
   async schedulePreflight(input:{dedupeKey:string;hearingId:string;dueAt:Date}):Promise<void> {
     if (this.pending.has(input.dedupeKey)) return;
     this.pending.add(input.dedupeKey);

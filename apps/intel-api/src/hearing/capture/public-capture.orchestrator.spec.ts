@@ -72,9 +72,16 @@ function storeHarness() {
       return { acquired: true, capture: row, lease };
     }),
     renewLease: jest.fn(async () => lease!),
-    releaseLease: jest.fn(async () => undefined),
-    saveFencedState: jest.fn(async ({ next }: Parameters<PublicCaptureStorePort['saveFencedState']>[0]) => {
-      row = { ...row, ...next };
+    releaseLease: jest.fn(async ({ ownerId, fencingToken }: Parameters<PublicCaptureStorePort['releaseLease']>[0]) => {
+      if (lease?.ownerId === ownerId && lease.fencingToken === fencingToken) lease = undefined;
+    }),
+    saveFencedState: jest.fn(async ({ next, capturedMs, gaps }: Parameters<PublicCaptureStorePort['saveFencedState']>[0]) => {
+      row = {
+        ...row,
+        ...next,
+        ...(capturedMs === undefined ? {} : { capturedMs }),
+        ...(gaps === undefined ? {} : { gaps }),
+      };
       return row;
     }),
   };
@@ -198,5 +205,91 @@ describe('public capture orchestration', () => {
     expect(second.action).toBe('LEASE_HELD_BY_OTHER');
     expect((await first).action).toBe('COMPLETE');
     expect(runtime.run).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a runtime gap, schedules one bounded follow-on attempt, and resumes the same capture', async () => {
+    const h = storeHarness();
+    h.setRow({
+      ...h.getRow(),
+      status: 'READY',
+      resolutionState: 'READY_FOR_SERVER_CAPTURE',
+      capturedMs: 10_000,
+    });
+    const runtime = {
+      run: jest
+        .fn()
+        .mockRejectedValueOnce(
+          Object.assign(new Error('FFmpeg exited with code 1'), {
+            captureGaps: [{ startMs: 10_000, endMs: 12_000, reason: 'MEDIA_DISCONNECT' as const }],
+            capturedMs: 12_000,
+          }),
+        )
+        .mockResolvedValueOnce({ capturedMs: 32_000, gaps: [] }),
+    };
+    let recordedAttemptCount = 0;
+    const attempts = {
+      recordAttempt: jest.fn(async (input: Record<string, unknown>) => {
+        recordedAttemptCount += 1;
+        return {
+          id: `attempt-${recordedAttemptCount}`,
+          attemptNumber: recordedAttemptCount,
+          createdAt: new Date(),
+          ...input,
+        };
+      }),
+      countAttempts: jest.fn(async () => recordedAttemptCount),
+    };
+    const scheduleRetry = jest.fn(async () => undefined);
+    const worker = new PublicCaptureWorkerCoordinator(h.store, { resolve: jest.fn(async () => firstPartyResolution) }, runtime, {
+      now: () => new Date('2026-08-20T14:00:00Z'),
+      leaseRenewIntervalMs: 60_000,
+      attempts,
+      retryQueue: { scheduleRetry },
+      maxAttempts: 3,
+      initialRetryDelayMs: 1_000,
+      maxRetryDelayMs: 5_000,
+    });
+
+    const first = await worker.run({ captureId: 'capture-1', hearingId: 'hearing-1', workerId: 'worker-a' });
+    expect(first.action).toBe('RECOVERING');
+    expect(attempts.recordAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ outcome: 'failed', failureCode: 'CAPTURE_RUNTIME_FAILED' }),
+    );
+    expect(scheduleRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ captureId: 'capture-1', hearingId: 'hearing-1', dueAt: expect.any(Date) }),
+    );
+    expect(h.store.saveFencedState).toHaveBeenCalledWith(
+      expect.objectContaining({ gaps: [{ startMs: 10_000, endMs: 12_000, reason: 'MEDIA_DISCONNECT' }] }),
+    );
+
+    const second = await worker.run({ captureId: 'capture-1', hearingId: 'hearing-1', workerId: 'worker-b' });
+    expect(second.action).toBe('COMPLETE');
+    expect(attempts.recordAttempt).toHaveBeenLastCalledWith(
+      expect.objectContaining({ outcome: 'succeeded', capturedMs: 32_000 }),
+    );
+    expect(runtime.run).toHaveBeenNthCalledWith(2, expect.objectContaining({ timelineOffsetMs: 12_000 }));
+  });
+
+  it('terminalizes a repeated runtime failure at the configured attempt ceiling', async () => {
+    const h = storeHarness();
+    h.setRow({ ...h.getRow(), status: 'READY', resolutionState: 'READY_FOR_SERVER_CAPTURE' });
+    const runtime = { run: jest.fn(async () => { throw new Error('media unavailable'); }) };
+    const attempts = {
+      recordAttempt: jest.fn(async () => undefined),
+      countAttempts: jest.fn(async () => 2),
+    };
+    const scheduleRetry = jest.fn(async () => undefined);
+    const worker = new PublicCaptureWorkerCoordinator(h.store, { resolve: jest.fn(async () => firstPartyResolution) }, runtime, {
+      now: () => new Date('2026-08-20T14:00:00Z'),
+      leaseRenewIntervalMs: 60_000,
+      attempts,
+      retryQueue: { scheduleRetry },
+      maxAttempts: 3,
+    });
+
+    const outcome = await worker.run({ captureId: 'capture-1', hearingId: 'hearing-1', workerId: 'worker-c' });
+    expect(outcome.action).toBe('FAILED');
+    expect(scheduleRetry).not.toHaveBeenCalled();
+    expect(h.getRow().status).toBe('FAILED');
   });
 });

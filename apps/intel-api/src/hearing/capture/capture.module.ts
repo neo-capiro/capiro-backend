@@ -24,8 +24,8 @@ import { HearingSubscriptionRepository } from './hearing-subscription.repository
     { provide: FfmpegDeepgramCaptureRuntime, useFactory: async (credentials:PublicCaptureCredentialsAdapter,sink:PublicHearingTranscriptStore) => {
       const credential=await credentials.resolve(); return new FfmpegDeepgramCaptureRuntime(credential.apiKey,sink);
     }, inject:[PublicCaptureCredentialsAdapter,PublicHearingTranscriptStore] },
-    { provide: PublicCaptureWorkerCoordinator, useFactory: (store:PublicHearingCaptureStore,resolver:StreamResolverService,runtime:FfmpegDeepgramCaptureRuntime) => new PublicCaptureWorkerCoordinator(store,resolver,runtime),
-      inject:[PublicHearingCaptureStore,StreamResolverService,FfmpegDeepgramCaptureRuntime] },
+    { provide: PublicCaptureWorkerCoordinator, useFactory: (store:PublicHearingCaptureStore,resolver:StreamResolverService,runtime:FfmpegDeepgramCaptureRuntime,attempts:PublicHearingCaptureAttemptStore,queue:PublicCaptureQueueAdapter) => new PublicCaptureWorkerCoordinator(store,resolver,runtime,{attempts,retryQueue:queue}),
+      inject:[PublicHearingCaptureStore,StreamResolverService,FfmpegDeepgramCaptureRuntime,PublicHearingCaptureAttemptStore,PublicCaptureQueueAdapter] },
     { provide: PublicCaptureWorkerHandler, useFactory:(coordinator:PublicCaptureWorkerCoordinator)=>new PublicCaptureWorkerHandler(coordinator), inject:[PublicCaptureWorkerCoordinator] },
   ],
   exports:[PublicCaptureOrchestrator,PublicCaptureWorkerCoordinator,PublicCaptureWorkerHandler],

@@ -55,6 +55,15 @@ export class NodeFfmpegProcessFactory implements FfmpegProcessFactoryPort {
   }
 }
 
+function captureRuntimeFailure(
+  cause: unknown,
+  capturedMs: number,
+  gaps: CaptureGap[],
+): Error & { capturedMs: number; captureGaps: CaptureGap[] } {
+  const error = cause instanceof Error ? cause : new Error(String(cause));
+  return Object.assign(error, { capturedMs, captureGaps: [...gaps] });
+}
+
 export interface FfmpegDeepgramCaptureRuntimeOptions {
   sampleRate?: number;
   channels?: number;
@@ -255,12 +264,22 @@ export class FfmpegDeepgramCaptureRuntime implements PublicCaptureRuntimePort {
 
       await transcriber.stopAndWait(5_000);
       await writeChain;
-      if (transcriptionError) throw transcriptionError;
-      if (sinkError) throw sinkError;
+      if (transcriptionError) {
+        throw captureRuntimeFailure(transcriptionError, transcriber.timelineCursorMs, gaps);
+      }
+      if (sinkError) {
+        throw captureRuntimeFailure(sinkError, transcriber.timelineCursorMs, gaps);
+      }
       if (transcriber.timelineCursorMs <= input.timelineOffsetMs) {
-        throw new Error('FFmpeg stream ended without producing audio');
+        throw captureRuntimeFailure(
+          new Error('FFmpeg stream ended without producing audio'),
+          transcriber.timelineCursorMs,
+          gaps,
+        );
       }
       return { capturedMs: Math.floor(transcriber.timelineCursorMs), gaps };
+    } catch (error) {
+      throw captureRuntimeFailure(error, transcriber.timelineCursorMs, gaps);
     } finally {
       stopped = true;
       stopProcess(process, this.terminationGraceMs);

@@ -23,4 +23,12 @@ export class PublicHearingCaptureAttemptStore {
     if (!rows[0]) throw new Error('capture attempt insert returned no row');
     return rows[0];
   }
+
+  async countAttempts(captureId: string): Promise<number> {
+    const rows = await this.prisma.$queryRawUnsafe<Array<{ count: number }>>(
+      `SELECT COUNT(*)::int AS count FROM public_hearing_capture_attempt WHERE capture_id=$1`,
+      captureId,
+    );
+    return rows[0]?.count ?? 0;
+  }
 }

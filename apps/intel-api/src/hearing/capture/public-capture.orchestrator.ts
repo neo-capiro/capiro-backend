@@ -150,6 +150,37 @@ export interface PublicCaptureRuntimePort {
   }>;
 }
 
+export interface PublicCaptureRuntimeFailure extends Error {
+  /** Audio that was not represented by a canonical transcript segment. */
+  captureGaps?: CaptureGap[];
+  /** Best-known canonical timeline cursor when the runtime stopped. */
+  capturedMs?: number;
+}
+
+export interface PublicCaptureAttemptPort {
+  recordAttempt(input: {
+    captureId: string;
+    startedAt?: Date;
+    endedAt?: Date;
+    workerLeaseOwner?: string;
+    outcome?: 'succeeded' | 'failed' | 'superseded' | 'timed_out';
+    failureCode?: string;
+    failureDetail?: string;
+    capturedMs?: number;
+  }): Promise<unknown>;
+  countAttempts(captureId: string): Promise<number>;
+}
+
+export interface PublicCaptureRetryQueuePort {
+  scheduleRetry(input: {
+    dedupeKey: string;
+    captureId: string;
+    hearingId: string;
+    dueAt: Date;
+    mustReresolve: true;
+  }): Promise<void>;
+}
+
 export type CaptureReconcileOutcome =
   | { action: 'NOT_FOUND' }
   | { action: 'NO_CAPTURE_DEMAND' }
@@ -344,6 +375,12 @@ export interface PublicCaptureWorkerOptions {
   leaseDurationMs?: number;
   leaseRenewIntervalMs?: number;
   delayedStartGraceMs?: number;
+  attempts?: PublicCaptureAttemptPort;
+  retryQueue?: PublicCaptureRetryQueuePort;
+  /** Maximum total runtime attempts, including the initial attempt. */
+  maxAttempts?: number;
+  initialRetryDelayMs?: number;
+  maxRetryDelayMs?: number;
 }
 
 export type PublicCaptureWorkerOutcome =
@@ -352,6 +389,7 @@ export type PublicCaptureWorkerOutcome =
   | { action: 'TERMINAL'; status: PublicHearingCaptureStatus }
   | { action: 'NO_LONGER_CAPTURABLE'; resolution: ClassifiedStreamResolution }
   | { action: 'COMPLETE'; status: 'COMPLETE' | 'COMPLETE_WITH_GAPS'; capturedMs: number; gaps: CaptureGap[] }
+  | { action: 'RECOVERING'; captureId: string; dueAt: Date; attemptNumber: number; gaps: CaptureGap[] }
   | { action: 'FAILED'; error: string };
 
 /**
@@ -364,6 +402,11 @@ export class PublicCaptureWorkerCoordinator {
   private readonly leaseDurationMs: number;
   private readonly leaseRenewIntervalMs: number;
   private readonly delayedStartGraceMs: number;
+  private readonly attempts?: PublicCaptureAttemptPort;
+  private readonly retryQueue?: PublicCaptureRetryQueuePort;
+  private readonly maxAttempts: number;
+  private readonly initialRetryDelayMs: number;
+  private readonly maxRetryDelayMs: number;
 
   constructor(
     private readonly store: PublicCaptureStorePort,
@@ -375,6 +418,22 @@ export class PublicCaptureWorkerCoordinator {
     this.leaseDurationMs = options.leaseDurationMs ?? 60_000;
     this.leaseRenewIntervalMs = options.leaseRenewIntervalMs ?? 20_000;
     this.delayedStartGraceMs = options.delayedStartGraceMs ?? 90 * 60 * 1000;
+    this.attempts = options.attempts;
+    this.retryQueue = options.retryQueue;
+    this.maxAttempts = boundedPositiveInteger(options.maxAttempts ?? 3, 20, 'maxAttempts');
+    this.initialRetryDelayMs = boundedPositiveInteger(
+      options.initialRetryDelayMs ?? 5_000,
+      24 * 60 * 60 * 1000,
+      'initialRetryDelayMs',
+    );
+    this.maxRetryDelayMs = Math.max(
+      this.initialRetryDelayMs,
+      boundedPositiveInteger(
+        options.maxRetryDelayMs ?? 5 * 60 * 1000,
+        24 * 60 * 60 * 1000,
+        'maxRetryDelayMs',
+      ),
+    );
   }
 
   async run(input: {
@@ -418,6 +477,11 @@ export class PublicCaptureWorkerCoordinator {
       });
     }
     const abort = new AbortController();
+    const attemptStartedAt = this.now();
+    const attemptNumber = this.attempts
+      ? (await this.attempts.countAttempts(capture.id)) + 1
+      : 1;
+    let runtimeStarted = false;
     let renewFailure: Error | undefined;
     let renewing = false;
     const renewal = setInterval(() => {
@@ -518,6 +582,7 @@ export class PublicCaptureWorkerCoordinator {
         next: capturing,
       });
 
+      runtimeStarted = true;
       const result = await this.runtime.run({
         captureId: capture.id,
         hearingId: hearing.id,
@@ -557,6 +622,18 @@ export class PublicCaptureWorkerCoordinator {
         expectedVersion: capture.version,
         next: completed,
       });
+      try {
+        await this.recordAttempt({
+          captureId: capture.id,
+          workerLeaseOwner: input.workerId,
+          startedAt: attemptStartedAt,
+          endedAt: this.now(),
+          outcome: 'succeeded',
+          capturedMs: result.capturedMs,
+        });
+      } catch {
+        // Capture completion is already durably fenced; history is best-effort.
+      }
       return {
         action: 'COMPLETE',
         status: finalStatus as 'COMPLETE' | 'COMPLETE_WITH_GAPS',
@@ -565,17 +642,90 @@ export class PublicCaptureWorkerCoordinator {
       };
     } catch (error) {
       const message = boundedError(error);
+      const failure = asRuntimeFailure(error);
+      const allGaps = mergeRuntimeFailureGaps(capture.gaps, failure);
+      const recoveryCursor = Math.max(
+        capture.capturedMs,
+        failure.capturedMs ?? capture.capturedMs,
+        ...allGaps.map((gap) => gap.endMs),
+      );
+      const canScheduleRecovery =
+        runtimeStarted &&
+        !abort.signal.aborted &&
+        !renewFailure &&
+        !isCanceled(hearing.eventStatus) &&
+        !isClosed(hearing.publicAccess) &&
+        Boolean(this.attempts && this.retryQueue) &&
+        attemptNumber < this.maxAttempts;
+
       try {
+        await this.recordAttempt({
+          captureId: capture.id,
+          workerLeaseOwner: input.workerId,
+          startedAt: attemptStartedAt,
+          endedAt: this.now(),
+          outcome: 'failed',
+          failureCode: abort.signal.aborted
+            ? 'CAPTURE_LEASE_OR_RUNTIME_ABORT'
+            : 'CAPTURE_RUNTIME_FAILED',
+          failureDetail: message,
+          capturedMs: recoveryCursor,
+        });
+      } catch {
+        // Attempt history is best-effort; fenced state remains authoritative.
+      }
+
+      try {
+        if (canScheduleRecovery) {
+          const recovering = transitionCapture(capture, 'RECOVERING', this.now());
+          const next = await this.store.saveFencedState({
+            captureId: input.captureId,
+            ownerId: input.workerId,
+            fencingToken: lease.fencingToken,
+            expectedVersion: capture.version,
+            next: {
+              ...recovering,
+              failureCode: 'CAPTURE_RUNTIME_RECOVERING',
+              failureDetail: message,
+            },
+            capturedMs: recoveryCursor,
+            gaps: allGaps,
+          });
+          const dueAt = new Date(
+            this.now().getTime() +
+              Math.min(
+                this.maxRetryDelayMs,
+                this.initialRetryDelayMs * 2 ** Math.max(0, attemptNumber - 1),
+              ),
+          );
+          await this.retryQueue!.scheduleRetry({
+            dedupeKey: `public-hearing-capture-retry:v1:${next.id}:${attemptNumber + 1}`,
+            captureId: next.id,
+            hearingId: next.hearingId,
+            dueAt,
+            mustReresolve: true,
+          });
+          return {
+            action: 'RECOVERING',
+            captureId: next.id,
+            dueAt,
+            attemptNumber,
+            gaps: allGaps,
+          };
+        }
+
         const failed = transitionCapture(capture, 'FAILED', this.now(), {
           code: abort.signal.aborted ? 'CAPTURE_LEASE_OR_RUNTIME_ABORT' : 'CAPTURE_RUNTIME_FAILED',
           detail: message,
         });
         await this.store.saveFencedState({
-          captureId: capture.id,
+          captureId: input.captureId,
           ownerId: input.workerId,
           fencingToken: lease.fencingToken,
           expectedVersion: capture.version,
           next: failed,
+          capturedMs: recoveryCursor,
+          gaps: allGaps,
         });
       } catch {
         // A stale worker must not overwrite the replacement worker's state.
@@ -595,6 +745,13 @@ export class PublicCaptureWorkerCoordinator {
         // Lease may already have expired or been fenced off.
       }
     }
+  }
+
+  private async recordAttempt(
+    input: Parameters<PublicCaptureAttemptPort['recordAttempt']>[0],
+  ): Promise<void> {
+    if (!this.attempts) return;
+    await this.attempts.recordAttempt(input);
   }
 }
 
@@ -617,4 +774,29 @@ function boundedError(error: unknown): string {
     .replace(/[\r\n\t]+/g, ' ')
     .trim()
     .slice(0, 1_000);
+}
+
+function asRuntimeFailure(error: unknown): PublicCaptureRuntimeFailure {
+  if (error instanceof Error) return error as PublicCaptureRuntimeFailure;
+  return Object.assign(new Error(String(error)), {
+    capturedMs: undefined,
+    captureGaps: undefined,
+  });
+}
+
+function mergeRuntimeFailureGaps(
+  existing: CaptureGap[],
+  failure: PublicCaptureRuntimeFailure,
+): CaptureGap[] {
+  return (failure.captureGaps ?? []).reduce(
+    (gaps, gap) => mergeCaptureGaps(gaps, gap),
+    [...existing],
+  );
+}
+
+function boundedPositiveInteger(value: number, max: number, field: string): number {
+  if (!Number.isFinite(value) || value <= 0) throw new Error(`${field} must be positive`);
+  const integer = Math.floor(value);
+  if (integer > max) throw new Error(`${field} must be at most ${max}`);
+  return integer;
 }
