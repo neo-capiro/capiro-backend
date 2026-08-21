@@ -78,6 +78,17 @@ function isApproved(file, line) {
   return APPROVED_ADAPTER_LINES.some((entry) => entry.file === file && entry.line === line.trim());
 }
 
+/**
+ * The promotion-surface ban (unlike the outside-module bypass ban) is meant
+ * to catch real code — an import, a call, a raw table reference — not this
+ * file's own JSDoc explaining WHY those symbols are banned. Skip standard
+ * comment-continuation lines (this codebase's JSDoc style throughout).
+ */
+function isCommentLine(line) {
+  const trimmed = line.trim();
+  return trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*');
+}
+
 function isTestFile(file) {
   return TEST_SUFFIXES.some((suffix) => file.endsWith(suffix));
 }
@@ -152,7 +163,7 @@ if (diff) {
           );
         }
       }
-    } else {
+    } else if (!isCommentLine(added)) {
       for (const pattern of BANNED_PROMOTION_SYMBOLS) {
         if (pattern.test(added)) {
           fail(
