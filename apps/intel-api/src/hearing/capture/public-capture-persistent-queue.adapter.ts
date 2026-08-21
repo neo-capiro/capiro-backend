@@ -61,6 +61,23 @@ const JOB_COLUMNS = `
   updated_at AS "updatedAt",
   completed_at AS "completedAt"`;
 
+const CLAIMED_JOB_COLUMNS = `
+  job.id,
+  job.job_type AS "jobType",
+  job.dedupe_key AS "dedupeKey",
+  job.hearing_id AS "hearingId",
+  job.capture_id AS "captureId",
+  job.status,
+  job.due_at AS "dueAt",
+  job.attempts,
+  job.max_attempts AS "maxAttempts",
+  job.lease_owner AS "leaseOwner",
+  job.lease_expires_at AS "leaseExpiresAt",
+  job.last_error AS "lastError",
+  job.created_at AS "createdAt",
+  job.updated_at AS "updatedAt",
+  job.completed_at AS "completedAt"`;
+
 /**
  * Global durable queue for scheduled public hearing work.
  *
@@ -94,9 +111,7 @@ export class PublicCapturePersistentQueueAdapter
       input.captureId,
       JSON.stringify({ mustReresolve: true }),
     );
-    return rows[0]
-      ? { enqueued: true, jobId: rows[0].id }
-      : { enqueued: false };
+    return rows[0] ? { enqueued: true, jobId: rows[0].id } : { enqueued: false };
   }
 
   async schedulePreflight(input: {
@@ -167,8 +182,7 @@ export class PublicCapturePersistentQueueAdapter
     limit?: number;
     leaseDurationMs?: number;
   }): Promise<PublicCaptureJob[]> {
-    const workerId = bounded(input.workerId, 200);
-    if (!workerId) throw new Error('capture queue workerId is required');
+    const workerId = requiredWorkerId(input.workerId);
     assertDate(input.now, 'now');
     const limit = boundedPositiveInteger(input.limit ?? 10, 100, 'limit');
     const leaseDurationMs = boundedPositiveInteger(
@@ -200,7 +214,7 @@ export class PublicCapturePersistentQueueAdapter
            updated_at = $2
        FROM due
        WHERE job.id = due.id
-       RETURNING ${JOB_COLUMNS}`,
+       RETURNING ${CLAIMED_JOB_COLUMNS}`,
       input.jobType,
       input.now,
       limit,
@@ -208,6 +222,34 @@ export class PublicCapturePersistentQueueAdapter
       leaseExpiresAt,
     );
     return rows.map(mapJob);
+  }
+
+  async renewLease(input: {
+    jobId: string;
+    workerId: string;
+    now: Date;
+    leaseDurationMs?: number;
+  }): Promise<Date> {
+    const workerId = requiredWorkerId(input.workerId);
+    assertDate(input.now, 'now');
+    const leaseDurationMs = boundedPositiveInteger(
+      input.leaseDurationMs ?? 5 * 60_000,
+      24 * 60 * 60_000,
+      'leaseDurationMs',
+    );
+    const expiresAt = new Date(input.now.getTime() + leaseDurationMs);
+    const rows = await this.prisma.$queryRawUnsafe<Array<{ leaseExpiresAt: Date }>>(
+      `UPDATE public_hearing_capture_job
+       SET lease_expires_at=$4, updated_at=$3
+       WHERE id=$1::uuid AND status='leased' AND lease_owner=$2
+       RETURNING lease_expires_at AS "leaseExpiresAt"`,
+      input.jobId,
+      workerId,
+      input.now,
+      expiresAt,
+    );
+    if (!rows[0]) throw new Error(`capture queue renewal lost lease: ${input.jobId}`);
+    return rows[0].leaseExpiresAt;
   }
 
   async complete(input: {
@@ -222,7 +264,7 @@ export class PublicCapturePersistentQueueAdapter
            lease_owner=NULL, lease_expires_at=NULL, last_error=NULL
        WHERE id=$1::uuid AND status='leased' AND lease_owner=$2`,
       input.jobId,
-      bounded(input.workerId, 200),
+      requiredWorkerId(input.workerId),
       input.now,
     );
     if (count === 0) throw new Error(`capture queue completion lost lease: ${input.jobId}`);
@@ -256,7 +298,7 @@ export class PublicCapturePersistentQueueAdapter
        WHERE id=$1::uuid AND status='leased' AND lease_owner=$2
        RETURNING status`,
       input.jobId,
-      bounded(input.workerId, 200),
+      requiredWorkerId(input.workerId),
       input.now,
       input.retryAt ?? null,
       message,
@@ -320,7 +362,15 @@ function assertStableJobInput(input: {
 }
 
 function assertId(value: string, field: string): void {
-  if (!value?.trim() || value.length > 500) throw new Error(`${field} is required and bounded`);
+  if (!value?.trim() || value.length > 500) {
+    throw new Error(`${field} is required and bounded`);
+  }
+}
+
+function requiredWorkerId(value: string): string {
+  const workerId = bounded(value, 200);
+  if (!workerId) throw new Error('capture queue workerId is required');
+  return workerId;
 }
 
 function assertDate(value: Date, field: string): void {
@@ -343,3 +393,5 @@ function boundedPositiveInteger(value: number, max: number, field: string): numb
   if (integer > max) throw new Error(`${field} must be at most ${max}`);
   return integer;
 }
+
+export const PUBLIC_CAPTURE_JOB_COLUMNS_FOR_TEST = JOB_COLUMNS;
