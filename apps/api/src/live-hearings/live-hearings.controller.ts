@@ -146,4 +146,16 @@ export class LiveHearingsController {
     if (!event) throw new NotFoundException(`hearing ${id} not found`);
     return { hearingId: id, updates: await this.service.updates(ctx, id, query.limit ?? 100) };
   }
+
+  /**
+   * Source coverage / health — read-only operator tooling (prototype's
+   * "Source coverage" drawer). GLOBAL data with no tenant overlay, so no
+   * `@CurrentTenant()` is needed; guarded the same as the rest of this
+   * controller since it names nothing more sensitive than public committee
+   * URLs and internal adapter/health bookkeeping.
+   */
+  @Get('coverage')
+  coverage() {
+    return this.service.coverage();
+  }
 }

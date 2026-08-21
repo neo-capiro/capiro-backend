@@ -7,6 +7,7 @@ import {
 import { useApi } from '../../../lib/use-api.js';
 import type {
   CanonicalHearingEvent,
+  CommitteeSourceCoverage,
   HearingCaptureStatus,
   HearingCommitteeRef,
   HearingCommitteeRoom,
@@ -16,6 +17,7 @@ import type {
   HearingSiteUpdate,
   HearingWitness,
   LiveHearingCalendarPage,
+  LiveHearingsCoverage,
   PublicTranscriptPage,
   PublicTranscriptSegment,
 } from './live-hearings.types.js';
@@ -34,6 +36,14 @@ export interface LiveHearingCalendarParams {
   captureStatus?: string;
   scheduled?: boolean;
   followed?: boolean;
+  /**
+   * The backend's real filter for "this user's subscribed/scheduled
+   * hearings" (`CalendarQueryDto.followState`, `IsIn(['scheduled',
+   * 'unscheduled'])`). `followed` above is not wired to anything the API
+   * validates — this is the field that actually resolves the
+   * hearing_subscription overlay server-side.
+   */
+  followState?: 'scheduled' | 'unscheduled';
   search?: string;
   cursor?: string | null;
   limit?: number;
@@ -47,6 +57,7 @@ const keys = {
   transcript: (id: string) => ['legiwatch', 'live-hearings', 'event', id, 'transcript'] as const,
   intelligence: (id: string) => ['legiwatch', 'live-hearings', 'event', id, 'intelligence'] as const,
   committee: (id: string) => ['legiwatch', 'live-hearings', 'committee', id] as const,
+  coverage: ['legiwatch', 'live-hearings', 'coverage'] as const,
 };
 
 function record(value: unknown): UnknownRecord {
@@ -219,9 +230,20 @@ export function normalizeCanonicalHearingEvent(value: unknown): CanonicalHearing
     eventType: stringValue(row.eventType, row.type) ?? 'HEARING',
     eventStatus: stringValue(row.eventStatus, row.status) ?? 'UNKNOWN',
     publicAccessStatus: stringValue(row.publicAccessStatus, row.publicAccess) ?? 'UNKNOWN',
-    scheduledStart: isoValue(row.scheduledStart, row.scheduledAt, row.dateTime),
-    actualStart: isoValue(row.actualStart),
-    actualEnd: isoValue(row.actualEnd),
+    // The real LiveHearingsService response names the hearing's own start
+    // time `startsAt` (see live-hearings.service.ts CalendarEvent) — it never
+    // sends a top-level `scheduledStart`/`scheduledAt`/`dateTime`, and
+    // `capture.scheduledStart` is a DIFFERENT thing (when the CAPTURE is
+    // scheduled to begin). Without `row.startsAt` here, every real event's
+    // scheduledStart was undefined: Master Calendar rows all showed "Time not
+    // announced", and the week grid could never bucket a single real event
+    // into a day column. Likewise `capture.actualStart`/`capture.actualEnd`
+    // are where the real actual-start/end land — the bare top-level aliases
+    // alone never matched real data, so `isLiveEvent()`'s final fallback
+    // (`Boolean(event.actualStart)`) was effectively dead against real data.
+    scheduledStart: isoValue(row.scheduledStart, row.scheduledAt, row.dateTime, row.startsAt),
+    actualStart: isoValue(row.actualStart, capture.actualStart),
+    actualEnd: isoValue(row.actualEnd, capture.actualEnd),
     timeZone: stringValue(row.timeZone, row.timezone) ?? 'America/New_York',
     location:
       stringValue(
@@ -324,6 +346,7 @@ function queryString(params: LiveHearingCalendarParams): string {
   if (params.captureStatus) query.set('captureStatus', params.captureStatus);
   if (params.scheduled !== undefined) query.set('scheduled', String(params.scheduled));
   if (params.followed !== undefined) query.set('followed', String(params.followed));
+  if (params.followState) query.set('followState', params.followState);
   if (params.search) query.set('search', params.search);
   if (params.cursor) query.set('cursor', params.cursor);
   if (params.limit) query.set('limit', String(params.limit));
@@ -545,6 +568,62 @@ export function useCancelScheduledHearing() {
       void queryClient.invalidateQueries({ queryKey: keys.event(id) });
       void queryClient.invalidateQueries({ queryKey: ['legiwatch', 'live-hearings', 'calendar'] });
     },
+  });
+}
+
+export function normalizeCommitteeSourceCoverage(value: unknown): CommitteeSourceCoverage | null {
+  const row = record(value);
+  const id = stringValue(row.id);
+  const chamber = stringValue(row.chamber);
+  const sourceUrl = stringValue(row.sourceUrl);
+  const adapterKey = stringValue(row.adapterKey);
+  const sourceType = stringValue(row.sourceType);
+  const sourceHealth = stringValue(row.sourceHealth);
+  if (!id || !chamber || !sourceUrl || !adapterKey || !sourceType || !sourceHealth) return null;
+  return {
+    id,
+    committeeSystemCode: stringValue(row.committeeSystemCode),
+    committeeName: stringValue(row.committeeName),
+    chamber,
+    sourceType,
+    sourceUrl,
+    adapterKey,
+    enabled: booleanValue(row.enabled) ?? true,
+    priority: numberValue(row.priority) ?? 100,
+    sourceHealth,
+    lastCheckedAt: isoValue(row.lastCheckedAt),
+    lastSuccessAt: isoValue(row.lastSuccessAt),
+    lastErrorAt: isoValue(row.lastErrorAt),
+    lastError: stringValue(row.lastError),
+    recentCapturePolicy: stringValue(row.recentCapturePolicy),
+    recentResolutionState: stringValue(row.recentResolutionState),
+  };
+}
+
+export function useLiveHearingsCoverage() {
+  const api = useApi();
+  return useQuery<LiveHearingsCoverage>({
+    queryKey: keys.coverage,
+    queryFn: async () => {
+      const response = record(
+        (await api.get<unknown>('/api/legiwatch/live-hearings/coverage')).data,
+      );
+      const summary = record(response.summary);
+      return {
+        summary: {
+          total: numberValue(summary.total) ?? 0,
+          healthy: numberValue(summary.healthy) ?? 0,
+          degraded: numberValue(summary.degraded) ?? 0,
+          failing: numberValue(summary.failing) ?? 0,
+          unknown: numberValue(summary.unknown) ?? 0,
+        },
+        sources: array(response.sources)
+          .map(normalizeCommitteeSourceCoverage)
+          .filter((item): item is CommitteeSourceCoverage => Boolean(item)),
+      };
+    },
+    retry: false,
+    staleTime: 60_000,
   });
 }
 

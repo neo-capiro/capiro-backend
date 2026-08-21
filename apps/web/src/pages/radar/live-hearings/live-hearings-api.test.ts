@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   normalizeCalendarPage,
   normalizeCanonicalHearingEvent,
+  normalizeCommitteeSourceCoverage,
   normalizeHearingUpdate,
 } from './live-hearings-api.js';
 
@@ -39,6 +40,28 @@ describe('Live Hearings API normalization', () => {
     );
     expect(event.witnesses).toHaveLength(1);
     expect(event.documents).toHaveLength(1);
+  });
+
+  test('reads the real LiveHearingsService field names for start time, not only the legacy aliases', () => {
+    // The real backend (apps/api/src/live-hearings/live-hearings.service.ts
+    // CalendarEvent) names the event's own start `startsAt`, and puts the
+    // capture's actual start/end INSIDE `capture` — never as a bare top-level
+    // `scheduledStart`/`actualStart`/`actualEnd`. Missing `startsAt` here left
+    // every real Master Calendar row's time as "Time not announced" and the
+    // week grid unable to bucket a single real event into a day column.
+    const event = normalizeCanonicalHearingEvent({
+      id: 'h-1',
+      title: 'Real-shape hearing',
+      committeeName: 'Armed Services',
+      startsAt: '2026-08-12T14:00:00.000Z',
+      capture: {
+        status: 'capturing',
+        actualStart: '2026-08-12T14:02:00.000Z',
+        actualEnd: null,
+      },
+    });
+    expect(event.scheduledStart).toBe('2026-08-12T14:00:00.000Z');
+    expect(event.actualStart).toBe('2026-08-12T14:02:00.000Z');
   });
 
   test('accepts both an array and a paged envelope', () => {
@@ -118,5 +141,49 @@ describe('Live Hearings API normalization', () => {
       }),
     );
     expect(normalizeHearingUpdate({ type: 'date_changed' })).toBeNull();
+  });
+
+  test('normalizes committee source coverage without fabricating a derived capture/resolution reading', () => {
+    const withCandidate = normalizeCommitteeSourceCoverage({
+      id: 'src-1',
+      committeeSystemCode: 'hsas00',
+      committeeName: 'House Armed Services',
+      chamber: 'house',
+      sourceType: 'COMMITTEE_SITE',
+      sourceUrl: 'https://armedservices.house.gov/hearings',
+      adapterKey: 'house-committee-v3',
+      enabled: true,
+      priority: 100,
+      sourceHealth: 'healthy',
+      lastCheckedAt: '2026-08-21T12:00:00Z',
+      lastSuccessAt: '2026-08-21T12:00:00Z',
+      recentCapturePolicy: 'SERVER_CAPTURE_ALLOWED',
+      recentResolutionState: 'READY',
+    });
+    expect(withCandidate).toEqual(
+      expect.objectContaining({
+        id: 'src-1',
+        committeeName: 'House Armed Services',
+        sourceHealth: 'healthy',
+        recentCapturePolicy: 'SERVER_CAPTURE_ALLOWED',
+        recentResolutionState: 'READY',
+      }),
+    );
+
+    const withoutCandidate = normalizeCommitteeSourceCoverage({
+      id: 'src-2',
+      chamber: 'senate',
+      sourceType: 'SENATE_SCHEDULE',
+      sourceUrl: 'https://www.senate.gov/committees/schedule.htm',
+      adapterKey: 'senate-schedule-v1',
+      sourceHealth: 'unknown',
+    });
+    // No stream candidate has ever cited this source — the field must stay
+    // undefined (truthfully unavailable), never default to any status string.
+    expect(withoutCandidate?.recentCapturePolicy).toBeUndefined();
+    expect(withoutCandidate?.recentResolutionState).toBeUndefined();
+    expect(withoutCandidate?.committeeName).toBeUndefined();
+
+    expect(normalizeCommitteeSourceCoverage({ id: 'src-3' })).toBeNull();
   });
 });

@@ -109,9 +109,148 @@ const MAX_PAGE_SIZE = 200;
  */
 export const LIVE_WINDOW_MS = 6 * 60 * 60 * 1000;
 
+/** One official committee source, as the coverage/source-health surface renders it. */
+export interface CommitteeSourceCoverage {
+  id: string;
+  committeeSystemCode: string | null;
+  /** Resolved from `congress_committee` by system code; null when unresolved or chamber-wide. */
+  committeeName: string | null;
+  chamber: string;
+  sourceType: string;
+  sourceUrl: string;
+  adapterKey: string;
+  enabled: boolean;
+  priority: number;
+  /** 'healthy' | 'degraded' | 'failing' | 'unknown' — read verbatim, never coerced. */
+  sourceHealth: string;
+  lastCheckedAt: string | null;
+  lastSuccessAt: string | null;
+  lastErrorAt: string | null;
+  lastError: string | null;
+  /**
+   * Most recently observed `capturePolicy` / `resolutionState` among this
+   * source's stream candidates, or null when no candidate has ever cited this
+   * source. This is a real, derived read (never a fabricated default) — a
+   * source-level "server capture support" column does not exist in the
+   * schema, because capture eligibility is resolved per hearing, not per
+   * source. A null here must render as truthfully unavailable, not as a
+   * status.
+   */
+  recentCapturePolicy: string | null;
+  recentResolutionState: string | null;
+}
+
+export interface CommitteeSourceCoverageSummary {
+  total: number;
+  healthy: number;
+  degraded: number;
+  failing: number;
+  unknown: number;
+}
+
 @Injectable()
 export class LiveHearingsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Source coverage / health — the operator-tooling surface the prototype
+   * calls "Source coverage". Every field below is read straight off
+   * `committee_source` (plus a best-effort committee-name join and a
+   * derived "most recent candidate" read for capture/resolution support);
+   * nothing is fabricated to fill in a prototype field the schema does not
+   * back. GLOBAL data — no tenant_id on `committee_source`, so no tenant
+   * filter applies.
+   */
+  async coverage(): Promise<{
+    summary: CommitteeSourceCoverageSummary;
+    sources: CommitteeSourceCoverage[];
+  }> {
+    const sources = await this.prisma.committeeSource.findMany({
+      orderBy: [{ chamber: 'asc' }, { sourceUrl: 'asc' }],
+      take: 1000,
+    });
+
+    const systemCodes = [
+      ...new Set(sources.map((s) => s.committeeSystemCode).filter((c): c is string => Boolean(c))),
+    ];
+    const committees = systemCodes.length
+      ? await this.prisma.congressCommittee.findMany({
+          where: { systemCode: { in: systemCodes } },
+          select: { systemCode: true, name: true },
+        })
+      : [];
+    const nameBySystemCode = new Map(committees.map((c) => [c.systemCode, c.name]));
+
+    const sourceIds = sources.map((s) => s.id);
+    const candidates = sourceIds.length
+      ? await this.prisma.hearingStreamCandidate.findMany({
+          where: { sourceId: { in: sourceIds } },
+          orderBy: [{ updatedAt: 'desc' }],
+          select: {
+            sourceId: true,
+            capturePolicy: true,
+            resolutionState: true,
+            updatedAt: true,
+          },
+          take: 5000,
+        })
+      : [];
+    // Most recently updated candidate per source, computed in memory rather
+    // than via a Prisma `distinct` so the same reduction is trivially
+    // testable against the plain in-memory Prisma double this module already
+    // uses (see live-hearings.service.spec.ts).
+    const latestCandidateBySource = new Map<string, { capturePolicy: string; resolutionState: string }>();
+    for (const candidate of candidates) {
+      if (!candidate.sourceId || latestCandidateBySource.has(candidate.sourceId)) continue;
+      latestCandidateBySource.set(candidate.sourceId, {
+        capturePolicy: candidate.capturePolicy,
+        resolutionState: candidate.resolutionState,
+      });
+    }
+
+    const summary: CommitteeSourceCoverageSummary = {
+      total: sources.length,
+      healthy: 0,
+      degraded: 0,
+      failing: 0,
+      unknown: 0,
+    };
+    for (const s of sources) {
+      const key = s.sourceHealth as keyof CommitteeSourceCoverageSummary;
+      if (key === 'healthy' || key === 'degraded' || key === 'failing' || key === 'unknown') {
+        summary[key] += 1;
+      } else {
+        summary.unknown += 1;
+      }
+    }
+
+    return {
+      summary,
+      sources: sources.map((s) => {
+        const latest = latestCandidateBySource.get(s.id) ?? null;
+        return {
+          id: s.id,
+          committeeSystemCode: s.committeeSystemCode,
+          committeeName: s.committeeSystemCode
+            ? nameBySystemCode.get(s.committeeSystemCode) ?? null
+            : null,
+          chamber: s.chamber,
+          sourceType: s.sourceType,
+          sourceUrl: s.sourceUrl,
+          adapterKey: s.adapterKey,
+          enabled: s.enabled,
+          priority: s.priority,
+          sourceHealth: s.sourceHealth,
+          lastCheckedAt: s.lastCheckedAt?.toISOString() ?? null,
+          lastSuccessAt: s.lastSuccessAt?.toISOString() ?? null,
+          lastErrorAt: s.lastErrorAt?.toISOString() ?? null,
+          lastError: s.lastError,
+          recentCapturePolicy: latest?.capturePolicy ?? null,
+          recentResolutionState: latest?.resolutionState ?? null,
+        };
+      }),
+    };
+  }
 
   /** Master calendar: a filtered page of canonical events with the tenant overlay. */
   async calendar(

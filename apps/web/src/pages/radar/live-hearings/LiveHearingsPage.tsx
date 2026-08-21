@@ -1,14 +1,17 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Alert, App as AntApp, Button, Empty, Input, Select, Spin, Tooltip } from 'antd';
 import {
   AudioOutlined,
   BankOutlined,
   CalendarOutlined,
   ClockCircleOutlined,
+  CloseOutlined,
   FileSearchOutlined,
   HistoryOutlined,
+  LeftOutlined,
   PlayCircleOutlined,
   ReloadOutlined,
+  RightOutlined,
   ScheduleOutlined,
   SearchOutlined,
   TeamOutlined,
@@ -18,6 +21,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   useCreateHearing,
   useHearingSessionHistory,
+  type LiveHearingSession,
 } from '../../../lib/hearing-watch-api.js';
 import {
   browserCaptureCapability,
@@ -35,12 +39,14 @@ import {
   useHearingIntelligence,
   useHearingUpdates,
   useLiveHearingsCalendar,
+  useLiveHearingsCoverage,
   useLiveHearingsLive,
   usePublicHearingTranscript,
   useScheduleHearing,
 } from './live-hearings-api.js';
 import type {
   CanonicalHearingEvent,
+  CommitteeSourceCoverage,
   HearingCommitteeRef,
   HearingIntelligenceItem,
   HearingSiteUpdate,
@@ -151,6 +157,13 @@ function sourceHealthTone(value?: string): { label: string; tone: string } {
     return { label: 'Custom adapter required', tone: 'neutral' };
   }
   if (status === 'UNAVAILABLE') return { label: 'Unavailable', tone: 'neutral' };
+  // `committee_source.source_health` (Phase 2-6 model backing the coverage
+  // drawer) is the real, narrower enum 'healthy' | 'degraded' | 'failing' |
+  // 'unknown' — named explicitly rather than falling through to the generic
+  // titleCase fallback, since these are genuine values this endpoint returns
+  // today, not merely unrecognized input.
+  if (status === 'FAILING') return { label: 'Failing', tone: 'danger' };
+  if (status === 'UNKNOWN') return { label: 'Unknown', tone: 'neutral' };
   return { label: titleCase(value), tone: 'neutral' };
 }
 
@@ -162,6 +175,11 @@ function sourceHealthTone(value?: string): { label: string; tone: string } {
  */
 function eventEdgeTone(event: CanonicalHearingEvent): 'live' | 'markup' | 'unavailable' | 'hearing' {
   if (isLiveEvent(event)) return 'live';
+  const status = (event.eventStatus ?? '').toUpperCase();
+  // A postponed or canceled proceeding is truthfully unavailable — the
+  // Master Calendar week grid (§ prototype chip matrix) must not render it
+  // with the same brand-toned "hearing" edge as something still on.
+  if (status === 'POSTPONED' || status === 'CANCELED') return 'unavailable';
   const access = (event.publicAccessStatus ?? '').toUpperCase();
   const stream = (event.streamState ?? '').toUpperCase();
   if (
@@ -174,6 +192,96 @@ function eventEdgeTone(event: CanonicalHearingEvent): 'live' | 'markup' | 'unava
   }
   if ((event.eventType ?? '').toUpperCase().includes('MARKUP')) return 'markup';
   return 'hearing';
+}
+
+/** Recording-queued marker for a calendar chip: a real subscription or an
+ *  active scheduled-capture status, never a guess. */
+function isRecordingQueued(event: CanonicalHearingEvent): boolean {
+  if (event.subscription?.scheduled) return true;
+  const status = (event.capture?.status ?? '').toUpperCase();
+  return status === 'SCHEDULED' || status === 'PREPARING' || status === 'WAITING_FOR_BROADCAST';
+}
+
+/** Monday of the week containing `date`, at local midnight. */
+function mondayOf(date: Date): Date {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  const day = result.getDay(); // 0 = Sunday .. 6 = Saturday
+  const diff = day === 0 ? -6 : 1 - day;
+  result.setDate(result.getDate() + diff);
+  return result;
+}
+
+function addDays(date: Date, amount: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + amount);
+  return result;
+}
+
+function toDayInput(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** The event's Eastern (or its own timezone) calendar day, e.g. "2026-08-12". */
+function zonedDayKey(iso: string, timeZone = 'America/New_York'): string {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const lookup = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return `${lookup.year}-${lookup.month}-${lookup.day}`;
+}
+
+function zonedShortTime(iso: string, timeZone = 'America/New_York'): string {
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function weekRangeLabel(monday: Date): string {
+  const sunday = addDays(monday, 6);
+  const sameMonth = monday.getMonth() === sunday.getMonth();
+  const start = new Intl.DateTimeFormat(undefined, { month: 'long', day: 'numeric' }).format(monday);
+  const end = sameMonth
+    ? new Intl.DateTimeFormat(undefined, { day: 'numeric', year: 'numeric' }).format(sunday)
+    : new Intl.DateTimeFormat(undefined, { month: 'long', day: 'numeric', year: 'numeric' }).format(
+        sunday,
+      );
+  return `${start} – ${end}`;
+}
+
+/** "2H 14M" style countdown; never negative, never fabricates a unit smaller
+ *  than a minute. */
+function formatCountdown(targetIso?: string): string {
+  if (!targetIso) return '';
+  const ms = new Date(targetIso).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return 'Starting now';
+  const totalMinutes = Math.max(1, Math.round(ms / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours <= 0) return `${minutes}M`;
+  return `${hours}H ${minutes}M`;
+}
+
+function elapsedClock(startIso?: string): string {
+  if (!startIso) return '00:00:00';
+  const ms = Math.max(0, Date.now() - new Date(startIso).getTime());
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
 }
 
 function SourceHealthBanner({
@@ -301,18 +409,186 @@ function EventCard({
   );
 }
 
+/** One day column of the Master Calendar week grid (A.7 "Week calendar"). */
+function CalendarDayColumn({
+  date,
+  isToday,
+  events,
+  openEvent,
+}: {
+  date: Date;
+  isToday: boolean;
+  events: CanonicalHearingEvent[];
+  openEvent: (event: CanonicalHearingEvent) => void;
+}) {
+  const dow = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date).toUpperCase();
+  return (
+    <div className={`lh-calendar-day${isToday ? ' is-today' : ''}`}>
+      <span className="lh-calendar-day__head">
+        <span className="lh-calendar-day__dow">{dow}</span>
+        <span className="lh-calendar-day__num">{date.getDate()}</span>
+      </span>
+      {events.length === 0 ? (
+        <span className="lh-calendar-day__empty">NO PROCEEDINGS</span>
+      ) : (
+        events.map((event) => {
+          const edge = eventEdgeTone(event);
+          const marker = isLiveEvent(event) || isRecordingQueued(event);
+          return (
+            <button
+              type="button"
+              key={event.id}
+              className="lh-calendar-chip"
+              data-edge={edge}
+              onClick={() => openEvent(event)}
+            >
+              <span className="lh-calendar-chip__row">
+                <span className="lh-calendar-chip__time">
+                  {event.scheduledStart ? zonedShortTime(event.scheduledStart, event.timeZone) : '—'}
+                </span>
+                {marker ? (
+                  <span
+                    className="lh-calendar-chip__dot"
+                    style={isLiveEvent(event) ? { animation: 'lh-pulse 1.6s ease-in-out infinite' } : undefined}
+                  />
+                ) : null}
+              </span>
+              <span className="lh-calendar-chip__title">{event.title}</span>
+              <span className="lh-calendar-chip__meta">
+                {(event.subcommittee?.name ?? event.committee.name)} · {titleCase(event.eventType)}
+              </span>
+            </button>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+const CALENDAR_LEGEND: Array<{ label: string; tone: 'live' | 'hearing' | 'markup' | 'queued' }> = [
+  { label: 'LIVE', tone: 'live' },
+  { label: 'HEARING', tone: 'hearing' },
+  { label: 'MARKUP', tone: 'markup' },
+  { label: 'RECORDING QUEUED', tone: 'queued' },
+];
+
+/** The real 7-day structural grid (A.7 "Week calendar"). Reshapes the same
+ *  canonical calendar data the agenda/list view reads — no placeholder
+ *  events. */
+function CalendarWeekGrid({
+  weekStart,
+  onPrevWeek,
+  onNextWeek,
+  isLoading,
+  isError,
+  error,
+  onRetry,
+  items,
+  openEvent,
+}: {
+  weekStart: Date;
+  onPrevWeek: () => void;
+  onNextWeek: () => void;
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+  onRetry: () => void;
+  items: CanonicalHearingEvent[];
+  openEvent: (event: CanonicalHearingEvent) => void;
+}) {
+  const days = useMemo(() => {
+    const buckets = Array.from({ length: 7 }, (_, i) => {
+      const date = addDays(weekStart, i);
+      return { date, key: toDayInput(date), events: [] as CanonicalHearingEvent[] };
+    });
+    const byKey = new Map(buckets.map((b) => [b.key, b]));
+    for (const event of items) {
+      if (!event.scheduledStart) continue;
+      const key = zonedDayKey(event.scheduledStart, event.timeZone);
+      byKey.get(key)?.events.push(event);
+    }
+    for (const bucket of buckets) {
+      bucket.events.sort((a, b) => (a.scheduledStart ?? '').localeCompare(b.scheduledStart ?? ''));
+    }
+    return buckets;
+  }, [items, weekStart]);
+  const todayKey = toDayInput(new Date());
+  const totalCount = days.reduce((sum, d) => sum + d.events.length, 0);
+
+  return (
+    <section className="lh-calendar-grid-section" aria-label="Master Calendar week grid">
+      <div className="lh-calendar-grid-header">
+        <span className="lh-calendar-grid-nav">
+          <button type="button" onClick={onPrevWeek} aria-label="Previous week">
+            <LeftOutlined />
+          </button>
+          <button type="button" onClick={onNextWeek} aria-label="Next week">
+            <RightOutlined />
+          </button>
+        </span>
+        <span className="lh-calendar-grid-label">{weekRangeLabel(weekStart)}</span>
+        <span className="lh-calendar-grid-meta">
+          {totalCount} {totalCount === 1 ? 'PROCEEDING' : 'PROCEEDINGS'} THIS WEEK
+        </span>
+      </div>
+      {isLoading ? <LoadingBlock label="Loading the week grid…" /> : null}
+      {isError ? <ErrorBlock error={error} onRetry={onRetry} /> : null}
+      {!isLoading && !isError ? (
+        <>
+          <div className="lh-calendar-grid">
+            {days.map((day) => (
+              <CalendarDayColumn
+                key={day.key}
+                date={day.date}
+                isToday={day.key === todayKey}
+                events={day.events}
+                openEvent={openEvent}
+              />
+            ))}
+          </div>
+          <div className="lh-calendar-legend">
+            {CALENDAR_LEGEND.map((item) => (
+              <span key={item.tone}>
+                <span className="lh-calendar-legend__dot" data-tone={item.tone} />
+                {item.label}
+              </span>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </section>
+  );
+}
+
 function CalendarView({ openEvent }: { openEvent: (event: CanonicalHearingEvent) => void }) {
   const [from, setFrom] = useState(todayInput(-1));
   const [to, setTo] = useState(todayInput(30));
   const [search, setSearch] = useState('');
   const [chamber, setChamber] = useState<string | undefined>();
-  const calendar = useLiveHearingsCalendar({
+  // View-mode toggle: the existing filtered agenda/list stays the default,
+  // matching the "additional view, not a replacement" instruction. Both
+  // modes share the chamber/search filters; the week grid drives its own
+  // 7-day window instead of the agenda's From/To range.
+  const [mode, setMode] = useState<'agenda' | 'calendar'>('agenda');
+  const [weekOffset, setWeekOffset] = useState(0);
+  const weekStart = useMemo(() => addDays(mondayOf(new Date()), weekOffset * 7), [weekOffset]);
+  const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
+
+  const agenda = useLiveHearingsCalendar({
     from: dayBoundary(from),
     to: dayBoundary(to, true),
     chamber,
     search: search.trim() || undefined,
     limit: 250,
   });
+  const week = useLiveHearingsCalendar({
+    from: dayBoundary(toDayInput(weekStart)),
+    to: dayBoundary(toDayInput(weekEnd), true),
+    chamber,
+    search: search.trim() || undefined,
+    limit: 250,
+  });
+  const active = mode === 'calendar' ? week : agenda;
 
   return (
     <section className="lh-view" aria-labelledby="master-calendar-title">
@@ -322,18 +598,22 @@ function CalendarView({ openEvent }: { openEvent: (event: CanonicalHearingEvent)
           <h2 id="master-calendar-title">Master Calendar</h2>
           <p>Every discovered proceeding stays visible until it is captured or assigned an explicit exception.</p>
         </div>
-        <div className="lh-count">{calendar.data?.total?.toLocaleString() ?? '—'} events</div>
+        <div className="lh-count">{active.data?.total?.toLocaleString() ?? '—'} events</div>
       </div>
 
       <div className="lh-filterbar">
-        <label>
-          <span>From</span>
-          <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
-        </label>
-        <label>
-          <span>To</span>
-          <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
-        </label>
+        {mode === 'agenda' ? (
+          <>
+            <label>
+              <span>From</span>
+              <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+            </label>
+            <label>
+              <span>To</span>
+              <input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+            </label>
+          </>
+        ) : null}
         <label className="lh-filterbar__search">
           <span>Search</span>
           <Input
@@ -358,21 +638,58 @@ function CalendarView({ openEvent }: { openEvent: (event: CanonicalHearingEvent)
             ]}
           />
         </label>
+        <div className="lh-segmented" role="tablist" aria-label="Calendar presentation">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'agenda'}
+            className={mode === 'agenda' ? 'is-active' : ''}
+            onClick={() => setMode('agenda')}
+          >
+            Agenda
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'calendar'}
+            className={mode === 'calendar' ? 'is-active' : ''}
+            onClick={() => setMode('calendar')}
+          >
+            Calendar
+          </button>
+        </div>
       </div>
 
-      <SourceHealthBanner health={calendar.data?.sourceHealth} />
-      {calendar.isLoading ? <LoadingBlock /> : null}
-      {calendar.isError ? (
-        <ErrorBlock error={calendar.error} onRetry={() => void calendar.refetch()} />
-      ) : null}
-      {!calendar.isLoading && !calendar.isError && (calendar.data?.items.length ?? 0) === 0 ? (
-        <Empty description="No official proceedings match this date range and filter." />
-      ) : null}
-      <div className="lh-event-list">
-        {calendar.data?.items.map((event) => (
-          <EventCard key={event.id} event={event} onOpen={openEvent} />
-        ))}
-      </div>
+      <SourceHealthBanner health={active.data?.sourceHealth} />
+
+      {mode === 'calendar' ? (
+        <CalendarWeekGrid
+          weekStart={weekStart}
+          onPrevWeek={() => setWeekOffset((n) => n - 1)}
+          onNextWeek={() => setWeekOffset((n) => n + 1)}
+          isLoading={week.isLoading}
+          isError={week.isError}
+          error={week.error}
+          onRetry={() => void week.refetch()}
+          items={week.data?.items ?? []}
+          openEvent={openEvent}
+        />
+      ) : (
+        <>
+          {agenda.isLoading ? <LoadingBlock /> : null}
+          {agenda.isError ? (
+            <ErrorBlock error={agenda.error} onRetry={() => void agenda.refetch()} />
+          ) : null}
+          {!agenda.isLoading && !agenda.isError && (agenda.data?.items.length ?? 0) === 0 ? (
+            <Empty description="No official proceedings match this date range and filter." />
+          ) : null}
+          <div className="lh-event-list">
+            {agenda.data?.items.map((event) => (
+              <EventCard key={event.id} event={event} onOpen={openEvent} />
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }
@@ -529,7 +846,180 @@ function ScheduledView({ openEvent }: { openEvent: (event: CanonicalHearingEvent
   );
 }
 
-function SessionsView() {
+/**
+ * The dark "next session" hero (LEGIWATCH-HANDOFF.md A.7 "My Sessions": one
+ * ink card, states driven by whether a session is running). Two prototype
+ * states — Live / Next upcoming — plus a third, honest "no session" state
+ * this module needs that the prototype's own fixtures never exercise (the
+ * design's principle is "never empty"; real tenant data can genuinely have
+ * neither a live nor a scheduled session, so that state gets the identical
+ * ink card geometry rather than a blank panel or invented data).
+ */
+function SessionsHero({
+  browserSessions,
+  browserSessionsLoading,
+  openEvent,
+  onOpenScheduled,
+  onOpenCalendar,
+}: {
+  browserSessions: LiveHearingSession[];
+  browserSessionsLoading: boolean;
+  openEvent: (event: CanonicalHearingEvent) => void;
+  onOpenScheduled: () => void;
+  onOpenCalendar: () => void;
+}) {
+  const navigate = useNavigate();
+  const { message } = AntApp.useApp();
+  const upcoming = useLiveHearingsCalendar({
+    followState: 'scheduled',
+    from: dayBoundary(todayInput(-1)),
+    to: dayBoundary(todayInput(60), true),
+    limit: 50,
+  });
+  const schedule = useScheduleHearing();
+
+  if (browserSessionsLoading || upcoming.isLoading) {
+    return (
+      <section className="lh-sessions-hero" aria-live="polite">
+        <span className="lh-sessions-hero__badge">
+          <span className="lh-sessions-hero__dot" />
+          CHECKING SESSIONS
+        </span>
+        <p className="lh-sessions-hero__body">Loading your live and upcoming sessions…</p>
+      </section>
+    );
+  }
+
+  const liveServerEvent = upcoming.data?.items.find((event) => isLiveEvent(event));
+  const liveBrowserSession = browserSessions.find((session) => session.status === 'live');
+  const now = Date.now();
+  const nextEvent = liveServerEvent
+    ? undefined
+    : upcoming.data?.items.find(
+        (event) =>
+          !isLiveEvent(event) &&
+          Boolean(event.scheduledStart) &&
+          new Date(event.scheduledStart as string).getTime() > now,
+      );
+
+  if (liveServerEvent) {
+    const startedAt =
+      liveServerEvent.actualStart ?? liveServerEvent.capture?.captureStartedAt ?? liveServerEvent.scheduledStart;
+    return (
+      <section className="lh-sessions-hero" data-state="live">
+        <span className="lh-sessions-hero__badge">
+          <span className="lh-sessions-hero__dot is-live" />
+          LIVE · {elapsedClock(startedAt)}
+        </span>
+        <h3 className="lh-sessions-hero__title">{liveServerEvent.title}</h3>
+        <p className="lh-sessions-hero__sub">
+          {liveServerEvent.subcommittee?.name ?? liveServerEvent.committee.name} · Server-captured public proceeding
+        </p>
+        <div className="lh-sessions-hero__actions">
+          <button
+            type="button"
+            className="lh-sessions-hero__primary"
+            onClick={() => openEvent(liveServerEvent)}
+          >
+            Open live room
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (liveBrowserSession) {
+    return (
+      <section className="lh-sessions-hero" data-state="live">
+        <span className="lh-sessions-hero__badge">
+          <span className="lh-sessions-hero__dot is-live" />
+          LIVE · {elapsedClock(liveBrowserSession.startedAt ?? undefined)}
+        </span>
+        <h3 className="lh-sessions-hero__title">{liveBrowserSession.title}</h3>
+        <p className="lh-sessions-hero__sub">{titleCase(liveBrowserSession.sourceType)} · Browser-assisted session</p>
+        <div className="lh-sessions-hero__actions">
+          <button
+            type="button"
+            className="lh-sessions-hero__primary"
+            onClick={() => navigate(`/intelligence/hearing-watch/${liveBrowserSession.id}`)}
+          >
+            Open live room
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (nextEvent) {
+    const scheduled = Boolean(nextEvent.subscription?.scheduled);
+    return (
+      <section className="lh-sessions-hero" data-state="next">
+        <span className="lh-sessions-hero__badge">
+          <span className="lh-sessions-hero__dot" />
+          NEXT SESSION · STARTS IN {formatCountdown(nextEvent.scheduledStart)}
+        </span>
+        <h3 className="lh-sessions-hero__title">{nextEvent.title}</h3>
+        <p className="lh-sessions-hero__sub">
+          {nextEvent.subcommittee?.name ?? nextEvent.committee.name} ·{' '}
+          {formatDateTime(nextEvent.scheduledStart, nextEvent.timeZone)}
+        </p>
+        <p className="lh-sessions-hero__body">
+          Nothing is live right now. This is the next proceeding on your watchlist.
+        </p>
+        <div className="lh-sessions-hero__actions">
+          {scheduled ? (
+            <span className="lh-sessions-hero__pill">Recording scheduled</span>
+          ) : (
+            <button
+              type="button"
+              className="lh-sessions-hero__primary"
+              disabled={schedule.isPending}
+              onClick={() =>
+                schedule.mutate(nextEvent.id, {
+                  onSuccess: () => message.success('Unattended recording scheduled'),
+                  onError: (error) => message.error(liveHearingApiError(error)),
+                })
+              }
+            >
+              Schedule recording
+            </button>
+          )}
+          <button type="button" className="lh-sessions-hero__secondary" onClick={onOpenScheduled}>
+            View schedule
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="lh-sessions-hero" data-state="none">
+      <span className="lh-sessions-hero__badge">
+        <span className="lh-sessions-hero__dot" />
+        NO UPCOMING SESSION
+      </span>
+      <p className="lh-sessions-hero__body">
+        Nothing is live and nothing is scheduled on your watchlist right now. Open the Master Calendar to
+        find a proceeding to follow.
+      </p>
+      <div className="lh-sessions-hero__actions">
+        <button type="button" className="lh-sessions-hero__primary" onClick={onOpenCalendar}>
+          Open master calendar
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function SessionsView({
+  openEvent,
+  onOpenScheduled,
+  onOpenCalendar,
+}: {
+  openEvent: (event: CanonicalHearingEvent) => void;
+  onOpenScheduled: () => void;
+  onOpenCalendar: () => void;
+}) {
   const navigate = useNavigate();
   const sessions = useHearingSessionHistory();
   const items = sessions.data?.pages.flatMap((page) => page.items) ?? [];
@@ -542,6 +1032,13 @@ function SessionsView() {
           <p>The existing browser capture path remains available alongside the new shared public capture system.</p>
         </div>
       </div>
+      <SessionsHero
+        browserSessions={items}
+        browserSessionsLoading={sessions.isLoading}
+        openEvent={openEvent}
+        onOpenScheduled={onOpenScheduled}
+        onOpenCalendar={onOpenCalendar}
+      />
       {sessions.isLoading ? <LoadingBlock label="Loading your hearing sessions…" /> : null}
       {sessions.isError ? (
         <ErrorBlock error={sessions.error} onRetry={() => void sessions.refetch()} />
@@ -549,6 +1046,7 @@ function SessionsView() {
       {!sessions.isLoading && !sessions.isError && items.length === 0 ? (
         <Empty description="You have not started a browser-assisted hearing session." />
       ) : null}
+      {items.length > 0 ? <span className="lh-kicker">Recent session history</span> : null}
       <div className="lh-session-list">
         {items.map((session) => (
           <button
@@ -1179,6 +1677,194 @@ function CommitteeRoomView({
   );
 }
 
+/**
+ * One committee source's diagnostic row in the coverage drawer. Every value
+ * is either a real `committee_source` column or an explicitly-derived,
+ * explicitly-labeled read (see live-hearings.service.ts `coverage()`); a
+ * missing derived value renders "Not observed yet" rather than a fabricated
+ * status.
+ */
+function CoverageRow({ source }: { source: CommitteeSourceCoverage }) {
+  const health = sourceHealthTone(source.sourceHealth);
+  const url = safeOfficialHttpUrl(source.sourceUrl);
+  return (
+    <div className="lh-coverage-row">
+      <div className="lh-coverage-row__head">
+        <span className="lh-coverage-row__name">{source.committeeName ?? 'Chamber-wide source'}</span>
+        <span className="lh-coverage-row__chamber">{source.chamber.toUpperCase()}</span>
+        <span className="lh-coverage-row__spacer" />
+        <span className={`lh-status lh-status--${health.tone}`}>{health.label}</span>
+      </div>
+      <div className="lh-coverage-row__link">
+        {url ? (
+          <a href={url} target="_blank" rel="noreferrer">
+            {source.sourceUrl}
+          </a>
+        ) : (
+          <span>{source.sourceUrl}</span>
+        )}
+        <span className="lh-coverage-row__adapter">· {source.adapterKey}</span>
+        {!source.enabled ? <span className="lh-coverage-row__disabled">· Polling disabled</span> : null}
+      </div>
+      <div className="lh-coverage-row__cells">
+        <span>
+          <span className="lh-coverage-row__cell-key">LAST CHECKED</span>
+          <span className="lh-coverage-row__cell-value">
+            {source.lastCheckedAt ? formatDateTime(source.lastCheckedAt) : 'Not yet checked'}
+          </span>
+        </span>
+        <span>
+          <span className="lh-coverage-row__cell-key">LAST SUCCESS</span>
+          <span
+            className="lh-coverage-row__cell-value"
+            data-warn={source.lastSuccessAt ? undefined : 'true'}
+          >
+            {source.lastSuccessAt ? formatDateTime(source.lastSuccessAt) : 'Never'}
+          </span>
+        </span>
+        <span>
+          <span className="lh-coverage-row__cell-key">SOURCE TYPE</span>
+          <span className="lh-coverage-row__cell-value">{titleCase(source.sourceType)}</span>
+        </span>
+        <span>
+          <span className="lh-coverage-row__cell-key">STREAM RESOLUTION</span>
+          <span className="lh-coverage-row__cell-value">
+            {source.recentResolutionState ? titleCase(source.recentResolutionState) : 'Not observed yet'}
+          </span>
+        </span>
+        <span>
+          <span className="lh-coverage-row__cell-key">SERVER CAPTURE</span>
+          <span
+            className="lh-coverage-row__cell-value"
+            data-good={source.recentCapturePolicy === 'SERVER_CAPTURE_ALLOWED' ? 'true' : undefined}
+          >
+            {source.recentCapturePolicy ? capturePolicyLabel(source.recentCapturePolicy) : 'Not observed yet'}
+          </span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Source coverage / health drawer — the prototype's operator-tooling
+ * surface (§17 of the prototype instructions). Mounted from the persistent
+ * Live Hearings toolbar, matching the prototype's own placement (the
+ * "Source coverage" trigger sits in the sub-nav bar, visible from every
+ * sub-surface, not only Committee Rooms).
+ */
+function CoverageDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const coverage = useLiveHearingsCoverage();
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  const summary = coverage.data?.summary;
+
+  return (
+    <div className="lh-coverage-overlay" role="presentation">
+      <div className="lh-coverage-scrim" onClick={onClose} />
+      <div
+        className="lh-coverage-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Source coverage"
+      >
+        <div className="lh-coverage-drawer__header">
+          <div>
+            <span className="lh-kicker">Operator tooling · not a client surface</span>
+            <h3>Source coverage</h3>
+            <p>
+              Per-committee discovery, stream resolution and server-capture support, read directly from
+              the committee-source model. A source that cannot be captured automatically is named here
+              rather than failing silently in the calendar.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="lh-coverage-drawer__close"
+            onClick={onClose}
+            aria-label="Close source coverage"
+          >
+            <CloseOutlined />
+          </button>
+        </div>
+
+        {coverage.isLoading ? <LoadingBlock label="Loading source coverage…" /> : null}
+        {coverage.isError ? (
+          <ErrorBlock error={coverage.error} onRetry={() => void coverage.refetch()} />
+        ) : null}
+
+        {summary ? (
+          <div className="lh-coverage-drawer__stats">
+            <div>
+              <span>SOURCES TRACKED</span>
+              <strong>{summary.total}</strong>
+            </div>
+            <div>
+              <span>HEALTHY</span>
+              <strong className="is-success">{summary.healthy}</strong>
+            </div>
+            <div>
+              <span>DEGRADED</span>
+              <strong className="is-warning">{summary.degraded}</strong>
+            </div>
+            <div>
+              <span>FAILING</span>
+              <strong className="is-danger">{summary.failing}</strong>
+            </div>
+            <div>
+              <span>UNKNOWN</span>
+              <strong>{summary.unknown}</strong>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="lh-coverage-drawer__body">
+          {coverage.data && coverage.data.sources.length === 0 ? (
+            <Empty description="No committee sources are registered yet." />
+          ) : null}
+          {coverage.data?.sources.map((source) => (
+            <CoverageRow key={source.id} source={source} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Toolbar trigger for the coverage drawer — shares the drawer's react-query
+ *  cache, so opening the drawer never issues a second request. */
+function CoverageTrigger({ onOpen }: { onOpen: () => void }) {
+  const coverage = useLiveHearingsCoverage();
+  const summary = coverage.data?.summary;
+  const dotTone = !summary
+    ? 'neutral'
+    : summary.failing > 0
+      ? 'danger'
+      : summary.degraded > 0 || summary.unknown > 0
+        ? 'warning'
+        : 'success';
+  return (
+    <button type="button" className="lh-coverage-trigger" onClick={onOpen}>
+      <span className={`lh-coverage-trigger__dot lh-coverage-trigger__dot--${dotTone}`} />
+      Source coverage
+      {summary ? (
+        <span className="lh-coverage-trigger__meta">
+          {summary.healthy} / {summary.total} healthy
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 export function LiveHearingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawView = searchParams.get('hearingView');
@@ -1188,6 +1874,7 @@ export function LiveHearingsPage() {
       : 'calendar';
   const eventId = searchParams.get('event') ?? '';
   const committeeId = searchParams.get('committee') ?? '';
+  const [coverageOpen, setCoverageOpen] = useState(false);
 
   const updateLocation = (
     nextView: LiveHearingsView,
@@ -1232,13 +1919,22 @@ export function LiveHearingsPage() {
             <span>{item.label}</span>
           </button>
         ))}
+        <span className="lh-nav__spacer" />
+        <CoverageTrigger onOpen={() => setCoverageOpen(true)} />
       </nav>
+      <CoverageDrawer open={coverageOpen} onClose={() => setCoverageOpen(false)} />
 
       {view === 'calendar' ? <CalendarView openEvent={openEvent} /> : null}
       {view === 'live' ? <LiveNowView openEvent={openEvent} /> : null}
       {view === 'committees' ? <CommitteeRoomsView openCommittee={openCommittee} /> : null}
       {view === 'scheduled' ? <ScheduledView openEvent={openEvent} /> : null}
-      {view === 'sessions' ? <SessionsView /> : null}
+      {view === 'sessions' ? (
+        <SessionsView
+          openEvent={openEvent}
+          onOpenScheduled={() => updateLocation('scheduled', { event: null, committee: null })}
+          onOpenCalendar={() => updateLocation('calendar', { event: null, committee: null })}
+        />
+      ) : null}
       {view === 'archive' ? <ArchiveView openEvent={openEvent} /> : null}
       {view === 'event' && eventId ? (
         <EventRoom

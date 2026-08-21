@@ -227,3 +227,43 @@ export interface PublicTranscriptPage {
   nextCursor?: string | null;
   hasMore?: boolean;
 }
+
+/**
+ * One official committee source as the coverage/source-health drawer renders
+ * it. Every field is a real column off `committee_source` (or a best-effort
+ * join / most-recent-candidate derivation) — see live-hearings.service.ts
+ * `coverage()`. A null `recentCapturePolicy`/`recentResolutionState` means no
+ * stream candidate has ever cited this source; render that truthfully rather
+ * than guessing a status.
+ */
+export interface CommitteeSourceCoverage {
+  id: string;
+  committeeSystemCode?: string;
+  committeeName?: string;
+  chamber: string;
+  sourceType: string;
+  sourceUrl: string;
+  adapterKey: string;
+  enabled: boolean;
+  priority: number;
+  sourceHealth: string;
+  lastCheckedAt?: string;
+  lastSuccessAt?: string;
+  lastErrorAt?: string;
+  lastError?: string;
+  recentCapturePolicy?: string;
+  recentResolutionState?: string;
+}
+
+export interface CommitteeSourceCoverageSummary {
+  total: number;
+  healthy: number;
+  degraded: number;
+  failing: number;
+  unknown: number;
+}
+
+export interface LiveHearingsCoverage {
+  summary: CommitteeSourceCoverageSummary;
+  sources: CommitteeSourceCoverage[];
+}

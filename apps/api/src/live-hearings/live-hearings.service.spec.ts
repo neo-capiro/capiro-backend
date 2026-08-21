@@ -107,6 +107,8 @@ function makePrisma(seed: {
   captures?: Row[];
   candidates?: Row[];
   updates?: Row[];
+  sources?: Row[];
+  committees?: Row[];
 }) {
   const store = {
     hearings: seed.hearings ?? [],
@@ -114,6 +116,8 @@ function makePrisma(seed: {
     captures: seed.captures ?? [],
     candidates: seed.candidates ?? [],
     updates: seed.updates ?? [],
+    sources: seed.sources ?? [],
+    committees: seed.committees ?? [],
   };
   const calls = { bareSubscriptionReads: 0 };
 
@@ -146,12 +150,31 @@ function makePrisma(seed: {
         store.captures.filter((c) => matches(c, args.where)),
     },
     hearingStreamCandidate: {
-      findMany: async (args: { where?: Row } = {}) =>
-        store.candidates.filter((c) => matches(c, args.where)),
+      findMany: async (args: { where?: Row; take?: number } = {}) =>
+        // Faithful to a real `orderBy: [{ updatedAt: 'desc' }]` read, since
+        // LiveHearingsService.coverage() takes the FIRST match per sourceId
+        // and relies on the DB (not its own JS) to have sorted them.
+        store.candidates
+          .filter((c) => matches(c, args.where))
+          .slice()
+          .sort((a, b) => {
+            const bt = b.updatedAt instanceof Date ? b.updatedAt.getTime() : 0;
+            const at = a.updatedAt instanceof Date ? a.updatedAt.getTime() : 0;
+            return bt - at;
+          })
+          .slice(0, args.take ?? undefined),
     },
     committeeSiteUpdate: {
       findMany: async (args: { where?: Row; take?: number } = {}) =>
         store.updates.filter((u) => matches(u, args.where)).slice(0, args.take ?? undefined),
+    },
+    committeeSource: {
+      findMany: async (args: { orderBy?: unknown; take?: number } = {}) =>
+        store.sources.slice(0, args.take ?? undefined),
+    },
+    congressCommittee: {
+      findMany: async (args: { where?: Row } = {}) =>
+        store.committees.filter((c) => matches(c, args.where)),
     },
     hearingSubscription: subscriptionDelegate(null),
     withTenant: async <T>(tenantId: string, fn: (tx: unknown) => Promise<T>): Promise<T> =>
@@ -395,5 +418,81 @@ describe('buildWhere', () => {
   it('maps the stream and capture state filters onto the denormalized rollups', () => {
     expect(buildWhere({ streamState: 'live_only' }).streamAvailability).toBe('live_only');
     expect(buildWhere({ captureState: 'capturing' }).coverageStatus).toBe('capturing');
+  });
+});
+
+describe('LiveHearingsService#coverage', () => {
+  function source(overrides: Row = {}): Row {
+    return {
+      id: 'src-1',
+      committeeSystemCode: 'hsas00',
+      chamber: 'house',
+      sourceType: 'COMMITTEE_SITE',
+      sourceUrl: 'https://armedservices.house.gov/hearings',
+      adapterKey: 'house-committee-v3',
+      enabled: true,
+      priority: 100,
+      lastCheckedAt: new Date('2026-08-21T12:00:00.000Z'),
+      lastSuccessAt: new Date('2026-08-21T12:00:00.000Z'),
+      lastErrorAt: null,
+      lastError: null,
+      sourceHealth: 'healthy',
+      ...overrides,
+    };
+  }
+
+  it('resolves the committee name by system code and counts health buckets honestly', async () => {
+    const { service } = makeService({
+      sources: [
+        source(),
+        source({ id: 'src-2', chamber: 'senate', sourceHealth: 'degraded', committeeSystemCode: null }),
+        source({ id: 'src-3', sourceHealth: 'weird-unmapped-value' }),
+      ],
+      committees: [{ systemCode: 'hsas00', name: 'House Armed Services' }],
+    });
+
+    const result = await service.coverage();
+
+    expect(result.summary).toEqual({ total: 3, healthy: 1, degraded: 1, failing: 0, unknown: 1 });
+    const bySystemCode = new Map(result.sources.map((s) => [s.id, s]));
+    expect(bySystemCode.get('src-1')?.committeeName).toBe('House Armed Services');
+    // A chamber-wide source (null committeeSystemCode) never resolves a name —
+    // it must not silently fall back to some other committee's name.
+    expect(bySystemCode.get('src-2')?.committeeName).toBeNull();
+    // An unrecognized source_health value is read verbatim, not coerced into
+    // one of the four known buckets, but still counts toward "unknown" so the
+    // summary total always reconciles.
+    expect(bySystemCode.get('src-3')?.sourceHealth).toBe('weird-unmapped-value');
+  });
+
+  it('derives capture/resolution support from the most recently updated candidate, and leaves it null when none exists', async () => {
+    const { service } = makeService({
+      sources: [source(), source({ id: 'src-2', committeeSystemCode: null })],
+      candidates: [
+        {
+          sourceId: 'src-1',
+          capturePolicy: 'REVIEW_REQUIRED',
+          resolutionState: 'WAITING_FOR_STREAM',
+          updatedAt: new Date('2026-08-20T00:00:00.000Z'),
+        },
+        {
+          sourceId: 'src-1',
+          capturePolicy: 'SERVER_CAPTURE_ALLOWED',
+          resolutionState: 'READY',
+          updatedAt: new Date('2026-08-21T00:00:00.000Z'),
+        },
+      ],
+    });
+
+    const result = await service.coverage();
+    const bySystemCode = new Map(result.sources.map((s) => [s.id, s]));
+
+    // The most recently updated candidate wins, not the first one seeded.
+    expect(bySystemCode.get('src-1')?.recentCapturePolicy).toBe('SERVER_CAPTURE_ALLOWED');
+    expect(bySystemCode.get('src-1')?.recentResolutionState).toBe('READY');
+    // No candidate has ever cited src-2 — this must render as truthfully
+    // unavailable (null), never a fabricated "supported" or "unavailable" pill.
+    expect(bySystemCode.get('src-2')?.recentCapturePolicy).toBeNull();
+    expect(bySystemCode.get('src-2')?.recentResolutionState).toBeNull();
   });
 });
