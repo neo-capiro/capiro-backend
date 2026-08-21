@@ -38,7 +38,16 @@ describe('Knowledge Plane Phase 26 production-readiness architecture', () => {
     expect(service).toContain("operationId: 'workspace.generate'");
     expect(service).toContain("operationId: 'outreach.generate'");
     expect(service).toContain('currentPhase: PHASE_26');
-    expect(service).toContain('memberships: { some:');
+    // The active-membership requirement is still enforced, but it must be a
+    // TENANT-SCOPED query, never a `memberships: { some: ... }` relation filter
+    // hung off the un-scoped `users` lookup. `tenant_memberships` is FORCE ROW
+    // LEVEL SECURITY and `capiro_app` has no BYPASSRLS, so that relation filter
+    // matched zero rows for every caller in production and the whole bridge
+    // failed closed. Mocked-Prisma unit tests cannot see it; this contract can.
+    expect(service).toContain('this.prisma.withTenant(');
+    expect(service).toContain('tx.tenantMembership.findFirst(');
+    expect(service).toContain("status: 'active'");
+    expect(code(service)).not.toContain('memberships: { some:');
     expect(service).toContain('memoryAccessGrants');
     expect(service).toContain('createdByUserId: user.id');
     expect(service).toContain('allowExternalLookup: false');

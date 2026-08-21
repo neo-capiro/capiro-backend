@@ -8,6 +8,7 @@ const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
 const CLIENT = '33333333-3333-4333-8333-333333333333';
 const MAILBOX = '44444444-4444-4444-8444-444444444444';
+const MEMBERSHIP = '55555555-5555-4555-8555-555555555555';
 const STRATEGY = '55555555-5555-4555-8555-555555555555';
 const NODE = '66666666-6666-4666-8666-666666666666';
 const PACKET = '77777777-7777-4777-8777-777777777777';
@@ -158,6 +159,7 @@ function context(
 
 function harness(opts: {
   userFound?: boolean;
+  membershipFound?: boolean;
   clientFound?: boolean;
   packetSurface?: string;
   contextOverrides?: Record<string, unknown>;
@@ -174,6 +176,13 @@ function harness(opts: {
     integrationConnection: {
       findMany: jest.fn().mockResolvedValue([{ id: MAILBOX }]),
     },
+    // The active-membership probe runs inside withTenant, because
+    // tenant_memberships is FORCE RLS and capiro_app has no BYPASSRLS.
+    tenantMembership: {
+      findFirst: jest.fn().mockResolvedValue(
+        opts.membershipFound === false ? null : { id: MEMBERSHIP },
+      ),
+    },
   };
   const prisma = {
     user: {
@@ -181,6 +190,7 @@ function harness(opts: {
         opts.userFound === false ? null : { id: USER },
       ),
     },
+    withTenant: jest.fn(async (_tenantId: string, fn: (value: typeof tx) => unknown) => fn(tx)),
     withTenantUser: jest.fn(
       async (_tenantId: string, _userId: string, fn: (value: typeof tx) => unknown) => fn(tx),
     ),
@@ -325,6 +335,51 @@ describe('StrategyContextPlaneService Phase 26', () => {
       }),
     ).rejects.toMatchObject({ status: 404 });
     expect(h.gateway.requestContext).not.toHaveBeenCalled();
+  });
+
+  test('rejects a known user whose tenant membership is not active', async () => {
+    const h = harness({ membershipFound: false });
+    await expect(
+      h.service.resolve({
+        tenantId: TENANT,
+        clerkUserId: 'user_test',
+        clientId: CLIENT,
+        mode: 'draft',
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(h.gateway.requestContext).not.toHaveBeenCalled();
+  });
+
+  test('resolves the actor in two steps so the RLS-protected membership read is tenant-scoped', async () => {
+    // Regression guard for the production failure where the active-membership
+    // check rode along as a `memberships: { some: ... }` relation filter on the
+    // un-scoped `users` lookup. `tenant_memberships` is FORCE ROW LEVEL
+    // SECURITY (`rls_bypass() OR tenant_id = current_tenant_id()`) and
+    // `capiro_app` has no BYPASSRLS, so that subquery saw zero rows with no
+    // tenant GUC set and EVERY caller 404'd as `Strategy actor not found`.
+    const h = harness();
+    h.gateway.requestContext.mockResolvedValue(
+      gatewayResult({ type: 'strategy_draft', id: CLIENT }),
+    );
+
+    await h.service.resolve({
+      tenantId: TENANT,
+      clerkUserId: 'user_test',
+      clientId: CLIENT,
+      mode: 'draft',
+    });
+
+    // 1. the un-scoped lookup touches ONLY `users` — no membership relation.
+    expect(h.prisma.user.findFirst).toHaveBeenCalledWith({
+      where: { clerkUserId: 'user_test' },
+      select: { id: true },
+    });
+    // 2. the membership probe runs inside a tenant scope.
+    expect(h.prisma.withTenant).toHaveBeenCalledWith(TENANT, expect.any(Function));
+    expect(h.tx.tenantMembership.findFirst).toHaveBeenCalledWith({
+      where: { tenantId: TENANT, userId: USER, status: 'active' },
+      select: { id: true },
+    });
   });
 
   test('rejects packet/client or packet/surface drift', async () => {

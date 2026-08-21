@@ -272,14 +272,37 @@ export class StrategyContextPlaneService {
   }
 
   private async securityEnvelope(input: StrategyContextPlaneInput): Promise<SecurityEnvelope> {
+    // The actor resolution is deliberately TWO queries, and must stay that way.
+    //
+    // `users` carries no RLS policy, so looking the Clerk actor up by
+    // `clerkUserId` outside a tenant scope is safe. The ACTIVE-membership check
+    // must NOT be folded into that same `where` as `memberships: { some: ... }`:
+    // Prisma renders that relation filter as a subquery against
+    // `tenant_memberships`, which is FORCE ROW LEVEL SECURITY under
+    // `tenant_memberships_isolation` = `rls_bypass() OR tenant_id =
+    // current_tenant_id()`. `capiro_app` has no BYPASSRLS, so with neither
+    // `app.current_tenant` nor `app.bypass_rls` set the subquery matches zero
+    // rows and EVERY caller — including a legitimately active member —
+    // resolved to null. That made the whole Strategy bridge fail closed with
+    // `Strategy actor not found`, which mocked-Prisma unit tests cannot see
+    // because they never evaluate an RLS policy.
+    //
+    // Security is unchanged: an actor still reaches context only with an
+    // `active` membership in the requested tenant, and both failure modes
+    // raise the identical non-disclosing NotFoundException.
     const user = await this.prisma.user.findFirst({
-      where: {
-        clerkUserId: input.clerkUserId,
-        memberships: { some: { tenantId: input.tenantId, status: 'active' } },
-      },
+      where: { clerkUserId: input.clerkUserId },
       select: { id: true },
     });
     if (!user) throw new NotFoundException('Strategy actor not found');
+
+    const membership = await this.prisma.withTenant(input.tenantId, (tx) =>
+      tx.tenantMembership.findFirst({
+        where: { tenantId: input.tenantId, userId: user.id, status: 'active' },
+        select: { id: true },
+      }),
+    );
+    if (!membership) throw new NotFoundException('Strategy actor not found');
 
     return this.prisma.withTenantUser(input.tenantId, user.id, async (tx) => {
       const [client, clients, mailboxes] = await Promise.all([
