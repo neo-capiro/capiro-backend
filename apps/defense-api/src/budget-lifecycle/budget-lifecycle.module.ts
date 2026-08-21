@@ -21,6 +21,9 @@ import { PrismaDiscoveryAuditStore } from './discovery/prisma-discovery-audit.st
 import { PUBLISHER_HTTP_PORT } from './discovery/publisher-http.port.js';
 import type { DiscoveryAuditStore } from './discovery/discovery-audit.port.js';
 import type { PublisherHttpPort } from './discovery/publisher-http.port.js';
+import { SCHEDULE_AUDIT_STORE } from './schedule/schedule-audit.port.js';
+import { PrismaScheduleAuditStore } from './schedule/prisma-schedule-audit.store.js';
+import { ScheduleCoordinatorService } from './schedule/schedule-coordinator.service.js';
 
 /**
  * Session 8 live discovery is OPT-IN.
@@ -36,12 +39,18 @@ function liveDiscoveryEnabled(env: NodeJS.ProcessEnv): boolean {
 }
 
 /**
- * Session 7 composition boundary — dark.
+ * Session 7/10 composition boundary — dark.
  *
- * Registers NO controller, NO route and NO schedule. The Session 3 public route
- * surface stays frozen at 49 routes, public browser/API routing is unchanged,
- * and no EventBridge watcher is enabled: production schedule ownership is
- * Session 10's work.
+ * Registers NO controller and NO route. The Session 3 public route surface
+ * stays frozen at 49 routes and public browser/API routing is unchanged.
+ *
+ * Session 10 adds `ScheduleCoordinatorService`, which CAN decide which
+ * registered adapters are due and run them — but nothing here installs a
+ * `@Cron`, a `ScheduleModule`, or an EventBridge rule that calls it. The
+ * service exists as a provider an explicit caller must construct or invoke;
+ * by itself, registering it here schedules nothing. See
+ * `scripts/run-schedule-controller.mjs` for the one governed way to invoke a
+ * tick today, and its own doc comment for why that, too, is dark by default.
  *
  * There is also no promotion or snapshot-activation provider here, and nothing
  * in this module holds parser, GPU or promoter credentials.
@@ -52,6 +61,7 @@ function liveDiscoveryEnabled(env: NodeJS.ProcessEnv): boolean {
     AnnualDefenseBudgetCycleController,
     DefenseBudgetLifecycleWatcher,
     CycleHealthService,
+    ScheduleCoordinatorService,
     { provide: LIFECYCLE_STORE, useClass: PrismaLifecycleStore },
     {
       // Constructed from PrismaService's raw-SQL surface: the Session 8 tables are
@@ -103,12 +113,22 @@ function liveDiscoveryEnabled(env: NodeJS.ProcessEnv): boolean {
       useFactory: () =>
         new HttpsSourceFetchAdapter({ textRenditionUrl: govinfoTextRenditionUrl }),
     },
+    {
+      // Deliberately its own port rather than a widened LIFECYCLE_STORE: the
+      // frozen Session 7 LifecycleStore interface and both its implementations
+      // stay byte-for-byte untouched. Constructed from PrismaService's raw-SQL
+      // surface, same precedent as DISCOVERY_AUDIT_STORE above.
+      provide: SCHEDULE_AUDIT_STORE,
+      useFactory: (prisma: PrismaService) => new PrismaScheduleAuditStore(prisma),
+      inject: [PrismaService],
+    },
   ],
   exports: [
     SourceAdapterRegistry,
     AnnualDefenseBudgetCycleController,
     DefenseBudgetLifecycleWatcher,
     CycleHealthService,
+    ScheduleCoordinatorService,
   ],
 })
 export class BudgetLifecycleModule {}
