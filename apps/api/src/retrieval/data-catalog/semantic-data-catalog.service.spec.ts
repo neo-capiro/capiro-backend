@@ -47,11 +47,35 @@ describe('SemanticDataCatalogService', () => {
     });
   });
 
-  it('does not falsely advertise semantic recall before a shared semantic retriever exists', () => {
+  /**
+   * This assertion used to be a blanket "nothing advertises semantic_recall",
+   * which was correct only while NO shared semantic retriever existed. Phase 19
+   * shipped one: InstitutionalKnowledgeRetrievalAdapter serves semantic_recall
+   * over governed memory (MEMORY_QUERY_CLASSES) and reports semanticDegraded
+   * when an embedding is missing rather than pretending the recall was complete.
+   * The blanket form therefore failed on every run from Phase 19 onward.
+   *
+   * The invariant that actually matters is unchanged and is now pinned to the
+   * implementation instead of to a moment in time: a dataset may advertise
+   * semantic_recall ONLY if its adapter implements it. Any other domain
+   * claiming semantic recall is still a false advertisement and still fails.
+   * This is strictly stronger than deleting the test, and stronger than the old
+   * form, which would also have passed if semantic support were ripped out.
+   */
+  it('advertises semantic recall only for datasets whose adapter implements it', () => {
     const catalog = new SemanticDataCatalogService();
 
+    const semanticDatasets = catalog
+      .list()
+      .filter((dataset) => dataset.supportedQueryClasses.includes('semantic_recall'));
+
     expect(
-      catalog.list().some((dataset) => dataset.supportedQueryClasses.includes('semantic_recall')),
-    ).toBe(false);
+      semanticDatasets.map((dataset) => ({
+        domain: dataset.domain,
+        adapterKey: dataset.adapterKey,
+      })),
+    ).toEqual([
+      { domain: 'institutional_knowledge', adapterKey: 'knowledge-plane-temporal-graph' },
+    ]);
   });
 });

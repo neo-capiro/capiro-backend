@@ -6,6 +6,9 @@ on:
       - 'apps/**/*.ts'
       - 'apps/**/*.tsx'
       - 'packages/**/*.ts'
+      # The repo-wide census walks packages/**/*.tsx too, so a bypass added in a
+      # package .tsx must trigger the guard rather than skip it.
+      - 'packages/**/*.tsx'
       - 'scripts/check-context-plane-new-bypasses.mjs'
       - '.github/workflows/context-plane-architecture-guard.yml'
   workflow_dispatch:

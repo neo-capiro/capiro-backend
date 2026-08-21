@@ -81,6 +81,162 @@ function isApproved(file, addedLine) {
 }
 
 /**
+ * Repo-wide census of every non-plane source line that names a shared Context
+ * Plane internal.
+ *
+ * The added-line guard above only sees a PR's diff, so it is blind to a bypass
+ * that ALREADY sits on the base branch, and the Phase 26 HEAD invariants only
+ * cover the registry, Strategy and the Engagement tree. A direct
+ * ContextCompilerService consumer anywhere else could therefore live on main
+ * indefinitely without any gate naming it. This census closes that hole: every
+ * matching line in the repository must be accounted for here by EXACT trimmed
+ * text, so an unlisted one fails the guard and a listed one cannot drift.
+ *
+ * status:
+ *  - 'neutralized'  the symbol appears only as a type annotation or DI token;
+ *                   the wiring substitutes something else, so the real
+ *                   implementation is unreachable on the live path. Each one is
+ *                   backed by a NEUTRALIZATION invariant further down.
+ *  - 'unmigrated'   a genuine live consumer that still reaches the shared
+ *                   compiler directly instead of ContextPlaneGatewayService, or
+ *                   an offline harness that constructs it on purpose. These are
+ *                   reported loudly on every run; they are NOT silent waivers.
+ */
+const SHARED_PLANE_CONSUMER_CENSUS = [
+  {
+    file: 'apps/api/scripts/meriv2-phase18-application-rehearsal.ts',
+    line: "import { ContextCompilerService } from '../src/context/context-compiler.service.js';",
+    status: 'unmigrated',
+    reason:
+      'Offline Phase 18 database rehearsal harness. Not wired into any Nest module, so it is not a product runtime path.',
+  },
+  {
+    file: 'apps/api/scripts/meriv2-phase18-application-rehearsal.ts',
+    line: 'const packet = await new ContextCompilerService(prisma).compile({',
+    status: 'unmigrated',
+    reason:
+      'Rehearsal harness compiles a packet directly to prove the DB contract. Offline script, never served to a product operation.',
+  },
+  {
+    file: 'apps/api/src/intelligence/alert-memo/alert-memo.service.ts',
+    line: "import { ContextCompilerService } from '../../context/context-compiler.service.js';",
+    status: 'neutralized',
+    reason:
+      'Type annotation only. alert-memo.module.ts constructs AlertMemoService with PHASE22_BLOCKED_LEGACY_CONTEXT_COMPILER, which throws.',
+  },
+  {
+    file: 'apps/api/src/intelligence/alert-memo/alert-memo.service.ts',
+    line: 'private readonly contextCompiler: ContextCompilerService,',
+    status: 'neutralized',
+    reason:
+      'Phase 22: the injected value is the blocked stub, and LegiWatchContextPlaneService is the only live context seam.',
+  },
+  {
+    file: 'apps/api/src/intelligence/alert-memo/district-brief.service.ts',
+    line: "import { ContextCompilerService } from '../../context/context-compiler.service.js';",
+    status: 'neutralized',
+    reason:
+      'Type annotation only. district-brief.module.ts injects PHASE22_BLOCKED_LEGACY_CONTEXT_COMPILER.',
+  },
+  {
+    file: 'apps/api/src/intelligence/alert-memo/district-brief.service.ts',
+    line: 'private readonly contextCompiler: ContextCompilerService,',
+    status: 'neutralized',
+    reason: 'Phase 22: the injected value is the blocked stub.',
+  },
+  {
+    file: 'apps/api/src/meri/meri.module.ts',
+    line: "import { ContextCompilerService } from '../context/context-compiler.service.js';",
+    status: 'neutralized',
+    reason: 'DI token for the two providers below.',
+  },
+  {
+    file: 'apps/api/src/meri/meri.module.ts',
+    line: 'contextCompiler: ContextCompilerService,',
+    status: 'unmigrated',
+    reason:
+      'FUNDING_OPPORTUNITY_ASSESSMENT_WIRING hands the REAL compiler to MeriOpportunityAssessmentService. Funding-opportunity assessment is not one of the ten registered operations and predates the Phase 19-26 sequence, so it reaches context without ContextPlaneGatewayService. Best-effort and non-authoritative, but a live direct consumer.',
+  },
+  {
+    file: 'apps/api/src/meri/meri.module.ts',
+    line: 'ContextCompilerService,',
+    status: 'unmigrated',
+    reason: 'inject[] entry for the funding-opportunity assessment wiring above.',
+  },
+  {
+    file: 'apps/api/src/meri/meri.service.ts',
+    line: "import { ContextCompilerService } from '../context/context-compiler.service.js';",
+    status: 'neutralized',
+    reason: 'Type annotation for the constructor parameter below.',
+  },
+  {
+    file: 'apps/api/src/meri/meri.service.ts',
+    line: 'private readonly contextCompiler: ContextCompilerService,',
+    status: 'neutralized',
+    reason:
+      'Reached only from loadUserVoiceContext, which runs only inside the legacy orchestrateContext. Phase 19 replaces orchestrateContext whenever a governed runtime is active, and createMeriRuntimeService wraps EVERY streamMessage in runChatTurn, so no chat turn can reach this compile. The Meri runtime invariants below pin that wrapping in place.',
+  },
+  {
+    file: 'apps/api/src/workspace-assistant/workspace-assistant.module.ts',
+    line: "import { ContextCompilerService } from '../context/context-compiler.service.js';",
+    status: 'neutralized',
+    reason: 'DI token only, for the substitution below.',
+  },
+  {
+    file: 'apps/api/src/workspace-assistant/workspace-assistant.module.ts',
+    line: '{ provide: ContextCompilerService, useExisting: WorkspaceEditorContextCompilerAdapter },',
+    status: 'neutralized',
+    reason:
+      'Phase 21 substitution: the token resolves to the governed adapter, so the editor path cannot reach the real compiler.',
+  },
+  {
+    file: 'apps/api/src/workspace-assistant/workspace-assistant.service.ts',
+    line: "import { ContextCompilerService } from '../context/context-compiler.service.js';",
+    status: 'neutralized',
+    reason: 'Type annotation only; the module substitutes the governed adapter for this token.',
+  },
+  {
+    file: 'apps/api/src/workspace-assistant/workspace-assistant.service.ts',
+    line: 'private readonly contextCompiler: ContextCompilerService,',
+    status: 'neutralized',
+    reason: 'Receives WorkspaceEditorContextCompilerAdapter at runtime, not the shared compiler.',
+  },
+  {
+    file: 'apps/meriv2-orchestrator/src/meri/context-compiler.service.ts',
+    line: 'ContextPacketRolloutCompiler,',
+    status: 'neutralized',
+    reason:
+      'Import for the product-local OrchestratorContextCompilerService. Its compile() is reached only by MeriContextResolver.resolve(), and every governed reasoning route (chat, in-editor, meriv3, all three Strategy hops) calls resolveIdentity() instead.',
+  },
+  {
+    file: 'apps/meriv2-orchestrator/src/meri/context-compiler.service.ts',
+    line: 'private readonly compiler: ContextPacketRolloutCompiler;',
+    status: 'neutralized',
+    reason: 'Field of the product-local orchestrator compiler; unreachable from governed routes.',
+  },
+  {
+    file: 'apps/meriv2-orchestrator/src/meri/context-compiler.service.ts',
+    line: 'this.compiler = new ContextPacketRolloutCompiler(adapter);',
+    status: 'neutralized',
+    reason:
+      'Construction only. Remaining resolve() callers are strategy-reference-assist and meri.controller (clientId null, so no client pack) and steward-extract (records a packet id for provenance; its prompt reads no context layer).',
+  },
+];
+
+const SHARED_PLANE_SYMBOL_PATTERNS = [
+  /\bContextCompilerService\b/,
+  /\bContextPacketV2Service\b/,
+  /\bContextResolverService\b/,
+  /\bRetrievalV2Service\b/,
+  /\bContextPacketRolloutCompiler\b/,
+  /\bTruthfulContextCompiler\b/,
+  /\bcompileCoverageAwareContextPacket\b/,
+  /\bdefineContextMigrationException\b/,
+];
+
+const CENSUS_SKIP_DIRECTORIES = new Set(['node_modules', 'dist', 'build', 'coverage', '.turbo']);
+
+/**
  * Comment-only lines are not architecture. A doc comment that NAMES a retired
  * bypass in order to state that the code no longer uses it must not fail the
  * guard — that made the guard unrunnable, and it was never green before this.
@@ -285,6 +441,99 @@ const generationGateway = stripComments(read(GENERATION_GATEWAY));
 requireText(GENERATION_GATEWAY, generationGateway, 'this.contextPlane.resolve(');
 requireText(GENERATION_GATEWAY, generationGateway, 'failClosedOnPersist: true');
 
+/**
+ * NEUTRALIZATION invariants. Each 'neutralized' census entry is only true while
+ * its neutralizing wiring exists. Pin that wiring here, so deleting a
+ * substitution turns a dormant type annotation back into a live bypass AND
+ * fails this guard in the same commit.
+ */
+const LEGIWATCH_MEMO_MODULE = 'apps/api/src/intelligence/alert-memo/alert-memo.module.ts';
+requireText(
+  LEGIWATCH_MEMO_MODULE,
+  stripComments(read(LEGIWATCH_MEMO_MODULE)),
+  'PHASE22_BLOCKED_LEGACY_CONTEXT_COMPILER as never',
+);
+const LEGIWATCH_BRIEF_MODULE = 'apps/api/src/intelligence/alert-memo/district-brief.module.ts';
+requireText(
+  LEGIWATCH_BRIEF_MODULE,
+  stripComments(read(LEGIWATCH_BRIEF_MODULE)),
+  'PHASE22_BLOCKED_LEGACY_CONTEXT_COMPILER as never',
+);
+const LEGIWATCH_FACTORY =
+  'apps/api/src/intelligence/alert-memo/governed-alert-deliverables.factory.ts';
+requireText(
+  LEGIWATCH_FACTORY,
+  stripComments(read(LEGIWATCH_FACTORY)),
+  'phase22_legacy_context_compiler_disabled',
+);
+
+const WORKSPACE_EDITOR_MODULE = 'apps/api/src/workspace-assistant/workspace-assistant.module.ts';
+requireText(
+  WORKSPACE_EDITOR_MODULE,
+  stripComments(read(WORKSPACE_EDITOR_MODULE)),
+  'useExisting: WorkspaceEditorContextCompilerAdapter',
+);
+
+/**
+ * MeriService.loadUserVoiceContext compiles an UNGOVERNED v1 packet through the
+ * shared compiler. It is unreachable only because Phase 19 swaps
+ * orchestrateContext whenever a governed runtime is active and wraps every
+ * streamMessage in runChatTurn. Losing either half would silently restore an
+ * ungoverned meri.chat context path while meri.chat stays packet_required —
+ * the exact shape Phase 26 had to remove from Outreach.
+ */
+const MERI_RUNTIME_PROXY = 'apps/api/src/meri/meriv3-runtime.proxy.ts';
+const meriRuntimeProxy = stripComments(read(MERI_RUNTIME_PROXY));
+for (const required of [
+  "if (property === 'streamMessage')",
+  'governedRuntime.runChatTurn(',
+  'const governed = currentMeriGovernedRuntime();',
+  'if (!governed) return originalOrchestrate(...args);',
+]) {
+  requireText(MERI_RUNTIME_PROXY, meriRuntimeProxy, required);
+}
+const MERI_MODULE = 'apps/api/src/meri/meri.module.ts';
+const meriModule = stripComments(read(MERI_MODULE));
+// MeriService must be exposed through the governed proxy, never directly.
+requireText(MERI_MODULE, meriModule, 'useFactory: createMeriRuntimeService');
+requireText(MERI_MODULE, meriModule, '{ provide: RAW_MERI_SERVICE, useClass: MeriService }');
+
+/**
+ * Repo-wide census sweep. Anything naming a shared-plane internal outside the
+ * plane itself must be an exact, reviewed census line.
+ */
+const censusSeen = new Set();
+for (const root of ['apps', 'packages']) {
+  for (const censusFile of sourceFilesUnder(root)) {
+    if (IMPLEMENTATION_PREFIXES.some((prefix) => censusFile.startsWith(prefix))) continue;
+    const code = stripComments(readOptional(censusFile));
+    if (!SHARED_PLANE_SYMBOL_PATTERNS.some((pattern) => pattern.test(code))) continue;
+    for (const rawLine of code.split('\n')) {
+      const line = rawLine.trim();
+      if (!line || !SHARED_PLANE_SYMBOL_PATTERNS.some((pattern) => pattern.test(line))) continue;
+      const entry = SHARED_PLANE_CONSUMER_CENSUS.find(
+        (candidate) => candidate.file === censusFile && candidate.line === line,
+      );
+      if (!entry) {
+        violations.push({
+          file: censusFile,
+          added: `unlisted shared-plane reference: ${line}`,
+          pattern: 'HEAD invariant (repo-wide census)',
+        });
+        continue;
+      }
+      censusSeen.add(`${entry.file} ${entry.line}`);
+    }
+  }
+}
+
+const staleCensus = SHARED_PLANE_CONSUMER_CENSUS.filter(
+  (entry) => !censusSeen.has(`${entry.file} ${entry.line}`),
+);
+const unmigrated = SHARED_PLANE_CONSUMER_CENSUS.filter(
+  (entry) => entry.status === 'unmigrated' && censusSeen.has(`${entry.file} ${entry.line}`),
+);
+
 if (violations.length > 0) {
   console.error('\nContext Plane architecture violation.');
   console.error(
@@ -296,9 +545,26 @@ if (violations.length > 0) {
   process.exit(1);
 }
 
+for (const entry of staleCensus) {
+  console.warn(
+    `Notice: census entry no longer present, delete it from SHARED_PLANE_CONSUMER_CENSUS — ${entry.file}: ${entry.line}`,
+  );
+}
+
 console.log(
   `Context Plane architecture guard: no new direct bypass imports; all ${EXPECTED_OPERATIONS.length} adopted-product invariants hold.`,
 );
+console.log(
+  `Repo-wide census: ${censusSeen.size} reviewed shared-plane reference(s) outside the plane, ${unmigrated.length} still unmigrated.`,
+);
+if (unmigrated.length > 0) {
+  // Deliberately loud. These are pinned, not waived: the repository does NOT
+  // have zero direct shared-compiler consumers while this list is non-empty.
+  console.log('\nUnmigrated direct shared-plane consumers (pinned, reviewed, not waived):');
+  for (const entry of unmigrated) {
+    console.log(`- ${entry.file}: ${entry.line}\n    ${entry.reason}`);
+  }
+}
 
 function readOptional(path) {
   try {
@@ -319,9 +585,16 @@ function sourceFilesUnder(root) {
       return;
     }
     for (const name of entries) {
-      const path = join(directory, name);
+      if (CENSUS_SKIP_DIRECTORIES.has(name)) continue;
+      // Census pins use forward slashes so one list works on Windows and Linux.
+      const path = join(directory, name).split('\\').join('/');
       if (statSync(path).isDirectory()) walk(path);
-      else if (path.endsWith('.ts') && !TEST_SUFFIXES.some((s) => path.endsWith(s))) out.push(path);
+      else if (
+        (path.endsWith('.ts') || path.endsWith('.tsx')) &&
+        !TEST_SUFFIXES.some((s) => path.endsWith(s))
+      ) {
+        out.push(path);
+      }
     }
   };
   walk(root);

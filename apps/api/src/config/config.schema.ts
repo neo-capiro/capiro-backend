@@ -334,12 +334,24 @@ export const configSchema = z.object({
 
   // Engagement Phase 1 — governed generation gateway + evidence packets.
   //
-  // ENGAGEMENT_GENERATION_GATEWAY: when ON, Engagement generation runs through
+  // ENGAGEMENT_GENERATION_GATEWAY: Engagement generation runs through
   // GenerationGatewayService — server-rehydrated evidence, authenticated
   // directives separated from untrusted text, a synchronously persisted Evidence
   // Packet (fail-CLOSED), a validated Message Plan before any prose, and the
-  // deterministic claim verifier. OFF keeps the pre-Phase-1 path byte-for-byte,
-  // so this lands inert and is enabled per environment afterwards.
+  // deterministic claim verifier.
+  //
+  // Knowledge Plane Phase 26 changed this flag's meaning. It used to default
+  // false, and the OFF branch compiled an ungoverned ContextPacket straight
+  // through the shared compiler while outreach.generate was already registered
+  // packet_required — an ungoverned live path behind a "safe default". Phase 26
+  // deleted every OFF branch, so:
+  //   - the default is now TRUE, and
+  //   - setting it false no longer selects a legacy path. `enabled` is retained
+  //     for the gateway's own diagnostics but is not read as a fork, so an
+  //     environment override neither restores the old behaviour nor disables
+  //     governance.
+  // Rollback for Outreach generation is therefore code-revert only, NOT an
+  // environment flip. Do not treat this variable as a kill switch.
   //
   // ENGAGEMENT_EMAIL_CONTEXT_SCOPE: how broadly relevant-email evidence may be
   // drawn. 'mine' (default) = the current user's own connected mailbox only.
@@ -354,8 +366,10 @@ export const configSchema = z.object({
   // scanner is provisioned yet (Phase 1 §6.1 — a Neo decision); while false the
   // UI must state that a file was not scanned rather than imply it was clean.
   //
-  // All three default to the SAFE value in repository code: enabling any of them
-  // is an explicit out-of-band environment change, never a code-deploy effect.
+  // ENGAGEMENT_EMAIL_CONTEXT_SCOPE and ENGAGEMENT_ATTACHMENT_SCAN_REQUIRED still
+  // default to the SAFE value in repository code: changing either is an explicit
+  // out-of-band environment change, never a code-deploy effect.
+  // ENGAGEMENT_GENERATION_GATEWAY is the exception — see above.
   ENGAGEMENT_GENERATION_GATEWAY: z
     .string()
     .default('true')

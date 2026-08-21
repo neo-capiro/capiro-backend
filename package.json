@@ -75,7 +75,9 @@
     "verify:phase8-session7:db": "node scripts/verify-phase8-session7-db.mjs",
     "verify:phase8-session7:domain": "pnpm --filter @capiro/defense-domain build && node scripts/test-phase8-session7-lifecycle-domain.mjs",
     "verify:phase8-session7:replay": "node scripts/phase8-session7-lifecycle-replay.mjs --out docs/defense-budget/phase8-session7-lifecycle-replay-evidence.json",
-    "prepare:phase8-session7:corpus": "node scripts/prepare-phase8-session7-lifecycle-corpus.mjs"
+    "prepare:phase8-session7:corpus": "node scripts/prepare-phase8-session7-lifecycle-corpus.mjs",
+    "validate:knowledge-plane:phase26": "node scripts/validate-knowledge-plane-phase26.mjs",
+    "validate:knowledge-plane:phase26:fast": "node scripts/validate-knowledge-plane-phase26.mjs --skip-tests"
   },
   "devDependencies": {
     "turbo": "^2.1.3",

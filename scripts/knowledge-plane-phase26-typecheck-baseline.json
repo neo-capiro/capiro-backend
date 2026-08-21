@@ -1,0 +1,21 @@
+{
+  "note": "apps/api `tsc --noEmit` errors that predate the Knowledge Plane Context Plane adoption. Verified byte-identical at 59fe281d8 (the commit before the Phase 20-26 overlay d8a97dfec) and at 9c302d260. Every entry is in a *.spec.ts file, so none of them reaches a shipped bundle. Keys are `<path>|TS<code>` with no line/column, so unrelated edits that shift lines do not create false failures. Values are the exact occurrence count. validate-knowledge-plane-phase26.mjs fails on any NEW key or any increased count; a decreased count is reported as progress and must be trimmed here.",
+  "totalErrors": 16,
+  "errors": {
+    "src/defense-budget/contracts/validator-cli-regressions.spec.ts|TS6059": 2,
+    "src/defense-budget/non-rdte/non-rdte-artifact-map-proof-regressions.spec.ts|TS6059": 1,
+    "src/defense-budget/verification/verification-cycle-report-r83.spec.ts|TS6059": 1,
+    "src/intelligence/alert-memo/hearing-recap.spec.ts|TS2345": 1,
+    "src/memory/memory-review-revision.migration.spec.ts|TS1470": 1,
+    "src/memory/memory-review-revision.service.spec.ts|TS2493": 1,
+    "src/meri/governed-meri-tools.chart-scope.spec.ts|TS2554": 2,
+    "src/meri/governed-meri-tools.proxy.spec.ts|TS2554": 4,
+    "src/reviews/reviews-outreach.spec.ts|TS2345": 1,
+    "src/reviews/reviews.service.spec.ts|TS2345": 2
+  },
+  "knownFailingSuitesNote": "apps/api suites inside the Context Plane / adoption test selection that already fail on the base commit for reasons outside the Knowledge Plane program. validate-knowledge-plane-phase26.mjs fails on any suite failure NOT listed here, and reports a listed suite that starts passing so the entry can be removed. This is an attributed inventory, not a silencer: each entry names the change that broke it.",
+  "knownFailingSuites": {
+    "src/meri/governed-meri-tools.proxy.spec.ts": "PR #850 (feat(federal-market), 4c399ffab) added a third constructor parameter `federalMarketTools: FederalMarketMeriToolsService` to createGovernedMeriToolsService without updating this spec, so it fails to compile (TS2554). Predates and is unrelated to Phases 19-26.",
+    "src/meri/governed-meri-tools.chart-scope.spec.ts": "Same root cause as governed-meri-tools.proxy.spec.ts — PR #850 constructor arity drift (TS2554)."
+  }
+}
