@@ -9,6 +9,10 @@ vi.mock('./LegacyRadarPage.js', () => ({
   tenantBoardChangeTone: vi.fn(),
 }));
 
+vi.mock('./live-hearings/LiveHearingsPage.js', () => ({
+  LiveHearingsPage: () => <div data-testid="live-hearings">Live Hearings surface</div>,
+}));
+
 function LocationProbe() {
   const location = useLocation();
   return <output data-testid="location">{`${location.pathname}${location.search}`}</output>;

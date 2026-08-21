@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AudioOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
 import LegacyRadarPage from './LegacyRadarPage.js';
+import { LiveHearingsPage } from './live-hearings/LiveHearingsPage.js';
 import './LegiWatchShell.css';
 
 export {
@@ -161,9 +162,13 @@ export function RadarPage() {
       ) : null}
 
       <div className="legiwatch-shell__content">
-        <div className="legiwatch-shell__legacy">
-          <LegacyRadarPage />
-        </div>
+        {section === 'live-hearings' ? (
+          <LiveHearingsPage />
+        ) : (
+          <div className="legiwatch-shell__legacy">
+            <LegacyRadarPage />
+          </div>
+        )}
       </div>
     </section>
   );
