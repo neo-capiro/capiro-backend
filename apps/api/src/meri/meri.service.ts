@@ -27,6 +27,8 @@ import {
 } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { LearningSignalCaptureService } from '../learning/learning-signal-capture.service.js';
+import { buildMeriFeedbackSignal } from '../learning/adapters/meri-feedback.adapter.js';
 import {
   applyRecallScoreFloor,
   pickMemoryRecallSource,
@@ -289,6 +291,12 @@ export class MeriService {
     // MeriService positionally keep compiling; when absent the edit path behaves
     // exactly as it did before, i.e. best-effort only.
     private readonly cleanupOutbox?: MemoryCleanupOutboxService,
+    // Learning-signal capture for explicit message feedback (Phase 27A).
+    // Optional for the same reason cleanupOutbox is: existing specs
+    // construct MeriService positionally; when absent, feedback recording
+    // behaves exactly as it did before — no signal captured, no behavior
+    // change to the feedback write itself.
+    private readonly learningSignals?: LearningSignalCaptureService,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -4558,6 +4566,32 @@ export class MeriService {
           } as unknown as Prisma.InputJsonValue,
         },
       });
+      // Phase 27A learning-signal capture, same transaction as the feedback
+      // write above so it commits/rolls back atomically with it. Swallowed
+      // rather than rethrown: a bug here must never turn an otherwise-valid
+      // feedback submission into a user-visible failure.
+      if (this.learningSignals) {
+        const signalInput = buildMeriFeedbackSignal(
+          ctx,
+          {
+            messageId: msg.id,
+            conversationId: msg.conversationId,
+            clientId: msg.clientId,
+            contextPacketId,
+          },
+          feedback,
+          new Date(),
+        );
+        if (signalInput) {
+          try {
+            await this.learningSignals.capture(tx, signalInput);
+          } catch (error) {
+            this.logger.warn(
+              `Learning-signal capture failed for message ${messageId}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        }
+      }
       return feedback;
     });
   }

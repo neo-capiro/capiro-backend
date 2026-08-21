@@ -15,6 +15,7 @@ import { RepresentationModule } from '../clients/representation.module.js';
 import { RegulatoryDocketModule } from '../regulatory-docket/regulatory-docket.module.js';
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { MemoryModule } from '../memory/memory.module.js';
+import { LearningModule } from '../learning/learning.module.js';
 import { ContextModule } from '../context/context.module.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
@@ -77,6 +78,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     RegulatoryDocketModule,
     EmbeddingsModule,
     MemoryModule,
+    LearningModule,
     ContextModule,
     ReviewsModule,
     FundingOpportunitiesModule,

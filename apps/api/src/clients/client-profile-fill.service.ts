@@ -21,6 +21,11 @@ import { ClientPeopleService } from './client-people.service.js';
 import { ClientFacilitiesService } from './client-facilities.service.js';
 import { ClientCapabilitiesService } from './client-capabilities.service.js';
 import { EngagementService } from '../engagement/engagement.service.js';
+import { LearningSignalCaptureService } from '../learning/learning-signal-capture.service.js';
+import {
+  buildCrmFillFindingAcceptedSignal,
+  buildCrmFillFindingRejectedSignal,
+} from '../learning/adapters/crm-fill-finding.adapter.js';
 import {
   CLIENT_PROFILE_FILL_SOURCES,
   asRecord,
@@ -169,6 +174,11 @@ export class ClientProfileFillService {
     private readonly facilities: ClientFacilitiesService,
     private readonly capabilities: ClientCapabilitiesService,
     private readonly attachments: EngagementService,
+    // Phase 27A learning-signal capture. Optional so any existing direct
+    // construction of this service keeps compiling; when absent, apply/
+    // reject behave exactly as before — no signal captured, no behavior
+    // change to the CRM write path itself.
+    private readonly learningSignals?: LearningSignalCaptureService,
   ) {}
 
   async startRun(
@@ -416,6 +426,7 @@ export class ClientProfileFillService {
         await this.applyFinding(ctx, clientId, finding);
         await this.markAccepted(ctx, clientId, finding.id);
         applied.push(finding.id);
+        await this.captureFillFindingSignal(ctx, 'accepted', finding);
       } catch (error) {
         errors.push({
           findingId: finding.id,
@@ -452,13 +463,15 @@ export class ClientProfileFillService {
   ) {
     await this.assertClient(ctx.tenantId, clientId);
     const changed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$queryRawUnsafe<Array<{ runId: string }>>(
+      tx.$queryRawUnsafe<
+        Array<{ runId: string; kind: string; targetKey: string; source: string; confidence: unknown }>
+      >(
         `UPDATE client_profile_fill_finding
             SET status = 'rejected', reviewed_by = $4::uuid, reviewed_at = now(),
                 rejection_reason = $5, updated_at = now()
           WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
             AND status = 'pending'
-          RETURNING run_id AS "runId"`,
+          RETURNING run_id AS "runId", kind, target_key AS "targetKey", source, confidence`,
         findingId,
         ctx.tenantId,
         clientId,
@@ -469,7 +482,60 @@ export class ClientProfileFillService {
     const row = changed[0];
     if (!row) throw new BadRequestException('Finding is not pending or does not exist');
     await this.refreshSummary(ctx.tenantId, row.runId);
+    await this.captureFillFindingSignal(ctx, 'rejected', {
+      id: findingId,
+      runId: row.runId,
+      clientId,
+      kind: row.kind,
+      targetKey: row.targetKey,
+      source: row.source,
+      confidence: Number(row.confidence),
+    });
     return { ok: true };
+  }
+
+  /**
+   * Phase 27A learning-signal capture for an accept/reject decision on a
+   * Fill-with-Meri finding. Best-effort and non-blocking by design — same
+   * pattern as the `prepopulation.prepopulate(...).catch(...)` call above:
+   * a capture failure must never undo or fail the CRM action it is
+   * evidence of. Runs in its own transaction (the finding-status write it
+   * follows has already committed by this point either way).
+   */
+  private async captureFillFindingSignal(
+    ctx: TenantContext,
+    outcome: 'accepted' | 'rejected',
+    finding: {
+      id: string;
+      runId: string;
+      clientId: string;
+      kind: string;
+      targetKey: string;
+      source: string;
+      confidence: number | string;
+    },
+  ): Promise<void> {
+    if (!this.learningSignals) return;
+    const signalSource = {
+      findingId: finding.id,
+      runId: finding.runId,
+      clientId: finding.clientId,
+      kind: finding.kind,
+      targetKey: finding.targetKey,
+      source: finding.source,
+      confidence: Number(finding.confidence),
+    };
+    const input =
+      outcome === 'accepted'
+        ? buildCrmFillFindingAcceptedSignal(ctx, signalSource, new Date())
+        : buildCrmFillFindingRejectedSignal(ctx, signalSource, new Date());
+    await this.prisma
+      .withTenant(ctx.tenantId, (tx) => this.learningSignals!.capture(tx, input))
+      .catch((error) =>
+        this.logger.warn(
+          `Learning-signal capture failed for fill finding ${finding.id} (${outcome}): ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
   }
 
   async restoreFinding(ctx: TenantContext, clientId: string, findingId: string) {
