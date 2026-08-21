@@ -7,12 +7,13 @@
 #                    deploy (forward-only), then exit. The CDK migrate task
 #                    definition overrides the container command to "migrate".
 #   enable-feature <flag> <tenant> -- upsert an enabled feature-flag row.
-#   task <verb> [args] -- run a one-off verb via dist/tasks/task-runner.js
-#                    (e.g. "task verify-sourcedata 119-hr-1"). Does not serve.
+#   task <verb> [args] -- run a one-off verb via dist/tasks/task-runner.js.
+#   public-capture-preflight [--hearingId=...] [--limit=N]
+#   public-capture-worker [--hearingId=... --captureId=...] [--limit=N]
+#   public-capture-status
 #
-# In both modes we compose DATABASE_URL from the individual DB_* secrets
-# injected by ECS from the Aurora credential. We require sslmode=require
-# because Aurora's parameter group has rds.force_ssl=1. (Mirrors apps/api.)
+# Public capture modes drain a GLOBAL durable queue. They never accept tenant,
+# client, media-URL, or credential arguments.
 
 set -e
 
@@ -98,7 +99,7 @@ case "${1:-serve}" in
         await p.\$transaction(async (tx) => {
           await tx.\$executeRawUnsafe(\"SELECT set_config('app.bypass_rls', 'on', true)\");
           let tid = '${TENANT}';
-          // If not a UUID, resolve via tenants.slug
+          # If not a UUID, resolve via tenants.slug
           if (!/^[0-9a-f-]{36}\$/i.test(tid)) {
             const rows = await tx.\$queryRawUnsafe('select id from tenants where slug = \$1', tid);
             if (!rows || !rows[0]) {
@@ -117,19 +118,28 @@ case "${1:-serve}" in
       })().catch((e) => { console.error('SEED_ERR', e.message); process.exit(1); });
     "
     ;;
+  public-capture-preflight)
+    shift
+    exec node dist/hearing/capture/public-capture-task-runner.js preflight "$@"
+    ;;
+  public-capture-worker)
+    shift
+    exec node dist/hearing/capture/public-capture-task-runner.js worker "$@"
+    ;;
+  public-capture-status)
+    shift
+    exec node dist/hearing/capture/public-capture-task-runner.js status "$@"
+    ;;
   task)
     # task <verb> [args...] -- run a one-off maintenance/verification verb via
     # the compiled task runner. Does NOT boot the HTTP server. New verbs are
-    # registered in src/tasks/task-runner.ts (Phase 1 verb: verify-sourcedata).
-    # Invoked through the verb-runner task-def family
-    # (capiro-*-intel-api-enableflag) with a `command` containerOverride, e.g.
-    #   ["task","verify-sourcedata","119-hr-1"]
+    # registered in src/tasks/task-runner.ts.
     VERB="${2:?verb required (e.g. verify-sourcedata)}"
     shift 2
     exec node dist/tasks/task-runner.js "$VERB" "$@"
     ;;
   *)
-    echo "Unknown command: $1 (expected: serve | migrate | enable-feature | task <verb>)" >&2
+    echo "Unknown command: $1 (expected: serve | migrate | enable-feature | public-capture-preflight | public-capture-worker | public-capture-status | task <verb>)" >&2
     exit 1
     ;;
 esac
