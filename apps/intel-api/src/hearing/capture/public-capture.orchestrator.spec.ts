@@ -108,12 +108,11 @@ describe('public capture orchestration', () => {
       dedupeKey: 'public-hearing-capture:v1:hearing-1',
       captureId: 'capture-1',
       hearingId: 'hearing-1',
-      officialPageUrl: 'https://www.armed-services.senate.gov/hearings/example',
       mustReresolve: true,
     });
   });
 
-  it('uses canonical source video references before the committee page and persists attempts', async () => {
+  it('resolves the current official page and persists the classified resolution', async () => {
     const h = storeHarness();
     h.store.getHearing = jest.fn(async () => ({
       id: 'hearing-1',
@@ -144,11 +143,11 @@ describe('public capture orchestration', () => {
       expect.objectContaining({ action: 'CAPTURE_JOB_ENQUEUED' }),
     );
     expect(resolve).toHaveBeenCalledTimes(1);
-    expect(resolve).toHaveBeenCalledWith(
-      expect.objectContaining({ pageUrl: firstPartyResolution.media.url }),
-    );
+    expect(resolve).toHaveBeenCalledWith(expect.objectContaining({
+      pageUrl: 'https://www.armed-services.senate.gov/hearings/example',
+    }));
     expect(h.store.recordResolution).toHaveBeenCalledWith(
-      expect.objectContaining({ attempts: expect.arrayContaining([expect.objectContaining({ skipped: false })]) }),
+      expect.objectContaining({ classified: expect.objectContaining({ state: 'READY_FOR_SERVER_CAPTURE' }) }),
     );
   });
 
@@ -159,10 +158,10 @@ describe('public capture orchestration', () => {
       h.store,
       {
         resolve: jest.fn(async () => ({
-          status: 'resolved',
+          status: 'resolved' as const,
           media: {
             url: 'https://www.youtube.com/watch?v=example',
-            kind: 'hls',
+            kind: 'hls' as const,
             provider: 'youtube-live',
           },
         })),

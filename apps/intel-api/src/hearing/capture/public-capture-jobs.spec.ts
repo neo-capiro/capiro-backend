@@ -11,13 +11,12 @@ describe('public capture queue jobs', () => {
         version: 1,
         captureId: 'capture-1',
         hearingId: 'hearing-1',
-        officialPageUrl: 'https://www.armed-services.senate.gov/hearings/example',
         mustReresolve: true,
       }),
     ).toEqual(expect.objectContaining({ captureId: 'capture-1', mustReresolve: true }));
   });
 
-  for (const field of ['tenantId', 'clientId', 'mediaUrl', 'apiKey'] as const) {
+  for (const field of ['tenantId', 'clientId', 'mediaUrl', 'officialPageUrl', 'deepgramApiKey', 'apiKey'] as const) {
     it(`rejects forbidden ${field} data`, () => {
       expect(() =>
         parsePublicCaptureQueueJob({

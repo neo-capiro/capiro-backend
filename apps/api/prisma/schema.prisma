@@ -6283,6 +6283,20 @@ model PublicHearingCapture {
   reconnectCount         Int       @default(0) @map("reconnect_count")
   capturedSeconds        Int       @default(0) @map("captured_seconds")
   transcriptGapSeconds   Int       @default(0) @map("transcript_gap_seconds")
+  version                Int       @default(1)
+  fencingToken           Int       @default(0) @map("fencing_token")
+  leaseAcquiredAt        DateTime? @map("lease_acquired_at")
+  /// Mirrors StreamResolutionState from stream-resolution-policy.ts
+  resolutionState        String    @default("NOT_CHECKED") @map("resolution_state")
+  lastResolutionAt       DateTime? @map("last_resolution_at")
+  consecutiveSourceErrors Int      @default(0) @map("consecutive_source_errors")
+  nextPreflightAt        DateTime? @map("next_preflight_at")
+  /// Millisecond-precision capture progress; capturedSeconds stays for any
+  /// existing consumer, capturedMs is authoritative for the Phase 4 runtime.
+  capturedMs             Int       @default(0) @map("captured_ms")
+  /// Serialized CaptureGap[] (startMs/endMs/reason) — small, bounded, no
+  /// separate gap table needed for Phase 4's exit proof.
+  gaps                   Json      @default("[]")
   failureCode            String?   @map("failure_code")
   failureDetail          String?   @map("failure_detail") @db.Text
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)

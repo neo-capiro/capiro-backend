@@ -1,5 +1,4 @@
-import type { HearingVideoReference } from '../discovery/hearing-source.types.js';
-import { normalizeOfficialUrl } from '../discovery/normalization.js';
+import { normalizeOfficialUrl, type HearingVideoReference } from './hearing-video-reference.js';
 import {
   classifyStreamResolution,
   type ClassifiedStreamResolution,
