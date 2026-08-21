@@ -1,20 +1,9 @@
 /**
- * LegiWatch Live Hearings — Master Calendar HTTP surface (Phase 3, plan §12).
+ * LegiWatch Live Hearings — canonical read surface (master plan §12).
  *
- *   GET /legiwatch/live-hearings/calendar
- *   GET /legiwatch/live-hearings/live
- *   GET /legiwatch/live-hearings/events/:id
- *   GET /legiwatch/live-hearings/events/:id/updates
- *
- * Lives in `apps/api` rather than `apps/intel-api` because that is where the
- * models live: `committee_hearing`, `hearing_subscription`, the Phase 2 capture
- * tables and the change feed are all in this service's Prisma schema, and
- * `apps/api` already owns the existing hearing read surface
- * (`GET /explorer/hearings`). intel-api's `hearings` controller is a different
- * thing — the per-tenant BROWSER capture session CRUD — and stays untouched.
- *
- * No mock data: every field is read from the canonical corpus, and a tenant only
- * ever sees its own subscription overlay.
+ * Calendar and event data are global public records with a tenant/user
+ * subscription overlay. Committee identity is sourced from CongressCommittee,
+ * never inferred from whatever hearings happen to fall inside a date window.
  */
 import { Controller, Get, NotFoundException, Param, Query, UseGuards } from '@nestjs/common';
 import { Type } from 'class-transformer';
@@ -23,21 +12,19 @@ import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { LiveHearingsService } from './live-hearings.service.js';
 
 /**
- * The global ValidationPipe runs whitelist + forbidNonWhitelisted, so EVERY
- * field needs a class-validator decorator or the whole request 400s with
- * "property X should not exist". Query values arrive as strings, so @Type
- * coerces the numeric ones (transformOptions has enableImplicitConversion off).
+ * The global ValidationPipe runs whitelist + forbidNonWhitelisted, so every
+ * public query field must be declared here. These names are the canonical
+ * frontend/backend contract.
  */
 class CalendarQueryDto {
-  /** Inclusive lower bound on the Eastern calendar day, `YYYY-MM-DD`. */
   @IsOptional()
   @IsString()
   from?: string;
 
-  /** Inclusive upper bound on the Eastern calendar day, `YYYY-MM-DD`. */
   @IsOptional()
   @IsString()
   to?: string;
@@ -79,7 +66,7 @@ class CalendarQueryDto {
   ])
   captureState?: string;
 
-  /** 'scheduled' = only what this user follows; 'unscheduled' = only what they do not. */
+  /** 'scheduled' = this user's subscriptions; 'unscheduled' = the complement. */
   @IsOptional()
   @IsIn(['scheduled', 'unscheduled'])
   followState?: 'scheduled' | 'unscheduled';
@@ -115,7 +102,10 @@ class UpdatesQueryDto {
 @UseGuards(RolesGuard)
 @Roles('standard_user')
 export class LiveHearingsController {
-  constructor(private readonly service: LiveHearingsService) {}
+  constructor(
+    private readonly service: LiveHearingsService,
+    private readonly committees: CommitteeDirectoryService,
+  ) {}
 
   @Get('calendar')
   calendar(@CurrentTenant() ctx: TenantContext, @Query() query: CalendarQueryDto) {
@@ -125,6 +115,33 @@ export class LiveHearingsController {
   @Get('live')
   live(@CurrentTenant() ctx: TenantContext) {
     return this.service.live(ctx);
+  }
+
+  /** Complete current committee/subcommittee catalog, including zero-hearing bodies. */
+  @Get('committees')
+  committeeDirectory() {
+    return this.committees.committees();
+  }
+
+  @Get('committees/:id')
+  async committee(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    const committee = await this.committees.committee(id, ctx);
+    if (!committee) throw new NotFoundException(`committee ${id} not found`);
+    return committee;
+  }
+
+  @Get('committees/:id/members')
+  async committeeMembers(@Param('id') id: string) {
+    const committee = await this.committees.committeeExists(id);
+    if (!committee) throw new NotFoundException(`committee ${id} not found`);
+    return this.committees.members(id);
+  }
+
+  @Get('committees/:id/updates')
+  async committeeUpdates(@Param('id') id: string, @Query() query: UpdatesQueryDto) {
+    const committee = await this.committees.committeeExists(id);
+    if (!committee) throw new NotFoundException(`committee ${id} not found`);
+    return this.committees.updates(id, query.limit ?? 100);
   }
 
   @Get('events/:id')
@@ -140,20 +157,12 @@ export class LiveHearingsController {
     @Param('id') id: string,
     @Query() query: UpdatesQueryDto,
   ) {
-    // 404 on an unknown hearing rather than an empty list, so a bad id is
-    // distinguishable from an event that genuinely has no published changes.
     const event = await this.service.event(ctx, id);
     if (!event) throw new NotFoundException(`hearing ${id} not found`);
     return { hearingId: id, updates: await this.service.updates(ctx, id, query.limit ?? 100) };
   }
 
-  /**
-   * Source coverage / health — read-only operator tooling (prototype's
-   * "Source coverage" drawer). GLOBAL data with no tenant overlay, so no
-   * `@CurrentTenant()` is needed; guarded the same as the rest of this
-   * controller since it names nothing more sensitive than public committee
-   * URLs and internal adapter/health bookkeeping.
-   */
+  /** Global source-health/operator view; no tenant content is returned. */
   @Get('coverage')
   coverage() {
     return this.service.coverage();
