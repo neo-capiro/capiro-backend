@@ -206,6 +206,22 @@ export interface CaptureLearningSignalInput {
 }
 
 /**
+ * Global capture kill switch (Phase 27 handoff §27: "production
+ * signal-capture can be disabled/rolled back independently"). Unlike the
+ * governance flags in `governance.ts` (dark-by-default, armed only by the
+ * literal `'enforce'`), this defaults to ON: capturing a signal is inert —
+ * no downstream effect, nothing else reads `learning_signal` yet — so the
+ * safer default is capturing, with an explicit same-day escape hatch
+ * (`LEARNING_SIGNAL_CAPTURE=disabled`, no redeploy) if capture itself ever
+ * needs to stop. Pure function, same style as `governedMemoryLifecycleEnabled`
+ * — callers pass `process.env.LEARNING_SIGNAL_CAPTURE` explicitly rather
+ * than this module reading it internally, so it stays trivially testable.
+ */
+export function learningSignalCaptureEnabled(raw: string | undefined): boolean {
+  return String(raw ?? '').trim().toLowerCase() !== 'disabled';
+}
+
+/**
  * Deterministic dedupe key for idempotent capture. Deliberately narrow: the
  * same (surface, source object, signal type, actor) tuple is one logical
  * event no matter how many times it's delivered (retry, double-submit). A

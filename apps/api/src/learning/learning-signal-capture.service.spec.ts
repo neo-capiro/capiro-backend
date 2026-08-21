@@ -130,6 +130,21 @@ describe('LearningSignalCaptureService', () => {
     expect(data.clientId).toBe(CLIENT);
   });
 
+  it('respects the LEARNING_SIGNAL_CAPTURE kill switch — no write happens while disabled', async () => {
+    const prior = process.env.LEARNING_SIGNAL_CAPTURE;
+    process.env.LEARNING_SIGNAL_CAPTURE = 'disabled';
+    try {
+      const service = new LearningSignalCaptureService();
+      const { tx, create } = fakeTx();
+      const result = await service.capture(tx, baseInput());
+      expect(result).toEqual({ status: 'disabled' });
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      if (prior === undefined) delete process.env.LEARNING_SIGNAL_CAPTURE;
+      else process.env.LEARNING_SIGNAL_CAPTURE = prior;
+    }
+  });
+
   it('never references memory_items/memory_candidate/clio_memory Prisma delegates', async () => {
     // The fakeTx above exposes ONLY `learningSignal`. If capture() ever
     // touched tx.memoryItem / tx.memoryCandidate / tx.clioMemory it would

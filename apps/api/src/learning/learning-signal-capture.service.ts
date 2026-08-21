@@ -5,12 +5,14 @@ import {
   assertKnownSteeringLayer,
   assertNoAiSelfCorroboration,
   computeLearningSignalIdempotencyKey,
+  learningSignalCaptureEnabled,
   type CaptureLearningSignalInput,
 } from '@capiro/meriv2-core';
 
 export type CaptureLearningSignalResult =
   | { status: 'captured'; id: string }
-  | { status: 'duplicate'; id: string };
+  | { status: 'duplicate'; id: string }
+  | { status: 'disabled' };
 
 const POSTGRES_UNIQUE_VIOLATION = 'P2002';
 
@@ -34,6 +36,12 @@ export class LearningSignalCaptureService {
     tx: Prisma.TransactionClient,
     input: CaptureLearningSignalInput,
   ): Promise<CaptureLearningSignalResult> {
+    // Operational kill switch, checked first and before any validation —
+    // disabling capture must be a same-day, no-redeploy escape hatch, not
+    // something that can itself throw.
+    if (!learningSignalCaptureEnabled(process.env.LEARNING_SIGNAL_CAPTURE)) {
+      return { status: 'disabled' };
+    }
     if (!input.tenantId) {
       throw new Error('LearningSignalCaptureService.capture: tenantId is required');
     }

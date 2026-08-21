@@ -118,6 +118,17 @@ Both adapters derive `actorUserId`/`tenantId` exclusively from the caller's
 `TenantContext` — there is no code path by which a request payload can
 attribute a signal to a different user or tenant.
 
+## Operational kill switch
+
+`LEARNING_SIGNAL_CAPTURE=disabled` turns off every capture call, fleet-wide,
+with no redeploy (`learningSignalCaptureEnabled()` in contract.ts, checked
+first thing in `LearningSignalCaptureService.capture()` before any
+validation or DB access). Unlike the governance flags in `governance.ts`
+(dark-by-default, armed only by `'enforce'`), this defaults to **enabled**:
+capturing a signal is inert observability with no downstream effect yet, so
+the safer default is capturing, with an explicit escape hatch if capture
+itself ever needs to stop (e.g. unexpected write volume on a hot path).
+
 ## Read path
 
 `LearningSignalQueryService` (`apps/api/src/learning/learning-signal-query.service.ts`)

@@ -8,6 +8,7 @@ import {
   assertKnownSteeringLayer,
   assertNoAiSelfCorroboration,
   computeLearningSignalIdempotencyKey,
+  learningSignalCaptureEnabled,
   type CaptureLearningSignalInput,
 } from './contract';
 import { MEMORY_AUTHORITIES } from '../memory/governance';
@@ -148,6 +149,25 @@ describe('LearningSignal contract (Phase 27A)', () => {
       expect(() =>
         assertEvidencePresentWhenProposingMemory({ proposedMemoryLayer: 'client-steering', evidenceRefs: [] }),
       ).toThrow(/must carry at least one evidence reference/);
+    });
+  });
+
+  describe('learningSignalCaptureEnabled', () => {
+    it('defaults to enabled when unset — capture is inert, so the safer default is ON', () => {
+      expect(learningSignalCaptureEnabled(undefined)).toBe(true);
+      expect(learningSignalCaptureEnabled('')).toBe(true);
+    });
+
+    it('is disabled only by the exact literal "disabled" — a same-day kill switch', () => {
+      expect(learningSignalCaptureEnabled('disabled')).toBe(false);
+      expect(learningSignalCaptureEnabled('DISABLED')).toBe(false);
+      expect(learningSignalCaptureEnabled('  disabled  ')).toBe(false);
+    });
+
+    it('treats any other value as enabled (no accidental disable via typo)', () => {
+      for (const raw of ['enabled', 'true', 'off', 'enforce', 'no']) {
+        expect(learningSignalCaptureEnabled(raw)).toBe(true);
+      }
     });
   });
 
