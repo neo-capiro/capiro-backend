@@ -1,10 +1,14 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AudioOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
+import { useIntelFeature } from '../../lib/intel-feature-flags.js';
 import LegacyRadarPage from './LegacyRadarPage.js';
 import { LiveHearingsCanonicalSurface } from './live-hearings/LiveHearingsCanonicalSurface.js';
 import { LiveHearingsPage } from './live-hearings/LiveHearingsPage.js';
-import { legiwatchLiveHearingsV2Enabled } from './live-hearings/legiwatch-live-hearings-flags.js';
+import {
+  LEGIWATCH_LIVE_HEARINGS_V2_FEATURE,
+  legiwatchLiveHearingsV2Enabled,
+} from './live-hearings/legiwatch-live-hearings-flags.js';
 import './LegiWatchShell.css';
 
 export {
@@ -21,7 +25,6 @@ type LegiWatchSection = 'bill-tracker' | 'live-hearings' | 'settings';
 type BillTrackerView = 'feed' | 'bills';
 
 const LEGACY_TABS = new Set<LegacyRadarTab>(['feed', 'bills', 'hearings', 'watchlist']);
-const LIVE_HEARINGS_V2_ENABLED = legiwatchLiveHearingsV2Enabled();
 
 const SECTIONS: ReadonlyArray<{
   id: LegiWatchSection;
@@ -75,6 +78,11 @@ export function RadarPage() {
   const tab = normalizeLegacyTab(searchParams.get('tab') ?? legacyView);
   const section = sectionForTab(tab);
   const lastBillView = useRef<BillTrackerView>(tab === 'bills' ? 'bills' : 'feed');
+  const liveHearingsRollout = useIntelFeature(LEGIWATCH_LIVE_HEARINGS_V2_FEATURE);
+  const liveHearingsV2Enabled = legiwatchLiveHearingsV2Enabled({
+    tenantFlagEnabled: liveHearingsRollout.enabled,
+    tenantFlagReady: liveHearingsRollout.ready,
+  });
 
   useEffect(() => {
     if (tab === 'feed' || tab === 'bills') lastBillView.current = tab;
@@ -166,7 +174,7 @@ export function RadarPage() {
 
       <div className="legiwatch-shell__content">
         {section === 'live-hearings' ? (
-          LIVE_HEARINGS_V2_ENABLED ? (
+          liveHearingsV2Enabled ? (
             <LiveHearingsCanonicalSurface />
           ) : (
             <LiveHearingsPage />
