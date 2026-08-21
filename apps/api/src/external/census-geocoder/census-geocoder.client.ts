@@ -50,6 +50,14 @@ export interface CensusGeocodeResult {
   longitude: number | null;
   /** Bare 2-digit, e.g. "02"; "00" for an at-large seat. */
   congressionalDistrict: string | null;
+  /**
+   * Which Congress the `CD<congress>` field key names (Release 1, §11) — e.g.
+   * `119` from a `CD119` key. Parsed from the SAME field the district code
+   * itself comes from, so it can never disagree with `congressionalDistrict`
+   * about which vintage it describes. Null only when no CD layer matched at
+   * all (mirrors `congressionalDistrict` being null).
+   */
+  congressionalDistrictCongress: number | null;
   /** Bare number (BASENAME), e.g. "11". Null for a unicameral/no-match chamber (e.g. NE). */
   stateHouseDistrict: string | null;
   /** Bare number (BASENAME), e.g. "8". */
@@ -75,6 +83,7 @@ const NO_MATCH_RESULT: CensusGeocodeResult = {
   latitude: null,
   longitude: null,
   congressionalDistrict: null,
+  congressionalDistrictCongress: null,
   stateHouseDistrict: null,
   stateSenateDistrict: null,
   matchedAddress: null,
@@ -108,6 +117,7 @@ async function fetchJson<T>(url: string, attempt = 1): Promise<T> {
  */
 export function extractDistricts(match: CensusAddressMatch): {
   congressionalDistrict: string | null;
+  congressionalDistrictCongress: number | null;
   stateHouseDistrict: string | null;
   stateSenateDistrict: string | null;
 } {
@@ -122,9 +132,13 @@ export function extractDistricts(match: CensusAddressMatch): {
   const cdFieldKey = cdRow ? Object.keys(cdRow).find((k) => /^CD\d+$/.test(k)) : undefined;
   const congressionalDistrict =
     cdRow && cdFieldKey ? String(cdRow[cdFieldKey] ?? '').trim() || null : null;
+  // Parsed from the SAME field key the district code itself comes from, so
+  // "which district" and "which Congress" can never disagree about vintage.
+  const congressMatch = cdFieldKey ? /^CD(\d+)$/.exec(cdFieldKey) : null;
+  const congressionalDistrictCongress = congressMatch ? Number(congressMatch[1]) : null;
   const stateHouseDistrict = lowerRow?.BASENAME ? String(lowerRow.BASENAME).trim() || null : null;
   const stateSenateDistrict = upperRow?.BASENAME ? String(upperRow.BASENAME).trim() || null : null;
-  return { congressionalDistrict, stateHouseDistrict, stateSenateDistrict };
+  return { congressionalDistrict, congressionalDistrictCongress, stateHouseDistrict, stateSenateDistrict };
 }
 
 /**

@@ -34,7 +34,22 @@ describe('IntelligenceService.getDistrictNexusSpend — representative overlay',
   function makeService(opts: { spendRows: unknown[]; members: unknown[] }) {
     const tenantTx = {
       clientIntelMapping: {
-        findMany: jest.fn(async () => [{ externalName: 'Acme Defense Corp' }]),
+        // Release 1 (§10): a reviewed mapping must carry a recorded, non-fuzzy
+        // matchBasis to contribute a fallback name at all — an unrecorded
+        // basis is rejected by the SAME canonical identity rule the v2 rail
+        // uses (award-history-identity.ts's nameIsUsable). externalId stays
+        // null so this exercises the name-fallback rail, not the UEI one.
+        findMany: jest.fn(async () => [
+          {
+            externalId: null,
+            externalName: 'Acme Defense Corp',
+            matchBasis: 'exact_legal_name',
+            matchTier: 2,
+          },
+        ]),
+      },
+      client: {
+        findFirst: jest.fn(async () => ({ uei: null })),
       },
     };
     const prisma: any = {

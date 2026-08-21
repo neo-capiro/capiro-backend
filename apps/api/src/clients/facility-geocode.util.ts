@@ -66,6 +66,8 @@ export interface FacilityGeocodeInput {
   state: string | null;
   zip: string | null;
   congressionalDistrict: string | null;
+  /** Which Congress's boundary produced `congressionalDistrict` (Release 1, §11). */
+  congressionalDistrictCongress?: number | null;
   districtSource: string | null;
   stateHouseDistrict: string | null;
   stateSenateDistrict: string | null;
@@ -79,6 +81,8 @@ export interface FacilityGeocodeUpdate {
   latitude: number | null;
   longitude: number | null;
   congressionalDistrict?: string;
+  /** Written only alongside a geocoded `congressionalDistrict` — never for a preserved manual one. */
+  congressionalDistrictCongress?: number;
   districtSource?: string;
   stateHouseDistrict: string | null;
   stateSenateDistrict: string | null;
@@ -178,7 +182,12 @@ export async function computeFacilityGeocode(
     f.stateSenateDistrict === stateSenateDistrict &&
     f.geocodeStatus === 'matched' &&
     (f.geocodeInputHash == null || f.geocodeInputHash === geocodeInputHash) &&
-    (f.congressionalDistrict === result.congressionalDistrict || f.districtSource !== 'geocoded');
+    (f.congressionalDistrict === result.congressionalDistrict || f.districtSource !== 'geocoded') &&
+    // A row backfilled for §11 (geocoded district, Congress still null) must
+    // NOT read as unchanged just because its district/coords already match —
+    // that is exactly the case this comparison exists to catch.
+    ((f.congressionalDistrictCongress ?? null) === (result.congressionalDistrictCongress ?? null) ||
+      f.districtSource !== 'geocoded');
   if (unchanged) {
     return { update: null, status: 'matched', discrepancy };
   }
@@ -189,9 +198,17 @@ export async function computeFacilityGeocode(
       longitude: result.longitude,
       // Preserve an explicit manual congressional-district correction. The
       // geocoder still refreshes coordinates/state districts, but it must not
-      // silently replace a user decision made in the profile editor.
+      // silently replace a user decision made in the profile editor. The
+      // Congress number rides along with the district it describes — never
+      // written without it, never written FOR a preserved manual district.
       ...(result.congressionalDistrict && !(f.districtSource === 'user' && f.congressionalDistrict)
-        ? { congressionalDistrict: result.congressionalDistrict, districtSource: 'geocoded' }
+        ? {
+            congressionalDistrict: result.congressionalDistrict,
+            districtSource: 'geocoded',
+            ...(result.congressionalDistrictCongress != null
+              ? { congressionalDistrictCongress: result.congressionalDistrictCongress }
+              : {}),
+          }
         : {}),
       stateHouseDistrict,
       stateSenateDistrict,

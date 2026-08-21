@@ -82,7 +82,13 @@ export type DataQualityWarningCode =
   /** Some money could not be attributed to any district — see unmapped* fields. */
   | 'unmapped_amount'
   /** Only grant opportunities back this, no awarded funding. */
-  | 'opportunity_only';
+  | 'opportunity_only'
+  /**
+   * A facility's district was resolved against a boundary vintage (Congress)
+   * that is not yet in session — excluded from current-view scoring rather
+   * than silently presented as current representation (Release 1, §12).
+   */
+  | 'future_boundary_excluded';
 
 export interface DataQualityWarning {
   code: DataQualityWarningCode;
@@ -181,6 +187,16 @@ export interface NexusEvidence {
    */
   externalUseApproved: boolean;
   boundaryVintage: BoundaryVintage;
+  /**
+   * Which Congress's boundary produced this row's district code, when the
+   * source actually supplies one (Release 1). Null for a contract (no
+   * Congress-number column exists on `federal_award`), null for assistance
+   * (same — `pop_cd_vintage` is a label, not a Congress number), and the
+   * facility's own `congressionalDistrictCongress` for `geographyBasis ===
+   * 'facility'` or a project-site relationship built from one. Never guessed:
+   * an unknown Congress stays null rather than assumed current.
+   */
+  boundaryCongress: number | null;
   /** Present only for money-bearing evidence; see the no-totalAmount note above. */
   amount: Money;
 }
@@ -443,6 +459,37 @@ export interface DistrictNexusDistrictDetailResponse extends DistrictNexusDistri
   /** Whether a published boundary artifact covers this district. */
   boundaryAvailable: boolean;
   generatedAt: IsoTimestamp;
+}
+
+/**
+ * Read-only diagnostic over a tenant's visible `ClientFacility` rows
+ * (Release 1, §14) — not a dashboard, just the counts an operator needs to
+ * judge geocode/Congress-provenance coverage. Counts are not mutually
+ * exclusive across every field (e.g. a facility can be both
+ * `districtResolved` and `geocodedDistrictMissingCongress`).
+ */
+export interface FacilityCoverageDiagnostic {
+  totalFacilities: number;
+  districtResolved: number;
+  missingDistrict: number;
+  geocodeMatched: number;
+  /** Never attempted (`geocodeStatus` is null) — distinct from a failed attempt. */
+  geocodePending: number;
+  geocodeNoMatch: number;
+  geocodeAmbiguous: number;
+  geocodeError: number;
+  /** No usable street/city/state — nothing for the geocoder to try. */
+  missingUsableAddress: number;
+  /** Geocoded, has a district, but predates the Congress-provenance column. */
+  geocodedDistrictMissingCongress: number;
+  /** `districtSource === 'user'` — never independently confirmed. */
+  manualDistrict: number;
+  /**
+   * Hand-entered vs. geocoded district mismatches. Only the batch
+   * `geocode-facilities` run observes this (and only logs it, per-run) — not
+   * persisted anywhere queryable, so honestly null rather than a fabricated 0.
+   */
+  knownDiscrepancyCount: number | null;
 }
 
 /**

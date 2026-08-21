@@ -21,10 +21,11 @@ import {
   type EvidenceStrength,
 } from './district-nexus-scoring.js';
 import {
-  CONTRACT_TIER,
+  contractTier,
   assistanceTier,
   facilityTier,
   type AssistanceMatchBasis,
+  type ContractMatchBasis,
 } from './district-nexus.verification.js';
 import type {
   AwardedFunding,
@@ -54,6 +55,12 @@ export interface ContractDistrictRow {
   district: string | null;
   awardCount: number;
   totalAmount: number;
+  /**
+   * How this row matched the client (Release 1 — the contract rail now has a
+   * verified-identifier path). Optional so existing specs keep compiling;
+   * absent defaults to 'contractor_name' — the conservative direction.
+   */
+  matchBasis?: ContractMatchBasis;
 }
 
 export interface AssistanceDistrictRow {
@@ -90,6 +97,13 @@ export interface FacilityRow {
    */
   geocodeStatus?: string | null;
   districtSource?: string | null;
+  /**
+   * Which Congress's boundary produced `districtCode`, when the Census
+   * geocoder supplied one (Release 1, §11-12). Optional/null: a
+   * manually-entered district, or one geocoded before this column existed,
+   * carries no Congress and is never treated as future.
+   */
+  congressionalDistrictCongress?: number | null;
 }
 
 /**
@@ -148,6 +162,15 @@ export interface ClientNexusInputs {
    * existing specs keep compiling; defaults to [].
    */
   relationships?: RelationshipNexusRow[];
+  /**
+   * The Congress currently in session (Release 1, §12), from
+   * `congress.util.ts`'s `currentCongressNumber(new Date())`. Optional so
+   * existing specs keep compiling; when omitted, no facility is ever treated
+   * as a future boundary (the pre-Release-1 behavior) — this fold has no
+   * business calling `new Date()` itself and inventing a reference point a
+   * caller did not supply.
+   */
+  currentCongress?: number;
 }
 
 /**
@@ -311,7 +334,10 @@ export function foldDistricts(inputs: ClientNexusInputs): {
     }
     const acc = upsert(key);
     acc.contractObligations = addMoney(acc.contractObligations, row.totalAmount);
-    acc.contractStrength = weakerStrength(acc.contractStrength ?? 'verified', CONTRACT_TIER.strength);
+    acc.contractStrength = weakerStrength(
+      acc.contractStrength ?? 'verified',
+      contractTier(row.matchBasis ?? 'contractor_name').strength,
+    );
   }
 
   for (const row of inputs.assistance) {
@@ -354,6 +380,24 @@ export function foldDistricts(inputs: ClientNexusInputs): {
   for (const row of inputs.facilities) {
     const key = districtKeyFor(row.state, row.districtCode);
     if (!key) continue;
+    // A facility whose district was resolved against a boundary vintage
+    // (Congress) that has not yet taken effect must not be silently used as
+    // CURRENT representation geography (§12) — excluded from scoring, with a
+    // warning, rather than blended in as though it were an ordinary current
+    // facility. Unknown vintage (null) is never treated as future.
+    if (
+      inputs.currentCongress != null &&
+      row.congressionalDistrictCongress != null &&
+      row.congressionalDistrictCongress > inputs.currentCongress
+    ) {
+      warnings.push({
+        code: 'future_boundary_excluded',
+        message:
+          'A facility’s congressional district reflects a boundary not yet in effect and is excluded from current-view scoring.',
+        districtKey: key,
+      });
+      continue;
+    }
     const acc = upsert(key);
     acc.facilityCount += 1;
     acc.employeeCount = addMoney(acc.employeeCount, row.employeeCount);
@@ -663,20 +707,40 @@ export function buildClientNexusResponse(
 
 // ── District detail: per-client breakdown (audit F5) ───────────────────────
 
+/** Just enough of a client's canonical identity rail to filter firm-wide rows by it. */
+export interface DistrictClientIdentityBasis {
+  basis: 'exact_uei' | 'reviewed_name_fallback' | 'none';
+  ueis: string[];
+  fallbackNames: string[];
+}
+
 export interface DistrictClientBreakdownInputs {
   districtKey: DistrictKey;
   facilities: Array<{ clientId: string; clientName: string; employeeCount: number | null }>;
-  /** Confirmed contractor/recipient identifiers, keyed by client. */
+  /**
+   * Each client's own canonical identity rails (Release 1, §9) — NOT a flat
+   * identifier list. A client is only credited with rows matching its OWN
+   * rail's basis; an exact_uei client can never be credited via a
+   * reviewed_name_fallback row that happens to share a string with someone
+   * else's fallback name, and vice versa.
+   */
   byClient: ReadonlyMap<
     string,
-    { clientName: string; contractorNames: string[]; recipientUeis: string[]; recipientNames: string[] }
+    { clientName: string; contract: DistrictClientIdentityBasis; assistance: DistrictClientIdentityBasis }
   >;
-  /** Firm-wide contract rows carrying the identifier each group matched on. */
-  contractRows: Array<{ identifier: string | null; state: string | null; district: string | null; totalAmount: number }>;
-  /** Firm-wide assistance rows carrying both identifiers a row could have matched. */
+  /** Firm-wide contract rows carrying the identifier AND basis each group matched on. */
+  contractRows: Array<{
+    identifier: string | null;
+    matchBasis?: 'uei' | 'contractor_name';
+    state: string | null;
+    district: string | null;
+    totalAmount: number;
+  }>;
+  /** Firm-wide assistance rows carrying both identifiers a row could have matched, plus its basis. */
   assistanceRows: Array<{
     uei: string | null;
     nameLower: string | null;
+    matchBasis?: 'uei' | 'recipient_name';
     state: string | null;
     district: string | null;
     totalObligated: number;
@@ -732,17 +796,46 @@ export function buildDistrictClientBreakdown(
   }
 
   for (const [clientId, ids] of inputs.byClient) {
-    const names = new Set(ids.contractorNames);
-    const ueis = new Set(ids.recipientUeis);
-    const lowerNames = new Set(ids.recipientNames.map((n) => n.toLowerCase()));
+    // Consume rows only from THIS client's own rail basis (§9) — an
+    // exact_uei client's total must never include a reviewed_name_fallback
+    // row, even one whose identifier string happens to match another client's
+    // fallback name, and vice versa.
+    const contractUeis = new Set(ids.contract.ueis);
+    const contractNames = new Set(ids.contract.fallbackNames);
+    const assistanceUeis = new Set(ids.assistance.ueis);
+    const assistanceNames = new Set(ids.assistance.fallbackNames);
 
     const contractTotal = inputs.contractRows
-      .filter((r) => r.identifier != null && names.has(r.identifier))
+      .filter((r) => {
+        if (ids.contract.basis === 'exact_uei') {
+          return (r.matchBasis ?? 'contractor_name') === 'uei' && r.identifier != null && contractUeis.has(r.identifier);
+        }
+        if (ids.contract.basis === 'reviewed_name_fallback') {
+          return (
+            (r.matchBasis ?? 'contractor_name') === 'contractor_name' &&
+            r.identifier != null &&
+            contractNames.has(r.identifier)
+          );
+        }
+        return false;
+      })
       .filter((r) => districtKeyFor(r.state, r.district) === inputs.districtKey)
       .reduce<number | null>((sum, r) => (sum ?? 0) + r.totalAmount, null);
 
     const assistanceHere = inputs.assistanceRows
-      .filter((r) => (r.uei != null && ueis.has(r.uei)) || (r.nameLower != null && lowerNames.has(r.nameLower)))
+      .filter((r) => {
+        if (ids.assistance.basis === 'exact_uei') {
+          return (r.matchBasis ?? 'recipient_name') === 'uei' && r.uei != null && assistanceUeis.has(r.uei);
+        }
+        if (ids.assistance.basis === 'reviewed_name_fallback') {
+          return (
+            (r.matchBasis ?? 'recipient_name') === 'recipient_name' &&
+            r.nameLower != null &&
+            assistanceNames.has(r.nameLower)
+          );
+        }
+        return false;
+      })
       .filter((r) => districtKeyFor(r.state, r.district) === inputs.districtKey);
     const grantObligations = assistanceHere.length
       ? assistanceHere.reduce((sum, r) => sum + r.totalObligated, 0)

@@ -33,6 +33,7 @@ const MATCHED = {
   latitude: 30.4,
   longitude: -84.28,
   congressionalDistrict: '02',
+  congressionalDistrictCongress: 119,
   stateHouseDistrict: '9',
   stateSenateDistrict: '3',
   matchedAddress: 'x',
@@ -62,6 +63,7 @@ describe('computeFacilityGeocode', () => {
       latitude: 30.4,
       longitude: -84.28,
       congressionalDistrict: '02',
+      congressionalDistrictCongress: 119,
       districtSource: 'geocoded',
       stateHouseDistrict: '9',
       stateSenateDistrict: '3',
@@ -78,6 +80,7 @@ describe('computeFacilityGeocode', () => {
     const already: FacilityGeocodeInput = {
       ...BASE,
       congressionalDistrict: '02',
+      congressionalDistrictCongress: 119,
       districtSource: 'geocoded',
       stateHouseDistrict: '9',
       stateSenateDistrict: '3',
@@ -87,6 +90,35 @@ describe('computeFacilityGeocode', () => {
     };
     const out = await computeFacilityGeocode(already);
     expect(out.update).toBeNull();
+  });
+
+  it('§11: a row geocoded before the Congress column existed (null) is re-written to backfill it, even though nothing else changed', async () => {
+    geocodeAddress.mockResolvedValue(MATCHED);
+    const preRelease1: FacilityGeocodeInput = {
+      ...BASE,
+      congressionalDistrict: '02',
+      congressionalDistrictCongress: null, // pre-Release-1 row
+      districtSource: 'geocoded',
+      stateHouseDistrict: '9',
+      stateSenateDistrict: '3',
+      latitude: 30.4,
+      longitude: -84.28,
+      geocodeStatus: 'matched',
+    };
+    const out = await computeFacilityGeocode(preRelease1);
+    expect(out.update?.congressionalDistrictCongress).toBe(119);
+  });
+
+  it('a manually-entered district never gets a Congress number stamped onto it', async () => {
+    geocodeAddress.mockResolvedValue(MATCHED);
+    const handEntered: FacilityGeocodeInput = {
+      ...BASE,
+      congressionalDistrict: '02', // agrees with the geocode, so no discrepancy
+      congressionalDistrictCongress: null,
+      districtSource: 'user',
+    };
+    const out = await computeFacilityGeocode(handEntered);
+    expect(out.update?.congressionalDistrictCongress).toBeUndefined();
   });
 
   it('a hand-entered district that disagrees with the geocode is preserved but logged as a discrepancy', async () => {

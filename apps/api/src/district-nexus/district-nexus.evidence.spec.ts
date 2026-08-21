@@ -75,7 +75,7 @@ function relationshipRow(
 }
 
 describe('contractRowToEvidence', () => {
-  test('maps a well-formed row to inferred, unverified-vintage evidence', () => {
+  test('maps a well-formed name-matched row to inferred, unverified-vintage evidence', () => {
     const out = contractRowToEvidence(contractRow());
     expect(out?.districtKey).toBe('TX-23');
     expect(out?.evidence).toEqual({
@@ -86,15 +86,21 @@ describe('contractRowToEvidence', () => {
       sourceUpdatedAt: '2026-07-20T00:00:00.000Z',
       observedAt: '2026-03-01T00:00:00.000Z',
       geographyBasis: 'place_of_performance',
-      // Contracts match by contractor NAME only — there is no UEI path for
-      // this rail (plan §5.3) — so verification is always 'inferred'.
+      // No matchBasis on the row (or 'contractor_name' explicitly) is honestly inferred.
       verificationStatus: 'inferred',
       confidence: null,
       externalUseApproved: true,
-      // federal_award carries no CD-vintage column at all.
+      // federal_award carries no CD-vintage or Congress-number column at all.
       boundaryVintage: 'unknown',
+      boundaryCongress: null,
       amount: 5_000_000,
     });
+  });
+
+  test('a UEI-matched row (Release 1) is source-verified with full confidence', () => {
+    const out = contractRowToEvidence(contractRow({ matchBasis: 'uei' }));
+    expect(out?.evidence.verificationStatus).toBe('source_verified');
+    expect(out?.evidence.confidence).toBe(1);
   });
 
   test('falls back to a generic label when the contractor name is missing', () => {
@@ -114,38 +120,29 @@ describe('contractRowToEvidence', () => {
 });
 
 describe('assistanceRowToEvidence', () => {
-  test('a UEI in the confirmed set is source-verified with full confidence', () => {
-    const out = assistanceRowToEvidence(assistanceRow(), new Set(['K2QB7VNX9DM4']));
+  test('matchBasis "uei" is source-verified with full confidence', () => {
+    const out = assistanceRowToEvidence(assistanceRow({ matchBasis: 'uei' }));
     expect(out?.evidence.verificationStatus).toBe('source_verified');
     expect(out?.evidence.confidence).toBe(1);
   });
 
-  test('a UEI absent from the confirmed set is inferred, not verified', () => {
-    // The row still HAS a UEI, but it is not one this client confirmed — the
-    // row matched some other way (e.g. name), so it must not borrow the
-    // stronger status just because a UEI happens to be present on the record.
-    const out = assistanceRowToEvidence(assistanceRow(), new Set(['SOMEOTHERUEI1']));
+  test('matchBasis "recipient_name" is inferred, even though the row has a UEI on file', () => {
+    // The row still HAS a UEI, but the caller's query says it matched some
+    // other way — it must not borrow the stronger status just because a UEI
+    // happens to be present on the record.
+    const out = assistanceRowToEvidence(assistanceRow({ matchBasis: 'recipient_name' }));
     expect(out?.evidence.verificationStatus).toBe('inferred');
     expect(out?.evidence.confidence).toBeNull();
   });
 
-  test('UEI comparison is case-insensitive', () => {
-    const out = assistanceRowToEvidence(
-      assistanceRow({ recipientUei: 'k2qb7vnx9dm4' }),
-      new Set(['K2QB7VNX9DM4']),
-    );
-    expect(out?.evidence.verificationStatus).toBe('source_verified');
-  });
-
-  test('a null recipientUei can never match, however the set is built', () => {
-    const out = assistanceRowToEvidence(assistanceRow({ recipientUei: null }), new Set(['']));
+  test('an absent matchBasis defaults to recipient_name — the conservative direction', () => {
+    const out = assistanceRowToEvidence(assistanceRow());
     expect(out?.evidence.verificationStatus).toBe('inferred');
   });
 
   test('geographyBasis passes through the row basis verbatim', () => {
     expect(
-      assistanceRowToEvidence(assistanceRow({ basis: 'recipient_location' }), new Set())?.evidence
-        .geographyBasis,
+      assistanceRowToEvidence(assistanceRow({ basis: 'recipient_location' }))?.evidence.geographyBasis,
     ).toBe('recipient_location');
   });
 
@@ -155,14 +152,17 @@ describe('assistanceRowToEvidence', () => {
     [null, 'unknown'],
     ['garbage', 'unknown'],
   ])('popCdVintage %p maps to boundaryVintage %p', (raw, expected) => {
-    expect(
-      assistanceRowToEvidence(assistanceRow({ popCdVintage: raw }), new Set())?.evidence
-        .boundaryVintage,
-    ).toBe(expected);
+    expect(assistanceRowToEvidence(assistanceRow({ popCdVintage: raw }))?.evidence.boundaryVintage).toBe(
+      expected,
+    );
+  });
+
+  test('boundaryCongress is always null — federal_assistance_award carries no Congress-number column', () => {
+    expect(assistanceRowToEvidence(assistanceRow({ matchBasis: 'uei' }))?.evidence.boundaryCongress).toBeNull();
   });
 
   test('a sentinel district produces no evidence row', () => {
-    expect(assistanceRowToEvidence(assistanceRow({ district: 'ZZ' }), new Set())).toBeNull();
+    expect(assistanceRowToEvidence(assistanceRow({ district: 'ZZ' }))).toBeNull();
   });
 });
 
@@ -224,6 +224,16 @@ describe('facilityRowToEvidence', () => {
     expect(facilityRowToEvidence(facilityRow({ districtCode: '90' }))).toBeNull();
     expect(facilityRowToEvidence(facilityRow({ state: null }))).toBeNull();
   });
+
+  test('boundaryCongress carries the stored congressionalDistrictCongress verbatim', () => {
+    const out = facilityRowToEvidence(facilityRow({ congressionalDistrictCongress: 119 }));
+    expect(out?.facility.boundaryCongress).toBe(119);
+  });
+
+  test('boundaryCongress is null when the facility carries none — never guessed', () => {
+    const out = facilityRowToEvidence(facilityRow({ congressionalDistrictCongress: null }));
+    expect(out?.facility.boundaryCongress).toBeNull();
+  });
 });
 
 describe('relationshipRowToEvidence (audit F4)', () => {
@@ -242,6 +252,7 @@ describe('relationshipRowToEvidence (audit F4)', () => {
       confidence: null,
       externalUseApproved: false,
       boundaryVintage: 'original',
+      boundaryCongress: null,
       amount: 250_000,
     });
   });
@@ -266,6 +277,20 @@ describe('relationshipRowToEvidence (audit F4)', () => {
       relationshipRow({ geographyBasis: 'project_site', popCdVintage: 'original' }),
     );
     expect(out?.evidence.boundaryVintage).toBe('current');
+  });
+
+  test('a project-site relationship carries the linked facility’s boundaryCongress', () => {
+    const out = relationshipRowToEvidence(
+      relationshipRow({ geographyBasis: 'project_site', boundaryCongress: 119 }),
+    );
+    expect(out?.evidence.boundaryCongress).toBe(119);
+  });
+
+  test('an award-sourced relationship never carries a facility boundaryCongress', () => {
+    const out = relationshipRowToEvidence(
+      relationshipRow({ geographyBasis: 'place_of_performance', boundaryCongress: 119 }),
+    );
+    expect(out?.evidence.boundaryCongress).toBeNull();
   });
 
   test.each([

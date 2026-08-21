@@ -423,6 +423,7 @@ describe('evidenceByDistrict flows into the right district, and only there', () 
     confidence: null,
     externalUseApproved: true,
     boundaryVintage: 'unknown' as const,
+    boundaryCongress: null,
     amount: 1_000,
   });
 
@@ -928,10 +929,15 @@ describe('reviewed client↔award relationships reach the numbers (audit F4)', (
  * the clients it did show because nothing populated them.
  */
 describe('buildDistrictClientBreakdown (audit F5)', () => {
+  const NONE_BASIS = { basis: 'none' as const, ueis: [], fallbackNames: [] };
   const byClient = new Map([
     [
       'client-1',
-      { clientName: 'Acme Defense', contractorNames: ['Acme Defense LLC'], recipientUeis: [], recipientNames: [] },
+      {
+        clientName: 'Acme Defense',
+        contract: { basis: 'reviewed_name_fallback' as const, ueis: [], fallbackNames: ['acme defense llc'] },
+        assistance: NONE_BASIS,
+      },
     ],
   ]);
 
@@ -940,7 +946,9 @@ describe('buildDistrictClientBreakdown (audit F5)', () => {
       districtKey: 'TX-23',
       facilities: [],
       byClient,
-      contractRows: [{ identifier: 'Acme Defense LLC', state: 'TX', district: '23', totalAmount: 500_000 }],
+      contractRows: [
+        { identifier: 'acme defense llc', matchBasis: 'contractor_name', state: 'TX', district: '23', totalAmount: 500_000 },
+      ],
       assistanceRows: [],
       relationships: [],
     });
@@ -1021,10 +1029,16 @@ describe('buildDistrictClientBreakdown (audit F5)', () => {
       byClient: new Map([
         [
           'client-5',
-          { clientName: 'Epsilon Inc', contractorNames: ['Epsilon Inc'], recipientUeis: [], recipientNames: [] },
+          {
+            clientName: 'Epsilon Inc',
+            contract: { basis: 'reviewed_name_fallback', ueis: [], fallbackNames: ['epsilon inc'] },
+            assistance: NONE_BASIS,
+          },
         ],
       ]),
-      contractRows: [{ identifier: 'Epsilon Inc', state: 'VA', district: '11', totalAmount: 1_000_000 }],
+      contractRows: [
+        { identifier: 'epsilon inc', matchBasis: 'contractor_name', state: 'VA', district: '11', totalAmount: 1_000_000 },
+      ],
       assistanceRows: [],
       relationships: [],
     });
@@ -1036,7 +1050,9 @@ describe('buildDistrictClientBreakdown (audit F5)', () => {
       districtKey: 'TX-23',
       facilities: [{ clientId: 'client-1', clientName: 'Acme Defense', employeeCount: 12 }],
       byClient,
-      contractRows: [{ identifier: 'Acme Defense LLC', state: 'TX', district: '23', totalAmount: 500_000 }],
+      contractRows: [
+        { identifier: 'acme defense llc', matchBasis: 'contractor_name', state: 'TX', district: '23', totalAmount: 500_000 },
+      ],
       assistanceRows: [],
       relationships: [],
     });
@@ -1046,14 +1062,18 @@ describe('buildDistrictClientBreakdown (audit F5)', () => {
     expect(clients[0]?.awarded.contractObligations).toBe(500_000);
   });
 
-  test('assistance is matched by UEI or lowercased recipient name, same as the firm-wide rail', () => {
+  test('assistance is matched by UEI when the client rail is exact_uei', () => {
     const clients = buildDistrictClientBreakdown({
       districtKey: 'TX-23',
       facilities: [],
       byClient: new Map([
         [
           'client-6',
-          { clientName: 'Zeta Labs', contractorNames: [], recipientUeis: ['K2QB7VNX9DM4'], recipientNames: [] },
+          {
+            clientName: 'Zeta Labs',
+            contract: NONE_BASIS,
+            assistance: { basis: 'exact_uei', ueis: ['K2QB7VNX9DM4'], fallbackNames: [] },
+          },
         ],
       ]),
       contractRows: [],
@@ -1061,6 +1081,7 @@ describe('buildDistrictClientBreakdown (audit F5)', () => {
         {
           uei: 'K2QB7VNX9DM4',
           nameLower: null,
+          matchBasis: 'uei',
           state: 'TX',
           district: '23',
           totalObligated: 900_000,
@@ -1071,5 +1092,129 @@ describe('buildDistrictClientBreakdown (audit F5)', () => {
     });
     expect(clients[0]?.awarded.grantObligations).toBe(900_000);
     expect(clients[0]?.awarded.grantOutlays).toBe(400_000);
+  });
+
+  test('a client on the exact_uei rail can never be credited via a reviewed_name_fallback row, even a same-string one', () => {
+    const clients = buildDistrictClientBreakdown({
+      districtKey: 'TX-23',
+      facilities: [],
+      byClient: new Map([
+        [
+          'client-7',
+          {
+            clientName: 'Eta Solutions',
+            contract: NONE_BASIS,
+            assistance: { basis: 'exact_uei', ueis: ['K2QB7VNX9DM4'], fallbackNames: [] },
+          },
+        ],
+      ]),
+      contractRows: [],
+      // A name-basis row that happens to carry the SAME nameLower this client
+      // would have used had it been on the fallback rail — must not count.
+      assistanceRows: [
+        {
+          uei: null,
+          nameLower: 'eta solutions',
+          matchBasis: 'recipient_name',
+          state: 'TX',
+          district: '23',
+          totalObligated: 500_000,
+          totalOutlayed: 0,
+        },
+      ],
+      relationships: [],
+    });
+    expect(clients).toHaveLength(0);
+  });
+});
+
+describe('contract rail identity (Release 1 — contracts now have a UEI path)', () => {
+  test('a UEI-matched contract row earns sourceAuthoritative strength, not inferred', () => {
+    const { districts } = foldDistricts(
+      inputs({
+        contracts: [
+          { state: 'TX', district: '23', awardCount: 1, totalAmount: 1_000_000, matchBasis: 'uei' },
+        ],
+      }),
+    );
+    const evidence = evidenceForDistrict(districts[0]!);
+    expect(evidence.contractPlaceOfPerformance?.strength).toBe('sourceAuthoritative');
+  });
+
+  test('a name-matched contract row (or one with no matchBasis at all) stays inferred', () => {
+    const { districts } = foldDistricts(
+      inputs({
+        contracts: [{ state: 'TX', district: '23', awardCount: 1, totalAmount: 1_000_000 }],
+      }),
+    );
+    const evidence = evidenceForDistrict(districts[0]!);
+    expect(evidence.contractPlaceOfPerformance?.strength).toBe('inferred');
+  });
+
+  test('one name-matched row among UEI-matched rows still weakens the district total', () => {
+    const { districts } = foldDistricts(
+      inputs({
+        contracts: [
+          { state: 'TX', district: '23', awardCount: 1, totalAmount: 1_000_000, matchBasis: 'uei' },
+          { state: 'TX', district: '23', awardCount: 1, totalAmount: 500_000, matchBasis: 'contractor_name' },
+        ],
+      }),
+    );
+    const evidence = evidenceForDistrict(districts[0]!);
+    expect(evidence.contractPlaceOfPerformance?.strength).toBe('inferred');
+  });
+});
+
+describe('future boundary exclusion (§12 — a not-yet-effective boundary is not current representation)', () => {
+  test('a facility geocoded against a future Congress is excluded from current-view scoring, with a warning', () => {
+    const { districts, warnings } = foldDistricts(
+      inputs({
+        facilities: [
+          { state: 'TX', districtCode: '23', employeeCount: 40, congressionalDistrictCongress: 120 },
+        ],
+        currentCongress: 119,
+      }),
+    );
+    expect(districts).toHaveLength(0);
+    expect(warnings).toEqual([
+      expect.objectContaining({ code: 'future_boundary_excluded', districtKey: 'TX-23' }),
+    ]);
+  });
+
+  test('the same facility is included once its boundary Congress is actually current', () => {
+    const { districts, warnings } = foldDistricts(
+      inputs({
+        facilities: [
+          { state: 'TX', districtCode: '23', employeeCount: 40, congressionalDistrictCongress: 119 },
+        ],
+        currentCongress: 119,
+      }),
+    );
+    expect(districts).toHaveLength(1);
+    expect(districts[0]?.employeeCount).toBe(40);
+    expect(warnings.some((w) => w.code === 'future_boundary_excluded')).toBe(false);
+  });
+
+  test('an unknown boundary Congress (null) is never treated as future', () => {
+    const { districts, warnings } = foldDistricts(
+      inputs({
+        facilities: [{ state: 'TX', districtCode: '23', employeeCount: 40, congressionalDistrictCongress: null }],
+        currentCongress: 119,
+      }),
+    );
+    expect(districts).toHaveLength(1);
+    expect(warnings.some((w) => w.code === 'future_boundary_excluded')).toBe(false);
+  });
+
+  test('without a currentCongress reference, no facility is ever excluded (pre-Release-1 behavior)', () => {
+    const { districts, warnings } = foldDistricts(
+      inputs({
+        facilities: [
+          { state: 'TX', districtCode: '23', employeeCount: 40, congressionalDistrictCongress: 120 },
+        ],
+      }),
+    );
+    expect(districts).toHaveLength(1);
+    expect(warnings.some((w) => w.code === 'future_boundary_excluded')).toBe(false);
   });
 });
