@@ -34,8 +34,24 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const exists = (relative) => fs.existsSync(path.join(root, relative));
 const fail = (message) => failures.push(message);
 
+/**
+ * Normalise line endings BEFORE any comment stripping.
+ *
+ * This is load-bearing, not tidiness. In a JavaScript regex `\r` is a line
+ * terminator, so `.` will not cross it and `$` will not match before it — which
+ * means a comment-stripping pattern like `/--.*$/` silently strips NOTHING on a
+ * CRLF checkout. Every prohibition check downstream then reads the file's own
+ * prose, and a migration that spells out the privileges it does *not* grant fails
+ * its own append-only check.
+ *
+ * Caught exactly that way: this gate passed on an LF working tree and failed on
+ * the CRLF checkout of its own merge preview. It is the third variant of Session
+ * 7's "verifier matched its own prose" bug.
+ */
+const normaliseEol = (content) => content.replace(/\r\n?/g, '\n');
+
 const stripComments = (content) =>
-  content
+  normaliseEol(content)
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .split('\n')
     .map((line) => line.replace(/(^|\s)\/\/.*$/, '$1'))
@@ -48,7 +64,7 @@ const stripComments = (content) =>
  * verbatim in a different comment syntax.
  */
 const stripSqlComments = (content) =>
-  content
+  normaliseEol(content)
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .split('\n')
     .map((line) => line.replace(/--.*$/, ''))
