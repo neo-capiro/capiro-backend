@@ -11325,3 +11325,27 @@ model DefenseProviderInvocation {
   @@index([idempotencyKey], map: "dpi_idempotency_idx")
   @@map("defense_provider_invocation")
 }
+
+model DefenseBudgetScheduleTick {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workerId             String   @map("worker_id")
+  tickKey              String   @map("tick_key")
+  startedAt            DateTime @map("started_at") @db.Timestamptz(6)
+  finishedAt           DateTime @map("finished_at") @db.Timestamptz(6)
+  outcome              String
+  horizonBootstrapped  Boolean  @map("horizon_bootstrapped")
+  adaptersConsidered   Int      @map("adapters_considered")
+  adaptersDue          Int      @map("adapters_due")
+  adaptersSucceeded    Int      @map("adapters_succeeded")
+  adaptersFailed       Int      @map("adapters_failed")
+  adaptersSkippedLease Int      @map("adapters_skipped_lease")
+  committed            Boolean
+  failureReason        String?  @map("failure_reason")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([workerId, tickKey], map: "dbst_worker_tick_key_uidx")
+  @@index([startedAt(sort: Desc)], map: "dbst_started_idx")
+  @@index([outcome], map: "dbst_outcome_idx")
+  @@map("defense_budget_schedule_tick")
+}

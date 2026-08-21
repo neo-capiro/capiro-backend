@@ -21,7 +21,8 @@
     "verify:session7": "node ../../scripts/verify-phase8-session7.mjs --enforce-replay",
     "verify:session7:db": "node ../../scripts/verify-phase8-session7-db.mjs",
     "prepare:session7:corpus": "node ../../scripts/prepare-phase8-session7-lifecycle-corpus.mjs",
-    "watch:session7:lifecycle": "node scripts/run-lifecycle-watcher.mjs"
+    "watch:session7:lifecycle": "node scripts/run-lifecycle-watcher.mjs",
+    "tick:session10:schedule": "node scripts/run-schedule-controller.mjs"
   },
   "dependencies": {
     "@capiro/auth": "workspace:*",
