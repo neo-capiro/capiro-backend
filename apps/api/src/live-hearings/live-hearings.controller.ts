@@ -65,7 +65,7 @@ class CalendarQueryDto {
   streamState?: string;
 
   @IsOptional()
-  @IsIn(CAPTURE_STATES)
+  @IsIn([...CAPTURE_STATES])
   captureState?: string;
 
   @IsOptional()
