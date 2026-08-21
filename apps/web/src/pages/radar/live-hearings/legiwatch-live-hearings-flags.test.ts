@@ -1,22 +1,55 @@
-import { legiwatchLiveHearingsV2Enabled } from './legiwatch-live-hearings-flags.js';
+import {
+  legiwatchLiveHearingsV2Enabled,
+  legiwatchLiveHearingsV2KillSwitchAllows,
+} from './legiwatch-live-hearings-flags.js';
 
-describe('legiwatchLiveHearingsV2Enabled', () => {
-  it('keeps the canonical rebuild enabled by default on the rebuild branch', () => {
-    expect(legiwatchLiveHearingsV2Enabled(undefined)).toBe(true);
-    expect(legiwatchLiveHearingsV2Enabled('')).toBe(true);
+describe('LegiWatch Live Hearings V2 rollout', () => {
+  it('keeps the global emergency switch open by default', () => {
+    expect(legiwatchLiveHearingsV2KillSwitchAllows(undefined)).toBe(true);
+    expect(legiwatchLiveHearingsV2KillSwitchAllows('')).toBe(true);
   });
 
   it.each(['0', 'false', 'FALSE', 'off', 'disabled', 'no'])(
-    'provides an immediate rollback for %s',
+    'provides an immediate global rollback for %s',
     (value) => {
-      expect(legiwatchLiveHearingsV2Enabled(value)).toBe(false);
+      expect(legiwatchLiveHearingsV2KillSwitchAllows(value)).toBe(false);
     },
   );
 
-  it.each(['1', 'true', 'on', 'enabled', 'yes'])(
-    'keeps V2 active for %s',
-    (value) => {
-      expect(legiwatchLiveHearingsV2Enabled(value)).toBe(true);
-    },
-  );
+  it('fails closed while the tenant flag is unresolved', () => {
+    expect(
+      legiwatchLiveHearingsV2Enabled({
+        tenantFlagEnabled: true,
+        tenantFlagReady: false,
+        killSwitchAllows: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('does not let the environment switch bypass a disabled tenant flag', () => {
+    expect(
+      legiwatchLiveHearingsV2Enabled({
+        tenantFlagEnabled: false,
+        tenantFlagReady: true,
+        killSwitchAllows: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('activates only when tenant flag and kill switch both allow V2', () => {
+    expect(
+      legiwatchLiveHearingsV2Enabled({
+        tenantFlagEnabled: true,
+        tenantFlagReady: true,
+        killSwitchAllows: true,
+      }),
+    ).toBe(true);
+    expect(
+      legiwatchLiveHearingsV2Enabled({
+        tenantFlagEnabled: true,
+        tenantFlagReady: true,
+        killSwitchAllows: false,
+      }),
+    ).toBe(false);
+  });
 });
