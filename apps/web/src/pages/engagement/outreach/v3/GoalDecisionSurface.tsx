@@ -66,12 +66,79 @@ function GoalReadBack({ session }: { session: GoalDecisionSurfaceProps['session'
   );
 }
 
-const OUTCOMES = [
+const OUTREACH_TYPES = [
   ['Request a meeting', 'Ask the office for a focused staff briefing.'],
-  ['Protect funding', 'Build support before the next authorization or mark.'],
   ['Share an update', 'Keep stakeholders informed with a concise policy update.'],
-  ['Custom outcome', 'Describe a different result in your own words.'],
 ] as const;
+
+function NewOutreachTypeRequest({
+  onClose,
+  onSubmitRequest,
+}: {
+  onClose: () => void;
+  onSubmitRequest: () => void;
+}) {
+  const [description, setDescription] = useState('');
+  const [sampleEmail, setSampleEmail] = useState('');
+
+  const submit = () => {
+    if (!description.trim() || !sampleEmail.trim()) return;
+    onSubmitRequest();
+  };
+
+  return (
+    <div className="ov3-request-modal__backdrop" role="presentation">
+      <div
+        className="ov3-request-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ov3-request-modal-title"
+      >
+        <header className="ov3-panel-header">
+          <div>
+            <span className="ov3-eyebrow">Outreach type request</span>
+            <h2 id="ov3-request-modal-title">Request New Outreach Type</h2>
+            <p>Help us understand the outreach pattern you need.</p>
+          </div>
+          <button type="button" className="ov3-button is-quiet" onClick={onClose}>
+            Close
+          </button>
+        </header>
+        <div className="ov3-form-stack">
+          <Field
+            label="Describe what you want to request"
+            required
+            value={description}
+            placeholder="Describe the outreach outcome or workflow you need."
+            onChange={setDescription}
+            multiline
+          />
+          <Field
+            label="Sample email of the desired outcome"
+            required
+            value={sampleEmail}
+            placeholder="Paste a sample email that shows the desired outcome."
+            onChange={setSampleEmail}
+            multiline
+          />
+        </div>
+        <footer className="ov3-panel-footer">
+          <button type="button" className="ov3-button is-quiet" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="ov3-button is-primary"
+            disabled={!description.trim() || !sampleEmail.trim()}
+            onClick={submit}
+          >
+            Submit outreach type request
+          </button>
+        </footer>
+      </div>
+    </div>
+  );
+}
 
 function Field({
   label,
@@ -130,6 +197,7 @@ export function GoalDecisionSurface({
     whyNow: goal.whyNow ?? '',
   });
   const [error, setError] = useState<string | null>(null);
+  const [requestOpen, setRequestOpen] = useState(false);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -139,7 +207,7 @@ export function GoalDecisionSurface({
       !draft.topic.trim() ||
       !draft.desiredOutcome.trim()
     ) {
-      setError('Campaign goal, objective, topic, and desired outcome are required.');
+      setError('Campaign goal, objective, topic, and an outreach type are required.');
       return;
     }
     if (draft.askMode === 'explicit' && !draft.askText.trim()) {
@@ -178,9 +246,9 @@ export function GoalDecisionSurface({
 
       <div className="ov3-split is-brief">
         <div className="ov3-form-stack">
-          <span className="ov3-section-label">Choose an outcome or describe your own</span>
+          <span className="ov3-section-label">Choose an outreach type</span>
           <div className="ov3-choice-grid">
-            {OUTCOMES.map(([title, description]) => (
+            {OUTREACH_TYPES.map(([title, description]) => (
               <button
                 key={title}
                 type="button"
@@ -196,6 +264,7 @@ export function GoalDecisionSurface({
                       (title === 'Request a meeting'
                         ? 'Educate the recipient and secure a focused staff briefing'
                         : title),
+                    askMode: title === 'Request a meeting' ? 'explicit' : 'none',
                     askText:
                       title === 'Request a meeting' && !current.askText
                         ? 'Request a 30-minute staff briefing'
@@ -212,6 +281,17 @@ export function GoalDecisionSurface({
                 </span>
               </button>
             ))}
+            <button
+              type="button"
+              className="ov3-choice-card"
+              onClick={() => setRequestOpen(true)}
+            >
+              <span className="ov3-choice-card__radio" aria-hidden="true" />
+              <span>
+                <strong>Request New Outreach Type</strong>
+                <small>Tell us what kind of outreach you need.</small>
+              </span>
+            </button>
           </div>
 
           <Field
@@ -237,48 +317,6 @@ export function GoalDecisionSurface({
               onChange={(value) => setDraft((current) => ({ ...current, objective: value }))}
             />
           </div>
-          <Field
-            label="Desired outcome"
-            required
-            value={draft.desiredOutcome}
-            placeholder="Request a focused briefing"
-            onChange={(value) => setDraft((current) => ({ ...current, desiredOutcome: value }))}
-          />
-
-          <div className="ov3-inline-choice" role="group" aria-label="Ask mode">
-            <button
-              type="button"
-              className={draft.askMode === 'explicit' ? 'is-selected' : ''}
-              aria-pressed={draft.askMode === 'explicit'}
-              onClick={() => setDraft((current) => ({ ...current, askMode: 'explicit' }))}
-            >
-              Explicit ask
-            </button>
-            <button
-              type="button"
-              className={draft.askMode === 'none' ? 'is-selected' : ''}
-              aria-pressed={draft.askMode === 'none'}
-              onClick={() => setDraft((current) => ({ ...current, askMode: 'none' }))}
-            >
-              No formal ask
-            </button>
-          </div>
-          {draft.askMode === 'explicit' ? (
-            <Field
-              label="Explicit ask"
-              required
-              value={draft.askText}
-              placeholder="Request a 30-minute staff briefing"
-              onChange={(value) => setDraft((current) => ({ ...current, askText: value }))}
-            />
-          ) : null}
-          <Field
-            label="Why now"
-            value={draft.whyNow}
-            placeholder="The current mark is below the request"
-            onChange={(value) => setDraft((current) => ({ ...current, whyNow: value }))}
-            multiline
-          />
         </div>
 
         <aside className="ov3-guidance-card">
@@ -321,6 +359,12 @@ export function GoalDecisionSurface({
           </button>
         </div>
       </footer>
+      {requestOpen ? (
+        <NewOutreachTypeRequest
+          onClose={() => setRequestOpen(false)}
+          onSubmitRequest={() => setRequestOpen(false)}
+        />
+      ) : null}
     </form>
   );
 }

@@ -1214,6 +1214,31 @@
   gap: 7px;
 }
 
+.ov3-request-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(13 24 38 / 42%);
+}
+
+.ov3-request-modal {
+  width: min(680px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  overflow: auto;
+  padding: 28px;
+  border: 1px solid var(--ov3-border, #d8dee8);
+  border-radius: 18px;
+  background: var(--ov3-surface, #fff);
+  box-shadow: 0 24px 80px rgb(13 24 38 / 22%);
+}
+
+.ov3-request-modal > .ov3-panel-header {
+  margin-bottom: 22px;
+}
+
 .ov3-selection-box,
 .ov3-manual-entry {
   background: var(--ov3-subtle);

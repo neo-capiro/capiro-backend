@@ -57,17 +57,57 @@ describe('GoalDecisionSurface', () => {
     expect(screen.queryByLabelText(/Search clients/i)).not.toBeInTheDocument();
   });
 
+  it('shows only the two standard outreach types and the new outreach request option', () => {
+    render(<GoalDecisionSurface {...props()} />);
+
+    expect(screen.getByRole('button', { name: /Request a meeting/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Share an update/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Request New Outreach Type/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Protect funding/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Custom outcome/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Desired outcome')).not.toBeInTheDocument();
+    expect(screen.queryAllByText('Required')).toHaveLength(3);
+    expect(screen.queryByText('Request a 30-minute staff briefing')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Desired outcome/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: /Ask mode/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Explicit ask/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Why now/i)).not.toBeInTheDocument();
+  });
+
+  it('opens a new outreach type request form from its option', () => {
+    render(<GoalDecisionSurface {...props()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Request New Outreach Type/i }));
+
+    expect(screen.getByRole('dialog', { name: 'Request New Outreach Type' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Describe what you want to request/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Sample email of the desired outcome/i)).toBeInTheDocument();
+  });
+
+  it('captures the new outreach type description and sample email before closing the form', () => {
+    render(<GoalDecisionSurface {...props()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Request New Outreach Type/i }));
+    fireEvent.change(screen.getByLabelText(/Describe what you want to request/i), {
+      target: { value: 'Ask an office to introduce us to the program lead.' },
+    });
+    fireEvent.change(screen.getByLabelText(/Sample email of the desired outcome/i), {
+      target: { value: 'Could you connect us with the program lead?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit outreach type request' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Request New Outreach Type' })).not.toBeInTheDocument();
+  });
+
   it('requires the complete deterministic read-back including objective', async () => {
     const value = props();
     render(<GoalDecisionSurface {...value} />);
 
     fireEvent.change(screen.getByLabelText(/^Campaign goal/i), { target: { value: 'Protect funding' } });
     fireEvent.change(screen.getByLabelText(/^Topic/i), { target: { value: 'Ground Robotics' } });
-    fireEvent.change(screen.getByLabelText(/^Desired outcome/i), { target: { value: 'Request a meeting' } });
-    fireEvent.change(screen.getByLabelText(/^Explicit ask/i), { target: { value: 'Request a briefing' } });
     fireEvent.click(screen.getByRole('button', { name: 'Confirm goal' }));
 
-    expect(await screen.findByText(/goal, objective, topic, and desired outcome are required/i)).toBeInTheDocument();
+    expect(await screen.findByText(/goal, objective, topic, and an outreach type are required/i)).toBeInTheDocument();
     expect(value.applyCommands).not.toHaveBeenCalled();
   });
 
@@ -78,9 +118,7 @@ describe('GoalDecisionSurface', () => {
     fireEvent.change(screen.getByLabelText(/^Campaign goal/i), { target: { value: 'Protect funding' } });
     fireEvent.change(screen.getByLabelText(/^Topic/i), { target: { value: 'Ground Robotics' } });
     fireEvent.change(screen.getByLabelText(/^Objective/i), { target: { value: 'Educate HASC staff' } });
-    fireEvent.change(screen.getByLabelText(/^Desired outcome/i), { target: { value: 'Request a meeting' } });
-    fireEvent.change(screen.getByLabelText(/^Explicit ask/i), { target: { value: 'Request a 30-minute briefing' } });
-    fireEvent.change(screen.getByLabelText(/^Why now/i), { target: { value: 'The mark is below the request' } });
+    fireEvent.click(screen.getByRole('button', { name: /Request a meeting/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm goal' }));
 
     await waitFor(() => expect(value.applyCommands).toHaveBeenCalledTimes(1));
@@ -95,7 +133,7 @@ describe('GoalDecisionSurface', () => {
     ]);
     expect(commands.find((entry) => entry.type === 'SET_ASK')?.payload).toEqual({
       mode: 'explicit',
-      text: 'Request a 30-minute briefing',
+      text: 'Request a 30-minute staff briefing',
     });
   });
 });
