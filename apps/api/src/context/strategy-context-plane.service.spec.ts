@@ -157,12 +157,23 @@ function context(
   };
 }
 
+/**
+ * Default anchor projection: the requested Strategy and node both exist, are
+ * live, sit in this tenant, and belong to the requested client. Tests override
+ * `anchorRows` to model the cross-client / missing / cross-strategy cases.
+ */
+const LIVE_ANCHORS = [
+  { anchor: 'strategy', anchorId: STRATEGY, clientId: CLIENT, strategyId: null },
+  { anchor: 'node', anchorId: NODE, clientId: CLIENT, strategyId: STRATEGY },
+];
+
 function harness(opts: {
   userFound?: boolean;
   membershipFound?: boolean;
   clientFound?: boolean;
   packetSurface?: string;
   contextOverrides?: Record<string, unknown>;
+  anchorRows?: Record<string, unknown>[];
 } = {}) {
   const tx = {
     client: {
@@ -183,6 +194,9 @@ function harness(opts: {
         opts.membershipFound === false ? null : { id: MEMBERSHIP },
       ),
     },
+    // sp_strategy/sp_node anchor projection. api-strategy owns those tables and
+    // apps/api has no Prisma model for them, so the bridge reads them raw.
+    $queryRaw: jest.fn().mockResolvedValue(opts.anchorRows ?? LIVE_ANCHORS),
   };
   const prisma = {
     user: {
@@ -447,5 +461,207 @@ describe('StrategyContextPlaneService Phase 26', () => {
     expect(result.coverage.missingDomains.length).toBeGreaterThan(0);
     expect(result.governedContext.retrieval.coverage.complete).toBe(false);
     expect(result.governedContext.prompt).toContain('complete=false');
+  });
+  // -- Anchor validation (#1157) --------------------------------------------
+  //
+  // The bridge previously accepted any strategyId/nodeId and returned 201. No
+  // data leak was demonstrated - retrieval is SubjectScope-filtered, so a
+  // cross-client anchor produced a packet equivalent to the clean control for
+  // the requested client - but provenance was misleading and there was no
+  // fail-closed invariant to stop a future retrieval change from turning that
+  // into a real isolation problem.
+  describe('Strategy anchor validation', () => {
+    const CLIENT_B = '88888888-8888-4888-8888-888888888888';
+    const STRATEGY_B = '99999999-9999-4999-8999-999999999999';
+
+    test('a nonexistent Strategy fails closed before any retrieval', async () => {
+      const h = harness({ anchorRows: [] });
+      await expect(
+        h.service.resolve({
+          tenantId: TENANT,
+          clerkUserId: 'user_test',
+          clientId: CLIENT,
+          mode: 'assistant',
+          strategyId: STRATEGY,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(h.gateway.requestContext).not.toHaveBeenCalled();
+    });
+
+    test('a Strategy owned by another client fails closed before any retrieval', async () => {
+      const h = harness({
+        anchorRows: [
+          { anchor: 'strategy', anchorId: STRATEGY, clientId: CLIENT_B, strategyId: null },
+        ],
+      });
+      await expect(
+        h.service.resolve({
+          tenantId: TENANT,
+          clerkUserId: 'user_test',
+          clientId: CLIENT,
+          mode: 'assistant',
+          strategyId: STRATEGY,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(h.gateway.requestContext).not.toHaveBeenCalled();
+    });
+
+    test('a nonexistent node fails closed before any retrieval', async () => {
+      const h = harness({ anchorRows: [] });
+      await expect(
+        h.service.resolve({
+          tenantId: TENANT,
+          clerkUserId: 'user_test',
+          clientId: CLIENT,
+          mode: 'document',
+          artifactKind: 'workspace_draft',
+          nodeId: NODE,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(h.gateway.requestContext).not.toHaveBeenCalled();
+    });
+
+    test('a node from a different Strategy fails closed before any retrieval', async () => {
+      const h = harness({
+        anchorRows: [
+          { anchor: 'strategy', anchorId: STRATEGY, clientId: CLIENT, strategyId: null },
+          { anchor: 'node', anchorId: NODE, clientId: CLIENT, strategyId: STRATEGY_B },
+        ],
+      });
+      await expect(
+        h.service.resolve({
+          tenantId: TENANT,
+          clerkUserId: 'user_test',
+          clientId: CLIENT,
+          mode: 'document',
+          artifactKind: 'workspace_draft',
+          strategyId: STRATEGY,
+          nodeId: NODE,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(h.gateway.requestContext).not.toHaveBeenCalled();
+    });
+
+    test('a node whose owning Strategy belongs to another client fails closed', async () => {
+      const h = harness({
+        anchorRows: [
+          { anchor: 'node', anchorId: NODE, clientId: CLIENT_B, strategyId: STRATEGY },
+        ],
+      });
+      await expect(
+        h.service.resolve({
+          tenantId: TENANT,
+          clerkUserId: 'user_test',
+          clientId: CLIENT,
+          mode: 'document',
+          artifactKind: 'outreach_record',
+          nodeId: NODE,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(h.gateway.requestContext).not.toHaveBeenCalled();
+    });
+
+    test('a malformed anchor id is not-found, never a cast failure', async () => {
+      const h = harness();
+      await expect(
+        h.service.resolve({
+          tenantId: TENANT,
+          clerkUserId: 'user_test',
+          clientId: CLIENT,
+          mode: 'assistant',
+          strategyId: 'not-a-uuid',
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(h.tx.$queryRaw).not.toHaveBeenCalled();
+      expect(h.gateway.requestContext).not.toHaveBeenCalled();
+    });
+
+    test('every rejected anchor uses one non-disclosing response', async () => {
+      const cases: Record<string, unknown>[][] = [
+        [],
+        [{ anchor: 'strategy', anchorId: STRATEGY, clientId: CLIENT_B, strategyId: null }],
+      ];
+      const messages = new Set<string>();
+      for (const anchorRows of cases) {
+        const h = harness({ anchorRows });
+        await h.service
+          .resolve({
+            tenantId: TENANT,
+            clerkUserId: 'user_test',
+            clientId: CLIENT,
+            mode: 'assistant',
+            strategyId: STRATEGY,
+          })
+          .catch((error: { message: string }) => messages.add(error.message));
+      }
+      // Existing-in-another-client must be indistinguishable from nonexistent.
+      expect(messages.size).toBe(1);
+      expect([...messages][0]).not.toContain(CLIENT_B);
+    });
+
+    test('a valid Strategy under the requested client is admitted', async () => {
+      const h = harness();
+      h.gateway.requestContext.mockResolvedValue(
+        gatewayResult({ type: 'strategy', id: STRATEGY }),
+      );
+      const result = await h.service.resolve({
+        tenantId: TENANT,
+        clerkUserId: 'user_test',
+        clientId: CLIENT,
+        mode: 'assistant',
+        strategyId: STRATEGY,
+      });
+      expect(result.kind).toBe('governed_packet');
+      expect(h.gateway.requestContext).toHaveBeenCalledTimes(1);
+    });
+
+    test('a valid node under a valid Strategy and client is admitted', async () => {
+      const h = harness();
+      h.gateway.requestContext.mockResolvedValue(
+        gatewayResult({ type: 'strategy_node', id: NODE }, 'workspace-gen'),
+      );
+      const result = await h.service.resolve({
+        tenantId: TENANT,
+        clerkUserId: 'user_test',
+        clientId: CLIENT,
+        mode: 'document',
+        artifactKind: 'workspace_draft',
+        strategyId: STRATEGY,
+        nodeId: NODE,
+      });
+      expect(result.kind).toBe('governed_packet');
+      expect(h.gateway.requestContext).toHaveBeenCalledTimes(1);
+    });
+
+    test('draft mode without an anchor never runs an anchor query', async () => {
+      const h = harness();
+      h.gateway.requestContext.mockResolvedValue(
+        gatewayResult({ type: 'strategy_draft', id: CLIENT }),
+      );
+      await h.service.resolve({
+        tenantId: TENANT,
+        clerkUserId: 'user_test',
+        clientId: CLIENT,
+        mode: 'draft',
+      });
+      expect(h.tx.$queryRaw).not.toHaveBeenCalled();
+    });
+
+    test('the wall/authorization path still rejects before the anchor query', async () => {
+      const h = harness({ clientFound: false });
+      await expect(
+        h.service.resolve({
+          tenantId: TENANT,
+          clerkUserId: 'user_test',
+          clientId: CLIENT,
+          mode: 'assistant',
+          strategyId: STRATEGY,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      // Client authorization is resolved first, so an unauthorized caller never
+      // reaches the sp_* projection at all.
+      expect(h.tx.$queryRaw).not.toHaveBeenCalled();
+      expect(h.gateway.requestContext).not.toHaveBeenCalled();
+    });
   });
 });

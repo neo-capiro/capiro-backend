@@ -16,6 +16,7 @@ import type {
   RetrievalRecord,
   RetrievalSourceStatus,
 } from '../retrieval/retrieval-v2.types.js';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export const PHASE_26 = 26;
@@ -23,6 +24,16 @@ const MAILBOX_PROVIDERS = ['microsoft_365', 'google_workspace', 'imap_caldav'] a
 const RECORD_CHAR_BUDGET = 1_600;
 const TOTAL_RECORD_CHAR_BUDGET = 24_000;
 const STEERING_CHAR_BUDGET = 12_000;
+/** One non-disclosing response for every inaccessible Strategy anchor. */
+const ANCHOR_NOT_FOUND = 'Strategy anchor not found';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface AnchorRow {
+  anchor: 'strategy' | 'node';
+  anchorId: string;
+  clientId: string | null;
+  strategyId: string | null;
+}
 
 export const STRATEGY_CONTEXT_DOMAINS: readonly RetrievalDomain[] = [
   'clients',
@@ -113,6 +124,11 @@ export class StrategyContextPlaneService {
   async resolve(input: StrategyContextPlaneInput): Promise<StrategyContextPlaneBundle> {
     const route = routeFor(input);
     const security = await this.securityEnvelope(input);
+    // Anchor validation runs BEFORE the resolver, Retrieval V2 and packet
+    // compilation. A string-compare after compilation is not equivalent: a
+    // mismatched anchor would already have been used as the resolver focus and
+    // recorded as packet provenance, so the only fail-closed position is here.
+    await this.assertAnchorsResolvable(input, security.userId);
     const currentObject = currentObjectFor(input);
     const task = [
       `Prepare governed context for ${route.operationId} through the Strategy product.`,
@@ -269,6 +285,85 @@ export class StrategyContextPlaneService {
         },
       },
     };
+  }
+
+  /**
+   * Fail closed on a Strategy/node anchor the caller cannot legitimately use.
+   *
+   * The bridge used to accept `strategyId`/`nodeId` unvalidated: a nonexistent
+   * anchor, an anchor owned by ANOTHER client, or a node from another Strategy
+   * still returned 201. Retrieval is SubjectScope-filtered so the packet stayed
+   * client-correct, but the request was recorded against provenance the caller
+   * never had — silent anchor degradation with no isolation invariant behind it.
+   *
+   * `sp_strategy`/`sp_node` are written only by api-strategy and carry no FK to
+   * `clients`, so the ownership edge has to be checked here, explicitly, and the
+   * tenant predicate is written out rather than left to RLS (same rule as
+   * StrategyWorkRetrievalAdapter).
+   *
+   * Every failure — unknown, archived, cross-tenant, cross-client, or a node
+   * from a different Strategy — raises the SAME NotFoundException the
+   * inaccessible-client path uses. A caller must not be able to tell that an id
+   * exists inside another client.
+   */
+  private async assertAnchorsResolvable(
+    input: StrategyContextPlaneInput,
+    userId: string,
+  ): Promise<void> {
+    const strategyId = input.strategyId?.trim() || null;
+    const nodeId = input.nodeId?.trim() || null;
+    if (!strategyId && !nodeId) return;
+
+    // A malformed id is treated as not-found rather than allowed to reach the
+    // ::uuid cast, which would surface a 500 and leak that the value was parsed.
+    if ((strategyId && !UUID.test(strategyId)) || (nodeId && !UUID.test(nodeId))) {
+      throw new NotFoundException(ANCHOR_NOT_FOUND);
+    }
+
+    const rows = await this.prisma.withTenantUser(input.tenantId, userId, (tx) =>
+      tx.$queryRaw<AnchorRow[]>(Prisma.sql`
+        SELECT 'strategy' AS anchor,
+               s.id::text AS "anchorId",
+               s.client_id::text AS "clientId",
+               NULL::text AS "strategyId"
+        FROM sp_strategy s
+        WHERE s.tenant_id = ${input.tenantId}::uuid
+          AND s.id = ${strategyId}::uuid
+          AND s.archived_at IS NULL
+        UNION ALL
+        SELECT 'node' AS anchor,
+               n.id::text AS "anchorId",
+               owner.client_id::text AS "clientId",
+               n.strategy_id::text AS "strategyId"
+        FROM sp_node n
+        JOIN sp_strategy owner
+          ON owner.tenant_id = n.tenant_id
+         AND owner.id = n.strategy_id
+         AND owner.archived_at IS NULL
+        WHERE n.tenant_id = ${input.tenantId}::uuid
+          AND n.id = ${nodeId}::uuid
+          AND n.archived_at IS NULL
+      `),
+    );
+
+    if (strategyId) {
+      const strategy = rows.find((row) => row.anchor === 'strategy');
+      // Exists, is live, is in this tenant AND belongs to the requested client.
+      if (!strategy || strategy.clientId !== input.clientId) {
+        throw new NotFoundException(ANCHOR_NOT_FOUND);
+      }
+    }
+    if (nodeId) {
+      const node = rows.find((row) => row.anchor === 'node');
+      if (!node || node.clientId !== input.clientId) {
+        throw new NotFoundException(ANCHOR_NOT_FOUND);
+      }
+      // A node from a DIFFERENT Strategy than the one the caller named is a
+      // mismatched anchor even when both sit under the requested client.
+      if (strategyId && node.strategyId !== strategyId) {
+        throw new NotFoundException(ANCHOR_NOT_FOUND);
+      }
+    }
   }
 
   private async securityEnvelope(input: StrategyContextPlaneInput): Promise<SecurityEnvelope> {

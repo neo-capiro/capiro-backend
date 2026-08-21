@@ -48,6 +48,35 @@ describe('Knowledge Plane Phase 26 production-readiness architecture', () => {
     expect(service).toContain('tx.tenantMembership.findFirst(');
     expect(service).toContain("status: 'active'");
     expect(code(service)).not.toContain('memberships: { some:');
+    // A supplied strategyId/nodeId anchor must be proven to exist, to live in
+    // this tenant, and to belong to the REQUESTED client BEFORE the resolver,
+    // Retrieval V2 and packet compilation run. Comparing ids after compilation
+    // is not equivalent: the anchor would already be the resolver focus and
+    // recorded as packet provenance. Pinned so a refactor cannot quietly drop
+    // it back to the accept-anything behavior that returned 201 (#1157).
+    const serviceSource = code(service);
+    expect(serviceSource).toContain('assertAnchorsResolvable');
+    expect(serviceSource).toContain('FROM sp_strategy s');
+    expect(serviceSource).toContain('FROM sp_node n');
+    expect(serviceSource).toContain('s.archived_at IS NULL');
+    expect(serviceSource).toContain('n.archived_at IS NULL');
+    expect(serviceSource).toContain('owner.archived_at IS NULL');
+    // Explicit tenant predicate, never left to RLS (sp_* is api-strategy-owned).
+    expect(serviceSource).toContain('s.tenant_id = ');
+    expect(serviceSource).toContain('n.tenant_id = ');
+    // Ownership edge and one non-disclosing response for every rejection.
+    expect(serviceSource).toContain('strategy.clientId !== input.clientId');
+    expect(serviceSource).toContain('node.clientId !== input.clientId');
+    expect(serviceSource).toContain('node.strategyId !== strategyId');
+    expect(serviceSource).toContain('ANCHOR_NOT_FOUND');
+    // The anchor gate must be CALLED, and called before the single Context
+    // Plane entry point. Asserting only the ordering would pass on a missing
+    // call, because indexOf returns -1 and -1 is less than any real index.
+    const gateAt = serviceSource.indexOf('await this.assertAnchorsResolvable(');
+    const requestAt = serviceSource.indexOf('this.contextPlane.requestContext');
+    expect(gateAt).toBeGreaterThan(-1);
+    expect(requestAt).toBeGreaterThan(-1);
+    expect(gateAt).toBeLessThan(requestAt);
     expect(service).toContain('memoryAccessGrants');
     expect(service).toContain('createdByUserId: user.id');
     expect(service).toContain('allowExternalLookup: false');
