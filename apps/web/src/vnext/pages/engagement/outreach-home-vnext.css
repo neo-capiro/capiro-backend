@@ -210,6 +210,47 @@
   font-size: 13px;
 }
 
+.uui-start-chooser {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uui-start-chooser__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--eng-border);
+  border-radius: 12px;
+  background: var(--eng-surface);
+  color: var(--eng-ink);
+  text-align: left;
+}
+
+.uui-start-chooser__option:hover:not(:disabled) {
+  border-color: var(--eng-accent);
+  background: var(--eng-recessed);
+}
+
+.uui-start-chooser__option svg {
+  flex-shrink: 0;
+  color: var(--eng-accent);
+}
+
+.uui-start-chooser__option strong {
+  display: block;
+  font-size: 14px;
+}
+
+.uui-start-chooser__option small {
+  display: block;
+  margin-top: 3px;
+  color: var(--eng-ink-3);
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
 .capiro-vnext-root .uui-outreach-home__skeleton {
   display: flex;
   flex-direction: column;

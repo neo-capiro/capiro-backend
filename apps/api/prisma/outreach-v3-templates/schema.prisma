@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Projection schema for the governed Templates substrate (Phase 2). The
+// application uses explicit tenant/owner/scope-scoped raw SQL for every
+// mutation and read (outreach-template.repository.ts), so Prisma's model
+// layer here exists only to keep the table CONTRACT validated — it is never
+// used at runtime for these tables. Database-only details Prisma cannot
+// express (RLS policies, append-only triggers, the published-version
+// immutability trigger, composite tenant/template FKs) are pinned by
+// verify-outreach-v3-templates-db.mjs against a real disposable Postgres 16.
+model OutreachV3Template {
+  id                       String    @id @default(uuid()) @db.Uuid
+  tenantId                 String    @map("tenant_id") @db.Uuid
+  ownerUserId              String    @map("owner_user_id") @db.Uuid
+  clientId                 String?   @map("client_id") @db.Uuid
+  scope                    String    @db.VarChar(16)
+  name                     String    @db.VarChar(160)
+  description              String?
+  campaignType             String?   @map("campaign_type") @db.VarChar(60)
+  status                   String    @default("active") @db.VarChar(16)
+  currentDraftVersionId    String?   @map("current_draft_version_id") @db.Uuid
+  publishedVersionId       String?   @map("published_version_id") @db.Uuid
+  duplicatedFromTemplateId String?   @map("duplicated_from_template_id") @db.Uuid
+  duplicatedFromVersionId  String?   @map("duplicated_from_version_id") @db.Uuid
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt               DateTime? @map("archived_at") @db.Timestamptz(6)
+
+  @@unique([id, tenantId], map: "outreach_v3_templates_id_tenant_unique")
+  @@index([tenantId, status, updatedAt], map: "outreach_v3_templates_tenant_status_idx")
+  @@map("outreach_v3_templates")
+}
+
+model OutreachV3TemplateVersion {
+  id                  String    @id @default(uuid()) @db.Uuid
+  tenantId            String    @map("tenant_id") @db.Uuid
+  templateId          String    @map("template_id") @db.Uuid
+  versionNumber       Int       @map("version_number")
+  lifecycle           String    @db.VarChar(16)
+  templateSpecJsonb   Json      @map("template_spec_jsonb")
+  contentHash         String    @map("content_hash") @db.Char(64)
+  sourceSessionId     String?   @map("source_session_id") @db.Uuid
+  sourceStateVersion  Int?      @map("source_state_version")
+  createdByUserId     String    @map("created_by_user_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  publishedAt         DateTime? @map("published_at") @db.Timestamptz(6)
+
+  @@unique([templateId, versionNumber], map: "outreach_v3_template_versions_template_id_version_number_key")
+  @@unique([id, tenantId, templateId], map: "outreach_v3_template_versions_id_tenant_template_unique")
+  @@index([templateId, versionNumber], map: "outreach_v3_template_versions_template_idx")
+  @@map("outreach_v3_template_versions")
+}
+
+model OutreachV3TemplateApplication {
+  id                     String   @id @default(uuid()) @db.Uuid
+  tenantId               String   @map("tenant_id") @db.Uuid
+  templateId             String   @map("template_id") @db.Uuid
+  templateVersionId      String   @map("template_version_id") @db.Uuid
+  sessionId              String   @unique @map("session_id") @db.Uuid
+  appliedByUserId        String   @map("applied_by_user_id") @db.Uuid
+  requestKey             String   @map("request_key") @db.Uuid
+  requestFingerprint     String   @map("request_fingerprint") @db.Char(64)
+  commandBatchJsonb      Json     @map("command_batch_jsonb")
+  templateContentHash    String   @map("template_content_hash") @db.Char(64)
+  resultingStateVersion  Int      @map("resulting_state_version")
+  receiptJsonb           Json     @map("receipt_jsonb")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, appliedByUserId, requestKey], map: "outreach_v3_template_applications_tenant_id_applied_by_us_key")
+  @@unique([id, tenantId, templateId, templateVersionId], map: "outreach_v3_template_applications_id_tenant_tv_unique")
+  @@index([templateId, createdAt], map: "outreach_v3_template_applications_template_idx")
+  @@map("outreach_v3_template_applications")
+}
+
+model OutreachV3SessionTemplateProvenance {
+  sessionId         String   @id @map("session_id") @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  templateId        String   @map("template_id") @db.Uuid
+  templateVersionId String   @map("template_version_id") @db.Uuid
+  applicationId     String   @unique @map("application_id") @db.Uuid
+  appliedByUserId   String   @map("applied_by_user_id") @db.Uuid
+  appliedAt         DateTime @default(now()) @map("applied_at") @db.Timestamptz(6)
+
+  @@index([tenantId, templateId, appliedAt], map: "outreach_v3_session_template_provenance_template_idx")
+  @@map("outreach_v3_session_template_provenance")
+}
+
+model OutreachV3TemplateAuditLog {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  actorUserId       String   @map("actor_user_id") @db.Uuid
+  action            String   @db.VarChar(32)
+  templateId        String?  @map("template_id") @db.Uuid
+  templateVersionId String?  @map("template_version_id") @db.Uuid
+  scope             String?  @db.VarChar(16)
+  outcome           String   @db.VarChar(16)
+  reasonCode        String?  @map("reason_code") @db.VarChar(80)
+  safeMetadata      Json     @default("{}") @map("safe_metadata")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([tenantId, createdAt], map: "outreach_v3_template_audit_log_tenant_created_idx")
+  @@map("outreach_v3_template_audit_log")
+}

@@ -18,6 +18,7 @@ import type {
   OutreachV3TranscriptTurn,
 } from './contracts.js';
 import type { OutreachV3TargetProfileResponse } from './target-intelligence-contracts.js';
+import { getOutreachTemplateProvenance } from '../../../../vnext/pages/engagement/outreach-v3-template-api.js';
 import {
   applyOutreachV3Commands,
   applyOutreachV3Proposal,
@@ -288,6 +289,17 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
     enabled: Boolean(sessionId),
     queryFn: () => getOutreachV3Session(api, sessionId!),
     retry: false,
+  });
+
+  // Purely additive, read-only lookup for the "From template · name · vN"
+  // marker (closeout runbook 7.6). Most sessions have no template origin —
+  // a null result is the normal case, never surfaced as an error.
+  const templateProvenanceQuery = useQuery({
+    queryKey: ['outreach-v3', 'template-provenance', sessionId],
+    enabled: Boolean(sessionId),
+    queryFn: () => getOutreachTemplateProvenance(api, sessionId!),
+    retry: false,
+    staleTime: 60_000,
   });
 
   useEffect(() => {
@@ -679,6 +691,7 @@ export function useOutreachV3Session(options: UseOutreachV3SessionOptions = {}) 
   return {
     sessionId,
     session,
+    templateProvenance: templateProvenanceQuery.data ?? null,
     stage,
     isBootstrapping: bootstrap.isLoading || (Boolean(sessionId) && sessionQuery.isLoading),
     /** True when this hook instance is pinned by its caller (no self-create). */

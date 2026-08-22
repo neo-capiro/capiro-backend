@@ -26,6 +26,7 @@ export function OutreachTemplateSaveDialog({
   const qc = useQueryClient();
   const [name, setName] = useState(`${defaultName} template`);
   const [description, setDescription] = useState('');
+  const [campaignType, setCampaignType] = useState('');
   const [scope, setScope] = useState<OutreachTemplateScope>(selectedClientId ? 'client' : 'private');
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [version, setVersion] = useState<OutreachTemplateVersion | null>(null);
@@ -37,6 +38,7 @@ export function OutreachTemplateSaveDialog({
       sessionId,
       name: name.trim(),
       description: description.trim() || null,
+      campaignType: campaignType.trim() || null,
       scope,
       clientId: scope === 'client' ? selectedClientId : null,
     }),
@@ -92,6 +94,7 @@ export function OutreachTemplateSaveDialog({
         <div className="uui-template-dialog-fields">
           <label>Name<input autoFocus value={name} onChange={(event) => setName(event.target.value)} maxLength={160} /></label>
           <label>Description<textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} maxLength={1000} /></label>
+          <label>Campaign type<input value={campaignType} onChange={(event) => setCampaignType(event.target.value)} maxLength={60} placeholder="e.g. Funding ask" /></label>
           <label>Access<select value={scope} onChange={(event) => setScope(event.target.value as OutreachTemplateScope)}><option value="private">Only me</option><option value="firm">The firm</option><option value="client" disabled={!selectedClientId}>This client</option></select></label>
         </div>
       )}

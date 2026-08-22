@@ -14,9 +14,11 @@ import {
   Plus,
   RotateCcw,
   Send,
+  Sparkles,
   Users,
 } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
+import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
 import {
   archiveOutreachV3Session,
   createOutreachV3Session,
@@ -28,6 +30,47 @@ import {
 } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import { VNextOutreachTemplates } from './VNextOutreachTemplates.js';
 import './outreach-home-vnext.css';
+
+/**
+ * Truthful entry choice (closeout runbook 7.1) — "Use a template" hands off
+ * to the real Templates library rather than duplicating template browsing
+ * inside a dialog. "Repeat a previous campaign" has no backend this phase,
+ * so it is deliberately omitted rather than shown as a dead control.
+ */
+function StartCampaignChooser({
+  creating,
+  onUseTemplate,
+  onFromScratch,
+  onClose,
+}: {
+  creating: boolean;
+  onUseTemplate: () => void;
+  onFromScratch: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <EngagementDialog
+      open
+      eyebrow="Start a campaign"
+      title="How would you like to start?"
+      width={480}
+      busy={creating}
+      onClose={onClose}
+      footer={<button type="button" className="uui-button" onClick={onClose}>Cancel</button>}
+    >
+      <div className="uui-start-chooser">
+        <button type="button" className="uui-start-chooser__option" onClick={onUseTemplate}>
+          <FileText size={20} />
+          <span><strong>Use a template</strong><small>Apply a governed playbook — recipients, context, and approvals refresh fresh.</small></span>
+        </button>
+        <button type="button" className="uui-start-chooser__option" disabled={creating} onClick={onFromScratch}>
+          <Sparkles size={20} />
+          <span><strong>Start from scratch</strong><small>An empty campaign with no reusable defaults applied.</small></span>
+        </button>
+      </div>
+    </EngagementDialog>
+  );
+}
 
 export interface VNextOutreachHomeProps {
   onOpenCampaign: (sessionId: string) => void;
@@ -99,6 +142,7 @@ export function VNextOutreachHome({
   const [filter, setFilter] = useState<HomeFilter>('all');
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showChooser, setShowChooser] = useState(false);
 
   const campaigns = useQuery({
     queryKey: ['outreach-v3', 'sessions', 'home'],
@@ -178,7 +222,7 @@ export function VNextOutreachHome({
                 {campaigns.isFetching ? <Loader2 className="uui-spin" size={14} /> : <RotateCcw size={14} />}
                 Refresh
               </button>
-              <button type="button" className="uui-button--primary uui-outreach-home__new" disabled={create.isPending} onClick={() => create.mutate()}>
+              <button type="button" className="uui-button--primary uui-outreach-home__new" disabled={create.isPending} onClick={() => setShowChooser(true)}>
                 {create.isPending ? <Loader2 className="uui-spin" size={16} /> : <Plus size={16} />}
                 New campaign
               </button>
@@ -210,7 +254,7 @@ export function VNextOutreachHome({
               <Mail size={26} />
               <strong>{rows.length === 0 ? 'No campaigns yet' : `No ${activeFilterLabel} campaigns`}</strong>
               <p>{rows.length === 0 ? 'Start a governed campaign: goal, targets, delivery, context, immutable drafts, preflight, send.' : 'Nothing in this view. Switch the filter above, or start a new campaign.'}</p>
-              <button type="button" className="uui-button--primary" disabled={create.isPending} onClick={() => create.mutate()}><Plus size={16} />New campaign</button>
+              <button type="button" className="uui-button--primary" disabled={create.isPending} onClick={() => setShowChooser(true)}><Plus size={16} />New campaign</button>
             </div>
           ) : null}
 
@@ -247,6 +291,15 @@ export function VNextOutreachHome({
           ) : null}
         </>
       )}
+
+      {showChooser ? (
+        <StartCampaignChooser
+          creating={create.isPending}
+          onClose={() => setShowChooser(false)}
+          onUseTemplate={() => { setShowChooser(false); setView('templates'); }}
+          onFromScratch={() => { setShowChooser(false); create.mutate(); }}
+        />
+      ) : null}
     </div>
   );
 }

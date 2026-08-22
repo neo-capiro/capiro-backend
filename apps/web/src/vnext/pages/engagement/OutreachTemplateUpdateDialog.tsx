@@ -6,8 +6,11 @@ import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementD
 import { safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import {
   createOutreachTemplateVersionFromSession,
+  diffOutreachTemplateSpecs,
+  getOutreachTemplate,
   listOutreachTemplates,
   publishOutreachTemplate,
+  type OutreachTemplateSpecFieldDiff,
   type OutreachTemplateVersion,
 } from './outreach-v3-template-api.js';
 
@@ -42,10 +45,23 @@ export function OutreachTemplateUpdateDialog({
     () => manageable.find((template) => template.id === selectedId) ?? null,
     [selectedId, manageable],
   );
+  const [diff, setDiff] = useState<OutreachTemplateSpecFieldDiff[] | null>(null);
   const createVersion = useMutation({
-    mutationFn: () => createOutreachTemplateVersionFromSession(api, selectedId, sessionId),
-    onSuccess: async (result) => {
+    mutationFn: async () => {
+      // Read the current best-known spec BEFORE creating the new version, so
+      // the receipt can show a meaningful before/after (closeout runbook
+      // 6.11/7.6) — this detail read is authorized the same way `selected`
+      // itself was (canCreateVersion implies canInspect).
+      const before = await getOutreachTemplate(api, selectedId, selectedClientId);
+      const beforeSpec = before.versions.find((v) => v.id === (before.template.currentDraftVersionId ?? before.template.publishedVersionId))?.spec
+        ?? before.versions[0]?.spec
+        ?? null;
+      const result = await createOutreachTemplateVersionFromSession(api, selectedId, sessionId);
+      return { result, beforeSpec };
+    },
+    onSuccess: async ({ result, beforeSpec }) => {
       setVersion(result.version);
+      setDiff(beforeSpec ? diffOutreachTemplateSpecs(beforeSpec, result.version.spec) : null);
       setError(null);
       await qc.invalidateQueries({ queryKey: ['outreach-v3', 'templates'] });
     },
@@ -85,11 +101,25 @@ export function OutreachTemplateUpdateDialog({
       )}
     >
       {version ? (
-        <div className="ov3p1-template-receipt">
-          <span>{published ? <ShieldCheck size={20} /> : <Check size={20} />}</span>
-          <div><strong>{selected?.name ?? 'Template'}</strong><p>Version {version.versionNumber} · {published ? 'published' : 'draft'} · source V{version.sourceStateVersion ?? '—'}</p></div>
-          <p>The prior published version remains in immutable history.</p>
-        </div>
+        <>
+          <div className="ov3p1-template-receipt">
+            <span>{published ? <ShieldCheck size={20} /> : <Check size={20} />}</span>
+            <div><strong>{selected?.name ?? 'Template'}</strong><p>Version {version.versionNumber} · {published ? 'published' : 'draft'} · source V{version.sourceStateVersion ?? '—'}</p></div>
+            <p>The prior published version remains in immutable history.</p>
+          </div>
+          {diff && diff.length ? (
+            <div className="uui-template-diff">
+              {diff.map((row) => (
+                <div key={row.field} className="uui-template-diff-row">
+                  <span>{row.field}</span>
+                  <span className="before">{row.before}</span>
+                  <span>→</span>
+                  <span className="after">{row.after}</span>
+                </div>
+              ))}
+            </div>
+          ) : diff ? <p>No reusable-field changes from the current version.</p> : null}
+        </>
       ) : (
         <div className="uui-template-dialog-fields">
           <label>Template<select autoFocus value={selectedId} onChange={(event) => setSelectedId(event.target.value)}><option value="">Choose a template</option>{manageable.map((template) => <option key={template.id} value={template.id}>{template.name} · {template.publishedVersionNumber ? `published v${template.publishedVersionNumber}` : 'draft only'}</option>)}</select></label>
