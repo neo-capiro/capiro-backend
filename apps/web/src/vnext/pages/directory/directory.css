@@ -720,6 +720,68 @@
   background: var(--uui-gray-300);
 }
 
+/* XYFlow replaces the hand-drawn connector grid with a calm, pannable canvas.
+   Keep the node anatomy shared with the rest of Directory so the chart feels
+   native rather than like a third-party embed. */
+.capiro-vnext-root .capiro-directory-flow-wrap {
+  position: relative;
+  height: clamp(500px, 58vw, 680px);
+  min-height: 500px;
+  overflow: hidden;
+  background: var(--uui-white);
+}
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow { background: var(--uui-white); }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__pane { cursor: grab; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__pane:active { cursor: grabbing; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node { width: 240px; border: 0; background: transparent; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node-committee { width: 340px; }
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-flow-node { width: 100%; max-width: none; pointer-events: none; }
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee {
+  padding: 16px;
+  background: var(--uui-gray-900);
+  box-shadow: var(--uui-shadow-elevation);
+}
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__name { color: var(--uui-white); }
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__kind,
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__meta { color: var(--uui-chrome-label-idle); }
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__mark { background: var(--uui-chrome-item-active-bg); color: var(--uui-white); }
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--leadership { border-left: 3px solid var(--capiro-color-text-accent); }
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--unit { border-left: 3px solid var(--uui-gray-400); }
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--staff { border: 1px solid var(--uui-gray-200); box-shadow: var(--uui-shadow-card); }
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--former { opacity: 0.65; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__edge-path { stroke: var(--uui-gray-300); stroke-width: 1.5; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__controls {
+  overflow: hidden;
+  border: 1px solid var(--uui-gray-200);
+  border-radius: var(--uui-radius-control);
+  box-shadow: var(--uui-shadow-card);
+}
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__controls-button {
+  width: 30px;
+  height: 30px;
+  border-bottom: 1px solid var(--uui-gray-200);
+  background: var(--uui-white);
+  fill: var(--uui-gray-600);
+}
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__controls-button:hover { background: var(--uui-gray-50); }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__attribution { display: none; }
+.capiro-vnext-root .capiro-directory-flow-note {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  z-index: 5;
+  max-width: 420px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--uui-gray-200);
+  border-radius: var(--uui-radius-control);
+  background: var(--uui-white);
+  box-shadow: var(--uui-shadow-card);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--uui-gray-600);
+}
+
 .capiro-vnext-root .capiro-directory-node {
   display: flex;
   align-items: flex-start;
