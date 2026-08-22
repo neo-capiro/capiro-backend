@@ -15,7 +15,6 @@ describe('LiveHearingsPhase7Controller', () => {
       browserJoin: jest.fn().mockResolvedValue({ mode: 'ATTACH_CANONICAL' }),
       recordings: jest.fn().mockResolvedValue({ rows: [], total: 0 }),
       archive: jest.fn().mockResolvedValue({ rows: [], total: 0 }),
-      intelligenceSeam: jest.fn().mockResolvedValue({ status: 'PHASE_8_PERSISTENCE_NOT_ENABLED' }),
     };
     const scheduleGuard = {
       assertSchedulable: jest.fn().mockResolvedValue({ allowed: true }),
@@ -23,15 +22,20 @@ describe('LiveHearingsPhase7Controller', () => {
     const publicGuard = {
       assertPublic: jest.fn().mockResolvedValue(undefined),
     };
+    const phase8 = {
+      intelligence: jest.fn().mockResolvedValue({ status: 'READY', items: [] }),
+    };
     return {
       controller: new LiveHearingsPhase7Controller(
         service as never,
         scheduleGuard as never,
         publicGuard as never,
+        phase8 as never,
       ),
       service,
       scheduleGuard,
       publicGuard,
+      phase8,
     };
   }
 
@@ -83,10 +87,17 @@ describe('LiveHearingsPhase7Controller', () => {
     expect(service.archive).toHaveBeenCalledWith(ctx, { page: 3, pageSize: 10, q: 'budget' });
   });
 
-  it('keeps Phase 8 intelligence explicit rather than fabricating data', async () => {
-    const { controller } = fixture();
-    await expect(controller.intelligence('h-1')).resolves.toMatchObject({
-      status: 'PHASE_8_PERSISTENCE_NOT_ENABLED',
+  it('promotes the established intelligence route to the tenant-aware Phase 8 service', async () => {
+    const { controller, phase8 } = fixture();
+    const query = {
+      cursor: 'cursor',
+      limit: 50,
+      clientId: '00000000-0000-0000-0000-000000000001',
+      onlyRelevant: true,
+    };
+    await expect(controller.intelligence(ctx, 'h-1', query)).resolves.toMatchObject({
+      status: 'READY',
     });
+    expect(phase8.intelligence).toHaveBeenCalledWith(ctx, 'h-1', query);
   });
 });
