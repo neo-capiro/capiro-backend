@@ -23,7 +23,23 @@ describe('LiveHearingsPhase7Controller', () => {
       assertPublic: jest.fn().mockResolvedValue(undefined),
     };
     const phase8 = {
-      intelligence: jest.fn().mockResolvedValue({ status: 'READY', items: [] }),
+      intelligence: jest.fn().mockResolvedValue({
+        status: 'READY',
+        items: [
+          {
+            id: 'phi-1',
+            title: 'Commitment',
+            summary: 'The witness committed to provide a report.',
+            evidence: {
+              segmentId: 'segment-1',
+              sequence: 7,
+              startMs: 10_000,
+              endMs: 14_000,
+              text: 'We will provide that report.',
+            },
+          },
+        ],
+      }),
     };
     return {
       controller: new LiveHearingsPhase7Controller(
@@ -87,7 +103,7 @@ describe('LiveHearingsPhase7Controller', () => {
     expect(service.archive).toHaveBeenCalledWith(ctx, { page: 3, pageSize: 10, q: 'budget' });
   });
 
-  it('promotes the established intelligence route to the tenant-aware Phase 8 service', async () => {
+  it('promotes the established intelligence route while preserving legacy transcript aliases', async () => {
     const { controller, phase8 } = fixture();
     const query = {
       cursor: 'cursor',
@@ -97,6 +113,16 @@ describe('LiveHearingsPhase7Controller', () => {
     };
     await expect(controller.intelligence(ctx, 'h-1', query)).resolves.toMatchObject({
       status: 'READY',
+      items: [
+        {
+          id: 'phi-1',
+          evidenceText: 'We will provide that report.',
+          segmentId: 'segment-1',
+          startMs: 10_000,
+          endMs: 14_000,
+          evidence: { sequence: 7 },
+        },
+      ],
     });
     expect(phase8.intelligence).toHaveBeenCalledWith(ctx, 'h-1', query);
   });
