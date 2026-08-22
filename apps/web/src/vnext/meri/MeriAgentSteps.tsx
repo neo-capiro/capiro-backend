@@ -14,22 +14,10 @@ import { MeriIcon, type MeriIconName } from './meri-icons.js';
 
 const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
 
-interface StepTone {
-  state: string;
-  icon: MeriIconName;
-  dotBg: string;
-  dotFg: string;
-  pillBg: string;
-  pillFg: string;
-  ring: string;
-  halo?: string;
-  spin?: boolean;
-}
-
-const STEP_TONE: Record<TrustStep['status'], StepTone> = {
-  done: { state: 'DONE', icon: 'Check', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F0EB', pillFg: '#344054', ring: '#E8E5DF' },
-  running: { state: 'RUNNING', icon: 'Loading01', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F0EB', pillFg: '#101828', ring: '#E0DCD4', halo: '0 0 0 3px #F2F0EB', spin: true },
-  error: { state: 'FAILED', icon: 'XClose', dotBg: '#FEF3F2', dotFg: '#B42318', pillBg: '#FEF3F2', pillFg: '#B42318', ring: '#FECDCA' },
+const STEP_TONE: Record<TrustStep['status'], { state: string; icon: MeriIconName; spin?: boolean }> = {
+  done:    { state: 'DONE',    icon: 'Check' },
+  running: { state: 'RUNNING', icon: 'Loading01', spin: true },
+  error:   { state: 'FAILED',  icon: 'XClose' },
 };
 
 export function MeriAgentSteps({ steps }: { steps: TrustStep[] }) {
@@ -41,35 +29,14 @@ export function MeriAgentSteps({ steps }: { steps: TrustStep[] }) {
         return (
           <div
             key={`${step.tool}-${index}`}
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 11,
-              padding: '11px 13px',
-              borderRadius: 9,
-              background: '#ffffff',
-              border: `1px solid ${tone.ring}`,
-              boxShadow: tone.halo,
-            }}
+            className="meri-agent-step"
+            data-status={step.status}
           >
-            <span
-              className={`vnext-meri__work-step-icon${tone.spin ? ' is-running' : ''}`}
-              style={{
-                flex: '0 0 auto',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 20,
-                height: 20,
-                marginTop: 1,
-                borderRadius: 9999,
-                background: tone.dotBg,
-              }}
-            >
-              <MeriIcon name={tone.icon} size={11} color={tone.dotFg} />
+            <span className={`meri-agent-step__dot${tone.spin ? ' is-running' : ''}`}>
+              <MeriIcon name={tone.icon} size={11} />
             </span>
             <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 13, lineHeight: '19px', fontWeight: 500, color: '#101828' }}>
+              <span style={{ fontSize: 13, lineHeight: '19px', fontWeight: 500 }}>
                 {step.label}
               </span>
               {step.detail ? (
@@ -78,24 +45,7 @@ export function MeriAgentSteps({ steps }: { steps: TrustStep[] }) {
                 </span>
               ) : null}
             </span>
-            <span
-              style={{
-                flex: '0 0 auto',
-                display: 'inline-flex',
-                alignItems: 'center',
-                height: 20,
-                padding: '0 7px',
-                borderRadius: 5,
-                background: tone.pillBg,
-                fontFamily: MONO,
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: '.08em',
-                color: tone.pillFg,
-              }}
-            >
-              {tone.state}
-            </span>
+            <span className="meri-agent-step__pill">{tone.state}</span>
           </div>
         );
       })}
