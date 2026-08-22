@@ -9,6 +9,7 @@
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
     "test": "jest --detectOpenHandles --forceExit",
+    "hearing-intelligence:start": "node dist/hearing/intelligence/run-hearing-intelligence.js --loop",
     "hearing-intelligence:once": "tsx src/hearing/intelligence/run-hearing-intelligence.ts",
     "hearing-intelligence:drain": "tsx src/hearing/intelligence/run-hearing-intelligence.ts --drain",
     "hearing-intelligence:loop": "tsx src/hearing/intelligence/run-hearing-intelligence.ts --loop",
