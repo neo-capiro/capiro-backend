@@ -99,6 +99,52 @@ const STAFF_DETAIL = {
   availability: { photo: 'not_provided' as const, socialContacts: 'not_provided' as const },
 };
 
+/** Minimal MemberDetail payload — enough for MemberDetailModalVNext to render a name. */
+function memberDetail(id: string, name: string) {
+  const [firstName, ...rest] = name.split(' ');
+  return {
+    kind: 'member' as const,
+    id,
+    source: { snapshotId: 'snap-1', memberId: 1, lastUpdatedAt: null },
+    identity: {
+      memberId: 1,
+      bioguideId: 'B000000',
+      icpsrId: null,
+      lisMemberId: null,
+      firstName,
+      lastName: rest.join(' '),
+      preferredFirstName: null,
+      preferredLastName: null,
+      suffix: null,
+      gender: null,
+    },
+    bioDetails: {
+      dob: null,
+      dateOfDeath: null,
+      placeOfBirth: null,
+      hometown: null,
+      nativeOf: null,
+      majMin: null,
+      partyName: null,
+      occupation: null,
+      pronunciation: null,
+      raceName: null,
+      religionName: null,
+    },
+    photos: [],
+    selectedPhotoUrl: null,
+    photoSource: null,
+    offices: [],
+    officeAddresses: [],
+    committees: [],
+    leaderships: [],
+    socialContacts: [],
+    staffRoles: [],
+    staffIssues: [],
+    enrichments: { bioOverlay: false, pressOverlay: false },
+  };
+}
+
 type Unit = { id: string; officeId: number; name: string; kind: string };
 
 /**
@@ -122,6 +168,12 @@ function mockHappy(
       return Promise.resolve({ data: { committees: [COMMITTEE], total: 1, page: 1, pageSize: 200 } });
     if (typeof url === 'string' && url.includes('/staffers/'))
       return Promise.resolve({ data: STAFF_DETAIL });
+    const memberMatch = typeof url === 'string' ? /\/api\/directory\/members\/([^/]+)$/.exec(url) : null;
+    if (memberMatch) {
+      const id = decodeURIComponent(memberMatch[1] ?? '');
+      const name = id === 'm-1' ? 'Chair Person' : id === 'm-2' ? 'Ranking Member' : id;
+      return Promise.resolve({ data: memberDetail(id, name) });
+    }
     const staffMatch = typeof url === 'string' ? /\/api\/directory\/committees\/([^/]+)\/staff$/.exec(url) : null;
     if (staffMatch) {
       const id = decodeURIComponent(staffMatch[1] ?? '');
@@ -236,12 +288,15 @@ describe('Committee Staff vNext', () => {
     expect(node.className).toContain('capiro-directory-node--former');
   });
 
-  test('clicking committee leadership navigates to the member profile (no staffer-depth modal for members yet)', async () => {
+  test('clicking committee leadership opens their profile in a modal, without navigating away', async () => {
     mockHappy([staffer()]);
     renderAt('/directory/committee-staff');
     await waitFor(() => expect(screen.getByText('Chair Person')).toBeTruthy());
     fireEvent.click(screen.getByText('Chair Person'));
-    expect(navigate).toHaveBeenCalledWith('/directory/members/m-1');
+    // Same treatment staff cards already got: a modal fetches the member's own
+    // detail resource, and the diagram stays mounted underneath — no route change.
+    await waitFor(() => expect(screen.getAllByText('Chair Person').length).toBeGreaterThan(1));
+    expect(navigate).not.toHaveBeenCalled();
   });
 
   test('hierarchy view annotates the one affordance that is still not source-backed', async () => {

@@ -1382,12 +1382,30 @@
   letter-spacing: 0.6px;
 }
 
+/* The org-chart's own "Open profile →" affordance only appears on hover or
+   selection — it earns its place as an affordance, not a permanent label
+   sitting on every row. The row/card surfaces (Congressional Staff, Committee
+   Staff roster, DoW, State Legislators) share the exact same treatment here,
+   so a person-row feels like the same kit control everywhere in Directory,
+   hierarchy diagram or not. */
 .capiro-vnext-root .capiro-directory-cell__action {
   font-family: var(--uui-font-family);
   font-size: 12.5px;
   line-height: 18px;
   color: var(--capiro-color-text-accent);
   white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+.capiro-vnext-root .capiro-directory-row:hover .capiro-directory-cell__action,
+.capiro-vnext-root .capiro-directory-row:focus-within .capiro-directory-cell__action,
+.capiro-vnext-root .capiro-directory-row--selected .capiro-directory-cell__action,
+.capiro-vnext-root .capiro-directory-row__select:hover .capiro-directory-cell__action,
+.capiro-vnext-root .capiro-directory-row__select:focus-visible .capiro-directory-cell__action,
+.capiro-vnext-root .capiro-directory-leg-card:hover .capiro-directory-cell__action,
+.capiro-vnext-root .capiro-directory-leg-card:focus-visible .capiro-directory-cell__action,
+.capiro-vnext-root .capiro-directory-leg-card--selected .capiro-directory-cell__action {
+  opacity: 1;
 }
 
 /* ── Selected profile rail (937:2853) ───────────────────────────────────────

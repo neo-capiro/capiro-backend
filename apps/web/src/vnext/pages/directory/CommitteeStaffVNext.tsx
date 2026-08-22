@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Background,
   Controls,
@@ -22,6 +21,7 @@ import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../compon
 import { IdentityMark } from '../../components/identity/index.js';
 import { DirectoryShell } from './DirectoryShell.js';
 import { DirectoryFilterPill } from './DirectoryFilterPill.js';
+import { MemberDetailModalVNext } from './MemberDetailModalVNext.js';
 import { StaffProfileModalVNext } from './StaffProfileModalVNext.js';
 import {
   useCommitteeStaffModel,
@@ -65,6 +65,11 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
   // a modal, not the navigate-away `selection.onOpenProfile` the model exposes
   // (that's kept for callers that still want a real route, e.g. a bookmark).
   const [modalStaffId, setModalStaffId] = useState<string | null>(null);
+  // Same idea for the Chair/Ranking Member leadership cards in the hierarchy
+  // canvas: clicking one used to navigate away to the full member-profile
+  // page, losing your place in the org chart — the one gap staff cards didn't
+  // have. Now it opens in a modal too, exactly like a staff card does.
+  const [modalMemberId, setModalMemberId] = useState<string | null>(null);
 
   return (
     <DirectoryShell
@@ -146,7 +151,7 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
       </div>
 
       {view.current === 'hierarchy' ? (
-        <HierarchyView model={model} onOpenStaffProfile={setModalStaffId} />
+        <HierarchyView model={model} onOpenStaffProfile={setModalStaffId} onOpenMemberProfile={setModalMemberId} />
       ) : (
         <div className="capiro-directory-split">
           <div
@@ -211,6 +216,11 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
         staffId={modalStaffId}
         open={modalStaffId !== null}
         onClose={() => setModalStaffId(null)}
+      />
+      <MemberDetailModalVNext
+        memberId={modalMemberId}
+        open={modalMemberId !== null}
+        onClose={() => setModalMemberId(null)}
       />
     </DirectoryShell>
   );
@@ -703,12 +713,13 @@ function CommitteeOrgChart({
 function HierarchyView({
   model,
   onOpenStaffProfile,
+  onOpenMemberProfile,
 }: {
   model: CommitteeStaffModel;
   onOpenStaffProfile: (staffId: string) => void;
+  onOpenMemberProfile: (memberId: string) => void;
 }) {
   const { committee, results, selection } = model;
-  const navigate = useNavigate();
   const detail = committee.detail;
   const leaders: Array<{ role: string; memberRef: { id: string; name?: string | null } | null }> = [];
   if (detail?.chair) leaders.push({ role: 'Committee Chair', memberRef: detail.chair });
@@ -744,7 +755,7 @@ function HierarchyView({
                 selection.onToggle(id);
                 onOpenStaffProfile(id);
               }}
-              onOpenMember={(id) => navigate(`/directory/members/${id}`)}
+              onOpenMember={onOpenMemberProfile}
             />
           </ReactFlowProvider>
           <div className="capiro-directory-legend">
