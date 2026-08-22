@@ -10,19 +10,30 @@ import './vnext-onboarding.css';
  * semantics and the callout placement math are identical — only the
  * presentation moves to vNext tokens.
  *
- * Spotlighting: the legacy tour resolves `[data-tour]` markers and highlights
- * the enclosing antd menu row (`.ant-menu-item`). The vNext shell
- * (AppShellUui) exposes NO `[data-tour]` markers today — its rail is
- * protected chrome — so on this surface every step resolves to null and the
- * callout uses the fixed fallback placement, exactly what the legacy
- * component already does when mounted under VNextApp. The generic marker
- * lookup (without the antd-specific `closest`) is kept so the spotlight
- * lights up if vNext chrome ever grows markers.
+ * Spotlighting: OB_TOUR step nav values ('Dashboard', 'Meri', 'Portfolio',
+ * etc.) are mapped to the vNext AppShellUui data-tour markers
+ * ('nav-dashboard', 'nav-meri', 'nav-portfolio') via VNEXT_NAV_MAP below.
+ * Steps without a mapping resolve to null and the callout is not shown,
+ * keeping the generic lookup in resolveTourTarget without antd-specific
+ * closest() wiring.
  */
+
+/**
+ * Maps OB_TOUR step .nav values to the data-tour attribute values used by
+ * AppShellUui. The legacy DashboardTour uses the same OB_TOUR nav values
+ * directly against antd menu items; this local map keeps both tours in sync
+ * without modifying the shared onboarding-shared.ts source of truth.
+ */
+const VNEXT_NAV_MAP: Readonly<Record<string, string>> = {
+  Dashboard: 'nav-dashboard',
+  Portfolio: 'nav-portfolio',
+  Meri: 'nav-meri',
+};
 
 /** Resolve the element to spotlight/measure for a tour step. */
 function resolveTourTarget(nav: string): Element | null {
-  return document.querySelector(`[data-tour="${nav}"]`);
+  const selector = VNEXT_NAV_MAP[nav] ?? nav;
+  return document.querySelector(`[data-tour="${selector}"]`);
 }
 
 export function VNextDashboardTour({
@@ -77,7 +88,15 @@ export function VNextDashboardTour({
     arrow: React.CSSProperties;
   };
   if (!rect) {
-    place = { style: { top: 130, left: 228 }, arrow: { left: -7, top: 42 } };
+    // No marker resolved — skip rendering the callout for this step.
+    // All wired steps (Dashboard, Portfolio, Meri) have markers in AppShellUui;
+    // unwired steps (Engagement, Workspace, Directory, Intelligence) produce
+    // no callout rather than a stale hardcoded pixel position.
+    return (
+      <>
+        <div className="vnext-ob-tour-scrim" />
+      </>
+    );
   } else if (rect.top > vh * 0.55) {
     // bottom-anchored target → callout above, arrow points down
     const left = Math.max(16, Math.min(rect.right - W, vw - W - 16));
