@@ -5,7 +5,7 @@ import { AudioOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/ic
 import { useIntelFeature } from '../../lib/intel-feature-flags.js';
 import LegacyRadarPage from './LegacyRadarPage.js';
 import { LiveHearingsPage } from './live-hearings/LiveHearingsPage.js';
-import { LiveHearingsPhase7Surface } from './live-hearings/LiveHearingsPhase7Surface.js';
+import { LiveHearingsPhase8Surface } from './live-hearings/LiveHearingsPhase8Surface.js';
 import { LiveHearingsV2BroadcastPanel } from './live-hearings/LiveHearingsV2BroadcastPanel.js';
 import { LiveHearingsV2CoverageDrawer } from './live-hearings/LiveHearingsV2CoverageDrawer.js';
 import {
@@ -70,9 +70,10 @@ function sectionForTab(tab: LegacyRadarTab): LegiWatchSection {
 /**
  * LegiWatch information architecture.
  *
- * The validated V2 tenant flag now opens the complete Phase 7 Live Hearings
- * surface. The legacy hearing surface remains available as the fail-closed
- * rollback path, while Bill Tracker and Settings keep their existing routes.
+ * The validated V2 tenant flag opens the Phase 8 composition: the complete
+ * Phase 7 hearing product plus evidence-bound public intelligence and private
+ * client relevance. The legacy surface remains the fail-closed rollback path;
+ * Bill Tracker and Settings keep their existing routes and implementation.
  */
 export function RadarPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -191,7 +192,7 @@ export function RadarPage() {
             <>
               <LiveHearingsV2CoverageDrawer />
               {phase7EventId ? <LiveHearingsV2BroadcastPanel hearingId={phase7EventId} /> : null}
-              <LiveHearingsPhase7Surface />
+              <LiveHearingsPhase8Surface />
             </>
           ) : (
             <LiveHearingsPage />
