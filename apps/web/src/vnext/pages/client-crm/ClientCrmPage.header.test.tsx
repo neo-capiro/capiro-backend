@@ -129,7 +129,14 @@ describe('ClientCrmPage header wiring', () => {
 
     // Clicking through still fires a real run, not a fabricated toast.
     fireEvent.click(startButton);
-    await waitFor(() => expect(postMock).toHaveBeenCalledWith(expect.stringContaining('/fill-with-meri/runs'), {}));
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith(
+        expect.stringContaining('/fill-with-meri/runs'),
+        // Prefills the live client website when one is on the profile; empty
+        // body is only correct when the client has no website recorded.
+        expect.objectContaining({ website: 'overland.ai' }),
+      ),
+    );
   });
 
   it('opens the real ClientDataHealthDrawer (not the fixture) from the profile-gap crumb', async () => {

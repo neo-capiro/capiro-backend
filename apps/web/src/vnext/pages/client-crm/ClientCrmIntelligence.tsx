@@ -49,9 +49,8 @@ export function ClientCrmIntelligence({
       return <FootprintView client={client} />;
     case 'district':
       return <DistrictView client={client} />;
-    case 'overview':
     default:
-      return <IntelOverview client={client} />;
+      return <LegislativeView client={client} />;
   }
 }
 
@@ -163,99 +162,6 @@ function Rows({
         </li>
       ))}
     </ul>
-  );
-}
-
-/* ───────────────────────────── 906:3930 Overview ─────────────────────────── */
-
-function IntelOverview({ client }: { client: Client }) {
-  const api = useApi();
-  const navigate = useNavigate();
-
-  const health = useQuery({
-    queryKey: ['client-health-score', client.id],
-    queryFn: async () =>
-      (await api.get<{ score?: number; components?: Array<{ label: string; value: number }> }>(
-        `/api/intelligence/clients/${client.id}/health-score`,
-      )).data,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const changes = useQuery({
-    queryKey: ['intel-changes-snap', client.id],
-    queryFn: async () => {
-      const since = new Date();
-      since.setDate(since.getDate() - 7);
-      return (
-        await api.get<Array<{ id: string; title: string; severity: string }>>(
-          '/api/intelligence/changes',
-          { params: { clientId: client.id, since: since.toISOString() } },
-        )
-      ).data;
-    },
-    staleTime: 2 * 60 * 1000,
-  });
-
-  return (
-    <Screen
-      title="Intelligence overview"
-      sub="What changed for this client in the last seven days, and where the evidence came from."
-      action={
-        <CapiroButton
-          variant="secondary"
-          size="compact"
-          onClick={() => navigate(`/clients?clientId=${client.id}&tab=intelligence&view=legislative`)}
-        >
-          Open legislative
-        </CapiroButton>
-      }
-    >
-      <div className="capiro-crm__grid capiro-crm__grid--even">
-        <DataCard
-          title="Recent changes"
-          query={changes}
-          empty="No tracked changes in the last seven days."
-          provenance="Source: intelligence change feed · last 7 days"
-        >
-          {(rows) => (
-            <Rows
-              items={rows.slice(0, 8).map((row) => ({
-                id: row.id,
-                title: row.title,
-                meta: row.severity,
-              }))}
-            />
-          )}
-        </DataCard>
-
-        <DataCard
-          title="Client health"
-          query={health}
-          empty="No health score has been computed for this client."
-          provenance="Source: intelligence health score"
-        >
-          {(data) => (
-            <div className="capiro-crm__metrics">
-              {/* A missing score renders as an em dash, not 0. */}
-              <div className="capiro-crm__metric">
-                <p
-                  className={`capiro-crm__metric-value${data.score == null ? ' capiro-crm__metric-value--unavailable' : ''}`}
-                >
-                  {data.score == null ? '—' : Math.round(data.score)}
-                </p>
-                <p className="capiro-crm__meta">Overall</p>
-              </div>
-              {(data.components ?? []).slice(0, 3).map((component) => (
-                <div key={component.label} className="capiro-crm__metric">
-                  <p className="capiro-crm__metric-value">{Math.round(component.value)}</p>
-                  <p className="capiro-crm__meta">{component.label}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </DataCard>
-      </div>
-    </Screen>
   );
 }
 

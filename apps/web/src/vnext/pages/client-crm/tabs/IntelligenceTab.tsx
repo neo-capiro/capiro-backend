@@ -9,14 +9,11 @@ import {
   TabPageHead,
   Tile,
   Avatar,
-  UIcon,
   GRADIENT_DARK,
   type PillTone,
 } from '../portfolio-primitives.js';
 import {
   DOMAIN_STATS,
-  DOMAINS,
-  INTEL_ATTN,
   BILLS,
   RECS,
   STAGES,
@@ -41,6 +38,7 @@ import {
   type DistrictNexusDistrictDetail,
 } from '../../../../pages/clients/intelligence-v1/district-nexus-api.js';
 import { DistrictNexusMap } from '../DistrictNexusMap.js';
+import { PastPerformanceCard } from '../PastPerformanceCard.js';
 import { ManageFacilitiesModal } from '../ManageFacilitiesModal.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import type { IntelligenceView } from '../client-crm-routing.js';
@@ -93,9 +91,15 @@ import {
 } from '../../../../pages/intelligence/opportunities/funding-opportunities-api.js';
 
 /**
- * Intelligence tab (spec §10). Six domains via a segmented bar: Overview ·
- * Legislative · Regulatory · Funding & Budget · Federal Footprint · District
- * Nexus. Every domain except Overview opens with the 5-cell domain stats strip.
+ * Intelligence tab (spec §10). Five domains via a segmented bar: Legislative ·
+ * Regulatory · Funding & Budget · Federal Footprint · District Nexus. Every
+ * domain opens with the 5-cell domain stats strip.
+ *
+ * Overview is gone: its pulse band and domain list restated the same figures
+ * each domain panel already reads from the same query keys, so a client's
+ * numbers were rendered twice and Intelligence now opens on Legislative.
+ * Past performance moved in from Capabilities §7.3 and sits under Federal
+ * Footprint, with the rest of the client's federal delivery record.
  *
  * The precise records are designed fixtures (§14); where a real client-scoped
  * aggregate exists it would override, but the domain bodies render the design's
@@ -166,7 +170,7 @@ function useDistrictNexusV2(client: Client, active: boolean) {
 export function ClientCrmIntelligenceProto({ client, view }: { client: Client; view: IntelligenceView }) {
   const navigate = useNavigate();
   const api = useApi();
-  const domain = DOMAIN_META[view] ?? DOMAIN_META.overview!;
+  const domain = DOMAIN_META[view] ?? DOMAIN_META.legislative!;
   const [facilitiesOpen, setFacilitiesOpen] = useState(false);
   // Actions that need the client are computed here rather than in the static
   // map below: District's "Manage facilities" (item 3, wire-audit "2 Wire
@@ -205,8 +209,7 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
   return (
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <TabPageHead title={domain.title} sub={domain.sub} actions={actions} />
-      {view !== 'overview' ? <DomainStatsStrip view={view} realValues={realStats} /> : null}
-      {view === 'overview' ? <IntelOverview client={client} /> : null}
+      <DomainStatsStrip view={view} realValues={realStats} />
       {view === 'legislative' ? <LegislativePanel client={client} /> : null}
       {view === 'regulatory' ? <RegulatoryPanel client={client} /> : null}
       {view === 'funding' ? <FundingPanel client={client} /> : null}
@@ -401,11 +404,6 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
 }
 
 const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactNode }> = {
-  overview: {
-    title: 'Client intelligence',
-    sub: 'External signals organized around this client, not a wall of raw database counters.',
-    actions: <SecondaryBtn>Sync intelligence</SecondaryBtn>,
-  },
   legislative: {
     title: 'Legislative',
     sub: 'Tracked bills, client-fit recommendations, hearings, and material changes from LegiWatch.',
@@ -423,7 +421,7 @@ const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactN
   },
   footprint: {
     title: 'Federal footprint',
-    sub: 'Lobbying activity, federal awards, political giving, and the government entities connected to the client.',
+    sub: 'Lobbying activity, federal awards, political giving, past performance, and the government entities connected to the client.',
     actions: <SecondaryBtn>Export profile</SecondaryBtn>,
   },
   district: {
@@ -500,221 +498,6 @@ function DomainStatsStrip({ view, realValues }: { view: IntelligenceView; realVa
         </span>
       ))}
     </section>
-  );
-}
-
-/* ═════════════════════════════ §10.1 Overview ══════════════════════════════ */
-
-function IntelOverview({ client }: { client: Client }) {
-  const navigate = useNavigate();
-  const api = useApi();
-
-  /**
-   * The overview's pulse band figures are real where an endpoint exists and
-   * render `—` where one does not (same convention as every other panel).
-   * The four figures shown here come from three real queries:
-   *   - tracked bills   → tracker board (same key the Legislative panel uses)
-   *   - funding matches → opportunities summary (same key Funding panel uses)
-   *   - districts       → district nexus (same key District panel uses)
-   *   - deadlines <14d  → regulatory lifecycle rails (same key Regulatory uses)
-   * Sharing keys means the cache is shared with those panels and invalidations
-   * propagate — no parallel model.
-   */
-  const { enabled: trackerV2, ready: trackerReady } = useIntelFeature('tracker_v2');
-  const boardQ = useQuery<BoardResponse>({
-    queryKey: trackerKeys.board(client.id),
-    queryFn: async () => {
-      if (trackerV2) {
-        const raw = (
-          await api.get<Parameters<typeof adaptBoard>[0]>(intelTrackerPaths.board(client.id))
-        ).data;
-        return adaptBoard(raw);
-      }
-      return (await api.get<BoardResponse>(trackerPaths.board(client.id))).data;
-    },
-    enabled: trackerReady,
-    staleTime: 60_000,
-  });
-  const trackedBills = trackerReady && boardQ.isSuccess ? boardQ.data.total : null;
-
-  const { enabled: foEnabled, ready: foReady } = useIntelFeature(FUNDING_OPPORTUNITIES_FEATURE);
-  const oppsQ = useQuery<ClientFundingOpportunitySummary>({
-    queryKey: ['client-funding-opportunities', client.id],
-    queryFn: async () =>
-      (await api.get<ClientFundingOpportunitySummary>(
-        `/api/intelligence/clients/${client.id}/opportunities/summary`,
-      )).data,
-    enabled: Boolean(client.id) && foReady && foEnabled,
-    staleTime: 2 * 60_000,
-    retry: 1,
-  });
-  const fundingMatches = foReady && foEnabled && oppsQ.isSuccess
-    ? oppsQ.data.counts.activeGrants + oppsQ.data.counts.activeContracts
-    : null;
-
-  const nexusQ = useQuery({
-    queryKey: ['client-district-nexus', client.id],
-    queryFn: () => getClientDistrictNexus(api, client.id),
-    staleTime: 2 * 60_000,
-  });
-  const districtCount = nexusQ.isSuccess && nexusQ.data.linked ? nexusQ.data.districts.length : null;
-
-  const aggregateQ = useQuery<ClientProfileV1>({
-    queryKey: ['client-intel-v1-aggregate', client.id],
-    queryFn: async () =>
-      (await api.get<ClientProfileV1>(`/api/intelligence/clients/${client.id}/profile-v1`)).data,
-    staleTime: 2 * 60_000,
-    retry: 1,
-  });
-  const rails = aggregateQ.data?.sections.legislativeRegulatory.regulatoryLifecycle?.rails ?? [];
-  const soonRails = useMemo(() => {
-    const now = Date.now();
-    return rails.filter((r) => {
-      if (!r.deadline) return false;
-      const on = deadlineDay(r.deadline);
-      if (!on) return false;
-      return Math.ceil((on.getTime() - now) / 86_400_000) <= 14;
-    });
-  }, [rails]);
-  const deadlinesSoon = soonRails.length;
-
-  /** Freshest dataUpdatedAt for a real "Refreshed Xh ago" stamp. Unresolved
-   * queries report dataUpdatedAt 0 — including them made a loading page claim
-   * "Refreshed 20776d ago". */
-  const refreshLabel = useMemo(() => {
-    const stamps = [
-      boardQ.dataUpdatedAt,
-      oppsQ.dataUpdatedAt,
-      nexusQ.dataUpdatedAt,
-      aggregateQ.dataUpdatedAt,
-    ].filter((ts) => ts > 0);
-    if (stamps.length === 0) return null;
-    const elapsed = Date.now() - Math.max(...stamps);
-    if (elapsed < 0) return 'just now';
-    const minutes = Math.floor(elapsed / 60_000);
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  }, [boardQ.dataUpdatedAt, oppsQ.dataUpdatedAt, nexusQ.dataUpdatedAt, aggregateQ.dataUpdatedAt]);
-
-  // A figure is null until its source has answered — "0" is only ever printed
-  // once the query that could contradict it has resolved.
-  const pulseFigures: Array<{ label: string; value: string | null }> = [
-    { label: 'Tracked bills', value: trackedBills != null ? String(trackedBills) : null },
-    { label: 'Funding matches', value: fundingMatches != null ? String(fundingMatches) : null },
-    { label: 'Districts', value: districtCount != null ? String(districtCount) : null },
-    { label: 'Deadlines < 14 days', value: aggregateQ.isSuccess ? String(deadlinesSoon) : null },
-  ];
-
-  return (
-    <>
-      {/* Client intelligence pulse — deep band */}
-      <div style={{ background: GRADIENT_DARK, borderRadius: 12, padding: '22px 28px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3', flex: '0 0 auto' }}>Client intelligence pulse</span>
-        {pulseFigures.map(({ label, value: figure }) => (
-          <span key={label} style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#ffffff', lineHeight: 1.2 }}>{figure ?? '—'}</span>
-            <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>{label}</span>
-          </span>
-        ))}
-        <span style={{ flex: 1, minWidth: 12 }} />
-        {refreshLabel ? (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto', fontSize: 12, fontWeight: 500, letterSpacing: '.04em', textTransform: 'uppercase', color: '#98A2B3' }}>
-            <span className="cap-pf-anim-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: '#32D583' }} />
-            Refreshed {refreshLabel}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="cap-pf-grid-intel">
-        {/* Needs attention — real regulatory deadlines inside 14 days. The
-            design's invented alert list (INTEL_ATTN) never renders for a real
-            client: fabricated urgency is worse than an honest quiet state. */}
-        <Card>
-          {/* Item 6: the unified feed is the Changes Inbox. This is the exact
-              href the API itself hands out for this client (`links.changesInbox`
-              on profile-v1, and the Top-Alerts CTA), so the in-app link and the
-              server-generated one land in the same place. */}
-          <CardHead
-            title="Needs attention"
-            action={
-              <LinkBtn onClick={() => navigate(`/intelligence/changes?clientId=${client.id}`)}>
-                View unified feed
-              </LinkBtn>
-            }
-          />
-          <div>
-            {!aggregateQ.isSuccess ? (
-              <p style={{ margin: 0, padding: '18px 24px', fontSize: 14, color: '#667085' }} aria-busy={aggregateQ.isPending}>
-                {aggregateQ.isPending ? 'Checking deadlines…' : 'Deadline sources did not answer — see the unified feed.'}
-              </p>
-            ) : soonRails.length === 0 ? (
-              <p style={{ margin: 0, padding: '18px 24px', fontSize: 14, color: '#667085' }}>
-                No client deadlines inside 14 days. The unified feed carries everything else.
-              </p>
-            ) : (
-              soonRails.map((rail) => (
-                <button
-                  key={rail.documentNumber}
-                  type="button"
-                  onClick={() => navigate(`/clients?clientId=${client.id}&tab=intelligence&view=regulatory`)}
-                  style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 16, padding: '15px 24px', borderBottom: '1px solid #E8E5DF', textAlign: 'left' }}
-                >
-                  <span style={{ flex: '0 0 auto', width: 8, height: 8, borderRadius: '50%', background: '#F79009' }} aria-hidden />
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>{rail.title}</span>
-                    <span style={{ display: 'block', marginTop: 3, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
-                      {rail.deadline
-                        ? `Comment deadline · ${formatDateShort(rail.deadline) ?? String(rail.deadline)}`
-                        : 'Deadline inside 14 days'}
-                    </span>
-                  </span>
-                  <span style={{ flex: '0 0 auto', fontSize: 14, fontWeight: 600, color: '#101828', whiteSpace: 'nowrap' }}>Open →</span>
-                </button>
-              ))
-            )}
-          </div>
-        </Card>
-
-        {/* Intelligence domains — the same real figures the pulse band and the
-            per-domain strips read, one row per domain, each a real link. */}
-        <Card>
-          <CardHead title="Intelligence domains" />
-          <div style={{ padding: 12 }}>
-            {(
-              [
-                { view: 'legislative', label: 'Legislative', sub: 'Tracked bills and client-fit recommendations', figure: trackedBills != null ? String(trackedBills) : '—', unit: 'tracked' },
-                { view: 'regulatory', label: 'Regulatory', sub: 'Lifecycle rails with client deadlines', figure: aggregateQ.isSuccess ? String(rails.length) : '—', unit: 'matters' },
-                { view: 'funding', label: 'Funding & Budget', sub: 'Opportunities and relevant budget programs', figure: fundingMatches != null ? String(fundingMatches) : '—', unit: 'matches' },
-                { view: 'footprint', label: 'Federal Footprint', sub: 'Lobbying, awards, and political giving', figure: nexusQ.isSuccess && nexusQ.data.linked ? formatMoney(nexusQ.data.districts.reduce((s, d) => s + d.totalAmount, 0)) : '—', unit: 'awards' },
-                { view: 'district', label: 'District Nexus', sub: 'The footprint by congressional district', figure: districtCount != null ? String(districtCount) : '—', unit: 'districts' },
-              ] as const
-            ).map((d) => (
-              <button
-                key={d.view}
-                type="button"
-                onClick={() => navigate(`/clients?clientId=${client.id}&tab=intelligence&view=${d.view}`)}
-                style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 10, background: '#FAF9F6', marginBottom: 6, textAlign: 'left' }}
-              >
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 15, fontWeight: 600, color: '#101828' }}>{d.label}</span>
-                  <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085', textWrap: 'pretty' }}>{d.sub}</span>
-                </span>
-                <span style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
-                  <span style={{ fontSize: 17, fontWeight: 600, color: '#101828' }}>{d.figure}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#667085' }}>{d.unit}</span>
-                </span>
-                <span style={{ flex: '0 0 auto', color: '#98A2B3' }}>
-                  <UIcon name="ChevronRight" size={20} />
-                </span>
-              </button>
-            ))}
-          </div>
-        </Card>
-      </div>
-    </>
   );
 }
 
@@ -1879,6 +1662,12 @@ function FootprintPanel({ client }: { client: Client }) {
           </div>
         </div>
       </Card>
+
+      {/* Past performance — moved here from Capabilities §7.3. What the client
+          has actually delivered belongs with its lobbying, awards and giving,
+          not beside the roster of what it says it can do. Same real
+          `ClientSubmissionHistory` reader; nothing about the card changed. */}
+      <PastPerformanceCard client={client} />
     </div>
   );
 }

@@ -28,12 +28,12 @@ const client: Client = {
   updatedAt: '2026-01-15T00:00:00.000Z',
 };
 
-function renderCapabilities(onFillWithMeri?: () => void, clientOverride?: Client) {
+function renderCapabilities(clientOverride?: Client) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <ClientCrmCapabilitiesProto client={clientOverride ?? client} onFillWithMeri={onFillWithMeri} />
+        <ClientCrmCapabilitiesProto client={clientOverride ?? client} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -53,17 +53,24 @@ describe('ClientCrmCapabilitiesProto', () => {
     expect(screen.queryByText('Autonomous ground maneuver')).not.toBeInTheDocument();
   });
 
-  it('calls the passed-down Fill with Meri handler when the tab button is clicked', async () => {
+  it('does not render a second Fill with Meri button — the shell header owns the only one', async () => {
     getMock.mockResolvedValue({
       data: [{ id: 'cap-1', name: 'Autonomy stack', type: 'platform', tags: [], peNumbers: [] }],
     });
-    const onFillWithMeri = vi.fn();
-    renderCapabilities(onFillWithMeri);
+    renderCapabilities();
 
     await screen.findByText('Autonomy stack');
-    fireEvent.click(screen.getByRole('button', { name: 'Fill with Meri' }));
+    expect(screen.queryByRole('button', { name: 'Fill with Meri' })).not.toBeInTheDocument();
+    // Add capability is still the tab's own action.
+    expect(screen.getAllByRole('button', { name: 'Add capability' }).length).toBeGreaterThan(0);
+  });
 
-    expect(onFillWithMeri).toHaveBeenCalledTimes(1);
+  it('does not render past performance — it moved to Intelligence / Federal Footprint', async () => {
+    getMock.mockResolvedValue({ data: [] });
+    renderCapabilities();
+
+    await waitFor(() => expect(screen.getByText('No capability areas recorded yet.')).toBeInTheDocument());
+    expect(screen.queryByText('Past performance')).not.toBeInTheDocument();
   });
 
   it('opens a modal capability editor rather than appending the editor below the page', async () => {
@@ -83,7 +90,7 @@ describe('ClientCrmCapabilitiesProto', () => {
     getMock.mockResolvedValue({ data: [] });
     // Deliberately none of these values appear in portfolio-fixtures.ts — a
     // test that reuses a fixture string passes even when nothing is wired.
-    renderCapabilities(undefined, {
+    renderCapabilities({
       ...client,
       uei: 'WQ7RSTUV1234',
       cageCode: '5K2P1',
@@ -123,96 +130,13 @@ describe('ClientCrmCapabilitiesProto', () => {
   });
 });
 
-/* ── §7.3 past performance + capability evidence ("4 New capability") ────── */
+/* ── capability evidence ("4 New capability" row 2) ──────────────────────── */
 
-const CAPABILITY = { id: 'cap-1', name: 'Autonomy stack', type: 'platform', tags: [], peNumbers: [] };
-
-/** Routes capabilities vs. per-capability submission history. */
-function mockCapabilityApi(history: unknown[]) {
-  getMock.mockImplementation((url: string) => {
-    // The client-wide read is the primary path (one request, primes the
-    // per-capability caches); the per-capability stub covers the fallback.
-    if (url.endsWith('/submission-history')) return Promise.resolve({ data: history });
-    if (url.endsWith('/history')) return Promise.resolve({ data: history });
-    if (url.endsWith('/capabilities')) return Promise.resolve({ data: [CAPABILITY] });
-    return Promise.resolve({ data: [] });
-  });
-}
-
-describe('ClientCrmCapabilitiesProto — past performance (row 12)', () => {
-  it('renders the real submission history instead of the CAP_PERF fixture', async () => {
-    mockCapabilityApi([
-      {
-        id: 'sub-1',
-        clientId: 'client-1',
-        capabilityId: 'cap-1',
-        fiscalYear: 'FY28',
-        // Absent from portfolio-fixtures.ts, so this cannot pass against CAP_PERF.
-        title: 'Ground autonomy retrofit line',
-        meta: 'Submitted to SASC professional staff',
-        outcome: 'Included +$4M',
-        outcomeType: 'success',
-        notes: null,
-        createdAt: '2026-03-01T00:00:00.000Z',
-        updatedAt: '2026-03-01T00:00:00.000Z',
-      },
-    ]);
-    renderCapabilities();
-
-    expect(await screen.findByText('Ground autonomy retrofit line')).toBeInTheDocument();
-    expect(screen.getByText('Included +$4M')).toBeInTheDocument();
-    // Real count, not the design's hardcoded "View all 14".
-    expect(screen.getByText('1 record')).toBeInTheDocument();
-    expect(screen.queryByText('View all 14')).not.toBeInTheDocument();
-    // The CAP_PERF fixture must not leak through as if real.
-    expect(screen.queryByText('ULTRA autonomy integration')).not.toBeInTheDocument();
-    expect(screen.queryByText('GPS-denied navigation study')).not.toBeInTheDocument();
-  });
-
-  it('expands View all using the live submission count and can collapse again', async () => {
-    mockCapabilityApi(
-      ['One', 'Two', 'Three', 'Four'].map((title, index) => ({
-        id: `sub-${index + 1}`,
-        clientId: 'client-1',
-        capabilityId: 'cap-1',
-        fiscalYear: `FY${27 + index}`,
-        title: `Submission ${title}`,
-        meta: null,
-        outcome: null,
-        outcomeType: 'pending',
-        notes: null,
-        createdAt: '2026-03-01T00:00:00.000Z',
-        updatedAt: '2026-03-01T00:00:00.000Z',
-      })),
-    );
-    renderCapabilities();
-
-    const viewAll = await screen.findByRole('button', { name: 'View all 4' });
-    // Collapsed = the three most RECENT fiscal years (FY30–FY28) — that is
-    // what the "Show recent" toggle label promises. FY27 waits behind View all.
-    expect(screen.getByText('Submission Four')).toBeInTheDocument();
-    expect(screen.getByText('Submission Two')).toBeInTheDocument();
-    expect(screen.queryByText('Submission One')).not.toBeInTheDocument();
-
-    fireEvent.click(viewAll);
-    expect(await screen.findByText('Submission One')).toBeInTheDocument();
-    const collapse = screen.getByRole('button', { name: 'Show recent' });
-
-    fireEvent.click(collapse);
-    await waitFor(() => expect(screen.queryByText('Submission One')).not.toBeInTheDocument());
-  });
-
-  it('shows a real empty state when the client has no submissions', async () => {
-    mockCapabilityApi([]);
-    renderCapabilities();
-
-    expect(
-      await screen.findByText("No submissions recorded against this client's capabilities yet."),
-    ).toBeInTheDocument();
-  });
-
-  it('renders no invented matches count or evidence tier on a real capability (row 2)', async () => {
-    mockCapabilityApi([]);
+describe('ClientCrmCapabilitiesProto — capability evidence (row 2)', () => {
+  it('renders no invented matches count or evidence tier on a real capability', async () => {
+    getMock.mockResolvedValue({
+      data: [{ id: 'cap-1', name: 'Autonomy stack', type: 'platform', tags: [], peNumbers: [] }],
+    });
     renderCapabilities();
 
     await screen.findByText('Autonomy stack');

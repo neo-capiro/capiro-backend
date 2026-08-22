@@ -7,29 +7,20 @@ import {
   EvidenceChip,
   Pill,
   TabPageHead,
-  GRADIENT_DARK,
-  GRADIENT_DARK_HOVER,
   type EvidenceTier,
   type PillTone,
 } from '../portfolio-primitives.js';
-import { CAP_PERF } from '../portfolio-fixtures.js';
 import { useApi } from '../../../../lib/use-api.js';
 import { CapabilityDrawerVNext } from '../CapabilityDrawerVNext.js';
 import { CapabilityCreateFormVNext } from '../CapabilityCreateFormVNext.js';
 import type { Capability } from '../../../../pages/clients/capability-types.js';
 import { readClientRegistrations } from '../../../../pages/clients/client-registrations.js';
-import {
-  OUTCOME_TONE,
-  OUTCOME_TYPE_LABEL,
-} from '../../../../pages/clients/submission-history-api.js';
-import { useClientSubmissions, type SubmissionWithCapability } from '../client-submissions.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
 
 /**
- * Capabilities tab (spec §7). Order: capability areas → registrations & fit →
- * past performance.
+ * Capabilities tab (spec §7). Order: capability areas → registrations & fit.
  *
  * Data: §7.1 capability areas bind to the real capabilities endpoint when it
  * returns records (`GET /api/clients/:id/capabilities`, same query key as the
@@ -41,9 +32,12 @@ import { CapiroModal } from '../../../components/overlays/index.js';
  * capabilities. They are now omitted on live records (wire-audit "4 New
  * capability" row 2). §7.2 registrations & codes is real — it reads the
  * government identifiers the Company Info wizard writes (see
- * `readClientRegistrations`). §7.3 past performance is real: it reads the
- * client's `ClientSubmissionHistory` rows across its capabilities (row 12).
- * §7.2 capability-fit rows have no per-client backend and stay fixture.
+ * `readClientRegistrations`). §7.2 capability-fit rows have no per-client
+ * backend and stay fixture. Past performance moved to Intelligence / Federal
+ * Footprint (`PastPerformanceCard`): the profile header already carries one
+ * "Fill with Meri" for the whole client, and delivery history reads with the
+ * rest of the client's federal record rather than beside its capability
+ * roster.
  *
  * All editing happens in the vNext capability editor (CapabilityDrawerVNext —
  * a re-skin of the canonical CapabilityDrawer on the same PATCH/attachment
@@ -58,13 +52,7 @@ import { CapiroModal } from '../../../components/overlays/index.js';
  * keywords, and documents — all of which need an id — are one step away.
  */
 
-export function ClientCrmCapabilitiesProto({
-  client,
-  onFillWithMeri,
-}: {
-  client: Client;
-  onFillWithMeri?: () => void;
-}) {
+export function ClientCrmCapabilitiesProto({ client }: { client: Client }) {
   const api = useApi();
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Capability | null>(null);
@@ -96,12 +84,9 @@ export function ClientCrmCapabilitiesProto({
       <TabPageHead
         title="Capabilities"
         sub="What the client actually does, how it is registered to sell, and what it has delivered. This record drives every legislative, funding, and district match in Capiro."
-        actions={
-          <>
-            <SecondaryBtn onClick={() => setCreating(true)}>Add capability</SecondaryBtn>
-            <PrimaryBtn onClick={onFillWithMeri}>Fill with Meri</PrimaryBtn>
-          </>
-        }
+        // One "Fill with Meri" per profile, and it lives in the shell header
+        // (ClientProfileShell) — a second copy here fired the same drawer.
+        actions={<SecondaryBtn onClick={() => setCreating(true)}>Add capability</SecondaryBtn>}
       />
 
       {/* §7.1 Capability areas */}
@@ -117,9 +102,6 @@ export function ClientCrmCapabilitiesProto({
         <RegistrationsCard client={client} />
         <CapabilityFitCard />
       </div>
-
-      {/* §7.3 Past performance */}
-      <PastPerformanceCard client={client} />
 
       {/* The canonical editor is an in-flow side panel on the legacy profile.
           In vNext that made a clicked capability look as if it had been appended
@@ -217,51 +199,6 @@ function SecondaryBtn({ children, onClick, disabled }: { children: React.ReactNo
         border: '1px solid #E0DCD4',
         boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
       }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function PrimaryBtn({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        height: 40,
-        padding: '0 16px',
-        borderRadius: 8,
-        background: hover ? GRADIENT_DARK_HOVER : GRADIENT_DARK,
-        color: '#ffffff',
-        fontSize: 14,
-        fontWeight: 600,
-        lineHeight: '20px',
-        whiteSpace: 'nowrap',
-        boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function LinkBtn({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{ fontSize: 14, fontWeight: 600, color: hover ? '#0E141C' : '#101828', whiteSpace: 'nowrap' }}
     >
       {children}
     </button>
@@ -587,210 +524,5 @@ function CapabilityFitCard() {
         </span>
       </div>
     </Card>
-  );
-}
-
-/* ── §7.3 Past performance ────────────────────────────────────────────────── */
-
-/**
- * §7.3 Past performance — real (wire-audit "4 New capability" row 12).
- *
- * Reads the client's `ClientSubmissionHistory` rows across its capabilities.
- * The columns differ from the design's on purpose: that table wanted Agency /
- * Value / Period / Role, and this store carries none of those — it holds
- * fiscal year, title, free-text meta, an outcome and its coarse type. Inventing
- * a dollar value or a prime/sub role beside a real submission title would read
- * as award data the product does not have, so the table shows what is stored.
- * "View all N" is the real row count, not the design's 14.
- */
-function PastPerformanceCard({ client }: { client: Client }) {
-  const { rows, settled, failed } = useClientSubmissions(client.id);
-  const [showAll, setShowAll] = useState(false);
-  // Fixture only while the reads are in flight or errored — never as a
-  // stand-in for a client with no recorded history.
-  const showFixture = !settled || failed;
-  const genuinelyEmpty = settled && !failed && rows.length === 0;
-  const hasMore = !showFixture && rows.length > 3;
-  const visibleRows = hasMore && !showAll ? rows.slice(0, 3) : rows;
-
-  return (
-    <Card>
-      <CardHead
-        withDesc
-        title="Past performance"
-        description="Submissions recorded against this client's capabilities, and what happened to each."
-        action={
-          showFixture || rows.length === 0 ? null : hasMore ? (
-            <LinkBtn onClick={() => setShowAll((current) => !current)}>
-              {showAll ? 'Show recent' : `View all ${rows.length}`}
-            </LinkBtn>
-          ) : (
-            <span style={{ fontSize: 13, color: '#667085', whiteSpace: 'nowrap' }}>
-              {`${rows.length} record${rows.length === 1 ? '' : 's'}`}
-            </span>
-          )
-        }
-      />
-      {genuinelyEmpty ? (
-        <p style={{ margin: 0, padding: '4px 24px 20px', fontSize: 14, color: '#667085' }}>
-          No submissions recorded against this client&apos;s capabilities yet.
-        </p>
-      ) : (
-        <div style={{ width: '100%', overflowX: 'auto' }}>
-          <div style={{ minWidth: showFixture ? 900 : 720 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 16,
-                padding: '10px 24px',
-                background: '#FAF9F6',
-                borderTop: '1px solid #E8E5DF',
-                borderBottom: '1px solid #E8E5DF',
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: '.04em',
-                textTransform: 'uppercase',
-                color: '#667085',
-              }}
-            >
-              {showFixture ? (
-                <>
-                  <span style={{ flex: 1, minWidth: 0 }}>Award</span>
-                  <span style={{ flex: '0 0 auto', width: 188 }}>Agency</span>
-                  <span style={{ flex: '0 0 auto', width: 96, textAlign: 'right' }}>Value</span>
-                  <span style={{ flex: '0 0 auto', width: 132 }}>Period</span>
-                  <span style={{ flex: '0 0 auto', width: 88 }}>Role</span>
-                  <span style={{ flex: '0 0 auto', width: 112 }}>Status</span>
-                </>
-              ) : (
-                <>
-                  <span style={{ flex: '0 0 auto', width: 72 }}>FY</span>
-                  <span style={{ flex: 1, minWidth: 0 }}>Submission</span>
-                  <span style={{ flex: '0 0 auto', width: 188 }}>Capability</span>
-                  <span style={{ flex: '0 0 auto', width: 132 }}>Outcome</span>
-                  <span style={{ flex: '0 0 auto', width: 112 }}>Status</span>
-                </>
-              )}
-            </div>
-            {showFixture
-              ? CAP_PERF.map((p) => <PerfRow key={p.title} perf={p} />)
-              : visibleRows.map((row) => <SubmissionRow key={row.id} row={row} />)}
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function SubmissionRow({ row }: { row: SubmissionWithCapability }) {
-  const [hover, setHover] = useState(false);
-  const tone = (OUTCOME_TONE[row.outcomeType] ?? 'gray') as PillTone;
-  return (
-    <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'center',
-        gap: 16,
-        padding: '13px 24px',
-        borderBottom: '1px solid #F2F0EB',
-        textAlign: 'left',
-        background: hover ? '#FAF9F6' : 'transparent',
-      }}
-    >
-      <span style={{ flex: '0 0 auto', width: 72, fontSize: 13, fontWeight: 600, color: '#101828' }}>
-        {row.fiscalYear}
-      </span>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>
-          {row.title}
-        </span>
-        {row.meta ? (
-          <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#667085', textWrap: 'pretty' }}>
-            {row.meta}
-          </span>
-        ) : null}
-      </span>
-      <span
-        style={{
-          flex: '0 0 auto',
-          width: 188,
-          fontSize: 13,
-          color: '#475467',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {row.capabilityName ?? '—'}
-      </span>
-      <span style={{ flex: '0 0 auto', width: 132, fontSize: 13, color: '#475467', textWrap: 'pretty' }}>
-        {/* The free-text outcome when there is one; the coarse type is the pill. */}
-        {row.outcome ?? '—'}
-      </span>
-      <span style={{ flex: '0 0 auto', width: 112 }}>
-        <Pill tone={tone}>{OUTCOME_TYPE_LABEL[row.outcomeType] ?? row.outcomeType}</Pill>
-      </span>
-    </div>
-  );
-}
-
-function PerfRow({ perf }: { perf: (typeof CAP_PERF)[number] }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      type="button"
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'center',
-        gap: 16,
-        padding: '13px 24px',
-        borderBottom: '1px solid #F2F0EB',
-        textAlign: 'left',
-        background: hover ? '#FAF9F6' : 'transparent',
-      }}
-    >
-      <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          fontSize: 14,
-          fontWeight: 500,
-          color: '#101828',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {perf.title}
-      </span>
-      <span
-        style={{
-          flex: '0 0 auto',
-          width: 188,
-          fontSize: 13,
-          color: '#475467',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {perf.agency}
-      </span>
-      <span style={{ flex: '0 0 auto', width: 96, fontSize: 14, fontWeight: 600, color: '#101828', textAlign: 'right' }}>
-        {perf.value}
-      </span>
-      <span style={{ flex: '0 0 auto', width: 132, fontSize: 13, color: '#475467' }}>{perf.period}</span>
-      <span style={{ flex: '0 0 auto', width: 88, fontSize: 13, color: '#475467' }}>{perf.role}</span>
-      <span style={{ flex: '0 0 auto', width: 112 }}>
-        <Pill tone={perf.ui as PillTone}>{perf.status}</Pill>
-      </span>
-    </button>
   );
 }

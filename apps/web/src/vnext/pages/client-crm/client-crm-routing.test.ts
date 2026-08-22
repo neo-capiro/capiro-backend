@@ -50,7 +50,7 @@ describe('resolveCrmRoute — canonical state', () => {
     });
     expect(at('tab=intelligence')).toEqual({
       tab: 'intelligence',
-      view: 'overview',
+      view: 'legislative',
       didNormalize: true,
     });
   });
@@ -93,8 +93,16 @@ describe('resolveCrmRoute — hostile and stale input', () => {
   });
 
   it('falls back to the default view for an unknown view', () => {
-    expect(at('tab=intelligence&view=nonsense').view).toBe('overview');
+    expect(at('tab=intelligence&view=nonsense').view).toBe('legislative');
     expect(at('tab=relationships&view=nonsense').view).toBe('organization');
+  });
+
+  it('normalizes the retired Intelligence Overview bookmark to Legislative', () => {
+    expect(at('tab=intelligence&view=overview')).toEqual({
+      tab: 'intelligence',
+      view: 'legislative',
+      didNormalize: true,
+    });
   });
 
   it('is case- and whitespace-insensitive', () => {
@@ -132,7 +140,7 @@ describe('applyCrmRoute', () => {
 
   it('writes the default secondary view when entering a two-level tab', () => {
     const next = applyCrmRoute(new URLSearchParams('clientId=abc'), { tab: 'intelligence' });
-    expect(next.get('view')).toBe('overview');
+    expect(next.get('view')).toBe('legislative');
   });
 
   it('keeps an explicit secondary view', () => {
@@ -175,7 +183,7 @@ describe('applyCrmRoute', () => {
 describe('defaultViewFor', () => {
   it('returns the documented default for two-level tabs and null otherwise', () => {
     expect(defaultViewFor('relationships')).toBe('organization');
-    expect(defaultViewFor('intelligence')).toBe('overview');
+    expect(defaultViewFor('intelligence')).toBe('legislative');
     expect(defaultViewFor('overview')).toBeNull();
     expect(defaultViewFor('work')).toBeNull();
     expect(defaultViewFor('files')).toBeNull();

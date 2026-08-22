@@ -130,7 +130,7 @@ describe('primary tabs (six, Portfolio order)', () => {
     renderAt('/clients?clientId=client-1');
     fireEvent.click(tab('Intelligence'));
     expect(url()).toContain('tab=intelligence');
-    expect(url()).toContain('view=overview');
+    expect(url()).toContain('view=legislative');
   });
 
   it('keeps the client identity stable across a tab change', () => {
@@ -183,11 +183,15 @@ describe('legacy deep links (§2 compatibility mapping)', () => {
   });
 
   it('routes each Intelligence view to its own surface', () => {
-    for (const view of ['overview', 'legislative', 'regulatory', 'funding', 'footprint', 'district']) {
+    for (const view of ['legislative', 'regulatory', 'funding', 'footprint', 'district']) {
       const rendered = renderAt(`/clients?clientId=client-1&tab=intelligence&view=${view}`);
       expect(screen.getByTestId('intelligence-surface')).toHaveTextContent(view);
       rendered.unmount();
     }
+    // Retired Overview bookmark lands on Legislative, not a blank surface.
+    const retired = renderAt('/clients?clientId=client-1&tab=intelligence&view=overview');
+    expect(screen.getByTestId('intelligence-surface')).toHaveTextContent('legislative');
+    retired.unmount();
   });
 
   it('falls back to Overview for an unknown tab instead of rendering nothing', () => {

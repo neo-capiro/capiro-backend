@@ -32,16 +32,25 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
  * design's TIMELINE fixture when the client has no activity yet. Quick-add
  * rows open the canonical LogActivityModal pre-set to their kind; pin/settle
  * mutations write through the same endpoints as the canonical tab. The
- * segmented sub-tab bar is owned by the parent page. Export writes the rows
- * currently in view as CSV, client-side, and is disabled while the fixture is
- * what is on screen (item 7, wire-audit "3 Compose extend").
+ * segmented sub-tab bar is owned by the parent page.
+ *
+ * The Calls and Documents filter chips and the timeline Export button are
+ * gone: calls are logged as activity and read under the same timeline, and
+ * documents live on the Files tab, which owns the client's attachments.
  */
 
-const GROUP_FILTERS = ['All', 'Meetings', 'Email', 'Calls', 'Notes', 'Outreach', 'Documents'] as const;
+const GROUP_FILTERS = ['All', 'Meetings', 'Email', 'Notes', 'Outreach'] as const;
 type GroupFilter = (typeof GROUP_FILTERS)[number];
 
+/**
+ * Groups an activity row can be tagged with. Calls and Documents are no longer
+ * offered as filters, but a row still carries its true group so its eyebrow
+ * label and its inclusion under `All` stay honest.
+ */
+type ActivityGroup = GroupFilter | 'Calls' | 'Documents';
+
 /** Activity kind → design mark, eyebrow label and filter group (§8.3). */
-const KIND_VIEW: Record<ActivityKind, { mark: string; label: string; group: Exclude<GroupFilter, 'All'>; action: string }> = {
+const KIND_VIEW: Record<ActivityKind, { mark: string; label: string; group: Exclude<ActivityGroup, 'All'>; action: string }> = {
   note: { mark: 'N', label: 'Client note', group: 'Notes', action: 'Pin' },
   email: { mark: 'E', label: 'Email thread', group: 'Email', action: 'Open thread' },
   call: { mark: 'C', label: 'Client call', group: 'Calls', action: 'Open log' },
@@ -231,11 +240,7 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
       </div>
 
       <div className="cap-pf-grid-side-380">
-        <TimelineCard
-          entries={shown}
-          noActivityYet={genuinelyEmpty}
-          onExport={() => exportHistoryCsv(client.name, shown)}
-        />
+        <TimelineCard entries={shown} noActivityYet={genuinelyEmpty} />
         <ControlsCard
           commitments={openCommitments}
           // Fixture only while the fetch is still in flight or errored. Once
@@ -265,98 +270,12 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
   );
 }
 
-/* ── Export (item 7, wire-audit "3 Compose extend") ───────────────────────── */
-
-/**
- * CSV of the activity currently on screen. Client-side on purpose: the rows
- * are already fetched, and the useful export is *this view* — the filter and
- * search the user just applied — which no endpoint knows about.
- *
- * Writes from the underlying `ActivityItem`, not the rendered row: the display
- * copy is abbreviated ("Aug 4", "Pinned") where a spreadsheet wants the real
- * ISO timestamp and the real flags. Fixture rows carry no `source` and are
- * dropped, so a fixture can never reach a file.
- */
-function exportHistoryCsv(clientName: string, entries: HistEntry[]) {
-  const rows = entries.flatMap((entry) => (entry.source ? [{ entry, item: entry.source }] : []));
-  if (rows.length === 0) return;
-
-  const escape = (value: string | number | null | undefined): string => {
-    const text = String(value ?? '');
-    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-  };
-  const header = [
-    'Occurred at',
-    'Kind',
-    'Group',
-    'Title',
-    'Detail',
-    'Origin',
-    'Pinned',
-    'Due at',
-    'Settled at',
-    'Source type',
-    'Source id',
-  ];
-  const lines = rows.map(({ entry, item }) =>
-    [
-      item.occurredAt,
-      entry.kind,
-      entry.group,
-      item.title,
-      item.body ?? '',
-      item.origin,
-      item.pinned ? 'yes' : 'no',
-      item.dueAt ?? '',
-      item.settledAt ?? '',
-      item.sourceType ?? '',
-      item.sourceId ?? '',
-    ]
-      .map(escape)
-      .join(','),
-  );
-
-  const csv = [header.map(escape).join(','), ...lines].join('\r\n');
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${clientName.replace(/[^\w-]+/g, '-').toLowerCase()}-relationship-history.csv`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
 /* ── Timeline card ────────────────────────────────────────────────────────── */
 
-function TimelineCard({
-  entries,
-  noActivityYet,
-  onExport,
-}: {
-  entries: HistEntry[];
-  noActivityYet: boolean;
-  onExport: () => void;
-}) {
-  // Only real activity is exportable. A CSV built from the TIMELINE fixture
-  // would leave a file of invented history on someone's disk, long after the
-  // "this is a design placeholder" context is gone.
-  const exportable = entries.filter((entry) => entry.source).length;
+function TimelineCard({ entries, noActivityYet }: { entries: HistEntry[]; noActivityYet: boolean }) {
   return (
     <Card>
-      <CardHead
-        title="Account relationship timeline"
-        action={
-          <PfButton
-            variant="link"
-            disabled={exportable === 0}
-            title={exportable === 0 ? 'No recorded activity to export yet' : undefined}
-            onClick={onExport}
-          >
-            Export
-          </PfButton>
-        }
-      />
+      <CardHead title="Account relationship timeline" />
       <div>
         {entries.length === 0 ? (
           <p style={{ margin: 0, padding: '20px 24px', fontSize: 14, color: '#667085' }}>

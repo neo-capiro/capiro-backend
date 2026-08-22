@@ -121,7 +121,7 @@ export function VNextShellVisual({
   collapsed,
   screen = 'empty',
   crmTab = 'overview',
-  intelView = 'overview',
+  intelView = 'legislative',
   relView = 'organization',
   crmOverlay,
   attnState,
@@ -129,7 +129,7 @@ export function VNextShellVisual({
   collapsed?: boolean;
   screen?: VNextVisualScreen;
   crmTab?: 'overview' | 'capabilities' | 'relationships' | 'work' | 'intelligence' | 'files';
-  intelView?: 'overview' | 'legislative' | 'regulatory' | 'funding' | 'footprint' | 'district';
+  intelView?: 'legislative' | 'regulatory' | 'funding' | 'footprint' | 'district';
   relView?: 'organization' | 'government' | 'history';
   crmOverlay?: 'person' | 'target' | 'strategy' | 'health' | 'hierarchy' | 'move' | 'toast';
   /** Forces Needs Attention into one of the six named states (754:2885) —

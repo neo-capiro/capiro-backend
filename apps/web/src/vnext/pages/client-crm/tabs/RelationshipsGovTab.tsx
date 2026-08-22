@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DIRECTORY_ROUTES } from '../../directory/directory-routes.js';
 import {
   Card,
   CardHead,
@@ -13,10 +12,9 @@ import {
   PILL,
   TabPageHead,
   Tile,
-  UIcon,
   type PillTone,
 } from '../portfolio-primitives.js';
-import { GOV_ROWS, TARGETS } from '../portfolio-fixtures.js';
+import { TARGETS } from '../portfolio-fixtures.js';
 import { formatDateShort, humanizeEnumToken } from '../../../lib/labels.js';
 import { initialsFor } from '../../../adapters/legacy/useClientCrmOverviewModel.js';
 import { useApi } from '../../../../lib/use-api.js';
@@ -41,9 +39,12 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
  * Current targets and the relationships table bind to the real targets backend
  * (`pages/clients/targets-api.ts`) — the same `['client-targets', clientId]`
  * cache entry the canonical TargetsTab uses, so an edit in either surface is
- * seen by the other. The design's TARGETS / GOV_ROWS fixtures still render
- * while the query is loading or errored, keeping the surface pixel-reviewable
- * (the convention this file family already follows — see WorkTab §9).
+ * seen by the other. The design's TARGETS fixture still renders while the
+ * query is loading or errored, keeping the surface pixel-reviewable (the
+ * convention this file family already follows — see WorkTab §9).
+ *
+ * The design's second "All government relationships" table is gone: it paged
+ * the same targets the Current targets panel above already lists.
  *
  * The side rail is the office recommender from app Targets ("Suggested by Meri"),
  * not the retired relationship-network card. Same query keys and mutations as
@@ -56,28 +57,11 @@ const DISPOSITION_TONE: Record<string, PillTone> = {
   Opposed: 'error',
 };
 
-const GROUP_FILTERS = ['All', 'Congress', 'Agencies', 'Committees', 'Current targets'] as const;
-type GroupFilter = (typeof GROUP_FILTERS)[number];
-
-/** Real directories the targets backend actually distinguishes (item 14). The
- *  fixture's Agencies/Committees groups have no equivalent — a `ClientTarget`
- *  is always a person from one of these three directories. */
-const REAL_FILTERS = ['All', 'Congress', 'State', 'Staff'] as const;
-type RealFilter = (typeof REAL_FILTERS)[number];
-
 const DIRECTORY_LABEL: Record<TargetDirectory, string> = {
   congress: 'Member of Congress',
   state: 'State legislator',
   staff: 'Congressional staff',
 };
-
-const DIRECTORY_FILTER: Record<TargetDirectory, RealFilter> = {
-  congress: 'Congress',
-  state: 'State',
-  staff: 'Staff',
-};
-
-const PAGE_SIZE = 10;
 
 const targetName = (t: ClientTarget) => t.memberName ?? t.memberId;
 
@@ -146,14 +130,11 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
         <CurrentTargetsPanel />
       )}
 
-      <div className="cap-pf-grid-side-380">
-        {realTargets ? (
-          <RealRelationshipsTableCard targets={realTargets} onOpen={setDrawerTarget} />
-        ) : (
-          <RelationshipsTableCard />
-        )}
-        <TargetRecommendationsCard client={client} targets={realTargets ?? []} />
-      </div>
+      {/* The "All government relationships" table was a second render of the
+          same `['client-targets', clientId]` rows the Current targets panel
+          above already shows — one client's targets listed twice on one
+          screen. Only the recommender rail stays beside them. */}
+      <TargetRecommendationsCard client={client} targets={realTargets ?? []} />
 
       <AddRelationshipModal open={addOpen} clientId={client.id} onClose={() => setAddOpen(false)} />
 
@@ -313,256 +294,6 @@ function RealTargetCard({
         Open target →
       </PfButton>
     </div>
-  );
-}
-
-/* ── All government relationships — real (item 14) ────────────────────────── */
-
-function RealRelationshipsTableCard({
-  targets,
-  onOpen,
-}: {
-  targets: ClientTarget[];
-  onOpen: (t: ClientTarget) => void;
-}) {
-  const navigate = useNavigate();
-  const [filter, setFilter] = useState<RealFilter>('All');
-  const [query, setQuery] = useState('');
-  const [page, setPage] = useState(0);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return targets.filter((t) => {
-      if (filter !== 'All' && DIRECTORY_FILTER[t.sourceDirectory] !== filter) return false;
-      if (!q) return true;
-      return `${targetName(t)} ${t.chamber ?? ''} ${t.state ?? ''} ${t.committee ?? ''}`
-        .toLowerCase()
-        .includes(q);
-    });
-  }, [targets, filter, query]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const rows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  const filterActive = filter !== 'All' || query.trim() !== '';
-
-  return (
-    <Card>
-      <CardHead
-        withDesc
-        title="All government relationships"
-        action={
-          <PfButton variant="link" onClick={() => navigate(DIRECTORY_ROUTES.congressionalStaff)}>
-            View directory
-          </PfButton>
-        }
-      />
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 24px 12px', flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            height: 40,
-            padding: '0 12px',
-            flex: 1,
-            minWidth: 200,
-            borderRadius: 8,
-            border: '1px solid #E0DCD4',
-            boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
-          }}
-        >
-          <UIcon name="SearchLg" size={20} color="#667085" />
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(0);
-            }}
-            aria-label="Search relationships"
-            placeholder="Search targets by name, chamber, state or committee"
-            style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontSize: 14, color: '#101828' }}
-          />
-        </div>
-        {REAL_FILTERS.map((g) => (
-          <FilterChip
-            key={g}
-            label={g}
-            active={filter === g}
-            onClick={() => {
-              setFilter(g);
-              setPage(0);
-            }}
-          />
-        ))}
-      </div>
-
-      <div style={{ width: '100%', overflowX: 'auto' }}>
-        <div style={{ minWidth: 800 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '10px 24px',
-              background: '#FAF9F6',
-              borderTop: '1px solid #E8E5DF',
-              borderBottom: '1px solid #E8E5DF',
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: '.04em',
-              textTransform: 'uppercase',
-              color: '#667085',
-            }}
-          >
-            <span style={{ flex: 1, minWidth: 0 }}>Name</span>
-            <span style={{ flex: '0 0 auto', width: 124 }}>Type</span>
-            <span style={{ flex: '0 0 auto', width: 104 }}>Jurisdiction</span>
-            <span style={{ flex: '0 0 auto', width: 148 }}>Committee / office</span>
-            <span style={{ flex: '0 0 auto', width: 112 }}>Tier</span>
-          </div>
-          {rows.length === 0 ? (
-            <p style={{ margin: 0, padding: '16px 24px', fontSize: 14, color: '#475467' }}>
-              {targets.length === 0
-                ? 'No government targets have been added for this client yet.'
-                : 'No target matches this search.'}
-            </p>
-          ) : (
-            rows.map((t) => <RealGovRow key={t.id} target={t} onOpen={() => onOpen(t)} />)
-          )}
-        </div>
-      </div>
-
-      <TableFooter
-        shown={rows.length}
-        filteredCount={filtered.length}
-        totalCount={targets.length}
-        filterActive={filterActive}
-        page={safePage}
-        pageCount={pageCount}
-        onPrev={() => setPage((p) => Math.max(0, p - 1))}
-        onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-      />
-    </Card>
-  );
-}
-
-/**
- * Shared table footer (real + fixture tables). "Showing N of M" counts the
- * FILTERED set — "Showing 3 of 47" while a filter hid 44 rows was a lie; the
- * unfiltered total moves into an explicit "filtered from" suffix. Pagination
- * disappears entirely when there is nothing to page.
- */
-function TableFooter({
-  shown,
-  filteredCount,
-  totalCount,
-  filterActive,
-  page,
-  pageCount,
-  onPrev,
-  onNext,
-}: {
-  shown: number;
-  filteredCount: number;
-  totalCount: number;
-  filterActive: boolean;
-  page: number;
-  pageCount: number;
-  onPrev: () => void;
-  onNext: () => void;
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 24px' }}>
-      <span style={{ fontSize: 14, color: '#475467' }}>
-        Showing {shown} of {filteredCount} relationship{filteredCount === 1 ? '' : 's'}
-        {filterActive && filteredCount !== totalCount ? ` · filtered from ${totalCount}` : ''}
-      </span>
-      <span style={{ flex: 1 }} />
-      {shown > 0 ? (
-        <>
-          <PagerLink label="← Previous" ariaLabel="Previous page" disabled={page === 0} onClick={onPrev} />
-          <PagerLink label="Next →" ariaLabel="Next page" disabled={page >= pageCount - 1} onClick={onNext} />
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-/** Link-styled pager button. Local because the primitive's link variant does
- *  not forward `ariaLabel`, and these arrows need accessible names. */
-function PagerLink({
-  label,
-  ariaLabel,
-  disabled,
-  onClick,
-}: {
-  label: string;
-  ariaLabel: string;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      type="button"
-      aria-label={ariaLabel}
-      disabled={disabled}
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        fontSize: 14,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-        color: disabled ? '#98A2B3' : hover ? '#0E141C' : '#101828',
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-function RealGovRow({ target: t, onOpen }: { target: ClientTarget; onOpen: () => void }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'center',
-        gap: 12,
-        padding: '13px 24px',
-        borderBottom: '1px solid #E8E5DF',
-        textAlign: 'left',
-        background: hover ? '#FAF9F6' : 'transparent',
-      }}
-    >
-      <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {targetName(t)}
-      </span>
-      <span style={{ flex: '0 0 auto', width: 124, fontSize: 13, color: '#475467' }}>{DIRECTORY_LABEL[t.sourceDirectory]}</span>
-      <span
-        title={t.state ? undefined : 'Not on file'}
-        style={{ flex: '0 0 auto', width: 104, fontSize: 13, color: '#475467' }}
-      >
-        {t.state ?? '—'}
-      </span>
-      <span
-        title={t.committee ? undefined : 'Not on file'}
-        style={{ flex: '0 0 auto', width: 148, fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-      >
-        {t.committee ?? '—'}
-      </span>
-      <span style={{ flex: '0 0 auto', width: 112 }}>
-        <Pill tone={t.tier === 1 ? 'brand' : 'gray'}>{t.tier == null ? 'Untiered' : `Tier ${t.tier}`}</Pill>
-      </span>
-    </button>
   );
 }
 
@@ -734,202 +465,6 @@ function TargetField({ label, value }: { label: string; value: string }) {
       </span>
       <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', textWrap: 'pretty' }}>{value}</span>
     </span>
-  );
-}
-
-/* ── All government relationships (table) ─────────────────────────────────── */
-
-function RelationshipsTableCard() {
-  const navigate = useNavigate();
-  const [filter, setFilter] = useState<GroupFilter>('Congress');
-  const [query, setQuery] = useState('');
-  const [page, setPage] = useState(0);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return GOV_ROWS.filter((r) => {
-      const inGroup =
-        filter === 'All' ? true : filter === 'Current targets' ? r.target === 'Current' : r.group === filter;
-      if (!inGroup) return false;
-      if (!q) return true;
-      return `${r.name} ${r.type} ${r.jurisdiction} ${r.office}`.toLowerCase().includes(q);
-    });
-  }, [filter, query]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const rows = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-
-  const choose = (next: GroupFilter) => {
-    setFilter(next);
-    setPage(0);
-  };
-
-  return (
-    <Card>
-      <CardHead
-        withDesc
-        title="All government relationships"
-        action={
-          <PfButton variant="link" onClick={() => navigate(DIRECTORY_ROUTES.congressionalStaff)}>
-            View directory
-          </PfButton>
-        }
-      />
-
-      {/* toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 24px 12px', flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            height: 40,
-            padding: '0 12px',
-            flex: 1,
-            minWidth: 200,
-            borderRadius: 8,
-            border: '1px solid #E0DCD4',
-            boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
-          }}
-        >
-          <UIcon name="SearchLg" size={20} color="#667085" />
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(0);
-            }}
-            aria-label="Search relationships"
-            placeholder="Search officials, committees, offices"
-            style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontSize: 14, color: '#101828' }}
-          />
-        </div>
-        {GROUP_FILTERS.map((g) => (
-          <FilterChip key={g} label={g} active={filter === g} onClick={() => choose(g)} />
-        ))}
-      </div>
-
-      {/* table */}
-      <div style={{ width: '100%', overflowX: 'auto' }}>
-        <div style={{ minWidth: 800 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '10px 24px',
-              background: '#FAF9F6',
-              borderTop: '1px solid #E8E5DF',
-              borderBottom: '1px solid #E8E5DF',
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: '.04em',
-              textTransform: 'uppercase',
-              color: '#667085',
-            }}
-          >
-            <span style={{ flex: 1, minWidth: 0 }}>Name</span>
-            <span style={{ flex: '0 0 auto', width: 124 }}>Type</span>
-            <span style={{ flex: '0 0 auto', width: 104 }}>Jurisdiction</span>
-            <span style={{ flex: '0 0 auto', width: 148 }}>Committee / office</span>
-            <span style={{ flex: '0 0 auto', width: 112 }}>Target</span>
-          </div>
-          {rows.map((r) => (
-            <GovRow key={r.name} row={r} />
-          ))}
-        </div>
-      </div>
-
-      {/* footer */}
-      <TableFooter
-        shown={rows.length}
-        filteredCount={filtered.length}
-        totalCount={GOV_ROWS.length}
-        filterActive={filter !== 'All' || query.trim() !== ''}
-        page={safePage}
-        pageCount={pageCount}
-        onPrev={() => setPage((p) => Math.max(0, p - 1))}
-        onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-      />
-    </Card>
-  );
-}
-
-/** Fixture-only row. Non-interactive on purpose: it had button semantics and a
- *  pointer cursor but no handler — a click promise the row could not keep. */
-function GovRow({ row: r }: { row: (typeof GOV_ROWS)[number] }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'center',
-        gap: 12,
-        padding: '13px 24px',
-        borderBottom: '1px solid #E8E5DF',
-        textAlign: 'left',
-      }}
-    >
-      <span
-        style={{
-          flex: 1,
-          minWidth: 0,
-          fontSize: 14,
-          fontWeight: 500,
-          color: '#101828',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {r.name}
-      </span>
-      <span style={{ flex: '0 0 auto', width: 124, fontSize: 13, color: '#475467' }}>{r.type}</span>
-      <span style={{ flex: '0 0 auto', width: 104, fontSize: 13, color: '#475467' }}>{r.jurisdiction}</span>
-      <span
-        style={{
-          flex: '0 0 auto',
-          width: 148,
-          fontSize: 13,
-          color: '#475467',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {r.office}
-      </span>
-      <span style={{ flex: '0 0 auto', width: 112 }}>
-        <Pill tone={r.target === 'Current' ? 'brand' : 'gray'}>{r.target}</Pill>
-      </span>
-    </div>
-  );
-}
-
-function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        height: 32,
-        padding: '0 12px',
-        borderRadius: 8,
-        background: active ? '#F2F0EB' : hover ? '#FAF9F6' : 'transparent',
-        border: active ? '1px solid #E0DCD4' : '1px solid transparent',
-        color: active ? '#101828' : '#667085',
-        fontSize: 13,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      {label}
-    </button>
   );
 }
 

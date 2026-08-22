@@ -228,12 +228,11 @@ export const UPCOMING = [
 ];
 
 export const INTEL_TABS = [
-  ['overview', 'Overview'], ['legislative', 'Legislative'], ['regulatory', 'Regulatory'],
+  ['legislative', 'Legislative'], ['regulatory', 'Regulatory'],
   ['funding', 'Funding & Budget'], ['footprint', 'Federal Footprint'], ['district', 'District Nexus']
 ];
 
 export const INTEL_META = {
-  overview: { title: 'Client intelligence', sub: 'External signals organized around this client, not a wall of raw database counters.', primary: 'Sync intelligence' },
   legislative: { title: 'Legislative', sub: 'Tracked bills, client-fit recommendations, hearings, and material changes from LegiWatch.', primary: 'Track bill', secondary: 'Configure', solid: true },
   regulatory: { title: 'Regulatory', sub: 'Federal Register matters shown as decision-oriented lifecycle rails with client deadlines.', primary: 'Track matter', solid: true },
   funding: { title: 'Funding & Budget', sub: 'Grant and contract opportunities, active pursuits, and relevant defense budget programs in one domain.', primary: 'Sync sources' },

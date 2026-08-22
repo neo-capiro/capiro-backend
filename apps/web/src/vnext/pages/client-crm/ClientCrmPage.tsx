@@ -281,7 +281,6 @@ function ClientCrmBody({
         route={route}
         onEditProfile={canManageClients ? onEditProfile : undefined}
         canManageClients={canManageClients}
-        onFillWithMeri={onFillWithMeri}
         onNavigate={onNavigate}
       />
     </div>
@@ -293,14 +292,12 @@ function ClientCrmSurface({
   route,
   onEditProfile,
   canManageClients,
-  onFillWithMeri,
   onNavigate,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
   onEditProfile?: () => void;
   canManageClients: boolean;
-  onFillWithMeri: () => void;
   onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
 }) {
   if (route.tab === 'overview')
@@ -313,7 +310,7 @@ function ClientCrmSurface({
         onOpenIntelligence={() => onNavigate('intelligence')}
       />
     );
-  if (route.tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} onFillWithMeri={onFillWithMeri} />;
+  if (route.tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} />;
   if (route.tab === 'relationships') {
     if (route.view === 'government') return <ClientCrmGovernmentProto client={client} />;
     if (route.view === 'history') return <ClientCrmHistoryProto client={client} />;
@@ -321,7 +318,7 @@ function ClientCrmSurface({
   }
   if (route.tab === 'work') return <ClientCrmWorkProto client={client} />;
   if (route.tab === 'intelligence') {
-    return <ClientCrmIntelligenceProto client={client} view={(route.view ?? 'overview') as IntelligenceView} />;
+    return <ClientCrmIntelligenceProto client={client} view={(route.view ?? 'legislative') as IntelligenceView} />;
   }
   if (route.tab === 'files') return <ClientCrmFilesProto client={client} />;
   return null;

@@ -145,15 +145,19 @@ beforeEach(() => {
   postMock.mockReset();
 });
 
-describe('ClientCrmGovernmentProto', () => {
-  it('navigates to the Directory vNext congressional staff page when "View directory" is clicked', async () => {
+describe('ClientCrmGovernmentProto — removed "All government relationships"', () => {
+  it('renders the targets once and drops the duplicate table, its filters and its View directory link', async () => {
     mockApis();
     renderGov();
 
     await waitFor(() => expect(screen.getAllByText('Rep. Dana Whitfield').length).toBeGreaterThan(0));
-    fireEvent.click(screen.getByRole('button', { name: 'View directory' }));
-
-    expect(screen.getByTestId('location')).toHaveTextContent('/directory/congressional-staff');
+    expect(screen.queryByText('All government relationships')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'View directory' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Search relationships')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Previous page' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument();
+    // Current targets (top) is the single place a target now appears.
+    expect(screen.getByText('Current targets')).toBeInTheDocument();
   });
 });
 
@@ -163,7 +167,7 @@ describe('ClientCrmGovernmentProto — real targets (items 11-14, wire-audit)', 
     postMock.mockReset();
   });
 
-  it('renders real targets in the cards and table instead of the TARGETS/GOV_ROWS fixtures (items 12/14)', async () => {
+  it('renders real targets in the cards instead of the TARGETS fixture (item 12)', async () => {
     mockApis();
     renderGov();
 
@@ -219,68 +223,21 @@ describe('ClientCrmGovernmentProto — real targets (items 11-14, wire-audit)', 
     mockApis({ targets: [] });
     renderGov();
 
+    // The duplicate table empty copy is gone with the table itself — only the
+    // Current targets panel empty state remains, and it points at the header.
     await waitFor(() =>
-      expect(
-        screen.getAllByText('No government targets have been added for this client yet.').length,
-      ).toBeGreaterThan(0),
+      expect(screen.getByText('No government targets yet — add one from the header.')).toBeInTheDocument(),
     );
     expect(screen.queryByText('FY27 Ground Robotics Funding')).not.toBeInTheDocument();
-    // The card empty state is a hint pointing at the header's button — not a
-    // second copy of the same button (polish item 3).
-    expect(screen.getByText('No government targets yet — add one from the header.')).toBeInTheDocument();
+    expect(screen.queryByText('No government targets have been added for this client yet.')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Add relationship' })).toHaveLength(1);
-    // Nothing to page through, so no pagination at all (polish item 2).
-    expect(screen.queryByRole('button', { name: 'Previous page' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument();
   });
 
-  it('counts the filtered set in the footer and names the unfiltered total (polish item 1)', async () => {
-    mockApis({
-      targets: [
-        TARGET,
-        {
-          ...TARGET,
-          id: 'ct-2',
-          memberId: 'S000456',
-          memberName: 'Sen. Alicia Boren',
-          sourceDirectory: 'state',
-          chamber: null,
-          committee: null,
-          tier: 2,
-        },
-      ],
-    });
-    renderGov();
-
-    await waitFor(() => expect(screen.getAllByText('Rep. Dana Whitfield').length).toBeGreaterThan(0));
-    // No filter active: the plain count, with pagination present and labelled.
-    expect(screen.getByText('Showing 2 of 2 relationships')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Previous page' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument();
-
-    // Search active: N of the FILTERED count, unfiltered total called out.
-    fireEvent.change(screen.getByLabelText('Search relationships'), { target: { value: 'whitfield' } });
-    expect(screen.getByText('Showing 1 of 1 relationship · filtered from 2')).toBeInTheDocument();
-
-    // Zero matches: empty message, and the pagination disappears entirely.
-    fireEvent.change(screen.getByLabelText('Search relationships'), { target: { value: 'zzz-no-match' } });
-    expect(screen.getByText('No target matches this search.')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Previous page' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument();
-  });
-
-  it('marks filter chips with aria-pressed and humanizes the added-via source (polish items 4-5)', async () => {
+  it('humanizes the added-via source on a real target card (polish item 5)', async () => {
     mockApis();
     renderGov();
 
     await waitFor(() => expect(screen.getAllByText('Rep. Dana Whitfield').length).toBeGreaterThan(0));
-    const allChip = screen.getByRole('button', { name: 'All' });
-    expect(allChip).toHaveAttribute('aria-pressed', 'true');
-    const staffChip = screen.getByRole('button', { name: 'Staff' });
-    expect(staffChip).toHaveAttribute('aria-pressed', 'false');
-    fireEvent.click(staffChip);
-    expect(screen.getByRole('button', { name: 'Staff' })).toHaveAttribute('aria-pressed', 'true');
-
     // source 'manual' renders humanized, and the date comes from the shared
     // short-date helper (exact day depends on the machine timezone, so the
     // assertion stops at the separator).

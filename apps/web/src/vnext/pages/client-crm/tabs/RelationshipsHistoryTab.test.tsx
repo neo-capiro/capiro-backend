@@ -58,7 +58,7 @@ describe('ClientCrmHistoryProto', () => {
   });
 });
 
-/* ── Export (item 7, wire-audit "3 Compose extend") ───────────────────────── */
+/* ── Removed affordances: Export, Calls and Documents filters ─────────────── */
 
 const ACTIVITY = [
   {
@@ -93,69 +93,35 @@ const ACTIVITY = [
   },
 ];
 
-function captureCsv() {
-  const blobs: Blob[] = [];
-  const createUrl = vi.spyOn(URL, 'createObjectURL').mockImplementation((blob: Blob | MediaSource) => {
-    blobs.push(blob as Blob);
-    return 'blob:csv';
-  });
-  const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-  const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-  return {
-    blobs,
-    restore: () => {
-      createUrl.mockRestore();
-      revokeUrl.mockRestore();
-      clickSpy.mockRestore();
-    },
-  };
-}
-
-describe('ClientCrmHistoryProto — Export', () => {
-  it('exports the real activity rows as CSV', async () => {
+describe('ClientCrmHistoryProto — removed affordances', () => {
+  it('no longer offers a timeline Export button', async () => {
     getMock.mockResolvedValue({ data: ACTIVITY });
-    const csv = captureCsv();
     renderHistory();
 
     await screen.findByText('Quarterly check-in with program office');
-    fireEvent.click(screen.getByText('Export'));
-
-    const text = await csv.blobs[0]!.text();
-    expect(text.split('\r\n')[0]).toBe(
-      'Occurred at,Kind,Group,Title,Detail,Origin,Pinned,Due at,Settled at,Source type,Source id',
-    );
-    // The raw ISO timestamp, not the abbreviated on-screen date.
-    expect(text).toContain('2026-08-04T15:30:00.000Z');
-    expect(text).toContain('Quarterly check-in with program office');
-    expect(text).toContain('Site visit debrief');
-    // A field holding a comma and quotes is quoted and its quotes doubled, or
-    // the row silently gains columns in a spreadsheet.
-    expect(text).toContain('"Discussed FY27 timing, budget posture, and the ""next"" steps"');
-    csv.restore();
+    expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
   });
 
-  it('exports only the filtered view', async () => {
+  it('no longer offers Calls or Documents filter chips', async () => {
     getMock.mockResolvedValue({ data: ACTIVITY });
-    const csv = captureCsv();
     renderHistory();
 
     await screen.findByText('Quarterly check-in with program office');
-    fireEvent.click(screen.getByRole('button', { name: 'Calls' }));
-    fireEvent.click(screen.getByText('Export'));
-
-    const text = await csv.blobs[0]!.text();
-    expect(text).toContain('Quarterly check-in with program office');
-    expect(text).not.toContain('Site visit debrief');
-    csv.restore();
+    expect(screen.queryByRole('button', { name: 'Calls' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Documents' })).not.toBeInTheDocument();
+    // The surviving chips still filter.
+    for (const label of ['All', 'Meetings', 'Email', 'Notes', 'Outreach']) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
   });
 
-  it('disables Export rather than writing the TIMELINE fixture to a file', () => {
-    getMock.mockImplementation(() => new Promise(() => {})); // never resolves
+  it('still lists a logged call under All — only the chip went away', async () => {
+    getMock.mockResolvedValue({ data: ACTIVITY });
     renderHistory();
 
-    // The fixture is on screen for pixel review; a CSV of it would outlive the
-    // context that made it obviously a placeholder.
-    expect(screen.getByText('Export')).toBeDisabled();
+    // The row itself keeps its real group and eyebrow label.
+    expect(await screen.findByText('Quarterly check-in with program office')).toBeInTheDocument();
+    expect(screen.getByText('Client call')).toBeInTheDocument();
   });
 });
 

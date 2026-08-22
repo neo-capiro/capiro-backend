@@ -687,9 +687,9 @@ describe('ClientCrmIntelligenceProto — bill board (item 19, wire-audit)', () =
   });
 });
 
-/* ═══════ wire-audit "3 Compose extend" items 4-6 ═════════════════════════ */
+/* ═══════ wire-audit "3 Compose extend" items 4-5 ═════════════════════════ */
 
-function renderWithRoutes(view: 'legislative' | 'overview' | 'regulatory') {
+function renderWithRoutes(view: 'legislative' | 'regulatory') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
@@ -727,23 +727,6 @@ describe('ClientCrmIntelligenceProto — Configure (item 4, "3 Compose extend")'
     // ?tab=watchlist is the Configure panel on Radar; ?client= scopes it, or
     // the panel lands on the client picker instead of this client.
     expect(screen.getByTestId('location')).toHaveTextContent('/legiwatch?tab=watchlist&client=client-1');
-  });
-});
-
-describe('ClientCrmIntelligenceProto — unified feed (item 6, "3 Compose extend")', () => {
-  beforeEach(() => {
-    getMock.mockReset();
-    postMock.mockReset();
-  });
-
-  it('opens the changes inbox for this client', () => {
-    getMock.mockImplementation(() => new Promise(() => {}));
-    renderWithRoutes('overview');
-
-    fireEvent.click(screen.getByText('View unified feed'));
-
-    // Same href the API hands out as `links.changesInbox` on profile-v1.
-    expect(screen.getByTestId('location')).toHaveTextContent('/intelligence/changes?clientId=client-1');
   });
 });
 

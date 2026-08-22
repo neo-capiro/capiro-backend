@@ -9,8 +9,8 @@
  * Contract:
  *   tab=overview | relationships | work | intelligence | files
  *   tab=relationships  view=organization | government | history
- *   tab=intelligence   view=overview | legislative | regulatory | funding
- *                           | footprint | district
+ *   tab=intelligence   view=legislative | regulatory | funding | footprint
+ *                           | district
  *   tab=capabilities   preserved capability-management surface (§13)
  *
  * Legacy values keep resolving, and are rewritten to their canonical form so
@@ -27,7 +27,6 @@ export const RELATIONSHIP_VIEWS = ['organization', 'government', 'history'] as c
 export type RelationshipView = (typeof RELATIONSHIP_VIEWS)[number];
 
 export const INTELLIGENCE_VIEWS = [
-  'overview',
   'legislative',
   'regulatory',
   'funding',
@@ -51,7 +50,8 @@ export interface CrmRoute {
 }
 
 export const DEFAULT_RELATIONSHIP_VIEW: RelationshipView = 'organization';
-export const DEFAULT_INTELLIGENCE_VIEW: IntelligenceView = 'overview';
+/** Overview is gone (it restated the per-domain panels); Legislative leads. */
+export const DEFAULT_INTELLIGENCE_VIEW: IntelligenceView = 'legislative';
 
 /**
  * Legacy `?tab=` values → canonical destination. From the contract verbatim;
@@ -87,8 +87,10 @@ function isCanonicalTab(value: string): value is CrmSurface {
  * Resolve `?tab=`/`?view=` into the view actually rendered.
  *
  * Never throws and never returns an unrenderable combination: unknown values
- * fall back to Overview rather than to a blank surface, because a stale
- * bookmark landing on an error page is worse than landing on the client.
+ * fall back to a tab's default view rather than to a blank surface, because a
+ * stale bookmark landing on an error page is worse than landing on the client.
+ * `?tab=intelligence&view=overview` is exactly such a stale bookmark now, and
+ * normalizes to Legislative.
  */
 export function resolveCrmRoute(params: URLSearchParams | null | undefined): CrmRoute {
   const rawTab = params?.get('tab')?.trim().toLowerCase() ?? '';
@@ -159,7 +161,6 @@ export const RELATIONSHIP_VIEW_LABELS: Array<{ key: RelationshipView; label: str
 ];
 
 export const INTELLIGENCE_VIEW_LABELS: Array<{ key: IntelligenceView; label: string }> = [
-  { key: 'overview', label: 'Overview' },
   { key: 'legislative', label: 'Legislative' },
   { key: 'regulatory', label: 'Regulatory' },
   { key: 'funding', label: 'Funding & Budget' },
