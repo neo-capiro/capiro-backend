@@ -1,3 +1,4 @@
+import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type {
   PublicHearingEntity,
@@ -80,9 +81,7 @@ export class PostgresPublicHearingInsightStore implements PublicHearingInsightSi
     if (!insights.length) return;
     assertPublicHearingBoundary(insights);
     await this.prisma.withSystem(async (tx) => {
-      for (const insight of insights) {
-        await this.upsertOne(tx, insight);
-      }
+      for (const insight of insights) await this.upsertOne(tx, insight);
     });
   }
 
@@ -109,9 +108,7 @@ export class PostgresPublicHearingInsightStore implements PublicHearingInsightSi
         segmentId,
         ids,
       );
-      for (const insight of insights) {
-        await this.upsertOne(tx, insight);
-      }
+      for (const insight of insights) await this.upsertOne(tx, insight);
     });
   }
 
@@ -179,9 +176,7 @@ export class PostgresPublicHearingInsightStore implements PublicHearingInsightSi
   }
 
   private async upsertOne(
-    tx: {
-      $executeRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
-    },
+    tx: Prisma.TransactionClient,
     insight: PublicHearingInsight,
   ): Promise<void> {
     assertPublicHearingBoundary(insight);
