@@ -308,6 +308,8 @@ model Tenant {
   entityResolutions                  EntityResolution[]
   entityIdentityGovernanceEvents     EntityIdentityGovernanceEvent[]
   canonicalEntityBackfillCheckpoints CanonicalEntityBackfillCheckpoint[]
+  tenantHearingRelevance             TenantHearingRelevance[]
+  tenantHearingRelevanceJobs         TenantHearingRelevanceJob[]
 
   @@map("tenants")
 }
@@ -837,6 +839,7 @@ model Client {
   governedMemoryGrants    MemoryAccessGrant[]
   grantNexuses            ClientGrantNexus[]
   fundingOpportunities    ClientFundingOpportunity[]
+  hearingRelevance        TenantHearingRelevance[]
 
   @@index([tenantId], map: "clients_tenant_idx")
   @@index([tenantId, name], map: "clients_tenant_name_idx")
@@ -6304,6 +6307,7 @@ model PublicHearingCapture {
 
   attempts PublicHearingCaptureAttempt[]
   segments PublicHearingTranscriptSegment[]
+  insights PublicHearingInsight[]
 
   @@index([status])
   @@index([workerLeaseOwner])
@@ -6356,6 +6360,8 @@ model PublicHearingTranscriptSegment {
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   capture PublicHearingCapture @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  insights PublicHearingInsight[]
+  intelligenceJob PublicHearingIntelligenceJob?
 
   @@unique([captureId, startMs, endMs])
   @@index([captureId, sequence])
@@ -6453,6 +6459,149 @@ model HearingAutoRecordRule {
 
   @@index([tenantId, enabled])
   @@map("hearing_auto_record_rule")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// LegiWatch Live Hearings — Phase 8 durable live intelligence.
+//
+// The public rail is GLOBAL public-record data: canonical transcript segment
+// -> source-grounded public insight. Deliberately no tenant_id and no RLS.
+// Tenant relevance is a separate, derived, FORCE-RLS-isolated rail: public
+// insight + tenant-owned client context -> tenant_hearing_relevance. It can
+// never mutate the public insight row. See migration
+// 20261123030000_legiwatch_phase8_live_intelligence for the SQL source of
+// truth (CHECK constraints, the enqueue trigger, and the RLS policies below
+// are SQL-owned and intentionally not re-expressed here).
+// ─────────────────────────────────────────────────────────────────────────
+
+// GLOBAL, no tenant_id, no RLS. Source-grounded facts derived only from
+// canonical public hearing transcript segments. insightType/confidence range
+// are enforced by SQL CHECK constraints (public_hearing_insight_type_check,
+// public_hearing_insight_confidence_check) — not re-declared as a Prisma enum
+// so the allowed-value set stays single-sourced in the migration.
+model PublicHearingInsight {
+  id                String   @id @default(uuid())
+  hearingId         String   @map("hearing_id") // soft ref → committee_hearing.id
+  captureId         String   @map("capture_id")
+  segmentId         String   @map("segment_id")
+  sequence          Int
+  startMs           Int      @map("start_ms")
+  endMs             Int      @map("end_ms")
+  /// 'QUESTION' | 'COMMITMENT' | 'DEADLINE' | 'FUNDING_AMOUNT' |
+  /// 'BILL_REFERENCE' | 'PROGRAM_ELEMENT_REFERENCE' | 'AGENCY_REFERENCE' |
+  /// 'POLICY_POSITION' | 'KEY_QUOTE' | 'MENTION'
+  insightType       String   @map("insight_type")
+  title             String
+  summary           String
+  evidenceText      String?  @map("evidence_text")
+  speakerName       String?  @map("speaker_name")
+  confidence        Float?
+  preliminary       Boolean  @default(false)
+  entities          Json     @default("[]")
+  extractor         String
+  extractorVersion  String   @map("extractor_version")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  capture  PublicHearingCapture             @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  segment  PublicHearingTranscriptSegment   @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  relevance TenantHearingRelevance[]
+
+  @@index([hearingId, sequence, id], map: "public_hearing_insight_hearing_sequence_idx")
+  @@index([segmentId], map: "public_hearing_insight_segment_idx")
+  @@index([insightType, createdAt(sort: Desc)], map: "public_hearing_insight_type_idx")
+  @@index([entities], map: "public_hearing_insight_entities_gin_idx", type: Gin)
+  @@map("public_hearing_insight")
+}
+
+// GLOBAL, no tenant_id, no RLS. Durable segment-extraction queue; one stable
+// job per canonical final transcript segment. The revision-fencing/lease
+// state machine (status transitions on segment revision change, stale-lease
+// preservation) is entirely SQL-owned (the
+// public_hearing_transcript_segment_intelligence_enqueue trigger) — this
+// model only exposes the durable row shape for the worker to read/claim.
+model PublicHearingIntelligenceJob {
+  id               String    @id @default(uuid()) @db.Uuid
+  segmentId        String    @unique @map("segment_id")
+  captureId        String    @map("capture_id")
+  hearingId        String    @map("hearing_id") // soft ref → committee_hearing.id
+  segmentRevision  Int       @default(1) @map("segment_revision")
+  /// 'pending' | 'leased' | 'completed' | 'failed'
+  status           String    @default("pending")
+  attempts         Int       @default(0)
+  dueAt            DateTime  @default(now()) @map("due_at") @db.Timestamptz(6)
+  leaseOwner       String?   @map("lease_owner")
+  leaseExpiresAt   DateTime? @map("lease_expires_at") @db.Timestamptz(6)
+  lastError        String?   @map("last_error")
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  segment PublicHearingTranscriptSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  // Partial index (status IN pending/failed/leased) is SQL-owned
+  // (public_hearing_intelligence_job_claim_idx) — Prisma cannot express a
+  // partial index, so it is not redeclared here.
+  @@index([hearingId, updatedAt(sort: Desc)], map: "public_hearing_intelligence_job_hearing_idx")
+  @@map("public_hearing_intelligence_job")
+}
+
+// TENANT-scoped, FORCE-RLS isolated (rls_bypass() OR tenant_id =
+// current_tenant_id(), enforced entirely in SQL — not re-declared here).
+// Derived from a global PublicHearingInsight + tenant-owned client context;
+// can never mutate the public insight row it cites. hearingId stays a SOFT
+// ref (no FK) exactly like HearingSubscription.hearingId, since it points at
+// the global layer above.
+model TenantHearingRelevance {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id") @db.Uuid
+  clientId   String   @map("client_id") @db.Uuid
+  clientName String?  @map("client_name")
+  hearingId  String   @map("hearing_id") // soft ref → committee_hearing.id
+  insightId  String   @map("insight_id")
+  score      Float
+  matchedOn  Json     @default("[]") @map("matched_on")
+  rationale  String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant  Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client  Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  insight PublicHearingInsight @relation(fields: [insightId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, clientId, insightId], map: "tenant_hearing_relevance_tenant_client_insight_key")
+  @@index([tenantId, hearingId, score(sort: Desc), id], map: "tenant_hearing_relevance_tenant_hearing_score_idx")
+  @@index([tenantId, clientId, updatedAt(sort: Desc)], map: "tenant_hearing_relevance_tenant_client_idx")
+  @@map("tenant_hearing_relevance")
+}
+
+// TENANT-scoped, FORCE-RLS isolated (SQL-owned policy, same shape as
+// TenantHearingRelevance above). Durable per-tenant relevance-matching queue,
+// batched by (tenantId, batchKey) so one hearing's insight burst becomes one
+// tenant job, not one job per insight. The lease/backoff partial index
+// (tenant_hearing_relevance_job_claim_idx) is SQL-owned and not redeclared.
+model TenantHearingRelevanceJob {
+  id               String    @id @default(uuid()) @db.Uuid
+  tenantId         String    @map("tenant_id") @db.Uuid
+  hearingId        String    @map("hearing_id") // soft ref → committee_hearing.id
+  publicInsightIds String[]  @map("public_insight_ids")
+  batchKey         String    @map("batch_key")
+  /// 'pending' | 'leased' | 'completed' | 'failed'
+  status           String    @default("pending")
+  attempts         Int       @default(0)
+  dueAt            DateTime  @default(now()) @map("due_at") @db.Timestamptz(6)
+  leaseOwner       String?   @map("lease_owner")
+  leaseExpiresAt   DateTime? @map("lease_expires_at") @db.Timestamptz(6)
+  lastError        String?   @map("last_error")
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, batchKey], map: "tenant_hearing_relevance_job_tenant_batch_key")
+  @@index([tenantId, hearingId, updatedAt(sort: Desc)], map: "tenant_hearing_relevance_job_tenant_hearing_idx")
+  @@map("tenant_hearing_relevance_job")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

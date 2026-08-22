@@ -162,7 +162,7 @@ export class PostgresTenantHearingContextProvider
                     name,
                     description,
                     sector,
-                    tags,
+                    tags_jsonb AS "tags",
                     issue_codes_jsonb AS "issueCodes",
                     pe_number AS "peNumber",
                     pe_numbers AS "peNumbers",

@@ -73,7 +73,7 @@ describeDb('LegiWatch Phase 8 live intelligence (Postgres)', () => {
     await prisma.$executeRawUnsafe(
       `INSERT INTO client_capabilities
          (tenant_id, client_id, name, type, description, pe_number, pe_numbers,
-          keywords, service_branch, tags, issue_codes_jsonb, created_at, updated_at)
+          keywords, service_branch, tags_jsonb, issue_codes_jsonb, created_at, updated_at)
        VALUES
          ($1::uuid, $2::uuid, 'Autonomous ground systems', 'product',
           'Secure autonomous systems for contested environments', '0601234A',

@@ -1,4 +1,4 @@
-import type { Prisma } from '../../generated/prisma-client/index.js';
+import type { Prisma } from '../../../generated/prisma-client/index.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type {
   PublicHearingEntity,
