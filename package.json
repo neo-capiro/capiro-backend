@@ -94,7 +94,11 @@
     "verify:phase8-session10": "node scripts/verify-phase8-session10.mjs",
     "verify:phase8-session10:db": "node scripts/verify-phase8-session10-db.mjs",
     "verify:phase8-session10:domain": "pnpm --filter @capiro/defense-domain build && node scripts/test-phase8-session10-schedule-domain.mjs",
-    "verify:phase8-session10:runtime": "pnpm --filter @capiro/defense-api exec tsx --test src/budget-lifecycle/schedule/schedule-coordinator.spec.ts"
+    "verify:phase8-session10:runtime": "pnpm --filter @capiro/defense-api exec tsx --test src/budget-lifecycle/schedule/schedule-coordinator.spec.ts",
+    "verify:phase8-session11": "node scripts/verify-phase8-session11.mjs",
+    "verify:phase8-session11:db": "node scripts/verify-phase8-session11-db.mjs",
+    "verify:phase8-session11:domain": "pnpm --filter @capiro/defense-domain build && node scripts/test-phase8-session11-domain.mjs",
+    "verify:phase8-session11:runtime": "pnpm --filter @capiro/defense-api exec tsx --test src/budget-lifecycle-product/budget-lifecycle-query.service.spec.ts"
   },
   "devDependencies": {
     "turbo": "^2.1.3",

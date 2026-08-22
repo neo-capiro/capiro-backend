@@ -11,6 +11,7 @@ import { JsonLogger } from './observability/json-logger.js';
 import { ProgramElementsModule } from './program-elements/program-elements.module.js';
 import { Phase17RuntimeModule } from './runtime/phase1-7-runtime.module.js';
 import { BudgetLifecycleModule } from './budget-lifecycle/budget-lifecycle.module.js';
+import { BudgetLifecycleProductModule } from './budget-lifecycle-product/budget-lifecycle-product.module.js';
 
 @Module({
   imports: [
@@ -36,6 +37,10 @@ import { BudgetLifecycleModule } from './budget-lifecycle/budget-lifecycle.modul
     // plane. No controller, route, schedule, EventBridge watcher, promotion
     // executor or snapshot activator is registered here.
     BudgetLifecycleModule,
+    // Session 11: read-only product/HTTP integration over the Session 7-10
+    // control plane, on its own route table (never DEFENSE_PUBLIC_ROUTES) and
+    // its own read port (never the Session 7 write-capable LIFECYCLE_STORE).
+    BudgetLifecycleProductModule,
   ],
   providers: [JsonLogger],
 })

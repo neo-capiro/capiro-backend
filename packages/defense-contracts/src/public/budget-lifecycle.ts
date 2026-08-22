@@ -165,3 +165,89 @@ export interface DefenseCycleHealthDto {
   readonly productionParser: 'DETERMINISTIC_PRIMARY';
   readonly missingSourceMeansUnknownNotZero: true;
 }
+
+/**
+ * Phase 8 Session 11 — product/HTTP read shapes.
+ *
+ * These are additive to the Session 7 shapes above, not a replacement: they
+ * exist because Session 7-10 built the state these represent
+ * (`defense_budget_schedule_tick`, the `review_required` hold, provenance
+ * chains) but registered no HTTP route or aggregate read model for any of it.
+ * Nothing here adds a route to `DEFENSE_PUBLIC_ROUTES` — see
+ * `budget-lifecycle-product-routes.ts` for the separate, non-frozen route
+ * table Session 11 registers instead.
+ */
+
+export type DefenseScheduleTickOutcomeDto = 'completed' | 'failed';
+
+export interface DefenseScheduleTickHealthDto {
+  readonly schemaVersion: 'defense_budget_schedule_tick_health_v1';
+  readonly generatedAt: string;
+  readonly ticksConsidered: number;
+  readonly lastTickAt: string | null;
+  readonly lastTickOutcome: DefenseScheduleTickOutcomeDto | null;
+  readonly lastTickWorkerId: string | null;
+  readonly staleSinceLastTick: boolean;
+  readonly completedTicks: number;
+  readonly failedTicks: number;
+  readonly totalAdaptersConsidered: number;
+  readonly totalAdaptersSucceeded: number;
+  readonly totalAdaptersFailed: number;
+  readonly totalAdaptersSkippedLease: number;
+  readonly recentFailureReasons: readonly string[];
+}
+
+/**
+ * One row of the coverage / review-queue table a Session 11 UI renders.
+ * Structurally identical to `DefenseExpectedSourceDto` but named for its
+ * consuming surface, matching the precedent of `DefenseCycleTrackHealthDto`
+ * existing alongside `TrackHealth`.
+ */
+export interface DefenseExpectedSourceListItemDto {
+  readonly id: string;
+  readonly fiscalYear: number;
+  readonly authorityTrack: DefenseAuthorityTrackDto;
+  readonly stage: string;
+  readonly sourceFamily: string;
+  readonly adapterId: string;
+  readonly label: string;
+  readonly expectedState: DefenseExpectedSourceStateDto;
+  readonly optional: boolean;
+  readonly expectedTo: string;
+  readonly reviewReason: string | null;
+  readonly knownFundingPosition: null;
+}
+
+/** A single expected-source detail view, with its full observation history. */
+export interface DefenseExpectedSourceDetailDto extends DefenseExpectedSourceListItemDto {
+  readonly chamber: 'house' | 'senate' | 'joint' | null;
+  readonly committee: string | null;
+  readonly component: string | null;
+  readonly expectedFrom: string;
+  readonly observations: readonly DefenseSourceObservationDto[];
+}
+
+/**
+ * One row of the review-resolution queue: a `review_required` observation
+ * plus the human-readable identity of the expected source it belongs to. A
+ * bare `DefenseSourceObservationDto` has no label an analyst can act on —
+ * this is the composite a review UI actually renders.
+ *
+ * Read-only by construction: nothing on this DTO or the endpoint that
+ * produces it accepts a decision. `capiro_defense_serve` (the role the HTTP
+ * process uses) holds SELECT only on every table behind this view — see
+ * `budget-lifecycle-product-routes.ts`. Resolution happens through
+ * `scripts/run-review-resolution.mjs`, running as `capiro_defense_job`.
+ */
+export interface DefenseReviewQueueItemDto {
+  readonly expectedSourceId: string;
+  readonly fiscalYear: number;
+  readonly authorityTrack: DefenseAuthorityTrackDto;
+  readonly stage: string;
+  readonly sourceFamily: string;
+  readonly adapterId: string;
+  readonly label: string;
+  readonly expectedState: DefenseExpectedSourceStateDto;
+  readonly expectedSourceReviewReason: string | null;
+  readonly observation: DefenseSourceObservationDto;
+}
