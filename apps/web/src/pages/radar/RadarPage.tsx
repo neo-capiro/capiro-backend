@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Empty, Spin } from 'antd';
 import { AudioOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
 import { useIntelFeature } from '../../lib/intel-feature-flags.js';
 import LegacyRadarPage from './LegacyRadarPage.js';
@@ -83,6 +84,11 @@ export function RadarPage() {
     tenantFlagEnabled: liveHearingsRollout.enabled,
     tenantFlagReady: liveHearingsRollout.ready,
   });
+  // `hearing_watch` is the pre-existing tenant gate for the whole Hearings
+  // surface (legacy panel AND the rebuilt Live Hearings product). The rebuild
+  // must not bypass it: an unflagged tenant must still see the "not enabled"
+  // empty state, exactly as the legacy surface always has.
+  const hearingWatchFlag = useIntelFeature('hearing_watch');
 
   useEffect(() => {
     if (tab === 'feed' || tab === 'bills') lastBillView.current = tab;
@@ -174,7 +180,13 @@ export function RadarPage() {
 
       <div className="legiwatch-shell__content">
         {section === 'live-hearings' ? (
-          liveHearingsV2Enabled ? (
+          !hearingWatchFlag.ready ? (
+            <div style={{ padding: '64px 0', textAlign: 'center' }}>
+              <Spin />
+            </div>
+          ) : !hearingWatchFlag.enabled ? (
+            <Empty description="Hearing Watch is not enabled for this workspace." />
+          ) : liveHearingsV2Enabled ? (
             <LiveHearingsCanonicalSurface />
           ) : (
             <LiveHearingsPage />
