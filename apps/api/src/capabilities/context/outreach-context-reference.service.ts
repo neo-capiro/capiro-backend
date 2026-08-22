@@ -3,6 +3,8 @@ import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
+import { AttachmentContentService } from '../../engagement/attachment-content.service.js';
+import { AttachmentScannerService } from '../../engagement/attachment-scanner.service.js';
 import { CapabilityAuthorizationService } from '../capability-authorization.service.js';
 import type { AuthorizedCapabilityContext } from '../capability-context.js';
 import { CapabilityError } from '../capability-errors.js';
@@ -64,6 +66,8 @@ export class OutreachContextReferenceService {
     private readonly prisma: PrismaService,
     private readonly authorization: CapabilityAuthorizationService,
     private readonly targetReferences: OutreachTargetReferenceService,
+    private readonly attachmentContent: AttachmentContentService,
+    private readonly attachmentScanner: AttachmentScannerService,
   ) {}
 
   async resolveMany(
@@ -327,7 +331,6 @@ export class OutreachContextReferenceService {
       where: {
         id: locator.id,
         tenantId: ctx.tenantId,
-        lifecycleStatus: { in: ['ready', 'legacy_ready'] },
         supersededByAttachmentId: null,
       },
       select: {
@@ -344,9 +347,30 @@ export class OutreachContextReferenceService {
         approvedAt: true,
         sharedAt: true,
         createdAt: true,
+        lifecycleStatus: true,
+        scanStatus: true,
       },
     });
     if (!row || row.clientId !== locator.clientId) throw contextNotFound();
+    // Usability is decided by the SAME centralized scan/lifecycle policy every
+    // other attachment reader uses (AttachmentContentService.readiness), not a
+    // hand-rolled lifecycleStatus allowlist. The allowlist this replaced
+    // (`in: ['ready', 'legacy_ready']`) silently excluded 'quarantined' rows
+    // even in deployments where no scanner is configured — where readiness()
+    // correctly treats them as usable (with disclosure) — which made a
+    // genuinely authorized, UI-offered document 403 as OUTREACH_REFERENCE_UNAUTHORIZED
+    // for reasons that had nothing to do with authorization.
+    const readiness = this.attachmentContent.readiness(
+      {
+        id: locator.id,
+        fileName: row.fileName,
+        contentType: row.contentType,
+        lifecycleStatus: row.lifecycleStatus,
+        scanStatus: row.scanStatus,
+      },
+      this.attachmentScanner.scanRequired,
+    );
+    if (!readiness.usable) throw contextNotFound();
     if (row.clientId) await this.authorizeClient(tx, ctx, row.clientId);
     if (row.meetingId) {
       const visibleMeeting = await tx.meeting.findFirst({

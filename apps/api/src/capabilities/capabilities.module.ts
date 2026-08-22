@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { SearchModule } from '../search/search.module.js';
+import { AttachmentContentService } from '../engagement/attachment-content.service.js';
+import { AttachmentScannerService } from '../engagement/attachment-scanner.service.js';
 import { CapabilityAuthorizationService } from './capability-authorization.service.js';
 import { CapabilityRegistry } from './capability-registry.js';
 import { CapiroCapabilityCatalogService } from './capiro-capability-catalog.service.js';
@@ -24,6 +26,13 @@ import { RecommendOutreachStrategyCapability } from './context/recommend-outreac
 @Module({
   imports: [PrismaModule, DirectoryModule, SearchModule],
   providers: [
+    // Provided directly (not via EngagementModule) — same pattern as
+    // OutreachV3SendModule — so OutreachContextReferenceService can apply the
+    // one centralized attachment scan/lifecycle policy without risking the
+    // EngagementModule -> ... -> CapabilitiesModule import cycle that
+    // AttachmentContentService was originally split out to avoid.
+    AttachmentContentService,
+    AttachmentScannerService,
     CapabilityAuthorizationService,
     CapabilityRegistry,
     GetClientContextCapability,
