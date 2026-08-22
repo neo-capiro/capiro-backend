@@ -13,6 +13,7 @@ import {
   type FederalMarketGeographyResponse,
 } from '../../../pages/intelligence/federal-spending/federal-market-api.js';
 import { splitDistrictKey } from '../../../pages/intelligence/district-nexus/district-nexus-format.js';
+import { DistrictEconomicFootprintPanelVNext } from './DistrictEconomicFootprintPanelVNext.js';
 import { DnxInfoIcon } from './icons.js';
 
 type FutureRow = FederalMarketGeographyResponse['futureSignals'][number];
@@ -46,11 +47,10 @@ function signalGeography(signal: FutureRow): string {
 }
 
 /**
- * vNext port of the canonical DistrictFederalMarketPanel — shared
- * federal-market context for one district, rendered inside the drawer's
- * "Federal market context" section. Same endpoint, same query key, same
- * separation rules: state-only subawards stay visibly separate from district
- * facts, and future signals are never added to awarded totals.
+ * Federal Market remains the typed source of truth for prime awards,
+ * district-resolved subawards, state-only fallback context and future signals.
+ * Release 3 composes its separately gated economic-footprint panel underneath;
+ * it never replaces or heuristically reparses this established contract.
  */
 export function DistrictFederalMarketPanelVNext({
   clientId,
@@ -75,8 +75,10 @@ export function DistrictFederalMarketPanelVNext({
     enabled: Boolean(state && districtNo),
   });
 
+  let marketContent: React.ReactNode = null;
+
   if (query.isPending) {
-    return (
+    marketContent = (
       <div className="dnx-skel-rows" aria-busy="true">
         <CapiroSkeleton height={14} width="42%" />
         <CapiroSkeleton height={14} />
@@ -84,10 +86,8 @@ export function DistrictFederalMarketPanelVNext({
         <CapiroSkeleton height={14} width="72%" />
       </div>
     );
-  }
-
-  if (query.isError) {
-    return (
+  } else if (query.isError) {
+    marketContent = (
       <CapiroErrorState
         title="Federal market context is temporarily unavailable"
         description="The verified District Nexus score and district evidence above are unchanged."
@@ -95,138 +95,146 @@ export function DistrictFederalMarketPanelVNext({
         retryLabel="Retry"
       />
     );
-  }
-
-  const data = query.data;
-  if (!data) return null;
-  const stateSubawards = data.stateSubawards ?? [];
-  const districtRows = data.districts.filter((row) => row.districtKey === districtKey);
-  const contractAmount = sumOrNull(districtRows.map((row) => row.contractAmount));
-  const districtSubawardAmount = sumOrNull(districtRows.map((row) => row.subawardAmount));
-  const stateOnlySubawardAmount = sumOrNull(
-    stateSubawards.filter((row) => row.state === state).map((row) => row.subawardAmount),
-  );
-  const stateOnlySubawardCount = stateSubawards
-    .filter((row) => row.state === state)
-    .reduce((sum, row) => sum + row.subawardCount, 0);
-  const futureSignals = data.futureSignals
-    .filter(
-      (signal) =>
-        signal.districtKey === districtKey || (!signal.districtKey && signal.state === state),
-    )
-    .slice(0, 5);
-
-  const explorerParams = new URLSearchParams({ state, district: districtNo });
-  if (clientId) explorerParams.set('clientId', clientId);
-
-  const askMeri = async () => {
-    const prompt = promptForDistrict(
-      districtKey,
-      contractAmount,
-      districtSubawardAmount,
-      stateOnlySubawardAmount,
-      futureSignals,
+  } else if (query.data) {
+    const data = query.data;
+    const stateSubawards = data.stateSubawards ?? [];
+    const districtRows = data.districts.filter((row) => row.districtKey === districtKey);
+    const contractAmount = sumOrNull(districtRows.map((row) => row.contractAmount));
+    const districtSubawardAmount = sumOrNull(districtRows.map((row) => row.subawardAmount));
+    const stateOnlySubawardAmount = sumOrNull(
+      stateSubawards.filter((row) => row.state === state).map((row) => row.subawardAmount),
     );
-    let copied = false;
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(prompt);
-        copied = true;
-      }
-    } catch {
-      copied = false;
-    }
-    const popup = openMeriWorkspaceWithContext({ prompt, clientId });
-    if (!popup) {
-      toast.error(
-        copied
-          ? 'The Meri window was blocked. The district prompt is copied to your clipboard.'
-          : 'The Meri window was blocked. Allow pop-ups for Capiro and try again.',
+    const stateOnlySubawardCount = stateSubawards
+      .filter((row) => row.state === state)
+      .reduce((sum, row) => sum + row.subawardCount, 0);
+    const futureSignals = data.futureSignals
+      .filter(
+        (signal) =>
+          signal.districtKey === districtKey || (!signal.districtKey && signal.state === state),
+      )
+      .slice(0, 5);
+
+    const explorerParams = new URLSearchParams({ state, district: districtNo });
+    if (clientId) explorerParams.set('clientId', clientId);
+
+    const askMeri = async () => {
+      const prompt = promptForDistrict(
+        districtKey,
+        contractAmount,
+        districtSubawardAmount,
+        stateOnlySubawardAmount,
+        futureSignals,
       );
-      return;
-    }
-    toast.success(
-      copied
-        ? 'Meri opened with this district context. A backup copy is on your clipboard.'
-        : 'Meri opened with this district context.',
-    );
-  };
+      let copied = false;
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(prompt);
+          copied = true;
+        }
+      } catch {
+        copied = false;
+      }
+      const popup = openMeriWorkspaceWithContext({ prompt, clientId });
+      if (!popup) {
+        toast.error(
+          copied
+            ? 'The Meri window was blocked. The district prompt is copied to your clipboard.'
+            : 'The Meri window was blocked. Allow pop-ups for Capiro and try again.',
+        );
+        return;
+      }
+      toast.success(
+        copied
+          ? 'Meri opened with this district context. A backup copy is on your clipboard.'
+          : 'Meri opened with this district context.',
+      );
+    };
 
-  return (
-    <div className="dnx-market-context">
-      <div className="dnx-market-grid">
-        <div>
-          <span>Prime contracts</span>
-          <strong>{formatMarketMoney(contractAmount)}</strong>
-          <small>District place of performance</small>
+    marketContent = (
+      <div className="dnx-market-context">
+        <div className="dnx-market-grid">
+          <div>
+            <span>Prime contracts</span>
+            <strong>{formatMarketMoney(contractAmount)}</strong>
+            <small>District place of performance</small>
+          </div>
+          <div>
+            <span>Subawards</span>
+            <strong>{formatMarketMoney(districtSubawardAmount)}</strong>
+            <small>District-resolved only</small>
+          </div>
+          <div>
+            <span>Future signals</span>
+            <strong>{futureSignals.length}</strong>
+            <small>Not awarded money</small>
+          </div>
         </div>
-        <div>
-          <span>Subawards</span>
-          <strong>{formatMarketMoney(districtSubawardAmount)}</strong>
-          <small>District-resolved only</small>
-        </div>
-        <div>
-          <span>Future signals</span>
-          <strong>{futureSignals.length}</strong>
-          <small>Not awarded money</small>
+
+        {stateOnlySubawardCount > 0 ? (
+          <div className="dnx-hint dnx-info" style={{ marginTop: 10 }}>
+            <div>
+              <b>
+                {formatMarketMoney(stateOnlySubawardAmount)} in {state}-level subawards
+              </b>{' '}
+              across {stateOnlySubawardCount} record{stateOnlySubawardCount === 1 ? '' : 's'} cannot
+              be assigned to {districtKey} from the source data. They are shown as context only.
+            </div>
+          </div>
+        ) : null}
+
+        {data.warnings.length ? (
+          <div className="dnx-hint dnx-notable" style={{ marginTop: 10 }}>
+            <span className="dnx-hico">
+              <DnxInfoIcon />
+            </span>
+            <div>
+              <b>Some market context is incomplete</b>
+              <div>{data.warnings.join(' · ')}</div>
+            </div>
+          </div>
+        ) : null}
+
+        {futureSignals.length ? (
+          <div className="dnx-market-signals">
+            <strong className="dnx-market-signals-title">Upcoming signals</strong>
+            {futureSignals.map((signal) => (
+              <div className="dnx-market-signal" key={signal.id}>
+                <div>
+                  <strong>{signal.title}</strong>
+                  <span>
+                    {signal.agency ?? 'Agency not stated'} · {formatMarketDate(signal.date)} ·{' '}
+                    {signalGeography(signal)}
+                  </span>
+                </div>
+                <CapiroBadge tone={signal.source === 'agency_forecast' ? 'success' : 'info'}>
+                  {signal.source === 'agency_forecast' ? 'Forecast' : 'SAM.gov'}
+                </CapiroBadge>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="dnx-muted" style={{ fontSize: 12.5, marginTop: 10 }}>
+            No district- or state-backed future procurement signal is available in this view.
+          </div>
+        )}
+
+        <div className="dnx-actions-row">
+          <Link to={`/intelligence/federal-spending?${explorerParams.toString()}`}>
+            <CapiroButton size="compact">Open Federal Spending →</CapiroButton>
+          </Link>
+          <CapiroButton size="compact" variant="primary" onClick={() => void askMeri()}>
+            Ask Meri
+          </CapiroButton>
         </div>
       </div>
+    );
+  }
 
-      {stateOnlySubawardCount > 0 ? (
-        <div className="dnx-hint dnx-info" style={{ marginTop: 10 }}>
-          <div>
-            <b>
-              {formatMarketMoney(stateOnlySubawardAmount)} in {state}-level subawards
-            </b>{' '}
-            across {stateOnlySubawardCount} record{stateOnlySubawardCount === 1 ? '' : 's'} cannot
-            be assigned to {districtKey} from the source data. They are shown as context only.
-          </div>
-        </div>
-      ) : null}
-
-      {data.warnings.length ? (
-        <div className="dnx-hint dnx-notable" style={{ marginTop: 10 }}>
-          <span className="dnx-hico">
-            <DnxInfoIcon />
-          </span>
-          <div>
-            <b>Some market context is incomplete</b>
-            <div>{data.warnings.join(' · ')}</div>
-          </div>
-        </div>
-      ) : null}
-
-      {futureSignals.length ? (
-        <div className="dnx-market-signals">
-          <strong className="dnx-market-signals-title">Upcoming signals</strong>
-          {futureSignals.map((signal) => (
-            <div className="dnx-market-signal" key={signal.id}>
-              <div>
-                <strong>{signal.title}</strong>
-                <span>
-                  {signal.agency ?? 'Agency not stated'} · {formatMarketDate(signal.date)} ·{' '}
-                  {signalGeography(signal)}
-                </span>
-              </div>
-              <CapiroBadge tone={signal.source === 'agency_forecast' ? 'success' : 'info'}>
-                {signal.source === 'agency_forecast' ? 'Forecast' : 'SAM.gov'}
-              </CapiroBadge>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="dnx-muted" style={{ fontSize: 12.5, marginTop: 10 }}>
-          No district- or state-backed future procurement signal is available in this view.
-        </div>
-      )}
-
-      <div className="dnx-actions-row">
-        <Link to={`/intelligence/federal-spending?${explorerParams.toString()}`}>
-          <CapiroButton size="compact">Open Federal Spending →</CapiroButton>
-        </Link>
-        <CapiroButton size="compact" variant="primary" onClick={() => void askMeri()}>
-          Ask Meri
-        </CapiroButton>
+  return (
+    <div className="dnx-federal-market">
+      {marketContent}
+      <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--uui-gray-200)' }}>
+        <DistrictEconomicFootprintPanelVNext clientId={clientId} districtKey={districtKey} />
       </div>
     </div>
   );

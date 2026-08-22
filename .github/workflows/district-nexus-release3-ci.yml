@@ -1,0 +1,189 @@
+name: District Nexus Release 3
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/api/prisma/migrations/**district_nexus_release3**'
+      - 'apps/api/scripts/district-economic-source.ts'
+      - 'apps/api/scripts/sync-district-economic-*.ts'
+      - 'apps/api/src/district-nexus/**'
+      - 'apps/web/src/vnext/pages/district-nexus/**'
+      - '.github/workflows/district-nexus-release3-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: capiro_r3
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d capiro_r3"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/capiro_r3
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/capiro_r3
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @capiro/shared build
+
+      - name: Validate and generate API Prisma client
+        run: |
+          pnpm --filter @capiro/api exec prisma validate
+          pnpm --filter @capiro/api exec prisma generate
+
+      - name: Replay the complete API migration chain
+        run: pnpm --filter @capiro/api exec prisma migrate deploy
+
+      - name: Verify Release 3 database truth guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD=postgres
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE r3_app LOGIN PASSWORD 'r3_app' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS;
+          GRANT USAGE ON SCHEMA public TO r3_app;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON client_footprint_import, client_geographic_evidence TO r3_app;
+
+          INSERT INTO tenants (id, slug, name, created_at, updated_at)
+          VALUES
+            ('00000000-0000-0000-0000-0000000000a1', 'r3-a', 'R3 A', now(), now()),
+            ('00000000-0000-0000-0000-0000000000b1', 'r3-b', 'R3 B', now(), now());
+          INSERT INTO clients (id, tenant_id, name, created_at, updated_at)
+          VALUES
+            ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000a1', 'Client A', now(), now()),
+            ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000b1', 'Client B', now(), now());
+
+          SET ROLE r3_app;
+          SELECT set_config('app.current_tenant', '00000000-0000-0000-0000-0000000000a1', false);
+
+          INSERT INTO client_footprint_import (
+            id, tenant_id, client_id, filename, format, status, content_sha256
+          ) VALUES (
+            '00000000-0000-0000-0000-0000000000a3',
+            '00000000-0000-0000-0000-0000000000a1',
+            '00000000-0000-0000-0000-0000000000a2',
+            'a.csv', 'csv', 'committed', 'same-hash'
+          );
+
+          DO $$
+          BEGIN
+            IF (SELECT count(*) FROM client_footprint_import) <> 1 THEN
+              RAISE EXCEPTION 'tenant A did not see exactly its own import';
+            END IF;
+            BEGIN
+              INSERT INTO client_footprint_import (
+                tenant_id, client_id, filename, format
+              ) VALUES (
+                '00000000-0000-0000-0000-0000000000b1',
+                '00000000-0000-0000-0000-0000000000b2',
+                'cross.csv', 'csv'
+              );
+              RAISE EXCEPTION 'cross-tenant import unexpectedly succeeded';
+            EXCEPTION
+              WHEN insufficient_privilege THEN NULL;
+              WHEN check_violation THEN NULL;
+            END;
+            BEGIN
+              INSERT INTO client_footprint_import (
+                tenant_id, client_id, filename, format, status, content_sha256
+              ) VALUES (
+                '00000000-0000-0000-0000-0000000000a1',
+                '00000000-0000-0000-0000-0000000000a2',
+                'duplicate.csv', 'csv', 'committed', 'same-hash'
+              );
+              RAISE EXCEPTION 'duplicate committed content unexpectedly succeeded';
+            EXCEPTION
+              WHEN unique_violation THEN NULL;
+            END;
+          END $$;
+
+          INSERT INTO client_geographic_evidence (
+            id, tenant_id, client_id, evidence_type, review_status,
+            external_use_approved, numeric_value, unit
+          ) VALUES (
+            '00000000-0000-0000-0000-0000000000a4',
+            '00000000-0000-0000-0000-0000000000a1',
+            '00000000-0000-0000-0000-0000000000a2',
+            'employee', 'pending_review', true, 12, 'people'
+          );
+
+          DO $$
+          BEGIN
+            IF (SELECT external_use_approved FROM client_geographic_evidence
+                WHERE id = '00000000-0000-0000-0000-0000000000a4') THEN
+              RAISE EXCEPTION 'pending evidence retained external-use approval';
+            END IF;
+          END $$;
+
+          UPDATE client_geographic_evidence
+          SET review_status = 'approved', external_use_approved = true
+          WHERE id = '00000000-0000-0000-0000-0000000000a4';
+
+          DO $$
+          BEGIN
+            BEGIN
+              UPDATE client_geographic_evidence
+              SET review_status = 'rejected'
+              WHERE id = '00000000-0000-0000-0000-0000000000a4';
+              RAISE EXCEPTION 'completed review unexpectedly changed';
+            EXCEPTION
+              WHEN check_violation THEN NULL;
+            END;
+          END $$;
+
+          RESET ROLE;
+          SQL
+
+      - name: Run the full District Nexus API test surface
+        run: >-
+          pnpm --filter @capiro/api exec jest
+          --runInBand --forceExit
+          src/district-nexus
+
+      - name: Build API
+        run: pnpm --filter @capiro/api build
+
+      - name: Run vNext District Nexus tests
+        run: >-
+          pnpm --filter @capiro/web exec vitest run
+          src/vnext/pages/district-nexus
+          --poolOptions.threads.singleThread
+
+      - name: Typecheck web
+        run: pnpm --filter @capiro/web typecheck
+
+      - name: Build web
+        run: pnpm --filter @capiro/web build
+
+      - name: Verify no whitespace errors
+        run: git diff --check "origin/${{ github.base_ref }}...HEAD"

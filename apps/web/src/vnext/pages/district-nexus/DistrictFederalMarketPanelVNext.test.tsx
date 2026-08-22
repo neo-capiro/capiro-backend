@@ -4,13 +4,18 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { DistrictFederalMarketPanelVNext } from './DistrictFederalMarketPanelVNext.js';
 
-/** vNext port of DistrictFederalMarketPanel.test.tsx — no antd App wrapper;
- * toasts fall back to the no-op API outside a CapiroToastProvider. */
-
 const { apiGetMock } = vi.hoisted(() => ({ apiGetMock: vi.fn() }));
 
 vi.mock('../../../lib/use-api.js', () => ({
   useApi: () => ({ get: apiGetMock }),
+}));
+
+vi.mock('./DistrictEconomicFootprintPanelVNext.js', () => ({
+  DistrictEconomicFootprintPanelVNext: ({ clientId, districtKey }: { clientId: string | null; districtKey: string }) => (
+    <div data-testid="economic-footprint-panel">
+      Economic footprint · {clientId ?? 'no client'} · {districtKey}
+    </div>
+  ),
 }));
 
 function renderPanel() {
@@ -35,7 +40,7 @@ describe('DistrictFederalMarketPanelVNext', () => {
     apiGetMock.mockReset();
   });
 
-  test('shows only decision-useful district facts and keeps state-level evidence visibly separate', async () => {
+  test('preserves typed district facts, state-only attribution warnings, actions and the Release 3 composition', async () => {
     apiGetMock.mockResolvedValue({
       data: {
         districts: [
@@ -90,9 +95,12 @@ describe('DistrictFederalMarketPanelVNext', () => {
     expect(spendingLink.getAttribute('href')).toContain('state=VA');
     expect(spendingLink.getAttribute('href')).toContain('district=10');
     expect(spendingLink.getAttribute('href')).toContain('clientId=client-1');
+    expect(screen.getByTestId('economic-footprint-panel')).toHaveTextContent(
+      'Economic footprint · client-1 · VA-10',
+    );
   });
 
-  test('surfaces partial rail warnings without replacing healthy district data', async () => {
+  test('surfaces partial market warnings without replacing healthy district data', async () => {
     apiGetMock.mockResolvedValue({
       data: {
         districts: [
@@ -119,14 +127,14 @@ describe('DistrictFederalMarketPanelVNext', () => {
     expect(await screen.findByText('$400K')).toBeInTheDocument();
     expect(screen.getByText('Some market context is incomplete')).toBeInTheDocument();
     expect(screen.getByText('subaward geography unavailable')).toBeInTheDocument();
+    expect(screen.getByTestId('economic-footprint-panel')).toBeInTheDocument();
   });
 
-  test('secondary market failure does not claim the district itself is empty', async () => {
+  test('a market failure does not claim the district is empty and does not suppress Release 3', async () => {
     apiGetMock.mockRejectedValue(new Error('failed'));
 
     renderPanel();
 
-    // retry: 1 means the error surfaces after one retry round-trip.
     expect(
       await screen.findByText('Federal market context is temporarily unavailable', undefined, {
         timeout: 8000,
@@ -135,5 +143,6 @@ describe('DistrictFederalMarketPanelVNext', () => {
     expect(
       screen.getByText(/verified District Nexus score and district evidence above are unchanged/i),
     ).toBeInTheDocument();
+    expect(screen.getByTestId('economic-footprint-panel')).toBeInTheDocument();
   });
 });
