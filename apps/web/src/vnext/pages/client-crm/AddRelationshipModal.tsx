@@ -53,14 +53,14 @@ import './add-relationship-modal.css';
 const SCOPES = [
   { id: 'all', label: 'All' },
   { id: 'congress', label: 'Members' },
-  { id: 'staff', label: 'Staff' },
+  { id: 'staff', label: 'Committee Staff' },
   { id: 'state', label: 'State' },
 ] as const;
 type Scope = (typeof SCOPES)[number]['id'];
 
 const DIR_BADGE: Record<TargetDirectory, string> = {
   congress: 'Member',
-  staff: 'Staff',
+  staff: 'Committee Staff',
   state: 'State',
 };
 

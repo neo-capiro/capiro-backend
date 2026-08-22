@@ -60,7 +60,7 @@ const DISPOSITION_TONE: Record<string, PillTone> = {
 const DIRECTORY_LABEL: Record<TargetDirectory, string> = {
   congress: 'Member of Congress',
   state: 'State legislator',
-  staff: 'Congressional staff',
+  staff: 'Committee Staff',
 };
 
 const targetName = (t: ClientTarget) => t.memberName ?? t.memberId;

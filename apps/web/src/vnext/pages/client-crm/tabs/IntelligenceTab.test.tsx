@@ -306,6 +306,20 @@ describe('ClientCrmIntelligenceProto — funding panel (items 4-5, wire-audit)',
     getMock.mockReset();
   });
 
+  it('re-fetches the opportunities and PE-relevance sources when Sync sources is clicked', async () => {
+    mockFundingApis();
+    renderFunding();
+
+    await waitFor(() => expect(screen.getByText('Advanced Robotics Research')).toBeInTheDocument());
+    const callsBeforeSync = getMock.mock.calls.length;
+
+    fireEvent.click(screen.getByText('Sync sources'));
+
+    // A static button with no onClick did nothing on click; this asserts a
+    // real re-read of the same sources the panel below already renders.
+    await waitFor(() => expect(getMock.mock.calls.length).toBeGreaterThan(callsBeforeSync));
+  });
+
   it('renders real relevant PEs and wires "Open PE" navigation using the real peCode (item 4)', async () => {
     mockFundingApis();
     renderFunding();
@@ -705,6 +719,7 @@ function renderWithRoutes(view: 'legislative' | 'regulatory') {
             }
           />
           <Route path="/legiwatch" element={<LocationProbe />} />
+          <Route path="/radar" element={<LocationProbe />} />
           <Route path="/intelligence/changes" element={<LocationProbe />} />
         </Routes>
       </MemoryRouter>
@@ -724,9 +739,11 @@ describe('ClientCrmIntelligenceProto — Configure (item 4, "3 Compose extend")'
 
     fireEvent.click(screen.getByText('Configure'));
 
-    // ?tab=watchlist is the Configure panel on Radar; ?client= scopes it, or
-    // the panel lands on the client picker instead of this client.
-    expect(screen.getByTestId('location')).toHaveTextContent('/legiwatch?tab=watchlist&client=client-1');
+    // ?tab=watchlist is the Configure panel on the canonical Radar page (NOT
+    // /legiwatch — vNext's LegiWatch module treats `watchlist` as a removed
+    // tab and silently redirects it to Hearings); ?client= scopes it, or the
+    // panel lands on the client picker instead of this client.
+    expect(screen.getByTestId('location')).toHaveTextContent('/radar?tab=watchlist&client=client-1');
   });
 });
 

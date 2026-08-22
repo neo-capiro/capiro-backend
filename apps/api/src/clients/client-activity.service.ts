@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { EngagementService } from '../engagement/engagement.service.js';
 
 /**
  * Client relationship history — the normalized CRM activity read model
@@ -74,7 +75,10 @@ export interface CreateActivityInput {
 
 @Injectable()
 export class ClientActivityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly engagement: EngagementService,
+  ) {}
 
   async list(
     ctx: TenantContext,
@@ -90,7 +94,7 @@ export class ClientActivityService {
       });
       if (!client) throw new NotFoundException('Client not found');
 
-      const [recorded, meetings, attachments, outreach] = await Promise.all([
+      const [recorded, meetings, attachments, outreach, mailThreads] = await Promise.all([
         tx.clientActivity.findMany({
           where: { tenantId: ctx.tenantId, clientId },
           orderBy: { occurredAt: 'desc' },
@@ -114,6 +118,7 @@ export class ClientActivityService {
           take: limit,
           select: { id: true, title: true, subject: true, createdAt: true, type: true, status: true },
         }),
+        this.engagement.listMailThreads(ctx, { clientId }),
       ]);
 
       const items: ActivityItem[] = [
@@ -167,6 +172,20 @@ export class ClientActivityService {
           body: [row.type, row.status].filter(Boolean).join(' · ') || null,
           personId: null,
           sourceType: 'outreach',
+          sourceId: row.id,
+          pinned: false,
+          dueAt: null,
+          settledAt: null,
+          origin: 'derived' as const,
+        })),
+        ...mailThreads.map((row) => ({
+          id: `email:${row.id}`,
+          kind: 'email' as const,
+          occurredAt: (row.lastMessageAt ?? row.createdAt).toISOString(),
+          title: row.subject,
+          body: row.snippet,
+          personId: null,
+          sourceType: 'mail_thread',
           sourceId: row.id,
           pinned: false,
           dueAt: null,

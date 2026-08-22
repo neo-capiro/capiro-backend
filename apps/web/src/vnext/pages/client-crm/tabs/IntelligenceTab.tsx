@@ -170,11 +170,17 @@ function useDistrictNexusV2(client: Client, active: boolean) {
 export function ClientCrmIntelligenceProto({ client, view }: { client: Client; view: IntelligenceView }) {
   const navigate = useNavigate();
   const api = useApi();
+  const qc = useQueryClient();
   const domain = DOMAIN_META[view] ?? DOMAIN_META.legislative!;
   const [facilitiesOpen, setFacilitiesOpen] = useState(false);
   // Actions that need the client are computed here rather than in the static
   // map below: District's "Manage facilities" (item 3, wire-audit "2 Wire
-  // existing APIs") and Legislative's "Configure" (item 4, "3 Compose extend").
+  // existing APIs"), Legislative's "Configure" (item 4, "3 Compose extend"),
+  // and Funding's "Sync sources" (same defect class as Configure: a static
+  // <SecondaryBtn> in DOMAIN_META with no onClick at all did nothing on
+  // click). There is no dedicated funding-sync API — this invalidates the
+  // SAME query keys FundingPanel's own opportunities/PE-relevance queries
+  // use, so a click forces a real re-read rather than a fabricated delay.
   const actions =
     view === 'district' ? (
       // This used to `navigate('?tab=facilities')`, which client-crm-routing maps
@@ -186,10 +192,14 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
       <>
         {/* The real source/alert configuration for a client's legislative
             intelligence is the tracker's Configure panel — watchlist topics and
-            terms, per-trigger alert toggles, channels. Radar mounts it at
-            ?tab=watchlist, scoped by ?client=. There is no second config store
+            terms, per-trigger alert toggles, channels. It lives on the canonical
+            Radar page at ?tab=watchlist, scoped by ?client= — NOT at
+            /legiwatch?tab=watchlist: vNext's LegiWatch module treats `watchlist`
+            as a removed tab (see REMOVED_TABS in legiwatch/lib/types.ts) and
+            silently redirects it to Hearings, so this button did nothing until
+            it was pointed at /radar instead. There is no second config store
             for this domain to open instead. */}
-        <SecondaryBtn onClick={() => navigate(`/legiwatch?tab=watchlist&client=${client.id}`)}>
+        <SecondaryBtn onClick={() => navigate(`/radar?tab=watchlist&client=${encodeURIComponent(client.id)}`)}>
           Configure
         </SecondaryBtn>
         {/* Header "Track bill" is not part of item 4 — the live track path is
@@ -197,6 +207,15 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
             existing APIs" item 6). Left as the design has it. */}
         <PrimaryBtn>Track bill</PrimaryBtn>
       </>
+    ) : view === 'funding' ? (
+      <SecondaryBtn
+        onClick={() => {
+          void qc.invalidateQueries({ queryKey: ['client-funding-opportunities', client.id] });
+          void qc.invalidateQueries({ queryKey: ['client-pe-relevance', client.id] });
+        }}
+      >
+        Sync sources
+      </SecondaryBtn>
     ) : (
       domain.actions
     );

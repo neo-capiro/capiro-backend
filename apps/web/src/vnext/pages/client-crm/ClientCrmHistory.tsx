@@ -113,6 +113,12 @@ export function ClientCrmHistory({ client }: { client: Client }) {
     else if (item.sourceType === 'attachment') {
       navigate(`/clients?clientId=${client.id}&tab=files`);
     } else if (item.sourceType === 'outreach') navigate(`/outreach/${item.sourceId}`);
+    // Synced mail threads have no standalone detail route yet — Engagement's
+    // Meetings surface is the closest live destination for this client's
+    // correspondence, scoped by clientId.
+    else if (item.sourceType === 'mail_thread') {
+      navigate(`/engagement/meetings?clientId=${encodeURIComponent(client.id)}`);
+    }
   };
 
   return (
