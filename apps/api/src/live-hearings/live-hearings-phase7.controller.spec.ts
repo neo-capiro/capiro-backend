@@ -20,10 +20,18 @@ describe('LiveHearingsPhase7Controller', () => {
     const scheduleGuard = {
       assertSchedulable: jest.fn().mockResolvedValue({ allowed: true }),
     };
+    const publicGuard = {
+      assertPublic: jest.fn().mockResolvedValue(undefined),
+    };
     return {
-      controller: new LiveHearingsPhase7Controller(service as never, scheduleGuard as never),
+      controller: new LiveHearingsPhase7Controller(
+        service as never,
+        scheduleGuard as never,
+        publicGuard as never,
+      ),
       service,
       scheduleGuard,
+      publicGuard,
     };
   }
 
@@ -37,13 +45,21 @@ describe('LiveHearingsPhase7Controller', () => {
     );
   });
 
-  it('delegates canonical room, transcript and participation reads', async () => {
+  it('guards canonical transcript reads to public proceedings before reading segments', async () => {
+    const { controller, service, publicGuard } = fixture();
+    await controller.transcript('h-1', { cursor: 'cursor', limit: 25 });
+    expect(publicGuard.assertPublic).toHaveBeenCalledWith('h-1');
+    expect(service.transcript).toHaveBeenCalledWith('h-1', { cursor: 'cursor', limit: 25 });
+    expect(publicGuard.assertPublic.mock.invocationCallOrder[0]).toBeLessThan(
+      service.transcript.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it('delegates canonical room and participation reads', async () => {
     const { controller, service } = fixture();
     await controller.room(ctx, 'h-1');
-    await controller.transcript('h-1', { cursor: 'cursor', limit: 25 });
     await controller.participation(ctx, 'h-1');
     expect(service.room).toHaveBeenCalledWith(ctx, 'h-1');
-    expect(service.transcript).toHaveBeenCalledWith('h-1', { cursor: 'cursor', limit: 25 });
     expect(service.participation).toHaveBeenCalledWith(ctx, 'h-1');
   });
 
