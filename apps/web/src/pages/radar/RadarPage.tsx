@@ -13,6 +13,7 @@ import {
   legiwatchLiveHearingsV2Enabled,
 } from './live-hearings/legiwatch-live-hearings-flags.js';
 import './LegiWatchShell.css';
+import './live-hearings/LiveHearingsPhase8Overrides.css';
 
 export {
   tenantBoardCardMatchesFilter,
