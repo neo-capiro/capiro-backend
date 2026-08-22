@@ -19,7 +19,7 @@
  *      citizen of a free federal service), GEOCODE_DELAY_MS (default 250).
  */
 import { config as dotenvConfig } from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import {
   computeFacilityGeocode,
@@ -124,8 +124,8 @@ async function main() {
                 outcome.status === 'error' ? 'Census geocoder request failed' : null,
               geocodeMatchedAddress: outcome.matchedAddress,
               geocodeCandidates: outcome.candidates
-                ? (outcome.candidates as unknown as import('@prisma/client').Prisma.InputJsonValue)
-                : import('@prisma/client').Prisma.JsonNull,
+                ? (outcome.candidates as unknown as Prisma.InputJsonValue)
+                : Prisma.JsonNull,
             },
           }),
         );
