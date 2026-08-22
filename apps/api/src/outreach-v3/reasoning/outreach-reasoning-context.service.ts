@@ -6,24 +6,45 @@ import type { AuthorizedCapabilityContext } from '../../capabilities/capability-
 import { OUTREACH_COMMAND_REGISTRY } from '../commands/outreach-command-registry.js';
 import { OutreachSessionService } from '../services/outreach-session.service.js';
 import type { OutreachCampaignSpecV1 } from '../state/outreach-campaign-spec.v1.js';
+import { OUTREACH_USER_AUTHORED_COMMAND_TYPES } from '../state/outreach-command.contract.js';
 import { deriveOutreachTargetCoverage } from '../targets/outreach-target-coverage.service.js';
 import {
   OutreachReasoningError,
   type ReasoningCampaignContext,
 } from './outreach-reasoning.contract.js';
+import { OUTREACH_REASONING_COMMAND_EXAMPLE_PAYLOADS } from './outreach-reasoning-command-examples.js';
 import {
   isOutreachReasoningReadTool,
   OUTREACH_REASONING_READ_TOOLS,
   sanitizeOutreachReasoningToolInput,
 } from './outreach-reasoning-tools.js';
 
+const userAuthoredCommandTypes = new Set<string>(OUTREACH_USER_AUTHORED_COMMAND_TYPES);
+
+/**
+ * The catalog shown to the reasoning model. This intentionally excludes
+ * `phaseOwner` -- it is internal registry metadata with no bearing on the
+ * shape of a proposed command, and past production output showed the model
+ * echoing it back verbatim as a stray top-level key on the command object it
+ * emitted (see OUTREACH_REASONING_OUTPUT_INVALID root-cause investigation).
+ *
+ * Where a safe, non-tool-grounded canonical example exists in
+ * OUTREACH_REASONING_COMMAND_EXAMPLE_PAYLOADS, it is attached as
+ * `examplePayload` so the model has an exact key-name template instead of
+ * having to guess the payload shape from the command name alone. Commands
+ * whose payload must be copied verbatim from a referenced tool result (target
+ * locators, context selections, rejected-recommendation refs) deliberately
+ * have no example here, so nothing invites the model to fabricate a
+ * plausible-looking but ungrounded substitute.
+ */
 const IMPLEMENTED_COMMANDS = OUTREACH_COMMAND_REGISTRY.filter(
-  (entry) => entry.status === 'implemented',
-).map((entry) => ({
-  type: entry.type,
-  schemaVersion: entry.schemaVersion,
-  phaseOwner: entry.phaseOwner,
-}));
+  (entry) => entry.status === 'implemented' && !userAuthoredCommandTypes.has(entry.type),
+).map((entry) => {
+  const examplePayload = OUTREACH_REASONING_COMMAND_EXAMPLE_PAYLOADS[entry.type];
+  return examplePayload === undefined
+    ? { type: entry.type, schemaVersion: entry.schemaVersion }
+    : { type: entry.type, schemaVersion: entry.schemaVersion, examplePayload };
+});
 
 const TARGET_INTELLIGENCE_TOOLS = new Set([
   'search_targets',
@@ -153,6 +174,9 @@ export class OutreachReasoningContextService {
       'Sponsor scope and target audience are separate. An authorized target discovery result does not make a client campaign context or imply representation.',
       'Do not expose private note bodies, private meeting-note bodies, private email bodies, raw document bytes, storage credentials, sensitive attributes, or hidden provider errors.',
       'You may propose only the implemented command types supplied below. Proposals are suggestions and are not applied automatically.',
+      'Every proposed command is a JSON object with EXACTLY three top-level keys: "type" (the exact command name from the catalog), "schemaVersion" (always the integer 1), and "payload" (an object holding that command’s fields). Never place a field value directly on the command object, and never add any other top-level key -- catalog metadata such as "phaseOwner" is not part of the command you emit.',
+      'When a catalog entry below includes "examplePayload", your "payload" for that command type must use exactly those key names and value types (the example text/values are illustrative only, never copy them verbatim). Do not invent alternate key names for a command whose examplePayload is shown.',
+      'SET_LENGTH payload.value must be exactly one of: undecided, short, medium, long, custom. payload.customInstruction must always be present: null unless value is "custom", in which case it must hold the custom instruction text.',
       'Never ask for or claim generation, draft, approval, preflight, send, tenant, or hidden-system authority.',
       'Do not invent clients, targets, contacts, government facts, relationships, documents, or memory. If a required later-phase capability is unavailable, say so.',
       'Do not reveal or summarize hidden chain-of-thought. Return only the visible answer, structured command proposals, and concise clarifying questions.',
@@ -165,7 +189,7 @@ export class OutreachReasoningContextService {
       `Current deterministic target coverage: ${JSON.stringify(campaign.targetCoverage)}.`,
       `Implemented proposal command catalog: ${JSON.stringify(IMPLEMENTED_COMMANDS)}.`,
       `Executable read capabilities for this campaign: ${JSON.stringify(executableReadCapabilities)}.`,
-      'Final output must match the requested structured response. Command objects must use schemaVersion=1 and exact command names.',
+      'Final output must match the requested structured response. Every command object must have exactly the keys type, schemaVersion, and payload, with schemaVersion=1 and exact command names.',
     ].join('\n');
   }
 }

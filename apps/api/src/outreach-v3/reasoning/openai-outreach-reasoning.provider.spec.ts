@@ -245,4 +245,250 @@ describe('OpenAiOutreachReasoningProvider', () => {
       httpStatus: 502,
     });
   });
+
+  describe('OUTREACH_REASONING_OUTPUT_INVALID regression: strategy command proposals', () => {
+    /**
+     * Root-cause regression coverage for the "Confirm the campaign angle, tone
+     * and length" bug: the live gpt-4.1-mini reasoning model, given no payload
+     * shape guidance, emitted differently-malformed command objects on every
+     * call. These fixtures are the *actual* raw shapes captured while
+     * diagnosing the incident (see outreach-reasoning-command-examples.ts).
+     * They must keep failing closed even after the prompt/schema fix, because
+     * the fix only makes a valid proposal *more likely* -- it must never make
+     * an invalid one *acceptable*.
+     */
+    function requestReturning(rawFinalPayload: unknown) {
+      jest.spyOn(global, 'fetch').mockResolvedValue(
+        responseJson({
+          id: 'resp_strategy',
+          output: [outputMessage(JSON.stringify(rawFinalPayload))],
+        }),
+      );
+      return new OpenAiOutreachReasoningProvider(credentialResolver() as never);
+    }
+
+    it('still rejects a flat payload-less command with stray catalog metadata (the original combined/angle-only failure)', async () => {
+      const provider = requestReturning({
+        assistantMessage: 'Proposal',
+        proposedCommands: [
+          {
+            type: 'SET_CAMPAIGN_ANGLE',
+            schemaVersion: 1,
+            phaseOwner: 'campaign_state',
+            angle: 'Protect the program.',
+          },
+        ],
+        openQuestions: [],
+      });
+
+      await expect(provider.respond(request())).rejects.toMatchObject({
+        code: 'OUTREACH_REASONING_OUTPUT_INVALID',
+        httpStatus: 502,
+      });
+    });
+
+    it('still rejects a payload with the wrong inner key name (the original tone-only failure)', async () => {
+      const provider = requestReturning({
+        assistantMessage: 'Proposal',
+        proposedCommands: [
+          {
+            type: 'SET_TONE',
+            schemaVersion: 1,
+            payload: { tone: 'professional_respectful_cordial' },
+          },
+        ],
+        openQuestions: [],
+      });
+
+      await expect(provider.respond(request())).rejects.toMatchObject({
+        code: 'OUTREACH_REASONING_OUTPUT_INVALID',
+        httpStatus: 502,
+      });
+    });
+
+    it('still rejects "parameters" instead of "payload" plus an unsupported enum value (the original length-only failure)', async () => {
+      const provider = requestReturning({
+        assistantMessage: 'Proposal',
+        proposedCommands: [
+          { type: 'SET_LENGTH', schemaVersion: 1, parameters: { length: 'brief' } },
+        ],
+        openQuestions: [],
+      });
+
+      await expect(provider.respond(request())).rejects.toMatchObject({
+        code: 'OUTREACH_REASONING_OUTPUT_INVALID',
+        httpStatus: 502,
+      });
+    });
+
+    it('still rejects a well-formed envelope using a length value outside the enum', async () => {
+      const provider = requestReturning({
+        assistantMessage: 'Proposal',
+        proposedCommands: [
+          {
+            type: 'SET_LENGTH',
+            schemaVersion: 1,
+            payload: { value: 'concise', customInstruction: null },
+          },
+        ],
+        openQuestions: [],
+      });
+
+      await expect(provider.respond(request())).rejects.toMatchObject({
+        code: 'OUTREACH_REASONING_OUTPUT_INVALID',
+        httpStatus: 502,
+      });
+    });
+
+    it('still rejects SET_LENGTH missing the required (nullable) customInstruction key', async () => {
+      const provider = requestReturning({
+        assistantMessage: 'Proposal',
+        proposedCommands: [{ type: 'SET_LENGTH', schemaVersion: 1, payload: { value: 'short' } }],
+        openQuestions: [],
+      });
+
+      await expect(provider.respond(request())).rejects.toMatchObject({
+        code: 'OUTREACH_REASONING_OUTPUT_INVALID',
+        httpStatus: 502,
+      });
+    });
+
+    it('accepts a correctly-shaped campaign angle proposal alone', async () => {
+      const provider = requestReturning({
+        assistantMessage: 'Here is a proposed angle.',
+        proposedCommands: [
+          {
+            type: 'SET_CAMPAIGN_ANGLE',
+            schemaVersion: 1,
+            payload: { value: 'Protect jobs and national security in the district.' },
+          },
+        ],
+        openQuestions: [],
+      });
+
+      await expect(provider.respond(request())).resolves.toMatchObject({
+        proposedCommands: [
+          {
+            type: 'SET_CAMPAIGN_ANGLE',
+            schemaVersion: 1,
+            payload: { value: 'Protect jobs and national security in the district.' },
+          },
+        ],
+      });
+    });
+
+    it('accepts a correctly-shaped tone proposal alone', async () => {
+      const provider = requestReturning({
+        assistantMessage: 'Here is a proposed tone.',
+        proposedCommands: [
+          { type: 'SET_TONE', schemaVersion: 1, payload: { value: 'Professional and direct.' } },
+        ],
+        openQuestions: [],
+      });
+
+      await expect(provider.respond(request())).resolves.toMatchObject({
+        proposedCommands: [
+          { type: 'SET_TONE', schemaVersion: 1, payload: { value: 'Professional and direct.' } },
+        ],
+      });
+    });
+
+    it('accepts a correctly-shaped length proposal alone', async () => {
+      const provider = requestReturning({
+        assistantMessage: 'Here is a proposed length.',
+        proposedCommands: [
+          {
+            type: 'SET_LENGTH',
+            schemaVersion: 1,
+            payload: { value: 'short', customInstruction: null },
+          },
+        ],
+        openQuestions: [],
+      });
+
+      await expect(provider.respond(request())).resolves.toMatchObject({
+        proposedCommands: [
+          {
+            type: 'SET_LENGTH',
+            schemaVersion: 1,
+            payload: { value: 'short', customInstruction: null },
+          },
+        ],
+      });
+    });
+
+    it('accepts a correctly-shaped custom-length proposal with its required instruction', async () => {
+      const provider = requestReturning({
+        assistantMessage: 'Here is a proposed length.',
+        proposedCommands: [
+          {
+            type: 'SET_LENGTH',
+            schemaVersion: 1,
+            payload: { value: 'custom', customInstruction: 'One tight paragraph, no bullet points.' },
+          },
+        ],
+        openQuestions: [],
+      });
+
+      await expect(provider.respond(request())).resolves.toMatchObject({
+        proposedCommands: [
+          {
+            type: 'SET_LENGTH',
+            schemaVersion: 1,
+            payload: { value: 'custom', customInstruction: 'One tight paragraph, no bullet points.' },
+          },
+        ],
+      });
+    });
+
+    it('accepts a combined proposal setting angle, tone, and length together', async () => {
+      const provider = requestReturning({
+        assistantMessage: 'Here is a combined strategy proposal.',
+        proposedCommands: [
+          {
+            type: 'SET_CAMPAIGN_ANGLE',
+            schemaVersion: 1,
+            payload: { value: 'Protect jobs and national security in the district.' },
+          },
+          { type: 'SET_TONE', schemaVersion: 1, payload: { value: 'Professional and direct.' } },
+          {
+            type: 'SET_LENGTH',
+            schemaVersion: 1,
+            payload: { value: 'short', customInstruction: null },
+          },
+        ],
+        openQuestions: [],
+      });
+
+      const result = await provider.respond(request());
+      expect(result.proposedCommands).toHaveLength(3);
+      expect(result.proposedCommands.map((command) => command.type)).toEqual([
+        'SET_CAMPAIGN_ANGLE',
+        'SET_TONE',
+        'SET_LENGTH',
+      ]);
+    });
+  });
+
+  it('constrains each proposed-command item to the type/schemaVersion/payload envelope in the structured-output schema', async () => {
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(responseJson(finalResponse()));
+    const provider = new OpenAiOutreachReasoningProvider(credentialResolver() as never);
+
+    await provider.respond(request());
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    const itemSchema = body.text.format.schema.properties.proposedCommands.items;
+    expect(itemSchema).toMatchObject({
+      type: 'object',
+      required: ['type', 'schemaVersion', 'payload'],
+      additionalProperties: false,
+    });
+    expect(itemSchema.properties).toMatchObject({
+      type: { type: 'string' },
+      schemaVersion: { type: 'integer' },
+      payload: { type: 'object' },
+    });
+  });
 });
