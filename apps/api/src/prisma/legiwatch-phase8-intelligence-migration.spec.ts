@@ -68,6 +68,17 @@ describe('LegiWatch Phase 8 live-intelligence migration', () => {
     expect(text).toContain('ON CONFLICT (segment_id) DO NOTHING');
   });
 
+  it('never steals an active public extraction lease when a transcript revision arrives', () => {
+    const text = code();
+    expect(text).toContain("WHEN public_hearing_intelligence_job.status = 'leased'");
+    expect(text).toContain("THEN 'leased'");
+    expect(text).toContain(
+      'public_hearing_intelligence_job.segment_revision <> EXCLUDED.segment_revision',
+    );
+    expect(text).toContain('THEN public_hearing_intelligence_job.lease_owner');
+    expect(text).toContain('THEN public_hearing_intelligence_job.lease_expires_at');
+  });
+
   it('FORCEs tenant isolation on relevance and tenant jobs', () => {
     const text = code();
     for (const table of ['tenant_hearing_relevance', 'tenant_hearing_relevance_job']) {
