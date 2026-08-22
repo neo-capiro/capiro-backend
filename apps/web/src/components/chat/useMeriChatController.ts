@@ -44,6 +44,7 @@ import {
   setChatMessageContextPacketId,
   setChatMessageSuggestions,
   setChatMessageFeedback,
+  replaceChatMessageId,
   setStreaming,
   truncateMessagesAfter,
   updateChatMessage,
@@ -141,6 +142,13 @@ type SseEvent =
   // mirrors the backend's RetrievalFrame (version: 1).
   | {
       type: 'done';
+      // The real `clio_messages.id` this turn was persisted under — absent
+      // only when nothing was persisted (e.g. an empty/aborted reply).
+      // Reconciles the client-generated optimistic id the assistant
+      // placeholder was created under so feedback rated immediately after
+      // streaming completes (before any refetch) targets a real message
+      // instead of 400ing on the optimistic id.
+      messageId?: string;
       contextPacketId?: string;
       retrieval?: {
         plan: {
@@ -1701,6 +1709,26 @@ export function useMeriChatController({ selectedClientName }: ChatDrawerProps) {
               if (event.retrieval) {
                 setChatMessageRetrieval(assistantId, event.retrieval);
                 setLastRetrieval(event.retrieval);
+              }
+              // Reconcile the optimistic id LAST, after every mutation above
+              // that still needs to match by the id this message was created
+              // under. Without this, rating the message immediately after
+              // the stream finishes (before any refetch re-hydrates real
+              // ids) posts the optimistic id, which the server can't
+              // resolve, and the feedback — plus the LearningSignal/telemetry
+              // capture behind it — is silently lost.
+              if (
+                typeof event.messageId === 'string' &&
+                event.messageId &&
+                event.messageId !== assistantId
+              ) {
+                const canonicalId = event.messageId;
+                replaceChatMessageId(assistantId, canonicalId);
+                setResearchOffers((prev) => {
+                  if (!(assistantId in prev)) return prev;
+                  const { [assistantId]: offer, ...rest } = prev;
+                  return { ...rest, [canonicalId]: offer! };
+                });
               }
               break outer;
             } else if (event.type === 'error') {
