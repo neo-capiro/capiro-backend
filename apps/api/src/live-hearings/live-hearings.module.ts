@@ -22,7 +22,11 @@ import {
   LegiWatchPhase9AdminController,
   LegiWatchPhase9RolloutController,
 } from './phase9/legiwatch-phase9.controller.js';
+import { LegiWatchPhase9CentralDiscoveryService } from './phase9/legiwatch-phase9-central-discovery.service.js';
 import { LegiWatchPhase9CutoverService } from './phase9/legiwatch-phase9-cutover.service.js';
+import { LegiWatchPhase9JobsService } from './phase9/legiwatch-phase9-jobs.service.js';
+import { LegiWatchPhase9MetricsService } from './phase9/legiwatch-phase9-metrics.service.js';
+import { LegiWatchPhase9PreflightService } from './phase9/legiwatch-phase9-preflight.service.js';
 import { LegiWatchPhase9ReadinessService } from './phase9/legiwatch-phase9-readiness.service.js';
 import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime.service.js';
 
@@ -45,6 +49,10 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LegiWatchPhase9ReadinessService,
     LegiWatchPhase9RuntimeService,
     LegiWatchPhase9CutoverService,
+    LegiWatchPhase9CentralDiscoveryService,
+    LegiWatchPhase9PreflightService,
+    LegiWatchPhase9MetricsService,
+    LegiWatchPhase9JobsService,
   ],
   exports: [
     LiveHearingsService,
@@ -54,6 +62,10 @@ import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime
     LegiWatchPhase9ReadinessService,
     LegiWatchPhase9RuntimeService,
     LegiWatchPhase9CutoverService,
+    LegiWatchPhase9CentralDiscoveryService,
+    LegiWatchPhase9PreflightService,
+    LegiWatchPhase9MetricsService,
+    LegiWatchPhase9JobsService,
   ],
 })
 export class LiveHearingsModule {}
