@@ -626,18 +626,46 @@
   gap: 8px;
 }
 
+/*
+ * Firm-phase row.
+ *
+ * TWO-LINE layout at every width. It was previously a single 4-column track
+ * (`28px minmax(0,1fr) auto auto`) sharing one line with the FY·Q editor and
+ * the three action buttons. Those two `auto` tracks are ~230px of fixed-width
+ * number inputs plus ~92px of icon buttons, and the whole row only gets the
+ * main column of `.st-cols` (1.5 of 2.5 tracks inside a 960px modal, i.e.
+ * ~535px), so the name input was left about 150px — it ellipsized the phase
+ * name after roughly 18 characters and the user could not read back what they
+ * had typed.
+ *
+ * Line 1 is the row number + the name across ALL remaining width (~470px, so a
+ * full 50-character phase name reads end to end). Line 2 carries the FY·Q
+ * editor with the reorder/remove cluster right-aligned beside it. Putting the
+ * actions on line 2 rather than line 1 is what buys the name the last ~100px —
+ * with them on line 1 a name like "Appropriations enactment and execution
+ * follow-through" still clipped.
+ */
 .capiro-strategies .st-phase-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
+  row-gap: 8px;
   padding: 10px 12px;
   background: var(--st-white);
   border: 1px solid var(--st-gray-200);
   border-radius: 10px;
 }
 
+/* The name field: line 1, everything right of the row number. */
+.capiro-strategies .st-phase-row > .st-phase-row__input {
+  grid-row: 1;
+  grid-column: 2 / -1;
+}
+
 .capiro-strategies .st-phase-row__num {
+  grid-row: 1;
+  grid-column: 1;
   font-size: 12px;
   color: var(--st-gray-400);
   text-align: center;
@@ -677,6 +705,38 @@
   background: var(--st-error-bg);
 }
 
+/*
+ * FY / quarter number fields. These widths were inline styles (56px / 40px);
+ * they moved here so the media query can reach them, and the FY field grew to
+ * 68px because a 4-digit year plus Chrome's native number spinner clipped the
+ * final digit ("202⋯"). The spinner is dropped: at this size the arrows are
+ * unhittable, and the field is keyboard/paste driven. `min` and `max` on the
+ * quarter input still constrain the value, and the overlay's own `problems`
+ * checklist is the real validator.
+ */
+.capiro-strategies .st-phase-row__input--fy,
+.capiro-strategies .st-phase-row__input--q {
+  text-align: center;
+  padding-inline: 4px;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.capiro-strategies .st-phase-row__input--fy::-webkit-outer-spin-button,
+.capiro-strategies .st-phase-row__input--fy::-webkit-inner-spin-button,
+.capiro-strategies .st-phase-row__input--q::-webkit-outer-spin-button,
+.capiro-strategies .st-phase-row__input--q::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.capiro-strategies .st-phase-row__input--fy {
+  width: 68px;
+  flex: 0 0 68px;
+}
+.capiro-strategies .st-phase-row__input--q {
+  width: 40px;
+  flex: 0 0 40px;
+}
+
 .capiro-strategies .st-phase-row__span {
   font-size: 11px;
   font-weight: 650;
@@ -692,15 +752,23 @@
 .capiro-strategies .st-phase-row__actions {
   display: flex;
   gap: 4px;
+  /* Line 2, right-aligned beside the FY·Q editor (see .st-phase-row's note —
+     keeping these off line 1 is what makes the full phase name readable). */
+  grid-row: 2;
+  grid-column: 3;
+  justify-self: end;
 }
 
 /* The FY·Q editor cell. These were inline styles on the element; they moved
-   here so the mobile restack below can reach them (an inline style would
-   always win over the media query). */
+   here so the row's two-line grid (and the mobile block below) can reach them —
+   an inline style would always win over a stylesheet rule. Line 2, left-aligned
+   under the name field. */
 .capiro-strategies .st-phase-row__editor {
   display: grid;
   gap: 4px;
-  justify-items: end;
+  grid-row: 2;
+  grid-column: 2;
+  justify-items: start;
 }
 
 .capiro-strategies .st-phase-row__fields {
@@ -768,6 +836,21 @@
   text-overflow: ellipsis;
 }
 
+/* The preview lives in the narrow aside, so a long phase name still ellipsizes
+   there even after the editor row was widened. Keep the drawn geometry, but let
+   the bar wrap to a second line rather than hiding the name — the phase name is
+   the thing the user is checking, so truncating it is the one thing this panel
+   must not do. `height` becomes a floor. */
+.capiro-strategies .st-preview-bar {
+  height: auto;
+  min-height: 26px;
+  padding-block: 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  text-overflow: clip;
+}
+
 /* Firm phases fix: the preview used to hard-cap at 5 bars (rows.slice(0,5)),
    so phases 6-12 never rendered one at all. Now every active phase (up to
    MAX_PHASES=12) renders a bar; past 5 the fixed 26px/6px-gap sizing above
@@ -779,7 +862,9 @@
   gap: 4px;
 }
 .capiro-strategies .st-preview-bars--dense .st-preview-bar {
-  height: 20px;
+  /* Floor, not a fixed height — the bars wrap long names (see above). */
+  height: auto;
+  min-height: 20px;
   font-size: 11px;
 }
 
@@ -1378,24 +1463,16 @@
     border-bottom: 1px solid var(--st-gray-200);
   }
 
-  /* Firm phases: the FY·Q editor is ~280px of fixed-width number inputs and
-     cannot share a row with the name field. It takes a full row of its own;
-     the row number and the remove control keep their columns, so the visual
-     order still matches the DOM order and tab order is unchanged. */
+  /* Firm phases: the two-line row shape is now the base rule (see
+     .st-phase-row), so this block only keeps the phone-specific bits — top
+     alignment, a slightly larger row gap, wrapping FY·Q fields, and the
+     editor reclaiming the number column's 28px for the extra width. */
   .capiro-strategies .st-phase-row {
-    grid-template-columns: 28px minmax(0, 1fr) auto;
     align-items: start;
     row-gap: 10px;
   }
-  .capiro-strategies .st-phase-row__actions {
-    grid-row: 1;
-    grid-column: 3;
-    justify-self: end;
-  }
   .capiro-strategies .st-phase-row__editor {
-    grid-row: 2;
     grid-column: 1 / -1;
-    justify-items: start;
   }
   .capiro-strategies .st-phase-row__fields {
     flex-wrap: wrap;

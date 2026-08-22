@@ -276,8 +276,11 @@ export function FirmPhasesOverlay() {
 
   const fyInput = (row: Row, field: 'startFy' | 'endFy', label: string) => (
     <input
-      className="st-phase-row__input"
-      style={{ width: 56, textAlign: 'center' }}
+      /* 68px, not 56: a 4-digit year plus the number input's native spinner
+         clipped the last digit at 56px (FY "202⋯"). `hide-spin` drops the
+         spinner — the arrows are unusable at this size anyway and the field is
+         keyboard/paste driven. */
+      className="st-phase-row__input st-phase-row__input--fy"
       type="number"
       inputMode="numeric"
       aria-label={`${row.label || 'Phase'} — ${label} fiscal year`}
@@ -290,8 +293,7 @@ export function FirmPhasesOverlay() {
 
   const qInput = (row: Row, field: 'startQ' | 'endQ', label: string) => (
     <input
-      className="st-phase-row__input"
-      style={{ width: 40, textAlign: 'center' }}
+      className="st-phase-row__input st-phase-row__input--q"
       type="number"
       min={1}
       max={4}

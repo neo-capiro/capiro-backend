@@ -12,6 +12,18 @@ import type {
 import { currentStrategyGovernedContext } from './strategy-governed-context.runtime.js';
 
 /**
+ * Explicit identity delegation for the governed hops. Paired with
+ * INTERNAL_SERVICE_SECRET so a governed call does not depend on a ~60s Clerk
+ * session token still being valid after the Context Plane compile. The
+ * orchestrator re-resolves the tenant and re-checks ACTIVE membership, so this
+ * conveys identity, never authorization.
+ */
+export interface ServiceDelegation {
+  tenantId: string;
+  clerkUserId: string;
+}
+
+/**
  * Outbound client to the MeriV2 orchestrator's Strategy surfaces.
  *
  * Draft/edit/document methods are fail-closed: they require the request-scoped
@@ -47,6 +59,7 @@ export class StrategyOrchestratorClient {
     body: unknown,
     bearerToken: string | undefined,
     aiProvider?: ResolvedAiProvider,
+    delegation?: ServiceDelegation,
   ): Promise<StrategyDraftResponse> {
     return this.post<StrategyDraftResponse>(
       'strategy-draft',
@@ -54,6 +67,7 @@ export class StrategyOrchestratorClient {
       bearerToken,
       aiProvider,
       true,
+      delegation,
     );
   }
 
@@ -61,6 +75,7 @@ export class StrategyOrchestratorClient {
     body: unknown,
     bearerToken: string | undefined,
     aiProvider?: ResolvedAiProvider,
+    delegation?: ServiceDelegation,
   ): Promise<StrategyAssistantResponse> {
     return this.post<StrategyAssistantResponse>(
       'strategy-assistant',
@@ -68,6 +83,7 @@ export class StrategyOrchestratorClient {
       bearerToken,
       aiProvider,
       true,
+      delegation,
     );
   }
 
@@ -88,6 +104,7 @@ export class StrategyOrchestratorClient {
     body: unknown,
     bearerToken: string | undefined,
     aiProvider?: ResolvedAiProvider,
+    delegation?: ServiceDelegation,
   ): Promise<NodeDocumentDraftResponse> {
     const value = objectValue(body);
     const expected: StrategyGovernedTurnContext['operationId'] =
@@ -98,6 +115,7 @@ export class StrategyOrchestratorClient {
       bearerToken,
       aiProvider,
       true,
+      delegation,
     );
   }
 
@@ -137,11 +155,23 @@ export class StrategyOrchestratorClient {
     bearerToken: string | undefined,
     aiProvider?: ResolvedAiProvider,
     requireInternalContext = false,
+    delegation?: ServiceDelegation,
   ): Promise<T> {
     if (!this.baseUrl) {
       throw new ServiceUnavailableException('Meri orchestrator is not configured');
     }
-    if (!bearerToken) {
+    // A governed hop authenticates with the shared secret PLUS an explicitly
+    // delegated identity, exactly like intel-api's live-hearing calls. The
+    // caller bearer is a Clerk SESSION token (~60s TTL): by the time the
+    // Context Plane compile + grounding fan-out has finished it is routinely
+    // expired, and the orchestrator's Clerk path then 403s the whole draft.
+    // Delegation is not a bypass — MeriTenantGuard still re-resolves the tenant
+    // and requires an ACTIVE local membership for the delegated user.
+    const delegated =
+      requireInternalContext && delegation?.tenantId && delegation?.clerkUserId
+        ? { tenantId: delegation.tenantId, clerkUserId: delegation.clerkUserId }
+        : null;
+    if (!bearerToken && !delegated) {
       throw new ServiceUnavailableException('Meri request requires the caller bearer token');
     }
     if (requireInternalContext && !this.sharedSecret) {
@@ -149,14 +179,20 @@ export class StrategyOrchestratorClient {
     }
 
     const headers: Record<string, string> = {
-      authorization: bearerToken.startsWith('Bearer ')
-        ? bearerToken
-        : `Bearer ${bearerToken}`,
       'content-type': 'application/json',
     };
+    if (bearerToken) {
+      headers.authorization = bearerToken.startsWith('Bearer ')
+        ? bearerToken
+        : `Bearer ${bearerToken}`;
+    }
     if (aiProvider) headers['x-capiro-ai-provider'] = JSON.stringify(aiProvider);
     if (requireInternalContext && this.sharedSecret) {
       headers['x-internal-service-secret'] = this.sharedSecret;
+      if (delegated) {
+        headers['x-capiro-delegated-tenant'] = delegated.tenantId;
+        headers['x-capiro-delegated-user'] = delegated.clerkUserId;
+      }
     }
 
     const controller = new AbortController();

@@ -59,6 +59,15 @@ export class StrategyController {
     return this.strategies.patchMeta(ctx.tenantId, ctx.clerkUserId, id, dto);
   }
 
+  /**
+   * Delete a strategy (non-destructive archive — see StrategyService.archive).
+   * Declared before the node routes so the `:id` param shape is unambiguous.
+   */
+  @Delete(':id')
+  remove(@CurrentTenant() ctx: AuthTenantContext, @Param('id') id: string) {
+    return this.strategies.archive(ctx.tenantId, ctx.clerkUserId, id);
+  }
+
   // ---- nodes ----
   @Post(':id/nodes')
   addNode(

@@ -23,6 +23,7 @@ import {
   clientName,
   memberName,
   useClientsLite,
+  useDeleteStrategy,
   useFirmPhases,
   usePendingWatchCounts,
   useStrategies,
@@ -105,9 +106,14 @@ export function StrategyLibraryVNext() {
   const firmPhases = useFirmPhases();
   const watchCounts = usePendingWatchCounts(true);
   const clientContext = useShellClientContext();
+  const deleteStrategy = useDeleteStrategy();
 
   const [sort, setSort] = useState<SortKey>('recent');
   const [ownerFilter, setOwnerFilter] = useState<string>('all');
+  /* Two-step delete: the row's Delete control arms this, and only the armed
+   * row's explicit Confirm actually mutates. No window.confirm (the module's
+   * dirty-guard convention) and no single-click destructive action. */
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const rows = strategies.data ?? [];
   const counts = watchCounts.data ?? {};
@@ -382,6 +388,14 @@ export function StrategyLibraryVNext() {
           />
         ) : (
           <div className="st-card st-library-tablecard">
+            {/* A failed delete must say so — never leave the row looking deleted
+                or the failure silent. */}
+            {deleteStrategy.isError ? (
+              <p className="st-modal__alert" role="alert">
+                The strategy could not be deleted.{' '}
+                {(deleteStrategy.error as Error)?.message || 'Please try again.'}
+              </p>
+            ) : null}
             <div className="st-library-tablescroll">
               <table className="st-library-table">
                 <thead>
@@ -390,13 +404,14 @@ export function StrategyLibraryVNext() {
                     <th scope="col">Plan</th>
                     <th scope="col">Owner</th>
                     <th scope="col">Updated</th>
+                    <th scope="col"><span className="st-visually-hidden">Actions</span></th>
                     <th scope="col"><span className="st-visually-hidden">Open</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr className="st-library-emptyrow">
-                      <td colSpan={5}>
+                      <td colSpan={6}>
                         No strategies match the current {selectedClientId ? 'client and ' : ''}owner filter.
                       </td>
                     </tr>
@@ -408,6 +423,15 @@ export function StrategyLibraryVNext() {
                         client={clientName(clients.data, s.clientId)}
                         owner={memberName(members.data, s.ownerUserId)}
                         watchCount={counts[s.id] ?? 0}
+                        confirmingDelete={pendingDeleteId === s.id}
+                        onRequestDelete={() => setPendingDeleteId(s.id)}
+                        onCancelDelete={() => setPendingDeleteId(null)}
+                        onConfirmDelete={() => {
+                          deleteStrategy.mutate(s.id, {
+                            onSettled: () => setPendingDeleteId(null),
+                          });
+                        }}
+                        deleting={deleteStrategy.isPending && pendingDeleteId === s.id}
                         onOpen={() => {
                           // Guard: never navigate with an empty/malformed id — the editor
                           // would render "This strategy link is not valid" (PR #919).
@@ -452,12 +476,22 @@ function StrategyRow({
   owner,
   watchCount,
   onOpen,
+  confirmingDelete,
+  deleting,
+  onRequestDelete,
+  onCancelDelete,
+  onConfirmDelete,
 }: {
   strategy: StrategyListItem;
   client: string;
   owner: string;
   watchCount: number;
   onOpen: () => void;
+  confirmingDelete: boolean;
+  deleting: boolean;
+  onRequestDelete: () => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void;
 }) {
   const updated = strategy.lastEditedAt ?? strategy.createdAt;
   return (
@@ -496,6 +530,41 @@ function StrategyRow({
         </div>
       </td>
       <td className="st-library-updated">{relativeTime(updated)}</td>
+      {/* Row actions. Every control stopPropagation()s — the <tr> itself is the
+          open affordance, so a click that reached it would navigate instead of
+          deleting. */}
+      <td className="st-library-actions" onClick={(e) => e.stopPropagation()}>
+        {confirmingDelete ? (
+          <span className="st-library-confirm">
+            <span className="st-library-confirm__ask">Delete?</span>
+            <button
+              type="button"
+              className="st-library-confirm__yes"
+              disabled={deleting}
+              onClick={onConfirmDelete}
+            >
+              {deleting ? 'Deleting…' : 'Confirm'}
+            </button>
+            <button
+              type="button"
+              className="st-library-confirm__no"
+              disabled={deleting}
+              onClick={onCancelDelete}
+            >
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="st-library-delete"
+            onClick={onRequestDelete}
+            aria-label={`Delete strategy ${strategy.title}`}
+          >
+            Delete
+          </button>
+        )}
+      </td>
       <td aria-hidden="true" className="st-library-chev">›</td>
     </tr>
   );

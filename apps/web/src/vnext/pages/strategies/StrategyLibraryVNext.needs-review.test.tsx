@@ -34,6 +34,15 @@ vi.mock('./strategies-api.js', async () => {
     useTenantMembers: () => ({ data: [] }),
     useFirmPhases: () => ({ data: [] }),
     usePendingWatchCounts: () => ({ data: pendingWatchCounts }),
+    // Mutation hooks call useApi() (Clerk useAuth) at render time, so they must
+    // be stubbed like the query hooks above or the component throws outside a
+    // <ClerkProvider>.
+    useDeleteStrategy: () => ({
+      mutate: () => undefined,
+      isPending: false,
+      isError: false,
+      error: null,
+    }),
   };
 });
 

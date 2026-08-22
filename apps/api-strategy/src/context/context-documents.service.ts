@@ -75,7 +75,8 @@ export class ContextDocumentsService {
 
     // Scope-gated pinning: a client- or firm-scope document becomes context for
     // EVERY strategy under that client/firm — only an org admin may pin one.
-    this.assertCanPinScope(scope, user.role);
+    const isAdmin = await this.isOrgAdmin(tenantId, user);
+    this.assertScopeAllowed(scope, isAdmin);
 
     const validUntil =
       typeof fm.valid_until === 'string' ? new Date(fm.valid_until) : null;
@@ -173,7 +174,7 @@ export class ContextDocumentsService {
           }
           // Retiring a client/firm-scope target un-pins a firm- or client-wide
           // source of truth — same org-admin gate as pinning/archival.
-          this.assertCanPinScope(active.scope, user.role, 'supersession');
+          this.assertScopeAllowed(active.scope, isAdmin, 'supersession');
         }
       }
 
@@ -290,13 +291,17 @@ export class ContextDocumentsService {
   }
 
   async archive(tenantId: string, user: ContextUser, id: string) {
+    // Resolved OUTSIDE the tx: the membership lookup runs on the system
+    // connection (tenant_memberships is FORCE-RLS and owned by apps/api), so it
+    // must not be nested inside this service's tenant-scoped transaction.
+    const isAdmin = await this.isOrgAdmin(tenantId, user);
     return this.prisma.withTenantUser(tenantId, user.clerkUserId, async (tx) => {
       const doc = await tx.spContextDocument.findFirst({ where: { id } });
       if (!doc) throw new NotFoundException('Context document not found');
       // SYMMETRY with upload: pinning a client/firm-scope doc requires an org
       // admin, so retiring one from rotation must too — otherwise any member
       // could un-pin an admin-pinned firm-wide source of truth.
-      this.assertCanPinScope(doc.scope, user.role, 'archival');
+      this.assertScopeAllowed(doc.scope, isAdmin, 'archival');
       if (doc.state === 'archived') {
         throw new ConflictException('Context document is already archived');
       }
@@ -356,21 +361,66 @@ export class ContextDocumentsService {
     });
   }
 
-  private assertCanPinScope(
+  /**
+   * Resolve whether this caller is an org admin for the tenant.
+   *
+   * The Clerk claim alone is NOT sufficient. The deployed 'capiro' JWT template
+   * emits only { capiro_tenant_id, capiro_tenant_slug, email, ... } — it carries
+   * NO org_role/o.rol claim at all, so AuthTenantContext.role arrives `null` for
+   * every browser request. The scope gate below then rejected real admins with
+   * "client/firm-scope pinning requires an org admin" on any client- or
+   * firm-scope upload. Fall back to the canonical local membership row
+   * (tenant_memberships.role), which is the same source apps/api authorizes on,
+   * so admin-ness is decided by Capiro's own record rather than an optional
+   * token claim. Fails CLOSED: any lookup error is treated as not-admin.
+   */
+  private async isOrgAdmin(tenantId: string, user: ContextUser): Promise<boolean> {
+    if (roleClaimIsAdmin(user.role)) return true;
+    try {
+      const rows = await this.prisma.withSystem(
+        (tx) =>
+          tx.$queryRaw<Array<{ role: string }>>`
+          SELECT tm.role::text AS role
+          FROM tenant_memberships tm
+          JOIN users u ON u.id = tm.user_id
+          WHERE tm.tenant_id = ${tenantId}::uuid
+            AND u.clerk_user_id = ${user.clerkUserId}
+            AND tm.status::text = 'active'
+          LIMIT 1
+        `,
+      );
+      const role = rows[0]?.role;
+      return role === 'capiro_admin' || role === 'user_admin';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * The client/firm-scope org-admin gate, taking a pre-resolved admin verdict
+   * (see isOrgAdmin — the Clerk role claim alone is not sufficient).
+   */
+  private assertScopeAllowed(
     scope: SpContextScope,
-    role: string | null,
+    isAdmin: boolean,
     verb: 'pinning' | 'archival' | 'supersession' = 'pinning',
   ): void {
     if (scope !== 'client' && scope !== 'firm') return;
-    // Clerk org role strings look like 'org:admin' / 'org:member' (or a bare
-    // custom role). Gate on the segment after 'org:', case-insensitively.
-    // Exact-match allowlist: tenants can define custom Clerk roles whose names
-    // merely CONTAIN 'admin' (e.g. 'org:admin_readonly'); those must NOT pass.
-    const segment = role?.startsWith('org:') ? role.slice('org:'.length) : (role ?? '');
-    if (!['admin', 'administrator'].includes(segment.toLowerCase())) {
+    if (!isAdmin) {
       throw new ForbiddenException(`client/firm-scope ${verb} requires an org admin`);
     }
   }
+}
+
+/**
+ * Clerk org role strings look like 'org:admin' / 'org:member' (or a bare custom
+ * role). Gate on the segment after 'org:', case-insensitively. Exact-match
+ * allowlist: tenants can define custom Clerk roles whose names merely CONTAIN
+ * 'admin' (e.g. 'org:admin_readonly'); those must NOT pass.
+ */
+function roleClaimIsAdmin(role: string | null): boolean {
+  const segment = role?.startsWith('org:') ? role.slice('org:'.length) : (role ?? '');
+  return ['admin', 'administrator'].includes(segment.toLowerCase());
 }
 
 /** Shape check for uuid-typed query filters (Postgres uuid — any hex version). */

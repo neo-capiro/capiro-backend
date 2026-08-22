@@ -31,6 +31,21 @@ export const STRATEGIES_VISUAL_FIRM_PHASES: FirmPhase[] = [
   { id: 'phase-1', label: 'Firm growth phase', startFy: 2027, startQ: 1, endFy: 2029, endQ: 4, position: 0 },
 ];
 
+/**
+ * Worst-case names for the `?screen=firm-phases-long` capture: realistic
+ * long labels (the reason the row was relaid out), a duplicate pair so the
+ * `is-dupe` ring renders, and >5 rows so the dense preview modifier applies.
+ */
+export const STRATEGIES_VISUAL_FIRM_PHASES_LONG: FirmPhase[] = [
+  { id: 'phase-1', label: 'Pre-budget positioning and coalition groundwork', startFy: 2027, startQ: 1, endFy: 2027, endQ: 3, position: 0 },
+  { id: 'phase-2', label: "President's Budget release and committee outreach", startFy: 2027, startQ: 3, endFy: 2028, endQ: 1, position: 1 },
+  { id: 'phase-3', label: 'House and Senate subcommittee markup window', startFy: 2028, startQ: 1, endFy: 2028, endQ: 3, position: 2 },
+  { id: 'phase-4', label: 'Conference negotiation and report language', startFy: 2028, startQ: 3, endFy: 2029, endQ: 1, position: 3 },
+  { id: 'phase-5', label: 'Appropriations enactment and execution follow-through', startFy: 2029, startQ: 1, endFy: 2029, endQ: 3, position: 4 },
+  { id: 'phase-6', label: 'Duplicate phase name', startFy: 2029, startQ: 3, endFy: 2030, endQ: 1, position: 5 },
+  { id: 'phase-7', label: 'Duplicate phase name', startFy: 2030, startQ: 1, endFy: 2030, endQ: 4, position: 6 },
+];
+
 export const STRATEGIES_VISUAL_LIST: StrategyListItem[] = [
   {
     id: 'strategy-1',

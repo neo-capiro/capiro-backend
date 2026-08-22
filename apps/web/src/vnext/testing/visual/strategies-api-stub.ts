@@ -23,6 +23,7 @@ import {
   STRATEGIES_VISUAL_EDITOR_FIRM_PHASES,
   STRATEGIES_VISUAL_REFERENCE_CALENDARS,
   STRATEGIES_VISUAL_FIRM_PHASES,
+  STRATEGIES_VISUAL_FIRM_PHASES_LONG,
   STRATEGIES_VISUAL_LIST,
   STRATEGIES_VISUAL_MEMBERS,
   STRATEGIES_VISUAL_NO_PENDING_WATCH_COUNTS,
@@ -45,6 +46,7 @@ export function useTenantMembers() {
 
 export function useFirmPhases() {
   const screen = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('screen') : null;
+  if (screen === 'firm-phases-long') return { data: STRATEGIES_VISUAL_FIRM_PHASES_LONG };
   return { data: screen === 'strategy-editor' ? STRATEGIES_VISUAL_EDITOR_FIRM_PHASES : STRATEGIES_VISUAL_FIRM_PHASES };
 }
 
@@ -54,6 +56,24 @@ export function useFirmPhases() {
 export function usePendingWatchCounts(_enabled: boolean) {
   const screen = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('screen') : null;
   return { data: screen === 'strategies-empty' ? STRATEGIES_VISUAL_NO_PENDING_WATCH_COUNTS : STRATEGIES_VISUAL_PENDING_WATCH_COUNTS };
+}
+
+/**
+ * Library row delete. Inert in the harness: the visual pass is about the row's
+ * two states (armed vs not), which the component drives from local state, so
+ * this never needs to mutate the fixture list.
+ */
+export function useDeleteStrategy() {
+  return { mutate: () => undefined, isPending: false, isError: false, error: null };
+}
+
+/**
+ * Firm-phases full-replace PUT. Inert for the same reason — the overlay edits a
+ * local copy of the rows, so the phase-name width/wrap behaviour this screen
+ * exists to check never depends on a save round-trip.
+ */
+export function usePutFirmPhases() {
+  return { mutate: () => undefined, isPending: false, isError: false, error: null };
 }
 
 /** Mirrors strategies-api.ts's memberName exactly (see that file for the real one). */

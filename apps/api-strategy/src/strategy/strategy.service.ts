@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { VersioningService } from './versioning.service.js';
@@ -196,6 +201,52 @@ export class StrategyService {
         after: data,
       });
       return loadStrategyDetail(tx, strategyId);
+    });
+  }
+
+  /**
+   * Delete a strategy from the library.
+   *
+   * NON-DESTRUCTIVE by the same rule that governs node removal and version
+   * restore (P0-1): the row is stamped `archivedAt` rather than dropped, so
+   * version history, applied change-sets, agent runs, conversations and the
+   * Workspace/Outreach artifact back-links that reference it all stay
+   * resolvable. `list()` already filters `archivedAt: null`, so the strategy
+   * leaves the library immediately.
+   *
+   * Idempotent-safe: a second delete of the same strategy 409s rather than
+   * silently re-stamping, so a double-click cannot rewrite the audit timestamp.
+   */
+  async archive(tenantId: string, clerkUserId: string, strategyId: string) {
+    return this.prisma.withTenantUser(tenantId, clerkUserId, async (tx) => {
+      const strat = await tx.spStrategy.findFirst({
+        where: { id: strategyId },
+        select: { id: true, title: true, archivedAt: true },
+      });
+      if (!strat) throw new NotFoundException('Strategy not found');
+      if (strat.archivedAt) {
+        throw new ConflictException('Strategy is already deleted');
+      }
+
+      const archivedAt = new Date();
+      await tx.spStrategy.update({
+        where: { id: strategyId },
+        data: { archivedAt, lastEditedByUserId: clerkUserId, lastEditedAt: archivedAt },
+      });
+      await this.versioning.logActivity(tx, {
+        tenantId,
+        actorUserId: clerkUserId,
+        authorKind: 'person',
+        action: 'strategy.archived',
+        entityType: 'strategy',
+        entityId: strategyId,
+        // The entity is still resolvable, but pass it explicitly for parity with
+        // node.deleted so the outbox payload never depends on a live lookup.
+        strategyId,
+        before: { archivedAt: null },
+        after: { archivedAt: archivedAt.toISOString() },
+      });
+      return { id: strategyId, archivedAt: archivedAt.toISOString() };
     });
   }
 }

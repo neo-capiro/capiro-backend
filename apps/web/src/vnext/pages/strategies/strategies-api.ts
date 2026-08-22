@@ -439,6 +439,28 @@ export function useRestoreVersion(strategyId: string) {
   });
 }
 
+/**
+ * Delete a strategy. Server-side this is a NON-DESTRUCTIVE archive (the row is
+ * stamped `archivedAt`, never dropped, so version history / change-sets / agent
+ * runs / artifact back-links stay resolvable) — the library list already filters
+ * archived rows, so it disappears from the UI immediately.
+ */
+export function useDeleteStrategy() {
+  const api = useApi();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (strategyId: string) =>
+      (await api.delete<{ id: string; archivedAt: string }>(`${BASE}/strategies/${strategyId}`))
+        .data,
+    onSuccess: (result) => {
+      // Drop the detail cache entry so a stale back-navigation cannot render a
+      // deleted strategy from cache, then refresh the library list.
+      qc.removeQueries({ queryKey: ['strategy', 'strategy', result.id] });
+      void qc.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
+    },
+  });
+}
+
 /* ------------------------------------------------------- firm phases write */
 
 export function usePutFirmPhases() {

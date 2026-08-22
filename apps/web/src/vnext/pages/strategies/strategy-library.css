@@ -195,3 +195,62 @@
   overflow: hidden; clip: rect(0 0 0 0);
   white-space: nowrap; border: 0;
 }
+
+
+/*
+ * Row actions column (delete). Two-step: a quiet text control arms the row,
+ * then an explicit Confirm mutates. The cell stops click propagation in the
+ * component because the <tr> itself is the open affordance.
+ */
+.capiro-vnext-root .capiro-strategies .st-library-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.capiro-vnext-root .capiro-strategies .st-library-delete,
+.capiro-vnext-root .capiro-strategies .st-library-confirm__yes,
+.capiro-vnext-root .capiro-strategies .st-library-confirm__no {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: transparent;
+  cursor: pointer;
+}
+.capiro-vnext-root .capiro-strategies .st-library-delete { color: var(--st-gray-500); }
+.capiro-vnext-root .capiro-strategies .st-library-delete:hover {
+  color: var(--st-error-fg);
+  border-color: var(--st-error-ring);
+  background: var(--st-error-bg);
+}
+.capiro-vnext-root .capiro-strategies .st-library-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.capiro-vnext-root .capiro-strategies .st-library-confirm__ask {
+  font-size: 13px;
+  color: var(--st-gray-600);
+}
+.capiro-vnext-root .capiro-strategies .st-library-confirm__yes {
+  color: var(--st-error-fg);
+  border-color: var(--st-error-ring);
+  background: var(--st-error-bg);
+}
+.capiro-vnext-root .capiro-strategies .st-library-confirm__no { color: var(--st-gray-600); }
+.capiro-vnext-root .capiro-strategies .st-library-confirm__no:hover {
+  border-color: var(--st-gray-200);
+}
+.capiro-vnext-root .capiro-strategies .st-library-delete:focus-visible,
+.capiro-vnext-root .capiro-strategies .st-library-confirm__yes:focus-visible,
+.capiro-vnext-root .capiro-strategies .st-library-confirm__no:focus-visible {
+  outline: none;
+  box-shadow: var(--st-shadow-focus);
+}
+.capiro-vnext-root .capiro-strategies .st-library-delete[disabled],
+.capiro-vnext-root .capiro-strategies .st-library-confirm__yes[disabled],
+.capiro-vnext-root .capiro-strategies .st-library-confirm__no[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}

@@ -110,6 +110,27 @@ const TYPE_LABEL: Record<StrategyTypeValue, string> = {
   earmark: 'Grant / earmark',
 };
 
+/**
+ * Extract the Clerk `sub` from an already-verified bearer, purely as an identity
+ * hint for delegated service hops. The token has ALREADY passed TenantGuard, and
+ * the receiving service independently re-resolves the tenant and re-checks ACTIVE
+ * membership — this decodes, it does not authorize. Returns null on any malformed
+ * token so the caller can fall back rather than send an empty identity.
+ */
+function clerkSubjectFromBearer(bearer: string | undefined): string | null {
+  if (!bearer) return null;
+  try {
+    const payload = bearer.replace(/^Bearer\s+/i, '').trim().split('.')[1];
+    if (!payload) return null;
+    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+      sub?: unknown;
+    };
+    return typeof decoded.sub === 'string' && decoded.sub.trim() ? decoded.sub.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Validate one enum-ish value from (semi-trusted) LLM output; 400 on mismatch. */
 function vEnum<T extends readonly string[]>(val: unknown, allowed: T, field: string): T[number] {
   if (typeof val !== 'string' || !allowed.includes(val)) {
@@ -226,6 +247,7 @@ export class MeriService {
       },
       bearer,
       aiProvider,
+      { tenantId, clerkUserId },
     );
 
     // A7.5 / Phase 5 §4.3: never silently persist an empty draft — typed 422
@@ -439,6 +461,7 @@ export class MeriService {
         },
         bearer,
         aiProvider,
+        { tenantId, clerkUserId },
       );
     } catch (err) {
       // The user's message is already stored, so the thread must say what
@@ -961,7 +984,16 @@ export class MeriService {
         stewardHealth: input.stewardHealth,
         attachments: [],
       };
-      return await this.orchestrator.nodeDocumentDraft(body, bearer, aiProvider);
+      // Delegation needs a real Clerk subject; if the bearer does not carry one
+      // we send none and the hop falls back to the bearer's own Clerk path
+      // rather than presenting an empty delegated identity (which 403s).
+      const delegatedUser = clerkSubjectFromBearer(bearer);
+      return await this.orchestrator.nodeDocumentDraft(
+        body,
+        bearer,
+        aiProvider,
+        delegatedUser ? { tenantId, clerkUserId: delegatedUser } : undefined,
+      );
     } catch (err) {
       this.logger.warn(
         `execution document draft unavailable (${input.kind}); staging the deterministic placeholder: ${(err as Error).message}`,
