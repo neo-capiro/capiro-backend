@@ -104,6 +104,54 @@ describe('ManageFacilitiesModal', () => {
     expect(row).toHaveTextContent('State Senate 46');
   });
 
+  it('shows the Census standardized address recommendation for a matched facility', async () => {
+    getMock.mockResolvedValue({
+      data: [{ ...FACILITY, geocodeMatchedAddress: '1201 3RD AVE, SEATTLE, WA, 98101' }],
+    });
+    renderModal();
+
+    expect(
+      await screen.findByText('Census address: 1201 3RD AVE, SEATTLE, WA, 98101'),
+    ).toBeInTheDocument();
+  });
+
+  it('lets the user explicitly choose an ambiguous Census address', async () => {
+    const ambiguous = {
+      ...FACILITY,
+      congressionalDistrict: null,
+      districtSource: null,
+      geocodeStatus: 'ambiguous',
+      geocodeCandidates: [
+        {
+          matchedAddress: '1201 3RD AVE, SEATTLE, WA, 98101',
+          addressLine: '1201 3RD AVE',
+          city: 'SEATTLE',
+          state: 'WA',
+          zip: '98101',
+          latitude: 47.6,
+          longitude: -122.3,
+          congressionalDistrict: '07',
+          congressionalDistrictCongress: 119,
+          stateHouseDistrict: '41',
+          stateSenateDistrict: '46',
+        },
+      ],
+    };
+    getMock.mockResolvedValue({ data: [ambiguous] });
+    postMock.mockResolvedValue({ data: { ...FACILITY, geocodeStatus: 'matched' } });
+    renderModal();
+
+    const row = (await screen.findByText('Seattle HQ')).closest('li')!;
+    fireEvent.click(within(row).getByRole('button', { name: 'Use this address' }));
+
+    await waitFor(() =>
+      expect(postMock).toHaveBeenCalledWith(
+        '/api/clients/client-1/facilities/fac-1/geocode-candidate',
+        { candidateIndex: 0 },
+      ),
+    );
+  });
+
   it.each([
     [
       'manual',

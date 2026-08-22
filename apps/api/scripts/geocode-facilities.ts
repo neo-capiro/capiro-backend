@@ -111,18 +111,24 @@ async function main() {
         const attemptCount = (row.geocodeAttemptCount ?? 0) + (addressReady ? 1 : 0);
         const retry = nextGeocodeAttempt(outcome.status, attemptCount, addressReady, new Date());
         const wasUngeocoded = row.geocodeStatus == null;
-        await bypassRls((tx) => tx.clientFacility.update({
-          where: { id: row.id },
-          data: {
-            ...(outcome.update ?? {}),
-            ...(retry.status === 'manual_review' ? { geocodeStatus: 'manual_review' } : {}),
-            geocodeInputHash: currentHash,
-            geocodeAttemptCount: attemptCount,
-            geocodeNextAttemptAt: retry.nextAttemptAt,
-            geocodeLastError: outcome.status === 'error' ? 'Census geocoder request failed' : null,
-            geocodeMatchedAddress: null,
-          },
-        }));
+        await bypassRls((tx) =>
+          tx.clientFacility.update({
+            where: { id: row.id },
+            data: {
+              ...(outcome.update ?? {}),
+              ...(retry.status === 'manual_review' ? { geocodeStatus: 'manual_review' } : {}),
+              geocodeInputHash: currentHash,
+              geocodeAttemptCount: attemptCount,
+              geocodeNextAttemptAt: retry.nextAttemptAt,
+              geocodeLastError:
+                outcome.status === 'error' ? 'Census geocoder request failed' : null,
+              geocodeMatchedAddress: outcome.matchedAddress,
+              geocodeCandidates: outcome.candidates
+                ? (outcome.candidates as unknown as import('@prisma/client').Prisma.InputJsonValue)
+                : import('@prisma/client').Prisma.JsonNull,
+            },
+          }),
+        );
         if (wasUngeocoded && outcome.status === 'matched') inserted++;
         else if (outcome.update || outcome.status !== 'matched') updated++;
         else skipped++;

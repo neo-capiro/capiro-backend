@@ -1,4 +1,8 @@
-import { extractDistricts, type CensusAddressMatch } from './census-geocoder.client.js';
+import {
+  extractDistricts,
+  parseGeocodeMatch,
+  type CensusAddressMatch,
+} from './census-geocoder.client.js';
 
 /**
  * Fixtures are transcribed verbatim from live Census Geocoder responses
@@ -132,5 +136,23 @@ describe('extractDistricts', () => {
     const r = extractDistricts(noCdField);
     expect(r.congressionalDistrict).toBeNull();
     expect(r.congressionalDistrictCongress).toBeNull();
+  });
+});
+
+describe('parseGeocodeMatch', () => {
+  it('returns a standardized address recommendation with the resolved location', () => {
+    expect(parseGeocodeMatch(FL_MATCH)).toEqual({
+      matchedAddress: '400 S MONROE ST, TALLAHASSEE, FL, 32399',
+      addressLine: null,
+      city: null,
+      state: null,
+      zip: null,
+      latitude: 30.43813199863,
+      longitude: -84.280698266189,
+      congressionalDistrict: '02',
+      congressionalDistrictCongress: 119,
+      stateHouseDistrict: '9',
+      stateSenateDistrict: '3',
+    });
   });
 });

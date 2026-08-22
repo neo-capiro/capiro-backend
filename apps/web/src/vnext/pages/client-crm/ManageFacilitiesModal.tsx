@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import {
   createClientFacility,
+  chooseClientFacilityGeocodeCandidate,
   deleteClientFacility,
   getClientFacilities,
   resolveClientFacilityDistrict,
@@ -147,6 +148,19 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
     onError: (error) => toast.error(errorMessage(error)),
   });
 
+  const chooseCandidate = useMutation({
+    mutationFn: ({ id, candidateIndex }: { id: string; candidateIndex: number }) =>
+      chooseClientFacilityGeocodeCandidate(api, clientId, id, candidateIndex),
+    onSuccess: (facility) => {
+      qc.setQueryData<ClientFacility[]>(['client-facilities', clientId], (current) =>
+        current?.map((item) => (item.id === facility.id ? facility : item)),
+      );
+      toast.success('Census address accepted');
+      invalidate();
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
   const remove = useMutation({
     mutationFn: (id: string) => deleteClientFacility(api, clientId, id),
     onSuccess: () => {
@@ -205,6 +219,12 @@ function ManageFacilitiesBody({ clientId, onClose }: { clientId: string; onClose
                       facility={facility}
                       resolving={resolve.isPending && resolve.variables === facility.id}
                       onResolve={() => resolve.mutate(facility.id)}
+                      choosing={
+                        chooseCandidate.isPending && chooseCandidate.variables?.id === facility.id
+                      }
+                      onChoose={(candidateIndex) =>
+                        chooseCandidate.mutate({ id: facility.id, candidateIndex })
+                      }
                     />
                   </span>
                   <CapiroButton
@@ -357,10 +377,14 @@ function FacilityResolutionSummary({
   facility,
   resolving,
   onResolve,
+  choosing = false,
+  onChoose,
 }: {
   facility: ClientFacility;
   resolving: boolean;
   onResolve?: () => void;
+  choosing?: boolean;
+  onChoose?: (candidateIndex: number) => void;
 }) {
   const state = facilityResolutionState(facility);
   return (
@@ -374,6 +398,36 @@ function FacilityResolutionSummary({
       {facility.stateHouseDistrict ? <span>State House {facility.stateHouseDistrict}</span> : null}
       {facility.stateSenateDistrict ? (
         <span>State Senate {facility.stateSenateDistrict}</span>
+      ) : null}
+      {facility.geocodeStatus === 'matched' && facility.geocodeMatchedAddress ? (
+        <span className="capiro-facmod__recommendation">
+          Census address: {facility.geocodeMatchedAddress}
+        </span>
+      ) : null}
+      {facility.geocodeStatus === 'ambiguous' && facility.geocodeCandidates?.length ? (
+        <span className="capiro-facmod__recommendation">
+          <span>Choose a Census address:</span>
+          {facility.geocodeCandidates.map((candidate, index) => (
+            <span key={`${candidate.matchedAddress ?? 'candidate'}-${index}`}>
+              <span>
+                {candidate.matchedAddress ?? 'Address unavailable'}
+                {candidate.congressionalDistrict
+                  ? ` · District ${candidate.congressionalDistrict}`
+                  : ''}
+              </span>
+              {onChoose && candidate.matchedAddress ? (
+                <CapiroButton
+                  variant="quiet"
+                  size="compact"
+                  loading={choosing}
+                  onClick={() => onChoose(index)}
+                >
+                  Use this address
+                </CapiroButton>
+              ) : null}
+            </span>
+          ))}
+        </span>
       ) : null}
       {canResolveFacility(facility) && onResolve ? (
         <CapiroButton variant="quiet" size="compact" loading={resolving} onClick={onResolve}>
