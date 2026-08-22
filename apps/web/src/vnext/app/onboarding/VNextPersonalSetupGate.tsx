@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ArrowRight, Check, MailPlus } from 'lucide-react';
+import { CapiroArrowRightIcon, CapiroCheckIcon, CapiroMailPlusIcon } from '../../components/icons/index.js';
 import { CapiroButton } from '../../components/actions/index.js';
-import { CapiroSelect } from '../../components/fields/index.js';
+import { CapiroSelect, CapiroTextarea } from '../../components/fields/index.js';
 import './vnext-onboarding.css';
 
 /**
@@ -88,7 +88,7 @@ export function VNextPersonalSetupGateModal({
         {phase === 'gate' || phase === 'connecting' ? (
           <>
             <div className="vnext-ob-puck">
-              <MailPlus size={22} aria-hidden="true" />
+              <CapiroMailPlusIcon size={22} aria-hidden="true" />
             </div>
             <h2>One last step before you can get started</h2>
             <p
@@ -158,7 +158,7 @@ export function VNextPersonalSetupGateModal({
         ) : phase === 'connected' ? (
           <>
             <div className="vnext-ob-puck is-success">
-              <Check size={24} strokeWidth={2.6} aria-hidden="true" />
+              <CapiroCheckIcon size={24} strokeWidth={2.6} aria-hidden="true" />
             </div>
             <h2>You're connected.</h2>
             <p
@@ -183,7 +183,7 @@ export function VNextPersonalSetupGateModal({
             </p>
             <CapiroButton variant="primary" onClick={onContinue} style={{ width: '100%' }}>
               Continue to Capiro
-              <ArrowRight size={15} aria-hidden="true" />
+              <CapiroArrowRightIcon size={15} aria-hidden="true" />
             </CapiroButton>
             <div style={{ marginTop: 14 }}>
               <a
@@ -230,18 +230,6 @@ function VNextPersonalPrefs({ tenantName, onDone }: { tenantName: string; onDone
     'Warm and consultative',
     'Formal',
   ].map((value) => ({ value, label: value }));
-  const textareaStyle = {
-    background: 'var(--capiro-color-bg-sunken, #eef1f5)',
-    border: '1px solid var(--capiro-color-border-control, #d7dbe2)',
-    borderRadius: 6,
-    padding: '8px 11px',
-    fontSize: 13.5,
-    fontFamily: 'var(--capiro-type-family-sans)',
-    color: 'var(--capiro-color-text-primary, #131a24)',
-    outline: 'none',
-    width: '100%',
-    resize: 'vertical' as const,
-  };
   return (
     <div style={{ textAlign: 'left' }}>
       <h2 style={{ fontSize: 22, textAlign: 'center' }}>Personalize your Meri experience</h2>
@@ -262,29 +250,16 @@ function VNextPersonalPrefs({ tenantName, onDone }: { tenantName: string; onDone
           value={myTone}
           onChange={(e) => setMyTone(e.target.value)}
         />
-        <label className="capiro-field">
-          <span className="capiro-field__label">Communication style notes</span>
-          <textarea
-            rows={2}
-            style={textareaStyle}
-            placeholder="e.g. lead with the ask, keep briefs under 200 words"
-          />
-        </label>
-        <label className="capiro-field">
-          <span className="capiro-field__label">
-            Any restrictions{' '}
-            <span
-              style={{
-                fontWeight: 400,
-                color: 'var(--capiro-color-text-muted, #616b79)',
-                fontSize: 11,
-              }}
-            >
-              optional
-            </span>
-          </span>
-          <textarea rows={2} style={textareaStyle} placeholder="Topics Meri should avoid for you" />
-        </label>
+        <CapiroTextarea
+          label="Communication style notes"
+          rows={2}
+          placeholder="e.g. lead with the ask, keep briefs under 200 words"
+        />
+        <CapiroTextarea
+          label="Any restrictions (optional)"
+          rows={2}
+          placeholder="Topics Meri should avoid for you"
+        />
       </div>
       <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
         <CapiroButton onClick={onDone} style={{ flex: 1 }}>
