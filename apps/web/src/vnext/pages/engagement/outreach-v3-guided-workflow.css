@@ -396,6 +396,150 @@
 
 .outreach-guided__context-note svg { flex: 0 0 auto; margin-top: 1px; color: #39745b; }
 
+.outreach-guided__saved-lists {
+  margin-bottom: 14px;
+  border: 1px solid #e2e6e3;
+  border-radius: 12px;
+  background: #fafbfa;
+  overflow: hidden;
+}
+
+.outreach-guided__saved-lists-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+}
+
+.outreach-guided__saved-lists-bar > span {
+  margin-right: auto;
+  color: #73807b;
+  font-size: 11px;
+  font-weight: 740;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.outreach-guided__saved-lists-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #dce2df;
+  border-radius: 8px;
+  background: #fff;
+  color: #405049;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 680;
+  cursor: pointer;
+}
+
+.outreach-guided__saved-lists-bar button:hover,
+.outreach-guided__saved-lists-bar button[data-active='true'] {
+  border-color: #789b8a;
+  background: #f1f7f3;
+  color: #244d3b;
+}
+
+.outreach-guided__saved-lists-bar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.outreach-guided__saved-lists-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid #e1e6e3;
+  background: #fff;
+}
+
+.outreach-guided__saved-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e6e9e7;
+  border-radius: 9px;
+}
+
+.outreach-guided__saved-list-row span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.outreach-guided__saved-list-row small { color: #73807b; }
+
+.outreach-guided__saved-list-row button,
+.outreach-guided__saved-lists-actions button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid #dce2df;
+  border-radius: 8px;
+  background: #fff;
+  color: #405049;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 680;
+  cursor: pointer;
+}
+
+.outreach-guided__saved-list-row button:disabled,
+.outreach-guided__saved-lists-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.outreach-guided__saved-lists-name {
+  display: grid;
+  gap: 6px;
+}
+
+.outreach-guided__saved-lists-name > span {
+  color: #34443e;
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.outreach-guided__saved-lists-name input {
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid #d7dfdb;
+  border-radius: 9px;
+  background: #fbfcfb;
+  color: #17201d;
+  font: inherit;
+  outline: none;
+}
+
+.outreach-guided__saved-lists-name input:focus {
+  border-color: #6d9381;
+  box-shadow: 0 0 0 3px rgba(60, 112, 88, 0.1);
+}
+
+.outreach-guided__saved-lists-status {
+  margin: 0;
+  color: #6d7874;
+  font-size: 12px;
+}
+
+.outreach-guided__saved-lists-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.outreach-guided__saved-lists-actions button.is-primary {
+  border-color: #173f31;
+  background: #173f31;
+  color: #fff;
+}
+
 .outreach-guided__selection-receipt {
   display: flex;
   align-items: center;

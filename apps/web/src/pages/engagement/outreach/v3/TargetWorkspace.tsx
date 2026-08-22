@@ -156,7 +156,7 @@ const MANUAL_AUDIENCE_OPTIONS: Array<{ value: string; label: string }> = [
  * when it has no resolvable source ref, mirroring how the Manual tab already
  * builds a locator for a hand-entered target.
  */
-function savedAudienceMemberLocator(member: SavedAudienceMember): OutreachV3TargetLocator {
+export function savedAudienceMemberLocator(member: SavedAudienceMember): OutreachV3TargetLocator {
   if (member.sourceRefId) {
     return {
       source: member.source,
