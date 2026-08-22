@@ -498,6 +498,27 @@ export async function listSavedOutreachAudiences(api: AxiosInstance) {
   return (await api.get<SavedAudience[]>('/api/engagement/outreach/audiences')).data;
 }
 
+export interface CreateSavedOutreachAudienceMemberInput {
+  source: 'congress' | 'client_contact' | 'manual';
+  sourceRefId?: string;
+  name?: string;
+  email: string;
+  title?: string;
+  office?: string;
+}
+
+/**
+ * The API validates every member with `@IsEmail()` — callers must pre-filter
+ * to members with a usable email before calling this, the same way Outreach
+ * 2.0's `StepRecipientsSelect` does, or the whole save 400s on one bad row.
+ */
+export async function createSavedOutreachAudience(
+  api: AxiosInstance,
+  input: { kind: 'list' | 'group'; name: string; members: CreateSavedOutreachAudienceMemberInput[] },
+) {
+  return (await api.post<SavedAudience>('/api/engagement/outreach/audiences', input)).data;
+}
+
 export async function listOutreachAttachments(
   api: AxiosInstance,
   clientId?: string | null,

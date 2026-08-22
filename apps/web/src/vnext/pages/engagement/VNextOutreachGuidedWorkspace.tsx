@@ -29,6 +29,7 @@ import {
 } from '../../../pages/clients/relevance-api.js';
 import {
   acceptContextCommand,
+  addTargetCommand,
   deliveryCommands,
   excludeContextCommand,
   goalCommands,
@@ -47,6 +48,7 @@ import { safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outre
 import { TargetDirectoryBrowser } from '../../../pages/engagement/outreach/v3/TargetDirectoryBrowser.js';
 import { useOutreachV3Session } from '../../../pages/engagement/outreach/v3/useOutreachV3Session.js';
 import { startOutreachV3FullGeneration } from './engagement-api.js';
+import { SavedTargetListsPanel } from './outreach-v3-saved-target-lists.js';
 import type { VNextOutreachOperatorWorkspaceProps } from './VNextOutreachOperatorWorkspace.js';
 import {
   CLIENT_PROFILE_CONTEXT_OPTIONS,
@@ -769,6 +771,13 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
               <h2>Who should receive this campaign?</h2>
               <p>Select one or more people from the Directory. Every selected person gets a separate destination draft.</p>
             </div>
+            <SavedTargetListsPanel
+              selected={selectedTargets}
+              busy={controller.applyingCommands || busy}
+              onAddLocators={(locators) => {
+                void controller.applyCommands(locators.map((locator) => addTargetCommand(locator)));
+              }}
+            />
             <TargetDirectoryBrowser
               selected={selectedTargets}
               busy={controller.applyingCommands || busy}
