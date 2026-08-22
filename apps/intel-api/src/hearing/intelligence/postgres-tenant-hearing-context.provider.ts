@@ -64,7 +64,18 @@ function addJsonStrings(target: Set<string>, value: unknown, depth = 0): void {
   if (!value || typeof value !== 'object') return;
   for (const [key, child] of Object.entries(value as Record<string, unknown>).slice(0, 100)) {
     // Store values, not arbitrary JSON property names such as "priority".
-    if (['tag', 'issueArea', 'name', 'label', 'value', 'synonyms', 'relatedEntities', 'riskTerms'].includes(key)) {
+    if (
+      [
+        'tag',
+        'issueArea',
+        'name',
+        'label',
+        'value',
+        'synonyms',
+        'relatedEntities',
+        'riskTerms',
+      ].includes(key)
+    ) {
       addJsonStrings(target, child, depth + 1);
     }
   }
@@ -85,15 +96,24 @@ export class PostgresTenantHearingContextProvider
   constructor(private readonly prisma: PrismaService) {}
 
   async activeTenantIds(): Promise<string[]> {
-    return this.prisma.withSystem(async (tx) => {
-      const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `SELECT id::text AS id
-         FROM tenants
-         WHERE status='active'
-         ORDER BY id`,
-      );
-      return rows.map((row) => row.id);
-    });
+    return this.prisma.withSystem(
+      async (tx) => {
+        const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+          `SELECT tenant.id::text AS id
+           FROM tenants tenant
+           WHERE tenant.status='active'
+             AND EXISTS (
+               SELECT 1
+               FROM clients client
+               WHERE client.tenant_id=tenant.id
+                 AND client.status='active'
+             )
+           ORDER BY tenant.id`,
+        );
+        return rows.map((row) => row.id);
+      },
+      { timeoutMs: 30_000 },
+    );
   }
 
   async contextsForHearing(_hearingId: string): Promise<TenantHearingRelevanceContext[]> {
@@ -119,6 +139,7 @@ export class PostgresTenantHearingContextProvider
                     psc_codes AS "pscCodes"
              FROM clients
              WHERE tenant_id=$1::uuid
+               AND status='active'
              ORDER BY id`,
             tenantId,
           ),
