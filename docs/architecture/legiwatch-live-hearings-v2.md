@@ -1,7 +1,7 @@
 # Architecture Decision: LegiWatch Live Hearings V2
 
-**Status:** Accepted  
-**Date:** 2026-08-21  
+**Status:** Accepted
+**Date:** 2026-08-21
 **Scope:** Master-plan Phases 0, 3, 4, 5, and 6
 
 ## Decision
