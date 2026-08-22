@@ -89,8 +89,13 @@ function buildHarness(signal: FakeSignal | null) {
     memoryCandidate: {
       findFirst: jest.fn(async () => ({ id: 'winning-candidate-1' })),
     },
+    clioMessage: {
+      // No note by default — resolveFactText returns null, so conflict
+      // detection never even calls out (existing tests stay inert to it).
+      findFirst: jest.fn(async (..._args: unknown[]): Promise<unknown> => null),
+    },
     $queryRawUnsafe: jest.fn(async (..._args: unknown[]): Promise<unknown[]> => [{ allowed: true }]), // clientMemoryAllowed
-    $queryRaw: jest.fn(async (..._args: unknown[]): Promise<Array<{ id: string }>> => []), // findExactDuplicate — no duplicate by default
+    $queryRaw: jest.fn(async (..._args: unknown[]): Promise<Array<{ id: string }>> => []), // findExactDuplicate / CRM finding lookup — no match by default
   };
   const prisma = { withTenant: jest.fn((_tenantId: string, cb: (tx: unknown) => unknown) => cb(tx)) };
   const candidates = {
@@ -102,11 +107,15 @@ function buildHarness(signal: FakeSignal | null) {
       reason: 'test',
     })),
   };
+  const conflictDetection = {
+    findBestActiveMemoryMatch: jest.fn(async (..._args: unknown[]): Promise<unknown> => null),
+  };
   const service = new LearningSignalCandidateService(
     prisma as never,
     candidates as unknown as MemoryCandidateService,
+    conflictDetection as never,
   );
-  return { service, tx, prisma, candidates, outcomeStore };
+  return { service, tx, prisma, candidates, conflictDetection, outcomeStore };
 }
 
 describe('learningCandidateGenerationEnabled (Phase 27B kill switch)', () => {
@@ -300,6 +309,122 @@ describe('LearningSignalCandidateService', () => {
     const { service, candidates } = buildHarness(meriSignal());
     candidates.proposeSaveMemory.mockRejectedValueOnce(new Error('connection reset'));
     await expect(service.generateForSignal(TENANT, SIGNAL)).rejects.toThrow('connection reset');
+  });
+
+  describe('Phase 27C: conflict detection against active memory', () => {
+    it('a Meri signal with no note never calls conflict detection at all (nothing to compare)', async () => {
+      const { service, conflictDetection } = buildHarness(
+        meriSignal({ provenanceJsonb: { hasNote: false, reasons: ['inaccurate'] } }),
+      );
+      await service.generateForSignal(TENANT, SIGNAL);
+      expect(conflictDetection.findBestActiveMemoryMatch).not.toHaveBeenCalled();
+    });
+
+    it('a Meri signal WITH a note fetches it (ephemerally) and calls conflict detection', async () => {
+      const { service, tx, conflictDetection } = buildHarness(meriSignal());
+      (tx.clioMessage.findFirst as any).mockResolvedValueOnce({
+        metadata: { feedback: { note: 'Please keep responses under 3 sentences going forward.' } },
+      });
+      await service.generateForSignal(TENANT, SIGNAL);
+      expect(conflictDetection.findBestActiveMemoryMatch).toHaveBeenCalledTimes(1);
+      const [scope, factText] = (conflictDetection.findBestActiveMemoryMatch as any).mock
+        .calls[0] as [unknown, string];
+      expect(scope).toMatchObject({ tenantId: TENANT, clientId: null, actorUserId: ACTOR });
+      expect(factText).toContain('3 sentences');
+    });
+
+    it('CRM signal fetches the finding\'s proposed value and calls conflict detection', async () => {
+      const { service, tx, conflictDetection } = buildHarness(crmSignal());
+      (tx.$queryRaw as any).mockImplementation(async (..._args: unknown[]) => [
+        { proposedValue: { value: 'weekly' } },
+      ]);
+      await service.generateForSignal(TENANT, SIGNAL);
+      expect(conflictDetection.findBestActiveMemoryMatch).toHaveBeenCalledTimes(1);
+      const [, factText] = (conflictDetection.findBestActiveMemoryMatch as any).mock.calls[0] as [
+        unknown,
+        string,
+      ];
+      expect(factText).toContain('weekly');
+    });
+
+    it("'duplicate' match: no candidate created, outcome recorded as duplicate", async () => {
+      const { service, tx, candidates, conflictDetection } = buildHarness(meriSignal());
+      (tx.clioMessage.findFirst as any).mockResolvedValueOnce({
+        metadata: { feedback: { note: 'Keep it short please.' } },
+      });
+      conflictDetection.findBestActiveMemoryMatch.mockResolvedValueOnce({
+        kind: 'duplicate',
+        score: 0.97,
+        memoryItemId: 'item-1',
+        slug: 'clio:item-1',
+        title: 'User prefers short replies',
+      } as never);
+      const result = await service.generateForSignal(TENANT, SIGNAL);
+      expect(result?.eligibility).toBe('duplicate');
+      expect(result?.memoryCandidateId).toBeNull();
+      expect(candidates.proposeSaveMemory).not.toHaveBeenCalled();
+    });
+
+    it("CORE EXAMPLE — 'probable_contradiction' match: candidate IS still created, flagged, active item never touched", async () => {
+      const { service, tx, candidates, conflictDetection } = buildHarness(crmSignal());
+      (tx.$queryRaw as any).mockImplementation(async (..._args: unknown[]) => [
+        { proposedValue: { value: 'weekly' } },
+      ]);
+      conflictDetection.findBestActiveMemoryMatch.mockResolvedValueOnce({
+        kind: 'probable_contradiction',
+        score: 0.94,
+        memoryItemId: 'item-monthly-1',
+        slug: 'clio:item-monthly-1',
+        title: 'Client wants monthly congressional updates',
+      } as never);
+
+      const result = await service.generateForSignal(TENANT, SIGNAL);
+
+      expect(result?.eligibility).toBe('eligible'); // still a candidate — preserved, not discarded
+      expect(candidates.proposeSaveMemory).toHaveBeenCalledTimes(1);
+      const [, , record] = candidates.proposeSaveMemory.mock.calls[0] as [unknown, unknown, any];
+      expect(record.contradictsMemoryItemId).toBe('item-monthly-1');
+      expect(record.conflictStatus).toBe('open');
+      expect(result?.reason).toContain('item-monthly-1');
+      expect(result?.reason).toMatch(/contradiction/i);
+      // The active item itself is never written — this service has no
+      // memoryItem.update/create call anywhere; asserting the fake tx
+      // exposes no such delegate is the structural guard.
+      expect((tx as any).memoryItem).toBeUndefined();
+    });
+
+    it("'possible_related' match: candidate created and flagged the same way as a probable contradiction, weaker language", async () => {
+      const { service, tx, candidates, conflictDetection } = buildHarness(meriSignal());
+      (tx.clioMessage.findFirst as any).mockResolvedValueOnce({
+        metadata: { feedback: { note: 'Some note long enough to pass the length gate.' } },
+      });
+      conflictDetection.findBestActiveMemoryMatch.mockResolvedValueOnce({
+        kind: 'possible_related',
+        score: 0.8,
+        memoryItemId: 'item-2',
+        slug: 'clio:item-2',
+        title: 'Some related preference',
+      } as never);
+      const result = await service.generateForSignal(TENANT, SIGNAL);
+      expect(result?.eligibility).toBe('eligible');
+      const [, , record] = candidates.proposeSaveMemory.mock.calls[0] as [unknown, unknown, any];
+      expect(record.contradictsMemoryItemId).toBe('item-2');
+      expect(record.conflictStatus).toBe('open');
+      expect(result?.reason).toMatch(/possibly related/i);
+    });
+
+    it('no match (null): candidate created with no conflict fields set at all', async () => {
+      const { service, tx, candidates, conflictDetection } = buildHarness(meriSignal());
+      (tx.clioMessage.findFirst as any).mockResolvedValueOnce({
+        metadata: { feedback: { note: 'Some note long enough to pass the length gate.' } },
+      });
+      conflictDetection.findBestActiveMemoryMatch.mockResolvedValueOnce(null as never);
+      await service.generateForSignal(TENANT, SIGNAL);
+      expect(conflictDetection.findBestActiveMemoryMatch).toHaveBeenCalledTimes(1);
+      const [, , record] = candidates.proposeSaveMemory.mock.calls[0] as [unknown, unknown, any];
+      expect(record.contradictsMemoryItemId).toBeUndefined();
+      expect(record.conflictStatus).toBeUndefined();
+    });
   });
 
   describe('processBatch', () => {
