@@ -1,3 +1,43 @@
+.uui-outreach-home__mode {
+  display: flex;
+  gap: 6px;
+  padding: 14px 32px 0;
+  border-bottom: 1px solid #e8e5df;
+  background: #fff;
+}
+
+.uui-outreach-home__mode button {
+  position: relative;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.uui-outreach-home__mode button::after {
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 2px;
+  background: transparent;
+  content: '';
+}
+
+.uui-outreach-home__mode button[data-active='true'] {
+  color: #101828;
+}
+
+.uui-outreach-home__mode button[data-active='true']::after {
+  background: #294e68;
+}
+
 .uui-template-library {
   padding: 28px 32px 72px;
   background: #f4f3f0;
@@ -182,6 +222,34 @@
   font-size: 12.5px;
 }
 
+.ov3p1-template-receipt {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #cfdae2;
+  border-radius: 10px;
+  background: #edf3f7;
+}
+
+.ov3p1-template-receipt > span {
+  display: flex;
+  color: #294e68;
+}
+
+.ov3p1-template-receipt strong {
+  color: #101828;
+  font-size: 14px;
+}
+
+.ov3p1-template-receipt p {
+  grid-column: 2;
+  margin: 3px 0 0;
+  color: #475467;
+  font-size: 12.5px;
+  line-height: 19px;
+}
+
 @keyframes uui-template-shimmer {
   0% { background-position: 100% 0; }
   100% { background-position: 0 0; }
@@ -192,6 +260,7 @@
 }
 
 @media (max-width: 720px) {
+  .uui-outreach-home__mode { padding-right: 16px; padding-left: 16px; }
   .uui-template-library { padding: 22px 16px 60px; }
   .uui-template-library > header { flex-direction: column; }
   .uui-template-grid { grid-template-columns: 1fr; }
