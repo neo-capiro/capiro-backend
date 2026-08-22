@@ -16,6 +16,7 @@ import {
   updateOutreachTemplateMetadata,
   type OutreachTemplateDefaultsPolicyField,
   type OutreachTemplateFieldResolutionMode,
+  type OutreachTemplateScope,
   type OutreachTemplateSpec,
   type OutreachTemplateVariable,
   type OutreachTemplateVariableTextField,
@@ -92,7 +93,15 @@ export function OutreachTemplateWizard({
   onSaved,
 }: {
   mode: 'create' | 'edit';
-  existing?: { templateId: string; name: string; description: string | null; campaignType: string | null; spec: OutreachTemplateSpec };
+  existing?: {
+    templateId: string;
+    name: string;
+    description: string | null;
+    campaignType: string | null;
+    scope: OutreachTemplateScope;
+    clientId: string | null;
+    spec: OutreachTemplateSpec;
+  };
   onClose: () => void;
   onSaved: (result: { templateId: string }) => void;
 }) {
@@ -129,13 +138,16 @@ export function OutreachTemplateWizard({
       await replaceOutreachTemplateDraft(api, templateId, spec);
       if (name !== existing?.name || description !== (existing?.description ?? '') || campaignType !== (existing?.campaignType ?? '')) {
         // Metadata (name/description/campaignType) is separate from
-        // versioned content — scope/client are intentionally left untouched
-        // here; that governance action stays in the library's Edit dialog.
+        // versioned content. Scope/client are read back from `existing` and
+        // resent UNCHANGED — this call must never be the thing that silently
+        // downgrades a firm/client template's scope; that governance action
+        // stays a deliberate choice in the library's own Edit dialog.
         await updateOutreachTemplateMetadata(api, templateId, {
           name: name.trim(),
           description: description.trim() || null,
           campaignType: campaignType.trim() || null,
-          scope: 'private',
+          scope: existing!.scope,
+          clientId: existing!.clientId,
         }).catch(() => undefined);
       }
       return templateId;

@@ -486,6 +486,8 @@ export function VNextOutreachTemplates({
             name: wizard.template.name,
             description: wizard.template.description,
             campaignType: wizard.template.campaignType,
+            scope: wizard.template.scope,
+            clientId: wizard.template.clientId,
             spec: wizard.detail.versions.find((v) => v.id === wizard.template.currentDraftVersionId)?.spec
               ?? wizard.detail.versions.find((v) => v.id === wizard.template.publishedVersionId)?.spec
               ?? wizard.detail.versions[0]!.spec,
