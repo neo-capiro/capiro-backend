@@ -5,6 +5,7 @@ import {
   Card,
   CardHead,
   EvidenceChip,
+  FitChip,
   Pill,
   TabPageHead,
   type EvidenceTier,
@@ -100,7 +101,7 @@ export function ClientCrmCapabilitiesProto({ client }: { client: Client }) {
       {/* §7.2 Registrations & codes · Where capabilities create fit (two-up) */}
       <div className="cap-pf-grid-2">
         <RegistrationsCard client={client} />
-        <CapabilityFitCard />
+        <CapabilityFitCard client={client} onAddCapability={() => setCreating(true)} />
       </div>
 
       {/* The canonical editor is an in-flow side panel on the legacy profile.
@@ -501,15 +502,50 @@ function RegistrationsCard({ client }: { client: Client }) {
 
 /* ── §7.2 Where capabilities create fit ───────────────────────────────────── */
 
-/**
- * Wire-audit "4 New capability" item 3 (client-profile Excel row 45):
- * Capability fit recommendations have no backend — "Needs PE/FO matching
- * scored against capabilities" is a Hard/L gap. The CAP_FIT fixture (bill/PE
- * targets with invented fit scores) implied real matches the product cannot
- * produce. The honest treatment is an explicit empty state that names the gap,
- * the same pattern used by the NetworkCard and the advocacy evidence footer.
- */
-function CapabilityFitCard() {
+type CapabilityFitMatch = {
+  id: string;
+  kind: 'pe' | 'bill' | 'fo';
+  targetId: string;
+  target: string;
+  why: string;
+  fit: number;
+  score01: number;
+  capabilityIds: string[];
+  href?: string | null;
+};
+
+type CapabilityFitResult = {
+  matches: CapabilityFitMatch[];
+  computedAt: string | null;
+  status: 'ready' | 'empty' | 'profile_too_thin' | 'stale';
+  emptyReason?: string;
+  sources: { pe: boolean; bill: boolean; fo: boolean };
+};
+
+function CapabilityFitCard({ client, onAddCapability }: { client: Client; onAddCapability: () => void }) {
+  const api = useApi();
+  const qc = useQueryClient();
+  const fitQ = useQuery<CapabilityFitResult>({
+    queryKey: ['client-capability-fit', client.id],
+    queryFn: async () => (await api.get(`/api/clients/${client.id}/capability-fit`)).data as CapabilityFitResult,
+  });
+  const refreshM = useMutation({
+    mutationFn: async () => (await api.post(`/api/clients/${client.id}/capability-fit/refresh`)).data,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['client-capability-fit', client.id] }),
+  });
+
+  // Older callers/tests may return the capabilities array for every GET. Treat
+  // that malformed fit payload as unavailable rather than dereferencing it.
+  const result = fitQ.data && !Array.isArray(fitQ.data) ? fitQ.data : undefined;
+  const matches = result?.matches ?? [];
+  const loading = fitQ.isLoading;
+  const refreshing = refreshM.isPending;
+  const refreshButton = (
+    <SecondaryBtn onClick={() => refreshM.mutate()} disabled={refreshing}>
+      {refreshing ? 'Refreshing…' : 'Refresh'}
+    </SecondaryBtn>
+  );
+
   return (
     <Card>
       <CardHead
@@ -517,12 +553,37 @@ function CapabilityFitCard() {
         title="Where capabilities create fit"
         description="The matches Capiro draws from this record, and the reason behind each one."
       />
-      <div style={{ padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#101828' }}>No fit matches yet</span>
-        <span style={{ fontSize: 13, color: '#98A2B3', textAlign: 'center', maxWidth: 340, textWrap: 'pretty' }}>
-          Capability-to-PE and capability-to-bill matching is not available yet. Recorded capabilities above show what this client can do.
-        </span>
-      </div>
+      {loading ? (
+        <div style={{ padding: '32px 24px', color: '#667085', fontSize: 14 }}>Loading capability fit…</div>
+      ) : matches.length > 0 && result && (result.status === 'ready' || result.status === 'stale') ? (
+        <div style={{ padding: '8px 24px 20px' }}>
+          {result.status === 'stale' ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 0', color: '#B54708', fontSize: 13 }}>
+              <span>These matches may be outdated.</span>{refreshButton}
+            </div>
+          ) : null}
+          {result.matches.map((match) => (
+            <div key={match.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 0', borderBottom: '1px solid #F2F0EB' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {match.href ? <a href={match.href} style={{ color: '#101828', fontWeight: 600 }}>{match.target}</a> : <span style={{ color: '#101828', fontWeight: 600 }}>{match.target}</span>}
+                <div style={{ marginTop: 4, color: '#667085', fontSize: 13 }}>{match.why}</div>
+              </div>
+              <FitChip score={match.fit} />
+            </div>
+          ))}
+          {result.status === 'ready' ? <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 12 }}>{refreshButton}</div> : null}
+        </div>
+      ) : result?.status === 'profile_too_thin' ? (
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
+          <span style={{ color: '#667085', fontSize: 14 }}>{result.emptyReason}</span>
+          <SecondaryBtn onClick={onAddCapability}>Add capability</SecondaryBtn>
+        </div>
+      ) : (
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
+          <span style={{ color: '#667085', fontSize: 14 }}>{result?.emptyReason ?? 'Not computed yet.'}</span>
+          {refreshButton}
+        </div>
+      )}
     </Card>
   );
 }

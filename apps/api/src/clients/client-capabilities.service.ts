@@ -115,7 +115,7 @@ export class ClientCapabilitiesService {
   async createCapability(ctx: TenantContext, clientId: string, input: CreateCapabilityInput) {
     const created = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(ctx.tenantId, clientId, tx as any);
-      return tx.clientCapability.create({
+      const created = await tx.clientCapability.create({
         data: {
           tenantId: ctx.tenantId,
           clientId,
@@ -142,6 +142,10 @@ export class ClientCapabilitiesService {
           sortOrder: input.sortOrder ?? 0,
         },
       });
+      await tx.clientCapabilityFitRecommendation.deleteMany({
+        where: { clientId, tenantId: ctx.tenantId },
+      });
+      return created;
     });
     // Embed asynchronously, the capability is searchable via Meri within
     // a second or two of the create response landing.
@@ -161,7 +165,7 @@ export class ClientCapabilitiesService {
         select: { id: true },
       });
       if (!existing) throw new NotFoundException('Capability not found');
-      return tx.clientCapability.update({
+      const updated = await tx.clientCapability.update({
         where: { id },
         data: {
           ...('name' in input ? { name: input.name } : {}),
@@ -195,6 +199,10 @@ export class ClientCapabilitiesService {
           ...('sortOrder' in input ? { sortOrder: input.sortOrder ?? 0 } : {}),
         },
       });
+      await tx.clientCapabilityFitRecommendation.deleteMany({
+        where: { clientId, tenantId: ctx.tenantId },
+      });
+      return updated;
     });
     // Re-embed asynchronously. content_hash skips when the text-relevant
     // fields didn't actually change (e.g. user only tweaked sortOrder).
@@ -210,6 +218,9 @@ export class ClientCapabilitiesService {
       });
       if (!existing) throw new NotFoundException('Capability not found');
       await tx.clientCapability.delete({ where: { id } });
+      await tx.clientCapabilityFitRecommendation.deleteMany({
+        where: { clientId, tenantId: ctx.tenantId },
+      });
       // Cleanup the orphan embedding row. ON DELETE CASCADE on client_id
       // FK doesn't fire because the embedding's client_id may already be
       // NULL'd; delete by source_type/source_id explicitly.

@@ -11,6 +11,8 @@ import { ClientTargetsController } from './client-targets.controller.js';
 import { ClientTargetsService } from './client-targets.service.js';
 import { ClientTargetRecommendationsController } from './client-target-recommendations.controller.js';
 import { ClientTargetRecommendationsService } from './client-target-recommendations.service.js';
+import { ClientCapabilityFitController } from './client-capability-fit.controller.js';
+import { ClientCapabilityFitService } from './client-capability-fit.service.js';
 import { ClientFilesController, ClientFilesService } from './client-files.controller.js';
 import { ClientActivityController } from './client-activity.controller.js';
 import { ClientActivityService } from './client-activity.service.js';
@@ -33,11 +35,16 @@ import { DirectoryModule } from '../directory/directory.module.js';
 import { ContextModule } from '../context/context.module.js';
 import { LearningModule } from '../learning/learning.module.js';
 import { TrackerModule } from '../tracker/tracker.module.js';
+import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
 
 @Module({
   // RepresentationModule (not folded in here) so DirectoryModule can ALSO
   // depend on it without a cycle — ClientsModule already imports
   // DirectoryModule for the Facilities tab's directory cross-links.
+  // TrackerModule exports TrackerService for capability-fit bill projection
+  // (Phase B). FundingOpportunitiesModule exports FundingOpportunitiesService
+  // for FO projection (Phase C). Cycle risk verified none: TrackerModule only
+  // imports IntelligenceModule + EngagementModule; FO module imports MemoryModule.
   imports: [
     EmbeddingsModule,
     IntelligenceModule,
@@ -49,6 +56,7 @@ import { TrackerModule } from '../tracker/tracker.module.js';
     EngagementModule,
     // Bill recommendations for Fill with Meri (getRecommendations).
     TrackerModule,
+    FundingOpportunitiesModule,
   ],
   controllers: [
     ClientsController,
@@ -57,6 +65,7 @@ import { TrackerModule } from '../tracker/tracker.module.js';
     ClientFacilitiesController,
     ClientTargetsController,
     ClientTargetRecommendationsController,
+    ClientCapabilityFitController,
     ClientProfileFillController,
     ClientActivityController,
     ClientFilesController,
@@ -70,6 +79,7 @@ import { TrackerModule } from '../tracker/tracker.module.js';
     ClientFacilitiesService,
     ClientTargetsService,
     ClientTargetRecommendationsService,
+    ClientCapabilityFitService,
     ClientProfileFillContextPlaneService,
     {
       provide: RAW_CLIENT_PROFILE_FILL_SERVICE,

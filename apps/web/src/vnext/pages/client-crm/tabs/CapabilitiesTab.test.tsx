@@ -6,8 +6,9 @@ import { ClientCrmCapabilitiesProto } from './CapabilitiesTab.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 
 const getMock = vi.hoisted(() => vi.fn());
+const postMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../../lib/use-api.js', () => ({
-  useApi: () => ({ get: getMock }),
+  useApi: () => ({ get: getMock, post: postMock }),
 }));
 
 const client: Client = {
@@ -41,6 +42,7 @@ function renderCapabilities(clientOverride?: Client) {
 
 beforeEach(() => {
   getMock.mockReset();
+  postMock.mockReset();
 });
 
 describe('ClientCrmCapabilitiesProto', () => {
@@ -144,5 +146,71 @@ describe('ClientCrmCapabilitiesProto — capability evidence (row 2)', () => {
     // provenance onto a real capability record.
     expect(screen.queryByText('Matches')).not.toBeInTheDocument();
     expect(screen.queryByText('SAM.gov')).not.toBeInTheDocument();
+  });
+});
+
+describe('ClientCrmCapabilitiesProto — capability fit', () => {
+  const emptyFit = {
+    matches: [],
+    computedAt: null,
+    status: 'empty',
+    emptyReason: 'No fit matches yet.',
+    sources: { pe: false, bill: false, fo: false },
+  };
+
+  function mockFit(fit: unknown) {
+    getMock.mockImplementation((url: string) => {
+      if (url.endsWith('/capability-fit')) return Promise.resolve({ data: fit });
+      if (url.endsWith('/capabilities')) return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: [] });
+    });
+  }
+
+  it('renders live PE and bill matches with their fit chips', async () => {
+    mockFit({
+      matches: [
+        { id: 'pe:0605053A', kind: 'pe', targetId: '0605053A', target: 'PE 0605053A · Ground Robotics', why: 'Capability lists PE 0605053A', fit: 100, score01: 1, capabilityIds: ['cap-1'], href: '/program-elements/0605053A' },
+        { id: 'bill:119-hr-9201', kind: 'bill', targetId: '119-hr-9201', target: 'H.R. 9201 · Defense Autonomy Test Range Act', why: 'Matched capability tags: autonomy', fit: 94, score01: 0.94, capabilityIds: ['cap-1'], href: '/bills/119-hr-9201' },
+      ],
+      computedAt: '2026-08-21T12:00:00.000Z', status: 'ready', sources: { pe: true, bill: true, fo: false },
+    });
+    renderCapabilities();
+
+    expect(await screen.findByText('PE 0605053A · Ground Robotics')).toBeInTheDocument();
+    expect(screen.getByText('H.R. 9201 · Defense Autonomy Test Range Act')).toBeInTheDocument();
+    expect(screen.getByText('Capability lists PE 0605053A')).toBeInTheDocument();
+    expect(screen.getByText('Matched capability tags: autonomy')).toBeInTheDocument();
+    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(screen.getByText('94%')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'PE 0605053A · Ground Robotics' })).toHaveAttribute('href', '/program-elements/0605053A');
+  });
+
+  it.each([
+    ['empty', 'No bill, PE, or funding matches.', 'Refresh'],
+    ['profile_too_thin', 'Add tags to a capability first.', 'Add capability'],
+  ] as const)('renders the API-owned %s state without fixture fallback', async (status, reason, action) => {
+    mockFit({ ...emptyFit, status, emptyReason: reason });
+    renderCapabilities();
+    expect(await screen.findByText(reason)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: action }).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Autonomous ground maneuver')).not.toBeInTheDocument();
+  });
+
+  it('renders stale rows with the freshness warning and refresh action', async () => {
+    mockFit({ ...emptyFit, status: 'stale', emptyReason: undefined, matches: [
+      { id: 'fo:sam_gov:notice-1', kind: 'fo', targetId: 'notice-1', target: 'UGV Autonomy R&D', why: 'The notice matches the client capability profile.', fit: 88, score01: 0.88, capabilityIds: [], href: '/intelligence/opportunities/sam_gov/notice-1' },
+    ] });
+    renderCapabilities();
+    expect(await screen.findByText('UGV Autonomy R&D')).toBeInTheDocument();
+    expect(screen.getByText(/may be outdated/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
+  });
+
+  it('refreshes through the capability-fit endpoint', async () => {
+    mockFit(emptyFit);
+    postMock.mockResolvedValue({ data: emptyFit });
+    renderCapabilities();
+    fireEvent.click(await screen.findByRole('button', { name: 'Refresh' }));
+    await waitFor(() => expect(postMock).toHaveBeenCalledWith('/api/clients/client-1/capability-fit/refresh'));
   });
 });

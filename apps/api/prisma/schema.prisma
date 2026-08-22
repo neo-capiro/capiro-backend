@@ -232,6 +232,7 @@ model Tenant {
   clientActivity                     ClientActivity[]
   clientTargets                      ClientTarget[]
   clientTargetRecommendations        ClientTargetRecommendation[]
+  clientCapabilityFitRecommendations ClientCapabilityFitRecommendation[]
   engagementCampaigns                EngagementCampaign[]
   engagementCampaignRecipients       EngagementCampaignRecipient[]
   outreachAiTemplates                OutreachAiTemplate[]
@@ -823,6 +824,7 @@ model Client {
   activity                ClientActivity[]
   targets                 ClientTarget[]
   targetRecommendations   ClientTargetRecommendation[]
+  capabilityFitCache      ClientCapabilityFitRecommendation[]
   engagementCampaigns     EngagementCampaign[]
   clioProactiveAlerts     ClioProactiveAlert[]
   actionRecommendations   ActionRecommendation[]
@@ -3230,6 +3232,32 @@ model ClientTargetRecommendation {
   @@unique([clientId], map: "client_target_recommendations_client_key")
   @@index([tenantId, clientId], map: "client_target_recommendations_tenant_client_idx")
   @@map("client_target_recommendations")
+}
+
+/// Cached "Where capabilities create fit" projection for the client Portfolio
+/// Capabilities tab. NOT a fourth matcher: a fan-in of the existing PE relevance
+/// / tracker bill / funding-opportunity scorers, filtered to capability-grounded
+/// rows. Computing it means a PE fan-out that can take ~30s, so GET serves this
+/// cache and a manual Refresh recomputes. One row per client (tenant-scoped, RLS).
+model ClientCapabilityFitRecommendation {
+  id       String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  /// Array<CapabilityFitMatch> (see client-capability-fit.normalize.ts) as JSON.
+  matches  Json   @default("[]") @map("matches_jsonb")
+  /// sha256 of the capability signal fields at compute time — lets a read mark
+  /// the cache stale after capability edits without recomputing.
+  inputFingerprint String?  @map("input_fingerprint")
+  computedAt       DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId], map: "client_capability_fit_recommendations_client_key")
+  @@index([tenantId, clientId], map: "client_capability_fit_recommendations_tenant_client_idx")
+  @@map("client_capability_fit_recommendations")
 }
 
 /// Step 3.2 — materiality-gated, client-specific action card (plan §10 card spec,
