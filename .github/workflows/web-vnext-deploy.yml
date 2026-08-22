@@ -216,6 +216,37 @@ jobs:
             exit 1
           fi
 
+          # Deployment-race guard (compare-and-swap on the ECS task definition
+          # ARN). The build+push step above can take 20-30+ minutes; a second
+          # concurrent run of this same workflow (or a manual/older deploy)
+          # can register+roll a task definition onto the live service while
+          # this run is still building. Re-check the CURRENTLY RUNNING task
+          # definition immediately before mutating the service, and abort if
+          # it no longer matches the ARN this run observed at job start
+          # (steps.target.outputs.previous_task_definition). This is the
+          # smallest robust guard: it does not prevent two runs from
+          # registering task-definition revisions (registration is always
+          # additive/safe), it only refuses to have a STALE run overwrite a
+          # NEWER approved deployment via update-service. See District Nexus
+          # Release 3 incident (2026-08-22): a concurrent web-vnext deploy
+          # briefly replaced the R3 digest with the older pre-R3 image
+          # because the "previous" TD used for rollback was captured at job
+          # start and never re-verified before the final update-service call.
+          LIVE_TASK_DEFINITION="$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --query 'services[0].taskDefinition' \
+            --output text)"
+          if [[ "$LIVE_TASK_DEFINITION" != "$PREVIOUS_TASK_DEFINITION" ]]; then
+            echo "Deployment-race guard tripped: $ECS_SERVICE task definition changed from" >&2
+            echo "  $PREVIOUS_TASK_DEFINITION (observed at job start)" >&2
+            echo "to" >&2
+            echo "  $LIVE_TASK_DEFINITION (observed just before update-service)" >&2
+            echo "Refusing to promote this build over a deployment that landed while this run was in flight." >&2
+            echo "Re-run this workflow from the current main tip if this build's commit is still the intended release." >&2
+            exit 1
+          fi
+
           NEW_IMAGE="${REPO_URI}@${IMAGE_DIGEST}"
           jq \
             --arg name "$EXPECTED_CONTAINER_NAME" \
