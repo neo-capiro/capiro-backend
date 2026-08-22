@@ -137,6 +137,15 @@ describe('Dashboard v2 prototype structure', () => {
     expect(view).not.toContain('item.summary');
     expect(view).toContain("'Sources updating'");
   });
+
+  it('renders a logo mark for news outlets with initials fallback', () => {
+    expect(view).toContain('resolveNewsOutletMark');
+    expect(view).toContain('NewsOutletMark');
+    expect(view).toContain('dashv2-outlet--logo');
+    expect(view).toContain('onError={() => setFailed(true)}');
+    expect(css).toContain('.dashv2-outlet--logo');
+    expect(css).toContain('object-fit: contain');
+  });
 });
 
 describe('Dashboard v2 responsive and density contract', () => {

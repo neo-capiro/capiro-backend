@@ -82,18 +82,20 @@
   background: var(--uui-gray-50); border: 1px solid var(--uui-gray-200);
   font-size: 12px; font-weight: var(--uui-weight-medium); color: var(--uui-gray-700); white-space: nowrap;
 }
-/* Left-aligned after the brand block. The top navigation should read as one
- * left-to-right navigation row; do not center the search control in the bar. */
+/* Centered in the bar per Neo 2026-08-21: the brand block is fixed-left and
+ * the actions cluster is fixed-right (margin-left:auto), so the search takes
+ * the remaining middle flex space and centers its content within it. The
+ * trigger has its own max-width: 480px below — the container just centers it. */
 .capiro-vnext-root .capiro-vnext-uui .uui-topbar__search {
   position: static;
   height: 100%;
   transform: none;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  flex: 0 1 min(480px, 40vw);
-  width: min(480px, 40vw);
-  margin-left: 8px;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 8px;
 }
 .capiro-vnext-root .capiro-vnext-uui .uui-topbar__actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 
@@ -216,8 +218,11 @@
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-avatar__img {
   width: 100%; height: 100%; object-fit: contain; object-position: center; display: block;
 }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__name { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); display: block; }
-.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__role { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-regular); color: var(--uui-gray-600); display: block; text-transform: none; letter-spacing: 0; font-family: var(--uui-font-family); }
+/* Name/title left-aligned (Neo 2026-08-21) — the trigger is a centered flex
+   button, so the copy column needs explicit left text-align. */
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__copy { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__name { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); display: block; text-align: left; }
+.capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile__role { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-regular); color: var(--uui-gray-600); display: block; text-transform: none; letter-spacing: 0; font-family: var(--uui-font-family); text-align: left; }
 /* Dropdown menus (profile + notifications) are positioned below and flush to
    the right edge of their trigger so they never clip past the viewport. */
 .capiro-vnext-root .capiro-vnext-uui .capiro-vnext-profile,

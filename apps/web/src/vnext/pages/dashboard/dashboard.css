@@ -169,6 +169,15 @@
 .capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__mark img,.capiro-vnext-root .capiro-vnext-uui .dashv2-avatar,.capiro-vnext-root .capiro-vnext-uui .dashv2-outlet { width: 32px; height: 32px; display: grid; place-items: center; object-fit: cover; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__mark img,.capiro-vnext-root .capiro-vnext-uui .dashv2-avatar { border-radius: 50%; background: var(--uui-gray-100); color: var(--uui-gray-600); font-size: 11px; font-weight: 700; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-outlet { border-radius: 8px; background: var(--uui-gray-100); border: 1px solid var(--uui-gray-200); color: var(--uui-gray-600); font-size: 11px; font-weight: 700; letter-spacing: .02em; }
+/* News outlet logos are square (not circular like X avatars) and use contain so
+   favicon glyphs stay legible inside the 32px mark. */
+.capiro-vnext-root .capiro-vnext-uui .dashv2-outlet--logo {
+  object-fit: contain;
+  object-position: center;
+  background: var(--uui-white);
+  padding: 4px;
+  border-radius: 8px;
+}
 .capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__copy { min-width: 0; flex: 1; display: flex; flex-direction: column; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .capiro-vnext-root .capiro-vnext-uui .dashv2-wire-row__name strong { font-size: 14px; line-height: 20px; font-weight: 600; color: var(--uui-gray-900); }

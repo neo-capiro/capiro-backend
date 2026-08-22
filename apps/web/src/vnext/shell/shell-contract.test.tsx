@@ -180,10 +180,13 @@ describe('topbar section identity', () => {
 });
 
 describe('topbar alignment', () => {
-  it('keeps the top navigation left-aligned after the brand block', () => {
-    expect(shellCss).toContain('justify-content: flex-start;');
+  it('centers the search control between the brand block and the actions cluster', () => {
+    // Neo 2026-08-21: search is centered in the top bar; user name/title
+    // copy is left-aligned inside the profile trigger.
+    expect(shellCss).toContain('justify-content: center;');
     expect(shellCss).toContain('position: static;');
     expect(shellCss).not.toContain('left: 50%;');
     expect(shellCss).not.toContain('transform: translateX(-50%);');
+    expect(shellCss).toContain('.capiro-vnext-profile__name { font-size: var(--uui-text-sm); font-weight: var(--uui-weight-semibold); color: var(--uui-gray-900); display: block; text-align: left; }');
   });
 });

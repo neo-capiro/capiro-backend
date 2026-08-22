@@ -9,6 +9,7 @@ import {
 } from '../../adapters/legacy/useDashboardVNextModel.js';
 import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
 import { CustomizeDrawer } from './CustomizeDrawer.js';
+import { resolveNewsOutletMark } from './news-outlet-logos.js';
 import './dashboard.css';
 
 type WireFilter = 'all' | 'x' | 'news';
@@ -361,9 +362,44 @@ function XWireRow({ post }: { post: XFeedPostItem }) {
 }
 
 function NewsWireRow({ item }: { item: DashboardVNextModel['news']['items'][number] }) {
-  const source = item.source.split(' · ')[0] || item.source;
+  // item.source is "SLUG · relativeDay" from the adapter; the mark map keys on the slug.
+  const outlet = resolveNewsOutletMark(item.source);
   const byline = relativeTime(item.publishedAt ?? '') || item.publishedLabel;
-  return <a className="dashv2-wire-row" href={item.url} target="_blank" rel="noreferrer"><span className="dashv2-wire-row__mark"><span className="dashv2-outlet">{initialsOf(source)}</span></span><span className="dashv2-wire-row__copy"><span className="dashv2-wire-row__name"><strong>{source}</strong></span><span className="dashv2-wire-row__byline">{byline}</span><span className="dashv2-wire-row__headline">{item.title}</span><span className="dashv2-wire-row__foot">{item.clients && item.reason ? <span className="dashv2-pill dashv2-pill--brand">{item.reason}</span> : <span/>}<b>Read story</b></span></span></a>;
+  return (
+    <a className="dashv2-wire-row" href={item.url} target="_blank" rel="noreferrer">
+      <span className="dashv2-wire-row__mark">
+        <NewsOutletMark label={outlet.label} logoUrl={outlet.logoUrl} />
+      </span>
+      <span className="dashv2-wire-row__copy">
+        <span className="dashv2-wire-row__name"><strong>{outlet.label}</strong></span>
+        <span className="dashv2-wire-row__byline">{byline}</span>
+        <span className="dashv2-wire-row__headline">{item.title}</span>
+        <span className="dashv2-wire-row__foot">
+          {item.clients && item.reason ? <span className="dashv2-pill dashv2-pill--brand">{item.reason}</span> : <span />}
+          <b>Read story</b>
+        </span>
+      </span>
+    </a>
+  );
+}
+
+/** Outlet mark: logo when the favicon resolves, initials otherwise. */
+function NewsOutletMark({ label, logoUrl }: { label: string; logoUrl: string | null }) {
+  const [failed, setFailed] = useState(false);
+  const showLogo = Boolean(logoUrl) && !failed;
+  if (showLogo) {
+    return (
+      <img
+        className="dashv2-outlet dashv2-outlet--logo"
+        src={logoUrl ?? undefined}
+        alt=""
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return <span className="dashv2-outlet">{initialsOf(label)}</span>;
 }
 
 function groupEvents(events: TodayEvent[]) {
