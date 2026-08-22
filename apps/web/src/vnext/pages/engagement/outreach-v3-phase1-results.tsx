@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   StopCircle,
 } from 'lucide-react';
+import { useClientFilter } from '../../../state/client-filter.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
 import {
   type OutreachReplyCandidate,
@@ -154,9 +155,6 @@ export function MetricTile({ value, label, tone }: { value: number; label: strin
 }
 
 export function ResultsScreen({
-  sessionId,
-  campaignName,
-  selectedClientId,
   intent,
   plan,
   drafts,
@@ -168,9 +166,6 @@ export function ResultsScreen({
   onOpenDraft,
   onProposeLearning,
 }: {
-  sessionId: string;
-  campaignName: string;
-  selectedClientId: string | null;
   intent: OutreachV3SendIntentView;
   plan: OutreachV3GenerationPlan | null;
   drafts: OutreachV3DraftArtifact[];
@@ -182,6 +177,7 @@ export function ResultsScreen({
   onOpenDraft: () => void;
   onProposeLearning: (replyId: string, learning: string) => void;
 }) {
+  const clientFilter = useClientFilter();
   const totals = intent.totals ?? {};
   const [templateMode, setTemplateMode] = useState<'save' | 'update' | null>(null);
   const [resultNotice, setResultNotice] = useState('');
@@ -194,6 +190,8 @@ export function ResultsScreen({
   const skipped = Number(totals.skipped ?? 0);
   const held = Number(totals.held ?? 0);
   const clean = failed === 0 && held === 0;
+  const templateSessionId = intent.outreachRecordId;
+  const templateName = drafts[0]?.current?.subject?.trim() || 'Outreach campaign';
 
   return (
     <div className="ov3p1-content ov3p1-content--wide">
@@ -265,8 +263,8 @@ export function ResultsScreen({
       </section>
 
       {error ? <p className="ov3p1-error" role="alert">{error}</p> : null}
-      {templateMode === 'save' ? <OutreachTemplateSaveDialog sessionId={sessionId} defaultName={campaignName} selectedClientId={selectedClientId} onClose={() => setTemplateMode(null)} /> : null}
-      {templateMode === 'update' ? <OutreachTemplateUpdateDialog sessionId={sessionId} selectedClientId={selectedClientId} onClose={() => setTemplateMode(null)} /> : null}
+      {templateMode === 'save' ? <OutreachTemplateSaveDialog sessionId={templateSessionId} defaultName={templateName} selectedClientId={clientFilter.selectedClientId} onClose={() => setTemplateMode(null)} /> : null}
+      {templateMode === 'update' ? <OutreachTemplateUpdateDialog sessionId={templateSessionId} selectedClientId={clientFilter.selectedClientId} onClose={() => setTemplateMode(null)} /> : null}
     </div>
   );
 }
