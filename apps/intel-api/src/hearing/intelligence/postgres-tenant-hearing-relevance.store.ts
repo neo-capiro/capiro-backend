@@ -1,3 +1,4 @@
+import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import type {
   TenantHearingRelevance,
@@ -64,9 +65,7 @@ export class PostgresTenantHearingRelevanceStore implements TenantHearingRelevan
 }
 
 async function upsertOne(
-  tx: {
-    $executeRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
-  },
+  tx: Prisma.TransactionClient,
   match: TenantHearingRelevance,
 ): Promise<void> {
   await tx.$executeRawUnsafe(
