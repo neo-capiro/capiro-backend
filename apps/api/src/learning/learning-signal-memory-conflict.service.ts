@@ -105,9 +105,23 @@ export class LearningSignalMemoryConflictService {
     try {
       rows = await this.prisma.withTenant(scope.tenantId, async (tx) => {
         const denied = await fetchDeniedClientIds(tx, scope.tenantId, scope.actorUserId);
+        // The two branches reference DIFFERENT placeholders, so the bound
+        // parameter list has to match the branch actually taken. Passing a
+        // third argument on the user-scoped branch — where the SQL never
+        // mentions $3 — makes Postgres reject the whole statement with
+        // 42P18 "could not determine data type of parameter $3", which the
+        // catch below then swallows as a fail-open "no match". The effect was
+        // silent: every client-less (user-voice) signal skipped active-memory
+        // conflict/duplicate detection entirely while still looking healthy.
+        // Found by the Phase 27G production canary; see
+        // learning-signal-memory-conflict.service.spec.ts's placeholder/arity
+        // agreement test, which is what keeps the two in step.
         const clientPredicate = scope.clientId
           ? `AND (mi.client_id IS NULL OR mi.client_id = $3::uuid)`
           : `AND (mi.owner_user_id IS NULL OR mi.owner_user_id = $2::uuid)`;
+        const params: string[] = scope.clientId
+          ? [scope.tenantId, scope.actorUserId, scope.clientId]
+          : [scope.tenantId, scope.actorUserId];
         return tx.$queryRawUnsafe<CandidateMemoryRow[]>(
           `SELECT mi.id, mi.slug, mi.title, ce.content_text,
                   1 - (ce.embedding <=> '${literal}'::vector) AS score
@@ -121,9 +135,7 @@ export class LearningSignalMemoryConflictService {
               ${clientPredicate}${wallExclusionSql(denied, 'mi.client_id')}${governedRecallSuppressionSql(governedRecallSuppressionEnabled(), 'mi')}
             ORDER BY ce.embedding <=> '${literal}'::vector
             LIMIT 5`,
-          scope.tenantId,
-          scope.actorUserId,
-          scope.clientId,
+          ...params,
         );
       });
     } catch (error) {
