@@ -13,6 +13,17 @@ vi.mock('./live-hearings/LiveHearingsPage.js', () => ({
   LiveHearingsPage: () => <div data-testid="live-hearings">Live Hearings surface</div>,
 }));
 
+// RadarPage now reads the V2 rollout flag (legiwatch-live-hearings-flags.ts) via
+// useIntelFeature, which transitively calls useApi -> Clerk's useAuth. This
+// suite renders RadarPage without a ClerkProvider, so the flag lookup must be
+// mocked like every other intel-feature-flags consumer's tests. Resolving
+// enabled:false keeps the pre-V2 legacy LiveHearingsPage mock above active,
+// matching the fail-closed default these Phase 1 shell tests assume.
+vi.mock('../../lib/intel-feature-flags.js', () => ({
+  useIntelFeature: () => ({ enabled: false, ready: true }),
+  useIntelFeatureEnabled: () => false,
+}));
+
 function LocationProbe() {
   const location = useLocation();
   return <output data-testid="location">{`${location.pathname}${location.search}`}</output>;
