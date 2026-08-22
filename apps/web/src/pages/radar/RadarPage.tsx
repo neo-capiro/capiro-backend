@@ -4,8 +4,10 @@ import { Empty, Spin } from 'antd';
 import { AudioOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
 import { useIntelFeature } from '../../lib/intel-feature-flags.js';
 import LegacyRadarPage from './LegacyRadarPage.js';
-import { LiveHearingsCanonicalSurface } from './live-hearings/LiveHearingsCanonicalSurface.js';
 import { LiveHearingsPage } from './live-hearings/LiveHearingsPage.js';
+import { LiveHearingsPhase7Surface } from './live-hearings/LiveHearingsPhase7Surface.js';
+import { LiveHearingsV2BroadcastPanel } from './live-hearings/LiveHearingsV2BroadcastPanel.js';
+import { LiveHearingsV2CoverageDrawer } from './live-hearings/LiveHearingsV2CoverageDrawer.js';
 import {
   LEGIWATCH_LIVE_HEARINGS_V2_FEATURE,
   legiwatchLiveHearingsV2Enabled,
@@ -66,12 +68,11 @@ function sectionForTab(tab: LegacyRadarTab): LegiWatchSection {
 }
 
 /**
- * Phase 1 LegiWatch information architecture.
+ * LegiWatch information architecture.
  *
- * The proven tracker/hearing implementation remains mounted as a compatibility
- * surface while the new Live Hearings product is built. URL state stays on the
- * existing `tab` values so saved links, alert emails, and browser history do not
- * break during the migration.
+ * The validated V2 tenant flag now opens the complete Phase 7 Live Hearings
+ * surface. The legacy hearing surface remains available as the fail-closed
+ * rollback path, while Bill Tracker and Settings keep their existing routes.
  */
 export function RadarPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -89,13 +90,13 @@ export function RadarPage() {
   // must not bypass it: an unflagged tenant must still see the "not enabled"
   // empty state, exactly as the legacy surface always has.
   const hearingWatchFlag = useIntelFeature('hearing_watch');
+  const phase7EventId =
+    searchParams.get('hearingView') === 'event' ? searchParams.get('event') ?? '' : '';
 
   useEffect(() => {
     if (tab === 'feed' || tab === 'bills') lastBillView.current = tab;
   }, [tab]);
 
-  // A small number of pre-LegiWatch links used `view`. Canonicalize them once,
-  // preserving every unrelated query parameter such as client and alert IDs.
   useEffect(() => {
     if (!legacyView || searchParams.has('tab')) return;
     const next = new URLSearchParams(searchParams);
@@ -187,7 +188,11 @@ export function RadarPage() {
           ) : !hearingWatchFlag.enabled ? (
             <Empty description="Hearing Watch is not enabled for this workspace." />
           ) : liveHearingsV2Enabled ? (
-            <LiveHearingsCanonicalSurface />
+            <>
+              <LiveHearingsV2CoverageDrawer />
+              {phase7EventId ? <LiveHearingsV2BroadcastPanel hearingId={phase7EventId} /> : null}
+              <LiveHearingsPhase7Surface />
+            </>
           ) : (
             <LiveHearingsPage />
           )
