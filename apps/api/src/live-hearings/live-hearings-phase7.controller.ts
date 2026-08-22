@@ -53,6 +53,39 @@ class IntelligenceQueryDto extends TranscriptQueryDto {
   onlyRelevant?: boolean;
 }
 
+function object(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+/**
+ * The pre-Phase-8 web normalizer reads transcript evidence from top-level
+ * `segmentId/startMs/endMs/evidenceText`. The canonical Phase 8 contract nests
+ * those fields under `evidence`. Keep both read shapes on the established route
+ * so the legacy rollback surface gains real intelligence without losing its
+ * transcript links. `/intelligence-v2` remains the unmodified canonical shape.
+ */
+export function withLegacyIntelligenceEvidence(
+  response: Record<string, unknown>,
+): Record<string, unknown> {
+  const items = Array.isArray(response.items) ? response.items : [];
+  return {
+    ...response,
+    items: items.map((value) => {
+      const row = object(value);
+      const evidence = object(row.evidence);
+      return {
+        ...row,
+        evidenceText: row.evidenceText ?? evidence.text,
+        segmentId: row.segmentId ?? evidence.segmentId,
+        startMs: row.startMs ?? evidence.startMs,
+        endMs: row.endMs ?? evidence.endMs,
+      };
+    }),
+  };
+}
+
 /**
  * Canonical Hearing Room request surface. Phase 7 owns room/capture interactions;
  * Phase 8 now owns the established intelligence route without changing its URL.
@@ -125,11 +158,11 @@ export class LiveHearingsPhase7Controller {
   }
 
   @Get('events/:id/intelligence')
-  intelligence(
+  async intelligence(
     @CurrentTenant() ctx: TenantContext,
     @Param('id') id: string,
     @Query() query: IntelligenceQueryDto,
   ) {
-    return this.phase8.intelligence(ctx, id, query);
+    return withLegacyIntelligenceEvidence(await this.phase8.intelligence(ctx, id, query));
   }
 }
