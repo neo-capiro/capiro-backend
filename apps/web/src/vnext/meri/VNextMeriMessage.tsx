@@ -12,7 +12,7 @@ import type {
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { MeriAnalysisChartCard } from './MeriAnalysisChartCard.js';
 import { MeriMessageFeedback } from './MeriMessageFeedback.js';
-import { MeriIcon } from './meri-icons.js';
+import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import { formatRecordTime, MERI_LOGO_SRC, visibleMarkdown } from './meri-presentation.js';
 import { VNextMeriSourceChip } from './VNextMeriSourceChip.js';
 import {
@@ -30,7 +30,9 @@ import { MeriWorkPerformed } from './MeriWorkPerformed.js';
 import { MeriResearchProgress } from './MeriResearchProgress.js';
 import { MeriMemoryCallout } from './MeriMemoryCallout.js';
 import { deleteMeriResearch, fetchMeriContextPacket } from './meri-vnext-api.js';
+import { INTENT_LABELS } from '../../components/chat/work-performed-shared.js';
 import { useApi } from '../../lib/use-api.js';
+import { useCapiroToast } from '../components/feedback/toast.js';
 
 interface VNextMeriMessageProps {
   message: ChatMessage;
@@ -207,6 +209,7 @@ function VNextMeriAssistantMessage({
   onOpenSourceDetail: (citations: MeriCitation[], index: number) => void;
 }) {
   const api = useApi();
+  const toast = useCapiroToast();
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [deletedResearch, setDeletedResearch] = useState(false);
@@ -240,15 +243,78 @@ function VNextMeriAssistantMessage({
   );
 
   const markdownSource = visibleMarkdown(message.content, messageIsStreaming);
-  const verificationLabel = message.groundingCaveat?.findings.length
-    ? 'REVIEW FLAGGED'
-    : message.verification?.totalCount
-      ? message.verification.unsupportedCount === 0
-        ? 'GROUNDED'
-        : 'PARTIAL SUPPORT'
-      : citations.length > 0
-        ? 'GROUNDED'
-        : null;
+  /**
+   * Verification chip (handoff §10a). The handoff's six verification states map
+   * onto what the orchestrator actually sends: a claim-level verification block
+   * with total/unsupported counts and an optional confidence level, plus the
+   * post-hoc grounding auditor's caveat. `NOT GROUNDED` is handled separately
+   * below (the ungrounded strip), so this only covers grounded turns.
+   *
+   * Sources, verification, coverage and context stay four distinct signals
+   * (§10a rule) — this chip never absorbs the coverage pill beside it.
+   */
+  const verificationChip = useMemo<{
+    label: string;
+    icon: MeriIconName;
+    tone: 'good' | 'warn' | 'neutral';
+  } | null>(() => {
+    if (message.groundingCaveat?.findings.length) {
+      return { label: 'REVIEW FLAGGED', icon: 'AlertTriangle', tone: 'warn' };
+    }
+    const verification = message.verification;
+    if (verification?.totalCount) {
+      if (verification.unsupportedCount > 0) {
+        return {
+          label: `${verification.unsupportedCount} CLAIM${
+            verification.unsupportedCount === 1 ? '' : 'S'
+          } UNSUPPORTED`,
+          icon: 'AlertTriangle',
+          tone: 'warn',
+        };
+      }
+      if (verification.lowConfidence || verification.confidence?.level === 'low') {
+        return { label: 'LOW CONFIDENCE', icon: 'AlertTriangle', tone: 'warn' };
+      }
+      if (verification.confidence?.level === 'medium') {
+        return { label: 'MEDIUM CONFIDENCE', icon: 'Shield01', tone: 'neutral' };
+      }
+      if (verification.confidence?.level === 'unknown') {
+        return { label: 'NOT VERIFIED', icon: 'HelpCircle', tone: 'neutral' };
+      }
+      return { label: 'ALL CLAIMS CHECKED', icon: 'ShieldTick', tone: 'good' };
+    }
+    // Citations resolved but the server ran no claim-level verification: say
+    // exactly that rather than claiming the claims were checked.
+    if (citations.length > 0) {
+      return { label: 'NOT VERIFIED', icon: 'HelpCircle', tone: 'neutral' };
+    }
+    return null;
+  }, [citations.length, message.groundingCaveat, message.verification]);
+
+  /**
+   * Audit stamp (handoff §11a, right-aligned in the message-actions row).
+   *
+   * Composed only from facts the server actually attached to THIS turn:
+   * resolved citations and the verification claim counts. The handoff's
+   * fixture reads `AUDIT TRAIL ON · 7 OF 9 SOURCES CHECKED`, but inventing a
+   * "sources attempted" figure the orchestrator does not send would be a
+   * fabricated provenance claim — so the checked-count variant only renders
+   * when verification really carries an unsupported count, and a turn with no
+   * citations and no verification gets no stamp at all rather than "0 SOURCES".
+   */
+  const auditStamp = useMemo(() => {
+    const parts: string[] = [];
+    if (citations.length > 0) {
+      parts.push(`${citations.length} SOURCE${citations.length === 1 ? '' : 'S'}`);
+    }
+    const verification = message.verification;
+    if (verification?.totalCount) {
+      const checked = verification.totalCount - verification.unsupportedCount;
+      parts.push(`${checked} OF ${verification.totalCount} CLAIMS VERIFIED`);
+    }
+    if (parts.length === 0) return null;
+    return `AUDIT TRAIL ON · ${parts.join(' · ')}`;
+  }, [citations.length, message.verification]);
 
   useEffect(() => {
     if (!evidenceOpen || !message.contextPacketId) return;
@@ -295,6 +361,40 @@ function VNextMeriAssistantMessage({
     (finding) => ({ kind: finding.check.replace(/_/g, ' ').toUpperCase(), text: finding.detail }),
   );
 
+  /**
+   * Skill tag (handoff §4d, e.g. `SKILL · CLIENT CHANGES`, `DEEP RESEARCH ·
+   * COMPLETE`). Derived only from server facts about this turn: a finished
+   * research report for this message id, or the router's own intent code via
+   * the shared INTENT_LABELS map. A turn the router did not classify gets no
+   * tag rather than a guessed one.
+   */
+  const skillTag = useMemo(() => {
+    if (researchReport && !messageIsStreaming) return 'DEEP RESEARCH · COMPLETE';
+    if (!isLastAssistant) return null;
+    const intent = controller.orchestratorIntent;
+    if (!intent) return null;
+    const label = INTENT_LABELS[intent];
+    if (!label) return null;
+    return `SKILL · ${label.toUpperCase()}`;
+  }, [controller.orchestratorIntent, isLastAssistant, messageIsStreaming, researchReport]);
+
+  /**
+   * Evidence toggle (handoff §10a) — the last control in the trust row. Shared
+   * by the grounded and ungrounded strips below, which are mutually exclusive
+   * branches of the same row, so this exists once rather than twice.
+   */
+  const evidenceToggle = (
+    <button
+      type="button"
+      className={`vnext-meri__evidence-toggle${evidenceOpen ? ' is-open' : ''}`}
+      onClick={() => setEvidenceOpen((open) => !open)}
+      aria-expanded={evidenceOpen}
+    >
+      {evidenceOpen ? 'HIDE EVIDENCE' : 'EVIDENCE'}
+      <MeriIcon name={evidenceOpen ? 'ChevronUp' : 'ChevronDown'} size={12} color="#667085" />
+    </button>
+  );
+
   return (
     <div className="vnext-meri__assistant-message">
       <div className="vnext-meri__assistant-heading">
@@ -302,6 +402,10 @@ function VNextMeriAssistantMessage({
           <img src={MERI_LOGO_SRC} alt="" width={13} height={13} />
         </span>
         <span className="vnext-meri__assistant-time">{formatRecordTime(message.createdAt)}</span>
+        {/* Skill tag — handoff §4d. Only rendered from what the server told us
+            about THIS turn: a completed deep-research report, or the router's
+            own intent label. Never inferred from the answer text. */}
+        {skillTag ? <span className="vnext-meri__skill-tag">{skillTag}</span> : null}
       </div>
       <div className="vnext-meri__assistant-card">
         <div className="vnext-meri__assistant-body" data-meri-answer-body>
@@ -314,10 +418,9 @@ function VNextMeriAssistantMessage({
             >
               {markdownSource}
             </ReactMarkdown>
-          ) : messageIsStreaming ? (
-            <StreamingDots />
           ) : null}
-          {messageIsStreaming && message.content ? <StreamingDots /> : null}
+          {/* One cursor, whether or not any prose has arrived yet (handoff §4g). */}
+          {messageIsStreaming ? <ComposingCursor /> : null}
         </div>
 
         {showResearchProgress ? (
@@ -402,27 +505,29 @@ function VNextMeriAssistantMessage({
         ) : null}
 
         {message.suggestions?.length && !messageIsStreaming ? (
-          <div className="vnext-meri__inline-actions" aria-label="Suggested follow-ups">
-            {message.suggestions.map((suggestion) => (
-              <button
-                type="button"
-                key={suggestion}
-                className="vnext-meri__inline-action-btn"
-                disabled={isStreaming}
-                onClick={() => void controller.sendMessage(suggestion)}
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        {!messageIsStreaming && message.content ? (
-          <div className="vnext-meri__inline-actions">
-            <button type="button" className="vnext-meri__inline-action-btn" onClick={() => setEvidenceOpen((open) => !open)}>
-              <MeriIcon name="ShieldTick" size={13} color="#344054" />
-              {evidenceOpen ? 'HIDE EVIDENCE' : 'VIEW EVIDENCE'}
-            </button>
+          <div className="vnext-meri__followups" data-meri-followups>
+            {/* handoff §11c — "Clicking fills the composer", it does not send.
+                The composer listens for this event (same channel MeriStartWork
+                uses), so the user still reviews and presses Send. */}
+            <div className="vnext-meri__followups-eyebrow">SUGGESTED NEXT</div>
+            <div className="vnext-meri__followups-chips">
+              {message.suggestions.map((suggestion) => (
+                <button
+                  type="button"
+                  key={suggestion}
+                  className="vnext-meri__followup-chip"
+                  disabled={isStreaming}
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent('meri-fill-draft', { detail: suggestion }),
+                    )
+                  }
+                >
+                  <MeriIcon name="CornerDownRight" size={12} color="#98A2B3" />
+                  {suggestion}
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
 
@@ -465,12 +570,16 @@ function VNextMeriAssistantMessage({
             ) : null}
             <span style={{ flex: 1 }} />
             {message.retrieval ? <CoveragePill coverage={message.retrieval.coverage} /> : null}
-            {verificationLabel ? (
-              <span className="vnext-meri__grounded-stamp">
-                <MeriIcon name="ShieldTick" size={13} color="#027A48" />
-                {verificationLabel}
+            {verificationChip ? (
+              <span
+                className={`vnext-meri__verification-chip is-${verificationChip.tone}`}
+                data-meri-verification-chip
+              >
+                <MeriIcon name={verificationChip.icon} size={12} />
+                {verificationChip.label}
               </span>
             ) : null}
+            {!messageIsStreaming && message.content ? evidenceToggle : null}
           </div>
         ) : !messageIsStreaming && message.content ? (
           <div className="vnext-meri__source-strip">
@@ -484,6 +593,7 @@ function VNextMeriAssistantMessage({
               <MeriIcon name="AlertCircle" size={13} color="#B54708" />
               NOT GROUNDED
             </span>
+            {evidenceToggle}
           </div>
         ) : null}
 
@@ -522,10 +632,40 @@ function VNextMeriAssistantMessage({
         ) : null}
 
         {!messageIsStreaming && message.content ? (
-          <div
-            className="vnext-meri__inline-actions"
-            style={{ justifyContent: 'flex-end', alignItems: 'center' }}
-          >
+          <div className="vnext-meri__message-actions" data-meri-message-actions>
+            {/* handoff §11a — COPY / REGENERATE / thumbs, then the right-aligned
+                audit stamp. The stamp is built only from facts this turn
+                actually carries (resolved citations, server verification
+                counts); when the server sent neither, it is omitted rather
+                than asserting a source count of 0. */}
+            <button
+              type="button"
+              className="vnext-meri__inline-action-btn"
+              onClick={() => {
+                const copy = async () => {
+                  if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(message.content);
+                    return;
+                  }
+                  const area = document.createElement('textarea');
+                  area.value = message.content;
+                  area.setAttribute('readonly', '');
+                  area.style.position = 'fixed';
+                  area.style.opacity = '0';
+                  document.body.appendChild(area);
+                  area.select();
+                  const copied = document.execCommand('copy');
+                  area.remove();
+                  if (!copied) throw new Error('Copy is not supported');
+                };
+                void copy()
+                  .then(() => toast.success('Answer copied.'))
+                  .catch(() => toast.error('The answer could not be copied.'));
+              }}
+            >
+              <MeriIcon name="Copy01" size={13} color="#344054" />
+              COPY
+            </button>
             <MeriMessageFeedback
               currentRating={message.feedback}
               onSubmit={(payload) => controller.submitFeedback(message.id, payload)}
@@ -537,8 +677,12 @@ function VNextMeriAssistantMessage({
                 disabled={isStreaming}
                 onClick={() => controller.handleRegenerate()}
               >
+                <MeriIcon name="RefreshCcw02" size={13} color="#344054" />
                 REGENERATE
               </button>
+            ) : null}
+            {auditStamp ? (
+              <span className="vnext-meri__audit-stamp">{auditStamp}</span>
             ) : null}
           </div>
         ) : null}
@@ -598,12 +742,14 @@ function CoveragePill({ coverage }: { coverage: ChatMessageRetrieval['coverage']
   );
 }
 
-function StreamingDots() {
+function ComposingCursor() {
+  // handoff §4g — an 8×16px block cursor pulsing beside a mono status label,
+  // not a three-dot ellipsis. The label is what tells the user the answer is
+  // still being composed rather than finished-and-short.
   return (
-    <span className="vnext-meri__assistant-streaming" aria-label="Meri is responding">
-      <span className="vnext-meri__assistant-streaming-dot" />
-      <span className="vnext-meri__assistant-streaming-dot" />
-      <span className="vnext-meri__assistant-streaming-dot" />
+    <span className="vnext-meri__composing" aria-label="Meri is composing an answer">
+      <span className="vnext-meri__composing-cursor" aria-hidden="true" />
+      <span className="vnext-meri__composing-label">COMPOSING ANSWER…</span>
     </span>
   );
 }

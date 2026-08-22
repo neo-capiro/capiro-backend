@@ -657,7 +657,68 @@
 
 .capiro-vnext-root .vnext-meri__rail-left-top {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 18px 20px 14px;
+}
+
+/* Thread-rail collapse / expand — handoff §"Three-column collapse rules" #2
+   and §3 (rail toggle, 32px, hairline ring, Menu02 16px). The collapse button
+   sits beside New thread; the expand button is rendered by the conversation
+   header (and by the home greeting row, which has no header). */
+.capiro-vnext-root .vnext-meri__rail-collapse {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  border: 1px solid var(--meri-border);
+  border-radius: var(--meri-radius-sm);
+  background: transparent;
+  color: var(--meri-text-faint);
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease),
+    color var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__rail-collapse:hover {
+  background: var(--meri-surface-2);
+  color: var(--meri-text-secondary);
+}
+
+.capiro-vnext-root .vnext-meri__rail-toggle {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--meri-border);
+  border-radius: var(--meri-radius-sm);
+  background: var(--meri-surface);
+  color: var(--meri-text-secondary);
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__rail-toggle:hover {
+  background: var(--meri-surface-2);
+}
+
+/* Search snippet — handoff §2e, only present while the rail search has a
+   query. Two-line clamp keeps a long excerpt from reflowing the row list. */
+.capiro-vnext-root .vnext-meri__thread-item-snippet {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--meri-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .capiro-vnext-root .vnext-meri__new-chat-btn {
@@ -1548,27 +1609,45 @@
   margin-bottom: 0;
 }
 
-.capiro-vnext-root .vnext-meri__assistant-streaming {
+/* Streaming cursor — handoff §4g. An 8×16px block cursor pulsing at 1s beside
+   a mono status label; replaces the three-dot ellipsis so a streaming answer
+   can never be mistaken for a finished one. */
+.capiro-vnext-root .vnext-meri__composing {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 9px;
   margin-left: 2px;
 }
 
-.capiro-vnext-root .vnext-meri__assistant-streaming-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--meri-text-muted);
+.capiro-vnext-root .vnext-meri__composing-cursor {
+  width: 8px;
+  height: 16px;
+  background: var(--meri-ink);
   animation: vnext-meri-pulse 1s ease-in-out infinite;
 }
 
-.capiro-vnext-root .vnext-meri__assistant-streaming-dot:nth-child(2) {
-  animation-delay: 0.2s;
+.capiro-vnext-root .vnext-meri__composing-label {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--meri-text-muted);
 }
 
-.capiro-vnext-root .vnext-meri__assistant-streaming-dot:nth-child(3) {
-  animation-delay: 0.4s;
+/* Skill tag — handoff §4d, on the assistant meta row beside the timestamp. */
+.capiro-vnext-root .vnext-meri__skill-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: var(--meri-surface-2);
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-secondary);
+  white-space: nowrap;
 }
 
 /* Source strip */
@@ -1646,6 +1725,138 @@
   font-weight: 500;
   letter-spacing: 0.09em;
   color: var(--meri-success);
+}
+
+/* Verification chip — handoff §10a. One of the four distinct trust signals
+   (sources / verification / coverage / context); never merged into a single
+   confidence badge. Tone carries the semantic ramp, and the label always
+   states the finding in words so the state is never colour-only. */
+.capiro-vnext-root .vnext-meri__verification-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--meri-border);
+  background: var(--meri-surface-2);
+  font-family: var(--meri-font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-secondary);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__verification-chip.is-good {
+  background: var(--m-success-bg);
+  border-color: var(--m-success-border);
+  color: var(--m-success-text);
+}
+
+.capiro-vnext-root .vnext-meri__verification-chip.is-warn {
+  background: var(--m-warning-bg);
+  border-color: var(--m-warning-border);
+  color: var(--m-warning-text);
+}
+
+/* Evidence toggle — handoff §10a, the last control in the trust row. Control
+   border rather than a hairline, because unlike the chips beside it this one
+   is interactive and opens the tray. */
+.capiro-vnext-root .vnext-meri__evidence-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--meri-border-control);
+  border-radius: 7px;
+  background: var(--meri-surface);
+  font-family: var(--meri-font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-toggle.is-open,
+.capiro-vnext-root .vnext-meri__evidence-toggle:hover {
+  background: var(--meri-surface-2);
+}
+
+/* Message actions row — handoff §11a: `padding:11px 18px`, top hairline, on
+   the card surface. The 18px gutter is what keeps COPY and the audit stamp on
+   the same optical margin as the answer body above. */
+.capiro-vnext-root .vnext-meri__message-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 11px 18px;
+  border-top: 1px solid var(--meri-border-soft);
+  background: var(--meri-surface);
+}
+
+.capiro-vnext-root .vnext-meri__audit-stamp {
+  margin-left: auto;
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-faint);
+  white-space: nowrap;
+}
+
+/* Follow-ups — handoff §11c: `padding:12px 18px 14px`, top hairline. Clicking
+   a chip fills the composer; it never sends, so the eyebrow reads as a
+   suggestion list rather than an action bar. */
+.capiro-vnext-root .vnext-meri__followups {
+  padding: 12px 18px 14px;
+  border-top: 1px solid var(--meri-border-soft);
+}
+
+.capiro-vnext-root .vnext-meri__followups-eyebrow {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--meri-text-faint);
+}
+
+.capiro-vnext-root .vnext-meri__followups-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__followup-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: var(--meri-radius-sm);
+  border: 1px solid var(--meri-border);
+  background: var(--meri-surface);
+  font-size: 12.5px;
+  color: var(--meri-text-secondary);
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease),
+    border-color var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__followup-chip:hover:not(:disabled) {
+  background: var(--meri-surface-2);
+  border-color: var(--meri-border-control);
+}
+
+.capiro-vnext-root .vnext-meri__followup-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .capiro-vnext-root .vnext-meri__grounded-dot {
@@ -1807,6 +2018,58 @@
   margin-top: 8px;
 }
 
+/* MeriTaskModePicker — handoff §12 row 2. Segmented group: 2px padding on a
+   quiet fill with a hairline ring; the active segment lifts onto the surface
+   with a control border and 1px shadow. Per-message task mode, deliberately
+   distinct from the header's durable Reasoning Depth. */
+.capiro-vnext-root .vnext-meri__task-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--meri-surface-2);
+  border: 1px solid var(--meri-border);
+}
+
+.capiro-vnext-root .vnext-meri__task-mode-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  font-family: var(--meri-font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--meri-text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease),
+    border-color var(--capiro-motion-fast) var(--capiro-motion-ease),
+    color var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+
+.capiro-vnext-root .vnext-meri__task-mode-segment:hover:not(.is-active):not(:disabled) {
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__task-mode-segment.is-active {
+  background: var(--meri-surface);
+  border-color: var(--meri-border-control);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__task-mode-segment:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* The composer's scope menu is absolutely positioned by an inline style in
    VNextMeriComposer. Without this the wrapper is static and the menu resolves
    against .vnext-meri__composer-wrap instead of its own trigger. */
@@ -1844,6 +2107,15 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  /* The task-mode picker (handoff §12 row 2) shares this row, so the context
+     pill — the only variable-width item, it carries the client name — must be
+     the thing that gives way. A flex container wraps items BEFORE shrinking
+     them, so `flex-shrink` alone is not enough: the max-width is what keeps
+     the pill from claiming the width Send needs and pushing it to a new line. */
+  min-width: 0;
+  flex: 0 1 auto;
+  max-width: 38%;
+  overflow: hidden;
   min-height: 28px;
   padding: 4px 11px;
   border-radius: var(--meri-radius-sm);
@@ -1863,6 +2135,14 @@
 .capiro-vnext-root .vnext-meri__composer-context-label:hover {
   background: var(--meri-accent-soft);
   border-color: var(--meri-border-control);
+}
+
+/* The label truncates, not the pill's icon or its ring. */
+.capiro-vnext-root .vnext-meri__composer-context-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .capiro-vnext-root .vnext-meri__composer-send-hint {
@@ -2847,7 +3127,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .capiro-vnext-root .vnext-meri__mode-pill-dot.is-researching,
-  .capiro-vnext-root .vnext-meri__assistant-streaming-dot,
+  .capiro-vnext-root .vnext-meri__composing-cursor,
   .capiro-vnext-root .vnext-meri__work-step-icon.is-running,
   .capiro-vnext-root .vnext-meri__work-source-dot,
   .capiro-vnext-root .vnext-meri__panel-state-icon.is-spinning {

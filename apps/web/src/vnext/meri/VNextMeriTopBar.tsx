@@ -17,6 +17,10 @@ interface VNextMeriTopBarProps {
   onClose: () => void;
 }
 
+/**
+ * "What Meri can do" content — handoff §1b. Three cards, product-owned copy.
+ * Do not reword and do not turn this into a tour.
+ */
 const PRO_TIPS = [
   {
     n: '01',
@@ -31,6 +35,13 @@ const PRO_TIPS = [
     quote:
       '"Create a skill called Monday Brief: for each client, list what moved last week, what needs a decision, and the sources."',
     then: 'THEN JUST SAY: RUN MONDAY BRIEF',
+  },
+  {
+    n: '03',
+    title: 'Ask for the deliverable, not the tool',
+    body: 'Ask for the memo, target list or email; Meri assembles it, cites it, and surfaces any consequential step for approval.',
+    quote:
+      '"Draft the client update for Lockheed and send it to Jordan once I have reviewed it."',
   },
 ];
 
@@ -54,6 +65,20 @@ export function VNextMeriTopBar({
   const selectedClient = clients.find((client) => client.id === selectedClientValue) ?? null;
   const scopeLabel = selectedClient ? selectedClient.name.toUpperCase() : 'ALL CLIENTS';
   const scopeMeta = selectedClient ? 'CLIENT' : `${clients.length} IN SCOPE`;
+
+  /**
+   * The scope the server has actually recorded against this thread. Only shown
+   * once a thread exists AND the recorded scope differs from what the picker is
+   * currently showing — otherwise the row would just duplicate the selection.
+   */
+  const threadScope = useMemo(() => {
+    if (!controller.activeConversationId) return null;
+    const persisted = controller.persistedClientId;
+    if ((persisted ?? '') === (selectedClientValue ?? '')) return null;
+    if (!persisted) return { id: '', label: 'ALL CLIENTS · PORTFOLIO' };
+    const client = clients.find((candidate) => candidate.id === persisted);
+    return client ? { id: client.id, label: client.name.toUpperCase() } : null;
+  }, [clients, controller.activeConversationId, controller.persistedClientId, selectedClientValue]);
 
   const filteredClients = useMemo(() => {
     const query = scopeQuery.trim().toLowerCase();
@@ -152,6 +177,37 @@ export function VNextMeriTopBar({
                 aria-label="Search clients"
               />
             </div>
+            {/*
+              Thread's recorded scope (handoff §1a first row). The prototype
+              labels this `FIXED AT CREATION`, but in this build changing scope
+              IS an audited move that affects later answers (handoff §State
+              management), so the meta states the recorded scope rather than
+              claiming immutability the server does not enforce. Selecting it
+              returns the picker to what the server has on record.
+            */}
+            {threadScope ? (
+              <button
+                type="button"
+                role="menuitem"
+                className={`vnext-meri__scope-menu-item${
+                  threadScope.id === selectedClientValue ? ' is-selected' : ''
+                }`}
+                onClick={() => {
+                  setScopeOpen(false);
+                  void changeSessionClient(threadScope.id);
+                }}
+              >
+                <span className="vnext-meri__scope-menu-item-body">
+                  <span className="vnext-meri__scope-menu-item-label">This thread</span>
+                  <span className="vnext-meri__scope-menu-item-meta">
+                    RECORDED SCOPE · {threadScope.label}
+                  </span>
+                </span>
+                {threadScope.id === selectedClientValue ? (
+                  <MeriIcon name="Check" size={15} color="#101828" />
+                ) : null}
+              </button>
+            ) : null}
             {filteredClients.map((client) => (
               <button
                 type="button"

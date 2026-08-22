@@ -39,6 +39,10 @@ interface VNextMeriConversationProps {
   onOpenIntegrations: () => void;
   /** Expands the rail's Memory section. */
   onOpenMemory: () => void;
+  /** True when the thread rail is hidden — shows the header's rail toggle. */
+  threadRailCollapsed: boolean;
+  /** Re-shows the thread rail from the conversation header. */
+  onExpandThreadRail: () => void;
   /** Opens the rail's Source Detail view for one of a turn's citations. */
   onOpenSourceDetail: (citations: import('../../components/chat/chat-store.js').MeriCitation[], index: number) => void;
 }
@@ -49,6 +53,8 @@ export function VNextMeriConversation({
   tenantName,
   onOpenIntegrations,
   onOpenMemory,
+  threadRailCollapsed,
+  onExpandThreadRail,
   onOpenSourceDetail,
 }: VNextMeriConversationProps) {
   const [threadMenuOpen, setThreadMenuOpen] = useState(false);
@@ -147,6 +153,18 @@ export function VNextMeriConversation({
       <main className="vnext-meri__main">
         {hasThread ? (
           <div className="vnext-meri__thread-header">
+            {/* Rail toggle — handoff §3, present only while the rail is
+                collapsed, at the left of the conversation header. */}
+            {threadRailCollapsed ? (
+              <button
+                type="button"
+                className="vnext-meri__rail-toggle"
+                aria-label="Show thread rail"
+                onClick={onExpandThreadRail}
+              >
+                <MeriIcon name="Menu02" size={16} color="#344054" />
+              </button>
+            ) : null}
             <span className="vnext-meri__thread-icon">
               <MeriIcon name={kindIcon} size={15} color="#101828" />
             </span>
@@ -283,7 +301,20 @@ export function VNextMeriConversation({
 
             {!hasThread ? (
               <div className="vnext-meri__landing">
+                {/* On home the conversation header is hidden (handoff §3), so
+                    the rail toggle rides with the greeting row instead — the
+                    rail must stay recoverable from every view. */}
                 <div className="vnext-meri__landing-greeting-row">
+                  {threadRailCollapsed ? (
+                    <button
+                      type="button"
+                      className="vnext-meri__rail-toggle"
+                      aria-label="Show thread rail"
+                      onClick={onExpandThreadRail}
+                    >
+                      <MeriIcon name="Menu02" size={16} color="#344054" />
+                    </button>
+                  ) : null}
                   <span className="vnext-meri__assistant-mark">
                     <img src={MERI_LOGO_SRC} alt="" width={13} height={13} />
                   </span>

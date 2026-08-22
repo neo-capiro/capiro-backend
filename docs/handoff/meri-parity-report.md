@@ -47,3 +47,63 @@ Live §9 DOM assertions and 1024 / 1200 / 1440 / 1600 screenshots require a sign
 Touched: `apps/web/src/vnext/meri/**`, `apps/web/public/assets/meri-logo.png`, `apps/web/public/untitledui/meri-icons.js`, `docs/handoff/GAPS.md`, `docs/handoff/meri-parity-report.md`.
 
 Not touched: `apps/web` legacy chat components, API contracts, query keys, streaming transport.
+
+---
+
+# Meri v4 standalone-handoff parity pass
+
+Second presentation-only pass, against `design_handoff_meri/README.md` (the v4
+standalone handoff) rather than the earlier v3 defect list. No endpoint, payload,
+query-key or streaming-transport change; every new string is server-derived or
+verbatim handoff copy.
+
+| Handoff § | Gap closed | File · region |
+| --- | --- | --- |
+| §3 `MeriDepthPicker` | Chip reads `DEPTH · {TIER}`, menu eyebrow `REASONING DEPTH · THIS THREAD`, four descriptions verbatim. Renamed from `MODE ·` specifically so it is not confused with the composer's Task Mode. | `VNextMeriReasoningControl.tsx` |
+| §3 rail toggle | Thread rail collapses; `Menu02` expand button at the left of the conversation header, and on the greeting row on home (which has no header). | `VNextMeriShell.tsx`, `VNextMeriConversation.tsx`, `VNextMeriThreadRail.tsx` |
+| §2e search snippet | Matched excerpt under title+meta, only while the rail search has a query. Server hit snippet preferred; local-filter rows fall back to the latest message body. | `VNextMeriThreadRail.tsx` |
+| §1a scope selector | `This thread` row showing the server's recorded scope, rendered only when it differs from the current selection. | `VNextMeriTopBar.tsx` |
+| §1b capability popover | Third card, `Ask for the deliverable, not the tool`, verbatim. | `VNextMeriTopBar.tsx` |
+| §4d skill tag | `DEEP RESEARCH · COMPLETE` / `SKILL · {INTENT}` beside the assistant timestamp, from the research report or the router's own intent code. | `VNextMeriMessage.tsx` |
+| §4g streaming cursor | 8×16 block cursor + `COMPOSING ANSWER…`, replacing the three-dot ellipsis. | `VNextMeriMessage.tsx` |
+| §10a verification chip | `ALL CLAIMS CHECKED` / `N CLAIMS UNSUPPORTED` / `MEDIUM CONFIDENCE` / `LOW CONFIDENCE` / `NOT VERIFIED` / `REVIEW FLAGGED`, mapped from the real verification block. Coverage stays a separate pill — the four trust signals are not merged. | `VNextMeriMessage.tsx` |
+| §10a evidence toggle | `EVIDENCE` / `HIDE EVIDENCE` moved into the trust row as its last control, with a chevron. | `VNextMeriMessage.tsx` |
+| §11a message actions | `COPY` (+ `Answer copied.` toast) and an icon on `REGENERATE`, in a `padding:11px 18px` row with a right-aligned audit stamp. | `VNextMeriMessage.tsx` |
+| §11c follow-ups | `SUGGESTED NEXT` eyebrow + `CornerDownRight` chips that **fill the composer** instead of auto-sending. | `VNextMeriMessage.tsx` |
+| §12 `MeriTaskModePicker` | Segmented `STANDARD` / `RESEARCH` / `WRITE`, wired to the controller's real `researchMode` / `writeMode` flags (derived, not a second source of truth). | `VNextMeriComposer.tsx` |
+
+## Honesty notes — where the fixture was NOT copied
+
+- **Audit stamp.** The handoff fixture reads `AUDIT TRAIL ON · 7 OF 9 SOURCES
+  CHECKED`. The orchestrator sends no "sources attempted" figure, so the stamp is
+  built only from resolved citations and real verification counts
+  (`… · 4 SOURCES · 7 OF 9 CLAIMS VERIFIED`), and is omitted entirely when a turn
+  carries neither rather than printing `0 SOURCES`.
+- **`FIXED AT CREATION`.** The prototype labels the thread-scope row that way, but
+  in this build a scope change is an audited move that affects later answers, so
+  the row reads `RECORDED SCOPE · {SCOPE}` instead of asserting immutability the
+  server does not enforce.
+- **Thread-rail collapse persistence** is client state; the preferences DTO
+  rejects a fourth key. Logged as `GAPS.md` §28.
+
+## Verification
+
+```
+tsc --noEmit ......... CLEAN
+vitest src/vnext/meri src/vnext/foundation-contract.test.ts
+                       25 files / 156 tests PASSING
+visual (CDP) ......... 5 fixture screens via the Clerk-free harness
+                       (vite.harness.config.ts): answer, unsupported-claims,
+                       composer, streaming, depth chip
+harness files ........ removed; git status clean
+```
+
+The visual pass is a **structural** check against the handoff's stated geometry,
+not a numeric pixel overlay. It caught three defects the green suite could not
+see: the actions/follow-up rows were missing the §11a/§11c `18px` gutter (COPY
+flush to the card edge, audit stamp clipped), the new task-mode picker wrapped
+the Send button onto a second line at column width, and the depth chip still read
+`MODE ·`. All three were fixed and re-captured.
+
+Live §9 DOM assertions against a signed-in session remain unclaimed from this CLI
+run.

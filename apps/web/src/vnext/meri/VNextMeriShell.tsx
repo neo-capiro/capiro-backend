@@ -68,6 +68,18 @@ export function VNextMeriShell({
   const navigate = useNavigate();
   const [windowChrome, setWindowChrome] = useState<MeriWindowChrome>('undocked');
   const [railCollapsed, setRailCollapsed] = useState(false);
+  /**
+   * Thread-rail collapse (handoff §"Three-column collapse rules" #2: "The
+   * thread rail collapses behind a toggle button that appears at the left of
+   * the conversation header").
+   *
+   * Client state, not a persisted preference: the vNext preferences contract
+   * (`/api/clio/vnext/preferences`) validates exactly three keys and rejects
+   * anything else, and the handoff only requires the *side panel*'s collapsed
+   * state to persist per user. Logged in docs/handoff/GAPS.md rather than
+   * silently widening the API payload.
+   */
+  const [threadRailCollapsed, setThreadRailCollapsed] = useState(false);
   const [openSection, setOpenSection] = useState<MeriContextSection | null>(null);
   const [preferencesHydrated, setPreferencesHydrated] = useState(false);
   const skipInitialPreferenceSaveRef = useRef(true);
@@ -200,20 +212,23 @@ export function VNextMeriShell({
           />
 
           <div className="vnext-meri__body">
-            <VNextMeriThreadRail
-              controller={controller}
-              historyError={historyError}
-              onRetryHistory={onRetryHistory}
-              onNewChat={handleNewChat}
-              onOpenIntegrations={handleOpenIntegrations}
-              onArchiveThread={onArchiveThread}
-              onRenameThread={onRenameThread}
-              onRestoreThread={onRestoreThread}
-              searchQuery={threadSearch}
-              onSearchQueryChange={setThreadSearch}
-              searchInputRef={threadSearchRef}
-              onOpenPalette={() => setPaletteOpen(true)}
-            />
+            {threadRailCollapsed ? null : (
+              <VNextMeriThreadRail
+                controller={controller}
+                historyError={historyError}
+                onRetryHistory={onRetryHistory}
+                onNewChat={handleNewChat}
+                onOpenIntegrations={handleOpenIntegrations}
+                onArchiveThread={onArchiveThread}
+                onRenameThread={onRenameThread}
+                onRestoreThread={onRestoreThread}
+                searchQuery={threadSearch}
+                onSearchQueryChange={setThreadSearch}
+                searchInputRef={threadSearchRef}
+                onOpenPalette={() => setPaletteOpen(true)}
+                onCollapse={() => setThreadRailCollapsed(true)}
+              />
+            )}
 
             <VNextMeriConversation
               controller={controller}
@@ -221,6 +236,8 @@ export function VNextMeriShell({
               tenantName={tenantName}
               onOpenIntegrations={handleOpenIntegrations}
               onOpenMemory={() => expandSection('memory')}
+              threadRailCollapsed={threadRailCollapsed}
+              onExpandThreadRail={() => setThreadRailCollapsed(false)}
               onOpenSourceDetail={(citations, index) => {
                 setActiveSourceDetail({ citations, index });
                 setRailCollapsed(false);

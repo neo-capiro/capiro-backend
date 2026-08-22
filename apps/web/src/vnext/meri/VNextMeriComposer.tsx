@@ -16,7 +16,7 @@ import { maySend, meriEffectiveIdentityKey } from '../../components/chat/meri-ro
 import { useCapiroToast } from '../components/feedback/toast.js';
 import { useApi } from '../../lib/use-api.js';
 import { useImpersonation } from '../../state/impersonation.js';
-import { MeriIcon } from './meri-icons.js';
+import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import { ConnectorMark } from './meri-connector-logos.js';
 import {
   mayApplyWorkspaceImportResponse,
@@ -27,6 +27,41 @@ import {
 } from './meri-workspace-import.js';
 
 const ATTACH_ACCEPT = '.pdf,.docx,.txt,.md,.csv,image/png,image/jpeg,image/gif,image/webp';
+
+/**
+ * Task Mode (handoff §12 row 2, §"Task Mode vs Reasoning Depth").
+ *
+ * "It describes what you are doing right now" — per message, in the composer.
+ * Distinct from the conversation header's durable per-thread Reasoning Depth.
+ * Descriptions are verbatim product copy from the handoff.
+ */
+const MERI_TASK_MODES = [
+  {
+    key: 'standard',
+    label: 'STANDARD',
+    icon: 'MessageTextSquare01',
+    description: 'Normal conversation and analysis.',
+  },
+  {
+    key: 'research',
+    label: 'RESEARCH',
+    icon: 'SearchLg',
+    description: 'Cited deep research workflows.',
+  },
+  {
+    key: 'write',
+    label: 'WRITE',
+    icon: 'Edit01',
+    description: 'Draft or update the current page or document.',
+  },
+] as const satisfies ReadonlyArray<{
+  key: string;
+  label: string;
+  icon: MeriIconName;
+  description: string;
+}>;
+
+type MeriTaskMode = (typeof MERI_TASK_MODES)[number]['key'];
 
 interface VNextMeriComposerProps {
   controller: MeriChatController;
@@ -94,7 +129,24 @@ export function VNextMeriComposer({
     sendMessage,
     handleStop,
     scopePersistStatus,
+    writeMode,
+    researchMode,
+    setWriteMode,
+    setResearchMode,
   } = controller;
+
+  // Task mode is derived from the controller's real flags rather than kept as a
+  // second source of truth, so a mode set elsewhere (or reset on a new session)
+  // stays reflected in the picker. WRITE wins if both were somehow set.
+  const taskMode: MeriTaskMode = writeMode ? 'write' : researchMode ? 'research' : 'standard';
+  const selectTaskMode = useCallback(
+    (next: MeriTaskMode) => {
+      setWriteMode(next === 'write');
+      setResearchMode(next === 'research');
+      textareaRef.current?.focus();
+    },
+    [setResearchMode, setWriteMode],
+  );
 
   const uploadsInFlight = stagedAttachments.some((attachment) => attachment.status === 'uploading');
   const busy = isStreaming || submitting;
@@ -505,6 +557,40 @@ export function VNextMeriComposer({
         </div>
 
         <div className="vnext-meri__composer-toolbar">
+          {/*
+            MeriTaskModePicker (handoff §12 row 2). Task Mode describes what the
+            user is doing right now and is deliberately separate from the
+            header's durable Reasoning Depth (§"Task Mode vs Reasoning Depth").
+            Each segment maps onto the controller's real flags — RESEARCH is the
+            multi-phase deep-research flow, WRITE prefixes the page-write intent
+            — so this is a control, not a label.
+          */}
+          <div
+            className="vnext-meri__task-mode"
+            role="radiogroup"
+            aria-label="Task mode"
+            data-meri-task-mode
+          >
+            {MERI_TASK_MODES.map((option) => {
+              const active = taskMode === option.key;
+              return (
+                <button
+                  type="button"
+                  key={option.key}
+                  role="radio"
+                  aria-checked={active}
+                  title={option.description}
+                  disabled={busy}
+                  className={`vnext-meri__task-mode-segment${active ? ' is-active' : ''}`}
+                  onClick={() => selectTaskMode(option.key)}
+                >
+                  <MeriIcon name={option.icon} size={12} />
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+
           <button
             type="button"
             className="vnext-meri__composer-context-label"
@@ -514,7 +600,7 @@ export function VNextMeriComposer({
             title="Add context to this thread"
           >
             <MeriIcon name="Attachment01" size={13} color="#101828" />
-            {contextLabel}
+            <span className="vnext-meri__composer-context-text">{contextLabel}</span>
           </button>
 
           <span className="vnext-meri__composer-send-hint">

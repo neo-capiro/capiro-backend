@@ -32,10 +32,10 @@ describe('VNextMeriReasoningControl', () => {
     await waitFor(() =>
       expect(mocks.get).toHaveBeenCalledWith('/api/clio/v3/conversations/conversation-1/reasoning-mode'),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Reasoning mode: Standard' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reasoning depth: Standard' }));
 
-    expect(screen.getByRole('menu', { name: 'Reasoning mode' })).toBeTruthy();
-    expect(screen.getByText('REASONING FOR THIS THREAD')).toBeTruthy();
+    expect(screen.getByRole('menu', { name: 'Reasoning depth' })).toBeTruthy();
+    expect(screen.getByText('REASONING DEPTH · THIS THREAD')).toBeTruthy();
     expect(screen.getByRole('menuitemradio', { name: /Fast/ })).toBeTruthy();
     expect(screen.getByRole('menuitemradio', { name: /Standard/ })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('menuitemradio', { name: /Deep/ })).toBeTruthy();
@@ -45,8 +45,8 @@ describe('VNextMeriReasoningControl', () => {
   test('persists a selected mode for the active conversation', async () => {
     render(<VNextMeriReasoningControl conversationId="conversation-1" />);
 
-    await screen.findByRole('button', { name: 'Reasoning mode: Standard' });
-    fireEvent.click(screen.getByRole('button', { name: 'Reasoning mode: Standard' }));
+    await screen.findByRole('button', { name: 'Reasoning depth: Standard' });
+    fireEvent.click(screen.getByRole('button', { name: 'Reasoning depth: Standard' }));
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Deep/ }));
 
     await waitFor(() =>
@@ -56,7 +56,7 @@ describe('VNextMeriReasoningControl', () => {
       ),
     );
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Reasoning mode: Deep' })).toBeTruthy(),
+      expect(screen.getByRole('button', { name: 'Reasoning depth: Deep' })).toBeTruthy(),
     );
   });
 
@@ -64,25 +64,25 @@ describe('VNextMeriReasoningControl', () => {
     mocks.patch.mockRejectedValueOnce(new Error('offline'));
     render(<VNextMeriReasoningControl conversationId="conversation-1" />);
 
-    await screen.findByRole('button', { name: 'Reasoning mode: Standard' });
-    fireEvent.click(screen.getByRole('button', { name: 'Reasoning mode: Standard' }));
+    await screen.findByRole('button', { name: 'Reasoning depth: Standard' });
+    fireEvent.click(screen.getByRole('button', { name: 'Reasoning depth: Standard' }));
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Max/ }));
 
     await waitFor(() =>
       expect(screen.getByRole('alert')).toHaveTextContent('The reasoning mode could not be saved.'),
     );
-    expect(screen.getByRole('button', { name: 'Reasoning mode: Standard' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reasoning depth: Standard' })).toBeTruthy();
   });
 
   test('on the new-thread screen stores a draft mode without calling the API', async () => {
     render(<VNextMeriReasoningControl conversationId={null} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reasoning mode: Standard' }));
-    expect(screen.getByText('REASONING FOR THIS NEW THREAD')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Reasoning depth: Standard' }));
+    expect(screen.getByText('REASONING DEPTH · THIS NEW THREAD')).toBeTruthy();
     fireEvent.click(screen.getByRole('menuitemradio', { name: /Max/ }));
 
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Reasoning mode: Max' })).toBeTruthy(),
+      expect(screen.getByRole('button', { name: 'Reasoning depth: Max' })).toBeTruthy(),
     );
     expect(mocks.get).not.toHaveBeenCalled();
     expect(mocks.patch).not.toHaveBeenCalled();

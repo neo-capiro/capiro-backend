@@ -74,6 +74,8 @@ interface VNextMeriThreadRailProps {
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   searchInputRef: { current: HTMLInputElement | null };
+  /** Hides the rail; the conversation header then shows the expand toggle. */
+  onCollapse: () => void;
   onOpenPalette: () => void;
 }
 
@@ -89,6 +91,7 @@ export function VNextMeriThreadRail({
   searchQuery,
   onSearchQueryChange,
   searchInputRef,
+  onCollapse,
   onOpenPalette,
 }: VNextMeriThreadRailProps) {
   const navigate = useNavigate();
@@ -209,6 +212,28 @@ export function VNextMeriThreadRail({
     }
     return merged;
   }, [conversations, localFiltered, search.data, searchActive]);
+
+  /**
+   * Search snippets (handoff §2e: "shown only while the rail search has a
+   * query"). Server hits carry their own matched excerpt; for rows matched
+   * only by the local filter we fall back to the conversation's latest message
+   * body, which is the same text the local filter matched against. No query,
+   * no snippet — the resting row stays title + meta.
+   */
+  const snippets = useMemo(() => {
+    const query = searchQuery.trim();
+    if (!query) return new Map<string, string>();
+    const map = new Map<string, string>();
+    for (const hit of search.data ?? []) {
+      if (hit.snippet?.trim()) map.set(hit.conversationId, hit.snippet.trim());
+    }
+    for (const conversation of conversations) {
+      if (map.has(conversation.id)) continue;
+      const body = conversation.latestMessage?.body?.trim();
+      if (body) map.set(conversation.id, body);
+    }
+    return map;
+  }, [conversations, search.data, searchQuery]);
 
   const groups = useMemo(() => {
     if (searchQuery.trim()) return [{ label: 'RESULTS', items: visible }];
@@ -345,6 +370,17 @@ export function VNextMeriThreadRail({
         <button type="button" className="vnext-meri__new-chat-btn" onClick={onNewChat}>
           <MeriIcon name="Plus" size={16} color="#ffffff" />
           New thread
+        </button>
+        {/* Collapse control — handoff §"Three-column collapse rules" #2. The
+            matching expand button lives at the left of the conversation
+            header, so the rail is never unrecoverable. */}
+        <button
+          type="button"
+          className="vnext-meri__rail-collapse"
+          aria-label="Hide thread rail"
+          onClick={onCollapse}
+        >
+          <MeriIcon name="Menu02" size={16} color="#98A2B3" />
         </button>
       </div>
 
@@ -542,6 +578,7 @@ export function VNextMeriThreadRail({
                   {group.items.map((conversation) => {
                     const active = conversation.id === activeConversationId;
                     const title = displayThreadTitle(conversation.title, conversation.latestMessage?.body);
+                    const snippet = snippets.get(conversation.id);
                     return (
                       <div
                         key={conversation.id}
@@ -585,6 +622,9 @@ export function VNextMeriThreadRail({
                             <span className="vnext-meri__thread-item-body">
                               <span className="vnext-meri__thread-item-title">{title}</span>
                               <span className="vnext-meri__thread-item-meta">{threadMeta(conversation)}</span>
+                              {snippet ? (
+                                <span className="vnext-meri__thread-item-snippet">{snippet}</span>
+                              ) : null}
                             </span>
                           </button>
                         )}

@@ -2,26 +2,34 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApi } from '../../lib/use-api.js';
 import { MeriIcon } from './meri-icons.js';
 
+/**
+ * Reasoning Depth — the durable per-thread setting in the conversation header.
+ *
+ * Descriptions are verbatim from the v4 handoff (README §3 `MeriDepthPicker`);
+ * they are product copy and must not be reworded. Note this is deliberately a
+ * different concept from the composer's Task Mode (README §Task Mode vs
+ * Reasoning Depth): depth is durable and per-thread, task mode is per-message.
+ */
 export const MERI_REASONING_MODES = [
   {
     mode: 'fast',
     label: 'Fast',
-    description: 'Quick answers for simple lookups and short questions.',
+    description: 'Quick answers and direct lookups.',
   },
   {
     mode: 'standard',
     label: 'Standard',
-    description: 'Balanced everyday answers with solid research depth.',
+    description: 'Balanced everyday reasoning.',
   },
   {
     mode: 'deep',
     label: 'Deep',
-    description: 'More investigation for strategy, comparisons, and complex asks.',
+    description: 'More investigation for strategic work.',
   },
   {
     mode: 'max',
     label: 'Max',
-    description: 'Longest research window for broad market and PE analysis.',
+    description: 'Highest configured reasoning tier.',
   },
 ] as const;
 
@@ -190,15 +198,15 @@ export function VNextMeriReasoningControl({
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Reasoning mode: ${selected.label}`}
+        aria-label={`Reasoning depth: ${selected.label}`}
       >
-        <span className="vnext-meri__reasoning-label">MODE · {selected.label.toUpperCase()}</span>
+        <span className="vnext-meri__reasoning-label">DEPTH · {selected.label.toUpperCase()}</span>
         <MeriIcon name="ChevronDown" size={12} color="#98A2B3" />
       </button>
       {open ? (
-        <div className="vnext-meri__reasoning-menu" role="menu" aria-label="Reasoning mode">
+        <div className="vnext-meri__reasoning-menu" role="menu" aria-label="Reasoning depth">
           <div className="vnext-meri__reasoning-menu-eyebrow">
-            {conversationId ? 'REASONING FOR THIS THREAD' : 'REASONING FOR THIS NEW THREAD'}
+            {conversationId ? 'REASONING DEPTH · THIS THREAD' : 'REASONING DEPTH · THIS NEW THREAD'}
           </div>
           {MERI_REASONING_MODES.map((option) => (
             <button

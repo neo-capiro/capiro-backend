@@ -571,3 +571,22 @@ with a static note explaining cancellation is unavailable once generation
 has started. Logged as a backend limitation (real cooperative cancellation
 would need an `AbortController` threaded through `GenerationService`'s
 per-section loop) — out of scope for this audit.
+
+## §28. Meri thread-rail collapse is not persisted per user — **OPEN, low severity**
+
+The v4 handoff (§"Three-column collapse rules" #2) requires the thread rail to
+collapse behind a toggle, and separately requires the **side panel**'s collapsed
+state to persist per user. The side panel's does (`railCollapsed` on
+`/api/clio/vnext/preferences`). The thread rail's does not: the preferences
+contract validates exactly three keys — `windowChrome`, `railCollapsed`,
+`openSection` — and `normalizePreference()` in
+`apps/api/src/meri/meri-vnext-library.service.ts` throws `BadRequestException`
+on anything else, so a fourth key cannot be sent without a backend change.
+
+Frontend behaviour: `threadRailCollapsed` is component state in
+`VNextMeriShell.tsx`, so collapsing the rail survives navigation within the
+session but not a reload. The handoff does not require otherwise for this rail,
+and no data is lost — the expand toggle is always present (conversation header
+when a thread is open, greeting row on home). Logged rather than widening the
+preferences payload unilaterally; adding `threadRailCollapsed` to the DTO +
+normalizer would close it.
