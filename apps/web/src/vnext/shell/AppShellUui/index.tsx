@@ -161,13 +161,14 @@ function NavFlyout({ route }: { route: VNextRouteDefinition }) {
   );
 }
 
-function NavRow({ route }: { route: VNextRouteDefinition }) {
+function NavRow({ route, dataTour }: { route: VNextRouteDefinition; dataTour?: string }) {
   if (route.children?.length) return <NavFlyout route={route} />;
   if (!route.path) return null;
   return (
     <NavLink
       to={route.path}
       end={route.path === '/'}
+      data-tour={dataTour}
       className={({ isActive }) => `uui-nav-item${isActive ? ' uui-nav-item--current' : ''}`}
     >
       <Icon
@@ -214,6 +215,11 @@ export interface AppShellUuiViewProps {
   initialCollapsed?: boolean;
   children: ReactNode;
 }
+
+const NAV_DATA_TOUR: Readonly<Record<string, string>> = {
+  dashboard: 'nav-dashboard',
+  portfolio: 'nav-portfolio',
+};
 
 /**
  * Pure presentation — no data hooks of its own beyond local UI state and the
@@ -294,7 +300,9 @@ export function AppShellUuiView({
             <GlobalSearch scopeLabel={scopeLabel} />
           </div>
           <div className="uui-topbar__actions">
-            <MeriLauncher />
+            <span data-tour="nav-meri" style={{ display: 'contents' }}>
+              <MeriLauncher />
+            </span>
             <NotificationBell notifications={notifications} />
             <ProfileMenu
               identity={identity}
@@ -313,7 +321,11 @@ export function AppShellUuiView({
           {!collapsed ? <div className="uui-rail__eyebrow">NAVIGATION</div> : null}
           <nav className="uui-rail__nav">
             {navigation.primary.map((route) => (
-              <NavRow key={route.id} route={route} />
+              <NavRow
+                key={route.id}
+                route={route}
+                dataTour={NAV_DATA_TOUR[route.id]}
+              />
             ))}
           </nav>
           <div className="uui-rail__footer">
