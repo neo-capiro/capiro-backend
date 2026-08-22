@@ -324,6 +324,23 @@ export function setChatMessageSuggestions(id: string, suggestions: string[]): vo
   notify();
 }
 
+/**
+ * Reconciles a streamed assistant message's client-generated optimistic id
+ * with the real `clio_messages.id` the server persisted it under (from the
+ * SSE `done` frame's `messageId`). Every other field on the message is kept
+ * as-is — citations/verification/contextPacketId etc. are already stored ON
+ * the message object, not in a side table keyed by id, so this rename is the
+ * only reconciliation step needed for them. Callers that separately key
+ * external state by the message id (e.g. useMeriChatController's
+ * `researchOffers`) must migrate that key themselves.
+ */
+export function replaceChatMessageId(oldId: string, newId: string): void {
+  if (oldId === newId) return;
+  const messages = state.messages.map((m) => (m.id === oldId ? { ...m, id: newId } : m));
+  state = { ...state, messages };
+  notify();
+}
+
 export function setChatMessageFeedback(id: string, feedback: 'up' | 'down' | null): void {
   const messages = state.messages.map((m) => (m.id === id ? { ...m, feedback } : m));
   state = { ...state, messages };

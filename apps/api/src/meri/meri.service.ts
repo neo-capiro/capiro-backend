@@ -678,6 +678,15 @@ export class MeriService {
       });
     }
 
+    // Phase 27 post-launch P1: the client seeds the streamed assistant reply
+    // with a client-generated optimistic id and has no other way to learn the
+    // real `clio_messages.id` this turn gets persisted under. Every one of
+    // this method's `done`-frame emission sites below sets this once its own
+    // persist finishes, so the final SSE frame can carry it back — closing
+    // the gap where feedback rated immediately after streaming completes
+    // posted the stale client-side id and 400'd.
+    let assistantMessageId: string | null = null;
+
     // Deterministic compliance block (GAI-24). screenComplianceRisk above stays
     // a log-only audit flag (its recall-tuned patterns misfire on legitimate
     // work); THIS gate uses the much tighter screenComplianceBlock solicitation
@@ -704,7 +713,7 @@ export class MeriService {
         // Persist a coherent assistant turn so history/replay stays intact.
         // Guarded so a DB hiccup can never leave the SSE stream unclosed.
         try {
-          await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          const refusalMessage = await this.prisma.withTenant(ctx.tenantId, (tx) =>
             tx.clioMessage.create({
               data: {
                 tenantId: ctx.tenantId,
@@ -719,8 +728,10 @@ export class MeriService {
                   compliance: { flagged: true, category: block.category, blocked: true },
                 },
               },
+              select: { id: true },
             }),
           );
+          assistantMessageId = refusalMessage.id;
         } catch (err) {
           this.logger.warn(
             `[meri-compliance-block] failed to persist refusal message (stream unaffected): ${
@@ -728,7 +739,9 @@ export class MeriService {
             }`,
           );
         }
-        sse.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        sse.write(
+          `data: ${JSON.stringify({ type: 'done', ...(assistantMessageId ? { messageId: assistantMessageId } : {}) })}\n\n`,
+        );
         return;
       }
     }
@@ -871,7 +884,7 @@ export class MeriService {
       // Persist a coherent assistant turn so history/replay stays intact. Guarded
       // so a DB hiccup can never leave the SSE stream unclosed.
       try {
-        await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        const offerMessage = await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioMessage.create({
             data: {
               tenantId: ctx.tenantId,
@@ -886,8 +899,10 @@ export class MeriService {
                 researchOffer: { topic: reportRequest.topic },
               },
             },
+            select: { id: true },
           }),
         );
+        assistantMessageId = offerMessage.id;
       } catch (err) {
         this.logger.warn(
           `[meri-research-promote] failed to persist offer message (stream unaffected): ${
@@ -895,7 +910,9 @@ export class MeriService {
           }`,
         );
       }
-      sse.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+      sse.write(
+        `data: ${JSON.stringify({ type: 'done', ...(assistantMessageId ? { messageId: assistantMessageId } : {}) })}\n\n`,
+      );
       return;
     }
 
@@ -1922,6 +1939,7 @@ export class MeriService {
           },
         },
       });
+      assistantMessageId = message.id;
       for (const art of producedArtifacts) {
         const createdArtifact = await tx.clioArtifact.create({
           data: {
@@ -2014,7 +2032,9 @@ export class MeriService {
       });
     });
 
-    sse.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+    sse.write(
+      `data: ${JSON.stringify({ type: 'done', ...(assistantMessageId ? { messageId: assistantMessageId } : {}) })}\n\n`,
+    );
   }
 
   /**
@@ -2394,6 +2414,9 @@ export class MeriService {
     // Persist the assistant turn with the legacy metadata keys so history
     // replay (GET conversations/:id/messages) keeps every affordance. Skip only
     // when nothing at all happened (e.g. connect failure before any frame).
+    // (Phase 27 post-launch P1: captured below and forwarded on the final
+    // `done` frame — see the matching declaration/comment in streamMessage.)
+    let assistantMessageId: string | null = null;
     if (assistantContent || steps.length) {
       await this.prisma.withTenant(ctx.tenantId, async (tx) => {
         const assistantMessage = await tx.clioMessage.create({
@@ -2432,6 +2455,7 @@ export class MeriService {
           },
           select: { id: true },
         });
+        assistantMessageId = assistantMessage.id;
         // Link the deliverables produced this turn (persisted by the delegated
         // create_* tools with the threaded conversationId, not yet tied to a
         // message) to this assistant message, so history replay
@@ -2477,7 +2501,7 @@ export class MeriService {
       emit({ type: 'error', message: errorMessage });
       return;
     }
-    emit({ type: 'done' });
+    emit({ type: 'done', ...(assistantMessageId ? { messageId: assistantMessageId } : {}) });
   }
 
   /** PNG bytes for an analysis-chart artifact (F4 chat/docgen rendering). */
