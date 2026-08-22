@@ -78,6 +78,20 @@ interface MemoryCandidateRule {
  * docs/runbooks/meriv2-memory-context-assurance-rollback.md.
  */
 const MEMORY_CANDIDATE_RULES: readonly MemoryCandidateRule[] = [
+  // Phase 27B: every candidate LearningSignalCandidateService proposes must
+  // land pending, regardless of scope — a personal-scope learning-signal
+  // candidate must NOT hit memory.personal.auto_commit below and silently
+  // become active memory. Checked first, same reasoning as
+  // model_extraction: automated generation is always review-only, never
+  // auto-commit, no matter how the evidence classifies.
+  {
+    id: 'memory.learning_signal.requires_review',
+    outcome: 'WARN',
+    reason:
+      'Candidates generated from a LearningSignal always require an authorized reviewer — ' +
+      'candidate generation proposes, it never promotes.',
+    matches: (i) => i.sourceKind === 'learning_signal',
+  },
   {
     id: 'memory.model_extraction.requires_review',
     outcome: 'WARN',
