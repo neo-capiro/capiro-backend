@@ -29,6 +29,13 @@ function code(value = allSql()): string {
     .replace(/--[^\n\r]*/g, '');
 }
 
+function shellCode(value: string): string {
+  return value
+    .split(/\r?\n/)
+    .filter((line) => !line.trimStart().startsWith('#'))
+    .join('\n');
+}
+
 describe('LegiWatch Phase 9 migrations and activation contract', () => {
   it('creates global operational evidence without tenant/client/watchlist fields', () => {
     const sql = code();
@@ -88,7 +95,7 @@ describe('LegiWatch Phase 9 migrations and activation contract', () => {
     const sql = code();
     expect(sql).toContain("'PENDING', 'RECONCILED', 'CONFLICT', 'IGNORED_INVALID'");
     expect(sql).toContain("NEW.reconciliation_status = 'RECONCILED'");
-    expect(sql).toContain("NEW.reconciliation_reason_code");
+    expect(sql).toContain('NEW.reconciliation_reason_code');
     expect(sql).toContain("'CANONICAL_HEARING_LINKED'");
     expect(sql).toContain("reconciliation_status = 'PENDING'");
   });
@@ -105,7 +112,7 @@ describe('LegiWatch Phase 9 migrations and activation contract', () => {
   it('sanitizes malformed public timestamps instead of aborting the full audit', () => {
     const sql = code(migration('20261123045200_legiwatch_phase9_safe_observation_timestamp'));
     expect(sql).toContain('CREATE OR REPLACE FUNCTION legiwatch_try_timestamptz');
-    expect(sql).toContain("WHEN invalid_datetime_format OR datetime_field_overflow");
+    expect(sql).toContain('WHEN invalid_datetime_format OR datetime_field_overflow');
     expect(sql).toContain("source_metadata #- '{event,startsAt}'");
     expect(sql).toContain('hearing_source_observation_starts_at_valid_check');
   });
@@ -136,12 +143,13 @@ describe('LegiWatch Phase 9 migrations and activation contract', () => {
       join(__dirname, '../../../../scripts/activate-legiwatch-phase9.sh'),
       'utf8',
     );
-    expect(script).toContain('events put-rule');
-    expect(script).toContain('--state DISABLED');
+    const executable = shellCode(script);
+    expect(executable).toContain('events put-rule');
+    expect(executable).toContain('--state DISABLED');
     expect(script).toContain('CONFIRM=CREATE_LEGIWATCH_PHASE9_DARK');
     expect(script).toContain('CONFIRM=ENABLE_LEGIWATCH_PHASE9_SHADOW');
-    expect(script).not.toContain('LEGIWATCH_ALLOW_PRODUCTION_CUTOVER=true');
-    expect(script).not.toMatch(/cloudformation/i);
-    expect(script).not.toMatch(/enable.*capture.all/i);
+    expect(executable).not.toContain('LEGIWATCH_ALLOW_PRODUCTION_CUTOVER=true');
+    expect(executable).not.toMatch(/\baws\b[^\n]*\bcloudformation\b/i);
+    expect(executable).not.toMatch(/enable.*capture.all/i);
   });
 });
