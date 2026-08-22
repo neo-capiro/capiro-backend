@@ -88,6 +88,47 @@ describe('Outreach V3 full-generation durable job contract', () => {
     expect(parseOutreachV3FullGenerationJob(descriptor)).toEqual(descriptor);
   });
 
+  it('round-trips a pinned identity that carries a reasoningEffort', () => {
+    // Field order here matches GenerationGatewayService.resolvePinnedIdentity's
+    // actual object literal (provider, model, planModel, reasoningEffort,
+    // promptSpecVersion, policyId, policyVersion) exactly, since that literal
+    // order is what the real caller hashes and this parser's reconstruction
+    // must reproduce byte-for-byte. resolvePinnedIdentity always sets this key
+    // (string or null) for any outreach_v3_generate request against a
+    // reasoning-capable model — the `pin` fixture above omitting it entirely
+    // masked a real bug where the parser's reconstructed pinned object dropped
+    // the field before re-hashing, so the integrity check failed 100% of the
+    // time whenever a real caller set it.
+    const pinWithReasoning: PinnedGenerationIdentity = {
+      provider: pin.provider,
+      model: pin.model,
+      planModel: pin.planModel,
+      reasoningEffort: 'max',
+      promptSpecVersion: pin.promptSpecVersion,
+      policyId: pin.policyId,
+      policyVersion: pin.policyVersion,
+    };
+    const descriptor = buildOutreachV3FullGenerationJob({
+      plan: plan(),
+      approachApproval: approval(),
+      completedGenerationKeys: ['slot-a', 'slot-b', 'slot-c'],
+      pinned: pinWithReasoning,
+    });
+    expect(parseOutreachV3FullGenerationJob(descriptor)).toEqual(descriptor);
+
+    const pinWithNullReasoning: PinnedGenerationIdentity = {
+      ...pinWithReasoning,
+      reasoningEffort: null,
+    };
+    const nullDescriptor = buildOutreachV3FullGenerationJob({
+      plan: plan(),
+      approachApproval: approval(),
+      completedGenerationKeys: ['slot-a', 'slot-b', 'slot-c'],
+      pinned: pinWithNullReasoning,
+    });
+    expect(parseOutreachV3FullGenerationJob(nullDescriptor)).toEqual(nullDescriptor);
+  });
+
   it('fails closed if the durable descriptor is tampered with', () => {
     const descriptor = buildOutreachV3FullGenerationJob({
       plan: plan(),

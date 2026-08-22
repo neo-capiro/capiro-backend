@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { isReasoningEffort, type ReasoningEffort } from '../../engagement/generation/reasoning-effort.js';
 import type { PinnedGenerationIdentity } from '../../engagement/generation/generation-gateway.types.js';
 import {
   isOutreachV3ApproachApprovalCurrent,
@@ -93,6 +94,11 @@ export function parseOutreachV3FullGenerationJob(
     !isString(pinned.provider) ||
     !isString(pinned.model) ||
     !(pinned.planModel === null || typeof pinned.planModel === 'string') ||
+    !(
+      pinned.reasoningEffort === undefined ||
+      pinned.reasoningEffort === null ||
+      (typeof pinned.reasoningEffort === 'string' && isReasoningEffort(pinned.reasoningEffort))
+    ) ||
     !isString(pinned.promptSpecVersion) ||
     !isString(pinned.policyId) ||
     !isString(pinned.policyVersion)
@@ -137,6 +143,9 @@ export function parseOutreachV3FullGenerationJob(
       provider: pinned.provider,
       model: pinned.model,
       planModel: pinned.planModel as string | null,
+      ...(pinned.reasoningEffort !== undefined
+        ? { reasoningEffort: pinned.reasoningEffort as ReasoningEffort | null }
+        : {}),
       promptSpecVersion: pinned.promptSpecVersion,
       policyId: pinned.policyId,
       policyVersion: pinned.policyVersion,
