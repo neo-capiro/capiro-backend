@@ -6,6 +6,7 @@ import { useIntelFeature } from '../../lib/intel-feature-flags.js';
 import LegacyRadarPage from './LegacyRadarPage.js';
 import { LiveHearingsPage } from './live-hearings/LiveHearingsPage.js';
 import { LiveHearingsPhase7Surface } from './live-hearings/LiveHearingsPhase7Surface.js';
+import { LiveHearingsV2CoverageDrawer } from './live-hearings/LiveHearingsV2CoverageDrawer.js';
 import {
   LEGIWATCH_LIVE_HEARINGS_V2_FEATURE,
   legiwatchLiveHearingsV2Enabled,
@@ -184,7 +185,10 @@ export function RadarPage() {
           ) : !hearingWatchFlag.enabled ? (
             <Empty description="Hearing Watch is not enabled for this workspace." />
           ) : liveHearingsV2Enabled ? (
-            <LiveHearingsPhase7Surface />
+            <>
+              <LiveHearingsV2CoverageDrawer />
+              <LiveHearingsPhase7Surface />
+            </>
           ) : (
             <LiveHearingsPage />
           )
