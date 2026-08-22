@@ -10,13 +10,19 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { LiveHearingsController } from './live-hearings.controller.js';
 import { LiveHearingsPhase7Controller } from './live-hearings-phase7.controller.js';
+import { LiveHearingsPhase7ScheduleGuard } from './live-hearings-phase7-schedule.guard.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { LiveHearingsService } from './live-hearings.service.js';
 
 @Module({
   imports: [PrismaModule],
   controllers: [LiveHearingsController, LiveHearingsPhase7Controller],
-  providers: [LiveHearingsService, CommitteeDirectoryService, LiveHearingsPhase7Service],
+  providers: [
+    LiveHearingsService,
+    CommitteeDirectoryService,
+    LiveHearingsPhase7Service,
+    LiveHearingsPhase7ScheduleGuard,
+  ],
   exports: [LiveHearingsService, CommitteeDirectoryService, LiveHearingsPhase7Service],
 })
 export class LiveHearingsModule {}
