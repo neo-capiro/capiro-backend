@@ -60,14 +60,20 @@ interface CandidateMemoryRow {
 export class LearningSignalMemoryConflictService {
   private readonly logger = new Logger(LearningSignalMemoryConflictService.name);
 
-  /** `provider` defaults to the process-wide Titan singleton like `embedText`
-   *  itself does; tests inject a fake one so this never makes a real Bedrock
-   *  call. Not a NestJS-injected dependency — same non-DI-default pattern
-   *  `embedText`/`embedAndUpsert` already use. */
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly provider: EmbeddingProvider = getDefaultEmbeddingProvider(),
-  ) {}
+  /**
+   * Provider is intentionally NOT a Nest constructor dependency. Nest would
+   * still try to resolve a defaulted second constructor param and boot-fail
+   * with `Object at index [1]`. Tests inject via the optional setter/factory
+   * override instead.
+   */
+  private provider: EmbeddingProvider = getDefaultEmbeddingProvider();
+
+  constructor(private readonly prisma: PrismaService) {}
+
+  /** Test-only override; production keeps the process-wide Titan singleton. */
+  setEmbeddingProviderForTests(provider: EmbeddingProvider): void {
+    this.provider = provider;
+  }
 
   /**
    * `factText` is used ONLY to compute an embedding for this one query and

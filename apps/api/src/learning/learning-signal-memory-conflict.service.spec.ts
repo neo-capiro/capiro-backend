@@ -37,7 +37,8 @@ function buildHarness(rows: Array<{ id: string; slug: string; title: string; con
   };
   const prisma = { withTenant: jest.fn((_tenantId: string, cb: (tx: unknown) => unknown) => cb(tx)) };
   const provider = fakeProvider();
-  const service = new LearningSignalMemoryConflictService(prisma as never, provider);
+  const service = new LearningSignalMemoryConflictService(prisma as never);
+  service.setEmbeddingProviderForTests(provider);
   return { service, tx, prisma, provider };
 }
 
