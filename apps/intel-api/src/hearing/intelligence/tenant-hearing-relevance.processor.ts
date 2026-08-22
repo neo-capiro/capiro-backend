@@ -26,6 +26,20 @@ function idValue(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
+/**
+ * Public extraction has no Congress number available at segment time and emits
+ * `HR-1234`; the canonical tracker key is `119-hr-1234`. The measure identity
+ * inside one hearing's current-Congress context is the type+number suffix, so
+ * strip only an explicit numeric Congress prefix immediately before a supported
+ * bill/resolution type. Ordinary numbers inside the bill number are untouched.
+ */
+function billIdValue(value: string): string {
+  return idValue(value).replace(
+    /^\d{2,3}(?=(?:HR|S|HJRES|SJRES|HCONRES|SCONRES|HRES|SRES)\d+$)/,
+    '',
+  );
+}
+
 function stableId(tenantId: string, clientId: string, insightId: string): string {
   return `thr_${createHash('sha256')
     .update(`${tenantId}\u001f${clientId}\u001f${insightId}`)
@@ -69,9 +83,9 @@ function scoreClient(input: {
     ].join(' '),
   );
 
-  const billValues = new Set(entityValues(input.insight, 'BILL').map(idValue));
+  const billValues = new Set(entityValues(input.insight, 'BILL').map(billIdValue));
   for (const billId of input.client.billIds) {
-    if (billValues.has(idValue(billId))) {
+    if (billValues.has(billIdValue(billId))) {
       score += 45;
       matchedOn.push({ kind: 'BILL', value: billId });
     }

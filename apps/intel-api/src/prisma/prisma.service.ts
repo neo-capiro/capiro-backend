@@ -155,12 +155,23 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   /**
    * Run `fn` with the RLS bypass flag enabled. Use only for trusted server
    * paths (cross-tenant detection, admin tooling, migrations). Use sparingly.
+   *
+   * Phase 8's public-insight fan-out can legitimately touch many active tenants
+   * in one system transaction. The optional timeout mirrors apps/api's helper so
+   * a bounded, known-slow system path is not silently capped at Prisma's 5s
+   * interactive-transaction default.
    */
-  async withSystem<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
-    return this.scopedClient({ bypass: true }).$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
-      return fn(tx as unknown as Prisma.TransactionClient);
-    });
+  async withSystem<T>(
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+    opts?: { timeoutMs?: number },
+  ): Promise<T> {
+    return this.scopedClient({ bypass: true }).$transaction(
+      async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.bypass_rls', 'on', true)`;
+        return fn(tx as unknown as Prisma.TransactionClient);
+      },
+      opts?.timeoutMs ? { timeout: opts.timeoutMs } : undefined,
+    );
   }
 }
 

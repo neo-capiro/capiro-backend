@@ -1,6 +1,6 @@
 import { Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -8,6 +8,7 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { LiveHearingsPhase7PublicGuard } from './live-hearings-phase7-public.guard.js';
 import { LiveHearingsPhase7ScheduleGuard } from './live-hearings-phase7-schedule.guard.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
+import { LiveHearingsPhase8Service } from './live-hearings-phase8.service.js';
 
 class TranscriptQueryDto {
   @IsOptional()
@@ -41,10 +42,53 @@ class PageQueryDto {
   q?: string;
 }
 
+class IntelligenceQueryDto extends TranscriptQueryDto {
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  onlyRelevant?: boolean;
+}
+
+function object(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
 /**
- * Phase 7 request surface: one canonical public Hearing Room plus tenant-scoped
- * scheduling/following actions. Capture/transcript rows stay GLOBAL; only user
- * demand and follow state are tenant scoped.
+ * The pre-Phase-8 web normalizer reads transcript evidence from top-level
+ * `segmentId/startMs/endMs/evidenceText`. The canonical Phase 8 contract nests
+ * those fields under `evidence`. Keep both read shapes on the established route
+ * so the legacy rollback surface gains real intelligence without losing its
+ * transcript links. `/intelligence-v2` remains the unmodified canonical shape.
+ */
+export function withLegacyIntelligenceEvidence(
+  response: Record<string, unknown>,
+): Record<string, unknown> {
+  const items = Array.isArray(response.items) ? response.items : [];
+  return {
+    ...response,
+    items: items.map((value) => {
+      const row = object(value);
+      const evidence = object(row.evidence);
+      return {
+        ...row,
+        evidenceText: row.evidenceText ?? evidence.text,
+        segmentId: row.segmentId ?? evidence.segmentId,
+        startMs: row.startMs ?? evidence.startMs,
+        endMs: row.endMs ?? evidence.endMs,
+      };
+    }),
+  };
+}
+
+/**
+ * Canonical Hearing Room request surface. Phase 7 owns room/capture interactions;
+ * Phase 8 now owns the established intelligence route without changing its URL.
  */
 @Controller('legiwatch/live-hearings')
 @UseGuards(RolesGuard)
@@ -54,6 +98,7 @@ export class LiveHearingsPhase7Controller {
     private readonly phase7: LiveHearingsPhase7Service,
     private readonly scheduleGuard: LiveHearingsPhase7ScheduleGuard,
     private readonly publicGuard: LiveHearingsPhase7PublicGuard,
+    private readonly phase8: LiveHearingsPhase8Service,
   ) {}
 
   @Get('events/:id/room')
@@ -74,9 +119,6 @@ export class LiveHearingsPhase7Controller {
 
   @Post('events/:id/schedule')
   async schedule(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    // The request boundary is intentionally stricter than the legacy client:
-    // resolution_state can never override BROWSER_ONLY / LICENSE_REQUIRED /
-    // BLOCKED capture policy. REVIEW_REQUIRED alone may enter preflight.
     await this.scheduleGuard.assertSchedulable(id);
     return this.phase7.schedule(ctx, id);
   }
@@ -115,12 +157,12 @@ export class LiveHearingsPhase7Controller {
     return this.phase7.archive(ctx, query);
   }
 
-  /**
-   * Phase 7 keeps the intelligence panel contract non-404 without pretending
-   * Phase 8 persistence exists. The response is explicitly empty + labeled.
-   */
   @Get('events/:id/intelligence')
-  intelligence(@Param('id') id: string) {
-    return this.phase7.intelligenceSeam(id);
+  async intelligence(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Query() query: IntelligenceQueryDto,
+  ) {
+    return withLegacyIntelligenceEvidence(await this.phase8.intelligence(ctx, id, query));
   }
 }

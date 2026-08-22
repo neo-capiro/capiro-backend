@@ -4,3 +4,8 @@ export * from './deterministic-public-hearing-extractor.js';
 export * from './public-hearing-intelligence.processor.js';
 export * from './tenant-hearing-relevance.processor.js';
 export * from './public-hearing-intelligence.coordinator.js';
+export * from './postgres-public-hearing-insight.store.js';
+export * from './postgres-tenant-hearing-context.provider.js';
+export * from './postgres-tenant-hearing-relevance.store.js';
+export * from './hearing-intelligence-job.store.js';
+export * from './hearing-intelligence.worker.js';
