@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type {
   OutreachV3ApproachApproval,
@@ -214,14 +214,16 @@ describe('Outreach V3 Phase 1 authority contract', () => {
     'outreach-v3-phase1-results.tsx',
     'outreach-v3-phase1-meri.tsx',
   ];
+  // Vite rewrites `new URL('<string literal>', import.meta.url)` into an asset
+  // URL, which `readFileSync` rejects — same trap foundation-contract.test.ts
+  // documents. Resolve from the package root instead.
+  const engagementDir = resolve(process.cwd(), 'src/vnext/pages/engagement');
   const mainSource = readFileSync(
-    fileURLToPath(new URL('./VNextOutreachApproveSendWorkspace.tsx', import.meta.url)),
+    resolve(engagementDir, 'VNextOutreachApproveSendWorkspace.tsx'),
     'utf8',
   );
   const source = moduleNames
-    .map((name) =>
-      readFileSync(fileURLToPath(new URL(`./${name}`, import.meta.url)), 'utf8'),
-    )
+    .map((name) => readFileSync(resolve(engagementDir, name), 'utf8'))
     .join('\n');
 
   it('keeps the final confirmation as the only call site that fires the real-send mutation', () => {
