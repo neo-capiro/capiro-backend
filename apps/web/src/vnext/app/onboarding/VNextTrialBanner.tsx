@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Hourglass } from 'lucide-react';
+import { CapiroHourglassIcon } from '../../components/icons/index.js';
 import { useBillingState } from '../../../lib/billing.js';
 import { useMe } from '../../../lib/me.js';
 import './vnext-onboarding.css';
@@ -27,7 +27,7 @@ export function VNextTrialBanner() {
 
   return (
     <div className="vnext-ob-trial">
-      <Hourglass size={13} aria-hidden="true" />
+      <CapiroHourglassIcon size={13} aria-hidden="true" />
       <span className="vnext-ob-trial-copy">
         Free trial ·{' '}
         {daysRemaining !== null
