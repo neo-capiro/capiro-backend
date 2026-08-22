@@ -29,6 +29,8 @@ import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LearningSignalCaptureService } from '../learning/learning-signal-capture.service.js';
 import { buildMeriFeedbackSignal } from '../learning/adapters/meri-feedback.adapter.js';
+import { QualityTelemetryCaptureService } from '../quality-telemetry/quality-telemetry-capture.service.js';
+import { buildMeriFeedbackTelemetryEvent } from '../quality-telemetry/adapters/meri-feedback.telemetry-adapter.js';
 import {
   applyRecallScoreFloor,
   pickMemoryRecallSource,
@@ -297,6 +299,10 @@ export class MeriService {
     // behaves exactly as it did before — no signal captured, no behavior
     // change to the feedback write itself.
     private readonly learningSignals?: LearningSignalCaptureService,
+    // Phase 27E quality telemetry. Same optionality contract as
+    // learningSignals above: absent means no event recorded, no other
+    // behavior change to the feedback write itself.
+    private readonly qualityTelemetry?: QualityTelemetryCaptureService,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -4590,6 +4596,20 @@ export class MeriService {
               `Learning-signal capture failed for message ${messageId}: ${error instanceof Error ? error.message : String(error)}`,
             );
           }
+        }
+      }
+      // Phase 27E quality telemetry. Not run inside this transaction — see
+      // QualityTelemetryCaptureService's class doc comment for why it opens
+      // its own connection and never throws.
+      if (this.qualityTelemetry) {
+        const telemetryInput = buildMeriFeedbackTelemetryEvent(
+          ctx,
+          { messageId: msg.id, clientId: msg.clientId, contextPacketId },
+          feedback,
+          new Date(),
+        );
+        if (telemetryInput) {
+          await this.qualityTelemetry.recordEvent(telemetryInput);
         }
       }
       return feedback;

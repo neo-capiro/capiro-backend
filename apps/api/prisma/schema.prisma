@@ -268,6 +268,8 @@ model Tenant {
   memoryCleanupOutbox                MemoryCleanupOutbox[]
   learningSignals                    LearningSignal[]
   learningSignalCandidateOutcomes    LearningSignalCandidateOutcome[]
+  qualityTelemetryEvents             QualityTelemetryEvent[]
+  qualityTelemetryMemoryItemUses     QualityTelemetryMemoryItemUse[]
   clientMemoryAccessGrants           ClientMemoryAccess[]
   clientTeamMembers                  ClientTeamMember[]
   clientGrantNexuses                 ClientGrantNexus[]
@@ -2629,6 +2631,8 @@ model ContextPacket {
 
   tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   outreachDraftVersions OutreachDraftVersion[]
+  /// Phase 27E back-relation — see QualityTelemetryEvent.
+  qualityTelemetryEvents QualityTelemetryEvent[]
 
   @@index([tenantId, createdAt(sort: Desc)], map: "context_packet_tenant_created_idx")
   @@index([tenantId, surface, createdAt(sort: Desc)], map: "context_packet_tenant_surface_idx")
@@ -8760,6 +8764,9 @@ model MemoryItem {
   contradictingCandidates MemoryCandidate[] @relation("MemoryCandidateContradictsItem")
   committedCandidates     MemoryCandidate[] @relation("MemoryCandidateCommittedItem")
 
+  /// Phase 27E back-relation — see QualityTelemetryMemoryItemUse.
+  qualityTelemetryMemoryItemUses QualityTelemetryMemoryItemUse[]
+
   @@unique([tenantId, type, slug], map: "memory_items_tenant_type_slug_unique")
   @@index([tenantId, clientId], map: "memory_items_tenant_client_idx")
   @@index([tenantId, visibility, ownerUserId], map: "memory_items_tenant_visibility_owner_idx")
@@ -8906,6 +8913,8 @@ model MemoryCandidate {
 
   /// Phase 27B back-relation — see LearningSignalCandidateOutcome.
   learningSignalCandidateOutcomes LearningSignalCandidateOutcome[]
+  /// Phase 27E back-relation — see QualityTelemetryEvent.
+  qualityTelemetryEvents QualityTelemetryEvent[]
 
   @@unique([tenantId, id], map: "memory_candidate_tenant_id_id_unique")
   @@index([tenantId, status], map: "memory_candidate_tenant_status_idx")
@@ -9122,6 +9131,8 @@ model LearningSignal {
   /// Phase 27B — at most one outcome row per signal (unique below); null
   /// means "not yet processed by LearningSignalCandidateService".
   candidateOutcome LearningSignalCandidateOutcome?
+  /// Phase 27E back-relation — see QualityTelemetryEvent.
+  qualityTelemetryEvents QualityTelemetryEvent[]
 
   @@unique([tenantId, idempotencyKey], map: "learning_signal_tenant_idempotency_unique")
   @@index([tenantId, clientId], map: "learning_signal_tenant_client_idx")
@@ -9165,6 +9176,148 @@ model LearningSignalCandidateOutcome {
 
   @@index([tenantId, eligibility, decidedAt(sort: Desc)], map: "learning_signal_candidate_outcome_tenant_eligibility_idx")
   @@map("learning_signal_candidate_outcome")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 27E — Quality Telemetry. Observe-only: this subsystem never writes
+// LearningSignal, MemoryCandidate, or MemoryItem rows and never mutates
+// active-memory authority (enforced by check-quality-telemetry-new-
+// bypasses.mjs). It records, by ID only, which ContextPacket/memory items
+// fed a generated output and what happened to that output afterward
+// (edited/approved/rejected/superseded/...), so a later phase can ask "did
+// institutional context help?" without this phase making that causal claim
+// itself (see docs — Phase 27E plan §21).
+// ─────────────────────────────────────────────────────────────────────────
+
+/// One row per observed product-quality event. A single generated artifact
+/// typically accumulates several rows over its lifecycle (generated →
+/// edited → approved). Never stores prompt/document/message bodies —
+/// `editMetrics`/`contextLayerCounts` carry only derived numbers.
+model QualityTelemetryEvent {
+  id          String  @id @default(uuid()) @db.Uuid
+  tenantId    String  @map("tenant_id") @db.Uuid
+  actorUserId String? @map("actor_user_id") @db.Uuid
+  clientId    String? @map("client_id") @db.Uuid
+
+  /// outreach | workspace | crm_fill | meetings | strategies | meri
+  surface   String @db.VarChar(24)
+  /// Namespaced operation identifier, e.g. "outreach.draft_version.generate",
+  /// "crm_fill.finding.decide". Free text (like LearningSignal.signalType) —
+  /// no enum, so new operations never require a migration.
+  operation String @db.VarChar(96)
+  /// Canonical outcome vocabulary (do not add product-specific detail here —
+  /// put it in `provenance` instead): generated | edited | regenerated |
+  /// approved | rejected | held | superseded | corrected |
+  /// feedback_positive | feedback_negative | ignored | unknown
+  eventType String @map("event_type") @db.VarChar(24)
+
+  /// Bare polymorphic pointer to the generated output/artifact this event is
+  /// about (an OutreachDraftVersion.id, a Workspace WsDocVersion.id, a CRM
+  /// Fill finding id, a MeetingPrep/Debrief.id, a Strategy SpNode/
+  /// SpChangeSet id, a ClioMessage.id, ...). No FK: several of these tables
+  /// live in other services' databases (Workspace, Strategies), and Prisma
+  /// cannot express a polymorphic FK even for the ones that don't — same
+  /// reasoning as LearningSignal.sourceObjectType/sourceObjectId.
+  artifactType       String? @map("artifact_type") @db.VarChar(40)
+  artifactId         String? @map("artifact_id") @db.VarChar(64)
+  /// Version/sequence number if the artifact is versioned, purely so a
+  /// dashboard query doesn't need a round-trip to the owning service.
+  artifactVersionSeq Int?    @map("artifact_version_seq")
+
+  /// The Context Plane is centralized in this database regardless of which
+  /// service requested it (Workspace/Strategies resolve context through
+  /// apps/api's internal ContextPlaneGateway endpoints), so this is a real
+  /// FK even for cross-service-originated events. SetNull, not Restrict:
+  /// packets are prunable trace data (same reasoning as
+  /// MemoryItem.originContextPacketId) and must never pin a telemetry row.
+  contextPacketId String? @map("context_packet_id") @db.Uuid
+  /// Snapshot of how many included context items came from each of the five
+  /// frozen SteeringLayer values at generation time — counts only, never
+  /// item bodies. Shape: { firmIdentity, firmPlaybook, userVoice,
+  /// clientSteering, clientPeople }. Null when the surface does not yet
+  /// report packet composition (record unknown, never guess).
+  contextLayerCounts Json?  @map("context_layer_counts_jsonb")
+
+  /// Lifecycle linkage (Phase 27E plan §23): set when this event is known to
+  /// trace back to a captured LearningSignal / the candidate it produced.
+  /// SetNull — the decision's own audit evidence lives in
+  /// memory_transition_audit, not here; this is a convenience join only.
+  learningSignalId  String? @map("learning_signal_id") @db.Uuid
+  memoryCandidateId String? @map("memory_candidate_id") @db.Uuid
+
+  /// Safe, numeric-only edit-burden metrics computed ephemerally by the
+  /// caller (percentChanged, normalizedEditDistance, versionsCount,
+  /// timeToApprovalMs, sectionReplacementCount, ...). Never a diff or body —
+  /// enforced by check-quality-telemetry-new-bypasses.mjs.
+  editMetrics Json?  @map("edit_metrics_jsonb")
+  /// Short safe reason codes / correlation ids only (e.g. { reasonCode,
+  /// sampledFrom, computedBy, regenerateOfEventId }) — never free text that
+  /// could carry confidential content.
+  provenance  Json   @default("{}") @map("provenance_jsonb")
+
+  /// Cross-cutting correlation id (ContextPacket.traceId / audit_logs.
+  /// request_id) so a full request can be reconstructed across tables
+  /// without joining on content.
+  traceId String? @map("trace_id") @db.VarChar(160)
+
+  /// When the underlying product event happened (not when this row was
+  /// written) — same convention as LearningSignal.observedAt.
+  generatedAt DateTime? @map("generated_at") @db.Timestamptz(6)
+  observedAt  DateTime  @map("observed_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  /// Dedupe key — see computeQualityTelemetryIdempotencyKey. Deterministic
+  /// from (artifactType, artifactId, eventType, artifactVersionSeq) so
+  /// redelivery of the same underlying event never double-counts.
+  idempotencyKey String @map("idempotency_key") @db.VarChar(320)
+
+  tenant          Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contextPacket   ContextPacket?                  @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)
+  learningSignal  LearningSignal?                 @relation(fields: [learningSignalId], references: [id], onDelete: SetNull)
+  memoryCandidate MemoryCandidate?                @relation(fields: [memoryCandidateId], references: [id], onDelete: SetNull)
+  memoryItemUses  QualityTelemetryMemoryItemUse[]
+
+  @@unique([tenantId, idempotencyKey], map: "quality_telemetry_event_tenant_idempotency_unique")
+  @@index([tenantId, surface, eventType, observedAt(sort: Desc)], map: "quality_telemetry_event_tenant_surface_type_idx")
+  @@index([tenantId, artifactType, artifactId], map: "quality_telemetry_event_tenant_artifact_idx")
+  @@index([tenantId, clientId], map: "quality_telemetry_event_tenant_client_idx")
+  @@index([contextPacketId], map: "quality_telemetry_event_context_packet_idx")
+  @@index([learningSignalId], map: "quality_telemetry_event_learning_signal_idx")
+  @@map("quality_telemetry_event")
+}
+
+/// Join row: "this memory item was included in the packet behind this
+/// telemetry event." Deliberately separate from QualityTelemetryEvent so
+/// per-memory-item usefulness (retrieval count, surfaces used, outcomes
+/// that followed) is answered by aggregating events, never by counters
+/// mutated onto memory_items itself (Phase 27E plan §12).
+model QualityTelemetryMemoryItemUse {
+  id       String @id @default(uuid()) @db.Uuid
+  /// Denormalized from the parent event so the tenant-scope guard (any model
+  /// with a tenant_id column is auto-covered — see tenant-scope-guard.spec.ts)
+  /// applies here too, and isolation doesn't depend on always joining
+  /// through the parent row.
+  tenantId String @map("tenant_id") @db.Uuid
+
+  telemetryEventId String  @map("telemetry_event_id") @db.Uuid
+  /// SetNull (not Restrict), matching MemoryCandidate's own FKs to
+  /// MemoryItem — a hard-deleted memory row must never block deleting or
+  /// reading historical telemetry.
+  memoryItemId     String? @map("memory_item_id") @db.Uuid
+  /// One of the five frozen SteeringLayer values this item was included
+  /// under for this packet.
+  contextLayer     String  @map("context_layer") @db.VarChar(24)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant         Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  telemetryEvent QualityTelemetryEvent @relation(fields: [telemetryEventId], references: [id], onDelete: Cascade)
+  memoryItem     MemoryItem?           @relation(fields: [memoryItemId], references: [id], onDelete: SetNull)
+
+  @@unique([telemetryEventId, memoryItemId], map: "quality_telemetry_memory_item_use_event_item_unique")
+  @@index([memoryItemId, createdAt(sort: Desc)], map: "quality_telemetry_memory_item_use_item_idx")
+  @@index([tenantId, memoryItemId], map: "quality_telemetry_memory_item_use_tenant_item_idx")
+  @@map("quality_telemetry_memory_item_use")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -26,6 +26,8 @@ import {
   buildCrmFillFindingAcceptedSignal,
   buildCrmFillFindingRejectedSignal,
 } from '../learning/adapters/crm-fill-finding.adapter.js';
+import { QualityTelemetryCaptureService } from '../quality-telemetry/quality-telemetry-capture.service.js';
+import { buildCrmFillFindingTelemetryEvent } from '../quality-telemetry/adapters/crm-fill-finding.telemetry-adapter.js';
 import { TrackerService } from '../tracker/tracker.service.js';
 import {
   CLIENT_PROFILE_FILL_SOURCES,
@@ -185,6 +187,10 @@ export class ClientProfileFillService {
     // reject behave exactly as before — no signal captured, no behavior
     // change to the CRM write path itself.
     private readonly learningSignals?: LearningSignalCaptureService,
+    // Phase 27E quality telemetry. Same optionality contract as
+    // learningSignals above: absent means no event recorded, no other
+    // behavior change.
+    private readonly qualityTelemetry?: QualityTelemetryCaptureService,
   ) {}
 
   async startRun(
@@ -547,6 +553,19 @@ export class ClientProfileFillService {
           `Learning-signal capture failed for fill finding ${finding.id} (${outcome}): ${error instanceof Error ? error.message : String(error)}`,
         ),
       );
+
+    if (this.qualityTelemetry) {
+      // recordEvent never throws (see its class doc comment) — no catch
+      // needed here, unlike the learning-signal capture above.
+      await this.qualityTelemetry.recordEvent(
+        buildCrmFillFindingTelemetryEvent(
+          ctx,
+          { findingId: finding.id, clientId: finding.clientId, kind: finding.kind, source: finding.source },
+          outcome,
+          new Date(),
+        ),
+      );
+    }
   }
 
   async restoreFinding(ctx: TenantContext, clientId: string, findingId: string) {

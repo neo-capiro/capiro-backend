@@ -83,6 +83,8 @@ import {
   OUTREACH_HOLD_SUBJECT_TYPE,
 } from './outreach-hold.js';
 import { OutreachDraftService } from './outreach-draft.service.js';
+import { QualityTelemetryCaptureService } from '../quality-telemetry/quality-telemetry-capture.service.js';
+import { buildMeetingPrepTelemetryEvent } from '../quality-telemetry/adapters/meeting-prep.telemetry-adapter.js';
 import type {
   DraftApprovalStatus,
   DraftAuditStatus,
@@ -1039,6 +1041,11 @@ export class EngagementService {
     private readonly evidenceSources: EvidenceSourceService,
     private readonly alertPacketClient: AlertPacketClientService,
     config: ConfigService<AppConfig, true>,
+    // Phase 27E quality telemetry. Optional so any existing direct
+    // construction of this service keeps compiling; when absent, meeting
+    // prep behaves exactly as before — no event recorded, no other
+    // behavior change.
+    private readonly qualityTelemetry?: QualityTelemetryCaptureService,
   ) {
     this.bucket = config.get('ASSETS_BUCKET', { infer: true });
     this.openAiApiKey = config.get('OPENAI_API_KEY', { infer: true });
@@ -5846,7 +5853,7 @@ export class EngagementService {
     await this.recordAiUsage(ctx, 'meeting_prep', generated);
 
     const correctClientId = context.client?.id || context.meeting.clientId;
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+    const created = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.meetingPrep.create({
         data: {
           tenantId: ctx.tenantId,
@@ -5877,10 +5884,21 @@ export class EngagementService {
         },
       }),
     );
+    if (this.qualityTelemetry) {
+      await this.qualityTelemetry.recordEvent(
+        buildMeetingPrepTelemetryEvent(
+          ctx,
+          { prepId: created.id, clientId: correctClientId },
+          'generated',
+          created.createdAt,
+        ),
+      );
+    }
+    return created;
   }
 
   async updateMeetingPrep(ctx: TenantContext, prepId: string, input: UpdateMeetingPrepInput) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const updated = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const prep = await tx.meetingPrep.findFirst({
         where: { id: prepId, tenantId: ctx.tenantId },
         select: { id: true, meetingId: true },
@@ -5906,10 +5924,16 @@ export class EngagementService {
         },
       });
     });
+    if (this.qualityTelemetry) {
+      await this.qualityTelemetry.recordEvent(
+        buildMeetingPrepTelemetryEvent(ctx, { prepId, clientId: updated.clientId }, 'edited', new Date()),
+      );
+    }
+    return updated;
   }
 
   async approveMeetingPrep(ctx: TenantContext, prepId: string) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const approved = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const prep = await tx.meetingPrep.findFirst({
         where: { id: prepId, tenantId: ctx.tenantId },
         select: { id: true, meetingId: true },
@@ -5925,6 +5949,12 @@ export class EngagementService {
         },
       });
     });
+    if (this.qualityTelemetry) {
+      await this.qualityTelemetry.recordEvent(
+        buildMeetingPrepTelemetryEvent(ctx, { prepId, clientId: approved.clientId }, 'approved', new Date()),
+      );
+    }
+    return approved;
   }
 
   private async directoryProfilesForMeeting(

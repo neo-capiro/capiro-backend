@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { QualityTelemetryModule } from '../quality-telemetry/quality-telemetry.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
@@ -92,6 +93,7 @@ import {
     ContextModule,
     EngagementRuntimeModule,
     AiCredentialsModule,
+    QualityTelemetryModule,
   ],
   controllers: [EngagementController, OutcomeController],
   providers: [

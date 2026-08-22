@@ -16,6 +16,7 @@ import { RegulatoryDocketModule } from '../regulatory-docket/regulatory-docket.m
 import { EmbeddingsModule } from '../embeddings/embeddings.module.js';
 import { MemoryModule } from '../memory/memory.module.js';
 import { LearningModule } from '../learning/learning.module.js';
+import { QualityTelemetryModule } from '../quality-telemetry/quality-telemetry.module.js';
 import { ContextModule } from '../context/context.module.js';
 import { ContextCompilerService } from '../context/context-compiler.service.js';
 import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
@@ -79,6 +80,7 @@ import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.pro
     EmbeddingsModule,
     MemoryModule,
     LearningModule,
+    QualityTelemetryModule,
     ContextModule,
     ReviewsModule,
     FundingOpportunitiesModule,

@@ -35,6 +35,7 @@ export * from './memory/governance-rollout';
 export * from './learning/contract';
 export * from './learning/candidate-contract';
 export * from './learning/conflict-contract';
+export * from './quality-telemetry/contract';
 export * from './assurance/index';
 export * from './llm/llm-client';
 export * from './tools/client/get-client-context';

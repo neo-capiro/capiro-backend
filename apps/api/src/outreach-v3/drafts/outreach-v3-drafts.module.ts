@@ -7,12 +7,19 @@ import { OutreachV3DraftApprovalService } from './outreach-v3-draft-approval.ser
 import { OutreachV3DraftRefineService } from './outreach-v3-draft-refine.service.js';
 import { OutreachV3DraftsController } from './outreach-v3-drafts.controller.js';
 import { OutreachV3DraftsGuard } from './outreach-v3-drafts.guard.js';
+import { QualityTelemetryModule } from '../../quality-telemetry/quality-telemetry.module.js';
 
 @Module({
   // Refine reuses the generation module's already-exported artifact-root and
   // slot-reauthorization seams rather than re-providing them, so one campaign
   // has exactly one artifact parent and one reauthorization path.
-  imports: [EngagementModule, PrismaModule, OutreachV3StateModule, OutreachV3GenerationModule],
+  imports: [
+    EngagementModule,
+    PrismaModule,
+    OutreachV3StateModule,
+    OutreachV3GenerationModule,
+    QualityTelemetryModule,
+  ],
   controllers: [OutreachV3DraftsController],
   providers: [OutreachV3DraftApprovalService, OutreachV3DraftRefineService, OutreachV3DraftsGuard],
   exports: [OutreachV3DraftApprovalService, OutreachV3DraftRefineService, OutreachV3DraftsGuard],

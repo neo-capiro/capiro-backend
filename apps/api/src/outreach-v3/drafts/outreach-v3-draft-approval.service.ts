@@ -15,6 +15,8 @@ import {
   buildOutreachV3GenerationPlan,
   type OutreachV3GenerationPlan,
 } from '../generation/outreach-v3-generation-plan.js';
+import { QualityTelemetryCaptureService } from '../../quality-telemetry/quality-telemetry-capture.service.js';
+import { buildOutreachApprovalTelemetryEvent } from '../../quality-telemetry/adapters/outreach.telemetry-adapter.js';
 
 export interface OutreachV3DraftApprovalResult {
   approval: OutreachV3DraftApprovalSnapshot;
@@ -30,6 +32,11 @@ export class OutreachV3DraftApprovalService {
     private readonly drafts: OutreachDraftService,
     private readonly prisma: PrismaService,
     private readonly decisions: OutreachUserDecisionEventService,
+    // Phase 27E quality telemetry. Optional so any existing direct
+    // construction of this service keeps compiling; when absent, approval
+    // behaves exactly as before — no event recorded, no other behavior
+    // change.
+    private readonly qualityTelemetry?: QualityTelemetryCaptureService,
   ) {}
 
   async approve(
@@ -130,6 +137,15 @@ export class OutreachV3DraftApprovalService {
         approval,
       },
     });
+    if (this.qualityTelemetry) {
+      await this.qualityTelemetry.recordEvent(
+        buildOutreachApprovalTelemetryEvent(
+          ctx,
+          { versionId: version.id, artifactId: version.artifactId, contextPacketId: persisted.contextPacketId },
+          new Date(),
+        ),
+      );
+    }
     return {
       approval,
       eventId: committed.event.id,

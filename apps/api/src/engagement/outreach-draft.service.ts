@@ -48,6 +48,9 @@ import {
   type DraftAuditStatus,
   type DraftGenerationStatus,
 } from './outreach-draft.types.js';
+import { QualityTelemetryCaptureService } from '../quality-telemetry/quality-telemetry-capture.service.js';
+import { buildOutreachVersionTelemetryEvent } from '../quality-telemetry/adapters/outreach.telemetry-adapter.js';
+import { computeEditMetrics } from '../quality-telemetry/edit-metrics.helpers.js';
 
 export type DraftEditKind = 'manual' | 'improve' | 'revert';
 
@@ -184,6 +187,11 @@ export class OutreachDraftService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: OutreachDraftAuditService,
+    // Phase 27E quality telemetry. Optional so any existing direct
+    // construction of this service keeps compiling; when absent, version
+    // creation/audit behave exactly as before — no event recorded, no other
+    // behavior change.
+    private readonly qualityTelemetry?: QualityTelemetryCaptureService,
   ) {}
 
   // ── Writes ────────────────────────────────────────────────────────────────
@@ -709,8 +717,60 @@ export class OutreachDraftService {
         select: VERSION_SELECT,
       }),
     );
-    const dto = toVersionDto(fresh ?? created);
+    const settled = fresh ?? created;
+    if (this.qualityTelemetry) {
+      await this.recordVersionTelemetry(ctx, settled);
+    }
+    const dto = toVersionDto(settled);
     return contextNote ? { ...dto, contextNote } : dto;
+  }
+
+  /**
+   * Phase 27E quality telemetry — the single hook point for all three
+   * version-creation paths (`upsertGeneratedVersion`, `createEditedVersion`,
+   * `upsertGeneratedVersionOrCandidate`), since all three funnel through
+   * `auditAndReload`. `recordEvent` never throws (see its class doc
+   * comment), so this is not wrapped in its own try/catch.
+   */
+  private async recordVersionTelemetry(ctx: TenantContext, version: VersionRow): Promise<void> {
+    const editMetrics = version.sourceVersionId
+      ? await this.computeVersionEditMetrics(ctx, version.sourceVersionId, version.subject, version.body)
+      : null;
+    await this.qualityTelemetry!.recordEvent(
+      buildOutreachVersionTelemetryEvent(
+        ctx,
+        {
+          versionId: version.id,
+          artifactId: version.artifactId,
+          version: version.version,
+          generationStatus: version.generationStatus,
+          contextPacketId: version.contextPacketId,
+        },
+        editMetrics,
+        version.createdAt,
+      ),
+    );
+  }
+
+  /**
+   * One extra read of the predecessor's subject/body, used ONLY to compute
+   * an ephemeral edit-distance number — the text itself is never returned,
+   * logged, or persisted by this method (see `computeEditMetrics`).
+   */
+  private async computeVersionEditMetrics(
+    ctx: TenantContext,
+    predecessorId: string,
+    nextSubject: string,
+    nextBody: string,
+  ) {
+    const predecessor = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.outreachDraftVersion.findFirst({
+        where: { id: predecessorId, tenantId: ctx.tenantId },
+        select: { subject: true, body: true },
+      }),
+    );
+    if (!predecessor) return null;
+    return computeEditMetrics(`${predecessor.subject}\n${predecessor.body}`, `${nextSubject}\n${nextBody}`);
   }
 
   private async forceUnavailable(ctx: TenantContext, versionId: string): Promise<void> {

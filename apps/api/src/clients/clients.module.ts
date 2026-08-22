@@ -34,6 +34,7 @@ import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { ContextModule } from '../context/context.module.js';
 import { LearningModule } from '../learning/learning.module.js';
+import { QualityTelemetryModule } from '../quality-telemetry/quality-telemetry.module.js';
 import { TrackerModule } from '../tracker/tracker.module.js';
 import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
 
@@ -52,6 +53,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     RepresentationModule,
     ContextModule,
     LearningModule,
+    QualityTelemetryModule,
     // G3: OutcomeService for the submission-outcome mirror.
     EngagementModule,
     // Bill recommendations for Fill with Meri (getRecommendations).
