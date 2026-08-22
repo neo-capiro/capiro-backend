@@ -58,10 +58,10 @@
   --capiro-bp-mobile: 780px;
   --capiro-bp-tablet: 1180px;
 
-  /* Live shell geometry, restated so page modules can compute against it
-     without reaching into the untitled-ui layer. Keep in sync with
-     foundations/untitled-ui-tokens.css lines 115-118. */
-  --capiro-rail-w-expanded: 272px;
+  /* Live shell geometry, expressed via var() so it tracks --uui-rail-w-expanded
+     without manual sync. Page modules compute against these without reaching
+     into the untitled-ui layer. */
+  --capiro-rail-w-expanded: var(--uui-rail-w-expanded, 248px);
   --capiro-rail-w-collapsed: 80px;
   --capiro-content-gutter: 32px;
   --capiro-content-gutter-mobile: 16px;
