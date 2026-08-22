@@ -36,6 +36,7 @@ const steps = [
       'src/outreach-v3/templates/outreach-template-authorization.spec.ts',
       'src/outreach-v3/templates/outreach-template.persistence.spec.ts',
       'src/outreach-v3/templates/outreach-template.service.spec.ts',
+      'src/outreach-v3/templates/outreach-template.repository.spec.ts',
     ],
   ],
   [
