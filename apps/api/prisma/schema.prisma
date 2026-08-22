@@ -266,6 +266,7 @@ model Tenant {
   memoryTransitionAudits             MemoryTransitionAudit[]
   memoryCleanupOutbox                MemoryCleanupOutbox[]
   learningSignals                    LearningSignal[]
+  learningSignalCandidateOutcomes    LearningSignalCandidateOutcome[]
   clientMemoryAccessGrants           ClientMemoryAccess[]
   clientTeamMembers                  ClientTeamMember[]
   clientGrantNexuses                 ClientGrantNexus[]
@@ -8775,7 +8776,7 @@ model MemoryCandidate {
   id         String  @id @default(uuid()) @db.Uuid
   tenantId   String  @map("tenant_id") @db.Uuid
   proposedBy String  @map("proposed_by") @db.Uuid
-  sourceKind String  @map("source_kind") @db.VarChar(24) // explicit_user | workflow_event | artifact_approval | model_extraction | settings_sections
+  sourceKind String  @map("source_kind") @db.VarChar(24) // explicit_user | workflow_event | artifact_approval | model_extraction | settings_sections | learning_signal
   scope      String  @db.VarChar(16) // personal | firm | client (G2)
   /// G2: set iff scope='client' — the client the proposed memory belongs to.
   clientId   String? @map("client_id") @db.Uuid
@@ -8874,6 +8875,9 @@ model MemoryCandidate {
   duplicateMemoryItem   MemoryItem? @relation("MemoryCandidateDuplicateItem", fields: [duplicateMemoryItemId], references: [id], onDelete: SetNull)
   contradictsMemoryItem MemoryItem? @relation("MemoryCandidateContradictsItem", fields: [contradictsMemoryItemId], references: [id], onDelete: SetNull)
   committedMemoryItem   MemoryItem? @relation("MemoryCandidateCommittedItem", fields: [committedMemoryItemId], references: [id], onDelete: SetNull)
+
+  /// Phase 27B back-relation — see LearningSignalCandidateOutcome.
+  learningSignalCandidateOutcomes LearningSignalCandidateOutcome[]
 
   @@unique([tenantId, id], map: "memory_candidate_tenant_id_id_unique")
   @@index([tenantId, status], map: "memory_candidate_tenant_status_idx")
@@ -9087,6 +9091,9 @@ model LearningSignal {
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Phase 27B — at most one outcome row per signal (unique below); null
+  /// means "not yet processed by LearningSignalCandidateService".
+  candidateOutcome LearningSignalCandidateOutcome?
 
   @@unique([tenantId, idempotencyKey], map: "learning_signal_tenant_idempotency_unique")
   @@index([tenantId, clientId], map: "learning_signal_tenant_client_idx")
@@ -9094,6 +9101,42 @@ model LearningSignal {
   @@index([tenantId, sourceSurface, signalType], map: "learning_signal_tenant_surface_type_idx")
   @@index([tenantId, status, createdAt], map: "learning_signal_tenant_status_created_idx")
   @@map("learning_signal")
+}
+
+/// Phase 27B — records, for every learning_signal LearningSignalCandidateService
+/// has looked at, whether it produced a memory_candidate and why/why not.
+/// NOT a second candidate store: carries no proposed fact/value, only the
+/// eligibility decision (same relationship memory_transition_audit has to
+/// memory_candidate/memory_items, one layer upstream). Unique per
+/// (tenantId, learningSignalId) — this IS candidate-generation's idempotency
+/// guard for the non-eligible outcomes; the eligible/candidate-created case
+/// is additionally guarded by memory_candidate_learning_signal_source_unique
+/// on MemoryCandidate itself.
+model LearningSignalCandidateOutcome {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  /// Single-column unique (not a compound (tenantId, learningSignalId)): a
+  /// signal already implies exactly one tenant, and Prisma's one-to-one
+  /// relation from LearningSignal.candidateOutcome requires this FK field
+  /// itself to be unique.
+  learningSignalId  String   @unique(map: "learning_signal_candidate_outcome_signal_unique") @map("learning_signal_id") @db.Uuid
+
+  /// eligible | insufficient_evidence | negative_feedback_only | duplicate |
+  /// unsupported_scope | ai_only | blocked_by_policy
+  eligibility       String   @db.VarChar(24)
+  reason            String   @db.VarChar(240)
+
+  /// Set only when eligibility = 'eligible'.
+  memoryCandidateId String?  @map("memory_candidate_id") @db.Uuid
+
+  decidedAt         DateTime @default(now()) @map("decided_at") @db.Timestamptz(6)
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  learningSignal  LearningSignal  @relation(fields: [learningSignalId], references: [id], onDelete: Cascade)
+  memoryCandidate MemoryCandidate? @relation(fields: [memoryCandidateId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, eligibility, decidedAt(sort: Desc)], map: "learning_signal_candidate_outcome_tenant_eligibility_idx")
+  @@map("learning_signal_candidate_outcome")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

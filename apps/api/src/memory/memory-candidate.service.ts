@@ -63,6 +63,31 @@ export interface MemorySaveRequest {
     title: string;
     sections: MemorySection[];
   };
+  /**
+   * Phase 27B additions — all optional, all additive: every existing caller
+   * omits them and gets byte-for-byte the same INSERT as before.
+   *
+   * `sourceType`/`sourceId` populate the governance-v2 columns of the same
+   * name (memory_governance_context_v2) at proposal time rather than
+   * leaving them at their 'unknown'/null defaults until a later commit
+   * pass. LearningSignalCandidateService is the only caller that sets
+   * these today, pointing `sourceId` at the originating `learning_signal`
+   * row's id with `sourceType: 'learning_signal_capture'` — the pairing a
+   * partial unique index on memory_candidate enforces as candidate
+   * generation's idempotency guard (one candidate per signal, ever).
+   */
+  sourceType?: string | null;
+  sourceId?: string | null;
+  /**
+   * A generation-time PROPOSAL of the eventual governance classification —
+   * never a promotion. The candidate still lands `pending`/`suggested`
+   * exactly as it would without these; a human reviewer sees the proposal
+   * and may accept, downgrade, or override it. `classifyCandidateForGovernance`
+   * (memory-governance-lifecycle.helpers.ts) still computes the FINAL
+   * classification at actual approve/reject time, independent of this.
+   */
+  proposedMemoryClass?: string | null;
+  proposedMemoryAuthority?: string | null;
 }
 
 export interface MemoryCandidateRow {
@@ -246,6 +271,21 @@ export class MemoryCandidateService {
         ? Math.min(1, Math.max(0, record.confidence))
         : null;
 
+    // Phase 27B: explicit values fall back to exactly the column defaults
+    // (memory_governance_context_v2), so every pre-existing caller — which
+    // never sets these — gets a byte-identical INSERT to before this change.
+    const governanceSourceType =
+      typeof record.sourceType === 'string' && record.sourceType ? record.sourceType : 'unknown';
+    const governanceSourceId = typeof record.sourceId === 'string' ? record.sourceId : null;
+    const proposedMemoryClass =
+      typeof record.proposedMemoryClass === 'string' && record.proposedMemoryClass
+        ? record.proposedMemoryClass
+        : 'legacy_unclassified';
+    const proposedMemoryAuthority =
+      typeof record.proposedMemoryAuthority === 'string' && record.proposedMemoryAuthority
+        ? record.proposedMemoryAuthority
+        : 'legacy_unclassified';
+
     const sourceExcerpt =
       typeof record.sourceExcerpt === 'string' ? record.sourceExcerpt.slice(0, 4_000) : null;
     const sourceConversationId =
@@ -305,12 +345,14 @@ export class MemoryCandidateService {
       const rows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO memory_candidate (
           tenant_id, proposed_by, source_kind, scope, client_id, payload_jsonb,
-          provenance_jsonb, duplicate_of_id, status, confidence
+          provenance_jsonb, duplicate_of_id, status, confidence,
+          source_type, source_id, memory_class, memory_authority
         ) VALUES (
           ${tenantId}::uuid, ${proposedByUserId}::uuid, ${sourceKind}, ${scope},
           ${record.clientId ?? null}::uuid,
           ${JSON.stringify(payload)}::jsonb, ${JSON.stringify(provenance)}::jsonb,
-          ${duplicateOfId}::uuid, 'pending', ${candidateConfidence}
+          ${duplicateOfId}::uuid, 'pending', ${candidateConfidence},
+          ${governanceSourceType}, ${governanceSourceId}, ${proposedMemoryClass}, ${proposedMemoryAuthority}
         )
         RETURNING id::text AS id
       `;

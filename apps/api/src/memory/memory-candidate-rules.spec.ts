@@ -85,6 +85,34 @@ describe('evaluateMemoryCandidate — segregation of duties is unconditional', (
   });
 });
 
+describe('evaluateMemoryCandidate — Phase 27B learning-signal candidates never auto-commit', () => {
+  it.each(['personal', 'firm', 'client'] as const)(
+    'keeps a learning-signal-sourced candidate pending for scope=%s, including personal (which would otherwise auto-commit)',
+    (scope) => {
+      const decision = evaluateMemoryCandidate({ scope, isAdmin: false, sourceKind: 'learning_signal' });
+      expect(decision.outcome).toBe('WARN');
+      expect(decision.ruleId).toBe('memory.learning_signal.requires_review');
+    },
+  );
+
+  it('CRITICAL: brute-forces the whole input space for sourceKind=learning_signal — no field combination ever produces PASS', () => {
+    for (const scope of ['personal', 'firm', 'client'] as const) {
+      for (const isAdmin of [true, false]) {
+        for (const confidence of [null, 0, 0.5, 1]) {
+          const decision = evaluateMemoryCandidate({
+            scope,
+            isAdmin,
+            sourceKind: 'learning_signal',
+            confidence,
+          });
+          expect(decision.outcome).toBe('WARN');
+          expect(decision.ruleId).toBe('memory.learning_signal.requires_review');
+        }
+      }
+    }
+  });
+});
+
 describe('evaluateMemoryCandidate — Phase 0 machine extraction containment', () => {
   it.each([
     ['personal', false, 0.1],

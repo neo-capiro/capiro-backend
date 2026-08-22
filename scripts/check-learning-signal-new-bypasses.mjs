@@ -7,31 +7,45 @@ import { join } from 'node:path';
 const base = process.argv[2] || 'origin/main';
 
 /**
- * Phase 27A architecture guard for `learning_signal` (LearningSignal).
+ * Phase 27A/27B architecture guard for `learning_signal` (LearningSignal)
+ * and its Phase 27B candidate-generation extension.
  *
  * Modeled on the two existing guard styles in this repo — the diff+census
  * pattern from `check-context-plane-new-bypasses.mjs`, and the
  * schema-derived model list from `apps/api/src/prisma/tenant-scope-guard.spec.ts`
  * — rather than inventing a third style. Extend this file (don't replace it)
- * as later Phase 27 sub-phases (candidate generation, governance
- * integration, ...) add their own tables/services.
+ * as later Phase 27 sub-phases (governance integration, ...) add their own
+ * tables/services.
  *
  * What this guards, concretely:
  *  1. `learning_signal` is written ONLY through LearningSignalCaptureService,
  *     never via a bare `tx.learningSignal.create/update/upsert` elsewhere.
- *  2. Nothing under `apps/api/src/learning/` references the existing governed
- *     memory system's write surface (memory_items / memory_candidate /
- *     clio_memory / MemoryCandidateService / MemoryStoreService) — the core
- *     27A invariant that capturing a signal can NEVER itself create active
- *     memory. Promotion is later-phase work and must go through the
- *     existing governance services from outside this directory, not from
- *     inside it.
- *  3. The LearningSignal Prisma model carries a `tenantId` field (so it is
+ *  2. Nothing under `apps/api/src/learning/` EVER references *active* memory
+ *     surfaces (memory_items / clio_memory / MemoryStoreService) — no
+ *     signal or candidate can become active memory from inside this
+ *     directory, in 27A OR 27B. This is the hard architecture invariant
+ *     that survives across sub-phases.
+ *  3. The 27A-only ban is narrower now that 27B exists: everything under
+ *     `apps/api/src/learning/` is still banned from the governed-CANDIDATE
+ *     write surface (memory_candidate / MemoryCandidateService) EXCEPT the
+ *     one file whose entire canonical purpose is exactly that —
+ *     LearningSignalCandidateService (Phase 27B handoff §3: "candidate
+ *     generation should consume the canonical signals" — it is the
+ *     designated consumer). Every other file in the directory, including
+ *     the 27A adapters, remains fully banned: adapters must only ever
+ *     produce LearningSignals, never write candidates directly.
+ *  4. The LearningSignal Prisma model carries a `tenantId` field (so it is
  *     automatically covered by PrismaService's tenant-scope extension and
  *     tenant-scope-guard.spec.ts) and no vector/embedding column (no second
  *     vector database).
- *  4. `proposed_memory_layer`'s CHECK constraint in the migration lists
+ *  5. `proposed_memory_layer`'s CHECK constraint in the migration lists
  *     exactly the five frozen SteeringLayer values — no sixth layer.
+ *  6. Phase 27B additions: the never-auto-commit rule
+ *     (`memory.learning_signal.requires_review`) exists in
+ *     memory-candidate-rules.ts and fires on outcome WARN, and the
+ *     candidate-generation idempotency guard (a unique index scoped to
+ *     `source_type = 'learning_signal_capture'`) exists in the Phase 27B
+ *     migration.
  */
 
 const LEARNING_IMPLEMENTATION_PREFIXES = [
@@ -57,19 +71,35 @@ const FROZEN_STEERING_LAYERS = [
 ];
 
 /**
- * Symbols from the EXISTING governed-memory write surface. If any of these
- * appear inside apps/api/src/learning/ (outside its own spec files), 27A has
- * started promoting signals into active memory — explicitly out of scope
- * (handoff §22, 27A acceptance criteria: "no signal becomes active memory").
+ * ACTIVE memory surface — banned everywhere under apps/api/src/learning/,
+ * with NO exceptions, in every Phase 27 sub-phase. A candidate is not
+ * active memory; these three are what "active" actually means.
  */
-const BANNED_PROMOTION_SYMBOLS = [
+const BANNED_ACTIVE_MEMORY_SYMBOLS = [
   /\bmemory_items\b/,
-  /\bmemory_candidate\b/,
   /\bclio_memory\b/,
-  /\bMemoryCandidateService\b/,
   /\bMemoryStoreService\b/,
+];
+
+/**
+ * The governed-CANDIDATE write surface. Banned everywhere under
+ * apps/api/src/learning/ EXCEPT `CANDIDATE_GENERATION_FILE` below — that
+ * file's entire canonical purpose is calling into this surface (Phase 27B).
+ * Every 27A adapter and every other file remains fully banned: adapters
+ * produce signals only, never candidates.
+ */
+const BANNED_CANDIDATE_SURFACE_SYMBOLS = [
+  /\bmemory_candidate\b/,
+  /\bMemoryCandidateService\b/,
   /\bmemoryCandidate\s*:\s*prisma/, // defensive: a raw prisma.memoryCandidate access
 ];
+
+/** The one Phase 27B file allowed to reference the candidate write surface. */
+const CANDIDATE_GENERATION_FILE = 'apps/api/src/learning/learning-signal-candidate.service.ts';
+
+function isApprovedCandidateGenerationFile(file) {
+  return file === CANDIDATE_GENERATION_FILE;
+}
 
 /** Explicitly reviewed exceptions. Each stops being valid the moment the line changes. */
 const APPROVED_ADAPTER_LINES = [];
@@ -164,11 +194,20 @@ if (diff) {
         }
       }
     } else if (!isCommentLine(added)) {
-      for (const pattern of BANNED_PROMOTION_SYMBOLS) {
+      for (const pattern of BANNED_ACTIVE_MEMORY_SYMBOLS) {
         if (pattern.test(added)) {
           fail(
-            `${currentFile}: added line inside the learning implementation references the governed-memory write surface — 27A must never promote a signal into active memory.\n  ${added.trim()}`,
+            `${currentFile}: added line inside the learning implementation references an ACTIVE memory surface — no signal or candidate may ever become active memory from this directory.\n  ${added.trim()}`,
           );
+        }
+      }
+      if (!isApprovedCandidateGenerationFile(currentFile)) {
+        for (const pattern of BANNED_CANDIDATE_SURFACE_SYMBOLS) {
+          if (pattern.test(added)) {
+            fail(
+              `${currentFile}: added line references the governed-candidate write surface, but only ${CANDIDATE_GENERATION_FILE} is approved to do that (Phase 27B's designated LearningSignal → candidate path).\n  ${added.trim()}`,
+            );
+          }
         }
       }
     }
@@ -198,6 +237,46 @@ if (censusFailures.length) {
   }
 } else {
   ok('repo-wide learningSignal census: zero out-of-module consumers');
+}
+
+// ── 3b. Repo-wide census of the CURRENT content of every learning
+// implementation file (not diff-scoped, so it also catches drift from a
+// change landed before this guard existed, or from a future edit whose
+// diff base predates it) — the active-memory ban with zero exceptions, and
+// the candidate-surface ban with exactly one approved file.
+const learningImplFiles = [...listTrackedFiles(/\.ts$/), ...listTrackedFiles(/\.tsx$/)].filter(
+  (f) => isLearningImplementationFile(f) && !isTestFile(f),
+);
+let activeMemoryCensusFailures = 0;
+let candidateSurfaceCensusFailures = 0;
+for (const file of learningImplFiles) {
+  let content;
+  try {
+    content = readFileSync(file, 'utf8');
+  } catch {
+    continue;
+  }
+  const codeLines = content.split('\n').filter((line) => !isCommentLine(line));
+  const code = codeLines.join('\n');
+  for (const pattern of BANNED_ACTIVE_MEMORY_SYMBOLS) {
+    if (pattern.test(code)) {
+      fail(`${file}: references an ACTIVE memory surface (repo-wide census, not diff-scoped) — banned with no exceptions.`);
+      activeMemoryCensusFailures += 1;
+    }
+  }
+  if (!isApprovedCandidateGenerationFile(file)) {
+    for (const pattern of BANNED_CANDIDATE_SURFACE_SYMBOLS) {
+      if (pattern.test(code)) {
+        fail(
+          `${file}: references the governed-candidate write surface (repo-wide census) — only ${CANDIDATE_GENERATION_FILE} is approved.`,
+        );
+        candidateSurfaceCensusFailures += 1;
+      }
+    }
+  }
+}
+if (activeMemoryCensusFailures === 0 && candidateSurfaceCensusFailures === 0) {
+  ok('repo-wide learning-implementation census: no active-memory reference anywhere, no candidate-surface reference outside the one approved 27B file');
 }
 
 // ── 4. Schema shape: tenantId present, no vector/embedding column.
@@ -247,6 +326,51 @@ if (!migrationGlob.length) {
     } else {
       ok('proposed_memory_layer CHECK constraint lists exactly the five frozen SteeringLayer values');
     }
+  }
+}
+
+// ── 6. Phase 27B: the never-auto-commit rule must exist and be positioned
+// so it wins first-match regardless of scope. A rule that only checks
+// `sourceKind === 'learning_signal'` but got reordered after
+// `memory.personal.auto_commit` would silently let a personal-scope
+// learning-signal candidate auto-commit — check the STRING ORDER in the
+// rules file, not just presence.
+const rulesPath = 'apps/api/src/memory/memory-candidate-rules.ts';
+let rulesSource = '';
+try {
+  rulesSource = readFileSync(rulesPath, 'utf8');
+} catch (error) {
+  fail(`could not read ${rulesPath}: ${error.message}`);
+}
+const learningRuleIdx = rulesSource.indexOf("id: 'memory.learning_signal.requires_review'");
+const personalAutoCommitIdx = rulesSource.indexOf("id: 'memory.personal.auto_commit'");
+if (learningRuleIdx === -1) {
+  fail(`${rulesPath}: memory.learning_signal.requires_review rule not found — a learning-signal-derived candidate could fall through to auto-commit.`);
+} else if (personalAutoCommitIdx !== -1 && learningRuleIdx > personalAutoCommitIdx) {
+  fail(`${rulesPath}: memory.learning_signal.requires_review is positioned AFTER memory.personal.auto_commit — first-match-wins would let a personal-scope learning-signal candidate auto-commit.`);
+} else {
+  ok('memory.learning_signal.requires_review exists and precedes memory.personal.auto_commit (never auto-commits regardless of scope)');
+}
+
+// ── 7. Phase 27B: candidate-generation idempotency guard exists — a unique
+// index scoped to source_type = 'learning_signal_capture', so the same
+// signal can never produce two memory_candidate rows.
+const candidateGenerationMigrations = listTrackedFiles(/migration\.sql$/).filter((f) =>
+  f.includes('learning_signal_candidate_generation'),
+);
+if (!candidateGenerationMigrations.length) {
+  fail('no learning_signal_candidate_generation migration.sql found');
+} else {
+  const sql = readFileSync(candidateGenerationMigrations[0], 'utf8');
+  if (!/CREATE UNIQUE INDEX[\s\S]*?learning_signal_capture/.test(sql)) {
+    fail(`${candidateGenerationMigrations[0]}: no unique index scoped to source_type = 'learning_signal_capture' found — candidate generation would not be idempotent at the database level.`);
+  } else {
+    ok("candidate-generation idempotency guard present: unique index scoped to source_type = 'learning_signal_capture'");
+  }
+  if (!/eligibility IN \(/.test(sql) || !/negative_feedback_only/.test(sql) || !/blocked_by_policy/.test(sql)) {
+    fail(`${candidateGenerationMigrations[0]}: learning_signal_candidate_outcome eligibility CHECK constraint looks incomplete.`);
+  } else {
+    ok('learning_signal_candidate_outcome eligibility CHECK constraint present');
   }
 }
 
