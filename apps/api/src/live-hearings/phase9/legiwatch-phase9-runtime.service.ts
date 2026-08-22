@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { isRuntimeJobFresh } from './legiwatch-phase9-gates.js';
-import type { LegiWatchPhase9RuntimeJob } from './legiwatch-phase9.types.js';
+import {
+  LEGIWATCH_PHASE9_CONFIRMATIONS,
+  LEGIWATCH_PHASE9_REQUIRED_JOB_KEYS,
+  type LegiWatchPhase9RuntimeJob,
+} from './legiwatch-phase9.types.js';
 
 interface RuntimeRow {
   jobKey: string;
@@ -52,7 +56,9 @@ export class LegiWatchPhase9RuntimeService {
     workerId: string;
     manual?: boolean;
   }): Promise<void> {
-    const rows = await this.prisma.$queryRawUnsafe<Array<{ enabled: boolean; scheduleEnabled: boolean }>>(
+    const rows = await this.prisma.$queryRawUnsafe<
+      Array<{ enabled: boolean; scheduleEnabled: boolean }>
+    >(
       `SELECT enabled,
               schedule_enabled AS "scheduleEnabled"
        FROM legiwatch_runtime_heartbeat
@@ -102,7 +108,9 @@ export class LegiWatchPhase9RuntimeService {
         ...(input.workerId ? { workerId: bounded(input.workerId, 200) } : {}),
       }),
     );
-    if (count === 0) throw new NotFoundException(`LegiWatch runtime job ${input.jobKey} not found`);
+    if (count === 0) {
+      throw new NotFoundException(`LegiWatch runtime job ${input.jobKey} not found`);
+    }
   }
 
   async succeed(input: {
@@ -123,7 +131,9 @@ export class LegiWatchPhase9RuntimeService {
       input.jobKey,
       JSON.stringify(input.metrics ?? {}),
     );
-    if (count === 0) throw new NotFoundException(`LegiWatch runtime job ${input.jobKey} not found`);
+    if (count === 0) {
+      throw new NotFoundException(`LegiWatch runtime job ${input.jobKey} not found`);
+    }
   }
 
   async fail(input: {
@@ -146,7 +156,9 @@ export class LegiWatchPhase9RuntimeService {
       boundedError(input.error),
       JSON.stringify(input.metrics ?? {}),
     );
-    if (count === 0) throw new NotFoundException(`LegiWatch runtime job ${input.jobKey} not found`);
+    if (count === 0) {
+      throw new NotFoundException(`LegiWatch runtime job ${input.jobKey} not found`);
+    }
   }
 
   async run<T>(input: {
@@ -188,12 +200,29 @@ export class LegiWatchPhase9RuntimeService {
     confirmation: string;
   }): Promise<LegiWatchPhase9RuntimeJob[]> {
     const expected = input.registrations.some((row) => row.scheduleEnabled)
-      ? 'ENABLE LEGIWATCH SCHEDULES'
-      : 'DISABLE LEGIWATCH SCHEDULES';
+      ? LEGIWATCH_PHASE9_CONFIRMATIONS.SCHEDULES_ON
+      : LEGIWATCH_PHASE9_CONFIRMATIONS.SCHEDULES_OFF;
     if (input.confirmation !== expected) {
       throw new Error(`Exact confirmation required: ${expected}`);
     }
-    if (!input.registrations.length) throw new Error('At least one runtime registration is required');
+    if (!input.registrations.length) {
+      throw new Error('At least one runtime registration is required');
+    }
+    const allowedKeys = new Set<string>(LEGIWATCH_PHASE9_REQUIRED_JOB_KEYS);
+    const seen = new Set<string>();
+    for (const registration of input.registrations) {
+      if (!allowedKeys.has(registration.jobKey)) {
+        throw new Error(`Unknown Phase 9 runtime job ${registration.jobKey}`);
+      }
+      if (seen.has(registration.jobKey)) {
+        throw new Error(`Duplicate Phase 9 runtime registration ${registration.jobKey}`);
+      }
+      seen.add(registration.jobKey);
+      if (registration.scheduleEnabled && !registration.enabled) {
+        throw new Error(`${registration.jobKey} cannot be scheduled while disabled`);
+      }
+    }
+
     const actor = bounded(input.actor, 200);
     await this.prisma.withSystem(async (tx) => {
       for (const registration of input.registrations) {
@@ -213,23 +242,41 @@ export class LegiWatchPhase9RuntimeService {
           registration.scheduleEnabled,
           registration.ruleName ? bounded(registration.ruleName, 300) : null,
           registration.taskFamily ? bounded(registration.taskFamily, 300) : null,
-          JSON.stringify({ registeredBy: actor, registeredAt: new Date().toISOString() }),
+          JSON.stringify({
+            registeredBy: actor,
+            registeredAt: new Date().toISOString(),
+          }),
         );
         if (count === 0) {
-          throw new NotFoundException(`LegiWatch runtime job ${registration.jobKey} not found`);
+          throw new NotFoundException(
+            `LegiWatch runtime job ${registration.jobKey} not found`,
+          );
         }
       }
-      const allEnabled = await tx.$queryRawUnsafe<Array<{ count: number }>>(
-        `SELECT COUNT(*) FILTER (WHERE enabled AND schedule_enabled)::int AS count
+      const requiredKeys = [...LEGIWATCH_PHASE9_REQUIRED_JOB_KEYS];
+      const counts = await tx.$queryRawUnsafe<
+        Array<{ registered: number; enabled: number }>
+      >(
+        `SELECT COUNT(*) FILTER (WHERE job_key = ANY($1::text[]))::int AS registered,
+                COUNT(*) FILTER (
+                  WHERE job_key = ANY($1::text[])
+                    AND enabled=true
+                    AND schedule_enabled=true
+                )::int AS enabled
          FROM legiwatch_runtime_heartbeat`,
+        requiredKeys,
       );
+      const registered = counts[0]?.registered ?? 0;
+      const enabled = counts[0]?.enabled ?? 0;
+      const complete =
+        registered === requiredKeys.length && enabled === requiredKeys.length;
       await tx.$executeRawUnsafe(
         `UPDATE legiwatch_cutover_state
-         SET schedules_enabled=($1 > 0),
+         SET schedules_enabled=$1,
              updated_by=$2,
              updated_at=now()
          WHERE id='global'`,
-        allEnabled[0]?.count ?? 0,
+        complete,
         actor,
       );
     });
