@@ -305,7 +305,7 @@ export function normalizePhase7Room(value: unknown): Phase7Room {
   const capture = normalizePhase7Capture(row.capture);
   const browser = normalizeBrowserPlan(row.browser, event.id);
   const documents: Phase7Document[] = array(row.documents)
-    .map((value) => {
+    .map((value): Phase7Document | undefined => {
       const item = record(value);
       const id = stringValue(item.id);
       const sourceUrl = stringValue(item.sourceUrl);
