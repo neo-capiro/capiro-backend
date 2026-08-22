@@ -22,7 +22,13 @@
     "verify:session7:db": "node ../../scripts/verify-phase8-session7-db.mjs",
     "prepare:session7:corpus": "node ../../scripts/prepare-phase8-session7-lifecycle-corpus.mjs",
     "watch:session7:lifecycle": "node scripts/run-lifecycle-watcher.mjs",
-    "tick:session10:schedule": "node scripts/run-schedule-controller.mjs"
+    "tick:session10:schedule": "node scripts/run-schedule-controller.mjs",
+    "job": "node scripts/job.mjs",
+    "job:inventory": "node scripts/job.mjs inventory",
+    "job:backfill-plan": "node scripts/job.mjs backfill-plan",
+    "job:db-check": "node scripts/job.mjs db-check",
+    "job:egress-check": "node scripts/job.mjs egress-check",
+    "verify:phase9:job-runtime": "tsx --test src/budget-lifecycle/phase9-job-runtime.spec.ts"
   },
   "dependencies": {
     "@capiro/auth": "workspace:*",

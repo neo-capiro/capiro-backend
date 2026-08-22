@@ -82,6 +82,16 @@ RUN pnpm --filter @capiro/shared build \
  && pnpm --filter @capiro/defense-api prisma:generate \
  && pnpm --filter @capiro/defense-api build
 
+# Build-stage assertion: the generated Prisma client MUST exist before we build
+# the runtime layer. The Phase 9 job runtime requires it at
+# `generated/prisma-client/index.js`, and a silently-missing client would only
+# surface as a require() failure inside a production one-shot task.
+RUN test -f apps/defense-api/generated/prisma-client/index.js \
+ && test -f apps/defense-api/dist/main.js \
+ && test -f apps/defense-api/scripts/job.mjs \
+ && test -f apps/defense-api/scripts/job-preflight.mjs \
+ && echo "defense-api build artifacts verified"
+
 RUN --mount=type=cache,id=pnpm-defense-api,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod --filter=@capiro/defense-api...
 
@@ -124,5 +134,10 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/defense-client/packa
 USER capiro
 WORKDIR /app/apps/defense-api
 EXPOSE 4400
-ENTRYPOINT ["/usr/bin/dumb-init", "--", "bash", "scripts/entrypoint.sh"]
+# `dumb-init` installed via apt under QEMU arm64 cross-build produces an amd64
+# binary inside an arm64 image and dies with `exec format error` (exit 255)
+# before any application code runs. `/bin/bash` from the base image is correctly
+# cross-compiled, and the entrypoint script already `exec`s the real process, so
+# PID-1 signal handling is preserved without dumb-init.
+ENTRYPOINT ["/bin/bash", "scripts/entrypoint.sh"]
 CMD ["serve"]
