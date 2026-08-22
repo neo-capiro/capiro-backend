@@ -18,6 +18,11 @@ export interface TenantHearingRelevanceJob {
   attempts: number;
 }
 
+export interface PersistedHearingInsightBatch {
+  hearingId: string;
+  publicInsightIds: string[];
+}
+
 interface CompletionRow {
   status: string;
   segmentRevision?: number;
@@ -147,57 +152,89 @@ export class HearingIntelligenceJobStore {
     return Boolean(rows[0]);
   }
 
+  /**
+   * Queue tenant/client matching only after public insight persistence. Normal
+   * operation is idempotent and leaves completed batches alone. An explicit
+   * rebuild may reset completed batches after client/watchlist/capability
+   * context changes, but never steals an active lease.
+   */
   async enqueueTenantJobs(input: {
     tenantIds: readonly string[];
     hearingId: string;
     publicInsightIds: readonly string[];
+    forceCompleted?: boolean;
   }): Promise<number> {
     const ids = [...new Set(input.publicInsightIds)].sort();
     if (!ids.length || !input.tenantIds.length) return 0;
     const key = batchKey(input.hearingId, ids);
-    return this.prisma.withSystem(async (tx) => {
-      let enqueued = 0;
-      for (const tenantId of [...new Set(input.tenantIds)]) {
-        const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
-          `INSERT INTO tenant_hearing_relevance_job (
-             tenant_id, hearing_id, public_insight_ids, batch_key, status,
-             attempts, due_at, created_at, updated_at
-           ) VALUES (
-             $1::uuid, $2, $3::text[], $4, 'pending', 0, now(), now(), now()
-           )
-           ON CONFLICT (tenant_id, batch_key) DO UPDATE SET
-             public_insight_ids=EXCLUDED.public_insight_ids,
-             status=CASE
-               WHEN tenant_hearing_relevance_job.status='failed' THEN 'pending'
-               ELSE tenant_hearing_relevance_job.status
-             END,
-             attempts=CASE
-               WHEN tenant_hearing_relevance_job.status='failed' THEN 0
-               ELSE tenant_hearing_relevance_job.attempts
-             END,
-             due_at=CASE
-               WHEN tenant_hearing_relevance_job.status='failed' THEN now()
-               ELSE tenant_hearing_relevance_job.due_at
-             END,
-             last_error=CASE
-               WHEN tenant_hearing_relevance_job.status='failed' THEN NULL
-               ELSE tenant_hearing_relevance_job.last_error
-             END,
-             completed_at=CASE
-               WHEN tenant_hearing_relevance_job.status='failed' THEN NULL
-               ELSE tenant_hearing_relevance_job.completed_at
-             END,
-             updated_at=now()
-           RETURNING id::text AS id`,
-          tenantId,
-          input.hearingId,
-          ids,
-          key,
-        );
-        if (rows[0]) enqueued += 1;
-      }
-      return enqueued;
-    });
+    return this.prisma.withSystem(
+      async (tx) => {
+        let enqueued = 0;
+        for (const tenantId of [...new Set(input.tenantIds)]) {
+          const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+            `INSERT INTO tenant_hearing_relevance_job (
+               tenant_id, hearing_id, public_insight_ids, batch_key, status,
+               attempts, due_at, created_at, updated_at
+             ) VALUES (
+               $1::uuid, $2, $3::text[], $4, 'pending', 0, now(), now(), now()
+             )
+             ON CONFLICT (tenant_id, batch_key) DO UPDATE SET
+               public_insight_ids=EXCLUDED.public_insight_ids,
+               status=CASE
+                 WHEN tenant_hearing_relevance_job.status='failed'
+                   OR ($5::boolean AND tenant_hearing_relevance_job.status='completed')
+                 THEN 'pending'
+                 ELSE tenant_hearing_relevance_job.status
+               END,
+               attempts=CASE
+                 WHEN tenant_hearing_relevance_job.status='failed'
+                   OR ($5::boolean AND tenant_hearing_relevance_job.status='completed')
+                 THEN 0
+                 ELSE tenant_hearing_relevance_job.attempts
+               END,
+               due_at=CASE
+                 WHEN tenant_hearing_relevance_job.status='failed'
+                   OR ($5::boolean AND tenant_hearing_relevance_job.status='completed')
+                 THEN now()
+                 ELSE tenant_hearing_relevance_job.due_at
+               END,
+               lease_owner=CASE
+                 WHEN tenant_hearing_relevance_job.status='leased'
+                 THEN tenant_hearing_relevance_job.lease_owner
+                 ELSE NULL
+               END,
+               lease_expires_at=CASE
+                 WHEN tenant_hearing_relevance_job.status='leased'
+                 THEN tenant_hearing_relevance_job.lease_expires_at
+                 ELSE NULL
+               END,
+               last_error=CASE
+                 WHEN tenant_hearing_relevance_job.status='failed'
+                   OR ($5::boolean AND tenant_hearing_relevance_job.status='completed')
+                 THEN NULL
+                 ELSE tenant_hearing_relevance_job.last_error
+               END,
+               completed_at=CASE
+                 WHEN tenant_hearing_relevance_job.status='failed'
+                   OR ($5::boolean AND tenant_hearing_relevance_job.status='completed')
+                 THEN NULL
+                 ELSE tenant_hearing_relevance_job.completed_at
+               END,
+               updated_at=now()
+             WHERE tenant_hearing_relevance_job.status <> 'leased'
+             RETURNING id::text AS id`,
+            tenantId,
+            input.hearingId,
+            ids,
+            key,
+            Boolean(input.forceCompleted),
+          );
+          if (rows[0]) enqueued += 1;
+        }
+        return enqueued;
+      },
+      { timeoutMs: 30_000 },
+    );
   }
 
   async claimTenant(workerId: string, limit = 25): Promise<TenantHearingRelevanceJob[]> {
@@ -285,30 +322,54 @@ export class HearingIntelligenceJobStore {
   }
 
   async backfillFinalSegments(limit = 100_000): Promise<number> {
-    const rows = await this.prisma.withSystem((tx) =>
-      tx.$queryRawUnsafe<Array<{ inserted: number }>>(
-        `WITH candidates AS (
-           SELECT s.id, s.capture_id, c.hearing_id, GREATEST(s.revision, 1) AS revision
-           FROM public_hearing_transcript_segment s
-           JOIN public_hearing_capture c ON c.id=s.capture_id
-           LEFT JOIN public_hearing_intelligence_job job ON job.segment_id=s.id
-           WHERE s.is_final=true AND job.id IS NULL
-           ORDER BY s.created_at ASC, s.id ASC
-           LIMIT $1
-         ), inserted AS (
-           INSERT INTO public_hearing_intelligence_job (
-             segment_id, capture_id, hearing_id, segment_revision, status,
-             attempts, due_at, created_at, updated_at
+    const rows = await this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRawUnsafe<Array<{ inserted: number }>>(
+          `WITH candidates AS (
+             SELECT s.id, s.capture_id, c.hearing_id, GREATEST(s.revision, 1) AS revision
+             FROM public_hearing_transcript_segment s
+             JOIN public_hearing_capture c ON c.id=s.capture_id
+             LEFT JOIN public_hearing_intelligence_job job ON job.segment_id=s.id
+             WHERE s.is_final=true AND job.id IS NULL
+             ORDER BY s.created_at ASC, s.id ASC
+             LIMIT $1
+           ), inserted AS (
+             INSERT INTO public_hearing_intelligence_job (
+               segment_id, capture_id, hearing_id, segment_revision, status,
+               attempts, due_at, created_at, updated_at
+             )
+             SELECT id, capture_id, hearing_id, revision, 'pending', 0, now(), now(), now()
+             FROM candidates
+             ON CONFLICT (segment_id) DO NOTHING
+             RETURNING 1
            )
-           SELECT id, capture_id, hearing_id, revision, 'pending', 0, now(), now(), now()
-           FROM candidates
-           ON CONFLICT (segment_id) DO NOTHING
-           RETURNING 1
-         )
-         SELECT COUNT(*)::int AS inserted FROM inserted`,
-        Math.max(1, Math.min(1_000_000, limit)),
-      ),
+           SELECT COUNT(*)::int AS inserted FROM inserted`,
+          Math.max(1, Math.min(1_000_000, limit)),
+        ),
+      { timeoutMs: 30_000 },
     );
     return rows[0]?.inserted ?? 0;
+  }
+
+  /**
+   * Manual rebuild source: persisted public facts grouped by hearing. This is
+   * intentionally not an automatic client-change trigger; a large CRM import
+   * should not synchronously fan out over historical hearings. The CLI invokes
+   * it deliberately, then the normal tenant queue performs the RLS-isolated work.
+   */
+  async persistedInsightBatches(limit = 1_000): Promise<PersistedHearingInsightBatch[]> {
+    return this.prisma.withSystem(
+      (tx) =>
+        tx.$queryRawUnsafe<PersistedHearingInsightBatch[]>(
+          `SELECT hearing_id AS "hearingId",
+                  array_agg(id ORDER BY sequence ASC, id ASC) AS "publicInsightIds"
+           FROM public_hearing_insight
+           GROUP BY hearing_id
+           ORDER BY hearing_id
+           LIMIT $1`,
+          Math.max(1, Math.min(10_000, limit)),
+        ),
+      { timeoutMs: 30_000 },
+    );
   }
 }
