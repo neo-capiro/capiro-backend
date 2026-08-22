@@ -5,7 +5,11 @@ import type {
 } from './public-hearing-intelligence.types.js';
 import { PublicHearingIntelligenceProcessor } from './public-hearing-intelligence.processor.js';
 import { TenantHearingRelevanceProcessor } from './tenant-hearing-relevance.processor.js';
-import { HearingIntelligenceJobStore, type PublicHearingIntelligenceJob, type TenantHearingRelevanceJob } from './hearing-intelligence-job.store.js';
+import {
+  HearingIntelligenceJobStore,
+  type PublicHearingIntelligenceJob,
+  type TenantHearingRelevanceJob,
+} from './hearing-intelligence-job.store.js';
 import { PostgresPublicHearingInsightStore } from './postgres-public-hearing-insight.store.js';
 import { PostgresTenantHearingContextProvider } from './postgres-tenant-hearing-context.provider.js';
 import { PostgresTenantHearingRelevanceStore } from './postgres-tenant-hearing-relevance.store.js';
@@ -136,6 +140,30 @@ export class HearingIntelligenceWorker {
 
   async backfill(limit = 100_000): Promise<number> {
     return this.jobs.backfillFinalSegments(limit);
+  }
+
+  /**
+   * Re-score already-persisted public facts after tenant client context changes.
+   * This never re-extracts or rewrites public truth; it only resets completed
+   * tenant relevance batches and lets the normal FORCE-RLS queue process them.
+   */
+  async backfillTenantRelevance(
+    hearingLimit = 1_000,
+  ): Promise<{ hearings: number; tenantIds: number; jobs: number }> {
+    const [tenantIds, batches] = await Promise.all([
+      this.contexts.activeTenantIds(),
+      this.jobs.persistedInsightBatches(hearingLimit),
+    ]);
+    let jobs = 0;
+    for (const batch of batches) {
+      jobs += await this.jobs.enqueueTenantJobs({
+        tenantIds,
+        hearingId: batch.hearingId,
+        publicInsightIds: batch.publicInsightIds,
+        forceCompleted: true,
+      });
+    }
+    return { hearings: batches.length, tenantIds: tenantIds.length, jobs };
   }
 
   private async processPublicJob(
