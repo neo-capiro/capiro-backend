@@ -29,6 +29,11 @@ describe('Outreach V3 governed templates', () => {
       includeStaff: true,
       includePrincipals: false,
     };
+    // These fixtures only need to carry the tell-tale strings the assertions
+    // below check are stripped — they intentionally use `as unknown as` rather
+    // than chasing the full resolved target/context ref schema (locator,
+    // snapshotHash, etc.), since templateSpecFromCampaign() never reads past
+    // `targeting.criteria` / drops these arrays entirely either way.
     campaign.targeting.selectedTargetRefs = [{
       targetKey: 'directory:person:secret',
       source: 'directory',
@@ -39,7 +44,7 @@ describe('Outreach V3 governed templates', () => {
       organization: null,
       email: 'private@example.com',
       metadata: {},
-    }] as typeof campaign.targeting.selectedTargetRefs;
+    }] as unknown as typeof campaign.targeting.selectedTargetRefs;
     campaign.context.requiredPolicyRefs = [{
       contextKey: 'document:secret',
       source: 'document',
@@ -49,7 +54,7 @@ describe('Outreach V3 governed templates', () => {
       excerpt: null,
       scope: { kind: 'firm' },
       metadata: {},
-    }] as typeof campaign.context.requiredPolicyRefs;
+    }] as unknown as typeof campaign.context.requiredPolicyRefs;
 
     const template = templateSpecFromCampaign(campaign);
 

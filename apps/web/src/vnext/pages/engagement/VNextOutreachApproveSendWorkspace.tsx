@@ -412,7 +412,7 @@ export function VNextOutreachApproveSendWorkspace({
       return <SendingScreen intent={intent} plan={plan} drafts={drafts} cancelBusy={cancelIntentMutation.isPending} error={operationError} onCancel={() => cancelIntentMutation.mutate()} onRefresh={() => refreshIntentMutation.mutate()} />;
     }
     if (view === 'results' && intent) {
-      return <ResultsScreen intent={intent} plan={plan} drafts={drafts} replies={repliesQuery.data ?? []} learningBusy={learningMutation.isPending} learningResult={Boolean(learningMutation.data)} error={operationError} onRefresh={() => refreshIntentMutation.mutate()} onOpenDraft={() => onStepChange('drafts')} onProposeLearning={(replyId, learning) => learningMutation.mutate({ replyId, learning })} />;
+      return <ResultsScreen sessionId={sessionId} intent={intent} plan={plan} drafts={drafts} replies={repliesQuery.data ?? []} learningBusy={learningMutation.isPending} learningResult={Boolean(learningMutation.data)} error={operationError} onRefresh={() => refreshIntentMutation.mutate()} onOpenDraft={() => onStepChange('drafts')} onProposeLearning={(replyId, learning) => learningMutation.mutate({ replyId, learning })} />;
     }
     return null;
   };

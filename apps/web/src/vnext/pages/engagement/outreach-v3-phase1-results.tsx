@@ -155,6 +155,7 @@ export function MetricTile({ value, label, tone }: { value: number; label: strin
 }
 
 export function ResultsScreen({
+  sessionId,
   intent,
   plan,
   drafts,
@@ -166,6 +167,15 @@ export function ResultsScreen({
   onOpenDraft,
   onProposeLearning,
 }: {
+  /**
+   * The canonical Outreach V3 session id, passed explicitly by the caller
+   * (VNextOutreachApproveSendWorkspace) rather than derived from
+   * `intent.outreachRecordId`. outreachRecordId identifies the send-intent's
+   * own record, not the session — see closeout runbook 3.10/5.13: template
+   * save/update must not depend on that being the same id as a hidden
+   * coincidence.
+   */
+  sessionId: string;
   intent: OutreachV3SendIntentView;
   plan: OutreachV3GenerationPlan | null;
   drafts: OutreachV3DraftArtifact[];
@@ -190,7 +200,6 @@ export function ResultsScreen({
   const skipped = Number(totals.skipped ?? 0);
   const held = Number(totals.held ?? 0);
   const clean = failed === 0 && held === 0;
-  const templateSessionId = intent.outreachRecordId;
   const templateName = drafts[0]?.current?.subject?.trim() || 'Outreach campaign';
 
   return (
@@ -263,8 +272,8 @@ export function ResultsScreen({
       </section>
 
       {error ? <p className="ov3p1-error" role="alert">{error}</p> : null}
-      {templateMode === 'save' ? <OutreachTemplateSaveDialog sessionId={templateSessionId} defaultName={templateName} selectedClientId={clientFilter.selectedClientId} onClose={() => setTemplateMode(null)} /> : null}
-      {templateMode === 'update' ? <OutreachTemplateUpdateDialog sessionId={templateSessionId} selectedClientId={clientFilter.selectedClientId} onClose={() => setTemplateMode(null)} /> : null}
+      {templateMode === 'save' ? <OutreachTemplateSaveDialog sessionId={sessionId} defaultName={templateName} selectedClientId={clientFilter.selectedClientId} onClose={() => setTemplateMode(null)} /> : null}
+      {templateMode === 'update' ? <OutreachTemplateUpdateDialog sessionId={sessionId} selectedClientId={clientFilter.selectedClientId} onClose={() => setTemplateMode(null)} /> : null}
     </div>
   );
 }

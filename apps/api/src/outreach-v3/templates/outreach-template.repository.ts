@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import type { TenantContext } from '@capiro/shared';
+import { isTenantAdmin, type TenantContext } from '@capiro/shared';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
 import type { OutreachTemplateScope, OutreachTemplateSpecV1 } from './outreach-template.contract.js';
 
@@ -47,9 +47,20 @@ export interface OutreachTemplateApplicationRow {
   templateVersionId: string;
   sessionId: string;
   requestKey: string;
+  requestFingerprint: string;
   templateContentHash: string;
   resultingStateVersion: number;
   createdAt: Date;
+}
+
+/** Postgres unique_violation. Used to detect and replay a losing idempotent race. */
+const UNIQUE_VIOLATION = '23505';
+
+function isUniqueViolation(error: unknown): boolean {
+  const code = (error as { code?: unknown; meta?: { code?: unknown } } | null)?.code;
+  if (code === UNIQUE_VIOLATION || code === 'P2002') return true;
+  const message = error instanceof Error ? error.message : '';
+  return message.includes(UNIQUE_VIOLATION) || message.includes('outreach_v3_template_applications');
 }
 
 function templateNotFound(): OutreachCommandError {
@@ -62,12 +73,27 @@ function templateNotFound(): OutreachCommandError {
 
 @Injectable()
 export class OutreachTemplateRepository {
+  /**
+   * Visibility rule (closeout runbook 3.2 / 3.5):
+   *  - private templates: owner only, regardless of RLS (capiro_app bypasses
+   *    RLS, so this predicate — not the migration's policy — is the real
+   *    boundary for this app connection);
+   *  - firm/client templates: visible to any tenant user (client-scoped ones
+   *    are additionally client-filtered below), but a DRAFT-ONLY shared
+   *    template (no published_version_id yet) is hidden from everyone except
+   *    its owner or a tenant admin — an ordinary reader has nothing safe to
+   *    see there yet.
+   * Client-level authorization (grants/ethical walls) is enforced separately
+   * by the service via CapabilityAuthorizationService before/around this
+   * call; a client_id match here is identity, not authorization.
+   */
   async listVisible(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
     input: { includeArchived: boolean; clientId: string | null },
   ): Promise<OutreachTemplateListRow[]> {
     const clientId = input.clientId ?? '';
+    const isAdmin = isTenantAdmin(ctx.role);
     return tx.$queryRaw<OutreachTemplateListRow[]>`
       SELECT
         t.id,
@@ -85,7 +111,11 @@ export class OutreachTemplateRepository {
         t.archived_at AS "archivedAt",
         draft.version_number AS "draftVersionNumber",
         published.version_number AS "publishedVersionNumber",
-        COALESCE(published.template_spec_jsonb, draft.template_spec_jsonb) AS "previewSpecJsonb"
+        CASE
+          WHEN t.owner_user_id = CAST(${ctx.userId} AS uuid) OR ${isAdmin}
+            THEN COALESCE(published.template_spec_jsonb, draft.template_spec_jsonb)
+          ELSE published.template_spec_jsonb
+        END AS "previewSpecJsonb"
       FROM outreach_v3_templates t
       LEFT JOIN outreach_v3_template_versions draft
         ON draft.id = t.current_draft_version_id
@@ -95,6 +125,15 @@ export class OutreachTemplateRepository {
        AND published.tenant_id = t.tenant_id
       WHERE t.tenant_id = CAST(${ctx.tenantId} AS uuid)
         AND (${input.includeArchived} OR t.status = 'active')
+        AND (
+          t.scope <> 'private'
+          OR t.owner_user_id = CAST(${ctx.userId} AS uuid)
+        )
+        AND (
+          t.owner_user_id = CAST(${ctx.userId} AS uuid)
+          OR ${isAdmin}
+          OR t.published_version_id IS NOT NULL
+        )
         AND (
           t.scope <> 'client'
           OR (
@@ -107,6 +146,12 @@ export class OutreachTemplateRepository {
     `;
   }
 
+  /**
+   * Same owner-only-private / draft-hidden-from-non-managers rule as
+   * listVisible(). `clientId` is the CALLER's asserted current client, used
+   * only to decide whether a client-scoped template is even in scope for
+   * this request — it is not authorization (see class doc above).
+   */
   async getVisible(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
@@ -114,6 +159,7 @@ export class OutreachTemplateRepository {
     clientId: string | null,
   ): Promise<OutreachTemplateRow> {
     const requestedClientId = clientId ?? '';
+    const isAdmin = isTenantAdmin(ctx.role);
     const rows = await tx.$queryRaw<OutreachTemplateRow[]>`
       SELECT
         id,
@@ -132,6 +178,16 @@ export class OutreachTemplateRepository {
       FROM outreach_v3_templates
       WHERE id = CAST(${templateId} AS uuid)
         AND tenant_id = CAST(${ctx.tenantId} AS uuid)
+        AND (
+          scope = 'private'
+          OR owner_user_id = CAST(${ctx.userId} AS uuid)
+          OR ${isAdmin}
+          OR published_version_id IS NOT NULL
+        )
+        AND (
+          scope <> 'private'
+          OR owner_user_id = CAST(${ctx.userId} AS uuid)
+        )
         AND (
           scope = 'firm'
           OR owner_user_id = CAST(${ctx.userId} AS uuid)
@@ -148,11 +204,20 @@ export class OutreachTemplateRepository {
     return row;
   }
 
-  async lockOwned(
+  /**
+   * Locks a template row for a mutating operation (version/publish/metadata/
+   * archive). The owner may always manage their own template. A tenant admin
+   * may additionally manage a FIRM or CLIENT (i.e. shared, non-private)
+   * template — private templates remain owner-only even for admins, so an
+   * admin cannot reach into another user's private draft (closeout runbook
+   * 3.4: "Firm/client publication requires an authorized administrator").
+   */
+  async lockManaged(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
     templateId: string,
   ): Promise<OutreachTemplateRow> {
+    const isAdmin = isTenantAdmin(ctx.role);
     const rows = await tx.$queryRaw<OutreachTemplateRow[]>`
       SELECT
         id,
@@ -171,7 +236,10 @@ export class OutreachTemplateRepository {
       FROM outreach_v3_templates
       WHERE id = CAST(${templateId} AS uuid)
         AND tenant_id = CAST(${ctx.tenantId} AS uuid)
-        AND owner_user_id = CAST(${ctx.userId} AS uuid)
+        AND (
+          owner_user_id = CAST(${ctx.userId} AS uuid)
+          OR (${isAdmin} AND scope <> 'private')
+        )
       FOR UPDATE
     `;
     const row = rows[0];
@@ -179,10 +247,17 @@ export class OutreachTemplateRepository {
     return row;
   }
 
+  /**
+   * `onlyPublished` must be true for any caller who is not the owner or an
+   * admin (closeout runbook 3.5: "Ordinary authorized user: may see only the
+   * current published version and safe card metadata" — draft rows, their
+   * IDs, and full history are owner/admin-only).
+   */
   async listVersions(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
     templateId: string,
+    onlyPublished: boolean,
   ): Promise<OutreachTemplateVersionRow[]> {
     return tx.$queryRaw<OutreachTemplateVersionRow[]>`
       SELECT
@@ -201,6 +276,7 @@ export class OutreachTemplateRepository {
       FROM outreach_v3_template_versions
       WHERE tenant_id = CAST(${ctx.tenantId} AS uuid)
         AND template_id = CAST(${templateId} AS uuid)
+        AND (${onlyPublished} = false OR lifecycle = 'published')
       ORDER BY version_number DESC
       LIMIT 100
     `;
@@ -441,6 +517,11 @@ export class OutreachTemplateRepository {
     template: OutreachTemplateRow,
     input: { name: string; description: string | null; scope: OutreachTemplateScope; clientId: string | null },
   ): Promise<OutreachTemplateRow> {
+    // `template` was already fetched+authorized by lockManaged() in this same
+    // transaction; this WHERE re-applies the identical owner-or-admin-on-shared
+    // predicate (against the row's CURRENT scope) rather than trusting the
+    // earlier read alone.
+    const isAdmin = isTenantAdmin(ctx.role);
     const rows = await tx.$queryRaw<OutreachTemplateRow[]>`
       UPDATE outreach_v3_templates
       SET name = ${input.name},
@@ -450,7 +531,10 @@ export class OutreachTemplateRepository {
           updated_at = NOW()
       WHERE id = CAST(${template.id} AS uuid)
         AND tenant_id = CAST(${ctx.tenantId} AS uuid)
-        AND owner_user_id = CAST(${ctx.userId} AS uuid)
+        AND (
+          owner_user_id = CAST(${ctx.userId} AS uuid)
+          OR (${isAdmin} AND scope <> 'private')
+        )
       RETURNING
         id,
         tenant_id AS "tenantId",
@@ -476,12 +560,16 @@ export class OutreachTemplateRepository {
     ctx: TenantContext,
     template: OutreachTemplateRow,
   ): Promise<void> {
+    const isAdmin = isTenantAdmin(ctx.role);
     await tx.$executeRaw`
       UPDATE outreach_v3_templates
       SET status = 'archived', archived_at = NOW(), updated_at = NOW()
       WHERE id = CAST(${template.id} AS uuid)
         AND tenant_id = CAST(${ctx.tenantId} AS uuid)
-        AND owner_user_id = CAST(${ctx.userId} AS uuid)
+        AND (
+          owner_user_id = CAST(${ctx.userId} AS uuid)
+          OR (${isAdmin} AND scope <> 'private')
+        )
     `;
   }
 
@@ -497,6 +585,7 @@ export class OutreachTemplateRepository {
         template_version_id AS "templateVersionId",
         session_id AS "sessionId",
         request_key AS "requestKey",
+        request_fingerprint AS "requestFingerprint",
         template_content_hash AS "templateContentHash",
         resulting_state_version AS "resultingStateVersion",
         created_at AS "createdAt"
@@ -509,6 +598,15 @@ export class OutreachTemplateRepository {
     return rows[0] ?? null;
   }
 
+  /**
+   * Inserts the application + its session provenance row. If a CONCURRENT
+   * call already committed the same (tenant, actor, request_key) — the
+   * "losing" side of an idempotent race — the unique constraint on
+   * outreach_v3_template_applications raises 23505 here rather than letting
+   * a duplicate campaign through. That violation is caught and converted into
+   * a lookup of the winner so the loser can replay it instead of surfacing a
+   * raw database error (closeout runbook 3.8).
+   */
   async recordApplication(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
@@ -518,34 +616,51 @@ export class OutreachTemplateRepository {
       version: OutreachTemplateVersionRow;
       sessionId: string;
       requestKey: string;
+      requestFingerprint: string;
       commandBatch: unknown;
       resultingStateVersion: number;
     },
-  ): Promise<OutreachTemplateApplicationRow> {
+  ): Promise<{ application: OutreachTemplateApplicationRow; replayed: boolean }> {
     const commandBatchJson = JSON.stringify(input.commandBatch);
-    const rows = await tx.$queryRaw<OutreachTemplateApplicationRow[]>`
-      INSERT INTO outreach_v3_template_applications (
-        id, tenant_id, template_id, template_version_id, session_id,
-        applied_by_user_id, request_key, command_batch_jsonb,
-        template_content_hash, resulting_state_version
-      ) VALUES (
-        CAST(${input.applicationId} AS uuid), CAST(${ctx.tenantId} AS uuid),
-        CAST(${input.template.id} AS uuid), CAST(${input.version.id} AS uuid),
-        CAST(${input.sessionId} AS uuid), CAST(${ctx.userId} AS uuid),
-        CAST(${input.requestKey} AS uuid), CAST(${commandBatchJson} AS jsonb),
-        ${input.version.contentHash}, ${input.resultingStateVersion}
-      )
-      RETURNING
-        id,
-        template_id AS "templateId",
-        template_version_id AS "templateVersionId",
-        session_id AS "sessionId",
-        request_key AS "requestKey",
-        template_content_hash AS "templateContentHash",
-        resulting_state_version AS "resultingStateVersion",
-        created_at AS "createdAt"
-    `;
-    const application = rows[0];
+    let application: OutreachTemplateApplicationRow | undefined;
+    try {
+      const rows = await tx.$queryRaw<OutreachTemplateApplicationRow[]>`
+        INSERT INTO outreach_v3_template_applications (
+          id, tenant_id, template_id, template_version_id, session_id,
+          applied_by_user_id, request_key, request_fingerprint, command_batch_jsonb,
+          template_content_hash, resulting_state_version
+        ) VALUES (
+          CAST(${input.applicationId} AS uuid), CAST(${ctx.tenantId} AS uuid),
+          CAST(${input.template.id} AS uuid), CAST(${input.version.id} AS uuid),
+          CAST(${input.sessionId} AS uuid), CAST(${ctx.userId} AS uuid),
+          CAST(${input.requestKey} AS uuid), ${input.requestFingerprint}, CAST(${commandBatchJson} AS jsonb),
+          ${input.version.contentHash}, ${input.resultingStateVersion}
+        )
+        RETURNING
+          id,
+          template_id AS "templateId",
+          template_version_id AS "templateVersionId",
+          session_id AS "sessionId",
+          request_key AS "requestKey",
+          request_fingerprint AS "requestFingerprint",
+          template_content_hash AS "templateContentHash",
+          resulting_state_version AS "resultingStateVersion",
+          created_at AS "createdAt"
+      `;
+      application = rows[0];
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      const winner = await this.findApplicationByRequestKey(tx, ctx, input.requestKey);
+      if (!winner) throw error;
+      if (winner.requestFingerprint !== input.requestFingerprint) {
+        throw new OutreachCommandError(
+          'OUTREACH_TEMPLATE_REQUEST_REUSE',
+          'This template request key was already used for a different request.',
+          409,
+        );
+      }
+      return { application: winner, replayed: true };
+    }
     if (!application) throw new Error('OUTREACH_TEMPLATE_APPLICATION_CREATE_FAILED');
     await tx.$executeRaw`
       INSERT INTO outreach_v3_session_template_provenance (
@@ -557,6 +672,47 @@ export class OutreachTemplateRepository {
         CAST(${application.id} AS uuid), CAST(${ctx.userId} AS uuid)
       )
     `;
-    return application;
+    return { application, replayed: false };
+  }
+
+  /**
+   * Append-only, safe-metadata-only audit row (closeout runbook 3.7). Never
+   * pass confidential spec content (goal text, style samples, campaign angle,
+   * etc.) as `safeMetadata` — identifiers, scope, and outcome only.
+   */
+  async recordAudit(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    input: {
+      id: string;
+      action:
+        | 'create'
+        | 'create_version'
+        | 'publish'
+        | 'update_metadata'
+        | 'archive'
+        | 'restore'
+        | 'duplicate'
+        | 'use'
+        | 'denied';
+      templateId?: string | null;
+      templateVersionId?: string | null;
+      scope?: OutreachTemplateScope | null;
+      outcome: 'allowed' | 'denied';
+      reasonCode?: string | null;
+      safeMetadata?: Record<string, string | number | boolean | null>;
+    },
+  ): Promise<void> {
+    const metadataJson = JSON.stringify(input.safeMetadata ?? {});
+    await tx.$executeRaw`
+      INSERT INTO outreach_v3_template_audit_log (
+        id, tenant_id, actor_user_id, action, template_id, template_version_id,
+        scope, outcome, reason_code, safe_metadata
+      ) VALUES (
+        CAST(${input.id} AS uuid), CAST(${ctx.tenantId} AS uuid), CAST(${ctx.userId} AS uuid),
+        ${input.action}, CAST(${input.templateId ?? null} AS uuid), CAST(${input.templateVersionId ?? null} AS uuid),
+        ${input.scope ?? null}, ${input.outcome}, ${input.reasonCode ?? null}, CAST(${metadataJson} AS jsonb)
+      )
+    `;
   }
 }

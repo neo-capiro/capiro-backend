@@ -32,6 +32,29 @@ export interface OutreachTemplateSpec {
   styleSamples: Array<{ label: string | null; subject: string | null; body: string }>;
 }
 
+/** Safe card-list projection only — never style samples or long-form prose. */
+export interface OutreachTemplateCardSummary {
+  topic: string | null;
+  sponsorKind: OutreachTemplateSpec['sponsor']['kind'];
+  deliveryPattern: OutreachTemplateSpec['delivery']['pattern'];
+  personalization: OutreachTemplateSpec['delivery']['personalization'];
+  tone: string | null;
+  length: OutreachTemplateSpec['strategy']['length'];
+  hasExplicitAsk: boolean;
+  styleSampleCount: number;
+}
+
+/** Server-computed — never infer these from ownerUserId/scope in the UI. */
+export interface OutreachTemplateCapabilities {
+  canUse: boolean;
+  canInspect: boolean;
+  canEdit: boolean;
+  canCreateVersion: boolean;
+  canPublish: boolean;
+  canArchive: boolean;
+  canRestore: boolean;
+}
+
 export interface OutreachTemplateSummary {
   id: string;
   ownerUserId: string;
@@ -44,7 +67,8 @@ export interface OutreachTemplateSummary {
   publishedVersionId: string | null;
   draftVersionNumber: number | null;
   publishedVersionNumber: number | null;
-  previewSpec: OutreachTemplateSpec | null;
+  previewSummary: OutreachTemplateCardSummary | null;
+  capabilities: OutreachTemplateCapabilities;
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
@@ -65,8 +89,12 @@ export interface OutreachTemplateVersion {
 }
 
 export interface OutreachTemplateDetail {
-  template: Omit<OutreachTemplateSummary, 'draftVersionNumber' | 'publishedVersionNumber' | 'previewSpec'>;
+  template: Omit<
+    OutreachTemplateSummary,
+    'draftVersionNumber' | 'publishedVersionNumber' | 'previewSummary' | 'capabilities'
+  >;
   versions: OutreachTemplateVersion[];
+  capabilities: OutreachTemplateCapabilities;
 }
 
 export interface OutreachTemplateUseResult {

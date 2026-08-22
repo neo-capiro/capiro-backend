@@ -31,9 +31,16 @@ export function OutreachTemplateUpdateDialog({
     queryFn: () => listOutreachTemplates(api, { clientId: selectedClientId }),
     retry: false,
   });
+  // Only offer templates the actor can actually create a version on — the
+  // server enforces this regardless, but the picker should not invite a
+  // guaranteed-to-fail choice (closeout runbook 3.4/5.14).
+  const manageable = useMemo(
+    () => (templates.data ?? []).filter((template) => template.capabilities.canCreateVersion),
+    [templates.data],
+  );
   const selected = useMemo(
-    () => (templates.data ?? []).find((template) => template.id === selectedId) ?? null,
-    [selectedId, templates.data],
+    () => manageable.find((template) => template.id === selectedId) ?? null,
+    [selectedId, manageable],
   );
   const createVersion = useMutation({
     mutationFn: () => createOutreachTemplateVersionFromSession(api, selectedId, sessionId),
@@ -85,9 +92,10 @@ export function OutreachTemplateUpdateDialog({
         </div>
       ) : (
         <div className="uui-template-dialog-fields">
-          <label>Template<select autoFocus value={selectedId} onChange={(event) => setSelectedId(event.target.value)}><option value="">Choose a template</option>{(templates.data ?? []).map((template) => <option key={template.id} value={template.id}>{template.name} · {template.publishedVersionNumber ? `published v${template.publishedVersionNumber}` : 'draft only'}</option>)}</select></label>
+          <label>Template<select autoFocus value={selectedId} onChange={(event) => setSelectedId(event.target.value)}><option value="">Choose a template</option>{manageable.map((template) => <option key={template.id} value={template.id}>{template.name} · {template.publishedVersionNumber ? `published v${template.publishedVersionNumber}` : 'draft only'}</option>)}</select></label>
           <p>This snapshots the current reusable setup into a new draft version. It does not alter the current published version.</p>
           {templates.isLoading ? <p><Loader2 className="ov3p1-spin" size={13} /> Loading templates…</p> : null}
+          {!templates.isLoading && !manageable.length ? <p>You do not manage any templates yet. Save this campaign as a new template instead.</p> : null}
         </div>
       )}
       {error ? <p className="ov3p1-error" role="alert">{error}</p> : null}

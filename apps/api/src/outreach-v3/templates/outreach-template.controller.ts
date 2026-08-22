@@ -43,6 +43,12 @@ class ListTemplatesQueryDto {
   clientId?: string;
 }
 
+class GetTemplateQueryDto {
+  @IsOptional()
+  @IsUUID()
+  clientId?: string;
+}
+
 class TemplateMetadataDto {
   @IsString()
   @MaxLength(160)
@@ -101,9 +107,9 @@ export class OutreachTemplateController {
   get(
     @CurrentTenant() ctx: TenantContext,
     @Param('templateId', ParseUUIDPipe) templateId: string,
-    @Query('clientId') clientId?: string,
+    @Query() query: GetTemplateQueryDto,
   ) {
-    return this.templates.get(ctx, templateId, clientId);
+    return this.templates.get(ctx, templateId, query.clientId);
   }
 
   @Post('from-session')

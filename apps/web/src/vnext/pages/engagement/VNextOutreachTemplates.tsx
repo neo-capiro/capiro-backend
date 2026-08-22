@@ -34,15 +34,13 @@ function requestKey(): string {
 }
 
 function templateSummary(template: OutreachTemplateSummary): string {
-  const spec = template.previewSpec;
-  if (!spec) return 'No published or draft strategy is available.';
+  const summary = template.previewSummary;
+  if (!summary) return 'No published or draft strategy is available.';
   const values = [
-    spec.goal.topic,
-    spec.strategy.tone ? `${spec.strategy.tone} tone` : null,
-    spec.strategy.length !== 'undecided' ? `${spec.strategy.length} length` : null,
-    spec.delivery.pattern !== 'undecided'
-      ? spec.delivery.pattern.replaceAll('_', ' ')
-      : null,
+    summary.topic,
+    summary.tone ? `${summary.tone} tone` : null,
+    summary.length !== 'undecided' ? `${summary.length} length` : null,
+    summary.deliveryPattern !== 'undecided' ? summary.deliveryPattern.replaceAll('_', ' ') : null,
   ].filter(Boolean);
   return values.join(' · ') || 'Reusable campaign strategy and voice.';
 }
@@ -176,10 +174,10 @@ export function VNextOutreachTemplates({
           <p>{template.description || templateSummary(template)}</p>
           <dl><div><dt>Approach</dt><dd>{templateSummary(template)}</dd></div><div><dt>Fresh on use</dt><dd>Targets, evidence and context</dd></div></dl>
           <footer>
-            <button type="button" className="uui-button--primary" disabled={!published || busy} onClick={() => useTemplate.mutate(template)}>{busy ? <Loader2 className="uui-spin" size={14} /> : <Play size={14} />}{published ? 'Use template' : 'Publish before use'}</button>
-            {template.currentDraftVersionId ? <button type="button" className="uui-button" disabled={publish.isPending} onClick={() => publish.mutate(template.id)}><Check size={14} />Publish draft</button> : null}
-            <button type="button" className="uui-button" onClick={() => setEditing(template)}><Pencil size={14} />Edit</button>
-            <button type="button" className="uui-button uui-template-card__archive" disabled={archive.isPending} onClick={() => archive.mutate(template.id)}><Archive size={14} />Archive</button>
+            <button type="button" className="uui-button--primary" disabled={!template.capabilities.canUse || busy} onClick={() => useTemplate.mutate(template)}>{busy ? <Loader2 className="uui-spin" size={14} /> : <Play size={14} />}{published ? 'Use template' : 'Publish before use'}</button>
+            {template.capabilities.canPublish && template.currentDraftVersionId ? <button type="button" className="uui-button" disabled={publish.isPending} onClick={() => publish.mutate(template.id)}><Check size={14} />Publish draft</button> : null}
+            {template.capabilities.canEdit ? <button type="button" className="uui-button" onClick={() => setEditing(template)}><Pencil size={14} />Edit</button> : null}
+            {template.capabilities.canArchive ? <button type="button" className="uui-button uui-template-card__archive" disabled={archive.isPending} onClick={() => archive.mutate(template.id)}><Archive size={14} />Archive</button> : null}
           </footer>
         </article>;
       })}</div> : null}
