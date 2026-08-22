@@ -158,6 +158,34 @@ describe('Outreach V3 Phase 1 view model', () => {
     ).toBe('draft-review');
   });
 
+  it('tracks the guided review-packet flow straight to generation, never "write two samples"', () => {
+    // The guided/template-first workflow's review-packet approval authorizes
+    // full generation for every recipient directly — it never writes the
+    // "representative sample" drafts the classic approach flow expects, so
+    // sampleCount is always 0 here even though generation was authorized.
+    expect(
+      deriveOutreachPhase1View({
+        step: 'drafts',
+        plan,
+        drafts: [],
+        approach,
+        job: null,
+        intent: null,
+      }),
+    ).toBe('generating');
+
+    expect(
+      deriveOutreachPhase1View({
+        step: 'drafts',
+        plan,
+        drafts: [draft('d1'), draft('d2'), draft('d3')],
+        approach,
+        job: null,
+        intent: null,
+      }),
+    ).toBe('draft-review');
+  });
+
   it('renders send progress and results from the same durable intent', () => {
     expect(
       deriveOutreachPhase1View({

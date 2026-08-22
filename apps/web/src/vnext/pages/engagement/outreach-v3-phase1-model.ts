@@ -48,9 +48,15 @@ export function deriveOutreachPhase1View(input: {
   if (intent) return isSendTerminal(intent.status) ? 'results' : 'sending';
   if (step === 'send') return 'send';
 
+  // The guided/template-first workflow's review-packet approval never writes
+  // representative-sample drafts at all (it authorizes full generation for
+  // every recipient directly) — so sampleCount is always 0 for that path.
+  // Only fall back to the "write two samples" prompt when there is ALSO no
+  // approval of any kind; an existing approach (of either gate version) means
+  // generation was already authorized and should be tracked below instead.
   const sampleKeys = new Set(plan?.representativeSampleKeys ?? []);
   const sampleCount = drafts.filter((draft) => sampleKeys.has(draft.generationKey)).length;
-  if (!sampleCount) return 'approach-start';
+  if (!sampleCount && !approach) return 'approach-start';
   if (!approach) return 'approach-review';
 
   const expected = plan?.slots.length ?? drafts.length;
