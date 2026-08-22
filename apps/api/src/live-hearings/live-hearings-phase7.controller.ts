@@ -5,6 +5,7 @@ import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import { LiveHearingsPhase7PublicGuard } from './live-hearings-phase7-public.guard.js';
 import { LiveHearingsPhase7ScheduleGuard } from './live-hearings-phase7-schedule.guard.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 
@@ -52,6 +53,7 @@ export class LiveHearingsPhase7Controller {
   constructor(
     private readonly phase7: LiveHearingsPhase7Service,
     private readonly scheduleGuard: LiveHearingsPhase7ScheduleGuard,
+    private readonly publicGuard: LiveHearingsPhase7PublicGuard,
   ) {}
 
   @Get('events/:id/room')
@@ -60,7 +62,8 @@ export class LiveHearingsPhase7Controller {
   }
 
   @Get('events/:id/transcript')
-  transcript(@Param('id') id: string, @Query() query: TranscriptQueryDto) {
+  async transcript(@Param('id') id: string, @Query() query: TranscriptQueryDto) {
+    await this.publicGuard.assertPublic(id);
     return this.phase7.transcript(id, query);
   }
 
