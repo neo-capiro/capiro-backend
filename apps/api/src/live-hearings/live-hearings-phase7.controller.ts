@@ -5,6 +5,7 @@ import type { TenantContext } from '@capiro/shared';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
+import { LiveHearingsPhase7ScheduleGuard } from './live-hearings-phase7-schedule.guard.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 
 class TranscriptQueryDto {
@@ -48,7 +49,10 @@ class PageQueryDto {
 @UseGuards(RolesGuard)
 @Roles('standard_user')
 export class LiveHearingsPhase7Controller {
-  constructor(private readonly phase7: LiveHearingsPhase7Service) {}
+  constructor(
+    private readonly phase7: LiveHearingsPhase7Service,
+    private readonly scheduleGuard: LiveHearingsPhase7ScheduleGuard,
+  ) {}
 
   @Get('events/:id/room')
   room(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
@@ -66,7 +70,11 @@ export class LiveHearingsPhase7Controller {
   }
 
   @Post('events/:id/schedule')
-  schedule(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+  async schedule(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
+    // The request boundary is intentionally stricter than the legacy client:
+    // resolution_state can never override BROWSER_ONLY / LICENSE_REQUIRED /
+    // BLOCKED capture policy. REVIEW_REQUIRED alone may enter preflight.
+    await this.scheduleGuard.assertSchedulable(id);
     return this.phase7.schedule(ctx, id);
   }
 
