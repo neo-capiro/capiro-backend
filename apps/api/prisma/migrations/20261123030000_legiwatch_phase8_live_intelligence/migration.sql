@@ -267,21 +267,31 @@ BEGIN
     hearing_id = EXCLUDED.hearing_id,
     segment_revision = EXCLUDED.segment_revision,
     status = CASE
+      -- Never steal an active lease. The stale worker's revision-fenced write
+      -- returns false; completePublic then observes the newer revision and
+      -- requeues atomically after releasing the lease.
+      WHEN public_hearing_intelligence_job.status = 'leased'
+      THEN 'leased'
       WHEN public_hearing_intelligence_job.segment_revision <> EXCLUDED.segment_revision
-        OR public_hearing_intelligence_job.status IN ('completed', 'failed')
+        OR public_hearing_intelligence_job.status = 'failed'
       THEN 'pending'
       ELSE public_hearing_intelligence_job.status
     END,
     attempts = CASE
+      WHEN public_hearing_intelligence_job.status = 'leased'
+      THEN public_hearing_intelligence_job.attempts
       WHEN public_hearing_intelligence_job.segment_revision <> EXCLUDED.segment_revision
-        OR public_hearing_intelligence_job.status IN ('completed', 'failed')
+        OR public_hearing_intelligence_job.status = 'failed'
       THEN 0
       ELSE public_hearing_intelligence_job.attempts
     END,
     due_at = CASE
       WHEN public_hearing_intelligence_job.status = 'leased'
       THEN public_hearing_intelligence_job.due_at
-      ELSE LEAST(public_hearing_intelligence_job.due_at, now())
+      WHEN public_hearing_intelligence_job.segment_revision <> EXCLUDED.segment_revision
+        OR public_hearing_intelligence_job.status = 'failed'
+      THEN now()
+      ELSE public_hearing_intelligence_job.due_at
     END,
     lease_owner = CASE
       WHEN public_hearing_intelligence_job.status = 'leased'
@@ -296,12 +306,18 @@ BEGIN
     last_error = CASE
       WHEN public_hearing_intelligence_job.status = 'leased'
       THEN public_hearing_intelligence_job.last_error
-      ELSE NULL
+      WHEN public_hearing_intelligence_job.segment_revision <> EXCLUDED.segment_revision
+        OR public_hearing_intelligence_job.status = 'failed'
+      THEN NULL
+      ELSE public_hearing_intelligence_job.last_error
     END,
     completed_at = CASE
       WHEN public_hearing_intelligence_job.status = 'leased'
       THEN public_hearing_intelligence_job.completed_at
-      ELSE NULL
+      WHEN public_hearing_intelligence_job.segment_revision <> EXCLUDED.segment_revision
+        OR public_hearing_intelligence_job.status = 'failed'
+      THEN NULL
+      ELSE public_hearing_intelligence_job.completed_at
     END,
     updated_at = now();
 
