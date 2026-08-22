@@ -172,7 +172,11 @@ describe('Phase 9 job runtime — property 2: commit without a real store is ref
     assert.doesNotMatch(result.stdout, /COMMITTED/);
   });
 
-  it('refuses a commit that would run as a non-job database role', () => {
+  it('refuses a commit it cannot prove is authorised in the database', () => {
+    // Phase 9 identity fix: authorisation is no longer a configured-string
+    // compare. `capiro_master` is refused because the capability proof cannot be
+    // satisfied — here the connection itself fails, so the run refuses rather
+    // than proceeding on an unverified identity. Either way: 77, never a write.
     const result = run(
       JOB,
       ['backfill-run', '--fiscal-years', '2024', '--commit'],
@@ -187,7 +191,7 @@ describe('Phase 9 job runtime — property 2: commit without a real store is ref
       },
     );
     assert.equal(result.status, 77);
-    assert.match(result.stderr, /requires "capiro_defense_job"/);
+    assert.match(result.stderr, /could not verify database identity\/capability/);
     assert.doesNotMatch(result.stdout, /COMMITTED/);
   });
 

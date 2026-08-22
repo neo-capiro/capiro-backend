@@ -44,7 +44,10 @@ import { fileURLToPath } from 'node:url';
 import {
   JobPreflightError,
   assertCommitAuthorised,
-  assertJobRole,
+  CAPABILITY_PROOF_SQL,
+  assertLiveJobCapability,
+  evaluateCapabilityProof,
+  resolveCapabilityRole,
   parseBound,
   parseFiscalYears,
   printTargetIdentity,
@@ -323,6 +326,7 @@ async function runEgressCheck() {
   console.log(`[phase9-egress] probing ${hosts.length} approved official host(s)`);
 
   let failures = 0;
+  const reachable = new Set();
   for (const host of hosts) {
     const url = `https://${host}/`;
     const started = Date.now();
@@ -336,6 +340,7 @@ async function runEgressCheck() {
         signal: controller.signal,
         headers: { 'user-agent': 'capiro-defense-api-phase9-egress-check' },
       });
+      reachable.add(host);
       console.log(
         `  OK        ${String(response.status).padEnd(4)} ${String(Date.now() - started).padEnd(6)}ms ${host}`,
       );
@@ -352,9 +357,60 @@ async function runEgressCheck() {
   }
 
   console.log(`[phase9-egress] reachable=${hosts.length - failures} unreachable=${failures}`);
-  if (failures > 0) {
-    console.log('PHASE9_EGRESS_PARTIAL');
+
+  // ---- Adapter coverage proof -------------------------------------------
+  // Host-level reachability is NOT the Phase 10 gate. What matters is whether
+  // every registered adapter retains at least ONE reachable authoritative
+  // channel. An adapter may legitimately list several hostnames (canonical +
+  // bare-domain alternates); losing an unused alternate is not a coverage loss.
+  // An adapter with ZERO reachable channels IS a Phase 10 coverage blocker.
+  //
+  // Only meaningful when the probe covered every adapter host: a narrowed
+  // `--hosts` run would otherwise manufacture false blockers.
+  if (explicit) {
+    console.log(
+      '[phase9-coverage] skipped: --hosts narrowed the probe, so adapter coverage cannot ' +
+        'be concluded from this run. Run without --hosts for the coverage proof.',
+    );
+    console.log(failures > 0 ? 'PHASE9_EGRESS_PARTIAL' : 'PHASE9_EGRESS_OK');
+    return failures > 0 ? 1 : 0;
+  }
+
+  console.log('[phase9-coverage] mapping each adapter to its reachable channels');
+  const blockers = [];
+  for (const adapter of registry.list()) {
+    const usable = adapter.officialHosts.filter((host) => reachable.has(host));
+    const dead = adapter.officialHosts.filter((host) => !reachable.has(host));
+    const status = usable.length > 0 ? 'COVERED' : 'NO_CHANNEL';
+    if (usable.length === 0) blockers.push(adapter.adapterId);
+    console.log(
+      `  ${status.padEnd(11)} ${adapter.adapterId.padEnd(32)} ` +
+        `reachable=[${usable.join(',')}]` +
+        (dead.length > 0 ? ` unreachable=[${dead.join(',')}]` : ''),
+    );
+  }
+  console.log(
+    `[phase9-coverage] adapters=${registry.list().length} ` +
+      `covered=${registry.list().length - blockers.length} blockers=${blockers.length}`,
+  );
+
+  if (blockers.length > 0) {
+    // A genuine coverage blocker must be disclosed before any backfill.
+    console.log(`[phase9-coverage] PHASE10_COVERAGE_BLOCKERS=${blockers.join(',')}`);
+    console.log('PHASE9_ADAPTER_COVERAGE_BLOCKED');
     return 1;
+  }
+  console.log('PHASE9_ADAPTER_COVERAGE_OK');
+
+  if (failures > 0) {
+    // Documented, accepted condition: unreachable ALTERNATE hostnames while
+    // every adapter still holds a working authoritative channel.
+    console.log(
+      '[phase9-egress] unreachable hosts are alternates; every adapter retains a ' +
+        'working authoritative channel, so this does not block Phase 10.',
+    );
+    console.log('PHASE9_EGRESS_PARTIAL_COVERAGE_OK');
+    return 0;
   }
   console.log('PHASE9_EGRESS_OK');
   return 0;
@@ -393,10 +449,31 @@ async function runDbCheck() {
   console.log(`[phase9-db] database=${row.database}`);
   console.log(`[phase9-db] server=${String(row.version ?? '').split(',')[0]}`);
 
-  if (row.current_user !== identity.role) {
-    console.log(
-      `[phase9-db] NOTE: connected role "${row.current_user}" differs from configured "${identity.role}"`,
-    );
+  // Report the SAME authoritative capability proof a commit would enforce, but
+  // read-only: this is how an operator confirms the Phase 10 identity is correct
+  // BEFORE authorising any write. Non-fatal here — db-check never mutates.
+  const capabilityRole = resolveCapabilityRole();
+  const proof = await prisma.$queryRawUnsafe(CAPABILITY_PROOF_SQL, capabilityRole);
+  try {
+    for (const line of evaluateCapabilityProof({
+      mode,
+      row: proof?.[0],
+      capabilityRole,
+    })) {
+      console.log(line);
+    }
+    console.log(`[phase9-identity] CAPABILITY_PROOF_OK via=${capabilityRole}`);
+    console.log('PHASE9_COMMIT_IDENTITY_READY');
+  } catch (error) {
+    // Print the observed facts, then the reason, without failing the read-only check.
+    const r = proof?.[0] ?? {};
+    console.log(`[phase9-identity] current_user=${r.current_user}`);
+    console.log(`[phase9-identity] session_user=${r.session_user}`);
+    console.log(`[phase9-identity] capabilityRole=${capabilityRole}`);
+    console.log(`[phase9-identity] pg_has_role(member)=${r.is_member}`);
+    console.log(`[phase9-identity] pg_has_role(usage/inherited)=${r.inherits_capability}`);
+    console.log(`[phase9-identity] CAPABILITY_PROOF_WOULD_REFUSE: ${error.message}`);
+    console.log('PHASE9_COMMIT_IDENTITY_NOT_READY');
   }
 
   let missing = 0;
@@ -517,7 +594,6 @@ async function runBackfillRun() {
 
   if (commit) {
     const identity = resolveDatabaseIdentity();
-    assertJobRole({ mode, commit, identity });
     printTargetIdentity({
       mode,
       commit,
@@ -529,6 +605,11 @@ async function runBackfillRun() {
       },
     });
     prisma = openPrisma(identity);
+    // Authorisation is decided by PostgreSQL AFTER connecting, never by a
+    // configured env string. Throws (77) unless the authenticated role is a
+    // genuinely INHERITing member of the capability role and holds no
+    // dangerous role attributes.
+    await assertLiveJobCapability({ mode, commit, sql: prisma });
     lifecycleStore = new PrismaLifecycleStore(prisma);
 
     if (process.env.PHASE8_SESSION8_LIVE_DISCOVERY === 'true') {
@@ -651,9 +732,9 @@ async function runLifecycleWatch() {
   let store;
   if (commit) {
     const identity = resolveDatabaseIdentity();
-    assertJobRole({ mode, commit, identity });
     printTargetIdentity({ mode, commit, identity, extra: { adapter: adapterId } });
     prisma = openPrisma(identity);
+    await assertLiveJobCapability({ mode, commit, sql: prisma });
     store = new PrismaLifecycleStore(prisma);
   } else {
     console.log('[phase9-lifecycle-watch] DRY RUN: in-memory store, no writes.');
@@ -730,9 +811,9 @@ async function runScheduleTick() {
 
   if (commit) {
     const identity = resolveDatabaseIdentity();
-    assertJobRole({ mode, commit, identity });
     printTargetIdentity({ mode, commit, identity });
     prisma = openPrisma(identity);
+    await assertLiveJobCapability({ mode, commit, sql: prisma });
     lifecycleStore = new PrismaLifecycleStore(prisma);
     scheduleAuditStore = new PrismaScheduleAuditStore(prisma);
     if (process.env.PHASE8_SESSION8_LIVE_DISCOVERY === 'true') {

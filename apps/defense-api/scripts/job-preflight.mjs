@@ -126,26 +126,177 @@ export function assertCommitAuthorised({ mode, commit, env = process.env }) {
 }
 
 /**
- * A mutating run should use the least-privilege job role, not the serve role and
- * not master. Enforced unless explicitly overridden for an authorised recovery.
+ * Authoritative, post-connection database identity + capability proof.
+ *
+ * The Phase 9 first cut compared a CONFIGURED env string (`DB_USER`) against the
+ * expected capability-role name. That is not a security check: it trusts the
+ * caller's own configuration, it is trivially spoofed by editing
+ * `DEFENSE_JOB_DB_ROLE`, and it cannot express the real production design, where
+ * the connecting principal is a LOGIN role (`capiro_defense_job_login`) that
+ * derives its lifecycle privileges by INHERITed MEMBERSHIP in a NOLOGIN
+ * capability role (`capiro_defense_job`). Under that design the configured
+ * username is CORRECTLY not equal to the capability role, so a string compare
+ * either wrongly refuses the real login or, if "fixed" by renaming, proves
+ * nothing at all.
+ *
+ * So authorisation is decided by PostgreSQL, after connecting, from the catalog:
+ *
+ *   - `current_user` / `session_user`  — who we actually are;
+ *   - `pg_has_role(current_user, '<capability>', 'member')` — are we genuinely
+ *     authorised through the capability role;
+ *   - `pg_has_role(..., 'USAGE')` — is that membership actually INHERITed, i.e.
+ *     do the privileges apply without an explicit SET ROLE;
+ *   - `rolsuper/rolcreaterole/rolcreatedb/rolreplication/rolbypassrls` — the
+ *     connecting login must hold none of these dangerous attributes.
+ *
+ * `DEFENSE_JOB_DB_ROLE` now only names WHICH capability to require. It cannot
+ * grant authorisation: the membership assertion is evaluated in the database, so
+ * pointing it at a role the login is not a member of makes the check FAIL, never
+ * pass.
  */
-export function assertJobRole({ mode, commit, identity, env = process.env }) {
-  if (!commit) return;
-  const expected = (env.DEFENSE_JOB_DB_ROLE ?? DEFAULT_JOB_DB_ROLE).trim();
-  if (env.PHASE9_ALLOW_NON_JOB_ROLE === 'true') {
-    console.log(
-      `[phase9-job] WARNING: role check bypassed via PHASE9_ALLOW_NON_JOB_ROLE ` +
-        `(role=${identity.role}, expected=${expected})`,
-    );
-    return;
-  }
-  if (identity.role !== expected) {
+export const CAPABILITY_PROOF_SQL = `
+  SELECT
+    current_user::text                                            AS current_user,
+    session_user::text                                            AS session_user,
+    current_database()::text                                      AS database,
+    pg_has_role(current_user, $1::name, 'member')                  AS is_member,
+    pg_has_role(current_user, $1::name, 'usage')                   AS inherits_capability,
+    (SELECT rolsuper       FROM pg_roles WHERE rolname = current_user) AS is_superuser,
+    (SELECT rolcreaterole  FROM pg_roles WHERE rolname = current_user) AS can_create_role,
+    (SELECT rolcreatedb    FROM pg_roles WHERE rolname = current_user) AS can_create_db,
+    (SELECT rolreplication FROM pg_roles WHERE rolname = current_user) AS can_replicate,
+    (SELECT rolbypassrls   FROM pg_roles WHERE rolname = current_user) AS can_bypass_rls,
+    (SELECT rolinherit     FROM pg_roles WHERE rolname = current_user) AS inherit_enabled,
+    (SELECT rolcanlogin    FROM pg_roles WHERE rolname = $1::name)     AS capability_can_login
+`;
+
+/** Dangerous attributes that must all be false on the connecting login. */
+export const FORBIDDEN_ROLE_ATTRIBUTES = Object.freeze([
+  ['is_superuser', 'superuser'],
+  ['can_create_role', 'createrole'],
+  ['can_create_db', 'createdb'],
+  ['can_replicate', 'replication'],
+  ['can_bypass_rls', 'bypassrls'],
+]);
+
+/**
+ * Evaluate a capability-proof row. Pure, so it is unit-testable against every
+ * production and rejection identity without needing a live database.
+ *
+ * Returns the proof lines to log. Throws JobPreflightError (77) on refusal.
+ */
+export function evaluateCapabilityProof({ mode, row, capabilityRole }) {
+  if (!row) {
     throw new JobPreflightError(
-      `refusing ${mode} commit: database role is "${identity.role}" but the job runtime ` +
-        `requires "${expected}". Set DEFENSE_JOB_DB_ROLE to change the expectation.`,
+      `refusing ${mode} commit: database identity proof returned no row`,
       77,
     );
   }
+
+  const truthy = (value) => value === true || value === 't' || value === 'true';
+
+  const lines = [
+    `[phase9-identity] current_user=${row.current_user}`,
+    `[phase9-identity] session_user=${row.session_user}`,
+    `[phase9-identity] database=${row.database}`,
+    `[phase9-identity] capabilityRole=${capabilityRole}`,
+    `[phase9-identity] pg_has_role(member)=${truthy(row.is_member)}`,
+    `[phase9-identity] pg_has_role(usage/inherited)=${truthy(row.inherits_capability)}`,
+    `[phase9-identity] login.rolinherit=${truthy(row.inherit_enabled)}`,
+    `[phase9-identity] capability.rolcanlogin=${truthy(row.capability_can_login)}`,
+  ];
+  for (const [field, label] of FORBIDDEN_ROLE_ATTRIBUTES) {
+    lines.push(`[phase9-identity] login.${label}=${truthy(row[field])}`);
+  }
+
+  // 1. Genuine membership in the capability role, per the database.
+  if (!truthy(row.is_member)) {
+    throw new JobPreflightError(
+      `refusing ${mode} commit: authenticated role "${row.current_user}" is not a member of ` +
+        `the "${capabilityRole}" capability role. Membership is verified in PostgreSQL ` +
+        `(pg_has_role), so no environment variable can grant it.`,
+      77,
+    );
+  }
+
+  // 2. Membership must be INHERITed, or the privileges do not actually apply.
+  if (!truthy(row.inherits_capability)) {
+    throw new JobPreflightError(
+      `refusing ${mode} commit: "${row.current_user}" is a member of "${capabilityRole}" but ` +
+        `does not inherit it (NOINHERIT). The lifecycle privileges would not apply without an ` +
+        `explicit SET ROLE; grant the login INHERIT instead.`,
+      77,
+    );
+  }
+
+  // 3. No dangerous role attributes on the connecting login.
+  const dangerous = FORBIDDEN_ROLE_ATTRIBUTES.filter(([field]) => truthy(row[field])).map(
+    ([, label]) => label,
+  );
+  if (dangerous.length > 0) {
+    throw new JobPreflightError(
+      `refusing ${mode} commit: authenticated role "${row.current_user}" holds forbidden ` +
+        `attribute(s) [${dangerous.join(', ')}]. The job login must be an unprivileged ` +
+        `member of "${capabilityRole}" only.`,
+      77,
+    );
+  }
+
+  // 4. The capability role itself must remain NOLOGIN. If it can log in, the
+  //    separation between capability and login has been collapsed.
+  if (truthy(row.capability_can_login)) {
+    throw new JobPreflightError(
+      `refusing ${mode} commit: capability role "${capabilityRole}" is LOGIN-capable. ` +
+        `It must remain NOLOGIN; connect as a dedicated login role that is a member of it.`,
+      77,
+    );
+  }
+
+  return Object.freeze(lines);
+}
+
+/** Which capability role a commit must be authorised through. */
+export function resolveCapabilityRole(env = process.env) {
+  const configured = (env.DEFENSE_JOB_DB_ROLE ?? DEFAULT_JOB_DB_ROLE).trim();
+  if (configured === '') return DEFAULT_JOB_DB_ROLE;
+  // Guard the identifier: it is interpolated as a ::name parameter, but keep it
+  // to a plain SQL identifier shape so a hostile value cannot become anything else.
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(configured)) {
+    throw new JobPreflightError(
+      `DEFENSE_JOB_DB_ROLE is not a valid role identifier: "${configured}"`,
+      64,
+    );
+  }
+  return configured;
+}
+
+/**
+ * Assert the live connection is authorised to mutate.
+ *
+ * Runs the capability proof through the caller's SQL executor, logs the proof,
+ * and throws on refusal. There is deliberately NO environment escape hatch: the
+ * previous `PHASE9_ALLOW_NON_JOB_ROLE` bypass is gone, because an env var that
+ * disables the authorisation check is not a safe production path.
+ */
+export async function assertLiveJobCapability({ mode, commit, sql, env = process.env }) {
+  if (!commit) return null;
+  const capabilityRole = resolveCapabilityRole(env);
+  let rows;
+  try {
+    rows = await sql.$queryRawUnsafe(CAPABILITY_PROOF_SQL, capabilityRole);
+  } catch (error) {
+    throw new JobPreflightError(
+      `refusing ${mode} commit: could not verify database identity/capability ` +
+        `(${error?.message ?? error})`,
+      77,
+    );
+  }
+  const lines = evaluateCapabilityProof({ mode, row: rows?.[0], capabilityRole });
+  for (const line of lines) console.log(line);
+  console.log(
+    `[phase9-identity] CAPABILITY_PROOF_OK role=${rows[0].current_user} via=${capabilityRole}`,
+  );
+  return rows[0];
 }
 
 /** Parse `--fiscal-years 2024,2025` into a validated, sorted, deduped list. */
