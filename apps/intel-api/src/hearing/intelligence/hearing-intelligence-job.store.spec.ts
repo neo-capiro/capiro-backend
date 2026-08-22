@@ -79,7 +79,14 @@ describe('HearingIntelligenceJobStore', () => {
       hearingId: 'hearing-1',
       publicInsightIds: ['phi-b', 'phi-a', 'phi-b'],
     });
-    const firstArgs = first.query.mock.calls[0] as [string, string, string, string[], string];
+    const firstArgs = first.query.mock.calls[0] as [
+      string,
+      string,
+      string,
+      string[],
+      string,
+      boolean,
+    ];
 
     const second = fixture();
     second.query.mockResolvedValue([{ id: 'job-b' }]);
@@ -88,11 +95,59 @@ describe('HearingIntelligenceJobStore', () => {
       hearingId: 'hearing-1',
       publicInsightIds: ['phi-a', 'phi-b'],
     });
-    const secondArgs = second.query.mock.calls[0] as [string, string, string, string[], string];
+    const secondArgs = second.query.mock.calls[0] as [
+      string,
+      string,
+      string,
+      string[],
+      string,
+      boolean,
+    ];
 
     expect(firstArgs[3]).toEqual(['phi-a', 'phi-b']);
     expect(firstArgs[4]).toBe(secondArgs[4]);
     expect(firstArgs[4]).toMatch(/^hearing-relevance:v1:[a-f0-9]{64}$/);
+    expect(firstArgs[5]).toBe(false);
+  });
+
+  it('can explicitly rebuild completed tenant relevance without stealing an active lease', async () => {
+    const { query, store } = fixture();
+    query.mockResolvedValue([{ id: 'job-a' }]);
+    await expect(
+      store.enqueueTenantJobs({
+        tenantIds: ['00000000-0000-0000-0000-000000000001'],
+        hearingId: 'hearing-1',
+        publicInsightIds: ['phi-a'],
+        forceCompleted: true,
+      }),
+    ).resolves.toBe(1);
+
+    const [sql, , , , , forceCompleted] = query.mock.calls[0] as [
+      string,
+      string,
+      string,
+      string[],
+      string,
+      boolean,
+    ];
+    expect(sql).toContain("$5::boolean AND tenant_hearing_relevance_job.status='completed'");
+    expect(sql).toContain("WHERE tenant_hearing_relevance_job.status <> 'leased'");
+    expect(forceCompleted).toBe(true);
+  });
+
+  it('groups persisted public insights by hearing for a bounded relevance rebuild', async () => {
+    const { query, store } = fixture();
+    query.mockResolvedValue([
+      { hearingId: 'hearing-1', publicInsightIds: ['phi-a', 'phi-b'] },
+    ]);
+
+    await expect(store.persistedInsightBatches(50)).resolves.toEqual([
+      { hearingId: 'hearing-1', publicInsightIds: ['phi-a', 'phi-b'] },
+    ]);
+    const [sql, limit] = query.mock.calls[0] as [string, number];
+    expect(sql).toContain('array_agg(id ORDER BY sequence ASC, id ASC)');
+    expect(sql).toContain('GROUP BY hearing_id');
+    expect(limit).toBe(50);
   });
 
   it('cannot finalize or fail work after the lease owner changes', async () => {
