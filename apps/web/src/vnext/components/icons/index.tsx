@@ -229,3 +229,29 @@ export function CapiroChevronDownIcon(props: CapiroIconProps) {
     </Glyph>
   );
 }
+
+export function CapiroHourglassIcon(props: CapiroIconProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M5 2h14M5 22h14M7 2v4l5 5-5 5v4M17 2v4l-5 5 5 5v4" strokeLinecap="round" strokeLinejoin="round"/>
+    </Glyph>
+  );
+}
+
+export function CapiroArrowRightIcon(props: CapiroIconProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round"/>
+    </Glyph>
+  );
+}
+
+export function CapiroMailPlusIcon(props: CapiroIconProps) {
+  return (
+    <Glyph {...props}>
+      <path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M19 16v6M16 19h6" strokeLinecap="round" strokeLinejoin="round"/>
+    </Glyph>
+  );
+}
