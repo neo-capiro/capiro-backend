@@ -25,9 +25,7 @@ export type ShellOverlayId =
   | 'notifications'
   | 'directory'
   | 'intelligence'
-  | 'engagement-manager'
-  | 'client-context'
-  | 'dashboard-customize';
+  | 'engagement-manager';
 
 interface ShellOverlayContextValue {
   openId: ShellOverlayId | null;
