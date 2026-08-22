@@ -9,8 +9,8 @@ import {
   Send,
   ShieldCheck,
   StopCircle,
-  X,
 } from 'lucide-react';
+import { useClientFilter } from '../../../state/client-filter.js';
 import { EngagementDialog } from '../../../pages/engagement/meetings/EngagementDialog.js';
 import {
   type OutreachReplyCandidate,
@@ -18,6 +18,8 @@ import {
   type OutreachV3GenerationPlan,
   type OutreachV3SendIntentView,
 } from './engagement-api.js';
+import { OutreachTemplateSaveDialog } from './OutreachTemplateSaveDialog.js';
+import { OutreachTemplateUpdateDialog } from './OutreachTemplateUpdateDialog.js';
 import {
   isSendTerminal,
   sendProgress,
@@ -65,9 +67,7 @@ export function SendConfirmDialog({
       }
     >
       <div className="ov3p1-confirm-body">
-        {held ? (
-          <div className="ov3p1-confirm-warning"><PauseCircle size={18} /><span><strong>{held} recipient{held === 1 ? '' : 's'} will remain held</strong><small>They will not receive an email.</small></span></div>
-        ) : null}
+        {held ? <div className="ov3p1-confirm-warning"><PauseCircle size={18} /><span><strong>{held} recipient{held === 1 ? '' : 's'} will remain held</strong><small>They will not receive an email.</small></span></div> : null}
         <dl>
           <div><dt>Recipients</dt><dd>{count}</dd></div>
           <div><dt>Sender</dt><dd>{sender}</dd></div>
@@ -144,10 +144,7 @@ export function SendingScreen({
           </div>
         ))}
       </section>
-      <div className="ov3p1-idempotency-note">
-        <ShieldCheck size={18} />
-        <p><strong>One send record.</strong> Refreshing, retrying the page, or opening a second tab cannot create another send with this request key.</p>
-      </div>
+      <div className="ov3p1-idempotency-note"><ShieldCheck size={18} /><p><strong>One send record.</strong> Refreshing, retrying the page, or opening a second tab cannot create another send with this request key.</p></div>
       {error ? <p className="ov3p1-error" role="alert">{error}</p> : null}
     </div>
   );
@@ -158,6 +155,7 @@ export function MetricTile({ value, label, tone }: { value: number; label: strin
 }
 
 export function ResultsScreen({
+  sessionId,
   intent,
   plan,
   drafts,
@@ -169,6 +167,15 @@ export function ResultsScreen({
   onOpenDraft,
   onProposeLearning,
 }: {
+  /**
+   * The canonical Outreach V3 session id, passed explicitly by the caller
+   * (VNextOutreachApproveSendWorkspace) rather than derived from
+   * `intent.outreachRecordId`. outreachRecordId identifies the send-intent's
+   * own record, not the session — see closeout runbook 3.10/5.13: template
+   * save/update must not depend on that being the same id as a hidden
+   * coincidence.
+   */
+  sessionId: string;
   intent: OutreachV3SendIntentView;
   plan: OutreachV3GenerationPlan | null;
   drafts: OutreachV3DraftArtifact[];
@@ -180,10 +187,10 @@ export function ResultsScreen({
   onOpenDraft: () => void;
   onProposeLearning: (replyId: string, learning: string) => void;
 }) {
+  const clientFilter = useClientFilter();
   const totals = intent.totals ?? {};
-  const [templateOpen, setTemplateOpen] = useState(false);
+  const [templateMode, setTemplateMode] = useState<'save' | 'update' | null>(null);
   const [resultNotice, setResultNotice] = useState('');
-  const [templateNotice, setTemplateNotice] = useState('');
   const [selectedReplyId, setSelectedReplyId] = useState(replies[0]?.id ?? '');
   const [learning, setLearning] = useState('');
   const [expandedReply, setExpandedReply] = useState<string | null>(null);
@@ -193,14 +200,12 @@ export function ResultsScreen({
   const skipped = Number(totals.skipped ?? 0);
   const held = Number(totals.held ?? 0);
   const clean = failed === 0 && held === 0;
+  const templateName = drafts[0]?.current?.subject?.trim() || 'Outreach campaign';
 
   return (
     <div className="ov3p1-content ov3p1-content--wide">
       <div className="ov3p1-results-heading">
-        <div>
-          <h2>{clean ? `${sent} left cleanly.` : `${sent} sent. ${failed + held} need attention.`}</h2>
-          <p>Provider outcomes remain explicit. Unknown is never silently treated as delivered, and nothing retries itself.</p>
-        </div>
+        <div><h2>{clean ? `${sent} left cleanly.` : `${sent} sent. ${failed + held} need attention.`}</h2><p>Provider outcomes remain explicit. Unknown is never silently treated as delivered, and nothing retries itself.</p></div>
         <button type="button" className="ov3p1-button is-secondary" onClick={onRefresh}><RefreshCcw size={14} /> Refresh results</button>
       </div>
 
@@ -214,9 +219,7 @@ export function ResultsScreen({
       </div>
 
       <section className="ov3p1-results-table">
-        <header>
-          <span>Recipient</span><span>Version</span><span>Sent</span><span>Delivery</span><span>Reply</span><span>Action</span>
-        </header>
+        <header><span>Recipient</span><span>Version</span><span>Sent</span><span>Delivery</span><span>Reply</span><span>Action</span></header>
         {intent.deliveries.map((delivery) => {
           const draft = drafts.find((item) => item.generationKey === delivery.generationKey);
           const email = delivery.to[0]?.email ?? '';
@@ -229,9 +232,7 @@ export function ResultsScreen({
               <span>{formatDateTime(delivery.acceptedAt || intent.startedAt)}</span>
               <span><StatusChip tone={statusTone(delivery.status)}>{delivery.status.replaceAll('_', ' ')}</StatusChip></span>
               <span>{reply ? <><strong>{reply.subject || 'Reply received'}</strong><small>{formatDateTime(reply.receivedAt)}</small></> : <small>No synced reply</small>}</span>
-              <span>
-                {reply ? <button type="button" onClick={() => setExpandedReply(expandedReply === reply.id ? null : reply.id)}>Open reply</button> : notSent ? <button type="button" onClick={onOpenDraft}>Resolve draft</button> : <button type="button" disabled>Follow up</button>}
-              </span>
+              <span>{reply ? <button type="button" onClick={() => setExpandedReply(expandedReply === reply.id ? null : reply.id)}>Open reply</button> : notSent ? <button type="button" onClick={onOpenDraft}>Resolve draft</button> : <button type="button" disabled>Follow up</button>}</span>
               {reply && expandedReply === reply.id ? <p className="ov3p1-result-excerpt">{reply.excerpt}</p> : null}
             </article>
           );
@@ -239,40 +240,18 @@ export function ResultsScreen({
       </section>
 
       <div className="ov3p1-result-actions">
-        <button
-          type="button"
-          className="ov3p1-button is-primary"
-          onClick={() => setResultNotice('Follow-up campaign creation is part of the next build cluster. No campaign was created from this prototype control.')}
-        >
-          <ArrowRight size={15} /> Create follow-up campaign
-        </button>
-        <button type="button" className="ov3p1-button is-secondary" onClick={() => setTemplateOpen(true)}>Save this campaign as a template</button>
-        <button type="button" className="ov3p1-button is-quiet" onClick={() => setTemplateOpen(true)}>Update template from what worked</button>
+        <button type="button" className="ov3p1-button is-primary" onClick={() => setResultNotice('Follow-up campaign creation is reserved for the next workflow release. No campaign was created from this control.')}><ArrowRight size={15} /> Create follow-up campaign</button>
+        <button type="button" className="ov3p1-button is-secondary" onClick={() => setTemplateMode('save')}>Save this campaign as a template</button>
+        <button type="button" className="ov3p1-button is-quiet" onClick={() => setTemplateMode('update')}>Update a template from this campaign</button>
       </div>
       {resultNotice ? <p className="ov3p1-result-notice">{resultNotice}</p> : null}
-
-      {templateOpen ? (
-        <section className="ov3p1-template-diff">
-          <header><div><span>Template preview</span><h3>Update the template from what worked</h3></div><button type="button" className="ov3p1-icon-button" onClick={() => setTemplateOpen(false)}><X size={16} /></button></header>
-          <div><span>Before</span><strong>Ask appears in the final paragraph</strong></div>
-          <ArrowRight size={16} />
-          <div><span>Proposed v4</span><strong>Ask appears in the first paragraph</strong></div>
-          <button type="button" className="ov3p1-button is-primary" onClick={() => setTemplateNotice('Template publishing belongs to Phase 2. This preview does not silently alter a published template.')}>
-            Publish as v4
-          </button>
-          {templateNotice ? <p>{templateNotice}</p> : null}
-        </section>
-      ) : null}
 
       <section className="ov3p1-learning-section">
         <header><span>Governed learning</span><h3>Turn a real reply into a reviewable memory proposal</h3><p>Nothing becomes active memory automatically.</p></header>
         <article className="ov3p1-learning-card">
           <div>
             <strong>What Meri may learn</strong>
-            <select value={selectedReplyId} onChange={(event) => setSelectedReplyId(event.target.value)}>
-              <option value="">Select a real inbound reply</option>
-              {replies.map((reply) => <option key={reply.id} value={reply.id}>{reply.fromName || reply.fromEmail} · {reply.subject || 'No subject'}</option>)}
-            </select>
+            <select value={selectedReplyId} onChange={(event) => setSelectedReplyId(event.target.value)}><option value="">Select a real inbound reply</option>{replies.map((reply) => <option key={reply.id} value={reply.id}>{reply.fromName || reply.fromEmail} · {reply.subject || 'No subject'}</option>)}</select>
             <textarea rows={3} value={learning} onChange={(event) => setLearning(event.target.value)} placeholder="Example: This office prefers a specific meeting offer rather than an open-ended follow-up." />
           </div>
           <dl>
@@ -284,10 +263,7 @@ export function ResultsScreen({
             <div><dt>Approval</dt><dd>Required before activation</dd></div>
           </dl>
           <div>
-            <button type="button" className="ov3p1-button is-primary" disabled={learningBusy || !selectedReplyId || learning.trim().length < 12} onClick={() => onProposeLearning(selectedReplyId, learning.trim())}>
-              {learningBusy ? <Loader2 className="ov3p1-spin" size={14} /> : <Check size={14} />}
-              Remember this — send for review
-            </button>
+            <button type="button" className="ov3p1-button is-primary" disabled={learningBusy || !selectedReplyId || learning.trim().length < 12} onClick={() => onProposeLearning(selectedReplyId, learning.trim())}>{learningBusy ? <Loader2 className="ov3p1-spin" size={14} /> : <Check size={14} />}Remember this — send for review</button>
             <button type="button" className="ov3p1-button is-secondary" onClick={() => setLearning('')}>Edit it first</button>
             <button type="button" className="ov3p1-button is-quiet" onClick={() => { setLearning(''); setSelectedReplyId(''); }}>Do not remember</button>
           </div>
@@ -296,6 +272,8 @@ export function ResultsScreen({
       </section>
 
       {error ? <p className="ov3p1-error" role="alert">{error}</p> : null}
+      {templateMode === 'save' ? <OutreachTemplateSaveDialog sessionId={sessionId} defaultName={templateName} selectedClientId={clientFilter.selectedClientId} onClose={() => setTemplateMode(null)} /> : null}
+      {templateMode === 'update' ? <OutreachTemplateUpdateDialog sessionId={sessionId} selectedClientId={clientFilter.selectedClientId} onClose={() => setTemplateMode(null)} /> : null}
     </div>
   );
 }

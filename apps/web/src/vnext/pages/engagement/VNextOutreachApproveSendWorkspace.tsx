@@ -81,6 +81,7 @@ import {
 } from './outreach-v3-phase1-results.js';
 import { MeriRail } from './outreach-v3-phase1-meri.js';
 import './outreach-v3-phase1.css';
+import './outreach-v3-templates.css';
 
 export function VNextOutreachApproveSendWorkspace({
   sessionId: routeSessionId,
@@ -412,7 +413,7 @@ export function VNextOutreachApproveSendWorkspace({
       return <SendingScreen intent={intent} plan={plan} drafts={drafts} cancelBusy={cancelIntentMutation.isPending} error={operationError} onCancel={() => cancelIntentMutation.mutate()} onRefresh={() => refreshIntentMutation.mutate()} />;
     }
     if (view === 'results' && intent) {
-      return <ResultsScreen intent={intent} plan={plan} drafts={drafts} replies={repliesQuery.data ?? []} learningBusy={learningMutation.isPending} learningResult={Boolean(learningMutation.data)} error={operationError} onRefresh={() => refreshIntentMutation.mutate()} onOpenDraft={() => onStepChange('drafts')} onProposeLearning={(replyId, learning) => learningMutation.mutate({ replyId, learning })} />;
+      return <ResultsScreen sessionId={sessionId} intent={intent} plan={plan} drafts={drafts} replies={repliesQuery.data ?? []} learningBusy={learningMutation.isPending} learningResult={Boolean(learningMutation.data)} error={operationError} onRefresh={() => refreshIntentMutation.mutate()} onOpenDraft={() => onStepChange('drafts')} onProposeLearning={(replyId, learning) => learningMutation.mutate({ replyId, learning })} />;
     }
     return null;
   };
@@ -426,6 +427,11 @@ export function VNextOutreachApproveSendWorkspace({
             <h1>{campaignTitle(session)}</h1>
             <p>{session.spec.targeting.selectedTargetRefs.length} recipients · {deliveryLabel(session.spec.delivery.pattern)} · V{session.currentStateVersion}</p>
           </div>
+          {controller.templateProvenance ? (
+            <span className="uui-template-provenance-badge" title="This campaign was created from a template">
+              From template · {controller.templateProvenance.templateName} · v{controller.templateProvenance.versionNumber}
+            </span>
+          ) : null}
           <span><ShieldCheck size={13} /> Saved</span>
           <button type="button" className="ov3p1-icon-button" aria-label="Campaign options"><MoreHorizontal size={18} /></button>
         </header>

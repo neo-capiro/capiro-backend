@@ -48,6 +48,8 @@
     "verify:outreach-v3-phase-5": "node scripts/verify-outreach-v3-phase5-code.mjs",
     "verify:outreach-v3-phase-5:local": "node scripts/run-outreach-v3-phase5-local.mjs",
     "verify:outreach-v3-phase-6": "node scripts/verify-outreach-v3-phase6-code.mjs",
+    "verify:outreach-v3-templates": "node scripts/verify-outreach-v3-templates-code.mjs",
+    "verify:outreach-v3-templates:db": "node scripts/verify-outreach-v3-templates-db.mjs",
     "verify:phase8-session2": "node scripts/verify-phase8-session2.mjs",
     "verify:phase8-session2:db": "node scripts/verify-phase8-session2-db.mjs",
     "verify:phase8-session3": "node scripts/verify-phase8-session3.mjs",

@@ -23,6 +23,11 @@ const { getCalls, postCalls, getResponse, api } = vi.hoisted(() => {
   const api = {
     get: vi.fn(async (url: string, config?: { params?: unknown }) => {
       getCalls.push({ url, params: config?.params });
+      // The Templates library shares this same mocked client (Use a template
+      // switches VNextOutreachHome to that view) — it has its own real shape
+      // (capabilities, previewSummary, etc.), so route it to an empty list
+      // rather than the session rows this file's other tests configure.
+      if (url.includes('/templates')) return { data: [] };
       return { data: getResponse.rows };
     }),
     post: vi.fn(async (url: string, body?: unknown) => {
@@ -55,7 +60,7 @@ function renderHome(onOpenCampaign = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const result = render(
     <QueryClientProvider client={qc}>
-      <VNextOutreachHome onOpenCampaign={onOpenCampaign} />
+      <VNextOutreachHome onOpenCampaign={onOpenCampaign} selectedClientId={null} />
     </QueryClientProvider>,
   );
   return { ...result, onOpenCampaign };
@@ -103,16 +108,31 @@ describe('VNextOutreachHome', () => {
     expect(postCalls).toHaveLength(0);
   });
 
-  it('creates a campaign only on New campaign, then opens the builder for it', async () => {
+  it('creates a campaign only after New campaign -> Start from scratch, then opens the builder for it', async () => {
     getResponse.rows = [row()];
     const { onOpenCampaign } = renderHome();
     await waitFor(() => expect(screen.getByText('Ground robotics')).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByRole('button', { name: /New campaign/i })[0]!);
+    // The truthful entry chooser (closeout runbook 7.1) — no session is
+    // created until the operator explicitly picks a path.
+    expect(postCalls).toHaveLength(0);
+    fireEvent.click(await screen.findByRole('button', { name: /Start from scratch/i }));
     await waitFor(() => expect(onOpenCampaign).toHaveBeenCalledWith('created-session'));
     expect(postCalls).toEqual([
       { url: '/api/engagement/outreach-v3/sessions', body: { title: 'New outreach campaign' } },
     ]);
+  });
+
+  it('New campaign -> Use a template switches to the Templates view without creating a session', async () => {
+    getResponse.rows = [row()];
+    renderHome();
+    await waitFor(() => expect(screen.getByText('Ground robotics')).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByRole('button', { name: /New campaign/i })[0]!);
+    fireEvent.click(await screen.findByRole('button', { name: /Use a template/i }));
+    await waitFor(() => expect(screen.getByText('Start from an approved way of working')).toBeInTheDocument());
+    expect(postCalls).toHaveLength(0);
   });
 
   it('opens the builder for an existing campaign row', async () => {
@@ -169,6 +189,7 @@ describe('VNextOutreachHome', () => {
     await waitFor(() => expect(screen.getByText('No campaigns yet')).toBeInTheDocument());
 
     fireEvent.click(screen.getAllByRole('button', { name: /New campaign/i })[1]!);
+    fireEvent.click(await screen.findByRole('button', { name: /Start from scratch/i }));
     await waitFor(() => expect(onOpenCampaign).toHaveBeenCalledWith('created-session'));
   });
 

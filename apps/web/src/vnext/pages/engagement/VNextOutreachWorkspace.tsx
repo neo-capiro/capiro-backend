@@ -83,6 +83,7 @@ import { safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outre
 // bodies) to literal navy with zero edits to those canonical files — see this
 // file's header comment for the specificity/scoping rationale.
 import './outreach-body-vnext.css';
+import './outreach-v3-templates.css';
 
 export type EngagementOutreachStep =
   | 'goal'
@@ -2431,6 +2432,11 @@ export function VNextOutreachWorkspace({
               {session.spec.targeting.selectedTargetRefs.length === 1 ? '' : 's'}
             </small>
           </span>
+          {controller.templateProvenance ? (
+            <span className="uui-template-provenance-badge" title="This campaign was created from a template">
+              From template · {controller.templateProvenance.templateName} · v{controller.templateProvenance.versionNumber}
+            </span>
+          ) : null}
           <span className="uui-outreach-crumb__state" role="status">
             {mutationInFlight ? (
               <>

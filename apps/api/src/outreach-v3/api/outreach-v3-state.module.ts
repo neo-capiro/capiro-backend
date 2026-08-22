@@ -8,13 +8,16 @@ import { OutreachCommandEngineService } from '../services/outreach-command-engin
 import { OutreachCommandProposalService } from '../services/outreach-command-proposal.service.js';
 import { OutreachStateVersionGuardService } from '../services/outreach-state-version-guard.service.js';
 import { OutreachUserDecisionEventService } from '../services/outreach-user-decision-event.service.js';
+import { OutreachTemplateController } from '../templates/outreach-template.controller.js';
+import { OutreachTemplateRepository } from '../templates/outreach-template.repository.js';
+import { OutreachTemplateService } from '../templates/outreach-template.service.js';
 import { OutreachV3StateController } from './outreach-v3-state.controller.js';
 import { OutreachV3StateGuard } from './outreach-v3-state.guard.js';
 import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
 
 @Module({
   imports: [PrismaModule, CapabilitiesModule],
-  controllers: [OutreachV3StateController],
+  controllers: [OutreachV3StateController, OutreachTemplateController],
   providers: [
     OutreachAuditedStateRepository,
     {
@@ -26,14 +29,15 @@ import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
     OutreachCommandProposalService,
     OutreachStateVersionGuardService,
     OutreachUserDecisionEventService,
+    OutreachTemplateRepository,
+    OutreachTemplateService,
     OutreachV3StateGuard,
     OutreachV3ExceptionFilter,
   ],
   // Later reasoning receives only bounded session/proposal/version-check seams.
-  // The command engine and raw repository are not exported, so no model layer can
-  // gain direct Campaign Spec mutation authority through Nest injection. The
-  // decision-event seam can append only enumerated human approval events at an
-  // exact state version; reasoning is statically forbidden from consuming it.
+  // The command engine, template compiler and raw repositories are not exported,
+  // so no model layer can gain Campaign Spec or template publication authority
+  // through Nest injection.
   exports: [
     OutreachSessionService,
     OutreachCommandProposalService,
