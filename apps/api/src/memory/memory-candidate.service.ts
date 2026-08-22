@@ -821,7 +821,15 @@ export class MemoryCandidateService {
   }
 }
 
-function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
+/**
+ * Exported for ImmutableMemoryVersionService.decideLearningSignalCandidate
+ * (Phase 27D) — a governed decision on a learning-signal-derived candidate
+ * needs the exact same payload_jsonb -> MemorySaveRequest parse the
+ * standard approve() path already uses, so the new memory_items row it
+ * creates gets the same section-building convention (canonicalItem when
+ * present, else the single 'memory' section from record.value).
+ */
+export function payloadToSaveRequest(payload: unknown): MemorySaveRequest {
   const p = payload as Partial<MemorySaveRequest> | null;
   if (
     !p ||

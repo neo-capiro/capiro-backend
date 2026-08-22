@@ -14,6 +14,7 @@ import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
 import type { MemoryReviewRevisionInput } from './memory-review-revision.helpers.js';
 import { MemoryReviewRevisionService } from './memory-review-revision.service.js';
+import { isLearningSignalConflictResolution } from './memory-version.helpers.js';
 
 /**
  * Grant-aware candidate review surface.
@@ -86,5 +87,25 @@ export class MemoryReviewController {
     @Body() body: { reason?: string },
   ) {
     return { ok: true, ...(await this.review.reject(ctx, id, body?.reason ?? '')) };
+  }
+
+  /**
+   * Phase 27D — governed resolution for a learning_signal_conflict candidate.
+   * Distinct from plain approve/reject: this is where a reviewer picks
+   * duplicate/corroborate_existing/supersede_existing/conflict_requires_review
+   * for a candidate Phase 27C already flagged against active memory.
+   */
+  @Post('candidates/:id/resolve-conflict')
+  async resolveConflict(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('id') id: string,
+    @Body() body: { decision?: unknown; reason?: unknown },
+  ) {
+    if (!isLearningSignalConflictResolution(body?.decision)) {
+      throw new BadRequestException(
+        'decision must be one of duplicate, corroborate_existing, supersede_existing, conflict_requires_review.',
+      );
+    }
+    return { ok: true, ...(await this.review.resolveConflict(ctx, id, body.decision, body?.reason)) };
   }
 }

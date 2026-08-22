@@ -156,9 +156,27 @@ export class LearningSignalCandidateService {
 
     const duplicate = await this.findExactDuplicate(tenantId, signal, provenance);
     if (duplicate) {
+      // Phase 27D §17: a same-proposition candidate that was already
+      // REJECTED must stay suppressed — the next identical signal must not
+      // silently recreate the exact candidate a reviewer already turned
+      // down, as though the rejection never happened. Reusing the
+      // 'duplicate' eligibility (rather than a new taxonomy value) keeps
+      // this auditable without a migration: memoryCandidateId on the
+      // outcome row links straight to the earlier candidate, whose own
+      // status distinguishes "already pending/active" from "already
+      // rejected" for anyone reviewing this outcome. Deliberately no
+      // automatic "stronger independent evidence" override here — that
+      // would need a real evidence-strength comparison with no product
+      // surface to drive it yet; a genuinely new candidate for the same
+      // proposition remains possible, just not automatic (handoff §17's
+      // own "that must be explicit and auditable" — nothing here is either,
+      // so nothing here does it).
       return this.recordOutcome(tenantId, signal, {
         eligibility: 'duplicate',
-        reason: `An equivalent pending/active candidate already exists (memory_candidate ${duplicate}).`,
+        reason:
+          duplicate.status === 'rejected'
+            ? `A reviewer already rejected this exact proposition (memory_candidate ${duplicate.id}); suppressed rather than resubmitted.`
+            : `An equivalent pending/active candidate already exists (memory_candidate ${duplicate.id}).`,
       });
     }
 
@@ -320,27 +338,36 @@ export class LearningSignalCandidateService {
     tenantId: string,
     signal: LoadedLearningSignal,
     provenance: Record<string, unknown>,
-  ): Promise<string | null> {
+  ): Promise<{ id: string; status: string } | null> {
     if (signal.sourceSurface !== 'crm.fill_with_meri' || !signal.clientId) return null;
     const targetKey = typeof provenance.targetKey === 'string' ? provenance.targetKey : null;
     const kind = typeof provenance.kind === 'string' ? provenance.kind : null;
     if (!targetKey || !kind) return null;
 
+    // Phase 27D: 'rejected' joins the prior pending/approved/auto_committed
+    // set so a rejected proposition's next identical signal is suppressed
+    // too (see the rejection-durability comment at the call site), not just
+    // an already-live one. ORDER BY created_at DESC so the MOST RECENT
+    // candidate for this exact (clientId, kind, targetKey) governs — e.g. if
+    // an old rejected row and a newer pending row both match (a rejection
+    // followed by a fresh proposal before this change shipped), the newer
+    // pending row's status is what should suppress/permit the next signal,
+    // not whichever row happens to be oldest.
     const rows = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.$queryRaw<Array<{ id: string }>>`
-        SELECT id::text AS id
+      tx.$queryRaw<Array<{ id: string; status: string }>>`
+        SELECT id::text AS id, status
         FROM memory_candidate
         WHERE tenant_id = ${tenantId}::uuid
           AND source_kind = 'learning_signal'
           AND client_id = ${signal.clientId}::uuid
-          AND status IN ('pending', 'approved', 'auto_committed')
+          AND status IN ('pending', 'approved', 'auto_committed', 'rejected')
           AND provenance_jsonb #>> '{kind}' = ${kind}
           AND provenance_jsonb #>> '{targetKey}' = ${targetKey}
-        ORDER BY created_at ASC
+        ORDER BY created_at DESC
         LIMIT 1
       `,
     );
-    return rows[0]?.id ?? null;
+    return rows[0] ?? null;
   }
 
   /**

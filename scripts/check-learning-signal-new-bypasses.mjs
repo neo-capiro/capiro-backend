@@ -61,6 +61,16 @@ const base = process.argv[2] || 'origin/main';
  *     services) — 27C detects and flags on the CANDIDATE only, it never
  *     drives the existing services that mutate an active item's own
  *     conflict state.
+ *  8. Phase 27D addition: governance integration reuses
+ *     ImmutableMemoryVersionService itself as the one canonical path that
+ *     may resolve a Phase 27C conflict flag into a real change to active
+ *     memory (`decideLearningSignalCandidate`) — it does NOT live under
+ *     `apps/api/src/learning/`, so check 2's existing unconditional ban on
+ *     `ImmutableMemoryVersionService`/`MemoryConflictService` inside that
+ *     directory already proves nothing there — not signal capture, not
+ *     candidate generation, not conflict detection, not an adapter — can
+ *     reach it. Check 10 below reaffirms that specifically by name rather
+ *     than relying only on the whole-class ban.
  */
 
 const LEARNING_IMPLEMENTATION_PREFIXES = [
@@ -442,6 +452,46 @@ if (candidateServiceSource) {
     fail(`${candidateServicePath}: proposeSaveMemory's INSERT no longer sets contradicts_memory_item_id/conflict_status — Phase 27C's conflict flags would silently no-op.`);
   } else {
     ok('proposeSaveMemory INSERT sets contradicts_memory_item_id/conflict_status (Phase 27C conflict flags are live, not a no-op)');
+  }
+}
+
+// ── 10. Phase 27D: the one canonical governance/promotion method exists on
+// ImmutableMemoryVersionService (proving the mechanism check 8's comment
+// describes is real, not aspirational), and it is unreachable — by name,
+// not just by whole-class ban — from every file in the learning
+// implementation directories.
+const versionServicePath = 'apps/api/src/memory/immutable-memory-version.service.ts';
+let versionServiceSource = '';
+try {
+  versionServiceSource = readFileSync(versionServicePath, 'utf8');
+} catch (error) {
+  fail(`could not read ${versionServicePath}: ${error.message}`);
+}
+const CANONICAL_GOVERNANCE_METHOD = 'decideLearningSignalCandidate';
+if (versionServiceSource && !versionServiceSource.includes(CANONICAL_GOVERNANCE_METHOD)) {
+  fail(
+    `${versionServicePath}: ${CANONICAL_GOVERNANCE_METHOD} not found — Phase 27D's canonical governance/promotion path is missing.`,
+  );
+} else if (versionServiceSource) {
+  let canonicalMethodReferencedInLearningDir = false;
+  for (const file of learningImplFiles) {
+    let content;
+    try {
+      content = readFileSync(file, 'utf8');
+    } catch {
+      continue;
+    }
+    if (content.includes(CANONICAL_GOVERNANCE_METHOD)) {
+      fail(
+        `${file}: references ${CANONICAL_GOVERNANCE_METHOD} — signal capture, candidate generation, and conflict detection must never call the canonical governance/promotion method directly.`,
+      );
+      canonicalMethodReferencedInLearningDir = true;
+    }
+  }
+  if (!canonicalMethodReferencedInLearningDir) {
+    ok(
+      `${CANONICAL_GOVERNANCE_METHOD} exists on ImmutableMemoryVersionService and is unreferenced anywhere under apps/api/src/learning/ or packages/meriv2-core/src/learning/`,
+    );
   }
 }
 

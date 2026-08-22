@@ -74,7 +74,12 @@ if (skipTests) {
     [
       'api learning-signal suite',
       'apps/api',
-      ['--testPathPattern', 'src/learning|learning-signal-resilience'],
+      // learning-signal-governance: Phase 27D's new decision surface lives
+      // in apps/api/src/memory/ (the canonical governance module, not
+      // src/learning/ — see check-learning-signal-new-bypasses.mjs check 8),
+      // so it needs its own suffix here the same way 27A's resilience tests
+      // did when they landed outside src/learning/ too.
+      ['--testPathPattern', 'src/learning|learning-signal-resilience|learning-signal-governance'],
     ],
   ];
   for (const [name, dir, args] of SUITES) {

@@ -17,10 +17,13 @@ import { MemoryCleanupOutboxService } from './memory-cleanup-outbox.service.js';
 import { governedMemoryLifecycleEnabled } from './memory-governance-lifecycle.helpers.js';
 import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
 import { MemoryTransitionAuditService } from './memory-transition-audit.service.js';
+import { payloadToSaveRequest } from './memory-candidate.service.js';
 import {
   classifyMemoryVersionActivation,
   immutableMemoryVersionSlug,
   isMemoryVersionKind,
+  isLearningSignalConflictResolution,
+  type LearningSignalConflictResolution,
   type MemoryVersionKind,
 } from './memory-version.helpers.js';
 
@@ -28,6 +31,12 @@ const VERSION_SOURCE_KIND = {
   correction: 'memory_correction',
   restore: 'memory_restore',
   contradiction: 'memory_contradiction',
+  // Phase 27D: origin_surface for a version row created by a governed
+  // decision on a learning-signal-derived candidate (see
+  // decideLearningSignalCandidate below). Distinct from the candidate's own
+  // source_kind='learning_signal' column value, though it happens to share
+  // the same string — different rows, different columns, no collision.
+  learning_signal: 'learning_signal',
 } as const satisfies Record<MemoryVersionKind, string>;
 
 interface VersionSection {
@@ -60,6 +69,13 @@ interface CandidateRow {
   proposed_by: string;
   source_kind: string;
   payload_jsonb: unknown;
+}
+
+/** Phase 27D — a learning-signal-derived candidate locked for a governed decision. */
+interface LearningSignalCandidateRow extends CandidateRow {
+  scope: string;
+  client_id: string | null;
+  contradicts_memory_item_id: string;
 }
 
 interface VersionPayload {
@@ -97,6 +113,16 @@ export type MemoryVersionResult =
 export interface VersionCandidateDecisionResult {
   candidateId: string;
   outcome: 'activated' | 'duplicate' | 'conflict' | 'rejected';
+  memoryItemId?: string;
+  controllingItemId?: string;
+  conflictGroupId?: string;
+}
+
+/** Phase 27D — result of a governed decision on a learning-signal-derived candidate. */
+export interface LearningSignalGovernanceResult {
+  candidateId: string;
+  decision: LearningSignalConflictResolution;
+  outcome: 'activated' | 'duplicate' | 'corroborated' | 'conflict';
   memoryItemId?: string;
   controllingItemId?: string;
   conflictGroupId?: string;
@@ -320,6 +346,196 @@ export class ImmutableMemoryVersionService {
     return { candidateId, outcome: 'rejected' };
   }
 
+  /**
+   * Phase 27D — the ONE canonical path that may resolve a Phase 27C conflict
+   * flag on a learning-signal-derived candidate into a real change to active
+   * memory. `duplicate`/`corroborate_existing` never create a second active
+   * row (the existing item stays canonical; only its last_confirmed_at
+   * advances). `supersede_existing` retires the contradicted item exactly
+   * like an approved correction. `conflict_requires_review` opens a
+   * conflict group exactly like an approved contradiction — a human still
+   * has to pick a controlling side later via MemoryConflictService.resolve;
+   * this only stops pretending the detected relationship doesn't exist.
+   *
+   * `approve_new` (the reviewer decides the detector's flag was a false
+   * positive — commit the candidate as an independent new memory, target
+   * left untouched) and `reject` are NOT handled here: both are byte-for-
+   * byte the same call as the 'standard' candidate kind already makes, so
+   * MemoryCandidateReviewService routes them straight to
+   * MemoryCandidateService.approve()/reject() and never reaches this method.
+   */
+  async decideLearningSignalCandidate(
+    ctx: TenantContext,
+    candidateId: string,
+    decision: LearningSignalConflictResolution,
+    reason?: string,
+  ): Promise<LearningSignalGovernanceResult> {
+    this.requireLifecycle();
+    if (!isLearningSignalConflictResolution(decision)) {
+      throw new BadRequestException(`Unsupported learning-signal governance decision: ${decision}`);
+    }
+    const cleanReason = (reason ?? '').trim();
+
+    const outcome = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const candidate = await this.lockLearningSignalConflictCandidate(tx, ctx.tenantId, candidateId);
+      await this.authorizeCandidate(tx, ctx, candidateId, 'resolve_conflict');
+      if (
+        candidate.scope !== 'user_private' &&
+        candidate.proposed_by === ctx.userId &&
+        !isMemoryReviewAdminRole(ctx.role)
+      ) {
+        throw new ForbiddenException(
+          'Shared-scope memory self-approval requires an active administrator.',
+        );
+      }
+
+      const target = await this.loadItem(tx, ctx.tenantId, candidate.contradicts_memory_item_id);
+      if (!target) {
+        throw new NotFoundException(
+          'The active memory item this candidate was flagged against no longer exists.',
+        );
+      }
+      // Defense in depth: LearningSignalMemoryConflictService only ever
+      // matches within the candidate's own client/personal wall, so this
+      // should already be guaranteed by construction — but a governed
+      // decision that can activate/supersede active memory must not trust
+      // that upstream invariant alone. A candidate never widens scope: its
+      // own client_id must equal the flagged item's, exactly.
+      if (candidate.client_id !== target.client_id) {
+        throw new ForbiddenException(
+          'Memory operation denied: candidate and flagged item belong to different clients.',
+        );
+      }
+      if (!isControlling(target)) {
+        throw new BadRequestException(
+          'The flagged memory item is no longer controlling; conflict detection is stale for this candidate.',
+        );
+      }
+      if (decision === 'supersede_existing' && target.legal_hold) {
+        throw new ForbiddenException('Memory operation denied: legal_hold');
+      }
+
+      const record = payloadToSaveRequest(candidate.payload_jsonb);
+      const sections = record.canonicalItem?.sections ?? [
+        { key: 'memory', heading: 'Memory', owner: 'human' as const, body: record.value.trim() },
+      ];
+      const proposedText = textFromSections(sections);
+
+      // Same migration-trigger capability gate approveCandidate uses — set
+      // only after locks, authorization, self-approval, and legal_hold have
+      // all passed.
+      await tx.$queryRaw<Array<{ set_config: string }>>`
+        SELECT set_config('app.memory_version_activation', 'on', true)
+      `;
+
+      if (decision === 'duplicate' || decision === 'corroborate_existing') {
+        await this.linkDuplicate(tx, ctx, candidate, target);
+        return {
+          result: {
+            candidateId,
+            decision,
+            outcome: decision === 'duplicate' ? 'duplicate' : 'corroborated',
+            memoryItemId: target.id,
+            controllingItemId: target.id,
+          },
+        } satisfies TransactionOutcome<LearningSignalGovernanceResult>;
+      }
+
+      if (decision === 'supersede_existing') {
+        const created = await this.insertVersion(tx, {
+          tenantId: ctx.tenantId,
+          copySource: target,
+          parentId: target.id,
+          contradictsId: null,
+          candidateId,
+          assertedBy: candidate.proposed_by,
+          approvedBy: ctx.userId,
+          kind: 'learning_signal',
+          sections,
+          governedStatus: 'active',
+          conflictStatus: 'none',
+          conflictGroupId: null,
+        });
+        await this.supersedeOne(tx, ctx, target, created.id, candidateId);
+        await this.finishCandidate(tx, ctx, candidate, created.id, null, null);
+        return {
+          result: {
+            candidateId,
+            decision,
+            outcome: 'activated',
+            memoryItemId: created.id,
+            controllingItemId: created.id,
+          },
+          embed: embedInput(created, proposedText),
+        } satisfies TransactionOutcome<LearningSignalGovernanceResult>;
+      }
+
+      // conflict_requires_review
+      const conflictGroupId = target.conflict_group_id ?? randomUUID();
+      const created = await this.insertVersion(tx, {
+        tenantId: ctx.tenantId,
+        copySource: target,
+        parentId: null,
+        contradictsId: target.id,
+        candidateId,
+        assertedBy: candidate.proposed_by,
+        approvedBy: ctx.userId,
+        kind: 'learning_signal',
+        sections,
+        governedStatus: 'conflicted',
+        conflictStatus: 'open',
+        conflictGroupId,
+      });
+      await this.openConflict(tx, ctx, target, created.id, conflictGroupId, candidateId);
+      await this.finishCandidate(tx, ctx, candidate, created.id, null, target.id);
+      return {
+        result: {
+          candidateId,
+          decision,
+          outcome: 'conflict',
+          memoryItemId: created.id,
+          controllingItemId: target.id,
+          conflictGroupId,
+        },
+        embed: embedInput(created, proposedText),
+      } satisfies TransactionOutcome<LearningSignalGovernanceResult>;
+    });
+
+    if (outcome.embed) this.embedAfterCommit(outcome.embed);
+    if (cleanReason) {
+      this.logger.log(
+        `Learning-signal candidate ${candidateId} resolved '${decision}': ${cleanReason.slice(0, 200)}`,
+      );
+    }
+    return outcome.result;
+  }
+
+  private async lockLearningSignalConflictCandidate(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    candidateId: string,
+  ): Promise<LearningSignalCandidateRow> {
+    const rows = await tx.$queryRaw<Array<LearningSignalCandidateRow>>`
+      SELECT id::text AS id, proposed_by::text AS proposed_by, source_kind, scope,
+             client_id::text AS client_id,
+             payload_jsonb, contradicts_memory_item_id::text AS contradicts_memory_item_id
+      FROM memory_candidate
+      WHERE id = ${candidateId}::uuid AND tenant_id = ${tenantId}::uuid
+        AND status = 'pending'
+        AND source_kind = 'learning_signal'
+        AND contradicts_memory_item_id IS NOT NULL
+        AND conflict_status = 'open'
+      FOR UPDATE
+    `;
+    const row = rows[0];
+    if (!row) {
+      throw new NotFoundException(
+        'No pending learning-signal candidate with an open conflict flag for that id.',
+      );
+    }
+    return row;
+  }
+
   private async proposeOrActivate(
     ctx: TenantContext,
     sourceItemId: string,
@@ -483,7 +699,7 @@ export class ImmutableMemoryVersionService {
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
     candidateId: string,
-    operation: 'approve' | 'review',
+    operation: 'approve' | 'review' | 'resolve_conflict',
   ): Promise<void> {
     const subject = await this.authorization.loadCandidateInTx(tx, ctx.tenantId, candidateId);
     if (!subject) throw new NotFoundException('Memory candidate not found.');
@@ -706,7 +922,20 @@ export class ImmutableMemoryVersionService {
       actorUserId: input.approvedBy,
       clientId: created.client_id,
       toStatus: input.governedStatus,
-      reasonCode: input.kind === 'contradiction' ? 'conflict_detected' : 'corrected',
+      // learning_signal keys off the resolved governedStatus rather than a
+      // fixed kind->reasonCode mapping, since a single learning-signal
+      // decision can resolve to either an active or a conflicted version
+      // (supersede_existing vs conflict_requires_review) — unlike
+      // correction/restore/contradiction, which each only ever reach one
+      // of these two branches.
+      reasonCode:
+        input.kind === 'learning_signal'
+          ? input.governedStatus === 'conflicted'
+            ? 'conflict_detected'
+            : 'corrected'
+          : input.kind === 'contradiction'
+            ? 'conflict_detected'
+            : 'corrected',
       reason: `Created immutable ${input.kind} memory version.`,
       sourceType: 'approved_document_edit',
       sourceId: input.copySource.id,

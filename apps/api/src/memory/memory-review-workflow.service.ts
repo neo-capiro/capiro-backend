@@ -21,6 +21,7 @@ import {
   normalizeMemoryReviewReason,
   type MemoryReviewWorkflowStatus,
 } from './memory-review-workflow.helpers.js';
+import { candidateKindFor } from './memory-version.helpers.js';
 
 const MEMORY_REVIEW_SURFACE = 'memory';
 const MEMORY_REVIEW_SUBJECT = 'memory_candidate';
@@ -95,6 +96,8 @@ interface LockedMemoryCandidateRow {
   sourceKind: string;
   scope: string;
   payload: unknown;
+  contradictsMemoryItemId: string | null;
+  conflictStatus: string | null;
 }
 
 interface EligibleReviewer extends MemoryReviewIdentity {
@@ -265,7 +268,7 @@ export class MemoryReviewWorkflowService {
   async assertAssignedForDecision(
     ctx: TenantContext,
     candidateId: string,
-    operation: 'approve' | 'review',
+    operation: 'approve' | 'review' | 'resolve_conflict',
   ): Promise<void> {
     await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const candidate = await this.lockPendingCandidateInTx(tx, ctx.tenantId, candidateId);
@@ -633,7 +636,9 @@ export class MemoryReviewWorkflowService {
              proposed_by::text AS "proposedBy",
              source_kind AS "sourceKind",
              scope,
-             payload_jsonb AS payload
+             payload_jsonb AS payload,
+             contradicts_memory_item_id::text AS "contradictsMemoryItemId",
+             conflict_status AS "conflictStatus"
       FROM memory_candidate
       WHERE tenant_id = ${tenantId}::uuid
         AND id = ${candidateId}::uuid
@@ -747,16 +752,13 @@ function workflowCandidate(
     proposedByUserId: candidate.proposedBy,
     sourceKind: candidate.sourceKind,
     scope: candidate.scope,
-    candidateKind: candidateKindForSource(candidate.sourceKind),
+    candidateKind: candidateKindFor({
+      sourceKind: candidate.sourceKind,
+      contradictsMemoryItemId: candidate.contradictsMemoryItemId,
+      conflictStatus: candidate.conflictStatus,
+    }),
     title: candidateTitle(candidate.payload),
   };
-}
-
-function candidateKindForSource(sourceKind: string): string {
-  if (sourceKind === 'memory_correction') return 'correction';
-  if (sourceKind === 'memory_restore') return 'restore';
-  if (sourceKind === 'memory_contradiction') return 'contradiction';
-  return 'standard';
 }
 
 function candidateTitle(payload: unknown): string {
