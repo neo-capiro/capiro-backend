@@ -1,6 +1,12 @@
 import type { AxiosInstance } from 'axios';
 
-export type FacilityGeocodeStatus = 'matched' | 'no_match' | 'pending' | 'ambiguous' | 'error' | 'manual_review';
+export type FacilityGeocodeStatus =
+  | 'matched'
+  | 'no_match'
+  | 'pending'
+  | 'ambiguous'
+  | 'error'
+  | 'manual_review';
 
 /**
  * Step 2.3 — web API for client facilities (CRUD).
@@ -9,6 +15,20 @@ export type FacilityGeocodeStatus = 'matched' | 'no_match' | 'pending' | 'ambigu
  * /api/clients/:clientId/facilities). The congressional district is the BARE number
  * ("12"); the state is carried separately ("TX"). Display strings combine them as "ST-NN".
  */
+
+export interface GeocodeCandidate {
+  matchedAddress: string | null;
+  addressLine: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  congressionalDistrict: string | null;
+  congressionalDistrictCongress: number | null;
+  stateHouseDistrict: string | null;
+  stateSenateDistrict: string | null;
+}
 
 export interface ClientFacility {
   id: string;
@@ -35,6 +55,7 @@ export interface ClientFacility {
   geocodeNextAttemptAt?: string | null;
   geocodeLastError?: string | null;
   geocodeMatchedAddress?: string | null;
+  geocodeCandidates?: GeocodeCandidate[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -99,6 +120,20 @@ export async function retryClientFacilityGeocode(
   return (
     await api.post<ClientFacility>(
       `/api/clients/${encodeURIComponent(clientId)}/facilities/${encodeURIComponent(id)}/geocode`,
+    )
+  ).data;
+}
+
+export async function chooseClientFacilityGeocodeCandidate(
+  api: AxiosInstance,
+  clientId: string,
+  id: string,
+  candidateIndex: number,
+): Promise<ClientFacility> {
+  return (
+    await api.post<ClientFacility>(
+      `/api/clients/${encodeURIComponent(clientId)}/facilities/${encodeURIComponent(id)}/geocode-candidate`,
+      { candidateIndex },
     )
   ).data;
 }

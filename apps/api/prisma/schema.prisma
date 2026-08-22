@@ -3149,6 +3149,9 @@ model ClientFacility {
   geocodeNextAttemptAt  DateTime? @map("geocode_next_attempt_at") @db.Timestamptz(6)
   geocodeLastError      String?   @map("geocode_last_error")
   geocodeMatchedAddress String?   @map("geocode_matched_address")
+  /// Census address candidates retained when a lookup is ambiguous. The API
+  /// exposes these as recommendations; a user must explicitly choose one.
+  geocodeCandidates    Json?     @map("geocode_candidates_jsonb")
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 

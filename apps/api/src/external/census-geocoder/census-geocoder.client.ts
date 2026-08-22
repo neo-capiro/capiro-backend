@@ -44,6 +44,21 @@ const VINTAGE = 'Current_Current';
 
 export type GeocodeStatus = 'matched' | 'no_match' | 'ambiguous' | 'error';
 
+/** A complete Census hit that can be shown as a safe address recommendation. */
+export interface CensusGeocodeCandidate {
+  matchedAddress: string | null;
+  addressLine: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  congressionalDistrict: string | null;
+  congressionalDistrictCongress: number | null;
+  stateHouseDistrict: string | null;
+  stateSenateDistrict: string | null;
+}
+
 export interface CensusGeocodeResult {
   status: GeocodeStatus;
   latitude: number | null;
@@ -63,6 +78,8 @@ export interface CensusGeocodeResult {
   /** Bare number (BASENAME), e.g. "8". */
   stateSenateDistrict: string | null;
   matchedAddress: string | null;
+  /** Other complete hits returned by Census when the input is ambiguous. */
+  candidates?: CensusGeocodeCandidate[];
 }
 
 export interface CensusGeographyRow {
@@ -71,6 +88,18 @@ export interface CensusGeographyRow {
 }
 export interface CensusAddressMatch {
   matchedAddress?: string;
+  addressComponents?: {
+    fromAddress?: string;
+    preQualifier?: string;
+    preDirection?: string;
+    preType?: string;
+    streetName?: string;
+    suffixType?: string;
+    suffixDirection?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+  };
   coordinates?: { x: number; y: number };
   geographies?: Record<string, CensusGeographyRow[]>;
 }
@@ -138,7 +167,41 @@ export function extractDistricts(match: CensusAddressMatch): {
   const congressionalDistrictCongress = congressMatch ? Number(congressMatch[1]) : null;
   const stateHouseDistrict = lowerRow?.BASENAME ? String(lowerRow.BASENAME).trim() || null : null;
   const stateSenateDistrict = upperRow?.BASENAME ? String(upperRow.BASENAME).trim() || null : null;
-  return { congressionalDistrict, congressionalDistrictCongress, stateHouseDistrict, stateSenateDistrict };
+  return {
+    congressionalDistrict,
+    congressionalDistrictCongress,
+    stateHouseDistrict,
+    stateSenateDistrict,
+  };
+}
+
+/** Convert one raw Census hit into the safe candidate shape exposed to callers. */
+export function parseGeocodeMatch(match: CensusAddressMatch): CensusGeocodeCandidate {
+  const districts = extractDistricts(match);
+  const components = match.addressComponents;
+  const addressLine = components
+    ? [
+        components.fromAddress,
+        components.preQualifier,
+        components.preDirection,
+        components.preType,
+        components.streetName,
+        components.suffixType,
+        components.suffixDirection,
+      ]
+        .filter(Boolean)
+        .join(' ')
+    : null;
+  return {
+    matchedAddress: match.matchedAddress ?? null,
+    addressLine: addressLine || null,
+    city: components?.city ?? null,
+    state: components?.state ?? null,
+    zip: components?.zip ?? null,
+    latitude: match.coordinates?.y ?? null,
+    longitude: match.coordinates?.x ?? null,
+    ...districts,
+  };
 }
 
 /**
@@ -166,14 +229,15 @@ export async function geocodeAddress(
   }
   const matches = json.result?.addressMatches ?? [];
   if (matches.length === 0) return NO_MATCH_RESULT;
-  if (matches.length > 1) return { ...NO_MATCH_RESULT, status: 'ambiguous' };
-  const m = matches[0]!;
-  const districts = extractDistricts(m);
+  if (matches.length > 1) {
+    return {
+      ...NO_MATCH_RESULT,
+      status: 'ambiguous',
+      candidates: matches.map(parseGeocodeMatch),
+    };
+  }
   return {
     status: 'matched',
-    latitude: m.coordinates ? m.coordinates.y : null,
-    longitude: m.coordinates ? m.coordinates.x : null,
-    ...districts,
-    matchedAddress: m.matchedAddress ?? null,
+    ...parseGeocodeMatch(matches[0]!),
   };
 }

@@ -194,6 +194,32 @@
   line-height: 16px;
   color: var(--capiro-color-text-muted);
 }
+.capiro-vnext-root .capiro-facmod__recommendation {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  width: 100%;
+  margin-top: 3px;
+  padding: 6px 8px;
+  border: 1px solid var(--capiro-color-border-divider);
+  border-radius: 7px;
+  color: var(--capiro-color-text-secondary);
+  background: var(--capiro-color-bg-surface-2);
+}
+
+.capiro-vnext-root .capiro-facmod__recommendation > span {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.capiro-vnext-root .capiro-facmod__recommendation > span:first-child {
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
 .capiro-vnext-root .capiro-facmod__source,
 .capiro-vnext-root .capiro-facmod__geocoder {
   display: inline-flex;

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
@@ -137,8 +138,16 @@ export class ClientFacilitiesService {
               ...outcome.update,
               geocodeAttemptCount: attemptCount,
               geocodeNextAttemptAt: retry.nextAttemptAt,
-              geocodeLastError: outcome.status === 'error' ? 'Census geocoder request failed' : null,
-              geocodeMatchedAddress: null,
+              geocodeLastError:
+                outcome.status === 'error' ? 'Census geocoder request failed' : null,
+              ...(outcome.status !== 'error'
+                ? {
+                    geocodeMatchedAddress: outcome.matchedAddress,
+                    geocodeCandidates: outcome.candidates
+                      ? (outcome.candidates as unknown as Prisma.InputJsonValue)
+                      : Prisma.JsonNull,
+                  }
+                : {}),
             },
           });
         } else {
@@ -147,7 +156,16 @@ export class ClientFacilitiesService {
             data: {
               geocodeAttemptCount: attemptCount,
               geocodeNextAttemptAt: retry.nextAttemptAt,
-              geocodeLastError: outcome.status === 'error' ? 'Census geocoder request failed' : null,
+              geocodeLastError:
+                outcome.status === 'error' ? 'Census geocoder request failed' : null,
+              ...(outcome.status !== 'error'
+                ? {
+                    geocodeMatchedAddress: outcome.matchedAddress,
+                    geocodeCandidates: outcome.candidates
+                      ? (outcome.candidates as unknown as Prisma.InputJsonValue)
+                      : Prisma.JsonNull,
+                  }
+                : {}),
             },
           });
         }
@@ -171,9 +189,16 @@ export class ClientFacilitiesService {
       });
       if (!current) throw new NotFoundException('Facility not found');
       const outcome = await computeFacilityGeocode(current);
-      if (outcome.update) {
-        await tx.clientFacility.update({ where: { id }, data: outcome.update });
-      }
+      await tx.clientFacility.update({
+        where: { id },
+        data: {
+          ...(outcome.update ?? {}),
+          geocodeMatchedAddress: outcome.matchedAddress,
+          geocodeCandidates: outcome.candidates
+            ? (outcome.candidates as unknown as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+        },
+      });
       return tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } });
     });
     if (!facility) throw new NotFoundException('Facility not found');
@@ -328,6 +353,82 @@ export class ClientFacilitiesService {
     });
     this.clientKb.purgeFireAndForget(ctx.tenantId, 'client_facility', id);
     return result;
+  }
+
+  async chooseGeocodeCandidate(
+    ctx: TenantContext,
+    clientId: string,
+    id: string,
+    candidateIndex: number,
+  ) {
+    if (!Number.isInteger(candidateIndex) || candidateIndex < 0) {
+      throw new BadRequestException('candidateIndex must be a non-negative integer');
+    }
+    const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.clientFacility.findFirst({
+        where: { id, tenantId: ctx.tenantId, clientId },
+      });
+      if (!existing) throw new NotFoundException('Facility not found');
+      const candidates = Array.isArray(existing.geocodeCandidates)
+        ? existing.geocodeCandidates
+        : [];
+      const candidate = candidates[candidateIndex] as
+        | {
+            matchedAddress?: unknown;
+            latitude?: unknown;
+            longitude?: unknown;
+            congressionalDistrict?: unknown;
+            congressionalDistrictCongress?: unknown;
+            addressLine?: unknown;
+            city?: unknown;
+            state?: unknown;
+            zip?: unknown;
+            stateHouseDistrict?: unknown;
+            stateSenateDistrict?: unknown;
+          }
+        | undefined;
+      if (!candidate || typeof candidate.matchedAddress !== 'string') {
+        throw new BadRequestException('Geocode candidate is no longer available');
+      }
+      return tx.clientFacility.update({
+        where: { id },
+        data: {
+          addressLine:
+            typeof candidate.addressLine === 'string'
+              ? candidate.addressLine
+              : candidate.matchedAddress,
+          city: typeof candidate.city === 'string' ? candidate.city : existing.city,
+          state: typeof candidate.state === 'string' ? candidate.state : existing.state,
+          zip: typeof candidate.zip === 'string' ? candidate.zip : existing.zip,
+          latitude: typeof candidate.latitude === 'number' ? candidate.latitude : null,
+          longitude: typeof candidate.longitude === 'number' ? candidate.longitude : null,
+          congressionalDistrict:
+            typeof candidate.congressionalDistrict === 'string'
+              ? (normalizeDistrictForStorage(
+                  typeof candidate.state === 'string' ? candidate.state : existing.state,
+                  candidate.congressionalDistrict,
+                ) ?? null)
+              : null,
+          congressionalDistrictCongress:
+            typeof candidate.congressionalDistrictCongress === 'number'
+              ? candidate.congressionalDistrictCongress
+              : null,
+          districtSource: 'geocoded',
+          stateHouseDistrict:
+            typeof candidate.stateHouseDistrict === 'string' ? candidate.stateHouseDistrict : null,
+          stateSenateDistrict:
+            typeof candidate.stateSenateDistrict === 'string'
+              ? candidate.stateSenateDistrict
+              : null,
+          geocodeMatchedAddress: candidate.matchedAddress,
+          geocodeCandidates: Prisma.JsonNull,
+          geocodeStatus: 'matched',
+          geocodedAt: new Date(),
+        },
+      });
+    });
+    this.clientKb.indexFacilityFireAndForget(ctx.tenantId, id);
+    return facility;
   }
 
   async retryGeocode(ctx: TenantContext, clientId: string, id: string) {

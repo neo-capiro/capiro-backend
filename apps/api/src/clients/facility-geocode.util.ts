@@ -11,6 +11,7 @@
 import { createHash } from 'node:crypto';
 import {
   geocodeAddress,
+  type CensusGeocodeCandidate,
   type GeocodeStatus,
 } from '../external/census-geocoder/census-geocoder.client.js';
 import { normalizeDistrictCode } from './district-code.util.js';
@@ -94,6 +95,10 @@ export interface FacilityGeocodeUpdate {
 export interface FacilityGeocodeOutcome {
   update: FacilityGeocodeUpdate | null;
   status: GeocodeStatus;
+  /** Census' canonical address, retained even when the row is otherwise unchanged. */
+  matchedAddress: string | null;
+  /** All selectable Census hits when the input was ambiguous. */
+  candidates: CensusGeocodeCandidate[] | null;
   /** A hand-typed congressionalDistrict disagreed with the geocoded one (data-quality signal for M5's QA surface). */
   discrepancy: { handEntered: string; geocoded: string } | null;
 }
@@ -128,6 +133,8 @@ export async function computeFacilityGeocode(
               geocodeInputHash,
             },
       status: 'no_match',
+      matchedAddress: null,
+      candidates: null,
       discrepancy: null,
     };
   }
@@ -151,6 +158,8 @@ export async function computeFacilityGeocode(
           }
         : null,
       status: result.status,
+      matchedAddress: result.matchedAddress,
+      candidates: result.candidates ?? null,
       discrepancy: null,
     };
   }
@@ -189,7 +198,13 @@ export async function computeFacilityGeocode(
     ((f.congressionalDistrictCongress ?? null) === (result.congressionalDistrictCongress ?? null) ||
       f.districtSource !== 'geocoded');
   if (unchanged) {
-    return { update: null, status: 'matched', discrepancy };
+    return {
+      update: null,
+      status: 'matched',
+      matchedAddress: result.matchedAddress,
+      candidates: null,
+      discrepancy,
+    };
   }
 
   return {
@@ -217,6 +232,8 @@ export async function computeFacilityGeocode(
       geocodeInputHash,
     },
     status: 'matched',
+    matchedAddress: result.matchedAddress,
+    candidates: null,
     discrepancy,
   };
 }

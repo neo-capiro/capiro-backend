@@ -131,6 +131,12 @@ export class CreateFacilityDto {
   notes?: string;
 }
 
+export class ChooseGeocodeCandidateDto {
+  @IsInt()
+  @Min(0)
+  candidateIndex!: number;
+}
+
 export class UpdateFacilityDto {
   @IsOptional()
   @IsString()
@@ -234,6 +240,16 @@ export class ClientFacilitiesController {
     @Param('id') id: string,
   ) {
     return this.service.retryGeocode(ctx, clientId, id);
+  }
+
+  @Post(':id/geocode-candidate')
+  chooseGeocodeCandidate(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('id') id: string,
+    @Body() body: ChooseGeocodeCandidateDto,
+  ) {
+    return this.service.chooseGeocodeCandidate(ctx, clientId, id, body.candidateIndex);
   }
 
   @Delete(':id')
