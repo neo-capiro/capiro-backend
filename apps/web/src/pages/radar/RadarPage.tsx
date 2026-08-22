@@ -6,6 +6,7 @@ import { useIntelFeature } from '../../lib/intel-feature-flags.js';
 import LegacyRadarPage from './LegacyRadarPage.js';
 import { LiveHearingsPage } from './live-hearings/LiveHearingsPage.js';
 import { LiveHearingsPhase7Surface } from './live-hearings/LiveHearingsPhase7Surface.js';
+import { LiveHearingsV2BroadcastPanel } from './live-hearings/LiveHearingsV2BroadcastPanel.js';
 import { LiveHearingsV2CoverageDrawer } from './live-hearings/LiveHearingsV2CoverageDrawer.js';
 import {
   LEGIWATCH_LIVE_HEARINGS_V2_FEATURE,
@@ -89,6 +90,8 @@ export function RadarPage() {
   // must not bypass it: an unflagged tenant must still see the "not enabled"
   // empty state, exactly as the legacy surface always has.
   const hearingWatchFlag = useIntelFeature('hearing_watch');
+  const phase7EventId =
+    searchParams.get('hearingView') === 'event' ? searchParams.get('event') ?? '' : '';
 
   useEffect(() => {
     if (tab === 'feed' || tab === 'bills') lastBillView.current = tab;
@@ -187,6 +190,7 @@ export function RadarPage() {
           ) : liveHearingsV2Enabled ? (
             <>
               <LiveHearingsV2CoverageDrawer />
+              {phase7EventId ? <LiveHearingsV2BroadcastPanel hearingId={phase7EventId} /> : null}
               <LiveHearingsPhase7Surface />
             </>
           ) : (
