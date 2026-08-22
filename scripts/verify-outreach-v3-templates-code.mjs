@@ -7,7 +7,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // This branch's merge-base with `main` as of its last rebase (2026-08-22).
 // Re-rebase and update this (or pass OUTREACH_V3_TEMPLATES_BASE_SHA) if
 // `main` moves again before merge — `git merge-base origin/main HEAD`.
-const BASE_SHA = process.env.OUTREACH_V3_TEMPLATES_BASE_SHA || '56be9b5ed871b2eff32f7fd1ee766312e43a72d2';
+const BASE_SHA = process.env.OUTREACH_V3_TEMPLATES_BASE_SHA || 'd837bac862eec8985f204e45695cb7a02c9b10f2';
 const DUMMY_DATABASE_URL = 'postgresql://templates:templates@127.0.0.1:1/templates?schema=public';
 // apps/api/src/engagement/attachment-content.service.ts fails tsc/build on
 // `main` today (missing @types/word-extractor) — confirmed via
