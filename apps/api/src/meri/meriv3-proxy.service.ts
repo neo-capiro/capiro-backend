@@ -150,13 +150,19 @@ export class MeriV3ProxyService {
         const refusal = complianceRefusalBody(block.category);
         emit({ type: 'start', intent: 'compliance_refusal', tier: 'fast', runtime: 'meriv3' });
         emit({ type: 'text', text: refusal });
-        await this.persistAssistantMessage(ctx, conversation, conversationId, refusal, {
-          servedBy: 'compliance-block',
-          runtime: 'meriv3',
-          finishReason: 'stop',
-          compliance: { flagged: true, category: block.category, blocked: true },
-        });
-        emit({ type: 'done' });
+        const refusalMessage = await this.persistAssistantMessage(
+          ctx,
+          conversation,
+          conversationId,
+          refusal,
+          {
+            servedBy: 'compliance-block',
+            runtime: 'meriv3',
+            finishReason: 'stop',
+            compliance: { flagged: true, category: block.category, blocked: true },
+          },
+        );
+        emit({ type: 'done', messageId: refusalMessage.id });
         return;
       }
     }
@@ -171,13 +177,19 @@ export class MeriV3ProxyService {
       emit({ type: 'start', intent: 'deep_research_offer', tier: 'deep', runtime: 'meriv3' });
       emit({ type: 'text', text: offer });
       emit({ type: 'research_offer', topic: reportRequest.topic, reason: reportRequest.reason });
-      await this.persistAssistantMessage(ctx, conversation, conversationId, offer, {
-        servedBy: 'research-promote',
-        runtime: 'meriv3',
-        finishReason: 'stop',
-        researchOffer: { topic: reportRequest.topic },
-      });
-      emit({ type: 'done' });
+      const offerMessage = await this.persistAssistantMessage(
+        ctx,
+        conversation,
+        conversationId,
+        offer,
+        {
+          servedBy: 'research-promote',
+          runtime: 'meriv3',
+          finishReason: 'stop',
+          researchOffer: { topic: reportRequest.topic },
+        },
+      );
+      emit({ type: 'done', messageId: offerMessage.id });
       return;
     }
 
@@ -363,6 +375,7 @@ export class MeriV3ProxyService {
       emit({ type: 'exec_trace', trace: steps });
     }
 
+    let assistantMessageId: string | null = null;
     if (assistantContent || steps.length || errorMessage) {
       const message = await this.persistAssistantMessage(
         ctx,
@@ -405,6 +418,7 @@ export class MeriV3ProxyService {
             : {}),
         },
       );
+      assistantMessageId = message.id;
       if (artifactIds.length) {
         await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioArtifact.updateMany({
@@ -426,6 +440,7 @@ export class MeriV3ProxyService {
     }
     emit({
       type: 'done',
+      ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
       ...(frame?.contextPacket?.packetId ? { contextPacketId: frame.contextPacket.packetId } : {}),
       ...(frame?.retrieval ? { retrieval: frame.retrieval } : {}),
     });
