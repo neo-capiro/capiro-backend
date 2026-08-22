@@ -193,6 +193,7 @@ describe('ClientProfileFillService — learning-signal capture is non-blocking',
         {} as never,
         {} as never,
         {} as never,
+        {} as never, // tracker
         new LearningSignalCaptureService() as never,
       );
       return { service, tx };
