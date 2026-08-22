@@ -4,7 +4,8 @@ export type CapiroBadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'in
 
 export interface CapiroBadgeProps extends HTMLAttributes<HTMLSpanElement> {
   tone?: CapiroBadgeTone;
-  dot?: ReactNode;
+  dot?: boolean;
+  children?: ReactNode;
 }
 
 export function CapiroBadge({ tone = 'neutral', dot, className = '', children, ...props }: CapiroBadgeProps) {
@@ -13,7 +14,7 @@ export function CapiroBadge({ tone = 'neutral', dot, className = '', children, .
       className={`capiro-badge${tone === 'neutral' ? '' : ` capiro-badge--${tone}`} ${className}`.trim()}
       {...props}
     >
-      {dot}
+      {dot && <span className="capiro-badge__dot" />}
       {children}
     </span>
   );
