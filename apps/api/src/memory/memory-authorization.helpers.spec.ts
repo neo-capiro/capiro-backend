@@ -244,6 +244,49 @@ describe('evaluateGovernedMemoryAuthorization', () => {
     ).toEqual({ allowed: true, basis: 'admin' });
   });
 
+  // Phase 27 post-launch P0 (found live in the 27G canary): an ['approve']-only
+  // grant let a reviewer approve a candidate but 403 on rejecting the exact
+  // same one, leaving it stuck undecidable.
+  it("an ['approve']-only grant can also reject/request-changes (operation 'review'), not just approve", () => {
+    const subject = {
+      memoryClass: 'client_steering' as const,
+      scope: 'client' as const,
+      clientId: 'client-a',
+      status: 'pending_review' as const,
+      proposedByUserId: 'someone-else',
+    };
+    expect(
+      evaluateGovernedMemoryAuthorization(
+        facts({ operation: 'approve', grantPermissions: ['approve'], subject }),
+      ),
+    ).toEqual({ allowed: true, basis: 'explicit_grant' });
+    expect(
+      evaluateGovernedMemoryAuthorization(
+        facts({ operation: 'review', grantPermissions: ['approve'], subject }),
+      ),
+    ).toEqual({ allowed: true, basis: 'explicit_grant' });
+  });
+
+  it("the reverse does NOT hold — a ['review']-only grant never implies 'approve'", () => {
+    const subject = {
+      memoryClass: 'client_steering' as const,
+      scope: 'client' as const,
+      clientId: 'client-a',
+      status: 'pending_review' as const,
+      proposedByUserId: 'someone-else',
+    };
+    expect(
+      evaluateGovernedMemoryAuthorization(
+        facts({ operation: 'review', grantPermissions: ['review'], subject }),
+      ),
+    ).toEqual({ allowed: true, basis: 'explicit_grant' });
+    expect(
+      evaluateGovernedMemoryAuthorization(
+        facts({ operation: 'approve', grantPermissions: ['review'], subject }),
+      ),
+    ).toEqual({ allowed: false, reason: 'missing_grant' });
+  });
+
   it('allows a grant-holding reviewer who did not propose the client change', () => {
     expect(
       evaluateGovernedMemoryAuthorization(
