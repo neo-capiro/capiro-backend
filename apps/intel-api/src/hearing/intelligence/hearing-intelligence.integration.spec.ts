@@ -190,7 +190,7 @@ describeDb('LegiWatch Phase 8 live intelligence (Postgres)', () => {
 
     await prisma.$executeRawUnsafe(
       `UPDATE public_hearing_transcript_segment
-       SET text='The report has already been delivered.', revision=2, updated_at=now()
+       SET text='The report has already been delivered.', revision=2
        WHERE id=$1`,
       SEGMENT_ID,
     );
