@@ -1,10 +1,12 @@
 import {
+  cloneElement,
   useEffect,
   useId,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
+  type ReactElement,
   type ReactNode,
 } from 'react';
 import { CapiroBadge, type CapiroBadgeTone } from '../badges/index.js';
@@ -79,8 +81,28 @@ export function CapiroTabs({
   );
 }
 
-export function CapiroTooltip({ content, children }: { content: string; children: ReactNode }) {
-  return <span title={content}>{children}</span>;
+export function CapiroTooltip({ content, children }: { content: string; children: ReactElement }) {
+  const [visible, setVisible] = useState(false);
+  const id = useId();
+  return (
+    <span className="capiro-tooltip-wrap">
+      {cloneElement(children, {
+        'aria-describedby': visible ? id : undefined,
+        onMouseEnter: () => setVisible(true),
+        onMouseLeave: () => setVisible(false),
+        onFocus: () => setVisible(true),
+        onBlur: () => setVisible(false),
+      })}
+      <span
+        id={id}
+        role="tooltip"
+        className="capiro-tooltip-panel"
+        aria-hidden={!visible}
+      >
+        {content}
+      </span>
+    </span>
+  );
 }
 
 export interface CapiroMenuItem {
