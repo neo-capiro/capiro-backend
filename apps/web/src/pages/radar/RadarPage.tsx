@@ -6,6 +6,7 @@ import { useIntelFeature } from '../../lib/intel-feature-flags.js';
 import LegacyRadarPage from './LegacyRadarPage.js';
 import { LiveHearingsPage } from './live-hearings/LiveHearingsPage.js';
 import { LiveHearingsPhase8Surface } from './live-hearings/LiveHearingsPhase8Surface.js';
+import { useLegiWatchPhase9Rollout } from './live-hearings/live-hearings-phase9-api.js';
 import { LiveHearingsV2BroadcastPanel } from './live-hearings/LiveHearingsV2BroadcastPanel.js';
 import { LiveHearingsV2CoverageDrawer } from './live-hearings/LiveHearingsV2CoverageDrawer.js';
 import {
@@ -71,10 +72,11 @@ function sectionForTab(tab: LegacyRadarTab): LegiWatchSection {
 /**
  * LegiWatch information architecture.
  *
- * The validated V2 tenant flag opens the Phase 8 composition: the complete
- * Phase 7 hearing product plus evidence-bound public intelligence and private
- * client relevance. The legacy surface remains the fail-closed rollback path;
- * Bill Tracker and Settings keep their existing routes and implementation.
+ * Phase 9 makes the rollout state server-authoritative. During shadow/canary,
+ * only the existing tenant feature flag opens the Phase 8 composition. After a
+ * guarded CUTOVER, the server may make it the default. ROLLBACK, an unavailable
+ * rollout endpoint, or the build-time kill switch returns to the preserved
+ * hearing surface. Bill Tracker and Settings remain unchanged.
  */
 export function RadarPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -83,9 +85,14 @@ export function RadarPage() {
   const section = sectionForTab(tab);
   const lastBillView = useRef<BillTrackerView>(tab === 'bills' ? 'bills' : 'feed');
   const liveHearingsRollout = useIntelFeature(LEGIWATCH_LIVE_HEARINGS_V2_FEATURE);
+  const phase9Rollout = useLegiWatchPhase9Rollout();
   const liveHearingsV2Enabled = legiwatchLiveHearingsV2Enabled({
     tenantFlagEnabled: liveHearingsRollout.enabled,
     tenantFlagReady: liveHearingsRollout.ready,
+    rolloutReady: phase9Rollout.isSuccess,
+    productionDefaultEnabled:
+      phase9Rollout.data?.liveHearingsV2DefaultEnabled ?? false,
+    forceLegacy: phase9Rollout.data?.forceLegacy ?? false,
   });
   // `hearing_watch` is the pre-existing tenant gate for the whole Hearings
   // surface (legacy panel AND the rebuilt Live Hearings product). The rebuild

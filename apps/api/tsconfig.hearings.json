@@ -27,7 +27,9 @@
   "compilerOptions": {
     "rootDir": ".",
     "noEmit": true,
-    "incremental": false
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false
   },
   "include": [
     "scripts/sync-hearings.ts",
@@ -45,7 +47,8 @@
     "scripts/probe-committee-sources.ts",
     "scripts/reconcile-hearing-archives.ts",
     "scripts/audit-hearing-coverage.ts",
-    "scripts/verify-legiwatch-phase3.ts"
+    "scripts/verify-legiwatch-phase3.ts",
+    "src/types/word-extractor.d.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }
