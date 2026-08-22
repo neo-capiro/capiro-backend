@@ -50,12 +50,14 @@ describe('LegiWatch Phase 8 live-intelligence migration', () => {
     expect(text).toContain('confidence >= 0 AND confidence <= 1');
   });
 
-  it('creates separate durable public and tenant queues', () => {
+  it('creates separate durable public and tenant queues with bounded lease state', () => {
     const text = code();
     expect(text).toContain('CREATE TABLE IF NOT EXISTS "public_hearing_intelligence_job"');
     expect(text).toContain('CONSTRAINT "public_hearing_intelligence_job_segment_key" UNIQUE ("segment_id")');
+    expect(text).toContain('CREATE INDEX IF NOT EXISTS "public_hearing_intelligence_job_claim_idx"');
     expect(text).toContain('CREATE TABLE IF NOT EXISTS "tenant_hearing_relevance_job"');
-    expect(text).toContain('FOR UPDATE');
+    expect(text).toContain('CREATE INDEX IF NOT EXISTS "tenant_hearing_relevance_job_claim_idx"');
+    expect(text.match(/status = 'leased' AND lease_owner IS NOT NULL AND lease_expires_at IS NOT NULL/g)?.length).toBe(2);
   });
 
   it('enqueues only final canonical transcript segments and backfills existing finals', () => {
