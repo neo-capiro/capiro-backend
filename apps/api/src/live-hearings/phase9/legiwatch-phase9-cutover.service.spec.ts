@@ -1,12 +1,16 @@
 import { ConflictException } from '@nestjs/common';
-import { LegiWatchPhase9CutoverService } from './legiwatch-phase9-cutover.service.js';
+import {
+  LegiWatchPhase9CutoverService,
+  type RunRow,
+  type StateRow,
+} from './legiwatch-phase9-cutover.service.js';
 
 interface HarnessOptions {
-  state?: Partial<ReturnType<typeof stateRow>>;
-  run?: Partial<ReturnType<typeof runRow>> | null;
+  state?: Partial<StateRow>;
+  run?: Partial<RunRow> | null;
 }
 
-function stateRow() {
+function stateRow(): StateRow {
   return {
     phase: 'SHADOW',
     productionDefault: false,
@@ -27,7 +31,7 @@ function stateRow() {
   };
 }
 
-function runRow() {
+function runRow(): RunRow {
   return {
     id: '00000000-0000-0000-0000-000000000901',
     mode: 'READINESS',

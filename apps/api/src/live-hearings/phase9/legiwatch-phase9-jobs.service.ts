@@ -4,7 +4,7 @@ import { CommitteeSiteAdapter } from '../../hearing-discovery/adapters/committee
 import { CongressGovAdapter, currentCongress } from '../../hearing-discovery/adapters/congress-gov.adapter.js';
 import { HouseRepositoryAdapter } from '../../hearing-discovery/adapters/house-repository.adapter.js';
 import { SenateScheduleAdapter } from '../../hearing-discovery/adapters/senate-schedule.adapter.js';
-import { DiscoveryJobsService, type ProbeAdapterMap } from '../../hearing-discovery/discovery-jobs.service.js';
+import { DiscoveryJobsService, type ProbeAdapterMap, type ProbeableAdapter } from '../../hearing-discovery/discovery-jobs.service.js';
 import { SourceRegistryService } from '../../hearing-discovery/source-registry.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { LegiWatchPhase9CentralDiscoveryService } from './legiwatch-phase9-central-discovery.service.js';
@@ -136,7 +136,7 @@ export class LegiWatchPhase9JobsService {
     const congress = currentCongress();
     const resolveCommitteeName = await registry.committeeNameResolver();
     const resolveHouseCode = await registry.systemCodeByNameResolver('house');
-    return new Map([
+    return new Map<string, ProbeableAdapter>([
       [
         'congress-gov',
         new CongressGovAdapter({

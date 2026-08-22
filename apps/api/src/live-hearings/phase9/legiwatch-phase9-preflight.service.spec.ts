@@ -40,17 +40,11 @@ function harness(input: {
   existingCaptureId?: string;
 } = {}) {
   const rows = input.rows ?? [plannerRow()];
-  const query = jest.fn(async (sql: string) => {
+  const query = jest.fn(async (sql: string, ..._args: unknown[]) => {
     if (sql.includes('FROM legiwatch_cutover_state')) {
       return [{ captureAllPublicEvents: input.captureAll ?? false }];
     }
     if (sql.includes('FROM committee_hearing h')) return rows;
-    if (sql.includes('INSERT INTO public_hearing_capture')) {
-      return [{ id: input.existingCaptureId ?? 'capture-new' }];
-    }
-    if (sql.includes('SELECT id FROM public_hearing_capture')) {
-      return [{ id: input.existingCaptureId ?? 'capture-existing' }];
-    }
     if (sql.includes('INSERT INTO public_hearing_capture_job')) {
       if (input.checkpoint === 'active') return [];
       return [
@@ -60,6 +54,12 @@ function harness(input: {
           rearmed: input.checkpoint === 'rearmed',
         },
       ];
+    }
+    if (sql.includes('INSERT INTO public_hearing_capture')) {
+      return [{ id: input.existingCaptureId ?? 'capture-new' }];
+    }
+    if (sql.includes('SELECT id FROM public_hearing_capture')) {
+      return [{ id: input.existingCaptureId ?? 'capture-existing' }];
     }
     return [];
   });
@@ -214,13 +214,13 @@ describe('LegiWatchPhase9PreflightService', () => {
     query.mockImplementation(async (sql: string) => {
       if (sql.includes('FROM legiwatch_cutover_state')) return [{ captureAllPublicEvents: false }];
       if (sql.includes('FROM committee_hearing h')) return rows;
+      if (sql.includes('INSERT INTO public_hearing_capture_job')) {
+        return [{ id: 'job', inserted: true, rearmed: false }];
+      }
       if (sql.includes('INSERT INTO public_hearing_capture')) {
         captureCalls += 1;
         if (captureCalls === 1) throw new Error('database conflict');
         return [{ id: 'capture-good' }];
-      }
-      if (sql.includes('INSERT INTO public_hearing_capture_job')) {
-        return [{ id: 'job', inserted: true, rearmed: false }];
       }
       return [];
     });

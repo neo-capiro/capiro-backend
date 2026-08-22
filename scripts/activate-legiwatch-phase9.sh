@@ -289,7 +289,7 @@ cmd_enable_shadow(){
     register_db_runtime false || true
     die 'Rule activation failed; rollback to dark attempted'
   fi
-  echo 'Shadow schedules enabled. Product default, kill-switch release and capture-all remain unchanged.'
+  echo 'Shadow schedules enabled. Production default, kill switch, and the public-events blanket-capture flag are all left exactly as they were.'
 }
 
 cmd_disable(){

@@ -49,7 +49,7 @@ const FORBIDDEN_DETAIL_KEY_FRAGMENTS = [
   'watchlist',
 ] as const;
 
-interface StateRow {
+export interface StateRow {
   phase: string;
   productionDefault: boolean;
   schedulesEnabled: boolean;
@@ -68,7 +68,7 @@ interface StateRow {
   updatedAt: Date;
 }
 
-interface RunRow {
+export interface RunRow {
   id: string;
   mode: string;
   status: string;

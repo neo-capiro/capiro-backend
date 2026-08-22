@@ -25,8 +25,8 @@ function runtimeRow(overrides: Record<string, unknown> = {}) {
 }
 
 function harness(input: { registered?: number; enabled?: number } = {}) {
-  const execute = jest.fn(async () => 1);
-  const query = jest.fn(async (sql: string) => {
+  const execute = jest.fn(async (_sql: string, ..._args: unknown[]) => 1);
+  const query = jest.fn(async (sql: string, ..._args: unknown[]) => {
     if (sql.includes('COUNT(*) FILTER (WHERE job_key = ANY')) {
       return [
         {
@@ -182,7 +182,7 @@ describe('LegiWatchPhase9RuntimeService', () => {
   it('refuses an automated job while its registry row is dark', async () => {
     const { service, query } = harness();
     query.mockImplementationOnce(async () => [
-      { enabled: false, scheduleEnabled: false },
+      runtimeRow({ enabled: false, scheduleEnabled: false }),
     ]);
     await expect(
       service.begin({ jobKey: 'central-discovery', workerId: 'worker-a' }),
@@ -192,7 +192,7 @@ describe('LegiWatchPhase9RuntimeService', () => {
   it('allows a deliberate manual smoke run while the schedule is dark', async () => {
     const { service, query, execute } = harness();
     query.mockImplementationOnce(async () => [
-      { enabled: false, scheduleEnabled: false },
+      runtimeRow({ enabled: false, scheduleEnabled: false }),
     ]);
     await expect(
       service.begin({

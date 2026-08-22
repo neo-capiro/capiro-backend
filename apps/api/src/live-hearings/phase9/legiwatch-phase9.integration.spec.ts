@@ -216,13 +216,13 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
          to_jsonb('not-a-date'::text),
          true
        )
-       WHERE id=$1::uuid`,
+       WHERE id=$1`,
       observed.observationId,
     );
     const metadata = await prisma.$queryRawUnsafe<Array<{ startsAt: string | null }>>(
       `SELECT source_metadata #>> '{event,startsAt}' AS "startsAt"
        FROM hearing_source_observation
-       WHERE id=$1::uuid`,
+       WHERE id=$1`,
       observed.observationId,
     );
     expect(metadata).toEqual([{ startsAt: null }]);
@@ -307,12 +307,12 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
       `INSERT INTO committee_hearing (
          id, chamber, committee_name, committee_system_code, title, type,
          date, starts_at, timezone, event_status, visibility, url,
-         stream_availability, coverage_status, created_at, updated_at
+         stream_availability, coverage_status
        ) VALUES (
          $1, 'house', 'House Armed Services Committee', 'hsas00',
          'Phase 9 Postgres hearing', 'hearing', $2::date, $3,
          'America/New_York', 'scheduled', 'public', $4,
-         'unknown', 'discovered', now(), now()
+         'unknown', 'discovered'
        )`,
       HEARING_ID,
       startsAt.toISOString().slice(0, 10),
@@ -333,7 +333,7 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
               reconciliation_reason_code AS "reasonCode",
               hearing_id AS "hearingId"
        FROM hearing_source_observation
-       WHERE id=$1::uuid`,
+       WHERE id=$1`,
       observationId,
     );
     if (!rows[0]) throw new Error(`observation ${observationId} not found`);
