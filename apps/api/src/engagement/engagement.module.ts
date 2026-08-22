@@ -4,6 +4,7 @@ import type { AppConfig } from '../config/config.schema.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { QualityTelemetryModule } from '../quality-telemetry/quality-telemetry.module.js';
+import { EvaluationModule } from '../evaluation/evaluation.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { LobbyIntelModule } from '../lobby-intel/lobby-intel.module.js';
 import { LobbyIntelService } from '../lobby-intel/lobby-intel.service.js';
@@ -58,6 +59,7 @@ import { AuthorStyleProfileService } from './generation/author-style-profile.ser
 import { MessagePlanService } from './generation/message-plan.service.js';
 import { GenerationVerifierService } from './generation/generation-verifier.service.js';
 import { GenerationGatewayService } from './generation/generation-gateway.service.js';
+import { OutreachEvaluationRunner } from './generation/outreach-evaluation.runner.js';
 import { AlertPacketClientService } from './generation/alert-packet-client.service.js';
 import { OutreachContextPlaneService } from './generation/outreach-context-plane.service.js';
 import { EngagementRuntimeModule } from './runtime/engagement-runtime.module.js';
@@ -94,6 +96,7 @@ import {
     EngagementRuntimeModule,
     AiCredentialsModule,
     QualityTelemetryModule,
+    EvaluationModule,
   ],
   controllers: [EngagementController, OutcomeController],
   providers: [
@@ -232,6 +235,7 @@ import {
     AuthorStyleProfileService,
     MessagePlanService,
     GenerationVerifierService,
+    OutreachEvaluationRunner,
     GenerationGatewayService,
     AlertPacketClientService,
     OutreachContextPlaneService,

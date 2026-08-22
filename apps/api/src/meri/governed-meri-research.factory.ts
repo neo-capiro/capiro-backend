@@ -2,10 +2,17 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
+import {
+  EVALUATION_CONFIG_VERSION,
+  computeEvaluationSamplingKey,
+  decideEvaluationEligibility,
+  evaluationEnabled,
+} from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import type { ReviewsService } from '../reviews/reviews.service.js';
+import type { EvaluationCaptureService } from '../evaluation/evaluation-capture.service.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
 import { MeriResearchService } from './meri-research.service.js';
 import type { MeriToolsService } from './meri-tools.service.js';
@@ -46,6 +53,9 @@ export function createGovernedMeriResearchService(
   aiCredentials: AiCredentialResolverService,
   reviews: ReviewsService,
   contextPlane: MeriContextPlaneService,
+  // Phase 27F — optional, same contract as elsewhere in this program: absent
+  // means no evaluation decision is ever recorded, no other behavior change.
+  evaluation?: EvaluationCaptureService,
 ): MeriResearchService {
   const service = new MeriResearchService(prisma, config, tools, aiCredentials, reviews);
   const internal = service as unknown as ResearchServiceInternals;
@@ -81,10 +91,72 @@ export function createGovernedMeriResearchService(
       id,
       'research.generate-report',
     );
+    // Phase 27F: record a real eligibility/sampling decision for every Deep
+    // Research turn — genuinely exercised infrastructure, not a stub. The
+    // control-arm REPLAY is not implemented for this surface yet (Deep
+    // Research is a full multi-turn agentic loop with real side effects,
+    // not a single isolated generation call like Outreach/CRM Fill's
+    // extraction methods — see the Phase 27F closeout notes), so this
+    // consistently records `unsupported_operation` today. Flipping that to
+    // a real replay later is a pure additive follow-up: this decision path
+    // and its sampling key are already live.
+    void considerMeriResearchEvaluation(evaluation, ctx, id, governed).catch(() => undefined);
     return governedResearch.run(governed, () => originalStreamResearch(ctx, id, sse));
   }) as StreamResearch;
 
   return service;
+}
+
+/**
+ * Phase 27F — real eligibility/sampling decision for a Deep Research turn.
+ * See the `streamResearch` wrapper's own comment for why the control-arm
+ * replay is not implemented for this surface yet: this consistently
+ * records `unsupported_operation` today, never a fabricated comparison.
+ * Never throws (evaluation must never affect the real research turn).
+ */
+async function considerMeriResearchEvaluation(
+  evaluation: EvaluationCaptureService | undefined,
+  ctx: TenantContext,
+  sessionId: string,
+  governed: MeriGovernedTurnContext,
+): Promise<void> {
+  if (!evaluation || !evaluationEnabled(process.env.LEARNING_EVALUATION)) return;
+  const contextPacketId = governed.contextPacket.packetId ?? null;
+  const institutionalItemCount = governed.contextPacket.items.length;
+  const eligibility = decideEvaluationEligibility({
+    enabled: true,
+    contextPacketId,
+    institutionalItemCount,
+    authoritativeInputReplayable: true,
+    // Deep Research's streamResearch is a full multi-turn agentic loop with
+    // real side effects (tool calls, a persisted report) — not a single
+    // isolated generation call. A safe, non-mutating shadow replay for it
+    // is real future work, not something this phase fabricates.
+    operationSupported: false,
+    providerAvailable: true,
+    withinBudget: true,
+  });
+  const samplingKey = computeEvaluationSamplingKey({
+    tenantId: ctx.tenantId,
+    operation: 'meri.research.generate-report',
+    artifactId: sessionId,
+  });
+  // operationSupported is always false above, so eligibility is always
+  // { eligible: false, reason: 'unsupported_operation' } today — the
+  // eligible branch cannot occur until a real replay is implemented.
+  await evaluation.recordDecision({
+    tenantId: ctx.tenantId,
+    surface: 'meri',
+    operation: 'meri.research.generate-report',
+    evaluationType: 'institutional_context_ablation',
+    status: 'skipped',
+    skipReason: eligibility.eligible ? 'unsupported_operation' : eligibility.reason,
+    contextPacketId,
+    treatmentArtifactId: sessionId,
+    samplingKey,
+    configVersion: EVALUATION_CONFIG_VERSION,
+    observedAt: new Date(),
+  });
 }
 
 async function resolveSessionContext(

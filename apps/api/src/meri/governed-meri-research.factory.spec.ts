@@ -54,7 +54,7 @@ const governed = (operationId: MeriGovernedTurnContext['operationId']): MeriGove
   },
 });
 
-function makeHarness() {
+function makeHarness(opts: { evaluation?: { recordDecision: jest.Mock } } = {}) {
   let promptObservedInsidePlan: string | null = null;
   let promptObservedInsideResearch: string | null = null;
 
@@ -110,6 +110,7 @@ function makeHarness() {
     {} as never,
     {} as never,
     contextPlane as never,
+    opts.evaluation as never,
   );
 
   return {
@@ -168,5 +169,32 @@ describe('createGovernedMeriResearchService Phase 19', () => {
     await h.service.streamPlan(ctx, 'research-1', {} as never);
 
     expect(h.tx.client.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('Phase 27F: records a real (skipped, unsupported_operation) evaluation decision for streamResearch, without affecting the real turn', async () => {
+    const priorFlag = process.env.LEARNING_EVALUATION;
+    process.env.LEARNING_EVALUATION = 'enabled';
+    const recordDecision = jest.fn(async (_input: Record<string, unknown>) => ({ status: 'recorded' as const, id: 'eval-1' }));
+    const h = makeHarness({ evaluation: { recordDecision } });
+
+    await h.service.streamResearch(ctx, 'research-1', {} as never);
+    // considerMeriResearchEvaluation is fire-and-forget — flush microtasks.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(recordDecision).toHaveBeenCalledTimes(1);
+    const call = recordDecision.mock.calls[0]?.[0] as { status: string; skipReason: string; treatmentArtifactId: string };
+    expect(call.status).toBe('skipped');
+    expect(call.skipReason).toBe('unsupported_operation');
+    expect(call.treatmentArtifactId).toBe('research-1');
+    expect(h.originalResearch).toHaveBeenCalled();
+    if (priorFlag === undefined) delete process.env.LEARNING_EVALUATION;
+    else process.env.LEARNING_EVALUATION = priorFlag;
+  });
+
+  it('Phase 27F: streamResearch behaves identically with no evaluation dependency provided', async () => {
+    const h = makeHarness();
+    await expect(h.service.streamResearch(ctx, 'research-1', {} as never)).resolves.toBeUndefined();
+    expect(h.originalResearch).toHaveBeenCalled();
   });
 });

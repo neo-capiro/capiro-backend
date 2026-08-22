@@ -270,6 +270,8 @@ model Tenant {
   learningSignalCandidateOutcomes    LearningSignalCandidateOutcome[]
   qualityTelemetryEvents             QualityTelemetryEvent[]
   qualityTelemetryMemoryItemUses     QualityTelemetryMemoryItemUse[]
+  /// Phase 27F back-relation — see EvaluationRecord.
+  evaluationRecords                  EvaluationRecord[]
   clientMemoryAccessGrants           ClientMemoryAccess[]
   clientTeamMembers                  ClientTeamMember[]
   clientGrantNexuses                 ClientGrantNexus[]
@@ -2633,6 +2635,9 @@ model ContextPacket {
   outreachDraftVersions OutreachDraftVersion[]
   /// Phase 27E back-relation — see QualityTelemetryEvent.
   qualityTelemetryEvents QualityTelemetryEvent[]
+  /// Phase 27F back-relation — see EvaluationRecord. The evaluation's
+  /// treatment ContextPacket reference (frozen historical evidence).
+  evaluationRecords      EvaluationRecord[]
 
   @@index([tenantId, createdAt(sort: Desc)], map: "context_packet_tenant_created_idx")
   @@index([tenantId, surface, createdAt(sort: Desc)], map: "context_packet_tenant_surface_idx")
@@ -9276,6 +9281,8 @@ model QualityTelemetryEvent {
   learningSignal  LearningSignal?                 @relation(fields: [learningSignalId], references: [id], onDelete: SetNull)
   memoryCandidate MemoryCandidate?                @relation(fields: [memoryCandidateId], references: [id], onDelete: SetNull)
   memoryItemUses  QualityTelemetryMemoryItemUse[]
+  /// Phase 27F back-relation — see EvaluationRecord.
+  evaluationRecords EvaluationRecord[]
 
   @@unique([tenantId, idempotencyKey], map: "quality_telemetry_event_tenant_idempotency_unique")
   @@index([tenantId, surface, eventType, observedAt(sort: Desc)], map: "quality_telemetry_event_tenant_surface_type_idx")
@@ -9318,6 +9325,132 @@ model QualityTelemetryMemoryItemUse {
   @@index([memoryItemId, createdAt(sort: Desc)], map: "quality_telemetry_memory_item_use_item_idx")
   @@index([tenantId, memoryItemId], map: "quality_telemetry_memory_item_use_tenant_item_idx")
   @@map("quality_telemetry_memory_item_use")
+}
+
+/// Phase 27F — controlled evaluation of institutional-context effectiveness.
+///
+/// Records ONE shadow comparison for a sampled real request: the same
+/// generation replayed with the five institutional SteeringLayers withheld
+/// (authoritative facts/retrieval/evidence held identical), scored with
+/// deterministic product metrics and, optionally, a blinded model judge.
+/// This is the controlled counterpart to QualityTelemetryEvent's purely
+/// observational "context X present, outcome Y followed" — see
+/// `packages/meriv2-core/src/evaluation/contract.ts`'s module doc comment
+/// for the full invariant list (never mutates production state, never
+/// becomes a LearningSignal/MemoryCandidate, never stores prompt/output
+/// bodies).
+///
+/// Lifecycle: a row is written `pending` or `skipped` synchronously and
+/// never blocks the request it shadows; a detached (fire-and-forget) task
+/// started at generation time — not a later worker reading a persisted
+/// job, because the replay's inputs (evidence/prompt) are ephemeral and
+/// must never be persisted — later transitions the SAME row to
+/// `running`/`completed`/`failed`.
+model EvaluationRecord {
+  id       String  @id @default(uuid()) @db.Uuid
+  tenantId String  @map("tenant_id") @db.Uuid
+  /// Bare scalar, no Prisma relation and no Client back-relation — same
+  /// convention as QualityTelemetryEvent.clientId (a bare tenant-scoped
+  /// pointer, not a traversable relation the already-large Client model
+  /// needs to carry another array for).
+  clientId String? @map("client_id") @db.Uuid
+
+  /// outreach | workspace | crm_fill | meetings | strategies | meri — reuses
+  /// QualityTelemetryEvent's exact vocabulary (see the CHECK constraint).
+  surface       String @db.VarChar(24)
+  /// Namespaced operation identifier, same free-text convention as
+  /// QualityTelemetryEvent.operation (e.g. "outreach.draft_version.generate").
+  operation     String @db.VarChar(96)
+  /// Closed comparison-design vocabulary — one value today
+  /// ("institutional_context_ablation"); a future per-layer ablation study
+  /// is a new value, not a reinterpretation of this one.
+  evaluationType String @map("evaluation_type") @db.VarChar(40)
+
+  status     String  @db.VarChar(16)
+  /// Set only when status = 'skipped'. Shares one vocabulary with
+  /// 'not_sampled' (the sampling-stage skip) so this column never needs a
+  /// second CHECK depending on which stage produced the skip.
+  skipReason String? @map("skip_reason") @db.VarChar(40)
+  /// Set only when status = 'failed'. A short code, never a stack trace or
+  /// provider error body.
+  failureReason String? @map("failure_reason") @db.VarChar(160)
+
+  /// The TREATMENT run's own already-resolved, already-persisted
+  /// ContextPacket — frozen historical evidence (§18/§32). Never mutated;
+  /// the control arm is an in-memory projection, never written back here or
+  /// anywhere else. SetNull: packets are prunable trace data.
+  contextPacketId String? @map("context_packet_id") @db.Uuid
+  /// Convenience join to the canonical outcome-truth row for this same
+  /// artifact, if Phase 27E already recorded one (§31: "Quality Telemetry
+  /// remains source of outcome truth" — this table never duplicates it).
+  qualityTelemetryEventId String? @map("quality_telemetry_event_id") @db.Uuid
+
+  /// Bare polymorphic pointer to the REAL product output being evaluated —
+  /// same no-FK reasoning as QualityTelemetryEvent.artifactType/artifactId
+  /// (some referenced tables live in other services' databases).
+  treatmentArtifactType       String? @map("treatment_artifact_type") @db.VarChar(40)
+  treatmentArtifactId         String  @map("treatment_artifact_id") @db.VarChar(64)
+  treatmentArtifactVersionSeq Int?    @map("treatment_artifact_version_seq")
+
+  /// sha256 of the treatment/control output text — identity/comparison only,
+  /// never the body itself (enforced in application code, not just here).
+  treatmentOutputHash String? @map("treatment_output_hash") @db.VarChar(128)
+  controlOutputHash   String? @map("control_output_hash") @db.VarChar(128)
+  /// Which control-projection policy produced the control arm — versioned
+  /// independently of configVersion so a future second projection policy
+  /// (e.g. a per-layer ablation) is distinguishable from this one.
+  controlProjectionPolicy String? @map("control_projection_policy") @db.VarChar(64)
+
+  /// Deterministic product metrics (§20) — numeric/boolean/enum dimensions
+  /// only, e.g. { normalizedEditDistance, structureAdherenceScore,
+  /// ctaPresent, findingOverlapRate, ... }. Never a diff or body — enforced
+  /// by check-evaluation-new-bypasses.mjs.
+  metricsJsonb Json? @map("metrics_jsonb")
+  /// Optional blinded model-judge result (§21) — { judgeModel, judgeVersion,
+  /// rubricVersion, armOrder, dimensions, inputTokens, outputTokens }. Null
+  /// whenever deterministic metrics alone were used (§20: not the default).
+  judgeJsonb   Json? @map("judge_jsonb")
+  /// Cost/token accounting for the ONE incremental provider call this
+  /// evaluation added (§24). Unknown fields stay null — never coerced to 0.
+  costJsonb    Json? @map("cost_jsonb")
+
+  /// The deterministic sampling key (tenantId:operation:artifactId) this
+  /// decision was made from — kept for audit/reproducibility, not reused as
+  /// the uniqueness key (idempotencyKey below also folds in configVersion).
+  samplingKey   String @map("sampling_key") @db.VarChar(320)
+  /// Bundled eligibility+sampling+projection+metric-rubric version (§29).
+  /// Two rows with different configVersion are never assumed comparable.
+  configVersion String @map("config_version") @db.VarChar(32)
+
+  traceId String? @map("trace_id") @db.VarChar(160)
+
+  observedAt DateTime  @map("observed_at") @db.Timestamptz(6)
+  startedAt  DateTime? @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  /// Dedupe key (§28) — see computeEvaluationIdempotencyKey. A retry of the
+  /// same underlying request reaches the same row, never a duplicate.
+  idempotencyKey String @map("idempotency_key") @db.VarChar(400)
+
+  tenant             Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contextPacket      ContextPacket?        @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)
+  qualityTelemetryEvent QualityTelemetryEvent? @relation(fields: [qualityTelemetryEventId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, idempotencyKey], map: "evaluation_record_tenant_idempotency_unique")
+  @@index([tenantId, surface, status, observedAt(sort: Desc)], map: "evaluation_record_tenant_surface_status_idx")
+  @@index([tenantId, treatmentArtifactType, treatmentArtifactId], map: "evaluation_record_tenant_artifact_idx")
+  @@index([tenantId, clientId], map: "evaluation_record_tenant_client_idx")
+  @@index([contextPacketId], map: "evaluation_record_context_packet_idx")
+  @@index([qualityTelemetryEventId], map: "evaluation_record_quality_telemetry_event_idx")
+  // Supports a lightweight staleness sweep only (mark an abandoned
+  // 'running'/'pending' row 'failed' after a timeout) — NOT a work-claiming
+  // queue. The replay's inputs (evidence/prompt) are never persisted, so an
+  // abandoned row can never be resumed by a later worker; execution is
+  // always the in-process detached task started at generation time.
+  @@index([status, createdAt], map: "evaluation_record_status_created_idx")
+  @@map("evaluation_record")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

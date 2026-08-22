@@ -20,7 +20,7 @@
  *   - Provider/model are chosen ONCE, recorded in the packet, and reused — a
  *     campaign never splits across two provider voices mid-flight.
  */
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { recordAiUsageEvent, type ProviderUsage, type TenantContext } from '@capiro/shared';
 import type { LedgerEntry } from '@capiro/meriv2-core';
@@ -75,6 +75,7 @@ import type {
   GenerationSourceManifest,
   PinnedGenerationIdentity,
 } from './generation-gateway.types.js';
+import type { OutreachEvaluationRunner } from './outreach-evaluation.runner.js';
 
 /** Enrichment channels the caller wants folded into the packet. */
 export interface GatewayEnrichmentInput {
@@ -110,6 +111,11 @@ export class GenerationGatewayService {
     private readonly drafts: OutreachDraftService,
     private readonly scanner: AttachmentScannerService,
     private readonly contextPlane: OutreachContextPlaneService,
+    // Phase 27F — optional so this file's own tests (which construct the
+    // gateway directly, without a full Nest module) keep working unchanged.
+    // When absent, generate()'s behavior and return value are byte-identical
+    // to before this dependency existed.
+    @Optional() private readonly evaluation?: OutreachEvaluationRunner,
   ) {
     this.enabled = config.get('ENGAGEMENT_GENERATION_GATEWAY', { infer: true });
     this.envEmailScope = config.get('ENGAGEMENT_EMAIL_CONTEXT_SCOPE', { infer: true });
@@ -675,6 +681,37 @@ export class GenerationGatewayService {
         })),
       });
 
+      // Phase 27F — fire-and-forget shadow evaluation. Started here (not from
+      // a later worker) because its inputs (governed context, packet, plan,
+      // style profile) are ephemeral and must never be persisted; started
+      // AFTER the treatment version is durably persisted, so a slow or
+      // failing replay can never affect or delay the real response. Void +
+      // .catch: a broken evaluation must never surface as a broken draft.
+      void this.evaluation
+        ?.considerAndRun(ctx, {
+          request,
+          enrichment,
+          policy,
+          pinned,
+          pinnedCreds,
+          governed,
+          packet,
+          plan,
+          styleProfile,
+          styleSamples,
+          recipientBrief: this.recipientBrief(request),
+          requestDirectives: directives,
+          wallAllowsClient,
+          scanRequired: this.scanner.scanRequired,
+          ...(request.authHeader ? { authHeader: request.authHeader } : {}),
+          treatmentSubject: subject,
+          treatmentBody: body,
+          treatmentArtifactId: version.id,
+          treatmentArtifactVersionSeq: version.version,
+          contextPacketId: packet.packetId,
+        })
+        .catch(() => undefined);
+
       const note = composeContextNote(modelContextNote, verdict, version.contextNote);
       return {
         outcome: version.sendable ? 'ready' : 'held',
@@ -930,7 +967,12 @@ function emailDomain(email: string | null): string | null {
     : null;
 }
 
-function parseDraft(text: string): { subject: string; body: string; contextNote: string } | null {
+/**
+ * Exported (Phase 27F) so `OutreachEvaluationRunner` can parse a shadow
+ * control-arm completion with the SAME logic the real draft path uses,
+ * instead of a second, drifting implementation.
+ */
+export function parseDraft(text: string): { subject: string; body: string; contextNote: string } | null {
   try {
     const raw: unknown = JSON.parse(extractJsonObject(text) ?? text);
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;

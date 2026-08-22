@@ -481,7 +481,12 @@ function projectCoverage(
   };
 }
 
-function buildModelContextBlock(input: {
+/**
+ * Exported (Phase 27F) so a control-arm evaluation replay can render the
+ * SAME model-context-block shape from an institutional-context-withheld
+ * copy of `packet`, instead of a second, drifting implementation.
+ */
+export function buildModelContextBlock(input: {
   client: ClientProfileFillCanonicalClient;
   packet: ClientProfileFillContextPacket;
   coverage: ClientProfileFillCoverageProjection;

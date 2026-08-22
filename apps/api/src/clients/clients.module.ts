@@ -35,6 +35,8 @@ import { DirectoryModule } from '../directory/directory.module.js';
 import { ContextModule } from '../context/context.module.js';
 import { LearningModule } from '../learning/learning.module.js';
 import { QualityTelemetryModule } from '../quality-telemetry/quality-telemetry.module.js';
+import { EvaluationModule } from '../evaluation/evaluation.module.js';
+import { CrmFillEvaluationRunner } from './crm-fill-evaluation.runner.js';
 import { TrackerModule } from '../tracker/tracker.module.js';
 import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opportunities.module.js';
 
@@ -54,6 +56,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     ContextModule,
     LearningModule,
     QualityTelemetryModule,
+    EvaluationModule,
     // G3: OutcomeService for the submission-outcome mirror.
     EngagementModule,
     // Bill recommendations for Fill with Meri (getRecommendations).
@@ -83,6 +86,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     ClientTargetRecommendationsService,
     ClientCapabilityFitService,
     ClientProfileFillContextPlaneService,
+    CrmFillEvaluationRunner,
     {
       provide: RAW_CLIENT_PROFILE_FILL_SERVICE,
       useClass: ClientProfileFillService,
@@ -94,6 +98,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
         RAW_CLIENT_PROFILE_FILL_SERVICE,
         ClientProfileFillContextPlaneService,
         ClientPeopleService,
+        CrmFillEvaluationRunner,
       ],
     },
     ClientActivityService,
