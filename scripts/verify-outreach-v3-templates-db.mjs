@@ -95,6 +95,9 @@ function command(bin, args, options = {}) {
     input: options.input,
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
+    // pnpm/prisma resolve to a .cmd shim on Windows, which Node's spawnSync
+    // cannot execute directly without an intermediary shell.
+    shell: options.shell ?? process.platform === 'win32',
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
@@ -117,19 +120,94 @@ function requireCommand(bin, versionArgs = ['--version']) {
   }
 }
 
+/**
+ * Resolves how to actually invoke psql on THIS host. A real `psql`/`psql.exe`
+ * client is preferred when present. Otherwise (this Windows host has no
+ * native client — only a URL-aware bash shim that Node's spawnSync cannot
+ * execute directly, since it has no recognizable extension for CreateProcess
+ * to dispatch), fall back to running psql INSIDE the Postgres container
+ * itself via a real `docker(.exe)` binary — never via the bash shim, and
+ * never via a shell, so argv-based quoting stays exact for arbitrary SQL.
+ */
+function resolvePsqlMode() {
+  for (const candidate of [PSQL, 'psql.exe']) {
+    const probe = spawnSync(candidate, ['--version'], { encoding: 'utf8' });
+    if (!probe.error && probe.status === 0) return { kind: 'native', bin: candidate };
+  }
+  const dockerCandidates = [
+    process.env.DOCKER_BIN,
+    'C:\\Users\\' + (process.env.USERNAME || '') + '\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin\\docker.exe',
+    'docker.exe',
+    'docker',
+  ].filter(Boolean);
+  let dockerBin = null;
+  for (const candidate of dockerCandidates) {
+    const probe = spawnSync(candidate, ['version', '--format', '{{.Client.Version}}'], { encoding: 'utf8' });
+    if (!probe.error && probe.status === 0) {
+      dockerBin = candidate;
+      break;
+    }
+  }
+  if (!dockerBin) {
+    throw new Error(
+      'No native psql client and no working docker binary were found. Install a psql client, or set DOCKER_BIN to a real docker executable.',
+    );
+  }
+  const container =
+    process.env.CAPIRO_PSQL_CONTAINER ||
+    (() => {
+      const ps = spawnSync(dockerBin, ['ps', '--format', '{{.Names}} {{.Ports}}'], { encoding: 'utf8' });
+      if (ps.error || ps.status !== 0) return null;
+      for (const line of (ps.stdout || '').split('\n')) {
+        if (line.includes(`:${PGPORT}->`)) return line.trim().split(/\s+/)[0];
+      }
+      return null;
+    })();
+  if (!container) {
+    throw new Error(
+      `No native psql client, and no running container publishes port ${PGPORT}. Set CAPIRO_PSQL_CONTAINER explicitly.`,
+    );
+  }
+  console.log(`(no native psql client found — running psql inside Docker container "${container}")`);
+  return { kind: 'docker', bin: dockerBin, container };
+}
+
+const PSQL_MODE = resolvePsqlMode();
+
+function runPsql(args, options = {}) {
+  if (PSQL_MODE.kind === 'native') {
+    return command(PSQL_MODE.bin, args, { ...options, shell: false });
+  }
+  // Inside the container, Postgres always listens on its own 127.0.0.1:5432 —
+  // this is independent of whatever host port the container publishes.
+  const rewritten = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === '-h') { rewritten.push('-h', '127.0.0.1'); i += 1; continue; }
+    if (args[i] === '-p') { rewritten.push('-p', '5432'); i += 1; continue; }
+    rewritten.push(args[i]);
+  }
+  const dockerArgs = ['exec', '-i', ...(options.env?.PGPASSWORD !== undefined ? ['-e', `PGPASSWORD=${options.env.PGPASSWORD}`] : []), PSQL_MODE.container, 'psql', ...rewritten];
+  return command(PSQL_MODE.bin, dockerArgs, { ...options, env: {}, shell: false });
+}
+
 function psql(db, sql, options = {}) {
   const user = options.user || PGUSER;
   const password = options.password === undefined ? PGPASSWORD : options.password;
-  return command(
-    PSQL,
+  const output = runPsql(
     ['-X', '-v', 'ON_ERROR_STOP=1', '-qAt', '-h', PGHOST, '-p', PGPORT, '-U', user, '-d', db, '-c', sql],
     { env: { PGPASSWORD: password } },
   );
+  // `-t` (tuples-only) emits one line per row from EVERY statement in a
+  // semicolon-joined string, not just the last — e.g. our `actorGuc()` helper
+  // runs two `SELECT set_config(...)` calls (each echoing the value it set)
+  // before the real query. Callers here always care about the FINAL
+  // statement's result, so only the last non-empty line is meaningful.
+  const lines = output.split('\n').map((line) => line.trim()).filter(Boolean);
+  return lines[lines.length - 1] ?? '';
 }
 
 function psqlFile(db, sqlText) {
-  return command(
-    PSQL,
+  return runPsql(
     ['-X', '-v', 'ON_ERROR_STOP=1', '-qAt', '-h', PGHOST, '-p', PGPORT, '-U', PGUSER, '-d', db],
     { env: { PGPASSWORD }, input: sqlText },
   );
@@ -332,10 +410,15 @@ function proveDatabaseInvariants(db, labelPrefix) {
     psql(db, `SELECT COUNT(*) FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('outreach_v3_template_applications_append_only','outreach_v3_session_template_provenance_append_only','outreach_v3_template_audit_log_append_only');`),
     '3',
   );
+  seedIdentity(db);
+  seedTemplateRows(db);
+  grantProbe(db);
+
   eq(
     `${labelPrefix}: 'superseded' is an allowed version lifecycle value`,
     (() => {
       const probeId = '00000000-0000-4000-8000-0000000001ff';
+      // TEMPLATE_PRIVATE_A only exists now that seedTemplateRows() has run.
       psql(db, `INSERT INTO outreach_v3_template_versions (id, tenant_id, template_id, version_number, lifecycle, template_spec_jsonb, content_hash, created_by_user_id) SELECT '${probeId}', '${TENANT_A}', id, 99, 'superseded', '{}'::jsonb, '${HASH_A}', '${USER_A1}' FROM outreach_v3_templates WHERE id='${TEMPLATE_PRIVATE_A}';`);
       const count = psql(db, `SELECT COUNT(*) FROM outreach_v3_template_versions WHERE id='${probeId}' AND lifecycle='superseded';`);
       psql(db, `DELETE FROM outreach_v3_template_versions WHERE id='${probeId}';`);
@@ -344,11 +427,14 @@ function proveDatabaseInvariants(db, labelPrefix) {
     '1',
   );
 
-  seedIdentity(db);
-  seedTemplateRows(db);
-  grantProbe(db);
-
   const probe = (sql) => psql(db, sql, { user: PROBE_ROLE, password: PROBE_PASSWORD });
+  // `current_user` is a reserved SQL keyword — `SET app.current_user = '...'`
+  // is a syntax error even namespaced. The real PrismaService sidesteps this
+  // by calling `set_config('app.current_user', $1, true)` (a function call,
+  // not the SET command); mirror that exactly here (session-scoped, so it
+  // persists across every statement in the same probe connection).
+  const actorGuc = (tenantId, userId) =>
+    `SELECT set_config('app.current_tenant', '${tenantId}', false); SELECT set_config('app.current_user', '${userId}', false);`;
 
   eq(
     `${labelPrefix}: RLS-enforced role with no tenant context sees no templates`,
@@ -357,23 +443,23 @@ function proveDatabaseInvariants(db, labelPrefix) {
   );
   eq(
     `${labelPrefix}: tenant A owner sees all three of their own templates (private+firm+client)`,
-    probe(`SET app.current_tenant='${TENANT_A}'; SET app.current_user='${USER_A1}'; SELECT COUNT(*) FROM outreach_v3_templates;`),
+    probe(`${actorGuc(TENANT_A, USER_A1)} SELECT COUNT(*) FROM outreach_v3_templates;`),
     '3',
   );
   eq(
     `${labelPrefix}: a DIFFERENT tenant-A user sees only the shared firm+client templates, not the private one`,
-    probe(`SET app.current_tenant='${TENANT_A}'; SET app.current_user='${USER_A2}'; SELECT COUNT(*) FROM outreach_v3_templates;`),
+    probe(`${actorGuc(TENANT_A, USER_A2)} SELECT COUNT(*) FROM outreach_v3_templates;`),
     '2',
   );
   eq(
     `${labelPrefix}: tenant B sees none of tenant A's templates`,
-    probe(`SET app.current_tenant='${TENANT_B}'; SET app.current_user='${USER_B}'; SELECT COUNT(*) FROM outreach_v3_templates;`),
+    probe(`${actorGuc(TENANT_B, USER_B)} SELECT COUNT(*) FROM outreach_v3_templates;`),
     '0',
   );
   expectSqlFailure(
     `${labelPrefix}: RLS rejects a tenant-B actor inserting a tenant-A-owned template`,
     db,
-    `SET app.current_tenant='${TENANT_B}'; SET app.current_user='${USER_B}'; INSERT INTO outreach_v3_templates (tenant_id, owner_user_id, scope, name) VALUES ('${TENANT_A}','${USER_A1}','private','forbidden');`,
+    `${actorGuc(TENANT_B, USER_B)} INSERT INTO outreach_v3_templates (tenant_id, owner_user_id, scope, name) VALUES ('${TENANT_A}','${USER_A1}','private','forbidden');`,
     /row-level security|permission denied/i,
     { user: PROBE_ROLE, password: PROBE_PASSWORD },
   );
@@ -472,7 +558,6 @@ function buildPreTemplatesPrismaCopy() {
 }
 
 async function main() {
-  requireCommand(PSQL);
   requireCommand('pnpm', ['--version']);
   console.log(`== Outreach V3 Templates DB rehearsal on ${PGHOST}:${PGPORT} ==`);
   console.log('Safety: creating disposable databases only; no DATABASE_URL target is accepted.');
