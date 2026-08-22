@@ -141,16 +141,18 @@ export class LegiWatchPhase9MetricsService {
            ), 0)::int AS "transcriptGapSeconds24h",
            (
              SELECT COUNT(*)::int
-             FROM committee_hearing h
-             LEFT JOIN hearing_stream_candidate candidate ON candidate.hearing_id=h.id
-             LEFT JOIN public_hearing_capture capture ON capture.hearing_id=h.id
-             WHERE h.visibility='public'
-               AND h.event_status IN ('scheduled','postponed','in_progress')
-               AND h.starts_at BETWEEN $1 AND $1 + interval '2 hours'
-             GROUP BY h.id
-             HAVING COUNT(candidate.id)=0
-                AND MAX(capture.terminal_reason_code) IS NULL
-             LIMIT 1
+             FROM (
+               SELECT h.id
+               FROM committee_hearing h
+               LEFT JOIN hearing_stream_candidate candidate ON candidate.hearing_id=h.id
+               LEFT JOIN public_hearing_capture capture ON capture.hearing_id=h.id
+               WHERE h.visibility='public'
+                 AND h.event_status IN ('scheduled','postponed','in_progress')
+                 AND h.starts_at BETWEEN $1 AND $1 + interval '2 hours'
+               GROUP BY h.id
+               HAVING COUNT(candidate.id)=0
+                  AND MAX(capture.terminal_reason_code) IS NULL
+             ) unresolved
            ) AS "unresolvedUpcoming2h"
          FROM public_hearing_capture`,
         now,
@@ -237,7 +239,9 @@ export class LegiWatchPhase9MetricsService {
         CloudWatchMetrics: [
           {
             Namespace: 'Capiro/LegiWatch',
-            Dimensions: [['Environment', 'Phase']],
+            // Environment is the stable alarm dimension. Phase remains an EMF
+            // property for logs/dashboards but does not fork every alarm time series.
+            Dimensions: [['Environment']],
             Metrics: Object.keys(metrics).map((Name) => ({ Name, Unit: unitFor(Name) })),
           },
         ],
@@ -255,7 +259,10 @@ export class LegiWatchPhase9MetricsService {
     };
   }
 
-  async emit(now = new Date(), log: (line: string) => void = console.log): Promise<LegiWatchPhase9MetricSnapshot> {
+  async emit(
+    now = new Date(),
+    log: (line: string) => void = console.log,
+  ): Promise<LegiWatchPhase9MetricSnapshot> {
     const snapshot = await this.snapshot(now);
     log(JSON.stringify(snapshot.emf));
     return snapshot;
