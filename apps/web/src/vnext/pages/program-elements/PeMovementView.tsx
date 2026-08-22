@@ -28,6 +28,7 @@ import {
   CapiroTableWrap,
 } from '../../components/tables/index.js';
 import { FilterControl, PeSkeletonBlock, Segmented } from './pe-primitives.js';
+import { familyById, serviceToApiParam, useDefenseBudgetContext } from './defense-budget-context.js';
 
 type MvView = 'feed' | 'table';
 type Classification = 'official' | 'correction' | 'conflict' | 'new' | 'none';
@@ -60,6 +61,8 @@ const CLS_TONE: Record<Classification, CapiroBadgeTone> = {
 export function PeMovementView() {
   const api = useApi();
   const navigate = useNavigate();
+  const ctx = useDefenseBudgetContext();
+  const family = familyById(ctx.family);
   const [view, setView] = useState<MvView>('feed');
   const [stage, setStage] = useState('ANY');
   const [mat, setMat] = useState('ANY');
@@ -70,13 +73,35 @@ export function PeMovementView() {
     staleTime: 60_000,
   });
 
-  const items = useMemo(() => {
+  const scoped = useMemo(() => {
     let feed = movement.data?.feed ?? [];
+    if (family.lineType) feed = feed.filter((m) => m.lineType === family.lineType);
+    const apiService = serviceToApiParam(ctx.service);
+    if (apiService) {
+      feed = feed.filter((m) => (m.service ?? '').trim().toUpperCase() === apiService);
+    }
+    if (ctx.q.trim()) {
+      const q = ctx.q.trim().toLowerCase();
+      feed = feed.filter((m) => m.peCode.toLowerCase().includes(q) || m.title.toLowerCase().includes(q));
+    }
+    return feed;
+  }, [movement.data, family.lineType, ctx.service, ctx.q]);
+
+  const items = useMemo(() => {
+    let feed = scoped;
     if (stage !== 'ANY') feed = feed.filter((m) => (m.stage ?? '').replaceAll('_', '-').toUpperCase() === stage);
     if (mat === 'Over $10M') feed = feed.filter((m) => m.amount != null && Math.abs(m.amount) >= 10);
     if (mat === 'Over 5%') feed = feed.filter((m) => m.amount != null && Math.abs(m.amount) >= 5); // conservative: $ proxy
     return feed;
-  }, [movement.data, stage, mat]);
+  }, [scoped, stage, mat]);
+
+  // Intelligence rail — real counts over the family/service-scoped feed
+  // (design doc §4 Movement: "increased · decreased · House/Senate divergences
+  // · new sources · review required"). Divergence and new-sources are not
+  // computable per-line from this feed today, so those two cells are omitted
+  // rather than fabricated; the two that ARE real stand alone.
+  const increased = scoped.filter((m) => (m.amount ?? 0) > 0).length;
+  const decreased = scoped.filter((m) => (m.amount ?? 0) < 0).length;
 
   return (
     <div data-screen-label="Movement" className="pe-ws-view">
@@ -101,6 +126,29 @@ export function PeMovementView() {
       </div>
 
       <div className="pe-ws-body">
+        <section className="pe-v2-card pe-ws-metrics" aria-label="Movement intelligence">
+          <div className="pe-ws-metric">
+            <div className="pe-ws-cap pe-ws-cap--strong">Increased</div>
+            <div className="pe-ws-metric__value" style={{ color: 'var(--capiro-color-success, #027A48)' }}>
+              {movement.isLoading ? '…' : `+${increased}`}
+            </div>
+          </div>
+          <div className="pe-ws-metric">
+            <div className="pe-ws-cap pe-ws-cap--strong">Decreased</div>
+            <div className="pe-ws-metric__value" style={{ color: 'var(--capiro-color-error, #B42318)' }}>
+              {movement.isLoading ? '…' : `−${decreased}`}
+            </div>
+          </div>
+          <div className="pe-ws-metric">
+            <div className="pe-ws-cap pe-ws-cap--strong">Scope</div>
+            <div className="pe-ws-metric__value">{movement.isLoading ? '…' : scoped.length}</div>
+            <div className="pe-ws-cap">
+              {family.id === 'All' ? 'ALL FAMILIES' : family.label.toUpperCase()}
+              {ctx.service !== 'All' ? ` · ${ctx.service.toUpperCase()}` : ''}
+            </div>
+          </div>
+        </section>
+
         <section className="pe-v2-card" aria-label="Filters">
           <div className="pe-ws-toolbar__row">
             <span className="pe-ws-eyebrow pe-ws-toolbar__legend">Filters</span>

@@ -303,3 +303,32 @@
   .capiro-vnext-root .pe-profile-vnext .pe-pf-bars > .pe-pf-bars-col { min-width: 64px; }
   .capiro-vnext-root .pe-profile-vnext div:has(> .pe-pf-bars) { overflow-x: auto; overscroll-behavior-x: contain; }
 }
+
+/* ── Defense Budget lifecycle source coverage (defense-budget-coverage.tsx) ─
+   Reused by the profile's Sources & proof tab; classes are shared with
+   pe-workspace.css so the coverage meter's own styling here re-declares the
+   same rules under this module's load boundary rather than depending on
+   pe-workspace.css having been loaded (the profile route can be a cold deep
+   link that never mounts the workspace shell). */
+.defense-budget-coverage-meter__bar {
+  display: flex; height: 8px; margin: 0 18px 8px;
+  border-radius: 9999px; overflow: hidden; background: var(--pepf-raised);
+}
+.defense-budget-coverage-meter__seg { display: block; height: 100%; }
+.defense-budget-coverage-meter__seg.is-success { background: var(--pepf-success); }
+.defense-budget-coverage-meter__seg.is-neutral { background: var(--pepf-border-strong); }
+.defense-budget-coverage-meter__seg.is-warning { background: var(--pepf-warning); }
+.defense-budget-coverage-meter__seg.is-danger { background: var(--pepf-danger); }
+.defense-budget-coverage-meter__legend {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  padding: 0 18px 14px;
+  font-family: var(--pepf-mono); font-size: 11px; letter-spacing: 0.04em; color: var(--pepf-body);
+}
+.defense-budget-coverage-meter__legend-item::before {
+  content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 9999px;
+  margin-inline-end: 6px; vertical-align: middle;
+}
+.defense-budget-coverage-meter__legend-item.is-success::before { background: var(--pepf-success); }
+.defense-budget-coverage-meter__legend-item.is-neutral::before { background: var(--pepf-border-strong); }
+.defense-budget-coverage-meter__legend-item.is-warning::before { background: var(--pepf-warning); }
+.defense-budget-coverage-meter__legend-item.is-danger::before { background: var(--pepf-danger); }

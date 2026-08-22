@@ -39,10 +39,13 @@ import './pe-profile.css';
 
 type V2Tab = 'overview' | 'funding' | 'legislative' | 'structure' | 'sources';
 
+// Tab id/query-key stays `legislative` (route stability — see pe-routes.ts);
+// only the displayed label changed, to `Congressional`, matching the Defense
+// Budget vNext design doc's profile IA (§2). Content is the same tab.
 const TABS: Array<{ id: V2Tab; label: string }> = [
   { id: 'overview', label: 'Overview' },
   { id: 'funding', label: 'Funding & lifecycle' },
-  { id: 'legislative', label: 'Legislative' },
+  { id: 'legislative', label: 'Congressional' },
   { id: 'structure', label: 'Program structure' },
   { id: 'sources', label: 'Sources & proof' },
 ];
