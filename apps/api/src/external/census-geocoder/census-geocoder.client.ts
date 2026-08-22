@@ -39,8 +39,21 @@
  */
 
 const GEOCODER_BASE = 'https://geocoding.geo.census.gov/geocoder';
+const ARCGIS_GEOCODER_BASE = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer';
 const BENCHMARK = 'Public_AR_Current';
 const VINTAGE = 'Current_Current';
+const ARCGIS_MIN_SCORE = 90;
+
+interface ArcGisCandidate {
+  address?: string;
+  location?: { x?: number; y?: number };
+  score?: number;
+  attributes?: { Addr_type?: string };
+}
+
+interface ArcGisResponse {
+  candidates?: ArcGisCandidate[];
+}
 
 export type GeocodeStatus = 'matched' | 'no_match' | 'ambiguous' | 'error';
 
@@ -205,10 +218,51 @@ export function parseGeocodeMatch(match: CensusAddressMatch): CensusGeocodeCandi
 }
 
 /**
- * Single-address geocode -> federal CD + both state legislative chambers, in
- * one free/keyless call. `ambiguous` (>1 match) never guesses a district —
- * caller should surface it for manual district entry (M1.4), same posture as
- * `no_match`.
+ * Fall back to ArcGIS only when Census cannot match the address. ArcGIS must
+ * return one high-confidence physical point; postal/street-name candidates are
+ * rejected because they cannot safely determine a district.
+ */
+async function geocodeWithArcGis(oneLine: string): Promise<{
+  latitude: number;
+  longitude: number;
+  matchedAddress: string;
+} | null> {
+  const url =
+    `${ARCGIS_GEOCODER_BASE}/findAddressCandidates?SingleLine=${encodeURIComponent(oneLine)}` +
+    '&f=json&outFields=Addr_type&maxLocations=3';
+  const json = await fetchJson<ArcGisResponse>(url);
+  const candidates = (json.candidates ?? []).filter(
+    (candidate) =>
+      Number(candidate.score ?? 0) >= ARCGIS_MIN_SCORE &&
+      ['PointAddress', 'StreetAddress'].includes(candidate.attributes?.Addr_type ?? '') &&
+      Number.isFinite(candidate.location?.x) &&
+      Number.isFinite(candidate.location?.y),
+  );
+  if (candidates.length !== 1) return null;
+  const candidate = candidates[0]!;
+  return {
+    latitude: Number(candidate.location!.y),
+    longitude: Number(candidate.location!.x),
+    matchedAddress: candidate.address ?? oneLine,
+  };
+}
+
+async function censusDistrictsAtCoordinates(
+  latitude: number,
+  longitude: number,
+): Promise<ReturnType<typeof extractDistricts>> {
+  const url =
+    `${GEOCODER_BASE}/geographies/coordinates?x=${encodeURIComponent(String(longitude))}` +
+    `&y=${encodeURIComponent(String(latitude))}&benchmark=${BENCHMARK}&vintage=${VINTAGE}&format=json`;
+  const json = await fetchJson<{ result?: { geographies?: Record<string, CensusGeographyRow[]> } }>(url);
+  return extractDistricts({ geographies: json.result?.geographies });
+}
+
+/**
+ * Single-address geocode -> federal CD + both state legislative chambers.
+ * Census is authoritative for the district; ArcGIS supplies a physical point
+ * for valid addresses Census's address-range dataset does not contain, then
+ * Census coordinate geography resolves the district rails.
  */
 export async function geocodeAddress(
   street: string,
@@ -228,7 +282,12 @@ export async function geocodeAddress(
     return { ...NO_MATCH_RESULT, status: 'error' };
   }
   const matches = json.result?.addressMatches ?? [];
-  if (matches.length === 0) return NO_MATCH_RESULT;
+  if (matches.length === 1) {
+    return {
+      status: 'matched',
+      ...parseGeocodeMatch(matches[0]!),
+    };
+  }
   if (matches.length > 1) {
     return {
       ...NO_MATCH_RESULT,
@@ -236,8 +295,20 @@ export async function geocodeAddress(
       candidates: matches.map(parseGeocodeMatch),
     };
   }
-  return {
-    status: 'matched',
-    ...parseGeocodeMatch(matches[0]!),
-  };
+
+  try {
+    const fallback = await geocodeWithArcGis(oneLine);
+    if (!fallback) return NO_MATCH_RESULT;
+    const districts = await censusDistrictsAtCoordinates(fallback.latitude, fallback.longitude);
+        return {
+          status: 'matched',
+          latitude: fallback.latitude,
+          longitude: fallback.longitude,
+          matchedAddress: fallback.matchedAddress,
+          ...districts,
+        };
+  } catch (err) {
+    console.warn(`[census-geocoder] ArcGIS fallback failed for "${oneLine}":`, (err as Error).message);
+    return NO_MATCH_RESULT;
+  }
 }

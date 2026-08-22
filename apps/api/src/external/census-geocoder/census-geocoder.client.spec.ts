@@ -1,8 +1,10 @@
 import {
   extractDistricts,
+  geocodeAddress,
   parseGeocodeMatch,
   type CensusAddressMatch,
 } from './census-geocoder.client.js';
+import { jest } from '@jest/globals';
 
 /**
  * Fixtures are transcribed verbatim from live Census Geocoder responses
@@ -156,3 +158,89 @@ describe('parseGeocodeMatch', () => {
     });
   });
 });
+
+describe('geocodeAddress ArcGIS fallback', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('falls back to a high-confidence ArcGIS point and Census coordinate geography when Census has no address match', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch');
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ result: { addressMatches: [] } }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                address: '1025 W Nasa Blvd, Melbourne, Florida, 32919',
+                location: { x: -80.6385795, y: 28.0907543 },
+                score: 97.81,
+                attributes: { Addr_type: 'PointAddress' },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            result: {
+              geographies: FL_MATCH.geographies,
+            },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+
+    await expect(geocodeAddress('1025 W NASA Boulevard', 'Palm Bay', 'FL', '32919')).resolves.toEqual(
+      expect.objectContaining({
+        status: 'matched',
+        latitude: 28.0907543,
+        longitude: -80.6385795,
+        congressionalDistrict: '02',
+        congressionalDistrictCongress: 119,
+        stateHouseDistrict: '9',
+        stateSenateDistrict: '3',
+        matchedAddress: '1025 W Nasa Blvd, Melbourne, Florida, 32919',
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not accept a low-confidence postal-only fallback', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch');
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ result: { addressMatches: [] } }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                address: '92604, Irvine, California',
+                location: { x: -117.789914, y: 33.69421 },
+                score: 84,
+                attributes: { Addr_type: 'Postal' },
+              },
+            ],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      );
+
+    await expect(geocodeAddress('602 E Vermont Ave', 'Irvine', 'CA', '92604')).resolves.toMatchObject({
+      status: 'no_match',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+

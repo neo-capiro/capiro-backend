@@ -114,65 +114,56 @@ export class ClientFacilitiesService {
    * backfills any miss). Re-scopes to the facility's own tenant.
    */
   private geocodeFacilityFireAndForget(tenantId: string, facilityId: string): void {
-    void this.prisma
-      .withTenant(tenantId, async (tx) => {
-        const facility = await tx.clientFacility.findUnique({ where: { id: facilityId } });
-        if (!facility) return;
-        const outcome = await computeFacilityGeocode(facility);
-        const attemptCount = (facility.geocodeAttemptCount ?? 0) + 1;
-        const retry = nextGeocodeAttempt(
-          outcome.status,
-          attemptCount,
-          Boolean(facility.addressLine?.trim() && facility.city?.trim() && facility.state?.trim()),
-          new Date(),
-        );
-        if (outcome.discrepancy) {
-          this.logger.warn(
-            `Geocode discrepancy for facility ${facilityId}: hand="${outcome.discrepancy.handEntered}" geocoded="${outcome.discrepancy.geocoded}"`,
-          );
-        }
-        if (outcome.update) {
-          await tx.clientFacility.update({
-            where: { id: facilityId },
-            data: {
-              ...outcome.update,
-              geocodeAttemptCount: attemptCount,
-              geocodeNextAttemptAt: retry.nextAttemptAt,
-              geocodeLastError:
-                outcome.status === 'error' ? 'Census geocoder request failed' : null,
-              ...(outcome.status !== 'error'
-                ? {
-                    geocodeMatchedAddress: outcome.matchedAddress,
-                    geocodeCandidates: outcome.candidates
-                      ? (outcome.candidates as unknown as Prisma.InputJsonValue)
-                      : Prisma.JsonNull,
-                  }
-                : {}),
-            },
-          });
-        } else {
-          await tx.clientFacility.update({
-            where: { id: facilityId },
-            data: {
-              geocodeAttemptCount: attemptCount,
-              geocodeNextAttemptAt: retry.nextAttemptAt,
-              geocodeLastError:
-                outcome.status === 'error' ? 'Census geocoder request failed' : null,
-              ...(outcome.status !== 'error'
-                ? {
-                    geocodeMatchedAddress: outcome.matchedAddress,
-                    geocodeCandidates: outcome.candidates
-                      ? (outcome.candidates as unknown as Prisma.InputJsonValue)
-                      : Prisma.JsonNull,
-                  }
-                : {}),
-            },
-          });
-        }
-      })
-      .catch((err) =>
-        this.logger.warn(`Inline geocode failed for facility ${facilityId}: ${err.message}`),
+    void this.geocodeFacility(tenantId, facilityId).catch((err) =>
+      this.logger.warn(`Inline geocode failed for facility ${facilityId}: ${err.message}`),
+    );
+  }
+
+  /**
+   * Resolve outside the tenant transaction. Provider I/O can take seconds and
+   * must never hold an interactive Prisma transaction open.
+   */
+  private async geocodeFacility(tenantId: string, facilityId: string): Promise<void> {
+    const facility = await this.prisma.withTenant(tenantId, async (tx) =>
+      tx.clientFacility.findUnique({ where: { id: facilityId } }),
+    );
+    if (!facility) return;
+
+    const outcome = await computeFacilityGeocode(facility);
+    await this.prisma.withTenant(tenantId, async (tx) => {
+      const current = await tx.clientFacility.findUnique({ where: { id: facilityId } });
+      if (!current) return;
+      const attemptCount = (current.geocodeAttemptCount ?? 0) + 1;
+      const retry = nextGeocodeAttempt(
+        outcome.status,
+        attemptCount,
+        Boolean(current.addressLine?.trim() && current.city?.trim() && current.state?.trim()),
+        new Date(),
       );
+      if (outcome.discrepancy) {
+        this.logger.warn(
+          `Geocode discrepancy for facility ${facilityId}: hand="${outcome.discrepancy.handEntered}" geocoded="${outcome.discrepancy.geocoded}"`,
+        );
+      }
+      await tx.clientFacility.update({
+        where: { id: facilityId },
+        data: {
+          ...(outcome.update ?? {}),
+          ...(retry.status === 'manual_review' ? { geocodeStatus: 'manual_review' } : {}),
+          geocodeAttemptCount: attemptCount,
+          geocodeNextAttemptAt: retry.nextAttemptAt,
+          geocodeLastError: outcome.status === 'error' ? 'Census geocoder request failed' : null,
+          ...(outcome.status !== 'error'
+            ? {
+                geocodeMatchedAddress: outcome.matchedAddress,
+                geocodeCandidates: outcome.candidates
+                  ? (outcome.candidates as unknown as Prisma.InputJsonValue)
+                  : Prisma.JsonNull,
+              }
+            : {}),
+        },
+      });
+    });
   }
 
   /** Run the deterministic Census resolver immediately for an explicit retry. */
@@ -182,28 +173,15 @@ export class ClientFacilitiesService {
         where: { id, tenantId: ctx.tenantId, clientId },
       });
       if (!existing) throw new NotFoundException('Facility not found');
-
-      await tx.clientFacility.update({ where: { id }, data: { geocodeStatus: 'pending' } });
-      const current = await tx.clientFacility.findFirst({
-        where: { id, tenantId: ctx.tenantId, clientId },
-      });
-      if (!current) throw new NotFoundException('Facility not found');
-      const outcome = await computeFacilityGeocode(current);
-      await tx.clientFacility.update({
-        where: { id },
-        data: {
-          ...(outcome.update ?? {}),
-          geocodeMatchedAddress: outcome.matchedAddress,
-          geocodeCandidates: outcome.candidates
-            ? (outcome.candidates as unknown as Prisma.InputJsonValue)
-            : Prisma.JsonNull,
-        },
-      });
-      return tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } });
+      return tx.clientFacility.update({ where: { id }, data: { geocodeStatus: 'pending' } });
     });
-    if (!facility) throw new NotFoundException('Facility not found');
+    await this.geocodeFacility(ctx.tenantId, facility.id);
+    const resolved = await this.prisma.withTenant(ctx.tenantId, async (tx) =>
+      tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } }),
+    );
+    if (!resolved) throw new NotFoundException('Facility not found');
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, id);
-    return facility;
+    return resolved;
   }
 
   async listFacilities(ctx: TenantContext, clientId: string) {

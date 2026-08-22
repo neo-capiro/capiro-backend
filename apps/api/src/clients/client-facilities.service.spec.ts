@@ -209,6 +209,32 @@ describe('ClientFacilitiesService — CRUD', () => {
     expect(updated.districtSource).toBe('user');
   });
 
+  test('resolveFacilityDistrict does not keep the tenant transaction open during provider resolution', async () => {
+    const prisma = makePrisma({
+      clients: [seedClient(TENANT_A)],
+      facilities: [{
+        id: 'f1', tenantId: TENANT_A, clientId: 'client-1', name: 'HQ',
+        addressLine: '1 Main St', city: 'Austin', state: 'TX', zip: '78701',
+        geocodeStatus: 'pending', geocodeAttemptCount: 0,
+      }],
+    });
+    const calls: string[] = [];
+    const originalWithTenant = prisma.withTenant;
+    prisma.withTenant = async (tenantId: string, fn: any) => {
+      calls.push('begin');
+      const result = await originalWithTenant(tenantId, async (tx: any) => {
+        const value = await fn(tx);
+        calls.push('end');
+        return value;
+      });
+      return result;
+    };
+    const svc = new ClientFacilitiesService(prisma as never, kbStub as never);
+    await svc.resolveFacilityDistrict(ctx(TENANT_A), 'client-1', 'f1');
+    expect(calls.filter((x) => x === 'begin').length).toBeGreaterThanOrEqual(3);
+    expect(calls.filter((x) => x === 'end').length).toBe(calls.filter((x) => x === 'begin').length);
+  });
+
   test('resolveFacilityDistrict is tenant-scoped and returns the persisted resolution', async () => {
     const prisma = makePrisma({
       clients: [seedClient(TENANT_A)],
