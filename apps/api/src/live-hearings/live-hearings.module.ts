@@ -10,6 +10,7 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { LiveHearingsController } from './live-hearings.controller.js';
 import { LiveHearingsPhase7Controller } from './live-hearings-phase7.controller.js';
+import { LiveHearingsPhase7PublicGuard } from './live-hearings-phase7-public.guard.js';
 import { LiveHearingsPhase7ScheduleGuard } from './live-hearings-phase7-schedule.guard.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { LiveHearingsService } from './live-hearings.service.js';
@@ -22,6 +23,7 @@ import { LiveHearingsService } from './live-hearings.service.js';
     CommitteeDirectoryService,
     LiveHearingsPhase7Service,
     LiveHearingsPhase7ScheduleGuard,
+    LiveHearingsPhase7PublicGuard,
   ],
   exports: [LiveHearingsService, CommitteeDirectoryService, LiveHearingsPhase7Service],
 })
