@@ -205,4 +205,51 @@ describe('EvaluationCaptureService', () => {
     const result = await service.recordDecision(baseInput());
     expect(result.status).toBe('recorded');
   });
+  it('respects the LEARNING_TENANTS rollout bound — no evaluation_record row for a tenant outside the allowlist', async () => {
+    const priorTenants = process.env.LEARNING_TENANTS;
+    process.env.LEARNING_TENANTS = '99999999-9999-4999-8999-999999999999';
+    try {
+      const { prisma, create } = fakePrisma();
+      const service = new EvaluationCaptureService(prisma as never);
+      const result = await service.recordDecision(baseInput());
+      expect(result).toEqual({ status: 'disabled' });
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      if (priorTenants === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = priorTenants;
+    }
+  });
+
+  it('rollout bound fails closed when LEARNING_TENANTS is unset, even with the global switch enabled', async () => {
+    const priorTenants = process.env.LEARNING_TENANTS;
+    delete process.env.LEARNING_TENANTS;
+    try {
+      const { prisma, create } = fakePrisma();
+      const service = new EvaluationCaptureService(prisma as never);
+      const result = await service.recordDecision(baseInput());
+      expect(result).toEqual({ status: 'disabled' });
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      if (priorTenants === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = priorTenants;
+    }
+  });
+
+  it('does not write even a skipped/not_sampled decision for a tenant outside the allowlist', async () => {
+    const priorTenants = process.env.LEARNING_TENANTS;
+    process.env.LEARNING_TENANTS = '99999999-9999-4999-8999-999999999999';
+    try {
+      const { prisma, create } = fakePrisma();
+      const service = new EvaluationCaptureService(prisma as never);
+      const result = await service.recordDecision(
+        baseInput({ status: 'skipped', skipReason: 'not_sampled' }),
+      );
+      expect(result).toEqual({ status: 'disabled' });
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      if (priorTenants === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = priorTenants;
+    }
+  });
+
 });

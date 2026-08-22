@@ -4,6 +4,7 @@ import {
   assertNoConfidentialEvaluationContent,
   computeEvaluationIdempotencyKey,
   evaluationEnabled,
+  learningTenantSelected,
   type EvaluationCost,
   type EvaluationDeterministicMetrics,
   type EvaluationJudgeResult,
@@ -48,6 +49,13 @@ export class EvaluationCaptureService {
     }
     try {
       validate(input);
+      // Phase 27G rollout bound — see learningTenantSelected. Checked after
+      // validate() for the same reason as QualityTelemetryCaptureService,
+      // and before write() so a tenant outside the allowlist produces no
+      // evaluation_record row at all — not even a skipped/not_sampled one.
+      if (!learningTenantSelected(input.tenantId)) {
+        return { status: 'disabled' };
+      }
       return await this.write(input);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);

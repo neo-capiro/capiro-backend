@@ -7,6 +7,7 @@ import {
   computeEvaluationSamplingKey,
   decideEvaluationEligibility,
   evaluationEnabled,
+  learningTenantSelected,
 } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -121,6 +122,10 @@ async function considerMeriResearchEvaluation(
   governed: MeriGovernedTurnContext,
 ): Promise<void> {
   if (!evaluation || !evaluationEnabled(process.env.LEARNING_EVALUATION)) return;
+  // Phase 27G rollout bound — see learningTenantSelected. Meri has no
+  // control replay yet, so this only suppresses the eligibility decision
+  // ROW for a tenant outside the allowlist; it changes no research turn.
+  if (!learningTenantSelected(ctx.tenantId)) return;
   const contextPacketId = governed.contextPacket.packetId ?? null;
   const institutionalItemCount = governed.contextPacket.items.length;
   const eligibility = decideEvaluationEligibility({

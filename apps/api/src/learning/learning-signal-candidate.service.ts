@@ -4,6 +4,7 @@ import {
   classifyLearningSignalEligibility,
   proposeLearningSignalCandidateAuthority,
   describeMemoryConflictMatch,
+  learningTenantSelected,
   type LearningSignalCandidateEligibility,
 } from '@capiro/meriv2-core';
 import type { SteeringLayer } from '@capiro/meriv2-core';
@@ -96,6 +97,13 @@ export class LearningSignalCandidateService {
     learningSignalId: string,
   ): Promise<LearningSignalCandidateOutcomeResult | null> {
     if (!learningCandidateGenerationEnabled(process.env.LEARNING_CANDIDATE_GENERATION)) {
+      return null;
+    }
+    // Phase 27G rollout bound — see learningTenantSelected. Same null
+    // return as the global switch above, and for the same reason: a tenant
+    // outside the allowlist is "not processed yet", not a decision, so no
+    // outcome row is written for it either.
+    if (!learningTenantSelected(tenantId)) {
       return null;
     }
 
@@ -300,6 +308,12 @@ export class LearningSignalCandidateService {
    *  oldest not-yet-decided captured signals for one tenant first. */
   async processBatch(tenantId: string, limit = 50): Promise<LearningSignalCandidateOutcomeResult[]> {
     if (!learningCandidateGenerationEnabled(process.env.LEARNING_CANDIDATE_GENERATION)) {
+      return [];
+    }
+    // Phase 27G rollout bound. generateForSignal enforces this too, so this
+    // check is about not doing the batch READ at all for a tenant that
+    // could not produce an outcome anyway.
+    if (!learningTenantSelected(tenantId)) {
       return [];
     }
     const pending = await this.prisma.withTenant(tenantId, (tx) =>

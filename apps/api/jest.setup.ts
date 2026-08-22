@@ -57,3 +57,4 @@ for (const name of ['Request', 'Response', 'Headers', 'FormData']) {
 // delete/override these values to prove fail-closed production semantics.
 process.env.MEMORY_GOVERNANCE_TENANTS ??= 'all';
 process.env.MERI_POLICY_PACK_TENANTS ??= 'all';
+process.env.LEARNING_TENANTS ??= 'all';

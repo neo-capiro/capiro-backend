@@ -155,4 +155,75 @@ describe('LearningSignalCaptureService', () => {
     const result = await service.capture(tx, baseInput());
     expect(result.status).toBe('captured');
   });
+  it('respects the LEARNING_TENANTS rollout bound — no write happens for a tenant outside the allowlist', async () => {
+    const prior = process.env.LEARNING_TENANTS;
+    process.env.LEARNING_TENANTS = '99999999-9999-4999-8999-999999999999';
+    try {
+      const service = new LearningSignalCaptureService();
+      const { tx, create } = fakeTx();
+      const result = await service.capture(tx, baseInput());
+      expect(result).toEqual({ status: 'disabled' });
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      if (prior === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = prior;
+    }
+  });
+
+  it('fails closed when LEARNING_TENANTS is unset — capture is armed by naming a tenant, not by deploying', async () => {
+    const prior = process.env.LEARNING_TENANTS;
+    delete process.env.LEARNING_TENANTS;
+    try {
+      const service = new LearningSignalCaptureService();
+      const { tx, create } = fakeTx();
+      const result = await service.capture(tx, baseInput());
+      expect(result).toEqual({ status: 'disabled' });
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      if (prior === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = prior;
+    }
+  });
+
+  it('captures for a tenant named explicitly in LEARNING_TENANTS', async () => {
+    const prior = process.env.LEARNING_TENANTS;
+    process.env.LEARNING_TENANTS = `99999999-9999-4999-8999-999999999999,${TENANT}`;
+    try {
+      const service = new LearningSignalCaptureService();
+      const { tx, create } = fakeTx();
+      const result = await service.capture(tx, baseInput());
+      expect(result.status).toBe('captured');
+      expect(create).toHaveBeenCalledTimes(1);
+    } finally {
+      if (prior === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = prior;
+    }
+  });
+
+  it('keeps the kill switch and the rollout bound independent — either one alone stops capture', async () => {
+    const priorSwitch = process.env.LEARNING_SIGNAL_CAPTURE;
+    const priorTenants = process.env.LEARNING_TENANTS;
+    try {
+      // Allowlist names this tenant, but the global kill switch is thrown.
+      process.env.LEARNING_TENANTS = TENANT;
+      process.env.LEARNING_SIGNAL_CAPTURE = 'disabled';
+      const service = new LearningSignalCaptureService();
+      const first = fakeTx();
+      expect(await service.capture(first.tx, baseInput())).toEqual({ status: 'disabled' });
+      expect(first.create).not.toHaveBeenCalled();
+
+      // Kill switch released, but the allowlist no longer names this tenant.
+      delete process.env.LEARNING_SIGNAL_CAPTURE;
+      process.env.LEARNING_TENANTS = '99999999-9999-4999-8999-999999999999';
+      const second = fakeTx();
+      expect(await service.capture(second.tx, baseInput())).toEqual({ status: 'disabled' });
+      expect(second.create).not.toHaveBeenCalled();
+    } finally {
+      if (priorSwitch === undefined) delete process.env.LEARNING_SIGNAL_CAPTURE;
+      else process.env.LEARNING_SIGNAL_CAPTURE = priorSwitch;
+      if (priorTenants === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = priorTenants;
+    }
+  });
+
 });

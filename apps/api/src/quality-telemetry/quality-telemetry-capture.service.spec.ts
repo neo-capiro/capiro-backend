@@ -160,4 +160,49 @@ describe('QualityTelemetryCaptureService', () => {
     const result = await service.recordEvent(baseInput());
     expect(result.status).toBe('recorded');
   });
+  it('respects the LEARNING_TENANTS rollout bound — no write for a tenant outside the allowlist', async () => {
+    const priorTenants = process.env.LEARNING_TENANTS;
+    process.env.LEARNING_TENANTS = '99999999-9999-4999-8999-999999999999';
+    try {
+      const { prisma, create } = fakePrisma();
+      const service = new QualityTelemetryCaptureService(prisma as never);
+      const result = await service.recordEvent(baseInput());
+      expect(result).toEqual({ status: 'disabled' });
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      if (priorTenants === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = priorTenants;
+    }
+  });
+
+  it('rollout bound fails closed when LEARNING_TENANTS is unset, even with the global switch enabled', async () => {
+    const priorTenants = process.env.LEARNING_TENANTS;
+    delete process.env.LEARNING_TENANTS;
+    try {
+      const { prisma, create } = fakePrisma();
+      const service = new QualityTelemetryCaptureService(prisma as never);
+      const result = await service.recordEvent(baseInput());
+      expect(result).toEqual({ status: 'disabled' });
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      if (priorTenants === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = priorTenants;
+    }
+  });
+
+  it('still reports a missing tenantId as an input failure, not as a rollout decline', async () => {
+    const priorTenants = process.env.LEARNING_TENANTS;
+    process.env.LEARNING_TENANTS = 'all';
+    try {
+      const { prisma, create } = fakePrisma();
+      const service = new QualityTelemetryCaptureService(prisma as never);
+      const result = await service.recordEvent(baseInput({ tenantId: '' }));
+      expect(result.status).toBe('failed');
+      expect(create).not.toHaveBeenCalled();
+    } finally {
+      if (priorTenants === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = priorTenants;
+    }
+  });
+
 });

@@ -33,6 +33,7 @@ export * from './context/governed-columns';
 export * from './memory/governance';
 export * from './memory/governance-rollout';
 export * from './learning/contract';
+export * from './learning/rollout';
 export * from './learning/candidate-contract';
 export * from './learning/conflict-contract';
 export * from './quality-telemetry/contract';
