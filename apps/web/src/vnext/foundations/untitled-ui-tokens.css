@@ -26,8 +26,8 @@
  * deltas are called out below.
  */
 .capiro-vnext-uui {
-  /* Type — Inter, per handoff §4.1. */
-  --uui-font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Type — unified under Hanken Grotesk via --capiro-type-family-sans (tokens.css). */
+  --uui-font-family: var(--capiro-type-family-sans);
   --uui-text-display-sm: 30px;
   --uui-line-display-sm: 38px;
   --uui-text-md: 18px;
