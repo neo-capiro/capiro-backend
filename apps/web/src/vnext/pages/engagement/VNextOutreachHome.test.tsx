@@ -55,7 +55,7 @@ function renderHome(onOpenCampaign = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const result = render(
     <QueryClientProvider client={qc}>
-      <VNextOutreachHome onOpenCampaign={onOpenCampaign} />
+      <VNextOutreachHome onOpenCampaign={onOpenCampaign} selectedClientId={null} />
     </QueryClientProvider>,
   );
   return { ...result, onOpenCampaign };
