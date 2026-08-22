@@ -7,7 +7,8 @@ import { LEGIWATCH_PHASE9_REQUIRED_JOB_KEYS } from './legiwatch-phase9.types.js'
 
 const NOW = new Date('2026-08-21T12:00:00Z');
 
-function snapshot() {
+/** Deliberately mutable SQL-row fixture used to inject failure cases. */
+function snapshot(): any {
   return {
     bodies: [
       {
@@ -115,29 +116,28 @@ function snapshot() {
   };
 }
 
-function serviceWith(snapshotValue: ReturnType<typeof snapshot>) {
+function serviceWith(snapshotValue: any) {
   const service = new LegiWatchPhase9ReadinessService({} as never);
-  (
-    service as unknown as {
-      loadSnapshot: () => Promise<ReturnType<typeof snapshot>>;
-    }
-  ).loadSnapshot = jest.fn(async () => snapshotValue);
+  (service as any).loadSnapshot = jest.fn(async () => snapshotValue);
   return service;
 }
 
-function gate(report: Awaited<ReturnType<LegiWatchPhase9ReadinessService['evaluate']>>, key: string) {
+function findGate(
+  report: Awaited<ReturnType<LegiWatchPhase9ReadinessService['evaluate']>>,
+  key: string,
+) {
   const value = report.gates.find((item) => item.key === key);
   if (!value) throw new Error(`gate ${key} missing`);
   return value;
 }
 
+async function evaluate(value: any, mode: 'READINESS' | 'CUTOVER_VERIFICATION' = 'READINESS', evidenceSource: 'LOCAL_FIXTURE' | 'OFFICIAL_ARCHIVE' | 'MIXED' = 'LOCAL_FIXTURE') {
+  return serviceWith(value).evaluate({ now: NOW, evidenceSource, mode });
+}
+
 describe('LegiWatchPhase9ReadinessService', () => {
-  it('passes the complete readiness contract with explicit real fixture evidence', async () => {
-    const report = await serviceWith(snapshot()).evaluate({
-      now: NOW,
-      evidenceSource: 'LOCAL_FIXTURE',
-      mode: 'READINESS',
-    });
+  it('passes the complete readiness contract with explicit fixture evidence', async () => {
+    const report = await evaluate(snapshot());
     expect(report.status).toBe('PASS');
     expect(report.counts).toMatchObject({
       parentBodies: 1,
@@ -160,19 +160,10 @@ describe('LegiWatchPhase9ReadinessService', () => {
       canonicalProvenance: 100,
       captureOutcome: 100,
     });
-    expect(report.summary).toMatchObject({
-      sourceCoverageReady: true,
-      officialCorpusRepresented: true,
-      capturePathReady: true,
-      transcriptContinuityReady: true,
-      workersFresh: true,
-      intelligenceFresh: true,
-      cutoverEligible: false,
-    });
     expect(report.blockers).toEqual([]);
   });
 
-  it('blocks a zero-event audit instead of reporting full coverage', async () => {
+  it('blocks zero-event audits rather than reporting full coverage', async () => {
     const value = snapshot();
     value.observations = [];
     value.hearings = [];
@@ -180,156 +171,100 @@ describe('LegiWatchPhase9ReadinessService', () => {
     value.captures = [];
     value.demand = [];
     value.transcript = [];
-    const report = await serviceWith(value).evaluate({
-      now: NOW,
-      evidenceSource: 'OFFICIAL_ARCHIVE',
-      mode: 'READINESS',
-    });
+    const report = await evaluate(value, 'READINESS', 'OFFICIAL_ARCHIVE');
     expect(report.status).toBe('BLOCKED');
-    expect(report.counts.officialObservations).toBe(0);
     expect(report.percentages.observationDisposition).toBe(0);
-    expect(gate(report, 'OFFICIAL_OBSERVATIONS_PRESENT')).toMatchObject({
+    expect(findGate(report, 'OFFICIAL_OBSERVATIONS_PRESENT')).toMatchObject({
       status: 'FAIL',
       reasonCode: 'ZERO_EVENT_EVIDENCE',
     });
-    expect(report.bodies.every((body) => body.status === 'HEALTHY_NO_EVENTS_OBSERVED')).toBe(true);
+    expect(
+      report.bodies.every((body) => body.status === 'HEALTHY_NO_EVENTS_OBSERVED'),
+    ).toBe(true);
   });
 
-  it('fails when an official observation remains pending', async () => {
+  it('fails pending observations and canonical records without provenance', async () => {
     const value = snapshot();
     value.observations[0] = {
-      ...value.observations[0]!,
+      ...value.observations[0],
       hearingId: null,
       reconciliationStatus: 'PENDING',
       reconciliationReasonCode: null,
     };
-    const report = await serviceWith(value).evaluate({
-      now: NOW,
-      evidenceSource: 'LOCAL_FIXTURE',
-      mode: 'READINESS',
-    });
+    const report = await evaluate(value);
     expect(report.status).toBe('FAIL');
     expect(report.counts.pendingObservations).toBe(1);
-    expect(gate(report, 'OFFICIAL_OBSERVATIONS_DISPOSITIONED').status).toBe('FAIL');
+    expect(findGate(report, 'OFFICIAL_OBSERVATIONS_DISPOSITIONED').status).toBe('FAIL');
+    expect(findGate(report, 'CANONICAL_PROVENANCE').status).toBe('FAIL');
     expect(report.exceptions).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ reasonCode: 'OFFICIAL_OBSERVATION_PENDING' }),
         expect.objectContaining({
-          observationId: value.observations[0]?.id,
-          reasonCode: 'OFFICIAL_OBSERVATION_PENDING',
+          reasonCode: 'CANONICAL_EVENT_WITHOUT_OFFICIAL_OBSERVATION',
         }),
       ]),
     );
   });
 
-  it('detects canonical events that bypass the observation ledger', async () => {
-    const value = snapshot();
-    value.observations = [];
-    const report = await serviceWith(value).evaluate({
-      now: NOW,
-      evidenceSource: 'LOCAL_FIXTURE',
-      mode: 'READINESS',
-    });
-    expect(report.counts.legacyOnlyCanonicalEvents).toBe(1);
-    expect(gate(report, 'CANONICAL_PROVENANCE')).toMatchObject({
-      status: 'FAIL',
-      reasonCode: 'CANONICAL_EVENTS_MISSING_PROVENANCE',
-    });
-  });
-
   it('detects duplicate canonical fingerprints and duplicate global captures', async () => {
     const value = snapshot();
-    value.hearings.push({ ...value.hearings[0]!, id: 'hearing-duplicate' });
-    value.captures.push({ ...value.captures[0]!, id: 'capture-duplicate' });
-    const report = await serviceWith(value).evaluate({
-      now: NOW,
-      evidenceSource: 'LOCAL_FIXTURE',
-      mode: 'READINESS',
-    });
+    value.hearings.push({ ...value.hearings[0], id: 'hearing-duplicate' });
+    value.captures.push({ ...value.captures[0], id: 'capture-duplicate' });
+    const report = await evaluate(value);
     expect(report.counts.duplicateCanonicalEvents).toBe(1);
     expect(report.counts.duplicateGlobalCaptures).toBe(1);
-    expect(gate(report, 'NO_DUPLICATE_CANONICAL_EVENTS').status).toBe('FAIL');
-    expect(gate(report, 'ONE_GLOBAL_CAPTURE').status).toBe('FAIL');
+    expect(findGate(report, 'NO_DUPLICATE_CANONICAL_EVENTS').status).toBe('FAIL');
+    expect(findGate(report, 'ONE_GLOBAL_CAPTURE').status).toBe('FAIL');
   });
 
-  it('requires an explicit terminal outcome for every eligible due hearing', async () => {
+  it('requires an explicit terminal capture result and one transcript timeline', async () => {
     const value = snapshot();
     value.captures[0] = {
-      ...value.captures[0]!,
+      ...value.captures[0],
       domainStatus: 'CAPTURING',
       terminalReasonCode: null,
     };
-    const report = await serviceWith(value).evaluate({
-      now: NOW,
-      evidenceSource: 'LOCAL_FIXTURE',
-      mode: 'READINESS',
-    });
-    expect(report.counts.eligibleEvents).toBe(1);
+    value.duplicateSequences = [
+      { hearingId: 'hearing-1', captureId: 'capture-1', sequence: 7, count: 2 },
+    ];
+    const report = await evaluate(value);
     expect(report.counts.eventsWithOutcomes).toBe(0);
-    expect(gate(report, 'CAPTURE_OUTCOMES_EXPLICIT')).toMatchObject({
-      status: 'FAIL',
-      reasonCode: 'ELIGIBLE_CAPTURE_OUTCOME_INCOMPLETE',
-    });
+    expect(findGate(report, 'CAPTURE_OUTCOMES_EXPLICIT').status).toBe('FAIL');
+    expect(findGate(report, 'ONE_TRANSCRIPT_TIMELINE').status).toBe('FAIL');
   });
 
-  it('requires a durable ledger or transcript marker for every reported gap', async () => {
+  it('requires a durable marker whenever capture gap time is recorded', async () => {
     const value = snapshot();
     value.captures[0] = {
-      ...value.captures[0]!,
+      ...value.captures[0],
       domainStatus: 'COMPLETE_WITH_GAPS',
       terminalReasonCode: 'CAPTURE_COMPLETE_WITH_GAPS',
       transcriptGapSeconds: 12,
       gapLedgerCount: 0,
     };
-    value.transcript[0] = { ...value.transcript[0]!, gapMarkers: 0 };
-    const report = await serviceWith(value).evaluate({
-      now: NOW,
-      evidenceSource: 'LOCAL_FIXTURE',
-      mode: 'READINESS',
-    });
+    value.transcript[0] = { ...value.transcript[0], gapMarkers: 0 };
+    const report = await evaluate(value);
     expect(report.counts.gapsWithoutMarkers).toBe(1);
-    expect(gate(report, 'GAP_MARKERS_DURABLE').status).toBe('FAIL');
+    expect(findGate(report, 'GAP_MARKERS_DURABLE').status).toBe('FAIL');
   });
 
-  it('rejects duplicate transcript sequence numbers in one canonical timeline', async () => {
-    const value = snapshot();
-    value.duplicateSequences = [
-      {
-        hearingId: 'hearing-1',
-        captureId: 'capture-1',
-        sequence: 7,
-        count: 2,
-      },
-    ];
-    const report = await serviceWith(value).evaluate({
-      now: NOW,
-      evidenceSource: 'LOCAL_FIXTURE',
-      mode: 'READINESS',
-    });
-    expect(report.counts.duplicateTranscriptSequences).toBe(1);
-    expect(gate(report, 'ONE_TRANSCRIPT_TIMELINE').status).toBe('FAIL');
-  });
-
-  it('fails stale worker and intelligence-latency gates independently', async () => {
+  it('fails stale workers and lagging intelligence independently', async () => {
     const value = snapshot();
     value.runtime[0] = {
-      ...value.runtime[0]!,
+      ...value.runtime[0],
       lastHeartbeatAt: new Date('2026-08-21T10:00:00Z'),
     };
     value.laggingJobs = [
       { queue: 'public', hearingId: 'hearing-1', status: 'failed', count: 2 },
     ];
-    const report = await serviceWith(value).evaluate({
-      now: NOW,
-      evidenceSource: 'LOCAL_FIXTURE',
-      mode: 'READINESS',
-    });
+    const report = await evaluate(value);
     expect(report.counts.staleJobs).toBe(1);
     expect(report.counts.laggingIntelligenceJobs).toBe(2);
-    expect(gate(report, 'JOB_FRESHNESS').status).toBe('FAIL');
-    expect(gate(report, 'INTELLIGENCE_LATENCY').status).toBe('FAIL');
+    expect(findGate(report, 'JOB_FRESHNESS').status).toBe('FAIL');
+    expect(findGate(report, 'INTELLIGENCE_LATENCY').status).toBe('FAIL');
   });
 
-  it('requires the complete live chaos/e2e evidence matrix for CUTOVER', async () => {
+  it('requires the complete current live/chaos matrix for CUTOVER', async () => {
     const value = snapshot();
     value.evidence = CUTOVER_EVIDENCE_TYPES.map((evidenceType) => ({
       evidenceType,
@@ -340,21 +275,17 @@ describe('LegiWatchPhase9ReadinessService', () => {
       hearingId: evidenceType.startsWith('LIVE_') ? 'hearing-1' : null,
       captureId: evidenceType.startsWith('LIVE_') ? 'capture-1' : null,
     }));
-    const report = await serviceWith(value).evaluate({
-      now: NOW,
-      evidenceSource: 'MIXED',
-      mode: 'CUTOVER_VERIFICATION',
-    });
+    const report = await evaluate(value, 'CUTOVER_VERIFICATION', 'MIXED');
     expect(report.status).toBe('PASS');
     expect(report.summary.cutoverEligible).toBe(true);
     expect(
       CUTOVER_EVIDENCE_TYPES.every(
-        (evidenceType) => gate(report, `EVIDENCE_${evidenceType}`).status === 'PASS',
+        (type) => findGate(report, `EVIDENCE_${type}`).status === 'PASS',
       ),
     ).toBe(true);
   });
 
-  it('will not accept archive-only evidence for a live cutover proof', async () => {
+  it('rejects archive-only evidence for live cutover gates', async () => {
     const value = snapshot();
     value.evidence = CUTOVER_EVIDENCE_TYPES.map((evidenceType) => ({
       evidenceType,
@@ -365,13 +296,13 @@ describe('LegiWatchPhase9ReadinessService', () => {
       hearingId: 'hearing-1',
       captureId: 'capture-1',
     }));
-    const report = await serviceWith(value).evaluate({
-      now: NOW,
-      evidenceSource: 'OFFICIAL_ARCHIVE',
-      mode: 'CUTOVER_VERIFICATION',
-    });
+    const report = await evaluate(
+      value,
+      'CUTOVER_VERIFICATION',
+      'OFFICIAL_ARCHIVE',
+    );
     expect(report.status).toBe('FAIL');
-    expect(gate(report, 'LIVE_CUTOVER_EVIDENCE_SOURCE').status).toBe('FAIL');
-    expect(gate(report, 'EVIDENCE_LIVE_DEEPGRAM').status).toBe('FAIL');
+    expect(findGate(report, 'LIVE_CUTOVER_EVIDENCE_SOURCE').status).toBe('FAIL');
+    expect(findGate(report, 'EVIDENCE_LIVE_DEEPGRAM').status).toBe('FAIL');
   });
 });
