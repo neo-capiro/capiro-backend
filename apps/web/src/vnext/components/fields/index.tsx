@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type SelectHTMLAttributes } from 'react';
+import { useId, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
 interface FieldChromeProps {
   label: string;
@@ -79,5 +79,31 @@ export function CapiroSelect({
         <span id={messageId} className="capiro-field__help">{helpText}</span>
       ) : null}
     </label>
+  );
+}
+
+interface CapiroTextareaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'aria-invalid'> {
+  label: string;
+  error?: string;
+  help?: string;
+}
+
+export function CapiroTextarea({ label, error, help, id: idProp, ...rest }: CapiroTextareaProps) {
+  const generated = useId();
+  const id = idProp ?? generated;
+  const descId = `${id}-desc`;
+  return (
+    <div className="capiro-field">
+      <label className="capiro-field__label" htmlFor={id}>{label}</label>
+      <textarea
+        id={id}
+        className="capiro-textarea"
+        aria-invalid={Boolean(error)}
+        aria-describedby={(error || help) ? descId : undefined}
+        {...rest}
+      />
+      {error && <span id={descId} className="capiro-field__error">{error}</span>}
+      {!error && help && <span id={descId} className="capiro-field__help">{help}</span>}
+    </div>
   );
 }
