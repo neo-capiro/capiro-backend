@@ -17,7 +17,7 @@
  * server-authoritative; no external send path exists anywhere.
  */
 import { useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
@@ -100,14 +100,14 @@ function IntelligenceSubNav({
   return (
     <nav className="lw-subnav" aria-label="Intelligence">
       {items.map((item) => (
-        <a
+        <Link
           key={item.id}
-          href={item.path}
+          to={item.path}
           className={`lw-subnav__item${item.id === 'legiwatch' ? ' is-active' : ''}`}
           aria-current={item.id === 'legiwatch' ? 'page' : undefined}
         >
           {item.label}
-        </a>
+        </Link>
       ))}
       <button
         type="button"
