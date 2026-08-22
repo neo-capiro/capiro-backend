@@ -186,7 +186,8 @@ describe('Committee Staff vNext', () => {
   test('the hierarchy canvas dims and badges a former team member — no distinction existed before', async () => {
     mockHappy([staffer({ id: 'staff-2', fullName: 'Jamie Lang', isCurrent: false })]);
     renderAt('/directory/committee-staff');
-    const node = await screen.findByRole('button', { name: /Jamie Lang/ });
+    const node = await screen.findByTestId('rf__node-staff-staff-2');
+    expect(within(node).getByText('Jamie Lang')).toBeTruthy();
     expect(within(node).getByText('Former')).toBeTruthy();
     expect(node.className).toContain('capiro-directory-node--former');
   });
@@ -206,6 +207,17 @@ describe('Committee Staff vNext', () => {
     await waitFor(() => expect(screen.getAllByText(/not source-backed/i).length).toBe(2));
     // Leadership is source-backed and renders.
     await waitFor(() => expect(screen.getByText('Chair Person')).toBeTruthy());
+  });
+
+  test('hierarchy view renders a pannable XYFlow organization chart with source-backed nodes', async () => {
+    mockHappy([staffer()]);
+    renderAt('/directory/committee-staff');
+    const chart = await screen.findByTestId('committee-org-chart');
+    expect(chart).toHaveAttribute('aria-label', 'Committee organization chart');
+    expect(within(chart).getByText('House Armed Services')).toBeTruthy();
+    expect(within(chart).getByText('Chair Person')).toBeTruthy();
+    expect(within(chart).getByText('Committee staff pool')).toBeTruthy();
+    expect(within(chart).getByRole('button', { name: 'Zoom In' })).toBeTruthy();
   });
 
   test('hierarchy view renders a real subcommittee-unit tier from getCommitteeDetail', async () => {
