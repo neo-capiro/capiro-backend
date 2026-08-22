@@ -38,13 +38,19 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* tsconfig.base.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
 COPY packages/meriv2-core/package.json packages/meriv2-core/package.json
+COPY packages/defense-domain/package.json packages/defense-domain/package.json
+COPY packages/defense-contracts/package.json packages/defense-contracts/package.json
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core...
+    pnpm install --frozen-lockfile --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-domain... --filter=@capiro/defense-contracts...
 
 COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
 COPY packages/meriv2-core/src packages/meriv2-core/src
 COPY packages/meriv2-core/tsconfig.json packages/meriv2-core/tsconfig.json
+COPY packages/defense-domain/src packages/defense-domain/src
+COPY packages/defense-domain/tsconfig.json packages/defense-domain/tsconfig.json
+COPY packages/defense-contracts/src packages/defense-contracts/src
+COPY packages/defense-contracts/tsconfig.json packages/defense-contracts/tsconfig.json
 COPY apps/api/src apps/api/src
 COPY apps/api/tsconfig.json apps/api/tsconfig.build.json apps/api/nest-cli.json apps/api/
 COPY apps/api/prisma apps/api/prisma
@@ -54,6 +60,8 @@ COPY apps/api/scripts/lib/pe-compose-database-url.js apps/api/scripts/lib/pe-com
 
 RUN pnpm --filter @capiro/shared build
 RUN pnpm --filter @capiro/meriv2-core build
+RUN pnpm --filter @capiro/defense-domain build
+RUN pnpm --filter @capiro/defense-contracts build
 RUN pnpm --filter @capiro/api exec prisma generate
 # Same heap ceiling apps/api/Dockerfile already uses for this exact target. The
 # default is no longer enough for `nest build` over apps/api, so without this the
@@ -64,7 +72,7 @@ RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm --filter @capiro/api build
 # Prune dev dependencies in place (keeps the .pnpm store with the generated
 # Prisma client intact).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prod --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core...
+    pnpm install --frozen-lockfile --prod --filter=@capiro/api... --filter=@capiro/shared... --filter=@capiro/meriv2-core... --filter=@capiro/defense-domain... --filter=@capiro/defense-contracts...
 
 # -------- runtime -------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
@@ -92,6 +100,13 @@ COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/package.
 # meriv2-core has workspace deps of its own — copy its node_modules or the API
 # crashloops at boot with MODULE_NOT_FOUND '@capiro/shared'.
 COPY --chown=capiro:capiro --from=build /workspace/packages/meriv2-core/node_modules /app/packages/meriv2-core/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/dist /app/packages/defense-domain/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/package.json /app/packages/defense-domain/package.json
+# defense-domain depends on @capiro/shared like meriv2-core does — same reason,
+# same fix: copy its local node_modules symlink or the API crashloops at boot.
+COPY --chown=capiro:capiro --from=build /workspace/packages/defense-domain/node_modules /app/packages/defense-domain/node_modules
+COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/dist /app/packages/defense-contracts/dist
+COPY --chown=capiro:capiro --from=build /workspace/packages/defense-contracts/package.json /app/packages/defense-contracts/package.json
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/dist /app/apps/api/dist
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/node_modules /app/apps/api/node_modules
 COPY --chown=capiro:capiro --from=build /workspace/apps/api/prisma /app/apps/api/prisma
