@@ -32,6 +32,13 @@ class StartClientProfileFillDto {
   @IsOptional()
   @IsUUID()
   attachmentId?: string;
+
+  /** Optional website entered in the Fill drawer. Seeded onto the client when
+   * empty (or when the user overrides) before public-web enrichment runs. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  website?: string;
 }
 
 class ApplyClientProfileFillDto {
@@ -61,7 +68,7 @@ export class ClientProfileFillController {
     @Param('clientId') clientId: string,
     @Body() body: StartClientProfileFillDto,
   ) {
-    return this.service.startRun(ctx, clientId, body.sources, body.attachmentId);
+    return this.service.startRun(ctx, clientId, body.sources, body.attachmentId, body.website);
   }
 
   @Get('latest')

@@ -43,4 +43,18 @@ describe('Client Fill with Meri document-upload contract', () => {
     expect(drawer).toContain('propose capability cards, descriptions, and tags');
     expect(drawer).toContain('written until you apply it.');
   });
+
+  it('lets the user enter a website in the drawer and seeds it on start', () => {
+    expect(drawer).toContain('Company website');
+    expect(drawer).toContain('websiteInput');
+    expect(drawer).toContain('fill.start({ website');
+    expect(adapter).toContain('website?: string');
+    expect(adapter).toContain('website: input.website');
+  });
+
+  it('surfaces informational PE/LDA/bill context instead of pretending nothing was found', () => {
+    expect(adapter).toContain("finding.status === 'informational'");
+    expect(drawer).toContain('contextFindings');
+    expect(drawer).toContain('Related context');
+  });
 });

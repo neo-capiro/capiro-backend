@@ -66,6 +66,7 @@ export type FillPhase =
   | 'researching'
   | 'proposals'
   | 'no-changes'
+  | 'context-only'
   | 'partial'
   | 'failed'
   | 'permission-denied'
@@ -116,15 +117,16 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
   const current = run.data ?? latest.data ?? null;
 
   const start = useMutation({
-    mutationFn: async (input: { sources?: string[]; attachmentId?: string } = {}) =>
+    mutationFn: async (input: { sources?: string[]; attachmentId?: string; website?: string } = {}) =>
       (
         await api.post<FillRun>(
           `${base}/runs`,
           input.attachmentId
             ? { attachmentId: input.attachmentId }
-            : input.sources?.length
-              ? { sources: input.sources }
-              : {},
+            : {
+                ...(input.sources?.length ? { sources: input.sources } : {}),
+                ...(input.website?.trim() ? { website: input.website.trim() } : {}),
+              },
         )
       ).data,
     onSuccess: (created) => {
@@ -132,6 +134,7 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
       setSelected(new Set());
       setApplyOutcome(null);
       qc.setQueryData(['client-fill-with-meri', clientId, 'run', created.id], created);
+      void qc.invalidateQueries({ queryKey: ['client', clientId] });
     },
   });
 
@@ -165,6 +168,12 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     [current],
   );
 
+  /** Informational PE / LDA / bill context — shown even when nothing is applyable. */
+  const contextFindings = useMemo(
+    () => (current?.findings ?? []).filter((finding) => finding.status === 'informational'),
+    [current],
+  );
+
   /** Sources that reported a failure — drives the partial-source message. */
   const failedSources = useMemo(() => {
     const states = current?.sourceStates ?? {};
@@ -185,10 +194,11 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     if (!current) return latest.isLoading ? 'preparing' : 'idle';
     if (current.status === 'running') return 'researching';
     if (current.status === 'failed') return 'failed';
-    if (proposals.length === 0) return 'no-changes';
+    if (proposals.length === 0 && contextFindings.length === 0) return 'no-changes';
+    if (proposals.length === 0 && contextFindings.length > 0) return 'context-only';
     if (current.status === 'partial' || failedSources.length > 0) return 'partial';
     return 'proposals';
-  }, [start, apply, applyOutcome, current, latest.isLoading, proposals.length, failedSources.length]);
+  }, [start, apply, applyOutcome, current, latest.isLoading, proposals.length, contextFindings.length, failedSources.length]);
 
   const toggle = useCallback((id: string) => {
     setSelected((previous) => {
@@ -208,6 +218,7 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     phase,
     run: current,
     proposals,
+    contextFindings,
     failedSources,
     selected,
     toggle,
@@ -215,7 +226,13 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     applyOutcome,
     startError: start.error,
     applyError: apply.error,
-    start: (sources?: string[]) => start.mutate({ sources }),
+    start: (input?: { sources?: string[]; website?: string } | string[]) => {
+      if (Array.isArray(input)) {
+        start.mutate({ sources: input });
+        return;
+      }
+      start.mutate({ sources: input?.sources, website: input?.website });
+    },
     startForAttachment: (attachmentId: string) => start.mutate({ attachmentId }),
     applySelected: () => apply.mutate([...selected]),
     applyAll: () => apply.mutate(proposals.map((finding) => finding.id)),

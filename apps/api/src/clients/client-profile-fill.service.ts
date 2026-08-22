@@ -26,6 +26,7 @@ import {
   buildCrmFillFindingAcceptedSignal,
   buildCrmFillFindingRejectedSignal,
 } from '../learning/adapters/crm-fill-finding.adapter.js';
+import { TrackerService } from '../tracker/tracker.service.js';
 import {
   CLIENT_PROFILE_FILL_SOURCES,
   asRecord,
@@ -33,6 +34,7 @@ import {
   asStringArray,
   buildCompanySearchQueries,
   capabilitySearchTerms,
+  discoverSameOriginPageCandidates,
   emailDomain,
   extractJsonObject,
   extractSyncedMailParticipants,
@@ -59,7 +61,8 @@ const RUN_STALE_AFTER_MS = 15 * 60 * 1000;
 const MAX_WEBSITE_BYTES = 1_500_000;
 const WEB_TIMEOUT_MS = 15_000;
 const AI_TIMEOUT_MS = 60_000;
-const MAX_WEB_RESULTS = 12;
+const MAX_WEB_RESULTS = 16;
+const MAX_SITE_PAGES = 5;
 // Cloudflare / shared hosts often 403 bot UAs from Fargate. Prefer a normal
 // browser identity; keep Accept-Language so edge caches treat the request as HTML.
 const PUBLIC_FETCH_HEADERS = {
@@ -176,6 +179,7 @@ export class ClientProfileFillService {
     private readonly facilities: ClientFacilitiesService,
     private readonly capabilities: ClientCapabilitiesService,
     private readonly attachments: EngagementService,
+    private readonly tracker: TrackerService,
     // Phase 27A learning-signal capture. Optional so any existing direct
     // construction of this service keeps compiling; when absent, apply/
     // reject behave exactly as before — no signal captured, no behavior
@@ -188,11 +192,16 @@ export class ClientProfileFillService {
     clientId: string,
     requestedSources?: ClientProfileFillSource[],
     attachmentId?: string,
+    seedWebsite?: string | null,
   ) {
     await this.assertClient(ctx.tenantId, clientId);
     if (attachmentId && requestedSources?.length) {
       throw new BadRequestException('Choose either a capability document or connected enrichment sources');
     }
+    if (attachmentId && seedWebsite?.trim()) {
+      throw new BadRequestException('Website seed applies only to connected enrichment sources');
+    }
+    await this.maybeSeedWebsite(ctx, clientId, seedWebsite);
     const sources = attachmentId ? [] : this.normalizeSources(requestedSources);
 
     const existing = await this.latestRunning(ctx.tenantId, clientId);
@@ -595,6 +604,9 @@ export class ClientProfileFillService {
             break;
           case 'program_elements':
             count = await this.gatherProgramElements(ctx, clientId, runId);
+            break;
+          case 'bill_tracker':
+            count = await this.gatherBillRecommendations(ctx, clientId, runId);
             break;
         }
         states[source] = { status: 'completed', count };
@@ -1196,20 +1208,49 @@ export class ClientProfileFillService {
     const website = normalizeWebsite(client.website);
     let homepage: { url: string; html: string; text: string; description: string | null } | null = null;
     let websiteFetchError: string | null = null;
+    const pageCorpus: Array<{ url: string; text: string; description: string | null }> = [];
     if (website) {
       try {
-        const fetched = await this.fetchPublicHtml(website);
-        homepage = {
-          url: fetched.url,
-          html: fetched.html,
-          text: stripHtmlToText(fetched.html),
-          description: metaDescription(fetched.html),
-        };
+        const pages = await this.fetchPublicPages(website);
+        homepage = pages[0] ?? null;
+        for (const page of pages) pageCorpus.push(page);
       } catch (error) {
         websiteFetchError = error instanceof Error ? error.message : String(error);
         this.logger.warn(
           `Fill with Meri website fetch failed for ${clientId}: ${websiteFetchError}`,
         );
+      }
+    }
+
+    // Same-origin product/about hits from search still count as page evidence
+    // even when the homepage itself is WAF-blocked.
+    const siteHost = websiteDomain(website);
+    if (siteHost) {
+      for (const result of results) {
+        const host = websiteDomain(result.url);
+        if (host !== siteHost) continue;
+        if (pageCorpus.some((page) => (normalizeComparableUrl(page.url) ?? page.url) === (normalizeComparableUrl(result.url) ?? result.url))) {
+          continue;
+        }
+        if (pageCorpus.length >= MAX_SITE_PAGES) break;
+        try {
+          const fetched = await this.fetchPublicHtml(result.url);
+          pageCorpus.push({
+            url: fetched.url,
+            text: stripHtmlToText(fetched.html),
+            description: metaDescription(fetched.html),
+          });
+          if (!homepage) {
+            homepage = {
+              url: fetched.url,
+              html: fetched.html,
+              text: stripHtmlToText(fetched.html),
+              description: metaDescription(fetched.html),
+            };
+          }
+        } catch {
+          // Individual page failures must not abort the rest of public_web.
+        }
       }
     }
 
@@ -1230,10 +1271,16 @@ export class ClientProfileFillService {
       if (inserted) count++;
     }
 
-    const extraction = await this.extractPublicWeb(ctx, client, homepage, results);
-    if (!extraction) return count;
+    const extraction = await this.extractPublicWeb(ctx, client, homepage, results, pageCorpus);
+    if (!extraction) {
+      if (websiteFetchError && count === 0 && results.length === 0) {
+        throw new Error(`Website unavailable (${websiteFetchError}); no public search evidence`);
+      }
+      return count;
+    }
     const allowedUrls = new Set<string>([
       ...results.map((result) => result.url),
+      ...pageCorpus.map((page) => page.url),
       ...(homepage ? [homepage.url] : []),
     ]);
 
@@ -1356,10 +1403,115 @@ export class ClientProfileFillService {
     }
     // Surface blocked homepage fetches as a soft failure so the UI does not
     // look "successful" when Cloudflare/WAF rejected the only official source.
-    if (websiteFetchError && count === 0 && results.length === 0) {
+    if (websiteFetchError && count === 0 && results.length === 0 && pageCorpus.length === 0) {
       throw new Error(`Website unavailable (${websiteFetchError}); no public search evidence`);
     }
     return count;
+  }
+
+  private async gatherBillRecommendations(ctx: TenantContext, clientId: string, runId: string) {
+    let recommendations: Awaited<ReturnType<TrackerService['getRecommendations']>>['recommendations'] = [];
+    try {
+      const response = await this.tracker.getRecommendations(clientId, ctx.tenantId);
+      recommendations = response.recommendations.filter((row) => !row.belowFloor).slice(0, 12);
+    } catch (error) {
+      this.logger.warn(
+        `Fill with Meri bill recommendations failed for ${clientId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return 0;
+    }
+    let count = 0;
+    for (const bill of recommendations) {
+      const inserted = await this.addFinding(ctx.tenantId, clientId, runId, {
+        kind: 'bill_recommendation',
+        targetKey: `bill:${bill.billId}`,
+        source: 'bill_tracker',
+        factKind: 'recommendation',
+        currentValue: null,
+        proposedValue: {
+          billId: bill.billId,
+          displayNum: bill.displayNum,
+          title: bill.title,
+          fit: bill.fit,
+          why: bill.why,
+          matchedTags: bill.matchedTags,
+          stage: bill.stage,
+          probability: bill.probability,
+          latestAction: bill.latestAction,
+          latestActionDate: bill.latestActionDate,
+          sponsorName: bill.sponsorName,
+        },
+        confidence: Math.max(0, Math.min(1, bill.fit)),
+        status: 'informational',
+        evidence: [
+          {
+            label: bill.why || `Tracker recommendation for ${bill.displayNum}`,
+            source: 'Capiro bill tracker',
+            metadata: {
+              billId: bill.billId,
+              matchedTags: bill.matchedTags,
+              fit: bill.fit,
+            },
+          },
+        ],
+      });
+      if (inserted) count++;
+    }
+    return count;
+  }
+
+  private async maybeSeedWebsite(
+    ctx: TenantContext,
+    clientId: string,
+    seedWebsite?: string | null,
+  ): Promise<void> {
+    const normalized = normalizeWebsite(seedWebsite);
+    if (!normalized) {
+      if (seedWebsite?.trim()) {
+        throw new BadRequestException('Website must be a valid http(s) URL');
+      }
+      return;
+    }
+    const client = await this.getClientSnapshot(ctx.tenantId, clientId);
+    const current = normalizeWebsite(client.website);
+    if (current && (normalizeComparableUrl(current) ?? current) === (normalizeComparableUrl(normalized) ?? normalized)) {
+      return;
+    }
+    // Drawer website is an explicit user seed for this enrichment pass.
+    await this.clients.update(ctx, clientId, { website: normalized });
+  }
+
+  private async fetchPublicPages(
+    rootUrl: string,
+  ): Promise<Array<{ url: string; html: string; text: string; description: string | null }>> {
+    const root = await this.fetchPublicHtml(rootUrl);
+    const pages = [
+      {
+        url: root.url,
+        html: root.html,
+        text: stripHtmlToText(root.html),
+        description: metaDescription(root.html),
+      },
+    ];
+    const candidates = discoverSameOriginPageCandidates(root.url, root.html, MAX_SITE_PAGES);
+    for (const candidate of candidates) {
+      if (pages.length >= MAX_SITE_PAGES) break;
+      try {
+        const fetched = await this.fetchPublicHtml(candidate);
+        if (pages.some((page) => (normalizeComparableUrl(page.url) ?? page.url) === (normalizeComparableUrl(fetched.url) ?? fetched.url))) {
+          continue;
+        }
+        pages.push({
+          url: fetched.url,
+          html: fetched.html,
+          text: stripHtmlToText(fetched.html),
+          description: metaDescription(fetched.html),
+        });
+      } catch {
+        // Keep crawling other same-origin candidates.
+      }
+    }
+    return pages;
   }
 
   private async extractPublicWeb(
@@ -1367,15 +1519,21 @@ export class ClientProfileFillService {
     client: ClientSnapshot,
     homepage: { url: string; text: string; description: string | null } | null,
     results: NormalizedWebResult[],
+    pageCorpus: Array<{ url: string; text: string; description: string | null }> = [],
   ): Promise<PublicWebExtraction | null> {
     const order = await this.credentials.resolveOrder(ctx).catch(() => []);
     const credential = order[0];
     if (!credential) return null;
 
     const sources: string[] = [];
-    if (homepage) {
+    const pages = pageCorpus.length
+      ? pageCorpus
+      : homepage
+        ? [{ url: homepage.url, text: homepage.text, description: homepage.description }]
+        : [];
+    for (const page of pages.slice(0, MAX_SITE_PAGES)) {
       sources.push(
-        `<untrusted_source url=${JSON.stringify(homepage.url)}>\n${this.escapeUntrusted(homepage.text.slice(0, 9000))}\n</untrusted_source>`,
+        `<untrusted_source url=${JSON.stringify(page.url)}>\n${this.escapeUntrusted(page.text.slice(0, 7000))}\n</untrusted_source>`,
       );
     }
     for (const result of results.slice(0, MAX_WEB_RESULTS)) {
@@ -1392,6 +1550,7 @@ export class ClientProfileFillService {
       'Use only facts supported by the supplied sources. Do not use outside knowledge.',
       'Every person, facility, capability, description, and website must cite one exact source URL supplied in the evidence.',
       'A capability is a product, service, platform, technology, or operational capability the company actually offers; do not invent TRL/MRL, budgets, customers, or policy positions.',
+      'Propose specific capability tags and keywords (for example counter-UAS, ground vehicles, autonomy) that will help bill and PE matching — avoid vague tags like defense or technology alone.',
       'Facilities must be meaningful company locations such as headquarters, manufacturing, engineering, R&D, testing, or a major office; do not infer congressional districts.',
       'Return only JSON matching the schema.',
     ].join(' ');
@@ -1860,6 +2019,7 @@ export class ClientProfileFillService {
         return this.applyLdaIdentity(ctx, clientId, finding);
       case 'lda_history':
       case 'program_element':
+      case 'bill_recommendation':
         throw new BadRequestException('This item is informational and is not applied to the client record');
       default:
         throw new BadRequestException(`Unsupported finding kind: ${String(finding.kind)}`);

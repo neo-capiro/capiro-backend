@@ -201,6 +201,7 @@ export function ClientCrmPage({ client }: { client: Client }) {
           clientName={client.name}
           open
           onClose={() => setFillOpen(false)}
+          initialWebsite={client.website}
         />
       ) : null}
       {healthOpen ? (

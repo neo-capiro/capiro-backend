@@ -21,11 +21,14 @@ export function ClientFillWithMeriDrawer({
   clientName,
   open,
   onClose,
+  initialWebsite = '',
 }: {
   clientId: string;
   clientName: string;
   open: boolean;
   onClose: () => void;
+  /** Prefill the drawer website field from the live client profile. */
+  initialWebsite?: string | null;
 }) {
   const fill = useClientFillWithMeri(clientId, open);
   const api = useApi();
@@ -33,8 +36,14 @@ export function ClientFillWithMeriDrawer({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
+  const [websiteInput, setWebsiteInput] = useState(initialWebsite ?? '');
 
   const persistedAttachmentId = documentAttachmentId(fill.run?.sourceStates);
+
+  const startEnrichment = () => {
+    setRetryError(null);
+    fill.start({ website: websiteInput.trim() || undefined });
+  };
 
   const retrySelectedDocument = () => {
     const isDocumentRun = Object.prototype.hasOwnProperty.call(
@@ -51,8 +60,7 @@ export function ClientFillWithMeriDrawer({
       setRetryError('Document retry is unavailable because the original attachment could not be identified.');
       return;
     }
-    setRetryError(null);
-    fill.start();
+    startEnrichment();
   };
 
   const uploadCapabilityDocument = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -117,6 +125,22 @@ export function ClientFillWithMeriDrawer({
         </p>
 
         <label className="capiro-crm-fill__document-upload">
+          <span className="capiro-crm__meta">Company website</span>
+          <input
+            type="url"
+            name="websiteInput"
+            placeholder="https://example.com"
+            value={websiteInput}
+            disabled={uploading || fill.phase === 'researching' || fill.phase === 'preparing'}
+            onChange={(event) => setWebsiteInput(event.target.value)}
+          />
+        </label>
+        <p className="capiro-crm__foot">
+          Optional. Seed or correct the company site before enrichment so Meri can crawl product,
+          about, and contact pages even when the profile is thin.
+        </p>
+
+        <label className="capiro-crm-fill__document-upload">
           <span className="capiro-crm__meta">Upload a capability document</span>
           <input
             type="file"
@@ -133,7 +157,7 @@ export function ClientFillWithMeriDrawer({
         {uploadError ? <p className="capiro-crm__foot capiro-crm__state--error">{uploadError}</p> : null}
         {retryError ? <p className="capiro-crm__foot capiro-crm__state--error">{retryError}</p> : null}
 
-        <FillBody fill={fill} onClose={onClose} onRetry={retrySelectedDocument} />
+        <FillBody fill={fill} onClose={onClose} onRetry={retrySelectedDocument} onStart={startEnrichment} />
       </div>
     </CapiroDrawer>
   );
@@ -168,17 +192,19 @@ function FillBody({
   fill,
   onClose,
   onRetry,
+  onStart,
 }: {
   fill: Fill;
   onClose: () => void;
   onRetry: () => void;
+  onStart: () => void;
 }) {
   switch (fill.phase) {
     case 'idle':
       return (
         <div className="capiro-crm-fill__state">
           <p className="capiro-crm__foot">Ready to look for missing and outdated profile data.</p>
-          <CapiroButton variant="primary" size="compact" onClick={() => fill.start()}>
+          <CapiroButton variant="primary" size="compact" onClick={onStart}>
             Start enrichment
           </CapiroButton>
         </div>
@@ -228,7 +254,22 @@ function FillBody({
             could read.
           </p>
           {fill.failedSources.length > 0 ? <SourceWarning sources={fill.failedSources} /> : null}
-          <CapiroButton variant="secondary" size="compact" onClick={() => fill.start()}>
+          <CapiroButton variant="secondary" size="compact" onClick={onStart}>
+            Run again
+          </CapiroButton>
+        </div>
+      );
+
+    case 'context-only':
+      return (
+        <div className="capiro-crm-fill__state">
+          <p className="capiro-crm__foot">
+            No applyable profile fields yet. Meri did find related context you can review below
+            (LDA, program elements, bill tracker).
+          </p>
+          {fill.failedSources.length > 0 ? <SourceWarning sources={fill.failedSources} /> : null}
+          <ContextFindings findings={fill.contextFindings} />
+          <CapiroButton variant="secondary" size="compact" onClick={onStart}>
             Run again
           </CapiroButton>
         </div>
@@ -321,6 +362,8 @@ function FillProposals({ fill }: { fill: Fill }) {
         ))}
       </ul>
 
+      {fill.contextFindings.length > 0 ? <ContextFindings findings={fill.contextFindings} /> : null}
+
       {fill.applyError ? (
         <p className="capiro-crm__foot capiro-crm__state--error">
           {errorText(fill.applyError, 'Could not apply the selected changes.')}
@@ -341,6 +384,32 @@ function FillProposals({ fill }: { fill: Fill }) {
         </CapiroButton>
       </div>
     </>
+  );
+}
+
+function ContextFindings({ findings }: { findings: FillFinding[] }) {
+  if (!findings.length) return null;
+  return (
+    <div className="capiro-crm-fill__context">
+      <p className="capiro-crm__meta">Related context</p>
+      <ul className="capiro-crm-fill__list">
+        {findings.slice(0, 20).map((finding) => (
+          <li key={finding.id} className="capiro-crm-fill__item">
+            <div className="capiro-crm-fill__item-body">
+              <p className="capiro-crm-fill__field">{humanizeKey(finding.targetKey)}</p>
+              <p className="capiro-crm__foot">{formatValue(finding.proposedValue) ?? '—'}</p>
+              <div className="capiro-crm-fill__meta">
+                <CapiroBadge tone="info">CONTEXT</CapiroBadge>
+                <span className="capiro-crm__meta">{sourceLabel(finding.source)}</span>
+                <span className="capiro-crm__meta">
+                  {Math.round(finding.confidence * 100)}% confidence
+                </span>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -421,6 +490,8 @@ const SOURCE_LABELS: Record<string, string> = {
   sam_gov: 'SAM.gov',
   lda: 'LDA filings',
   program_elements: 'Program elements',
+  bill_tracker: 'Bill tracker',
+  client_document: 'Capability document',
 };
 
 function sourceLabel(source: string): string {

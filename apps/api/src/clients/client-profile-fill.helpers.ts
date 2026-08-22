@@ -7,6 +7,7 @@ export const CLIENT_PROFILE_FILL_SOURCES = [
   'sam_gov',
   'lda',
   'program_elements',
+  'bill_tracker',
 ] as const;
 export type ClientProfileFillSource = (typeof CLIENT_PROFILE_FILL_SOURCES)[number];
 
@@ -19,6 +20,7 @@ export const CLIENT_PROFILE_FILL_KINDS = [
   'lda_identity',
   'lda_history',
   'program_element',
+  'bill_recommendation',
 ] as const;
 export type ClientProfileFillKind = (typeof CLIENT_PROFILE_FILL_KINDS)[number];
 
@@ -160,10 +162,76 @@ export function buildCompanySearchQueries(input: {
     `"${name}" contact`,
     `"${name}" products capabilities`,
     `"${name}" headquarters facilities locations`,
-    ...(domain ? [`site:${domain} "${name}"`, `site:${domain} contact`, `site:${domain} leadership`] : []),
+    ...(domain
+      ? [
+          `site:${domain} "${name}"`,
+          `site:${domain} contact`,
+          `site:${domain} leadership`,
+          `site:${domain} products`,
+          `site:${domain} capabilities`,
+          `site:${domain} about`,
+        ]
+      : []),
     ...(descriptionTerms.length ? [`"${name}" ${descriptionTerms.join(' ')}`] : []),
   ];
-  return [...new Set(queries)].filter(Boolean).slice(0, 12);
+  return [...new Set(queries)].filter(Boolean).slice(0, 14);
+}
+
+/** Prefer about/product/contact paths on the company's own host for multi-page crawl. */
+const SAME_ORIGIN_PATH_HINT =
+  /(about|company|leadership|team|contact|locations?|facilit|product|capabilit|service|solution|platform|technolog|vehicle|defense|manufactur|isv|isr)/i;
+
+export function discoverSameOriginPageCandidates(
+  baseUrl: string,
+  html: string,
+  limit = 6,
+): string[] {
+  const base = normalizeWebsite(baseUrl);
+  if (!base) return [];
+  let originHost: string;
+  try {
+    originHost = new URL(base).hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return [];
+  }
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const hrefRe = /href\s*=\s*["']([^"'#]+)["']/gi;
+  let match: RegExpExecArray | null;
+  while ((match = hrefRe.exec(html)) !== null) {
+    const raw = match[1]?.trim();
+    if (!raw || raw.startsWith('mailto:') || raw.startsWith('tel:') || raw.startsWith('javascript:')) {
+      continue;
+    }
+    let absolute: string | null = null;
+    try {
+      absolute = normalizeWebsite(new URL(raw, base).toString());
+    } catch {
+      absolute = null;
+    }
+    if (!absolute) continue;
+    let host: string;
+    let path: string;
+    try {
+      const url = new URL(absolute);
+      host = url.hostname.toLowerCase().replace(/^www\./, '');
+      path = `${url.pathname}${url.search}`;
+    } catch {
+      continue;
+    }
+    if (host !== originHost) continue;
+    if (!SAME_ORIGIN_PATH_HINT.test(path) && !SAME_ORIGIN_PATH_HINT.test(raw)) continue;
+    const key = normalizeComparableUrl(absolute) ?? absolute;
+    if (seen.has(key)) continue;
+    // Skip the homepage itself.
+    if ((normalizeComparableUrl(absolute) ?? absolute) === (normalizeComparableUrl(base) ?? base)) {
+      continue;
+    }
+    seen.add(key);
+    out.push(absolute);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 export function normalizedName(raw: string | null | undefined): string {

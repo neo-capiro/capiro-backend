@@ -93,6 +93,7 @@ export function createGovernedClientProfileFillService(
     clientId: string,
     requestedSources?: ClientProfileFillSource[],
     attachmentId?: string,
+    seedWebsite?: string | null,
   ) => {
     // Keep request-shape validation ahead of packet persistence/audit. The raw
     // service repeats this check as defense in depth.
@@ -101,6 +102,9 @@ export function createGovernedClientProfileFillService(
         'Choose either a capability document or connected enrichment sources',
       );
     }
+    if (attachmentId && seedWebsite?.trim()) {
+      throw new BadRequestException('Website seed applies only to connected enrichment sources');
+    }
     // The packet is resolved before the durable run row or any provider call.
     const bundle = await contextPlane.resolve(ctx, {
       clientId,
@@ -108,7 +112,7 @@ export function createGovernedClientProfileFillService(
       attachmentId: attachmentId ?? null,
     });
     return governedRun.run(bundle, () =>
-      originalStart(ctx, clientId, requestedSources, attachmentId),
+      originalStart(ctx, clientId, requestedSources, attachmentId, seedWebsite),
     );
   }) as ClientProfileFillService['startRun'];
 

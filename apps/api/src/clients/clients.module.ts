@@ -32,6 +32,7 @@ import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { DirectoryModule } from '../directory/directory.module.js';
 import { ContextModule } from '../context/context.module.js';
 import { LearningModule } from '../learning/learning.module.js';
+import { TrackerModule } from '../tracker/tracker.module.js';
 
 @Module({
   // RepresentationModule (not folded in here) so DirectoryModule can ALSO
@@ -46,6 +47,8 @@ import { LearningModule } from '../learning/learning.module.js';
     LearningModule,
     // G3: OutcomeService for the submission-outcome mirror.
     EngagementModule,
+    // Bill recommendations for Fill with Meri (getRecommendations).
+    TrackerModule,
   ],
   controllers: [
     ClientsController,

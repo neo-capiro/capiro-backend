@@ -1,6 +1,7 @@
 import {
   buildCompanySearchQueries,
   capabilitySearchTerms,
+  discoverSameOriginPageCandidates,
   extractJsonObject,
   extractSyncedMailParticipants,
   fillFindingHash,
@@ -24,7 +25,7 @@ describe('client-profile-fill helpers', () => {
       '"Kiley Associates" contact',
       'site:kileyassociates.org contact',
     ]));
-    expect(queries.length).toBeLessThanOrEqual(12);
+    expect(queries.length).toBeLessThanOrEqual(14);
   });
 
   it('hashes semantically identical objects deterministically', () => {
@@ -86,5 +87,37 @@ describe('client-profile-fill helpers', () => {
       description: 'Government affairs and lobbying firm',
     });
     expect(terms).toEqual(expect.arrayContaining(['kiley', 'associates', 'affairs', 'lobbying']));
+  });
+
+  it('adds capability and about site paths when a website domain is known', () => {
+    const queries = buildCompanySearchQueries({
+      name: 'GM DEFENSE, LLC',
+      website: 'https://www.gmdefensellc.com/site/us/en/gm-defense/home.html',
+    });
+    expect(queries).toEqual(expect.arrayContaining([
+      'site:gmdefensellc.com products',
+      'site:gmdefensellc.com capabilities',
+      'site:gmdefensellc.com about',
+    ]));
+  });
+
+  it('discovers same-origin about/product/contact links from homepage html', () => {
+    const html = `
+      <a href="/about">About</a>
+      <a href="https://www.gmdefensellc.com/products/isv">ISV</a>
+      <a href="https://evil.example/contact">nope</a>
+      <a href="/careers">Careers</a>
+    `;
+    const urls = discoverSameOriginPageCandidates(
+      'https://www.gmdefensellc.com/home.html',
+      html,
+      6,
+    );
+    expect(urls).toEqual(expect.arrayContaining([
+      'https://www.gmdefensellc.com/about',
+      'https://www.gmdefensellc.com/products/isv',
+    ]));
+    expect(urls.every((url) => url.includes('gmdefensellc.com'))).toBe(true);
+    expect(urls.some((url) => url.includes('evil.example'))).toBe(false);
   });
 });

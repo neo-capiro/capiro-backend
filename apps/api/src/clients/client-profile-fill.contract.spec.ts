@@ -69,4 +69,20 @@ describe('Fill with Meri architecture contract', () => {
     expect(service).not.toMatch(/congressionalDistrict:\s*asString\(proposed/);
     expect(service).toContain('this.facilities.createFacility');
   });
+
+  it('accepts a drawer website seed, persists it before enrichment, and crawls linked pages', () => {
+    expect(controller).toContain('website?: string');
+    expect(service).toContain('seedWebsite');
+    expect(service).toContain('maybeSeedWebsite');
+    expect(service).toContain('discoverSameOriginPageCandidates');
+    expect(service).toContain('fetchPublicPages');
+  });
+
+  it('suggests bill tracking recommendations as informational findings from the tracker matcher', () => {
+    expect(service).toContain('gatherBillRecommendations');
+    expect(service).toContain("kind: 'bill_recommendation'");
+    expect(service).toContain("status: 'informational'");
+    expect(service).toContain('getRecommendations');
+    expect(service).toMatch(/case 'bill_recommendation':[\s\S]{0,120}informational and is not applied/);
+  });
 });

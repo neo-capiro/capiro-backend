@@ -60,6 +60,7 @@ function buildService(learningSignals: Pick<LearningSignalCaptureService, 'captu
     {} as never,
     {} as never,
     {} as never,
+    {} as never, // tracker
     learningSignals as never,
   );
   return { service, tx, prisma };
