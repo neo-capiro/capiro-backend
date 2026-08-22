@@ -63,7 +63,6 @@
   --capiro-color-border-information: #1c4e7a;
   --capiro-color-border-divider: #e8e5df;
   --capiro-color-border-control: #e0dcd4;
-  --capiro-color-border-strong: #c5cdd6;
   --capiro-color-shell-search-border: #d7e0eb;
 
   /* Menu/overlay surfaces (Figma 728:2575). */
@@ -141,7 +140,7 @@
   --capiro-control-height-standard: 36px;
   --capiro-control-min-width-button: 120px;
   --capiro-layout-shell-topbar-height: 64px;
-  --capiro-layout-shell-sidebar-expanded: 232px;
+  --capiro-layout-shell-sidebar-expanded: var(--uui-rail-w-expanded, 248px);
   --capiro-layout-shell-sidebar-collapsed: 72px;
   --capiro-layout-shell-nav-item-height: 44px;
   --capiro-layout-shell-icon-container: 32px;
