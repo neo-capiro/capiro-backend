@@ -175,18 +175,29 @@ export class HearingIntelligenceWorker {
       // cascades the job, but an already-leased worker may still hold the id.
       return { insights: 0, tenantJobs: 0 };
     }
-    if (source.visibility !== 'public') {
-      await this.publicStore.replaceSegmentInsights(source.segmentId, []);
-      return { insights: 0, tenantJobs: 0 };
-    }
     if (!source.isFinal) {
       throw new Error(`Segment ${source.segmentId} is not final`);
     }
 
-    const segment = toSegment(source);
-    const context = toContext(source);
-    const processed = await this.publicProcessor.processSegment({ segment, context });
-    await this.publicStore.replaceSegmentInsights(source.segmentId, processed.insights);
+    const processed =
+      source.visibility === 'public'
+        ? await this.publicProcessor.processSegment({
+            segment: toSegment(source),
+            context: toContext(source),
+          })
+        : { insights: [] };
+
+    const persisted = await this.publicStore.replaceSegmentInsightsIfCurrent({
+      segmentId: source.segmentId,
+      expectedRevision: job.segmentRevision,
+      insights: processed.insights,
+    });
+    if (!persisted) {
+      this.log(
+        `[phase8] segment ${source.segmentId} changed after revision ${job.segmentRevision}; stale extraction discarded`,
+      );
+      return { insights: 0, tenantJobs: 0 };
+    }
 
     const tenantIds = await this.contexts.activeTenantIds();
     const tenantJobs = await this.jobs.enqueueTenantJobs({
