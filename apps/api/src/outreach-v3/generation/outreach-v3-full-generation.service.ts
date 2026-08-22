@@ -10,6 +10,7 @@ import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { GenerationGatewayService } from '../../engagement/generation/generation-gateway.service.js';
 import { OutreachDraftService } from '../../engagement/outreach-draft.service.js';
+import { OutreachV3ArtifactRootService } from '../drafts/outreach-v3-artifact-root.service.js';
 import { OutreachSessionService } from '../services/outreach-session.service.js';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
 import { OutreachV3ApproachApprovalService } from './outreach-v3-approach-approval.service.js';
@@ -46,6 +47,7 @@ export class OutreachV3FullGenerationService {
     private readonly drafts: OutreachDraftService,
     private readonly preparation: OutreachV3GenerationPreparationService,
     private readonly gateway: GenerationGatewayService,
+    private readonly roots: OutreachV3ArtifactRootService,
   ) {}
 
   async submit(
@@ -69,6 +71,12 @@ export class OutreachV3FullGenerationService {
         409,
       );
     }
+    // The guided review-packet flow can reach full generation without ever
+    // calling generateSamples, which is otherwise the only caller that creates
+    // this compatibility parent. Ensure it exists before any draft read/write
+    // below (completedGenerationKeysForPlan, and the queued job's draft
+    // writes) can hit assertRecordOwned's "Outreach draft record not found".
+    await this.roots.ensureRoot(ctx, sessionId);
     const plan = buildOutreachV3GenerationPlan({
       sessionId,
       stateVersion: current.currentStateVersion,
