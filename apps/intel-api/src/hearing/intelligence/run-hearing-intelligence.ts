@@ -14,6 +14,7 @@ async function main(): Promise<void> {
     `phase8:${hostname()}:${process.pid}`;
   const loop = process.argv.includes('--loop');
   const backfill = process.argv.includes('--backfill');
+  const relevanceBackfill = process.argv.includes('--relevance-backfill');
   const drainUntilEmpty = process.argv.includes('--drain');
   const worker = new HearingIntelligenceWorker(prisma, workerId, {
     publicBatchSize: integer(process.env.HEARING_INTELLIGENCE_PUBLIC_BATCH, 25),
@@ -28,6 +29,13 @@ async function main(): Promise<void> {
         integer(process.env.HEARING_INTELLIGENCE_BACKFILL_LIMIT, 100_000),
       );
       console.log(JSON.stringify({ workerId, backfillInserted: inserted }));
+    }
+
+    if (relevanceBackfill) {
+      const rebuilt = await worker.backfillTenantRelevance(
+        integer(process.env.HEARING_RELEVANCE_BACKFILL_HEARINGS, 1_000),
+      );
+      console.log(JSON.stringify({ workerId, relevanceBackfill: rebuilt }));
     }
 
     do {
