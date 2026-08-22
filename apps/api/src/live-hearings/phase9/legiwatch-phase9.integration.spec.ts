@@ -30,6 +30,9 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
   });
 
   async function cleanup(): Promise<void> {
+    // Wipe the full disposable hearing surface, not only this fixture id.
+    // Preflight eligibility is global; leftover rows from earlier suites
+    // (e.g. phase7-hearing) inflate eligible/checkpoint counts.
     await prisma.$executeRawUnsafe(
       `DELETE FROM legiwatch_verification_evidence
        WHERE recorded_by='phase9-postgres-test'`,
@@ -38,29 +41,28 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
       `DELETE FROM legiwatch_cutover_run
        WHERE created_by='phase9-postgres-test'`,
     );
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM public_hearing_capture_job WHERE hearing_id=$1`,
-      HEARING_ID,
-    );
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM hearing_subscription WHERE hearing_id=$1`,
-      HEARING_ID,
-    );
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM public_hearing_capture WHERE hearing_id=$1`,
-      HEARING_ID,
-    );
+    await prisma.$executeRawUnsafe(`DELETE FROM public_hearing_capture_job`);
+    await prisma.$executeRawUnsafe(`DELETE FROM public_hearing_capture_attempt`);
+    await prisma.$executeRawUnsafe(`DELETE FROM public_hearing_transcript_segment`);
+    await prisma.$executeRawUnsafe(`DELETE FROM public_hearing_insight`);
+    await prisma.$executeRawUnsafe(`DELETE FROM public_hearing_intelligence_job`);
+    await prisma.$executeRawUnsafe(`DELETE FROM tenant_hearing_relevance`);
+    await prisma.$executeRawUnsafe(`DELETE FROM tenant_hearing_relevance_job`);
+    await prisma.$executeRawUnsafe(`DELETE FROM hearing_subscription`);
+    await prisma.$executeRawUnsafe(`DELETE FROM hearing_follow`);
+    await prisma.$executeRawUnsafe(`DELETE FROM public_hearing_capture`);
+    await prisma.$executeRawUnsafe(`DELETE FROM hearing_stream_candidate`);
     await prisma.$executeRawUnsafe(
       `DELETE FROM hearing_source_observation
        WHERE source_id IN (
          SELECT id FROM committee_source WHERE adapter_key=$1
-       )`,
+       )
+       OR hearing_id=$2`,
       ADAPTER_KEY,
-    );
-    await prisma.$executeRawUnsafe(
-      `DELETE FROM committee_hearing WHERE id=$1`,
       HEARING_ID,
     );
+    await prisma.$executeRawUnsafe(`DELETE FROM committee_hearing_bill`);
+    await prisma.$executeRawUnsafe(`DELETE FROM committee_hearing`);
     await prisma.$executeRawUnsafe(
       `DELETE FROM committee_source WHERE adapter_key=$1`,
       ADAPTER_KEY,
