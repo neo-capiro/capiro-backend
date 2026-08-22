@@ -37,6 +37,7 @@ import {
   CapiroTableWrap,
 } from '../../components/tables/index.js';
 import { EvMark, PeSkeletonBlock, Segmented } from './pe-primitives.js';
+import { familyById, serviceToApiParam, useDefenseBudgetContext } from './defense-budget-context.js';
 
 type Track = 'both' | 'auth' | 'appr';
 
@@ -73,13 +74,18 @@ function cellFor(
 export function PeCongressionalView() {
   const api = useApi();
   const navigate = useNavigate();
+  const ctx = useDefenseBudgetContext();
+  const family = familyById(ctx.family);
   const [track, setTrack] = useState<Track>('both');
 
   // The matrix spans the divergence-watch set (markup monitor) — monitored lines
   // with live marks, matching the mockup's "MONITORED LINES · FY" caption.
+  // `service` is a real, supported query param; the markup-monitor endpoint
+  // has no family/line-type facet, so the family context-bar dimension is not
+  // applied here — the cards below reflect exactly what this endpoint covers.
   const monitor = useQuery({
-    queryKey: ['pe-v2-congressional-monitor'],
-    queryFn: () => getMarkupMonitor(api, {}),
+    queryKey: ['pe-v2-congressional-monitor', serviceToApiParam(ctx.service)],
+    queryFn: () => getMarkupMonitor(api, { service: serviceToApiParam(ctx.service) }),
     staleTime: 60_000,
   });
   const lines = useMemo(
@@ -165,6 +171,12 @@ export function PeCongressionalView() {
         </div>
       ) : (
         <div className="pe-ws-body">
+          {family.id !== 'All' ? (
+            <p className="pe-ws-note">
+              THE {family.label.toUpperCase()} FAMILY FILTER DOES NOT SCOPE THIS VIEW YET — MARKUP MONITOR HAS NO
+              FAMILY FACET. SERVICE FILTERING IS APPLIED.
+            </p>
+          ) : null}
           <div className="pe-ws-trackgrid">
             {(
               [

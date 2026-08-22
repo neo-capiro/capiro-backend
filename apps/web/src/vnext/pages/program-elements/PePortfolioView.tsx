@@ -20,6 +20,8 @@ import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroEmptyState } from '../../components/feedback/index.js';
 import { FilterControl, PeSkeletonBlock } from './pe-primitives.js';
+import { familyById, serviceToApiParam, useDefenseBudgetContext } from './defense-budget-context.js';
+import { DefenseBudgetFamilyCoverageNote } from './defense-budget-coverage.js';
 
 const SORT_OPTIONS = ['MOVEMENT', 'CURRENT', 'CODE'];
 const CLOSED = new Set(['dismissed', 'archived']);
@@ -27,18 +29,31 @@ const CLOSED = new Set(['dismissed', 'archived']);
 export function PePortfolioView() {
   const api = useApi();
   const navigate = useNavigate();
+  const ctx = useDefenseBudgetContext();
+  const family = familyById(ctx.family);
   const [sort, setSort] = useState('MOVEMENT');
   const [clientFilter, setClientFilter] = useState('ALL');
 
+  const familyQueryable = family.id === 'All' || !!family.lineType;
   const watched = useQuery({
-    queryKey: ['pe-v2-portfolio'],
+    queryKey: ['pe-v2-portfolio', family.lineType, serviceToApiParam(ctx.service)],
     queryFn: () =>
-      getProgramElementsList(api, { watched: 'true', page: 1, limit: 100 }),
+      getProgramElementsList(api, {
+        watched: 'true',
+        line_type: family.lineType,
+        service: serviceToApiParam(ctx.service),
+        page: 1,
+        limit: 100,
+      }),
+    enabled: familyQueryable,
     staleTime: 60_000,
   });
   const actions = useActionsList({ page: 1, limit: 100 });
 
-  const lines = useMemo(() => (watched.data?.data ?? []).map(toLineRow), [watched.data]);
+  const lines = useMemo(
+    () => (familyQueryable ? (watched.data?.data ?? []).map(toLineRow) : []),
+    [familyQueryable, watched.data],
+  );
 
   const clientQueries = useQueries({
     queries: lines.map((l) => ({
@@ -115,6 +130,8 @@ export function PePortfolioView() {
       </div>
 
       <div className="pe-ws-body">
+        {family.id !== 'All' ? <DefenseBudgetFamilyCoverageNote familyId={family.id} fy={ctx.fy} /> : null}
+
         <section className="pe-v2-card pe-ws-metrics">
           {metrics.map((m) => (
             <div key={m.k} className="pe-ws-metric">
@@ -125,7 +142,7 @@ export function PePortfolioView() {
           ))}
         </section>
 
-        {watched.isLoading ? (
+        {!familyQueryable ? null : watched.isLoading ? (
           <section className="pe-v2-card">
             <div className="pe-ws-pad">
               <PeSkeletonBlock rows={4} />

@@ -636,6 +636,52 @@
   }
 }
 
+/* ── Defense Budget context bar (defense-budget-context.tsx) ─────────────────
+   Shared by all five destinations; hidden on the profile route, which carries
+   its own FY control instead (design doc §3). */
+.pe-v2 .pe-ws-ctxbar-wrap { padding: 0 var(--capiro-space-06); }
+.pe-v2 .defense-budget-ctxbar { margin-bottom: var(--capiro-space-04); }
+.pe-v2 .defense-budget-ctxbar__row {
+  display: flex; align-items: flex-end; gap: var(--capiro-space-03); flex-wrap: wrap;
+  padding: 14px var(--capiro-space-05);
+}
+.pe-v2 .defense-budget-ctxbar__search { flex: 1 1 220px; min-width: 200px; max-width: 360px; }
+.pe-v2 .defense-budget-ctxbar__watch {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--pev2-body); white-space: nowrap; cursor: pointer;
+  padding-bottom: 9px;
+}
+.pe-v2 .defense-budget-ctxbar__scope {
+  padding: 0 var(--capiro-space-05) var(--capiro-space-03);
+  border-top: 1px solid var(--pev2-hairline-faint);
+  padding-top: var(--capiro-space-02);
+}
+
+/* ── Defense Budget family coverage / lifecycle source coverage ──────────── */
+.defense-budget-family-note { display: flex; flex-direction: column; gap: 6px; }
+.defense-budget-coverage-meter__bar {
+  display: flex; height: 8px; margin: 0 var(--capiro-space-05) var(--capiro-space-02);
+  border-radius: 9999px; overflow: hidden; background: var(--pev2-raised);
+}
+.defense-budget-coverage-meter__seg { display: block; height: 100%; }
+.defense-budget-coverage-meter__seg.is-success { background: var(--pev2-success); }
+.defense-budget-coverage-meter__seg.is-neutral { background: var(--pev2-border-strong); }
+.defense-budget-coverage-meter__seg.is-warning { background: var(--pev2-warning); }
+.defense-budget-coverage-meter__seg.is-danger { background: var(--pev2-destructive); }
+.defense-budget-coverage-meter__legend {
+  display: flex; flex-wrap: wrap; gap: var(--capiro-space-04);
+  padding: 0 var(--capiro-space-05) var(--capiro-space-04);
+  font-family: var(--pev2-mono); font-size: 11px; letter-spacing: 0.04em; color: var(--pev2-body);
+}
+.defense-budget-coverage-meter__legend-item::before {
+  content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 9999px;
+  margin-inline-end: 6px; vertical-align: middle;
+}
+.defense-budget-coverage-meter__legend-item.is-success::before { background: var(--pev2-success); }
+.defense-budget-coverage-meter__legend-item.is-neutral::before { background: var(--pev2-border-strong); }
+.defense-budget-coverage-meter__legend-item.is-warning::before { background: var(--pev2-warning); }
+.defense-budget-coverage-meter__legend-item.is-danger::before { background: var(--pev2-destructive); }
+
 /* ── Motion ───────────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .pe-v2 * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

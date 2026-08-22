@@ -45,6 +45,7 @@ import { ExplorerModule } from './explorer/explorer.module.js';
 import { SearchModule } from './search/search.module.js';
 import { InsightsModule } from './insights/insights.module.js';
 import { ProgramElementModule } from './program-element/program-element.module.js';
+import { DefenseBudgetLifecycleModule } from './defense-budget-lifecycle/defense-budget-lifecycle.module.js';
 import { AcquisitionPersonnelModule } from './acquisition-personnel/acquisition-personnel.module.js';
 import { AiUsageModule } from './ai-usage/ai-usage.module.js';
 import { BillingModule } from './billing/billing.module.js';
@@ -60,6 +61,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
 @Module({
   imports: [
     ProgramElementModule,
+    DefenseBudgetLifecycleModule,
     AcquisitionPersonnelModule,
     GovInfoModule,
     ConfigModule.forRoot({

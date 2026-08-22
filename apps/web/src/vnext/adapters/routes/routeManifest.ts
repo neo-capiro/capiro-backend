@@ -9,6 +9,15 @@ export interface VNextRouteDefinition {
   availability: VNextRouteAvailability;
   featureFlag?: string;
   meFeature?: string;
+  /**
+   * Per-tenant-slug label override. Presentation only — the route id and
+   * path never change, so this never invents a new URL or a second gate;
+   * it exists because `program-elements` is `Defense Budget` for
+   * `capiro-internal` and `Program Elements` for everyone else, and the
+   * underlying route/component branch (`VNextProgramElementsRoutes.tsx`)
+   * already reuses that exact tenant-slug check.
+   */
+  tenantLabels?: Readonly<Record<string, string>>;
   children?: VNextRouteDefinition[];
   note?: string;
 }
@@ -16,6 +25,7 @@ export interface VNextRouteDefinition {
 export interface VNextRouteVisibilityContext {
   featureFlags?: Readonly<Record<string, boolean | undefined>>;
   meFeatures?: Readonly<Record<string, boolean | undefined>>;
+  tenantSlug?: string;
 }
 
 /**
@@ -128,6 +138,10 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
         label: 'Program Elements',
         path: '/program-elements',
         availability: 'existing',
+        // The underlying page already renders the Defense Budget vNext
+        // experience for capiro-internal only (VNextProgramElementsRoutes.tsx
+        // `isInternal` branch) — this makes the nav label agree with it.
+        tenantLabels: { 'capiro-internal': 'Defense Budget' },
       },
       {
         id: 'funding-opportunities',
@@ -165,8 +179,10 @@ export function visibleVNextRoutes(
     if (route.featureFlag && !context.featureFlags?.[route.featureFlag]) return [];
     if (route.meFeature && !context.meFeatures?.[route.meFeature]) return [];
 
+    const label =
+      (context.tenantSlug && route.tenantLabels?.[context.tenantSlug]) || route.label;
     const children = route.children ? visibleVNextRoutes(route.children, context) : undefined;
 
-    return [{ ...route, ...(children ? { children } : {}) }];
+    return [{ ...route, label, ...(children ? { children } : {}) }];
   });
 }

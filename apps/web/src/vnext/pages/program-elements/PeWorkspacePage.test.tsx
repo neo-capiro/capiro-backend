@@ -93,7 +93,7 @@ describe('PeWorkspacePage (vNext native)', () => {
   it('renders the five destinations with Explore as the default and the summary meta', async () => {
     renderAt();
 
-    const tablist = screen.getByRole('tablist', { name: 'Program element destinations' });
+    const tablist = screen.getByRole('tablist', { name: 'Defense Budget destinations' });
     for (const label of ['Explore', 'Movement', 'Congressional', 'Actions', 'Portfolio']) {
       expect(within(tablist).getByRole('tab', { name: label })).toBeInTheDocument();
     }

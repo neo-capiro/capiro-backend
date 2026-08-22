@@ -14,7 +14,7 @@
  * information architecture — which columns exist, in which order, under which
  * group heading — is unchanged.
  */
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../../lib/use-api.js';
@@ -36,7 +36,6 @@ import {
   type V2LineRow,
 } from '../../../pages/program-element/v2/pe-v2-model.js';
 import { CapiroButton, CapiroIconButton } from '../../components/actions/index.js';
-import { CapiroInput } from '../../components/fields/index.js';
 import { CapiroEmptyState } from '../../components/feedback/index.js';
 import { CapiroDownloadIcon } from '../../components/icons/index.js';
 import {
@@ -49,6 +48,8 @@ import {
 } from '../../components/tables/index.js';
 import { useWatchToggle } from './pe-watch-toggle.js';
 import { EvMark, FilterControl, PeSkeletonBlock, Segmented } from './pe-primitives.js';
+import { familyById, serviceToApiParam, useDefenseBudgetContext } from './defense-budget-context.js';
+import { DefenseBudgetFamilyCoverageNote } from './defense-budget-coverage.js';
 
 const PAGE_SIZE = 50;
 
@@ -58,29 +59,10 @@ const COLUMN_COUNT = 13;
 type Density = 'standard' | 'compact';
 
 interface ExploreFilters {
-  comp: string; // service
-  type: string; // line type
-  move: string; // movement
-  mon: string; // monitored
+  move: string; // movement — the one dimension the shared Defense Budget context bar doesn't own
 }
 
-const SERVICE_OPTIONS = ['ANY', 'Army', 'Navy', 'Air Force', 'Space Force', 'Defense-Wide'];
-const TYPE_OPTIONS = ['ANY', 'RDT&E', 'Procurement', 'O&M'];
 const MOVE_OPTIONS = ['ANY', 'Material change', 'No material change'];
-const MON_OPTIONS = ['ANY', 'Monitored only'];
-
-const SERVICE_TO_API: Record<string, string> = {
-  Army: 'ARMY',
-  Navy: 'NAVY',
-  'Air Force': 'AF',
-  'Space Force': 'SF',
-  'Defense-Wide': 'DW',
-};
-const TYPE_TO_API: Record<string, string> = {
-  'RDT&E': 'RDTE_PE',
-  Procurement: 'PROCUREMENT_BLIN',
-  'O&M': 'OM_BLI',
-};
 
 function rowMovement(row: V2LineRow): 'material' | 'none' {
   return row.delta != null && row.delta !== 0 ? 'material' : 'none';
@@ -109,14 +91,9 @@ function railStyle(rail: ReturnType<typeof railGeometry>, pct: number | null): C
 export function PeExploreView() {
   const api = useApi();
   const navigate = useNavigate();
-  const [q, setQ] = useState('');
-  const [filters, setFilters] = useState<ExploreFilters>({
-    comp: 'ANY',
-    type: 'ANY',
-    move: 'ANY',
-    mon: 'ANY',
-  });
-  const [moreOpen, setMoreOpen] = useState(false);
+  const ctx = useDefenseBudgetContext();
+  const family = familyById(ctx.family);
+  const [filters, setFilters] = useState<ExploreFilters>({ move: 'ANY' });
   const [density, setDensity] = useState<Density>('standard');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string[]>([]);
@@ -129,37 +106,47 @@ export function PeExploreView() {
     staleTime: 60_000,
   });
 
+  // A family with no canonical line-level projection (MILPERS / WCF / Health
+  // today) has nothing this query could honestly return — skip it and show
+  // the coverage note instead of an empty catalog (task §9).
+  const familyQueryable = family.id === 'All' || !!family.lineType;
   const listParams = {
-    q: q.trim() || undefined,
-    service: filters.comp !== 'ANY' ? SERVICE_TO_API[filters.comp] : undefined,
-    line_type: filters.type !== 'ANY' ? TYPE_TO_API[filters.type] : undefined,
-    watched: filters.mon === 'Monitored only' ? ('true' as const) : undefined,
+    q: ctx.q.trim() || undefined,
+    service: serviceToApiParam(ctx.service),
+    line_type: family.lineType,
+    watched: ctx.watchedOnly ? ('true' as const) : undefined,
     page,
     limit: PAGE_SIZE,
   };
   const list = useQuery({
     queryKey: ['pe-v2-explore', listParams],
     queryFn: () => getProgramElementsList(api, listParams),
+    enabled: familyQueryable,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 
   const rows = useMemo(() => {
+    if (!familyQueryable) return [];
     const items: ProgramElementListItem[] = list.data?.data ?? [];
     let mapped = items.map(toLineRow);
     if (filters.move === 'Material change') mapped = mapped.filter((r) => rowMovement(r) === 'material');
     if (filters.move === 'No material change') mapped = mapped.filter((r) => rowMovement(r) === 'none');
     return mapped;
-  }, [list.data, filters.move]);
+  }, [familyQueryable, list.data, filters.move]);
 
-  const total = list.data?.total ?? 0;
+  // Context-bar scope (q / family / service / watched) resets pagination, same
+  // rule the local `move`/`mon` filters already followed.
+  useEffect(() => {
+    setPage(1);
+  }, [ctx.q, ctx.family, ctx.service, ctx.watchedOnly]);
+
+  const total = familyQueryable ? (list.data?.total ?? 0) : 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const activeSecondary = [filters.comp, filters.type, filters.mon].filter((v) => v !== 'ANY').length;
-  const anyFilter = q.trim() !== '' || activeSecondary > 0 || filters.move !== 'ANY';
+  const anyFilter = filters.move !== 'ANY';
 
   const resetFilters = () => {
-    setQ('');
-    setFilters({ comp: 'ANY', type: 'ANY', move: 'ANY', mon: 'ANY' });
+    setFilters({ move: 'ANY' });
     setPage(1);
   };
 
@@ -204,7 +191,7 @@ export function PeExploreView() {
       {/* Header — quiet meta right of title */}
       <div className="pe-v2-page-head">
         <div className="pe-ws-head__text">
-          <div className="pe-v2-page-title">Program Elements</div>
+          <div className="pe-v2-page-title">Defense Budget Explore</div>
           <div className="pe-v2-page-sub">
             Follow defense funding from request through Congress and enacted outcomes.
           </div>
@@ -228,40 +215,22 @@ export function PeExploreView() {
       </div>
 
       <div className="pe-ws-body">
-        {/* Toolbar — search + primary filter + MORE FILTERS + density */}
+        {family.id !== 'All' ? <DefenseBudgetFamilyCoverageNote familyId={family.id} fy={ctx.fy} /> : null}
+
+        {/* Toolbar — movement chip + density (search/family/service/watched live in the shared context bar above) */}
         <section className="pe-v2-card" aria-label="Filters">
           <div className="pe-ws-toolbar__row">
-            <span className="pe-ws-toolbar__search">
-              <CapiroInput
-                label="Search"
-                value={q}
-                onChange={(e) => {
-                  setQ(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Search code or title"
-                aria-label="Search code or title"
-              />
-            </span>
             <FilterControl
               label="Movement"
               value={filters.move}
               options={MOVE_OPTIONS}
               onChange={(v) => {
-                setFilters((f) => ({ ...f, move: v }));
+                setFilters({ move: v });
                 setPage(1);
               }}
             />
             <span className="pe-ws-spacer" />
             <span className="pe-ws-toolbar__tail">
-              <CapiroButton
-                size="compact"
-                aria-expanded={moreOpen}
-                onClick={() => setMoreOpen((o) => !o)}
-              >
-                {moreOpen ? 'FEWER FILTERS' : 'MORE FILTERS'}
-                {activeSecondary ? ` · ${activeSecondary}` : ''}
-              </CapiroButton>
               <Segmented
                 ariaLabel="Row density"
                 options={[
@@ -278,42 +247,11 @@ export function PeExploreView() {
               ) : null}
             </span>
           </div>
-          {moreOpen ? (
-            <div className="pe-ws-toolbar__row pe-ws-toolbar__row--more">
-              <FilterControl
-                label="Component"
-                value={filters.comp}
-                options={SERVICE_OPTIONS}
-                onChange={(v) => {
-                  setFilters((f) => ({ ...f, comp: v }));
-                  setPage(1);
-                }}
-              />
-              <FilterControl
-                label="Line type"
-                value={filters.type}
-                options={TYPE_OPTIONS}
-                onChange={(v) => {
-                  setFilters((f) => ({ ...f, type: v }));
-                  setPage(1);
-                }}
-              />
-              <FilterControl
-                label="Monitored"
-                value={filters.mon}
-                options={MON_OPTIONS}
-                onChange={(v) => {
-                  setFilters((f) => ({ ...f, mon: v }));
-                  setPage(1);
-                }}
-              />
-            </div>
-          ) : null}
         </section>
 
         {/* Catalog */}
         <section className="pe-v2-card pe-ws-tablecard">
-          {list.isLoading ? (
+          {!familyQueryable ? null : list.isLoading ? (
             <div className="pe-ws-pad">
               <PeSkeletonBlock rows={8} />
             </div>

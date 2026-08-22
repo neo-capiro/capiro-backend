@@ -12,6 +12,7 @@ import type { ProgramElementProfileFinalVm } from '../../../../pages/program-ele
 import type { V2StageId } from '../../../../pages/program-element/v2/pe-v2-model.js';
 import { PfCard } from './pe-profile-primitives.js';
 import { PeProfileSourceInspector, type InspectorTarget } from './PeProfileSourceInspector.js';
+import { DefenseBudgetCoverageMeter } from '../defense-budget-coverage.js';
 
 const COVER_GROUPS: Array<{ name: string; cells: Array<{ stage: V2StageId; label: string }> }> = [
   {
@@ -84,8 +85,14 @@ export function PeProfileSourcesTab({ vm }: { vm: ProgramElementProfileFinalVm }
     return groups;
   }, [detail, latest]);
 
+  const fiscalYear = latest?.fy ?? new Date().getFullYear();
+
   return (
     <div style={{ padding: '20px 24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Defense Budget lifecycle source coverage — Phase 8 Session 11 read, now
+          served live from apps/api (see defense-budget-coverage.tsx header). */}
+      <DefenseBudgetCoverageMeter fiscalYear={fiscalYear} />
+
       {/* Coverage map */}
       <section>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', marginBottom: 12 }}>

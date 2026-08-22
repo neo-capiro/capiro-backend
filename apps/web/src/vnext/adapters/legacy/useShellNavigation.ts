@@ -28,6 +28,7 @@ export function useShellNavigation(): ShellNavigationViewModel {
     const visible = visibleVNextRoutes(VNEXT_ROUTE_MANIFEST, {
       featureFlags: flags.data,
       meFeatures: me.data?.features,
+      tenantSlug: me.data?.tenant.slug,
     });
 
     return {
@@ -35,5 +36,5 @@ export function useShellNavigation(): ShellNavigationViewModel {
       settings: visible.find((route) => route.id === 'settings') ?? null,
       loading: me.isLoading || flags.isLoading,
     };
-  }, [flags.data, flags.isLoading, me.data?.features, me.isLoading]);
+  }, [flags.data, flags.isLoading, me.data?.features, me.data?.tenant.slug, me.isLoading]);
 }
