@@ -21,7 +21,10 @@ export interface MeriFeedbackSignalSource {
  * Deliberately does NOT copy the user's free-text note into the signal —
  * only whether one was left (`provenance.hasNote`). The note itself stays
  * where it already lives, on the message row; the signal is a pointer, not
- * a second copy.
+ * a second copy. (`LearningSignalCandidateService` resolves the note text
+ * fresh from `clio_messages` at candidate-generation time — see its
+ * `resolveFactText` — so it can still reach a governed, human-reviewed
+ * candidate without ever being duplicated onto this row.)
  */
 export function buildMeriFeedbackSignal(
   ctx: TenantContext,

@@ -319,6 +319,51 @@ describe('LearningSignalCandidateService', () => {
     expect(record.proposedMemoryAuthority).toBe('external_authoritative'); // sam_gov
   });
 
+  describe('Phase 27 post-launch P0: candidate value carries the actual fact, not just event metadata', () => {
+    it('CRM signal: candidate value leads with the finding\'s resolved fact text, not a JSON metadata blob', async () => {
+      const { service, tx, candidates } = buildHarness(crmSignal());
+      (tx.$queryRaw as any).mockResolvedValueOnce([]); // findExactDuplicate: no match
+      (tx.$queryRaw as any).mockImplementation(async () => [
+        { proposedValue: { role: 'Chief of Staff', email: 'jane@example.gov' } },
+      ]);
+      await service.generateForSignal(TENANT, SIGNAL);
+      const [, , record] = candidates.proposeSaveMemory.mock.calls[0] as [string, string, any];
+      expect(record.value).toContain('role: Chief of Staff');
+      expect(record.value).toContain('email: jane@example.gov');
+      expect(record.value.trim().startsWith('{')).toBe(false);
+      expect(record.value).toContain('Fill-with-Meri government identity finding accepted (sam_gov)');
+      expect(record.value).toContain('client_steering');
+    });
+
+    it('Meri feedback signal: candidate value carries the user\'s own rating note as the fact', async () => {
+      const { service, tx, candidates } = buildHarness(meriSignal());
+      (tx.clioMessage.findFirst as any).mockResolvedValueOnce({
+        metadata: { feedback: { note: 'Client prefers weekly congressional updates.' } },
+      });
+      await service.generateForSignal(TENANT, SIGNAL);
+      const [, , record] = candidates.proposeSaveMemory.mock.calls[0] as [string, string, any];
+      expect(record.value).toContain('Client prefers weekly congressional updates.');
+      expect(record.value).toContain('Negative rating on a Meri response');
+    });
+
+    it('Meri feedback signal with reason codes but no usable note falls back to the reason codes as the fact, not silence', async () => {
+      const { service, candidates } = buildHarness(
+        meriSignal({ provenanceJsonb: { hasNote: false, reasons: ['outdated_info', 'wrong_tone'] } }),
+      );
+      await service.generateForSignal(TENANT, SIGNAL);
+      const [, , record] = candidates.proposeSaveMemory.mock.calls[0] as [string, string, any];
+      expect(record.value).toContain('outdated_info');
+      expect(record.value).toContain('wrong_tone');
+    });
+
+    it('no fact text and no reasons: falls back to an explicit review-the-evidence notice rather than fabricating a fact', async () => {
+      const { service, candidates } = buildHarness(crmSignal());
+      await service.generateForSignal(TENANT, SIGNAL);
+      const [, , record] = candidates.proposeSaveMemory.mock.calls[0] as [string, string, any];
+      expect(record.value).toContain('No structured fact text was available');
+    });
+  });
+
   it('SECURITY: a client A signal can never be proposed as a client B candidate — clientId always comes from the loaded signal row', async () => {
     const { service, candidates } = buildHarness(crmSignal({ clientId: CLIENT }));
     await service.generateForSignal(TENANT, SIGNAL);

@@ -146,6 +146,21 @@ export function evaluateGovernedMemoryAuthorization(
     }
     const grants = new Set(facts.grantPermissions ?? []);
     if (grants.has(operation)) return { allowed: true, basis: 'explicit_grant' };
+    // 'review' (which covers both rejecting and requesting changes on a
+    // candidate — see MemoryCandidateReviewService) is deliberately implied
+    // by holding 'approve': every real grant this product creates offers
+    // 'approve' and 'review' as independently-checkable boxes, and an admin
+    // granting "this person can decide this client's proposals" naturally
+    // reaches for 'approve' alone. Without this, a grant of ['approve'] lets
+    // someone commit a candidate to active memory but 403s the strictly
+    // lower-risk act of turning it down — candidates become undecidable
+    // rather than merely under-permissioned (Phase 27 post-launch P0, found
+    // live in the Phase 27G canary: two candidates stuck exactly this way).
+    // The reverse is NOT implied: holding only 'review' never grants
+    // 'approve'.
+    if (operation === 'review' && grants.has('approve')) {
+      return { allowed: true, basis: 'explicit_grant' };
+    }
     if (admin) return { allowed: true, basis: 'admin' };
     return { allowed: false, reason: 'missing_grant' };
   }

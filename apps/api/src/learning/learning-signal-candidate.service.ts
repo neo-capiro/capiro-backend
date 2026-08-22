@@ -247,7 +247,7 @@ export class LearningSignalCandidateService {
           ownerUserId: scope === 'user_private' ? signal.actorUserId : null,
           clientId: signal.clientId,
           key: candidateKey,
-          value: buildCandidateValueSummary(signal, provenance, authority),
+          value: buildCandidateValueSummary(signal, provenance, authority, factText),
           source: 'learning_signal',
           confidence: authority.proposedConfidence,
           sourceType: LEARNING_SIGNAL_SOURCE_TYPE,
@@ -385,22 +385,28 @@ export class LearningSignalCandidateService {
   }
 
   /**
-   * Resolves the real fact text for conflict detection ONLY — never
-   * persisted anywhere by this service, used solely to compute a
-   * throwaway embedding for one search query (`LearningSignalMemoryConflictService`).
+   * Resolves the real fact text for BOTH conflict detection AND the
+   * candidate's own body (`buildCandidateValueSummary`) — the one place this
+   * service ever reads the underlying fact/note content, reused for both
+   * purposes rather than fetched twice.
    *
    * CRM: the accepted finding's `proposed_value_jsonb` is not confidential
    * free text — it is structured CRM enrichment data the finding row
-   * already durably stores, so deriving searchable text from it here adds
-   * no new exposure.
+   * already durably stores, so deriving text from it here adds no new
+   * exposure; it was already reachable by anyone with the finding's id.
    *
-   * Meri: deliberately narrower. The user's free-text feedback note lives
-   * only on `clio_messages.metadata_jsonb.feedback.note` — 27A/27B's own
-   * adapter explicitly never copied it into the signal ("never copies the
-   * free-text note into the signal — only whether one was left"). Fetching
-   * it here, ephemerally, for a single similarity query preserves that
-   * principle (nothing new is written to disk); returns null (skipping
-   * conflict detection entirely) whenever there is no note to fetch.
+   * Meri: the user's free-text feedback note lives on
+   * `clio_messages.metadata_jsonb.feedback.note` — 27A/27B's adapter never
+   * copies it into the `learning_signal` row itself ("never copies the
+   * free-text note into the signal — only whether one was left"), and that
+   * remains true; this method fetches it fresh from the message at
+   * candidate-generation time instead. As of the Phase 27 post-launch P0 fix
+   * (Neo, 2026-08-22) that resolved text is no longer discarded after
+   * conflict detection — it becomes the candidate's proposed fact, gated by
+   * the same human-review step every candidate already requires before
+   * reaching active memory. Returns null (skipping conflict detection, and
+   * falling back to reason codes in the candidate body) whenever there is no
+   * note to fetch.
    */
   private async resolveFactText(
     tenantId: string,
@@ -522,25 +528,66 @@ function isSourceUniqueViolation(error: unknown): boolean {
 }
 
 /**
- * A safe, structured evidence summary — never the note/message body itself
- * (handoff §9: "store references... rather than duplicate content"). A
- * human reviewer sees enough to know what to go look at, not a
- * system-synthesized claim of what the remembered fact is.
+ * This string is BOTH what a human reviewer reads in the approval queue
+ * (memory-candidate-review.service.ts's `proposal.value`, rendered verbatim)
+ * AND, once approved, the durable `memory_items.sections_jsonb` body a
+ * ContextPacket exposes to Meri (memory-canonical-activation.helpers.ts
+ * falls back to `record.value` as the sole 'Memory' section when no
+ * `canonicalItem` is supplied — which the learning-signal path never
+ * supplies). It must therefore lead with the actual learned proposition, not
+ * metadata about the act of learning it — a reviewer approving "crm_finding
+ * accepted, proposed layer client-steering" has no way to judge whether the
+ * underlying fact is even right, and Meri recalling that same text has no
+ * usable content to act on (see the Phase 27G canary's "honest limitation").
+ *
+ * `factText` is the same safe fact text `resolveFactText()` already resolves
+ * for conflict detection — reused here rather than discarded. For a CRM Fill
+ * finding this is the finding's own `proposed_value_jsonb` fields (already
+ * documented there as non-confidential structured data). For Meri feedback
+ * it is the human's own rating note — durably stored on `clio_messages`
+ * already, and reaching a governed memory here only after the same
+ * human-review gate every candidate already requires before this content
+ * becomes active memory (Neo, 2026-08-22 P0 decision: include the note
+ * rather than leave it out of the fact any candidate is judged and recalled
+ * on).
  */
 function buildCandidateValueSummary(
   signal: LoadedLearningSignal,
   provenance: Record<string, unknown>,
   authority: { memoryClass: string; memoryAuthority: string; proposedConfidence: number },
+  factText: string | null,
 ): string {
-  return JSON.stringify({
-    summary: `${signal.signalType} on ${signal.sourceSurface}, proposed layer ${signal.proposedMemoryLayer ?? 'unknown'}.`,
-    proposedMemoryClass: authority.memoryClass,
-    proposedMemoryAuthority: authority.memoryAuthority,
-    proposedConfidence: authority.proposedConfidence,
-    hasNote: provenance.hasNote === true,
-    reasons: Array.isArray(provenance.reasons) ? provenance.reasons : [],
-    sourceKind: typeof provenance.kind === 'string' ? provenance.kind : null,
-    sourceSystem: typeof provenance.source === 'string' ? provenance.source : null,
-    note: 'Review the referenced evidence objects for full context before approving.',
-  });
+  const reasons = Array.isArray(provenance.reasons)
+    ? provenance.reasons.filter((reason): reason is string => typeof reason === 'string')
+    : [];
+  const fact =
+    factText ??
+    (reasons.length
+      ? `Reason code(s) selected on this rating: ${reasons.join(', ')}.`
+      : 'No structured fact text was available for this signal — review the linked evidence before approving.');
+  const reasonsTrailer = factText && reasons.length ? ` Reason code(s): ${reasons.join(', ')}.` : '';
+  const sourceLabel = describeCandidateSourceForBody(signal, provenance);
+
+  return (
+    `${fact}\n\n` +
+    `Source: ${sourceLabel}. Proposed as ${authority.memoryClass} (${authority.memoryAuthority}), ` +
+    `confidence ${authority.proposedConfidence.toFixed(2)}.${reasonsTrailer}`
+  );
+}
+
+function describeCandidateSourceForBody(
+  signal: LoadedLearningSignal,
+  provenance: Record<string, unknown>,
+): string {
+  if (signal.sourceSurface === 'crm.fill_with_meri') {
+    const kind = typeof provenance.kind === 'string' ? provenance.kind.replace(/_/g, ' ') : 'finding';
+    const source = typeof provenance.source === 'string' ? provenance.source : 'unknown';
+    return `Fill-with-Meri ${kind} finding accepted (${source})`;
+  }
+  if (signal.sourceSurface === 'meri.chat') {
+    return signal.signalType === 'meri_feedback_positive'
+      ? 'Positive rating on a Meri response'
+      : 'Negative rating on a Meri response';
+  }
+  return signal.sourceSurface;
 }
