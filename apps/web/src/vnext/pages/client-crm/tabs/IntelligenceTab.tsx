@@ -15,7 +15,6 @@ import {
 import {
   DOMAIN_STATS,
   BILLS,
-  RECS,
   STAGES,
   MATTERS,
   DEADLINES,
@@ -40,6 +39,8 @@ import {
 import { DistrictNexusMap } from '../DistrictNexusMap.js';
 import { PastPerformanceCard } from '../PastPerformanceCard.js';
 import { ManageFacilitiesModal } from '../ManageFacilitiesModal.js';
+import { AddBillModal } from './LegislativeAddBill.js';
+import { BillUpdatesDrawer } from './BillUpdatesDrawer.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import type { IntelligenceView } from '../client-crm-routing.js';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -49,11 +50,8 @@ import {
   trackerPaths,
   type BoardBill,
   type BoardResponse,
-  type RecommendationBill,
-  type RecommendationsResponse,
 } from '../../../../pages/clients/tracker/tracker-api.js';
-import { adaptBoard, adaptRecs, intelTrackerPaths } from '../../../../pages/clients/tracker/intel-tracker-api.js';
-import type { IntelRec } from '../../../../pages/clients/tracker/intel-tracker-api.js';
+import { adaptBoard, intelTrackerPaths } from '../../../../pages/clients/tracker/intel-tracker-api.js';
 import {
   getClientFacilities,
   formatFacilityDistrict,
@@ -116,29 +114,6 @@ const INTEL_TONE: Record<string, PillTone> = {
  * default props reproduce this tab's original behavior exactly. */
 const DistrictNexusMapLibreLazy = lazy(() => import('../../../components/district-map/DistrictNexusMapLibre.js'));
 
-/**
- * Read the tracker recommendations for a client, whichever backend serves them.
- *
- * The intel-api route answers with a BARE `IntelRec[]`; only the legacy route
- * answers with the `RecommendationsResponse` envelope. `adaptRecs` is therefore
- * mandatory on the v2 path — without it `data.recommendations` is `undefined`
- * and the first `.filter`/`.slice` on it throws during render, blanking the
- * whole Intelligence tab (which is exactly what happened: two call sites here
- * each fetched `intelTrackerPaths.recommendations` raw). Both sites share this
- * one reader so the adapter can never be dropped at one of them again, and so
- * the `trackerKeys.recommendations` cache entry holds the same shape the
- * canonical TrackerTab writes into it.
- */
-async function fetchRecommendations(
-  api: ReturnType<typeof useApi>,
-  clientId: string,
-  trackerV2: boolean,
-): Promise<RecommendationsResponse> {
-  if (trackerV2) {
-    return adaptRecs((await api.get<IntelRec[]>(intelTrackerPaths.recommendations(clientId))).data);
-  }
-  return (await api.get<RecommendationsResponse>(trackerPaths.recommendations(clientId))).data;
-}
 
 /**
  * District Nexus v2 — the scored, district-keyed model the canonical
@@ -173,6 +148,10 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
   const qc = useQueryClient();
   const domain = DOMAIN_META[view] ?? DOMAIN_META.legislative!;
   const [facilitiesOpen, setFacilitiesOpen] = useState(false);
+  // Lifted here so the Legislative domain header's "Track bill" button and the
+  // LegislativePanel below (which owns the track mutation + AddBill modal) drive
+  // the same modal — the button lives in the header, the write in the panel.
+  const [addBillOpen, setAddBillOpen] = useState(false);
   // Actions that need the client are computed here rather than in the static
   // map below: District's "Manage facilities" (item 3, wire-audit "2 Wire
   // existing APIs"), Legislative's "Configure" (item 4, "3 Compose extend"),
@@ -202,10 +181,11 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
         <SecondaryBtn onClick={() => navigate(`/radar?tab=watchlist&client=${encodeURIComponent(client.id)}`)}>
           Configure
         </SecondaryBtn>
-        {/* Header "Track bill" is not part of item 4 — the live track path is
-            the Recommendations card's per-bill Track (wire-audit "2 Wire
-            existing APIs" item 6). Left as the design has it. */}
-        <PrimaryBtn>Track bill</PrimaryBtn>
+        {/* Header "Track bill" opens the bill-search modal — the same
+            capability app.capiro.ai has (legacy AddBillModal). The track write
+            itself is owned by LegislativePanel's trackMutation; this button just
+            opens the shared modal via the lifted `addBillOpen` state. */}
+        <PrimaryBtn onClick={() => setAddBillOpen(true)}>Track bill</PrimaryBtn>
       </>
     ) : view === 'funding' ? (
       <SecondaryBtn
@@ -229,7 +209,13 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <TabPageHead title={domain.title} sub={domain.sub} actions={actions} />
       <DomainStatsStrip view={view} realValues={realStats} />
-      {view === 'legislative' ? <LegislativePanel client={client} /> : null}
+      {view === 'legislative' ? (
+        <LegislativePanel
+          client={client}
+          addBillOpen={addBillOpen}
+          onAddBillOpenChange={setAddBillOpen}
+        />
+      ) : null}
       {view === 'regulatory' ? <RegulatoryPanel client={client} /> : null}
       {view === 'funding' ? <FundingPanel client={client} /> : null}
       {view === 'footprint' ? <FootprintPanel client={client} /> : null}
@@ -265,13 +251,6 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
     enabled: trackerReady && view === 'legislative',
     staleTime: 60_000,
   });
-  const recsQ = useQuery<RecommendationsResponse>({
-    queryKey: trackerKeys.recommendations(client.id),
-    queryFn: () => fetchRecommendations(api, client.id, trackerV2),
-    enabled: trackerReady && view === 'legislative',
-    staleTime: 60_000,
-  });
-
   const aggQ = useQuery<ClientProfileV1>({
     queryKey: ['client-intel-v1-aggregate', client.id],
     queryFn: async () =>
@@ -325,17 +304,12 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
   });
   const nexusV2Q = useDistrictNexusV2(client, view === 'district');
 
-  if (view === 'legislative' && trackerReady && boardQ.isSuccess && recsQ.isSuccess) {
+  if (view === 'legislative' && trackerReady && boardQ.isSuccess) {
     const board = boardQ.data;
-    // Defensive `?? []`: an unadapted payload here used to throw mid-render and
-    // blank the ENTIRE Intelligence tab. `fetchRecommendations` is the real fix;
-    // this makes any future shape surprise cost one stat cell, not the page.
-    const highFit = (recsQ.data.recommendations ?? []).filter((r) => r.fit >= 0.85).length;
     return [
       [String(board.total), 'Tracked bills'],
       ['—', 'Material changes'],
       ['—', 'Upcoming hearings'],
-      [String(highFit), 'High-fit recommendations'],
       ['—', 'Watchlist coverage'],
     ];
   }
@@ -425,7 +399,7 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
 const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactNode }> = {
   legislative: {
     title: 'Legislative',
-    sub: 'Tracked bills, client-fit recommendations, hearings, and material changes from LegiWatch.',
+    sub: 'Tracked bills, hearings, and material changes from LegiWatch.',
     // actions computed in ClientCrmIntelligenceProto — see the comment there.
   },
   regulatory: {
@@ -522,25 +496,27 @@ function DomainStatsStrip({ view, realValues }: { view: IntelligenceView; realVa
 
 /* ═══════════════════════════ §10.2 Legislative ═════════════════════════════ */
 
-function LegislativePanel({ client }: { client: Client }) {
+function LegislativePanel({
+  client,
+  addBillOpen,
+  onAddBillOpenChange,
+}: {
+  client: Client;
+  addBillOpen: boolean;
+  onAddBillOpenChange: (open: boolean) => void;
+}) {
   const api = useApi();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [boardView, setBoardView] = useState(true);
+  // The tracked bill the "latest updates" drawer is showing, or null.
+  const [openBill, setOpenBill] = useState<BoardBill | null>(null);
 
-  // Item 6: Track bill. Same tracker_v2 feature-detection dance as the
-  // dead-code ClientCrmIntelligence.tsx's LegislativeView and the real,
-  // currently-live TrackerTab.tsx (the source this mirrors).
+  // Same tracker_v2 feature-detection dance as the currently-live TrackerTab.tsx
+  // (the source this mirrors).
   const { enabled: trackerV2, ready } = useIntelFeature('tracker_v2');
-  const recsQ = useQuery<RecommendationsResponse>({
-    queryKey: trackerKeys.recommendations(client.id),
-    queryFn: () => fetchRecommendations(api, client.id, trackerV2),
-    enabled: ready,
-    staleTime: 60_000,
-  });
-  const realRecs = ready && recsQ.isSuccess ? (recsQ.data.recommendations ?? []).slice(0, 5) : null;
 
-  // Item 19: the tracked-bill board. The server already groups by stage and its
+  // The tracked-bill board. The server already groups by stage and its
   // four stage ids match the design's own STAGES exactly, so columns are used
   // as returned rather than re-derived client-side.
   const boardQ = useQuery<BoardResponse>({
@@ -560,52 +536,27 @@ function LegislativePanel({ client }: { client: Client }) {
   });
   const realBoard = ready && boardQ.isSuccess ? boardQ.data : null;
 
-  /**
-   * Item 5 (Dismiss). Mirrors `TrackerTab`'s own `dismissMutation`: the
-   * `marked_irrelevant` feedback signal is what "dismiss a recommendation"
-   * means in this product — there is no separate dismiss endpoint. The
-   * structured `reason`/`matchedTags` payload is intel-api-only (the legacy
-   * DTO runs `forbidNonWhitelisted` and would 400 on extra fields), and this
-   * card has no reason picker, so neither path sends one. The optimistic
-   * removal keeps the card from lingering after the click; `aboveFloorCount`
-   * is corrected in the same write so the card's own copy stays consistent.
-   */
-  const dismissMutation = useMutation({
-    mutationFn: async (billId: string) =>
-      trackerV2
-        ? (
-            await api.post(intelTrackerPaths.feedback(client.id), {
-              targetRef: billId,
-              signal: 'marked_irrelevant',
-            })
-          ).data
-        : (await api.post(trackerPaths.feedback(client.id), { billId, signal: 'marked_irrelevant' })).data,
-    onMutate: (billId) => {
-      qc.setQueryData<RecommendationsResponse>(trackerKeys.recommendations(client.id), (prev) =>
-        prev
-          ? {
-              ...prev,
-              recommendations: prev.recommendations.filter((r) => r.billId !== billId),
-              aboveFloorCount: Math.max(
-                0,
-                prev.aboveFloorCount -
-                  (prev.recommendations.find((r) => r.billId === billId && !r.belowFloor) ? 1 : 0),
-              ),
-            }
-          : prev,
-      );
-    },
-    onSettled: () => void qc.invalidateQueries({ queryKey: trackerKeys.recommendations(client.id) }),
-  });
+  // Bill ids already on the board — the AddBill modal shows these as "On board".
+  const boardBillIds = useMemo(
+    () => new Set((realBoard?.columns ?? []).flatMap((c) => c.bills.map((b) => b.billId))),
+    [realBoard],
+  );
 
+  /**
+   * Track bill (header "Track bill" → AddBill modal). This is the SAME manual
+   * track path the live app.capiro.ai uses (TrackerTab's `trackManual`):
+   * `source: 'manual_search'` on the same track endpoint, invalidating the
+   * board/summary cache so the new bill appears in its stage column at once.
+   * Returns the promise so the modal row only flips to "On board" once the
+   * write actually succeeds (legacy P2-06).
+   */
   const trackMutation = useMutation({
     mutationFn: (billId: string) =>
       api.post(trackerV2 ? intelTrackerPaths.track(client.id) : trackerPaths.track(client.id), {
         billId,
-        source: 'recommended',
+        source: 'manual_search',
       }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: trackerKeys.recommendations(client.id) });
       qc.invalidateQueries({ queryKey: trackerKeys.summary(client.id) });
       qc.invalidateQueries({ queryKey: trackerKeys.board(client.id) });
     },
@@ -613,122 +564,77 @@ function LegislativePanel({ client }: { client: Client }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* The nested Tracked/Recommendations/Activity/Hearings bar is gone: only
-          "Tracked" ever changed anything, and the other three printed their raw
-          route key as a card title. One honest surface beats four fake tabs. */}
-      <div className="cap-pf-grid-intel">
-        {/* Board card */}
-        <Card>
-          <CardHead title="Tracked bills" action={<LinkBtn onClick={() => setBoardView((v) => !v)}>{boardView ? 'Table view' : 'Board view'}</LinkBtn>} />
-          {realBoard ? (
-            realBoard.total === 0 ? (
-              <p style={{ margin: 0, padding: '4px 24px 16px', fontSize: 14, color: '#475467' }}>
-                No bills are on this client&apos;s board yet.
-              </p>
-            ) : boardView ? (
-              <RealBillBoard board={realBoard} />
-            ) : (
-              <RealBillTable board={realBoard} />
-            )
+      {/* Recommendations was removed (user request): the Legislative surface is
+          now a single full-width tracked-bill board. */}
+      <Card>
+        <CardHead
+          title="Tracked bills"
+          action={
+            <LinkBtn onClick={() => setBoardView((v) => !v)}>
+              {boardView ? 'Table view' : 'Board view'}
+            </LinkBtn>
+          }
+        />
+        {realBoard ? (
+          realBoard.total === 0 ? (
+            <p style={{ margin: 0, padding: '4px 24px 16px', fontSize: 14, color: '#475467' }}>
+              No bills are on this client&apos;s board yet. Use{' '}
+              <button
+                type="button"
+                onClick={() => onAddBillOpenChange(true)}
+                style={{ fontWeight: 600, color: '#101828', textDecoration: 'underline', cursor: 'pointer' }}
+              >
+                Track bill
+              </button>{' '}
+              to add one.
+            </p>
           ) : boardView ? (
-            <BillBoard />
+            <RealBillBoard board={realBoard} onOpenBill={setOpenBill} />
           ) : (
-            <BillTable />
-          )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 24px 18px' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-              {/* `withheld` must be stated when > 0 — a bounded board that stays
-                  silent about it is less honest than an unbounded one. */}
-              {realBoard
-                ? realBoard.withheld
-                  ? `${realBoard.withheld} more tracked bill${realBoard.withheld === 1 ? '' : 's'} not shown`
-                  : `${realBoard.total} tracked bill${realBoard.total === 1 ? '' : 's'}`
-                : '6 more tracked bills'}
-            </span>
-            <span style={{ flex: 1 }} />
-            <LinkBtn onClick={() => navigate('/legiwatch')}>Open full board →</LinkBtn>
+            <RealBillTable board={realBoard} onOpenBill={setOpenBill} />
+          )
+        ) : boardView ? (
+          <BillBoard />
+        ) : (
+          <BillTable />
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 24px 18px' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+            {/* `withheld` must be stated when > 0 — a bounded board that stays
+                silent about it is less honest than an unbounded one. */}
+            {realBoard
+              ? realBoard.withheld
+                ? `${realBoard.withheld} more tracked bill${realBoard.withheld === 1 ? '' : 's'} not shown`
+                : `${realBoard.total} tracked bill${realBoard.total === 1 ? '' : 's'}`
+              : '6 more tracked bills'}
+          </span>
+          <span style={{ flex: 1 }} />
+          <LinkBtn onClick={() => navigate('/legiwatch')}>Open full board →</LinkBtn>
+        </div>
+        {/* Upcoming hearing footer relocated here from the removed
+            Recommendations card so the surface keeps the hearing cue. */}
+        <div style={{ padding: '14px 24px 20px', borderTop: '1px solid #E8E5DF' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+            Upcoming hearing
           </div>
-        </Card>
+          <div style={{ marginTop: 4, fontSize: 14, color: '#101828' }}>HASC · Autonomous Systems · Aug 13</div>
+        </div>
+      </Card>
 
-        {/* Recommendations */}
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '20px 24px 14px' }}>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>Recommendations</span>
-              <span style={{ display: 'block', marginTop: 4, fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
-                New matches generated from capabilities, committees, districts, and Strategy targets.
-              </span>
-            </span>
-            <LinkBtn onClick={() => navigate('/legiwatch?tab=watchlist')}>View all</LinkBtn>
-          </div>
-          <div style={{ padding: '0 16px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {realRecs ? (
-              realRecs.length ? (
-                realRecs.map((r) => (
-                  <RealRecCard
-                    key={r.billId}
-                    r={r}
-                    tracking={trackMutation.isPending && trackMutation.variables === r.billId}
-                    onTrack={() => trackMutation.mutate(r.billId)}
-                    onDismiss={() => dismissMutation.mutate(r.billId)}
-                  />
-                ))
-              ) : (
-                <p style={{ margin: '4px 8px 8px', fontSize: 14, color: '#475467' }}>
-                  No new bill recommendations clear the relevance floor right now.
-                </p>
-              )
-            ) : (
-              RECS.map((r) => <RecCard key={r.number} r={r} />)
-            )}
-          </div>
-          <div style={{ marginTop: 10, padding: '14px 24px 20px', borderTop: '1px solid #E8E5DF' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Upcoming hearing</div>
-            <div style={{ marginTop: 4, fontSize: 14, color: '#101828' }}>HASC · Autonomous Systems · Aug 13</div>
-          </div>
-        </Card>
-      </div>
+      <AddBillModal
+        open={addBillOpen}
+        clientId={client.id}
+        boardBillIds={boardBillIds}
+        onTrack={(billId) => trackMutation.mutateAsync(billId)}
+        onClose={() => onAddBillOpenChange(false)}
+      />
+      <BillUpdatesDrawer
+        open={Boolean(openBill)}
+        clientId={client.id}
+        bill={openBill}
+        onClose={() => setOpenBill(null)}
+      />
     </div>
-  );
-}
-
-function RealRecCard({
-  r,
-  onTrack,
-  onDismiss,
-  tracking,
-}: {
-  r: RecommendationBill;
-  onTrack: () => void;
-  onDismiss: () => void;
-  tracking: boolean;
-}) {
-  return (
-    <span style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 14, borderRadius: 10, background: '#FAF9F6', border: '1px solid #E8E5DF' }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#101828' }}>{r.displayNum}</span>
-        <Pill tone="success" dotless>{Math.round(r.fit * 100)}%</Pill>
-      </span>
-      <span style={{ fontSize: 14, color: '#344054', textWrap: 'pretty' }}>{r.title}</span>
-      <span style={{ fontSize: 12, color: '#667085', textWrap: 'pretty' }}>{r.why}</span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 6 }}>
-        <button
-          type="button"
-          onClick={onTrack}
-          disabled={tracking}
-          style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#101828', opacity: tracking ? 0.6 : 1 }}
-        >
-          {tracking ? 'Tracking…' : 'Track'}
-        </button>
-        <button
-          type="button"
-          onClick={onDismiss}
-          style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#667085' }}
-        >
-          Dismiss
-        </button>
-      </span>
-    </span>
   );
 }
 
@@ -749,7 +655,7 @@ const CHANGE_TONE: Record<string, PillTone> = {
   success: 'success',
 };
 
-function RealBillBoard({ board }: { board: BoardResponse }) {
+function RealBillBoard({ board, onOpenBill }: { board: BoardResponse; onOpenBill: (b: BoardBill) => void }) {
   return (
     <div style={{ padding: '20px 20px 12px', overflowX: 'auto' }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(188px,1fr))', gap: 14, minWidth: 800, alignItems: 'start' }}>
@@ -760,7 +666,7 @@ function RealBillBoard({ board }: { board: BoardResponse }) {
               <span style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 22, height: 22, padding: '0 7px', borderRadius: 9999, background: GRADIENT_DARK, color: '#ffffff', fontSize: 11, fontWeight: 600 }}>{col.count}</span>
             </span>
             {col.bills.map((b) => (
-              <RealBillCard key={b.billId} b={b} />
+              <RealBillCard key={b.billId} b={b} onOpen={() => onOpenBill(b)} />
             ))}
           </span>
         ))}
@@ -769,13 +675,16 @@ function RealBillBoard({ board }: { board: BoardResponse }) {
   );
 }
 
-function RealBillCard({ b }: { b: BoardBill }) {
+function RealBillCard({ b, onOpen }: { b: BoardBill; onOpen: () => void }) {
   const [hover, setHover] = useState(false);
   return (
-    <div
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`View latest updates for ${b.displayNum}`}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, padding: 12, borderRadius: 8, background: hover ? '#FAF9F6' : '#ffffff', border: hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF', textAlign: 'left' }}
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, padding: 12, borderRadius: 8, background: hover ? '#FAF9F6' : '#ffffff', border: hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF', textAlign: 'left', cursor: 'pointer' }}
     >
       <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {b.unread ? <span aria-label="Unread" style={{ flex: '0 0 auto', width: 6, height: 6, borderRadius: '50%', background: '#101828' }} /> : null}
@@ -801,16 +710,22 @@ function RealBillCard({ b }: { b: BoardBill }) {
           <Pill tone="error">Terminal risk</Pill>
         </span>
       ) : null}
-    </div>
+    </button>
   );
 }
 
-function RealBillTable({ board }: { board: BoardResponse }) {
+function RealBillTable({ board, onOpenBill }: { board: BoardResponse; onOpenBill: (b: BoardBill) => void }) {
   const rows = board.columns.flatMap((col) => col.bills.map((b) => ({ bill: b, stageLabel: col.label })));
   return (
     <div>
       {rows.map(({ bill: r, stageLabel }) => (
-        <div key={r.billId} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 16, padding: '14px 24px', borderBottom: '1px solid #E8E5DF', textAlign: 'left' }}>
+        <button
+          key={r.billId}
+          type="button"
+          onClick={() => onOpenBill(r)}
+          aria-label={`View latest updates for ${r.displayNum}`}
+          style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 16, padding: '14px 24px', borderBottom: '1px solid #E8E5DF', textAlign: 'left', background: 'transparent', cursor: 'pointer' }}
+        >
           <span style={{ flex: '0 0 auto', width: 88, fontSize: 14, fontWeight: 600, color: '#101828' }}>{r.displayNum}</span>
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: 'block', fontSize: 14, color: '#101828', textWrap: 'pretty' }}>{r.title}</span>
@@ -822,7 +737,7 @@ function RealBillTable({ board }: { board: BoardResponse }) {
           <span style={{ flex: '0 0 auto', width: 76, display: 'flex', justifyContent: 'flex-end' }}>
             <Pill tone="gray" dotless>{passagePct(r.probability)}% pass</Pill>
           </span>
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -883,28 +798,6 @@ function BillTable() {
         </button>
       ))}
     </div>
-  );
-}
-
-function RecCard({ r }: { r: (typeof RECS)[number] }) {
-  const [tracked, setTracked] = useState(false);
-  return (
-    <span style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 14, borderRadius: 10, background: '#FAF9F6', border: '1px solid #E8E5DF' }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#101828' }}>{r.number}</span>
-        <Pill tone="success" dotless>{r.fit}</Pill>
-      </span>
-      <span style={{ fontSize: 14, color: '#344054', textWrap: 'pretty' }}>{r.title}</span>
-      <span style={{ fontSize: 12, color: '#667085', textWrap: 'pretty' }}>{r.why}</span>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 6 }}>
-        <button type="button" onClick={() => setTracked(true)} style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#101828' }}>
-          {tracked ? 'Tracked' : 'Track'}
-        </button>
-        <button type="button" style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.03em', textTransform: 'uppercase', color: '#667085' }}>
-          Dismiss
-        </button>
-      </span>
-    </span>
   );
 }
 

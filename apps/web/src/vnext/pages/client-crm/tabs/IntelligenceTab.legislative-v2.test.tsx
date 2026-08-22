@@ -6,18 +6,11 @@ import { ClientCrmIntelligenceProto } from './IntelligenceTab.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 
 /**
- * Regression: the Legislative view went BLANK on every tracker_v2 tenant.
+ * Regression: Legislative must render on tracker_v2 tenants.
  *
- * `/intel-api/clients/:id/recommendations` answers with a BARE array; only the
- * legacy `/api/…/recommendations` route answers with the
- * `{ recommendations, aboveFloorCount, … }` envelope. Two call sites here fetched
- * the intel route without running `adaptRecs`, so `data.recommendations` was
- * `undefined` and `useDomainStats`' `.filter` on it threw mid-render — taking the
- * whole Intelligence tab down, not just the one stat cell.
- *
- * This file pins the v2 shape specifically: the existing IntelligenceTab tests
- * do not mock the intel feature flag, so they only ever exercise the legacy path
- * and could not have caught this.
+ * The board is served by intel-api and adapted via adaptBoard. Recommendations
+ * were removed from this surface; these tests pin that the board still mounts
+ * and that the domain stats strip no longer depends on a recommendations query.
  */
 
 const getMock = vi.hoisted(() => vi.fn());
@@ -120,23 +113,23 @@ function renderLegislative() {
 }
 
 describe('Intelligence → Legislative on a tracker_v2 tenant', () => {
-  it('renders instead of blanking when recommendations come back as a bare array', async () => {
+  it('renders the tracked-bill board instead of blanking on tracker_v2', async () => {
     renderLegislative();
 
-    // The panel is on screen at all — the crash used to unmount everything.
-    expect(await screen.findByText('Recommendations')).toBeInTheDocument();
-    // And the adapted row is rendered, not swallowed.
-    expect(await screen.findByText('H.R. 1234')).toBeInTheDocument();
+    // The panel is on screen at all — a prior crash used to unmount everything.
+    expect((await screen.findAllByText('Tracked bills')).length).toBeGreaterThan(0);
+    // Recommendations were removed from this surface.
+    expect(screen.queryByText('Recommendations')).not.toBeInTheDocument();
+    // Board card from the intel board fixture is rendered.
+    expect(await screen.findByText('H.R. 9')).toBeInTheDocument();
   });
 
-  it('counts high-fit recommendations in the domain stats strip', async () => {
+  it('shows tracked-bill count in the domain stats strip without high-fit recommendations', async () => {
     renderLegislative();
 
-    // fit 0.91 clears the 0.85 high-fit bar, so the strip must say 1 — this is
-    // the exact `.filter` expression that threw on the unadapted payload.
     await waitFor(() => {
-      const label = screen.getByText('High-fit recommendations');
-      expect(label.parentElement).toHaveTextContent('1');
+      expect(screen.getAllByText('Tracked bills').length).toBeGreaterThan(0);
     });
+    expect(screen.queryByText('High-fit recommendations')).not.toBeInTheDocument();
   });
 });

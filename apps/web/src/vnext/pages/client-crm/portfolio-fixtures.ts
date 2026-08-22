@@ -241,7 +241,7 @@ export const INTEL_META = {
 };
 
 export const DOMAIN_STATS = {
-  legislative: [['12', 'Tracked bills'], ['3', 'Material changes'], ['2', 'Upcoming hearings'], ['4', 'High-fit recommendations'], ['91%', 'Watchlist coverage']],
+  legislative: [['12', 'Tracked bills'], ['3', 'Material changes'], ['2', 'Upcoming hearings'], ['91%', 'Watchlist coverage']],
   regulatory: [['3', 'Active matters'], ['1', 'Deadline < 14 days'], ['2', 'Linked bills'], ['4', 'Agencies'], ['11', 'Days to next deadline']],
   funding: [['7', 'Active opportunities'], ['2', 'Pursuing'], ['$62M', 'Largest ceiling'], ['3', 'Relevant programs'], ['Aug 30', 'Next deadline']],
   footprint: [['8', 'LDA filings'], ['$1.8M', 'Lobbying · TTM'], ['$84.2M', 'Federal awards · TTM'], ['$380K', 'PAC disbursements'], ['4', 'Registrants']],

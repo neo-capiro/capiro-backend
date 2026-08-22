@@ -423,45 +423,28 @@ function mockLegislativeApis(overrides: { flags?: unknown; recommendations?: unk
   postMock.mockResolvedValue({ data: {} });
 }
 
-describe('ClientCrmIntelligenceProto — legislative recommendations (item 6, wire-audit)', () => {
+describe('ClientCrmIntelligenceProto — Track bill (header, legacy parity)', () => {
   beforeEach(() => {
     getMock.mockReset();
     postMock.mockReset();
   });
 
-  it('renders real bill recommendations (0-1 fit scale rendered as a percent) instead of the RECS fixture', async () => {
+  it('opens the bill-search modal from the header Track bill button', async () => {
     mockLegislativeApis();
     renderLegislative();
 
-    await waitFor(() => expect(screen.getByText('Unmanned Ground Systems Interoperability Act')).toBeInTheDocument());
-    // "91%" also coincides with the domain stats strip's own "Watchlist coverage" fixture cell.
-    expect(screen.getAllByText('91%').length).toBeGreaterThan(0);
-    expect(screen.getByText('Real relevance-engine explanation, not the design fixture copy')).toBeInTheDocument();
-    // The fixture's own recommendations must not leak through as if real.
-    expect(screen.queryByText('Defense Autonomy Test Range Act')).not.toBeInTheDocument();
-    expect(screen.queryByText('Robotics Acquisition Reform Act')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Track bill' }));
+    expect(await screen.findByLabelText('Search bills')).toBeInTheDocument();
+    expect(screen.getByText(/Search Congress by number or title/i)).toBeInTheDocument();
   });
 
-  it('calls the real tracker "track" mutation with the real billId when Track is clicked', async () => {
+  it('does not render the removed Recommendations section', async () => {
     mockLegislativeApis();
     renderLegislative();
 
-    await waitFor(() => expect(screen.getByText('Unmanned Ground Systems Interoperability Act')).toBeInTheDocument());
-    fireEvent.click(screen.getByText('Track'));
-
-    await waitFor(() =>
-      expect(postMock).toHaveBeenCalledWith('/api/intelligence/clients/client-1/tracker/track', {
-        billId: 'bill-4471',
-        source: 'recommended',
-      }),
-    );
-  });
-
-  it('keeps the RECS design fixture while the recommendations query is loading or errored', () => {
-    getMock.mockImplementation(() => new Promise(() => {})); // never resolves
-    renderLegislative();
-
-    expect(screen.getByText('Defense Autonomy Test Range Act')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText('Tracked bills').length).toBeGreaterThan(0));
+    expect(screen.queryByText('Recommendations')).not.toBeInTheDocument();
+    expect(screen.queryByText('High-fit recommendations')).not.toBeInTheDocument();
   });
 });
 
@@ -696,7 +679,7 @@ describe('ClientCrmIntelligenceProto — bill board (item 19, wire-audit)', () =
     renderLegislative();
 
     await waitFor(() =>
-      expect(screen.getByText("No bills are on this client's board yet.")).toBeInTheDocument(),
+      expect(screen.getByText((content, el) => el?.tagName === 'P' && /No bills are on this client/.test(content))).toBeInTheDocument(),
     );
   });
 });
@@ -744,58 +727,6 @@ describe('ClientCrmIntelligenceProto — Configure (item 4, "3 Compose extend")'
     // tab and silently redirects it to Hearings); ?client= scopes it, or the
     // panel lands on the client picker instead of this client.
     expect(screen.getByTestId('location')).toHaveTextContent('/radar?tab=watchlist&client=client-1');
-  });
-});
-
-describe('ClientCrmIntelligenceProto — Dismiss (item 5, "3 Compose extend")', () => {
-  beforeEach(() => {
-    getMock.mockReset();
-    postMock.mockReset();
-  });
-
-  it('posts the marked_irrelevant feedback signal for the real bill and drops the card', async () => {
-    // The server stops recommending a bill once it is marked irrelevant, so the
-    // refetch that follows the write must return it gone. With a static mock
-    // the card would reappear and the test would only prove the optimistic
-    // update, not that dismissal sticks.
-    let dismissed = false;
-    getMock.mockImplementation((url: string) => {
-      if (url === '/intel-api/feature-flags') return Promise.resolve({ data: {} });
-      if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
-        return Promise.resolve({
-          data: {
-            recommendations: dismissed ? [] : [RECOMMENDATION_BILL],
-            aboveFloorCount: dismissed ? 0 : 1,
-            total: dismissed ? 0 : 1,
-            floor: 0.5,
-          },
-        });
-      }
-      return Promise.reject(new Error(`unexpected GET ${url}`));
-    });
-    postMock.mockImplementation((url: string) => {
-      if (url.endsWith('/tracker/feedback')) dismissed = true;
-      return Promise.resolve({ data: {} });
-    });
-    renderLegislative();
-
-    await waitFor(() =>
-      expect(screen.getByText('Unmanned Ground Systems Interoperability Act')).toBeInTheDocument(),
-    );
-    fireEvent.click(screen.getByText('Dismiss'));
-
-    // There is no dismiss endpoint — 'marked_irrelevant' feedback IS dismissal
-    // in this product (same call TrackerTab's own dismiss makes).
-    await waitFor(() =>
-      expect(postMock).toHaveBeenCalledWith('/api/intelligence/clients/client-1/tracker/feedback', {
-        billId: 'bill-4471',
-        signal: 'marked_irrelevant',
-      }),
-    );
-    // Optimistically removed, so the card does not linger after the click.
-    await waitFor(() =>
-      expect(screen.queryByText('Unmanned Ground Systems Interoperability Act')).not.toBeInTheDocument(),
-    );
   });
 });
 

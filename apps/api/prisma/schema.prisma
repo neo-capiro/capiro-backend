@@ -1194,6 +1194,12 @@ model EngagementAttachment {
   /// Client CRM vNext file folder. NULL = unfiled. Moving a file rewrites this
   /// column only; the stored S3 object is never copied (contract §12).
   folder           String?   @db.VarChar(120)
+  /// Who on the tenant may VIEW this file in the client Files tab.
+  /// 'all' (default) = every tenant member; 'restricted' = only the user ids in
+  /// viewerUserIds (plus the uploader, who always retains access). Empty
+  /// restricted lists are treated as "nobody else" — never silently widened.
+  viewerMode       String    @default("all") @map("viewer_mode") @db.VarChar(16)
+  viewerUserIds    String[]  @default([]) @map("viewer_user_ids")
   // Generic generated-document provenance. Hearing recaps use
   // sourceEntityType="hearing_session" plus the intel session id.
   sourceEntityType String?   @map("source_entity_type") @db.VarChar(64)

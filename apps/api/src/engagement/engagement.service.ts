@@ -6462,6 +6462,16 @@ export class EngagementService {
           ...(query.clientId ? { clientId: query.clientId } : {}),
           ...(query.meetingId ? { meetingId: query.meetingId } : {}),
           ...(query.mailMessageId ? { mailMessageId: query.mailMessageId } : {}),
+          // Client Files view ACL: default viewerMode='all' keeps every prior
+          // row visible. Restricted rows only surface for their uploader or a
+          // listed viewerUserIds member. Meeting/mail parent lists still honor
+          // the same rule so a restricted client file cannot leak through
+          // another parent path.
+          OR: [
+            { viewerMode: 'all' },
+            { viewerMode: 'restricted', viewerUserIds: { has: ctx.userId } },
+            { uploadedByUserId: ctx.userId },
+          ],
         },
         orderBy: { createdAt: 'desc' },
       });

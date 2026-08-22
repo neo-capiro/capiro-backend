@@ -181,6 +181,13 @@ export interface ClientAttachment {
   uploadedByName: string | null;
   /** Client CRM organization metadata; null means the attachment is unfiled. */
   folder?: string | null;
+  /**
+   * Who on the tenant may view this file in the client Files tab.
+   * 'all' (default) = every member; 'restricted' = only viewerUserIds (+ uploader).
+   * Additive — older payloads omit both and are treated as 'all'.
+   */
+  viewerMode?: 'all' | 'restricted';
+  viewerUserIds?: string[];
 }
 
 export interface ClientFormValues {

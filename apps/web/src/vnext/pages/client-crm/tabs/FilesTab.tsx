@@ -14,6 +14,10 @@ import { MoveToFolderModal, type FolderNode } from '../portfolio-overlays.js';
 import { openMeriWorkspaceWithContext } from '../../../../components/chat/meri-window.js';
 import { CapiroButton } from '../../../components/actions/index.js';
 import { CapiroModal } from '../../../components/overlays/index.js';
+import {
+  clientAccountOwnerLabel,
+  type ClientAccountOwner,
+} from '../useClientAccountOwner.js';
 import { FILES, FOLDERS } from '../portfolio-fixtures.js';
 import { CLIENT_STORAGE_QUOTA_BYTES, CLIENT_STORAGE_WARN_THRESHOLD } from '@capiro/shared';
 
@@ -86,6 +90,9 @@ interface FileRowModel {
   folder: string | null;
   /** Present only for real attachments — lets the row open/download the file. */
   downloadUrl: string | null;
+  /** View ACL. Default 'all' = every team member. */
+  viewerMode: 'all' | 'restricted';
+  viewerUserIds: string[];
 }
 
 type FilterKey = 'all' | 'documents' | 'smart' | 'client' | 'meri';
@@ -192,6 +199,8 @@ function fixtureRow(f: (typeof FILES)[number] & { smart?: boolean }): FileRowMod
     tone: toneOf(f.ui),
     folder: f.folder,
     downloadUrl: null,
+    viewerMode: 'all',
+    viewerUserIds: [],
   };
 }
 
@@ -260,6 +269,8 @@ function attachmentRow(file: ClientAttachment): FileRowModel {
     tone: file.indexedAt ? 'success' : 'gray',
     folder,
     downloadUrl: file.downloadUrl,
+    viewerMode: file.viewerMode === 'restricted' ? 'restricted' : 'all',
+    viewerUserIds: Array.isArray(file.viewerUserIds) ? file.viewerUserIds : [],
   };
 }
 
@@ -299,6 +310,15 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
   const [creatingFolder, setCreatingFolder] = useState<{ ids: string[] } | null>(null);
   /** Folders named here but not yet holding a file — see the file docblock. */
   const [draftFolders, setDraftFolders] = useState<string[]>([]);
+  /**
+   * Manage-access target. `kind: 'file'` opens for one attachment; `kind: 'folder'`
+   * rewrites every attachment currently carrying that folder label.
+   */
+  const [accessTarget, setAccessTarget] = useState<
+    | { kind: 'file'; id: string; name: string; viewerMode: 'all' | 'restricted'; viewerUserIds: string[] }
+    | { kind: 'folder'; folder: string | null; name: string }
+    | null
+  >(null);
 
   const attachmentsKey = ['client-attachments', client.id];
   const foldersKey = ['client-file-folders', client.id];
@@ -319,6 +339,49 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
   const foldersQuery = useQuery<FolderGroup[]>({
     queryKey: foldersKey,
     queryFn: async () => (await api.get<FolderGroup[]>(`/api/clients/${client.id}/files/folders`)).data,
+  });
+
+  // Candidate viewers = every active tenant member (same options the account-owner
+  // picker uses). Default ACL is "all members", so this list is only needed when
+  // someone opens Manage access.
+  const membersQ = useQuery<ClientAccountOwner[]>({
+    queryKey: ['client-account-owner-options'],
+    queryFn: async () =>
+      (await api.get<ClientAccountOwner[]>('/api/client-account-owners/options')).data,
+    staleTime: 5 * 60_000,
+  });
+
+  const setAccess = useMutation({
+    mutationFn: async (input: {
+      kind: 'file' | 'folder';
+      id?: string;
+      folder?: string | null;
+      viewerMode: 'all' | 'restricted';
+      viewerUserIds: string[];
+    }) => {
+      if (input.kind === 'file') {
+        return (
+          await api.patch(`/api/clients/${client.id}/files/${encodeURIComponent(input.id!)}/access`, {
+            viewerMode: input.viewerMode,
+            viewerUserIds: input.viewerUserIds,
+          })
+        ).data;
+      }
+      return (
+        await api.patch(`/api/clients/${client.id}/files/access/folder`, {
+          folder: input.folder ?? null,
+          viewerMode: input.viewerMode,
+          viewerUserIds: input.viewerUserIds,
+        })
+      ).data;
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: attachmentsKey }),
+        qc.invalidateQueries({ queryKey: foldersKey }),
+      ]);
+      setAccessTarget(null);
+    },
   });
 
   const loaded = filesQuery.data !== undefined && !filesQuery.isError;
@@ -738,6 +801,26 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
             <PfButton
               variant="link"
               style={{ fontSize: 13 }}
+              disabled={current.id === 'root' || current.folder === undefined}
+              onClick={() => {
+                if (current.id === 'root' || current.folder === undefined) return;
+                setAccessTarget({
+                  kind: 'folder',
+                  folder: current.folder,
+                  name: current.label,
+                });
+              }}
+              title={
+                current.id === 'root'
+                  ? 'Pick a folder first — All files is not a single access scope'
+                  : 'Choose who on the team can view files in this folder'
+              }
+            >
+              Access
+            </PfButton>
+            <PfButton
+              variant="link"
+              style={{ fontSize: 13 }}
               disabled={currentFolderIds.length === 0}
               onClick={() => requestMove(currentFolderIds)}
             >
@@ -921,6 +1004,16 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
                       setMenuRowId(null);
                       requestMove([row.id]);
                     }}
+                    onRequestAccess={() => {
+                      setMenuRowId(null);
+                      setAccessTarget({
+                        kind: 'file',
+                        id: row.id,
+                        name: row.name,
+                        viewerMode: row.viewerMode,
+                        viewerUserIds: row.viewerUserIds,
+                      });
+                    }}
                     onRequestDelete={() => {
                       setMenuRowId(null);
                       setDeletingId(row.id);
@@ -1014,6 +1107,43 @@ export function ClientCrmFilesProto({ client }: { client: Client }) {
           </CapiroButton>
         </div>
       </CapiroModal>
+      <ManageAccessModal
+        open={Boolean(accessTarget)}
+        target={accessTarget}
+        members={membersQ.data ?? []}
+        membersLoading={membersQ.isPending}
+        pending={setAccess.isPending}
+        error={
+          setAccess.isError
+            ? setAccess.error instanceof Error
+              ? setAccess.error.message
+              : 'Could not update access'
+            : null
+        }
+        onClose={() => {
+          setAccess.reset();
+          setAccessTarget(null);
+        }}
+        onSave={(viewerMode, viewerUserIds) => {
+          if (!accessTarget) return;
+          if (accessTarget.kind === 'file') {
+            setAccess.mutate({
+              kind: 'file',
+              id: accessTarget.id,
+              viewerMode,
+              viewerUserIds,
+            });
+          } else {
+            setAccess.mutate({
+              kind: 'folder',
+              folder: accessTarget.folder,
+              viewerMode,
+              viewerUserIds,
+            });
+          }
+        }}
+      />
+
     </div>
   );
 }
@@ -1280,6 +1410,7 @@ function FileRow({
   onToggleMenu,
   onCloseMenu,
   onRequestMove,
+  onRequestAccess,
   onRequestDelete,
 }: {
   row: FileRowModel;
@@ -1291,6 +1422,7 @@ function FileRow({
   onToggleMenu: () => void;
   onCloseMenu: () => void;
   onRequestMove: () => void;
+  onRequestAccess: () => void;
   onRequestDelete: () => void;
 }) {
   const [hover, setHover] = useState(false);
@@ -1426,6 +1558,7 @@ function FileRow({
               }}
             >
               <MenuItem onClick={onRequestMove}>Move to folder</MenuItem>
+              <MenuItem onClick={onRequestAccess}>Manage access</MenuItem>
               <MenuItem danger onClick={onRequestDelete}>
                 Delete
               </MenuItem>
@@ -1464,3 +1597,165 @@ function MenuItem({ children, danger = false, onClick }: { children: React.React
     </button>
   );
 }
+
+
+/**
+ * Who on the team can view a file or folder.
+ *
+ * Default is "All team members" (viewerMode='all') — every active tenant member
+ * sees the file. "Specific people" switches to restricted and lets the caller
+ * tick the members list; the server still always lets the uploader through.
+ * Folder mode rewrites every attachment currently carrying that folder label
+ * (folders are labels, not a table).
+ */
+function ManageAccessModal({
+  open,
+  target,
+  members,
+  membersLoading,
+  pending,
+  error,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  target:
+    | { kind: 'file'; id: string; name: string; viewerMode: 'all' | 'restricted'; viewerUserIds: string[] }
+    | { kind: 'folder'; folder: string | null; name: string }
+    | null;
+  members: ClientAccountOwner[];
+  membersLoading: boolean;
+  pending: boolean;
+  error: string | null;
+  onClose: () => void;
+  onSave: (viewerMode: 'all' | 'restricted', viewerUserIds: string[]) => void;
+}) {
+  const initialMode = target && target.kind === 'file' ? target.viewerMode : 'all';
+  const initialIds = target && target.kind === 'file' ? target.viewerUserIds : [];
+  const [mode, setMode] = useState<'all' | 'restricted'>(initialMode);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(initialIds));
+
+  // Reset local state whenever the target changes (modal re-opens).
+  useEffect(() => {
+    if (!open || !target) return;
+    if (target.kind === 'file') {
+      setMode(target.viewerMode);
+      setSelected(new Set(target.viewerUserIds));
+    } else {
+      setMode('all');
+      setSelected(new Set());
+    }
+  }, [open, target]);
+
+  if (!target) {
+    return <CapiroModal open={false} title="Manage access" onClose={onClose}>{null}</CapiroModal>;
+  }
+
+  const title = target.kind === 'file' ? `Access — ${target.name}` : `Folder access — ${target.name}`;
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  return (
+    <CapiroModal open={open} title={title} onClose={onClose}>
+      <p style={{ margin: 0, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+        {target.kind === 'file'
+          ? 'Choose who on your team can view this file. Everyone can view by default.'
+          : 'Choose who on your team can view files in this folder. Applies to every file currently filed here. Everyone can view by default.'}
+      </p>
+
+      <div role="radiogroup" aria-label="Who can view" style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#101828', cursor: 'pointer' }}>
+          <input
+            type="radio"
+            name="viewer-mode"
+            checked={mode === 'all'}
+            onChange={() => setMode('all')}
+          />
+          All team members
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#101828', cursor: 'pointer' }}>
+          <input
+            type="radio"
+            name="viewer-mode"
+            checked={mode === 'restricted'}
+            onChange={() => setMode('restricted')}
+          />
+          Specific people
+        </label>
+      </div>
+
+      {mode === 'restricted' ? (
+        <div
+          style={{
+            marginTop: 14,
+            maxHeight: 260,
+            overflowY: 'auto',
+            border: '1px solid #E8E5DF',
+            borderRadius: 8,
+            padding: 8,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+          }}
+        >
+          {membersLoading ? (
+            <div style={{ padding: 8, fontSize: 14, color: '#667085' }} aria-busy="true">Loading team…</div>
+          ) : members.length === 0 ? (
+            <div style={{ padding: 8, fontSize: 14, color: '#667085' }}>No team members found.</div>
+          ) : (
+            members.map((m) => {
+              const label = clientAccountOwnerLabel(m) ?? m.email;
+              const on = selected.has(m.id);
+              return (
+                <label
+                  key={m.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 10px',
+                    borderRadius: 6,
+                    background: on ? '#FAF9F6' : 'transparent',
+                    fontSize: 14,
+                    color: '#101828',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input type="checkbox" checked={on} onChange={() => toggle(m.id)} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 500 }}>{label}</span>
+                    <span style={{ display: 'block', fontSize: 12, color: '#667085' }}>{m.email}</span>
+                  </span>
+                </label>
+              );
+            })
+          )}
+        </div>
+      ) : null}
+
+      {error ? <p style={{ margin: '10px 0 0', fontSize: 14, color: '#B42318' }}>{error}</p> : null}
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <CapiroButton
+          variant="primary"
+          size="compact"
+          loading={pending}
+          disabled={mode === 'restricted' && selected.size === 0}
+          onClick={() => onSave(mode, mode === 'all' ? [] : [...selected])}
+        >
+          Save access
+        </CapiroButton>
+        <CapiroButton variant="secondary" size="compact" onClick={onClose}>
+          Cancel
+        </CapiroButton>
+      </div>
+    </CapiroModal>
+  );
+}
+
