@@ -89,9 +89,11 @@ and no consumer. Session 11 builds a NEW, separate read surface for system
   `--commit`-gated command that can move an expected source out of
   `review_required`. Calls the frozen `LifecycleStore.setExpectedSourceState`
   (the exact method the watcher itself uses) and separately writes one
-  `audit_logs` row. Refuses if the target item is no longer `review_required`
-  (idempotent-retry safety in place of a cross-store transaction — see the
-  script's own header for why).
+  `defense_budget_review_resolution` row (see the new migration below —
+  **not** `audit_logs`: the disposable-DB rehearsal found, empirically, that
+  `capiro_defense_job` has no grant on that table). Refuses if the target
+  item is no longer `review_required` (idempotent-retry safety in place of a
+  cross-store transaction — see the script's own header for why).
 - `app.module.ts` gains one new import and one new entry
   (`BudgetLifecycleProductModule`) — nothing else in this file changed.
 
@@ -111,30 +113,49 @@ and no consumer. Session 11 builds a NEW, separate read surface for system
   either omitting it (would read as "nothing can be done") or wiring a fake
   working button (would contradict §2's database boundary).
 
+### Migration (`apps/api/prisma`)
+- `20261218120000_phase8_session11_review_resolution_audit` — one new table,
+  `defense_budget_review_resolution`. **Discovered as genuinely necessary by
+  the disposable-DB rehearsal itself**, not planned upfront: the original
+  design wrote the resolution's audit trail to the general-purpose
+  `audit_logs` table, and the rehearsal's real role-boundary checks proved
+  `capiro_defense_job` has no INSERT grant there (that table serves the
+  older PE-Budget-Phase-7 admin flows on the HTTP/serve path). The new table
+  follows Session 9's exact append-only precedent
+  (`defense_provider_invocation`): `capiro_defense_job` gets SELECT+INSERT,
+  `capiro_defense_serve` gets SELECT only, neither gets UPDATE/DELETE. This
+  is the only schema change in this session — no Session 7-10 table or
+  migration was touched.
+
 ### Verification artifacts
 - `scripts/verify-phase8-session11.mjs` — static verifier: frozen 49 routes
   intact, Session 11's own route table separate and all-GET, no reference to
   `LIFECYCLE_STORE`/write methods from the new HTTP-reachable files, zero
   diff against `origin/main` under `apps/defense-api/src/budget-lifecycle`,
   no GPU/NVIDIA/promoter credential, the CLI is fail-closed and never
-  auto-invoked with `--commit`.
+  auto-invoked with `--commit` (scoped to exclude the known rehearsal/CI
+  harness files that deliberately exercise `--commit` as part of proving
+  the boundary).
 - `scripts/test-phase8-session11-domain.mjs` — 10 tests for
   `buildScheduleTickHealth`.
 - `apps/defense-api/src/budget-lifecycle-product/budget-lifecycle-query.service.spec.ts` —
   6 tests over an in-memory double.
-- `scripts/verify-phase8-session11-db.sh` (+ `.mjs` wrapper) — disposable
-  Postgres rehearsal: role-boundary proof (serve SELECT-only on every table
-  this session touches, job unchanged), the REAL compiled query service
-  against a seeded FY2027 scenario (`scripts/verify-phase8-session11-integration.mjs`),
-  and the review-resolution CLI end-to-end (list → dry run → authorised
-  commit → refused repeat).
+- `scripts/seed-phase8-session11-corpus.mjs` — seeds a historically-grounded,
+  two-fiscal-year rehearsal corpus (FY2027 request/authorization/
+  appropriations/alternative-funding + FY2028 authorization/appropriations),
+  with document titles and structure adapted from the real Session 7 FY2024
+  fixture corpus (`testing/fixture-ports.ts`), same technique Session 10
+  used for its own merge-gate proof.
+- `scripts/verify-phase8-session11-integration.mjs` — 20 real, DB-backed
+  proofs: see §5.
+- `scripts/verify-phase8-session11-db.sh` (+ `.mjs` wrapper) — orchestrates
+  the disposable-Postgres rehearsal end to end (migrate, rehearsal roles,
+  build, seed, run the integration proof).
 - `.github/workflows/phase8-session11-product-integration.yml`.
 - `docs/runbooks/defense-budget-lifecycle-product-v1.md`.
 
 ## 4. What was NOT built, and why
 
-- **No migration, no schema.prisma change.** Every read is a SELECT over
-  tables Sessions 7-10 already created; nothing new needed to be stored.
 - **No signal persistence.** `defense_budget_lifecycle_signal` still has no
   writer — signals are computed read-time, per request, from stored
   observation history.
@@ -144,37 +165,79 @@ and no consumer. Session 11 builds a NEW, separate read surface for system
   provisioning/restart. Session 5's `NVIDIA_NOT_ADOPTED` decision is
   unmodified and unread by anything this session adds.
 
-## 5. Disclosed limitation: the disposable-database rehearsal was not run
+## 5. The disposable-database rehearsal: SESSION11_DB_REHEARSAL_PASS (20/20)
 
-**Docker Desktop could not be started in this sandboxed session.** The
-`docker` CLI is present, but the daemon is unreachable
-(`npipe:////./pipe/dockerDesktopLinuxEngine`), the GUI process never spawns
-under `Start-Process`, and the `docker-desktop` WSL2 distro is `Stopped` with
-no backend init script reachable from a non-interactive shell. This is an
-**environment limitation of this specific sandbox**, not a defect in the
-rehearsal script or the code it exercises — a prior session's own memory
-confirms Docker-backed Postgres rehearsals have run successfully against this
-exact repo before.
+**Docker Desktop would not start in this sandbox** (daemon unreachable via
+the npipe, GUI process never spawns, the `docker-desktop` WSL2 distro's
+backend never initializes). Rather than treat that as a hard stop, a fresh
+Ubuntu-24.04 WSL2 distro was installed and given its own native `docker.io`
+engine (no Docker Desktop involved) — a genuinely disposable, non-production
+Docker environment, and every prior session's own `verify-phase8-sessionN-db.sh`
+runs UNMODIFIED and self-managed inside it, exactly as designed.
 
-Concretely, this means:
-- `scripts/verify-phase8-session11-db.sh`/`.mjs` and
-  `scripts/verify-phase8-session11-integration.mjs` are written, reviewed
-  against the exact seeded-data arithmetic they assert, and structured
-  identically to Session 10's own proven rehearsal — but **were not
-  executed** in this session.
-- The regression re-run of prior sessions' OWN disposable-DB rehearsals (S7
-  DB, S8 DB 51/51, S9 DB 43/43, S10 DB 39/39) could **not** be repeated here
-  for the same reason. Every other regression gate in §7 below (all static
-  verifiers, all domain unit tests, all runtime specs, both `prisma
-  validate`, `git diff --check`, the `apps/api` 16-error baseline) WAS
-  actually executed and is reported honestly.
-- Everything achievable without a live database — the read store's SQL
-  (hand-verified against the exact migration column definitions), the query
-  service's composition logic (unit-tested against an in-memory double, 6/6),
-  the domain aggregator (10/10), the CLI's argument/authorization gating
-  (exercised directly, all three refusal paths confirmed) — was verified.
+Against that environment, `scripts/verify-phase8-session11-db.sh` (self-managed
+`pgvector/pgvector:pg16` container) ran the full sequence and produced
+**`SESSION11_DB_REHEARSAL_PASS` (20 checks)**, via
+`scripts/verify-phase8-session11-integration.mjs`, proving — against real
+`p8s11_serve_rehearsal`/`p8s11_job_rehearsal` LOGIN roles that inherit
+`capiro_defense_serve`/`capiro_defense_job`, and the REAL compiled
+`BudgetLifecycleQueryService` — every item required:
 
-This is reported as `SESSION11_NOT_READY` for that reason alone; see §8.
+1. all six read routes return results that reflect the seeded corpus (not
+   just that rows exist): FY2027 cycle health (4 expected sources, 2
+   published, 1 review_required, 1 not_filed), FY2028 cycle health proving
+   two **overlapping fiscal years** with **independent** authorization/
+   appropriations tracks, an expected-sources list spanning 3+ stages, an
+   expected-source detail exposing **current vs superseded** observation
+   state (the HASC report's corrected version), the review queue with full
+   **provenance** (URL, sha256, reasons), signals referencing the CURRENT
+   observation (not the superseded one), and schedule-tick health reporting
+   both a healthy and a failed tick;
+2. reading a `review_required` item — even twice — never changes its state
+   or its `updated_at`;
+3. `capiro_defense_serve` is refused (measured, `permission denied`) on
+   UPDATE/INSERT/DELETE against the control-plane tables, **and specifically
+   on the exact UPDATE statement a resolution would issue** — the read
+   surface cannot resolve a review even if coerced into trying;
+4. a full-table snapshot hash is byte-identical before and after running
+   every one of the six read routes — no lease, no adapter call, no
+   promotion, no write, from any read;
+5. `run-review-resolution.mjs` without `--commit` performs zero writes
+   (snapshot hash AND resolution-audit row count both unchanged);
+6. a `--commit` attempt using **serve** credentials is denied by the
+   database itself (not merely by the missing authorization flag);
+7. the governed **job**-role commit succeeds and changes **exactly** the
+   target `defense_budget_expected_source` row plus one new
+   `defense_budget_review_resolution` row — a full pre/post row-diff over
+   every table proves nothing else changed;
+8. the resolved row reads back as `published` with `review_reason` cleared,
+   and exactly one resolution record captures the before/after transition;
+9. the very next read reflects the resolution: gone from the review queue,
+   `published` in the detail view, with the original observation history
+   (provenance) still intact;
+10. a repeat resolution attempt on the now-published item is refused
+    (`not 'review_required'`), not double-applied — confirmed by the
+    resolution-audit row count staying at exactly 1.
+
+Immediately afterward, every PRIOR session's own, **unmodified**
+disposable-DB rehearsal was re-run in the same environment:
+**S7 `SESSION7_DB_REHEARSAL_PASS` (63/63)**, **S8 `SESSION8_DB_REHEARSAL_PASS`
+(51/51)**, **S9 `SESSION9_DB_REHEARSAL_PASS` (43/43)**, **S10
+`SESSION10_DB_REHEARSAL_PASS` (39/39)** — all matching their documented
+baselines exactly. (One transient container-startup race on the first S7
+attempt — a `psql` connection to a just-published port closed before the
+container's TCP listener was fully ready — resolved cleanly on retry with
+zero script changes; not a defect.)
+
+Two real bugs were found and fixed by this rehearsal, not before it:
+- The original `audit_logs`-based design for the resolution record didn't
+  account for `capiro_defense_job` lacking a grant on that table (§3's new
+  migration fixes this).
+- `nest build`'s `deleteOutDir: true` plus a stale `tsconfig.tsbuildinfo`
+  silently produced an empty `dist/` (exit 0, no files) when `nest build`
+  was invoked without the `rm -f tsconfig.tsbuildinfo` step the real
+  `package.json` "build" script always does first — now done explicitly in
+  the rehearsal script too.
 
 ## 6. Product correctness — what the read model represents
 
@@ -222,8 +285,11 @@ S10 PASS (static)                          SESSION10_SCHEDULE_CONTROL_PLANE_PASS
 S11 domain 10/10                           PASS (buildScheduleTickHealth)
 S11 query-service spec 6/6                 PASS
 S11 PASS (static)                          SESSION11_PRODUCT_INTEGRATION_PASS
-S8 DB rehearsal / S9 DB 43/43 / S10 DB 39/39   NOT RE-RUN — Docker unavailable in this sandbox (§5)
-S11 DB rehearsal                           NOT RUN — same reason (§5); script written and ready
+S7 DB rehearsal 63/63                      PASS (re-run, native WSL2 Docker, no Docker Desktop)
+S8 DB rehearsal 51/51                      PASS (re-run)
+S9 DB rehearsal 43/43                      PASS (re-run)
+S10 DB rehearsal 39/39                     PASS (re-run)
+S11 DB rehearsal 20/20                     PASS — see §5 for the full checklist mapping
 defense-api typecheck + build              PASS (clean)
 apps/web typecheck                         PASS (clean, whole app)
 apps/web tests (this module + full VNextRouter suite)  61/61 PASS, zero regressions
@@ -239,12 +305,11 @@ git diff --check                           clean
 pnpm verify:phase8-session11
 pnpm verify:phase8-session11:domain
 pnpm verify:phase8-session11:runtime
-pnpm verify:phase8-session11:db   # requires a working Docker daemon
+pnpm verify:phase8-session11:db   # requires a working Docker daemon (Docker Desktop or plain docker.io)
 ```
 
-**`SESSION11_NOT_READY`** — the disposable-database rehearsal (§5) was not
-executed in this session. Every other gate in §7 is real and green. This is
-not a code defect; re-run `pnpm verify:phase8-session11:db` in an environment
-with a working Docker daemon before declaring the session complete.
+**`SESSION11_COMPLETE`** — every acceptance criterion in §5-§7 is green,
+including the disposable-database rehearsal against real serve/job LOGIN
+roles and the full S7-S10 DB regression re-run. Draft PR only; not merged.
 
 **Do not merge until separately authorised.**

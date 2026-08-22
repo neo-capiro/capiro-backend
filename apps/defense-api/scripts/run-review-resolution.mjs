@@ -161,18 +161,17 @@ try {
     reviewReason: null,
   });
 
-  await prisma.auditLog.create({
-    data: {
-      tenantId,
-      actorUserId,
-      actorRole: 'capiro_admin',
-      action: 'defenseBudgetLifecycle.reviewQueue.resolve',
-      entityType: 'defense_budget_expected_source',
-      entityId: expectedSourceId,
-      before: { expectedState: current.expectedState, reviewReason: current.reviewReason },
-      after: { expectedState: decision, reviewReason: null, note },
-    },
-  });
+  // Append-only, job-role-only (Session 11's own migration): `audit_logs`
+  // has no INSERT grant for capiro_defense_job (that table's grants serve
+  // the older PE-Budget-Phase-7 admin flows on the HTTP/serve path), so this
+  // resolution needs its own narrow record — same precedent as Session 9's
+  // `defense_provider_invocation`.
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO defense_budget_review_resolution
+       (expected_source_id, previous_expected_state, decision, review_reason_before, note, actor_user_id, tenant_id)
+     VALUES ($1::uuid, $2, $3, $4, $5, $6::uuid, $7::uuid)`,
+    expectedSourceId, current.expectedState, decision, current.reviewReason, note, actorUserId, tenantId,
+  );
 
   console.log('SESSION11_REVIEW_RESOLUTION_COMMITTED');
   process.exit(0);

@@ -39,7 +39,12 @@ HTTP one.
   in as either — that cutover is still deferred, exactly as Session 2's own
   closeout recorded. This session's read/write split is a design boundary
   today, backed by real grants once the cutover lands; it is not yet
-  mechanically enforced by the live connection.
+  mechanically enforced by the live connection. The disposable-DB rehearsal
+  (§5) proves the boundary against real `capiro_defense_serve`/
+  `capiro_defense_job` LOGIN roles that inherit those grants — the same
+  method every prior Phase 8 session's own rehearsal uses — so the grants
+  themselves are proven correct even though the live connection isn't
+  repointed yet.
 
 ## 3. The read API
 
@@ -99,11 +104,17 @@ already resolved (refuses loudly).
 The write itself calls the frozen Session 7
 `LifecycleStore.setExpectedSourceState` — the exact method the watcher
 itself uses to move a source INTO review — and separately writes one
-`audit_logs` row (`action = 'defenseBudgetLifecycle.reviewQueue.resolve'`,
-`before`/`after` capturing the state transition and the operator's note).
-The two writes are not one database transaction; see the script's own header
-comment for why, and why the precondition re-check makes that an acceptable,
-disclosed limitation rather than a silent risk.
+`defense_budget_review_resolution` row (its own migration,
+`20261218120000_phase8_session11_review_resolution_audit`: append-only,
+`capiro_defense_job` SELECT+INSERT, `capiro_defense_serve` SELECT only,
+same precedent as Session 9's `defense_provider_invocation`). **This table
+exists because the disposable-DB rehearsal found, empirically, that
+`capiro_defense_job` has no grant on the general-purpose `audit_logs` table**
+— that table's grants serve the older PE-Budget-Phase-7 admin flows on the
+HTTP/serve path, not this session's job-role CLI. The two writes (the state
+transition and the resolution record) are not one database transaction; see
+the script's own header comment for why, and why the precondition re-check
+makes that an acceptable, disclosed limitation rather than a silent risk.
 
 ## 5. Verification commands
 
@@ -111,5 +122,21 @@ disclosed limitation rather than a silent risk.
 pnpm verify:phase8-session11          # static structural gate
 pnpm verify:phase8-session11:domain   # buildScheduleTickHealth unit tests
 pnpm verify:phase8-session11:runtime  # BudgetLifecycleQueryService spec
-pnpm verify:phase8-session11:db       # disposable-Postgres rehearsal
+pnpm verify:phase8-session11:db       # disposable-Postgres rehearsal (20/20 checks, last run 2026-08-21)
 ```
+
+The disposable-DB rehearsal seeds a historically-grounded, two-fiscal-year
+corpus (FY2027 request/authorization/appropriations/alternative-funding +
+FY2028 authorization/appropriations, text adapted from the real Session 7
+FY2024 fixture corpus) and proves, against real `capiro_defense_serve`/
+`capiro_defense_job` LOGIN roles and the REAL compiled
+`BudgetLifecycleQueryService`: all six read routes reflect the seeded
+lifecycle truth (including two overlapping fiscal years with independent
+tracks, current-vs-superseded observation state, and a review_required item
+with full provenance); `capiro_defense_serve` is refused on every write path
+including the exact resolution UPDATE statement; a full-table snapshot
+proves no read anywhere mutates any table; the CLI's dry run writes nothing;
+a `--commit` under serve credentials is denied by the database itself; the
+job-role commit changes exactly the target row and writes exactly one
+resolution record; the very next read reflects the resolution with
+provenance intact; and a repeat resolution is refused, not double-applied.

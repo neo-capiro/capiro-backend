@@ -11349,3 +11349,19 @@ model DefenseBudgetScheduleTick {
   @@index([outcome], map: "dbst_outcome_idx")
   @@map("defense_budget_schedule_tick")
 }
+
+model DefenseBudgetReviewResolution {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expectedSourceId       String   @map("expected_source_id") @db.Uuid
+  previousExpectedState  String   @map("previous_expected_state")
+  decision               String
+  reviewReasonBefore     String?  @map("review_reason_before")
+  note                   String
+  actorUserId            String   @map("actor_user_id") @db.Uuid
+  tenantId               String   @map("tenant_id") @db.Uuid
+  resolvedAt             DateTime @default(now()) @map("resolved_at") @db.Timestamptz(6)
+
+  @@index([expectedSourceId, resolvedAt(sort: Desc)], map: "dbrr_expected_source_idx")
+  @@index([tenantId, resolvedAt(sort: Desc)], map: "dbrr_tenant_idx")
+  @@map("defense_budget_review_resolution")
+}
