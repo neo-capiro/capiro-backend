@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import type { OutreachV3GenerationPlan } from './outreach-v3-generation-plan.js';
 
 export const OUTREACH_V3_APPROACH_GATE_VERSION = 'outreach_v3_approach_gate_v1' as const;
+export const OUTREACH_V3_REVIEW_PACKET_GATE_VERSION =
+  'outreach_v3_review_packet_gate_v1' as const;
 
 export const OUTREACH_V3_APPROACH_BLOCKER_CODES = [
   'GENERATION_PLAN_NOT_ELIGIBLE',
@@ -25,8 +27,24 @@ export interface OutreachV3SampleVersionRef {
   generationStatus: string;
 }
 
+/**
+ * A human generation gate for one exact Campaign Spec and generation plan.
+ *
+ * `outreach_v3_approach_gate_v1` proves the user reviewed the exact immutable
+ * representative sample versions listed here.
+ *
+ * `outreach_v3_review_packet_gate_v1` proves the user reviewed and accepted
+ * the exact input packet before any model output existed. It intentionally
+ * carries an empty `sampleVersions` array. Final generated draft versions still
+ * require their normal exact-version approval before test or real sending.
+ *
+ * The interface name and `sampleSetHash` field are retained for durable-job
+ * compatibility; `gateVersion` is the semantic authority.
+ */
 export interface OutreachV3ApproachApprovalSnapshot {
-  gateVersion: typeof OUTREACH_V3_APPROACH_GATE_VERSION;
+  gateVersion:
+    | typeof OUTREACH_V3_APPROACH_GATE_VERSION
+    | typeof OUTREACH_V3_REVIEW_PACKET_GATE_VERSION;
   sessionId: string;
   stateVersion: number;
   specHash: string;
@@ -110,25 +128,77 @@ export function createOutreachV3ApproachApprovalSnapshot(
   };
 }
 
-/** Approval is invalidated by any canonical-state/plan or sample-version change. */
+/**
+ * Create the human approval captured on the guided workflow's review-packet
+ * screen. The hash binds the decision to the complete canonical plan; any
+ * upstream change makes it stale before a worker can generate another slot.
+ */
+export function createOutreachV3ReviewPacketApprovalSnapshot(
+  plan: OutreachV3GenerationPlan,
+): OutreachV3ApproachApprovalSnapshot {
+  if (!plan.eligible) {
+    throw new Error('OUTREACH_V3_REVIEW_PACKET_NOT_ELIGIBLE:plan');
+  }
+  const base = {
+    gateVersion: OUTREACH_V3_REVIEW_PACKET_GATE_VERSION,
+    sessionId: plan.sessionId,
+    stateVersion: plan.stateVersion,
+    specHash: plan.specHash,
+    planHash: plan.planHash,
+    // Historical field name retained so queued-job JSON remains compatible.
+    // For this gate it hashes the exact reviewed input packet, not output samples.
+    sampleSetHash: hashReviewPacket(plan),
+    sampleVersions: [] as OutreachV3SampleVersionRef[],
+  };
+  return {
+    ...base,
+    approvalHash: sha256(JSON.stringify(base)),
+  };
+}
+
+/**
+ * Approval is invalidated by any canonical-state/plan change. Exact sample
+ * approvals additionally bind every sample to the current plan; review-packet
+ * approvals must remain output-free.
+ */
 export function isOutreachV3ApproachApprovalCurrent(
   plan: OutreachV3GenerationPlan,
   approval: OutreachV3ApproachApprovalSnapshot | null,
 ): boolean {
+  if (
+    !approval ||
+    !Array.isArray(approval.sampleVersions) ||
+    approval.sessionId !== plan.sessionId ||
+    approval.stateVersion !== plan.stateVersion ||
+    approval.specHash !== plan.specHash ||
+    approval.planHash !== plan.planHash
+  ) {
+    return false;
+  }
+
+  if (approval.gateVersion === OUTREACH_V3_REVIEW_PACKET_GATE_VERSION) {
+    return (
+      approval.sampleVersions.length === 0 &&
+      approval.sampleSetHash === hashReviewPacket(plan)
+    );
+  }
+
   return Boolean(
-    approval &&
     approval.gateVersion === OUTREACH_V3_APPROACH_GATE_VERSION &&
-    approval.sessionId === plan.sessionId &&
-    approval.stateVersion === plan.stateVersion &&
-    approval.specHash === plan.specHash &&
-    approval.planHash === plan.planHash &&
-    approval.sampleVersions.every((sample) => sample.planHash === plan.planHash),
+      approval.sampleVersions.length > 0 &&
+      approval.sampleVersions.every((sample) => sample.planHash === plan.planHash),
   );
 }
 
+export function isOutreachV3ReviewPacketApproval(
+  approval: OutreachV3ApproachApprovalSnapshot | null,
+): boolean {
+  return approval?.gateVersion === OUTREACH_V3_REVIEW_PACKET_GATE_VERSION;
+}
+
 /**
- * Full generation resumes only unfinished slots and only after the exact sample
- * approach is approved. Completed sample versions are never regenerated merely
+ * Full generation resumes only unfinished slots and only after a current human
+ * generation gate. Completed immutable versions are never regenerated merely
  * because the batch resumes.
  */
 export function remainingOutreachV3GenerationKeys(
@@ -165,6 +235,18 @@ function hashSamples(samples: readonly OutreachV3SampleVersionRef[]): string {
         generationStatus: sample.generationStatus,
       })),
     ),
+  );
+}
+
+function hashReviewPacket(plan: OutreachV3GenerationPlan): string {
+  return sha256(
+    JSON.stringify({
+      gateVersion: OUTREACH_V3_REVIEW_PACKET_GATE_VERSION,
+      sessionId: plan.sessionId,
+      stateVersion: plan.stateVersion,
+      specHash: plan.specHash,
+      planHash: plan.planHash,
+    }),
   );
 }
 

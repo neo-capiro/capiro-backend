@@ -46,6 +46,7 @@ describe('Outreach V3 governed generation architecture', () => {
     expect(controller).toContain("@Get('plan')");
     expect(controller).toContain("@Post('samples')");
     expect(controller).toContain("@Post('approach-approval')");
+    expect(controller).toContain("@Post('review-packet-approval')");
     expect(controller).toContain("@Post('full')");
     expect(controller).toContain("@Get('jobs/:jobId')");
     expect(controller).toContain("@Post('jobs/:jobId/cancel')");
@@ -94,16 +95,21 @@ describe('Outreach V3 governed generation architecture', () => {
     }
   });
 
-  it('keeps approach approval exact and invalidates it after sample version changes', () => {
+  it('keeps sample approval exact and review-packet approval output-free', () => {
     const approval = readApi('src/outreach-v3/generation/outreach-v3-approach-approval.service.ts');
+    const contract = readApi('src/outreach-v3/generation/outreach-v3-generation-approach.ts');
     const decision = readApi('src/outreach-v3/services/outreach-user-decision-event.service.ts');
     const reasoning = readApi('src/outreach-v3/reasoning/outreach-reasoning.service.ts');
     expect(approval).toContain("eventType: 'approach_approved'");
+    expect(approval).toContain("eventType: 'review_packet_approved'");
     expect(approval).toContain('loadVersionContextPacketId');
     expect(approval).toContain('current.id === sample.versionId');
     expect(approval).toContain('current.contentHash === sample.contentHash');
     expect(approval).toContain('payloadHash: approval.approvalHash');
+    expect(contract).toContain("'outreach_v3_review_packet_gate_v1'");
+    expect(contract).toContain('sampleVersions: []');
     expect(decision).toContain("'approach_approved'");
+    expect(decision).toContain("'review_packet_approved'");
     expect(decision).toContain('session.currentStateVersion !== input.expectedStateVersion');
     expect(reasoning).not.toContain('OutreachV3ApproachApprovalService');
     expect(reasoning).not.toContain('OutreachV3FullGenerationService');
@@ -146,10 +152,11 @@ describe('Outreach V3 governed generation architecture', () => {
     expect(manifest.featureFlag).toBe('OUTREACH_V3_GENERATION_ENABLED');
     expect(manifest.fullGenerationFlag).toBe('OUTREACH_V3_FULL_GENERATION_ENABLED');
     expect(manifest.disabledBehavior).toBe(404);
-    // 8 routes on OutreachV3GenerationController: plan, generateSamples,
-    // getApproachApproval, approveApproach, startFullGeneration,
-    // getFullGenerationJob, cancelFullGenerationJob, retryFullGenerationItem.
-    expect(manifest.routes).toHaveLength(8);
+    // 9 routes on OutreachV3GenerationController: plan, generateSamples,
+    // getApproachApproval, approveApproach, approveReviewPacket,
+    // startFullGeneration, getFullGenerationJob, cancelFullGenerationJob,
+    // retryFullGenerationItem.
+    expect(manifest.routes).toHaveLength(9);
     expect(manifest.routes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ method: 'POST', handler: 'generateSamples', maxSlots: 3 }),
@@ -157,6 +164,12 @@ describe('Outreach V3 governed generation architecture', () => {
           method: 'POST',
           handler: 'approveApproach',
           humanDecisionOnly: true,
+        }),
+        expect.objectContaining({
+          method: 'POST',
+          handler: 'approveReviewPacket',
+          humanDecisionOnly: true,
+          acceptsClientFields: false,
         }),
         expect.objectContaining({
           method: 'POST',
@@ -175,6 +188,7 @@ describe('Outreach V3 governed generation architecture', () => {
       representativeSamples: true,
       draftWrite: true,
       approachApproval: true,
+      reviewPacketApproval: true,
       fullGeneration: true,
       fullGenerationAsyncOnly: true,
       preflight: false,

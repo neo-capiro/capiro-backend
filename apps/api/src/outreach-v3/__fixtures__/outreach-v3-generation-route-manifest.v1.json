@@ -30,6 +30,13 @@
     },
     {
       "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/review-packet-approval",
+      "handler": "approveReviewPacket",
+      "humanDecisionOnly": true,
+      "acceptsClientFields": false
+    },
+    {
+      "method": "POST",
       "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/full",
       "handler": "startFullGeneration",
       "asyncOnly": true
@@ -56,6 +63,7 @@
     "representativeSamples": true,
     "draftWrite": true,
     "approachApproval": true,
+    "reviewPacketApproval": true,
     "fullGeneration": true,
     "fullGenerationAsyncOnly": true,
     "preflight": false,

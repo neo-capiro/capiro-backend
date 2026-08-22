@@ -1,23 +1,14 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Check, ExternalLink, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, ExternalLink } from 'lucide-react';
 import { useApi } from '../../../../lib/use-api.js';
 import type { Client } from '../../../clients/clientTypes.js';
 import { createOutreachV3Session, safeOutreachV3Error } from './outreach-v3-api.js';
 import type { OutreachSenderInbox } from '../v2/NewOutreachWizard.js';
-import {
-  VNextOutreachWorkspace,
-  type EngagementOutreachStep,
-} from '../../../../vnext/pages/engagement/VNextOutreachWorkspace.js';
+import { VNextOutreachPhase1Workspace } from '../../../../vnext/pages/engagement/VNextOutreachPhase1Workspace.js';
+import type { EngagementOutreachStep } from '../../../../vnext/pages/engagement/VNextOutreachWorkspace.js';
 import '../../../../vnext/pages/engagement/engagement.css';
 import '../../../../vnext/pages/engagement/engagement-ui-closeout.css';
-// TargetWorkspace (rendered inside VNextOutreachWorkspace below) uses
-// `.eng-pill` for signal pills and the Saved Audiences count pill; this is
-// the tone-table stylesheet that defines those classes. engagement.css and
-// engagement-ui-closeout.css were already loaded here — this one was missing,
-// which would have left those pills unstyled whenever Outreach is reached
-// through this adapter route instead of the standalone /engagement/outreach
-// page (which gets it from VNextEngagementRoutes.tsx).
 import '../../../../vnext/pages/engagement/engagement-tones.css';
 
 export interface OutreachV3CompleteRouteProps {
@@ -44,11 +35,11 @@ function normalizeProvider(provider: string): string {
 }
 
 /**
- * Canonical Engagement host for the completed Outreach V3 workbench.
+ * Canonical Engagement host for a new Outreach V3 campaign.
  *
- * Meetings and Reports remain rendered by EngagementPage on both domains. Only
- * a new native V3 campaign enters this adapter; existing V2 records remain in
- * Classic Outreach through OutreachWizardRouter.
+ * This adapter now mounts the same template-first setup and governed
+ * draft/test/send spine as the vNext Outreach route. Existing V2 records remain
+ * in Classic Outreach through OutreachWizardRouter.
  */
 export function OutreachV3CompleteRoute({
   clients,
@@ -65,20 +56,9 @@ export function OutreachV3CompleteRoute({
   const [step, setStep] = useState<EngagementOutreachStep>('goal');
 
   /**
-   * This host owns session creation.
-   *
-   * `VNextOutreachWorkspace` no longer creates a campaign for itself — on the
-   * vNext surface that job belongs to the Outreach home screen. This canonical
-   * host is only ever reached from Classic Outreach's explicit "new campaign"
-   * action (`OutreachWizardRouter` only routes here when there is no existing
-   * classic draft), so creating one on entry is exactly what the user asked
-   * for.
-   *
-   * `staleTime: Infinity` is load-bearing, not a cache tweak: this queryFn
-   * POSTs. A stale query would refetch on window focus and silently create a
-   * second campaign every time the user tabbed back. `gcTime: 0` is the other
-   * half — leaving and re-entering V3 is a NEW campaign, not a resurrected
-   * cache entry.
+   * This host owns session creation. `staleTime: Infinity` prevents a focus
+   * refetch from silently creating a second campaign, while `gcTime: 0` makes
+   * an explicit return to this route start a genuinely new campaign.
    */
   const session = useQuery({
     queryKey: ['outreach-v3', 'complete-route-session'],
@@ -113,13 +93,20 @@ export function OutreachV3CompleteRoute({
     <div className="capiro-vnext-root outreach-v3-complete-host">
       <section className="engagement-vnext">
         <header className="outreach-v3-route-toolbar">
-          <button type="button" className="outreach-v3-route-toolbar__back" onClick={onCancel}>
+          <button
+            type="button"
+            className="outreach-v3-route-toolbar__back"
+            onClick={onCancel}
+          >
             <ArrowLeft size={15} />
             Outreach
           </button>
           <div className="outreach-v3-route-toolbar__copy">
             <strong>New governed campaign</strong>
-            <span>Goal · targets · delivery · context · immutable drafts · preflight · send</span>
+            <span>
+              Workflow · name · sponsor · Directory targets · client context ·
+              review · drafts · test · send
+            </span>
           </div>
           <span className="outreach-v3-route-toolbar__spacer" />
           <div className="outreach-v3-route-toolbar__status">
@@ -129,7 +116,11 @@ export function OutreachV3CompleteRoute({
               </span>
             ) : null}
             {connectionWarning ? (
-              <span className="uui-state-pill" data-tone="warning" title={connectionWarning}>
+              <span
+                className="uui-state-pill"
+                data-tone="warning"
+                title={connectionWarning}
+              >
                 Mailbox review
               </span>
             ) : null}
@@ -152,16 +143,13 @@ export function OutreachV3CompleteRoute({
           </div>
         </header>
         {session.data ? (
-          <VNextOutreachWorkspace
+          <VNextOutreachPhase1Workspace
             sessionId={session.data.session.id}
             clients={clients}
             selectedClientId={selectedClientId}
             integrations={integrations}
             step={step}
             onStepChange={setStep}
-            // There is no campaign list on this canonical host — leaving the
-            // builder here means leaving Outreach V3, which is what Cancel
-            // already does.
             onExit={onCancel}
           />
         ) : session.isError ? (
@@ -169,7 +157,11 @@ export function OutreachV3CompleteRoute({
             <strong>The campaign workspace could not be created</strong>
             <p>{safeOutreachV3Error(session.error)}</p>
             <div className="uui-engagement-error__actions">
-              <button type="button" className="uui-button" onClick={onOpenClassic}>
+              <button
+                type="button"
+                className="uui-button"
+                onClick={onOpenClassic}
+              >
                 Open Classic Outreach
               </button>
               <button

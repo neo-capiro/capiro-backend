@@ -7,7 +7,9 @@ import { OutreachUserDecisionEventService } from '../services/outreach-user-deci
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
 import {
   createOutreachV3ApproachApprovalSnapshot,
+  createOutreachV3ReviewPacketApprovalSnapshot,
   isOutreachV3ApproachApprovalCurrent,
+  isOutreachV3ReviewPacketApproval,
   type OutreachV3ApproachApprovalSnapshot,
   type OutreachV3SampleVersionRef,
 } from './outreach-v3-generation-approach.js';
@@ -21,6 +23,16 @@ export interface OutreachV3ApproachApprovalResult {
   eventId: string;
   eventSequence: string;
   idempotent: boolean;
+}
+
+export interface OutreachV3ReviewPacketApprovalResult extends OutreachV3ApproachApprovalResult {
+  /**
+   * Existing workers load the historical approach-approved stream. This second
+   * bounded marker carries the review-packet gateVersion and no sample ids;
+   * the separate primary event remains the truthful audit decision.
+   */
+  compatibilityEventId: string;
+  compatibilityEventSequence: string;
 }
 
 @Injectable()
@@ -161,6 +173,79 @@ export class OutreachV3ApproachApprovalService {
     };
   }
 
+  /**
+   * Record the guided workflow's explicit acceptance of the exact review
+   * packet. This is not sample approval: it carries no draft ids or bodies and
+   * cannot approve a final version. It authorizes asynchronous draft generation
+   * only while this exact Campaign Spec/plan remains current.
+   */
+  async approveReviewPacket(
+    ctx: TenantContext,
+    sessionId: string,
+  ): Promise<OutreachV3ReviewPacketApprovalResult> {
+    const current = await this.sessions.getSession(ctx, sessionId);
+    if (current.session.status !== 'active') {
+      throw new OutreachCommandError(
+        'OUTREACH_SESSION_ARCHIVED',
+        'Archived outreach sessions cannot accept review-packet approval.',
+        409,
+      );
+    }
+    const plan = buildOutreachV3GenerationPlan({
+      sessionId,
+      stateVersion: current.currentStateVersion,
+      specHash: current.specHash,
+      spec: current.spec,
+      readiness: current.readiness,
+      pendingProposalCount: current.pendingProposalCount,
+    });
+    if (!plan.eligible) {
+      throw new OutreachCommandError(
+        'OUTREACH_COMMAND_BLOCKED',
+        'Complete the review packet before authorizing draft generation.',
+        409,
+        { reason: 'generation_plan_not_eligible' },
+      );
+    }
+
+    const approval = createOutreachV3ReviewPacketApprovalSnapshot(plan);
+    // Truthful audit event first. If the compatibility append fails, a retry is
+    // safe and generation remains blocked until both durable markers exist.
+    const committed = await this.decisions.append(ctx, sessionId, {
+      eventType: 'review_packet_approved',
+      expectedStateVersion: plan.stateVersion,
+      payloadHash: approval.approvalHash,
+      safeMetadata: {
+        schemaVersion: approval.gateVersion,
+        decisionMeaning: 'review_packet_accepted_for_draft_generation',
+        approval,
+      },
+    });
+    // The existing async worker intentionally reads only the established
+    // approach-approved stream. Preserve that durable contract while the
+    // gateVersion makes the different human decision explicit and fail-closed.
+    const compatibility = await this.decisions.append(ctx, sessionId, {
+      eventType: 'approach_approved',
+      expectedStateVersion: plan.stateVersion,
+      payloadHash: approval.approvalHash,
+      safeMetadata: {
+        schemaVersion: approval.gateVersion,
+        compatibilitySource: 'review_packet_approved',
+        decisionMeaning: 'review_packet_generation_gate',
+        approval,
+      },
+    });
+
+    return {
+      approval,
+      eventId: committed.event.id,
+      eventSequence: committed.event.sequence.toString(),
+      compatibilityEventId: compatibility.event.id,
+      compatibilityEventSequence: compatibility.event.sequence.toString(),
+      idempotent: committed.idempotent && compatibility.idempotent,
+    };
+  }
+
   async getCurrent(
     ctx: TenantContext,
     sessionId: string,
@@ -172,6 +257,7 @@ export class OutreachV3ApproachApprovalService {
     const metadata = asRecord(event.safeMetadataJsonb);
     const approval = asRecord(metadata.approval) as unknown as OutreachV3ApproachApprovalSnapshot;
     if (!isOutreachV3ApproachApprovalCurrent(currentPlan, approval)) return null;
+    if (isOutreachV3ReviewPacketApproval(approval)) return approval;
 
     const artifacts = await this.drafts.listForOutreach(ctx, sessionId);
     const currentByArtifact = new Map(
