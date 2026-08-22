@@ -118,6 +118,7 @@ export function assertSharedPublicationAuthority(ctx: TenantContext, scope: Outr
 
 export interface OutreachTemplateCapabilities {
   canUse: boolean;
+  canDuplicate: boolean;
   canInspect: boolean;
   canEdit: boolean;
   canCreateVersion: boolean;
@@ -140,8 +141,15 @@ export function computeTemplateCapabilities(
   const isAdmin = isTenantAdmin(ctx.role);
   const isManager = isOwner || (isAdmin && template.scope !== 'private');
   const isActive = template.status === 'active';
+  const canUse = isActive && Boolean(template.publishedVersionId);
   return {
-    canUse: isActive && Boolean(template.publishedVersionId),
+    canUse,
+    // Any actor who is already authorized to USE a published playbook may
+    // copy it into their own private draft — the same authority level as
+    // "any authorized user may create a private draft" (closeout runbook
+    // 3.4) — a duplicate never inherits shared/publish authority, only
+    // content. See OutreachTemplateService.duplicate().
+    canDuplicate: canUse,
     canInspect: isManager,
     canEdit: isManager && isActive,
     canCreateVersion: isManager && isActive,
@@ -149,8 +157,9 @@ export function computeTemplateCapabilities(
       isActive &&
       (template.scope === 'private' ? isOwner : isAdmin),
     canArchive: isManager && isActive,
-    // Restore/duplicate policy is not implemented this phase (closeout runbook
-    // 6.16); always false so the UI never offers a control with no backend.
+    // Restore policy is not implemented this phase (closeout runbook 6.16 —
+    // archived templates are permanently read-only by deliberate choice);
+    // always false so the UI never offers a control with no backend.
     canRestore: false,
   };
 }
@@ -169,6 +178,8 @@ export interface OutreachTemplateCardSummary {
   length: OutreachTemplateSpecV1['strategy']['length'];
   hasExplicitAsk: boolean;
   styleSampleCount: number;
+  variableCount: number;
+  requiredVariableCount: number;
 }
 
 export function toTemplateCardSummary(spec: OutreachTemplateSpecV1): OutreachTemplateCardSummary {
@@ -181,7 +192,57 @@ export function toTemplateCardSummary(spec: OutreachTemplateSpecV1): OutreachTem
     length: spec.strategy.length,
     hasExplicitAsk: spec.goal.ask.mode === 'explicit',
     styleSampleCount: spec.styleSamples.length,
+    variableCount: spec.variables.length,
+    requiredVariableCount: spec.variables.filter((variable) => variable.required).length,
   };
+}
+
+/**
+ * A meaningful, human-readable field diff between two published/draft specs
+ * (closeout runbook 6.11/7.6: "before/after reusable-spec diff"). Computed
+ * from two already-authorized spec reads — never a new privileged read path.
+ */
+export interface OutreachTemplateSpecFieldDiff {
+  field: string;
+  before: string;
+  after: string;
+}
+
+function describeField(label: string, before: unknown, after: unknown): OutreachTemplateSpecFieldDiff | null {
+  const stringify = (value: unknown) => {
+    if (value === null || value === undefined || value === '') return '(none)';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    return String(value);
+  };
+  const b = stringify(before);
+  const a = stringify(after);
+  if (b === a) return null;
+  return { field: label, before: b, after: a };
+}
+
+export function diffOutreachTemplateSpecs(
+  before: OutreachTemplateSpecV1,
+  after: OutreachTemplateSpecV1,
+): OutreachTemplateSpecFieldDiff[] {
+  const diffs = [
+    describeField('Goal', before.goal.goal, after.goal.goal),
+    describeField('Objective', before.goal.objective, after.goal.objective),
+    describeField('Topic', before.goal.topic, after.goal.topic),
+    describeField('Desired outcome', before.goal.desiredOutcome, after.goal.desiredOutcome),
+    describeField('Ask', before.goal.ask.text, after.goal.ask.text),
+    describeField('Why now', before.goal.whyNow, after.goal.whyNow),
+    describeField('Sponsor', before.sponsor.kind, after.sponsor.kind),
+    describeField('Delivery pattern', before.delivery.pattern, after.delivery.pattern),
+    describeField('Personalization', before.delivery.personalization, after.delivery.personalization),
+    describeField('Campaign angle', before.strategy.campaignAngle, after.strategy.campaignAngle),
+    describeField('Tone', before.strategy.tone, after.strategy.tone),
+    describeField('Length', before.strategy.length, after.strategy.length),
+    describeField('Style samples', before.styleSamples.length, after.styleSamples.length),
+    describeField('Variables', before.variables.length, after.variables.length),
+    describeField('Send authority', before.guardrails.sendAuthority, after.guardrails.sendAuthority),
+    describeField('Approval mode', before.guardrails.approvalMode, after.guardrails.approvalMode),
+  ];
+  return diffs.filter((diff): diff is OutreachTemplateSpecFieldDiff => diff !== null);
 }
 
 /**
@@ -195,13 +256,21 @@ export function computeTemplateApplicationFingerprint(input: {
   templateVersionId: string;
   clientId: string | null;
   title: string | null;
+  variableValues?: Record<string, string>;
 }): string {
+  const variableValues = Object.fromEntries(
+    Object.entries(input.variableValues ?? {})
+      .map(([key, value]) => [key, value?.trim() ?? ''] as const)
+      .filter(([, value]) => value !== '')
+      .sort(([a], [b]) => a.localeCompare(b)),
+  );
   const normalized = JSON.stringify({
     actorUserId: input.actorUserId,
     templateId: input.templateId,
     templateVersionId: input.templateVersionId,
     clientId: input.clientId ?? null,
     title: input.title?.trim() || null,
+    variableValues,
   });
   return createHash('sha256').update(normalized, 'utf8').digest('hex');
 }

@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { OutreachCommandError } from '../state/outreach-command-errors.js';
 import type { OutreachSponsorScopeV1 } from '../state/outreach-campaign-spec.v1.js';
-import type { OutreachTemplateSpecV1 } from './outreach-template.contract.js';
+import {
+  BLANK_TEMPLATE_GUIDANCE,
+  DEFAULT_TEMPLATE_DEFAULTS_POLICY,
+  DEFAULT_TEMPLATE_GUARDRAILS,
+  type OutreachTemplateSpecV1,
+} from './outreach-template.contract.js';
 import {
   assertDestinationScopeAllowed,
   assertSharedPublicationAuthority,
@@ -223,6 +228,10 @@ describe('toTemplateCardSummary', () => {
     delivery: { pattern: 'personalized_separate', personalization: 'high' },
     strategy: { campaignAngle: 'Program history', tone: 'Direct', length: 'short', customLengthInstruction: null },
     styleSamples: [{ label: 'Sample', subject: 'Hi', body: 'Confidential voice sample body' }],
+    variables: [],
+    defaultsPolicy: DEFAULT_TEMPLATE_DEFAULTS_POLICY,
+    guidance: BLANK_TEMPLATE_GUIDANCE,
+    guardrails: DEFAULT_TEMPLATE_GUARDRAILS,
   };
 
   it('never leaks style sample bodies, ask text, or long-form prose into the card summary', () => {
@@ -242,6 +251,8 @@ describe('toTemplateCardSummary', () => {
       length: 'short',
       hasExplicitAsk: true,
       styleSampleCount: 1,
+      variableCount: 0,
+      requiredVariableCount: 0,
     });
   });
 });

@@ -12,9 +12,12 @@ export interface OutreachTemplateRow {
   scope: OutreachTemplateScope;
   name: string;
   description: string | null;
+  campaignType: string | null;
   status: 'active' | 'archived';
   currentDraftVersionId: string | null;
   publishedVersionId: string | null;
+  duplicatedFromTemplateId: string | null;
+  duplicatedFromVersionId: string | null;
   createdAt: Date;
   updatedAt: Date;
   archivedAt: Date | null;
@@ -25,7 +28,7 @@ export interface OutreachTemplateVersionRow {
   tenantId: string;
   templateId: string;
   versionNumber: number;
-  lifecycle: 'draft' | 'published';
+  lifecycle: 'draft' | 'published' | 'superseded';
   templateSpecJsonb: unknown;
   contentHash: string;
   sourceSessionId: string | null;
@@ -39,7 +42,11 @@ export interface OutreachTemplateListRow extends OutreachTemplateRow {
   draftVersionNumber: number | null;
   publishedVersionNumber: number | null;
   previewSpecJsonb: unknown | null;
+  usageCount: number;
+  lastUsedAt: Date | null;
 }
+
+export type OutreachTemplateSortKey = 'updated' | 'name' | 'usage' | 'last_used';
 
 export interface OutreachTemplateApplicationRow {
   id: string;
@@ -50,7 +57,21 @@ export interface OutreachTemplateApplicationRow {
   requestFingerprint: string;
   templateContentHash: string;
   resultingStateVersion: number;
+  receiptJsonb: unknown;
   createdAt: Date;
+}
+
+export interface OutreachTemplateProvenanceRow {
+  sessionId: string;
+  templateId: string;
+  templateName: string;
+  templateVersionId: string;
+  versionNumber: number;
+  contentHash: string;
+  applicationId: string;
+  appliedByUserId: string;
+  appliedAt: Date;
+  receiptJsonb: unknown;
 }
 
 /** Postgres unique_violation. Used to detect and replay a losing idempotent race. */
@@ -90,10 +111,21 @@ export class OutreachTemplateRepository {
   async listVisible(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
-    input: { includeArchived: boolean; clientId: string | null },
+    input: {
+      includeArchived: boolean;
+      clientId: string | null;
+      search?: string | null;
+      campaignType?: string | null;
+      ownerUserId?: string | null;
+      sort?: OutreachTemplateSortKey;
+    },
   ): Promise<OutreachTemplateListRow[]> {
     const clientId = input.clientId ?? '';
     const isAdmin = isTenantAdmin(ctx.role);
+    const search = input.search?.trim() || '';
+    const campaignType = input.campaignType?.trim() || '';
+    const ownerUserId = input.ownerUserId ?? '';
+    const sort = input.sort ?? 'updated';
     return tx.$queryRaw<OutreachTemplateListRow[]>`
       SELECT
         t.id,
@@ -103,9 +135,12 @@ export class OutreachTemplateRepository {
         t.scope,
         t.name,
         t.description,
+        t.campaign_type AS "campaignType",
         t.status,
         t.current_draft_version_id AS "currentDraftVersionId",
         t.published_version_id AS "publishedVersionId",
+        t.duplicated_from_template_id AS "duplicatedFromTemplateId",
+        t.duplicated_from_version_id AS "duplicatedFromVersionId",
         t.created_at AS "createdAt",
         t.updated_at AS "updatedAt",
         t.archived_at AS "archivedAt",
@@ -115,7 +150,9 @@ export class OutreachTemplateRepository {
           WHEN t.owner_user_id = CAST(${ctx.userId} AS uuid) OR ${isAdmin}
             THEN COALESCE(published.template_spec_jsonb, draft.template_spec_jsonb)
           ELSE published.template_spec_jsonb
-        END AS "previewSpecJsonb"
+        END AS "previewSpecJsonb",
+        COALESCE(usage.usage_count, 0)::integer AS "usageCount",
+        usage.last_used_at AS "lastUsedAt"
       FROM outreach_v3_templates t
       LEFT JOIN outreach_v3_template_versions draft
         ON draft.id = t.current_draft_version_id
@@ -123,6 +160,11 @@ export class OutreachTemplateRepository {
       LEFT JOIN outreach_v3_template_versions published
         ON published.id = t.published_version_id
        AND published.tenant_id = t.tenant_id
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::integer AS usage_count, MAX(a.created_at) AS last_used_at
+        FROM outreach_v3_template_applications a
+        WHERE a.template_id = t.id AND a.tenant_id = t.tenant_id
+      ) usage ON true
       WHERE t.tenant_id = CAST(${ctx.tenantId} AS uuid)
         AND (${input.includeArchived} OR t.status = 'active')
         AND (
@@ -141,7 +183,15 @@ export class OutreachTemplateRepository {
             AND t.client_id = CAST(NULLIF(${clientId}, '') AS uuid)
           )
         )
-      ORDER BY t.updated_at DESC, t.id
+        AND (${search} = '' OR t.name ILIKE '%' || ${search} || '%' OR t.description ILIKE '%' || ${search} || '%')
+        AND (${campaignType} = '' OR t.campaign_type = ${campaignType})
+        AND (${ownerUserId} = '' OR t.owner_user_id = CAST(NULLIF(${ownerUserId}, '') AS uuid))
+      ORDER BY
+        CASE WHEN ${sort} = 'name' THEN t.name END ASC,
+        CASE WHEN ${sort} = 'usage' THEN COALESCE(usage.usage_count, 0) END DESC,
+        CASE WHEN ${sort} = 'last_used' THEN usage.last_used_at END DESC NULLS LAST,
+        CASE WHEN ${sort} NOT IN ('name', 'usage', 'last_used') THEN t.updated_at END DESC,
+        t.id
       LIMIT 200
     `;
   }
@@ -169,9 +219,12 @@ export class OutreachTemplateRepository {
         scope,
         name,
         description,
+        campaign_type AS "campaignType",
         status,
         current_draft_version_id AS "currentDraftVersionId",
         published_version_id AS "publishedVersionId",
+        duplicated_from_template_id AS "duplicatedFromTemplateId",
+        duplicated_from_version_id AS "duplicatedFromVersionId",
         created_at AS "createdAt",
         updated_at AS "updatedAt",
         archived_at AS "archivedAt"
@@ -227,9 +280,12 @@ export class OutreachTemplateRepository {
         scope,
         name,
         description,
+        campaign_type AS "campaignType",
         status,
         current_draft_version_id AS "currentDraftVersionId",
         published_version_id AS "publishedVersionId",
+        duplicated_from_template_id AS "duplicatedFromTemplateId",
+        duplicated_from_version_id AS "duplicatedFromVersionId",
         created_at AS "createdAt",
         updated_at AS "updatedAt",
         archived_at AS "archivedAt"
@@ -319,23 +375,30 @@ export class OutreachTemplateRepository {
       versionId: string;
       name: string;
       description: string | null;
+      campaignType: string | null;
       scope: OutreachTemplateScope;
       clientId: string | null;
       spec: OutreachTemplateSpecV1;
       contentHash: string;
-      sourceSessionId: string;
-      sourceStateVersion: number;
+      sourceSessionId: string | null;
+      sourceStateVersion: number | null;
+      duplicatedFromTemplateId?: string | null;
+      duplicatedFromVersionId?: string | null;
     },
   ): Promise<{ template: OutreachTemplateRow; version: OutreachTemplateVersionRow }> {
     const specJson = JSON.stringify(input.spec);
+    const duplicatedFromTemplateId = input.duplicatedFromTemplateId ?? null;
+    const duplicatedFromVersionId = input.duplicatedFromVersionId ?? null;
     const templates = await tx.$queryRaw<OutreachTemplateRow[]>`
       INSERT INTO outreach_v3_templates (
         id, tenant_id, owner_user_id, client_id, scope, name, description,
-        status, current_draft_version_id, published_version_id
+        campaign_type, status, current_draft_version_id, published_version_id,
+        duplicated_from_template_id, duplicated_from_version_id
       ) VALUES (
         CAST(${input.templateId} AS uuid), CAST(${ctx.tenantId} AS uuid),
         CAST(${ctx.userId} AS uuid), CAST(${input.clientId} AS uuid), ${input.scope},
-        ${input.name}, ${input.description}, 'active', NULL, NULL
+        ${input.name}, ${input.description}, ${input.campaignType}, 'active', NULL, NULL,
+        CAST(${duplicatedFromTemplateId} AS uuid), CAST(${duplicatedFromVersionId} AS uuid)
       )
       RETURNING
         id,
@@ -345,9 +408,12 @@ export class OutreachTemplateRepository {
         scope,
         name,
         description,
+        campaign_type AS "campaignType",
         status,
         current_draft_version_id AS "currentDraftVersionId",
         published_version_id AS "publishedVersionId",
+        duplicated_from_template_id AS "duplicatedFromTemplateId",
+        duplicated_from_version_id AS "duplicatedFromVersionId",
         created_at AS "createdAt",
         updated_at AS "updatedAt",
         archived_at AS "archivedAt"
@@ -395,6 +461,14 @@ export class OutreachTemplateRepository {
     };
   }
 
+  /**
+   * Creates a new draft version and, if a different draft was still current
+   * (closeout runbook 6.17), marks it `superseded` rather than leaving an
+   * orphaned second `draft` row lying around forever. `sourceSessionId` is
+   * null for a wizard-authored edit — draft content is append-only either
+   * way, so an in-place edit is always a new version, never a mutation of
+   * the row a prior read may still be holding.
+   */
   async createDraftVersion(
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
@@ -403,8 +477,8 @@ export class OutreachTemplateRepository {
       versionId: string;
       spec: OutreachTemplateSpecV1;
       contentHash: string;
-      sourceSessionId: string;
-      sourceStateVersion: number;
+      sourceSessionId: string | null;
+      sourceStateVersion: number | null;
     },
   ): Promise<OutreachTemplateVersionRow> {
     if (template.status !== 'active') {
@@ -413,6 +487,16 @@ export class OutreachTemplateRepository {
         'Archived templates cannot receive new versions.',
         409,
       );
+    }
+    if (template.currentDraftVersionId) {
+      await tx.$executeRaw`
+        UPDATE outreach_v3_template_versions
+        SET lifecycle = 'superseded'
+        WHERE id = CAST(${template.currentDraftVersionId} AS uuid)
+          AND tenant_id = CAST(${ctx.tenantId} AS uuid)
+          AND template_id = CAST(${template.id} AS uuid)
+          AND lifecycle = 'draft'
+      `;
     }
     const numbers = await tx.$queryRaw<Array<{ nextVersion: number }>>`
       SELECT COALESCE(MAX(version_number), 0)::integer + 1 AS "nextVersion"
@@ -515,7 +599,13 @@ export class OutreachTemplateRepository {
     tx: Prisma.TransactionClient,
     ctx: TenantContext,
     template: OutreachTemplateRow,
-    input: { name: string; description: string | null; scope: OutreachTemplateScope; clientId: string | null },
+    input: {
+      name: string;
+      description: string | null;
+      campaignType: string | null;
+      scope: OutreachTemplateScope;
+      clientId: string | null;
+    },
   ): Promise<OutreachTemplateRow> {
     // `template` was already fetched+authorized by lockManaged() in this same
     // transaction; this WHERE re-applies the identical owner-or-admin-on-shared
@@ -526,6 +616,7 @@ export class OutreachTemplateRepository {
       UPDATE outreach_v3_templates
       SET name = ${input.name},
           description = ${input.description},
+          campaign_type = ${input.campaignType},
           scope = ${input.scope},
           client_id = CAST(${input.clientId} AS uuid),
           updated_at = NOW()
@@ -543,9 +634,12 @@ export class OutreachTemplateRepository {
         scope,
         name,
         description,
+        campaign_type AS "campaignType",
         status,
         current_draft_version_id AS "currentDraftVersionId",
         published_version_id AS "publishedVersionId",
+        duplicated_from_template_id AS "duplicatedFromTemplateId",
+        duplicated_from_version_id AS "duplicatedFromVersionId",
         created_at AS "createdAt",
         updated_at AS "updatedAt",
         archived_at AS "archivedAt"
@@ -588,11 +682,43 @@ export class OutreachTemplateRepository {
         request_fingerprint AS "requestFingerprint",
         template_content_hash AS "templateContentHash",
         resulting_state_version AS "resultingStateVersion",
+        receipt_jsonb AS "receiptJsonb",
         created_at AS "createdAt"
       FROM outreach_v3_template_applications
       WHERE tenant_id = CAST(${ctx.tenantId} AS uuid)
         AND applied_by_user_id = CAST(${ctx.userId} AS uuid)
         AND request_key = CAST(${requestKey} AS uuid)
+      LIMIT 1
+    `;
+    return rows[0] ?? null;
+  }
+
+  /** Powers the "From template · name · vN" marker and the receipt panel on
+   * an already-open campaign (closeout runbook 7.6/7.7) — read-only, joins
+   * across the append-only provenance/application/template tables. */
+  async getProvenanceForSession(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    sessionId: string,
+  ): Promise<OutreachTemplateProvenanceRow | null> {
+    const rows = await tx.$queryRaw<OutreachTemplateProvenanceRow[]>`
+      SELECT
+        p.session_id AS "sessionId",
+        p.template_id AS "templateId",
+        t.name AS "templateName",
+        p.template_version_id AS "templateVersionId",
+        v.version_number AS "versionNumber",
+        v.content_hash AS "contentHash",
+        p.application_id AS "applicationId",
+        p.applied_by_user_id AS "appliedByUserId",
+        p.applied_at AS "appliedAt",
+        a.receipt_jsonb AS "receiptJsonb"
+      FROM outreach_v3_session_template_provenance p
+      JOIN outreach_v3_templates t ON t.id = p.template_id AND t.tenant_id = p.tenant_id
+      JOIN outreach_v3_template_versions v ON v.id = p.template_version_id AND v.tenant_id = p.tenant_id
+      JOIN outreach_v3_template_applications a ON a.id = p.application_id AND a.tenant_id = p.tenant_id
+      WHERE p.session_id = CAST(${sessionId} AS uuid)
+        AND p.tenant_id = CAST(${ctx.tenantId} AS uuid)
       LIMIT 1
     `;
     return rows[0] ?? null;
@@ -619,22 +745,24 @@ export class OutreachTemplateRepository {
       requestFingerprint: string;
       commandBatch: unknown;
       resultingStateVersion: number;
+      receipt: unknown;
     },
   ): Promise<{ application: OutreachTemplateApplicationRow; replayed: boolean }> {
     const commandBatchJson = JSON.stringify(input.commandBatch);
+    const receiptJson = JSON.stringify(input.receipt);
     let application: OutreachTemplateApplicationRow | undefined;
     try {
       const rows = await tx.$queryRaw<OutreachTemplateApplicationRow[]>`
         INSERT INTO outreach_v3_template_applications (
           id, tenant_id, template_id, template_version_id, session_id,
           applied_by_user_id, request_key, request_fingerprint, command_batch_jsonb,
-          template_content_hash, resulting_state_version
+          template_content_hash, resulting_state_version, receipt_jsonb
         ) VALUES (
           CAST(${input.applicationId} AS uuid), CAST(${ctx.tenantId} AS uuid),
           CAST(${input.template.id} AS uuid), CAST(${input.version.id} AS uuid),
           CAST(${input.sessionId} AS uuid), CAST(${ctx.userId} AS uuid),
           CAST(${input.requestKey} AS uuid), ${input.requestFingerprint}, CAST(${commandBatchJson} AS jsonb),
-          ${input.version.contentHash}, ${input.resultingStateVersion}
+          ${input.version.contentHash}, ${input.resultingStateVersion}, CAST(${receiptJson} AS jsonb)
         )
         RETURNING
           id,
@@ -645,6 +773,7 @@ export class OutreachTemplateRepository {
           request_fingerprint AS "requestFingerprint",
           template_content_hash AS "templateContentHash",
           resulting_state_version AS "resultingStateVersion",
+          receipt_jsonb AS "receiptJsonb",
           created_at AS "createdAt"
       `;
       application = rows[0];

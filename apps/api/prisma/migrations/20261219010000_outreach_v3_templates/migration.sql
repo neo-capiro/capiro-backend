@@ -33,9 +33,19 @@ CREATE TABLE outreach_v3_templates (
   scope text NOT NULL CHECK (scope IN ('private', 'firm', 'client')),
   name text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 160),
   description text NULL CHECK (description IS NULL OR char_length(description) <= 1000),
+  -- Free-text, bounded identity field (closeout runbook 4.1). Deliberately
+  -- not a fixed enum: there is no existing Capiro-wide campaign-type
+  -- taxonomy to encode, and inventing one here would be a fabricated
+  -- category list. It is still indexed for filter/sort.
+  campaign_type text NULL CHECK (campaign_type IS NULL OR char_length(campaign_type) <= 60),
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
   current_draft_version_id uuid NULL,
   published_version_id uuid NULL,
+  -- Lineage only (closeout runbook 6.15): a duplicate is a fully independent
+  -- template/version with its own identity and draft lifecycle. This never
+  -- aliases the source's published pointer and is set once at creation.
+  duplicated_from_template_id uuid NULL,
+  duplicated_from_version_id uuid NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   archived_at timestamptz NULL,
@@ -53,7 +63,11 @@ CREATE TABLE outreach_v3_template_versions (
   tenant_id uuid NOT NULL,
   template_id uuid NOT NULL REFERENCES outreach_v3_templates(id) ON DELETE CASCADE,
   version_number integer NOT NULL CHECK (version_number > 0),
-  lifecycle text NOT NULL CHECK (lifecycle IN ('draft', 'published')),
+  -- 'superseded': a draft that lost the current-draft pointer to a newer
+  -- draft without ever being published (closeout runbook 6.17) — draft
+  -- content rows are append-only, so replacing a draft's content always
+  -- creates a new version rather than mutating this one in place.
+  lifecycle text NOT NULL CHECK (lifecycle IN ('draft', 'published', 'superseded')),
   template_spec_jsonb jsonb NOT NULL CHECK (octet_length(template_spec_jsonb::text) <= 200000),
   content_hash text NOT NULL CHECK (char_length(content_hash) = 64),
   source_session_id uuid NULL,
@@ -64,7 +78,7 @@ CREATE TABLE outreach_v3_template_versions (
   UNIQUE (template_id, version_number),
   CONSTRAINT outreach_v3_template_versions_publish_ck CHECK (
     (lifecycle = 'published' AND published_at IS NOT NULL) OR
-    (lifecycle = 'draft' AND published_at IS NULL)
+    (lifecycle IN ('draft', 'superseded') AND published_at IS NULL)
   ),
   -- Referenced by composite FKs from outreach_v3_templates (draft/published
   -- pointers) and outreach_v3_template_applications so a pointer cannot name
@@ -106,6 +120,19 @@ ALTER TABLE outreach_v3_templates
   REFERENCES clients(id, tenant_id)
   ON DELETE RESTRICT;
 
+-- Duplicate lineage (closeout runbook 6.15): informational only, never a
+-- live pointer another mutation depends on, so ON DELETE SET NULL is safe —
+-- deleting the source template must not block or cascade into its copies.
+ALTER TABLE outreach_v3_templates
+  ADD CONSTRAINT outreach_v3_templates_duplicated_from_fk
+  FOREIGN KEY (duplicated_from_version_id, tenant_id, duplicated_from_template_id)
+  REFERENCES outreach_v3_template_versions(id, tenant_id, template_id)
+  ON DELETE SET NULL,
+  ADD CONSTRAINT outreach_v3_templates_duplicated_from_pair_ck CHECK (
+    (duplicated_from_template_id IS NULL AND duplicated_from_version_id IS NULL) OR
+    (duplicated_from_template_id IS NOT NULL AND duplicated_from_version_id IS NOT NULL)
+  );
+
 CREATE TABLE outreach_v3_template_applications (
   id uuid PRIMARY KEY,
   tenant_id uuid NOT NULL,
@@ -118,6 +145,11 @@ CREATE TABLE outreach_v3_template_applications (
   command_batch_jsonb jsonb NOT NULL CHECK (octet_length(command_batch_jsonb::text) <= 262144),
   template_content_hash text NOT NULL CHECK (char_length(template_content_hash) = 64),
   resulting_state_version integer NOT NULL CHECK (resulting_state_version > 0),
+  -- Durable application receipt (closeout runbook 5): exactly what was
+  -- inherited/refreshed/unresolved/unavailable at apply time, so the UI can
+  -- show it again later without recomputing it from scratch. Immutable, like
+  -- every other column on this append-only table.
+  receipt_jsonb jsonb NOT NULL CHECK (octet_length(receipt_jsonb::text) <= 65536),
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, applied_by_user_id, request_key),
   UNIQUE (session_id),
@@ -193,6 +225,9 @@ CREATE INDEX outreach_v3_templates_client_idx
 CREATE INDEX outreach_v3_templates_owner_idx
   ON outreach_v3_templates (tenant_id, owner_user_id, updated_at DESC)
   WHERE scope = 'private';
+CREATE INDEX outreach_v3_templates_campaign_type_idx
+  ON outreach_v3_templates (tenant_id, campaign_type, updated_at DESC)
+  WHERE campaign_type IS NOT NULL;
 CREATE INDEX outreach_v3_template_versions_template_idx
   ON outreach_v3_template_versions (template_id, version_number DESC);
 CREATE INDEX outreach_v3_template_applications_template_idx
