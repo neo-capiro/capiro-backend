@@ -122,7 +122,8 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     command: ['sync-legistorm-districts', '--commit'],
     cron: { minute: '0', hour: '4', weekDay: 'SUN' },
     tier: 'weekly',
-    description: 'LegiStorm legislative districts full reconciliation (Sun 04:00 UTC, before directory at 04:30)',
+    description:
+      'LegiStorm legislative districts full reconciliation (Sun 04:00 UTC, before directory at 04:30)',
     enabled: false,
   },
   // ── District Nexus boundary artifacts (WS-D — ships DISABLED) ───────────────
@@ -214,7 +215,8 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     command: ['sync-legistorm-trips', '--commit'],
     cron: { minute: '0', hour: '5', weekDay: 'MON-SAT' },
     tier: 'daily',
-    description: 'LegiStorm privately funded travel incremental refresh (Mon-Sat 05:00 UTC, 48h overlap)',
+    description:
+      'LegiStorm privately funded travel incremental refresh (Mon-Sat 05:00 UTC, 48h overlap)',
     enabled: false,
   },
   {
@@ -278,6 +280,104 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     cron: { minute: '45', hour: '6' },
     tier: 'daily',
     description: 'Committee hearings (daily)',
+  },
+  // ── LegiWatch Live Hearings Phase 3 — canonical discovery (ships DISABLED) ──
+  //
+  // Eight separate rules, not one, so a broken feed is attributable: each
+  // official source fails on its own schedule and for its own reason, and a
+  // single combined cron would hide which one went dark.
+  //
+  // ALL EIGHT SHIP `enabled: false` (R7 dark-launch), for two reasons:
+  //   1. Phase 3 has been verified against the live official sources and against
+  //      a disposable Postgres, but NOT yet against the production corpus.
+  //   2. Creating these rules requires `cdk deploy <env>-Compute`, which is
+  //      currently forbidden (the CloudFormation template holds stale ALB values
+  //      and a deploy reverted DNS for ~7 minutes on 2026-07-27). Whoever enables
+  //      these must use the out-of-band rule path in
+  //      scripts/deploy-ingestion-out-of-band.sh instead.
+  //
+  // Enable order, one at a time with a look at committee_source health between
+  // each: DiscoverHearingsCongressGov → DiscoverHearingsSenate →
+  // DiscoverHearingsHouse → ProbeCommitteeSources → AuditHearingCoverage →
+  // EnrichCommitteeHearings → DetectCommitteeSiteUpdates →
+  // ReconcileHearingArchives. The three discovery rules are the load-bearing
+  // ones; the rest are additive and safe to leave off indefinitely.
+  //
+  // Cadence rationale: central discovery every 10-15 min is what makes a
+  // same-day schedule change visible in the product; the Congress.gov adapter
+  // narrows by `fromDateTime` off the SyncRun watermark (verified live to cut
+  // 2,656 candidate events to 5), so a routine run is a handful of API calls
+  // rather than a full rescan. Minutes are offset from each other and off the
+  // top of the hour so the three feeds never fire together.
+  {
+    id: 'DiscoverHearingsCongressGov',
+    command: ['discover-hearings', '--source=congress-gov'],
+    cron: { minute: '3/10', hour: '*' },
+    tier: 'daily',
+    description: 'LegiWatch: Congress.gov committee-meeting discovery (every 10 min, incremental)',
+    enabled: false,
+  },
+  {
+    id: 'DiscoverHearingsHouse',
+    command: ['discover-hearings', '--source=house-repository'],
+    cron: { minute: '7/15', hour: '*' },
+    tier: 'daily',
+    description: 'LegiWatch: House Committee Repository discovery (every 15 min, forward window)',
+    enabled: false,
+  },
+  {
+    id: 'DiscoverHearingsSenate',
+    command: ['discover-hearings', '--source=senate-schedule'],
+    cron: { minute: '11/15', hour: '*' },
+    tier: 'daily',
+    description: 'LegiWatch: Senate central schedule discovery (every 15 min)',
+    enabled: false,
+  },
+  {
+    id: 'EnrichCommitteeHearings',
+    command: ['enrich-committee-hearings', '--within-hours=48'],
+    cron: { minute: '17/30', hour: '*' },
+    tier: 'daily',
+    description: 'LegiWatch: committee-site enrichment for hearings within 48h (every 30 min)',
+    enabled: false,
+  },
+  {
+    id: 'DetectCommitteeSiteUpdates',
+    command: ['detect-committee-site-updates'],
+    cron: { minute: '23/30', hour: '*' },
+    tier: 'daily',
+    description: 'LegiWatch: committee-site change feed via conditional GET (every 30 min)',
+    enabled: false,
+  },
+  {
+    id: 'ProbeCommitteeSources',
+    command: ['probe-committee-sources'],
+    cron: { minute: '35', hour: '3,11,19' },
+    tier: 'daily',
+    description: 'LegiWatch: official source health probe (3x daily)',
+    enabled: false,
+  },
+  {
+    id: 'ReconcileHearingArchives',
+    command: ['reconcile-hearing-archives', '--lookback-days=30'],
+    // 08:40 UTC, not 07:55 — SyncSamOpportunitiesAllFederal already owns that
+    // minute. Note `sync-hearing-transcripts` has an entrypoint verb but NO rule
+    // in this matrix, so official transcripts only land when it is run manually;
+    // until it is scheduled, this job's transcript linkage will usually find
+    // nothing and simply marks past events completed. That is a real coverage
+    // gap, recorded here rather than papered over.
+    cron: { minute: '40', hour: '8' },
+    tier: 'daily',
+    description: 'LegiWatch: post-event completion + official transcript linkage (daily)',
+    enabled: false,
+  },
+  {
+    id: 'AuditHearingCoverage',
+    command: ['audit-hearing-coverage'],
+    cron: { minute: '5', hour: '13' },
+    tier: 'daily',
+    description: 'LegiWatch: per-committee coverage audit, read-only (daily)',
+    enabled: false,
   },
   {
     id: 'SyncRssIntel',
@@ -364,7 +464,8 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     command: ['sync-federal-assistance-awards', '--days', '7'],
     cron: { minute: '20', hour: '11' },
     tier: 'daily',
-    description: 'USAspending financial assistance awards, all agencies (daily 11:20 UTC, after contracts 09:50 and grants 10:00)',
+    description:
+      'USAspending financial assistance awards, all agencies (daily 11:20 UTC, after contracts 09:50 and grants 10:00)',
     enabled: false,
   },
   {
@@ -372,7 +473,8 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     command: ['enrich-assistance-awards'],
     cron: { minute: '50', hour: '11' },
     tier: 'daily',
-    description: 'Assistance award detail enrichment (daily 11:50 UTC, 30min after its own upstream sync)',
+    description:
+      'Assistance award detail enrichment (daily 11:50 UTC, 30min after its own upstream sync)',
     enabled: false,
   },
 
@@ -469,7 +571,8 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     command: ['enrich-grant-details'],
     cron: { minute: '45', hour: '10' },
     tier: 'daily',
-    description: 'Grants.gov fetchOpportunity detail enrichment (daily 10:45 UTC, 45min after the opportunity sync)',
+    description:
+      'Grants.gov fetchOpportunity detail enrichment (daily 10:45 UTC, 45min after the opportunity sync)',
     enabled: false,
   },
   // ── District Nexus F3 producer (audit remediation phase i3, B3) ─────────────
@@ -726,7 +829,7 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     cron: { minute: '0', hour: '*' }, // Arbitrary drain interval while dark
     tier: 'derived',
   },
-  
+
   // Funding Opportunities P48: drain verified webhook deliveries into client
   // alerts. DISABLED, and it must stay that way until P50's controlled
   // enablement — P48's own ship note requires a manual two-pass quiet test
@@ -1214,7 +1317,8 @@ export const INGESTION_JOBS: ScheduledIngestionJob[] = [
     command: ['emit-committee-changes'],
     cron: { minute: '0', hour: '6' },
     tier: 'derived',
-    description: 'Committee membership gain/loss/role-change alerts for tracked members (daily 06:00 UTC)',
+    description:
+      'Committee membership gain/loss/role-change alerts for tracked members (daily 06:00 UTC)',
     enabled: false,
   },
 ];

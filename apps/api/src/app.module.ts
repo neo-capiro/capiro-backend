@@ -54,6 +54,7 @@ import { RetrievalModule } from './retrieval/retrieval.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
 import { InternalOnboardingModule } from './internal-onboarding/internal-onboarding.module.js';
 import { BudgetPackagesModule } from './budget-packages/budget-packages.module.js';
+import { LiveHearingsModule } from './live-hearings/live-hearings.module.js';
 import { GovInfoModule } from './external/govinfo/govinfo.module.js';
 import { TangoModule } from './external/tango/tango.module.js';
 import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js';
@@ -120,6 +121,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     ReviewsModule,
     InternalOnboardingModule,
     BudgetPackagesModule,
+    LiveHearingsModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

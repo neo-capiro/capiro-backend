@@ -290,10 +290,12 @@ describe('RadarPage', () => {
     mockApi({ hearing_watch: true });
     renderRadar('/radar?tab=hearings');
 
-    // LegiWatch v2 (L3): lands on the schedule; the watch history is "My Sessions".
+    // LegiWatch Live Hearings rebuild (Phase 3): lands on the rebuilt calendar
+    // nav, with the watch history still reachable as "My Sessions". The old
+    // schedule copy ("Upcoming"/"All hearings") was superseded by the Master
+    // Calendar agenda view — assert the current nav landmark instead.
     await waitFor(() => expect(screen.getByText('My Sessions')).toBeInTheDocument());
-    expect(screen.getByText('Upcoming')).toBeInTheDocument();
-    expect(screen.getByText('All hearings')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Master Calendar' })).toBeInTheDocument();
     // P5: the hearing term-watchlist CRUD was absorbed into the unified editor on
     // the LegiWatch Configure tab — the Hearings surface no longer has its own view.
     expect(screen.queryByText('Watchlists')).not.toBeInTheDocument();

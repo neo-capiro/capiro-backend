@@ -32,7 +32,20 @@
   "include": [
     "scripts/sync-hearings.ts",
     "scripts/lib/hearing-time.ts",
-    "scripts/lib/hearing-time.spec.ts"
+    "scripts/lib/hearing-time.spec.ts",
+    "scripts/lib/job-flags.ts",
+    // Live Hearings Phase 3 discovery jobs. Added here on authorship because
+    // this config's whole reason for existing is that `tsconfig.json` excludes
+    // `scripts/` — two real type errors in these files (a Map literal inferring
+    // only its first entry's value type, and an optional-chained `startsWith`
+    // returning `boolean | undefined`) were invisible until they were listed.
+    "scripts/discover-hearings.ts",
+    "scripts/enrich-committee-hearings.ts",
+    "scripts/detect-committee-site-updates.ts",
+    "scripts/probe-committee-sources.ts",
+    "scripts/reconcile-hearing-archives.ts",
+    "scripts/audit-hearing-coverage.ts",
+    "scripts/verify-legiwatch-phase3.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

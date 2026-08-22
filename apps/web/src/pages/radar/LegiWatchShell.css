@@ -1,0 +1,217 @@
+.legiwatch-shell {
+  box-sizing: border-box;
+  height: 100%;
+  overflow: auto;
+  padding: 24px 32px 80px;
+  background: var(--bg-canvas, #f7f7f5);
+  color: var(--text-primary, #172033);
+}
+
+.legiwatch-shell__header {
+  max-width: 760px;
+  margin-bottom: 22px;
+}
+
+.legiwatch-shell__eyebrow {
+  margin-bottom: 7px;
+  color: var(--text-muted, #657080);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.legiwatch-shell__title {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  color: var(--text-primary, #172033);
+  font-size: clamp(28px, 3vw, 38px);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.legiwatch-shell__description {
+  max-width: 680px;
+  margin: 10px 0 0;
+  color: var(--text-secondary, #586274);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.legiwatch-shell__sections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 1180px;
+  margin-bottom: 18px;
+}
+
+.legiwatch-shell__section {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  min-height: 76px;
+  padding: 13px 14px;
+  border: 1px solid var(--border-subtle, #e3e6e8);
+  border-radius: 13px;
+  background: var(--surface-primary, #fff);
+  color: var(--text-secondary, #586274);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.legiwatch-shell__section:hover {
+  border-color: var(--border-strong, #c6ccd2);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 7%);
+  transform: translateY(-1px);
+}
+
+.legiwatch-shell__section:focus-visible {
+  outline: 2px solid var(--focus-ring, #315b86);
+  outline-offset: 2px;
+}
+
+.legiwatch-shell__section.is-active {
+  border-color: var(--brand-primary, #23466d);
+  box-shadow: inset 0 0 0 1px var(--brand-primary, #23466d);
+  color: var(--text-primary, #172033);
+}
+
+.legiwatch-shell__section-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--surface-secondary, #f2f4f5);
+  color: var(--text-secondary, #586274);
+  font-size: 17px;
+}
+
+.legiwatch-shell__section.is-active .legiwatch-shell__section-icon {
+  background: var(--brand-soft, #eaf0f6);
+  color: var(--brand-primary, #23466d);
+}
+
+.legiwatch-shell__section strong,
+.legiwatch-shell__section small {
+  display: block;
+}
+
+.legiwatch-shell__section strong {
+  margin-bottom: 4px;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.legiwatch-shell__section small {
+  color: var(--text-muted, #6c7685);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.legiwatch-shell__subnav {
+  display: flex;
+  gap: 4px;
+  width: fit-content;
+  margin: 0 0 14px;
+  padding: 4px;
+  border: 1px solid var(--border-subtle, #e3e6e8);
+  border-radius: 10px;
+  background: var(--surface-secondary, #f2f4f5);
+}
+
+.legiwatch-shell__subnav button {
+  padding: 7px 13px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary, #586274);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.legiwatch-shell__subnav button.is-active {
+  background: var(--surface-primary, #fff);
+  color: var(--text-primary, #172033);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 10%);
+}
+
+.legiwatch-shell__content {
+  max-width: 1180px;
+}
+
+/*
+ * Phase 1 compatibility bridge: the old implementation still owns the proven
+ * bill/hearing surfaces. Its duplicate title and four-tab control remain in the
+ * DOM for existing regression tests and saved interaction contracts, but are
+ * visually clipped while the new three-section shell owns navigation.
+ */
+.legiwatch-shell__legacy .lw-root.redesign {
+  height: auto !important;
+  min-height: 0;
+  overflow: visible !important;
+  padding: 0 0 80px !important;
+  background: transparent !important;
+}
+
+.legiwatch-shell__legacy .lw-root > .pg-head .pg-title,
+.legiwatch-shell__legacy .lw-root > .pg-head .pg-desc,
+.legiwatch-shell__legacy .lw-root > .tabs {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+.legiwatch-shell__legacy .lw-root > .pg-head {
+  margin-bottom: 12px;
+}
+
+.legiwatch-shell__legacy .lw-root > .pg-head .pg-top {
+  min-height: 34px;
+}
+
+@media (max-width: 900px) {
+  .legiwatch-shell {
+    padding: 20px 20px 64px;
+  }
+
+  .legiwatch-shell__sections {
+    grid-template-columns: 1fr;
+  }
+
+  .legiwatch-shell__section {
+    min-height: 68px;
+  }
+}
+
+@media (max-width: 560px) {
+  .legiwatch-shell {
+    padding-inline: 14px;
+  }
+
+  .legiwatch-shell__subnav {
+    width: 100%;
+  }
+
+  .legiwatch-shell__subnav button {
+    flex: 1;
+  }
+}

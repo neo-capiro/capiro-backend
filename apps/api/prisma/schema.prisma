@@ -6049,14 +6049,45 @@ model CommitteeHearing {
   /// field that time-based logic (liveness, windowing, cross-day ordering) may read.
   startsAt      DateTime? @map("starts_at") @db.Timestamptz(6)
   location      String?
-  type          String? // hearing, markup, meeting
+  type          String? // hearing, markup, meeting — also serves as "event type"
   witnesses     String[]  @default([])
-  url           String?
+  url           String? // official event page (committee site / congress.gov listing)
   syncedAt      DateTime  @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  // ── Canonical master-calendar identity (Live Hearings foundation, additive) ──
+  // Every field below is optional/defaulted so existing rows and consumers are
+  // untouched. Witness/document counts are deliberately NOT duplicated here:
+  // witness count is witnesses.length; document count has no source yet worth
+  // denormalizing until Phase 3 discovery populates committee_site_update.
+  congress               Int?
+  committeeSystemCode    String?   @map("committee_system_code") // soft ref → congress_committee.system_code
+  subcommitteeSystemCode String?   @map("subcommittee_system_code") // soft ref → congress_committee.system_code
+  actualStart            DateTime? @map("actual_start") @db.Timestamptz(6)
+  actualEnd              DateTime? @map("actual_end") @db.Timestamptz(6)
+  timezone               String    @default("America/New_York")
+  /// 'public' | 'private' — most hearings are public; some markups/business
+  /// meetings are closed session.
+  visibility             String    @default("public")
+  /// 'scheduled' | 'postponed' | 'canceled' | 'in_progress' | 'completed' — the
+  /// committee-event lifecycle, distinct from the capture/stream status below.
+  eventStatus            String    @default("scheduled") @map("event_status")
+  /// Increments each time source reconciliation (Phase 3) overwrites a
+  /// previously-observed field, so consumers can detect "this changed under me."
+  sourceRevision         Int       @default(1) @map("source_revision")
+  lastOfficialUpdateAt   DateTime? @map("last_official_update_at") @db.Timestamptz(6)
+  /// 'unknown' | 'none' | 'live_only' | 'archived' | 'embedded_third_party' —
+  /// denormalized rollup of this hearing's hearing_stream_candidate rows.
+  streamAvailability     String    @default("unknown") @map("stream_availability")
+  /// 'not_covered' | 'discovered' | 'stream_ready' | 'capturing' | 'captured' |
+  /// 'no_public_stream' | 'blocked' — denormalized rollup of the capture pipeline.
+  coverageStatus         String    @default("not_covered") @map("coverage_status")
 
   @@index([date])
   @@index([committeeName, date])
   @@index([startsAt])
+  @@index([committeeSystemCode])
+  @@index([coverageStatus])
+  @@index([eventStatus])
   @@map("committee_hearing")
 }
 
@@ -6107,6 +6138,327 @@ model OfficialHearingTranscript {
   @@index([congress, chamber, date])
   @@index([date])
   @@map("official_hearing_transcript")
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// LegiWatch Live Hearings — canonical discovery + global capture foundation.
+//
+// Non-negotiable shape: a public hearing is captured GLOBALLY once. Discovery
+// (CommitteeSource → HearingSourceObservation → CommitteeHearing reconciliation
+// → HearingStreamCandidate) and capture (PublicHearingCapture[Attempt] →
+// PublicHearingTranscriptSegment) are entirely tenant-free, GLOBAL public-record
+// tables — same posture as committee_hearing (no tenant_id, no RLS). Only
+// HearingSubscription and HearingAutoRecordRule below are TENANT-scoped.
+//
+// This is deliberately separate from, and does not replace, intel-api's
+// existing per-tenant browser-capture path (LiveHearingSession /
+// TranscriptSegment / the Deepgram WS gateway) — that stays exactly as-is.
+// This foundation adds the parallel unattended server-capture path; a future
+// worker keys off PublicHearingCapture the same way intel-api's gateway keys
+// off LiveHearingSession, sharing one capture per hearing across every tenant
+// subscribed to it instead of one per tenant session.
+//
+// Cross-references to committee_hearing / congress_committee are SOFT refs
+// (plain string columns, no FK) — the established idiom in this file for
+// public-record tables synced independently and at different cadences (see
+// committee_hearing_bill, official_hearing_transcript above). References
+// between tables introduced together in this same foundation (CommitteeSource
+// → HearingSourceObservation/HearingStreamCandidate/CommitteeSiteUpdate,
+// PublicHearingCapture → PublicHearingCaptureAttempt/PublicHearingTranscriptSegment)
+// use real hard FKs, mirroring congress_committee_membership's FK to
+// congress_committee — the one place two GLOBAL tables already have real
+// referential integrity in this schema.
+// ═════════════════════════════════════════════════════════════════════════
+
+// Registry of official per-committee/per-chamber data sources that Phase 3's
+// discovery adapters poll. GLOBAL, no tenant_id, no RLS.
+model CommitteeSource {
+  id                  String    @id @default(uuid())
+  committeeSystemCode String?   @map("committee_system_code") // soft ref → congress_committee.system_code; null = chamber-wide source (e.g. Senate central schedule)
+  chamber             String // 'house' | 'senate' | 'joint'
+  /// 'CONGRESS_GOV' | 'HOUSE_REPOSITORY' | 'SENATE_SCHEDULE' | 'COMMITTEE_SITE' |
+  /// 'COMMITTEE_RSS' | 'COMMITTEE_API' | 'COMMITTEE_STRUCTURED_DATA' | 'COMMITTEE_HEADLESS'
+  sourceType    String    @map("source_type")
+  sourceUrl     String    @map("source_url")
+  adapterKey    String    @map("adapter_key") // CommitteeSourceAdapter implementation key, e.g. "congress-gov"
+  enabled       Boolean   @default(true)
+  priority      Int       @default(100)
+  lastCheckedAt DateTime? @map("last_checked_at") @db.Timestamptz(6)
+  lastSuccessAt DateTime? @map("last_success_at") @db.Timestamptz(6)
+  lastErrorAt   DateTime? @map("last_error_at") @db.Timestamptz(6)
+  lastError     String?   @map("last_error") @db.Text
+  /// 'healthy' | 'degraded' | 'failing' | 'unknown'
+  sourceHealth  String    @default("unknown") @map("source_health")
+  parserVersion String?   @map("parser_version")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  observations HearingSourceObservation[]
+  streamCandidates HearingStreamCandidate[]
+  siteUpdates  CommitteeSiteUpdate[]
+
+  @@unique([adapterKey, sourceUrl])
+  @@index([chamber])
+  @@index([committeeSystemCode])
+  @@index([sourceType])
+  @@index([enabled, priority])
+  @@map("committee_source")
+}
+
+// Provenance ledger: every observation of a hearing/meeting as reported by one
+// source, preserved rather than overwritten, so reconciliation can diff
+// conflicting official data instead of silently discarding it. GLOBAL, no
+// tenant_id, no RLS. hearingId is nullable + soft ref — an observation exists
+// before it's necessarily matched to a canonical committee_hearing row.
+model HearingSourceObservation {
+  id               String    @id @default(uuid())
+  hearingId        String?   @map("hearing_id") // soft ref → committee_hearing.id, set once reconciled
+  sourceId         String    @map("source_id")
+  externalEventId  String    @map("external_event_id") // the source's own event id / URL fragment
+  rawContentHash   String    @map("raw_content_hash") // sha256 of the raw fetched payload, for change detection
+  firstSeenAt      DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt       DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  sourceUpdatedAt  DateTime? @map("source_updated_at") @db.Timestamptz(6) // the source's own "last updated" field, if any
+  sourceMetadata   Json      @default("{}") @map("source_metadata") // raw provenance blob
+  observedTitle    String?   @map("observed_title") @db.Text
+  observedDate     DateTime? @map("observed_date") @db.Date
+  observedStatus   String?   @map("observed_status")
+  observedLocation String?   @map("observed_location")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  source CommitteeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, externalEventId])
+  @@index([hearingId])
+  @@index([rawContentHash])
+  @@map("hearing_source_observation")
+}
+
+// Candidate media/page for a hearing's live or archived stream. A hearing can
+// have several — an official .gov page provenance is tracked separately from
+// the actual media-host provenance, since a committee page may just embed
+// YouTube. GLOBAL, no tenant_id, no RLS.
+model HearingStreamCandidate {
+  id              String    @id @default(uuid())
+  hearingId       String    @map("hearing_id") // soft ref → committee_hearing.id
+  provider        String // e.g. 'youtube', 'house-live', 'senate-isvp', 'committee-cdn', 'unknown'
+  officialPageUrl String    @map("official_page_url") @db.Text
+  mediaUrl        String?   @map("media_url") @db.Text
+  mediaType       String?   @map("media_type") // 'hls' | 'rtmp' | 'youtube_embed' | 'mp4' | 'unknown'
+  priority        Int       @default(100)
+  /// 'NOT_CHECKED' | 'WAITING_FOR_STREAM' | 'READY' | 'LIVE' | 'ENDED' |
+  /// 'NO_PUBLIC_STREAM' | 'POLICY_BLOCKED' | 'SOURCE_ERROR'
+  resolutionState String    @default("NOT_CHECKED") @map("resolution_state")
+  /// 'SERVER_CAPTURE_ALLOWED' | 'BROWSER_CAPTURE_ONLY' | 'LICENSE_REQUIRED' |
+  /// 'BLOCKED' | 'REVIEW_REQUIRED' — never assume server-capturable by default.
+  capturePolicy   String    @default("REVIEW_REQUIRED") @map("capture_policy")
+  sourceId        String?   @map("source_id") // which source told us about this candidate
+  firstSeenAt     DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastProbeAt     DateTime? @map("last_probe_at") @db.Timestamptz(6)
+  expiresAt       DateTime? @map("expires_at") @db.Timestamptz(6)
+  failureReason   String?   @map("failure_reason") @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  source CommitteeSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([hearingId, priority])
+  @@index([resolutionState])
+  @@index([capturePolicy])
+  @@map("hearing_stream_candidate")
+}
+
+// The critical global capture record. Exactly one canonical capture per
+// hearing — enforced at the DB level by @unique on hearingId, not by
+// application discipline. Retries/reconnects are append-only rows in
+// PublicHearingCaptureAttempt, never a second PublicHearingCapture. GLOBAL, no
+// tenant_id, no RLS.
+model PublicHearingCapture {
+  id                     String    @id @default(uuid())
+  hearingId              String    @unique @map("hearing_id") // soft ref → committee_hearing.id; UNIQUE enforces "one canonical capture per hearing"
+  selectedStreamCandidateId String? @map("selected_stream_candidate_id") // soft ref → hearing_stream_candidate.id
+  /// 'scheduled' | 'leased' | 'capturing' | 'paused' | 'ended' | 'failed' | 'no_stream'
+  status                 String    @default("scheduled")
+  scheduledStart         DateTime? @map("scheduled_start") @db.Timestamptz(6)
+  actualStart            DateTime? @map("actual_start") @db.Timestamptz(6)
+  actualEnd              DateTime? @map("actual_end") @db.Timestamptz(6)
+  workerLeaseOwner       String?   @map("worker_lease_owner")
+  leaseExpiresAt         DateTime? @map("lease_expires_at") @db.Timestamptz(6)
+  deepgramSessionRef     String?   @map("deepgram_session_ref")
+  reconnectCount         Int       @default(0) @map("reconnect_count")
+  capturedSeconds        Int       @default(0) @map("captured_seconds")
+  transcriptGapSeconds   Int       @default(0) @map("transcript_gap_seconds")
+  version                Int       @default(1)
+  fencingToken           Int       @default(0) @map("fencing_token")
+  leaseAcquiredAt        DateTime? @map("lease_acquired_at")
+  /// Mirrors StreamResolutionState from stream-resolution-policy.ts
+  resolutionState        String    @default("NOT_CHECKED") @map("resolution_state")
+  lastResolutionAt       DateTime? @map("last_resolution_at")
+  consecutiveSourceErrors Int      @default(0) @map("consecutive_source_errors")
+  nextPreflightAt        DateTime? @map("next_preflight_at")
+  /// Millisecond-precision capture progress; capturedSeconds stays for any
+  /// existing consumer, capturedMs is authoritative for the Phase 4 runtime.
+  capturedMs             Int       @default(0) @map("captured_ms")
+  /// Serialized CaptureGap[] (startMs/endMs/reason) — small, bounded, no
+  /// separate gap table needed for Phase 4's exit proof.
+  gaps                   Json      @default("[]")
+  failureCode            String?   @map("failure_code")
+  failureDetail          String?   @map("failure_detail") @db.Text
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  attempts PublicHearingCaptureAttempt[]
+  segments PublicHearingTranscriptSegment[]
+
+  @@index([status])
+  @@index([workerLeaseOwner])
+  @@map("public_hearing_capture")
+}
+
+// Append-only capture-attempt history. Lets PublicHearingCapture stay a single
+// stable row (one per hearing) while every retry/reconnect/lease-handoff is
+// still individually auditable. GLOBAL, no tenant_id, no RLS.
+model PublicHearingCaptureAttempt {
+  id                 String    @id @default(uuid())
+  captureId          String    @map("capture_id")
+  attemptNumber      Int       @map("attempt_number")
+  startedAt          DateTime? @map("started_at") @db.Timestamptz(6)
+  endedAt            DateTime? @map("ended_at") @db.Timestamptz(6)
+  workerLeaseOwner   String?   @map("worker_lease_owner")
+  deepgramSessionRef String?   @map("deepgram_session_ref")
+  /// 'succeeded' | 'failed' | 'superseded' | 'timed_out'
+  outcome            String?
+  failureCode        String?   @map("failure_code")
+  failureDetail      String?   @map("failure_detail") @db.Text
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  capture PublicHearingCapture @relation(fields: [captureId], references: [id], onDelete: Cascade)
+
+  @@unique([captureId, attemptNumber])
+  @@map("public_hearing_capture_attempt")
+}
+
+// Canonical live transcript for a server-captured public hearing — ONE copy,
+// never duplicated per tenant. Shape deliberately mirrors intel-api's
+// TranscriptSegment (startMs/endMs, isFinal, speaker, confidence, the
+// (parent, startMs, endMs) idempotency key for safe replay) so the two
+// contracts stay interchangeable for any shared reader. Unlike intel-api's
+// tenant transcript, this is public congressional-record text — no per-tenant
+// encryption applies here. GLOBAL, no tenant_id, no RLS.
+model PublicHearingTranscriptSegment {
+  id                     String   @id @default(uuid())
+  captureId              String   @map("capture_id")
+  sequence               Int
+  startMs                Int      @map("start_ms")
+  endMs                  Int      @map("end_ms")
+  text                   String   @db.Text
+  speakerLabel           String?  @map("speaker_label")
+  speakerConfidence      Float?   @map("speaker_confidence")
+  transcriptionConfidence Float?  @map("transcription_confidence")
+  isFinal                Boolean  @default(true) @map("is_final")
+  hasGapBefore           Boolean  @default(false) @map("has_gap_before")
+  revision               Int      @default(1)
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  capture PublicHearingCapture @relation(fields: [captureId], references: [id], onDelete: Cascade)
+
+  @@unique([captureId, startMs, endMs])
+  @@index([captureId, sequence])
+  @@map("public_hearing_transcript_segment")
+}
+
+// Normalized committee-site change feed that will power Committee Rooms.
+// Stores facts/hashes/diffs, never copies full page content. GLOBAL, no
+// tenant_id, no RLS.
+model CommitteeSiteUpdate {
+  id                  String    @id @default(uuid())
+  committeeSystemCode String    @map("committee_system_code") // soft ref → congress_committee.system_code
+  hearingId           String?   @map("hearing_id") // soft ref → committee_hearing.id
+  /// 'hearing_announced' | 'date_changed' | 'time_changed' | 'room_changed' |
+  /// 'postponed' | 'canceled' | 'witness_added' | 'witness_removed' |
+  /// 'witness_testimony_published' | 'committee_memo_published' | 'bill_added' |
+  /// 'amendment_added' | 'livestream_posted' | 'livestream_changed' |
+  /// 'archive_posted' | 'official_transcript_posted'
+  updateType          String    @map("update_type")
+  normalizedTitle     String    @map("normalized_title") @db.Text
+  normalizedSummary   String?   @map("normalized_summary") @db.Text
+  sourceUrl           String    @map("source_url") @db.Text
+  officialPublishedAt DateTime? @map("official_published_at") @db.Timestamptz(6)
+  firstSeenAt         DateTime  @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt          DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  contentHash         String    @map("content_hash")
+  previousValue       String?   @map("previous_value") @db.Text
+  newValue            String?   @map("new_value") @db.Text
+  sourceId            String?   @map("source_id")
+  parserVersion       String?   @map("parser_version")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  source CommitteeSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([committeeSystemCode, lastSeenAt])
+  @@index([hearingId])
+  @@index([updateType])
+  @@index([contentHash])
+  @@map("committee_site_update")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// TENANT-scoped subscription/rule layer below. Mirrors the tracked_bill /
+// congress_bill split: the two tables above this line are GLOBAL; everything
+// below is tenant_id + FK to tenants(id) ON DELETE CASCADE + the canonical
+// rls_bypass() OR tenant_id = current_tenant_id() policy. hearingId stays a
+// SOFT ref (no FK) exactly like tracked_bill.billId, since it points at the
+// GLOBAL layer above.
+// ─────────────────────────────────────────────────────────────────────────
+
+// A tenant user's subscription to a canonical (global) hearing — start
+// notifications, mention alerts, and optional client/watchlist association.
+// TENANT-scoped with RLS.
+model HearingSubscription {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @map("tenant_id") @db.Uuid
+  userId            String   @map("user_id") // clerk user id
+  hearingId         String   @map("hearing_id") // soft ref → committee_hearing.id
+  notifyOnStart     Boolean  @default(true) @map("notify_on_start")
+  notifyOnMention   Boolean  @default(false) @map("notify_on_mention")
+  scheduledByUser   Boolean  @default(true) @map("scheduled_by_user")
+  scheduledByRuleId String?  @map("scheduled_by_rule_id") // soft ref → hearing_auto_record_rule.id
+  clientIds         String[] @default([]) @map("client_ids")
+  watchlistId       String?  @map("watchlist_id") // soft ref → client_watchlist.id
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([tenantId, userId, hearingId])
+  @@index([tenantId, hearingId])
+  @@index([hearingId])
+  @@map("hearing_subscription")
+}
+
+// Tenant-defined rule for auto-subscribing to / auto-recording future
+// hearings matching a filter set. Schema + contract only for now — the
+// matching engine is a later phase. TENANT-scoped with RLS.
+model HearingAutoRecordRule {
+  id                 String   @id @default(uuid()) @db.Uuid
+  tenantId           String   @map("tenant_id") @db.Uuid
+  name               String
+  enabled            Boolean  @default(true)
+  committeeFilters   String[] @default([]) @map("committee_filters") // congress_committee.system_code values
+  subcommitteeFilters String[] @default([]) @map("subcommittee_filters")
+  eventTypeFilters   String[] @default([]) @map("event_type_filters")
+  keywordFilters     String[] @default([]) @map("keyword_filters")
+  clientIds          String[] @default([]) @map("client_ids")
+  watchlistId        String?  @map("watchlist_id") // soft ref → client_watchlist.id
+  publicOnly         Boolean  @default(true) @map("public_only")
+  notifyEmails       String[] @default([]) @map("notify_emails")
+  notifyInApp        Boolean  @default(true) @map("notify_in_app")
+  createdBy          String   @map("created_by") // clerk user id
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([tenantId, enabled])
+  @@map("hearing_auto_record_rule")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

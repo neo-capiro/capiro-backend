@@ -13,6 +13,7 @@ import { StreamResolverService } from './stream-resolver.service.js';
 import { WatchlistModule } from '../watchlist/watchlist.module.js';
 import { LinkingModule } from '../linking/linking.module.js';
 import { SourceDataModule } from '../sourcedata/source-data.module.js';
+import { CaptureModule } from './capture/capture.module.js';
 
 /**
  * Live Hearing Intelligence module — the first capability of intel-api.
@@ -21,7 +22,7 @@ import { SourceDataModule } from '../sourcedata/source-data.module.js';
  * post-hearing brief generation (H4) + watchlist matching (H2).
  */
 @Module({
-  imports: [WatchlistModule, LinkingModule, SourceDataModule],
+  imports: [WatchlistModule, LinkingModule, SourceDataModule, CaptureModule],
   controllers: [HearingController],
   providers: [
     HearingSessionService,

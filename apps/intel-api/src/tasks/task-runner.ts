@@ -38,6 +38,13 @@ import { ParityService } from '../tracker/parity.service.js';
 import { DataParityService } from '../tracker/data-parity.service.js';
 import { WatchlistMatchPromoterService } from '../linking/watchlist-match-promoter.service.js';
 import { BillHearingLinkerService } from '../linking/bill-hearing-linker.service.js';
+import { StreamResolverService } from '../hearing/stream-resolver.service.js';
+import { PublicHearingCaptureStore } from '../hearing/capture/public-hearing-capture.store.js';
+import { PublicCaptureQueueAdapter } from '../hearing/capture/public-capture-queue.adapter.js';
+import { PublicCaptureOrchestrator, PublicCaptureWorkerCoordinator } from '../hearing/capture/public-capture.orchestrator.js';
+import { PublicCaptureCredentialsAdapter } from '../hearing/capture/public-capture-credentials.adapter.js';
+import { PublicHearingTranscriptStore } from '../hearing/capture/public-hearing-transcript.store.js';
+import { FfmpegDeepgramCaptureRuntime } from '../hearing/capture/ffmpeg-deepgram-capture.runtime.js';
 
 /** Parse `--key=value` flags out of a verb's arg list. */
 function parseFlags(args: string[]): Record<string, string> {
@@ -95,6 +102,8 @@ export const KNOWN_VERBS = [
   'diag-replay-bill', //            Diagnostic: rewind one tracked bill's watermark + run detection (e2e proof)
   'diag-upcoming-hearings', //      Diagnostic: read committee_hearing (upcoming feed) — count + samples
   'dedupe-state-alerts', //         2026-07-10 hot-fix (D-2): report/suppress pre-fix state double-emit dupes (dry-run default)
+  'hearing-stream-preflight', //   Phase 4: registered, intentionally not scheduled yet
+  'hearing-capture-worker', //     Phase 4: registered, intentionally not scheduled yet
 ] as const;
 export type Verb = (typeof KNOWN_VERBS)[number];
 
@@ -705,6 +714,26 @@ export async function runVerb(verb: string, args: string[], deps: VerbDeps): Pro
         const r = await svc.linkAll(flags['since']);
         deps.log(`LINK_DONE sessions=${r.sessions} combined=${r.combined} skipped=${r.skipped}`);
       }
+      return;
+    }
+    case 'hearing-stream-preflight': {
+      const flags=parseFlags(args);
+      const store=new PublicHearingCaptureStore(deps.prisma);
+      const orchestrator=new PublicCaptureOrchestrator(store,new StreamResolverService(new ConfigService(),new SourceDataRepository(deps.prisma)),new PublicCaptureQueueAdapter());
+      const hearingIds=flags['hearingId'] ? [flags['hearingId']] : await store.listDueHearingIds(new Date());
+      for (const hearingId of hearingIds) deps.log(`HEARING_PREFLIGHT ${hearingId} ${JSON.stringify(await orchestrator.reconcile(hearingId))}`);
+      return;
+    }
+    case 'hearing-capture-worker': {
+      const flags=parseFlags(args);
+      if (!flags['hearingId'] || !flags['captureId']) throw new Error('hearing-capture-worker requires --hearingId= and --captureId=');
+      const credential=await new PublicCaptureCredentialsAdapter().resolve();
+      const store=new PublicHearingCaptureStore(deps.prisma);
+      const resolver=new StreamResolverService(new ConfigService(),new SourceDataRepository(deps.prisma));
+      const runtime=new FfmpegDeepgramCaptureRuntime(credential.apiKey,new PublicHearingTranscriptStore(deps.prisma));
+      const coordinator=new PublicCaptureWorkerCoordinator(store,resolver,runtime);
+      const result=await coordinator.run({captureId:flags['captureId'],hearingId:flags['hearingId'],workerId:`task:${process.pid}`});
+      deps.log(`HEARING_CAPTURE_WORKER ${JSON.stringify(result)}`);
       return;
     }
     default:
