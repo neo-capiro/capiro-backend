@@ -125,12 +125,35 @@ if (process.env.PHASE8_SESSION8_CRAWL_AUTHORIZED !== 'true') {
   process.exit(0);
 }
 
-const commit = process.env.PHASE8_SESSION8_COMMIT_AUTHORIZED === 'true';
-if (!commit) {
-  console.log(
-    '[phase8-session8] commit not authorised; crawling and reporting without persisting audit rows.',
+// Phase 9 correctness fix.
+//
+// This command composes `InMemoryDiscoveryAuditStore` — a test double — so it
+// structurally CANNOT persist a discovery audit row. Previously it accepted
+// `PHASE8_SESSION8_COMMIT_AUTHORIZED=true` and then printed
+// `SESSION8_LIVE_DISCOVERY_COMMITTED` anyway, reporting success for persistence
+// it never performed.
+//
+// Rather than quietly widen a reporting-only tool into a production writer, the
+// commit mode is REFUSED here and production persistence is routed exclusively
+// through the governed controller (`backfill-run` / `schedule-tick`), which
+// composes the real `PrismaDiscoveryAuditStore`. This keeps exactly one
+// persistence path under exactly one authorisation gate.
+if (process.env.PHASE8_SESSION8_COMMIT_AUTHORIZED === 'true') {
+  console.error(
+    '[phase8-session8] REFUSED: run-live-discovery is a reporting-only command and cannot ' +
+      'persist discovery audit rows (it composes an in-memory audit store). ' +
+      'Use the governed job runtime for production persistence: ' +
+      '`backfill-run --fiscal-years <FYs> --commit` or `schedule-tick --commit`, ' +
+      'which compose PrismaDiscoveryAuditStore.',
   );
+  console.error('SESSION8_LIVE_DISCOVERY_COMMIT_REFUSED');
+  process.exit(65);
 }
+
+console.log(
+  '[phase8-session8] reporting-only command: crawling and reporting, persisting nothing. ' +
+    'No audit/lifecycle row is written by this command under any environment.',
+);
 
 // Without a registered expected source nothing can resolve, so a standalone run
 // is told which keys to consider. A real run loads them from the control plane.
@@ -188,4 +211,5 @@ console.log(
     })}ms`,
 );
 
-console.log(commit ? 'SESSION8_LIVE_DISCOVERY_COMMITTED' : 'SESSION8_LIVE_DISCOVERY_REPORTED');
+// Never `..._COMMITTED`: this command persists nothing, by construction.
+console.log('SESSION8_LIVE_DISCOVERY_REPORTED');
