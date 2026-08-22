@@ -35,6 +35,8 @@ export type LegiWatchPhase9BodyStatus =
   | 'REVIEW_REQUIRED'
   | 'UNAVAILABLE';
 
+export type LegiWatchPhase9AuditScope = 'RUN' | 'BODY' | 'OBSERVATION' | 'EVENT';
+
 export interface LegiWatchPhase9AuditOptions {
   now?: Date;
   lookbackDays?: number;
@@ -80,6 +82,7 @@ export interface LegiWatchPhase9Gate {
 }
 
 export interface LegiWatchPhase9Exception {
+  scope?: LegiWatchPhase9AuditScope;
   hearingId?: string;
   observationId?: string;
   committeeSystemCode?: string;
