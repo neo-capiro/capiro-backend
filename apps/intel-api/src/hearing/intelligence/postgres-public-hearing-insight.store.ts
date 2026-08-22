@@ -66,6 +66,16 @@ function mapRow(row: PublicInsightRow): PublicHearingInsight {
   };
 }
 
+function assertSegmentScope(
+  segmentId: string,
+  insights: readonly PublicHearingInsight[],
+): void {
+  if (insights.some((insight) => insight.segmentId !== segmentId)) {
+    throw new Error(`Cannot replace ${segmentId} with insights from another segment`);
+  }
+  assertPublicHearingBoundary(insights);
+}
+
 /**
  * SQL-owned Phase 8 public insight store.
  *
@@ -86,30 +96,56 @@ export class PostgresPublicHearingInsightStore implements PublicHearingInsightSi
   }
 
   /**
-   * Replace the derived insight set for one transcript segment. This handles a
-   * Deepgram revision truthfully: stale derived rows disappear, their tenant
-   * relevance cascades away, and the current segment revision is re-derived.
-   * Canonical transcript content itself is never edited here.
+   * Replace the derived insight set for one transcript segment. Intended for
+   * administrative repair where the caller already owns the revision decision.
+   * Runtime workers should use the revision-fenced method below.
    */
   async replaceSegmentInsights(
     segmentId: string,
     insights: readonly PublicHearingInsight[],
   ): Promise<void> {
-    if (insights.some((insight) => insight.segmentId !== segmentId)) {
-      throw new Error(`Cannot replace ${segmentId} with insights from another segment`);
-    }
-    assertPublicHearingBoundary(insights);
-    const ids = insights.map((insight) => insight.id);
+    assertSegmentScope(segmentId, insights);
     await this.prisma.withSystem(async (tx) => {
-      await tx.$executeRawUnsafe(
-        `DELETE FROM public_hearing_insight
-         WHERE segment_id=$1
-           AND NOT (id = ANY($2::text[]))`,
-        segmentId,
-        ids,
-      );
-      for (const insight of insights) await this.upsertOne(tx, insight);
+      await this.replaceInTransaction(tx, segmentId, insights);
     });
+  }
+
+  /**
+   * Atomically prove the canonical segment is still at the revision the worker
+   * claimed, then replace its derived insight set while holding a SHARE lock on
+   * that row. A concurrent transcript correction must wait until this transaction
+   * commits; an already-observed newer revision returns false and writes nothing.
+   * This is the persistence fence that makes stale workers harmless, not merely
+   * eventually correct.
+   */
+  async replaceSegmentInsightsIfCurrent(input: {
+    segmentId: string;
+    expectedRevision: number;
+    insights: readonly PublicHearingInsight[];
+  }): Promise<boolean> {
+    assertSegmentScope(input.segmentId, input.insights);
+    return this.prisma.withSystem(
+      async (tx) => {
+        const rows = await tx.$queryRawUnsafe<Array<{ revision: number; isFinal: boolean }>>(
+          `SELECT revision, is_final AS "isFinal"
+           FROM public_hearing_transcript_segment
+           WHERE id=$1
+           FOR SHARE`,
+          input.segmentId,
+        );
+        const current = rows[0];
+        if (
+          !current ||
+          !current.isFinal ||
+          current.revision !== input.expectedRevision
+        ) {
+          return false;
+        }
+        await this.replaceInTransaction(tx, input.segmentId, input.insights);
+        return true;
+      },
+      { timeoutMs: 30_000 },
+    );
   }
 
   async byIds(ids: readonly string[]): Promise<PublicHearingInsight[]> {
@@ -173,6 +209,22 @@ export class PostgresPublicHearingInsightStore implements PublicHearingInsightSi
     const mapped = rows.map(mapRow);
     assertPublicHearingBoundary(mapped);
     return mapped;
+  }
+
+  private async replaceInTransaction(
+    tx: Prisma.TransactionClient,
+    segmentId: string,
+    insights: readonly PublicHearingInsight[],
+  ): Promise<void> {
+    const ids = insights.map((insight) => insight.id);
+    await tx.$executeRawUnsafe(
+      `DELETE FROM public_hearing_insight
+       WHERE segment_id=$1
+         AND NOT (id = ANY($2::text[]))`,
+      segmentId,
+      ids,
+    );
+    for (const insight of insights) await this.upsertOne(tx, insight);
   }
 
   private async upsertOne(
