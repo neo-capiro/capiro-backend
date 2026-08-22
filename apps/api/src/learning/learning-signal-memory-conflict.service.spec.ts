@@ -25,6 +25,22 @@ function realQuerySql(tx: { $queryRawUnsafe: { mock: { calls: unknown[][] } } })
   return call[0] as string;
 }
 
+/** The full recorded call (SQL + bound parameters) for this service's own
+ *  similarity query — used to prove placeholders and arguments agree. */
+function realQueryCall(tx: { $queryRawUnsafe: { mock: { calls: unknown[][] } } }): unknown[] {
+  const call = tx.$queryRawUnsafe.mock.calls.find(
+    (args) => !/FROM\s+clients\s+c/i.test(args[0] as string),
+  );
+  if (!call) throw new Error('similarity query was never issued');
+  return call;
+}
+
+/** Highest $N placeholder actually referenced by the SQL. */
+function highestPlaceholder(sql: string): number {
+  const found = [...sql.matchAll(/\$(\d+)/g)].map((m) => Number(m[1]));
+  return found.length === 0 ? 0 : Math.max(...found);
+}
+
 function buildHarness(rows: Array<{ id: string; slug: string; title: string; content_text: string; score: number }>) {
   const tx = {
     // fetchDeniedClientIds (memory-wall.helpers.ts) issues its OWN
@@ -163,4 +179,62 @@ describe('LearningSignalMemoryConflictService (Phase 27C)', () => {
     const sql = realQuerySql(tx as any);
     expect(sql).toMatch(/mi\.status\s*=\s*'active'/);
   });
+
+  // ── Phase 27G regression: placeholder/argument arity must agree ──────────
+  //
+  // The client-scoped and user-scoped branches reference DIFFERENT
+  // placeholders ($3 vs only $1/$2). Binding a third argument on the
+  // user-scoped branch makes Postgres reject the whole statement with 42P18
+  // "could not determine data type of parameter $3" — which this service's
+  // deliberate fail-open catch then swallows as "no match found". The result
+  // is invisible in every mocked test and in the logs' happy path: active
+  // memory conflict/duplicate detection silently never runs for client-less
+  // (user-voice) signals. Caught by the Phase 27G production canary. These
+  // tests assert the invariant a mock can actually see — that the number of
+  // bound arguments equals the highest placeholder the SQL references.
+
+  it('binds exactly as many parameters as the SQL references, for a CLIENT-scoped signal', async () => {
+    const { service, tx } = buildHarness([]);
+    await service.findBestActiveMemoryMatch(
+      { tenantId: TENANT, clientId: CLIENT, actorUserId: ACTOR },
+      'a fact long enough to be searched against active memory',
+    );
+    const call = realQueryCall(tx);
+    const sql = call[0] as string;
+    const params = call.slice(1);
+    expect(sql).toContain('$3::uuid');
+    expect(highestPlaceholder(sql)).toBe(3);
+    expect(params).toEqual([TENANT, ACTOR, CLIENT]);
+  });
+
+  it('binds exactly as many parameters as the SQL references, for a USER-scoped signal', async () => {
+    const { service, tx } = buildHarness([]);
+    await service.findBestActiveMemoryMatch(
+      { tenantId: TENANT, clientId: null, actorUserId: ACTOR },
+      'a fact long enough to be searched against active memory',
+    );
+    const call = realQueryCall(tx);
+    const sql = call[0] as string;
+    const params = call.slice(1);
+    // The user-scoped branch must not mention $3 at all...
+    expect(sql).not.toContain('$3');
+    expect(highestPlaceholder(sql)).toBe(2);
+    // ...and must therefore bind only two arguments. Binding a third (the
+    // null clientId) is the 42P18 bug this test exists to prevent.
+    expect(params).toEqual([TENANT, ACTOR]);
+    expect(params).toHaveLength(2);
+  });
+
+  it('never binds an undefined/null positional parameter on either branch', async () => {
+    for (const clientId of [CLIENT, null]) {
+      const { service, tx } = buildHarness([]);
+      await service.findBestActiveMemoryMatch(
+        { tenantId: TENANT, clientId, actorUserId: ACTOR },
+        'a fact long enough to be searched against active memory',
+      );
+      const params = realQueryCall(tx).slice(1);
+      expect(params.every((p) => typeof p === 'string' && p.length > 0)).toBe(true);
+    }
+  });
+
 });
