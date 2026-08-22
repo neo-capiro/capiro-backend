@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { BadRequestException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { ROLES_KEY } from '../auth/roles.decorator.js';
 import type { MemoryCandidateReviewService } from './memory-candidate-review.service.js';
@@ -155,5 +156,38 @@ describe('MemoryReviewController', () => {
     );
     expect(approve).toHaveBeenCalledWith(ctx, 'candidate-1');
     expect(reject).toHaveBeenCalledWith(ctx, 'candidate-1', 'Unsupported source.');
+  });
+
+  it('Phase 27D: resolve-conflict validates the decision before delegating', async () => {
+    const resolveConflict = jest.fn(async () => ({
+      candidateId: 'candidate-1',
+      candidateKind: 'learning_signal_conflict' as const,
+      decision: 'supersede_existing' as const,
+      outcome: 'activated' as const,
+      memoryItemId: 'item-2',
+      controllingItemId: 'item-2',
+    }));
+    const controller = new MemoryReviewController(
+      { resolveConflict } as unknown as MemoryCandidateReviewService,
+      {} as unknown as MemoryReviewRevisionService,
+    );
+
+    await expect(
+      controller.resolveConflict(ctx, 'candidate-1', { decision: 'supersede_existing', reason: 'confirmed' }),
+    ).resolves.toEqual({
+      ok: true,
+      candidateId: 'candidate-1',
+      candidateKind: 'learning_signal_conflict',
+      decision: 'supersede_existing',
+      outcome: 'activated',
+      memoryItemId: 'item-2',
+      controllingItemId: 'item-2',
+    });
+    expect(resolveConflict).toHaveBeenCalledWith(ctx, 'candidate-1', 'supersede_existing', 'confirmed');
+
+    await expect(
+      controller.resolveConflict(ctx, 'candidate-1', { decision: 'maybe' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(resolveConflict).toHaveBeenCalledTimes(1);
   });
 });

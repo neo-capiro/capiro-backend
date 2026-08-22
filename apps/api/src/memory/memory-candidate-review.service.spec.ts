@@ -263,6 +263,7 @@ describe('MemoryCandidateReviewService', () => {
             reject: true,
             requestChanges: true,
             reassign: false,
+            resolveConflict: false,
           },
           proposal: expect.objectContaining({
             canonicalItem: expect.objectContaining({ title: 'Client Soul' }),

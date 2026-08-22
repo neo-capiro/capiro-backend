@@ -7,7 +7,10 @@ import {
 } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { ImmutableMemoryVersionService } from './immutable-memory-version.service.js';
+import {
+  ImmutableMemoryVersionService,
+  type LearningSignalGovernanceResult,
+} from './immutable-memory-version.service.js';
 import { MemoryAuthorizationService } from './memory-authorization.service.js';
 import { MemoryCandidateService } from './memory-candidate.service.js';
 import { isMemoryReviewAdminRole } from './memory-review-admin-policy.js';
@@ -18,8 +21,16 @@ import {
 import { normalizeMemoryReviewReason } from './memory-review-workflow.helpers.js';
 import { memoryReviewSurfaceEnabled } from './memory-review-switch.js';
 import type { MemorySection } from './memory.types.js';
+import {
+  candidateKindFor,
+  candidateKindForSource,
+  isLearningSignalConflictResolution,
+  type LearningSignalConflictResolution,
+  type MemoryCandidateKind,
+} from './memory-version.helpers.js';
 
-export type MemoryCandidateKind = 'standard' | 'correction' | 'restore' | 'contradiction';
+export type { MemoryCandidateKind };
+export { candidateKindFor, candidateKindForSource };
 
 export interface ReviewableMemoryCandidate {
   id: string;
@@ -39,12 +50,16 @@ export interface ReviewableMemoryCandidate {
       sections: MemorySection[];
     } | null;
   };
+  /** Phase 27D — populated only when candidateKind === 'learning_signal_conflict'. */
+  conflict: { contradictsMemoryItemId: string; conflictStatus: string } | null;
   workflow: MemoryReviewWorkflowSnapshot;
   capabilities: {
     approve: boolean;
     reject: boolean;
     requestChanges: boolean;
     reassign: boolean;
+    /** Phase 27D — resolveConflict is only ever offered for candidateKind === 'learning_signal_conflict'. */
+    resolveConflict: boolean;
   };
 }
 
@@ -55,6 +70,8 @@ interface PendingCandidateRow {
   sourceKind: string;
   scope: string;
   createdAt: Date;
+  contradictsMemoryItemId: string | null;
+  conflictStatus: string | null;
 }
 
 type ImmutableReviewResult =
@@ -64,17 +81,12 @@ type ImmutableReviewResult =
 export type MemoryReviewDecisionResult =
   | {
       candidateId: string;
-      candidateKind: 'standard';
+      candidateKind: 'standard' | 'learning_signal_conflict';
       outcome: 'activated' | 'rejected';
       memoryId?: string;
     }
-  | ({ candidateKind: Exclude<MemoryCandidateKind, 'standard'> } & ImmutableReviewResult);
-
-const VERSION_SOURCE_KIND = {
-  memory_correction: 'correction',
-  memory_restore: 'restore',
-  memory_contradiction: 'contradiction',
-} as const;
+  | ({ candidateKind: 'correction' | 'restore' | 'contradiction' } & ImmutableReviewResult)
+  | ({ candidateKind: 'learning_signal_conflict' } & LearningSignalGovernanceResult);
 
 /**
  * Scope-aware review facade for authenticated users.
@@ -114,6 +126,8 @@ export class MemoryCandidateReviewService {
           sourceKind: true,
           scope: true,
           createdAt: true,
+          contradictsMemoryItemId: true,
+          conflictStatus: true,
         },
       });
 
@@ -138,7 +152,11 @@ export class MemoryCandidateReviewService {
         if (!authorizedRow) continue;
 
         const proposal = proposalFromPayload(authorizedRow.payload);
-        const candidateKind = candidateKindForSource(row.sourceKind);
+        const candidateKind = candidateKindFor({
+          sourceKind: row.sourceKind,
+          contradictsMemoryItemId: row.contradictsMemoryItemId,
+          conflictStatus: row.conflictStatus,
+        });
         const workflow = await this.workflow.ensureAndDescribeInTx(
           tx,
           ctx,
@@ -162,6 +180,14 @@ export class MemoryCandidateReviewService {
           continue;
         }
 
+        const resolveConflictAllowed =
+          candidateKind === 'learning_signal_conflict' &&
+          (
+            await this.authorization.evaluateInTx(tx, ctx, subject, 'resolve_conflict', {
+              emitDenialMetrics: false,
+            })
+          ).allowed;
+
         visible.push({
           id: row.id,
           candidateKind,
@@ -171,12 +197,20 @@ export class MemoryCandidateReviewService {
           sourceKind: row.sourceKind,
           createdAt: row.createdAt.toISOString(),
           proposal,
+          conflict:
+            candidateKind === 'learning_signal_conflict'
+              ? {
+                  contradictsMemoryItemId: row.contradictsMemoryItemId as string,
+                  conflictStatus: row.conflictStatus as string,
+                }
+              : null,
           workflow,
           capabilities: {
             approve: approve.allowed,
             reject: review.allowed,
             requestChanges: review.allowed && workflow.capabilities.requestChanges,
             reassign: workflow.capabilities.reassign,
+            resolveConflict: resolveConflictAllowed,
           },
         });
       }
@@ -213,12 +247,20 @@ export class MemoryCandidateReviewService {
     return this.workflow.assignReviewer(ctx, candidateId, reviewerUserId, reason);
   }
 
+  /**
+   * Plain approve. For candidateKind === 'learning_signal_conflict' this is
+   * the `approve_new` outcome (§11 of the Phase 27D handoff): the reviewer
+   * judges the detected conflict a false positive and commits the candidate
+   * as an independent new memory — byte-for-byte the same commit path
+   * 'standard' already uses, so no code branch is added here at all. A
+   * genuine conflict resolution goes through resolveConflict() instead.
+   */
   async approve(ctx: TenantContext, candidateId: string): Promise<MemoryReviewDecisionResult> {
     this.requireEnabled();
     await this.workflow.assertAssignedForDecision(ctx, candidateId, 'approve');
     const kind = await this.loadCandidateKind(ctx, candidateId);
     let result: MemoryReviewDecisionResult;
-    if (kind !== 'standard') {
+    if (kind === 'correction' || kind === 'restore' || kind === 'contradiction') {
       result = { candidateKind: kind, ...(await this.versions.approveCandidate(ctx, candidateId)) };
     } else {
       const { memoryId } = await this.candidates.approve(
@@ -227,7 +269,7 @@ export class MemoryCandidateReviewService {
         ctx.userId,
         ctx,
       );
-      result = { candidateId, candidateKind: 'standard', outcome: 'activated', memoryId };
+      result = { candidateId, candidateKind: kind, outcome: 'activated', memoryId };
     }
     await this.workflow.completeDecision(ctx, candidateId, 'approved');
     return result;
@@ -244,16 +286,57 @@ export class MemoryCandidateReviewService {
     await this.workflow.assertAssignedForDecision(ctx, candidateId, 'review');
     const kind = await this.loadCandidateKind(ctx, candidateId);
     let result: MemoryReviewDecisionResult;
-    if (kind !== 'standard') {
+    if (kind === 'correction' || kind === 'restore' || kind === 'contradiction') {
       result = {
         candidateKind: kind,
         ...(await this.versions.rejectCandidate(ctx, candidateId, cleanReason)),
       };
     } else {
       await this.candidates.reject(ctx.tenantId, candidateId, ctx.userId, ctx);
-      result = { candidateId, candidateKind: 'standard', outcome: 'rejected' };
+      result = { candidateId, candidateKind: kind, outcome: 'rejected' };
     }
     await this.workflow.completeDecision(ctx, candidateId, 'rejected', cleanReason);
+    return result;
+  }
+
+  /**
+   * Phase 27D — the governed-resolution surface for a candidateKind ===
+   * 'learning_signal_conflict' candidate. `duplicate` | `corroborate_existing`
+   * | `supersede_existing` | `conflict_requires_review` all delegate to
+   * ImmutableMemoryVersionService.decideLearningSignalCandidate, the one
+   * canonical path that may resolve Phase 27C's conflict flag into a real
+   * change to active memory. Rejects any other candidateKind — those never
+   * carry a conflict flag to resolve.
+   */
+  async resolveConflict(
+    ctx: TenantContext,
+    candidateId: string,
+    decision: LearningSignalConflictResolution,
+    reason?: unknown,
+  ): Promise<MemoryReviewDecisionResult> {
+    this.requireEnabled();
+    if (!isLearningSignalConflictResolution(decision)) {
+      throw new BadRequestException(`Unsupported conflict resolution: ${String(decision)}`);
+    }
+    await this.workflow.assertAssignedForDecision(ctx, candidateId, 'resolve_conflict');
+    const kind = await this.loadCandidateKind(ctx, candidateId);
+    if (kind !== 'learning_signal_conflict') {
+      throw new BadRequestException(
+        'This candidate has no open conflict flag to resolve — use approve/reject instead.',
+      );
+    }
+    const cleanReason = normalizeMemoryReviewReason(reason) ?? undefined;
+    const versionResult = await this.versions.decideLearningSignalCandidate(
+      ctx,
+      candidateId,
+      decision,
+      cleanReason,
+    );
+    const result: MemoryReviewDecisionResult = {
+      candidateKind: 'learning_signal_conflict',
+      ...versionResult,
+    };
+    await this.workflow.completeDecision(ctx, candidateId, 'approved');
     return result;
   }
 
@@ -264,10 +347,14 @@ export class MemoryCandidateReviewService {
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const row = await tx.memoryCandidate.findFirst({
         where: { id: candidateId, tenantId: ctx.tenantId, status: 'pending' },
-        select: { sourceKind: true },
+        select: { sourceKind: true, contradictsMemoryItemId: true, conflictStatus: true },
       });
       if (!row) throw new NotFoundException('No pending memory candidate with that id.');
-      return candidateKindForSource(row.sourceKind);
+      return candidateKindFor({
+        sourceKind: row.sourceKind,
+        contradictsMemoryItemId: row.contradictsMemoryItemId,
+        conflictStatus: row.conflictStatus,
+      });
     });
   }
 
@@ -278,10 +365,6 @@ export class MemoryCandidateReviewService {
       );
     }
   }
-}
-
-export function candidateKindForSource(sourceKind: string): MemoryCandidateKind {
-  return VERSION_SOURCE_KIND[sourceKind as keyof typeof VERSION_SOURCE_KIND] ?? 'standard';
 }
 
 function proposalFromPayload(payload: unknown): ReviewableMemoryCandidate['proposal'] {

@@ -95,7 +95,7 @@ function buildHarness(signal: FakeSignal | null) {
       findFirst: jest.fn(async (..._args: unknown[]): Promise<unknown> => null),
     },
     $queryRawUnsafe: jest.fn(async (..._args: unknown[]): Promise<unknown[]> => [{ allowed: true }]), // clientMemoryAllowed
-    $queryRaw: jest.fn(async (..._args: unknown[]): Promise<Array<{ id: string }>> => []), // findExactDuplicate / CRM finding lookup — no match by default
+    $queryRaw: jest.fn(async (..._args: unknown[]): Promise<Array<{ id: string; status: string }>> => []), // findExactDuplicate / CRM finding lookup — no match by default
   };
   const prisma = { withTenant: jest.fn((_tenantId: string, cb: (tx: unknown) => unknown) => cb(tx)) };
   const candidates = {
@@ -222,12 +222,39 @@ describe('LearningSignalCandidateService', () => {
 
   it('exact duplicate (same client/kind/targetKey) is recorded duplicate, no new candidate created', async () => {
     const { service, tx, candidates } = buildHarness(crmSignal());
-    tx.$queryRaw.mockResolvedValueOnce([{ id: 'existing-candidate-1' }]);
+    tx.$queryRaw.mockResolvedValueOnce([{ id: 'existing-candidate-1', status: 'pending' }]);
     const result = await service.generateForSignal(TENANT, SIGNAL);
     expect(result?.eligibility).toBe('duplicate');
     expect(result?.memoryCandidateId).toBeNull();
     expect(result?.reason).toContain('existing-candidate-1');
+    expect(result?.reason).not.toContain('rejected');
     expect(candidates.proposeSaveMemory).not.toHaveBeenCalled();
+  });
+
+  // Phase 27D §17: rejection durability. The next identical signal for the
+  // same (clientId, kind, targetKey) must not silently recreate a candidate
+  // a reviewer already turned down, as though the rejection never happened.
+  it('rejection durability: a same-proposition signal after a REJECTED candidate is suppressed, not resubmitted', async () => {
+    const { service, tx, candidates } = buildHarness(crmSignal());
+    tx.$queryRaw.mockResolvedValueOnce([{ id: 'rejected-candidate-1', status: 'rejected' }]);
+    const result = await service.generateForSignal(TENANT, SIGNAL);
+    expect(result?.eligibility).toBe('duplicate');
+    expect(result?.memoryCandidateId).toBeNull();
+    expect(result?.reason).toContain('rejected-candidate-1');
+    expect(result?.reason.toLowerCase()).toContain('rejected');
+    expect(candidates.proposeSaveMemory).not.toHaveBeenCalled();
+  });
+
+  it('rejection durability query matches rejected alongside the live statuses, ordered by recency', async () => {
+    const { service, tx } = buildHarness(crmSignal());
+    tx.$queryRaw.mockResolvedValueOnce([{ id: 'rejected-candidate-1', status: 'rejected' }]);
+    await service.generateForSignal(TENANT, SIGNAL);
+    const [sqlArg] = tx.$queryRaw.mock.calls[0] as [{ raw?: string[] } | string];
+    const sql = Array.isArray((sqlArg as { raw?: string[] }).raw)
+      ? (sqlArg as { raw: string[] }).raw.join('?')
+      : String(sqlArg);
+    expect(sql).toMatch(/'rejected'/);
+    expect(sql).toMatch(/ORDER BY created_at DESC/i);
   });
 
   it('eligible Meri signal: proposeSaveMemory called with user_private scope, ownerUserId = signal.actorUserId, never firm', async () => {
@@ -335,6 +362,10 @@ describe('LearningSignalCandidateService', () => {
 
     it('CRM signal fetches the finding\'s proposed value and calls conflict detection', async () => {
       const { service, tx, conflictDetection } = buildHarness(crmSignal());
+      // findExactDuplicate's own $queryRaw call runs first (no match), then
+      // every later call (resolveFactText's finding lookup) gets the
+      // proposedValue row.
+      (tx.$queryRaw as any).mockResolvedValueOnce([]);
       (tx.$queryRaw as any).mockImplementation(async (..._args: unknown[]) => [
         { proposedValue: { value: 'weekly' } },
       ]);
@@ -367,6 +398,9 @@ describe('LearningSignalCandidateService', () => {
 
     it("CORE EXAMPLE — 'probable_contradiction' match: candidate IS still created, flagged, active item never touched", async () => {
       const { service, tx, candidates, conflictDetection } = buildHarness(crmSignal());
+      // Same ordering note as the test above: findExactDuplicate's call
+      // must see no match before resolveFactText's finding lookup runs.
+      (tx.$queryRaw as any).mockResolvedValueOnce([]);
       (tx.$queryRaw as any).mockImplementation(async (..._args: unknown[]) => [
         { proposedValue: { value: 'weekly' } },
       ]);
