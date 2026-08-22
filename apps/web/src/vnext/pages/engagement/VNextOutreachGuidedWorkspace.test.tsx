@@ -311,4 +311,74 @@ describe('VNextOutreachGuidedWorkspace', () => {
       refs: [{ contextKey: 'prior-ref-1', reason: 'superseded' }],
     });
   });
+
+  it('walks a fresh Send Update campaign through the content-template and format steps before Sponsor', async () => {
+    const applyCommands = vi.fn(async () => undefined);
+    const emptySession: OutreachV3SessionEnvelope = {
+      session: { id: 'session-1', title: 'New outreach campaign', status: 'active' },
+      currentStateVersion: 1,
+      specHash: 'spec-hash',
+      pendingProposalCount: 0,
+      readiness: { blockers: [] },
+      spec: {
+        schemaVersion: 'outreach_campaign_spec_v1',
+        goal: {
+          goal: null,
+          objective: null,
+          topic: null,
+          desiredOutcome: null,
+          ask: { mode: 'undecided', text: null },
+          whyNow: null,
+        },
+        sponsor: { kind: 'undecided', label: null, clientRefs: [] },
+        targeting: { criteria: null, selectedTargetRefs: [], rejectedRecommendationRefs: [] },
+        delivery: { pattern: 'undecided', personalization: 'undecided' },
+        context: {
+          requiredPolicyRefs: [],
+          writingGuidanceRefs: [],
+          campaignFactRefs: [],
+          targetSpecificRefs: [],
+          groupSafeRefs: [],
+          excludedRefs: [],
+        },
+        strategy: { campaignAngle: null, tone: null, length: 'undecided', customLengthInstruction: null },
+      },
+    };
+    useOutreachV3SessionMock.mockReturnValue(controller({ applyCommands, session: emptySession }));
+    renderWorkspace();
+
+    expect(await screen.findByText('What kind of campaign are you creating?')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /send an update/i }));
+
+    expect(await screen.findByText('Name the campaign')).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText('August client update'), {
+      target: { value: 'August portfolio update' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /continue to template/i }));
+    await waitFor(() => expect(applyCommands).toHaveBeenCalledTimes(1));
+
+    expect(await screen.findByText('Choose a template')).toBeInTheDocument();
+    expect(screen.getByText('Hearings & markup week-ahead')).toBeInTheDocument();
+    expect(screen.getByText('Funding opportunity match digest')).toBeInTheDocument();
+    expect(screen.getByText('Relationship / meeting week-in-review')).toBeInTheDocument();
+    const continueToFormat = screen.getByRole('button', { name: /continue to format/i });
+    expect(continueToFormat).toBeDisabled();
+
+    fireEvent.click(screen.getByText('Hearings & markup week-ahead'));
+    expect(continueToFormat).toBeEnabled();
+    fireEvent.click(continueToFormat);
+
+    expect(await screen.findByText('Choose a writing format')).toBeInTheDocument();
+    expect(screen.getByText('Standard email').closest('button')).toHaveAttribute('data-selected', 'true');
+    fireEvent.click(screen.getByText('Structured digest'));
+    fireEvent.click(screen.getByRole('button', { name: /continue to sponsor/i }));
+
+    expect(await screen.findByText('Which client is this campaign for?')).toBeInTheDocument();
+
+    // Back from Sponsor returns to Format, not straight to Name — the two
+    // inserted steps must stay in the back-navigation chain. Both the header
+    // back control and the section's own Back button read "Back" here.
+    fireEvent.click(screen.getAllByRole('button', { name: /^back$/i })[0]!);
+    expect(await screen.findByText('Choose a writing format')).toBeInTheDocument();
+  });
 });

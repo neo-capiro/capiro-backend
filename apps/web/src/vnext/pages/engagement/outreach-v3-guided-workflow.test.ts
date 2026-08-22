@@ -7,6 +7,7 @@ import type {
 import {
   CLIENT_PROFILE_CONTEXT_OPTIONS,
   OUTREACH_WORKFLOW_TEMPLATES,
+  guidedStepsForWorkflow,
   inferOutreachGuidedStep,
   inferOutreachWorkflowTemplate,
   manualProfileContextSelection,
@@ -185,5 +186,44 @@ describe('Outreach V3 guided workflow', () => {
 
     spec.targeting.selectedTargetRefs = [target];
     expect(inferOutreachGuidedStep(sessionWith(spec))).toBe('context');
+  });
+
+  it('inserts a content-template and format step for the two fixed workflows, but not for custom', () => {
+    expect(guidedStepsForWorkflow('request_meeting').map((step) => step.key)).toEqual([
+      'template',
+      'name',
+      'content_template',
+      'format',
+      'sponsor',
+      'target',
+      'context',
+      'review',
+    ]);
+    expect(guidedStepsForWorkflow('send_update').map((step) => step.key)).toEqual([
+      'template',
+      'name',
+      'content_template',
+      'format',
+      'sponsor',
+      'target',
+      'context',
+      'review',
+    ]);
+    expect(guidedStepsForWorkflow('custom').map((step) => step.key)).toEqual([
+      'template',
+      'name',
+      'sponsor',
+      'target',
+      'context',
+      'review',
+    ]);
+    expect(guidedStepsForWorkflow(null).map((step) => step.key)).toEqual([
+      'template',
+      'name',
+      'sponsor',
+      'target',
+      'context',
+      'review',
+    ]);
   });
 });

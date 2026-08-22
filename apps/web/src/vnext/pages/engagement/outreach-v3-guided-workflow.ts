@@ -17,11 +17,38 @@ export type ClientProfileContextKey =
 export type OutreachGuidedStep =
   | 'template'
   | 'name'
+  | 'content_template'
+  | 'format'
   | 'sponsor'
   | 'target'
   | 'context'
   | 'review'
   | 'generating';
+
+/**
+ * Request-a-meeting and send-an-update both offer a content template (and a
+ * writing-format choice) between naming the campaign and picking a sponsor.
+ * Custom has no fixed template, so it skips straight to sponsor.
+ */
+export function guidedStepsForWorkflow(
+  workflowId: OutreachWorkflowTemplateId | null,
+): Array<{ key: OutreachGuidedStep; label: string }> {
+  const templated = workflowId === 'request_meeting' || workflowId === 'send_update';
+  return [
+    { key: 'template', label: 'Workflow' },
+    { key: 'name', label: 'Name' },
+    ...(templated
+      ? ([
+          { key: 'content_template', label: 'Template' },
+          { key: 'format', label: 'Format' },
+        ] as const)
+      : []),
+    { key: 'sponsor', label: 'Sponsor' },
+    { key: 'target', label: 'People' },
+    { key: 'context', label: 'Context' },
+    { key: 'review', label: 'Review' },
+  ];
+}
 
 export interface OutreachWorkflowTemplateDefinition {
   id: OutreachWorkflowTemplateId;
