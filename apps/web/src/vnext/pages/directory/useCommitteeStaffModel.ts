@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
 import type {
+  CommitteeChamber,
   DirectoryCommittee,
   DirectoryCommitteesResponse,
   DirectoryCommitteeStaffResponse,
@@ -37,6 +38,33 @@ const CHAMBER_OPTIONS: readonly DirectoryFilterOption[] = [
   { value: 'Senate', label: 'Senate' },
   { value: 'Joint', label: 'Joint' },
 ];
+
+/**
+ * One committee-or-subcommittee unit with the roster the SOURCE attributes to
+ * that unit's own office.
+ *
+ * Previously the page fetched exactly one roster — the selected committee's —
+ * and rendered every staffer as one flat, unattributed pool, with a note
+ * saying unit placement "is not source-backed". That was wrong about the
+ * source: `/api/directory/committees/:id/staff` is keyed on the committee
+ * OFFICE (`positions[].office.office_id`), and every subcommittee is its own
+ * office with its own id. So a subcommittee's roster is directly fetchable —
+ * we simply never asked for it. Fanning the same endpoint out over the parent
+ * plus each `subcommittees[]` id yields real per-unit staff attribution with
+ * no synthesis whatsoever.
+ */
+export interface CommitteeStaffGroup {
+  committeeId: string;
+  name: string;
+  /** Subcommittee display name with the redundant parent prefix stripped. */
+  shortName: string;
+  kind: 'committee' | 'subcommittee';
+  chamber: CommitteeChamber | null;
+  staff: DirectoryCommitteeStaffer[];
+  currentCount: number;
+  formerCount: number;
+  isLoading: boolean;
+}
 
 export interface CommitteeStaffModel {
   search: { text: string; onChange: (next: string) => void };
@@ -74,6 +102,14 @@ export interface CommitteeStaffModel {
   results: {
     staff: DirectoryCommitteeStaffer[];
     total: number;
+    /**
+     * The same people as `staff`, partitioned into the committee/subcommittee
+     * unit the source attributes each of them to. Ordered parent-first, then
+     * subcommittees by headcount then name.
+     */
+    groups: CommitteeStaffGroup[];
+    /** Units still resolving their roster (fan-out is per-unit, so partial). */
+    isLoadingGroups: boolean;
     isInitialLoading: boolean;
     isRefetching: boolean;
     isError: boolean;
@@ -90,6 +126,19 @@ export interface CommitteeStaffModel {
 function readList(params: URLSearchParams, key: string): string[] {
   const raw = params.get(key);
   return raw ? raw.split(',').filter(Boolean) : [];
+}
+
+/**
+ * Subcommittee names repeat their parent committee's full name as a literal
+ * prefix (source data, not a display choice) — stripped so a group header shows
+ * only the part that distinguishes it from its siblings. Exported because the
+ * chart, the roster group header and the contact card must all say the same
+ * thing about the same unit.
+ */
+export function stripCommitteePrefix(name: string, committeeName: string): string {
+  if (!committeeName) return name;
+  const prefix = `${committeeName} `;
+  return name.startsWith(prefix) ? name.slice(prefix.length) : name;
 }
 
 export function useCommitteeStaffModel(): CommitteeStaffModel {
@@ -202,6 +251,119 @@ export function useCommitteeStaffModel(): CommitteeStaffModel {
   });
   const units = useMemo(() => unitsQuery.data?.subcommittees ?? [], [unitsQuery.data]);
 
+  // Per-unit rosters. One query per subcommittee against the SAME endpoint the
+  // parent roster uses — a subcommittee is its own committee office, so its
+  // roster is source-backed exactly like the parent's. React Query dedupes and
+  // caches each unit independently, and the parent roster above is reused as
+  // this list's first entry rather than re-fetched.
+  const unitStaffQueries = useQueries({
+    queries: units.map((unit) => ({
+      queryKey: ['directory-committee-staff', unit.id],
+      queryFn: async () =>
+        (
+          await api.get<DirectoryCommitteeStaffResponse>(
+            `/api/directory/committees/${encodeURIComponent(unit.id)}/staff`,
+            { params: { pageSize: COMMITTEE_STAFF_PAGE_SIZE } },
+          )
+        ).data,
+      staleTime: 5 * 60_000,
+      retry: 1,
+    })),
+  });
+
+  // The search box filters PEOPLE inside the groups too, so a name search
+  // narrows the org chart to the units that actually contain that person
+  // instead of leaving every unit at full roster while the header count drops.
+  const staffMatches = useCallback(
+    (staffer: DirectoryCommitteeStaffer) => {
+      const needle = query.trim().toLowerCase();
+      if (!needle) return true;
+      return [staffer.fullName, staffer.title, staffer.email, staffer.committee?.name]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(needle);
+    },
+    [query],
+  );
+
+  const unitStaffSignature = unitStaffQueries
+    .map((entry) => `${entry.data?.committee?.id ?? ''}:${entry.data?.staff.length ?? -1}:${entry.isLoading ? 'l' : 'r'}`)
+    .join('|');
+
+  const groups = useMemo<CommitteeStaffGroup[]>(() => {
+    const built: CommitteeStaffGroup[] = [];
+    const seen = new Set<string>();
+
+    const push = (
+      committeeId: string,
+      name: string,
+      shortName: string,
+      kind: 'committee' | 'subcommittee',
+      chamber: CommitteeChamber | null,
+      roster: DirectoryCommitteeStaffer[],
+      isLoading: boolean,
+    ) => {
+      if (seen.has(committeeId)) return;
+      seen.add(committeeId);
+      const filtered = roster.filter(staffMatches);
+      built.push({
+        committeeId,
+        name,
+        shortName,
+        kind,
+        chamber,
+        staff: filtered,
+        currentCount: filtered.filter((person) => person.isCurrent).length,
+        formerCount: filtered.filter((person) => !person.isCurrent).length,
+        isLoading,
+      });
+    };
+
+    if (committeeDetail) {
+      push(
+        committeeDetail.id,
+        committeeDetail.name,
+        committeeDetail.name,
+        committeeDetail.kind,
+        committeeDetail.chamber,
+        staff,
+        false,
+      );
+    }
+
+    units.forEach((unit, index) => {
+      const entry = unitStaffQueries[index];
+      push(
+        unit.id,
+        unit.name,
+        stripCommitteePrefix(unit.name, committeeDetail?.name ?? ''),
+        unit.kind === 'subcommittee' ? 'subcommittee' : 'committee',
+        entry?.data?.committee?.chamber ?? committeeDetail?.chamber ?? null,
+        entry?.data?.staff ?? [],
+        Boolean(entry?.isLoading),
+      );
+    });
+
+    // Parent stays first (it is the root of the chart); subcommittees sort by
+    // real headcount so the substantive units read first.
+    const [parent, ...rest] = built;
+    rest.sort((left, right) => {
+      if (right.currentCount !== left.currentCount) return right.currentCount - left.currentCount;
+      return left.shortName.localeCompare(right.shortName);
+    });
+    return parent ? [parent, ...rest] : rest;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [committeeDetail, staff, units, unitStaffSignature, staffMatches]);
+
+  const isLoadingGroups = unitStaffQueries.some((entry) => entry.isLoading);
+
+  // Selection can now land on a person from ANY unit's roster, not just the
+  // parent committee's — resolve against the union so the rail/modal open.
+  const selectedFromGroups = selectedId
+    ? groups.flatMap((group) => group.staff).find((person) => person.id === selectedId) ?? null
+    : null;
+
   return {
     search: { text: searchText, onChange: setSearchText },
     view: {
@@ -236,6 +398,8 @@ export function useCommitteeStaffModel(): CommitteeStaffModel {
     results: {
       staff,
       total,
+      groups,
+      isLoadingGroups,
       isInitialLoading: staffQuery.isLoading && !staffQuery.data,
       isRefetching: staffQuery.isFetching && Boolean(staffQuery.data),
       isError: staffQuery.isError,
@@ -243,7 +407,7 @@ export function useCommitteeStaffModel(): CommitteeStaffModel {
     },
     selection: {
       selectedId,
-      selected,
+      selected: selected ?? selectedFromGroups,
       onToggle: (id) =>
         commit((next) => {
           if (id === selectedId) next.delete('selected');

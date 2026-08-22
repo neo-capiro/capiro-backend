@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   Background,
   Controls,
+  Handle,
+  Position,
   ReactFlow,
   ReactFlowProvider,
   type Edge,
@@ -14,27 +16,32 @@ import '@xyflow/react/dist/style.css';
 import type {
   DirectoryCommitteeStaffer,
 } from '../../../pages/directory/directoryData.js';
-import type { CommitteeRef } from '../../../pages/directory/directory-api.js';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
 import { CapiroEmptyState, CapiroErrorState, CapiroSkeleton } from '../../components/feedback/index.js';
 import { IdentityMark } from '../../components/identity/index.js';
 import { DirectoryShell } from './DirectoryShell.js';
 import { DirectoryFilterPill } from './DirectoryFilterPill.js';
-import { DIRECTORY_PROFILE_ROUTES } from './directory-routes.js';
 import { StaffProfileModalVNext } from './StaffProfileModalVNext.js';
-import { useCommitteeStaffModel, type CommitteeStaffModel } from './useCommitteeStaffModel.js';
+import {
+  useCommitteeStaffModel,
+  type CommitteeStaffGroup,
+  type CommitteeStaffModel,
+} from './useCommitteeStaffModel.js';
 
 /**
  * Committee Staff (DIRECTORY-HANDOFF §7.2/§7.3).
  *
- * One route, one committee dataset, two peer views. The ROSTER is fully
- * source-backed today (`/api/directory/committees/:id/staff`). The HIERARCHY
- * canvas renders only what the source backs — committee, leadership (Chair /
- * Ranking Member are source-backed), and subcommittee units via parentOfficeId
- * — but per-unit staff placement, working-relationship edges and vacancies are
- * NOT modeled server-side (GAPS.md DIR-1/2/3). Those affordances ship disabled
- * with an explicit note, never synthesized.
+ * One route, one committee dataset, two peer views — both now organized the
+ * same way: staff are GROUPED BY THE COMMITTEE OFFICE the source attributes
+ * them to (parent committee, then each subcommittee), not pooled into one
+ * undifferentiated list. See `CommitteeStaffGroup` for why per-unit placement
+ * is source-backed after all.
+ *
+ * A card is a contact card: name, role, unit, email, phone and office, so the
+ * chart answers "who do I call about this" without a round trip. Clicking any
+ * person opens their canonical profile — the same `/directory/staff/:staffId`
+ * record the roster row opens, in a modal so you keep your place on the canvas.
  */
 
 function committeeUnitLines(staffer: DirectoryCommitteeStaffer): { primary: string; secondary: string } {
@@ -53,7 +60,7 @@ export function CommitteeStaffVNext() {
 
 export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel }) {
   const { search, view, committee, filters, results, selection } = model;
-  const { total, staff, isInitialLoading, isRefetching } = results;
+  const { total, isInitialLoading, isRefetching } = results;
   // Clicking a person shows their profile without leaving the diagram/roster —
   // a modal, not the navigate-away `selection.onOpenProfile` the model exposes
   // (that's kept for callers that still want a real route, e.g. a bookmark).
@@ -63,7 +70,7 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
     <DirectoryShell
       eyebrow="Directory · Committee Staff"
       title="Committee Staff"
-      subtitle="Committee & subcommittee staff · Hierarchy and roster · One canonical staff identity."
+      subtitle="Committee & subcommittee staff · Grouped by unit · One canonical staff identity."
     >
       <div className="capiro-directory-toolbar">
         <div className="capiro-directory-search">
@@ -182,68 +189,14 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
                   </div>
                 ))}
               </>
-            ) : staff.length === 0 ? (
-              <CapiroEmptyState
-                title={filters.hasAny ? 'No people match these filters' : 'No records in this source'}
-                description={
-                  filters.hasAny
-                    ? 'Clear a filter or broaden the search to see more of the directory.'
-                    : 'This committee has no staff on record.'
-                }
-                action={
-                  filters.hasAny ? (
-                    <CapiroButton size="compact" onClick={filters.onClearAll}>
-                      Clear filters
-                    </CapiroButton>
-                  ) : undefined
-                }
-              />
             ) : (
-              staff.map((staffer) => {
-                const unit = committeeUnitLines(staffer);
-                const isSelected = staffer.id === selection.selectedId;
-                return (
-                  <button
-                    type="button"
-                    key={staffer.id}
-                    aria-pressed={isSelected}
-                    className={`capiro-directory-row capiro-directory-row-grid--roster${
-                      isSelected ? ' capiro-directory-row--selected' : ''
-                    }`}
-                    onClick={() => {
-                      selection.onToggle(staffer.id);
-                      setModalStaffId(staffer.id);
-                    }}
-                  >
-                    <span className="capiro-directory-cell capiro-directory-cell--person">
-                      <IdentityMark kind="person" size="sm" name={staffer.fullName} aria-hidden="true" />
-                      <span className="capiro-directory-cell__stack">
-                        <span className="capiro-directory-cell__primary-row">
-                          <span className="capiro-directory-cell__primary">{staffer.fullName}</span>
-                          {staffer.isCurrent ? null : <CapiroBadge>Former</CapiroBadge>}
-                        </span>
-                        <span className="capiro-directory-cell__secondary">{staffer.title || '—'}</span>
-                      </span>
-                    </span>
-                    <span className="capiro-directory-cell capiro-directory-cell--mono">
-                      <span className="capiro-directory-cell__primary">{unit.primary}</span>
-                      <span className="capiro-directory-cell__secondary">{unit.secondary}</span>
-                    </span>
-                    <span className="capiro-directory-cell capiro-directory-cell--mono">
-                      <span className="capiro-directory-cell__primary">{staffer.title || '—'}</span>
-                    </span>
-                    <span className="capiro-directory-cell capiro-directory-cell--mono capiro-directory-cell--contact">
-                      <span className="capiro-directory-cell__primary">{staffer.email || 'No email'}</span>
-                      <span className="capiro-directory-cell__secondary">{staffer.phone || 'No phone'}</span>
-                    </span>
-                    <span className="capiro-directory-cell">
-                      <span className="capiro-directory-cell__action" aria-hidden="true">
-                        Open →
-                      </span>
-                    </span>
-                  </button>
-                );
-              })
+              <GroupedRoster
+                model={model}
+                onOpenStaffProfile={(id) => {
+                  selection.onToggle(id);
+                  setModalStaffId(id);
+                }}
+              />
             )}
           </div>
 
@@ -264,52 +217,193 @@ export function CommitteeStaffVNextView({ model }: { model: CommitteeStaffModel 
 }
 
 /**
- * The hierarchy canvas renders only source-backed structure. Leadership
- * (Chair / Ranking Member) and subcommittee units are real; per-unit staff
- * placement, working-relationship edges and vacancies are not modeled
- * server-side (DIR-1/2/3) and ship as an explicit note, never synthesized.
+ * Roster, sectioned by the SAME unit grouping the hierarchy canvas uses — the
+ * two views are one dataset seen two ways, so a person sits under the same
+ * heading in both. Units with no one on record still render their heading:
+ * "this subcommittee has no staff in the source" is information, and silently
+ * dropping the section would make it look like the unit doesn't exist.
  */
-/**
- * Vertical trunk + horizontal bar + one leg per child, all positioned as
- * percentages of this connector's OWN width — which is always the shared
- * canvas-frame width every tier grid above and below it also spans at
- * `width: 100%`, so a leg here lines up with the grid column it targets
- * regardless of how many children that tier has. Equal-column grids only
- * (§ HierarchyView), so a child's center is always `(i+0.5)/N`.
- */
-function TreeConnector({ toCount, height = 28 }: { toCount: number; height?: number }) {
-  const centers = Array.from({ length: toCount }, (_, i) => ((i + 0.5) / toCount) * 100);
-  const first = centers[0] ?? 50;
-  const last = centers[centers.length - 1] ?? 50;
+function GroupedRoster({
+  model,
+  onOpenStaffProfile,
+}: {
+  model: CommitteeStaffModel;
+  onOpenStaffProfile: (id: string) => void;
+}) {
+  const { filters, results, selection } = model;
+  const populated = results.groups.filter((group) => group.staff.length > 0);
+
+  if (populated.length === 0) {
+    return (
+      <CapiroEmptyState
+        title={filters.hasAny ? 'No people match these filters' : 'No records in this source'}
+        description={
+          filters.hasAny
+            ? 'Clear a filter or broaden the search to see more of the directory.'
+            : 'This committee has no staff on record.'
+        }
+        action={
+          filters.hasAny ? (
+            <CapiroButton size="compact" onClick={filters.onClearAll}>
+              Clear filters
+            </CapiroButton>
+          ) : undefined
+        }
+      />
+    );
+  }
+
   return (
-    <div className="capiro-directory-tree-connector" style={{ height }} aria-hidden="true">
-      <span className="capiro-directory-tree-connector__trunk" />
-      {toCount > 1 ? (
-        <span
-          className="capiro-directory-tree-connector__bar"
-          style={{ left: `${first}%`, right: `${100 - last}%` }}
-        />
-      ) : null}
-      {centers.map((c, i) => (
-        <span key={i} className="capiro-directory-tree-connector__leg" style={{ left: `${c}%` }} />
+    <>
+      {results.groups.map((group) => (
+        <div className="capiro-directory-rostergroup" key={group.committeeId}>
+          <div className="capiro-directory-rostergroup__header">
+            <p className="capiro-directory-rostergroup__name">
+              <span className="capiro-directory-rostergroup__kind">
+                {group.kind === 'subcommittee' ? 'Subcommittee' : 'Full committee'}
+              </span>
+              {group.shortName}
+            </p>
+            <p className="capiro-directory-rostergroup__count">
+              {group.isLoading
+                ? 'Loading…'
+                : `${group.currentCount} current${group.formerCount ? ` · ${group.formerCount} former` : ''}`}
+            </p>
+          </div>
+
+          {group.isLoading ? (
+            <CapiroSkeleton height={48} />
+          ) : group.staff.length === 0 ? (
+            <p className="capiro-directory-rostergroup__empty">No staff on record for this unit.</p>
+          ) : (
+            group.staff.map((staffer) => {
+              const isSelected = staffer.id === selection.selectedId;
+              return (
+                <button
+                  type="button"
+                  key={`${group.committeeId}-${staffer.id}`}
+                  aria-pressed={isSelected}
+                  className={`capiro-directory-row capiro-directory-row-grid--roster${
+                    isSelected ? ' capiro-directory-row--selected' : ''
+                  }`}
+                  onClick={() => onOpenStaffProfile(staffer.id)}
+                >
+                  <span className="capiro-directory-cell capiro-directory-cell--person">
+                    <IdentityMark kind="person" size="sm" name={staffer.fullName} aria-hidden="true" />
+                    <span className="capiro-directory-cell__stack">
+                      <span className="capiro-directory-cell__primary-row">
+                        <span className="capiro-directory-cell__primary">{staffer.fullName}</span>
+                        {staffer.isCurrent ? null : <CapiroBadge>Former</CapiroBadge>}
+                      </span>
+                      <span className="capiro-directory-cell__secondary">{staffer.title || '—'}</span>
+                    </span>
+                  </span>
+                  <span className="capiro-directory-cell capiro-directory-cell--mono">
+                    <span className="capiro-directory-cell__primary">{group.shortName}</span>
+                    <span className="capiro-directory-cell__secondary">
+                      {[group.chamber, group.kind === 'subcommittee' ? 'Subcommittee' : 'Full committee']
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+                  <span className="capiro-directory-cell capiro-directory-cell--mono">
+                    <span className="capiro-directory-cell__primary">{staffer.title || '—'}</span>
+                  </span>
+                  <span className="capiro-directory-cell capiro-directory-cell--mono capiro-directory-cell--contact">
+                    <span className="capiro-directory-cell__primary">{staffer.email || 'No email'}</span>
+                    <span className="capiro-directory-cell__secondary">{staffer.phone || 'No phone'}</span>
+                  </span>
+                  <span className="capiro-directory-cell">
+                    <span className="capiro-directory-cell__action" aria-hidden="true">
+                      Open →
+                    </span>
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
       ))}
-    </div>
+    </>
   );
 }
 
+// ------------------------------------------------------------------ Org chart
+
 type OrgChartNodeData = {
   label: string;
-  kind: 'committee' | 'leadership' | 'unit' | 'staff';
+  kind: 'committee' | 'leadership' | 'unit' | 'staff' | 'more';
+  /** Small uppercase eyebrow above the name. */
+  eyebrow: string;
   meta?: string;
   initials?: string;
+  /** Contact-card lines: role, email, phone, office. */
+  role?: string;
+  email?: string;
+  phone?: string;
+  office?: string;
+  countLine?: string;
   staffId?: string;
   memberId?: string;
+  unitId?: string;
   former?: boolean;
 };
 
 type OrgChartNode = Node<OrgChartNodeData>;
 
-type OrgChartEdge = Edge;
+const COL_W = 320;
+const CARD_W = 268;
+const ROOT_W = 360;
+const ROOT_Y = 0;
+const TIER_GAP = 52;
+const CARD_GAP = 20;
+/** Cards shown per unit before the chart offers to expand the rest. */
+const COLLAPSED_PER_UNIT = 6;
+
+/**
+ * Card heights must be known at LAYOUT time — XYFlow positions nodes by
+ * absolute y, and a contact card's height varies with how many contact lines
+ * the source actually has for that person. Measuring after mount would mean a
+ * visible reflow, so heights are estimated from the same box model the CSS
+ * declares. Overestimating is safe (extra whitespace); underestimating is not
+ * (cards overlap), so every wrap estimate rounds up.
+ */
+const CARD_PAD_Y = 24;
+const LINE_EYEBROW = 14;
+const LINE_NAME = 18;
+const LINE_META = 16;
+const LINE_COUNTS = 15;
+const LINE_CONTACT = 16;
+const CONTACT_BLOCK_CHROME = 17; // 8px margin + 8px padding + 1px rule
+const OPEN_LINE = 24; // 8px margin + 16px line
+
+/** Wrapped-line count for `text` at `charsPerLine`, floored at one line. */
+function wrappedLines(text: string | undefined, charsPerLine: number): number {
+  if (!text) return 0;
+  return Math.max(1, Math.ceil(text.length / charsPerLine));
+}
+
+function cardHeight(data: OrgChartNodeData, width: number): number {
+  // Body width = card width − horizontal padding − mark − gap.
+  const bodyWidth = width - 28 - 30 - 10;
+  const nameChars = Math.max(12, Math.floor(bodyWidth / 7));
+  const metaChars = Math.max(14, Math.floor(bodyWidth / 6.2));
+  let height = CARD_PAD_Y;
+  // The eyebrow is clamped to one line in CSS, so it never contributes more.
+  height += LINE_EYEBROW;
+  height += wrappedLines(data.label, nameChars) * LINE_NAME;
+  height += wrappedLines(data.role, metaChars) * LINE_META;
+  height += wrappedLines(data.meta, metaChars) * LINE_META;
+  if (data.countLine) height += LINE_COUNTS;
+  const contactLines =
+    wrappedLines(data.email, metaChars) +
+    wrappedLines(data.phone, metaChars) +
+    wrappedLines(data.office, metaChars);
+  if (contactLines > 0) height += CONTACT_BLOCK_CHROME + contactLines * LINE_CONTACT;
+  if (data.staffId) height += OPEN_LINE;
+  // A card is at least as tall as its 30px mark plus padding.
+  return Math.max(height, 30 + CARD_PAD_Y);
+}
 
 function initialsFor(name: string | null | undefined): string {
   return (name ?? '?')
@@ -323,112 +417,272 @@ function initialsFor(name: string | null | undefined): string {
 
 function OrgChartNodeView({ data }: NodeProps<OrgChartNode>) {
   const isPerson = data.kind === 'leadership' || data.kind === 'staff';
-  const isInteractive = Boolean(data.staffId || data.memberId);
+  const isInteractive = Boolean(data.staffId || data.memberId || data.kind === 'more');
+  const hasContact = Boolean(data.email || data.phone || data.office);
   return (
     <div
       className={`capiro-directory-node capiro-directory-flow-node capiro-directory-node--${data.kind}${
         data.former ? ' capiro-directory-node--former' : ''
-      }`}
+      }${isInteractive ? ' capiro-directory-node--clickable' : ''}`}
       role={isInteractive ? 'button' : undefined}
-      aria-label={isInteractive ? data.label : undefined}
+      aria-label={isInteractive && data.staffId ? `Open profile for ${data.label}` : undefined}
       tabIndex={isInteractive ? 0 : undefined}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') event.currentTarget.click();
       }}
     >
+      <Handle type="target" position={Position.Top} isConnectable={false} />
       <span className={`capiro-directory-node__mark capiro-directory-node__mark--${isPerson ? 'person' : 'place'}`}>
         {data.initials ?? data.label.slice(0, 2).toUpperCase()}
       </span>
       <span className="capiro-directory-node__body">
-        <span className="capiro-directory-node__kind">{data.kind === 'staff' ? 'Team' : data.kind}</span>
+        <span className="capiro-directory-node__kind">{data.eyebrow}</span>
         <span className="capiro-directory-node__name">
           {data.label}
           {data.former ? <CapiroBadge>Former</CapiroBadge> : null}
         </span>
+        {data.role ? <span className="capiro-directory-node__meta">{data.role}</span> : null}
         {data.meta ? <span className="capiro-directory-node__meta">{data.meta}</span> : null}
+        {data.countLine ? (
+          <span className="capiro-directory-node__counts">{data.countLine}</span>
+        ) : null}
+        {hasContact ? (
+          <span className="capiro-directory-node__contact">
+            {data.email ? (
+              <span className="capiro-directory-node__contactline">{data.email}</span>
+            ) : null}
+            {data.phone ? (
+              <span className="capiro-directory-node__contactline">{data.phone}</span>
+            ) : null}
+            {data.office ? (
+              <span className="capiro-directory-node__contactline capiro-directory-node__contactline--muted">
+                {data.office}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
+        {data.staffId ? (
+          <span className="capiro-directory-node__open" aria-hidden="true">
+            Open profile →
+          </span>
+        ) : null}
       </span>
+      <Handle type="source" position={Position.Bottom} isConnectable={false} />
     </div>
   );
 }
 
-const ORG_NODE_TYPES = { committee: OrgChartNodeView, leadership: OrgChartNodeView, unit: OrgChartNodeView, staff: OrgChartNodeView };
+const ORG_NODE_TYPES = {
+  committee: OrgChartNodeView,
+  leadership: OrgChartNodeView,
+  unit: OrgChartNodeView,
+  staff: OrgChartNodeView,
+  more: OrgChartNodeView,
+};
+
+function unitEyebrow(group: CommitteeStaffGroup): string {
+  return group.kind === 'subcommittee' ? 'Subcommittee' : 'Full committee';
+}
 
 function CommitteeOrgChart({
   detail,
   leaders,
-  units,
-  staff,
+  groups,
   selectedId,
   onSelectStaff,
   onOpenMember,
 }: {
   detail: NonNullable<CommitteeStaffModel['committee']['detail']>;
   leaders: Array<{ role: string; memberRef: { id: string; name?: string | null } | null }>;
-  units: CommitteeRef[];
-  staff: DirectoryCommitteeStaffer[];
+  groups: CommitteeStaffGroup[];
   selectedId: string | null;
   onSelectStaff: (id: string) => void;
   onOpenMember: (id: string) => void;
 }) {
+  // Which units have had their full roster revealed. Collapsed by default so a
+  // 60-person committee still reads as an org chart rather than a wall.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const toggleUnit = useCallback(
+    (unitId: string) => setExpanded((prev) => ({ ...prev, [unitId]: !prev[unitId] })),
+    [],
+  );
+
   const { nodes, edges } = useMemo(() => {
     const nextNodes: OrgChartNode[] = [];
-    const nextEdges: OrgChartEdge[] = [];
+    const nextEdges: Edge[] = [];
+    const columns = Math.max(groups.length, 1);
+    const canvasWidth = columns * COL_W;
+    const center = canvasWidth / 2;
+
+    const rootData: OrgChartNodeData = {
+      kind: 'committee',
+      eyebrow: detail.kind === 'subcommittee' ? 'Subcommittee' : 'Committee',
+      label: detail.name,
+      initials: detail.committeeCode ?? detail.name.slice(0, 2).toUpperCase(),
+      meta: [detail.chamber, detail.committeeCode].filter(Boolean).join(' · '),
+      phone: detail.phone || undefined,
+      office: detail.officeLocation || undefined,
+      countLine: `${groups.reduce((sum, group) => sum + group.currentCount, 0)} current staff · ${
+        groups.filter((group) => group.kind === 'subcommittee').length
+      } subcommittees`,
+    };
     nextNodes.push({
       id: 'committee',
       type: 'committee',
-      position: { x: 360, y: 24 },
-      data: {
-        kind: 'committee',
-        label: detail.name,
-        initials: detail.committeeCode ?? detail.name.slice(0, 2).toUpperCase(),
-        meta: [detail.chamber, detail.kind === 'subcommittee' ? 'Subcommittee' : 'Standing committee'].filter(Boolean).join(' · '),
-      },
+      position: { x: Math.max(0, center - ROOT_W / 2), y: ROOT_Y },
+      data: rootData,
     });
-    const leaderWidth = leaders.length > 1 ? 220 : 360;
+
+    // Every tier starts below the tallest card of the tier above it, so no
+    // amount of real contact data can make two cards collide.
+    const leaderY = ROOT_Y + cardHeight(rootData, ROOT_W) + TIER_GAP;
+    const leaderSpan = CARD_W + 32;
+    let leaderBottom = leaderY;
     leaders.forEach((leader, index) => {
       const id = `leader-${leader.role}`;
+      const data: OrgChartNodeData = {
+        kind: 'leadership',
+        eyebrow: 'Leadership',
+        label: leader.memberRef?.name ?? 'Not recorded',
+        initials: initialsFor(leader.memberRef?.name),
+        role: leader.role,
+        memberId: leader.memberRef?.id,
+      };
       nextNodes.push({
         id,
         type: 'leadership',
-        position: { x: 120 + index * leaderWidth, y: 178 },
-        data: { kind: 'leadership', label: leader.memberRef?.name ?? 'Not recorded', initials: initialsFor(leader.memberRef?.name), meta: leader.role, memberId: leader.memberRef?.id },
+        position: {
+          x: center - (leaders.length * leaderSpan) / 2 + index * leaderSpan + (leaderSpan - CARD_W) / 2,
+          y: leaderY,
+        },
+        data,
       });
+      leaderBottom = Math.max(leaderBottom, leaderY + cardHeight(data, CARD_W));
       nextEdges.push({ id: `committee-${id}`, source: 'committee', target: id, type: 'smoothstep' });
     });
-    units.forEach((unit, index) => {
-      const name = unitDisplayName(unit, detail.name);
-      const id = `unit-${unit.id}`;
-      nextNodes.push({ id, type: 'unit', position: { x: 40 + index * 230, y: 326 }, data: { kind: 'unit', label: name, meta: 'Subcommittee', initials: name.slice(0, 2).toUpperCase() } });
-      nextEdges.push({ id: `committee-${id}`, source: 'committee', target: id, type: 'smoothstep' });
-    });
-    staff.forEach((person, index) => {
-      const id = `staff-${person.id}`;
-      nextNodes.push({ id, type: 'staff', position: { x: 40 + (index % 4) * 230, y: 474 + Math.floor(index / 4) * 112 }, data: { kind: 'staff', label: person.fullName, meta: person.title || '—', initials: initialsFor(person.fullName), staffId: person.id, former: !person.isCurrent } });
-      // Staff are intentionally not connected: the source does not attribute
-      // them to a unit or expose person-to-person reporting lines.
-    });
-    return { nodes: nextNodes, edges: nextEdges };
-  }, [detail, leaders, units, staff]);
 
-  const onNodeClick = useCallback((_: ReactMouseEvent, node: OrgChartNode) => {
-    if (node.data.staffId) onSelectStaff(node.data.staffId);
-    if (node.data.memberId) onOpenMember(node.data.memberId);
-  }, [onOpenMember, onSelectStaff]);
+    const unitY = (leaders.length ? leaderBottom : ROOT_Y + cardHeight(rootData, ROOT_W)) + TIER_GAP;
+
+    // Unit headers share one baseline (they are peers), so the staff tier below
+    // starts under the TALLEST header rather than each column's own.
+    const unitData = groups.map<OrgChartNodeData>((group) => ({
+      kind: 'unit',
+      eyebrow: unitEyebrow(group),
+      label: group.shortName,
+      initials: group.shortName.slice(0, 2).toUpperCase(),
+      meta: group.chamber ?? undefined,
+      countLine: group.isLoading
+        ? 'Loading staff…'
+        : `${group.currentCount} current${group.formerCount ? ` · ${group.formerCount} former` : ''}`,
+      unitId: group.committeeId,
+    }));
+    const staffY =
+      unitY + Math.max(0, ...unitData.map((data) => cardHeight(data, CARD_W))) + TIER_GAP;
+
+    groups.forEach((group, columnIndex) => {
+      const unitNodeId = `unit-${group.committeeId}`;
+      const columnX = columnIndex * COL_W + (COL_W - CARD_W) / 2;
+      nextNodes.push({
+        id: unitNodeId,
+        type: 'unit',
+        position: { x: columnX, y: unitY },
+        data: unitData[columnIndex]!,
+      });
+      nextEdges.push({
+        id: `committee-${unitNodeId}`,
+        source: 'committee',
+        target: unitNodeId,
+        type: 'smoothstep',
+      });
+
+      const isExpanded = Boolean(expanded[group.committeeId]);
+      const visible = isExpanded ? group.staff : group.staff.slice(0, COLLAPSED_PER_UNIT);
+      let cursorY = staffY;
+      visible.forEach((person) => {
+        // Namespaced by unit: the same person can hold a position on the full
+        // committee AND a subcommittee, which is two placements of one identity
+        // — the node id must be unique, the staffId it opens must not be.
+        const id = `staff-${group.committeeId}-${person.id}`;
+        const data: OrgChartNodeData = {
+          kind: 'staff',
+          eyebrow: group.shortName,
+          label: person.fullName,
+          initials: initialsFor(person.fullName),
+          role: person.title || 'Staff',
+          email: person.email || undefined,
+          phone: person.phone || undefined,
+          office: person.officeLocation || undefined,
+          staffId: person.id,
+          unitId: group.committeeId,
+          former: !person.isCurrent,
+        };
+        nextNodes.push({ id, type: 'staff', position: { x: columnX, y: cursorY }, data });
+        cursorY += cardHeight(data, CARD_W) + CARD_GAP;
+        nextEdges.push({
+          id: `${unitNodeId}-${id}`,
+          source: unitNodeId,
+          target: id,
+          type: 'smoothstep',
+        });
+      });
+
+      const hidden = group.staff.length - visible.length;
+      if (hidden > 0 || (isExpanded && group.staff.length > COLLAPSED_PER_UNIT)) {
+        const id = `more-${group.committeeId}`;
+        nextNodes.push({
+          id,
+          type: 'more',
+          position: { x: columnX, y: cursorY },
+          data: {
+            kind: 'more',
+            eyebrow: unitEyebrow(group),
+            label: hidden > 0 ? `Show ${hidden} more` : 'Show fewer',
+            initials: hidden > 0 ? `+${hidden}` : '−',
+            unitId: group.committeeId,
+          },
+        });
+        nextEdges.push({
+          id: `${unitNodeId}-${id}`,
+          source: unitNodeId,
+          target: id,
+          type: 'smoothstep',
+        });
+      }
+    });
+
+    return { nodes: nextNodes, edges: nextEdges };
+  }, [detail, leaders, groups, expanded]);
+
+  const onNodeClick = useCallback(
+    (_: ReactMouseEvent, node: OrgChartNode) => {
+      if (node.data.kind === 'more' && node.data.unitId) {
+        toggleUnit(node.data.unitId);
+        return;
+      }
+      if (node.data.staffId) onSelectStaff(node.data.staffId);
+      if (node.data.memberId) onOpenMember(node.data.memberId);
+    },
+    [onOpenMember, onSelectStaff, toggleUnit],
+  );
 
   return (
-    <div className="capiro-directory-flow-wrap" data-testid="committee-org-chart" aria-label="Committee organization chart">
+    <div
+      className="capiro-directory-flow-wrap"
+      data-testid="committee-org-chart"
+      aria-label="Committee organization chart"
+    >
       <ReactFlow
         nodes={nodes.map((node) => ({
           ...node,
-          selected: node.data.staffId === selectedId,
+          selected: Boolean(node.data.staffId) && node.data.staffId === selectedId,
           className: node.data.former ? 'capiro-directory-node--former' : undefined,
         }))}
         edges={edges}
         nodeTypes={ORG_NODE_TYPES}
         onNodeClick={onNodeClick}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.35}
+        fitViewOptions={{ padding: 0.15 }}
+        minZoom={0.2}
         maxZoom={1.5}
         nodesDraggable
         nodesConnectable={false}
@@ -438,7 +692,10 @@ function CommitteeOrgChart({
         <Background gap={24} size={1} />
         <Controls showInteractive={false} />
       </ReactFlow>
-      <p className="capiro-directory-flow-note"><strong>Committee staff pool</strong> · Committee and leadership structure is source-backed. Staff remain unassigned until the source provides unit placement.</p>
+      <p className="capiro-directory-flow-note">
+        <strong>Grouped by committee office</strong> · Each person sits under the committee or
+        subcommittee the source records their position against. Click a card to open their profile.
+      </p>
     </div>
   );
 }
@@ -456,15 +713,24 @@ function HierarchyView({
   const leaders: Array<{ role: string; memberRef: { id: string; name?: string | null } | null }> = [];
   if (detail?.chair) leaders.push({ role: 'Committee Chair', memberRef: detail.chair });
   if (detail?.rankingMember) leaders.push({ role: 'Ranking Member', memberRef: detail.rankingMember });
-  const units = committee.units;
 
   return (
     <div className="capiro-directory-hierarchy">
       <div className="capiro-directory-results__header">
         <p className="capiro-directory-results__eyebrow">{detail?.name ?? 'Committee'} · Hierarchy</p>
-        <p className="capiro-directory-results__count">{results.isInitialLoading ? 'Loading…' : `${results.total} staff`}</p>
+        <p className="capiro-directory-results__count">
+          {results.isInitialLoading
+            ? 'Loading…'
+            : `${results.groups.reduce((sum, group) => sum + group.staff.length, 0)} staff · ${
+                results.groups.length
+              } unit${results.groups.length === 1 ? '' : 's'}${
+                results.isLoadingGroups ? ' · loading units…' : ''
+              }`}
+        </p>
       </div>
-      {results.isInitialLoading ? <CapiroSkeleton height={320} /> : !detail ? (
+      {results.isInitialLoading ? (
+        <CapiroSkeleton height={320} />
+      ) : !detail ? (
         <CapiroEmptyState title="No committee selected" description="Choose a committee to see its structure." />
       ) : (
         <div className="capiro-directory-canvas">
@@ -472,80 +738,27 @@ function HierarchyView({
             <CommitteeOrgChart
               detail={detail}
               leaders={leaders}
-              units={units}
-              staff={results.staff}
+              groups={results.groups}
               selectedId={selection.selectedId}
-              onSelectStaff={(id) => { selection.onToggle(id); onOpenStaffProfile(id); }}
+              onSelectStaff={(id) => {
+                selection.onToggle(id);
+                onOpenStaffProfile(id);
+              }}
               onOpenMember={(id) => navigate(`/directory/members/${id}`)}
             />
           </ReactFlowProvider>
           <div className="capiro-directory-legend">
             <span className="capiro-directory-legend__item">Solid · formal committee structure</span>
-            <span className="capiro-directory-legend__item capiro-directory-legend__item--disabled">Staff pool is not attributed to a unit · not source-backed</span>
-            <span className="capiro-directory-legend__item capiro-directory-legend__item--disabled">Person-to-person reporting lines · not source-backed</span>
+            <span className="capiro-directory-legend__item">
+              Each column is one committee office roster
+            </span>
+            <span className="capiro-directory-legend__item capiro-directory-legend__item--disabled">
+              Person-to-person reporting lines · not source-backed
+            </span>
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-/** Subcommittee names repeat their parent committee's full name as a literal
- * prefix (source data, not a display choice) — stripped so the card shows
- * only the part that actually distinguishes it from its siblings. */
-function unitDisplayName(unit: CommitteeRef, committeeName: string): string {
-  const prefix = `${committeeName} `;
-  return unit.name.startsWith(prefix) ? unit.name.slice(prefix.length) : unit.name;
-}
-
-function UnitNode({ unit, committeeName }: { unit: CommitteeRef; committeeName: string }) {
-  const name = unitDisplayName(unit, committeeName);
-  return (
-    <div className="capiro-directory-node capiro-directory-node--unit">
-      <span className="capiro-directory-node__mark capiro-directory-node__mark--place">
-        {name.slice(0, 2).toUpperCase()}
-      </span>
-      <span className="capiro-directory-node__body">
-        <span className="capiro-directory-node__kind">Subcommittee</span>
-        <span className="capiro-directory-node__name">{name}</span>
-      </span>
-    </div>
-  );
-}
-
-function LeadershipNode({
-  role,
-  memberRef,
-}: {
-  role: string;
-  memberRef: { id: string; name?: string | null } | null;
-}) {
-  const navigate = useNavigate();
-  const name = memberRef?.name ?? null;
-  const initials = (name ?? '?')
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
-  // Leadership is a MEMBER of Congress, a materially richer record than a
-  // staffer's — no modal wraps that depth yet, so this opens the full member
-  // profile page (still real navigation, unlike the staff modal above).
-  return (
-    <button
-      type="button"
-      className="capiro-directory-node capiro-directory-node--person capiro-directory-node--leader"
-      disabled={!memberRef}
-      onClick={() => memberRef && navigate(DIRECTORY_PROFILE_ROUTES.member(memberRef.id))}
-    >
-      <span className="capiro-directory-node__mark capiro-directory-node__mark--person">{initials}</span>
-      <span className="capiro-directory-node__body">
-        <span className="capiro-directory-node__kind">Leadership</span>
-        <span className="capiro-directory-node__name">{name ?? 'Not recorded'}</span>
-        <span className="capiro-directory-node__meta">{role}</span>
-      </span>
-    </button>
   );
 }
 
