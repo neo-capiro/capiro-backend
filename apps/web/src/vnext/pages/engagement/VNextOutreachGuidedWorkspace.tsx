@@ -48,6 +48,15 @@ import { safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outre
 import { TargetDirectoryBrowser } from '../../../pages/engagement/outreach/v3/TargetDirectoryBrowser.js';
 import { useOutreachV3Session } from '../../../pages/engagement/outreach/v3/useOutreachV3Session.js';
 import { startOutreachV3FullGeneration } from './engagement-api.js';
+import {
+  OUTREACH_FORMAT_OPTIONS,
+  contentTemplateById,
+  contentTemplateContextSelection,
+  contentTemplatesForWorkflow,
+  formatContextSelection,
+  formatOptionById,
+  type OutreachFormatId,
+} from './outreach-v3-content-templates.js';
 import { SavedTargetListsPanel } from './outreach-v3-saved-target-lists.js';
 import type { VNextOutreachOperatorWorkspaceProps } from './VNextOutreachOperatorWorkspace.js';
 import {
@@ -56,6 +65,7 @@ import {
   clientOverviewText,
   clientRecordContextSelection,
   compactLines,
+  guidedStepsForWorkflow,
   inferOutreachGuidedStep,
   inferOutreachWorkflowTemplate,
   manualProfileContextSelection,
@@ -79,21 +89,11 @@ interface PreparedContextSection {
   selections: OutreachV3ContextSelection[];
 }
 
-const WORKFLOW_STEPS: Array<{
-  key: OutreachGuidedStep;
-  label: string;
-}> = [
-  { key: 'template', label: 'Workflow' },
-  { key: 'name', label: 'Name' },
-  { key: 'sponsor', label: 'Sponsor' },
-  { key: 'target', label: 'People' },
-  { key: 'context', label: 'Context' },
-  { key: 'review', label: 'Review' },
-];
-
 const ROUTE_STEP_FOR_GUIDED: Record<OutreachGuidedStep, VNextOutreachOperatorWorkspaceProps['step']> = {
   template: 'goal',
   name: 'goal',
+  content_template: 'goal',
+  format: 'goal',
   sponsor: 'goal',
   target: 'targets',
   context: 'context',
@@ -369,6 +369,8 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
   const [templateId, setTemplateId] = useState<OutreachWorkflowTemplateId | null>(null);
   const [campaignName, setCampaignName] = useState('');
   const [customPurpose, setCustomPurpose] = useState('');
+  const [contentTemplateId, setContentTemplateId] = useState<string | null>(null);
+  const [formatId, setFormatId] = useState<OutreachFormatId>('standard');
   const [sponsorClientId, setSponsorClientId] = useState<string | null>(
     props.selectedClientId,
   );
@@ -415,11 +417,17 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
   }, [clientSearch, props.clients]);
   const selectedTargets = session?.spec.targeting.selectedTargetRefs ?? [];
   const profileSummary = targetProfileSummary(controller);
+  const steps = useMemo(() => guidedStepsForWorkflow(templateId), [templateId]);
+  const availableContentTemplates = useMemo(
+    () => contentTemplatesForWorkflow(templateId),
+    [templateId],
+  );
   const progressStep = activeStep === 'generating' ? 'review' : activeStep;
   const currentStepIndex = Math.max(
     0,
-    WORKFLOW_STEPS.findIndex((item) => item.key === progressStep),
+    steps.findIndex((item) => item.key === progressStep),
   );
+  const previousStepKey = currentStepIndex > 0 ? steps[currentStepIndex - 1]!.key : null;
 
   const goTo = (step: OutreachGuidedStep) => {
     setError(null);
@@ -437,7 +445,7 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
       setError(null);
       const defaults = workflowCampaignDefaults({ templateId, campaignName, customPurpose });
       await controller.applyCommands(goalCommands(defaults.goal));
-      goTo('sponsor');
+      goTo(templateId === 'custom' ? 'sponsor' : 'content_template');
     } catch (cause) {
       setError(safeOutreachV3Error(cause));
     } finally {
@@ -515,6 +523,14 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
       const defaults = workflowCampaignDefaults({ templateId, campaignName, customPurpose });
       const contextSelections = preparedContext.flatMap((section) => section.selections);
       contextSelections.push(subjectLineContextSelection(campaignName));
+      const chosenContentTemplate = contentTemplateById(contentTemplateId);
+      if (chosenContentTemplate) {
+        contextSelections.push(contentTemplateContextSelection(chosenContentTemplate));
+      }
+      const chosenFormat = formatOptionById(formatId);
+      if (chosenFormat) {
+        contextSelections.push(formatContextSelection(chosenFormat));
+      }
       for (const target of selectedTargets) {
         const note = targetNoteContextSelection({
           target,
@@ -589,17 +605,13 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
           type="button"
           className="outreach-guided__back"
           onClick={() => {
-            if (activeStep === 'template') props.onExit();
-            else if (activeStep === 'name') goTo('template');
-            else if (activeStep === 'sponsor') goTo('name');
-            else if (activeStep === 'target') goTo('sponsor');
-            else if (activeStep === 'context') goTo('target');
-            else goTo('context');
+            if (!previousStepKey) props.onExit();
+            else goTo(previousStepKey);
           }}
           disabled={busy}
         >
           <ArrowLeft size={16} />
-          {activeStep === 'template' ? 'Campaigns' : 'Back'}
+          {previousStepKey ? 'Back' : 'Campaigns'}
         </button>
         <div className="outreach-guided__heading">
           <span>Outreach V3</span>
@@ -613,7 +625,7 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
       </header>
 
       <nav className="outreach-guided__steps" aria-label="Campaign setup progress">
-        {WORKFLOW_STEPS.map((item, index) => (
+        {steps.map((item, index) => (
           <div
             key={item.key}
             className="outreach-guided__step"
@@ -648,6 +660,7 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
                   className="outreach-guided__template"
                   data-selected={templateId === template.id}
                   onClick={() => {
+                    if (template.id !== templateId) setContentTemplateId(null);
                     setTemplateId(template.id);
                     goTo('name');
                   }}
@@ -701,6 +714,95 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
                 onClick={() => void saveCampaignName()}
               >
                 {busy ? <Loader2 size={16} className="outreach-guided__spin" /> : null}
+                {templateId === 'custom' ? 'Continue to sponsor' : 'Continue to template'}
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {activeStep === 'content_template' ? (
+          <section className="outreach-guided__surface outreach-guided__surface--wide">
+            <div className="outreach-guided__surface-heading">
+              <span>{workflow?.eyebrow}</span>
+              <h2>Choose a template</h2>
+              <p>Pick the structure Meri should follow. Preview a sample before choosing — the sample is a reference for structure and tone only, never data that gets copied into your draft.</p>
+            </div>
+            <div className="outreach-guided__content-template-grid">
+              {availableContentTemplates.map((template) => (
+                <div
+                  key={template.id}
+                  className="outreach-guided__content-template"
+                  data-selected={contentTemplateId === template.id}
+                >
+                  <button
+                    type="button"
+                    className="outreach-guided__content-template-select"
+                    onClick={() => setContentTemplateId(template.id)}
+                  >
+                    <span>{template.eyebrow}</span>
+                    <strong>{template.title}</strong>
+                    <p>{template.description}</p>
+                    {contentTemplateId === template.id ? (
+                      <CheckCircle2 size={18} className="outreach-guided__content-template-check" />
+                    ) : null}
+                  </button>
+                  <details className="outreach-guided__content-template-preview">
+                    <summary>Preview sample draft</summary>
+                    <strong>{template.sampleSubject}</strong>
+                    <pre>{template.sampleBody}</pre>
+                  </details>
+                </div>
+              ))}
+            </div>
+            <div className="outreach-guided__actions">
+              <button type="button" className="outreach-guided__secondary" onClick={() => goTo('name')}>
+                Back
+              </button>
+              <button
+                type="button"
+                className="outreach-guided__primary"
+                disabled={busy || !contentTemplateId}
+                onClick={() => goTo('format')}
+              >
+                Continue to format
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {activeStep === 'format' ? (
+          <section className="outreach-guided__surface outreach-guided__surface--narrow">
+            <div className="outreach-guided__surface-heading">
+              <span>{workflow?.eyebrow}</span>
+              <h2>Choose a writing format</h2>
+              <p>This is a plain-text writing style — Capiro drafts and sends plain-text email today, not rendered HTML designs.</p>
+            </div>
+            <div className="outreach-guided__format-grid">
+              {OUTREACH_FORMAT_OPTIONS.map((format) => (
+                <button
+                  key={format.id}
+                  type="button"
+                  className="outreach-guided__format"
+                  data-selected={formatId === format.id}
+                  onClick={() => setFormatId(format.id)}
+                >
+                  <strong>{format.title}</strong>
+                  <p>{format.description}</p>
+                  {formatId === format.id ? <CheckCircle2 size={18} /> : null}
+                </button>
+              ))}
+            </div>
+            <div className="outreach-guided__actions">
+              <button
+                type="button"
+                className="outreach-guided__secondary"
+                onClick={() => goTo('content_template')}
+              >
+                Back
+              </button>
+              <button type="button" className="outreach-guided__primary" onClick={() => goTo('sponsor')}>
                 Continue to sponsor
                 <ArrowRight size={16} />
               </button>
@@ -747,7 +849,11 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
               ) : null}
             </div>
             <div className="outreach-guided__actions">
-              <button type="button" className="outreach-guided__secondary" onClick={() => goTo('name')}>
+              <button
+                type="button"
+                className="outreach-guided__secondary"
+                onClick={() => goTo(previousStepKey ?? 'name')}
+              >
                 Back
               </button>
               <button
