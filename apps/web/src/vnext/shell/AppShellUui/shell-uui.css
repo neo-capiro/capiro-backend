@@ -358,7 +358,6 @@
   background: transparent; border: none; text-align: left;
 }
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status:hover { background: var(--uui-chrome-item-hover-bg); border-radius: var(--uui-radius-control); }
-.capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__glyph { display: none; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__title { font-size: 12px; font-weight: var(--uui-weight-regular); color: var(--uui-chrome-icon-idle); display: block; }
 .capiro-vnext-root .capiro-vnext-uui .capiro-mailbox-status__detail { font-size: 12px; font-weight: var(--uui-weight-regular); color: var(--uui-chrome-icon-idle); display: block; }
 .capiro-vnext-root .capiro-vnext-uui[data-collapsed] .capiro-mailbox-status { display: none; }
