@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SourceDataModule } from '../../sourcedata/source-data.module.js';
 import { StreamResolverService } from '../stream-resolver.service.js';
 import { FfmpegDeepgramCaptureRuntime } from './ffmpeg-deepgram-capture.runtime.js';
 import { PublicCaptureAutomaticResolverAdapter } from './public-capture-automatic-resolver.adapter.js';
@@ -20,6 +21,7 @@ import { HearingSubscriptionRepository } from './hearing-subscription.repository
  * one fenced capture, and one canonical transcript serve every subscriber.
  */
 @Module({
+  imports: [SourceDataModule],
   providers: [
     StreamResolverService,
     PublicCaptureAutomaticResolverAdapter,
