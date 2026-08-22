@@ -46,6 +46,7 @@ import {
   assertCommitAuthorised,
   CAPABILITY_PROOF_SQL,
   assertLiveJobCapability,
+  buildLiveDiscoveryOptions,
   evaluateCapabilityProof,
   resolveCapabilityRole,
   parseBound,
@@ -623,6 +624,7 @@ async function runBackfillRun() {
         new GovInfoSitemapCrawler(http),
         new IndexPageCrawler(http),
         discoveryAudit,
+        buildLiveDiscoveryOptions(fiscalYears),
       );
     } else {
       console.log(

@@ -14,12 +14,14 @@
  */
 
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { describe } from 'node:test';
 
 import {
   bootstrapFiscalYearCycle,
   emptyDiscoveryCursor,
+  InvalidFiscalYearError,
   parseDiscoveryCursor,
+  rollingCycleHorizon,
   serialiseDiscoveryCursor,
   collectionCursor,
 } from '@capiro/defense-domain';
@@ -27,7 +29,11 @@ import {
 import { SourceAdapterRegistry } from '../source-adapter.registry.js';
 import { GovInfoSitemapCrawler } from './govinfo-sitemap.crawler.js';
 import { IndexPageCrawler } from './index-page.crawler.js';
-import { LiveSourceDiscoveryAdapter } from './live-source-discovery.adapter.js';
+import {
+  InvalidHorizonFiscalYearsError,
+  LiveSourceDiscoveryAdapter,
+  resolveDiscoveryHorizon,
+} from './live-source-discovery.adapter.js';
 import {
   InMemoryDiscoveryAuditStore,
   RecordedPublisherHttp,
@@ -551,4 +557,153 @@ test('the GovInfo year window is bounded by the horizon, not the whole archive',
     'a 2001 sitemap is not in scope for an FY2026-2028 horizon',
   );
   assert.ok(http.requested.some((url) => url.includes('CRPT_2026_sitemap.xml')));
+});
+
+/**
+ * Phase 10 historical-discovery horizon defect (found running the real FY2024
+ * Canary 2 backfill on 2026-08-22).
+ *
+ * `discover()` used to always call `rollingCycleHorizon(nowIso, ...)`, which
+ * derives its window purely from the wall clock. An EXPLICIT bounded backfill
+ * for FY2024, run in real 2026 (current FY 2026, rolling window FY2025-2027),
+ * could therefore never reach FY2024 — `loadRegisteredExpectedSourceKeys`
+ * always came back empty for the wrong years, and `discover()` returned before
+ * building a cursor, spending a request, or writing a single audit row. No
+ * number of retries could ever have fixed it: the result was 100% deterministic
+ * given the real clock.
+ *
+ * The fix: `LiveSourceDiscoveryOptions.horizonFiscalYears`, an explicit
+ * override that is authoritative when present and changes nothing when absent.
+ */
+describe('resolveDiscoveryHorizon — Phase 10 explicit backfill scope', () => {
+  test('an explicit historical override is used exactly as given, ignoring the wall clock', () => {
+    // NOW = 2026-08-21 -> current FY 2026, rolling window would be [2025,2026,2027].
+    // FY2024 is two years outside that window and must still resolve exactly.
+    const horizon = resolveDiscoveryHorizon(NOW, { horizonFiscalYears: [2024] });
+    assert.deepEqual(horizon, [2024]);
+  });
+
+  test('an explicit future override reaches a year the rolling window would suppress', () => {
+    // Rolling upcomingYears=1 caps at FY2027 from this clock; FY2028 is the
+    // Phase 10 expansion sequence's own next year after that cap.
+    const horizon = resolveDiscoveryHorizon(NOW, { horizonFiscalYears: [2028] });
+    assert.deepEqual(horizon, [2028]);
+  });
+
+  test('a multi-FY explicit override is used exactly as given, with no gap-filling', () => {
+    const horizon = resolveDiscoveryHorizon(NOW, { horizonFiscalYears: [2024, 2026, 2028] });
+    // Not [2024,2025,2026,2027,2028] — 2025 and 2027 were never requested.
+    assert.deepEqual(horizon, [2024, 2026, 2028]);
+  });
+
+  test('an explicit override is normalized: deduped and sorted, never reordered by caller intent', () => {
+    const horizon = resolveDiscoveryHorizon(NOW, { horizonFiscalYears: [2028, 2024, 2024, 2026] });
+    assert.deepEqual(horizon, [2024, 2026, 2028]);
+  });
+
+  test('default behavior (no override) is byte-for-byte unchanged from the existing rolling horizon', () => {
+    // This is the critical regression gate: ordinary scheduled/live discovery,
+    // and any future scheduler-owned tick, must resolve exactly as before.
+    assert.deepEqual(
+      resolveDiscoveryHorizon(NOW, {}),
+      rollingCycleHorizon(NOW, { priorYears: 1, upcomingYears: 1 }),
+    );
+    assert.deepEqual(resolveDiscoveryHorizon(NOW, {}), [2025, 2026, 2027]);
+
+    // Custom prior/upcoming bounds still pass through when no explicit override
+    // is present — the override is additive, not a replacement of that knob.
+    assert.deepEqual(
+      resolveDiscoveryHorizon(NOW, { priorYears: 2, upcomingYears: 0 }),
+      rollingCycleHorizon(NOW, { priorYears: 2, upcomingYears: 0 }),
+    );
+  });
+
+  test('an explicit invalid or empty override fails closed rather than silently using the wall clock', () => {
+    // Array-shape validation (the override's own structural contract).
+    assert.throws(
+      () => resolveDiscoveryHorizon(NOW, { horizonFiscalYears: [] }),
+      InvalidHorizonFiscalYearsError,
+      'an empty explicit list must never be treated as "no override"',
+    );
+
+    // Per-value validation reuses the domain's OWN existing fiscal-year
+    // contract (`assertFiscalYear`) rather than a redundant wrapper — a bad
+    // individual value fails closed just as loudly, with the more specific
+    // domain error.
+    assert.throws(
+      () => resolveDiscoveryHorizon(NOW, { horizonFiscalYears: [2024.5] }),
+      InvalidFiscalYearError,
+    );
+    assert.throws(
+      () => resolveDiscoveryHorizon(NOW, { horizonFiscalYears: [1899] }),
+      InvalidFiscalYearError,
+      'must reuse the same fiscal-year bounds as the rest of the domain',
+    );
+  });
+});
+
+test('an explicit FY2024 horizon override reaches a real FY2024 candidate, from a 2026 clock', async () => {
+  // The exact package ids and titles govinfo-packages.ts itself documents as
+  // real historical FY2024 examples.
+  const FY2024 = bootstrapFiscalYearCycle({ fiscalYear: 2024 });
+  const FY2024_KEYS = new Set(FY2024.expectedSources.map((source) => source.dedupKey));
+
+  const CRPT_INDEX_2024 = `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>https://www.govinfo.gov/sitemap/CRPT_2023_sitemap.xml</loc><lastmod>2023-11-01T00:00:00.000Z</lastmod></sitemap>
+  <sitemap><loc>https://www.govinfo.gov/sitemap/CRPT_2026_sitemap.xml</loc><lastmod>2026-08-20T13:52:00.000Z</lastmod></sitemap>
+</sitemapindex>`;
+  const CRPT_2023 = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://www.govinfo.gov/app/details/CRPT-118hrpt125</loc><lastmod>2023-11-01T00:00:00.000Z</lastmod></url>
+  <url><loc>https://www.govinfo.gov/app/details/CRPT-118hrpt121</loc><lastmod>2023-11-02T00:00:00.000Z</lastmod></url>
+</urlset>`;
+
+  const responses = new Map([
+    ['https://www.govinfo.gov/robots.txt', { statusCode: 200, body: 'User-agent: *\nDisallow: /search/' }],
+    ['https://www.govinfo.gov/sitemap/CRPT_sitemap_index.xml', { statusCode: 200, body: CRPT_INDEX_2024 }],
+    ['https://www.govinfo.gov/sitemap/CRPT_2023_sitemap.xml', { statusCode: 200, body: CRPT_2023 }],
+    [
+      'https://www.govinfo.gov/metadata/pkg/CRPT-118hrpt125/mods.xml',
+      { statusCode: 200, body: mods('NATIONAL DEFENSE AUTHORIZATION ACT FOR FISCAL YEAR 2024') },
+    ],
+    [
+      'https://www.govinfo.gov/metadata/pkg/CRPT-118hrpt121/mods.xml',
+      { statusCode: 200, body: mods('DEPARTMENT OF DEFENSE APPROPRIATIONS BILL, 2024') },
+    ],
+  ]);
+
+  const registry = new SourceAdapterRegistry();
+  const http = new RecordedPublisherHttp(responses);
+  const audit = new InMemoryDiscoveryAuditStore(FY2024_KEYS);
+  const discovery = new LiveSourceDiscoveryAdapter(
+    registry,
+    new GovInfoSitemapCrawler(http),
+    new IndexPageCrawler(http),
+    audit,
+    { horizonFiscalYears: [2024] },
+  );
+
+  const result = await discovery.discover({
+    adapterId: 'govinfo-committee-reports',
+    cursor: serialiseDiscoveryCursor(emptyDiscoveryCursor()),
+    nowIso: NOW, // real current FY is 2026 — the old code would have found nothing at all.
+  });
+
+  assert.equal(
+    result.candidates.length,
+    2,
+    'an explicit FY2024 override must resolve real FY2024 candidates even though NOW resolves to FY2026',
+  );
+  for (const candidate of result.candidates) {
+    assert.ok(FY2024_KEYS.has(candidate.expectedSourceDedupKey));
+  }
+
+  // The decoy 2026 sitemap — squarely inside the DEFAULT rolling window this
+  // adapter would otherwise have used — must never be touched: the explicit
+  // override replaces the horizon, it does not add to it.
+  assert.ok(
+    !http.requested.some((url) => url.includes('CRPT_2026_sitemap.xml')),
+    'an explicit FY2024-only override must not also crawl the wall-clock rolling window',
+  );
 });

@@ -340,3 +340,20 @@ export function parseBound(raw, fallback, name) {
   }
   return parsed;
 }
+
+/**
+ * Compose the `LiveSourceDiscoveryAdapter` options for an EXPLICIT bounded
+ * backfill (`backfill-run --fiscal-years ...`), pulled out as its own pure
+ * function so the wiring between the job's already-validated `--fiscal-years`
+ * set and the discovery adapter's horizon override is unit-testable without a
+ * live database — the same reason every other preflight concern lives in this
+ * file rather than inline in `job.mjs`.
+ *
+ * The job's parsed fiscal years are passed through unchanged: no wall-clock
+ * year is added, none is dropped. This is the fix for the Phase 10 FY2024
+ * defect, where discovery silently recomputed its own `nowIso`-derived horizon
+ * and discarded the job's explicit scope.
+ */
+export function buildLiveDiscoveryOptions(fiscalYears) {
+  return Object.freeze({ horizonFiscalYears: fiscalYears });
+}

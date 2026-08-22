@@ -26,6 +26,8 @@ import { PrismaDiscoveryAuditStore } from '../budget-lifecycle/discovery/prisma-
 import type { RawSqlExecutor } from '../budget-lifecycle/discovery/prisma-discovery-audit.store.js';
 import { InMemoryDiscoveryAuditStore } from '../budget-lifecycle/discovery/testing/discovery-test-doubles.js';
 import type { NewDiscoveryCrawl } from '../budget-lifecycle/discovery/discovery-audit.port.js';
+// @ts-expect-error — plain ESM script, no type declarations.
+import { buildLiveDiscoveryOptions } from '../../scripts/job-preflight.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(here, '..', '..');
@@ -440,5 +442,85 @@ describe('Phase 9 explicit fiscal-year support', () => {
     ]);
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /FY2028 .*intent="bootstrap expected sources only"/);
+  });
+});
+
+/**
+ * Phase 10 historical-discovery horizon defect fix — job-composition half.
+ *
+ * The domain-level fix (`resolveDiscoveryHorizon`) is proven in
+ * `discovery/live-discovery.spec.ts`. What's proven here is the OTHER half:
+ * that `backfill-run`'s own already-validated `--fiscal-years` set is actually
+ * the thing wired into the live discovery adapter, not silently dropped.
+ * `runBackfillRun`'s live-discovery branch only executes after a real
+ * successful Postgres connection (`assertLiveJobCapability`), so it cannot be
+ * exercised end-to-end as a child process without a live database — the same
+ * constraint every other "commit path with a real store" property in this file
+ * works around by testing the extracted piece directly instead. Here that
+ * piece is `buildLiveDiscoveryOptions`, plus a source-level check that the CLI
+ * actually calls it at the one call site that matters.
+ */
+describe('Phase 10 historical-discovery horizon fix — job composes discovery with the explicit scope', () => {
+  it('buildLiveDiscoveryOptions passes the job\'s parsed fiscal years through unchanged', () => {
+    assert.deepEqual(buildLiveDiscoveryOptions([2024]), { horizonFiscalYears: [2024] });
+    assert.deepEqual(buildLiveDiscoveryOptions([2024, 2026, 2028]), {
+      horizonFiscalYears: [2024, 2026, 2028],
+    });
+    // No wall-clock year is ever added by this function — it is a pure passthrough.
+    assert.deepEqual(buildLiveDiscoveryOptions([2024]).horizonFiscalYears, [2024]);
+  });
+
+  it("job.mjs's live-discovery branch composes LiveSourceDiscoveryAdapter with the job's own fiscalYears, not a bare rolling default", async () => {
+    const fs = await import('node:fs/promises');
+    const source = await fs.readFile(JOB, 'utf8');
+    const stripped = source
+      .replace(/\r\n?/g, '\n')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('//'))
+      .join('\n');
+
+    assert.match(
+      stripped,
+      /new LiveSourceDiscoveryAdapter\(\s*registry,\s*new GovInfoSitemapCrawler\(http\),\s*new IndexPageCrawler\(http\),\s*discoveryAudit,\s*buildLiveDiscoveryOptions\(fiscalYears\),?\s*\)/,
+      'the live-discovery construction site must pass buildLiveDiscoveryOptions(fiscalYears) as its options argument — this is what previously let the adapter silently fall back to a wall-clock horizon',
+    );
+  });
+
+  it('the Canary 1 manifest/no-discovery branch is untouched by the fix — no options, no horizon override leaks in', async () => {
+    const fs = await import('node:fs/promises');
+    const source = await fs.readFile(JOB, 'utf8');
+    const stripped = source
+      .replace(/\r\n?/g, '\n')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('//'))
+      .join('\n');
+
+    // The manifest adapter used when PHASE8_SESSION8_LIVE_DISCOVERY is not
+    // 'true' must remain exactly its pre-fix single-argument construction.
+    assert.match(stripped, /discovery = new ManifestSourceDiscoveryAdapter\(registry\);/);
+    // And it must not appear anywhere near buildLiveDiscoveryOptions, proving
+    // the fix is additive to the live-discovery branch only.
+    const manifestLine = stripped
+      .split('\n')
+      .findIndex((line) => line.includes('discovery = new ManifestSourceDiscoveryAdapter(registry);'));
+    assert.ok(manifestLine >= 0);
+    const nearby = stripped.split('\n').slice(Math.max(0, manifestLine - 3), manifestLine + 3).join('\n');
+    assert.doesNotMatch(nearby, /buildLiveDiscoveryOptions|horizonFiscalYears/);
+  });
+
+  it('a dry run (Canary 1 shape) still stays network-free and bootstrap-only with the fix in place', () => {
+    // Mirrors the existing property-1 dry-run test exactly, re-asserted here so
+    // this fix's own regression suite locks the behavior it must not disturb.
+    const result = run(
+      JOB,
+      ['backfill-run', '--fiscal-years', '2024', '--max-adapters', '1', '--now', '2026-08-22T00:00:00.000Z'],
+      { PHASE8_SESSION8_LIVE_DISCOVERY: 'false' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /DRY RUN: in-memory store \+ manifest discovery/);
+    assert.match(result.stdout, /PHASE9_BACKFILL_DRY_RUN_PASS/);
+    assert.doesNotMatch(result.stdout, /PHASE9_BACKFILL_COMMITTED/);
   });
 });
