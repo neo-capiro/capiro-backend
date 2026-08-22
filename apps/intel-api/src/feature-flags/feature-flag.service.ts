@@ -21,6 +21,14 @@ export const BILL_360_FEATURE = 'bill_360';
  * status and NEVER a fabricated $0.
  */
 export const DEFENSE_FUNDING_INTEL_FEATURE = 'defense_funding_intel';
+/**
+ * District Nexus Release 2 — Strategic Relevance nested flag.
+ * Dark by default for external tenants. Internal tenant is the first rollout
+ * canary (mirrors bill_360): enabledFor() surfaces it without a DB row so the
+ * vNext drawer can reveal strategic sections when API guards already allow
+ * the internal tenant.
+ */
+export const DISTRICT_NEXUS_STRATEGIC_FEATURE = 'district_nexus_strategic_relevance';
 
 /**
  * Tenant-scoped feature gating for intel-api capabilities.
@@ -67,6 +75,8 @@ export class FeatureFlagService {
       // bill_360 so the R1 dossier UI reveals itself internally with no DB row.
       out[BILL_360_FEATURE] = true;
       out[DEFENSE_FUNDING_INTEL_FEATURE] = true;
+      // District Nexus Strategic Relevance — internal-first Release 2 canary.
+      out[DISTRICT_NEXUS_STRATEGIC_FEATURE] = true;
     }
     return out;
   }

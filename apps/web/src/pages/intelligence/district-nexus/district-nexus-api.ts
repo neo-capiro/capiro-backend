@@ -436,3 +436,174 @@ export async function getDistrictBoundaryGeoJson(
     )
   ).data;
 }
+
+// ── Release 2 — Strategic Relevance (mirrors district-nexus-strategic.types.ts) ─
+
+export type StrategicComponentKey =
+  | 'committeeJurisdiction'
+  | 'programElementBudget'
+  | 'activeLegislation'
+  | 'activeStrategyTarget'
+  | 'relationshipEngagement'
+  | 'hearingTiming'
+  | 'opportunityFunding'
+  | 'memberHistoricalPriorities';
+
+export type StrategicComponentStatus = 'scored' | 'missing' | 'unavailable' | 'stale';
+
+export interface StrategicScoreBreakdown {
+  component: StrategicComponentKey;
+  label: string;
+  weight: number;
+  /** Null when missing/unavailable — never coerce to 0. */
+  credit: number | null;
+  status: StrategicComponentStatus;
+  rationale: string;
+  evidenceCount: number;
+}
+
+export interface StrategicEvidence {
+  component: StrategicComponentKey;
+  sourceType: string;
+  label: string;
+  sourceRecordId: string | null;
+  observedAt: IsoTimestamp | null;
+  summary: string;
+  refs?: Record<string, string | number | boolean | null>;
+}
+
+export interface StrategicConflictWarning {
+  code:
+    | 'stale_source'
+    | 'geography_vintage_conflict'
+    | 'incomplete_strategic_evidence'
+    | 'inferred_link_excluded'
+    | 'private_engagement_redacted'
+    | 'component_unavailable';
+  message: string;
+  component?: StrategicComponentKey;
+}
+
+export interface StrategicRelevanceScore {
+  score: number | null;
+  coveragePercent: number;
+  breakdown: StrategicScoreBreakdown[];
+  evidence: StrategicEvidence[];
+  missingComponents: StrategicComponentKey[];
+  unavailableComponents: StrategicComponentKey[];
+  strongestDrivers: StrategicScoreBreakdown[];
+  freshness: SourceFreshness[];
+  conflicts: StrategicConflictWarning[];
+  scoreVersion: string;
+  weightsVersion: string;
+  minCoveragePercent: number;
+  computedAt: IsoTimestamp;
+}
+
+export interface DistrictStrategicRelevanceResponse {
+  districtKey: string;
+  state: string;
+  district: string;
+  clientId: string;
+  clientName: string | null;
+  memberBioguides: string[];
+  strategic: StrategicRelevanceScore;
+  nexusStrength: { score: number | null; coveragePercent: number } | null;
+  strategicEnabled: true;
+}
+
+export interface ClientDistrictStrategicMapResponse {
+  clientId: string;
+  clientName: string | null;
+  scoreVersion: string;
+  weightsVersion: string;
+  minCoveragePercent: number;
+  computedAt: IsoTimestamp;
+  districts: Array<{
+    districtKey: string;
+    state: string;
+    district: string;
+    strategicScore: number | null;
+    strategicCoveragePercent: number;
+    strongestDrivers: string[];
+    missingComponents: StrategicComponentKey[];
+    nexusScore: number | null;
+    nexusCoveragePercent: number | null;
+  }>;
+  incompleteCount: number;
+}
+
+export type StrategicGapType =
+  | 'high_strategic_low_nexus'
+  | 'high_nexus_low_engagement'
+  | 'strong_footprint_no_active_strategy'
+  | 'committee_appropriations_weak_relationship'
+  | 'relevant_pe_no_target_engagement'
+  | 'incomplete_strategic_evidence'
+  | 'geography_vintage_conflict';
+
+export interface StrategicGapFinding {
+  gapType: StrategicGapType;
+  label: string;
+  districtKey: string;
+  state: string;
+  district: string;
+  evidence: string[];
+  ruleVersion: string;
+  strategicScore: number | null;
+  nexusScore: number | null;
+  engagementCredit: number | null;
+  strategyCredit: number | null;
+}
+
+export interface ClientDistrictStrategicGapsResponse {
+  clientId: string;
+  clientName: string | null;
+  ruleVersion: string;
+  scoreVersion: string;
+  thresholds: {
+    highStrategic: number;
+    lowNexus: number;
+    highNexus: number;
+    lowEngagementCredit: number;
+  };
+  computedAt: IsoTimestamp;
+  gaps: StrategicGapFinding[];
+  counts: Record<StrategicGapType, number>;
+}
+
+export async function getClientDistrictStrategicMap(
+  api: AxiosInstance,
+  clientId: string,
+): Promise<ClientDistrictStrategicMapResponse> {
+  return (
+    await api.get<ClientDistrictStrategicMapResponse>(
+      `/api/intelligence/clients/${encodeURIComponent(clientId)}/district-nexus-v2/strategic`,
+    )
+  ).data;
+}
+
+export async function getClientDistrictStrategicGaps(
+  api: AxiosInstance,
+  clientId: string,
+): Promise<ClientDistrictStrategicGapsResponse> {
+  return (
+    await api.get<ClientDistrictStrategicGapsResponse>(
+      `/api/intelligence/clients/${encodeURIComponent(clientId)}/district-nexus-v2/gaps`,
+    )
+  ).data;
+}
+
+export async function getDistrictStrategicRelevance(
+  api: AxiosInstance,
+  state: string,
+  district: string,
+  clientId: string,
+): Promise<DistrictStrategicRelevanceResponse> {
+  return (
+    await api.get<DistrictStrategicRelevanceResponse>(
+      `/api/intelligence/district-nexus/districts/${encodeURIComponent(state)}/${encodeURIComponent(district)}/strategic`,
+      { params: { clientId } },
+    )
+  ).data;
+}

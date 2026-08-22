@@ -1,18 +1,21 @@
 import { Module } from '@nestjs/common';
 import { RepresentationModule } from '../clients/representation.module.js';
+import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { DistrictNexusController } from './district-nexus.controller.js';
 import { DistrictNexusRelationshipsController } from './district-nexus-relationships.controller.js';
 import { DistrictNexusService } from './district-nexus.service.js';
 import { DistrictNexusRelationshipsService } from './district-nexus-relationships.service.js';
+import { DistrictNexusStrategicService } from './district-nexus-strategic.service.js';
 import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
+import { DistrictNexusStrategicFlagGuard } from './district-nexus-strategic-flag.guard.js';
 
 /**
- * District Nexus v2 (Rev 2 plan, Workstream E).
+ * District Nexus v2 (Rev 2 plan, Workstream E) + Release 2 Strategic Relevance.
  *
  * Ships dark: every route is behind DistrictNexusFlagGuard, which 404s unless
  * the tenant has an enabled `district_nexus_v2` row (or is the internal
- * canary). Registering the module unconditionally is the house pattern —
- * routes exist, the flag decides whether they answer.
+ * canary). Strategic routes add DistrictNexusStrategicFlagGuard
+ * (`district_nexus_strategic_relevance`) — fail-closed, internal-first.
  *
  * The guard is provided here rather than globally so it stays scoped to this
  * feature; PrismaService and ConfigService reach it from the global modules.
@@ -28,15 +31,25 @@ import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
  * so it compiles, passes the only gate CI has (turbo typecheck), and then kills
  * the container on first start. Importing the owning module directly is both
  * correct and what RepresentationModule's own docblock asks callers to do.
+ *
+ * IntelligenceModule is imported so Release 2 can reuse ClientPeRelevanceService
+ * rather than inventing another PE matcher. IntelligenceModule does not import
+ * DistrictNexusModule, so this is a one-way edge.
  */
 @Module({
-  imports: [RepresentationModule],
+  imports: [RepresentationModule, IntelligenceModule],
   controllers: [DistrictNexusController, DistrictNexusRelationshipsController],
   providers: [
     DistrictNexusService,
     DistrictNexusRelationshipsService,
+    DistrictNexusStrategicService,
     DistrictNexusFlagGuard,
+    DistrictNexusStrategicFlagGuard,
   ],
-  exports: [DistrictNexusService, DistrictNexusRelationshipsService],
+  exports: [
+    DistrictNexusService,
+    DistrictNexusRelationshipsService,
+    DistrictNexusStrategicService,
+  ],
 })
 export class DistrictNexusModule {}

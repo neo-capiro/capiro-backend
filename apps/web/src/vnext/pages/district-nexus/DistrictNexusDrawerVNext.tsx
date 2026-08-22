@@ -16,11 +16,15 @@ import {
 import { useApi } from '../../../lib/use-api.js';
 import {
   getDistrictNexusDistrictDetail,
+  getDistrictStrategicRelevance,
   type DataQualityWarning,
   type DistrictNexusDistrictDetailResponse,
+  type DistrictStrategicRelevanceResponse,
   type EvidenceVerificationStatus,
   type FederalMemberSummary,
   type NexusScoreBreakdown,
+  type StrategicRelevanceScore,
+  type StrategicScoreBreakdown,
   type TopAward,
 } from '../../../pages/intelligence/district-nexus/district-nexus-api.js';
 import {
@@ -32,6 +36,9 @@ import {
 } from '../../../pages/intelligence/district-nexus/district-nexus-format.js';
 import { DistrictFederalMarketPanelVNext } from './DistrictFederalMarketPanelVNext.js';
 import { DnxChevronDownIcon, DnxInfoIcon, DnxWarningIcon } from './icons.js';
+import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
+
+export const DISTRICT_NEXUS_STRATEGIC_FEATURE = 'district_nexus_strategic_relevance';
 
 const COMPONENT_COLORS: Record<string, string> = {
   facility: '#1a3f9f',
@@ -60,6 +67,7 @@ interface Props {
  */
 export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintage, onClose }: Props) {
   const api = useApi();
+  const strategicEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_STRATEGIC_FEATURE);
   const { state, districtNo } = districtKey ? splitDistrictKey(districtKey) : { state: '', districtNo: '' };
 
   const detail = useQuery<DistrictNexusDistrictDetailResponse>({
@@ -68,8 +76,17 @@ export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintag
     enabled: Boolean(districtKey),
   });
 
+  const strategic = useQuery<DistrictStrategicRelevanceResponse>({
+    queryKey: ['district-nexus', 'strategic', state, districtNo, clientId],
+    queryFn: () => getDistrictStrategicRelevance(api, state, districtNo, clientId!),
+    enabled: Boolean(districtKey && clientId && strategicEnabled),
+    retry: false,
+  });
+
   const d = detail.data;
   const band = d ? bandOf(d.score) : null;
+  const s = strategic.data?.strategic ?? null;
+  const sBand = s ? bandOf(s.score) : null;
 
   return (
     <CapiroDrawer open={Boolean(districtKey)} title={districtKey ?? ''} onClose={onClose}>
@@ -102,9 +119,22 @@ export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintag
                   {band.label} nexus · {d.score}
                 </CapiroBadge>
               ) : (
-                <CapiroBadge tone="neutral">Unscored · below coverage floor</CapiroBadge>
+                <CapiroBadge tone="neutral">Unscored nexus · below coverage floor</CapiroBadge>
               )}
-              <CapiroBadge tone="neutral">Coverage {d.coveragePercent}%</CapiroBadge>
+              <CapiroBadge tone="neutral">Nexus coverage {d.coveragePercent}%</CapiroBadge>
+              {strategicEnabled && clientId ? (
+                sBand ? (
+                  <CapiroBadge tone={s!.score! >= 60 ? 'info' : 'neutral'}>
+                    {sBand.label} strategic · {s!.score}
+                  </CapiroBadge>
+                ) : strategic.isPending ? (
+                  <CapiroBadge tone="neutral">Strategic…</CapiroBadge>
+                ) : strategic.isError ? (
+                  <CapiroBadge tone="neutral">Strategic unavailable</CapiroBadge>
+                ) : s ? (
+                  <CapiroBadge tone="neutral">Unscored strategic · below coverage floor</CapiroBadge>
+                ) : null
+              ) : null}
               <CapiroBadge tone="neutral">Boundary: current{boundaryVintage ? `, ${boundaryVintage}th` : ''}</CapiroBadge>
             </div>
             <div className="dnx-dr-l3">
@@ -132,9 +162,43 @@ export function DistrictNexusDrawerVNext({ districtKey, clientId, boundaryVintag
               </div>
             ) : null}
 
-            <DnxSection title="Why this score" meta={`${d.score ?? '—'} / 100`} defaultOpen>
+            <DnxSection title="Why this score" meta={`${d.score ?? '—'} / 100 nexus`} defaultOpen>
               <ScoreBreakdown breakdown={d.breakdown} coveragePercent={d.coveragePercent} />
             </DnxSection>
+            {strategicEnabled && clientId ? (
+              <DnxSection
+                title="Why this district matters"
+                meta={
+                  s
+                    ? `${s.score ?? 'Unscored'} strategic · ${s.coveragePercent}% cov`
+                    : strategic.isPending
+                      ? 'loading'
+                      : strategic.isError
+                        ? 'unavailable'
+                        : '—'
+                }
+                defaultOpen
+              >
+                {strategic.isPending ? (
+                  <div className="dnx-skel-rows" aria-busy="true">
+                    <CapiroSkeleton height={14} />
+                    <CapiroSkeleton height={14} width="80%" />
+                    <CapiroSkeleton height={14} width="66%" />
+                  </div>
+                ) : null}
+                {strategic.isError ? (
+                  <div className="dnx-muted" style={{ fontSize: 12.5 }}>
+                    Strategic Relevance could not load for this client. Nexus Strength above is unaffected.
+                  </div>
+                ) : null}
+                {s ? <StrategicSection strategic={s} /> : null}
+                {!clientId ? (
+                  <div className="dnx-muted" style={{ fontSize: 12.5 }}>
+                    Select a client to compute Strategic Relevance.
+                  </div>
+                ) : null}
+              </DnxSection>
+            ) : null}
             <DnxSection title="Federal market context" meta="contracts · subawards · future" defaultOpen>
               {districtKey ? <DistrictFederalMarketPanelVNext clientId={clientId} districtKey={districtKey} /> : null}
             </DnxSection>
@@ -290,6 +354,122 @@ function ScoreBreakdown({ breakdown, coveragePercent }: { breakdown: NexusScoreB
           {unmeasured.length ? ` Unmeasured: ${unmeasured.join(', ')}.` : ''}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Strategic Relevance is a SEPARATE score from Nexus Strength.
+ * Null credit must never render as 0; missing/unavailable stay labeled.
+ */
+function StrategicSection({ strategic }: { strategic: StrategicRelevanceScore }) {
+  const band = bandOf(strategic.score);
+  const missing = strategic.breakdown.filter((b) => b.status === 'missing' || b.status === 'unavailable');
+  return (
+    <div className="dnx-strategic">
+      <div className="dnx-dr-l2" style={{ marginBottom: 12 }}>
+        {band ? (
+          <CapiroBadge tone={strategic.score! >= 60 ? 'info' : 'neutral'}>
+            Strategic · {band.label} · {strategic.score}
+          </CapiroBadge>
+        ) : (
+          <CapiroBadge tone="neutral">Strategic · Unscored (not “low”)</CapiroBadge>
+        )}
+        <CapiroBadge tone="neutral">Coverage {strategic.coveragePercent}%</CapiroBadge>
+        <CapiroBadge tone="neutral">{strategic.scoreVersion}</CapiroBadge>
+      </div>
+
+      {strategic.strongestDrivers.length ? (
+        <div style={{ marginBottom: 12 }}>
+          <div className="dnx-list-label">Strongest drivers</div>
+          <ul className="dnx-muted" style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 12.5 }}>
+            {strategic.strongestDrivers.map((d) => (
+              <li key={d.component}>
+                {d.label}
+                {d.credit != null ? ` · ${Math.round(d.credit)}/${d.weight}` : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <div className="dnx-bkd">
+        {strategic.breakdown.map((b: StrategicScoreBreakdown) => {
+          const scored = b.credit != null && b.credit > 0;
+          const color = 'var(--uui-brand-solid)';
+          const display =
+            b.credit == null
+              ? b.status === 'unavailable'
+                ? 'n/a'
+                : '—'
+              : String(Math.round(b.credit));
+          return (
+            <div key={b.component} className={`dnx-br${scored ? '' : ' dnx-zero'}`}>
+              <div className="dnx-bl">
+                <span className="dnx-sw" style={{ background: scored ? color : 'var(--uui-gray-200)' }} />
+                <span className="dnx-nm" title={b.rationale}>
+                  {b.label}
+                  {b.status === 'missing' ? ' · missing' : ''}
+                  {b.status === 'unavailable' ? ' · unavailable' : ''}
+                </span>
+              </div>
+              <div className="dnx-bw">
+                <i
+                  style={{
+                    width: `${b.weight && b.credit != null ? (b.credit / b.weight) * 100 : 0}%`,
+                    background: color,
+                  }}
+                />
+              </div>
+              <div className="dnx-bv">
+                {display}/{b.weight}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {missing.length ? (
+        <div className="dnx-hint dnx-info" style={{ marginTop: 12 }}>
+          <span className="dnx-hico">
+            <DnxInfoIcon />
+          </span>
+          <div>
+            <b>Missing / unavailable signals (not zeros):</b>{' '}
+            {missing.map((m) => m.label).join('; ')}.
+          </div>
+        </div>
+      ) : null}
+
+      {strategic.conflicts.length ? (
+        <div style={{ marginTop: 10 }}>
+          {strategic.conflicts.map((c, i) => (
+            <div key={i} className="dnx-hint dnx-notable" style={{ marginBottom: 6 }}>
+              <span className="dnx-hico">
+                <DnxWarningIcon />
+              </span>
+              <div>{c.message}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {strategic.evidence.length ? (
+        <div style={{ marginTop: 12 }}>
+          <div className="dnx-list-label">Contributing evidence</div>
+          <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12.5 }}>
+            {strategic.evidence.slice(0, 12).map((e, i) => (
+              <li key={`${e.sourceRecordId ?? e.label}-${i}`}>
+                <b>{e.label}</b> — {e.summary}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <div className="dnx-muted" style={{ fontSize: 12.5, marginTop: 10 }}>
+          No structured strategic evidence rows for this district yet.
+        </div>
+      )}
     </div>
   );
 }

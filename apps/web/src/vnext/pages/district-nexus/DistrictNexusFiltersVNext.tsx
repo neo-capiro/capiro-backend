@@ -29,12 +29,16 @@ export interface DistrictNexusFilterState {
   state: string | null;
   metric: ChoroplethMetric;
   minAmount: number;
+  /** When true and a client is selected, filter map/table to strategic gap districts. */
+  gapFilter: boolean;
 }
 
 interface Props {
   value: DistrictNexusFilterState;
   onChange: (next: DistrictNexusFilterState) => void;
   resultCount: number;
+  /** Strategic gap toggle is only meaningful with client + strategic flag. */
+  strategicGapAvailable?: boolean;
 }
 
 /**
@@ -52,7 +56,12 @@ interface Props {
  * selects carry visible field labels and explicit "All …" options in place of
  * antd's placeholder + allowClear + type-ahead search.
  */
-export function DistrictNexusFiltersVNext({ value, onChange, resultCount }: Props) {
+export function DistrictNexusFiltersVNext({
+  value,
+  onChange,
+  resultCount,
+  strategicGapAvailable,
+}: Props) {
   const api = useApi();
   const clients = useQuery<ClientOption[]>({
     queryKey: ['clients'],
@@ -61,7 +70,8 @@ export function DistrictNexusFiltersVNext({ value, onChange, resultCount }: Prop
   });
   const visibleClients = (clients.data ?? []).filter((c) => c.status !== 'archived');
 
-  const hasFilters = value.clientId != null || value.state != null || value.minAmount > 0;
+  const hasFilters =
+    value.clientId != null || value.state != null || value.minAmount > 0 || value.gapFilter;
 
   return (
     <div className="dnx-fbar">
@@ -70,7 +80,14 @@ export function DistrictNexusFiltersVNext({ value, onChange, resultCount }: Prop
         aria-label="Filter by client"
         className="dnx-select-client"
         value={value.clientId ?? ''}
-        onChange={(e) => onChange({ ...value, clientId: e.target.value || null })}
+        onChange={(e) =>
+          onChange({
+            ...value,
+            clientId: e.target.value || null,
+            // Gap analysis is client-scoped — clear when client clears.
+            gapFilter: e.target.value ? value.gapFilter : false,
+          })
+        }
         options={[
           { value: '', label: clients.isLoading ? 'Loading clients…' : 'All clients' },
           ...visibleClients.map((c) => ({ value: c.id, label: c.name })),
@@ -97,13 +114,33 @@ export function DistrictNexusFiltersVNext({ value, onChange, resultCount }: Prop
         onChange={(e) => onChange({ ...value, minAmount: Number(e.target.value) || 0 })}
         options={MIN_AMOUNT_OPTIONS}
       />
+      {strategicGapAvailable ? (
+        <CapiroSelect
+          label="Opportunity / gaps"
+          aria-label="Filter by strategic gaps"
+          value={value.gapFilter ? 'gaps' : ''}
+          onChange={(e) => onChange({ ...value, gapFilter: e.target.value === 'gaps' })}
+          options={[
+            { value: '', label: 'All districts' },
+            { value: 'gaps', label: 'Strategic gaps only' },
+          ]}
+        />
+      ) : null}
       <div className="dnx-rt">
         <span className="dnx-num dnx-count">{resultCount}</span> district{resultCount === 1 ? '' : 's'}
         {hasFilters ? (
           <CapiroButton
             variant="quiet"
             size="compact"
-            onClick={() => onChange({ clientId: null, state: null, metric: value.metric, minAmount: 0 })}
+            onClick={() =>
+              onChange({
+                clientId: null,
+                state: null,
+                metric: value.metric,
+                minAmount: 0,
+                gapFilter: false,
+              })
+            }
           >
             Clear filters
           </CapiroButton>

@@ -9,13 +9,18 @@ import { useIntelFeatureEnabled } from '../../../lib/intel-feature-flags.js';
 import {
   getDistrictBoundaryManifest,
   getDistrictNexusMap,
+  getClientDistrictStrategicGaps,
+  type ClientDistrictStrategicGapsResponse,
   type DistrictNexusMapResponse,
 } from '../../../pages/intelligence/district-nexus/district-nexus-api.js';
 import { formatMoney, formatNumber, type ChoroplethMetric } from '../../../pages/intelligence/district-nexus/district-nexus-format.js';
 import { DistrictNexusMapVNext } from './DistrictNexusMapVNext.js';
 import { DistrictNexusFiltersVNext, type DistrictNexusFilterState } from './DistrictNexusFiltersVNext.js';
 import { DistrictNexusTableVNext } from './DistrictNexusTableVNext.js';
-import { DistrictNexusDrawerVNext } from './DistrictNexusDrawerVNext.js';
+import {
+  DistrictNexusDrawerVNext,
+  DISTRICT_NEXUS_STRATEGIC_FEATURE,
+} from './DistrictNexusDrawerVNext.js';
 import { DnxClockIcon, DnxWarningIcon } from './icons.js';
 import './district-nexus-vnext.css';
 
@@ -28,6 +33,7 @@ function readFilters(searchParams: URLSearchParams): DistrictNexusFilterState {
     state: searchParams.get('state'),
     metric: METRIC_VALUES.includes(metric as ChoroplethMetric) ? (metric as ChoroplethMetric) : 'nexus',
     minAmount: Number(searchParams.get('minAmount')) || 0,
+    gapFilter: searchParams.get('gap') === '1',
   };
 }
 
@@ -44,6 +50,7 @@ function readFilters(searchParams: URLSearchParams): DistrictNexusFilterState {
  */
 export function DistrictNexusPageVNext() {
   const enabled = useIntelFeatureEnabled('district_nexus_v2');
+  const strategicEnabled = useIntelFeatureEnabled(DISTRICT_NEXUS_STRATEGIC_FEATURE);
   const api = useApi();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -86,14 +93,28 @@ export function DistrictNexusPageVNext() {
     retry: false,
   });
 
+  const gapsQuery = useQuery<ClientDistrictStrategicGapsResponse>({
+    queryKey: ['district-nexus', 'gaps', filters.clientId],
+    queryFn: () => getClientDistrictStrategicGaps(api, filters.clientId!),
+    enabled: Boolean(enabled && strategicEnabled && filters.clientId && filters.gapFilter),
+    retry: false,
+  });
+
+  const gapDistrictKeys = useMemo(() => {
+    if (!filters.gapFilter || !gapsQuery.data) return null;
+    return new Set(gapsQuery.data.gaps.map((g) => g.districtKey));
+  }, [filters.gapFilter, gapsQuery.data]);
+
   const allDistricts = mapQuery.data?.districts ?? [];
-  const filteredDistricts = useMemo(
-    () =>
-      allDistricts.filter(
-        (d) => (d.awarded.contractObligations ?? 0) + (d.awarded.grantObligations ?? 0) >= filters.minAmount,
-      ),
-    [allDistricts, filters.minAmount],
-  );
+  const filteredDistricts = useMemo(() => {
+    let rows = allDistricts.filter(
+      (d) => (d.awarded.contractObligations ?? 0) + (d.awarded.grantObligations ?? 0) >= filters.minAmount,
+    );
+    if (gapDistrictKeys) {
+      rows = rows.filter((d) => gapDistrictKeys.has(d.districtKey));
+    }
+    return rows;
+  }, [allDistricts, filters.minAmount, gapDistrictKeys]);
 
   if (!enabled) {
     return (
@@ -150,10 +171,30 @@ export function DistrictNexusPageVNext() {
                   state: next.state,
                   metric: next.metric === 'nexus' ? null : next.metric,
                   minAmount: next.minAmount ? String(next.minAmount) : null,
+                  gap: next.gapFilter ? '1' : null,
                 })
               }
               resultCount={filteredDistricts.length}
+              strategicGapAvailable={Boolean(strategicEnabled && filters.clientId)}
             />
+            {filters.gapFilter && gapsQuery.isError ? (
+              <div className="dnx-hint dnx-notable" style={{ margin: '0 0 10px' }}>
+                <span className="dnx-hico">
+                  <DnxWarningIcon />
+                </span>
+                <div>
+                  Strategic gap filter could not load. Showing unfiltered districts would be dishonest — clear
+                  the gap filter or retry after the strategic flag is available.
+                </div>
+              </div>
+            ) : null}
+            {filters.gapFilter && gapsQuery.data ? (
+              <div className="dnx-muted" style={{ fontSize: 12.5, marginBottom: 8 }}>
+                Gap view · {gapsQuery.data.gaps.length} finding
+                {gapsQuery.data.gaps.length === 1 ? '' : 's'} across {filteredDistricts.length} district
+                {filteredDistricts.length === 1 ? '' : 's'} (incomplete ≠ low).
+              </div>
+            ) : null}
             <div className="dnx-split">
               <div className="dnx-mapcard">
                 <DistrictNexusMapVNext

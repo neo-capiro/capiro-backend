@@ -12,7 +12,9 @@ import { RolesGuard } from '../auth/roles.guard.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { DistrictNexusFlagGuard } from './district-nexus-flag.guard.js';
+import { DistrictNexusStrategicFlagGuard } from './district-nexus-strategic-flag.guard.js';
 import { DistrictNexusService } from './district-nexus.service.js';
+import { DistrictNexusStrategicService } from './district-nexus-strategic.service.js';
 import { UnsupportedViewError } from './district-nexus.view.js';
 import type {
   ClientDistrictNexusResponse,
@@ -20,6 +22,11 @@ import type {
   DistrictNexusMapResponse,
   FacilityCoverageDiagnostic,
 } from './district-nexus.types.js';
+import type {
+  ClientDistrictStrategicGapsResponse,
+  ClientDistrictStrategicMapResponse,
+  DistrictStrategicRelevanceResponse,
+} from './district-nexus-strategic.types.js';
 
 /**
  * District Nexus v2 (Rev 2 plan, Workstream E).
@@ -39,7 +46,10 @@ import type {
 @UseGuards(RolesGuard, DistrictNexusFlagGuard)
 @Roles('standard_user')
 export class DistrictNexusController {
-  constructor(private readonly service: DistrictNexusService) {}
+  constructor(
+    private readonly service: DistrictNexusService,
+    private readonly strategic: DistrictNexusStrategicService,
+  ) {}
 
   /** WS-E Step E3. */
   @Get('clients/:clientId/district-nexus-v2')
@@ -120,5 +130,50 @@ export class DistrictNexusController {
     @CurrentTenant() ctx: TenantContext,
   ): Promise<FacilityCoverageDiagnostic> {
     return this.service.getFacilityCoverageDiagnostic(ctx.tenantId);
+  }
+
+  // ── Release 2 — Strategic Relevance (nested flag, fail-closed) ────────────
+
+  /**
+   * Client-wide strategic relevance map rows. Separate from Nexus Strength.
+   * Requires district_nexus_v2 AND district_nexus_strategic_relevance (or internal).
+   */
+  @Get('clients/:clientId/district-nexus-v2/strategic')
+  @UseGuards(DistrictNexusStrategicFlagGuard)
+  getClientStrategicMap(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+  ): Promise<ClientDistrictStrategicMapResponse> {
+    return this.strategic.getClientStrategicMap(ctx.tenantId, clientId);
+  }
+
+  /**
+   * Deterministic gap analysis for a client (named gap types, not one quadrant).
+   */
+  @Get('clients/:clientId/district-nexus-v2/gaps')
+  @UseGuards(DistrictNexusStrategicFlagGuard)
+  getClientStrategicGaps(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+  ): Promise<ClientDistrictStrategicGapsResponse> {
+    return this.strategic.getClientStrategicGaps(ctx.tenantId, clientId);
+  }
+
+  /**
+   * One district's explainable Strategic Relevance for a client.
+   * clientId is required — strategic relevance is always client-scoped.
+   */
+  @Get('district-nexus/districts/:state/:district/strategic')
+  @UseGuards(DistrictNexusStrategicFlagGuard)
+  getDistrictStrategic(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('state') state: string,
+    @Param('district') district: string,
+    @Query('clientId') clientId?: string,
+  ): Promise<DistrictStrategicRelevanceResponse> {
+    if (!clientId?.trim()) {
+      throw new BadRequestException('clientId is required for strategic relevance');
+    }
+    return this.strategic.getDistrictStrategic(ctx.tenantId, state, district, clientId.trim());
   }
 }

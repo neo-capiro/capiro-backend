@@ -9,7 +9,13 @@ import { DistrictNexusFiltersVNext, type DistrictNexusFilterState } from './Dist
 const apiGetMock = vi.fn();
 vi.mock('../../../lib/use-api.js', () => ({ useApi: () => ({ get: apiGetMock }) }));
 
-const BASE: DistrictNexusFilterState = { clientId: null, state: null, metric: 'nexus', minAmount: 0 };
+const BASE: DistrictNexusFilterState = {
+  clientId: null,
+  state: null,
+  metric: 'nexus',
+  minAmount: 0,
+  gapFilter: false,
+};
 
 function renderFilters(value: DistrictNexusFilterState, onChange = vi.fn()) {
   apiGetMock.mockResolvedValue({ data: [{ id: 'c1', name: 'Acme Corp', status: 'active' }] });
@@ -44,11 +50,20 @@ describe('DistrictNexusFiltersVNext', () => {
     expect(screen.getByText('Clear filters')).toBeTruthy();
   });
 
-  test('clicking "Clear filters" resets client/state/minAmount but preserves the chosen metric', () => {
+  test('clicking "Clear filters" resets client/state/minAmount/gap but preserves the chosen metric', () => {
     const onChange = vi.fn();
-    renderFilters({ clientId: 'c1', state: 'TX', metric: 'contracts', minAmount: 5_000_000 }, onChange);
+    renderFilters(
+      { clientId: 'c1', state: 'TX', metric: 'contracts', minAmount: 5_000_000, gapFilter: true },
+      onChange,
+    );
     screen.getByText('Clear filters').click();
-    expect(onChange).toHaveBeenCalledWith({ clientId: null, state: null, metric: 'contracts', minAmount: 0 });
+    expect(onChange).toHaveBeenCalledWith({
+      clientId: null,
+      state: null,
+      metric: 'contracts',
+      minAmount: 0,
+      gapFilter: false,
+    });
   });
 
   test('changing State emits the server-backed filter value, and clearing it emits null', () => {
