@@ -13,15 +13,23 @@ vi.mock('./live-hearings/LiveHearingsPage.js', () => ({
   LiveHearingsPage: () => <div data-testid="live-hearings">Live Hearings surface</div>,
 }));
 
-// RadarPage now reads the V2 rollout flag (legiwatch-live-hearings-flags.ts) via
-// useIntelFeature, which transitively calls useApi -> Clerk's useAuth. This
-// suite renders RadarPage without a ClerkProvider, so the flag lookup must be
-// mocked like every other intel-feature-flags consumer's tests. Resolving
-// enabled:false keeps the pre-V2 legacy LiveHearingsPage mock above active,
-// matching the fail-closed default these Phase 1 shell tests assume.
 vi.mock('../../lib/intel-feature-flags.js', () => ({
   useIntelFeature: () => ({ enabled: false, ready: true }),
   useIntelFeatureEnabled: () => false,
+}));
+
+// Phase 9 makes the server rollout state authoritative. These Phase 1 shell
+// tests intentionally exercise the preserved surface, so provide a successful
+// SHADOW read with no production default rather than invoking useApi/Clerk.
+vi.mock('./live-hearings/live-hearings-phase9-api.js', () => ({
+  useLegiWatchPhase9Rollout: () => ({
+    isSuccess: true,
+    data: {
+      phase: 'SHADOW',
+      liveHearingsV2DefaultEnabled: false,
+      forceLegacy: false,
+    },
+  }),
 }));
 
 function LocationProbe() {
