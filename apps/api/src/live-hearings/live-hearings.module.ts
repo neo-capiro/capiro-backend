@@ -1,10 +1,11 @@
 /**
- * LegiWatch Live Hearings canonical read + Phase 7/8 interaction module.
+ * LegiWatch Live Hearings canonical read + Phase 7/8/9 module.
  *
  * Discovery and media capture remain background jobs. Request paths read the
  * reconciled public corpus, manage tenant-scoped demand/follow state, expose the
- * one canonical transcript, and layer FORCE-RLS client relevance over global
- * source-grounded hearing insights.
+ * one canonical transcript, layer FORCE-RLS client relevance over global
+ * source-grounded hearing insights, and expose the fail-closed Phase 9 readiness
+ * and cutover control plane.
  */
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module.js';
@@ -17,6 +18,13 @@ import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { LiveHearingsPhase8Controller } from './live-hearings-phase8.controller.js';
 import { LiveHearingsPhase8Service } from './live-hearings-phase8.service.js';
 import { LiveHearingsService } from './live-hearings.service.js';
+import {
+  LegiWatchPhase9AdminController,
+  LegiWatchPhase9RolloutController,
+} from './phase9/legiwatch-phase9.controller.js';
+import { LegiWatchPhase9CutoverService } from './phase9/legiwatch-phase9-cutover.service.js';
+import { LegiWatchPhase9ReadinessService } from './phase9/legiwatch-phase9-readiness.service.js';
+import { LegiWatchPhase9RuntimeService } from './phase9/legiwatch-phase9-runtime.service.js';
 
 @Module({
   imports: [PrismaModule],
@@ -24,6 +32,8 @@ import { LiveHearingsService } from './live-hearings.service.js';
     LiveHearingsController,
     LiveHearingsPhase7Controller,
     LiveHearingsPhase8Controller,
+    LegiWatchPhase9RolloutController,
+    LegiWatchPhase9AdminController,
   ],
   providers: [
     LiveHearingsService,
@@ -32,12 +42,18 @@ import { LiveHearingsService } from './live-hearings.service.js';
     LiveHearingsPhase7ScheduleGuard,
     LiveHearingsPhase7PublicGuard,
     LiveHearingsPhase8Service,
+    LegiWatchPhase9ReadinessService,
+    LegiWatchPhase9RuntimeService,
+    LegiWatchPhase9CutoverService,
   ],
   exports: [
     LiveHearingsService,
     CommitteeDirectoryService,
     LiveHearingsPhase7Service,
     LiveHearingsPhase8Service,
+    LegiWatchPhase9ReadinessService,
+    LegiWatchPhase9RuntimeService,
+    LegiWatchPhase9CutoverService,
   ],
 })
 export class LiveHearingsModule {}
