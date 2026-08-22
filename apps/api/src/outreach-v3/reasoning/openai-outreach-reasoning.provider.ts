@@ -58,7 +58,19 @@ const FINAL_OUTPUT_SCHEMA = {
     proposedCommands: {
       type: 'array',
       maxItems: OUTREACH_REASONING_LIMITS.proposedCommands,
-      items: { type: 'object' },
+      items: {
+        type: 'object',
+        description:
+          'An Outreach command envelope. Field values belong ONLY inside "payload" -- ' +
+          'never as sibling keys of "type"/"schemaVersion", and never any other top-level key.',
+        properties: {
+          type: { type: 'string' },
+          schemaVersion: { type: 'integer' },
+          payload: { type: 'object' },
+        },
+        required: ['type', 'schemaVersion', 'payload'],
+        additionalProperties: false,
+      },
     },
     openQuestions: {
       type: 'array',

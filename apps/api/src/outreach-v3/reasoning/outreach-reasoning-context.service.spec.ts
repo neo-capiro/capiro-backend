@@ -189,6 +189,55 @@ describe('OutreachReasoningContextService', () => {
     ).rejects.toMatchObject({ code: 'OUTREACH_REASONING_TOOL_NOT_ALLOWED' });
   });
 
+  describe('buildInstructions command catalog (OUTREACH_REASONING_OUTPUT_INVALID root-cause fix)', () => {
+    it('gives the model an exact payload-key template for every strategy command, and never phaseOwner', () => {
+      const h = harness();
+      const instructions = h.service.buildInstructions(ctx, campaign());
+
+      const catalogLine = instructions
+        .split('\n')
+        .find((line) => line.startsWith('Implemented proposal command catalog:'));
+      expect(catalogLine).toBeDefined();
+      const catalog = JSON.parse(
+        catalogLine!.replace('Implemented proposal command catalog: ', '').replace(/\.$/, ''),
+      ) as Array<{ type: string; schemaVersion: number; examplePayload?: Record<string, unknown> }>;
+
+      const byType = new Map(catalog.map((entry) => [entry.type, entry]));
+      expect(byType.get('SET_CAMPAIGN_ANGLE')?.examplePayload).toEqual({ value: expect.any(String) });
+      expect(byType.get('SET_TONE')?.examplePayload).toEqual({ value: expect.any(String) });
+      expect(byType.get('SET_LENGTH')?.examplePayload).toEqual({
+        value: expect.any(String),
+        customInstruction: null,
+      });
+
+      // phaseOwner is internal registry metadata that production output showed
+      // the model echoing back as a stray top-level key on emitted commands.
+      // It must not appear as an actual field on any catalog entry (the
+      // instructions separately name it once, by way of telling the model not
+      // to emit it -- that mention is intentional and checked below).
+      for (const entry of catalog) {
+        expect(entry).not.toHaveProperty('phaseOwner');
+      }
+      expect(instructions).toContain('catalog metadata such as "phaseOwner" is not part of the command you emit');
+
+      // ADD_STYLE_SAMPLES / REMOVE_STYLE_SAMPLES are implemented but
+      // user-authored-only -- OutreachReasoningService rejects any model
+      // proposal of them, so they must not appear as if proposable.
+      expect(byType.has('ADD_STYLE_SAMPLES')).toBe(false);
+      expect(byType.has('REMOVE_STYLE_SAMPLES')).toBe(false);
+    });
+
+    it('explains the exact three-key command envelope so the model does not flatten payload fields', () => {
+      const h = harness();
+      const instructions = h.service.buildInstructions(ctx, campaign());
+
+      expect(instructions).toContain(
+        'Every proposed command is a JSON object with EXACTLY three top-level keys',
+      );
+      expect(instructions).toContain('SET_LENGTH payload.value must be exactly one of');
+    });
+  });
+
   it('collapses capability denials to a safe tool failure without leaking record identity', async () => {
     const h = harness();
     h.capabilities.execute.mockRejectedValueOnce(new Error('ethical wall client=secret-id'));
