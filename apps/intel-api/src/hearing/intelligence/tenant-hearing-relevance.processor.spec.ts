@@ -45,7 +45,9 @@ describe('TenantHearingRelevanceProcessor', () => {
             clientId: 'client-a',
             clientName: 'Example Robotics',
             keywords: ['autonomous ground systems'],
-            billIds: ['HR-1'],
+            // Canonical tracker rows include Congress while the transcript
+            // extractor can know only the measure type+number.
+            billIds: ['119-hr-1'],
             programElementIds: ['0605053A'],
             agencies: ['Army'],
             committees: ['Armed Services'],
@@ -61,7 +63,7 @@ describe('TenantHearingRelevanceProcessor', () => {
         clientId: 'client-a',
         score: 100,
         matchedOn: expect.arrayContaining([
-          { kind: 'BILL', value: 'HR-1' },
+          { kind: 'BILL', value: '119-hr-1' },
           { kind: 'PROGRAM_ELEMENT', value: '0605053A' },
           { kind: 'KEYWORD', value: 'autonomous ground systems' },
           { kind: 'COMMITTEE', value: 'Armed Services' },
