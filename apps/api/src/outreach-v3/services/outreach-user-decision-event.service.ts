@@ -9,6 +9,7 @@ import { OutreachCommandError } from '../state/outreach-command-errors.js';
 
 export const OUTREACH_USER_DECISION_EVENT_TYPES = [
   'approach_approved',
+  'review_packet_approved',
   'draft_version_approved',
   'send_settings_updated',
   'held_recipients_acknowledged',

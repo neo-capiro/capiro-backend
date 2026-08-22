@@ -72,6 +72,21 @@ export class OutreachV3GenerationController {
     return this.approach.approve(ctx, sessionId, approvalVersionIds(body));
   }
 
+  /**
+   * Guided-flow human gate. This accepts only an empty body because the exact
+   * review packet is already represented by the canonical Campaign Spec and
+   * generation-plan hash loaded server-side.
+   */
+  @Post('review-packet-approval')
+  approveReviewPacket(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @Body() body: unknown,
+  ) {
+    assertEmptyReviewPacketBody(body);
+    return this.approach.approveReviewPacket(ctx, sessionId);
+  }
+
   @Post('full')
   @EngagementRuntimeAction('outreach_v3_generate')
   @UseGuards(OutreachV3FullGenerationGuard)
@@ -130,6 +145,11 @@ function approvalVersionIds(body: unknown): string[] {
   return value.map((entry) => String(entry).trim());
 }
 
+function assertEmptyReviewPacketBody(body: unknown): void {
+  if (body === undefined || body === null) return;
+  strictObject(body, [], invalidReviewPacketBody);
+}
+
 function requestKey(body: unknown): string {
   const record = strictObject(body, ['requestKey'], invalidRequestKey);
   const value = record.requestKey;
@@ -155,6 +175,14 @@ function invalidApprovalBody(): OutreachCommandError {
   return new OutreachCommandError(
     'OUTREACH_COMMAND_INVALID',
     'Approach approval requires one to three immutable sample version ids and no other fields.',
+    400,
+  );
+}
+
+function invalidReviewPacketBody(): OutreachCommandError {
+  return new OutreachCommandError(
+    'OUTREACH_COMMAND_INVALID',
+    'Review-packet approval accepts no client-supplied fields.',
     400,
   );
 }

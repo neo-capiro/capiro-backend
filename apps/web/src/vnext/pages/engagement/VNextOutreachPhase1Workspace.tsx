@@ -1,24 +1,22 @@
 import type { Client } from '../../../pages/clients/clientTypes.js';
-import {
-  VNextOutreachOperatorWorkspace,
-  type VNextOutreachOperatorWorkspaceProps,
-} from './VNextOutreachOperatorWorkspace.js';
+import type { VNextOutreachOperatorWorkspaceProps } from './VNextOutreachOperatorWorkspace.js';
 import { VNextOutreachApproveSendWorkspace } from './VNextOutreachApproveSendWorkspace.js';
+import { VNextOutreachGuidedWorkspace } from './VNextOutreachGuidedWorkspace.js';
 
 /**
- * Phase 1 keeps the existing planning implementation intact and replaces only
- * the approve-and-send spine with the reviewed Outreach V3 prototype.
+ * Outreach V3 uses one guided, workflow-specific setup for every new campaign,
+ * then hands the same canonical session to the governed draft and send spine.
  *
- * The hand-off between the surfaces is explicit and reversible: Plan still
- * owns goal/targets/delivery/context/examples, while Drafts and Send use the
- * new approach review → generation → draft review → preflight → send → results
- * experience. Both surfaces operate on the same canonical session and APIs.
+ * The setup surface owns workflow choice, campaign name, sponsor, Directory
+ * recipients, client-profile context, and the per-recipient review packet.
+ * Draft approval, immutable version history, test-to-self, preflight, and real
+ * send remain in the reviewed Phase 1 approve/send workspace.
  */
 export function VNextOutreachPhase1Workspace(
   props: VNextOutreachOperatorWorkspaceProps,
 ) {
   if (props.step !== 'drafts' && props.step !== 'send') {
-    return <VNextOutreachOperatorWorkspace {...props} />;
+    return <VNextOutreachGuidedWorkspace {...props} />;
   }
 
   return <VNextOutreachApproveSendWorkspace {...props} />;
