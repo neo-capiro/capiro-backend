@@ -4,6 +4,7 @@ import {
   assertKnownContextLayer,
   assertNoConfidentialContent,
   computeQualityTelemetryIdempotencyKey,
+  learningTenantSelected,
   qualityTelemetryEnabled,
   type RecordQualityTelemetryEventInput,
 } from '@capiro/meriv2-core';
@@ -48,6 +49,12 @@ export class QualityTelemetryCaptureService {
     }
     try {
       validate(input);
+      // Phase 27G rollout bound — see learningTenantSelected. Deliberately
+      // checked AFTER validate() so a missing tenantId is still reported as
+      // the input error it is, rather than masked as a rollout decline.
+      if (!learningTenantSelected(input.tenantId)) {
+        return { status: 'disabled' };
+      }
       return await this.write(input);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);

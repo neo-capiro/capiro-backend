@@ -6,6 +6,7 @@ import {
   assertNoAiSelfCorroboration,
   computeLearningSignalIdempotencyKey,
   learningSignalCaptureEnabled,
+  learningTenantSelected,
   type CaptureLearningSignalInput,
 } from '@capiro/meriv2-core';
 
@@ -44,6 +45,14 @@ export class LearningSignalCaptureService {
     }
     if (!input.tenantId) {
       throw new Error('LearningSignalCaptureService.capture: tenantId is required');
+    }
+    // Phase 27G rollout bound. ANDed with — never a replacement for — the
+    // kill switch above: capture stays off for any tenant not named in
+    // LEARNING_TENANTS, and the kill switch still stops every tenant at
+    // once. An unset allowlist selects nobody, so capture is armed by
+    // naming a tenant rather than merely by deploying this code.
+    if (!learningTenantSelected(input.tenantId)) {
+      return { status: 'disabled' };
     }
     if (!input.actorUserId) {
       throw new Error('LearningSignalCaptureService.capture: actorUserId is required');

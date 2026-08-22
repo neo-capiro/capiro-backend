@@ -7,6 +7,7 @@ import {
   decideEvaluationEligibility,
   evaluationEnabled,
   evaluationSampleRate,
+  learningTenantSelected,
   shouldSampleForEvaluation,
 } from '@capiro/meriv2-core';
 import { EvaluationCaptureService } from '../evaluation/evaluation-capture.service.js';
@@ -59,6 +60,11 @@ export class CrmFillEvaluationRunner {
 
   async considerAndRun(ctx: TenantContext, artifactId: string, input: CrmFillEvaluationInput): Promise<void> {
     if (!evaluationEnabled(process.env.LEARNING_EVALUATION)) return;
+    // Phase 27G rollout bound — see learningTenantSelected. Enforced here as
+    // well as inside EvaluationCaptureService so a tenant outside the
+    // allowlist never even STARTS the shadow control replay, rather than
+    // doing the work and failing to persist it.
+    if (!learningTenantSelected(ctx.tenantId)) return;
     if (!input.treatmentExtraction) return;
 
     const eligibility = decideEvaluationEligibility({

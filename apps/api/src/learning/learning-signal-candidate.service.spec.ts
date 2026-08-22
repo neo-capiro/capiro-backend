@@ -154,6 +154,35 @@ describe('LearningSignalCandidateService', () => {
     expect(tx.learningSignalCandidateOutcome.create).not.toHaveBeenCalled();
   });
 
+  it('rollout bound OFF: a tenant outside LEARNING_TENANTS returns null and touches no tables', async () => {
+    const priorTenants = process.env.LEARNING_TENANTS;
+    process.env.LEARNING_TENANTS = '99999999-9999-4999-8999-999999999999';
+    try {
+      const { service, tx } = buildHarness(meriSignal());
+      const result = await service.generateForSignal(TENANT, SIGNAL);
+      expect(result).toBeNull();
+      expect(tx.learningSignal.findFirst).not.toHaveBeenCalled();
+      expect(tx.learningSignalCandidateOutcome.create).not.toHaveBeenCalled();
+    } finally {
+      if (priorTenants === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = priorTenants;
+    }
+  });
+
+  it('rollout bound fails closed when LEARNING_TENANTS is unset, even with the global switch enabled', async () => {
+    const priorTenants = process.env.LEARNING_TENANTS;
+    delete process.env.LEARNING_TENANTS;
+    try {
+      const { service, tx } = buildHarness(meriSignal());
+      const result = await service.generateForSignal(TENANT, SIGNAL);
+      expect(result).toBeNull();
+      expect(tx.learningSignalCandidateOutcome.create).not.toHaveBeenCalled();
+    } finally {
+      if (priorTenants === undefined) delete process.env.LEARNING_TENANTS;
+      else process.env.LEARNING_TENANTS = priorTenants;
+    }
+  });
+
   it('idempotent: a signal already decided is returned as-is, without re-reading the signal', async () => {
     const { service, tx, outcomeStore } = buildHarness(meriSignal());
     outcomeStore.set(SIGNAL, {
