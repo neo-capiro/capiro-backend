@@ -34,7 +34,14 @@ async function fetchCode(
   boundaryCongress: number,
 ): Promise<EconomicFactInput[]> {
   const dataset = 'cbp';
-  const naicsVariable = year >= 2022 ? 'NAICS2022' : 'NAICS2017';
+  // The Census County Business Patterns (CBP) API variable is NAICS2017 for
+  // every vintage year currently published (verified 2018-2023 against
+  // https://api.census.gov/data/<year>/cbp/variables.json -- CBP has never
+  // exposed a NAICS2022 variable, unlike some other Census datasets). A
+  // year>=2022 branch that requested NAICS2022 caused every CBP dry-run to
+  // fail with HTTP 400 "unknown variable 'NAICS2022'" for every configured
+  // NAICS code. Always request NAICS2017.
+  const naicsVariable = 'NAICS2017';
   const labelVariable = `${naicsVariable}_LABEL`;
   const url = new URL(`https://api.census.gov/data/${year}/cbp`);
   url.searchParams.set(
