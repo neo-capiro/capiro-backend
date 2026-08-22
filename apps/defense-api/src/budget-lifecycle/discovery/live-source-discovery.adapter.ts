@@ -32,6 +32,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import {
+  assertFiscalYear,
   createRequestBudget,
   emptyDiscoveryCursor,
   hasPendingBackfill,
@@ -63,6 +64,54 @@ export interface LiveSourceDiscoveryOptions {
   /** Prior/upcoming fiscal years kept crawlable, mirroring the cycle horizon. */
   readonly priorYears?: number;
   readonly upcomingYears?: number;
+  /**
+   * Authoritative fiscal-year scope for an EXPLICIT bounded backfill (Phase 10),
+   * as opposed to the ordinary rolling watch horizon. When set, discovery
+   * resolves registered expected sources for exactly these years — never widened
+   * with wall-clock years, never gap-filled. Omit for normal scheduled/live
+   * discovery, which keeps the unchanged `rollingCycleHorizon` behavior below.
+   */
+  readonly horizonFiscalYears?: readonly number[];
+}
+
+export class InvalidHorizonFiscalYearsError extends Error {
+  constructor(readonly value: unknown) {
+    super(
+      `an explicit horizonFiscalYears override must be a non-empty array of valid fiscal years, got: ${JSON.stringify(value)}`,
+    );
+    this.name = 'InvalidHorizonFiscalYearsError';
+  }
+}
+
+/**
+ * Resolve the discovery horizon: an explicit override is authoritative and used
+ * EXACTLY as given (normalized — deduped, sorted, fiscal-year-bounds-checked —
+ * but never widened with wall-clock years or gap-filled). Omitting the override
+ * preserves the existing rolling prior/current/upcoming behavior unchanged, so
+ * ordinary scheduled/live discovery (including any scheduler-owned tick) is
+ * untouched by this function's existence.
+ *
+ * This is what closed the Phase 10 FY2024 defect: an explicit historical/future
+ * backfill's requested fiscal years were previously discarded in favour of a
+ * horizon recomputed from `nowIso`, so a year outside `current ± 1` (e.g. FY2024
+ * from a 2026 execution) could never be crawled no matter how many times the job
+ * was retried.
+ */
+export function resolveDiscoveryHorizon(
+  nowIso: string,
+  options: Pick<LiveSourceDiscoveryOptions, 'horizonFiscalYears' | 'priorYears' | 'upcomingYears'>,
+): readonly number[] {
+  if (options.horizonFiscalYears === undefined) {
+    return rollingCycleHorizon(nowIso, {
+      priorYears: options.priorYears ?? 1,
+      upcomingYears: options.upcomingYears ?? 1,
+    });
+  }
+  if (!Array.isArray(options.horizonFiscalYears) || options.horizonFiscalYears.length === 0) {
+    throw new InvalidHorizonFiscalYearsError(options.horizonFiscalYears);
+  }
+  const validated = options.horizonFiscalYears.map((year) => assertFiscalYear(year));
+  return Object.freeze([...new Set(validated)].sort((a, b) => a - b));
 }
 
 @Injectable()
@@ -95,10 +144,7 @@ export class LiveSourceDiscoveryAdapter implements SourceDiscoveryPort {
       return { candidates: Object.freeze([]), cursor: input.cursor };
     }
 
-    const horizonFiscalYears = rollingCycleHorizon(input.nowIso, {
-      priorYears: this.options.priorYears ?? 1,
-      upcomingYears: this.options.upcomingYears ?? 1,
-    });
+    const horizonFiscalYears = resolveDiscoveryHorizon(input.nowIso, this.options);
 
     const registeredExpectedSourceKeys =
       await this.audit.loadRegisteredExpectedSourceKeys(horizonFiscalYears);
