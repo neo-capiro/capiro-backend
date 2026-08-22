@@ -725,16 +725,28 @@
    native rather than like a third-party embed. */
 .capiro-vnext-root .capiro-directory-flow-wrap {
   position: relative;
-  height: clamp(500px, 58vw, 680px);
-  min-height: 500px;
+  height: clamp(560px, 68vw, 820px);
+  min-height: 560px;
   overflow: hidden;
   background: var(--uui-white);
 }
 .capiro-vnext-root .capiro-directory-flow-wrap .react-flow { background: var(--uui-white); }
 .capiro-vnext-root .capiro-directory-flow-wrap .react-flow__pane { cursor: grab; }
 .capiro-vnext-root .capiro-directory-flow-wrap .react-flow__pane:active { cursor: grabbing; }
-.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node { width: 240px; border: 0; background: transparent; }
-.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node-committee { width: 340px; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node { width: 268px; border: 0; background: transparent; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node-committee { width: 360px; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node-more { width: 216px; }
+/* Handles exist only so an edge docks on the card border. Never a connection
+   affordance (nodesConnectable={false}), so they are invisible and inert. */
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__handle {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-flow-node { width: 100%; max-width: none; pointer-events: none; }
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee {
   padding: 16px;
@@ -743,12 +755,36 @@
 }
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__name { color: var(--uui-white); }
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__kind,
-.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__meta { color: var(--uui-chrome-label-idle); }
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__meta,
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__counts,
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__contactline { color: var(--uui-chrome-label-idle); }
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__contact { border-top-color: var(--uui-chrome-item-active-bg); }
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--committee .capiro-directory-node__mark { background: var(--uui-chrome-item-active-bg); color: var(--uui-white); }
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--leadership { border-left: 3px solid var(--capiro-color-text-accent); }
-.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--unit { border-left: 3px solid var(--uui-gray-400); }
+/* A unit card is the column header for the roster hanging beneath it: quiet
+   fill, so the eye groups the column before it reads individual names. */
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--unit {
+  border-color: var(--uui-gray-200);
+  border-left: 3px solid var(--uui-gray-400);
+  background: var(--uui-gray-50);
+  box-shadow: none;
+}
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--staff { border: 1px solid var(--uui-gray-200); box-shadow: var(--uui-shadow-card); }
+/* "Show N more" keeps a full unit column collapsed by default — a 60-person
+   committee must still read as an org chart, not a wall of cards. */
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--more {
+  align-items: center;
+  border-color: var(--uui-gray-200);
+  background: var(--uui-gray-50);
+  box-shadow: none;
+}
+.capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--more .capiro-directory-node__name { margin-top: 0; font-size: 12px; }
 .capiro-vnext-root .capiro-directory-flow-wrap .capiro-directory-node--former { opacity: 0.65; }
+.capiro-vnext-root .capiro-directory-flow-wrap .react-flow__node.selected .capiro-directory-node--staff {
+  border-color: var(--capiro-color-text-accent);
+  box-shadow: var(--capiro-focus-ring);
+  background: var(--capiro-color-bg-accent-soft);
+}
 .capiro-vnext-root .capiro-directory-flow-wrap .react-flow__edge-path { stroke: var(--uui-gray-300); stroke-width: 1.5; }
 .capiro-vnext-root .capiro-directory-flow-wrap .react-flow__controls {
   overflow: hidden;
@@ -876,6 +912,16 @@
   text-transform: uppercase;
   color: var(--uui-gray-400);
 }
+/* On the chart the eyebrow is clamped to ONE line: CommitteeStaffVNext's
+   cardHeight() budgets a single 14px line for it when it lays the canvas out,
+   so a wrapping eyebrow (long subcommittee names are the eyebrow on a staff
+   card) would silently push contact lines into the card below. */
+.capiro-vnext-root .capiro-directory-flow-node .capiro-directory-node__kind {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 14px;
+}
 .capiro-vnext-root .capiro-directory-node__name {
   display: block;
   margin-top: 2px;
@@ -895,6 +941,95 @@
   color: var(--uui-gray-600);
   white-space: normal;
   word-break: break-word;
+}
+
+/* ── Contact-card anatomy on an org-chart card ───────────────────────────────
+   A card in the chart is a CONTACT card, not just a label: role, email, phone
+   and office, so "who do I call about this" is answered on the canvas without
+   a round trip through the profile. Contact lines sit below a hairline so the
+   identity (mark + name + role) still reads first. */
+.capiro-vnext-root .capiro-directory-node__counts {
+  display: block;
+  margin-top: 4px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--uui-gray-500);
+}
+.capiro-vnext-root .capiro-directory-node__contact {
+  display: block;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--uui-gray-200);
+}
+.capiro-vnext-root .capiro-directory-node__contactline {
+  display: block;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--uui-gray-600);
+  overflow-wrap: anywhere;
+}
+.capiro-vnext-root .capiro-directory-node__contactline--muted { color: var(--uui-gray-500); }
+/* Affordance, not decoration: only cards that actually open a profile get it. */
+.capiro-vnext-root .capiro-directory-node__open {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--capiro-color-text-accent);
+  opacity: 0;
+  transition: opacity var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+.capiro-vnext-root .capiro-directory-node--clickable { cursor: pointer; }
+.capiro-vnext-root .react-flow__node:hover .capiro-directory-node__open,
+.capiro-vnext-root .react-flow__node.selected .capiro-directory-node__open { opacity: 1; }
+
+/* ── Roster sections, one per committee office ───────────────────────────────
+   The roster is sectioned by the SAME unit grouping the canvas uses, so a
+   person sits under the same heading in both views. */
+.capiro-vnext-root .capiro-directory-rostergroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+.capiro-vnext-root .capiro-directory-rostergroup:first-of-type { margin-top: 4px; }
+.capiro-vnext-root .capiro-directory-rostergroup__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 2px 2px;
+  border-bottom: 1px solid var(--uui-gray-200);
+}
+.capiro-vnext-root .capiro-directory-rostergroup__name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--uui-gray-900);
+}
+.capiro-vnext-root .capiro-directory-rostergroup__kind {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--uui-gray-400);
+}
+.capiro-vnext-root .capiro-directory-rostergroup__count {
+  margin: 0;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 11px;
+  color: var(--uui-gray-500);
+}
+.capiro-vnext-root .capiro-directory-rostergroup__empty {
+  margin: 0;
+  padding: 10px 2px;
+  font-size: 12px;
+  color: var(--uui-gray-500);
 }
 
 .capiro-vnext-root .capiro-directory-cell--muted .capiro-directory-cell__primary {
