@@ -7,8 +7,9 @@ import { join } from 'node:path';
 const base = process.argv[2] || 'origin/main';
 
 /**
- * Phase 27A/27B architecture guard for `learning_signal` (LearningSignal)
- * and its Phase 27B candidate-generation extension.
+ * Phase 27A/27B/27C architecture guard for `learning_signal`
+ * (LearningSignal) and its candidate-generation + conflict-detection
+ * extensions.
  *
  * Modeled on the two existing guard styles in this repo — the diff+census
  * pattern from `check-context-plane-new-bypasses.mjs`, and the
@@ -20,11 +21,18 @@ const base = process.argv[2] || 'origin/main';
  * What this guards, concretely:
  *  1. `learning_signal` is written ONLY through LearningSignalCaptureService,
  *     never via a bare `tx.learningSignal.create/update/upsert` elsewhere.
- *  2. Nothing under `apps/api/src/learning/` EVER references *active* memory
- *     surfaces (memory_items / clio_memory / MemoryStoreService) — no
- *     signal or candidate can become active memory from inside this
- *     directory, in 27A OR 27B. This is the hard architecture invariant
- *     that survives across sub-phases.
+ *  2. Nothing under `apps/api/src/learning/` EVER *writes* active memory
+ *     (memory_items / clio_memory) — no signal or candidate can become
+ *     active memory from inside this directory, in any Phase 27 sub-phase.
+ *     This is the hard architecture invariant that survives across
+ *     sub-phases. As of 27C this is a WRITE-verb ban, not a bare-mention
+ *     ban: `LearningSignalMemoryConflictService` legitimately READS
+ *     `memory_items` (joined against `context_embeddings`) to detect a
+ *     candidate's relationship to existing active memory — detection is not
+ *     promotion. `MemoryStoreService` (the service, not a raw table
+ *     reference) stays a full, unconditional ban with no read/write
+ *     distinction: there is no legitimate reason for anything under this
+ *     directory to import the whole store service just to read one row.
  *  3. The 27A-only ban is narrower now that 27B exists: everything under
  *     `apps/api/src/learning/` is still banned from the governed-CANDIDATE
  *     write surface (memory_candidate / MemoryCandidateService) EXCEPT the
@@ -46,6 +54,13 @@ const base = process.argv[2] || 'origin/main';
  *     candidate-generation idempotency guard (a unique index scoped to
  *     `source_type = 'learning_signal_capture'`) exists in the Phase 27B
  *     migration.
+ *  7. Phase 27C addition: `LearningSignalMemoryConflictService` (and ONLY
+ *     that file) may reference `memory_items` — but never a mutation verb
+ *     against it, and never `ImmutableMemoryVersionService` /
+ *     `MemoryConflictService` (the human-driven correction/contradiction
+ *     services) — 27C detects and flags on the CANDIDATE only, it never
+ *     drives the existing services that mutate an active item's own
+ *     conflict state.
  */
 
 const LEARNING_IMPLEMENTATION_PREFIXES = [
@@ -71,14 +86,28 @@ const FROZEN_STEERING_LAYERS = [
 ];
 
 /**
- * ACTIVE memory surface — banned everywhere under apps/api/src/learning/,
- * with NO exceptions, in every Phase 27 sub-phase. A candidate is not
- * active memory; these three are what "active" actually means.
+ * ACTIVE memory WRITE surface — banned everywhere under
+ * apps/api/src/learning/, with NO file exceptions, in every Phase 27
+ * sub-phase. Verb-scoped (not a bare-mention ban) since 27C: a read-only
+ * SELECT/JOIN against memory_items is legitimate detection work
+ * (LearningSignalMemoryConflictService), never promotion.
+ * `MemoryStoreService` stays a full bare-symbol ban — importing that whole
+ * service implies write capability with no read-only-only use case worth
+ * carving out.
  */
 const BANNED_ACTIVE_MEMORY_SYMBOLS = [
-  /\bmemory_items\b/,
-  /\bclio_memory\b/,
+  /\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+memory_items\b/i,
+  /\bmemoryItem\.(create|update|upsert|delete|deleteMany|updateMany)\(/,
+  /\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+clio_memory\b/i,
+  /\bclioMemory\.(create|update|upsert|delete|deleteMany|updateMany)\(/,
   /\bMemoryStoreService\b/,
+  // 27C detects and flags on the CANDIDATE only — it must never drive the
+  // existing services that mutate an active item's OWN conflict/version
+  // state, even though those services technically write memory_candidate
+  // too (which is why this isn't just folded into the candidate-surface
+  // ban below).
+  /\bImmutableMemoryVersionService\b/,
+  /\bMemoryConflictService\b/,
 ];
 
 /**
@@ -276,7 +305,7 @@ for (const file of learningImplFiles) {
   }
 }
 if (activeMemoryCensusFailures === 0 && candidateSurfaceCensusFailures === 0) {
-  ok('repo-wide learning-implementation census: no active-memory reference anywhere, no candidate-surface reference outside the one approved 27B file');
+  ok('repo-wide learning-implementation census: no active-memory WRITE anywhere, no candidate-surface reference outside the one approved 27B file');
 }
 
 // ── 4. Schema shape: tenantId present, no vector/embedding column.
@@ -371,6 +400,48 @@ if (!candidateGenerationMigrations.length) {
     fail(`${candidateGenerationMigrations[0]}: learning_signal_candidate_outcome eligibility CHECK constraint looks incomplete.`);
   } else {
     ok('learning_signal_candidate_outcome eligibility CHECK constraint present');
+  }
+}
+
+// ── 8. Phase 27C: the conflict-detection service exists, is genuinely
+// read-only (a SELECT, not a stub), and the active-item mutation it must
+// never touch is verifiably absent from it.
+const conflictServicePath = 'apps/api/src/learning/learning-signal-memory-conflict.service.ts';
+let conflictServiceSource = '';
+try {
+  conflictServiceSource = readFileSync(conflictServicePath, 'utf8');
+} catch (error) {
+  fail(`could not read ${conflictServicePath}: ${error.message}`);
+}
+if (conflictServiceSource) {
+  if (!/\bmemory_items\b/.test(conflictServiceSource) || !/SELECT/i.test(conflictServiceSource)) {
+    fail(`${conflictServicePath}: does not appear to query memory_items at all — is Phase 27C's conflict-detection step still wired up?`);
+  } else if (/\b(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+memory_items\b/i.test(conflictServiceSource)) {
+    fail(`${conflictServicePath}: contains a memory_items MUTATION — this file must be read-only.`);
+  } else {
+    ok('learning-signal-memory-conflict.service.ts queries memory_items read-only (SELECT present, no mutation verb)');
+  }
+}
+
+// ── 9. Phase 27C: MemoryCandidate's conflict-lineage fields
+// (contradicts_memory_item_id / conflict_status) are actually wired into
+// proposeSaveMemory's INSERT — otherwise LearningSignalCandidateService's
+// conflict flags would silently no-op.
+const candidateServicePath = 'apps/api/src/memory/memory-candidate.service.ts';
+let candidateServiceSource = '';
+try {
+  candidateServiceSource = readFileSync(candidateServicePath, 'utf8');
+} catch (error) {
+  fail(`could not read ${candidateServicePath}: ${error.message}`);
+}
+if (candidateServiceSource) {
+  if (
+    !/contradicts_memory_item_id/.test(candidateServiceSource) ||
+    !/conflict_status/.test(candidateServiceSource)
+  ) {
+    fail(`${candidateServicePath}: proposeSaveMemory's INSERT no longer sets contradicts_memory_item_id/conflict_status — Phase 27C's conflict flags would silently no-op.`);
+  } else {
+    ok('proposeSaveMemory INSERT sets contradicts_memory_item_id/conflict_status (Phase 27C conflict flags are live, not a no-op)');
   }
 }
 

@@ -3,12 +3,17 @@ import { Prisma } from '@prisma/client';
 import {
   classifyLearningSignalEligibility,
   proposeLearningSignalCandidateAuthority,
+  describeMemoryConflictMatch,
   type LearningSignalCandidateEligibility,
 } from '@capiro/meriv2-core';
 import type { SteeringLayer } from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
+import {
+  LearningSignalMemoryConflictService,
+  type MemoryConflictMatch,
+} from './learning-signal-memory-conflict.service.js';
 
 const LEARNING_SIGNAL_SOURCE_TYPE = 'learning_signal_capture';
 const RAW_QUERY_FAILED = 'P2010';
@@ -75,6 +80,7 @@ export class LearningSignalCandidateService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly candidates: MemoryCandidateService,
+    private readonly conflictDetection: LearningSignalMemoryConflictService,
   ) {}
 
   /**
@@ -156,6 +162,29 @@ export class LearningSignalCandidateService {
       });
     }
 
+    // Phase 27C — the disclosed 27B gap: search ACTIVE memory for a
+    // near-duplicate or probable contradiction, using the real fact text
+    // (never persisted verbatim — fetched, embedded, discarded). Read-only:
+    // never touches memory_items, never resolves anything itself.
+    const factText = await this.resolveFactText(tenantId, signal, evidenceRefs);
+    const conflictMatch = factText
+      ? await this.conflictDetection.findBestActiveMemoryMatch(
+          { tenantId, clientId: signal.clientId, actorUserId: signal.actorUserId },
+          factText,
+        )
+      : null;
+
+    if (conflictMatch?.kind === 'duplicate') {
+      return this.recordOutcome(tenantId, signal, {
+        eligibility: 'duplicate',
+        reason: describeMemoryConflictMatch(
+          'duplicate',
+          `memory_items ${conflictMatch.memoryItemId} ("${conflictMatch.title}")`,
+          conflictMatch.score,
+        ),
+      });
+    }
+
     const authority = proposeLearningSignalCandidateAuthority({
       signalType: signal.signalType as never,
       hasNote: provenance.hasNote === true,
@@ -166,6 +195,22 @@ export class LearningSignalCandidateService {
 
     const candidateKey = `learning-signal:${signal.sourceSurface}:${signal.signalType}:${signal.id}`;
     const scope: 'firm' | 'user_private' | 'client' = signal.clientId ? 'client' : 'user_private';
+
+    // Only 'probable_contradiction' | 'possible_related' can reach here —
+    // 'duplicate' already returned above, and findBestActiveMemoryMatch
+    // never returns an 'unrelated' match (it returns null instead). Neither
+    // remaining kind becomes a stronger claim than the evidence supports:
+    // the pending CANDIDATE is flagged (conflictStatus='open',
+    // contradictsMemoryItemId points at the active item) — the active item
+    // itself is never touched. Supersession (flipping the active item's own
+    // status) is a human governance decision, 27D's job — this only
+    // preserves the lineage for it.
+    const conflictFields = conflictMatch
+      ? { contradictsMemoryItemId: conflictMatch.memoryItemId, conflictStatus: 'open' }
+      : {};
+    const conflictReasonSuffix = conflictMatch
+      ? ` ${describeMemoryConflictMatch(conflictMatch.kind, `memory_items ${conflictMatch.memoryItemId} ("${conflictMatch.title}")`, conflictMatch.score)}`
+      : '';
 
     try {
       const result = await this.candidates.proposeSaveMemory(
@@ -183,6 +228,7 @@ export class LearningSignalCandidateService {
           sourceId: signal.id,
           proposedMemoryClass: authority.memoryClass,
           proposedMemoryAuthority: authority.memoryAuthority,
+          ...conflictFields,
         },
         false,
         'learning_signal',
@@ -201,7 +247,10 @@ export class LearningSignalCandidateService {
       return this.recordOutcome(
         tenantId,
         signal,
-        { eligibility: 'eligible', reason: authority.confidenceReasons.join(' ') },
+        {
+          eligibility: 'eligible',
+          reason: `${authority.confidenceReasons.join(' ')}${conflictReasonSuffix}`,
+        },
         result.candidateId,
       );
     } catch (error) {
@@ -294,6 +343,76 @@ export class LearningSignalCandidateService {
     return rows[0]?.id ?? null;
   }
 
+  /**
+   * Resolves the real fact text for conflict detection ONLY — never
+   * persisted anywhere by this service, used solely to compute a
+   * throwaway embedding for one search query (`LearningSignalMemoryConflictService`).
+   *
+   * CRM: the accepted finding's `proposed_value_jsonb` is not confidential
+   * free text — it is structured CRM enrichment data the finding row
+   * already durably stores, so deriving searchable text from it here adds
+   * no new exposure.
+   *
+   * Meri: deliberately narrower. The user's free-text feedback note lives
+   * only on `clio_messages.metadata_jsonb.feedback.note` — 27A/27B's own
+   * adapter explicitly never copied it into the signal ("never copies the
+   * free-text note into the signal — only whether one was left"). Fetching
+   * it here, ephemerally, for a single similarity query preserves that
+   * principle (nothing new is written to disk); returns null (skipping
+   * conflict detection entirely) whenever there is no note to fetch.
+   */
+  private async resolveFactText(
+    tenantId: string,
+    signal: LoadedLearningSignal,
+    evidenceRefs: unknown[],
+  ): Promise<string | null> {
+    if (signal.sourceSurface === 'crm.fill_with_meri') {
+      const findingRef = evidenceRefs.find(
+        (ref): ref is { type: string; id: string } =>
+          Boolean(ref) &&
+          typeof ref === 'object' &&
+          (ref as { type?: unknown }).type === 'client_profile_fill_finding',
+      );
+      if (!findingRef?.id) return null;
+      const rows = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.$queryRaw<Array<{ proposedValue: unknown }>>`
+          SELECT proposed_value_jsonb AS "proposedValue"
+          FROM client_profile_fill_finding
+          WHERE id = ${findingRef.id}::uuid AND tenant_id = ${tenantId}::uuid
+          LIMIT 1
+        `,
+      );
+      const value = rows[0]?.proposedValue;
+      return value !== undefined ? factTextFromValue(value) : null;
+    }
+
+    if (signal.sourceSurface === 'meri.chat') {
+      const messageRef = evidenceRefs.find(
+        (ref): ref is { type: string; id: string } =>
+          Boolean(ref) && typeof ref === 'object' && (ref as { type?: unknown }).type === 'clio_message',
+      );
+      if (!messageRef?.id) return null;
+      const message = await this.prisma.withTenant(tenantId, (tx) =>
+        tx.clioMessage.findFirst({
+          where: { id: messageRef.id, tenantId },
+          select: { metadata: true },
+        }),
+      );
+      const metadata =
+        message?.metadata && typeof message.metadata === 'object' && !Array.isArray(message.metadata)
+          ? (message.metadata as Record<string, unknown>)
+          : null;
+      const feedback =
+        metadata?.feedback && typeof metadata.feedback === 'object' && !Array.isArray(metadata.feedback)
+          ? (metadata.feedback as Record<string, unknown>)
+          : null;
+      const note = typeof feedback?.note === 'string' ? feedback.note.trim() : null;
+      return note && note.length >= 10 ? note : null;
+    }
+
+    return null;
+  }
+
   private async recordOutcome(
     tenantId: string,
     signal: LoadedLearningSignal,
@@ -333,6 +452,23 @@ export class LearningSignalCandidateService {
       memoryCandidateId: row.memoryCandidateId,
     };
   }
+}
+
+/**
+ * `client_profile_fill_finding.proposed_value_jsonb` has no single fixed
+ * shape — it varies by `kind` (a person finding carries name/email/role, a
+ * capability finding carries name/type/description, ...). Rather than
+ * special-case every kind, join every top-level string-valued field into
+ * one embeddable line — good enough for a similarity search, not intended
+ * to be a polished human-facing sentence.
+ */
+function factTextFromValue(value: unknown): string | null {
+  if (typeof value === 'string') return value.trim() || null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const parts = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => typeof v === 'string' && v.trim())
+    .map(([k, v]) => `${k}: ${(v as string).trim()}`);
+  return parts.length ? parts.join('; ') : null;
 }
 
 function isSourceUniqueViolation(error: unknown): boolean {

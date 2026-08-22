@@ -88,6 +88,21 @@ export interface MemorySaveRequest {
    */
   proposedMemoryClass?: string | null;
   proposedMemoryAuthority?: string | null;
+  /**
+   * Phase 27C addition — same additive contract as the 27B fields above.
+   * `contradictsMemoryItemId` (an existing real FK to `memory_items`, only
+   * ever populated by the human-driven correction/contradiction flow until
+   * now) lets `LearningSignalCandidateService` record a DETECTED probable
+   * contradiction against active memory at proposal time. `conflictStatus`
+   * defaults to `'none'` exactly as `buildCanonicalGovernance` already
+   * hardcodes for every ordinary commit — passing `'open'` here only ever
+   * touches THIS pending candidate row, never the active item it points
+   * at. Never set together with a stronger claim than the evidence
+   * supports: a `LearningSignalMemoryConflictService` `possible_related`
+   * or `probable_contradiction` result, never an auto-resolution.
+   */
+  contradictsMemoryItemId?: string | null;
+  conflictStatus?: string | null;
 }
 
 export interface MemoryCandidateRow {
@@ -285,6 +300,11 @@ export class MemoryCandidateService {
       typeof record.proposedMemoryAuthority === 'string' && record.proposedMemoryAuthority
         ? record.proposedMemoryAuthority
         : 'legacy_unclassified';
+    // Phase 27C: same fallback-to-default discipline as the 27B fields above.
+    const contradictsMemoryItemId =
+      typeof record.contradictsMemoryItemId === 'string' ? record.contradictsMemoryItemId : null;
+    const conflictStatus =
+      typeof record.conflictStatus === 'string' && record.conflictStatus ? record.conflictStatus : 'none';
 
     const sourceExcerpt =
       typeof record.sourceExcerpt === 'string' ? record.sourceExcerpt.slice(0, 4_000) : null;
@@ -346,13 +366,15 @@ export class MemoryCandidateService {
         INSERT INTO memory_candidate (
           tenant_id, proposed_by, source_kind, scope, client_id, payload_jsonb,
           provenance_jsonb, duplicate_of_id, status, confidence,
-          source_type, source_id, memory_class, memory_authority
+          source_type, source_id, memory_class, memory_authority,
+          contradicts_memory_item_id, conflict_status
         ) VALUES (
           ${tenantId}::uuid, ${proposedByUserId}::uuid, ${sourceKind}, ${scope},
           ${record.clientId ?? null}::uuid,
           ${JSON.stringify(payload)}::jsonb, ${JSON.stringify(provenance)}::jsonb,
           ${duplicateOfId}::uuid, 'pending', ${candidateConfidence},
-          ${governanceSourceType}, ${governanceSourceId}, ${proposedMemoryClass}, ${proposedMemoryAuthority}
+          ${governanceSourceType}, ${governanceSourceId}, ${proposedMemoryClass}, ${proposedMemoryAuthority},
+          ${contradictsMemoryItemId}::uuid, ${conflictStatus}
         )
         RETURNING id::text AS id
       `;
