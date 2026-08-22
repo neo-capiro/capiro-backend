@@ -1,6 +1,8 @@
 import {
+  buildCompanySearchQueries,
   capabilitySearchTerms,
   extractJsonObject,
+  extractSyncedMailParticipants,
   fillFindingHash,
   isPrivateOrLocalIp,
   normalizeWebsite,
@@ -9,6 +11,22 @@ import {
 } from './client-profile-fill.helpers.js';
 
 describe('client-profile-fill helpers', () => {
+  it('builds layered company searches from thin internal profiles', () => {
+    const queries = buildCompanySearchQueries({
+      name: 'Kiley Associates',
+      website: 'kileyassociates.org',
+      description: 'Government affairs and lobbying firm',
+    });
+    expect(queries).toEqual(expect.arrayContaining([
+      '"Kiley Associates" company',
+      '"Kiley Associates" official website',
+      '"Kiley Associates" leadership team',
+      '"Kiley Associates" contact',
+      'site:kileyassociates.org contact',
+    ]));
+    expect(queries.length).toBeLessThanOrEqual(12);
+  });
+
   it('hashes semantically identical objects deterministically', () => {
     const a = fillFindingHash({ kind: 'person', targetKey: 'person:a', source: 'public_web', proposedValue: { b: 2, a: 1 } });
     const b = fillFindingHash({ kind: 'person', targetKey: 'person:a', source: 'public_web', proposedValue: { a: 1, b: 2 } });
@@ -27,6 +45,25 @@ describe('client-profile-fill helpers', () => {
 
   it('extracts a fenced JSON object', () => {
     expect(extractJsonObject('```json\n{"ok":true}\n```')).toEqual({ ok: true });
+  });
+
+  it('extracts named participants from persisted synced-mail fields', () => {
+    expect(
+      extractSyncedMailParticipants([
+        {
+          fromEmail: 'owner@client.example',
+          fromName: 'Owner Person',
+          toRecipients: [{ email: 'contact@client.example', name: 'Contact Person' }],
+          ccRecipients: [{ email: 'CONTACT@client.example', name: null }],
+          bccRecipients: [],
+          threadParticipants: [{ email: 'other@client.example', name: 'Other Person' }],
+        },
+      ]),
+    ).toEqual([
+      { email: 'contact@client.example', name: 'Contact Person' },
+      { email: 'other@client.example', name: 'Other Person' },
+      { email: 'owner@client.example', name: 'Owner Person' },
+    ]);
   });
 
   it('blocks private and loopback addresses', () => {

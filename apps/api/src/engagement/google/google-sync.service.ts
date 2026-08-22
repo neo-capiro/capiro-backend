@@ -1047,14 +1047,22 @@ export class GoogleSyncService {
           (hasManualOverride || hasManualAssociationSignal(existingThread.associationSignals))
             ? existingThread.clientId
             : association.clientId;
-        if (!clientId && !existingThread) return 'skipped';
-
         const participantJson = uniqueParticipants([
           fromEmail ? { email: fromEmail, name: fromParsed?.name ?? null, role: 'from' } : null,
           ...toRecipients.map((r) => ({ ...r, role: 'to' })),
           ...ccRecipients.map((r) => ({ ...r, role: 'cc' })),
           ...bccRecipients.map((r) => ({ ...r, role: 'bcc' })),
         ]);
+        // Contact harvesting must not depend on client association. A message
+        // can be a useful correspondent for Fill with Meri even when its
+        // subject/body/domain was not strong enough to create a MailThread.
+        if (!clientId && !existingThread) {
+          await harvestMailContacts(tx, tenantId, participantJson, {
+            source: 'google',
+            clientId: null,
+          });
+          return 'skipped';
+        }
         const lastMessageAt = laterDate(existingThread?.lastMessageAt ?? null, messageDate);
         const thread = existingThread
           ? await tx.mailThread.update({

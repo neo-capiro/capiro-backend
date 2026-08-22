@@ -102,6 +102,70 @@ export function emailDomain(raw: string | null | undefined): string | null {
   return domain && !domain.includes(' ') ? domain : null;
 }
 
+type SyncedMailParticipantRow = {
+  fromEmail?: string | null;
+  fromName?: string | null;
+  toRecipients?: unknown;
+  ccRecipients?: unknown;
+  bccRecipients?: unknown;
+  threadParticipants?: unknown;
+};
+
+/** Extract named correspondents from the persisted Gmail/Graph mail projection. */
+export function extractSyncedMailParticipants(
+  rows: SyncedMailParticipantRow[],
+): Array<{ email: string; name: string | null }> {
+  const byEmail = new Map<string, string | null>();
+  const add = (email: unknown, name: unknown) => {
+    const normalized = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return;
+    const displayName = typeof name === 'string' ? name.trim() || null : null;
+    if (!byEmail.has(normalized) || (displayName && !byEmail.get(normalized))) {
+      byEmail.set(normalized, displayName);
+    }
+  };
+  const addList = (value: unknown) => {
+    if (!Array.isArray(value)) return;
+    for (const item of value) {
+      if (!item || typeof item !== 'object') continue;
+      const row = item as { email?: unknown; name?: unknown };
+      add(row.email, row.name);
+    }
+  };
+  for (const row of rows) {
+    add(row.fromEmail, row.fromName);
+    addList(row.toRecipients);
+    addList(row.ccRecipients);
+    addList(row.bccRecipients);
+    addList(row.threadParticipants);
+  }
+  return [...byEmail.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([email, name]) => ({ email, name }));
+}
+
+export function buildCompanySearchQueries(input: {
+  name: string;
+  website?: string | null;
+  description?: string | null;
+  primaryContactEmail?: string | null;
+}): string[] {
+  const name = input.name.trim();
+  const domain = websiteDomain(input.website) ?? emailDomain(input.primaryContactEmail);
+  const descriptionTerms = capabilitySearchTerms({ description: input.description }).slice(0, 4);
+  const queries = [
+    `"${name}" company`,
+    `"${name}" official website`,
+    `"${name}" leadership team`,
+    `"${name}" contact`,
+    `"${name}" products capabilities`,
+    `"${name}" headquarters facilities locations`,
+    ...(domain ? [`site:${domain} "${name}"`, `site:${domain} contact`, `site:${domain} leadership`] : []),
+    ...(descriptionTerms.length ? [`"${name}" ${descriptionTerms.join(' ')}`] : []),
+  ];
+  return [...new Set(queries)].filter(Boolean).slice(0, 12);
+}
+
 export function normalizedName(raw: string | null | undefined): string {
   return (raw ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 }

@@ -265,6 +265,7 @@ model Tenant {
   governedMemoryAccessGrants         MemoryAccessGrant[]
   memoryTransitionAudits             MemoryTransitionAudit[]
   memoryCleanupOutbox                MemoryCleanupOutbox[]
+  learningSignals                    LearningSignal[]
   clientMemoryAccessGrants           ClientMemoryAccess[]
   clientTeamMembers                  ClientTeamMember[]
   clientGrantNexuses                 ClientGrantNexus[]
@@ -9014,6 +9015,82 @@ model MemoryCleanupOutbox {
   @@unique([tenantId, idempotencyKey], map: "memory_cleanup_outbox_idempotency_key")
   @@index([status, nextAttemptAt, createdAt], map: "memory_cleanup_outbox_pending_idx")
   @@map("memory_cleanup_outbox")
+}
+
+/// Phase 27A — Institutional Learning & Quality, signal-capture foundation.
+/// Evidence that Capiro MAY have learned something worth considering for
+/// future reuse, captured directly from existing product behavior (explicit
+/// feedback, accept/reject decisions). Deliberately NOT a second memory
+/// store: no body text is duplicated here, only references to authoritative
+/// source objects (`sourceObjectType`/`sourceObjectId`/`evidenceJsonb`) plus
+/// governance metadata reusing the existing `MemoryClass`/`MemoryAuthority`/
+/// `MemorySensitivity`/`SteeringLayer` vocabularies from `governance.ts` /
+/// `context/contract.ts`. Capturing a row here NEVER writes to
+/// `memory_items`/`memory_candidate`/`clio_memory` and NEVER changes Context
+/// Plane recall — promotion into governed memory is a separate later phase.
+/// See `packages/meriv2-core/src/learning/contract.ts` for the full contract
+/// and `docs/knowledge-plane/phase-27-learning-signal-foundation.md`.
+model LearningSignal {
+  id             String    @id @default(uuid()) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
+  /// Always the authenticated actor who performed the action — never a
+  /// client-supplied value. Required: every 27A adapter has a human actor.
+  actorUserId    String    @map("actor_user_id") @db.Uuid
+  clientId       String?   @map("client_id") @db.Uuid
+
+  sourceSurface    String  @map("source_surface") @db.VarChar(32)
+  sourceObjectType String  @map("source_object_type") @db.VarChar(64)
+  sourceObjectId   String  @map("source_object_id") @db.Uuid
+  /// Optional secondary reference (e.g. the fill-with-Meri run a finding
+  /// belongs to). Not a lineage FK — same "packets are prunable" reasoning
+  /// as `MemoryItem.originContextPacketId`.
+  sourceRunId      String? @map("source_run_id") @db.Uuid
+
+  signalType String @map("signal_type") @db.VarChar(48)
+
+  /// Best-guess mapping into the five frozen SteeringLayer values, or null if
+  /// this signal isn't a candidate for institutional memory at all. Proposal
+  /// only — 27A never acts on it.
+  proposedMemoryLayer    String?  @map("proposed_memory_layer") @db.VarChar(24)
+  /// Best-guess MemoryClass, same "proposal only" caveat.
+  proposedMemoryClass    String?  @map("proposed_memory_class") @db.VarChar(32)
+
+  /// Array<{type, id}> pointers to authoritative source objects — never a
+  /// copy of message/document bodies (see class doc comment).
+  evidenceJsonb  Json    @default("[]") @map("evidence_jsonb")
+  /// Extraction/observation confidence in [0,1]. NULL means "not scored yet"
+  /// — 27A never writes 0 as a stand-in for "unknown" (null != 0 invariant,
+  /// same as `durationMs.provider` in Context Plane telemetry).
+  confidence     Float?
+
+  /// Subset of MemoryAuthority. Guarded at write time: a human-tier value
+  /// here requires `provenanceKind` to be human_explicit/human_implicit —
+  /// see `assertNoAiSelfCorroboration` in contract.ts.
+  sourceAuthority String?  @map("source_authority") @db.VarChar(24)
+  sensitivity     String   @default("normal") @db.VarChar(16)
+  provenanceKind  String   @map("provenance_kind") @db.VarChar(24)
+  /// Safe structured metadata only (e.g. originTraceId, originContextPacketId,
+  /// model name) — never a raw message/document body.
+  provenanceJsonb Json     @default("{}") @map("provenance_jsonb")
+
+  governanceRequirement String @default("human_required") @map("governance_requirement") @db.VarChar(16)
+  status                String @default("captured") @db.VarChar(16)
+
+  /// Dedupe key for idempotent capture — see computeLearningSignalIdempotencyKey.
+  idempotencyKey String   @map("idempotency_key") @db.VarChar(320)
+
+  /// When the underlying product event happened (not when it was captured).
+  observedAt DateTime @map("observed_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey], map: "learning_signal_tenant_idempotency_unique")
+  @@index([tenantId, clientId], map: "learning_signal_tenant_client_idx")
+  @@index([tenantId, actorUserId], map: "learning_signal_tenant_actor_idx")
+  @@index([tenantId, sourceSurface, signalType], map: "learning_signal_tenant_surface_type_idx")
+  @@index([tenantId, status, createdAt], map: "learning_signal_tenant_status_created_idx")
+  @@map("learning_signal")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

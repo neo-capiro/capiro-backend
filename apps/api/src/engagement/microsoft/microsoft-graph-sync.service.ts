@@ -1412,14 +1412,21 @@ export class MicrosoftGraphSyncService {
           (hasManualOverride || hasManualAssociationSignal(existingThread.associationSignals))
             ? existingThread.clientId
             : association.clientId;
-        if (!clientId && !existingThread) return 'skipped';
-
         const participantJson = uniqueParticipants([
           fromEmail ? { email: fromEmail, name: clean(from?.name), role: 'from' } : null,
           ...toRecipients.map((recipient) => ({ ...recipient, role: 'to' })),
           ...ccRecipients.map((recipient) => ({ ...recipient, role: 'cc' })),
           ...bccRecipients.map((recipient) => ({ ...recipient, role: 'bcc' })),
         ]);
+        // Harvest correspondents even when association cannot create a thread;
+        // Fill with Meri can match these tenant contacts by the client's domain.
+        if (!clientId && !existingThread) {
+          await harvestMailContacts(tx, tenantId, participantJson, {
+            source: 'microsoft_graph',
+            clientId: null,
+          });
+          return 'skipped';
+        }
 
         const lastMessageAt = laterDate(existingThread?.lastMessageAt ?? null, messageDate);
         const thread = existingThread

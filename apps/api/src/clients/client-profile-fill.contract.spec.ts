@@ -52,6 +52,19 @@ describe('Fill with Meri architecture contract', () => {
     expect(service).toContain("This item is informational and is not applied to the client record");
   });
 
+  it('uses persisted synced mail participants when contact harvesting has no explicit client link', () => {
+    expect(service).toContain('tx.mailMessage.findMany');
+    expect(service).toContain('extractSyncedMailParticipants');
+    expect(service).toContain("notes: 'Extracted from synced email participants'");
+    expect(service).toContain("source: 'synced_email'");
+  });
+
+  it('uses layered public-web queries and tolerates individual provider query failures', () => {
+    expect(service).toContain('buildCompanySearchQueries(client)');
+    expect(service).toContain('Promise.all(');
+    expect(service).toContain('searchPublicWeb(query, 5).catch');
+  });
+
   it('does not let web evidence determine congressional districts', () => {
     expect(service).not.toMatch(/congressionalDistrict:\s*asString\(proposed/);
     expect(service).toContain('this.facilities.createFacility');

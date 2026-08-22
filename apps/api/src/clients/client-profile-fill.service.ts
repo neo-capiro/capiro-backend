@@ -21,14 +21,21 @@ import { ClientPeopleService } from './client-people.service.js';
 import { ClientFacilitiesService } from './client-facilities.service.js';
 import { ClientCapabilitiesService } from './client-capabilities.service.js';
 import { EngagementService } from '../engagement/engagement.service.js';
+import { LearningSignalCaptureService } from '../learning/learning-signal-capture.service.js';
+import {
+  buildCrmFillFindingAcceptedSignal,
+  buildCrmFillFindingRejectedSignal,
+} from '../learning/adapters/crm-fill-finding.adapter.js';
 import {
   CLIENT_PROFILE_FILL_SOURCES,
   asRecord,
   asString,
   asStringArray,
+  buildCompanySearchQueries,
   capabilitySearchTerms,
   emailDomain,
   extractJsonObject,
+  extractSyncedMailParticipants,
   fillFindingHash,
   isPrivateOrLocalIp,
   metaDescription,
@@ -169,6 +176,11 @@ export class ClientProfileFillService {
     private readonly facilities: ClientFacilitiesService,
     private readonly capabilities: ClientCapabilitiesService,
     private readonly attachments: EngagementService,
+    // Phase 27A learning-signal capture. Optional so any existing direct
+    // construction of this service keeps compiling; when absent, apply/
+    // reject behave exactly as before — no signal captured, no behavior
+    // change to the CRM write path itself.
+    private readonly learningSignals?: LearningSignalCaptureService,
   ) {}
 
   async startRun(
@@ -416,6 +428,7 @@ export class ClientProfileFillService {
         await this.applyFinding(ctx, clientId, finding);
         await this.markAccepted(ctx, clientId, finding.id);
         applied.push(finding.id);
+        await this.captureFillFindingSignal(ctx, 'accepted', finding);
       } catch (error) {
         errors.push({
           findingId: finding.id,
@@ -452,13 +465,15 @@ export class ClientProfileFillService {
   ) {
     await this.assertClient(ctx.tenantId, clientId);
     const changed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$queryRawUnsafe<Array<{ runId: string }>>(
+      tx.$queryRawUnsafe<
+        Array<{ runId: string; kind: string; targetKey: string; source: string; confidence: unknown }>
+      >(
         `UPDATE client_profile_fill_finding
             SET status = 'rejected', reviewed_by = $4::uuid, reviewed_at = now(),
                 rejection_reason = $5, updated_at = now()
           WHERE id = $1::uuid AND tenant_id = $2::uuid AND client_id = $3::uuid
             AND status = 'pending'
-          RETURNING run_id AS "runId"`,
+          RETURNING run_id AS "runId", kind, target_key AS "targetKey", source, confidence`,
         findingId,
         ctx.tenantId,
         clientId,
@@ -469,7 +484,60 @@ export class ClientProfileFillService {
     const row = changed[0];
     if (!row) throw new BadRequestException('Finding is not pending or does not exist');
     await this.refreshSummary(ctx.tenantId, row.runId);
+    await this.captureFillFindingSignal(ctx, 'rejected', {
+      id: findingId,
+      runId: row.runId,
+      clientId,
+      kind: row.kind,
+      targetKey: row.targetKey,
+      source: row.source,
+      confidence: Number(row.confidence),
+    });
     return { ok: true };
+  }
+
+  /**
+   * Phase 27A learning-signal capture for an accept/reject decision on a
+   * Fill-with-Meri finding. Best-effort and non-blocking by design — same
+   * pattern as the `prepopulation.prepopulate(...).catch(...)` call above:
+   * a capture failure must never undo or fail the CRM action it is
+   * evidence of. Runs in its own transaction (the finding-status write it
+   * follows has already committed by this point either way).
+   */
+  private async captureFillFindingSignal(
+    ctx: TenantContext,
+    outcome: 'accepted' | 'rejected',
+    finding: {
+      id: string;
+      runId: string;
+      clientId: string;
+      kind: string;
+      targetKey: string;
+      source: string;
+      confidence: number | string;
+    },
+  ): Promise<void> {
+    if (!this.learningSignals) return;
+    const signalSource = {
+      findingId: finding.id,
+      runId: finding.runId,
+      clientId: finding.clientId,
+      kind: finding.kind,
+      targetKey: finding.targetKey,
+      source: finding.source,
+      confidence: Number(finding.confidence),
+    };
+    const input =
+      outcome === 'accepted'
+        ? buildCrmFillFindingAcceptedSignal(ctx, signalSource, new Date())
+        : buildCrmFillFindingRejectedSignal(ctx, signalSource, new Date());
+    await this.prisma
+      .withTenant(ctx.tenantId, (tx) => this.learningSignals!.capture(tx, input))
+      .catch((error) =>
+        this.logger.warn(
+          `Learning-signal capture failed for fill finding ${finding.id} (${outcome}): ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
   }
 
   async restoreFinding(ctx: TenantContext, clientId: string, findingId: string) {
@@ -770,7 +838,7 @@ export class ClientProfileFillService {
       clientId: null as string | null,
       email: { endsWith: `@${domain}` },
     }));
-    const [contacts, existingPeople] = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const [contacts, existingPeople, mailRows] = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const contactRows = await tx.engagementContact.findMany({
         where: {
           tenantId: ctx.tenantId,
@@ -796,9 +864,25 @@ export class ClientProfileFillService {
         where: { tenantId: ctx.tenantId, clientId },
         select: { name: true, email: true },
       });
-      return [contactRows, peopleRows] as const;
+      const messageRows = await tx.mailMessage.findMany({
+        where: { tenantId: ctx.tenantId, removedAt: null, thread: { clientId } },
+        select: {
+          fromEmail: true,
+          fromName: true,
+          toRecipients: true,
+          ccRecipients: true,
+          bccRecipients: true,
+          thread: { select: { participants: true } },
+        },
+        take: 500,
+        orderBy: { receivedAt: 'desc' },
+      });
+      return [contactRows, peopleRows, messageRows] as const;
     });
 
+    const mailParticipants = extractSyncedMailParticipants(
+      mailRows.map((row) => ({ ...row, threadParticipants: row.thread?.participants })),
+    );
     const personEmails = new Set(existingPeople.map((person) => person.email?.toLowerCase()).filter(Boolean));
     const personNames = new Set(existingPeople.map((person) => normalizedName(person.name)).filter(Boolean));
     let count = 0;
@@ -840,6 +924,35 @@ export class ClientProfileFillService {
             },
           },
         ],
+      });
+      if (inserted) count++;
+    }
+    for (const participant of mailParticipants) {
+      const email = participant.email;
+      const name = participant.name?.trim() || email;
+      if (personEmails.has(email) || personNames.has(normalizedName(name))) continue;
+      const participantDomain = emailDomain(email);
+      if (!participantDomain || !matchDomains.includes(participantDomain)) continue;
+      const inserted = await this.addFinding(ctx.tenantId, clientId, runId, {
+        kind: 'person',
+        targetKey: `person:${email}`,
+        source: 'synced_email',
+        factKind: 'fact',
+        currentValue: null,
+        proposedValue: {
+          name,
+          title: null,
+          email,
+          phone: null,
+          role: 'client_contact',
+          notes: 'Extracted from synced email participants',
+        },
+        confidence: 0.8,
+        evidence: [{
+          label: `Synced email participant on ${participantDomain}`,
+          source: 'synced_email',
+          metadata: { association: 'mail_participant_domain' },
+        }],
       });
       if (inserted) count++;
     }
@@ -1076,7 +1189,10 @@ export class ClientProfileFillService {
 
   private async gatherPublicWeb(ctx: TenantContext, clientId: string, runId: string) {
     const client = await this.getClientSnapshot(ctx.tenantId, clientId);
-    const results = await this.searchCompany(client.name);
+    // Public web is the fallback for thin internal data, but it also runs for
+    // every public_web request so a client with weak/stale internal records is
+    // not treated as a dead end.
+    const results = await this.searchCompany(client);
     const website = normalizeWebsite(client.website);
     let homepage: { url: string; html: string; text: string; description: string | null } | null = null;
     let websiteFetchError: string | null = null;
@@ -1478,17 +1594,20 @@ export class ClientProfileFillService {
     }
   }
 
-  private async searchCompany(name: string): Promise<NormalizedWebResult[]> {
-    const queries = [
-      `"${name}" company products capabilities`,
-      `"${name}" leadership team`,
-      `"${name}" headquarters facilities locations`,
-    ];
+  private async searchCompany(client: ClientSnapshot): Promise<NormalizedWebResult[]> {
+    const queries = buildCompanySearchQueries(client);
     const out: NormalizedWebResult[] = [];
-    for (const query of queries) {
-      const rows = await this.searchPublicWeb(query, 5).catch(() => []);
-      out.push(...rows);
-    }
+    // Run independent web queries concurrently, then preserve deterministic
+    // query/result order. One provider failure must not suppress the others.
+    const batches = await Promise.all(
+      queries.map((query) => this.searchPublicWeb(query, 5).catch((error) => {
+        this.logger.warn(
+          `Fill with Meri web search failed for ${JSON.stringify(query)}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return [];
+      })),
+    );
+    for (const rows of batches) out.push(...rows);
     const seen = new Set<string>();
     return out.filter((row) => {
       const normalized = normalizeComparableUrl(row.url) ?? row.url;

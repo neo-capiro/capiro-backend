@@ -1,0 +1,115 @@
+.ov3p1-select-all > span[data-checked='true'],
+.ov3p1-checkbox[data-checked='true'] {
+  border-color: var(--ov3p1-navy);
+  background: var(--ov3p1-navy);
+}
+
+.ov3p1-bulk-bar {
+  position: sticky;
+  z-index: 4;
+  top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 10px 12px 10px 16px;
+  border-radius: 10px;
+  background: #18212d;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.18);
+  color: #fff;
+}
+
+.ov3p1-bulk-bar strong { margin-right: auto; font-size: 13.5px; }
+.ov3p1-bulk-bar button { display: inline-flex; min-height: 32px; align-items: center; gap: 6px; padding: 0 10px; border-radius: 7px; background: rgba(255,255,255,.08); color: #fff; cursor: pointer; font-size: 12.5px; font-weight: 600; }
+.ov3p1-bulk-bar button:hover { background: rgba(255,255,255,.14); }
+
+.ov3p1-draft-card > header { display: grid; grid-template-columns: auto auto minmax(0,1fr) auto auto auto; align-items: center; gap: 12px; min-height: 72px; padding: 14px 18px; }
+.ov3p1-checkbox { padding: 0; cursor: pointer; }
+.ov3p1-draft-card__identity { min-width: 0; padding: 0; background: transparent; text-align: left; cursor: pointer; }
+.ov3p1-draft-card__body { padding: 0 22px 22px; border-top: 1px solid var(--ov3p1-soft-2); }
+.ov3p1-needs-line { margin: 18px 0 14px; padding: 11px 13px; border-radius: 8px; background: var(--ov3p1-soft); color: var(--ov3p1-secondary); font-size: 13.5px; line-height: 20px; }
+
+.ov3p1-meta-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 24px; margin: 18px 0 0; border-top: 1px solid var(--ov3p1-rule); }
+.ov3p1-meta-grid > div { min-width: 0; padding: 12px 0; border-bottom: 1px solid var(--ov3p1-soft-2); }
+.ov3p1-meta-grid dt { color: var(--ov3p1-faint); font-size: 12px; }
+.ov3p1-meta-grid dd { margin: 4px 0 0; overflow: hidden; color: var(--ov3p1-body); font-size: 13.5px; line-height: 20px; text-overflow: ellipsis; }
+
+.ov3p1-ask-box { margin-top: 18px; padding: 16px; border: 1px solid #d8e1e7; border-radius: 10px; background: var(--ov3p1-assistant); }
+.ov3p1-ask-box > span { color: var(--ov3p1-navy); font-size: 13px; font-weight: 600; }
+.ov3p1-ask-box > div { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+
+.ov3p1-version-diff { margin-top: 18px; overflow: hidden; border: 1px solid var(--ov3p1-rule); border-radius: 10px; }
+.ov3p1-version-diff > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; background: var(--ov3p1-soft); }
+.ov3p1-version-diff > header > span { color: var(--ov3p1-secondary); font-size: 13px; font-weight: 600; }
+.ov3p1-version-diff > header > div { display: flex; align-items: center; gap: 8px; }
+.ov3p1-version-diff > div { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+.ov3p1-version-diff article { min-width: 0; padding: 15px 16px; }
+.ov3p1-version-diff article + article { border-left: 1px solid var(--ov3p1-rule); background: var(--ov3p1-navy-soft); }
+.ov3p1-version-diff article > span { color: var(--ov3p1-faint); font-size: 12px; }
+.ov3p1-version-diff article strong { display: block; margin-top: 6px; color: var(--ov3p1-text); font-size: 13.5px; }
+.ov3p1-version-diff article:first-child strong,
+.ov3p1-version-diff article:first-child p { color: var(--ov3p1-muted); text-decoration-color: #c47a72; text-decoration-line: line-through; }
+.ov3p1-version-diff article p { margin: 8px 0 0; color: var(--ov3p1-body); font-size: 13px; line-height: 20px; white-space: pre-wrap; }
+
+.ov3p1-matching-block { margin-top: 18px; padding: 20px 22px; border-radius: 12px; background: var(--ov3p1-card); box-shadow: 0 1px 3px rgba(16,24,40,.05); }
+.ov3p1-matching-block > div:first-child { display: flex; align-items: flex-start; gap: 12px; }
+.ov3p1-match-dot { width: 8px; height: 8px; flex: 0 0 auto; margin-top: 7px; border-radius: 50%; background: var(--ov3p1-faint); }
+.ov3p1-matching-block[data-approved='true'] .ov3p1-match-dot { background: var(--ov3p1-navy); }
+.ov3p1-matching-block h3 { margin: 0; color: var(--ov3p1-text); font-size: 15.5px; font-weight: 600; line-height: 23px; }
+.ov3p1-matching-block p { margin: 5px 0 0; color: var(--ov3p1-muted); font-size: 13.5px; line-height: 21px; }
+.ov3p1-matching-actions { margin-top: 16px; }
+.ov3p1-draft-stack.is-matching { margin-top: 16px; }
+
+.ov3p1-card { margin-top: 20px; padding: 24px 28px; }
+.ov3p1-card h3,
+.ov3p1-preflight h3 { margin: 0; color: var(--ov3p1-text); font-size: 15.5px; font-weight: 600; }
+.ov3p1-send-setup dl { display: flex; flex-direction: column; gap: 0; margin: 16px 0 0; }
+.ov3p1-send-setup dl > div { display: grid; grid-template-columns: 150px minmax(0,1fr) auto; align-items: baseline; gap: 16px; padding: 9px 0; }
+.ov3p1-send-setup dt { color: var(--ov3p1-faint); font-size: 13.5px; }
+.ov3p1-send-setup dd { margin: 0; color: var(--ov3p1-text); font-size: 15px; line-height: 23px; }
+.ov3p1-send-setup button,
+.ov3p1-results-table button,
+.ov3p1-show-all,
+.ov3p1-meri-proposal footer button,
+.ov3p1-meri-receipts button { background: transparent; color: var(--ov3p1-navy); cursor: pointer; font-size: 13.5px; font-weight: 500; }
+
+.ov3p1-mailbox-card > label:not(.ov3p1-switch-row) { display: grid; grid-template-columns: 120px minmax(0,1fr); align-items: center; gap: 16px; margin-top: 16px; }
+.ov3p1-mailbox-card > label > span { color: var(--ov3p1-faint); font-size: 13.5px; }
+.ov3p1-mailbox-card select,
+.ov3p1-test-card select,
+.ov3p1-learning-card select,
+.ov3p1-schedule-fields input,
+.ov3p1-schedule-fields select { min-height: 40px; padding: 0 12px; }
+
+.ov3p1-switch-row,
+.ov3p1-attachment-row { display: flex; align-items: center; gap: 16px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--ov3p1-soft-2); }
+.ov3p1-switch-row > span,
+.ov3p1-attachment-row > span { min-width: 0; flex: 1; }
+.ov3p1-switch-row strong,
+.ov3p1-attachment-row strong,
+.ov3p1-test-card strong,
+.ov3p1-consent strong,
+.ov3p1-held-summary strong { display: block; color: var(--ov3p1-text); font-size: 13.5px; font-weight: 600; }
+.ov3p1-switch-row small,
+.ov3p1-attachment-row small,
+.ov3p1-test-card small,
+.ov3p1-consent small,
+.ov3p1-held-summary small { display: block; margin-top: 2px; color: var(--ov3p1-faint); font-size: 12.5px; line-height: 18px; }
+.ov3p1-switch-row > button { position: relative; width: 40px; height: 22px; flex: 0 0 auto; border-radius: 9999px; background: #d7d3cc; cursor: pointer; }
+.ov3p1-switch-row > button i { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(16,24,40,.18); transition: transform 120ms ease; }
+.ov3p1-switch-row > button[data-on='true'] { background: var(--ov3p1-navy); }
+.ov3p1-switch-row > button[data-on='true'] i { transform: translateX(18px); }
+.ov3p1-attachment-row { flex-wrap: wrap; }
+.ov3p1-attachment-row > div { display: flex; flex: 1 1 100%; flex-wrap: wrap; gap: 8px; }
+.ov3p1-attachment-chip { display: inline-flex; min-height: 30px; align-items: center; gap: 6px; padding: 0 9px; border: 1px solid var(--ov3p1-rule); border-radius: 8px; background: var(--ov3p1-soft); color: var(--ov3p1-secondary); font-size: 12px; }
+.ov3p1-attachment-chip button { display: flex; padding: 0; background: transparent; color: var(--ov3p1-faint); cursor: pointer; }
+.ov3p1-mailbox-card > .ov3p1-button { margin-top: 18px; }
+
+.ov3p1-choice-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin-top: 14px; }
+.ov3p1-choice-row > button { display: flex; min-height: 76px; align-items: flex-start; gap: 11px; padding: 15px 16px; border: 1px solid var(--ov3p1-border); border-radius: 10px; background: var(--ov3p1-card); color: var(--ov3p1-secondary); cursor: pointer; text-align: left; }
+.ov3p1-choice-row > button[data-selected='true'] { border-color: #9db5c5; background: var(--ov3p1-navy-soft); color: var(--ov3p1-navy); }
+.ov3p1-choice-row strong { display: block; color: var(--ov3p1-text); font-size: 13.5px; }
+.ov3p1-choice-row small { display: block; margin-top: 4px; color: var(--ov3p1-muted); font-size: 12.5px; line-height: 18px; }
+.ov3p1-schedule-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-top: 12px; padding: 14px; border-radius: 10px; background: var(--ov3p1-soft); }
+.ov3p1-schedule-fields label { color: var(--ov3p1-muted); font-size: 12px; }

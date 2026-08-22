@@ -78,6 +78,8 @@
     "prepare:phase8-session7:corpus": "node scripts/prepare-phase8-session7-lifecycle-corpus.mjs",
     "validate:knowledge-plane:phase26": "node scripts/validate-knowledge-plane-phase26.mjs",
     "validate:knowledge-plane:phase26:fast": "node scripts/validate-knowledge-plane-phase26.mjs --skip-tests",
+    "validate:knowledge-plane:phase27": "node scripts/validate-knowledge-plane-phase27.mjs",
+    "validate:knowledge-plane:phase27:fast": "node scripts/validate-knowledge-plane-phase27.mjs --skip-tests",
     "verify:phase8-session8": "node scripts/verify-phase8-session8.mjs",
     "verify:phase8-session8:enforce": "node scripts/verify-phase8-session8.mjs --enforce-replay",
     "verify:phase8-session8:db": "node scripts/verify-phase8-session8-db.mjs",
