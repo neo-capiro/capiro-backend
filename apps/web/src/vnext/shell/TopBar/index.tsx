@@ -290,9 +290,11 @@ export function ProfileMenu({
                 }}
               >
                 <span className="capiro-vnext-menu__label">{entry.label}</span>
-                <span className="capiro-vnext-menu__tag">
-                  {disabled ? 'Not available' : (entry.tag ?? '')}
-                </span>
+                {(disabled || entry.tag) ? (
+                  <span className="capiro-vnext-menu__tag">
+                    {disabled ? 'Not available' : entry.tag}
+                  </span>
+                ) : null}
               </button>
             );
           })}
