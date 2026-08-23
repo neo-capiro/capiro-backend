@@ -2,13 +2,14 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
-import { UIcon, PfButton, GRADIENT_DARK, GRADIENT_DARK_HOVER, PILL } from './portfolio-primitives.js';
+import { UIcon, PfButton, GRADIENT_DARK, PILL } from './portfolio-primitives.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
 import { sectorLabel } from '../../lib/labels.js';
 import { openMeriWorkspaceWithContext } from '../../../components/chat/meri-window.js';
 import { CRM_TAB_LABELS, type CrmSurface, type CrmView } from './client-crm-routing.js';
 import { useClientAccountOwner } from './useClientAccountOwner.js';
+import './client-profile-shell.css';
 
 /**
  * Responsive breakpoint flags (spec §1.6): narrow = w<1200, tight = w<1024,
@@ -123,19 +124,7 @@ export function ClientProfileShell({
           cap is escaped for this route (see the escape rule at the top of
           that file), and drops to 16px at 779px so a phone still gets an
           inset instead of the shell's now-removed padding. */}
-      <div
-        className="cap-pf-client__crumbs"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          height: 44,
-          background: '#ffffff',
-          borderBottom: '1px solid #E8E5DF',
-          flexWrap: 'nowrap',
-          overflow: 'hidden',
-        }}
-      >
+      <div className="cap-pf-client__crumbs cap-pf-breadcrumb-bar">
         <CrumbButton label="Portfolio" onClick={() => navigate('/clients')} />
         <Sep />
         <CrumbButton label="Clients" onClick={() => navigate('/clients')} />
@@ -195,45 +184,20 @@ export function ClientProfileShell({
           {/* 48px dark tile */}
           <span
             aria-hidden
-            style={{
-              flex: '0 0 auto',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 48,
-              height: 48,
-              borderRadius: 10,
-              background: client.logoUrl ? '#F2F0EB' : GRADIENT_DARK,
-              color: '#ffffff',
-              fontSize: 15,
-              fontWeight: 600,
-              letterSpacing: '.02em',
-              overflow: 'hidden',
-            }}
+            className={client.logoUrl ? 'cap-pf-identity-tile' : 'cap-pf-identity-tile cap-pf-identity-tile--dark'}
+            style={{ color: '#ffffff', fontSize: 15, fontWeight: 600, letterSpacing: '.02em' }}
           >
             {client.logoUrl ? <img src={client.logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initialsFor(client.name)}
           </span>
 
           <div style={{ flex: 1, minWidth: 280 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828' }}>
+              <h1 className="cap-pf-client-name">
                 {client.name}
               </h1>
               <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  height: 24,
-                  padding: '0 10px 0 8px',
-                  borderRadius: 9999,
-                  background: st,
-                  border: `1px solid ${sr}`,
-                  color: sf,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  whiteSpace: 'nowrap',
-                }}
+                className="cap-pf-status-pill"
+                style={{ background: st, border: `1px solid ${sr}`, color: sf }}
               >
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: sd }} />
                 {isActive ? 'Active client' : (client.status ?? 'Unknown status')}
@@ -246,22 +210,7 @@ export function ClientProfileShell({
                 Focus
               </span>
               {chips.map((chip) => (
-                <span
-                  key={chip}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    height: 26,
-                    padding: '0 10px',
-                    borderRadius: 8,
-                    background: '#FAF9F6',
-                    border: '1px solid #E8E5DF',
-                    color: '#344054',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
+                <span key={chip} className="cap-pf-focus-chip">
                   {chip}
                 </span>
               ))}
@@ -344,18 +293,8 @@ function AccountOwnerControl({ clientId, canAssign }: { clientId: string; canAss
           disabled={owner.isLoading || owner.isAssigning}
           onChange={(event) => owner.setOwner(event.target.value || null)}
           title={owner.error instanceof Error ? owner.error.message : undefined}
-          style={{
-            height: 28,
-            maxWidth: 190,
-            border: '1px solid #E8E5DF',
-            borderRadius: 7,
-            padding: '0 24px 0 8px',
-            background: '#FAF9F6',
-            color: owner.error ? '#B42318' : '#344054',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: owner.isLoading || owner.isAssigning ? 'wait' : 'pointer',
-          }}
+          className={owner.error ? 'cap-pf-account-owner-select cap-pf-account-owner-select--error' : 'cap-pf-account-owner-select'}
+          style={{ padding: '0 24px 0 8px', fontWeight: 600, cursor: owner.isLoading || owner.isAssigning ? 'wait' : 'pointer' }}
         >
           <option value="">Unassigned</option>
           {currentMissing && owner.owner ? (
@@ -475,17 +414,8 @@ function AddFocusButton({ client, existing }: { client: Client; existing: string
             setOpen(false);
           }
         }}
-        style={{
-          height: 26,
-          width: 148,
-          padding: '0 8px',
-          borderRadius: 8,
-          border: `1px solid ${duplicate ? '#FDA29B' : '#E0DCD4'}`,
-          outline: 'none',
-          background: '#ffffff',
-          fontSize: 13,
-          color: '#101828',
-        }}
+        className={duplicate ? 'cap-pf-add-focus-input cap-pf-add-focus-input--duplicate' : 'cap-pf-add-focus-input'}
+        style={{ height: 26, width: 148, padding: '0 8px', outline: 'none' }}
       />
       <button
         type="button"
@@ -517,30 +447,8 @@ function AddFocusButton({ client, existing }: { client: Client; existing: string
 }
 
 function FillButton({ busy, label, onClick }: { busy: boolean; label: string; onClick: () => void }) {
-  const [hover, setHover] = useState(false);
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        height: 40,
-        padding: '0 16px',
-        borderRadius: 8,
-        background: hover ? GRADIENT_DARK_HOVER : GRADIENT_DARK,
-        color: '#ffffff',
-        fontSize: 14,
-        fontWeight: 600,
-        lineHeight: '20px',
-        whiteSpace: 'nowrap',
-        boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
-      }}
-    >
+    <button type="button" onClick={onClick} className="cap-pf-fill-btn">
       {busy ? 'Analyzing…' : label}
     </button>
   );
@@ -600,7 +508,6 @@ function TabButton({
   refCb: (node: HTMLButtonElement | null) => void;
   tabKey: string;
 }) {
-  const [hover, setHover] = useState(false);
   return (
     <button
       ref={refCb}
@@ -612,17 +519,7 @@ function TabButton({
       tabIndex={selected ? 0 : -1}
       onClick={onClick}
       onKeyDown={onKeyDown}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        position: 'relative',
-        padding: '10px 14px 14px',
-        fontSize: 15,
-        fontWeight: 600,
-        color: selected ? '#101828' : hover ? '#101828' : '#475467',
-        boxShadow: selected ? 'inset 0 -2px 0 #101828' : 'none',
-        whiteSpace: 'nowrap',
-      }}
+      className="cap-pf-tab-btn"
     >
       {label}
     </button>
@@ -740,18 +637,8 @@ function OverflowMenu({
       {open ? (
         <div
           role="menu"
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: 48,
-            zIndex: 35,
-            width: 248,
-            background: '#ffffff',
-            borderRadius: 12,
-            boxShadow: '0 0 0 1px #E8E5DF,0px 12px 16px -4px rgba(16,24,40,.08)',
-            padding: 6,
-            animation: 'capPfFade .12s ease',
-          }}
+          className="cap-pf-overflow-menu"
+          style={{ padding: 6, animation: 'capPfFade .12s ease' }}
         >
           {items.map((item) => (
             <MenuItem key={item.label} item={item} />
@@ -791,26 +678,12 @@ function MenuTrigger({ open, onClick, name }: { open: boolean; onClick: () => vo
 }
 
 function MenuItem({ item }: { item: { label: string; danger?: boolean; onSelect: () => void } }) {
-  const [hover, setHover] = useState(false);
   return (
     <button
       type="button"
       role="menuitem"
       onClick={item.onSelect}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'block',
-        width: '100%',
-        padding: '9px 12px',
-        borderRadius: 8,
-        fontSize: 14,
-        color: item.danger ? '#B42318' : '#101828',
-        background: hover ? '#FAF9F6' : 'transparent',
-        textTransform: 'none',
-        letterSpacing: 0,
-        fontWeight: 400,
-      }}
+      className={item.danger ? 'cap-pf-menu-item cap-pf-menu-item--danger' : 'cap-pf-menu-item'}
     >
       {item.label}
     </button>
