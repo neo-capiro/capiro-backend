@@ -41,14 +41,17 @@ import './client-form-dialog.css';
  * round-trips through `Client.intakeData` cannot drift between surfaces.
  *
  * Reproduced behavior, deliberately unchanged:
- *  - 4 steps; Next validates only the current step's fields; the final submit
- *    validates everything and jumps to (and focuses) the step that owns the
- *    first errored field.
+ *  - 3 steps (post cleanup, 2026-08-23 — see client-form-mapping.ts comment
+ *    for the full list of removed/merged fields); Next validates only the
+ *    current step's fields; the final submit validates everything and jumps
+ *    to (and focuses) the step that owns the first errored field.
  *  - Every step stays mounted (inactive ones `display: none`) so values and
  *    validation state survive Back/Next.
- *  - Logo + documents sit below the steps on every step; files are collected
- *    locally and handed to the caller as `File`s (`ClientFormSubmit`) — the
- *    caller owns the upload mutations, exactly as with the canonical modal.
+ *  - Logo sits below the steps on every step; the file is collected locally
+ *    and handed to the caller as a `File` (`ClientFormSubmit`) — the caller
+ *    owns the upload mutation, exactly as with the canonical modal. Document
+ *    upload moved out of the wizard (attach via the client's Files tab
+ *    instead) — `ClientFormSubmit.documents` is always sent empty from here.
  *  - Grant applicant types / set-aside certifications are fixed-list picks
  *    (never free-typed) because District Nexus and SAM matching compare the
  *    exact strings; NAICS/PSC are free token lists normalized at submit.
@@ -98,17 +101,13 @@ export function ClientFormDialogVNext({
 }: ClientFormDialogVNextProps) {
   const [values, setValues] = useState<ClientFormValues>({});
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [documentFiles, setDocumentFiles] = useState<File[]>([]);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
     if (!open) return;
-    // `country` defaults to USA in create mode (the canonical wizard's
-    // initialValue); clientToFormValues already defaults it in edit mode.
-    setValues({ country: 'USA', ...clientToFormValues(client ?? undefined) });
+    setValues(clientToFormValues(client ?? undefined));
     setErrors({});
-    setDocumentFiles([]);
     setLogoFile(null);
     setCurrentStep(0);
   }, [client, open]);
@@ -177,9 +176,13 @@ export function ClientFormDialogVNext({
     onSubmit({
       // Pass the existing client (edit mode) so intakeData merges over the
       // current blob instead of overwriting it — preserves wired keys the
-      // wizard doesn't render (peNumber, profileNotes, governmentHistory…).
+      // wizard doesn't render (peNumber, profileNotes, governmentHistory,
+      // dba, address, primaryNaics/additionalNaics — see
+      // client-form-mapping.ts for the 2026-08-23 field removals).
       payload: formValuesToClientPayload(values, client ?? undefined),
-      documents: documentFiles,
+      // Document upload moved out of the wizard — attach files via the
+      // client's Files tab after saving instead.
+      documents: [],
       logo: logoFile ?? undefined,
     });
   }
@@ -218,19 +221,17 @@ export function ClientFormDialogVNext({
             <CompanyInfoStep values={values} errors={errors} set={set} />
           </div>
           <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
-            <ContactSocialStep values={values} errors={errors} set={set} />
-          </div>
-          <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>
             <GovRegistrationStep values={values} set={set} />
           </div>
-          <div style={{ display: currentStep === 3 ? 'block' : 'none' }}>
+          <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>
             <SectorTracksStep values={values} set={set} enabled={open} />
           </div>
 
-          {/* Logo + documents — separate wired upload feature, shown on every
-              step so they can be attached regardless of where the user is. */}
+          {/* Logo — separate wired upload feature, shown on every step so it
+              can be attached regardless of where the user is. Document
+              upload moved to the Files tab. */}
           <div className="capiro-cform__divider" role="presentation">
-            Logo &amp; documents
+            Logo
           </div>
           <FilePicker
             label="Client logo"
@@ -239,16 +240,6 @@ export function ClientFormDialogVNext({
             files={logoFile ? [logoFile] : []}
             onAdd={(files) => setLogoFile(files[0] ?? null)}
             onRemove={() => setLogoFile(null)}
-          />
-          <FilePicker
-            label="Documents"
-            buttonLabel="Select documents"
-            multiple
-            files={documentFiles}
-            onAdd={(files) => setDocumentFiles((current) => [...current, ...files])}
-            onRemove={(index) =>
-              setDocumentFiles((current) => current.filter((_, i) => i !== index))
-            }
           />
 
           <div className="capiro-cform__footer">
@@ -298,13 +289,6 @@ function CompanyInfoStep({ values, errors = {}, set }: StepProps) {
           onChange={(e) => set('name', e.target.value)}
         />
         <CapiroInput
-          id={fieldId('dba')}
-          label="DBA / trade name"
-          placeholder="Acme Defense"
-          value={values.dba ?? ''}
-          onChange={(e) => set('dba', e.target.value)}
-        />
-        <CapiroInput
           id={fieldId('website')}
           label="Website"
           placeholder="example.com"
@@ -323,43 +307,27 @@ function CompanyInfoStep({ values, errors = {}, set }: StepProps) {
             onChange={(v) => set('description', v)}
           />
         </div>
+      </div>
+
+      <div className="capiro-cform__divider" role="presentation">
+        Company contact
+      </div>
+      <div className="capiro-cform__grid">
         <CapiroInput
-          id={fieldId('city')}
-          label="City"
-          value={values.city ?? ''}
-          onChange={(e) => set('city', e.target.value)}
-        />
-        <div className="capiro-cform__pair">
-          <CapiroInput
-            id={fieldId('state')}
-            label="State"
-            placeholder="VA"
-            maxLength={2}
-            value={values.state ?? ''}
-            onChange={(e) => set('state', e.target.value)}
-          />
-          <CapiroInput
-            id={fieldId('country')}
-            label="Country"
-            placeholder="USA"
-            value={values.country ?? ''}
-            onChange={(e) => set('country', e.target.value)}
-          />
-        </div>
-        <CapiroInput
-          id={fieldId('address1')}
-          label="Street address"
-          placeholder="123 Main St"
-          value={values.address1 ?? ''}
-          onChange={(e) => set('address1', e.target.value)}
+          id={fieldId('primaryContactEmail')}
+          label="Main company email"
+          placeholder="info@example.com"
+          value={values.primaryContactEmail ?? ''}
+          error={errors.primaryContactEmail}
+          onChange={(e) => set('primaryContactEmail', e.target.value)}
         />
         <CapiroInput
-          id={fieldId('zip')}
-          label="ZIP"
-          placeholder="22201"
-          maxLength={10}
-          value={values.zip ?? ''}
-          onChange={(e) => set('zip', e.target.value)}
+          id={fieldId('primaryContactPhone')}
+          label="Main company phone"
+          placeholder="+1 202-555-0142"
+          value={values.primaryContactPhone ?? ''}
+          onChange={(e) => set('primaryContactPhone', e.target.value)}
+          onBlur={(e) => set('primaryContactPhone', formatPhone(e.target.value))}
         />
       </div>
 
@@ -383,32 +351,7 @@ function CompanyInfoStep({ values, errors = {}, set }: StepProps) {
   );
 }
 
-/* ── Step 2: Contact & Social ────────────────────────────────────────────── */
-
-function ContactSocialStep({ values, errors = {}, set }: StepProps) {
-  return (
-    <div className="capiro-cform__grid">
-      <CapiroInput
-        id={fieldId('primaryContactEmail')}
-        label="Main company email"
-        placeholder="info@example.com"
-        value={values.primaryContactEmail ?? ''}
-        error={errors.primaryContactEmail}
-        onChange={(e) => set('primaryContactEmail', e.target.value)}
-      />
-      <CapiroInput
-        id={fieldId('primaryContactPhone')}
-        label="Main company phone"
-        placeholder="+1 202-555-0142"
-        value={values.primaryContactPhone ?? ''}
-        onChange={(e) => set('primaryContactPhone', e.target.value)}
-        onBlur={(e) => set('primaryContactPhone', formatPhone(e.target.value))}
-      />
-    </div>
-  );
-}
-
-/* ── Step 3: Gov't Registration ──────────────────────────────────────────── */
+/* ── Step 2: Gov't Registration ──────────────────────────────────────────── */
 
 function GovRegistrationStep({ values, set }: StepProps) {
   return (
@@ -444,21 +387,6 @@ function GovRegistrationStep({ values, set }: StepProps) {
         onChange={(e) => set('samExpirationDate', e.target.value)}
       />
       <CapiroInput
-        id={fieldId('primaryNaics')}
-        label="Primary NAICS"
-        placeholder="541330"
-        maxLength={6}
-        value={values.primaryNaics ?? ''}
-        onChange={(e) => set('primaryNaics', e.target.value)}
-      />
-      <CapiroInput
-        id={fieldId('additionalNaics')}
-        label="Additional NAICS"
-        placeholder="541512, 541715"
-        value={values.additionalNaics ?? ''}
-        onChange={(e) => set('additionalNaics', e.target.value)}
-      />
-      <CapiroInput
         id={fieldId('ldaRegistrantName')}
         label="LDA registrant name"
         placeholder="Registrant on LDA filings"
@@ -473,8 +401,9 @@ function GovRegistrationStep({ values, set }: StepProps) {
         onChange={(e) => set('ein', e.target.value)}
       />
       {/* Step 2.3 — first-class NAICS / PSC code lists. These drive client ⇄ PE
-          relevance matching (procurement codes), distinct from the legacy free-text
-          NAICS fields above which remain for back-compat. */}
+          relevance matching (procurement codes). The legacy free-text
+          primaryNaics/additionalNaics pair was removed from the wizard
+          2026-08-23 — this is the only NAICS input now. */}
       <TagListField
         id={fieldId('naicsCodes')}
         label="NAICS codes"
@@ -523,7 +452,7 @@ function GovRegistrationStep({ values, set }: StepProps) {
   );
 }
 
-/* ── Step 4: Sector & Tracks ─────────────────────────────────────────────── */
+/* ── Step 3: Sector & Tracks ─────────────────────────────────────────────── */
 
 function SectorTracksStep({ values, set, enabled }: StepProps & { enabled: boolean }) {
   const api = useApi();

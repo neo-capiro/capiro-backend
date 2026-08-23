@@ -72,21 +72,21 @@ describe('ClientFormDialogVNext', () => {
     await waitFor(() => expect(screen.queryByText('Legal name is required')).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    // Step 2 owns the contact fields; Back appears once past step 1.
+    // Step 2 (Gov't Registration) is next; Back appears once past step 1.
     expect(await screen.findByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
-  it('validates the email format on the contact step', async () => {
+  it('validates the email format on the company info step (contact block merged in)', async () => {
     renderDialog();
     fillRequiredStepOne();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    await screen.findByRole('button', { name: 'Back' });
 
     fireEvent.change(screen.getByLabelText(/^Main company email/), {
       target: { value: 'not-an-email' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(await screen.findByText('Enter a valid email address')).toBeInTheDocument();
+    // Still on step 1 — Back has not appeared.
+    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/^Main company email/), {
       target: { value: 'ops@vantageorbital.example' },
@@ -94,22 +94,21 @@ describe('ClientFormDialogVNext', () => {
     await waitFor(() =>
       expect(screen.queryByText('Enter a valid email address')).not.toBeInTheDocument(),
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
   it('submits the mapped payload from the final step (shared client-form-mapping)', async () => {
     const { onSubmit } = renderDialog();
     fillRequiredStepOne();
     fireEvent.click(screen.getByLabelText('Small Business (SB)'));
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-
-    await screen.findByRole('button', { name: 'Back' });
     fireEvent.change(screen.getByLabelText('Main company phone'), {
       target: { value: '2025550147' },
     });
     fireEvent.blur(screen.getByLabelText('Main company phone'));
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
-    // Step 3: token lists commit on Enter; UEI uppercases as typed.
+    // Step 2 (Gov't Registration): token lists commit on Enter; UEI uppercases as typed.
     const uei = await screen.findByLabelText('UEI');
     fireEvent.change(uei, { target: { value: 'abq997xk21rr' } });
     const naics = screen.getByLabelText(/^NAICS codes/);
@@ -117,8 +116,9 @@ describe('ClientFormDialogVNext', () => {
     fireEvent.keyDown(naics, { key: 'Enter' });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
-    // Step 4: sector checkboxes come from the controlled SECTOR_TAGS list; the
-    // LDA issue-code list is served by the mocked reference endpoint.
+    // Step 3 (Sector & Tracks): sector checkboxes come from the controlled
+    // SECTOR_TAGS list; the LDA issue-code list is served by the mocked
+    // reference endpoint.
     fireEvent.click(await screen.findByLabelText('Energy'));
     fireEvent.click(await screen.findByLabelText('DEF — Defense'));
 
@@ -136,10 +136,8 @@ describe('ClientFormDialogVNext', () => {
     // First (only) selected sector mirrors to the controlled top-level tag.
     expect(submission.payload.sectorTag).toBe('ENERGY');
     expect(submission.payload.intakeData).toMatchObject({ sectors: ['ENERGY'] });
-    expect(submission.payload.intakeData).toMatchObject({
-      sbClassification: { sb: true },
-      country: 'USA',
-    });
+    expect(submission.payload.intakeData).toMatchObject({ sbClassification: { sb: true } });
+    // Document upload was removed from the wizard (2026-08-23) — always empty.
     expect(submission.documents).toEqual([]);
     expect(submission.logo).toBeUndefined();
   });
@@ -161,8 +159,11 @@ describe('ClientFormDialogVNext', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
       intakeData: {
+        // NOT rendered by the wizard (dba/address removed 2026-08-23; peNumber
+        // and governmentHistory were never rendered) — all must survive an
+        // edit round-trip via the merge in formValuesToClientPayload.
         dba: 'Harborline',
-        // NOT rendered by the wizard — must survive an edit round-trip.
+        city: 'Norfolk',
         peNumber: '0604215N',
         governmentHistory: { note: 'kept' },
       },
@@ -171,48 +172,45 @@ describe('ClientFormDialogVNext', () => {
 
     expect(screen.getByRole('dialog', { name: 'Edit client' })).toBeInTheDocument();
     expect(screen.getByLabelText('Legal name')).toHaveValue('Harborline Analytics');
-    expect(screen.getByLabelText('DBA / trade name')).toHaveValue('Harborline');
+    // DBA is no longer a rendered field.
+    expect(screen.queryByLabelText('DBA / trade name')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Save changes' }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const { payload } = onSubmit.mock.calls[0]![0];
     expect(payload.name).toBe('Harborline Analytics');
-    // The wizard-owned key round-trips; the non-wizard keys ride through.
+    // Removed-from-wizard keys ride through untouched, same as always-unrendered ones.
     expect(payload.intakeData).toMatchObject({
       dba: 'Harborline',
+      city: 'Norfolk',
       peNumber: '0604215N',
       governmentHistory: { note: 'kept' },
     });
   });
 
-  it('collects logo and document Files and hands them to the caller unsent', async () => {
+  it('collects the logo File and hands it to the caller unsent; documents always empty', async () => {
     const { onSubmit } = renderDialog();
     fillRequiredStepOne();
 
     const logo = new File(['png-bytes'], 'crest.png', { type: 'image/png' });
-    const doc = new File(['pdf-bytes'], 'capabilities-brief.pdf', { type: 'application/pdf' });
     fireEvent.change(screen.getByLabelText('Client logo', { selector: 'input[type="file"]' }), {
       target: { files: [logo] },
     });
-    fireEvent.change(screen.getByLabelText('Documents', { selector: 'input[type="file"]' }), {
-      target: { files: [doc] },
-    });
     expect(screen.getByText('crest.png')).toBeInTheDocument();
-    expect(screen.getByText('capabilities-brief.pdf')).toBeInTheDocument();
+    // Document upload was removed from the wizard (2026-08-23).
+    expect(screen.queryByLabelText('Documents', { selector: 'input[type="file"]' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Add client' }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     const submission = onSubmit.mock.calls[0]![0];
     expect(submission.logo?.name).toBe('crest.png');
-    expect(submission.documents.map((f) => f.name)).toEqual(['capabilities-brief.pdf']);
+    expect(submission.documents).toEqual([]);
   });
 
   it('renders nothing while closed', () => {

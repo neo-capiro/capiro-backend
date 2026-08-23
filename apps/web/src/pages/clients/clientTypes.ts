@@ -192,11 +192,10 @@ export interface ClientAttachment {
 
 export interface ClientFormValues {
   name?: string;
-  /** DBA / trade name → intakeData.dba */
-  dba?: string;
   website?: string;
   description?: string;
   productDescription?: string;
+  /** Company contact block (step 1 as of the 2026-08-23 cleanup — formerly its own step). */
   primaryContactName?: string;
   primaryContactEmail?: string;
   primaryContactPhone?: string;
@@ -214,13 +213,6 @@ export interface ClientFormValues {
   profileType?: string;
   /** Controlled ProfileStatus, see PROFILE_STATUSES in @capiro/shared. */
   profileStatus?: string;
-  // Address (step 1)
-  address1?: string;
-  address2?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  zip?: string;
   // Small Business Classification flags (step 1)
   sbSb?: boolean;
   sbWosb?: boolean;
@@ -229,13 +221,11 @@ export interface ClientFormValues {
   sbEightA?: boolean;
   sbLarge?: boolean;
   sbForeignOwned?: boolean;
-  // Gov't registration (step 3)
+  // Gov't registration (step 2)
   cageCode?: string;
   uei?: string;
   samStatus?: string;
   samExpirationDate?: string;
-  primaryNaics?: string;
-  additionalNaics?: string;
   ldaRegistrantName?: string;
   ein?: string;
   // Step 2.3 — first-class NAICS / PSC code lists for relevance matching (tag inputs).
@@ -244,12 +234,26 @@ export interface ClientFormValues {
   /** Grants.gov "Eligible Applicants" label strings — see GRANTS_GOV_APPLICANT_TYPES. */
   applicantTypes?: string[];
   setAsideCertifications?: string[];
-  // Sector & tracks (step 4)
+  // Sector & tracks (step 3)
   engagementStartDate?: string;
   internalNotes?: string;
-  // ── Legacy fields retained for back-compat reads in clientToFormValues.
-  //    No longer collected by the wizard but preserved so existing intakeData
-  //    keys round-trip. ──
+  // ── Legacy fields retained for back-compat reads elsewhere in the app.
+  //    No longer collected by the wizard (removed 2026-08-23: DBA/trade name
+  //    had exactly one downstream reader and `name` is the functional field;
+  //    address fields have no consumer — District Nexus geo-relevance reads
+  //    Facility.state, not these; primaryNaics/additionalNaics were a
+  //    free-text duplicate of the first-class naicsCodes[] above). Pre-existing
+  //    intakeData for these keys is preserved on save (see
+  //    formValuesToClientPayload), just no longer editable through this form. ──
+  dba?: string;
+  address1?: string;
+  address2?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  zip?: string;
+  primaryNaics?: string;
+  additionalNaics?: string;
   trl?: string;
   fundingAsk?: string;
   requestType?: string;

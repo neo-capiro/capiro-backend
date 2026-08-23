@@ -11,29 +11,47 @@
 import { normalizeSector } from '@capiro/shared';
 import type { Client, ClientFormValues, ClientPayload } from './clientTypes.js';
 
-// The 4 wizard steps. Each step gates a subset of the company-info fields; the
-// final step submits. Logo + documents live below the steps and are NOT part
-// of the company-info field set — they're a separate wired upload feature.
-export const CLIENT_FORM_STEP_TITLES = [
-  'Company Info',
-  'Contact & Social',
-  "Gov't Registration",
-  'Sector & Tracks',
-] as const;
+// The 3 wizard steps (post cleanup — see docs/plans note below). Logo lives
+// below the steps and is NOT part of the company-info field set — it's a
+// separate wired upload feature.
+//
+// Removed 2026-08-23 (client profile wizard cleanup, user-directed):
+//  - Step 1 "Documents" upload — real feature (S3 presign/confirm), but it
+//    duplicates the dedicated Files tab; dropped from the wizard only.
+//  - Step 1 "DBA / trade name" — `dba` had exactly one downstream reader
+//    (news-catcher alias matching); `name` (Legal name) is the field every
+//    other surface keys off. Kept `name`, dropped `dba`.
+//  - Step 1 address (city/state/country/address1/zip) — no consumer;
+//    District Nexus geographic relevance reads Facility.state via
+//    facilityStates, not these intakeData fields. Configure addresses under
+//    the client's Facilities editor instead.
+//  - Former step 2 "Contact & Social" (primaryContactEmail/Phone) — folded
+//    into step 1 as a single "Company contact" block rather than removed:
+//    these ARE wired (Outreach recipient fallback, Meri, admin client list)
+//    and are NOT the same data as the Relationships/Organization people
+//    roster, which has no "primary contact" concept today.
+//  - Step 3 duplicate NAICS — `primaryNaics`/`additionalNaics` free-text
+//    pair dropped; `naicsCodes[]` (the first-class column the PE-relevance
+//    engine reads) is the functional one and is kept.
+// NOT removed — flagged for follow-up, see plan doc:
+//  - `ldaRegistrantName` stays single-value for now. Carrying the name over
+//    from the firm's LDA import and supporting multiple linked registrant
+//    names is a real schema change (needs a list/table, not a field tweak).
+//  - Step 4 (Sector & Tracks) kept in full — every field there is wired
+//    (sectorTag, insight generator, LDA issue-code matching, client-since
+//    date) except `internalNotes`, which is captured but never displayed
+//    anywhere; flagged as a gap rather than silently dropped.
+export const CLIENT_FORM_STEP_TITLES = ['Company Info', "Gov't Registration", 'Sector & Tracks'] as const;
 
 // Field names owned by each step, used to scope per-step validation so Next
 // only validates the fields the user has actually seen.
 export const CLIENT_FORM_STEP_FIELDS: Array<Array<keyof ClientFormValues>> = [
   [
     'name',
-    'dba',
     'website',
     'description',
-    'city',
-    'state',
-    'country',
-    'address1',
-    'zip',
+    'primaryContactEmail',
+    'primaryContactPhone',
     'sbSb',
     'sbWosb',
     'sbSdvosb',
@@ -42,14 +60,11 @@ export const CLIENT_FORM_STEP_FIELDS: Array<Array<keyof ClientFormValues>> = [
     'sbLarge',
     'sbForeignOwned',
   ],
-  ['primaryContactEmail', 'primaryContactPhone'],
   [
     'cageCode',
     'uei',
     'samStatus',
     'samExpirationDate',
-    'primaryNaics',
-    'additionalNaics',
     'ldaRegistrantName',
     'ein',
     'naicsCodes',
@@ -99,23 +114,17 @@ export function formValuesToClientPayload(
 
   // The wizard-owned intakeData keys. Compute their new values; an undefined
   // value means "clear this key". Everything NOT in this set (peNumber,
-  // profileNotes, governmentHistory, documents, …) is preserved from the
-  // existing blob below so editing through the wizard never wipes wired data.
+  // profileNotes, governmentHistory, documents, dba, address fields,
+  // primaryNaics/additionalNaics — all removed from the wizard 2026-08-23,
+  // see CLIENT_FORM_STEP_FIELDS comment — plus anything else unrendered) is
+  // preserved from the existing blob below so editing through the wizard
+  // never wipes data written by an older wizard version or another surface.
   const wizardIntake: Record<string, unknown> = {
-    dba: optionalText(values.dba),
-    address1: optionalText(values.address1),
-    address2: optionalText(values.address2),
-    city: optionalText(values.city),
-    state: optionalText(values.state),
-    country: optionalText(values.country),
-    zip: optionalText(values.zip),
     sbClassification: Object.keys(sbClassification).length ? sbClassification : undefined,
     cageCode: optionalText(values.cageCode)?.toUpperCase(),
     uei: optionalText(values.uei)?.toUpperCase(),
     samStatus: optionalText(values.samStatus),
     samExpirationDate: optionalText(values.samExpirationDate),
-    primaryNaics: optionalText(values.primaryNaics),
-    additionalNaics: optionalText(values.additionalNaics),
     ldaRegistrantName: optionalText(values.ldaRegistrantName),
     ein: optionalText(values.ein),
     sectors: sectors.length ? sectors : undefined,
@@ -124,7 +133,9 @@ export function formValuesToClientPayload(
   };
 
   // Merge: existing blob first, then apply each wizard-owned key (set or
-  // delete). Non-wizard keys ride through untouched.
+  // delete). Non-wizard keys — including dba/address/primaryNaics/
+  // additionalNaics from older intakeData — ride through untouched so
+  // removing these fields from the wizard does not delete pre-existing data.
   const intakeData: Record<string, unknown> = { ...toRecord(existing?.intakeData) };
   for (const [key, value] of Object.entries(wizardIntake)) {
     if (value === undefined) delete intakeData[key];
@@ -188,7 +199,6 @@ export function clientToFormValues(client?: Client): ClientFormValues {
 
   return {
     name: client.name,
-    dba: readText(intake, ['dba']),
     website: client.website ?? undefined,
     description: client.description ?? undefined,
     productDescription: client.productDescription ?? undefined,
@@ -200,13 +210,6 @@ export function clientToFormValues(client?: Client): ClientFormValues {
     issueCodes: client.issueCodes ?? [],
     profileType: client.profileType ?? undefined,
     profileStatus: client.profileStatus ?? undefined,
-    // Address
-    address1: readText(intake, ['address1']),
-    address2: readText(intake, ['address2']),
-    city: readText(intake, ['city']),
-    state: readText(intake, ['state']),
-    country: readText(intake, ['country']) ?? 'USA',
-    zip: readText(intake, ['zip']),
     // Small Business Classification flags
     sbSb: readBool(sb, ['sb']),
     sbWosb: readBool(sb, ['wosb']),
@@ -226,15 +229,18 @@ export function clientToFormValues(client?: Client): ClientFormValues {
       : [],
     samStatus: readText(intake, ['samStatus', 'sam_status']),
     samExpirationDate: readDate(intake, ['samExpirationDate', 'sam_expiration_date']),
-    primaryNaics: readText(intake, ['primaryNaics', 'primary_naics', 'naics']),
-    additionalNaics: readText(intake, ['additionalNaics', 'additional_naics']),
     ldaRegistrantName: readText(intake, ['ldaRegistrantName', 'lda_registrant_name']),
     ein: readText(intake, ['ein']),
     // Sector & tracks
     engagementStartDate: readDate(intake, ['engagementStartDate', 'engagement_start_date']),
     internalNotes: readText(intake, ['internalNotes', 'internal_notes']),
     // ── Legacy reads retained so older intakeData round-trips even though the
-    //    wizard no longer renders these fields. ──
+    //    wizard no longer renders these fields. dba/address/primaryNaics/
+    //    additionalNaics removed from the wizard 2026-08-23 join this list:
+    //    editing a client no longer touches them, but pre-existing values
+    //    stay intact in intakeData (see the merge in formValuesToClientPayload)
+    //    for any other surface that still reads them (e.g. news-catcher's
+    //    dba-based alias matching, BulkImportClientsModal's csv mapping). ──
     trl: readText(intake, ['trl']),
     fundingAsk: readText(intake, ['fundingAsk', 'funding_ask', 'funding ask']),
     requestType: readText(intake, ['requestType', 'request_type', 'request type']),

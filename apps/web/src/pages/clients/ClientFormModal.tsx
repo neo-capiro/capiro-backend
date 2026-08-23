@@ -62,7 +62,6 @@ export function ClientFormModal({
   onSubmit,
 }: ClientFormModalProps) {
   const [form] = Form.useForm<ClientFormValues>();
-  const [documentFiles, setDocumentFiles] = useState<UploadFile[]>([]);
   const [logoFiles, setLogoFiles] = useState<UploadFile[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -70,7 +69,6 @@ export function ClientFormModal({
     if (!open) return;
     form.resetFields();
     form.setFieldsValue(clientToFormValues(client ?? undefined));
-    setDocumentFiles([]);
     setLogoFiles([]);
     setCurrentStep(0);
   }, [client, form, open]);
@@ -95,9 +93,16 @@ export function ClientFormModal({
     onSubmit({
       // Pass the existing client (edit mode) so intakeData merges over the
       // current blob instead of overwriting it — preserves wired keys the
-      // wizard doesn't render (peNumber, profileNotes, governmentHistory…).
+      // wizard doesn't render (peNumber, profileNotes, governmentHistory,
+      // dba, address, primaryNaics/additionalNaics — see
+      // client-form-mapping.ts for the 2026-08-23 field removals).
       payload: formValuesToClientPayload(values, client ?? undefined),
-      documents: documentFiles.map(uploadFileToFile).filter((file): file is File => Boolean(file)),
+      // Document upload moved out of the wizard (2026-08-23) — attach files
+      // via the client's Files tab after saving instead. `documents` stays
+      // in ClientFormSubmit as an empty array for callers that still expect
+      // the shape (ClientWorkspacePage / ClientCrmPage upload it only when
+      // non-empty, so this is a no-op there).
+      documents: [],
       logo: uploadFileToFile(logoFiles[0]),
     });
   }
@@ -165,22 +170,20 @@ export function ClientFormModal({
         onFinishFailed={handleFinishFailed}
       >
         <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
-          <CompanyInfoStep />
+          <CompanyInfoStep form={form} />
         </div>
         <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
-          <ContactSocialStep form={form} />
-        </div>
-        <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>
           <GovRegistrationStep form={form} />
         </div>
-        <div style={{ display: currentStep === 3 ? 'block' : 'none' }}>
+        <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>
           <SectorTracksStep />
         </div>
 
-        {/* Logo + documents — separate wired upload feature, shown on every
-            step so they can be attached regardless of where the user is. */}
+        {/* Logo — separate wired upload feature, shown on every step so it
+            can be attached regardless of where the user is. Document upload
+            moved to the Files tab (2026-08-23) — see handleSubmit. */}
         <Divider orientation="left" plain>
-          Logo &amp; documents
+          Logo
         </Divider>
         <Row gutter={16}>
           <Col xs={24}>
@@ -201,23 +204,6 @@ export function ClientFormModal({
               </Upload>
             </Form.Item>
           </Col>
-          <Col xs={24}>
-            <Form.Item label="Documents">
-              <Upload
-                multiple
-                fileList={documentFiles}
-                beforeUpload={(file) => {
-                  setDocumentFiles((current) => [...current, file]);
-                  return false;
-                }}
-                onRemove={(file) => {
-                  setDocumentFiles((current) => current.filter((item) => item.uid !== file.uid));
-                }}
-              >
-                <Button icon={<UploadOutlined />}>Select documents</Button>
-              </Upload>
-            </Form.Item>
-          </Col>
         </Row>
       </Form>
     </Modal>
@@ -226,7 +212,11 @@ export function ClientFormModal({
 
 /* ── Step 1: Company Info ────────────────────────────────────────────────── */
 
-function CompanyInfoStep() {
+function CompanyInfoStep({
+  form,
+}: {
+  form: ReturnType<typeof Form.useForm<ClientFormValues>>[0];
+}) {
   return (
     <>
       <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
@@ -236,11 +226,6 @@ function CompanyInfoStep() {
         <Col xs={24} md={12}>
           <Form.Item name="name" label="Legal name" rules={[{ required: true, min: 1 }]}>
             <Input placeholder="Acme Defense Systems, Inc." />
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={12}>
-          <Form.Item name="dba" label="DBA / trade name">
-            <Input placeholder="Acme Defense" />
           </Form.Item>
         </Col>
         <Col xs={24} md={12}>
@@ -257,29 +242,29 @@ function CompanyInfoStep() {
             <Input.TextArea rows={3} maxLength={600} showCount />
           </Form.Item>
         </Col>
-        <Col xs={24} md={10}>
-          <Form.Item name="city" label="City">
-            <Input />
+      </Row>
+
+      <Divider orientation="left" plain>
+        Company contact
+      </Divider>
+      <Row gutter={16}>
+        <Col xs={24} md={12}>
+          <Form.Item
+            name="primaryContactEmail"
+            label="Main company email"
+            rules={[{ type: 'email' }]}
+          >
+            <Input placeholder="info@example.com" />
           </Form.Item>
         </Col>
-        <Col xs={24} md={7}>
-          <Form.Item name="state" label="State">
-            <Input placeholder="VA" maxLength={2} />
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={7}>
-          <Form.Item name="country" label="Country" initialValue="USA">
-            <Input placeholder="USA" />
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={17}>
-          <Form.Item name="address1" label="Street address">
-            <Input placeholder="123 Main St" />
-          </Form.Item>
-        </Col>
-        <Col xs={24} md={7}>
-          <Form.Item name="zip" label="ZIP">
-            <Input placeholder="22201" maxLength={10} />
+        <Col xs={24} md={12}>
+          <Form.Item name="primaryContactPhone" label="Main company phone">
+            <Input
+              placeholder="+1 202-555-0142"
+              onBlur={(event) =>
+                form.setFieldValue('primaryContactPhone', formatPhone(event.target.value))
+              }
+            />
           </Form.Item>
         </Col>
       </Row>
@@ -328,39 +313,7 @@ function CompanyInfoStep() {
   );
 }
 
-/* ── Step 2: Contact & Social ────────────────────────────────────────────── */
-
-function ContactSocialStep({
-  form,
-}: {
-  form: ReturnType<typeof Form.useForm<ClientFormValues>>[0];
-}) {
-  return (
-    <Row gutter={16}>
-      <Col xs={24} md={12}>
-        <Form.Item
-          name="primaryContactEmail"
-          label="Main company email"
-          rules={[{ type: 'email' }]}
-        >
-          <Input placeholder="info@example.com" />
-        </Form.Item>
-      </Col>
-      <Col xs={24} md={12}>
-        <Form.Item name="primaryContactPhone" label="Main company phone">
-          <Input
-            placeholder="+1 202-555-0142"
-            onBlur={(event) =>
-              form.setFieldValue('primaryContactPhone', formatPhone(event.target.value))
-            }
-          />
-        </Form.Item>
-      </Col>
-    </Row>
-  );
-}
-
-/* ── Step 3: Gov't Registration ──────────────────────────────────────────── */
+/* ── Step 2: Gov't Registration ──────────────────────────────────────────── */
 
 function GovRegistrationStep({
   form,
@@ -398,16 +351,6 @@ function GovRegistrationStep({
         </Form.Item>
       </Col>
       <Col xs={24} md={12}>
-        <Form.Item name="primaryNaics" label="Primary NAICS">
-          <Input placeholder="541330" maxLength={6} />
-        </Form.Item>
-      </Col>
-      <Col xs={24} md={12}>
-        <Form.Item name="additionalNaics" label="Additional NAICS">
-          <Input placeholder="541512, 541715" />
-        </Form.Item>
-      </Col>
-      <Col xs={24} md={12}>
         <Form.Item name="ldaRegistrantName" label="LDA registrant name">
           <Input placeholder="Registrant on LDA filings" />
         </Form.Item>
@@ -418,8 +361,9 @@ function GovRegistrationStep({
         </Form.Item>
       </Col>
       {/* Step 2.3 — first-class NAICS / PSC code lists. These drive client ⇄ PE
-          relevance matching (procurement codes), distinct from the legacy free-text
-          NAICS fields above which remain for back-compat. */}
+          relevance matching (procurement codes). The legacy free-text
+          primaryNaics/additionalNaics pair was removed from the wizard
+          2026-08-23 — this is the only NAICS input now. */}
       <Col xs={24} md={12}>
         <Form.Item
           name="naicsCodes"
@@ -492,12 +436,13 @@ function GovRegistrationStep({
   );
 }
 
-/* ── Step 4: Sector & Tracks ─────────────────────────────────────────────── */
+/* ── Step 3: Sector & Tracks ─────────────────────────────────────────────── */
 
 function SectorTracksStep() {
   const api = useApi();
   // LDA issue-code reference list (code + English name), for the client-level
   // matching override below.
+
   const issuesQuery = useQuery<Array<{ code: string; name: string }>>({
     queryKey: ['lda-issues-options', 'client-form'],
     queryFn: async () =>
