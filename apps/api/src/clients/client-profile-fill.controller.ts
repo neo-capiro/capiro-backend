@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
@@ -13,11 +14,13 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -29,8 +32,7 @@ import {
   CLIENT_PROFILE_FILL_SOURCES,
   type ClientProfileFillSource,
 } from './client-profile-fill.helpers.js';
-import { ClientProfileFillService } from './client-profile-fill.service.js';
-import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
+import { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
 
 class StartClientProfileFillDto {
   @IsOptional()
@@ -85,18 +87,34 @@ class RejectClientProfileFillDto {
   reason?: string;
 }
 
+class UpdateClientProfileFillScheduleDto {
+  @IsBoolean()
+  enabled!: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(6)
+  @Max(720)
+  cadenceHours?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(CLIENT_PROFILE_FILL_SOURCES.length)
+  @IsIn(CLIENT_PROFILE_FILL_SOURCES, { each: true })
+  sources?: ClientProfileFillSource[];
+}
+
 @Controller('clients/:clientId/fill-with-meri')
 @UseGuards(RolesGuard)
 @Roles('standard_user')
 export class ClientProfileFillController {
-  constructor(
-    private readonly service: ClientProfileFillService,
-    private readonly workflow: ClientProfileFillWorkflowService,
-  ) {}
+  constructor(private readonly service: ClientProfileFillCompletionService) {}
 
   @Get('setup')
   setup(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
-    return this.workflow.getSetup(ctx, clientId);
+    return this.service.getSetup(ctx, clientId);
   }
 
   @Post('runs')
@@ -112,7 +130,7 @@ export class ClientProfileFillController {
         ...(body.attachmentId ? [body.attachmentId] : []),
       ]),
     ];
-    return this.workflow.startRun(ctx, clientId, {
+    return this.service.startRun(ctx, clientId, {
       sources: body.sources,
       attachmentIds,
       ldaClientIds: body.ldaClientIds,
@@ -122,7 +140,7 @@ export class ClientProfileFillController {
 
   @Get('latest')
   latest(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
-    return this.workflow.getLatest(ctx, clientId);
+    return this.service.getLatest(ctx, clientId);
   }
 
   @Get('runs/:runId')
@@ -131,7 +149,7 @@ export class ClientProfileFillController {
     @Param('clientId') clientId: string,
     @Param('runId') runId: string,
   ) {
-    return this.workflow.getRun(ctx, clientId, runId);
+    return this.service.getRun(ctx, clientId, runId);
   }
 
   @Post('runs/:runId/cancel')
@@ -140,7 +158,7 @@ export class ClientProfileFillController {
     @Param('clientId') clientId: string,
     @Param('runId') runId: string,
   ) {
-    return this.workflow.cancelRun(ctx, clientId, runId);
+    return this.service.cancelRun(ctx, clientId, runId);
   }
 
   @Post('runs/:runId/tasks/:taskId/retry')
@@ -150,7 +168,7 @@ export class ClientProfileFillController {
     @Param('runId') runId: string,
     @Param('taskId') taskId: string,
   ) {
-    return this.workflow.retryTask(ctx, clientId, runId, taskId);
+    return this.service.retryTask(ctx, clientId, runId, taskId);
   }
 
   @Post('runs/:runId/apply')
@@ -183,5 +201,29 @@ export class ClientProfileFillController {
     @Param('findingId') findingId: string,
   ) {
     return this.service.restoreFinding(ctx, clientId, findingId);
+  }
+
+  @Get('refresh-schedule')
+  getRefreshSchedule(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+  ) {
+    return this.service.getSchedule(ctx, clientId);
+  }
+
+  @Put('refresh-schedule')
+  @Roles('user_admin')
+  updateRefreshSchedule(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Body() body: UpdateClientProfileFillScheduleDto,
+  ) {
+    return this.service.updateSchedule(ctx, clientId, body);
+  }
+
+  @Post('refresh-now')
+  @HttpCode(HttpStatus.ACCEPTED)
+  refreshNow(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    return this.service.refreshNow(ctx, clientId);
   }
 }
