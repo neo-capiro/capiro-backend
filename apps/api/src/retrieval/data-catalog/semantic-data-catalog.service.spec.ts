@@ -78,4 +78,30 @@ describe('SemanticDataCatalogService', () => {
       { domain: 'institutional_knowledge', adapterKey: 'knowledge-plane-temporal-graph' },
     ]);
   });
+
+  /**
+   * Regression: Outreach V3 asks the Context Plane a `relationship_history`
+   * question ("have we written to this recipient before, and what did we say").
+   * The outreach dataset did not advertise that query class, so the planner
+   * reported CONTEXT_PLANE_SOURCE_UNAVAILABLE for it and generation blocked on
+   * CONTEXT_PLANE_INCOMPLETE.
+   */
+  it('advertises relationship_history for prior-outreach history questions', () => {
+    const catalog = new SemanticDataCatalogService();
+
+    expect(catalog.get('outreach').supportedQueryClasses).toContain('relationship_history');
+  });
+
+  /**
+   * The outreach dataset intentionally stays on the core-prisma adapter, whose
+   * retrieveOutreach() applies no temporal scope under relationship_history.
+   * If this dataset were ever repointed at another adapter, the no-window
+   * guarantee asserted in core-prisma-retrieval.adapter.spec.ts would no longer
+   * cover it.
+   */
+  it('keeps outreach relationship history on the core-prisma adapter', () => {
+    const catalog = new SemanticDataCatalogService();
+
+    expect(catalog.get('outreach').adapterKey).toBe('core-prisma');
+  });
 });

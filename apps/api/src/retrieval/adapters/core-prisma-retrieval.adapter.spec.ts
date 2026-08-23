@@ -342,4 +342,52 @@ describe('CorePrismaRetrievalAdapter', () => {
       },
     });
   });
+
+  /**
+   * Regression for the Outreach V3 Context Plane gap: the outreach dataset now
+   * advertises `relationship_history`, and this adapter must NOT demand a time
+   * window for that pair. Only entity_history and change_detection are
+   * window-gated for outreach, so "have we written to this recipient before"
+   * must reach Prisma with no temporal scope applied at all.
+   */
+  it('serves outreach relationship history without requiring a time window', async () => {
+    const { adapter, catalog, tx, withTenant } = setup();
+
+    const result = await adapter.retrieve(
+      catalog.get('outreach'),
+      request({ requestedDomains: ['outreach'], queryClass: 'relationship_history' }),
+    );
+
+    // It must not short-circuit before Prisma the way the window-gated classes do.
+    expect(withTenant).toHaveBeenCalled();
+    expect(result.sourceStatus).not.toBe('unsupported');
+    expect(result.stopReason).not.toBe('window_start_and_end_required');
+
+    // No temporal predicate may be applied — the recipient's whole history counts.
+    const where = (tx.outreachRecord.count as jest.Mock).mock.calls[0]![0].where as {
+      AND: Array<Record<string, unknown>>;
+    };
+    const serialized = JSON.stringify(where);
+    expect(serialized).not.toContain('updatedAt');
+    expect(serialized).not.toContain('createdAt');
+    expect(serialized).not.toContain('sentAt');
+  });
+
+  it('still requires a valid window for outreach entity history and change detection', async () => {
+    for (const queryClass of ['entity_history', 'change_detection'] as const) {
+      const { adapter, catalog, withTenant } = setup();
+
+      const result = await adapter.retrieve(
+        catalog.get('outreach'),
+        request({ requestedDomains: ['outreach'], queryClass }),
+      );
+
+      expect(withTenant).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        sourceStatus: 'unsupported',
+        coverageComplete: false,
+        stopReason: 'window_start_and_end_required',
+      });
+    }
+  });
 });

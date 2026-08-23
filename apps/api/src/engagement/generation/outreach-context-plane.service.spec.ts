@@ -375,4 +375,72 @@ describe('OutreachContextPlaneService.resolve', () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  /**
+   * Regression: the mail and meetings datasets advertise `relationship_history`
+   * but CorePrismaRetrievalAdapter.validateTemporalRequirements() rejects that
+   * query class without an explicit window, so every guided-flow draft reported
+   * CONTEXT_PLANE_SOURCE_UNAVAILABLE for both domains and generation blocked on
+   * CONTEXT_PLANE_INCOMPLETE. Outreach wants the recipient's entire history, so
+   * the window is deliberately wide rather than a narrow recent slice.
+   */
+  test('relationship_history requests carry a wide retrieval window so mail and meetings are searchable', async () => {
+    const { svc, requestContext } = makeService();
+    const before = Date.now();
+    await svc.resolve(CTX, {
+      clientId: 'c1',
+      recipientName: 'Dana Reed',
+      recipientEmail: 'dana.reed@mail.house.gov',
+      objective: 'Request a meeting before markup.',
+      outreachRecordId: 'rec-1',
+      wallAllowsClient: true,
+    });
+    const after = Date.now();
+
+    const first = (requestContext.mock.calls as unknown as Array<[Record<string, unknown>]>)[0]![0];
+    const call = first as {
+      resolverRequest: {
+        retrieval: { queryClass: string; windowStart?: Date; windowEnd?: Date };
+      };
+    };
+
+    expect(call.resolverRequest.retrieval.queryClass).toBe('relationship_history');
+    const windowStart = call.resolverRequest.retrieval.windowStart;
+    const windowEnd = call.resolverRequest.retrieval.windowEnd;
+    expect(windowStart).toBeInstanceOf(Date);
+    expect(windowEnd).toBeInstanceOf(Date);
+
+    // windowEnd must be "now" — the adapter rejects windowEnd <= windowStart.
+    expect(windowEnd!.getTime()).toBeGreaterThanOrEqual(before);
+    expect(windowEnd!.getTime()).toBeLessThanOrEqual(after);
+    expect(windowEnd!.getTime()).toBeGreaterThan(windowStart!.getTime());
+
+    // "All available history", expressed the same way MeriContextPlaneService's
+    // inferWindow(..., 'available history') expresses it for this query class:
+    // the epoch, not an arbitrary N-year slice. A missed-history false negative
+    // is worse than an over-wide query here.
+    expect(windowStart!.toISOString()).toBe('1970-01-01T00:00:00.000Z');
+  });
+
+  test('a lookup-class request (no recipient, no client) does not fabricate a window', async () => {
+    const { svc, requestContext } = makeService({ clients: [] });
+    await svc.resolve(CTX, {
+      clientId: null,
+      recipientName: null,
+      recipientEmail: null,
+      objective: 'Follow up after the hearing.',
+      wallAllowsClient: false,
+    });
+
+    const first = (requestContext.mock.calls as unknown as Array<[Record<string, unknown>]>)[0]![0];
+    const call = first as {
+      resolverRequest: {
+        retrieval: { queryClass: string; windowStart?: Date; windowEnd?: Date };
+      };
+    };
+
+    expect(call.resolverRequest.retrieval.queryClass).toBe('lookup');
+    expect(call.resolverRequest.retrieval.windowStart).toBeUndefined();
+    expect(call.resolverRequest.retrieval.windowEnd).toBeUndefined();
+  });
 });

@@ -130,7 +130,7 @@ const DATASETS: readonly SemanticDatasetDescriptor[] = [
     authority: 'tenant_system_of_record',
     tenantScope: 'tenant_private',
     temporalSemantics: 'draft/send/delivery lifecycle plus created_at and updated_at',
-    supportedQueryClasses: ['lookup', 'entity_history', 'change_detection', 'portfolio_scan', 'exhaustive_search'],
+    supportedQueryClasses: ['lookup', 'entity_history', 'relationship_history', 'change_detection', 'portfolio_scan', 'exhaustive_search'],
     queryCapabilities: exactEnumerative,
     adapterKey: 'core-prisma',
     freshnessDescription: 'Immediate database state plus provider delivery timestamps where available.',

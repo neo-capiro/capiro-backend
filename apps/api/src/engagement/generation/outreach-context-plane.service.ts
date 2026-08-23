@@ -77,6 +77,8 @@ interface ResolvedOutreachPlan {
   requestedDomains: RetrievalDomain[];
   query: string | undefined;
   requireComplete: boolean;
+  windowStart: Date | undefined;
+  windowEnd: Date | undefined;
 }
 
 interface SecurityEnvelope {
@@ -138,6 +140,8 @@ export class OutreachContextPlaneService {
         queryClass: plan.queryClass,
         requestedDomains: plan.requestedDomains,
         ...(plan.query ? { query: plan.query } : {}),
+        ...(plan.windowStart ? { windowStart: plan.windowStart } : {}),
+        ...(plan.windowEnd ? { windowEnd: plan.windowEnd } : {}),
         pageSize: 50,
         requireComplete: plan.requireComplete,
       },
@@ -261,6 +265,7 @@ export function planOutreachGeneration(input: {
   clientName: string | null;
   recipientName: string | null;
   recipientEmail: string | null;
+  now?: Date;
 }): ResolvedOutreachPlan {
   const subjectScope: ContextSubjectScope = input.clientId ? 'client' : 'general';
   const query = [input.clientName, input.recipientName, input.recipientEmail, input.objective]
@@ -268,15 +273,46 @@ export function planOutreachGeneration(input: {
     .filter(Boolean)
     .join(' ')
     .trim();
+  const queryClass: RetrievalQueryClass =
+    input.recipientName || input.recipientEmail || input.clientId
+      ? 'relationship_history'
+      : 'lookup';
+  const window =
+    queryClass === 'relationship_history'
+      ? relationshipHistoryWindow(input.now ?? new Date())
+      : { windowStart: undefined, windowEnd: undefined };
   return {
     subjectScope,
-    queryClass: input.recipientName || input.recipientEmail || input.clientId
-      ? 'relationship_history'
-      : 'lookup',
+    queryClass,
     requestedDomains: [...OUTREACH_DOMAINS],
     query: query || undefined,
     requireComplete: false,
+    windowStart: window.windowStart,
+    windowEnd: window.windowEnd,
   };
+}
+
+/**
+ * The mail and meetings datasets advertise `relationship_history` but
+ * CorePrismaRetrievalAdapter.validateTemporalRequirements() rejects that query
+ * class outright when no window is supplied, which reported both domains as
+ * CONTEXT_PLANE_SOURCE_UNAVAILABLE and blocked every draft on
+ * CONTEXT_PLANE_INCOMPLETE.
+ *
+ * Outreach needs the recipient's *entire* relationship history, not a recent
+ * slice: a missed-history false negative (drafting as if we had never spoken to
+ * a member of Congress) is materially worse than an over-wide query.
+ *
+ * This reuses the convention already established by MeriContextPlaneService's
+ * `inferWindow(..., 'available history')`, which is the sibling Context Plane
+ * caller for the same query class: an unbounded lookback is expressed as the
+ * epoch, not an arbitrary N-year slice. Keeping the two callers identical means
+ * a future change to "all available history" semantics lands in one shape.
+ */
+const AVAILABLE_HISTORY_WINDOW_START = Date.UTC(1970, 0, 1);
+
+function relationshipHistoryWindow(now: Date): { windowStart: Date; windowEnd: Date } {
+  return { windowStart: new Date(AVAILABLE_HISTORY_WINDOW_START), windowEnd: now };
 }
 
 /**
