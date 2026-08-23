@@ -45,6 +45,10 @@ export class InMemoryBudgetLifecycleReadStore implements BudgetLifecycleReadStor
     );
   }
 
+  async getObservationById(id: string): Promise<ReadObservation | null> {
+    return (this.fixture.observations ?? []).find((observation) => observation.id === id) ?? null;
+  }
+
   async listObservationsByFiscalYear(fiscalYear: number): Promise<readonly ReadObservation[]> {
     return (this.fixture.observations ?? []).filter(
       (observation) => observation.fiscalYear === fiscalYear,

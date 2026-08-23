@@ -12,6 +12,7 @@ export * from './templates.js';
 export * from './cycle.js';
 export * from './classifier.js';
 export * from './watcher.js';
+export * from './ingestion-bridge.js';
 export * from './signals.js';
 export * from './progression.js';
 export * from './health.js';

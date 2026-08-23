@@ -194,6 +194,18 @@ export class PrismaBudgetLifecycleReadStore implements BudgetLifecycleReadStore 
     return Object.freeze(result.map(mapObservation));
   }
 
+  async getObservationById(id: string): Promise<ReadObservation | null> {
+    const result = rows<RawObservation>(
+      await this.prisma.$queryRawUnsafe(
+        `${OBSERVATION_SELECT}
+          WHERE o.id = $1::uuid
+          LIMIT 1`,
+        id,
+      ),
+    );
+    return result[0] ? mapObservation(result[0]) : null;
+  }
+
   async listObservationsByFiscalYear(fiscalYear: number): Promise<readonly ReadObservation[]> {
     const result = rows<RawObservation>(
       await this.prisma.$queryRawUnsafe(

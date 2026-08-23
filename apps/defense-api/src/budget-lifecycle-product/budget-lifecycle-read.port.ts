@@ -109,6 +109,13 @@ export interface BudgetLifecycleReadStore {
 
   listObservationsByFiscalYear(fiscalYear: number): Promise<readonly ReadObservation[]>;
 
+  /**
+   * Single-observation lookup by immutable id. Additive to this read-only
+   * port (Phase 10B-1, observation-ingestion bridge) — every existing method
+   * above stays untouched. Still SELECT-only.
+   */
+  getObservationById(id: string): Promise<ReadObservation | null>;
+
   /** Every expected source currently in `review_required`, each paired with its `review_required` observation. */
   listReviewQueue(fiscalYear: number): Promise<readonly ReviewQueueEntry[]>;
 
