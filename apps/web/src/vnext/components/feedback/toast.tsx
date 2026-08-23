@@ -23,10 +23,19 @@ import {
 
 type ToastTone = 'success' | 'error';
 
+interface ToastOptions {
+  title?: string;
+  action?: { label: string; onClick: () => void };
+  persistent?: boolean;
+}
+
 interface Toast {
   id: number;
   tone: ToastTone;
   text: string;
+  title?: string;
+  action?: { label: string; onClick: () => void };
+  persistent?: boolean;
 }
 
 export interface CapiroToastApi {
@@ -67,13 +76,15 @@ export function CapiroToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const push = useCallback(
-    (tone: ToastTone, text: string) => {
+    (tone: ToastTone, text: string, options?: ToastOptions) => {
       const id = (nextId.current += 1);
-      setToasts((current) => [...current, { id, tone, text }]);
-      timers.current.set(
-        id,
-        setTimeout(() => dismiss(id), DISMISS_AFTER_MS),
-      );
+      setToasts((current) => [...current, { id, tone, text, ...options }]);
+      if (!options?.persistent) {
+        timers.current.set(
+          id,
+          setTimeout(() => dismiss(id), DISMISS_AFTER_MS),
+        );
+      }
     },
     [dismiss],
   );
@@ -107,7 +118,34 @@ export function CapiroToastProvider({ children }: { children: ReactNode }) {
             role={toast.tone === 'error' ? 'alert' : 'status'}
             aria-live={toast.tone === 'error' ? 'assertive' : 'polite'}
           >
-            <span className="capiro-toast__text">{toast.text}</span>
+            <span className="capiro-toast__text">
+              {toast.title && (
+                <strong style={{ display: 'block', marginBottom: 2, fontWeight: 600 }}>
+                  {toast.title}
+                </strong>
+              )}
+              {toast.text}
+              {toast.action && (
+                <button
+                  type="button"
+                  onClick={toast.action.onClick}
+                  style={{
+                    marginTop: 6,
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    display: 'block',
+                  }}
+                >
+                  {toast.action.label}
+                </button>
+              )}
+            </span>
             <button
               type="button"
               className="capiro-toast__dismiss"
