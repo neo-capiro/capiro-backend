@@ -11,6 +11,7 @@
  *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-generation-route-manifest.v1.json
  *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-drafts-route-manifest.v1.json
  *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-send-route-manifest.v1.json
+ *   apps\api\src\outreach-v3\__fixtures__\outreach-v3-templates-route-manifest.v1.json
  * Generator: scripts/engagement-phase3-preview-route-patterns.mjs
  * Regenerate: node scripts/engagement-phase3-preview-route-patterns.mjs --write
  *
@@ -33,7 +34,7 @@ export const ENGAGEMENT_ROUTE_MANIFEST_SHA256 =
 export const ENGAGEMENT_ROUTE_MANIFEST_SCHEMA_VERSION = 1;
 
 /** Distinct primary + additive manifest paths covered below. */
-export const ENGAGEMENT_PREVIEW_ROUTE_COUNT = 131;
+export const ENGAGEMENT_PREVIEW_ROUTE_COUNT = 142;
 
 export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/associations/override$',
@@ -132,6 +133,17 @@ export const ENGAGEMENT_PREVIEW_ROUTE_PATTERNS: readonly string[] = [
   '^/api/engagement/outreach-v3/sessions/[^/]+/targets/search$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/versions$',
   '^/api/engagement/outreach-v3/sessions/[^/]+/versions/[^/]+$',
+  '^/api/engagement/outreach-v3/templates$',
+  '^/api/engagement/outreach-v3/templates/[^/]+$',
+  '^/api/engagement/outreach-v3/templates/[^/]+/archive$',
+  '^/api/engagement/outreach-v3/templates/[^/]+/draft$',
+  '^/api/engagement/outreach-v3/templates/[^/]+/duplicate$',
+  '^/api/engagement/outreach-v3/templates/[^/]+/publish$',
+  '^/api/engagement/outreach-v3/templates/[^/]+/use$',
+  '^/api/engagement/outreach-v3/templates/[^/]+/versions/from-session$',
+  '^/api/engagement/outreach-v3/templates/from-scratch$',
+  '^/api/engagement/outreach-v3/templates/from-session$',
+  '^/api/engagement/outreach-v3/templates/provenance/[^/]+$',
   '^/api/engagement/outreach/[^/]+$',
   '^/api/engagement/outreach/[^/]+/generate-draft$',
   '^/api/engagement/outreach/[^/]+/open-email$',

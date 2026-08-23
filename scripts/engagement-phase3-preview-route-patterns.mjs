@@ -4,9 +4,10 @@
  *
  * The browser must attach the preview header only to exact routes owned by the
  * engagement-api runtime. The original Phase 3 manifest remains the primary
- * parity manifest; additive Outreach V3 state, reasoning, target, and context
- * manifests are merged here so the final V3 customer UI can reach the dark
- * runtime without widening the header to an unsafe prefix match.
+ * parity manifest; additive Outreach V3 state, reasoning, target, context,
+ * generation, drafts, send, and templates manifests are merged here so the
+ * final V3 customer UI can reach the dark runtime without widening the header
+ * to an unsafe prefix match.
  *
  * Usage:
  *   node scripts/engagement-phase3-preview-route-patterns.mjs --check
@@ -46,6 +47,10 @@ const ADDITIVE_ROUTE_MANIFEST_PATHS = [
     'apps/api/src/outreach-v3/__fixtures__/outreach-v3-drafts-route-manifest.v1.json',
   ),
   path.join(ROOT, 'apps/api/src/outreach-v3/__fixtures__/outreach-v3-send-route-manifest.v1.json'),
+  path.join(
+    ROOT,
+    'apps/api/src/outreach-v3/__fixtures__/outreach-v3-templates-route-manifest.v1.json',
+  ),
 ];
 const GENERATED_PATH = path.join(
   ROOT,
