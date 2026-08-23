@@ -20,6 +20,7 @@ import { ClientProfileFillController } from './client-profile-fill.controller.js
 import { ClientProfileFillService } from './client-profile-fill.service.js';
 import { ClientProfileFillContextPlaneService } from './client-profile-fill-context-plane.service.js';
 import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
+import { ClientProfileFillRelationshipHistoryService } from './client-profile-fill-relationship-history.service.js';
 import {
   createGovernedClientProfileFillService,
   RAW_CLIENT_PROFILE_FILL_SERVICE,
@@ -87,6 +88,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     ClientTargetRecommendationsService,
     ClientCapabilityFitService,
     ClientProfileFillContextPlaneService,
+    ClientProfileFillRelationshipHistoryService,
     CrmFillEvaluationRunner,
     {
       provide: RAW_CLIENT_PROFILE_FILL_SERVICE,
@@ -100,6 +102,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
         ClientProfileFillContextPlaneService,
         ClientPeopleService,
         CrmFillEvaluationRunner,
+        ClientProfileFillRelationshipHistoryService,
       ],
     },
     // Restart-safe DB task worker and setup gate. It consumes the governed
