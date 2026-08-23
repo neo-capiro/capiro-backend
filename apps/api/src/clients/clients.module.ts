@@ -21,6 +21,7 @@ import { ClientProfileFillService } from './client-profile-fill.service.js';
 import { ClientProfileFillContextPlaneService } from './client-profile-fill-context-plane.service.js';
 import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
 import { ClientProfileFillRelationshipHistoryService } from './client-profile-fill-relationship-history.service.js';
+import { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
 import {
   createGovernedClientProfileFillService,
   RAW_CLIENT_PROFILE_FILL_SERVICE,
@@ -109,6 +110,10 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     // ClientProfileFillService so specialist execution retains Context Plane,
     // evidence, review, and learning behavior.
     ClientProfileFillWorkflowService,
+    // Completion facade + second durable ledger for the downstream specialists.
+    // It keeps advanced task types isolated from the Phase 1-3 worker while
+    // presenting one run/progress contract to the client-profile UI.
+    ClientProfileFillCompletionService,
     ClientActivityService,
     ClientFilesService,
     ClientAccountOwnerService,
