@@ -13,6 +13,10 @@ import {
   projectClientProfileContactCandidates,
   type ClientProfileFillGovernedContext,
 } from './client-profile-fill-context-plane.service.js';
+import {
+  ClientProfileFillRelationshipHistoryService,
+  type RelationshipHistoryFindingLike,
+} from './client-profile-fill-relationship-history.service.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
 import type { CrmFillEvaluationRunner, CrmFillExtractionLike } from './crm-fill-evaluation.runner.js';
 
@@ -37,12 +41,17 @@ interface ClientProfileFillInternals {
     clientId: string,
     runId: string,
   ) => Promise<number>;
+  applyFinding: (
+    ctx: TenantContext,
+    clientId: string,
+    finding: RelationshipHistoryFindingLike,
+  ) => Promise<unknown>;
   addFinding: (
     tenantId: string,
     clientId: string,
     runId: string,
     input: {
-      kind: 'person';
+      kind: 'person' | 'relationship_link';
       targetKey: string;
       source: string;
       factKind: 'fact';
@@ -125,11 +134,13 @@ export function createGovernedClientProfileFillService(
   // elsewhere in this program: absent means no evaluation is ever attempted,
   // no other behavior change to Fill with Meri's real extraction/persist path.
   evaluation?: CrmFillEvaluationRunner,
+  relationshipHistory?: ClientProfileFillRelationshipHistoryService,
 ): ClientProfileFillService {
   const internal = service as unknown as ClientProfileFillInternals;
   const originalStart = service.startRun.bind(service);
   const originalExecuteRun = internal.executeRun.bind(service);
   const originalExecuteDocumentRun = internal.executeCapabilityDocumentRun.bind(service);
+  const originalApplyFinding = internal.applyFinding.bind(service);
   const originalOpenAi = internal.callOpenAiJson.bind(service);
   const originalAnthropic = internal.callAnthropicJson.bind(service);
   // Phase 27F seams. Bound defensively (unlike the seams above, which this
@@ -193,6 +204,8 @@ export function createGovernedClientProfileFillService(
   // Retire the legacy direct engagementContact/domain lookup from the live
   // synced-email source. Candidates now come only from authorized Retrieval V2
   // contact records in the one run bundle and still become reviewable findings.
+  // Phase 4 then reuses the same task to propose authoritative meeting/thread
+  // associations for the Relationships history projection.
   internal.gatherSyncedEmail = async (ctx, clientId, runId) => {
     const bundle = requireGovernedBundle(clientId);
     const candidates = projectClientProfileContactCandidates(bundle);
@@ -246,7 +259,28 @@ export function createGovernedClientProfileFillService(
       });
       if (inserted) count += 1;
     }
+
+    if (relationshipHistory) {
+      count += await relationshipHistory.gather(
+        ctx,
+        clientId,
+        runId,
+        existingPeople,
+        (tenantId, findingClientId, findingRunId, input) =>
+          internal.addFinding(tenantId, findingClientId, findingRunId, input),
+      );
+    }
     return count;
+  };
+
+  internal.applyFinding = async (ctx, clientId, finding) => {
+    if (String(finding.kind) === 'relationship_link') {
+      if (!relationshipHistory) {
+        throw new BadRequestException('Relationship-history application is unavailable');
+      }
+      return relationshipHistory.apply(ctx, clientId, finding);
+    }
+    return originalApplyFinding(ctx, clientId, finding);
   };
 
   // All model-assisted extraction receives the canonical CRM identity and
