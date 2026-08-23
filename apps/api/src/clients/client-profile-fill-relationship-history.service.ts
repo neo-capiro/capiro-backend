@@ -67,7 +67,7 @@ interface RelationshipCandidate {
   emails: string[];
 }
 
-interface RelationshipMatch {
+export interface RelationshipMatch {
   confidence: number;
   matchedEmails: string[];
   matchedDomains: string[];
@@ -139,7 +139,7 @@ export class ClientProfileFillRelationshipHistoryService {
         entityType: 'mail_thread' as const,
         entityId: thread.id,
         title: safeTitle(thread.subject, 'Email thread'),
-        occurredAt: thread.lastMessageAt,
+        occurredAt: thread.lastMessageAt ?? thread.createdAt,
         emails: extractEmailsFromUnknown(thread.participants),
       })),
     ];
@@ -223,7 +223,7 @@ export class ClientProfileFillRelationshipHistoryService {
         data: {
           tenantId: ctx.tenantId,
           actorUserId: ctx.userId,
-          actorRole: ctx.role ?? null,
+          actorRole: (ctx as unknown as { role?: string }).role ?? null,
           action: 'client_profile_fill.apply',
           entityType: 'client_profile_fill:relationship_link',
           entityId: clientId,
@@ -301,6 +301,7 @@ export class ClientProfileFillRelationshipHistoryService {
             subject: true,
             participants: true,
             lastMessageAt: true,
+            createdAt: true,
           },
           orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
           take: MAX_RELATIONSHIP_CANDIDATES_PER_SOURCE,
