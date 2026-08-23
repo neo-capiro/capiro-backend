@@ -1183,7 +1183,7 @@ function DraftPanel({
       ) : (
         <>
           {job &&
-          (!['complete', 'failed', 'canceled'].includes(job.status) || failedItems.length > 0) ? (
+          (!TERMINAL_GENERATION.includes(job.status) || failedItems.length > 0) ? (
             <div className="uui-generation-progress">
               <div>
                 <span className="uui-eyebrow">Generation recovery</span>
@@ -1227,7 +1227,7 @@ function DraftPanel({
                 <button type="button" className="uui-button uui-button--primary" onClick={onGenerateRemaining}>
                   Continue
                 </button>
-                {!['complete', 'failed', 'canceled'].includes(job.status) ? (
+                {!TERMINAL_GENERATION.includes(job.status) ? (
                   <button type="button" className="uui-button" onClick={onCancelGeneration}>
                     Cancel
                   </button>
@@ -2206,7 +2206,7 @@ export function VNextOutreachWorkspace({
   useEffect(() => {
     if (
       generationJob.data &&
-      ['complete', 'failed', 'canceled'].includes(generationJob.data.status)
+      TERMINAL_GENERATION.includes(generationJob.data.status)
     )
       void qc.invalidateQueries({ queryKey: ['outreach-v3', 'drafts', sessionId] });
   }, [generationJob.data, qc, sessionId]);

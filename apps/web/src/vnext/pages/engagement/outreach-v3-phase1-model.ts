@@ -25,7 +25,7 @@ const SEND_TERMINAL = new Set([
   'partial',
 ]);
 
-const GENERATION_TERMINAL = new Set(['complete', 'failed', 'canceled', 'cancelled']);
+const GENERATION_TERMINAL = new Set(['complete', 'failed', 'canceled', 'cancelled', 'partial']);
 
 export function isSendTerminal(status?: string | null): boolean {
   return Boolean(status && SEND_TERMINAL.has(status.toLowerCase()));
