@@ -58,6 +58,45 @@ export function evaluateBridgeEligibility(observationState: ObservationState): B
 export const SOURCE_BYTES_CHANGED = 'SOURCE_BYTES_CHANGED' as const;
 
 /**
+ * Deterministic marker the bridge attaches to every result to make explicit
+ * that no legitimate per-observation production boundary exists today from a
+ * verified, registered `SourceDocument` to a canonical Defense Budget write.
+ *
+ * Traced (Phase 10B-1 repair) starting from `ParserRouterV1Service`'s
+ * terminal result: the next real write path is
+ * `DefenseBudgetCanonicalPromotionServiceV1.execute` (Phase 7 Workstream E),
+ * but it is unreachable from a single-observation bridge for three structural
+ * reasons, not a missing wiring detail:
+ *
+ *   1. **Scope mismatch.** Promotion operates on a `DefenseBudgetPromotionPlanV1`
+ *      built from an ENTIRE certified cycle/family (all R-1/R-2/R-2A/R-3/R-4
+ *      documents for RDT&E, the equivalent family sets for non-RDT&E and
+ *      committee/Phase 6), not on one document. There is no per-document
+ *      canonical projector: `canonical-projectors-v1.ts` turns an already
+ *      cross-document-reconciled Phase 4/5/6 projection candidate into a
+ *      `PromotionProjectionInputV1`, and that reconciliation itself only runs
+ *      over a full manifest.
+ *   2. **Separate human authorization.** Even a complete plan cannot execute
+ *      itself: `execute-defense-budget-promotion-v1.ts` requires a
+ *      `defense_budget_promotion_authorization_v1` record issued by a
+ *      distinct, auditable operator action, bound by hash to the exact plan,
+ *      with its own expiry — deliberately not something a bridge invocation
+ *      can self-issue.
+ *   3. **Separate database role.** The execution path reads
+ *      `PROMOTER_DATABASE_URL` and explicitly refuses to fall back to
+ *      `DATABASE_URL`; the serving API (and therefore this bridge) does not
+ *      hold that credential by design.
+ *
+ * Until a legitimate per-observation (or per-completed-cycle-with-an-
+ * observation-driven-trigger) canonical write boundary is designed, every
+ * bridge result carries this marker rather than silently letting a
+ * SourceDocument-registered + parser-handed-off row be mistaken for
+ * "canonical data now exists".
+ */
+export const PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING =
+  'PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING' as const;
+
+/**
  * The lifecycle observation represents a specific immutable byte identity.
  * This is the one comparison every code path must route through — never a
  * bespoke `===` at a call site — so the "never overwrite, never silently

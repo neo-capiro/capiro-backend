@@ -18,7 +18,11 @@ import type { AuthorityTrack, LifecycleStage, ObservationState, SourceFamily } f
 import { NON_QUEUEABLE_OBSERVATION_STATES } from '@capiro/defense-domain';
 
 import { PrismaService } from '../prisma/prisma.service.js';
-import type { LoadedBridgeObservation, ObservationBridgeStore } from './observation-ingestion-bridge.ports.js';
+import type {
+  LoadedBridgeObservation,
+  ObservationBridgeStore,
+  StoredSourceDocumentArchiveRecord,
+} from './observation-ingestion-bridge.ports.js';
 
 type PrismaLike = PrismaService | PrismaClient;
 
@@ -62,6 +66,20 @@ export class PrismaObservationBridgeStore implements ObservationBridgeStore {
         fiscalYear: observation.cycle.fiscalYear,
         authorityTrack: observation.cycle.authorityTrack as AuthorityTrack,
       },
+    };
+  }
+
+  async loadSourceDocumentArchive(sourceDocumentId: string): Promise<StoredSourceDocumentArchiveRecord | null> {
+    const document = await this.prisma.sourceDocument.findUnique({
+      where: { id: sourceDocumentId },
+    });
+    if (!document) return null;
+    return {
+      sourceDocumentId: document.id,
+      sha256: document.sha256,
+      archiveBucket: document.archiveBucket,
+      archiveS3Key: document.archiveS3Key,
+      archiveVersionId: document.archiveVersionId,
     };
   }
 
