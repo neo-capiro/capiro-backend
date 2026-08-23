@@ -173,14 +173,32 @@ const COMMITMENTS = [
   },
 ];
 
-/** The rail lives in the "Relationship controls" card; the same activity also
- *  appears in the timeline, so every rail assertion is scoped to that card. */
+/** The rail lives inside the "Relationship controls" sub-section of the
+ *  combined "Account relationship timeline" card; the same activity also
+ *  appears in the timeline column, so every rail assertion is scoped to the
+ *  rail's own container (the nearest ancestor <div>, not the whole card). */
 async function railCard() {
   const heading = await screen.findByText('Relationship controls');
-  const card = heading.closest('section');
-  if (!card) throw new Error('Relationship controls card not found');
+  const card = heading.closest('div');
+  if (!card) throw new Error('Relationship controls rail not found');
   return within(card);
 }
+
+describe('ClientCrmHistoryProto — consolidated timeline + controls card', () => {
+  it('renders "Account relationship timeline" and "Relationship controls" inside one card', async () => {
+    getMock.mockResolvedValue({ data: ACTIVITY });
+    renderHistory();
+
+    await screen.findByText('Quarterly check-in with program office');
+    const timelineHeading = screen.getByRole('heading', { name: 'Account relationship timeline' });
+    const card = timelineHeading.closest('section');
+    if (!card) throw new Error('Account relationship timeline card not found');
+    // "Relationship controls" is a sub-section INSIDE this card, not its own
+    // Card — the old duplicate two-card layout is gone.
+    expect(within(card).getByText('Relationship controls')).toBeInTheDocument();
+    expect(screen.queryAllByRole('heading', { name: 'Account relationship timeline' })).toHaveLength(1);
+  });
+});
 
 describe('ClientCrmHistoryProto — open commitments rail', () => {
   it('lists real open commitments, including one with no due date, and drops settled ones', async () => {

@@ -210,13 +210,21 @@ export function ClientCrmIntelligenceProto({ client, view }: { client: Client; v
       <TabPageHead title={domain.title} sub={domain.sub} actions={actions} />
       <DomainStatsStrip view={view} realValues={realStats} />
       {view === 'legislative' ? (
-        <LegislativePanel
-          client={client}
-          addBillOpen={addBillOpen}
-          onAddBillOpenChange={setAddBillOpen}
-        />
+        <>
+          <LegislativePanel
+            client={client}
+            addBillOpen={addBillOpen}
+            onAddBillOpenChange={setAddBillOpen}
+          />
+          {/* Regulatory used to be its own segmented-tab view; its content
+              (active matters + deadline rail) now renders right below
+              Legislative's, under one merged "Legislative & Regulatory"
+              domain — the two were always read from the same client-
+              intelligence surface. */}
+          <RegulatorySectionHead />
+          <RegulatoryPanel client={client} />
+        </>
       ) : null}
-      {view === 'regulatory' ? <RegulatoryPanel client={client} /> : null}
       {view === 'funding' ? <FundingPanel client={client} /> : null}
       {view === 'footprint' ? <FootprintPanel client={client} /> : null}
       {view === 'district' ? <DistrictPanel client={client} /> : null}
@@ -255,7 +263,7 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
     queryKey: ['client-intel-v1-aggregate', client.id],
     queryFn: async () =>
       (await api.get<ClientProfileV1>(`/api/intelligence/clients/${client.id}/profile-v1`)).data,
-    enabled: view === 'regulatory',
+    enabled: view === 'legislative',
     staleTime: 2 * 60_000,
     retry: 1,
   });
@@ -304,31 +312,31 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
   });
   const nexusV2Q = useDistrictNexusV2(client, view === 'district');
 
-  if (view === 'legislative' && trackerReady && boardQ.isSuccess) {
-    const board = boardQ.data;
+  // Legislative & Regulatory is one merged view: tracked bills alongside
+  // active regulatory matters + upcoming deadlines. Each source renders its
+  // own real cells as soon as IT resolves — this used to be two separate
+  // 4/5-cell strips (Legislative view, Regulatory view); now it is one
+  // 5-cell strip that fills in from whichever query answers first.
+  if (view === 'legislative' && ((trackerReady && boardQ.isSuccess) || aggQ.isSuccess)) {
+    const trackedBills = trackerReady && boardQ.isSuccess ? String(boardQ.data.total) : '—';
+    const rails = aggQ.isSuccess ? aggQ.data?.sections?.legislativeRegulatory?.regulatoryLifecycle?.rails ?? [] : null;
+    const activeMatters = rails ? String(rails.length) : '—';
+    const deadlineSoon = rails
+      ? String(
+          rails.filter((r) => {
+            if (!r.deadline) return false;
+            const on = deadlineDay(r.deadline);
+            if (!on) return false;
+            return Math.ceil((on.getTime() - Date.now()) / 86_400_000) <= 14;
+          }).length,
+        )
+      : '—';
     return [
-      [String(board.total), 'Tracked bills'],
+      [trackedBills, 'Tracked bills'],
+      [activeMatters, 'Active matters'],
+      [deadlineSoon, 'Deadline < 14 days'],
       ['—', 'Material changes'],
-      ['—', 'Upcoming hearings'],
       ['—', 'Watchlist coverage'],
-    ];
-  }
-
-  if (view === 'regulatory' && aggQ.isSuccess) {
-    const rails = aggQ.data.sections.legislativeRegulatory.regulatoryLifecycle?.rails ?? [];
-    const now = Date.now();
-    const soon = rails.filter((r) => {
-      if (!r.deadline) return false;
-      const on = deadlineDay(r.deadline);
-      if (!on) return false;
-      return Math.ceil((on.getTime() - now) / 86_400_000) <= 14;
-    }).length;
-    return [
-      [String(rails.length), 'Active matters'],
-      [String(soon), 'Deadline < 14 days'],
-      ['—', 'Linked bills'],
-      ['—', 'Agencies'],
-      ['—', 'Days to next deadline'],
     ];
   }
 
@@ -398,14 +406,9 @@ function useDomainStats(client: Client, view: IntelligenceView, api: ReturnType<
 
 const DOMAIN_META: Record<string, { title: string; sub: string; actions?: ReactNode }> = {
   legislative: {
-    title: 'Legislative',
-    sub: 'Tracked bills, hearings, and material changes from LegiWatch.',
+    title: 'Legislative & Regulatory',
+    sub: 'Tracked bills, hearings, and material changes from LegiWatch, plus Federal Register matters shown as decision-oriented lifecycle rails with client deadlines.',
     // actions computed in ClientCrmIntelligenceProto — see the comment there.
-  },
-  regulatory: {
-    title: 'Regulatory',
-    sub: 'Federal Register matters shown as decision-oriented lifecycle rails with client deadlines.',
-    actions: <PrimaryBtn>Track matter</PrimaryBtn>,
   },
   funding: {
     title: 'Funding & Budget',
@@ -829,6 +832,21 @@ interface DeadlineView {
   documentNumber?: string;
 }
 
+/**
+ * Divider between the Legislative content above and Regulatory below —
+ * both now render on the same "Legislative & Regulatory" domain view. Not a
+ * Card of its own; just a labeled section break, the same idiom
+ * `ClientProfileCard`'s `SectionHead` uses on the Overview tab.
+ */
+function RegulatorySectionHead() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 4 }}>
+      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#101828' }}>Regulatory</h3>
+      <span style={{ flex: 1, height: 1, background: '#E8E5DF' }} />
+    </div>
+  );
+}
+
 function RegulatoryPanel({ client }: { client: Client }) {
   const api = useApi();
 
@@ -849,7 +867,7 @@ function RegulatoryPanel({ client }: { client: Client }) {
     retry: 1,
   });
 
-  const lifecycle = aggregate.data?.sections.legislativeRegulatory.regulatoryLifecycle;
+  const lifecycle = aggregate.data?.sections?.legislativeRegulatory?.regulatoryLifecycle;
   const loaded = aggregate.data !== undefined && !aggregate.isError;
 
   const realDeadlines: DeadlineView[] = useMemo(() => {

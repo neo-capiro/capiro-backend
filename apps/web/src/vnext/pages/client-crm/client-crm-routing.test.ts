@@ -105,6 +105,14 @@ describe('resolveCrmRoute — hostile and stale input', () => {
     });
   });
 
+  it('normalizes the retired Intelligence Regulatory bookmark to Legislative (folded into it)', () => {
+    expect(at('tab=intelligence&view=regulatory')).toEqual({
+      tab: 'intelligence',
+      view: 'legislative',
+      didNormalize: true,
+    });
+  });
+
   it('is case- and whitespace-insensitive', () => {
     expect(at('tab=%20People%20').tab).toBe('relationships');
     expect(at('tab=INTELLIGENCE&view=Legislative').view).toBe('legislative');
@@ -146,9 +154,9 @@ describe('applyCrmRoute', () => {
   it('keeps an explicit secondary view', () => {
     const next = applyCrmRoute(new URLSearchParams(''), {
       tab: 'intelligence',
-      view: 'regulatory',
+      view: 'funding',
     });
-    expect(next.get('view')).toBe('regulatory');
+    expect(next.get('view')).toBe('funding');
   });
 
   it('rejects a view that does not belong to the tab', () => {

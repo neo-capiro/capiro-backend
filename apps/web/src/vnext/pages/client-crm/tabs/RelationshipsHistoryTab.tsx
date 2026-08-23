@@ -244,23 +244,22 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
         <Eyebrow style={{ whiteSpace: 'nowrap' }}>Recent activity</Eyebrow>
       </div>
 
-      <div className="cap-pf-grid-side-380">
-        <TimelineCard entries={shown} noActivityYet={genuinelyEmpty} />
-        <ControlsCard
-          commitments={openCommitments}
-          // Fixture only while the fetch is still in flight or errored. Once
-          // it genuinely resolves to nothing, "Nothing outstanding" is the
-          // truthful answer — this used to fall back on `all.length === 0`,
-          // which showed the fixture during every load and for every client
-          // that really had no activity.
-          fallbackCommitments={!loaded}
-          pinnedText={pinnedNote ? maskJoinUrls(pinnedNote.body ?? pinnedNote.title) : null}
-          pinnedLoaded={loaded}
-          onQuickAdd={(kind) => setAdding(kind)}
-          onSettle={(id) => mutate.mutate({ id, settled: true })}
-          settlingId={mutate.isPending ? (mutate.variables?.id ?? null) : null}
-        />
-      </div>
+      <TimelineAndControlsCard
+        entries={shown}
+        noActivityYet={genuinelyEmpty}
+        commitments={openCommitments}
+        // Fixture only while the fetch is still in flight or errored. Once
+        // it genuinely resolves to nothing, "Nothing outstanding" is the
+        // truthful answer — this used to fall back on `all.length === 0`,
+        // which showed the fixture during every load and for every client
+        // that really had no activity.
+        fallbackCommitments={!loaded}
+        pinnedText={pinnedNote ? maskJoinUrls(pinnedNote.body ?? pinnedNote.title) : null}
+        pinnedLoaded={loaded}
+        onQuickAdd={(kind) => setAdding(kind)}
+        onSettle={(id) => mutate.mutate({ id, settled: true })}
+        settlingId={mutate.isPending ? (mutate.variables?.id ?? null) : null}
+      />
 
       {adding ? (
         <LogActivityModal
@@ -275,20 +274,131 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
   );
 }
 
-/* ── Timeline card ────────────────────────────────────────────────────────── */
+/* ── Account relationship timeline + Relationship controls (consolidated) ─── */
 
-function TimelineCard({ entries, noActivityYet }: { entries: HistEntry[]; noActivityYet: boolean }) {
+/**
+ * The activity timeline and the quick-add/commitments/pinned-note rail used
+ * to be two side-by-side cards ("Account relationship timeline" and
+ * "Relationship controls") that were really one feature — the record of what
+ * happened with this client and the tools to act on it. They are now one
+ * card: the timeline as the main column, the controls rail beside it, both
+ * under a single header and border.
+ */
+interface CommitmentRow {
+  id: string;
+  label: string;
+  when: string;
+  tone: PillTone;
+  /** Real rows the API will accept a settle for (it requires a due date). */
+  settleable?: boolean;
+}
+
+function TimelineAndControlsCard({
+  entries,
+  noActivityYet,
+  commitments,
+  fallbackCommitments,
+  pinnedText,
+  pinnedLoaded,
+  onQuickAdd,
+  onSettle,
+  settlingId,
+}: {
+  entries: HistEntry[];
+  noActivityYet: boolean;
+  commitments: ActivityItem[];
+  fallbackCommitments: boolean;
+  pinnedText: string | null;
+  pinnedLoaded: boolean;
+  onQuickAdd: (kind: ActivityKind) => void;
+  onSettle: (id: string) => void;
+  settlingId: string | null;
+}) {
+  const rows: CommitmentRow[] = fallbackCommitments
+    ? // Design fixture (UI-only): attention items shaped as open commitments.
+      OV_ATTN.filter((a) => a.id === 'a7' || a.id === 'a3' || a.id === 'a8').map((a) => ({
+        id: a.id,
+        label: a.title,
+        when: a.due,
+        tone: a.ui as PillTone,
+      }))
+    : commitments.map((item) => ({
+        id: item.id,
+        label: item.title,
+        // A commitment with no due date is still open — it just has no date to
+        // show, which is different from being overdue.
+        when: item.dueAt ? formatDay(item.dueAt) : 'No due date',
+        tone: commitmentTone(item.dueAt),
+        // The API refuses to settle a row without a dueAt ("Only a commitment
+        // or request can be settled"), so the action is only offered where the
+        // write would actually succeed.
+        settleable: Boolean(item.dueAt),
+      }));
+
   return (
     <Card>
       <CardHead title="Account relationship timeline" />
-      <div>
-        {entries.length === 0 ? (
-          <p style={{ margin: 0, padding: '20px 24px', fontSize: 14, color: '#667085' }}>
-            {noActivityYet ? 'No activity recorded for this client yet.' : 'No activity matches this filter.'}
-          </p>
-        ) : (
-          entries.map((e) => <TimelineEntry key={e.id} entry={e} />)
-        )}
+      <div className="cap-pf-grid-side-380" style={{ padding: 0 }}>
+        {/* timeline */}
+        <div>
+          {entries.length === 0 ? (
+            <p style={{ margin: 0, padding: '20px 24px', fontSize: 14, color: '#667085' }}>
+              {noActivityYet ? 'No activity recorded for this client yet.' : 'No activity matches this filter.'}
+            </p>
+          ) : (
+            entries.map((e) => <TimelineEntry key={e.id} entry={e} />)
+          )}
+        </div>
+
+        {/* relationship controls rail */}
+        <div style={{ borderLeft: '1px solid #E8E5DF', padding: '20px 24px' }}>
+          <h4 style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+            Relationship controls
+          </h4>
+          <div style={{ marginTop: 16 }}>
+            <Eyebrow>Quick add</Eyebrow>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+              {QUICK_ADD.map((qa) => (
+                <QuickAddRow key={qa.kind} label={qa.label} onClick={() => onQuickAdd(qa.kind)} />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
+            <Eyebrow>Open commitments</Eyebrow>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+              {rows.length === 0 ? (
+                <span style={{ fontSize: 14, color: '#667085' }}>Nothing outstanding.</span>
+              ) : (
+                rows.map((cm) => (
+                  <CommitmentLine
+                    key={cm.id}
+                    row={cm}
+                    settling={settlingId === cm.id}
+                    {...(!fallbackCommitments && cm.settleable ? { onSettle: () => onSettle(cm.id) } : {})}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
+            <Eyebrow>Pinned account note</Eyebrow>
+            {/* While loading, a skeleton — the old fixture fallback was a
+                sentence of invented client preference that read exactly like a
+                real pinned note. Once the fetch settles with nothing, the honest
+                answer is that there isn't one. */}
+            {pinnedLoaded ? (
+              <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+                {pinnedText ?? 'No pinned note yet — pin an activity to keep it here.'}
+              </p>
+            ) : (
+              <div style={{ marginTop: 10, maxWidth: 280 }}>
+                <PfSkeleton />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </Card>
   );
@@ -372,104 +482,7 @@ function TimelineEntry({ entry: e }: { entry: HistEntry }) {
   );
 }
 
-/* ── Relationship controls card ───────────────────────────────────────────── */
-
-interface CommitmentRow {
-  id: string;
-  label: string;
-  when: string;
-  tone: PillTone;
-  /** Real rows the API will accept a settle for (it requires a due date). */
-  settleable?: boolean;
-}
-
-function ControlsCard({
-  commitments,
-  fallbackCommitments,
-  pinnedText,
-  pinnedLoaded,
-  onQuickAdd,
-  onSettle,
-  settlingId,
-}: {
-  commitments: ActivityItem[];
-  fallbackCommitments: boolean;
-  pinnedText: string | null;
-  pinnedLoaded: boolean;
-  onQuickAdd: (kind: ActivityKind) => void;
-  onSettle: (id: string) => void;
-  settlingId: string | null;
-}) {
-  const rows: CommitmentRow[] = fallbackCommitments
-    ? // Design fixture (UI-only): attention items shaped as open commitments.
-      OV_ATTN.filter((a) => a.id === 'a7' || a.id === 'a3' || a.id === 'a8').map((a) => ({
-        id: a.id,
-        label: a.title,
-        when: a.due,
-        tone: a.ui as PillTone,
-      }))
-    : commitments.map((item) => ({
-        id: item.id,
-        label: item.title,
-        // A commitment with no due date is still open — it just has no date to
-        // show, which is different from being overdue.
-        when: item.dueAt ? formatDay(item.dueAt) : 'No due date',
-        tone: commitmentTone(item.dueAt),
-        // The API refuses to settle a row without a dueAt ("Only a commitment
-        // or request can be settled"), so the action is only offered where the
-        // write would actually succeed.
-        settleable: Boolean(item.dueAt),
-      }));
-
-  return (
-    <Card>
-      <CardHead title="Relationship controls" />
-      <div style={{ padding: '20px 24px' }}>
-        <Eyebrow>Quick add</Eyebrow>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
-          {QUICK_ADD.map((qa) => (
-            <QuickAddRow key={qa.kind} label={qa.label} onClick={() => onQuickAdd(qa.kind)} />
-          ))}
-        </div>
-
-        <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
-          <Eyebrow>Open commitments</Eyebrow>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
-            {rows.length === 0 ? (
-              <span style={{ fontSize: 14, color: '#667085' }}>Nothing outstanding.</span>
-            ) : (
-              rows.map((cm) => (
-                <CommitmentLine
-                  key={cm.id}
-                  row={cm}
-                  settling={settlingId === cm.id}
-                  {...(!fallbackCommitments && cm.settleable ? { onSettle: () => onSettle(cm.id) } : {})}
-                />
-              ))
-            )}
-          </div>
-        </div>
-
-        <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
-          <Eyebrow>Pinned account note</Eyebrow>
-          {/* While loading, a skeleton — the old fixture fallback was a
-              sentence of invented client preference that read exactly like a
-              real pinned note. Once the fetch settles with nothing, the honest
-              answer is that there isn't one. */}
-          {pinnedLoaded ? (
-            <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
-              {pinnedText ?? 'No pinned note yet — pin an activity to keep it here.'}
-            </p>
-          ) : (
-            <div style={{ marginTop: 10, maxWidth: 280 }}>
-              <PfSkeleton />
-            </div>
-          )}
-        </div>
-      </div>
-    </Card>
-  );
-}
+/* ControlsCard's body was folded into TimelineAndControlsCard above. */
 
 function QuickAddRow({ label, onClick }: { label: string; onClick: () => void }) {
   const [hover, setHover] = useState(false);

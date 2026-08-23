@@ -9,8 +9,7 @@
  * Contract:
  *   tab=overview | relationships | work | intelligence | files
  *   tab=relationships  view=organization | government | history
- *   tab=intelligence   view=legislative | regulatory | funding | footprint
- *                           | district
+ *   tab=intelligence   view=legislative | funding | footprint | district
  *   tab=capabilities   preserved capability-management surface (§13)
  *
  * Legacy values keep resolving, and are rewritten to their canonical form so
@@ -26,9 +25,18 @@ export type CrmSurface = CrmTab;
 export const RELATIONSHIP_VIEWS = ['organization', 'government', 'history'] as const;
 export type RelationshipView = (typeof RELATIONSHIP_VIEWS)[number];
 
+/**
+ * Legislative and Regulatory used to be two separate segmented-tab views —
+ * each its own card layout — even though both are "policy matters affecting
+ * this client" read from the same client-intelligence surface. They are now
+ * one view, `legislative`, whose panel renders the Legislative content
+ * (tracked bills, recommendations) followed by the Regulatory content
+ * (active matters, deadline rail). A stale `?view=regulatory` bookmark
+ * normalizes to `legislative`, the same precedent already set for the
+ * retired `overview` view.
+ */
 export const INTELLIGENCE_VIEWS = [
   'legislative',
-  'regulatory',
   'funding',
   'footprint',
   'district',
@@ -161,8 +169,7 @@ export const RELATIONSHIP_VIEW_LABELS: Array<{ key: RelationshipView; label: str
 ];
 
 export const INTELLIGENCE_VIEW_LABELS: Array<{ key: IntelligenceView; label: string }> = [
-  { key: 'legislative', label: 'Legislative' },
-  { key: 'regulatory', label: 'Regulatory' },
+  { key: 'legislative', label: 'Legislative & Regulatory' },
   { key: 'funding', label: 'Funding & Budget' },
   { key: 'footprint', label: 'Federal Footprint' },
   { key: 'district', label: 'District Nexus' },

@@ -183,7 +183,7 @@ describe('legacy deep links (§2 compatibility mapping)', () => {
   });
 
   it('routes each Intelligence view to its own surface', () => {
-    for (const view of ['legislative', 'regulatory', 'funding', 'footprint', 'district']) {
+    for (const view of ['legislative', 'funding', 'footprint', 'district']) {
       const rendered = renderAt(`/clients?clientId=client-1&tab=intelligence&view=${view}`);
       expect(screen.getByTestId('intelligence-surface')).toHaveTextContent(view);
       rendered.unmount();
@@ -192,6 +192,11 @@ describe('legacy deep links (§2 compatibility mapping)', () => {
     const retired = renderAt('/clients?clientId=client-1&tab=intelligence&view=overview');
     expect(screen.getByTestId('intelligence-surface')).toHaveTextContent('legislative');
     retired.unmount();
+    // Regulatory was folded into Legislative & Regulatory — a stale bookmark
+    // for the retired view key lands on the merged view, not a blank surface.
+    const retiredRegulatory = renderAt('/clients?clientId=client-1&tab=intelligence&view=regulatory');
+    expect(screen.getByTestId('intelligence-surface')).toHaveTextContent('legislative');
+    retiredRegulatory.unmount();
   });
 
   it('falls back to Overview for an unknown tab instead of rendering nothing', () => {

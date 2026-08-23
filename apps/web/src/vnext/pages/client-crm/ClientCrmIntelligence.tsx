@@ -41,8 +41,6 @@ export function ClientCrmIntelligence({
   switch (view) {
     case 'legislative':
       return <LegislativeView client={client} />;
-    case 'regulatory':
-      return <RegulatoryView client={client} />;
     case 'funding':
       return <FundingView client={client} />;
     case 'footprint':

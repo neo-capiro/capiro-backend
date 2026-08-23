@@ -39,15 +39,25 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
 import { ManageAccountTeamModal } from '../ManageAccountTeamModal.js';
 
 /**
- * Overview tab (spec §6). Order: profile+account → federal footprint →
- * advocacy history → work+intelligence pulse. §16: NO "Needs attention" card.
+ * Overview tab (spec §6, consolidated). Order: client profile (identity +
+ * account facts + work pulse + intelligence pulse, one card) → federal
+ * footprint → advocacy history. §16: NO "Needs attention" card.
  *
- * Data: profile/account/work/intel pulse bind to the real overview model.
- * Federal footprint reads from the real client-profile endpoint (LDA spend,
- * filings, awards, trajectory) via the overview model's `federalFootprint`.
- * NO design fixture renders on this tab any more: every region shows
- * skeletons while loading, an inline error + Retry on failure, and only real
- * rows once settled.
+ * The former four-card top section (Client profile / Account / Work pulse /
+ * Intelligence pulse) read as one account snapshot split across separate
+ * boxes for no functional reason, and each carried its own "Edit"/action
+ * link even though only one editor exists for the whole client record. They
+ * are now one "Client profile" card with internal sections, and there is
+ * exactly one Edit action — in the card header — which is also the only Edit
+ * entry point on this page (the page-level "Edit profile" button in the old
+ * header is gone; it opened the identical editor as the card's own Edit).
+ *
+ * Data: profile/account/work/intel sections all bind to the real overview
+ * model. Federal footprint reads from the real client-profile endpoint (LDA
+ * spend, filings, awards, trajectory) via the overview model's
+ * `federalFootprint`. NO design fixture renders on this tab any more: every
+ * region shows skeletons while loading, an inline error + Retry on failure,
+ * and only real rows once settled.
  */
 
 export function ClientCrmOverviewProto({
@@ -69,30 +79,23 @@ export function ClientCrmOverviewProto({
       <TabPageHead
         title="Client overview"
         sub="The account, its federal footprint, and the advocacy record behind it."
-        actions={
-          <PfButton onClick={onEditProfile} disabled={!onEditProfile}>
-            Edit profile
-          </PfButton>
-        }
       />
 
-      {/* profile + account (§6.1) */}
-      <div className="cap-pf-grid-profile">
-        <ProfileCard model={model} onEditProfile={onEditProfile} />
-        <AccountCard model={model} client={client} />
-      </div>
+      {/* client profile: identity + account facts + work pulse + intel pulse,
+          one card (§6.1/§6.4 consolidated) */}
+      <ClientProfileCard
+        model={model}
+        client={client}
+        onEditProfile={onEditProfile}
+        onOpenWork={onOpenWork}
+        onOpenIntelligence={onOpenIntelligence}
+      />
 
       {/* federal footprint (§6.2) */}
       <FederalFootprintCard model={model} onOpen={onOpenFederalFootprint} />
 
       {/* advocacy history (§6.3) */}
       <AdvocacyHistoryCard client={client} />
-
-      {/* work + intelligence pulse (§6.4) */}
-      <div className="cap-pf-grid-2">
-        <WorkPulseCard model={model} onOpenWork={onOpenWork} />
-        <IntelligencePulseCard model={model} onOpenIntelligence={onOpenIntelligence} />
-      </div>
     </div>
   );
 }
@@ -124,13 +127,65 @@ function SkeletonMetricCell({ label }: { label: string }) {
   );
 }
 
-/* ── §6.1 Client profile ──────────────────────────────────────────────────── */
+/* ── §6.1/§6.4 Client profile (consolidated) ─────────────────────────────── */
 
-function ProfileCard({ model, onEditProfile }: { model: ClientCrmOverviewModel; onEditProfile?: () => void }) {
-  const { profile } = model;
+/** A dividing sub-header INSIDE the consolidated card — not a new Card, so
+ *  every section stays visually and semantically one card. */
+function SectionHead({ title, action }: { title: string; action?: ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '18px 24px 4px' }}>
+      <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+        {title}
+      </h4>
+      <span style={{ flex: 1 }} />
+      {action}
+    </div>
+  );
+}
+
+/**
+ * One card: identity, account facts, work pulse, and intelligence pulse.
+ * These used to be four separate cards, each with its own action link
+ * (including its own "Edit"), which duplicated the page-level "Edit
+ * profile" button for no reason — there is only ever one editor for a
+ * client record. Now there is exactly one Edit action, in this card's
+ * header; "Manage team"/"Open work"/"Open intelligence" are distinct
+ * navigations (not edits) and keep their own inline actions.
+ */
+function ClientProfileCard({
+  model,
+  client,
+  onEditProfile,
+  onOpenWork,
+  onOpenIntelligence,
+}: {
+  model: ClientCrmOverviewModel;
+  client: Client;
+  onEditProfile?: () => void;
+  onOpenWork?: () => void;
+  onOpenIntelligence?: () => void;
+}) {
+  const { profile, account, accountStatus, accountTeamStatus, work, workStatus, intelligence, intelligenceStatus } = model;
+  const [teamOpen, setTeamOpen] = useState(false);
+  const briefLabel = account.briefState === 'ready' ? 'Brief ready' : account.briefState === 'none' ? 'No brief yet' : 'No meeting scheduled';
+  const contactEmail = client.primaryContactEmail;
+  // Account owner already lives in the shell header — repeating it here was
+  // pure duplication. Its slot shows the relationship start when recorded.
+  const clientSince = formatDateShort(client.intakeData?.engagementStartDate ?? null);
+  const meetingsLoading = accountStatus.state === 'loading';
+
   return (
     <Card>
-      <CardHead title="Client profile" action={<PfButton variant="link" onClick={onEditProfile}>Edit</PfButton>} />
+      <CardHead
+        title="Client profile"
+        action={
+          <PfButton variant="link" onClick={onEditProfile} disabled={!onEditProfile}>
+            Edit
+          </PfButton>
+        }
+      />
+
+      {/* identity */}
       <div style={{ display: 'flex', gap: 20, padding: 24 }}>
         <Tile initials={profile.initials} size={64} src={profile.logoUrl} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -174,32 +229,17 @@ function ProfileCard({ model, onEditProfile }: { model: ClientCrmOverviewModel; 
           </div>
         </div>
       </div>
-    </Card>
-  );
-}
 
-/* ── §6.1 Account ─────────────────────────────────────────────────────────── */
-
-function AccountCard({ model, client }: { model: ClientCrmOverviewModel; client: Client }) {
-  const { account, accountStatus, accountTeamStatus } = model;
-  const [teamOpen, setTeamOpen] = useState(false);
-  const briefLabel = account.briefState === 'ready' ? 'Brief ready' : account.briefState === 'none' ? 'No brief yet' : 'No meeting scheduled';
-  const contactEmail = client.primaryContactEmail;
-  // Account owner already lives in the shell header — repeating it here was
-  // pure duplication. Its slot shows the relationship start when recorded.
-  const clientSince = formatDateShort(client.intakeData?.engagementStartDate ?? null);
-  const meetingsLoading = accountStatus.state === 'loading';
-  return (
-    <Card>
+      {/* account facts */}
       {/* There IS a per-client account-team roster now (`client_team_members`,
-          served by `/api/clients/:id/team`), so this no longer redirects to
-          firm-wide team settings — which was a different thing and the reason
-          there was no way to put anyone on an account team. */}
-      <CardHead
+          served by `/api/clients/:id/team`), so "Manage team" no longer
+          redirects to firm-wide team settings — which was a different thing
+          and the reason there was no way to put anyone on an account team. */}
+      <SectionHead
         title="Account"
         action={<PfButton variant="link" onClick={() => setTeamOpen(true)}>Manage team</PfButton>}
       />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px', padding: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px', padding: '12px 24px 20px', borderBottom: '1px solid #E8E5DF' }}>
         <Field
           label="Primary contact"
           value={account.primaryContact ?? 'Not set'}
@@ -233,15 +273,73 @@ function AccountCard({ model, client }: { model: ClientCrmOverviewModel; client:
         </div>
       </div>
       {accountStatus.state === 'error' ? (
-        <div style={{ padding: '0 24px 20px' }}>
+        <div style={{ padding: '0 24px 16px' }}>
           <RegionErrorLine status={accountStatus} label="Couldn't read meetings" />
         </div>
       ) : null}
       {accountTeamStatus.state === 'error' ? (
-        <div style={{ padding: '0 24px 20px' }}>
+        <div style={{ padding: '0 24px 16px' }}>
           <RegionErrorLine status={accountTeamStatus} label="Couldn't read the account team" />
         </div>
       ) : null}
+
+      {/* work pulse */}
+      <SectionHead
+        title="Work pulse"
+        action={
+          <PfButton variant="link" onClick={onOpenWork} disabled={!onOpenWork}>
+            Open work
+          </PfButton>
+        }
+      />
+      <div style={{ padding: '12px 24px 20px', borderBottom: '1px solid #E8E5DF' }}>
+        <PulseBody status={workStatus} errorLabel="Couldn't load this client's work pulse">
+          <MetricCell metric={work.currentStrategies} label="Strategies" />
+          <MetricCell metric={work.remainingActions} label="Plan steps" />
+          <MetricCell metric={work.upcomingMilestones} label="Next 30 days" />
+          <MetricCell metric={work.openRisk} label="Open risks" />
+        </PulseBody>
+        {/* The readiness meter is gone on purpose: `readiness` is always null —
+            nothing in the Strategy API measures completion — so the bar was a
+            permanently-empty decoration. The reason renders instead. */}
+        {workStatus.state === 'ready' && (work.readinessReason || work.nextStep) ? (
+          <div style={{ marginTop: 16, fontSize: 13, lineHeight: '19px', color: '#667085', textWrap: 'pretty' }}>
+            {work.nextStep ?? work.readinessReason}
+          </div>
+        ) : null}
+      </div>
+
+      {/* intelligence pulse */}
+      <SectionHead
+        title="Intelligence pulse"
+        action={
+          <PfButton variant="link" onClick={onOpenIntelligence} disabled={!onOpenIntelligence}>
+            Open intelligence
+          </PfButton>
+        }
+      />
+      <div style={{ padding: '12px 24px 24px' }}>
+        <PulseBody status={intelligenceStatus} errorLabel="Couldn't load this client's intelligence pulse">
+          <MetricCell metric={intelligence.trackedBills} label="Tracked bills" />
+          <MetricCell metric={intelligence.opportunities} label="Opportunities" />
+          <MetricCell metric={intelligence.districts} label="Districts" />
+          <MetricCell metric={intelligence.regulatoryMatters} label="Regulatory matters" />
+        </PulseBody>
+        {intelligenceStatus.state === 'ready' && intelligence.signals.length > 0 ? (
+          <div style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
+            {intelligence.signals.map((signal, i) => (
+              <Pill key={signal} tone={i === 0 ? 'error' : i === 1 ? 'brand' : 'gray'} dotless={i === 2} size="lg">
+                {signal}
+              </Pill>
+            ))}
+          </div>
+        ) : null}
+        {intelligenceStatus.state === 'ready' && intelligence.lastRefresh ? (
+          <div style={{ marginTop: 12, fontSize: 13, color: '#667085' }}>
+            {`Last intelligence refresh: ${intelligence.lastRefresh}`}
+          </div>
+        ) : null}
+      </div>
 
       <ManageAccountTeamModal
         open={teamOpen}
@@ -888,78 +986,6 @@ function PulseBody({
   return <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>{children}</div>;
 }
 
-function WorkPulseCard({ model, onOpenWork }: { model: ClientCrmOverviewModel; onOpenWork?: () => void }) {
-  const { work, workStatus } = model;
-  return (
-    <Card>
-      <CardHead
-        title="Work pulse"
-        action={
-          <PfButton variant="link" onClick={onOpenWork} disabled={!onOpenWork}>
-            Open work
-          </PfButton>
-        }
-      />
-      <div style={{ padding: 24 }}>
-        <PulseBody status={workStatus} errorLabel="Couldn't load this client's work pulse">
-          <MetricCell metric={work.currentStrategies} label="Strategies" />
-          <MetricCell metric={work.remainingActions} label="Plan steps" />
-          <MetricCell metric={work.upcomingMilestones} label="Next 30 days" />
-          <MetricCell metric={work.openRisk} label="Open risks" />
-        </PulseBody>
-        {/* The readiness meter is gone on purpose: `readiness` is always null —
-            nothing in the Strategy API measures completion — so the bar was a
-            permanently-empty decoration. The reason renders instead. */}
-        {workStatus.state === 'ready' && (work.readinessReason || work.nextStep) ? (
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #E8E5DF', fontSize: 13, lineHeight: '19px', color: '#667085', textWrap: 'pretty' }}>
-            {work.nextStep ?? work.readinessReason}
-          </div>
-        ) : null}
-      </div>
-    </Card>
-  );
-}
-
-function IntelligencePulseCard({
-  model,
-  onOpenIntelligence,
-}: {
-  model: ClientCrmOverviewModel;
-  onOpenIntelligence?: () => void;
-}) {
-  const { intelligence, intelligenceStatus } = model;
-  return (
-    <Card>
-      <CardHead
-        title="Intelligence pulse"
-        action={
-          <PfButton variant="link" onClick={onOpenIntelligence} disabled={!onOpenIntelligence}>
-            Open intelligence
-          </PfButton>
-        }
-      />
-      <div style={{ padding: 24 }}>
-        <PulseBody status={intelligenceStatus} errorLabel="Couldn't load this client's intelligence pulse">
-          <MetricCell metric={intelligence.trackedBills} label="Tracked bills" />
-          <MetricCell metric={intelligence.opportunities} label="Opportunities" />
-          <MetricCell metric={intelligence.districts} label="Districts" />
-          <MetricCell metric={intelligence.regulatoryMatters} label="Regulatory matters" />
-        </PulseBody>
-        {intelligenceStatus.state === 'ready' && intelligence.signals.length > 0 ? (
-          <div style={{ display: 'flex', gap: 8, marginTop: 24, paddingTop: 20, borderTop: '1px solid #E8E5DF', flexWrap: 'wrap' }}>
-            {intelligence.signals.map((signal, i) => (
-              <Pill key={signal} tone={i === 0 ? 'error' : i === 1 ? 'brand' : 'gray'} dotless={i === 2} size="lg">
-                {signal}
-              </Pill>
-            ))}
-          </div>
-        ) : null}
-        {intelligenceStatus.state === 'ready' && intelligence.lastRefresh ? (
-          <div style={{ marginTop: 16, fontSize: 13, color: '#667085' }}>
-            {`Last intelligence refresh: ${intelligence.lastRefresh}`}
-          </div>
-        ) : null}
-      </div>
-    </Card>
-  );
-}
+/* WorkPulseCard and IntelligencePulseCard were folded into ClientProfileCard
+   above — their bodies (MetricCell + PulseBody usage) now render as sections
+   of the one consolidated card instead of standalone Cards. */

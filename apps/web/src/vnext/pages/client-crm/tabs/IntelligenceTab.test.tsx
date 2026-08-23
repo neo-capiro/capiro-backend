@@ -686,7 +686,11 @@ describe('ClientCrmIntelligenceProto — bill board (item 19, wire-audit)', () =
 
 /* ═══════ wire-audit "3 Compose extend" items 4-5 ═════════════════════════ */
 
-function renderWithRoutes(view: 'legislative' | 'regulatory') {
+// Regulatory used to be its own view key; it is now rendered as a section
+// inside the merged "legislative" (Legislative & Regulatory) view, so every
+// call site below renders that one view regardless of which content it's
+// asserting on.
+function renderWithRoutes(view: 'legislative' = 'legislative') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
@@ -781,7 +785,7 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
 
   it('renders the real comment deadlines instead of the DEADLINES fixture', async () => {
     mockAggregate(AGGREGATE_WITH_DEADLINES);
-    renderWithRoutes('regulatory');
+    renderWithRoutes();
 
     await waitFor(() =>
       expect(screen.getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument(),
@@ -808,7 +812,7 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
     const revokeUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
-    renderWithRoutes('regulatory');
+    renderWithRoutes();
     await waitFor(() =>
       expect(screen.getByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument(),
     );
@@ -831,10 +835,48 @@ describe('ClientCrmIntelligenceProto — Calendar (item 5, "3 Compose extend")',
 
   it('disables Calendar rather than exporting the design fixture', () => {
     getMock.mockImplementation(() => new Promise(() => {})); // never resolves
-    renderWithRoutes('regulatory');
+    renderWithRoutes();
 
     // The fixture is on screen for pixel review, but it must never become a
     // calendar file full of invented events.
     expect(screen.getByText('Calendar')).toBeDisabled();
+  });
+});
+
+describe('ClientCrmIntelligenceProto — Legislative & Regulatory (consolidated)', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    postMock.mockReset();
+  });
+
+  it('renders Legislative and Regulatory content together on the merged domain view', async () => {
+    // Both the Legislative endpoints (feature flags, tracker board,
+    // recommendations) and the Regulatory aggregate must answer on the same
+    // screen now — this used to be two independently-mocked views.
+    getMock.mockImplementation((url: string) => {
+      if (url === '/intel-api/feature-flags') return Promise.resolve({ data: {} });
+      if (url === '/api/intelligence/clients/client-1/tracker/board') {
+        return Promise.resolve({ data: { total: 4, withheld: 0, columns: [] } });
+      }
+      if (url === '/api/intelligence/clients/client-1/tracker/recommendations') {
+        return Promise.resolve({ data: { recommendations: [], aboveFloorCount: 0, total: 0, floor: 0.5 } });
+      }
+      if (url === '/api/intelligence/clients/client-1/profile-v1') {
+        return Promise.resolve({ data: AGGREGATE_WITH_DEADLINES });
+      }
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    postMock.mockResolvedValue({ data: {} });
+    renderWithRoutes();
+
+    // Legislative content (tracked bills board) ...
+    expect((await screen.findAllByText('Tracked bills')).length).toBeGreaterThan(0);
+    // ...and Regulatory content (deadline rail) on the SAME screen, with no
+    // second tab/view switch required — this used to be two separate
+    // segmented-tab views.
+    expect(await screen.findByText('Unmanned Systems Cyber Baseline; Proposed Rule')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Legislative & Regulatory' })).toBeInTheDocument();
+    // No leftover standalone "Regulatory" domain heading/tab remains.
+    expect(screen.queryByRole('heading', { name: 'Regulatory', level: 1 })).not.toBeInTheDocument();
   });
 });

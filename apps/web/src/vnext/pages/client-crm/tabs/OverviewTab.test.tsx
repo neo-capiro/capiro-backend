@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -130,6 +130,35 @@ describe('ClientCrmOverviewProto', () => {
 
     expect(screen.queryByRole('link', { name: 'Stephanie Bonk' })).not.toBeInTheDocument();
     expect(screen.getByText('Stephanie Bonk')).toBeInTheDocument();
+  });
+
+  it('offers exactly one Edit action for the client profile — the old page-level "Edit profile" button and the card-level "Edit" link were the same editor twice', () => {
+    modelMock.mockReturnValue(baseModel());
+    const onEditProfile = vi.fn();
+    renderOverview(<ClientCrmOverviewProto client={client} onEditProfile={onEditProfile} />);
+
+    expect(screen.queryByRole('button', { name: 'Edit profile' })).not.toBeInTheDocument();
+    const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+    expect(editButtons).toHaveLength(1);
+    fireEvent.click(editButtons[0]!);
+    expect(onEditProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('folds Client profile, Account, Work pulse, and Intelligence pulse into one card', () => {
+    modelMock.mockReturnValue(baseModel());
+    renderOverview(<ClientCrmOverviewProto client={client} />);
+
+    const heading = screen.getByRole('heading', { name: 'Client profile' });
+    const card = heading.closest('section');
+    if (!card) throw new Error('Client profile card not found');
+    const within_ = within(card);
+    // Account, Work pulse, and Intelligence pulse content lives inside the
+    // same <section> as the Client profile heading — one card, not four.
+    expect(within_.getByText('Account')).toBeInTheDocument();
+    expect(within_.getByText('Work pulse')).toBeInTheDocument();
+    expect(within_.getByText('Intelligence pulse')).toBeInTheDocument();
+    expect(within_.getByText('Strategies')).toBeInTheDocument();
+    expect(within_.getByText('Tracked bills')).toBeInTheDocument();
   });
 
   it('calls onOpenFederalFootprint when "Open federal footprint" is clicked', () => {
