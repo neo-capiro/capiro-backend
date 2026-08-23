@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   useDashboardVNextModel,
@@ -18,23 +18,6 @@ type WireItem =
   | { type: 'news'; id: string; at: number; item: DashboardVNextModel['news']['items'][number] };
 
 type AttentionTone = 'error' | 'warning' | 'blue';
-
-const DASH_V2_VARS = {
-  '--dash-link': '#363F72',
-  '--dash-link-hover': '#293056',
-  '--dash-brand': '#3E4784',
-  '--dash-brand-tint': '#EAECF5',
-  // v3 corrected from #B3B8DB to the ramp's exact 5th stop, matching the
-  // same fix applied to --uui-brand-ring in untitled-ui-tokens.css — this
-  // local copy predates that shared token and had drifted from it.
-  '--dash-brand-ring': '#B3BADD',
-  '--dash-brand-mid': '#717BBC',
-  '--dash-focus': '#4E5BA6',
-  '--dash-focus-outer': '#D5D9EB',
-  '--dash-metal-face': 'linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%)',
-  '--dash-metal-face-hover': 'linear-gradient(180deg,#4A5462 0%,#252F3C 46%,#161D26 100%)',
-  '--dash-metal-shadow': 'inset 0 1px 0 rgba(255,255,255,.14), 0px 1px 2px rgba(16,24,40,.12)',
-} as CSSProperties;
 
 export function DashboardVNext() {
   return <DashboardVNextView model={useDashboardVNextModel()} />;
@@ -115,7 +98,6 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
       data-density={model.density}
       data-two-lane={wireEnabled && hasWorkLane || undefined}
       data-density-changing={densityChanging || undefined}
-      style={DASH_V2_VARS}
     >
       <section className="dashv2-console">
         <div className="dashv2-head">
