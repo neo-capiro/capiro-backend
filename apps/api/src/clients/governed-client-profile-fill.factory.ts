@@ -41,7 +41,7 @@ interface ClientProfileFillInternals {
     clientId: string,
     runId: string,
   ) => Promise<number>;
-  applyFinding: (
+  applyFinding?: (
     ctx: TenantContext,
     clientId: string,
     finding: RelationshipHistoryFindingLike,
@@ -140,7 +140,7 @@ export function createGovernedClientProfileFillService(
   const originalStart = service.startRun.bind(service);
   const originalExecuteRun = internal.executeRun.bind(service);
   const originalExecuteDocumentRun = internal.executeCapabilityDocumentRun.bind(service);
-  const originalApplyFinding = internal.applyFinding.bind(service);
+  const originalApplyFinding = internal.applyFinding?.bind(service);
   const originalOpenAi = internal.callOpenAiJson.bind(service);
   const originalAnthropic = internal.callAnthropicJson.bind(service);
   // Phase 27F seams. Bound defensively (unlike the seams above, which this
@@ -265,7 +265,7 @@ export function createGovernedClientProfileFillService(
         ctx,
         clientId,
         runId,
-        existingPeople,
+        [...existingPeople, ...candidates],
         (tenantId, findingClientId, findingRunId, input) =>
           internal.addFinding(tenantId, findingClientId, findingRunId, input),
       );
@@ -273,15 +273,17 @@ export function createGovernedClientProfileFillService(
     return count;
   };
 
-  internal.applyFinding = async (ctx, clientId, finding) => {
-    if (String(finding.kind) === 'relationship_link') {
-      if (!relationshipHistory) {
-        throw new BadRequestException('Relationship-history application is unavailable');
+  if (originalApplyFinding) {
+    internal.applyFinding = async (ctx, clientId, finding) => {
+      if (String(finding.kind) === 'relationship_link') {
+        if (!relationshipHistory) {
+          throw new BadRequestException('Relationship-history application is unavailable');
+        }
+        return relationshipHistory.apply(ctx, clientId, finding);
       }
-      return relationshipHistory.apply(ctx, clientId, finding);
-    }
-    return originalApplyFinding(ctx, clientId, finding);
-  };
+      return originalApplyFinding(ctx, clientId, finding);
+    };
+  }
 
   // All model-assisted extraction receives the canonical CRM identity and
   // governed steering/coverage block. The block is explicitly non-evidentiary;
