@@ -124,7 +124,7 @@ export interface RecipientPresentation {
   email: string | null;
 }
 
-export const TERMINAL_GENERATION = ['complete', 'failed', 'canceled', 'cancelled'];
+export const TERMINAL_GENERATION = ['complete', 'failed', 'canceled', 'cancelled', 'partial'];
 
 export const TERMINAL_SEND = [
   'sent',

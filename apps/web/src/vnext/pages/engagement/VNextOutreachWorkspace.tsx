@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { VNextCurrentDecisionSurface } from './VNextCurrentDecisionSurface.js';
+import { TERMINAL_GENERATION } from './outreach-v3-phase1-shared.js';
 import { GoalDecisionSurface } from '../../../pages/engagement/outreach/v3/GoalDecisionSurface.js';
 import {
   outreachV3StyleSamples,
@@ -2183,7 +2184,7 @@ export function VNextOutreachWorkspace({
     queryFn: () => getOutreachV3GenerationJob(api, sessionId!, generationJobId!),
     enabled: Boolean(sessionId && generationJobId),
     refetchInterval: (query) =>
-      ['complete', 'failed', 'canceled'].includes(String(query.state.data?.status ?? ''))
+      TERMINAL_GENERATION.includes(String(query.state.data?.status ?? ''))
         ? false
         : 3_000,
   });
