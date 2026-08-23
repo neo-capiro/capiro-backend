@@ -1,5 +1,6 @@
 /**
  * Phase 8 Session 8 — crawl cursor algebra.
+ * Phase 10 — in-progress collection checkpoint (`resumeAfterPackageId`).
  *
  * The Session 7 store already round-trips an opaque
  * `cursor: Record<string, unknown>` per adapter through `loadAdapterState` and
@@ -21,6 +22,36 @@
  *    cursor therefore records that a collection is mid-backfill, and the
  *    watermark is NOT advanced past work that was never examined — advancing it
  *    would silently skip the remainder forever.
+ *
+ * Phase 10 adds a second, narrower concept on top of the watermark, because the
+ * watermark alone left a real backlog unable to make ANY forward progress: the
+ * FY2024 PLAW collection needs more than one run's 250-request budget to walk,
+ * so every bounded pass restarted the sitemap from the beginning and hit the
+ * identical wall (`request budget exhausted while resolving PLAW-118publ246`)
+ * every time — four passes, zero net progress.
+ *
+ *  * **`resumeAfterPackageId` is an in-progress checkpoint, not a watermark.**
+ *    It names the last package whose discovery handling completed successfully
+ *    *within the current, still-unexhausted collection walk* — never a raw
+ *    request count, and never a position inside MODS resolution, metadata
+ *    classification, or a partial fetch. A caller may only supply a NEW
+ *    checkpoint for a package it fully finished handling this run.
+ *
+ *  * **The durable watermark still advances only on genuine exhaustion.** This
+ *    is the existing Session 8 safety property, unchanged: `exhausted: true` is
+ *    still the only way `watermark` moves. `resumeAfterPackageId` never
+ *    substitutes for it.
+ *
+ *  * **A checkpoint only ever moves forward or holds — it is never regressed to
+ *    null by a run that made no further progress.** Omitting
+ *    `resumeAfterPackageId` (or passing `null`) on an unexhausted pass means
+ *    "this pass didn't get far enough to name a new boundary," not "forget the
+ *    old one." The prior checkpoint (if any) is preserved.
+ *
+ *  * **Exhaustion clears the checkpoint.** Once a collection is genuinely
+ *    exhausted there is nothing left to resume, so the in-progress checkpoint is
+ *    cleared at the same instant the durable watermark advances — even if a
+ *    caller mistakenly still passes one on the exhausting call.
  */
 
 export const DISCOVERY_CURSOR_SCHEMA = 'phase8_session8_discovery_cursor_v1';
@@ -36,6 +67,14 @@ export interface CollectionCursor {
    * re-emitted on every run without risking a skip.
    */
   readonly emittedAtWatermark: readonly string[];
+  /**
+   * Phase 10 in-progress checkpoint: the last package boundary whose discovery
+   * handling completed successfully during an UNFINISHED collection walk.
+   * `null` when the collection has never been bounded mid-walk, or once it is
+   * genuinely exhausted (there is nothing left to resume). This is deliberately
+   * NOT the durable collection watermark — see the file header.
+   */
+  readonly resumeAfterPackageId: string | null;
 }
 
 export interface DiscoveryCursor {
@@ -48,6 +87,7 @@ const EMPTY_COLLECTION: CollectionCursor = Object.freeze({
   watermark: null,
   backfillPending: false,
   emittedAtWatermark: Object.freeze([]),
+  resumeAfterPackageId: null,
 });
 
 export function emptyDiscoveryCursor(): DiscoveryCursor {
@@ -83,6 +123,9 @@ export function parseDiscoveryCursor(raw: Record<string, unknown> | null | undef
       watermark: watermark !== null && !Number.isNaN(Date.parse(watermark)) ? watermark : null,
       backfillPending: entry.backfillPending === true,
       emittedAtWatermark: Object.freeze([...emitted].sort()),
+      // Absent (legacy row) or malformed -> null, never trusted as given.
+      resumeAfterPackageId:
+        typeof entry.resumeAfterPackageId === 'string' ? entry.resumeAfterPackageId : null,
     });
   }
 
@@ -98,11 +141,19 @@ export function collectionCursor(cursor: DiscoveryCursor, collection: string): C
 }
 
 /**
- * Advance one collection's watermark.
+ * Advance one collection's cursor.
  *
  * `exhausted: false` means the run was cut short by its request budget. The
- * watermark is then left where it was and `backfillPending` is set, because
- * moving it would permanently skip everything the run never looked at.
+ * durable watermark is then left where it was and `backfillPending` is set,
+ * because moving it would permanently skip everything the run never looked at.
+ *
+ * `resumeAfterPackageId` is the Phase 10 in-progress checkpoint: the last
+ * package boundary this run fully finished handling, so the NEXT bounded run
+ * can start there instead of restarting the collection from the beginning.
+ * Passing `undefined`/`null` on an unexhausted run means "no NEW checkpoint to
+ * report" and preserves whatever checkpoint already existed — it never erases
+ * one. Exhaustion (`exhausted: true`) always clears the checkpoint, because a
+ * fully-walked collection has nothing left to resume.
  */
 export function advanceCollectionCursor(input: {
   cursor: DiscoveryCursor;
@@ -112,6 +163,13 @@ export function advanceCollectionCursor(input: {
   /** Package ids emitted whose `lastmod` equals `observedWatermark`. */
   emittedAtWatermark: readonly string[];
   exhausted: boolean;
+  /**
+   * The last package this run completed handling, when the run was bounded
+   * (`exhausted: false`) and made at least some new progress. Omit or pass
+   * `null` when this run advanced no further than the prior checkpoint — the
+   * prior value is preserved, never cleared, in that case.
+   */
+  resumeAfterPackageId?: string | null;
   nowIso: string;
 }): DiscoveryCursor {
   const previous = collectionCursor(input.cursor, input.collection);
@@ -135,11 +193,19 @@ export function advanceCollectionCursor(input: {
     }
   }
 
+  // Exhaustion always clears the in-progress checkpoint: nothing is left to
+  // resume. Otherwise, a newly-reported checkpoint advances the pointer; an
+  // omitted/null one preserves whatever was already there — never regresses.
+  const resumeAfterPackageId = input.exhausted
+    ? null
+    : (input.resumeAfterPackageId ?? previous.resumeAfterPackageId);
+
   const collections: Record<string, CollectionCursor> = { ...input.cursor.collections };
   collections[input.collection] = Object.freeze({
     watermark,
     backfillPending: !input.exhausted,
     emittedAtWatermark,
+    resumeAfterPackageId,
   });
 
   return Object.freeze({
@@ -176,6 +242,7 @@ export function serialiseDiscoveryCursor(cursor: DiscoveryCursor): Record<string
           watermark: value.watermark,
           backfillPending: value.backfillPending,
           emittedAtWatermark: [...value.emittedAtWatermark],
+          resumeAfterPackageId: value.resumeAfterPackageId,
         },
       ]),
     ),
