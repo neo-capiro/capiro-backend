@@ -19,6 +19,7 @@ import { ClientActivityService } from './client-activity.service.js';
 import { ClientProfileFillController } from './client-profile-fill.controller.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
 import { ClientProfileFillContextPlaneService } from './client-profile-fill-context-plane.service.js';
+import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
 import {
   createGovernedClientProfileFillService,
   RAW_CLIENT_PROFILE_FILL_SERVICE,
@@ -101,6 +102,10 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
         CrmFillEvaluationRunner,
       ],
     },
+    // Restart-safe DB task worker and setup gate. It consumes the governed
+    // ClientProfileFillService so specialist execution retains Context Plane,
+    // evidence, review, and learning behavior.
+    ClientProfileFillWorkflowService,
     ClientActivityService,
     ClientFilesService,
     ClientAccountOwnerService,
