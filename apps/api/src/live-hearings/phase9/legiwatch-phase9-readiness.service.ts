@@ -26,6 +26,16 @@ import {
 const HEALTHY_SOURCE_STATES = new Set(['healthy', 'success', 'ok']);
 const FAILING_SOURCE_STATES = new Set(['degraded', 'failing', 'failed', 'error', 'unavailable']);
 const DUE_EVENT_STATUSES = new Set(['scheduled', 'in_progress', 'completed']);
+/// A committee_hearing.coverage_status value that represents a TERMINAL,
+/// explicit hearing-level stream disposition — set by classifyStreamResolution()
+/// via either the normal capture flow or the demand-free disposition path.
+/// A hearing in one of these states has an explicit, resolved stream
+/// disposition even with zero hearing_stream_candidate rows and zero
+/// public_hearing_capture rows (e.g. a genuinely no-public-stream hearing
+/// with no capture demand). 'discovered'/'stream_ready'/'capturing'/
+/// 'captured'/'not_covered' are all NON-terminal for this purpose — they
+/// still need a candidate or capture outcome to count as explicit.
+const TERMINAL_HEARING_COVERAGE_STATUSES = new Set(['no_public_stream', 'blocked']);
 const MAX_EXCEPTIONS = 10_000;
 
 // The default Prisma interactive-transaction timeout is 5000ms. This trusted
@@ -49,6 +59,13 @@ interface SourceRow {
   chamber: string;
   sourceHealth: string;
   lastSuccessAt: Date | null;
+  /// A generic, reviewed committee_source_exception row currently applies to
+  /// this source (expires_at IS NULL) — e.g. UPSTREAM_ACCESS_BLOCKED. This is
+  /// never keyed on source identity in code; it's purely "does this row have
+  /// an active exception record".
+  hasAcceptedException: boolean;
+  exceptionType: string | null;
+  exceptionReasonCode: string | null;
 }
 
 interface ObservationRow {
@@ -70,6 +87,13 @@ interface HearingRow {
   visibility: string;
   startsAt: Date | null;
   calendarDate: Date;
+  /// Canonical hearing-level stream disposition rollup (committee_hearing.
+  /// coverage_status). 'no_public_stream' / 'blocked' are TERMINAL,
+  /// explicit dispositions in their own right — set by the demand-free
+  /// disposition path (or the automatic resolver during normal capture
+  /// flow) via classifyStreamResolution(), independent of whether any
+  /// hearing_stream_candidate or public_hearing_capture row exists.
+  coverageStatus: string;
 }
 
 interface CandidateRow {
@@ -271,8 +295,15 @@ export class LegiWatchPhase9ReadinessService {
       const sourcesHealthy = sources.filter((source) =>
         HEALTHY_SOURCE_STATES.has(source.sourceHealth.toLowerCase()),
       ).length;
-      const sourcesFailing = sources.filter((source) =>
-        FAILING_SOURCE_STATES.has(source.sourceHealth.toLowerCase()),
+      const sourcesFailing = sources.filter(
+        (source) =>
+          FAILING_SOURCE_STATES.has(source.sourceHealth.toLowerCase()) &&
+          !source.hasAcceptedException,
+      ).length;
+      const sourcesAcceptedException = sources.filter(
+        (source) =>
+          FAILING_SOURCE_STATES.has(source.sourceHealth.toLowerCase()) &&
+          source.hasAcceptedException,
       ).length;
       const representedObservations = bodyObservations.filter(
         (row) => row.reconciliationStatus === 'RECONCILED' && Boolean(row.hearingId),
@@ -287,10 +318,11 @@ export class LegiWatchPhase9ReadinessService {
         sourcesRegistered: sources.length,
         sourcesHealthy,
         sourcesFailing,
+        sourcesAcceptedException,
         officialObservations: bodyObservations.length,
         pendingObservations,
       });
-      if (!['HEALTHY', 'HEALTHY_NO_EVENTS_OBSERVED'].includes(classification.status)) {
+      if (!['HEALTHY', 'HEALTHY_NO_EVENTS_OBSERVED', 'HEALTHY_WITH_ACCEPTED_EXCEPTION'].includes(classification.status)) {
         pushException({
           committeeSystemCode: body.systemCode,
           gateKey: 'SOURCE_COVERAGE_READY',
@@ -303,6 +335,7 @@ export class LegiWatchPhase9ReadinessService {
             sourcesRegistered: sources.length,
             sourcesHealthy,
             sourcesFailing,
+            sourcesAcceptedException,
             officialObservations: bodyObservations.length,
             pendingObservations,
           },
@@ -476,7 +509,8 @@ export class LegiWatchPhase9ReadinessService {
         Boolean(capture);
       const explicitStreamPath =
         candidates.length > 0 ||
-        Boolean(capture?.terminalReasonCode || capture?.failureCode);
+        Boolean(capture?.terminalReasonCode || capture?.failureCode) ||
+        TERMINAL_HEARING_COVERAGE_STATUSES.has(hearing.coverageStatus);
       if (!explicitStreamPath) {
         unresolvedEvents += 1;
         pushException({
@@ -626,7 +660,10 @@ export class LegiWatchPhase9ReadinessService {
     );
     const captureOutcome = percentage(eventsWithOutcomes, eligibleEvents);
     const badBodies = bodies.filter(
-      (body) => !['HEALTHY', 'HEALTHY_NO_EVENTS_OBSERVED'].includes(body.status),
+      (body) =>
+        !['HEALTHY', 'HEALTHY_NO_EVENTS_OBSERVED', 'HEALTHY_WITH_ACCEPTED_EXCEPTION'].includes(
+          body.status,
+        ),
     );
 
     const gates: LegiWatchPhase9Gate[] = [
@@ -1122,14 +1159,19 @@ export class LegiWatchPhase9ReadinessService {
          ORDER BY chamber, parent_system_code NULLS FIRST, name, system_code`,
       );
       const sources = await tx.$queryRawUnsafe<SourceRow[]>(
-        `SELECT id::text AS id,
-                committee_system_code AS "committeeSystemCode",
-                chamber,
-                source_health AS "sourceHealth",
-                last_success_at AS "lastSuccessAt"
-         FROM committee_source
-         WHERE enabled=true
-         ORDER BY priority, id`,
+        `SELECT s.id::text AS id,
+                s.committee_system_code AS "committeeSystemCode",
+                s.chamber,
+                s.source_health AS "sourceHealth",
+                s.last_success_at AS "lastSuccessAt",
+                (ex.id IS NOT NULL) AS "hasAcceptedException",
+                ex.exception_type AS "exceptionType",
+                ex.reason_code AS "exceptionReasonCode"
+         FROM committee_source s
+         LEFT JOIN committee_source_exception ex
+           ON ex.source_id = s.id AND ex.expires_at IS NULL
+         WHERE s.enabled=true
+         ORDER BY s.priority, s.id`,
       );
       const observations = await tx.$queryRawUnsafe<ObservationRow[]>(
         `SELECT o.id::text AS id,
@@ -1164,7 +1206,8 @@ export class LegiWatchPhase9ReadinessService {
                 event_status AS "eventStatus",
                 visibility,
                 starts_at AS "startsAt",
-                date::timestamp AS "calendarDate"
+                date::timestamp AS "calendarDate",
+                coverage_status AS "coverageStatus"
          FROM committee_hearing
          WHERE COALESCE(starts_at, date::timestamp) BETWEEN $1 AND $2
          ORDER BY COALESCE(starts_at, date::timestamp), id`,

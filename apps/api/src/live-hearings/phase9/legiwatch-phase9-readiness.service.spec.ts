@@ -163,6 +163,91 @@ describe('LegiWatchPhase9ReadinessService', () => {
     expect(report.blockers).toEqual([]);
   });
 
+  it('a due public hearing with a canonical no_public_stream disposition and no candidate/capture does not fail STREAM_PATH_EXPLICIT', async () => {
+    // Mirrors the DeBergalis-shaped case: a completed public hearing with
+    // zero hearing_stream_candidate rows, zero public_hearing_capture rows,
+    // and zero capture demand, but a canonical hearing-level disposition
+    // already persisted via the demand-free disposition path (or the
+    // automatic resolver during normal capture flow).
+    const value = snapshot();
+    value.hearings = [
+      {
+        id: 'hearing-no-stream',
+        chamber: 'house',
+        committeeSystemCode: 'hsas00',
+        subcommitteeSystemCode: 'hsas01',
+        title: 'Joint Deposition With No Public Broadcast',
+        eventStatus: 'completed',
+        visibility: 'public',
+        startsAt: new Date('2026-08-20T10:00:00Z'),
+        calendarDate: new Date('2026-08-20T00:00:00Z'),
+        coverageStatus: 'no_public_stream',
+      },
+    ];
+    value.candidates = [];
+    value.captures = [];
+    value.demand = [];
+    value.transcript = [];
+    value.observations = [
+      {
+        id: '00000000-0000-0000-0000-000000000912',
+        hearingId: 'hearing-no-stream',
+        bodyCode: 'hsas01',
+        reconciliationStatus: 'RECONCILED',
+        reconciliationReasonCode: 'CANONICAL_HEARING_LINKED',
+        observedAt: new Date('2026-08-20T09:00:00Z'),
+      },
+    ];
+
+    const report = await evaluate(value);
+    expect(report.counts.unresolvedEvents).toBe(0);
+    const gate = findGate(report, 'STREAM_PATH_EXPLICIT');
+    expect(gate.status).toBe('PASS');
+    expect(
+      report.blockers.some((blocker) => blocker.startsWith('STREAM_PATH_EXPLICIT')),
+    ).toBe(false);
+  });
+
+  it('a due public hearing with NO candidate/capture and a NON-terminal coverageStatus still correctly fails STREAM_PATH_EXPLICIT', async () => {
+    // Guards against the fix being too permissive: a hearing that's merely
+    // 'not_covered' or 'discovered' (i.e. genuinely still unresolved) must
+    // keep failing the gate — only a TERMINAL disposition should satisfy it.
+    const value = snapshot();
+    value.hearings = [
+      {
+        id: 'hearing-truly-unresolved',
+        chamber: 'house',
+        committeeSystemCode: 'hsas00',
+        subcommitteeSystemCode: 'hsas01',
+        title: 'Still Genuinely Unresolved',
+        eventStatus: 'completed',
+        visibility: 'public',
+        startsAt: new Date('2026-08-20T10:00:00Z'),
+        calendarDate: new Date('2026-08-20T00:00:00Z'),
+        coverageStatus: 'not_covered',
+      },
+    ];
+    value.candidates = [];
+    value.captures = [];
+    value.demand = [];
+    value.transcript = [];
+    value.observations = [
+      {
+        id: '00000000-0000-0000-0000-000000000913',
+        hearingId: 'hearing-truly-unresolved',
+        bodyCode: 'hsas01',
+        reconciliationStatus: 'RECONCILED',
+        reconciliationReasonCode: 'CANONICAL_HEARING_LINKED',
+        observedAt: new Date('2026-08-20T09:00:00Z'),
+      },
+    ];
+
+    const report = await evaluate(value);
+    expect(report.counts.unresolvedEvents).toBe(1);
+    const gate = findGate(report, 'STREAM_PATH_EXPLICIT');
+    expect(gate.status).toBe('FAIL');
+  });
+
   it('blocks zero-event audits rather than reporting full coverage', async () => {
     const value = snapshot();
     value.observations = [];

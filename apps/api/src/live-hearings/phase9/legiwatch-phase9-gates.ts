@@ -26,6 +26,11 @@ export interface Phase9BodyClassificationInput {
   sourcesRegistered: number;
   sourcesHealthy: number;
   sourcesFailing: number;
+  /// Count of this body's sources that are failing AND have a currently
+  /// active, reviewed committee_source_exception row (generic — never keyed
+  /// on source identity). These are excluded from `sourcesFailing`, so a
+  /// reviewed, accepted access-block does not read as an unexplained defect.
+  sourcesAcceptedException?: number;
   officialObservations: number;
   pendingObservations: number;
 }
@@ -106,6 +111,20 @@ export function classifyBodyCoverage(
       status: 'DEGRADED',
       reasonCode: 'ALL_SOURCE_PATHS_FAILING',
       reason: 'Every registered official source path is currently failing or degraded.',
+    };
+  }
+  if (
+    input.sourcesHealthy === 0 &&
+    input.sourcesFailing === 0 &&
+    (input.sourcesAcceptedException ?? 0) > 0
+  ) {
+    return {
+      status: 'HEALTHY_WITH_ACCEPTED_EXCEPTION',
+      reasonCode: 'ALL_SOURCE_PATHS_ACCEPTED_EXCEPTION',
+      reason:
+        'Every registered official source path is currently failing, but each failure has a ' +
+        'reviewed, accepted exception (e.g. an upstream access block with no compliant ' +
+        'alternative) rather than an unexplained defect.',
     };
   }
   if (input.sourcesHealthy === 0) {

@@ -3857,6 +3857,15 @@ model CongressCommittee {
   chamber          String // 'house' | 'senate' | 'joint'
   parentSystemCode String?  @map("parent_system_code")
   url              String?
+  /// Which authority last wrote `url`: 'congress_gov' (Congress.gov API,
+  /// highest authority) or 'community' (unitedstates/congress-legislators).
+  /// A generic precedence rule, not a hardcoded committee list: once
+  /// 'congress_gov' has written this row, a later community-sourced sync
+  /// must not silently revert `url` even if its own feed still has the old
+  /// value. Null for rows never touched by the precedence-aware path.
+  urlSource        String?   @map("url_source")
+  /// When the current `url` was last confirmed by its source-of-record.
+  urlVerifiedAt    DateTime? @map("url_verified_at") @db.Timestamptz(6)
   jurisdiction     String?  @db.Text
   isCurrent        Boolean  @default(true) @map("is_current")
   lastSyncedAt     DateTime @default(now()) @map("last_synced_at") @db.Timestamptz(6)
@@ -3865,6 +3874,7 @@ model CongressCommittee {
 
   @@index([chamber])
   @@index([parentSystemCode])
+  @@index([urlSource])
   @@map("congress_committee")
 }
 
@@ -6199,6 +6209,7 @@ model CommitteeSource {
   observations HearingSourceObservation[]
   streamCandidates HearingStreamCandidate[]
   siteUpdates  CommitteeSiteUpdate[]
+  exceptions   CommitteeSourceException[]
 
   @@unique([adapterKey, sourceUrl])
   @@index([chamber])
@@ -6206,6 +6217,34 @@ model CommitteeSource {
   @@index([sourceType])
   @@index([enabled, priority])
   @@map("committee_source")
+}
+
+// Generic, reviewed source-level operational exception. A source may be
+// genuinely, durably unprobable (e.g. an unconditional WAF/access block with
+// no compliant alternative) without that being a parser defect or a
+// transient blip. `sourceHealth` on CommitteeSource stays accurate
+// (typically 'failing') — this table lets readiness distinguish a REVIEWED,
+// ACCEPTED failure from an unexplained one, without ever special-casing a
+// specific source identity in code. GLOBAL, no tenant_id, no RLS.
+model CommitteeSourceException {
+  id             String    @id @default(uuid())
+  sourceId       String    @map("source_id")
+  /// 'UPSTREAM_ACCESS_BLOCKED' | 'EXPECTED_UNAVAILABLE' | 'POLICY_STATE' | 'UNDER_INVESTIGATION'
+  exceptionType  String    @map("exception_type")
+  reasonCode     String    @map("reason_code")
+  evidence       String    @db.Text
+  reviewedBy     String    @map("reviewed_by")
+  reviewedAt     DateTime  @default(now()) @map("reviewed_at") @db.Timestamptz(6)
+  /// Null = still active. A reviewer sets this to retire/replace an exception
+  /// (e.g. once the upstream access is restored) rather than deleting the row.
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  source CommitteeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@map("committee_source_exception")
 }
 
 // Provenance ledger: every observation of a hearing/meeting as reported by one

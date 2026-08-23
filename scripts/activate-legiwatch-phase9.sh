@@ -11,6 +11,10 @@
 #   enable-shadow requires an exact confirmation and updates the guarded DB
 #   runtime registry before enabling rules.
 #   disable rules first, then marks the DB registry dark.
+#   refresh-api-td registers a new Phase 9 API task-definition revision and
+#   repoints existing rule targets to it WITHOUT touching rule enabled state,
+#   the intel TD, or the DB runtime registry — safe to run while SHADOW is
+#   actively enabled, unlike register-dark (which always disables all rules).
 #   no command performs CANARY, CUTOVER, capture-all, merge, or deploy.
 #
 # Usage:
@@ -18,6 +22,7 @@
 #   CONFIRM=CREATE_LEGIWATCH_PHASE9_DARK bash ... register-dark
 #   CONFIRM=ENABLE_LEGIWATCH_PHASE9_SHADOW bash ... enable-shadow
 #   CONFIRM=DISABLE_LEGIWATCH_PHASE9_SCHEDULES bash ... disable
+#   CONFIRM=REFRESH_LEGIWATCH_PHASE9_API_TD bash ... refresh-api-td
 #   bash ... smoke metrics
 #   bash ... status
 set -euo pipefail
@@ -32,6 +37,13 @@ INTEL_FAMILY="capiro-${ENVIRONMENT}-legiwatch-phase9-intel"
 EVENT_ROLE="capiro-${ENVIRONMENT}-legiwatch-phase9-events"
 AWS=(aws --region "$REGION")
 PREFIX="capiro-${ENVIRONMENT}-legiwatch"
+# Canonical Congress.gov credential. This is the SAME secret already wired
+# into capiro-<env>-api-pe-enrichment, capiro-<env>-api-c1-sql-v6,
+# capiro-<env>-api-migrate, and capiro-<env>-intel-api — verified live and
+# recently accessed. The other candidate name seen in this account
+# (capiro/<env>/congress_gov_api_key, underscored) is NOT referenced by any
+# live task definition and is not canonical; do not switch to it.
+CONGRESS_API_KEY_SECRET_ID="${CAPIRO_CONGRESS_API_KEY_SECRET_ID:-capiro/${ENVIRONMENT}/congress-gov-api-key}"
 
 log(){ printf '\n== %s ==\n' "$*"; }
 die(){ printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -138,21 +150,50 @@ clone_td(){
   # alarms are dimensioned on ENVIRONMENT ("dev"), and every alarm sits in
   # ALARM on a dimension mismatch regardless of real health.
   #
-  # Only the named container's environment array is touched: any existing
-  # CAPIRO_ENV entry on that container is replaced, every other env var is
-  # preserved verbatim, and secrets/other containers are untouched entirely.
-  local source="$1" family="$2" outfile="$3" container="${4:-}"
+  # $5/$6 (secretName/secretArn) are also optional. When both are non-empty,
+  # the named container's `secrets` array gets (or has replaced) an entry
+  # pointing at that Secrets Manager ARN — the same mechanism ECS already
+  # uses for every other API credential (DB_PASSWORD, OPENAI_API_KEY, etc).
+  # This exists because the LIVE capiro-<env>-api service TD itself has never
+  # carried CONGRESS_API_KEY (only the one-shot families pe-enrichment/
+  # c1-sql-v6/migrate and intel-api do), so a plain clone from the live API
+  # service silently drops it — the Phase 9 API jobs then can't reach
+  # Congress.gov. No plaintext value ever appears here; only the ARN
+  # reference is written into the task-definition JSON, exactly like every
+  # other `secrets[]` entry ECS already resolves at container start.
+  #
+  # Only the named container's environment/secrets arrays are touched: any
+  # existing CAPIRO_ENV / same-named secret entry on that container is
+  # replaced, every other env var/secret is preserved verbatim, and other
+  # containers are untouched entirely.
+  local source="$1" family="$2" outfile="$3" container="${4:-}" secretName="${5:-}" secretArn="${6:-}"
   "${AWS[@]}" ecs describe-task-definition --task-definition "$source" --query taskDefinition --output json \
-    | jq --arg family "$family" --arg container "$container" --arg envName CAPIRO_ENV --arg envValue "$ENVIRONMENT" '
+    | jq --arg family "$family" --arg container "$container" --arg envName CAPIRO_ENV --arg envValue "$ENVIRONMENT" \
+         --arg secretName "$secretName" --arg secretArn "$secretArn" '
       del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)
       | .family=$family
       | if $container == "" then . else
           .containerDefinitions = [.containerDefinitions[] |
             if .name == $container then
               .environment = ((.environment // []) | map(select(.name != $envName)) + [{name:$envName,value:$envValue}])
+              | .secrets = (
+                  if $secretName == "" then (.secrets // [])
+                  else ((.secrets // []) | map(select(.name != $secretName)) + [{name:$secretName,valueFrom:$secretArn}])
+                  end
+                )
             else . end]
         end' > "$outfile"
   "${AWS[@]}" ecs register-task-definition --cli-input-json "file://$(norm_path "$outfile")" --query 'taskDefinition.taskDefinitionArn' --output text
+}
+
+resolve_secret_arn(){
+  # Fail-closed: an approved credential that has silently gone missing from
+  # Secrets Manager (renamed/deleted) must block, not produce a Phase 9 TD
+  # that quietly runs without it — that is exactly the bug being fixed here.
+  local secret_id="$1" arn
+  arn=$("${AWS[@]}" secretsmanager describe-secret --secret-id "$secret_id" --query ARN --output text 2>/dev/null) || true
+  [ -n "$arn" ] && [ "$arn" != None ] || die "Secret not found in Secrets Manager: $secret_id"
+  printf '%s' "$arn"
 }
 
 latest_td(){
@@ -315,12 +356,51 @@ cmd_plan(){
 cmd_register_dark(){
   confirm CREATE_LEGIWATCH_PHASE9_DARK
   discover
-  API_TD=$(clone_td "$API_SOURCE_TD" "$API_FAMILY" /tmp/legiwatch-phase9-api-td.json "$API_CONTAINER")
+  local congress_arn
+  congress_arn=$(resolve_secret_arn "$CONGRESS_API_KEY_SECRET_ID")
+  # Intel already inherits CONGRESS_API_KEY from the live intel-api service
+  # TD (verified), so only the API side needs the explicit attach — the live
+  # API service TD has never carried this secret.
+  API_TD=$(clone_td "$API_SOURCE_TD" "$API_FAMILY" /tmp/legiwatch-phase9-api-td.json "$API_CONTAINER" CONGRESS_API_KEY "$congress_arn")
   INTEL_TD=$(clone_td "$INTEL_SOURCE_TD" "$INTEL_FAMILY" /tmp/legiwatch-phase9-intel-td.json "$INTEL_CONTAINER")
   ensure_role
   ensure_rules_disabled
   put_alarms
   echo "Registered dark. API=$API_TD INTEL=$INTEL_TD. No rule was enabled."
+}
+
+cmd_refresh_api_td(){
+  # Safe, active-shadow-compatible refresh: register a NEW Phase 9 API task
+  # definition revision (clone of the live capiro-<env>-api service, with the
+  # same CAPIRO_ENV + CONGRESS_API_KEY normalization as register-dark) and
+  # repoint every EXISTING rule target's TaskDefinitionArn to it — WITHOUT
+  # touching rule enabled/disabled state, without calling put-rule, without
+  # calling register-runtime, and without creating/deleting any rule. This
+  # exists specifically so a Phase 9 API TD defect (e.g. a missing secret)
+  # can be corrected while 11 EventBridge rules are ENABLED and SHADOW is
+  # actively running — register-dark is NOT safe for that because
+  # ensure_rules_disabled unconditionally calls put-rule with --state DISABLED
+  # on every rule, which would silently dark all 11 schedules mid-shadow.
+  #
+  # Intel-side jobs are untouched by this command; use it only when the API
+  # task definition itself needs a fix. It does not enable/disable any
+  # schedule and does not write to the DB runtime registry.
+  confirm REFRESH_LEGIWATCH_PHASE9_API_TD
+  discover
+  local congress_arn new_api_td row job schedule kind command rule target
+  congress_arn=$(resolve_secret_arn "$CONGRESS_API_KEY_SECRET_ID")
+  new_api_td=$(clone_td "$API_SOURCE_TD" "$API_FAMILY" /tmp/legiwatch-phase9-api-refresh-td.json "$API_CONTAINER" CONGRESS_API_KEY "$congress_arn")
+  echo "new_api_td=$new_api_td"
+  for row in "${RULE_ROWS[@]}"; do
+    IFS='|' read -r job schedule kind command <<<"$row"
+    [ "$kind" = api ] || continue
+    rule="${PREFIX}-${job}"
+    target=$("${AWS[@]}" events list-targets-by-rule --rule "$rule" --query 'Targets[0]' --output json)
+    target=$(echo "$target" | jq --arg td "$new_api_td" '.EcsParameters.TaskDefinitionArn=$td | [.]')
+    "${AWS[@]}" events put-targets --rule "$rule" --targets "$target" >/dev/null
+    echo "refreshed target: $rule -> $new_api_td (rule state unchanged)"
+  done
+  echo "API TD refresh complete. Intel TD, rule enabled/disabled state, and the DB runtime registry are all unchanged."
 }
 
 cmd_enable_shadow(){
@@ -369,7 +449,8 @@ case "${1:-plan}" in
   register-dark) cmd_register_dark ;;
   enable-shadow) cmd_enable_shadow ;;
   disable) cmd_disable ;;
+  refresh-api-td) cmd_refresh_api_td ;;
   smoke) shift; cmd_smoke "${1:-metrics}" ;;
   status) cmd_status ;;
-  *) die 'usage: activate-legiwatch-phase9.sh <plan|register-dark|enable-shadow|disable|smoke|status>' ;;
+  *) die 'usage: activate-legiwatch-phase9.sh <plan|register-dark|enable-shadow|disable|refresh-api-td|smoke|status>' ;;
 esac

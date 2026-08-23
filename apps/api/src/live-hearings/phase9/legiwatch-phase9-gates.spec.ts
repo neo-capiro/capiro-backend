@@ -45,6 +45,89 @@ describe('LegiWatch Phase 9 fail-closed gates', () => {
     });
   });
 
+  it('an unexplained all-source failure remains DEGRADED (accepted-exception mechanism does not weaken this)', () => {
+    expect(
+      classifyBodyCoverage({
+        sourcesRegistered: 1,
+        sourcesHealthy: 0,
+        sourcesFailing: 1,
+        sourcesAcceptedException: 0,
+        officialObservations: 0,
+        pendingObservations: 0,
+      }),
+    ).toMatchObject({
+      status: 'DEGRADED',
+      reasonCode: 'ALL_SOURCE_PATHS_FAILING',
+    });
+  });
+
+  it('a failing source with a reviewed, accepted exception reads as HEALTHY_WITH_ACCEPTED_EXCEPTION, not DEGRADED', () => {
+    // Generic: no committee/source identity is referenced here. This is the
+    // same shape a durably access-blocked source (e.g. an unconditional WAF
+    // block with no compliant alternative) produces once its exception is
+    // reviewed and recorded — but the function itself only sees counts.
+    expect(
+      classifyBodyCoverage({
+        sourcesRegistered: 1,
+        sourcesHealthy: 0,
+        sourcesFailing: 0,
+        sourcesAcceptedException: 1,
+        officialObservations: 0,
+        pendingObservations: 0,
+      }),
+    ).toMatchObject({
+      status: 'HEALTHY_WITH_ACCEPTED_EXCEPTION',
+      reasonCode: 'ALL_SOURCE_PATHS_ACCEPTED_EXCEPTION',
+    });
+  });
+
+  it('a mix of one real failure and one accepted exception still counts as DEGRADED (only the exempted source is excused)', () => {
+    expect(
+      classifyBodyCoverage({
+        sourcesRegistered: 2,
+        sourcesHealthy: 0,
+        sourcesFailing: 1,
+        sourcesAcceptedException: 1,
+        officialObservations: 0,
+        pendingObservations: 0,
+      }),
+    ).toMatchObject({
+      status: 'DEGRADED',
+      reasonCode: 'ALL_SOURCE_PATHS_FAILING',
+    });
+  });
+
+  it('an accepted exception never upgrades a body that also has a healthy source above plain HEALTHY (no double benefit)', () => {
+    expect(
+      classifyBodyCoverage({
+        sourcesRegistered: 2,
+        sourcesHealthy: 1,
+        sourcesFailing: 0,
+        sourcesAcceptedException: 1,
+        officialObservations: 1,
+        pendingObservations: 0,
+      }),
+    ).toMatchObject({
+      status: 'HEALTHY',
+      reasonCode: 'SOURCE_AND_EVENT_EVIDENCE_HEALTHY',
+    });
+  });
+
+  it('omitting sourcesAcceptedException entirely preserves the pre-existing behavior exactly (backward compatible)', () => {
+    expect(
+      classifyBodyCoverage({
+        sourcesRegistered: 1,
+        sourcesHealthy: 0,
+        sourcesFailing: 1,
+        officialObservations: 0,
+        pendingObservations: 0,
+      }),
+    ).toMatchObject({
+      status: 'DEGRADED',
+      reasonCode: 'ALL_SOURCE_PATHS_FAILING',
+    });
+  });
+
   it('normalizes canonical duplicate fingerprints without losing start identity', () => {
     const first = canonicalEventFingerprint({
       chamber: 'House',

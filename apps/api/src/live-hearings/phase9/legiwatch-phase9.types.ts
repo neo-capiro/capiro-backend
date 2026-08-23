@@ -31,6 +31,7 @@ export type LegiWatchPhase9CutoverPhase =
 export type LegiWatchPhase9BodyStatus =
   | 'HEALTHY'
   | 'HEALTHY_NO_EVENTS_OBSERVED'
+  | 'HEALTHY_WITH_ACCEPTED_EXCEPTION'
   | 'DEGRADED'
   | 'REVIEW_REQUIRED'
   | 'UNAVAILABLE';

@@ -166,7 +166,7 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
       `UPDATE committee_hearing
        SET coverage_status=$2,
            stream_availability=$3,
-           updated_at=$4
+           synced_at=$4
        WHERE id=$1`,
       hearingId,
       hearingCoverageStatus(result.selected.state),

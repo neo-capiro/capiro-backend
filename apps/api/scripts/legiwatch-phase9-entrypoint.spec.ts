@@ -146,7 +146,7 @@ describe('LegiWatch Phase 9 — CloudWatch alarm/metrics Environment contract (o
 
   test('register-dark passes the discovered container name into clone_td for both API and intel', () => {
     expect(activateCode).toMatch(
-      /API_TD=\$\(clone_td "\$API_SOURCE_TD" "\$API_FAMILY" \/tmp\/legiwatch-phase9-api-td\.json "\$API_CONTAINER"\)/,
+      /API_TD=\$\(clone_td "\$API_SOURCE_TD" "\$API_FAMILY" \/tmp\/legiwatch-phase9-api-td\.json "\$API_CONTAINER" CONGRESS_API_KEY "\$congress_arn"\)/,
     );
     expect(activateCode).toMatch(
       /INTEL_TD=\$\(clone_td "\$INTEL_SOURCE_TD" "\$INTEL_FAMILY" \/tmp\/legiwatch-phase9-intel-td\.json "\$INTEL_CONTAINER"\)/,
@@ -157,7 +157,7 @@ describe('LegiWatch Phase 9 — CloudWatch alarm/metrics Environment contract (o
     // The 4th positional param defaults to empty, and the jq pipeline is a
     // no-op branch (`if $container == "" then . else ... end`) when it's
     // empty — this is what keeps any other clone_td caller safe.
-    expect(activateCode).toMatch(/local source="\$1" family="\$2" outfile="\$3" container="\$\{4:-\}"/);
+    expect(activateCode).toMatch(/local source="\$1" family="\$2" outfile="\$3" container="\$\{4:-\}" secretName="\$\{5:-\}" secretArn="\$\{6:-\}"/);
     expect(activateCode).toMatch(/if \$container == "" then \. else/);
   });
 
@@ -172,6 +172,74 @@ describe('LegiWatch Phase 9 — CloudWatch alarm/metrics Environment contract (o
     expect(cloneTdBlock).not.toMatch(/production_default/i);
     expect(cloneTdBlock).not.toMatch(/capture_all_public_events/i);
     expect(cloneTdBlock).not.toMatch(/kill_switch/i);
+  });
+});
+
+describe('LegiWatch Phase 9 — Congress.gov credential wiring (secret contract)', () => {
+  test('a canonical, existing-precedent secret ID is used — not a hardcoded plaintext value', () => {
+    expect(activateCode).toMatch(
+      /CONGRESS_API_KEY_SECRET_ID="\$\{CAPIRO_CONGRESS_API_KEY_SECRET_ID:-capiro\/\$\{ENVIRONMENT\}\/congress-gov-api-key\}"/,
+    );
+    // The underscored variant seen in Secrets Manager is NOT referenced by
+    // any live task definition and must not become canonical here.
+    expect(activateCode).not.toMatch(/congress_gov_api_key/);
+  });
+
+  test('resolve_secret_arn fails closed when the secret does not exist (never returns empty/plaintext)', () => {
+    expect(activateCode).toMatch(/resolve_secret_arn\(\)\{/);
+    expect(activateCode).toMatch(/die "Secret not found in Secrets Manager: \$secret_id"/);
+    // The ARN is read via `secretsmanager describe-secret --query ARN`, never
+    // `get-secret-value` — this script never touches the secret's value.
+    expect(activateCode).toMatch(/secretsmanager describe-secret --secret-id "\$secret_id" --query ARN/);
+    expect(activateCode).not.toMatch(/get-secret-value/);
+  });
+
+  test('clone_td attaches the secret by ARN reference only, scoped to the named container', () => {
+    expect(activateCode).toMatch(
+      /\.secrets = \(\s*if \$secretName == "" then \(\.secrets \/\/ \[\]\)\s*else \(\(\.secrets \/\/ \[\]\) \| map\(select\(\.name != \$secretName\)\) \+ \[\{name:\$secretName,valueFrom:\$secretArn\}\]\)\s*end\s*\)/,
+    );
+    // No plaintext secret value literal is ever interpolated — only the
+    // ARN variable, which itself came from describe-secret, not from a
+    // hardcoded string.
+    expect(activateCode).not.toMatch(/secretsmanager get-secret-value/);
+  });
+
+  test('register-dark resolves and attaches CONGRESS_API_KEY on the API container only (intel already inherits it)', () => {
+    expect(activateCode).toMatch(
+      /congress_arn=\$\(resolve_secret_arn "\$CONGRESS_API_KEY_SECRET_ID"\)/,
+    );
+    // API clone_td call includes the secret name + resolved ARN variable.
+    expect(activateCode).toMatch(/clone_td "\$API_SOURCE_TD" "\$API_FAMILY" [^\n]*CONGRESS_API_KEY "\$congress_arn"/);
+    // Intel clone_td call has no secret args — it already inherits the
+    // secret from the live intel-api service TD.
+    expect(activateCode).toMatch(
+      /INTEL_TD=\$\(clone_td "\$INTEL_SOURCE_TD" "\$INTEL_FAMILY" \/tmp\/legiwatch-phase9-intel-td\.json "\$INTEL_CONTAINER"\)/,
+    );
+  });
+
+  test('refresh-api-td is a separate, additionally-gated command that never disables a rule', () => {
+    expect(activateScript).toContain('CONFIRM=REFRESH_LEGIWATCH_PHASE9_API_TD');
+    expect(activateCode).toMatch(/confirm REFRESH_LEGIWATCH_PHASE9_API_TD/);
+    const refreshBlockMatch = activateCode.match(/cmd_refresh_api_td\(\)\{[\s\S]*?\n\}/);
+    expect(refreshBlockMatch).not.toBeNull();
+    const refreshBlock = refreshBlockMatch![0];
+    // It must never call put-rule (which is how rules get created/DISABLED)
+    // and never touch the DB runtime registry.
+    expect(refreshBlock).not.toMatch(/events put-rule/);
+    expect(refreshBlock).not.toMatch(/register-runtime/);
+    expect(refreshBlock).not.toMatch(/production_default/i);
+    expect(refreshBlock).not.toMatch(/capture_all_public_events/i);
+    expect(refreshBlock).not.toMatch(/kill_switch/i);
+    // It only repoints existing targets via put-targets, scoped to api-kind
+    // rows, and preserves everything about the target except TaskDefinitionArn.
+    expect(refreshBlock).toMatch(/events put-targets --rule "\$rule"/);
+    expect(refreshBlock).toMatch(/\.EcsParameters\.TaskDefinitionArn=\$td/);
+    expect(refreshBlock).toMatch(/\[ "\$kind" = api \] \|\| continue/);
+  });
+
+  test('refresh-api-td is wired into the command dispatcher and usage message', () => {
+    expect(activateCode).toMatch(/refresh-api-td\) cmd_refresh_api_td ;;/);
+    expect(activateCode).toMatch(/plan\|register-dark\|enable-shadow\|disable\|refresh-api-td\|smoke\|status/);
   });
 });
 

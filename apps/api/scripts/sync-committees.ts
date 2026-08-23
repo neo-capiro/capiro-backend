@@ -71,13 +71,85 @@ export function membershipKeyToSystemCode(key: string): string | null {
   return `${m[1].toLowerCase()}${m[2] ?? '00'}`;
 }
 
+/**
+ * Congress.gov's own committee-detail endpoint, when reachable, is the
+ * higher-authority source for a committee's official page — this is what
+ * confirmed jslc00/jspr00's current cha.house.gov paths after the community
+ * feed's copy of them 404'd. Failures here are non-fatal: the sync must
+ * degrade to community-only data rather than fail the whole run over one
+ * detail-endpoint outage.
+ */
+const CONGRESS_API_BASE = process.env.CONGRESS_API_BASE ?? 'https://api.congress.gov/v3';
+
+interface CongressGovCommitteeDetail {
+  committee?: { committeeWebsiteUrl?: string | null };
+}
+
+/**
+ * Fetch the Congress.gov-reported official URL for one committee. Returns
+ * null (not an error) on any non-2xx, missing key, or malformed payload —
+ * callers treat that as "no authoritative override available this run",
+ * never as "clear the existing url".
+ */
+export async function fetchCongressGovCommitteeUrl(
+  systemCode: string,
+  chamber: string,
+  apiKey: string | undefined,
+): Promise<string | null> {
+  if (!apiKey) return null;
+  const normalizedChamber = chamber === 'joint' ? 'joint' : chamber === 'senate' ? 'senate' : 'house';
+  try {
+    const res = await fetch(
+      `${CONGRESS_API_BASE}/committee/${normalizedChamber}/${systemCode}?api_key=${apiKey}&format=json`,
+      { headers: { accept: 'application/json' } },
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as CongressGovCommitteeDetail;
+    const url = body.committee?.committeeWebsiteUrl?.trim();
+    return url ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Decide the (url, urlSource) a committee row should have after this sync,
+ * given what the community feed just reported and what the row currently
+ * holds. GENERIC precedence rule — no committee system code appears here:
+ *
+ *   - once a row is congress_gov-sourced, community data may never overwrite
+ *     `url` (it can only fill a null url on a row that has never been
+ *     congress_gov-verified);
+ *   - a fresh congress_gov-confirmed URL always wins and is stamped
+ *     congress_gov;
+ *   - otherwise the community value is used, stamped community (the
+ *     historical behavior, preserved for every committee this run didn't
+ *     have a congress_gov answer for).
+ */
+export function resolveCommitteeUrl(input: {
+  communityUrl: string | null;
+  existingUrl: string | null;
+  existingUrlSource: string | null;
+  congressGovUrl: string | null;
+}): { url: string | null; urlSource: 'congress_gov' | 'community' | null } {
+  if (input.congressGovUrl) {
+    return { url: input.congressGovUrl, urlSource: 'congress_gov' };
+  }
+  if (input.existingUrlSource === 'congress_gov') {
+    // Authoritative value already on file; a lower-authority community sync
+    // must not revert it, even if the community feed's url differs.
+    return { url: input.existingUrl, urlSource: 'congress_gov' };
+  }
+  return { url: input.communityUrl, urlSource: input.communityUrl ? 'community' : null };
+}
+
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers: { accept: 'application/json' } });
   if (!res.ok) throw new Error(`fetch failed ${url}: HTTP ${res.status}`);
   return (await res.json()) as T;
 }
 
-async function main() {
+export async function main() {
   await runWithSyncRun(prisma as never, 'sync-committees', async () => {
     let inserted = 0;
     let updated = 0;
@@ -132,6 +204,41 @@ async function main() {
     }
     for (const row of allRows) seen.add(row.systemCode);
 
+    // Bounded, generic Congress.gov cross-check: only for committees that are
+    // NOT already congress_gov-sourced (a row the API already confirmed is
+    // never re-fetched or re-touched by this script again — see
+    // resolveCommitteeUrl), and only up to a per-run cap so a large backlog
+    // of never-yet-verified rows can't turn one sync into hundreds of API
+    // calls. Subsequent runs pick up wherever this run left off.
+    const congressApiKey = process.env.CONGRESS_API_KEY;
+    const verifyLimit = Number.parseInt(process.env.CONGRESS_COMMITTEE_URL_VERIFY_LIMIT ?? '', 10);
+    const boundedVerifyLimit = Number.isFinite(verifyLimit) && verifyLimit > 0 ? verifyLimit : 60;
+    const existingRows = await prisma.congressCommittee.findMany({
+      where: { systemCode: { in: Array.from(seen) } },
+      select: { systemCode: true, url: true, urlSource: true },
+    });
+    const existingBySystemCode = new Map(existingRows.map((r) => [r.systemCode, r]));
+    const congressGovUrlBySystemCode = new Map<string, string | null>();
+    let verifyCallsMade = 0;
+    for (const row of allRows) {
+      if (verifyCallsMade >= boundedVerifyLimit) break;
+      const existing = existingBySystemCode.get(row.systemCode);
+      if (existing?.urlSource === 'congress_gov') continue; // already authoritative
+      verifyCallsMade += 1;
+      const congressGovUrl = await fetchCongressGovCommitteeUrl(
+        row.systemCode,
+        row.chamber,
+        congressApiKey,
+      );
+      if (congressGovUrl) congressGovUrlBySystemCode.set(row.systemCode, congressGovUrl);
+    }
+    if (verifyCallsMade > 0) {
+      console.log(
+        `[sync-committees] congress.gov url cross-check: ${verifyCallsMade} committee(s) checked, ` +
+          `${congressGovUrlBySystemCode.size} confirmed url(s) (cap=${boundedVerifyLimit})`,
+      );
+    }
+
     // Magnitude guard (not just zero): a VALID-but-partial upstream file (e.g.
     // only House committees after an upstream generator bug) must not sweep
     // isCurrent off everything else or gut the roster replace below. Congress
@@ -146,11 +253,21 @@ async function main() {
 
     for (const row of allRows) {
       try {
-        const existing = await prisma.congressCommittee.findUnique({
-          where: { systemCode: row.systemCode },
-          select: { systemCode: true },
+        const existing = existingBySystemCode.get(row.systemCode);
+        const resolvedUrl = resolveCommitteeUrl({
+          communityUrl: row.url,
+          existingUrl: existing?.url ?? null,
+          existingUrlSource: existing?.urlSource ?? null,
+          congressGovUrl: congressGovUrlBySystemCode.get(row.systemCode) ?? null,
         });
-        const data = { ...row, isCurrent: true, lastSyncedAt: new Date() };
+        const data = {
+          ...row,
+          url: resolvedUrl.url,
+          urlSource: resolvedUrl.urlSource,
+          ...(resolvedUrl.urlSource === 'congress_gov' ? { urlVerifiedAt: new Date() } : {}),
+          isCurrent: true,
+          lastSyncedAt: new Date(),
+        };
         if (existing) {
           await prisma.congressCommittee.update({
             where: { systemCode: row.systemCode },

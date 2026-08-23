@@ -18,7 +18,7 @@ import { PublicHearingCaptureAttemptStore } from './public-hearing-capture-attem
 import { PublicHearingCaptureStore } from './public-hearing-capture.store.js';
 import { PublicHearingTranscriptStore } from './public-hearing-transcript.store.js';
 
-export type PublicCaptureTaskMode = 'preflight' | 'worker' | 'status';
+export type PublicCaptureTaskMode = 'preflight' | 'worker' | 'status' | 'disposition';
 
 export interface PublicCaptureTaskResult {
   mode: PublicCaptureTaskMode;
@@ -79,6 +79,51 @@ export async function runPublicCaptureTask(
       results: [{ ...counts }],
     };
     log(`PUBLIC_CAPTURE_STATUS ${JSON.stringify(result)}`);
+    return result;
+  }
+
+  if (mode === 'disposition') {
+    // Demand-free path: determine and persist a canonical hearing-level
+    // stream disposition WITHOUT creating capture demand. Unlike preflight
+    // and worker, this mode:
+    //   - NEVER calls PublicCaptureOrchestrator.reconcile() (which gates on
+    //     hearing_subscription / captureAllPublicEvents BEFORE resolution)
+    //   - NEVER creates a hearing_subscription row
+    //   - NEVER creates/updates a public_hearing_capture row
+    //   - NEVER enqueues a capture job
+    // It reuses the SAME resolver/policy (PublicCaptureAutomaticResolverAdapter
+    // -> classifyStreamResolution) captures already use, so a hearing that
+    // genuinely HAS a discoverable stream is never mis-classified as having
+    // none; it just doesn't create any demand-side side effect either way.
+    //
+    // Required to be explicit + operator-invoked: an empty hearingId is
+    // rejected rather than silently scanning all due hearings, and callers
+    // are expected to pass --manual (enforced by the CLI entrypoint, not
+    // here, so this function stays usable from tests without the flag).
+    const explicitHearingId = flags['hearingId']?.trim();
+    if (!explicitHearingId) {
+      throw new Error('disposition mode requires --hearingId=<id>');
+    }
+    const resolverForDisposition = buildResolver(dependencies.prisma);
+    const result: PublicCaptureTaskResult = {
+      mode,
+      discovered: 1,
+      claimed: 0,
+      completed: 0,
+      requeued: 0,
+      failed: 0,
+      results: [],
+    };
+    try {
+      const resolved = await resolverForDisposition.resolve({ hearingId: explicitHearingId });
+      result.completed = 1;
+      result.results.push({ hearingId: explicitHearingId, resolved });
+      log(`PUBLIC_CAPTURE_DISPOSITION hearing=${explicitHearingId} ${JSON.stringify(resolved)}`);
+    } catch (error) {
+      result.failed = 1;
+      result.results.push({ hearingId: explicitHearingId, error: boundedError(error) });
+      log(`PUBLIC_CAPTURE_DISPOSITION_ERROR hearing=${explicitHearingId} ${boundedError(error)}`);
+    }
     return result;
   }
 
@@ -330,8 +375,17 @@ function boundedPositiveInteger(value: number, max: number, field: string): numb
 
 async function main(): Promise<void> {
   const [rawMode, ...args] = process.argv.slice(2);
-  if (!['preflight', 'worker', 'status'].includes(rawMode ?? '')) {
-    throw new Error('usage: public-capture-task-runner <preflight|worker|status> [--key=value]');
+  if (!['preflight', 'worker', 'status', 'disposition'].includes(rawMode ?? '')) {
+    throw new Error(
+      'usage: public-capture-task-runner <preflight|worker|status|disposition> [--key=value]',
+    );
+  }
+  if (rawMode === 'disposition' && !args.includes('--manual')) {
+    // Demand-free disposition is an operator/manual path, never part of the
+    // recurring capture-worker cadence — require the same --manual flag the
+    // other manual invocations use, so it can't be silently added to a
+    // schedule without an explicit, reviewable change.
+    throw new Error('disposition mode requires --manual (explicit operator invocation only)');
   }
   const prisma = new PrismaService();
   try {
