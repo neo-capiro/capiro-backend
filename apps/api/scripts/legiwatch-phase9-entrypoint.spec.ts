@@ -121,6 +121,60 @@ describe('LegiWatch Phase 9 — activation script contract (group C)', () => {
   });
 });
 
+describe('LegiWatch Phase 9 — CloudWatch alarm/metrics Environment contract (observability hotfix)', () => {
+  test('alarm dimension and rule/task-family naming derive from the SAME ENVIRONMENT value', () => {
+    expect(activateCode).toMatch(/ENVIRONMENT="\$\{CAPIRO_ENV:-dev\}"/);
+    // Alarms are dimensioned on $ENVIRONMENT, not a hardcoded literal.
+    expect(activateCode).toMatch(/--dimensions "Name=Environment,Value=\$\{ENVIRONMENT\}"/);
+    // Rule/task-family names use the same $ENVIRONMENT variable.
+    expect(activateCode).toMatch(/PREFIX="capiro-\$\{ENVIRONMENT\}-legiwatch"/);
+    expect(activateCode).toMatch(/API_FAMILY="capiro-\$\{ENVIRONMENT\}-legiwatch-phase9-api"/);
+    expect(activateCode).toMatch(/INTEL_FAMILY="capiro-\$\{ENVIRONMENT\}-legiwatch-phase9-intel"/);
+  });
+
+  test('clone_td injects CAPIRO_ENV=$ENVIRONMENT onto the named container only', () => {
+    expect(activateCode).toMatch(/--arg envName CAPIRO_ENV --arg envValue "\$ENVIRONMENT"/);
+    // The injection is scoped to the one named container, not every container
+    // in the task definition.
+    expect(activateCode).toMatch(/if \.name == \$container then/);
+    // Existing CAPIRO_ENV entries are replaced (not duplicated); every other
+    // env var on that container is preserved verbatim.
+    expect(activateCode).toMatch(
+      /\.environment = \(\(\.environment \/\/ \[\]\) \| map\(select\(\.name != \$envName\)\) \+ \[\{name:\$envName,value:\$envValue\}\]\)/,
+    );
+  });
+
+  test('register-dark passes the discovered container name into clone_td for both API and intel', () => {
+    expect(activateCode).toMatch(
+      /API_TD=\$\(clone_td "\$API_SOURCE_TD" "\$API_FAMILY" \/tmp\/legiwatch-phase9-api-td\.json "\$API_CONTAINER"\)/,
+    );
+    expect(activateCode).toMatch(
+      /INTEL_TD=\$\(clone_td "\$INTEL_SOURCE_TD" "\$INTEL_FAMILY" \/tmp\/legiwatch-phase9-intel-td\.json "\$INTEL_CONTAINER"\)/,
+    );
+  });
+
+  test('clone_td is backward-compatible: an omitted container arg changes nothing (no crash, no forced mutation)', () => {
+    // The 4th positional param defaults to empty, and the jq pipeline is a
+    // no-op branch (`if $container == "" then . else ... end`) when it's
+    // empty — this is what keeps any other clone_td caller safe.
+    expect(activateCode).toMatch(/local source="\$1" family="\$2" outfile="\$3" container="\$\{4:-\}"/);
+    expect(activateCode).toMatch(/if \$container == "" then \. else/);
+  });
+
+  test('this code path never touches rules, capture policy, or cutover state', () => {
+    // clone_td/register-dark's CAPIRO_ENV injection is scoped to task
+    // definition JSON construction; it must not appear anywhere near the
+    // rule-enable/disable or capture-policy code paths.
+    const cloneTdBlockMatch = activateCode.match(/clone_td\(\)\{[\s\S]*?\n\}/);
+    expect(cloneTdBlockMatch).not.toBeNull();
+    const cloneTdBlock = cloneTdBlockMatch![0];
+    expect(cloneTdBlock).not.toMatch(/events (enable|disable)-rule/);
+    expect(cloneTdBlock).not.toMatch(/production_default/i);
+    expect(cloneTdBlock).not.toMatch(/capture_all_public_events/i);
+    expect(cloneTdBlock).not.toMatch(/kill_switch/i);
+  });
+});
+
 describe('LegiWatch Phase 9 — service discovery safety (group D)', () => {
   test('API lookup anchors to the exact api service and excludes web', () => {
     // find_service api prefers the exact name and its fallback denies web.

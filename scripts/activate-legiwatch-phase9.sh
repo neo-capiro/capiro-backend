@@ -130,11 +130,28 @@ discover(){
 }
 
 clone_td(){
-  local source="$1" family="$2" outfile="$3"
+  # $4 (container) is optional for backward compatibility, but register-dark
+  # always passes it so the cloned Phase 9 TD carries an explicit CAPIRO_ENV
+  # matching this script's own ENVIRONMENT (the same value used for rule
+  # naming, alarm dimensions, and task-family naming). Without this, the
+  # Phase 9 metrics service falls back to NODE_ENV ("development") while
+  # alarms are dimensioned on ENVIRONMENT ("dev"), and every alarm sits in
+  # ALARM on a dimension mismatch regardless of real health.
+  #
+  # Only the named container's environment array is touched: any existing
+  # CAPIRO_ENV entry on that container is replaced, every other env var is
+  # preserved verbatim, and secrets/other containers are untouched entirely.
+  local source="$1" family="$2" outfile="$3" container="${4:-}"
   "${AWS[@]}" ecs describe-task-definition --task-definition "$source" --query taskDefinition --output json \
-    | jq --arg family "$family" '
+    | jq --arg family "$family" --arg container "$container" --arg envName CAPIRO_ENV --arg envValue "$ENVIRONMENT" '
       del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)
-      | .family=$family' > "$outfile"
+      | .family=$family
+      | if $container == "" then . else
+          .containerDefinitions = [.containerDefinitions[] |
+            if .name == $container then
+              .environment = ((.environment // []) | map(select(.name != $envName)) + [{name:$envName,value:$envValue}])
+            else . end]
+        end' > "$outfile"
   "${AWS[@]}" ecs register-task-definition --cli-input-json "file://$(norm_path "$outfile")" --query 'taskDefinition.taskDefinitionArn' --output text
 }
 
@@ -298,8 +315,8 @@ cmd_plan(){
 cmd_register_dark(){
   confirm CREATE_LEGIWATCH_PHASE9_DARK
   discover
-  API_TD=$(clone_td "$API_SOURCE_TD" "$API_FAMILY" /tmp/legiwatch-phase9-api-td.json)
-  INTEL_TD=$(clone_td "$INTEL_SOURCE_TD" "$INTEL_FAMILY" /tmp/legiwatch-phase9-intel-td.json)
+  API_TD=$(clone_td "$API_SOURCE_TD" "$API_FAMILY" /tmp/legiwatch-phase9-api-td.json "$API_CONTAINER")
+  INTEL_TD=$(clone_td "$INTEL_SOURCE_TD" "$INTEL_FAMILY" /tmp/legiwatch-phase9-intel-td.json "$INTEL_CONTAINER")
   ensure_role
   ensure_rules_disabled
   put_alarms
