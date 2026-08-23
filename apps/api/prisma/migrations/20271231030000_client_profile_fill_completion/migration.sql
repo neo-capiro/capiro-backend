@@ -167,25 +167,45 @@ BEGIN
     'client_profile_fill_schedule'
   ]
   LOOP
-    EXECUTE format('DROP POLICY IF EXISTS %I_select ON %I', table_name, table_name);
     EXECUTE format(
-      'CREATE POLICY %I_select ON %I FOR SELECT USING (rls_bypass() OR tenant_id = current_tenant_id())',
-      table_name, table_name
+      'DROP POLICY IF EXISTS %I ON %I',
+      table_name || '_select',
+      table_name
     );
-    EXECUTE format('DROP POLICY IF EXISTS %I_insert ON %I', table_name, table_name);
     EXECUTE format(
-      'CREATE POLICY %I_insert ON %I FOR INSERT WITH CHECK (rls_bypass() OR tenant_id = current_tenant_id())',
-      table_name, table_name
+      'CREATE POLICY %I ON %I FOR SELECT USING (rls_bypass() OR tenant_id = current_tenant_id())',
+      table_name || '_select',
+      table_name
     );
-    EXECUTE format('DROP POLICY IF EXISTS %I_update ON %I', table_name, table_name);
     EXECUTE format(
-      'CREATE POLICY %I_update ON %I FOR UPDATE USING (rls_bypass() OR tenant_id = current_tenant_id()) WITH CHECK (rls_bypass() OR tenant_id = current_tenant_id())',
-      table_name, table_name
+      'DROP POLICY IF EXISTS %I ON %I',
+      table_name || '_insert',
+      table_name
     );
-    EXECUTE format('DROP POLICY IF EXISTS %I_delete ON %I', table_name, table_name);
     EXECUTE format(
-      'CREATE POLICY %I_delete ON %I FOR DELETE USING (rls_bypass() OR tenant_id = current_tenant_id())',
-      table_name, table_name
+      'CREATE POLICY %I ON %I FOR INSERT WITH CHECK (rls_bypass() OR tenant_id = current_tenant_id())',
+      table_name || '_insert',
+      table_name
+    );
+    EXECUTE format(
+      'DROP POLICY IF EXISTS %I ON %I',
+      table_name || '_update',
+      table_name
+    );
+    EXECUTE format(
+      'CREATE POLICY %I ON %I FOR UPDATE USING (rls_bypass() OR tenant_id = current_tenant_id()) WITH CHECK (rls_bypass() OR tenant_id = current_tenant_id())',
+      table_name || '_update',
+      table_name
+    );
+    EXECUTE format(
+      'DROP POLICY IF EXISTS %I ON %I',
+      table_name || '_delete',
+      table_name
+    );
+    EXECUTE format(
+      'CREATE POLICY %I ON %I FOR DELETE USING (rls_bypass() OR tenant_id = current_tenant_id())',
+      table_name || '_delete',
+      table_name
     );
   END LOOP;
 
