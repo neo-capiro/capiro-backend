@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "globalPrefix": "/api",
+  "controllerPrefix": "/engagement/outreach-v3/templates",
+  "runtime": "engagement-api",
+  "featureFlag": "OUTREACH_V3_STATE_ENABLED",
+  "disabledBehavior": 404,
+  "routes": [
+    { "method": "GET", "path": "/api/engagement/outreach-v3/templates", "handler": "list" },
+    { "method": "GET", "path": "/api/engagement/outreach-v3/templates/provenance/:sessionId", "handler": "getProvenance" },
+    { "method": "GET", "path": "/api/engagement/outreach-v3/templates/:templateId", "handler": "get" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/templates/from-session", "handler": "createFromSession" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/templates/from-scratch", "handler": "createFromScratch" },
+    { "method": "PATCH", "path": "/api/engagement/outreach-v3/templates/:templateId", "handler": "update" },
+    { "method": "PATCH", "path": "/api/engagement/outreach-v3/templates/:templateId/draft", "handler": "updateDraft" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/templates/:templateId/versions/from-session", "handler": "createVersionFromSession" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/templates/:templateId/publish", "handler": "publish" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/templates/:templateId/use", "handler": "use" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/templates/:templateId/duplicate", "handler": "duplicate" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/templates/:templateId/archive", "handler": "archive" }
+  ]
+}

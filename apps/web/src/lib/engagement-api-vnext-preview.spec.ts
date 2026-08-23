@@ -52,6 +52,39 @@ describe('vNext Outreach V3 automatic routing', () => {
       engagementPreviewHeader('/api/engagement/outreach-v3/not-a-real-route', BASE),
     ).toBeNull();
   });
+
+  // Regression: template provenance 404 on os.capiro.ai.
+  // The SPA called GET …/templates/provenance/:sessionId without the preview
+  // header because the path was missing from the generated allowlist, so the
+  // request hit main API where OutreachV3StateGuard returns 404 (flag off).
+  // engagement-api (flag on) returns 200 with null for ordinary sessions.
+  it('routes template provenance + the rest of the templates surface to engagement-api', () => {
+    const provenance =
+      '/api/engagement/outreach-v3/templates/provenance/24d50277-2202-414c-8965-a0962d2c48ad';
+    expect(isOutreachV3ApiRequest(provenance, BASE)).toBe(true);
+    expect(engagementPreviewHeader(provenance, BASE)).toEqual({
+      name: ENGAGEMENT_PREVIEW_HEADER,
+      value: ENGAGEMENT_PREVIEW_HEADER_VALUE,
+    });
+
+    for (const path of [
+      '/api/engagement/outreach-v3/templates',
+      '/api/engagement/outreach-v3/templates/from-session',
+      '/api/engagement/outreach-v3/templates/from-scratch',
+      '/api/engagement/outreach-v3/templates/00000000-0000-4000-8000-000000000099',
+      '/api/engagement/outreach-v3/templates/00000000-0000-4000-8000-000000000099/use',
+      '/api/engagement/outreach-v3/templates/00000000-0000-4000-8000-000000000099/duplicate',
+      '/api/engagement/outreach-v3/templates/00000000-0000-4000-8000-000000000099/archive',
+      '/api/engagement/outreach-v3/templates/00000000-0000-4000-8000-000000000099/publish',
+      '/api/engagement/outreach-v3/templates/00000000-0000-4000-8000-000000000099/draft',
+      '/api/engagement/outreach-v3/templates/00000000-0000-4000-8000-000000000099/versions/from-session',
+    ]) {
+      expect(engagementPreviewHeader(path, BASE)).toEqual({
+        name: ENGAGEMENT_PREVIEW_HEADER,
+        value: ENGAGEMENT_PREVIEW_HEADER_VALUE,
+      });
+    }
+  });
 });
 
 describe('vNext Outreach V3 response freshness (regression: production incident)', () => {
