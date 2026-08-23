@@ -174,8 +174,8 @@
 /* Toasts sit above the modal layer so feedback raised from inside a dialog is not hidden by it. */
 .capiro-vnext-root .capiro-toast-region { position: fixed; top: 16px; right: 16px; z-index: calc(var(--capiro-z-modal) + 1); display: grid; gap: 8px; justify-items: end; pointer-events: none; }
 .capiro-vnext-root .capiro-toast { display: flex; align-items: center; gap: 10px; width: min(380px, calc(100vw - 32px)); padding: 10px 12px; background: var(--capiro-color-bg-surface); border: 1px solid var(--capiro-color-border-default); border-left-width: 3px; border-radius: var(--capiro-radius-control); color: var(--capiro-color-text-secondary); pointer-events: auto; }
-.capiro-vnext-root .capiro-toast--success { border-left-color: var(--capiro-color-border-success); }
-.capiro-vnext-root .capiro-toast--error { border-left-color: var(--capiro-color-border-danger); }
+.capiro-vnext-root .capiro-toast--success { border-left-color: var(--capiro-color-success); }
+.capiro-vnext-root .capiro-toast--error { border-left-color: var(--capiro-color-danger); }
 .capiro-vnext-root .capiro-toast__text { flex: 1; min-width: 0; }
 .capiro-vnext-root .capiro-toast__dismiss { flex-shrink: 0; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--capiro-color-text-muted); font-size: 15px; line-height: 1; cursor: pointer; }
 .capiro-vnext-root .capiro-toast__dismiss:hover { background: var(--capiro-color-bg-subtle); color: var(--capiro-color-text-secondary); }
