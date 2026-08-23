@@ -60,6 +60,29 @@ export interface HttpsPublisherHttpOptions {
   }) => Promise<{ waitMs: number }>;
   /** Overridable so tests never actually sleep. */
   readonly sleep?: (ms: number) => Promise<void>;
+  /**
+   * Real-time clock used ONLY for pacing decisions — deliberately independent
+   * of the `nowIso` a caller passes into `get()`/`robotsFor()`.
+   *
+   * The job runtime (`job.mjs`) captures its own `nowIso` exactly once at
+   * process start and threads that SAME frozen value through every request of
+   * a crawl that can run for hours, so that audit/`observedAt` timestamps stay
+   * deterministic and reproducible. Pacing, however, has to compare against
+   * how much real time has actually elapsed since the last real request. If
+   * pacing reuses the frozen `nowIso` while `lastRequestAt` legitimately
+   * advances with the real wall clock (as it must, to represent when a
+   * request truly went out), `nextHostRequestAt` computes a wait against an
+   * origin that never moves — so each wait grows to cover the ENTIRE elapsed
+   * real time so far plus one interval, and that produces an exact doubling
+   * series (1s, 2s, 4s, 8s, ... ~16384s by the 16th request) instead of a
+   * bounded ~`intervalMs` spacing. This is the confirmed root cause of the
+   * Phase 10 `govinfo-public-laws` discovery run that took 7h43m of real wall
+   * clock for only 16 host-pacing reservations.
+   *
+   * Defaults to the real `Date.now()`-backed clock; tests inject a fake one so
+   * `sleep()` can simulate elapsed time without an actual wait.
+   */
+  readonly clock?: () => string;
 }
 
 interface HostState {
@@ -176,10 +199,9 @@ export class HttpsPublisherHttpAdapter implements PublisherHttpPort {
     await this.pace({
       host: parsed.hostname,
       intervalMs,
-      nowIso: input.nowIso,
       lastRequestAt: state.lastRequestAt,
     });
-    state.lastRequestAt = new Date().toISOString();
+    state.lastRequestAt = this.realNowIso();
 
     return this.follow({
       url: parsed,
@@ -193,25 +215,40 @@ export class HttpsPublisherHttpAdapter implements PublisherHttpPort {
   private async pace(input: {
     host: string;
     intervalMs: number;
-    nowIso: string;
     lastRequestAt: string | null;
   }): Promise<void> {
+    // Pacing MUST use real elapsed time, never the caller's `nowIso` — that
+    // value is captured once at job start and held frozen for the lifetime of
+    // a crawl (deliberately, so audit/observedAt timestamps stay
+    // deterministic). `state.lastRequestAt` and the DB's own row timestamps
+    // are genuinely real wall-clock; comparing a frozen origin against a
+    // really-advancing one made every wait grow to cover the entire elapsed
+    // run so far, doubling on each request (root cause of the Phase 10
+    // govinfo-public-laws 7h43m/16-reservation hang). Both the cross-worker
+    // DB reservation and the local same-process check must use this same
+    // real clock so neither one silently reintroduces the bug.
+    const paceNowIso = this.realNowIso();
+
     // Cross-worker reservation first: two workers on adapters that share a host
     // must not both conclude they may issue immediately.
     const reserved = await this.options.reserveHostSlot?.({
       host: input.host,
       intervalMs: input.intervalMs,
-      nowIso: input.nowIso,
+      nowIso: paceNowIso,
     });
 
     const local = nextHostRequestAt({
-      nowIso: input.nowIso,
+      nowIso: paceNowIso,
       lastRequestAt: input.lastRequestAt,
       intervalMs: input.intervalMs,
     });
 
     const waitMs = Math.max(reserved?.waitMs ?? 0, local.waitMs);
     if (waitMs > 0) await this.sleep(waitMs);
+  }
+
+  private realNowIso(): string {
+    return this.options.clock ? this.options.clock() : new Date().toISOString();
   }
 
   private sleep(ms: number): Promise<void> {
