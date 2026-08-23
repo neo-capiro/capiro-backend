@@ -155,16 +155,37 @@ describe('planOutreachGeneration', () => {
 
     expect(plan.subjectScope).toBe('client');
     expect(plan.queryClass).toBe('relationship_history');
-    expect(plan.requestedDomains).toEqual([
-      'clients',
-      'institutional_knowledge',
-      'contacts',
-      'outreach',
-      'mail',
-      'meetings',
-      'strategies_work',
-    ]);
+    // clients/institutional_knowledge/strategies_work are deliberately excluded
+    // from a relationship_history request: none of the three can answer that
+    // query class for this caller (see RELATIONSHIP_HISTORY_DOMAINS's comment),
+    // and requesting them anyway meant projectCoverage() always found them
+    // permanently "missing" no matter how many of the other domains worked,
+    // so coverage.complete could never be true. Client/program facts still
+    // reach the draft through the campaign context selected in the wizard.
+    expect(plan.requestedDomains).toEqual(['contacts', 'mail', 'meetings', 'outreach']);
     expect(plan.requireComplete).toBe(false);
+  });
+
+  test('a relationship_history request never asks a domain a question it cannot answer', () => {
+    // clients/strategies_work never support relationship_history in the
+    // catalog (neither is interaction-history data), and
+    // institutional_knowledge needs canonicalEntityIds/graphPartitions this
+    // service does not resolve today. Requesting them anyway meant
+    // projectCoverage() always found them permanently "missing" regardless of
+    // how many other domains succeeded, so coverage.complete could never be
+    // true and every draft blocked on CONTEXT_PLANE_INCOMPLETE.
+    const plan = planOutreachGeneration({
+      objective: 'Request a meeting before markup on the NDAA plus-up.',
+      clientId: 'c1',
+      clientName: 'Aperture Defense',
+      recipientName: 'Dana Reed',
+      recipientEmail: 'dana.reed@mail.house.gov',
+    });
+
+    expect(plan.queryClass).toBe('relationship_history');
+    expect(plan.requestedDomains).not.toContain('clients');
+    expect(plan.requestedDomains).not.toContain('strategies_work');
+    expect(plan.requestedDomains).not.toContain('institutional_knowledge');
   });
 
   test('a draft without a selected client stays general and still searches shared domains', () => {

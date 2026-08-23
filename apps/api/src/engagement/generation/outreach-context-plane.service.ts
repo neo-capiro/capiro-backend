@@ -36,6 +36,26 @@ const OUTREACH_DOMAINS: RetrievalDomain[] = [
   'strategies_work',
 ];
 
+/**
+ * `clients` and `strategies_work` are not relationship-history data (a client
+ * record is a static account profile, not an interaction history; neither is a
+ * strategy document), and `institutional_knowledge`'s temporal-graph path needs
+ * resolved canonicalEntityIds and authorized graphPartitions this service does
+ * not produce today. Requesting them under `relationship_history` anyway meant
+ * projectCoverage() always found 3 permanently "missing" domains no matter how
+ * many of the other 4 were fixed, so `coverage.complete` could never be true
+ * and every draft blocked on CONTEXT_PLANE_INCOMPLETE regardless.
+ *
+ * MeriContextPlaneService (the sibling Context Plane caller for this exact
+ * query class) already narrows its own requestedDomains the same way
+ * (`['contacts', 'mail', 'meetings']` for its RELATIONSHIP_RE branch) rather
+ * than asking a domain a question it structurally cannot answer. This mirrors
+ * that established pattern, adding `outreach` since "have we written to this
+ * recipient before" is exactly a relationship-history question that domain can
+ * now serve (see semantic-data-catalog.service.ts).
+ */
+const RELATIONSHIP_HISTORY_DOMAINS: RetrievalDomain[] = ['contacts', 'mail', 'meetings', 'outreach'];
+
 export interface OutreachContextPlaneInput {
   clientId: string | null;
   recipientName: string | null;
@@ -281,10 +301,12 @@ export function planOutreachGeneration(input: {
     queryClass === 'relationship_history'
       ? relationshipHistoryWindow(input.now ?? new Date())
       : { windowStart: undefined, windowEnd: undefined };
+  const requestedDomains =
+    queryClass === 'relationship_history' ? [...RELATIONSHIP_HISTORY_DOMAINS] : [...OUTREACH_DOMAINS];
   return {
     subjectScope,
     queryClass,
-    requestedDomains: [...OUTREACH_DOMAINS],
+    requestedDomains,
     query: query || undefined,
     requireComplete: false,
     windowStart: window.windowStart,
