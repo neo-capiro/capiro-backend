@@ -1,0 +1,170 @@
+/* ── ClientProfileShell component classes ────────────────────────────────────
+   All rules are scoped under .capiro-vnext-root so they do not bleed into
+   legacy surfaces. These classes replace the prototype inline styles that
+   were transcribed from hardcoded hex values in ClientProfileShell.tsx. */
+
+.capiro-vnext-root .cap-pf-breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  background: var(--capiro-color-bg-surface);
+  border-bottom: 1px solid var(--capiro-color-border-default);
+  overflow: hidden;
+}
+
+.capiro-vnext-root .cap-pf-identity-tile {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.capiro-vnext-root .cap-pf-identity-tile--dark {
+  background: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .cap-pf-client-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--capiro-color-text-primary);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.capiro-vnext-root .cap-pf-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .cap-pf-focus-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  background: var(--capiro-color-bg-surface-2, #faf9f6);
+  border: 1px solid var(--capiro-color-border-default);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--capiro-color-text-primary);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .cap-pf-tab-btn {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+  cursor: pointer;
+  position: relative;
+  transition: color 120ms;
+  white-space: nowrap;
+}
+.capiro-vnext-root .cap-pf-tab-btn:hover {
+  color: var(--capiro-color-text-primary);
+}
+.capiro-vnext-root .cap-pf-tab-btn[aria-selected="true"] {
+  color: var(--capiro-color-text-primary);
+  font-weight: 600;
+}
+.capiro-vnext-root .cap-pf-tab-btn[aria-selected="true"]::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--capiro-color-text-primary);
+  border-radius: 2px 2px 0 0;
+}
+
+.capiro-vnext-root .cap-pf-overflow-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
+  width: 200px;
+  background: var(--capiro-color-bg-surface);
+  border-radius: 8px;
+  box-shadow: var(--capiro-primitive-shadow-widget);
+  overflow: hidden;
+}
+
+.capiro-vnext-root .cap-pf-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+.capiro-vnext-root .cap-pf-menu-item:hover {
+  background: var(--capiro-color-bg-canvas);
+}
+.capiro-vnext-root .cap-pf-menu-item--danger {
+  color: var(--capiro-color-text-destructive, #b42318);
+}
+
+.capiro-vnext-root .cap-pf-fill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 0;
+  background-image: var(--uui-btn-metal-face);
+  box-shadow: var(--uui-btn-metal-shadow);
+  color: var(--uui-btn-metal-fg);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.capiro-vnext-root .cap-pf-fill-btn:hover:not(:disabled) {
+  background-image: var(--uui-btn-metal-face-hover);
+}
+
+.capiro-vnext-root .cap-pf-account-owner-select {
+  height: 36px;
+  max-width: 220px;
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: 8px;
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-primary);
+  font-size: 14px;
+}
+.capiro-vnext-root .cap-pf-account-owner-select--error {
+  border-color: var(--capiro-color-text-destructive, #b42318);
+}
+
+.capiro-vnext-root .cap-pf-add-focus-input {
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: 8px;
+  background: var(--capiro-color-bg-surface);
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+  outline: none;
+}
+.capiro-vnext-root .cap-pf-add-focus-input--duplicate {
+  border-color: var(--capiro-color-text-destructive, #b42318);
+}
