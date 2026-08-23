@@ -244,7 +244,7 @@ function ClientIdentity({ row, onOpen }: { row: PortfolioRow; onOpen?: () => voi
           )}
         </div>
         <div className="capiro-portfolio__client-status">
-          <CapiroBadge tone={STATUS_TONE[row.status]} dot={<span className="capiro-portfolio__dot" />}>{STATUS_LABEL[row.status]}</CapiroBadge>
+          <CapiroBadge tone={STATUS_TONE[row.status]} dot>{STATUS_LABEL[row.status]}</CapiroBadge>
         </div>
         <div className="capiro-portfolio__meta">{subtitle}</div>
       </div>

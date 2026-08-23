@@ -469,11 +469,11 @@ export function ContextDocumentVNext() {
             <span className="st-ctxdoc__chip-value">{authority.replace(/_/g, ' ')}</span>
           </span>
         ) : null}
-        <CapiroBadge tone={STATE_TONE[d.state]} dot={<span className="st-ctxdoc__dot" aria-hidden="true" />}>
+        <CapiroBadge tone={STATE_TONE[d.state]} dot>
           {d.state}
         </CapiroBadge>
         {stale ? (
-          <CapiroBadge tone="warning" dot={<span className="st-ctxdoc__dot" aria-hidden="true" />}>
+          <CapiroBadge tone="warning" dot>
             Stale
           </CapiroBadge>
         ) : null}

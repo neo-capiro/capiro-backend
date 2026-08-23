@@ -158,7 +158,7 @@ export function VNextPersonalSetupGateModal({
         ) : phase === 'connected' ? (
           <>
             <div className="vnext-ob-puck is-success">
-              <CapiroCheckIcon size={24} strokeWidth={2.6} aria-hidden="true" />
+              <CapiroCheckIcon size={24} style={{ strokeWidth: 2.6 }} aria-hidden="true" />
             </div>
             <h2>You're connected.</h2>
             <p

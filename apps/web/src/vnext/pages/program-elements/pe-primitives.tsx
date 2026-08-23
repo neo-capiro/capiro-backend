@@ -55,8 +55,9 @@ export function EvMark({
     <CapiroBadge
       tone={loud || !quiet ? EV_TONE[state] : 'neutral'}
       className={`pe-ws-ev${quiet && !loud ? ' pe-ws-ev--quiet' : ''}`}
-      dot={<span className={`pe-ws-evdot ${evMarkClass(state)}${large ? ' lg' : ''}`} aria-hidden />}
+      dot
     >
+      <span className={`pe-ws-evdot ${evMarkClass(state)}${large ? ' lg' : ''}`} aria-hidden />
       {label}
     </CapiroBadge>
   );

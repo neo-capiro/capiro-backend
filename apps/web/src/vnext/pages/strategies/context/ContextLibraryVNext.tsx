@@ -612,11 +612,11 @@ function DocumentRow({ doc, clientLabel }: { doc: ContextDocumentListItem; clien
         <small>{meta}</small>
       </span>
       <span className="st-ctxlib__row-pills">
-        <CapiroBadge tone={STATE_TONE[doc.state]} dot={<span className="st-dot" aria-hidden="true" />}>
+        <CapiroBadge tone={STATE_TONE[doc.state]} dot>
           {doc.state}
         </CapiroBadge>
         {stale ? (
-          <CapiroBadge tone="warning" dot={<span className="st-dot" aria-hidden="true" />}>
+          <CapiroBadge tone="warning" dot>
             Stale
           </CapiroBadge>
         ) : null}

@@ -403,7 +403,7 @@ export function StewardReviewVNext() {
                             ? 'warning'
                             : 'danger'
                       }
-                      dot={<span className="st-steward__dot" aria-hidden="true" />}
+                      dot
                     >
                       {health.data.status === 'ok'
                         ? 'Healthy'
@@ -817,12 +817,12 @@ function ConflictCard({
         <header className="st-steward__conflict-head">
           <CapiroBadge
             tone={CONFLICT_STATE_TONE[conflict.state]}
-            dot={<span className="st-steward__dot" aria-hidden="true" />}
+            dot
           >
             {conflict.state === 'open' ? 'Open' : conflict.state === 'resolved' ? 'Resolved' : 'Dismissed'}
           </CapiroBadge>
           {conflict.material ? (
-            <CapiroBadge tone="danger" dot={<span className="st-steward__dot" aria-hidden="true" />}>
+            <CapiroBadge tone="danger" dot>
               Material
             </CapiroBadge>
           ) : null}
@@ -972,7 +972,7 @@ function FactRow({
         ) : (
           <CapiroBadge
             tone={FACT_STATE_TONE[fact.state]}
-            dot={<span className="st-steward__dot" aria-hidden="true" />}
+            dot
           >
             {fact.state}
           </CapiroBadge>
