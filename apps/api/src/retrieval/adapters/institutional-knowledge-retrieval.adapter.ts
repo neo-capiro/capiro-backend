@@ -173,8 +173,13 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
         const pageRows = ranked.slice(offset, offset + pageSize);
         const hasMore = offset + pageSize < ranked.length;
         const nextCursor = hasMore ? `memory:${offset + pageSize}` : undefined;
+        // Degraded means the SEMANTIC PROJECTION itself could not run (the
+        // embedding provider returned no usable vector), not that a sparse
+        // subset of rows lacks an embedding. A single un-embedded legacy row
+        // must not poison coverage for the whole scan — it falls back to
+        // lexical ranking and stays available (see rankMemories).
         const semanticDegraded =
-          request.queryClass === 'semantic_recall' && ranked.some((entry) => entry.semanticMissing);
+          request.queryClass === 'semantic_recall' && ranked.some((entry) => entry.semanticUnavailable);
         const sourceDegraded = hardTruncated || semanticDegraded;
         const paginationComplete = !hasMore && !hardTruncated;
         const records = pageRows.map(({ row, semanticScore }) => memoryRecord(row, semanticScore));
@@ -215,11 +220,18 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
     tx: Prisma.TransactionClient,
     request: RetrievalRequest,
     rows: GovernedMemoryRow[],
-  ): Promise<Array<{ row: GovernedMemoryRow; semanticScore: number | null; semanticMissing: boolean }>> {
+  ): Promise<
+    Array<{
+      row: GovernedMemoryRow;
+      semanticScore: number | null;
+      semanticMissing: boolean;
+      semanticUnavailable: boolean;
+    }>
+  > {
     const lexical = lexicalScores(rows, request.query ?? '');
     if (request.queryClass !== 'semantic_recall' || !(request.query ?? '').trim() || rows.length === 0) {
       return rows
-        .map((row) => ({ row, semanticScore: null, semanticMissing: false }))
+        .map((row) => ({ row, semanticScore: null, semanticMissing: false, semanticUnavailable: false }))
         .sort((a, b) => compareMemoryRank(a.row, b.row, lexical));
     }
 
@@ -230,8 +242,10 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
       vector = null;
     }
     if (!vector || vector.some((value) => !Number.isFinite(value))) {
+      // The semantic projection itself could not run — this IS a coverage
+      // degradation (the caller treats the source as degraded).
       return rows
-        .map((row) => ({ row, semanticScore: null, semanticMissing: true }))
+        .map((row) => ({ row, semanticScore: null, semanticMissing: true, semanticUnavailable: true }))
         .sort((a, b) => compareMemoryRank(a.row, b.row, lexical));
     }
 
@@ -258,10 +272,15 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
     return rows
       .map((row) => {
         const score = scoreBySlug.get(`clio:${row.id}`);
+        // A row with no embedding match is a SPARSE projection gap, not a
+        // degraded source: it falls back to lexical ranking and stays
+        // available. semanticMissing is informational; only
+        // semanticUnavailable (provider down, above) degrades the source.
         return {
           row,
           semanticScore: Number.isFinite(score) ? (score as number) : null,
           semanticMissing: !Number.isFinite(score),
+          semanticUnavailable: false,
         };
       })
       .sort((a, b) => {

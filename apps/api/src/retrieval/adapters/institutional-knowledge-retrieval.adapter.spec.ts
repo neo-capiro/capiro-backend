@@ -350,4 +350,50 @@ describe('InstitutionalKnowledgeRetrievalAdapter', () => {
       stopReason: 'governed_memory_semantic_projection_incomplete',
     });
   });
+
+  // Regression: one governed-memory row with no semantic embedding must NOT
+  // poison coverage. Live 2026-08-23: 427/428 clio_memory rows had a
+  // memory_items embedding; the 1 unmatched row made semanticMissing=true,
+  // degrading the source and blocking Outreach V3 draft generation
+  // (MESSAGE_PLAN_INVALID on a CONTEXT_PLANE_INCOMPLETE packet).
+  it('does not degrade coverage when only a sparse row lacks a semantic embedding', async () => {
+    const { adapter, dataset, queryRaw } = setup({
+      memories: [
+        {
+          id: 'memory-1',
+          key: 'nickname',
+          value: 'Neo prefers to be called Neo',
+          scope: 'user_private',
+          clientId: null,
+          ownerUserId: 'user-1',
+          updatedAt: new Date('2026-08-18T10:00:00.000Z'),
+        },
+        {
+          id: 'memory-2',
+          key: 'legacy',
+          value: 'A legacy row with no embedding projection',
+          scope: 'user_private',
+          clientId: null,
+          ownerUserId: 'user-1',
+          updatedAt: new Date('2026-08-17T10:00:00.000Z'),
+        },
+      ],
+      // Embedding provider works fine.
+      embed: async () => [0.1, 0.2, 0.3],
+    });
+    // Only memory-1 has an embedding score; memory-2 has none.
+    queryRaw.mockResolvedValue([{ slug: 'clio:memory-1', score: 0.92 }]);
+
+    const result = await adapter.retrieve(
+      dataset,
+      memoryRequest({ queryClass: 'semantic_recall' }),
+    );
+
+    expect(result.records).toHaveLength(2);
+    expect(result).toMatchObject({
+      sourceStatus: 'healthy',
+      coverageComplete: true,
+      stopReason: 'governed_memory_scan_complete',
+    });
+  });
 });
