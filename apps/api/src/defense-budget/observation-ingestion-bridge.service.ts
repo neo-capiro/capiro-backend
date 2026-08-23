@@ -1,8 +1,7 @@
 /**
  * Phase 10B-1 — governed observation-to-SourceDocument ingestion bridge.
  *
- * Implements exactly the flow the Phase 10B outbox-drain audit (prior
- * session) identified as the missing architecture:
+ * Owns exactly:
  *
  *   observation_id
  *     -> load observation + expected source + lifecycle cycle
@@ -15,32 +14,59 @@
  *     -> archive exact bytes through the EXISTING RawArchiveService
  *     -> register/upsert SourceDocument through the EXISTING DocumentRegistrar
  *     -> persist source_document_id back to the lifecycle observation
- *     -> invoke the existing parser / verification / projection entrypoint
- *     -> invoke the canonical-projection boundary (currently a deterministic
- *        refusal — see PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING)
+ *     -> invoke the existing parser / verification pipeline, which durably
+ *        persists its terminal decision and evidence (see ParserHandoffPort)
+ *     -> SOURCE INGESTION COMPLETE
  *
  * This service does NOT drain the outbox — it is the real downstream
  * operation a future outbox-drain worker will invoke per row. It also does
  * NOT re-implement RawArchiveService, DocumentRegistrar, or the parser
  * router: all three are reused unmodified.
  *
- * ── Phase 10B-1 repair: failure semantics ──────────────────────────────────
- * `bridge()`'s `status` is now split into two independent axes that a future
- * outbox-drain worker MUST read separately:
+ * ── Scope boundary: canonical promotion is OUT OF SCOPE for this bridge ───
+ * This service's success (`ingestionSucceeded: true`) means exactly:
  *
- *   1. Was the immutable SourceDocument durably registered and bound to this
- *      observation? (`sourceDocumentBound`)
- *   2. Did EVERY required downstream operation succeed —parser handoff AND
- *      canonical projection? (`downstreamSucceeded`)
+ *   sourceDocumentBound && parserVerificationSucceeded && durableEvidencePersisted
  *
- * A row may only be marked "succeeded" by an outbox consumer when
- * `downstreamSucceeded` is `true`. `sourceDocumentBound: true` with
- * `downstreamSucceeded: false` is a RETRYABLE failure: the SourceDocument
- * exists (so a retry must not re-fetch/re-archive/re-register — see the
- * replay path below), but the row is not done and must be retried until
- * downstream succeeds or a human intervenes.
+ * i.e. the immutable SourceDocument is durably bound to the observation, the
+ * existing Phase 1-7 parser/verification pipeline resolved a PASS decision,
+ * and that decision + its evidence were durably persisted (never merely
+ * written to the ephemeral container's local filesystem). It makes NO claim
+ * about canonical Defense Budget data existing. Reconciling/certifying a
+ * whole cycle/family's corpus and driving
+ * `DefenseBudgetCanonicalPromotionServiceV1.execute` — which requires a
+ * whole-cycle promotion plan, a separately issued human authorization bound
+ * to that plan's hash, and the `PROMOTER_DATABASE_URL` role the serving API
+ * does not hold — is Phase 10B-2 work. This bridge does not call it,
+ * reference it, or gate ordinary per-observation ingestion success on it.
+ * See `PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING` in
+ * `@capiro/defense-domain` for the traced reasons that boundary is
+ * structurally unreachable from a single observation — that constant now
+ * documents a Phase 10B-2 gap and is deliberately NOT referenced by this
+ * service.
  *
- * ── Phase 10B-1 repair: replay reads archived bytes, never the live URL ────
+ * ── Failure semantics ──────────────────────────────────────────────────────
+ * `bridge()`'s result carries four independent facts a future outbox-drain
+ * worker MUST read separately (never collapse to a single boolean):
+ *
+ *   1. `sourceDocumentBound` — is the immutable SourceDocument durably
+ *      registered and bound to this observation?
+ *   2. `parserVerificationSucceeded` — did the existing Phase 1-7 pipeline
+ *      resolve a PASS decision? (`false` for REVIEW, REJECT, or an
+ *      unresolved/transient outcome — never conflate any of those with PASS.)
+ *   3. `durableEvidencePersisted` — was that decision (whatever it was)
+ *      durably persisted, as opposed to existing only in the ephemeral
+ *      container's local filesystem?
+ *   4. `ingestionSucceeded` — all three of the above. Only this may be read
+ *      by an outbox consumer as "mark this row done."
+ *
+ * A REVIEW or REJECT decision is a resolved, durably-persisted, AUDITABLE
+ * terminal disposition — never retried forever, and never silently reported
+ * as ingestion success. Only a genuine transient/infrastructure failure
+ * (network, process crash, unreachable database, missing persistence
+ * configuration) is retryable; see `status: 'downstream_failed'`.
+ *
+ * ── Replay reads archived bytes, never the live URL ────────────────────────
  * Once `DocumentRegistrar` has succeeded, the SourceDocument carries
  * `archiveBucket`/`archiveS3Key`/`archiveVersionId` — the durable, immutable
  * byte identity. Every replay (idempotent re-invocation of an already-
@@ -64,9 +90,9 @@ import { routingForSourceFamily } from './parser-router/source-family-routing.js
 import type {
   ObservationBridgeStore,
   ObservationByteFetchPort,
-  CanonicalProjectionPort,
   ParserHandoffPort,
   SourceDocumentArchiveReadPort,
+  VerifierDecision,
 } from './observation-ingestion-bridge.ports.js';
 
 export type ObservationIngestionBridgeStatus =
@@ -74,6 +100,8 @@ export type ObservationIngestionBridgeStatus =
   | 'already_ingested'
   | 'source_bytes_changed'
   | 'downstream_failed'
+  | 'review_required'
+  | 'verification_rejected'
   | 'blocked'
   | 'rejected';
 
@@ -84,23 +112,45 @@ export interface ObservationIngestionBridgeResult {
   readonly reason: string | null;
   /**
    * True once the immutable SourceDocument is durably registered and bound
-   * to this observation — independent of whether downstream parsing/
-   * projection succeeded. An outbox consumer that only cares about avoiding
-   * duplicate archives/registrations on retry should read this, not
-   * `status`.
+   * to this observation — independent of whether parsing/verification
+   * succeeded. An outbox consumer that only cares about avoiding duplicate
+   * archives/registrations on retry should read this, not `status`.
    */
   readonly sourceDocumentBound: boolean;
   /**
-   * True ONLY when every required downstream operation (parser handoff AND
-   * canonical projection) succeeded. An outbox consumer MUST require this
-   * to be `true` before marking a row succeeded — `sourceDocumentBound &&
-   * !downstreamSucceeded` is a retryable failure, never a success.
+   * True ONLY when the existing Phase 1-7 parser/verification pipeline
+   * resolved a `PASS` decision. `false` for `REVIEW`, `REJECT`, an
+   * unresolved terminal decision, or any transient failure — never
+   * conflate any of those with success.
    */
-  readonly downstreamSucceeded: boolean;
+  readonly parserVerificationSucceeded: boolean;
+  /**
+   * True ONLY when the parser/verification decision (whatever it was) was
+   * durably persisted — Prisma `DocumentParseJob` + verification
+   * candidate/run/checks rows, never filesystem-only output in the
+   * ephemeral ingestion worker's container.
+   */
+  readonly durableEvidencePersisted: boolean;
+  /**
+   * `sourceDocumentBound && parserVerificationSucceeded && durableEvidencePersisted`.
+   * The ONLY field an outbox consumer may use to mark a row succeeded.
+   * Canonical promotion is never part of this computation — see the file
+   * header's scope-boundary note.
+   */
+  readonly ingestionSucceeded: boolean;
   readonly parserHandoffInvoked: boolean;
   readonly parserHandoffError: string | null;
-  readonly canonicalProjectionSucceeded: boolean;
-  readonly canonicalProjectionError: string | null;
+  /** The Phase 2 verifier's terminal decision, or null if handoff never resolved one. */
+  readonly verifierDecision: VerifierDecision | null;
+}
+
+interface DownstreamOutcome {
+  readonly parserHandoffInvoked: boolean;
+  readonly parserHandoffError: string | null;
+  readonly verifierDecision: VerifierDecision | null;
+  readonly parserVerificationSucceeded: boolean;
+  readonly durableEvidencePersisted: boolean;
+  readonly reason: string | null;
 }
 
 @Injectable()
@@ -113,7 +163,6 @@ export class ObservationIngestionBridgeService {
     private readonly registrar: DocumentRegistrar,
     private readonly parserHandoff: ParserHandoffPort,
     private readonly archiveReader: SourceDocumentArchiveReadPort,
-    private readonly canonicalProjection: CanonicalProjectionPort,
   ) {}
 
   async bridge(observationId: string): Promise<ObservationIngestionBridgeResult> {
@@ -135,8 +184,8 @@ export class ObservationIngestionBridgeService {
 
     // Idempotent replay: this observation was already bridged by a prior run
     // (crash after registration but before/around downstream parsing, a
-    // downstream failure being retried, or a genuinely repeated at-least-once
-    // invocation). The observation_state 'ingested' CHECK constraint
+    // downstream failure being retried, or a genuinely repeated at-least-
+    // once invocation). The observation_state 'ingested' CHECK constraint
     // guarantees source_document_id is set. Bytes for this path are read
     // from the immutable archive, never re-fetched from discoveredUrl.
     if (eligibility.kind === 'idempotent_replay') {
@@ -174,12 +223,10 @@ export class ObservationIngestionBridgeService {
           localPath: materialized.localPath,
         });
         return this.result(
-          downstream.succeeded ? 'already_ingested' : 'downstream_failed',
+          this.deriveStatus(downstream, { isReplay: true }),
           observationId,
           observation.sourceDocumentId,
-          downstream.succeeded
-            ? 'observation already ingested; downstream re-invoked idempotently'
-            : downstream.reason,
+          downstream.reason,
           { sourceDocumentBound: true, downstream },
         );
       } finally {
@@ -294,7 +341,8 @@ export class ObservationIngestionBridgeService {
 
       // From here on the SourceDocument is durably bound to this
       // observation. Everything below is downstream work whose failure must
-      // be reported as retryable, never folded into overall bridge success.
+      // be reported as retryable (or a governed terminal disposition), never
+      // silently folded into overall bridge success.
       const downstream = await this.runDownstream({
         cycle,
         observation,
@@ -303,15 +351,16 @@ export class ObservationIngestionBridgeService {
         localPath,
       });
 
+      const reason =
+        downstream.parserVerificationSucceeded && attach.alreadyApplied
+          ? 'source_document already attached by a prior replay; observation transition was a no-op'
+          : downstream.reason;
+
       return this.result(
-        downstream.succeeded ? 'ingested' : 'downstream_failed',
+        this.deriveStatus(downstream, { isReplay: false }),
         observationId,
         registered.registry.document.id,
-        downstream.succeeded
-          ? attach.alreadyApplied
-            ? 'source_document already attached by a prior replay; observation transition was a no-op'
-            : null
-          : downstream.reason,
+        reason,
         { sourceDocumentBound: true, downstream },
       );
     } finally {
@@ -375,13 +424,17 @@ export class ObservationIngestionBridgeService {
   }
 
   /**
-   * Runs both required downstream steps — parser handoff, then canonical
-   * projection — and reports a single succeeded/failed outcome. Either step
-   * failing means `succeeded: false`; only both succeeding is a downstream
-   * success. Canonical projection is currently a deterministic refusal (see
-   * `Phase10B1CanonicalProjectionBoundaryMissingAdapter`), so today this
-   * ALWAYS returns `succeeded: false` on the eligible/first-time path —
-   * exactly the intended fail-closed behavior for the missing boundary.
+   * Runs the sole required downstream step — parser/verification handoff —
+   * and separates a genuine transient/infrastructure failure (the handoff
+   * call throws: network, process crash, unreachable database, missing
+   * persistence configuration) from a resolved, durably-persisted terminal
+   * decision (PASS, REVIEW, or REJECT — the handoff call resolves).
+   *
+   * Canonical projection is NEVER invoked here — see the file header's scope
+   * boundary. `parserVerificationSucceeded` is `true` only for a `PASS`
+   * decision; `REVIEW` and `REJECT` are legitimate, durably-persisted,
+   * auditable terminal dispositions that must not be retried forever and
+   * must never be reported as success.
    */
   private async runDownstream(input: {
     cycle: { id: string };
@@ -396,14 +449,7 @@ export class ObservationIngestionBridgeService {
     sourceDocumentId: string;
     sourceSha256: string;
     localPath: string;
-  }): Promise<{
-    succeeded: boolean;
-    reason: string | null;
-    parserHandoffInvoked: boolean;
-    parserHandoffError: string | null;
-    canonicalProjectionSucceeded: boolean;
-    canonicalProjectionError: string | null;
-  }> {
+  }): Promise<DownstreamOutcome> {
     const { observation } = input;
     if (
       !observation.classifiedFiscalYear ||
@@ -412,12 +458,12 @@ export class ObservationIngestionBridgeService {
       !observation.classifiedSourceFamily
     ) {
       return {
-        succeeded: false,
-        reason: 'observation classification unavailable for downstream handoff',
         parserHandoffInvoked: false,
         parserHandoffError: 'observation classification unavailable for parser handoff',
-        canonicalProjectionSucceeded: false,
-        canonicalProjectionError: 'parser handoff did not run; canonical projection not attempted',
+        verifierDecision: null,
+        parserVerificationSucceeded: false,
+        durableEvidencePersisted: false,
+        reason: 'observation classification unavailable for downstream handoff',
       };
     }
     const routing = routingForSourceFamily(observation.classifiedSourceFamily);
@@ -443,36 +489,82 @@ export class ObservationIngestionBridgeService {
     }
 
     if (!parserHandoffResult) {
+      // The handoff call THREW: a transient/infrastructure failure (parser
+      // runtime crash, unreachable database, missing
+      // BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT, etc.) — never a resolved
+      // verification decision. Always retryable; no evidence was durably
+      // persisted for this attempt.
       return {
-        succeeded: false,
-        reason: `parser handoff failed: ${parserHandoffError}`,
         parserHandoffInvoked: false,
         parserHandoffError,
-        canonicalProjectionSucceeded: false,
-        canonicalProjectionError: 'parser handoff failed; canonical projection not attempted',
+        verifierDecision: null,
+        parserVerificationSucceeded: false,
+        durableEvidencePersisted: false,
+        reason: `parser handoff failed: ${parserHandoffError}`,
       };
     }
 
-    const projection = await this.canonicalProjection.project({
-      observationId: observation.id,
-      sourceDocumentId: input.sourceDocumentId,
-      sourceSha256: input.sourceSha256,
-      cycleId: input.cycle.id,
-      fiscalYear: observation.classifiedFiscalYear,
-      authorityTrack: observation.classifiedAuthorityTrack,
-      stage: observation.classifiedStage,
-      sourceFamily: observation.classifiedSourceFamily,
-      parserHandoff: parserHandoffResult,
-    });
+    const decision = parserHandoffResult.decision;
+    if (decision === 'UNKNOWN') {
+      // Defensive-only corner: the router returned without ever resolving a
+      // verifier decision (e.g. a misconfigured maxEscalationRounds=0). No
+      // persistCompletedVerification call happened for this attempt, so no
+      // evidence was durably persisted — treat exactly like a transient
+      // failure, never as a governed REVIEW/REJECT disposition.
+      return {
+        parserHandoffInvoked: true,
+        parserHandoffError: null,
+        verifierDecision: 'UNKNOWN',
+        parserVerificationSucceeded: false,
+        durableEvidencePersisted: false,
+        reason:
+          `parser/verification pipeline returned without resolving a terminal decision ` +
+          `(finalState: ${parserHandoffResult.finalState}); treating as retryable, not a governed disposition`,
+      };
+    }
+
+    // Resolving without throwing means the decision — whatever it is — was
+    // durably persisted: DefaultParserHandoffAdapter always drives the
+    // pipeline with persistVerificationAudit: true, and
+    // BudgetVerificationV1Service.verify() persists the candidate/run/checks
+    // rows unconditionally in 'persist_audit' mode regardless of decision.
+    const durableEvidencePersisted = true;
+    const parserVerificationSucceeded = decision === 'PASS';
+    const reason =
+      decision === 'PASS'
+        ? null
+        : decision === 'REVIEW'
+          ? `verification requires human review (artifact: ${parserHandoffResult.artifactLocator})`
+          : `verification deterministically rejected (artifact: ${parserHandoffResult.artifactLocator})`;
 
     return {
-      succeeded: projection.succeeded,
-      reason: projection.succeeded ? null : projection.reason,
       parserHandoffInvoked: true,
       parserHandoffError: null,
-      canonicalProjectionSucceeded: projection.succeeded,
-      canonicalProjectionError: projection.succeeded ? null : projection.reason,
+      verifierDecision: decision,
+      parserVerificationSucceeded,
+      durableEvidencePersisted,
+      reason,
     };
+  }
+
+  /** Maps a downstream outcome to the outbox-facing status enum. */
+  private deriveStatus(
+    downstream: DownstreamOutcome,
+    context: { isReplay: boolean },
+  ): ObservationIngestionBridgeStatus {
+    if (!downstream.parserHandoffInvoked) return 'downstream_failed';
+    switch (downstream.verifierDecision) {
+      case 'PASS':
+        return context.isReplay ? 'already_ingested' : 'ingested';
+      case 'REVIEW':
+        return 'review_required';
+      case 'REJECT':
+        return 'verification_rejected';
+      default:
+        // 'UNKNOWN' or any unexpected value: treat as retryable, never as a
+        // governed terminal disposition.
+        return 'downstream_failed';
+    }
   }
 
   private result(
@@ -482,26 +574,24 @@ export class ObservationIngestionBridgeService {
     reason: string | null,
     input: {
       sourceDocumentBound: boolean;
-      downstream?: {
-        succeeded: boolean;
-        parserHandoffInvoked: boolean;
-        parserHandoffError: string | null;
-        canonicalProjectionSucceeded: boolean;
-        canonicalProjectionError: string | null;
-      };
+      downstream?: DownstreamOutcome;
     },
   ): ObservationIngestionBridgeResult {
+    const downstream = input.downstream;
+    const parserVerificationSucceeded = downstream?.parserVerificationSucceeded ?? false;
+    const durableEvidencePersisted = downstream?.durableEvidencePersisted ?? false;
     return {
       status,
       observationId,
       sourceDocumentId,
       reason,
       sourceDocumentBound: input.sourceDocumentBound,
-      downstreamSucceeded: input.downstream?.succeeded ?? false,
-      parserHandoffInvoked: input.downstream?.parserHandoffInvoked ?? false,
-      parserHandoffError: input.downstream?.parserHandoffError ?? null,
-      canonicalProjectionSucceeded: input.downstream?.canonicalProjectionSucceeded ?? false,
-      canonicalProjectionError: input.downstream?.canonicalProjectionError ?? null,
+      parserVerificationSucceeded,
+      durableEvidencePersisted,
+      ingestionSucceeded: input.sourceDocumentBound && parserVerificationSucceeded && durableEvidencePersisted,
+      parserHandoffInvoked: downstream?.parserHandoffInvoked ?? false,
+      parserHandoffError: downstream?.parserHandoffError ?? null,
+      verifierDecision: downstream?.verifierDecision ?? null,
     };
   }
 }

@@ -5,6 +5,16 @@
  * decision logic is testable against fakes, exactly like every other
  * defense-budget service in this directory (RawArchiveService,
  * DocumentRegistrar, ParseRunner all follow the same shape).
+ *
+ * Scope (Phase 10B-1, repaired): this bridge owns exactly
+ *   source observation -> verify exact bytes -> immutable archive
+ *   -> SourceDocument -> parser -> verification -> durable evidence
+ *   -> SOURCE INGESTION COMPLETE
+ * Canonical reconciliation/promotion across a cycle/family's corpus is
+ * explicitly OUT OF SCOPE for this per-observation bridge — see
+ * `ingestionSucceeded` on `ObservationIngestionBridgeResult` in
+ * `observation-ingestion-bridge.service.ts` for the exact boundary, and that
+ * file's header comment for the traced Phase 10B-2 gap this leaves.
  */
 import type {
   AuthorityTrack,
@@ -92,9 +102,9 @@ export interface ObservationBridgeStore {
    *
    * This method's own success means exactly one thing: the immutable
    * SourceDocument is durably registered and bound to this observation. It
-   * makes NO claim about parser handoff or canonical projection — those are
-   * reported separately in `ObservationIngestionBridgeResult` and MUST NOT be
-   * folded into "the observation is ingested" by any caller.
+   * makes NO claim about parser/verification/evidence-persistence — those
+   * are reported separately in `ObservationIngestionBridgeResult` and MUST
+   * NOT be folded into "the observation is ingested" by any caller.
    */
   attachSourceDocumentAndMarkIngested(input: {
     observationId: string;
@@ -198,16 +208,34 @@ export interface ParserHandoffInput {
 }
 
 /**
+ * The terminal decision of the EXISTING Phase 2 verifier
+ * (`VERIFICATION_DECISION_V1_VALUES` = `PASS` | `REVIEW` | `REJECT` in
+ * `verification-contract-v1.ts`), widened with `UNKNOWN` for the
+ * (expected-rare) case where the router's execution loop ended without ever
+ * reaching a resolved verifier decision. `UNKNOWN` is treated by the bridge
+ * as an unresolved/retryable outcome, never as a terminal disposition — it
+ * must never be confused with `REVIEW` or `REJECT`, which ARE terminal,
+ * auditable, governed dispositions that must not retry forever.
+ */
+export const VERIFIER_DECISION_VALUES = ['PASS', 'REVIEW', 'REJECT', 'UNKNOWN'] as const;
+export type VerifierDecision = (typeof VERIFIER_DECISION_VALUES)[number];
+
+/**
  * The terminal result of the EXISTING Phase 1-7 parser/verification pipeline
- * for one SourceDocument. This is proof that parsing and verification ran —
- * it is NOT proof that canonical Defense Budget data exists. See
- * `CanonicalProjectionPort` for the boundary that would make that claim, and
- * `PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING` for why the
- * bridge cannot cross it today.
+ * for one SourceDocument. This is proof that parsing and verification ran to
+ * a resolved decision AND that the decision was durably persisted (see
+ * `ParserHandoffPort` below) — it is NOT proof that canonical Defense Budget
+ * data exists.
+ *
+ * Canonical promotion is explicitly out of scope for this per-observation
+ * bridge (Phase 10B-1). Reconciling a whole cycle/family's corpus and driving
+ * `DefenseBudgetCanonicalPromotionServiceV1.execute` under its own human
+ * authorization and `PROMOTER_DATABASE_URL` role is Phase 10B-2 work — this
+ * bridge does not call it, reference it, or gate on it.
  */
 export interface ParserHandoffResult {
   readonly invoked: true;
-  readonly decision: string;
+  readonly decision: VerifierDecision;
   readonly finalState: string;
   readonly artifactLocator: string;
 }
@@ -218,51 +246,20 @@ export interface ParserHandoffResult {
  * so the bridge never re-implements parsing/verification itself. See
  * `parser-router/source-document-parser-handoff.ts` for the real
  * implementation, shared with `scripts/extract-defense-budget-cycle.ts`.
+ *
+ * The production implementation (`DefaultParserHandoffAdapter`) MUST invoke
+ * the existing pipeline with its durable persist-audit option enabled: the
+ * governed one-shot ingestion worker runs in an ephemeral container, so
+ * filesystem-only parser/verification output disappears with the container
+ * and cannot back `durableEvidencePersisted`/`ingestionSucceeded`. A
+ * `handoff()` call that resolves means the decision was durably persisted
+ * (Prisma `DocumentParseJob` + verification candidate/run/checks rows, and
+ * versioned S3 for any paid-parse output); a call that throws — including a
+ * persistence-layer failure such as a missing
+ * `BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT` — is what the bridge treats as a
+ * retryable downstream failure, never a silent fallback to ephemeral-only
+ * output.
  */
 export interface ParserHandoffPort {
   handoff(input: ParserHandoffInput): Promise<ParserHandoffResult>;
-}
-
-/** What a canonical-projection boundary would need to project one verified artifact. */
-export interface CanonicalProjectionInput {
-  readonly observationId: string;
-  readonly sourceDocumentId: string;
-  readonly sourceSha256: string;
-  readonly cycleId: string;
-  readonly fiscalYear: number;
-  readonly authorityTrack: AuthorityTrack;
-  readonly stage: LifecycleStage;
-  readonly sourceFamily: SourceFamily;
-  readonly parserHandoff: ParserHandoffResult;
-}
-
-export interface CanonicalProjectionOutcome {
-  readonly succeeded: boolean;
-  readonly reason: string;
-}
-
-/**
- * The boundary a future canonical-projection step would occupy: verified
- * `ParserHandoffResult` in, a durable canonical Defense Budget write (or a
- * refusal) out.
- *
- * Phase 10B-1 repair traced this boundary starting from
- * `ParserRouterV1Service`'s terminal result and found no legitimate
- * per-observation production path to it —
- * `DefenseBudgetCanonicalPromotionServiceV1.execute` operates on an entire
- * certified cycle/family plan, requires a separately issued human
- * authorization bound to that plan's hash, and runs under a distinct
- * `PROMOTER_DATABASE_URL` role the serving API does not hold. There is
- * structurally no way for a single-observation bridge to reach it.
- *
- * `CanonicalProjectionPort` exists so that gap is a real, injectable seam
- * rather than a silent omission: `Phase10B1CanonicalProjectionBoundaryMissingAdapter`
- * is the only implementation wired today, and it deterministically refuses
- * every call with `PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING`.
- * A future implementation of this exact interface — once the per-observation
- * (or per-completed-cycle) canonical write boundary is designed — is what the
- * bridge would call instead, unchanged everywhere else.
- */
-export interface CanonicalProjectionPort {
-  project(input: CanonicalProjectionInput): Promise<CanonicalProjectionOutcome>;
 }

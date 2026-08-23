@@ -2,26 +2,36 @@
  * Phase 10B-1 — governed observation-to-SourceDocument ingestion bridge.
  *
  * Exercises `ObservationIngestionBridgeService` end-to-end against fakes for
- * all six ports (store / fetcher / registrar / parser handoff / archive
- * reader / canonical projection), covering every scenario called out by the
- * task, PLUS the Phase 10B-1 repair's failure-injection requirements:
+ * all five ports (store / fetcher / registrar / parser handoff / archive
+ * reader), covering the bridge's exact owned scope:
  *
- *   - exact SHA match -> archive + SourceDocument registration succeeds
+ *   observation -> verify exact bytes -> immutable archive -> SourceDocument
+ *   -> parser -> verification -> durable evidence -> SOURCE INGESTION COMPLETE
+ *
+ * Canonical promotion is explicitly OUT OF SCOPE for this bridge and is
+ * proven absent both structurally (no `CanonicalProjectionPort` type exists
+ * to inject, and the service's constructor takes exactly 5 dependencies) and
+ * by a source-level negative control at the bottom of this file.
+ *
+ *   - exact SHA match -> archive + SourceDocument registration + PASS
+ *     verification with durably persisted evidence -> ingestionSucceeded
  *   - URL now returns changed bytes -> fail closed, no SourceDocument attached
  *   - identical replay -> no duplicate SourceDocument/archive
- *   - crash after archive but before observation update -> replay completes safely
- *   - crash after SourceDocument registration but before downstream parsing -> replay completes safely
- *   - review-required/blocked/withdrawn observation rejected
+ *   - review_required/blocked/withdrawn observation rejected
  *   - alternative-funding provenance retained
- *   - annual source does not cross into alternative-funding cycle
+ *   - every non-alternative-funding authority track stays isolated from it
  *   - source_document_id bound to a document with matching SHA
  *   - existing Phase 1-7 parser/verification gates still execute unchanged (handoff invoked)
  *   - [repair] archive/register succeeds -> observation attach throws -> retry converges
- *   - [repair] attach succeeds -> parser throws -> bridge returns non-success and retry remains possible
+ *   - [repair] transient parser/infra failure -> non-success, retryable, retry converges
+ *   - [repair] verification persistence failure -> non-success, retryable (same transient path)
+ *   - [repair] verification REVIEW -> governed review disposition, not endless retry
+ *   - [repair] verification REJECT -> deterministic governed disposition, never success
+ *   - [repair] an unresolved terminal decision is treated as retryable, never a governed disposition
  *   - [repair] remote URL changes after registration -> retry succeeds from immutable archived bytes
- *   - [repair] parser succeeds but canonical projection fails -> outbox-facing result remains non-success
- *   - [repair] successful retry produces zero duplicate archive/SourceDocument/canonical artifacts
+ *   - [repair] successful retry produces zero duplicate archive/SourceDocument artifacts
  *   - [repair] archived bytes SHA mismatch (corruption) -> refuses to parse
+ *   - [repair] canonical promotion is never invoked from this bridge (structural + source-level)
  *
  * `DocumentRegistrar` itself is exercised for real (not faked) — only its
  * two dependencies (`RawArchiveService`, `SourceDocumentClient`) are faked —
@@ -30,6 +40,8 @@
  * path, not assumed.
  */
 import { createHash } from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 import { DocumentRegistrar } from './document-registrar.js';
 import type { ArchiveDescriptor, ArchiveResult, RawArchiveService } from './raw-archive.service.js';
@@ -43,9 +55,6 @@ import type {
   BridgeCycleRecord,
   BridgeExpectedSourceRecord,
   BridgeObservationRecord,
-  CanonicalProjectionInput,
-  CanonicalProjectionOutcome,
-  CanonicalProjectionPort,
   FetchedObservationBytes,
   LoadedBridgeObservation,
   ObservationBridgeStore,
@@ -57,7 +66,9 @@ import type {
   SourceDocumentArchiveLocator,
   SourceDocumentArchiveReadPort,
   StoredSourceDocumentArchiveRecord,
+  VerifierDecision,
 } from './observation-ingestion-bridge.ports.js';
+import type { AuthorityTrack } from '@capiro/defense-domain';
 
 const OFFICIAL_BYTES = Buffer.from('%PDF-1.7 official FY2024 R-2 exhibit bytes');
 const OFFICIAL_SHA256 = createHash('sha256').update(OFFICIAL_BYTES).digest('hex');
@@ -197,7 +208,7 @@ function makeRealRegistrar() {
   const archiveSvc = {
     async archiveOriginal(descriptor: ArchiveDescriptor) {
       archiveCalls.push(descriptor);
-      const bytes = fsReadLocalPath(descriptor.localPath);
+      const bytes = fs.readFileSync(descriptor.localPath);
       const sha256 = createHash('sha256').update(bytes).digest('hex');
       return {
         bucket: 'capiro-defense-budget-raw-dev-000',
@@ -217,36 +228,49 @@ function makeRealRegistrar() {
   return { registrar, rows, archiveCalls };
 }
 
-// Real archiveOriginal reads localPath off disk in production; the fake above
-// reads it too so DocumentRegistrar's real sha256-from-bytes path is exercised.
-import * as fs from 'node:fs';
-function fsReadLocalPath(localPath: string): Buffer {
-  return fs.readFileSync(localPath);
-}
+/**
+ * Scripted parser-handoff fake. Each call consumes the next scripted result
+ * from the queue (FIFO); once exhausted, defaults to a resolved `PASS`
+ * decision. A `throw` entry models a genuine transient/infrastructure
+ * failure (parser runtime crash, unreachable database, verification-
+ * persistence failure) — the handoff call rejects, exactly as the real
+ * `DefaultParserHandoffAdapter` does when `runParserHandoffForSourceDocument`
+ * throws. A `decision` entry models a RESOLVED, durably-persisted terminal
+ * verifier outcome (PASS / REVIEW / REJECT / the defensive UNKNOWN corner).
+ */
+type ScriptedHandoffResult = { readonly kind: 'throw'; readonly message: string } | { readonly kind: 'decision'; readonly decision: VerifierDecision };
 
-function makeParserHandoff(options: { failNextCalls?: number } = {}): {
+function makeParserHandoff(script: ScriptedHandoffResult[] = []): {
   port: ParserHandoffPort;
   calls: ParserHandoffInput[];
-  failNextCalls: (n: number) => void;
+  enqueue: (...results: ScriptedHandoffResult[]) => void;
 } {
   const calls: ParserHandoffInput[] = [];
-  let failuresRemaining = options.failNextCalls ?? 0;
+  const queue: ScriptedHandoffResult[] = [...script];
   const port: ParserHandoffPort = {
     async handoff(input) {
       calls.push(input);
-      if (failuresRemaining > 0) {
-        failuresRemaining -= 1;
-        throw new Error('simulated parser runtime crash');
+      const next: ScriptedHandoffResult = queue.shift() ?? { kind: 'decision', decision: 'PASS' };
+      if (next.kind === 'throw') {
+        throw new Error(next.message);
       }
+      const finalState =
+        next.decision === 'PASS'
+          ? 'TERMINAL_PASSED'
+          : next.decision === 'REVIEW'
+            ? 'TERMINAL_REVIEW'
+            : next.decision === 'REJECT'
+              ? 'TERMINAL_REJECTED'
+              : 'FAILED';
       return {
         invoked: true,
-        decision: 'accepted',
-        finalState: 'projected',
+        decision: next.decision,
+        finalState,
         artifactLocator: `artifact://${input.sourceDocumentId}`,
       } satisfies ParserHandoffResult;
     },
   };
-  return { port, calls, failNextCalls: (n) => { failuresRemaining += n; } };
+  return { port, calls, enqueue: (...results) => queue.push(...results) };
 }
 
 /** In-memory archive-read port keyed by (bucket,key) -> bytes, mirroring immutable S3 storage. */
@@ -273,30 +297,12 @@ function makeArchiveReader(): {
   };
 }
 
-/** Canonical-projection fake: defaults to the real deterministic-refusal behavior. */
-function makeCanonicalProjection(
-  behavior: (input: CanonicalProjectionInput) => CanonicalProjectionOutcome = () => ({
-    succeeded: false,
-    reason: 'PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING: no legitimate boundary exists',
-  }),
-): { port: CanonicalProjectionPort; calls: CanonicalProjectionInput[] } {
-  const calls: CanonicalProjectionInput[] = [];
-  const port: CanonicalProjectionPort = {
-    async project(input) {
-      calls.push(input);
-      return behavior(input);
-    },
-  };
-  return { port, calls };
-}
-
 function buildBridge(input: {
   observation: BridgeObservationRecord;
   expectedSource?: BridgeExpectedSourceRecord;
   cycle?: BridgeCycleRecord;
   urlBytes: Map<string, Buffer | ObservationByteFetchFailure>;
-  parserHandoffFailNextCalls?: number;
-  canonicalProjectionBehavior?: (input: CanonicalProjectionInput) => CanonicalProjectionOutcome;
+  parserHandoffScript?: ScriptedHandoffResult[];
 }) {
   const { store, attachCalls, getCurrent } = makeStore({
     observation: input.observation,
@@ -306,21 +312,11 @@ function buildBridge(input: {
   const fetchCalls = { n: 0 };
   const fetcher = makeFetcher(input.urlBytes, fetchCalls);
   const { registrar, rows: sourceDocumentRows, archiveCalls } = makeRealRegistrar();
-  const { port: parserHandoff, calls: handoffCalls, failNextCalls } = makeParserHandoff({
-    failNextCalls: input.parserHandoffFailNextCalls,
-  });
+  const { port: parserHandoff, calls: handoffCalls, enqueue: enqueueHandoffResults } = makeParserHandoff(
+    input.parserHandoffScript,
+  );
   const { port: archiveReader, calls: archiveReadCalls, put: putArchivedBytes } = makeArchiveReader();
-  const { port: canonicalProjection, calls: canonicalProjectionCalls } = makeCanonicalProjection(
-    input.canonicalProjectionBehavior,
-  );
-  const bridge = new ObservationIngestionBridgeService(
-    store,
-    fetcher,
-    registrar,
-    parserHandoff,
-    archiveReader,
-    canonicalProjection,
-  );
+  const bridge = new ObservationIngestionBridgeService(store, fetcher, registrar, parserHandoff, archiveReader);
   return {
     bridge,
     store,
@@ -330,10 +326,9 @@ function buildBridge(input: {
     sourceDocumentRows,
     archiveCalls,
     handoffCalls,
-    failNextParserCalls: failNextCalls,
+    enqueueHandoffResults,
     archiveReadCalls,
     putArchivedBytes,
-    canonicalProjectionCalls,
   };
 }
 
@@ -361,7 +356,7 @@ function registerSourceDocumentArchive(
 }
 
 describe('ObservationIngestionBridgeService', () => {
-  it('exact SHA match: archives, registers a SourceDocument, persists source_document_id; downstream reports canonical-projection-boundary-missing', async () => {
+  it('exact SHA match: archives, registers a SourceDocument, persists source_document_id; parser verification PASSES and evidence is durably persisted -> ingestionSucceeded', async () => {
     const observation = makeObservation();
     const ctx = buildBridge({
       observation,
@@ -370,7 +365,7 @@ describe('ObservationIngestionBridgeService', () => {
 
     const result = await ctx.bridge.bridge(observation.id);
 
-    // SourceDocument registration succeeded — that boundary is real and complete.
+    // SourceDocument registration succeeded.
     expect(result.sourceDocumentBound).toBe(true);
     expect(result.sourceDocumentId).not.toBeNull();
     expect(ctx.sourceDocumentRows).toHaveLength(1);
@@ -379,20 +374,19 @@ describe('ObservationIngestionBridgeService', () => {
     expect(ctx.getCurrent().observationState).toBe('ingested');
     expect(ctx.getCurrent().sourceDocumentId).toBe(result.sourceDocumentId);
 
-    // Parser handoff ran (Phase 1-7 gates still execute)...
+    // Parser handoff ran (Phase 1-7 gates still execute) and resolved PASS...
     expect(result.parserHandoffInvoked).toBe(true);
     expect(result.parserHandoffError).toBeNull();
     expect(ctx.handoffCalls).toHaveLength(1);
+    expect(result.verifierDecision).toBe('PASS');
 
-    // ...but overall downstream success is NOT reported, because canonical
-    // projection has no legitimate boundary yet. This is the Phase 10B-1
-    // repair's core failure-semantics fix: parser success alone is never
-    // "complete governed ingestion".
-    expect(result.status).toBe('downstream_failed');
-    expect(result.downstreamSucceeded).toBe(false);
-    expect(result.canonicalProjectionSucceeded).toBe(false);
-    expect(result.canonicalProjectionError).toMatch(/PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING/);
-    expect(ctx.canonicalProjectionCalls).toHaveLength(1);
+    // ...and the bridge reports full, durable ingestion success — this is the
+    // Phase 10B-1 repair's core contract: SOURCE INGESTION COMPLETE, with NO
+    // canonical claim attached.
+    expect(result.status).toBe('ingested');
+    expect(result.parserVerificationSucceeded).toBe(true);
+    expect(result.durableEvidencePersisted).toBe(true);
+    expect(result.ingestionSucceeded).toBe(true);
   });
 
   it('URL now returns changed bytes: fails closed with SOURCE_BYTES_CHANGED, no SourceDocument attached, no observation mutation', async () => {
@@ -408,6 +402,7 @@ describe('ObservationIngestionBridgeService', () => {
     expect(result.reason).toBe('SOURCE_BYTES_CHANGED');
     expect(result.sourceDocumentId).toBeNull();
     expect(result.sourceDocumentBound).toBe(false);
+    expect(result.ingestionSucceeded).toBe(false);
     expect(ctx.sourceDocumentRows).toHaveLength(0);
     expect(ctx.archiveCalls).toHaveLength(0);
     // Observation is untouched: still 'changed', still the original SHA.
@@ -425,6 +420,7 @@ describe('ObservationIngestionBridgeService', () => {
 
     const first = await ctx.bridge.bridge(observation.id);
     expect(first.sourceDocumentBound).toBe(true);
+    expect(first.ingestionSucceeded).toBe(true);
     expect(ctx.sourceDocumentRows).toHaveLength(1);
     expect(ctx.archiveCalls).toHaveLength(1);
     expect(ctx.fetchCalls.n).toBe(1); // the live URL was fetched exactly once (first-time path)
@@ -433,8 +429,10 @@ describe('ObservationIngestionBridgeService', () => {
 
     // Replay against the now-'ingested' observation.
     const second = await ctx.bridge.bridge(observation.id);
+    expect(second.status).toBe('already_ingested');
     expect(second.sourceDocumentId).toBe(first.sourceDocumentId);
     expect(second.sourceDocumentBound).toBe(true);
+    expect(second.ingestionSucceeded).toBe(true);
     // No new SourceDocument or archive row — the store never re-entered the
     // eligible/fetch/archive/register path for an already-ingested observation.
     expect(ctx.sourceDocumentRows).toHaveLength(1);
@@ -494,23 +492,26 @@ describe('ObservationIngestionBridgeService', () => {
     const result = await ctx.bridge.bridge(observation.id);
 
     expect(result.sourceDocumentBound).toBe(true);
+    expect(result.ingestionSucceeded).toBe(true);
     expect(ctx.handoffCalls).toHaveLength(1);
     expect(ctx.handoffCalls[0]!.authorityTrack).toBe('alternative_funding');
-    expect(ctx.canonicalProjectionCalls).toHaveLength(1);
-    expect(ctx.canonicalProjectionCalls[0]!.authorityTrack).toBe('alternative_funding');
   });
 
-  it('annual (request-track) source keeps authority_track through to the parser handoff (does not cross into alternative_funding)', async () => {
-    const observation = makeObservation({ classifiedAuthorityTrack: 'request' });
-    const ctx = buildBridge({ observation, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
+  it.each<AuthorityTrack>(['request', 'authorization', 'appropriations'])(
+    "'%s' authority track stays isolated: reaches the parser handoff unchanged and never crosses into alternative_funding",
+    async (track) => {
+      const observation = makeObservation({ classifiedAuthorityTrack: track });
+      const cycle = makeCycle({ authorityTrack: track });
+      const ctx = buildBridge({ observation, cycle, urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]) });
 
-    const result = await ctx.bridge.bridge(observation.id);
+      const result = await ctx.bridge.bridge(observation.id);
 
-    expect(result.sourceDocumentBound).toBe(true);
-    expect(ctx.handoffCalls).toHaveLength(1);
-    expect(ctx.handoffCalls[0]!.authorityTrack).toBe('request');
-    expect(ctx.handoffCalls[0]!.authorityTrack).not.toBe('alternative_funding');
-  });
+      expect(result.sourceDocumentBound).toBe(true);
+      expect(ctx.handoffCalls).toHaveLength(1);
+      expect(ctx.handoffCalls[0]!.authorityTrack).toBe(track);
+      expect(ctx.handoffCalls[0]!.authorityTrack).not.toBe('alternative_funding');
+    },
+  );
 
   it('source_document_id is only ever bound when the registered document sha256 matches the observation sha256', async () => {
     const observation = makeObservation();
@@ -580,6 +581,7 @@ describe('ObservationIngestionBridgeService', () => {
     // second logical SourceDocument row.
     const retry = await ctx.bridge.bridge(observation.id);
     expect(retry.sourceDocumentBound).toBe(true);
+    expect(retry.ingestionSucceeded).toBe(true);
     expect(retry.sourceDocumentId).toBe(ctx.sourceDocumentRows[0]!.id);
     expect(ctx.sourceDocumentRows).toHaveLength(1); // still exactly one logical SourceDocument
     expect(ctx.archiveCalls).toHaveLength(2); // archiveOriginal invoked twice, idempotently, same content
@@ -588,15 +590,12 @@ describe('ObservationIngestionBridgeService', () => {
     expect(ctx.getCurrent().sourceDocumentId).toBe(ctx.sourceDocumentRows[0]!.id);
   });
 
-  it('[repair] attach succeeds, then parser handoff throws: bridge reports non-success (downstream_failed), sourceDocumentBound stays true, retry remains possible', async () => {
+  it('[repair] attach succeeds, then a transient parser/infra failure occurs: bridge reports non-success (downstream_failed), sourceDocumentBound stays true, retry converges', async () => {
     const observation = makeObservation();
     const ctx = buildBridge({
       observation,
       urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
-      parserHandoffFailNextCalls: 1,
-      // Override so a successful retry can reach full "already_ingested" —
-      // this test is about parser-failure/retry semantics, not projection.
-      canonicalProjectionBehavior: () => ({ succeeded: true, reason: 'projected (test double)' }),
+      parserHandoffScript: [{ kind: 'throw', message: 'simulated parser runtime crash' }],
     });
 
     const result = await ctx.bridge.bridge(observation.id);
@@ -606,23 +605,24 @@ describe('ObservationIngestionBridgeService', () => {
     expect(result.sourceDocumentId).not.toBeNull();
     expect(ctx.getCurrent().observationState).toBe('ingested');
 
-    // But the bridge does NOT report overall success: parser handoff failed.
+    // But the bridge does NOT report overall success: this was a transient
+    // failure, not a resolved verification decision.
     expect(result.status).toBe('downstream_failed');
-    expect(result.downstreamSucceeded).toBe(false);
+    expect(result.ingestionSucceeded).toBe(false);
+    expect(result.parserVerificationSucceeded).toBe(false);
+    expect(result.durableEvidencePersisted).toBe(false);
     expect(result.parserHandoffInvoked).toBe(false);
     expect(result.parserHandoffError).toMatch(/simulated parser runtime crash/);
-    expect(result.canonicalProjectionSucceeded).toBe(false);
-    // Canonical projection was never even attempted since parsing failed first.
-    expect(ctx.canonicalProjectionCalls).toHaveLength(0);
+    expect(result.verifierDecision).toBeNull();
 
     // Register the archive record a real successful run would have left
     // behind, so the retry can read from it (replay path).
     registerSourceDocumentArchive(ctx, result.sourceDocumentId!, OFFICIAL_BYTES);
 
-    // Retry: parser now succeeds (no more injected failures), and this time
-    // canonical projection also succeeds — the retry converges fully.
+    // Retry: parser now succeeds (no more injected failures) and resolves PASS.
     const retry = await ctx.bridge.bridge(observation.id);
     expect(retry.status).toBe('already_ingested');
+    expect(retry.ingestionSucceeded).toBe(true);
     expect(retry.sourceDocumentId).toBe(result.sourceDocumentId);
     expect(retry.parserHandoffInvoked).toBe(true);
     // Retry read bytes from the archive, not the live URL, and did not
@@ -632,13 +632,100 @@ describe('ObservationIngestionBridgeService', () => {
     expect(ctx.archiveReadCalls).toHaveLength(1);
   });
 
+  it('[repair] verification-persistence failure is treated exactly like any other transient downstream failure: non-success, retryable', async () => {
+    const observation = makeObservation();
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+      parserHandoffScript: [
+        {
+          kind: 'throw',
+          message:
+            'persist_audit mode requires a repository, but no repository was configured: BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT missing',
+        },
+      ],
+    });
+
+    const result = await ctx.bridge.bridge(observation.id);
+
+    expect(result.sourceDocumentBound).toBe(true);
+    expect(result.status).toBe('downstream_failed');
+    expect(result.ingestionSucceeded).toBe(false);
+    expect(result.durableEvidencePersisted).toBe(false);
+    expect(result.parserHandoffError).toMatch(/BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT/);
+
+    // The exact missing capability is surfaced, not swallowed into a generic
+    // message and not silently retried against an ephemeral-only fallback.
+    registerSourceDocumentArchive(ctx, result.sourceDocumentId!, OFFICIAL_BYTES);
+    const retry = await ctx.bridge.bridge(observation.id);
+    expect(retry.ingestionSucceeded).toBe(true); // once the capability is available, retry converges
+  });
+
+  it('[repair] verification REVIEW: governed review disposition, durably persisted, never reported as success and never conflated with a transient failure', async () => {
+    const observation = makeObservation();
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+      parserHandoffScript: [{ kind: 'decision', decision: 'REVIEW' }],
+    });
+
+    const result = await ctx.bridge.bridge(observation.id);
+
+    expect(result.sourceDocumentBound).toBe(true);
+    expect(result.parserHandoffInvoked).toBe(true);
+    expect(result.parserHandoffError).toBeNull();
+    expect(result.verifierDecision).toBe('REVIEW');
+    expect(result.status).toBe('review_required');
+    expect(result.status).not.toBe('downstream_failed'); // distinguishable from a transient/retryable failure
+    expect(result.parserVerificationSucceeded).toBe(false);
+    expect(result.ingestionSucceeded).toBe(false);
+    // The decision itself WAS durably persisted — this is a resolved,
+    // auditable disposition, not evidence loss.
+    expect(result.durableEvidencePersisted).toBe(true);
+  });
+
+  it('[repair] verification REJECT: deterministic governed disposition, durably persisted, auditable, never silently called success', async () => {
+    const observation = makeObservation();
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+      parserHandoffScript: [{ kind: 'decision', decision: 'REJECT' }],
+    });
+
+    const result = await ctx.bridge.bridge(observation.id);
+
+    expect(result.sourceDocumentBound).toBe(true);
+    expect(result.verifierDecision).toBe('REJECT');
+    expect(result.status).toBe('verification_rejected');
+    expect(result.status).not.toBe('downstream_failed');
+    expect(result.parserVerificationSucceeded).toBe(false);
+    expect(result.ingestionSucceeded).toBe(false);
+    expect(result.durableEvidencePersisted).toBe(true);
+  });
+
+  it('[repair] an unresolved terminal decision (UNKNOWN) is treated as retryable, never as a governed REVIEW/REJECT disposition or as success', async () => {
+    const observation = makeObservation();
+    const ctx = buildBridge({
+      observation,
+      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
+      parserHandoffScript: [{ kind: 'decision', decision: 'UNKNOWN' }],
+    });
+
+    const result = await ctx.bridge.bridge(observation.id);
+
+    expect(result.sourceDocumentBound).toBe(true);
+    expect(result.verifierDecision).toBe('UNKNOWN');
+    expect(result.status).toBe('downstream_failed');
+    expect(result.durableEvidencePersisted).toBe(false);
+    expect(result.ingestionSucceeded).toBe(false);
+  });
+
   it('[repair] remote URL changes after registration: retry succeeds from immutable archived bytes, never re-fetches the (now different) live URL', async () => {
     const observation = makeObservation();
     const ctx = buildBridge({
       observation,
       urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
-      parserHandoffFailNextCalls: 1, // force a downstream failure so a retry is needed
-      canonicalProjectionBehavior: () => ({ succeeded: true, reason: 'projected (test double)' }),
+      parserHandoffScript: [{ kind: 'throw', message: 'simulated parser runtime crash' }], // force a downstream failure so a retry is needed
     });
 
     const first = await ctx.bridge.bridge(observation.id);
@@ -652,8 +739,6 @@ describe('ObservationIngestionBridgeService', () => {
     // SOURCE_BYTES_CHANGED check. Neither should happen: the retry must
     // read the immutable archive instead and never call the fetcher again.
     ctx.fetchCalls.n = 0; // reset counter to isolate the retry's behavior
-    const changedFetcher = new Map([[observation.discoveredUrl, CHANGED_BYTES]]);
-    void changedFetcher; // the bridge's fetcher is fixed at construction; this documents intent
 
     const retry = await ctx.bridge.bridge(observation.id);
 
@@ -665,52 +750,12 @@ describe('ObservationIngestionBridgeService', () => {
     expect(ctx.archiveCalls).toHaveLength(1);
   });
 
-  it('[repair] parser succeeds but canonical projection fails: outbox-facing result remains non-success (this is the default/current behavior, since no projection boundary exists yet)', async () => {
+  it('[repair] successful retry after a downstream failure produces zero duplicate archive/SourceDocument artifacts', async () => {
     const observation = makeObservation();
     const ctx = buildBridge({
       observation,
       urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
-      canonicalProjectionBehavior: () => ({
-        succeeded: false,
-        reason: 'PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING: no legitimate boundary exists',
-      }),
-    });
-
-    const result = await ctx.bridge.bridge(observation.id);
-
-    expect(result.sourceDocumentBound).toBe(true);
-    expect(result.parserHandoffInvoked).toBe(true);
-    expect(result.parserHandoffError).toBeNull();
-    // Parser succeeded, but the bridge must not report overall success.
-    expect(result.status).toBe('downstream_failed');
-    expect(result.downstreamSucceeded).toBe(false);
-    expect(result.canonicalProjectionSucceeded).toBe(false);
-    expect(result.canonicalProjectionError).toMatch(/PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING/);
-  });
-
-  it('[repair] a hypothetical successful canonical projection makes the bridge report full success (downstreamSucceeded: true, status "ingested")', async () => {
-    const observation = makeObservation();
-    const ctx = buildBridge({
-      observation,
-      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
-      canonicalProjectionBehavior: () => ({ succeeded: true, reason: 'projected (test double)' }),
-    });
-
-    const result = await ctx.bridge.bridge(observation.id);
-
-    expect(result.status).toBe('ingested');
-    expect(result.downstreamSucceeded).toBe(true);
-    expect(result.canonicalProjectionSucceeded).toBe(true);
-    expect(result.sourceDocumentBound).toBe(true);
-  });
-
-  it('[repair] successful retry after a downstream failure produces zero duplicate archive/SourceDocument/canonical-projection-call artifacts', async () => {
-    const observation = makeObservation();
-    const ctx = buildBridge({
-      observation,
-      urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
-      parserHandoffFailNextCalls: 1,
-      canonicalProjectionBehavior: () => ({ succeeded: true, reason: 'projected (test double)' }),
+      parserHandoffScript: [{ kind: 'throw', message: 'simulated parser runtime crash' }],
     });
 
     const first = await ctx.bridge.bridge(observation.id);
@@ -726,12 +771,10 @@ describe('ObservationIngestionBridgeService', () => {
     // Across the initial attempt + two retries: exactly one SourceDocument
     // row (archive/register only happens once, on the first-time path;
     // both retries take the idempotent-replay path and read the archive).
-    // Canonical projection and parser handoff are each invoked once per
-    // attempt that reaches the downstream step (at-least-once semantics —
+    // Parser handoff is invoked once per attempt (at-least-once semantics —
     // never skipped, never accidentally coalesced across attempts).
     expect(ctx.sourceDocumentRows).toHaveLength(1);
     expect(ctx.archiveCalls).toHaveLength(1); // first-time path only; replay never re-archives
-    expect(ctx.canonicalProjectionCalls).toHaveLength(2); // second + third attempts reached projection
     expect(ctx.handoffCalls).toHaveLength(3); // first (failed) + second + third, each a real invocation
   });
 
@@ -740,7 +783,7 @@ describe('ObservationIngestionBridgeService', () => {
     const ctx = buildBridge({
       observation,
       urlBytes: new Map([[observation.discoveredUrl, OFFICIAL_BYTES]]),
-      parserHandoffFailNextCalls: 1,
+      parserHandoffScript: [{ kind: 'throw', message: 'simulated parser runtime crash' }],
     });
 
     const first = await ctx.bridge.bridge(observation.id);
@@ -756,5 +799,48 @@ describe('ObservationIngestionBridgeService', () => {
     expect(retry.reason).toMatch(/does not match the observation's content_sha256|refusing to parse/);
     // The corrupted bytes were never handed to the parser.
     expect(ctx.handoffCalls).toHaveLength(1); // only the first attempt's (failed) call
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Phase 10B-1 repair: canonical promotion is out of scope, structurally */
+  /* ------------------------------------------------------------------ */
+
+  it('[repair] the bridge constructor takes exactly 5 ports — no canonical-projection dependency exists to inject', () => {
+    expect(ObservationIngestionBridgeService.length).toBe(5);
+  });
+
+  it('[repair] canonical promotion is never invoked from this bridge: no import, no type reference, no env-var read of canonical-promotion machinery in actual code (doc-comment mentions of WHY it is out of scope are expected and fine)', () => {
+    const sourceFiles = [
+      'observation-ingestion-bridge.service.ts',
+      'observation-ingestion-bridge.ports.ts',
+      'default-parser-handoff.adapter.ts',
+    ];
+    for (const file of sourceFiles) {
+      const contents = fs.readFileSync(path.join(__dirname, file), 'utf8');
+      const codeLines = contents
+        .split('\n')
+        .filter((line) => !/^\s*(\/\*|\*|\/\/)/.test(line)); // strip comment-only lines
+      const code = codeLines.join('\n');
+      // No import/require of canonical-promotion machinery.
+      expect(code).not.toMatch(/from ['"].*promotion/);
+      expect(code).not.toMatch(/DefenseBudgetCanonicalPromotionServiceV1/);
+      // No CanonicalProjectionPort type declared, exported, or used as a
+      // parameter/property type (the actual injectable seam PR #1249
+      // originally added and this repair removes).
+      expect(code).not.toMatch(/CanonicalProjectionPort/);
+      expect(code).not.toMatch(/CanonicalProjectionInput/);
+      expect(code).not.toMatch(/CanonicalProjectionOutcome/);
+      // No read of the promoter-role credential.
+      expect(code).not.toMatch(/PROMOTER_DATABASE_URL/);
+    }
+    // The bridge's constructor takes exactly 5 ports (store, fetcher,
+    // registrar, parserHandoff, archiveReader) — no 6th canonical-projection
+    // dependency to inject.
+    expect(ObservationIngestionBridgeService.length).toBe(5);
+    // The old boundary-missing adapter file must not exist in the active
+    // ingestion path at all — deleted, not merely unreferenced.
+    expect(
+      fs.existsSync(path.join(__dirname, 'phase10b1-canonical-projection-boundary-missing.adapter.ts')),
+    ).toBe(false);
   });
 });

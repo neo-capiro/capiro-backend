@@ -58,15 +58,21 @@ export function evaluateBridgeEligibility(observationState: ObservationState): B
 export const SOURCE_BYTES_CHANGED = 'SOURCE_BYTES_CHANGED' as const;
 
 /**
- * Deterministic marker the bridge attaches to every result to make explicit
- * that no legitimate per-observation production boundary exists today from a
- * verified, registered `SourceDocument` to a canonical Defense Budget write.
+ * Phase 10B-2 forward-looking finding — NOT a Phase 10B-1 failure and NOT
+ * referenced anywhere in the per-observation ingestion bridge's active code
+ * path (`observation-ingestion-bridge.service.ts`,
+ * `observation-ingestion-bridge.ports.ts`). Governed per-observation
+ * ingestion (archive -> SourceDocument -> parse -> verify -> durably persist
+ * evidence) succeeds or fails entirely on its own terms; canonical promotion
+ * is a separate, later stage this bridge does not attempt and does not gate
+ * on.
  *
- * Traced (Phase 10B-1 repair) starting from `ParserRouterV1Service`'s
- * terminal result: the next real write path is
- * `DefenseBudgetCanonicalPromotionServiceV1.execute` (Phase 7 Workstream E),
- * but it is unreachable from a single-observation bridge for three structural
- * reasons, not a missing wiring detail:
+ * This constant documents WHY that later stage cannot simply be "the next
+ * per-observation step" once it is eventually built — traced (Phase 10B-1
+ * repair) starting from `ParserRouterV1Service`'s terminal result: the real
+ * canonical write path, `DefenseBudgetCanonicalPromotionServiceV1.execute`
+ * (Phase 7 Workstream E), is unreachable from a single-observation bridge for
+ * three structural reasons, not a missing wiring detail:
  *
  *   1. **Scope mismatch.** Promotion operates on a `DefenseBudgetPromotionPlanV1`
  *      built from an ENTIRE certified cycle/family (all R-1/R-2/R-2A/R-3/R-4
@@ -87,11 +93,11 @@ export const SOURCE_BYTES_CHANGED = 'SOURCE_BYTES_CHANGED' as const;
  *      `DATABASE_URL`; the serving API (and therefore this bridge) does not
  *      hold that credential by design.
  *
- * Until a legitimate per-observation (or per-completed-cycle-with-an-
- * observation-driven-trigger) canonical write boundary is designed, every
- * bridge result carries this marker rather than silently letting a
- * SourceDocument-registered + parser-handed-off row be mistaken for
- * "canonical data now exists".
+ * The Phase 10B-2 gap this leaves is real orchestration work: watching
+ * per-observation bridge completions, waiting for a family/cycle's required
+ * corpus, reconciling/certifying the whole family, and building a canonical
+ * promotion plan to hand to the existing authorization + execute stage. None
+ * of that exists yet. It is not modeled as a per-observation retry loop.
  */
 export const PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING =
   'PHASE10B1_BLOCKED_CANONICAL_PROJECTION_BOUNDARY_MISSING' as const;
