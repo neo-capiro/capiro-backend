@@ -1,6 +1,7 @@
 /**
  * Phase 8 Session 8 — crawl cursor algebra.
- * Phase 10 — in-progress collection checkpoint (`resumeAfterPackageId`).
+ * Phase 10 — in-progress collection checkpoint (`resumeAfterPackageId`),
+ * hardened with a listing-fingerprint guard (`resumeListingFingerprint`).
  *
  * The Session 7 store already round-trips an opaque
  * `cursor: Record<string, unknown>` per adapter through `loadAdapterState` and
@@ -52,7 +53,43 @@
  *    exhausted there is nothing left to resume, so the in-progress checkpoint is
  *    cleared at the same instant the durable watermark advances — even if a
  *    caller mistakenly still passes one on the exhausting call.
+ *
+ * A package id alone is NOT a safe resume anchor, and a second review round
+ * found the hole: GovInfo's collection walk spans several year sitemaps at
+ * once (a fiscal year's window is FY-2 through FY+1), a year sitemap fetch can
+ * fail while others in the same pass succeed, and the surviving listing can
+ * still contain the checkpoint package while something changed BEFORE it
+ * (an insertion, or an existing entry's `lastmod` moving). In every one of
+ * those cases "does the checkpoint package id still exist in the current
+ * listing" is not enough to prove nothing before it was missed.
+ *
+ *  * **`resumeListingFingerprint` binds the checkpoint to the EXACT universe
+ *    that established it, not just to a package id.** It is a deterministic
+ *    digest (`computeListingFingerprint`) of every relevant entry examined this
+ *    pass, in a stable order — see that function for exactly what it covers.
+ *    A checkpoint may only be trusted to resume strictly-after when the CURRENT
+ *    pass's fingerprint, computed the same way over a COMPLETE relevant
+ *    listing, matches the persisted one. Any mismatch — a missing anchor, an
+ *    insertion, a reorder, or a changed `lastmod` anywhere in the fingerprinted
+ *    range — means the universe moved and the safe action is a full replay of
+ *    the collection, never a guess at a new position.
+ *
+ *  * **A partial listing must never mint a new global position.** If even one
+ *    relevant year sitemap could not be fetched this pass, the pass saw an
+ *    INCOMPLETE universe. It must not establish a new
+ *    `resumeAfterPackageId`/`resumeListingFingerprint` pair against that
+ *    partial view — doing so could let a package that lives only in the failed
+ *    sitemap end up permanently before the checkpoint once that sitemap
+ *    recovers. On a partial-listing pass, the prior checkpoint and fingerprint
+ *    (if any) are preserved untouched, exactly like a pass that made no further
+ *    progress.
+ *
+ *  * **The fingerprint travels WITH the package id, never independently.** They
+ *    are set together, preserved together, and cleared together. There is no
+ *    valid state with one present and the other absent (besides both null).
  */
+
+import { sha256Hex } from '../cycle.js';
 
 export const DISCOVERY_CURSOR_SCHEMA = 'phase8_session8_discovery_cursor_v1';
 
@@ -72,9 +109,20 @@ export interface CollectionCursor {
    * handling completed successfully during an UNFINISHED collection walk.
    * `null` when the collection has never been bounded mid-walk, or once it is
    * genuinely exhausted (there is nothing left to resume). This is deliberately
-   * NOT the durable collection watermark — see the file header.
+   * NOT the durable collection watermark — see the file header. Always set or
+   * cleared together with `resumeListingFingerprint`.
    */
   readonly resumeAfterPackageId: string | null;
+  /**
+   * Phase 10 listing-fingerprint guard: a digest of the exact, complete
+   * relevant listing (every fetched year sitemap's entries, in order) that was
+   * in view when `resumeAfterPackageId` was established. A resume is only
+   * trusted to skip past the checkpoint when a fresh fingerprint over the
+   * current pass's complete listing matches this value exactly. `null`
+   * whenever `resumeAfterPackageId` is `null`. See the file header for what a
+   * mismatch means and why the fail-safe response is always a full replay.
+   */
+  readonly resumeListingFingerprint: string | null;
 }
 
 export interface DiscoveryCursor {
@@ -88,6 +136,7 @@ const EMPTY_COLLECTION: CollectionCursor = Object.freeze({
   backfillPending: false,
   emittedAtWatermark: Object.freeze([]),
   resumeAfterPackageId: null,
+  resumeListingFingerprint: null,
 });
 
 export function emptyDiscoveryCursor(): DiscoveryCursor {
@@ -119,13 +168,21 @@ export function parseDiscoveryCursor(raw: Record<string, unknown> | null | undef
     const emitted = Array.isArray(entry.emittedAtWatermark)
       ? entry.emittedAtWatermark.filter((item): item is string => typeof item === 'string')
       : [];
+    // Absent (legacy row) or malformed -> null, never trusted as given. The
+    // fingerprint is only ever meaningful alongside a real package id, so a
+    // malformed/absent package id also forces the fingerprint to null.
+    const resumeAfterPackageId =
+      typeof entry.resumeAfterPackageId === 'string' ? entry.resumeAfterPackageId : null;
+    const resumeListingFingerprint =
+      resumeAfterPackageId !== null && typeof entry.resumeListingFingerprint === 'string'
+        ? entry.resumeListingFingerprint
+        : null;
     collections[key] = Object.freeze({
       watermark: watermark !== null && !Number.isNaN(Date.parse(watermark)) ? watermark : null,
       backfillPending: entry.backfillPending === true,
       emittedAtWatermark: Object.freeze([...emitted].sort()),
-      // Absent (legacy row) or malformed -> null, never trusted as given.
-      resumeAfterPackageId:
-        typeof entry.resumeAfterPackageId === 'string' ? entry.resumeAfterPackageId : null,
+      resumeAfterPackageId,
+      resumeListingFingerprint,
     });
   }
 
@@ -150,10 +207,13 @@ export function collectionCursor(cursor: DiscoveryCursor, collection: string): C
  * `resumeAfterPackageId` is the Phase 10 in-progress checkpoint: the last
  * package boundary this run fully finished handling, so the NEXT bounded run
  * can start there instead of restarting the collection from the beginning.
- * Passing `undefined`/`null` on an unexhausted run means "no NEW checkpoint to
- * report" and preserves whatever checkpoint already existed — it never erases
- * one. Exhaustion (`exhausted: true`) always clears the checkpoint, because a
- * fully-walked collection has nothing left to resume.
+ * `resumeListingFingerprint` MUST accompany it — the digest of the complete
+ * relevant listing this run actually saw. Passing `undefined`/`null` for
+ * EITHER on an unexhausted run means "no NEW checkpoint to report" and
+ * preserves whatever checkpoint+fingerprint pair already existed — it never
+ * erases one, and it never sets one field without the other. Exhaustion
+ * (`exhausted: true`) always clears both, because a fully-walked collection
+ * has nothing left to resume.
  */
 export function advanceCollectionCursor(input: {
   cursor: DiscoveryCursor;
@@ -165,11 +225,19 @@ export function advanceCollectionCursor(input: {
   exhausted: boolean;
   /**
    * The last package this run completed handling, when the run was bounded
-   * (`exhausted: false`) and made at least some new progress. Omit or pass
-   * `null` when this run advanced no further than the prior checkpoint — the
-   * prior value is preserved, never cleared, in that case.
+   * (`exhausted: false`), made at least some new progress, AND saw a complete
+   * (not partially-failed) relevant listing this pass. Omit or pass `null`
+   * when this run advanced no further than the prior checkpoint, or when the
+   * listing it examined was incomplete — the prior value is preserved, never
+   * cleared, in either case.
    */
   resumeAfterPackageId?: string | null;
+  /**
+   * The fingerprint of the complete relevant listing this run examined,
+   * required whenever `resumeAfterPackageId` is a new non-null value. Must be
+   * omitted/null exactly when `resumeAfterPackageId` is omitted/null.
+   */
+  resumeListingFingerprint?: string | null;
   nowIso: string;
 }): DiscoveryCursor {
   const previous = collectionCursor(input.cursor, input.collection);
@@ -193,12 +261,17 @@ export function advanceCollectionCursor(input: {
     }
   }
 
-  // Exhaustion always clears the in-progress checkpoint: nothing is left to
-  // resume. Otherwise, a newly-reported checkpoint advances the pointer; an
-  // omitted/null one preserves whatever was already there — never regresses.
+  // Exhaustion always clears the in-progress checkpoint pair: nothing is left
+  // to resume. Otherwise, a newly-reported checkpoint (with its fingerprint)
+  // advances the pointer; an omitted/null one preserves whatever pair was
+  // already there — never regresses, and never sets one half without the
+  // other.
   const resumeAfterPackageId = input.exhausted
     ? null
     : (input.resumeAfterPackageId ?? previous.resumeAfterPackageId);
+  const resumeListingFingerprint = input.exhausted
+    ? null
+    : (input.resumeListingFingerprint ?? previous.resumeListingFingerprint);
 
   const collections: Record<string, CollectionCursor> = { ...input.cursor.collections };
   collections[input.collection] = Object.freeze({
@@ -206,6 +279,7 @@ export function advanceCollectionCursor(input: {
     backfillPending: !input.exhausted,
     emittedAtWatermark,
     resumeAfterPackageId,
+    resumeListingFingerprint,
   });
 
   return Object.freeze({
@@ -243,6 +317,7 @@ export function serialiseDiscoveryCursor(cursor: DiscoveryCursor): Record<string
           backfillPending: value.backfillPending,
           emittedAtWatermark: [...value.emittedAtWatermark],
           resumeAfterPackageId: value.resumeAfterPackageId,
+          resumeListingFingerprint: value.resumeListingFingerprint,
         },
       ]),
     ),
@@ -253,4 +328,52 @@ export function serialiseDiscoveryCursor(cursor: DiscoveryCursor): Record<string
 /** `true` when any collection still has un-examined backlog. */
 export function hasPendingBackfill(cursor: DiscoveryCursor): boolean {
   return Object.values(cursor.collections).some((entry) => entry.backfillPending);
+}
+
+/**
+ * A single relevant entry contributing to a `resumeListingFingerprint`.
+ *
+ * `sitemap` is the year-sitemap URL/name the entry came from — the same
+ * `(loc, lastmod)` pair from two different year files is not the same fact,
+ * so the source file is part of the entry's identity, not an afterthought.
+ */
+export interface ListingFingerprintEntry {
+  readonly sitemap: string;
+  readonly loc: string;
+  readonly lastmod: string | null;
+}
+
+/**
+ * Deterministic digest of the exact, complete relevant listing a crawl pass
+ * examined, in the exact order it examined it.
+ *
+ * This exists because a package id alone is not a safe resume anchor. GovInfo
+ * serves a fiscal year's window across several year sitemaps at once, and any
+ * of these can happen between two passes over what still "looks like" the
+ * same collection:
+ *
+ *  * a year sitemap that failed on the checkpointing pass recovers on the next
+ *    one, revealing entries that were always logically "before" packages the
+ *    checkpoint already skipped past;
+ *  * GovInfo inserts, removes, or updates a package that sorts before the
+ *    checkpoint package but was not there (or had a different `lastmod`) when
+ *    the checkpoint was set;
+ *  * the same set of packages arrives in a different order.
+ *
+ * In every one of those cases the checkpoint package id can still exist in
+ * the new listing while something before it changed — so "the anchor still
+ * exists" is necessary but not sufficient. This fingerprint captures the
+ * ordered `(sitemap, loc, lastmod)` triple for every entry, so any of the
+ * above changes the digest and forces a safe replay instead of a silent skip.
+ *
+ * Order is caller-determined and part of the identity: the crawler must pass
+ * entries in the SAME deterministic order it uses to walk them (year files in
+ * sorted order, each file's entries in their parsed order), so a genuinely
+ * unchanged listing always reproduces the same fingerprint.
+ */
+export function computeListingFingerprint(entries: readonly ListingFingerprintEntry[]): string {
+  const material = entries
+    .map((entry) => `${entry.sitemap}\u0000${entry.loc}\u0000${entry.lastmod ?? ''}`)
+    .join('\u0001');
+  return sha256Hex(`v1\u0002${material}`);
 }

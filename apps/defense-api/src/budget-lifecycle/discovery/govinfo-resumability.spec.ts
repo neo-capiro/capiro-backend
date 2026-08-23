@@ -357,3 +357,251 @@ describe('Phase 10 — backward compatibility with the current production cursor
     assert.equal(state.resumeAfterPackageId, 'PLAW-118publ102');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// The two scenarios below were flagged in PR #1236 review as a no-skip
+// correctness hole in the FIRST version of this fix: a package id alone is
+// not a safe resume anchor when the collection walk spans several year
+// sitemaps and any of them can fail independently, or when GovInfo's listing
+// changes something before an otherwise-still-valid anchor. Both are closed
+// by `resumeListingFingerprint`: a checkpoint is only ever trusted to resume
+// strictly-after when a fresh fingerprint over the CURRENT pass's COMPLETE
+// relevant listing matches the one that was in view when the checkpoint was
+// set. A partial listing (any relevant year sitemap failed) may still be
+// processed for observability, but must never mint a NEW checkpoint.
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Two-year-sitemap fixture: 2023 (early, small) and 2024 (later, small). */
+function twoYearSitemapIndex(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>https://www.govinfo.gov/sitemap/PLAW_2023_sitemap.xml</loc><lastmod>2023-11-01T00:00:00.000Z</lastmod></sitemap>
+  <sitemap><loc>https://www.govinfo.gov/sitemap/PLAW_2024_sitemap.xml</loc><lastmod>2024-11-01T00:00:00.000Z</lastmod></sitemap>
+</sitemapindex>`;
+}
+
+function yearSitemapBody(packageIds: readonly string[], lastmodByPackage?: Map<string, string>): string {
+  const urls = packageIds
+    .map((id, index) => {
+      const lastmod =
+        lastmodByPackage?.get(id) ?? `2024-11-0${1 + (index % 9)}T00:00:00.000Z`;
+      return `<url><loc>https://www.govinfo.gov/app/details/${id}</loc><lastmod>${lastmod}</lastmod></url>`;
+    })
+    .join('');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`;
+}
+
+function twoYearResponses(input: {
+  earlyYearBody: RecordedResponse;
+  earlyPackageIds: readonly string[];
+  latePackageIds: readonly string[];
+}): Map<string, RecordedResponse> {
+  const entries: [string, RecordedResponse][] = [
+    ['https://www.govinfo.gov/robots.txt', { statusCode: 200, body: 'User-agent: *\nDisallow: /search/' }],
+    [
+      'https://www.govinfo.gov/sitemap/PLAW_sitemap_index.xml',
+      { statusCode: 200, body: twoYearSitemapIndex() },
+    ],
+    ['https://www.govinfo.gov/sitemap/PLAW_2023_sitemap.xml', input.earlyYearBody],
+    [
+      'https://www.govinfo.gov/sitemap/PLAW_2024_sitemap.xml',
+      { statusCode: 200, body: yearSitemapBody(input.latePackageIds) },
+    ],
+  ];
+  for (const id of [...input.earlyPackageIds, ...input.latePackageIds]) {
+    entries.push([
+      `https://www.govinfo.gov/metadata/pkg/${id}/mods.xml`,
+      { statusCode: 200, body: mods(CR_TITLE) },
+    ]);
+  }
+  return new Map(entries);
+}
+
+describe('Phase 10 — F. earlier sitemap failure and recovery (no-skip correctness hole)', () => {
+  test('a failed early-year sitemap must not let a later-year pass establish a checkpoint that could skip it once it recovers', async () => {
+    const earlyPackageIds = ['PLAW-118publ050', 'PLAW-118publ051'];
+    const latePackageIds = ['PLAW-118publ200', 'PLAW-118publ201'];
+
+    // ── Pass 1: PLAW_2023 (early) fails to fetch; PLAW_2024 (late) succeeds.
+    // Budget: index(1) + 2023 attempt(1) + 2024(1) + 2 MODS(2) = 5, exactly
+    // enough to fully process BOTH late packages this pass.
+    const pass1Responses = twoYearResponses({
+      earlyYearBody: { statusCode: 503, body: null, failureReason: 'temporary GovInfo outage' },
+      earlyPackageIds,
+      latePackageIds,
+    });
+    const { discovery, http } = buildAdapter({ responses: pass1Responses, requestBudget: 5 });
+
+    const pass1 = await discovery.discover({
+      adapterId: 'govinfo-public-laws',
+      cursor: serialiseDiscoveryCursor(emptyDiscoveryCursor()),
+      nowIso: NOW,
+    });
+
+    // Sanity: this pass really did get far enough to fully process the late
+    // packages it COULD see — the bug this closes is not "nothing happened",
+    // it is "something happened and got checkpointed against a partial view".
+    const modsRequestedPass1 = http.requested.filter((url) => url.includes('/metadata/pkg/'));
+    assert.deepEqual(modsRequestedPass1, [
+      'https://www.govinfo.gov/metadata/pkg/PLAW-118publ200/mods.xml',
+      'https://www.govinfo.gov/metadata/pkg/PLAW-118publ201/mods.xml',
+    ]);
+
+    const state1 = collectionCursor(parseDiscoveryCursor(pass1.cursor), 'PLAW');
+    assert.equal(
+      state1.resumeAfterPackageId,
+      null,
+      'a partial listing (2023 sitemap failed) must NEVER mint a new checkpoint, even though 2024 packages were fully processed',
+    );
+    assert.equal(state1.resumeListingFingerprint, null);
+    assert.equal(state1.backfillPending, true, 'the collection is still incomplete — 2023 was never examined');
+    assert.equal(state1.watermark, null, 'no durable watermark advance either — this run was not exhausted');
+
+    // ── Pass 2: PLAW_2023 recovers. Because pass 1 left NO checkpoint, this
+    // pass must start from the beginning and examine EVERY 2023 package —
+    // none may be silently skipped because a later-year checkpoint existed.
+    const recoveredResponses = twoYearResponses({
+      earlyYearBody: { statusCode: 200, body: yearSitemapBody(earlyPackageIds) },
+      earlyPackageIds,
+      latePackageIds,
+    });
+    const { discovery: discovery2, http: http2 } = buildAdapter({
+      responses: recoveredResponses,
+      requestBudget: 100,
+    });
+
+    const pass2 = await discovery2.discover({
+      adapterId: 'govinfo-public-laws',
+      cursor: pass1.cursor,
+      nowIso: '2026-08-23T00:05:00.000Z',
+    });
+
+    const modsRequestedPass2 = http2.requested.filter((url) => url.includes('/metadata/pkg/'));
+    for (const id of earlyPackageIds) {
+      assert.ok(
+        modsRequestedPass2.includes(`https://www.govinfo.gov/metadata/pkg/${id}/mods.xml`),
+        `${id} (from the recovered early sitemap) must be examined once it recovers — it must never be permanently skipped`,
+      );
+    }
+    for (const id of latePackageIds) {
+      assert.ok(modsRequestedPass2.includes(`https://www.govinfo.gov/metadata/pkg/${id}/mods.xml`));
+    }
+
+    const state2 = collectionCursor(parseDiscoveryCursor(pass2.cursor), 'PLAW');
+    assert.equal(state2.backfillPending, false, 'an ample budget now exhausts the full two-year collection');
+    assert.equal(state2.resumeAfterPackageId, null);
+  });
+});
+
+describe('Phase 10 — G. insertion/change before an existing, still-present anchor (fingerprint mismatch)', () => {
+  test('a package inserted before the existing checkpoint forces a safe full replay rather than skipping it', async () => {
+    // Establish a checkpoint at publ102 exactly as in the multi-run test.
+    const { discovery, http } = buildAdapter({ responses: baseResponses(), requestBudget: 5 });
+    const pass1 = await discovery.discover({
+      adapterId: 'govinfo-public-laws',
+      cursor: serialiseDiscoveryCursor(emptyDiscoveryCursor()),
+      nowIso: NOW,
+    });
+    const state1 = collectionCursor(parseDiscoveryCursor(pass1.cursor), 'PLAW');
+    assert.equal(state1.resumeAfterPackageId, 'PLAW-118publ102');
+    assert.ok(state1.resumeListingFingerprint, 'a complete first pass must record a fingerprint alongside the checkpoint');
+    void http;
+
+    // GovInfo's listing changed: publ099 was inserted (it sorts before every
+    // existing package, including the anchor). publ102 itself is untouched
+    // and still present — a naive "does the anchor id still exist" check
+    // would wrongly resume strictly after it and never see publ099.
+    const insertedPackageIds = [
+      'PLAW-118publ099',
+      'PLAW-118publ100',
+      'PLAW-118publ101',
+      'PLAW-118publ102',
+      'PLAW-118publ103',
+      'PLAW-118publ104',
+      'PLAW-118publ105',
+      'PLAW-118publ106',
+    ];
+    const { discovery: discovery2, http: http2 } = buildAdapter({
+      responses: baseResponses(insertedPackageIds),
+      requestBudget: 100,
+    });
+
+    const pass2 = await discovery2.discover({
+      adapterId: 'govinfo-public-laws',
+      cursor: pass1.cursor,
+      nowIso: '2026-08-23T00:05:00.000Z',
+    });
+
+    const modsRequested = http2.requested.filter((url) => url.includes('/metadata/pkg/'));
+    assert.ok(
+      modsRequested.includes('https://www.govinfo.gov/metadata/pkg/PLAW-118publ099/mods.xml'),
+      'the inserted package before the anchor must be examined — a fingerprint mismatch must force a full replay, not a resume-after-anchor',
+    );
+
+    const state2 = collectionCursor(parseDiscoveryCursor(pass2.cursor), 'PLAW');
+    assert.equal(state2.backfillPending, false);
+    assert.equal(state2.resumeAfterPackageId, null);
+  });
+
+  test('a lastmod change on a package before the anchor also forces a safe replay, not a skip', async () => {
+    const { discovery } = buildAdapter({ responses: baseResponses(), requestBudget: 5 });
+    const pass1 = await discovery.discover({
+      adapterId: 'govinfo-public-laws',
+      cursor: serialiseDiscoveryCursor(emptyDiscoveryCursor()),
+      nowIso: NOW,
+    });
+    const state1 = collectionCursor(parseDiscoveryCursor(pass1.cursor), 'PLAW');
+    assert.equal(state1.resumeAfterPackageId, 'PLAW-118publ102');
+
+    // Same package ids, but publ100's lastmod moved forward — nothing was
+    // inserted or removed, yet the listing is not byte-identical to the one
+    // that established the checkpoint.
+    const changedLastmodEntries: [string, RecordedResponse][] = [
+      ['https://www.govinfo.gov/robots.txt', { statusCode: 200, body: 'User-agent: *\nDisallow: /search/' }],
+      [
+        'https://www.govinfo.gov/sitemap/PLAW_sitemap_index.xml',
+        { statusCode: 200, body: plawSitemapIndex() },
+      ],
+      [
+        'https://www.govinfo.gov/sitemap/PLAW_2024_sitemap.xml',
+        {
+          statusCode: 200,
+          body: yearSitemapBody(PACKAGE_IDS, new Map([['PLAW-118publ100', '2024-12-31T00:00:00.000Z']])),
+        },
+      ],
+    ];
+    for (const id of PACKAGE_IDS) {
+      changedLastmodEntries.push([
+        `https://www.govinfo.gov/metadata/pkg/${id}/mods.xml`,
+        { statusCode: 200, body: mods(CR_TITLE) },
+      ]);
+    }
+    const registry = new SourceAdapterRegistry();
+    const http2 = new RecordedPublisherHttp(new Map(changedLastmodEntries));
+    const audit2 = new InMemoryDiscoveryAuditStore(FY2024_KEYS);
+    const discovery2 = new LiveSourceDiscoveryAdapter(
+      registry,
+      new GovInfoSitemapCrawler(http2),
+      new IndexPageCrawler(http2),
+      audit2,
+      { requestBudget: 100, horizonFiscalYears: [2024] },
+    );
+
+    const pass2 = await discovery2.discover({
+      adapterId: 'govinfo-public-laws',
+      cursor: pass1.cursor,
+      nowIso: '2026-08-23T00:05:00.000Z',
+    });
+
+    const modsRequested = http2.requested.filter((url) => url.includes('/metadata/pkg/'));
+    assert.ok(
+      modsRequested.includes('https://www.govinfo.gov/metadata/pkg/PLAW-118publ100/mods.xml'),
+      'a changed lastmod before the anchor must trigger replay, examining 100 again rather than trusting the stale anchor',
+    );
+
+    const state2 = collectionCursor(parseDiscoveryCursor(pass2.cursor), 'PLAW');
+    assert.equal(state2.backfillPending, false);
+    assert.equal(state2.resumeAfterPackageId, null);
+  });
+});

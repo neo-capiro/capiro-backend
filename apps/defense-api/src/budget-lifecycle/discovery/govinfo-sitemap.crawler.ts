@@ -1,6 +1,7 @@
 /**
  * Phase 8 Session 8 — GovInfo sitemap crawler.
- * Phase 10 — fine-grained resumability inside an active collection.
+ * Phase 10 — fine-grained resumability inside an active collection, hardened
+ * against a no-skip correctness hole found in PR #1236 review.
  *
  * Walks the key-free sitemap channel: collection index -> year sitemaps ->
  * package ids -> MODS titles -> resolved candidates. Every step below is shaped
@@ -37,18 +38,44 @@
  *    already fully handled — no MODS re-fetch, no re-classification — while the
  *    durable watermark keeps advancing only on genuine exhaustion, unchanged.
  *
- *    The crawl is restructured into two phases to make this safe:
+ *  * **A package id alone is NOT a safe resume anchor.** A fiscal year's window
+ *    spans several year sitemaps at once (FY-2 through FY+1), any one of which
+ *    can fail to fetch on a given pass while others succeed, and GovInfo's
+ *    listing itself can change (insertion, removal, a `lastmod` edit) before an
+ *    otherwise still-present checkpoint package. "the checkpoint package id
+ *    still exists" does not prove nothing before it was missed. This is closed
+ *    with `resumeListingFingerprint` (see `crawl-cursor.ts`): a checkpoint is
+ *    only ever trusted to resume strictly-after when THIS pass saw a COMPLETE
+ *    relevant listing (every relevant year sitemap fetched successfully) AND a
+ *    fresh fingerprint over that complete listing matches the persisted one
+ *    exactly. Any mismatch, or any partial listing, means fail-safe: replay the
+ *    collection from the beginning. A partial listing also never mints a NEW
+ *    checkpoint/fingerprint pair — the prior pair (if any) is preserved
+ *    untouched, exactly like a pass that made no further progress, because
+ *    establishing a new position against an incomplete universe is exactly how
+ *    a package that lives only in a currently-failing sitemap would end up
+ *    permanently stranded before the checkpoint once that sitemap recovers.
+ *
+ *    The crawl is restructured into phases to make this safe:
  *
  *    1. fetch every relevant year sitemap for this pass and flatten their
  *       entries into one deterministic, ordered candidate list (package id +
- *       right collection only — the same filter the old inline loop applied);
- *    2. locate the persisted `resumeAfterPackageId` in THAT list and start
- *       immediately after it. If it cannot be found — the listing changed and
- *       the checkpoint package no longer exists at all — this fails safe: the
- *       walk starts from the very beginning of the candidate list rather than
- *       guessing a position by array index. A little replay is acceptable
- *       because persistence is SHA-based and idempotent; silently skipping is
- *       not.
+ *       right collection only — the same filter the old inline loop applied),
+ *       tracking which year sitemap each entry came from and whether every
+ *       relevant year sitemap was fetched successfully this pass;
+ *    2. compute this pass's listing fingerprint over that candidate list;
+ *    3. resolve the resume position: trust the persisted anchor and resume
+ *       strictly after it ONLY when the listing was complete this pass AND the
+ *       fingerprint matches AND the anchor is found in the list. Otherwise,
+ *       start from the very beginning of the candidate list — never derive a
+ *       position by array index, never assume the item now at the old ordinal
+ *       is equivalent, never jump forward on a guess. A little replay is
+ *       acceptable because persistence is SHA-based and idempotent; silently
+ *       skipping is not;
+ *    4. process from the resume position under the remaining budget, and only
+ *       report a NEW checkpoint + fingerprint pair to the cursor when this
+ *       pass's listing was complete — a partial-listing pass preserves the
+ *       prior pair untouched no matter how much processing it got through.
  *
  *    A checkpoint is only ever set on a package whose discovery handling
  *    (resolved-and-recorded, unresolved-and-recorded, or structurally rejected
@@ -65,6 +92,7 @@ import {
   budgetExhausted,
   budgetRemaining,
   collectionCursor,
+  computeListingFingerprint,
   govinfoCollectionOfPackageId,
   govinfoPackageModsUrl,
   govinfoPackagePdfUrl,
@@ -109,8 +137,16 @@ const RELEVANT_BILL_VERSIONS: readonly string[] = Object.freeze([
   'enr',
 ]);
 
-/** A sitemap entry narrowed to a package this collection actually owns. */
+/**
+ * A sitemap entry narrowed to a package this collection actually owns.
+ *
+ * `sitemap` is the year-sitemap URL the entry came from — required as part of
+ * the fingerprinted identity, not merely provenance, because the same
+ * `(loc, lastmod)` pair arriving from a different year file is not the same
+ * fact.
+ */
 interface PlawCandidateEntry {
+  readonly sitemap: string;
   readonly loc: string;
   readonly lastmod: string | null;
   readonly packageId: string;
@@ -177,8 +213,9 @@ export class GovInfoSitemapCrawler implements PublisherCrawler {
     crawls.push(indexFetch.crawl);
 
     if (!indexFetch.body) {
-      // Could not read the index: nothing is knowable about this collection now.
-      // No new checkpoint to report — the existing one (if any) is preserved.
+      // Could not read the index: nothing is knowable about this collection
+      // now. This is a partial (in fact empty) listing — no new checkpoint or
+      // fingerprint to report. The existing pair (if any) is preserved.
       return Object.freeze({
         candidates: Object.freeze([]),
         auditCandidates: Object.freeze([]),
@@ -203,16 +240,20 @@ export class GovInfoSitemapCrawler implements PublisherCrawler {
     });
 
     // ── Phase 1: fetch every relevant year sitemap for this pass and flatten
-    // their entries into one deterministic, ordered list. This has to happen
+    // their entries into one deterministic, ordered list, tracking which year
+    // sitemap each entry came from and whether EVERY relevant year sitemap was
+    // fetched successfully this pass (`yearFilesComplete`). This has to happen
     // before any resume decision because the persisted checkpoint could name a
-    // package in ANY of these year files, not necessarily the first.
-    const rawEntries: { loc: string; lastmod: string | null }[] = [];
+    // package in ANY of these year files, not necessarily the first — and
+    // whether the listing is complete governs both whether the anchor can be
+    // trusted and whether a new checkpoint may be minted at all.
+    const rawEntries: { sitemap: string; loc: string; lastmod: string | null }[] = [];
     let observedWatermark = state.watermark;
-    let yearFilesExhausted = true;
+    let yearFilesComplete = true;
 
     for (const yearFile of yearFiles) {
       if (budgetExhausted(budget)) {
-        yearFilesExhausted = false;
+        yearFilesComplete = false;
         this.logger.warn(
           `${context.adapter.adapterId}/${collection}: request budget exhausted before ` +
             `${yearFile.loc}; ${yearFiles.length} year files were in scope. Cursor left pending.`,
@@ -228,7 +269,11 @@ export class GovInfoSitemapCrawler implements PublisherCrawler {
       budget = spendRequest(budget);
       crawls.push(yearFetch.crawl);
       if (!yearFetch.body) {
-        yearFilesExhausted = false;
+        yearFilesComplete = false;
+        this.logger.warn(
+          `${context.adapter.adapterId}/${collection}: ${yearFile.loc} could not be fetched this ` +
+            'pass; the relevant listing is incomplete, so no new resume checkpoint will be minted.',
+        );
         continue;
       }
 
@@ -236,7 +281,9 @@ export class GovInfoSitemapCrawler implements PublisherCrawler {
       const changed = entries.filter((entry) =>
         sitemapEntryChangedSince(entry, state.watermark),
       );
-      rawEntries.push(...changed);
+      for (const entry of changed) {
+        rawEntries.push({ sitemap: yearFile.loc, loc: entry.loc, lastmod: entry.lastmod });
+      }
       observedWatermark = highestLastmod(changed, observedWatermark);
     }
 
@@ -244,50 +291,96 @@ export class GovInfoSitemapCrawler implements PublisherCrawler {
     // filter the pre-Phase-10 inline loop applied via its early `continue`s.
     // A malformed/off-collection entry carries no package identity, so it can
     // never anchor or receive a resume checkpoint; it is simply not a
-    // candidate.
+    // candidate, and it does not contribute to the listing fingerprint either.
     const plawCandidates: PlawCandidateEntry[] = [];
     for (const entry of rawEntries) {
       const packageId = packageIdFromSitemapLoc(entry.loc);
       if (!packageId) continue;
       if (govinfoCollectionOfPackageId(packageId) !== collection) continue;
-      plawCandidates.push({ loc: entry.loc, lastmod: entry.lastmod, packageId });
+      plawCandidates.push({ sitemap: entry.sitemap, loc: entry.loc, lastmod: entry.lastmod, packageId });
     }
 
-    // ── Phase 3: resolve the resume position.
+    // ── Phase 3: this pass's listing fingerprint, over exactly the candidate
+    // list Phase 4 will walk, in the exact order it will walk it. Computed
+    // unconditionally — it is only ever TRUSTED (compared against, or minted
+    // as new) when `yearFilesComplete` is true; see Phase 3b and Phase 5.
+    const currentListingFingerprint = computeListingFingerprint(
+      plawCandidates.map((candidate) => ({
+        sitemap: candidate.sitemap,
+        loc: candidate.loc,
+        lastmod: candidate.lastmod,
+      })),
+    );
+
+    // ── Phase 3b: resolve the resume position.
     //
     // No persisted checkpoint -> start at the beginning, as always.
-    // A persisted checkpoint found in THIS pass's candidate list -> resume
-    //   strictly after it; everything up to and including it was already fully
-    //   handled and must not be re-fetched.
-    // A persisted checkpoint NOT found anywhere in this pass's candidate list
-    //   (the listing changed and the package is genuinely gone) -> FAIL SAFE:
-    //   start from the beginning. Never derive a position by array index, never
-    //   assume the item now at the old ordinal is equivalent, never jump
-    //   forward on a guess. A full replay is bounded work that idempotent
-    //   SHA-based persistence absorbs for free; skipping is not recoverable.
+    //
+    // A persisted checkpoint is trusted to skip past — resume strictly after
+    // it — ONLY when ALL of the following hold:
+    //   1. this pass's relevant listing is COMPLETE (`yearFilesComplete`): a
+    //      partial listing (any relevant year sitemap failed to fetch) cannot
+    //      prove nothing changed in the part it never saw, so the anchor is
+    //      never trusted against it — not even the OLD checkpoint from a prior
+    //      complete pass;
+    //   2. the fingerprint of this pass's complete listing matches the
+    //      fingerprint recorded alongside the checkpoint: any insertion,
+    //      removal, reorder, or `lastmod` change anywhere in the listing —
+    //      including strictly BEFORE the checkpoint package — changes the
+    //      digest and is caught here, closing the hole where "the checkpoint
+    //      package id still exists" was treated as sufficient;
+    //   3. the checkpoint package is actually found in this pass's candidate
+    //      list (should be automatic once 1 and 2 hold, but checked
+    //      defensively rather than assumed).
+    //
+    // Any failure of 1–3 is FAIL SAFE: start from the beginning of the
+    // candidate list. Never derive a position by array index, never assume the
+    // item now at the old ordinal is equivalent, never jump forward on a
+    // guess. A full replay is bounded work that idempotent SHA-based
+    // persistence absorbs for free; skipping is not recoverable.
     let startIndex = 0;
     if (state.resumeAfterPackageId !== null) {
-      const anchorIndex = plawCandidates.findIndex(
-        (candidate) => candidate.packageId === state.resumeAfterPackageId,
-      );
-      if (anchorIndex === -1) {
+      if (!yearFilesComplete) {
         this.logger.warn(
-          `${context.adapter.adapterId}/${collection}: persisted resume checkpoint ` +
-            `${state.resumeAfterPackageId} was not found in this pass's listing; failing safe ` +
-            'and replaying the collection from the beginning rather than guessing a position.',
+          `${context.adapter.adapterId}/${collection}: this pass's relevant listing is incomplete ` +
+            `(a year sitemap failed to fetch); the persisted resume checkpoint ` +
+            `${state.resumeAfterPackageId} cannot be trusted against a partial universe. Failing ` +
+            'safe and replaying the collection from the beginning.',
+        );
+      } else if (currentListingFingerprint !== state.resumeListingFingerprint) {
+        this.logger.warn(
+          `${context.adapter.adapterId}/${collection}: the relevant listing changed since the ` +
+            `persisted resume checkpoint ${state.resumeAfterPackageId} was set (fingerprint ` +
+            'mismatch). Failing safe and replaying the collection from the beginning rather than ' +
+            'trusting a checkpoint whose universe no longer matches.',
         );
       } else {
-        startIndex = anchorIndex + 1;
+        const anchorIndex = plawCandidates.findIndex(
+          (candidate) => candidate.packageId === state.resumeAfterPackageId,
+        );
+        if (anchorIndex === -1) {
+          // Should not happen once the fingerprint matches exactly, but never
+          // trust a guessed position — fail safe regardless.
+          this.logger.warn(
+            `${context.adapter.adapterId}/${collection}: persisted resume checkpoint ` +
+              `${state.resumeAfterPackageId} was not found in this pass's listing despite a ` +
+              'matching fingerprint; failing safe and replaying the collection from the beginning.',
+          );
+        } else {
+          startIndex = anchorIndex + 1;
+        }
       }
     }
 
     // ── Phase 4: process candidates from the resume position, respecting the
-    // remaining request budget. `lastCompletedPackageId` becomes the NEW
-    // in-progress checkpoint — set only on a package whose handling (resolved,
-    // unresolved-and-recorded, or prefilter-rejected) completed inside this
-    // pass. The package the budget runs out on mid-handling is never recorded.
+    // remaining request budget. `lastCompletedPackageId` tracks the last
+    // package boundary whose handling (resolved, unresolved-and-recorded, or
+    // prefilter-rejected) completed inside this pass — but per Phase 5, it is
+    // only ever REPORTED as a new checkpoint when this pass's listing was
+    // complete. The package the budget runs out on mid-handling is never
+    // recorded even then.
     const emittedAtWatermark: string[] = [];
-    let exhausted = yearFilesExhausted;
+    let exhausted = yearFilesComplete;
     let lastCompletedPackageId: string | null = null;
 
     for (let i = startIndex; i < plawCandidates.length; i += 1) {
@@ -403,6 +496,15 @@ export class GovInfoSitemapCrawler implements PublisherCrawler {
       lastCompletedPackageId = packageId;
     }
 
+    // ── Phase 5: report the new checkpoint pair — but ONLY when this pass's
+    // listing was complete. A partial-listing pass must never mint a new
+    // global position, no matter how much processing it got through this
+    // pass; `advanceCollectionCursor` preserves the prior pair untouched when
+    // both fields are omitted/null on an unexhausted run.
+    const reportedResumeAfterPackageId = yearFilesComplete ? lastCompletedPackageId : null;
+    const reportedResumeListingFingerprint =
+      yearFilesComplete && reportedResumeAfterPackageId !== null ? currentListingFingerprint : null;
+
     return Object.freeze({
       candidates: Object.freeze(candidates),
       auditCandidates: Object.freeze(auditCandidates),
@@ -413,10 +515,12 @@ export class GovInfoSitemapCrawler implements PublisherCrawler {
         observedWatermark,
         emittedAtWatermark,
         exhausted,
-        // On genuine exhaustion `advanceCollectionCursor` clears this
-        // unconditionally; on an unfinished pass, `null` here (no new progress)
-        // preserves whatever checkpoint already existed rather than erasing it.
-        resumeAfterPackageId: lastCompletedPackageId,
+        // On genuine exhaustion `advanceCollectionCursor` clears both fields
+        // unconditionally; on an unfinished pass, `null` here (no new
+        // progress, or a partial listing) preserves whatever pair already
+        // existed rather than erasing it.
+        resumeAfterPackageId: reportedResumeAfterPackageId,
+        resumeListingFingerprint: reportedResumeListingFingerprint,
         nowIso: context.nowIso,
       }),
       budget,

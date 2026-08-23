@@ -24,6 +24,7 @@ import test, { describe } from 'node:test';
 import {
   advanceCollectionCursor,
   collectionCursor,
+  computeListingFingerprint,
   emptyDiscoveryCursor,
   parseDiscoveryCursor,
   serialiseDiscoveryCursor,
@@ -46,6 +47,7 @@ describe('advanceCollectionCursor — Phase 10 in-progress checkpoint', () => {
       emittedAtWatermark: [],
       exhausted: false,
       resumeAfterPackageId: 'PLAW-118publ245',
+      resumeListingFingerprint: 'fp-v1-abc123',
       nowIso: NOW,
     });
 
@@ -53,10 +55,15 @@ describe('advanceCollectionCursor — Phase 10 in-progress checkpoint', () => {
     assert.equal(state.backfillPending, true);
     assert.equal(state.watermark, null, 'an unfinished collection must not advance its watermark');
     assert.equal(state.resumeAfterPackageId, 'PLAW-118publ245');
+    assert.equal(
+      state.resumeListingFingerprint,
+      'fp-v1-abc123',
+      'the checkpoint must be tied to the exact listing state that established its position',
+    );
     assert.equal(hasPendingBackfill(cursor), true);
   });
 
-  test('a second bounded pass advances the checkpoint forward, never backward', () => {
+  test('a second bounded pass advances the checkpoint and fingerprint together, never backward', () => {
     const afterPass1 = advanceCollectionCursor({
       cursor: emptyDiscoveryCursor(),
       collection: 'PLAW',
@@ -64,6 +71,7 @@ describe('advanceCollectionCursor — Phase 10 in-progress checkpoint', () => {
       emittedAtWatermark: [],
       exhausted: false,
       resumeAfterPackageId: 'PLAW-118publ245',
+      resumeListingFingerprint: 'fp-pass1',
       nowIso: NOW,
     });
 
@@ -74,13 +82,16 @@ describe('advanceCollectionCursor — Phase 10 in-progress checkpoint', () => {
       emittedAtWatermark: [],
       exhausted: false,
       resumeAfterPackageId: 'PLAW-118publ260',
+      resumeListingFingerprint: 'fp-pass2',
       nowIso: NOW,
     });
 
-    assert.equal(collectionCursor(afterPass2, 'PLAW').resumeAfterPackageId, 'PLAW-118publ260');
+    const state = collectionCursor(afterPass2, 'PLAW');
+    assert.equal(state.resumeAfterPackageId, 'PLAW-118publ260');
+    assert.equal(state.resumeListingFingerprint, 'fp-pass2');
   });
 
-  test('a pass that makes no further progress preserves the prior checkpoint rather than clearing it', () => {
+  test('a pass that makes no further progress preserves the prior checkpoint AND fingerprint rather than clearing them', () => {
     const afterPass1 = advanceCollectionCursor({
       cursor: emptyDiscoveryCursor(),
       collection: 'PLAW',
@@ -88,12 +99,16 @@ describe('advanceCollectionCursor — Phase 10 in-progress checkpoint', () => {
       emittedAtWatermark: [],
       exhausted: false,
       resumeAfterPackageId: 'PLAW-118publ245',
+      resumeListingFingerprint: 'fp-pass1',
       nowIso: NOW,
     });
 
     // A run that could not even confirm one new completed package (e.g. it
-    // exhausted its budget on the sitemap index/year fetches themselves)
-    // reports no new checkpoint. This must NOT regress the cursor to null.
+    // exhausted its budget on the sitemap index/year fetches themselves, or
+    // one relevant year sitemap failed to fetch and the listing is therefore
+    // incomplete) reports no new checkpoint. This must NOT regress the
+    // cursor to null, and must NOT silently swap in a fingerprint computed
+    // from a partial universe.
     const afterPass2 = advanceCollectionCursor({
       cursor: afterPass1,
       collection: 'PLAW',
@@ -101,16 +116,23 @@ describe('advanceCollectionCursor — Phase 10 in-progress checkpoint', () => {
       emittedAtWatermark: [],
       exhausted: false,
       resumeAfterPackageId: null,
+      resumeListingFingerprint: null,
       nowIso: NOW,
     });
 
+    const state = collectionCursor(afterPass2, 'PLAW');
     assert.equal(
-      collectionCursor(afterPass2, 'PLAW').resumeAfterPackageId,
+      state.resumeAfterPackageId,
       'PLAW-118publ245',
       'omitting a new checkpoint must preserve the existing one, never regress it',
     );
+    assert.equal(
+      state.resumeListingFingerprint,
+      'fp-pass1',
+      'omitting a new fingerprint must preserve the existing one — it travels WITH the package id, never independently',
+    );
 
-    // Omitting the field entirely (undefined) must behave identically.
+    // Omitting both fields entirely (undefined) must behave identically.
     const afterPass2Omitted = advanceCollectionCursor({
       cursor: afterPass1,
       collection: 'PLAW',
@@ -119,13 +141,12 @@ describe('advanceCollectionCursor — Phase 10 in-progress checkpoint', () => {
       exhausted: false,
       nowIso: NOW,
     });
-    assert.equal(
-      collectionCursor(afterPass2Omitted, 'PLAW').resumeAfterPackageId,
-      'PLAW-118publ245',
-    );
+    const stateOmitted = collectionCursor(afterPass2Omitted, 'PLAW');
+    assert.equal(stateOmitted.resumeAfterPackageId, 'PLAW-118publ245');
+    assert.equal(stateOmitted.resumeListingFingerprint, 'fp-pass1');
   });
 
-  test('genuine exhaustion clears the in-progress checkpoint and advances the durable watermark', () => {
+  test('genuine exhaustion clears both the in-progress checkpoint and its fingerprint', () => {
     const afterPass1 = advanceCollectionCursor({
       cursor: emptyDiscoveryCursor(),
       collection: 'PLAW',
@@ -133,6 +154,7 @@ describe('advanceCollectionCursor — Phase 10 in-progress checkpoint', () => {
       emittedAtWatermark: [],
       exhausted: false,
       resumeAfterPackageId: 'PLAW-118publ245',
+      resumeListingFingerprint: 'fp-pass1',
       nowIso: NOW,
     });
 
@@ -142,9 +164,10 @@ describe('advanceCollectionCursor — Phase 10 in-progress checkpoint', () => {
       observedWatermark: '2024-11-01T00:00:00.000Z',
       emittedAtWatermark: ['PLAW-118publ260'],
       exhausted: true,
-      // Even if a caller mistakenly still passes a checkpoint on the
-      // exhausting run, exhaustion must win: nothing is left to resume.
+      // Even if a caller mistakenly still passes a checkpoint/fingerprint on
+      // the exhausting run, exhaustion must win: nothing is left to resume.
       resumeAfterPackageId: 'PLAW-118publ260',
+      resumeListingFingerprint: 'fp-final',
       nowIso: NOW,
     });
 
@@ -155,6 +178,11 @@ describe('advanceCollectionCursor — Phase 10 in-progress checkpoint', () => {
       state.resumeAfterPackageId,
       null,
       'exhaustion must clear the in-progress checkpoint — there is nothing left to resume',
+    );
+    assert.equal(
+      state.resumeListingFingerprint,
+      null,
+      'exhaustion must clear the fingerprint alongside the checkpoint',
     );
     assert.equal(hasPendingBackfill(afterExhaustion), false);
   });
@@ -211,9 +239,14 @@ describe('parseDiscoveryCursor — backward compatibility with the existing prod
       null,
       'a legacy row missing the new field must default to no checkpoint, not throw or corrupt state',
     );
+    assert.equal(
+      state.resumeListingFingerprint,
+      null,
+      'a legacy row missing the fingerprint field must default to null, not throw or corrupt state',
+    );
   });
 
-  test('a persisted resumeAfterPackageId round-trips through serialise/parse unchanged', () => {
+  test('a persisted resumeAfterPackageId AND resumeListingFingerprint round-trip through serialise/parse unchanged', () => {
     const cursor = advanceCollectionCursor({
       cursor: emptyDiscoveryCursor(),
       collection: 'PLAW',
@@ -221,15 +254,15 @@ describe('parseDiscoveryCursor — backward compatibility with the existing prod
       emittedAtWatermark: [],
       exhausted: false,
       resumeAfterPackageId: 'PLAW-118publ245',
+      resumeListingFingerprint: 'fp-abc123',
       nowIso: NOW,
     });
 
     const serialised = serialiseDiscoveryCursor(cursor);
     const roundTripped = parseDiscoveryCursor(serialised);
-    assert.equal(
-      collectionCursor(roundTripped, 'PLAW').resumeAfterPackageId,
-      'PLAW-118publ245',
-    );
+    const state = collectionCursor(roundTripped, 'PLAW');
+    assert.equal(state.resumeAfterPackageId, 'PLAW-118publ245');
+    assert.equal(state.resumeListingFingerprint, 'fp-abc123');
   });
 
   test('a malformed resumeAfterPackageId (non-string) is dropped rather than trusted', () => {
@@ -247,5 +280,71 @@ describe('parseDiscoveryCursor — backward compatibility with the existing prod
     };
     const cursor = parseDiscoveryCursor(raw);
     assert.equal(collectionCursor(cursor, 'PLAW').resumeAfterPackageId, null);
+  });
+
+  test('a malformed resumeListingFingerprint (non-string) is dropped rather than trusted', () => {
+    const raw = {
+      schema: 'phase8_session8_discovery_cursor_v1',
+      collections: {
+        PLAW: {
+          watermark: null,
+          backfillPending: true,
+          emittedAtWatermark: [],
+          resumeAfterPackageId: 'PLAW-118publ245',
+          resumeListingFingerprint: { not: 'a string' },
+        },
+      },
+      lastRunAt: null,
+    };
+    const cursor = parseDiscoveryCursor(raw);
+    assert.equal(collectionCursor(cursor, 'PLAW').resumeListingFingerprint, null);
+  });
+});
+
+describe('computeListingFingerprint — the exact-universe guard behind resumeListingFingerprint', () => {
+  test('the same ordered (sitemap, packageId/loc, lastmod) sequence always produces the same fingerprint', () => {
+    const entries = [
+      { sitemap: 'PLAW_2023_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ100', lastmod: '2023-11-01T00:00:00.000Z' },
+      { sitemap: 'PLAW_2024_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ101', lastmod: '2024-11-02T00:00:00.000Z' },
+    ];
+    assert.equal(computeListingFingerprint(entries), computeListingFingerprint(entries));
+  });
+
+  test('an insertion before the tail changes the fingerprint even though the tail entry is unchanged', () => {
+    const before = [
+      { sitemap: 'PLAW_2024_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ101', lastmod: '2024-11-02T00:00:00.000Z' },
+      { sitemap: 'PLAW_2024_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ102', lastmod: '2024-11-03T00:00:00.000Z' },
+    ];
+    const afterInsertion = [
+      { sitemap: 'PLAW_2024_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ099', lastmod: '2024-10-15T00:00:00.000Z' },
+      { sitemap: 'PLAW_2024_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ101', lastmod: '2024-11-02T00:00:00.000Z' },
+      { sitemap: 'PLAW_2024_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ102', lastmod: '2024-11-03T00:00:00.000Z' },
+    ];
+    assert.notEqual(computeListingFingerprint(before), computeListingFingerprint(afterInsertion));
+  });
+
+  test('a lastmod change on any entry changes the fingerprint, even on an entry before the anchor', () => {
+    const before = [
+      { sitemap: 'PLAW_2024_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ100', lastmod: '2024-11-01T00:00:00.000Z' },
+      { sitemap: 'PLAW_2024_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ102', lastmod: '2024-11-03T00:00:00.000Z' },
+    ];
+    const afterEdit = [
+      { sitemap: 'PLAW_2024_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ100', lastmod: '2024-11-05T00:00:00.000Z' },
+      { sitemap: 'PLAW_2024_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ102', lastmod: '2024-11-03T00:00:00.000Z' },
+    ];
+    assert.notEqual(computeListingFingerprint(before), computeListingFingerprint(afterEdit));
+  });
+
+  test('reordering the same entries changes the fingerprint — order is part of the identity', () => {
+    const a = [
+      { sitemap: 'PLAW_2023_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ100', lastmod: '2023-11-01T00:00:00.000Z' },
+      { sitemap: 'PLAW_2024_sitemap.xml', loc: 'https://www.govinfo.gov/app/details/PLAW-118publ101', lastmod: '2024-11-02T00:00:00.000Z' },
+    ];
+    const b = [a[1]!, a[0]!];
+    assert.notEqual(computeListingFingerprint(a), computeListingFingerprint(b));
+  });
+
+  test('a genuinely empty listing has a well-defined, stable fingerprint', () => {
+    assert.equal(computeListingFingerprint([]), computeListingFingerprint([]));
   });
 });
