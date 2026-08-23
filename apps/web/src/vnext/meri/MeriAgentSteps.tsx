@@ -1,5 +1,6 @@
 import type { TrustStep } from '../../components/chat/work-performed-shared.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
+import './meri-agent-steps.css';
 
 /**
  * Shared step-row rendering for the v4 agent-run hero (MeriWorkPerformed) and
