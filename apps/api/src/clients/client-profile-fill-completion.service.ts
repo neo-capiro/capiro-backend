@@ -2294,8 +2294,8 @@ export function buildClientProfileFillCompletionPlan(): CompletionTaskPlanEntry[
   ];
 }
 
-export function mergeFillProgress(tasks: Array<Record<string, unknown>>) {
-  const statusOf = (task: Record<string, unknown>) => asString(task.status) ?? '';
+export function mergeFillProgress(tasks: ReadonlyArray<{ status?: unknown }>) {
+  const statusOf = (task: { status?: unknown }) => asString(task.status) ?? '';
   return {
     total: tasks.length,
     queued: tasks.filter((task) => statusOf(task) === 'queued').length,
