@@ -1,13 +1,25 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   IsUUID,
   MaxLength,
+  Min,
 } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
@@ -18,6 +30,7 @@ import {
   type ClientProfileFillSource,
 } from './client-profile-fill.helpers.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
+import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
 
 class StartClientProfileFillDto {
   @IsOptional()
@@ -27,14 +40,30 @@ class StartClientProfileFillDto {
   @IsIn(CLIENT_PROFILE_FILL_SOURCES, { each: true })
   sources?: ClientProfileFillSource[];
 
-  /** A server-owned client document. When present, Meri extracts capabilities
-   * from this exact attachment instead of silently using unrelated sources. */
+  /** Legacy one-document input. New clients send attachmentIds so documents and
+   * connected sources can run together in the same durable workflow. */
   @IsOptional()
   @IsUUID()
   attachmentId?: string;
 
-  /** Optional website entered in the Fill drawer. Seeded onto the client when
-   * empty (or when the user overrides) before public-web enrichment runs. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsUUID('all', { each: true })
+  attachmentIds?: string[];
+
+  /** Imported LDA identities are always retained. These are only additional
+   * identities the setup screen explicitly offered and the user selected. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @Type(() => Number)
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  ldaClientIds?: number[];
+
+  /** Optional website entered in the setup gate. It is persisted before the
+   * public-web specialist starts so every task sees the same canonical site. */
   @IsOptional()
   @IsString()
   @MaxLength(500)
@@ -60,20 +89,40 @@ class RejectClientProfileFillDto {
 @UseGuards(RolesGuard)
 @Roles('standard_user')
 export class ClientProfileFillController {
-  constructor(private readonly service: ClientProfileFillService) {}
+  constructor(
+    private readonly service: ClientProfileFillService,
+    private readonly workflow: ClientProfileFillWorkflowService,
+  ) {}
+
+  @Get('setup')
+  setup(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    return this.workflow.getSetup(ctx, clientId);
+  }
 
   @Post('runs')
+  @HttpCode(HttpStatus.ACCEPTED)
   start(
     @CurrentTenant() ctx: TenantContext,
     @Param('clientId') clientId: string,
     @Body() body: StartClientProfileFillDto,
   ) {
-    return this.service.startRun(ctx, clientId, body.sources, body.attachmentId, body.website);
+    const attachmentIds = [
+      ...new Set([
+        ...(body.attachmentIds ?? []),
+        ...(body.attachmentId ? [body.attachmentId] : []),
+      ]),
+    ];
+    return this.workflow.startRun(ctx, clientId, {
+      sources: body.sources,
+      attachmentIds,
+      ldaClientIds: body.ldaClientIds,
+      website: body.website,
+    });
   }
 
   @Get('latest')
   latest(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
-    return this.service.getLatest(ctx, clientId);
+    return this.workflow.getLatest(ctx, clientId);
   }
 
   @Get('runs/:runId')
@@ -82,7 +131,26 @@ export class ClientProfileFillController {
     @Param('clientId') clientId: string,
     @Param('runId') runId: string,
   ) {
-    return this.service.getRun(ctx, clientId, runId);
+    return this.workflow.getRun(ctx, clientId, runId);
+  }
+
+  @Post('runs/:runId/cancel')
+  cancel(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('runId') runId: string,
+  ) {
+    return this.workflow.cancelRun(ctx, clientId, runId);
+  }
+
+  @Post('runs/:runId/tasks/:taskId/retry')
+  retryTask(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('runId') runId: string,
+    @Param('taskId') taskId: string,
+  ) {
+    return this.workflow.retryTask(ctx, clientId, runId, taskId);
   }
 
   @Post('runs/:runId/apply')
