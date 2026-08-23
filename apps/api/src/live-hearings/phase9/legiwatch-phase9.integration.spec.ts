@@ -2,6 +2,7 @@ import { CommitteeSourceRepository } from '../../hearing-discovery/committee-sou
 import { HearingObservationRepository } from '../../hearing-discovery/hearing-observation.repository.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { LegiWatchPhase9PreflightService } from './legiwatch-phase9-preflight.service.js';
+import { LegiWatchPhase9ReadinessService } from './legiwatch-phase9-readiness.service.js';
 
 const describeDb = process.env.DATABASE_URL ? describe : describe.skip;
 const TENANT_ID = '00000000-0000-0000-0000-000000000990';
@@ -341,4 +342,281 @@ describeDb('LegiWatch Phase 9 (Postgres)', () => {
     if (!rows[0]) throw new Error(`observation ${observationId} not found`);
     return rows[0];
   }
+});
+
+describeDb('LegiWatch Phase 9 readiness evaluateAndPersist (Postgres, extended tx budget)', () => {
+  // Disposable-Postgres proof for the production tx-timeout hotfix: seeds a
+  // real Phase 9 dataset (committee, source, observation, hearing, capture,
+  // multiple exception-triggering rows) and calls evaluateAndPersist end to
+  // end against the live schema, proving the 30s withSystem budget actually
+  // lets the transaction complete rather than merely asserting it in a mock.
+  const prisma = new PrismaService();
+  const readiness = new LegiWatchPhase9ReadinessService(prisma);
+  const sources = new CommitteeSourceRepository(prisma);
+  const observations = new HearingObservationRepository(prisma);
+
+  const SYSTEM_CODE = 'hsii00-p9tx';
+  const SUB_SYSTEM_CODE = 'hsii01-p9tx';
+  const HEARING_PASS_ID = 'phase9-tx-hearing-pass';
+  const HEARING_PENDING_ID = 'phase9-tx-hearing-pending';
+  const ADAPTER = 'phase9-tx-source';
+  const SRC_URL = 'https://example.invalid/phase9-tx-source';
+  const ACTOR = 'phase9-postgres-tx-test';
+
+  beforeAll(async () => {
+    await prisma.$connect();
+  });
+
+  afterAll(async () => {
+    await cleanup();
+    await prisma.$disconnect();
+  });
+
+  beforeEach(async () => {
+    await cleanup();
+    await seed();
+  });
+
+  afterEach(async () => {
+    await cleanup();
+  });
+
+  async function cleanup(): Promise<void> {
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM legiwatch_event_audit
+       WHERE run_id IN (
+         SELECT id FROM legiwatch_cutover_run WHERE created_by=$1
+       )`,
+      ACTOR,
+    );
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM legiwatch_cutover_run WHERE created_by=$1`,
+      ACTOR,
+    );
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM hearing_source_observation
+       WHERE source_id IN (
+         SELECT id FROM committee_source WHERE adapter_key=$1
+       )
+       OR hearing_id IN ($2, $3)`,
+      ADAPTER,
+      HEARING_PASS_ID,
+      HEARING_PENDING_ID,
+    );
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM public_hearing_transcript_segment
+       WHERE capture_id IN (
+         SELECT id FROM public_hearing_capture WHERE hearing_id IN ($1, $2)
+       )`,
+      HEARING_PASS_ID,
+      HEARING_PENDING_ID,
+    );
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM public_hearing_capture WHERE hearing_id IN ($1, $2)`,
+      HEARING_PASS_ID,
+      HEARING_PENDING_ID,
+    );
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM committee_hearing WHERE id IN ($1, $2)`,
+      HEARING_PASS_ID,
+      HEARING_PENDING_ID,
+    );
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM committee_source WHERE adapter_key=$1`,
+      ADAPTER,
+    );
+    await prisma.$executeRawUnsafe(
+      `DELETE FROM congress_committee WHERE system_code IN ($1, $2)`,
+      SYSTEM_CODE,
+      SUB_SYSTEM_CODE,
+    );
+  }
+
+  async function seed(): Promise<void> {
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO tenants (id, slug, name, status, created_at, updated_at)
+       VALUES ($1::uuid, 'phase9-tx-test', 'Phase 9 Tx Test', 'active', now(), now())
+       ON CONFLICT (id) DO NOTHING`,
+      TENANT_ID,
+    );
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO congress_committee (
+         system_code, thomas_id, name, chamber, parent_system_code, is_current
+       ) VALUES
+         ($1, 'p9tx00', 'Phase 9 Tx Committee', 'house', NULL, true),
+         ($2, 'p9tx01', 'Phase 9 Tx Subcommittee', 'house', $1, true)`,
+      SYSTEM_CODE,
+      SUB_SYSTEM_CODE,
+    );
+
+    const source = await sources.ensureSource({
+      committeeSystemCode: SYSTEM_CODE,
+      chamber: 'house',
+      sourceType: 'COMMITTEE_SITE',
+      sourceUrl: SRC_URL,
+      adapterKey: ADAPTER,
+      priority: 100,
+    });
+
+    // Hearing 1: fully passing (official observation reconciled, capture
+    // complete, transcript continuous) — exercises the clean PASS path.
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO committee_hearing (
+         id, chamber, committee_name, committee_system_code, subcommittee_system_code,
+         title, type, date, starts_at, timezone, event_status, visibility, url,
+         stream_availability, coverage_status
+       ) VALUES (
+         $1, 'house', 'Phase 9 Tx Committee', $2, $3,
+         'Phase 9 Tx passing hearing', 'hearing', $4::date, $4,
+         'America/New_York', 'completed', 'public', $5,
+         'archived', 'captured'
+       )`,
+      HEARING_PASS_ID,
+      SYSTEM_CODE,
+      SUB_SYSTEM_CODE,
+      new Date('2026-08-20T13:00:00Z'),
+      SRC_URL,
+    );
+    const passObservation = await observations.recordObservation(
+      source,
+      {
+        externalEventId: 'phase9-tx-event-pass',
+        congress: 119,
+        chamber: 'house',
+        committeeSystemCode: SYSTEM_CODE,
+        committeeName: 'Phase 9 Tx Committee',
+        title: 'Phase 9 Tx passing hearing',
+        eventType: 'hearing',
+        eventStatus: 'completed',
+        visibility: 'public',
+        startsAt: new Date('2026-08-20T13:00:00Z'),
+        calendarDate: new Date('2026-08-20T00:00:00Z'),
+        officialPageUrl: SRC_URL,
+        streamCandidates: [],
+      },
+      new Date('2026-08-20T12:00:00Z'),
+    );
+    await observations.linkToHearing(passObservation.observationId, HEARING_PASS_ID);
+
+    const passCapture = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+      `INSERT INTO public_hearing_capture (
+         id, hearing_id, domain_status, terminal_reason_code, transcript_gap_seconds, gaps
+       ) VALUES (
+         gen_random_uuid()::text, $1, 'COMPLETE', 'CAPTURE_COMPLETE', 0, '[]'::jsonb
+       ) RETURNING id`,
+      HEARING_PASS_ID,
+    );
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO hearing_subscription (
+         tenant_id, user_id, hearing_id, notify_on_start, notify_on_mention,
+         scheduled_by_user, client_ids, created_at, updated_at
+       ) VALUES (
+         $1::uuid, $2, $3, true, false, true, ARRAY[]::text[], now(), now()
+       )`,
+      TENANT_ID,
+      USER_ID,
+      HEARING_PASS_ID,
+    );
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO public_hearing_transcript_segment (
+         id, capture_id, sequence, has_gap_before, text, start_ms, end_ms
+       ) VALUES (
+         gen_random_uuid()::text, $1, 0, false, 'seed segment', 0, 5000
+       )`,
+      passCapture[0]?.id,
+    );
+
+    // Hearing 2: a pending/unlinked observation + an incomplete capture —
+    // exercises the multi-row exception-audit insert path inside the same
+    // persistence transaction (several distinct blockers/exceptions).
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO committee_hearing (
+         id, chamber, committee_name, committee_system_code, subcommittee_system_code,
+         title, type, date, starts_at, timezone, event_status, visibility, url,
+         stream_availability, coverage_status
+       ) VALUES (
+         $1, 'house', 'Phase 9 Tx Committee', $2, $3,
+         'Phase 9 Tx pending hearing', 'hearing', $4::date, $4,
+         'America/New_York', 'scheduled', 'public', $5,
+         'unknown', 'discovered'
+       )`,
+      HEARING_PENDING_ID,
+      SYSTEM_CODE,
+      SUB_SYSTEM_CODE,
+      new Date('2026-08-21T13:00:00Z'),
+      SRC_URL,
+    );
+    await observations.recordObservation(
+      source,
+      {
+        externalEventId: 'phase9-tx-event-pending',
+        congress: 119,
+        chamber: 'house',
+        committeeSystemCode: SYSTEM_CODE,
+        committeeName: 'Phase 9 Tx Committee',
+        title: 'Phase 9 Tx pending hearing',
+        eventType: 'hearing',
+        eventStatus: 'scheduled',
+        visibility: 'public',
+        startsAt: new Date('2026-08-21T13:00:00Z'),
+        calendarDate: new Date('2026-08-21T00:00:00Z'),
+        officialPageUrl: SRC_URL,
+        streamCandidates: [],
+      },
+      new Date('2026-08-21T12:00:00Z'),
+    );
+    // Left unlinked deliberately (no linkToHearing call) so it stays PENDING,
+    // generating an OFFICIAL_OBSERVATION_PENDING exception row.
+  }
+
+  it('completes evaluateAndPersist end-to-end against a seeded Phase 9 dataset with the extended tx budget', async () => {
+    const before = await prisma.$queryRawUnsafe<Array<{ lastRunId: string | null }>>(
+      `SELECT last_run_id::text AS "lastRunId" FROM legiwatch_cutover_state WHERE id='global'`,
+    );
+
+    const { report, run } = await readiness.evaluateAndPersist(ACTOR, {
+      now: new Date('2026-08-22T00:00:00Z'),
+      lookbackDays: 30,
+      lookaheadDays: 30,
+      evidenceSource: 'LOCAL_FIXTURE',
+      mode: 'READINESS',
+    });
+
+    // 1. It completes without throwing the Prisma "Transaction already
+    //    closed" error that reproduced in production.
+    expect(run.id).toBeTruthy();
+    expect(report).toBeDefined();
+
+    // 2. A cutover-run row was written.
+    const runRows = await prisma.$queryRawUnsafe<
+      Array<{ id: string; status: string; evidenceSource: string }>
+    >(
+      `SELECT id::text AS id, status, evidence_source AS "evidenceSource"
+       FROM legiwatch_cutover_run WHERE id=$1::uuid`,
+      run.id,
+    );
+    expect(runRows).toHaveLength(1);
+    expect(runRows[0]?.evidenceSource).toBe('LOCAL_FIXTURE');
+
+    // 3. Event-audit rows were written for the pending-observation exception
+    //    (multiple exception rows exercised: the pending hearing generates at
+    //    least one OFFICIAL_OBSERVATION_PENDING/related audit row).
+    const auditRows = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+      `SELECT COUNT(*)::int AS count FROM legiwatch_event_audit WHERE run_id=$1::uuid`,
+      run.id,
+    );
+    expect(auditRows[0]?.count).toBeGreaterThanOrEqual(1);
+
+    // 4. legiwatch_cutover_state.last_run_id updated to this run.
+    const after = await prisma.$queryRawUnsafe<Array<{ lastRunId: string | null }>>(
+      `SELECT last_run_id::text AS "lastRunId" FROM legiwatch_cutover_state WHERE id='global'`,
+    );
+    expect(after[0]?.lastRunId).toBe(run.id);
+    expect(after[0]?.lastRunId).not.toBe(before[0]?.lastRunId);
+
+    // 5. Passing/non-passing semantics are unchanged: the pending observation
+    //    for hearing 2 means this run cannot be a clean PASS.
+    expect(['FAIL', 'BLOCKED']).toContain(report.status);
+    expect(report.blockers.length).toBeGreaterThan(0);
+  });
 });

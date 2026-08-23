@@ -305,4 +305,145 @@ describe('LegiWatchPhase9ReadinessService', () => {
     expect(findGate(report, 'LIVE_CUTOVER_EVIDENCE_SOURCE').status).toBe('FAIL');
     expect(findGate(report, 'EVIDENCE_LIVE_DEEPGRAM').status).toBe('FAIL');
   });
+
+  describe('evaluateAndPersist transaction budget (production tx-timeout regression)', () => {
+    // Regression coverage for the production defect: coverage-audit consistently
+    // failed with Prisma "Transaction already closed" at ~5.3-5.9s because the
+    // persistence transaction ran under Prisma's default 5000ms interactive-tx
+    // budget. This suite proves (1) evaluate() runs BEFORE/outside withSystem,
+    // (2) withSystem is called with an extended timeoutMs >= 30_000, and (3) the
+    // three writes (run insert, exception audit rows, cutover-state update)
+    // still happen inside that single transaction callback.
+
+    function serviceWithMockPrisma(snapshotValue: any) {
+      const callOrder: string[] = [];
+      const executedStatements: string[] = [];
+      let withSystemOpts: { timeoutMs?: number } | undefined;
+      const runRow = {
+        id: '00000000-0000-0000-0000-0000000000aa',
+        mode: 'READINESS',
+        status: 'PASS',
+        evidenceSource: 'LOCAL_FIXTURE',
+        createdAt: new Date('2026-08-21T12:00:00Z'),
+      };
+
+      const tx = {
+        $queryRawUnsafe: jest.fn(async (sql: string) => {
+          callOrder.push('tx.$queryRawUnsafe:insert_run');
+          executedStatements.push(sql);
+          return [runRow];
+        }),
+        $executeRawUnsafe: jest.fn(async (sql: string) => {
+          if (sql.includes('legiwatch_event_audit')) {
+            callOrder.push('tx.$executeRawUnsafe:event_audit');
+          } else if (sql.includes('legiwatch_cutover_state')) {
+            callOrder.push('tx.$executeRawUnsafe:cutover_state');
+          }
+          executedStatements.push(sql);
+          return undefined;
+        }),
+      };
+
+      const prisma = {
+        withSystem: jest.fn(
+          async (
+            fn: (tx: unknown) => Promise<unknown>,
+            opts?: { timeoutMs?: number },
+          ) => {
+            callOrder.push('withSystem:start');
+            withSystemOpts = opts;
+            const result = await fn(tx);
+            callOrder.push('withSystem:end');
+            return result;
+          },
+        ),
+      };
+
+      const service = new LegiWatchPhase9ReadinessService(prisma as never);
+      const evaluateSpy = jest.spyOn(service, 'evaluate').mockImplementation(async () => {
+        callOrder.push('evaluate');
+        return serviceWith(snapshotValue).evaluate({
+          now: NOW,
+          evidenceSource: 'LOCAL_FIXTURE',
+          mode: 'READINESS',
+        });
+      });
+
+      return {
+        service,
+        prisma,
+        tx,
+        evaluateSpy,
+        callOrder,
+        executedStatements,
+        getWithSystemOpts: () => withSystemOpts,
+      };
+    }
+
+    it('runs evaluate() before/outside the persistence transaction', async () => {
+      const harness = serviceWithMockPrisma(snapshot());
+      await harness.service.evaluateAndPersist('test-actor', {
+        now: NOW,
+        evidenceSource: 'LOCAL_FIXTURE',
+      });
+
+      const evaluateIdx = harness.callOrder.indexOf('evaluate');
+      const withSystemStartIdx = harness.callOrder.indexOf('withSystem:start');
+      expect(evaluateIdx).toBeGreaterThanOrEqual(0);
+      expect(withSystemStartIdx).toBeGreaterThan(evaluateIdx);
+      // evaluate() must complete (be called) strictly before withSystem opens
+      // its transaction — it is not nested inside the tx callback.
+      expect(harness.evaluateSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('passes withSystem a timeoutMs budget of at least 30 seconds', async () => {
+      const harness = serviceWithMockPrisma(snapshot());
+      await harness.service.evaluateAndPersist('test-actor', {
+        now: NOW,
+        evidenceSource: 'LOCAL_FIXTURE',
+      });
+
+      expect(harness.prisma.withSystem).toHaveBeenCalledTimes(1);
+      const opts = harness.getWithSystemOpts();
+      expect(opts).toBeDefined();
+      expect(opts?.timeoutMs).toBeGreaterThanOrEqual(30_000);
+    });
+
+    it('executes the run insert, exception audit rows, and cutover-state update atomically inside one withSystem callback', async () => {
+      const value = snapshot();
+      // Force a pending/failing observation so at least one exception row is
+      // generated, exercising the multi-insert exception-audit path.
+      value.observations[0] = {
+        ...value.observations[0],
+        hearingId: null,
+        reconciliationStatus: 'PENDING',
+        reconciliationReasonCode: null,
+      };
+      const harness = serviceWithMockPrisma(value);
+      const { run } = await harness.service.evaluateAndPersist('test-actor', {
+        now: NOW,
+        evidenceSource: 'LOCAL_FIXTURE',
+      });
+
+      expect(run.id).toBe('00000000-0000-0000-0000-0000000000aa');
+      // All three writes happened, and in the required order, inside the same
+      // withSystem transaction (between its start and end markers).
+      const startIdx = harness.callOrder.indexOf('withSystem:start');
+      const endIdx = harness.callOrder.indexOf('withSystem:end');
+      const insertIdx = harness.callOrder.indexOf('tx.$queryRawUnsafe:insert_run');
+      const auditIdx = harness.callOrder.indexOf('tx.$executeRawUnsafe:event_audit');
+      const stateIdx = harness.callOrder.indexOf('tx.$executeRawUnsafe:cutover_state');
+
+      expect(startIdx).toBeGreaterThanOrEqual(0);
+      expect(insertIdx).toBeGreaterThan(startIdx);
+      expect(auditIdx).toBeGreaterThan(insertIdx);
+      expect(stateIdx).toBeGreaterThan(auditIdx);
+      expect(endIdx).toBeGreaterThan(stateIdx);
+
+      // At least one exception-audit insert happened (multi-insert exercised).
+      expect(harness.tx.$executeRawUnsafe.mock.calls.filter(([sql]: [string]) =>
+        sql.includes('legiwatch_event_audit'),
+      ).length).toBeGreaterThanOrEqual(1);
+    });
+  });
 });

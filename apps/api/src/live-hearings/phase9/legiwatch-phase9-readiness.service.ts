@@ -28,6 +28,14 @@ const FAILING_SOURCE_STATES = new Set(['degraded', 'failing', 'failed', 'error',
 const DUE_EVENT_STATUSES = new Set(['scheduled', 'in_progress', 'completed']);
 const MAX_EXCEPTIONS = 10_000;
 
+// The default Prisma interactive-transaction timeout is 5000ms. This trusted
+// system transaction persists a readiness run, its event-audit exceptions,
+// and the cutover-state update atomically; on real Aurora latency it can
+// legitimately exceed the default budget. Use PrismaService.withSystem's
+// timeoutMs escape hatch for this one persistence transaction only — do not
+// change the default timeout used elsewhere.
+const READINESS_PERSIST_TIMEOUT_MS = 30_000;
+
 interface BodyRow {
   systemCode: string;
   name: string;
@@ -882,99 +890,102 @@ export class LegiWatchPhase9ReadinessService {
     input: LegiWatchPhase9AuditOptions,
   ): Promise<{ report: LegiWatchPhase9ReadinessReport; run: LegiWatchPhase9PersistedRun }> {
     const report = await this.evaluate(input);
-    const run = await this.prisma.withSystem(async (tx) => {
-      const rows = await tx.$queryRawUnsafe<
-        Array<{ id: string; mode: string; status: string; evidenceSource: string; createdAt: Date }>
-      >(
-        `INSERT INTO legiwatch_cutover_run (
-           mode, status, evidence_source, window_start, window_end,
-           parent_bodies, subcommittee_bodies, total_bodies,
-           official_observations, represented_observations, explicit_conflicts,
-           eligible_events, events_with_outcomes, duplicate_canonical_events,
-           duplicate_global_captures, unresolved_events, stale_jobs,
-           lagging_intelligence_jobs, blocker_count, summary, blockers,
-           created_by, created_at
-         ) VALUES (
-           $1, $2, $3, $4::timestamptz, $5::timestamptz,
-           $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
-           $19, $20::jsonb, $21::text[], $22, now()
-         )
-         RETURNING id::text AS id,
-                   mode,
-                   status,
-                   evidence_source AS "evidenceSource",
-                   created_at AS "createdAt"`,
-        report.mode,
-        report.status,
-        report.evidenceSource,
-        report.windowStart,
-        report.windowEnd,
-        report.counts.parentBodies,
-        report.counts.subcommitteeBodies,
-        report.counts.totalBodies,
-        report.counts.officialObservations,
-        report.counts.representedObservations,
-        report.counts.explicitConflicts,
-        report.counts.eligibleEvents,
-        report.counts.eventsWithOutcomes,
-        report.counts.duplicateCanonicalEvents,
-        report.counts.duplicateGlobalCaptures,
-        report.counts.unresolvedEvents,
-        report.counts.staleJobs,
-        report.counts.laggingIntelligenceJobs,
-        report.blockers.length,
-        JSON.stringify({
-          counts: report.counts,
-          percentages: report.percentages,
-          gates: report.gates,
-          summary: report.summary,
-        }),
-        report.blockers,
-        boundedText(actor, 200),
-      );
-      const row = rows[0];
-      if (!row) throw new Error('Phase 9 readiness run did not persist');
-
-      for (const exception of report.exceptions) {
-        await tx.$executeRawUnsafe(
-          `INSERT INTO legiwatch_event_audit (
-             run_id, hearing_id, observation_id, committee_system_code,
-             gate_key, status, reason_code, details, created_at
+    const run = await this.prisma.withSystem(
+      async (tx) => {
+        const rows = await tx.$queryRawUnsafe<
+          Array<{ id: string; mode: string; status: string; evidenceSource: string; createdAt: Date }>
+        >(
+          `INSERT INTO legiwatch_cutover_run (
+             mode, status, evidence_source, window_start, window_end,
+             parent_bodies, subcommittee_bodies, total_bodies,
+             official_observations, represented_observations, explicit_conflicts,
+             eligible_events, events_with_outcomes, duplicate_canonical_events,
+             duplicate_global_captures, unresolved_events, stale_jobs,
+             lagging_intelligence_jobs, blocker_count, summary, blockers,
+             created_by, created_at
            ) VALUES (
-             $1::uuid, $2, $3, $4, $5, $6, $7, $8::jsonb, now()
-           )`,
-          row.id,
-          exception.hearingId ?? null,
-          exception.observationId ?? null,
-          exception.committeeSystemCode ?? null,
-          exception.gateKey,
-          exception.status,
-          exception.reasonCode,
-          JSON.stringify(exception.details),
+             $1, $2, $3, $4::timestamptz, $5::timestamptz,
+             $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18,
+             $19, $20::jsonb, $21::text[], $22, now()
+           )
+           RETURNING id::text AS id,
+                     mode,
+                     status,
+                     evidence_source AS "evidenceSource",
+                     created_at AS "createdAt"`,
+          report.mode,
+          report.status,
+          report.evidenceSource,
+          report.windowStart,
+          report.windowEnd,
+          report.counts.parentBodies,
+          report.counts.subcommitteeBodies,
+          report.counts.totalBodies,
+          report.counts.officialObservations,
+          report.counts.representedObservations,
+          report.counts.explicitConflicts,
+          report.counts.eligibleEvents,
+          report.counts.eventsWithOutcomes,
+          report.counts.duplicateCanonicalEvents,
+          report.counts.duplicateGlobalCaptures,
+          report.counts.unresolvedEvents,
+          report.counts.staleJobs,
+          report.counts.laggingIntelligenceJobs,
+          report.blockers.length,
+          JSON.stringify({
+            counts: report.counts,
+            percentages: report.percentages,
+            gates: report.gates,
+            summary: report.summary,
+          }),
+          report.blockers,
+          boundedText(actor, 200),
         );
-      }
+        const row = rows[0];
+        if (!row) throw new Error('Phase 9 readiness run did not persist');
 
-      await tx.$executeRawUnsafe(
-        `UPDATE legiwatch_cutover_state
-         SET last_run_id=$1::uuid,
-             last_passing_run_id=CASE WHEN $2='PASS' THEN $1::uuid ELSE last_passing_run_id END,
-             consecutive_passes=CASE WHEN $2='PASS' THEN consecutive_passes+1 ELSE 0 END,
-             updated_by=$3,
-             updated_at=now()
-         WHERE id='global'`,
-        row.id,
-        report.status,
-        boundedText(actor, 200),
-      );
+        for (const exception of report.exceptions) {
+          await tx.$executeRawUnsafe(
+            `INSERT INTO legiwatch_event_audit (
+               run_id, hearing_id, observation_id, committee_system_code,
+               gate_key, status, reason_code, details, created_at
+             ) VALUES (
+               $1::uuid, $2, $3, $4, $5, $6, $7, $8::jsonb, now()
+             )`,
+            row.id,
+            exception.hearingId ?? null,
+            exception.observationId ?? null,
+            exception.committeeSystemCode ?? null,
+            exception.gateKey,
+            exception.status,
+            exception.reasonCode,
+            JSON.stringify(exception.details),
+          );
+        }
 
-      return {
-        id: row.id,
-        mode: row.mode as LegiWatchPhase9PersistedRun['mode'],
-        status: row.status as LegiWatchPhase9PersistedRun['status'],
-        evidenceSource: row.evidenceSource as LegiWatchPhase9PersistedRun['evidenceSource'],
-        createdAt: row.createdAt.toISOString(),
-      };
-    });
+        await tx.$executeRawUnsafe(
+          `UPDATE legiwatch_cutover_state
+           SET last_run_id=$1::uuid,
+               last_passing_run_id=CASE WHEN $2='PASS' THEN $1::uuid ELSE last_passing_run_id END,
+               consecutive_passes=CASE WHEN $2='PASS' THEN consecutive_passes+1 ELSE 0 END,
+               updated_by=$3,
+               updated_at=now()
+           WHERE id='global'`,
+          row.id,
+          report.status,
+          boundedText(actor, 200),
+        );
+
+        return {
+          id: row.id,
+          mode: row.mode as LegiWatchPhase9PersistedRun['mode'],
+          status: row.status as LegiWatchPhase9PersistedRun['status'],
+          evidenceSource: row.evidenceSource as LegiWatchPhase9PersistedRun['evidenceSource'],
+          createdAt: row.createdAt.toISOString(),
+        };
+      },
+      { timeoutMs: READINESS_PERSIST_TIMEOUT_MS },
+    );
     return { report, run };
   }
 
