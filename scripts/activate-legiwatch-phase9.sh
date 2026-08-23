@@ -36,6 +36,11 @@ PREFIX="capiro-${ENVIRONMENT}-legiwatch"
 log(){ printf '\n== %s ==\n' "$*"; }
 die(){ printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 need(){ command -v "$1" >/dev/null || die "$1 is required"; }
+# Normalize a path for tools that need a native OS path (AWS CLI file://, jq).
+# On Windows Git Bash, `/tmp/x` must become `C:/Users/.../Temp/x` for the native
+# AWS CLI to read it; `cygpath -m` does that. On Linux/CI cygpath is absent and
+# the path passes through unchanged — no Windows dependency at runtime.
+norm_path(){ if command -v cygpath >/dev/null 2>&1; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
 confirm(){ [ "${CONFIRM:-}" = "$1" ] || die "Set CONFIRM=$1"; }
 
 RULE_ROWS=(
@@ -53,24 +58,45 @@ RULE_ROWS=(
 )
 
 api_command(){
-  printf '%s\n' node dist/live-hearings/phase9/run-legiwatch-phase9-job.js "$1"
+  printf '%s\n' legiwatch-phase9-job "$1"
 }
 intel_command(){
   case "$1" in
-    capture-worker) printf '%s\n' node dist/hearing/capture/run-phase9-public-capture.js both --limit=10 ;;
-    intelligence-worker) printf '%s\n' node dist/hearing/intelligence/run-phase9-hearing-intelligence.js --max-passes 20 ;;
+    capture-worker) printf '%s\n' legiwatch-phase9-capture both --limit=10 ;;
+    intelligence-worker) printf '%s\n' legiwatch-phase9-intelligence --max-passes 20 ;;
     *) die "unknown intel job $1" ;;
   esac
 }
 
 find_service(){
-  local kind="$1" override="$2" rows
+  local kind="$1" override="$2" rows exact
   if [ -n "$override" ]; then echo "$override"; return; fi
-  rows=$("${AWS[@]}" ecs list-services --cluster "$CLUSTER" --query 'serviceArns[]' --output text | tr '\t' '\n')
+  rows=$("${AWS[@]}" ecs list-services --cluster "$CLUSTER" --query 'serviceArns[]' --output text | tr '\t' '\n' | sed 's#.*/##')
   if [ "$kind" = intel ]; then
-    echo "$rows" | grep -i 'intel-api' | head -1
+    # Prefer the exact known name; never fall back to a broad grep that could
+    # match the plain API service.
+    exact="capiro-${ENVIRONMENT}-intel-api"
+    if echo "$rows" | grep -qx "$exact"; then echo "$exact"; return; fi
+    echo "$rows" | grep -xE "capiro-${ENVIRONMENT}-intel-api" | head -1
   else
-    echo "$rows" | grep -i 'api' | grep -viE 'intel|onboard|workspace|strategy|marketing' | head -1
+    # Prefer the exact API service name. The old grep ('api' minus a deny-list)
+    # mis-selected capiro-<env>-web; anchor to the exact name and only fall
+    # back to a strict suffix match that still excludes intel/engagement/etc.
+    exact="capiro-${ENVIRONMENT}-api"
+    if echo "$rows" | grep -qx "$exact"; then echo "$exact"; return; fi
+    echo "$rows" | grep -xE "capiro-${ENVIRONMENT}-api" \
+      | grep -viE 'web|intel|engagement|onboard|workspace|strategy|marketing|orchestrator|clio' | head -1
+  fi
+}
+
+assert_service(){
+  # Hard safety gate: refuse to proceed if discovery did not resolve exactly the
+  # expected API/intel service. Prevents cloning a task def from the wrong
+  # service (e.g. web) into the Phase 9 dark runtime.
+  local kind="$1" resolved="$2" expected
+  if [ "$kind" = intel ]; then expected="capiro-${ENVIRONMENT}-intel-api"; else expected="capiro-${ENVIRONMENT}-api"; fi
+  if [ "$resolved" != "$expected" ]; then
+    die "resolved $kind service '$resolved' != expected '$expected'; set CAPIRO_$( [ "$kind" = intel ] && echo INTEL || echo API )_SERVICE explicitly"
   fi
 }
 
@@ -85,6 +111,8 @@ discover(){
   INTEL_SERVICE=$(find_service intel "$INTEL_SERVICE_OVERRIDE")
   [ -n "$API_SERVICE" ] || die "API service not found; set CAPIRO_API_SERVICE"
   [ -n "$INTEL_SERVICE" ] || die "intel-api service not found; set CAPIRO_INTEL_SERVICE"
+  assert_service api "$API_SERVICE"
+  assert_service intel "$INTEL_SERVICE"
   CLUSTER_ARN=$("${AWS[@]}" ecs describe-clusters --clusters "$CLUSTER" --query 'clusters[0].clusterArn' --output text)
   API_SOURCE_TD=$(service_value "$API_SERVICE" 'services[0].taskDefinition')
   INTEL_SOURCE_TD=$(service_value "$INTEL_SERVICE" 'services[0].taskDefinition')
@@ -107,7 +135,7 @@ clone_td(){
     | jq --arg family "$family" '
       del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)
       | .family=$family' > "$outfile"
-  "${AWS[@]}" ecs register-task-definition --cli-input-json "file://$outfile" --query 'taskDefinition.taskDefinitionArn' --output text
+  "${AWS[@]}" ecs register-task-definition --cli-input-json "file://$(norm_path "$outfile")" --query 'taskDefinition.taskDefinitionArn' --output text
 }
 
 latest_td(){
@@ -121,12 +149,12 @@ ensure_role(){
 {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"events.amazonaws.com"},"Action":"sts:AssumeRole"}]}
 JSON
   if ! "${AWS[@]}" iam get-role --role-name "$EVENT_ROLE" >/dev/null 2>&1; then
-    "${AWS[@]}" iam create-role --role-name "$EVENT_ROLE" --assume-role-policy-document file:///tmp/legiwatch-phase9-events-trust.json >/dev/null
+    "${AWS[@]}" iam create-role --role-name "$EVENT_ROLE" --assume-role-policy-document "file://$(norm_path /tmp/legiwatch-phase9-events-trust.json)" >/dev/null
   fi
-  api_exec=$(jq -r '.executionRoleArn // empty' /tmp/legiwatch-phase9-api-td.json)
-  api_task=$(jq -r '.taskRoleArn // empty' /tmp/legiwatch-phase9-api-td.json)
-  intel_exec=$(jq -r '.executionRoleArn // empty' /tmp/legiwatch-phase9-intel-td.json)
-  intel_task=$(jq -r '.taskRoleArn // empty' /tmp/legiwatch-phase9-intel-td.json)
+  api_exec=$(jq -r '.executionRoleArn // empty' "$(norm_path /tmp/legiwatch-phase9-api-td.json)")
+  api_task=$(jq -r '.taskRoleArn // empty' "$(norm_path /tmp/legiwatch-phase9-api-td.json)")
+  intel_exec=$(jq -r '.executionRoleArn // empty' "$(norm_path /tmp/legiwatch-phase9-intel-td.json)")
+  intel_task=$(jq -r '.taskRoleArn // empty' "$(norm_path /tmp/legiwatch-phase9-intel-td.json)")
   cat >/tmp/legiwatch-phase9-events-policy.json <<JSON
 {"Version":"2012-10-17","Statement":[
  {"Effect":"Allow","Action":"ecs:RunTask","Resource":[
@@ -141,7 +169,7 @@ JSON
  ]}
 ]}
 JSON
-  "${AWS[@]}" iam put-role-policy --role-name "$EVENT_ROLE" --policy-name run-legiwatch-phase9 --policy-document file:///tmp/legiwatch-phase9-events-policy.json
+  "${AWS[@]}" iam put-role-policy --role-name "$EVENT_ROLE" --policy-name run-legiwatch-phase9 --policy-document "file://$(norm_path /tmp/legiwatch-phase9-events-policy.json)"
   EVENT_ROLE_ARN="arn:aws:iam::${account}:role/${EVENT_ROLE}"
 }
 
@@ -223,7 +251,7 @@ register_db_runtime(){
   if [ "$enabled" = true ]; then confirmation="ENABLE LEGIWATCH SCHEDULES"; else confirmation="DISABLE LEGIWATCH SCHEDULES"; fi
   registrations=$(runtime_registrations "$enabled")
   env=$(operator_env "$registrations" "$confirmation")
-  run_task_wait api "register-runtime-$enabled" "$env" node dist/live-hearings/phase9/run-legiwatch-phase9-operator.js register-runtime
+  run_task_wait api "register-runtime-$enabled" "$env" legiwatch-phase9-operator register-runtime
 }
 
 put_alarms(){
@@ -306,9 +334,9 @@ cmd_smoke(){
   [ -n "$API_TD" ] && [ -n "$INTEL_TD" ] || die 'Run register-dark first'
   local job="${1:-metrics}" env='[]'
   case "$job" in
-    capture-worker) run_task_wait intel "$job" "$env" node dist/hearing/capture/run-phase9-public-capture.js status --manual ;;
-    intelligence-worker) run_task_wait intel "$job" "$env" node dist/hearing/intelligence/run-phase9-hearing-intelligence.js --manual --max-passes 1 ;;
-    *) run_task_wait api "$job" "$env" node dist/live-hearings/phase9/run-legiwatch-phase9-job.js "$job" --manual --limit 10 ;;
+    capture-worker) run_task_wait intel "$job" "$env" legiwatch-phase9-capture status --manual ;;
+    intelligence-worker) run_task_wait intel "$job" "$env" legiwatch-phase9-intelligence --manual --max-passes 1 ;;
+    *) run_task_wait api "$job" "$env" legiwatch-phase9-job "$job" --manual --limit 10 ;;
   esac
 }
 

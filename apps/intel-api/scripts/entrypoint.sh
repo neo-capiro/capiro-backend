@@ -130,6 +130,21 @@ case "${1:-serve}" in
     shift
     exec node dist/hearing/capture/public-capture-task-runner.js status "$@"
     ;;
+  legiwatch-phase9-capture)
+    # LegiWatch Phase 9 dark runtime: global public-hearing capture worker.
+    # Invoked by the DISABLED capiro-*-legiwatch-capture-worker rule and the
+    # manual smokes. Allowlisted + fail-closed: exactly this compiled runner,
+    # no arg-driven script path, no tenant/client/media/credential args.
+    shift
+    exec node dist/hearing/capture/run-phase9-public-capture.js "$@"
+    ;;
+  legiwatch-phase9-intelligence)
+    # LegiWatch Phase 9 dark runtime: global hearing-intelligence pass.
+    # Invoked by the DISABLED capiro-*-legiwatch-intelligence-worker rule and
+    # the manual smokes. Allowlisted + fail-closed like the capture verb above.
+    shift
+    exec node dist/hearing/intelligence/run-phase9-hearing-intelligence.js "$@"
+    ;;
   task)
     # task <verb> [args...] -- run a one-off maintenance/verification verb via
     # the compiled task runner. Does NOT boot the HTTP server. New verbs are
@@ -151,7 +166,7 @@ case "${1:-serve}" in
     esac
     ;;
   *)
-    echo "Unknown command: $1 (expected: serve | migrate | enable-feature | public-capture-preflight | public-capture-worker | public-capture-status | task <verb>)" >&2
+    echo "Unknown command: $1 (expected: serve | migrate | enable-feature | public-capture-preflight | public-capture-worker | public-capture-status | legiwatch-phase9-capture | legiwatch-phase9-intelligence | task <verb>)" >&2
     exit 1
     ;;
 esac
