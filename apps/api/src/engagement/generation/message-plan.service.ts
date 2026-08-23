@@ -35,6 +35,14 @@ import { extractJsonObject } from './json-extract.js';
 import type { ReasoningEffort } from './reasoning-effort.js';
 
 /**
+ * Output-token ceiling for the message-plan pass. Exported for the spec and
+ * pinned high deliberately: see the call-site comment in buildPlan(). gpt-5 at
+ * max effort burns most of its budget on reasoning before emitting JSON; 16k
+ * leaves headroom for the largest per-recipient plan in a 40–50-draft campaign.
+ */
+export const MESSAGE_PLAN_MAX_OUTPUT_TOKENS = 16384;
+
+/**
  * Models known to honor strict JSON schema output. The plan requires the fast
  * model be used "only when it supports strict JSON" — an unknown BYOK model id
  * is treated as NOT supporting it, so the draft model is used instead. Guessing
@@ -134,7 +142,16 @@ export class MessagePlanService {
       userVolatile: user,
       jsonSchema: MESSAGE_PLAN_JSON_SCHEMA as unknown as Record<string, unknown>,
       jsonSchemaName: 'message_plan',
-      maxTokens: 2000,
+      // On the OpenAI Responses API, `max_output_tokens` counts REASONING tokens
+      // too, not just the emitted plan JSON. gpt-5 at the pinned `max` effort can
+      // spend ~2k–8k tokens thinking before it writes a single character, so a
+      // 2000 ceiling made every plan come back `incomplete / max_output_tokens`
+      // with empty text → MESSAGE_PLAN_INVALID and no draft call (§4.22). Sized
+      // so a ~50-recipient campaign's per-item plan always has room to both
+      // reason and emit; the per-item cost is still bounded by the schema's
+      // strict shape. Verified live 2026-08-23: high/2000 → incomplete, empty;
+      // high/8000 → completed valid plan.
+      maxTokens: MESSAGE_PLAN_MAX_OUTPUT_TOKENS,
       // Runs at the same pinned reasoning effort as the draft, so it inherits the
       // same long ceiling rather than LlmCompletionService's 90s interactive default.
       timeoutMs: LLM_LONG_GENERATION_TIMEOUT_MS,

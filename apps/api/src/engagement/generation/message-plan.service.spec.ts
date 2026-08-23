@@ -6,7 +6,7 @@
  */
 import { describe, expect, jest, test } from '@jest/globals';
 import type { TenantContext } from '@capiro/shared';
-import { MessagePlanService, supportsStrictJson } from './message-plan.service.js';
+import { MessagePlanService, MESSAGE_PLAN_MAX_OUTPUT_TOKENS, supportsStrictJson } from './message-plan.service.js';
 import { MessagePlanInvalidError, type MessagePlan } from './message-plan.schema.js';
 import { policyForAudience } from './government-affairs-policy.registry.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
@@ -380,5 +380,40 @@ describe('no drafting call on an invalid plan', () => {
         tone: 'professional',
       }),
     ).rejects.toBeInstanceOf(MessagePlanInvalidError);
+  });
+});
+
+describe('plan pass token ceiling', () => {
+  // Regression: gpt-5 at max effort counts REASONING tokens against
+  // max_output_tokens. A 2000 ceiling starved the planner so it returned
+  // `incomplete / max_output_tokens` with empty text → MESSAGE_PLAN_INVALID and
+  // no draft (§4.22). buildPlan must request the raised ceiling.
+  test('buildPlan requests MESSAGE_PLAN_MAX_OUTPUT_TOKENS, not the starved 2000', async () => {
+    const llm = {
+      complete: jest.fn(async () => ({
+        text: JSON.stringify(plan()),
+        usage: { inputTokens: 1, outputTokens: 1 },
+      })),
+    };
+    const config = { get: () => '' } as never;
+    const svc = new MessagePlanService(config, llm as never);
+    const cred = {
+      provider: 'openai',
+      apiKey: 'k',
+      model: 'gpt-5',
+      modelOverridden: false,
+    } as never;
+    await svc.buildPlan(CTX, {
+      packet: packet(),
+      policy: policyForAudience('congressional_office'),
+      creds: [cred],
+      recipientBrief: 'Name: Dana Reed',
+      audienceKind: 'individual',
+      clientName: null,
+      tone: 'professional',
+    });
+    const arg = (llm.complete as jest.Mock).mock.calls[0]![0] as { maxTokens: number };
+    expect(arg.maxTokens).toBe(MESSAGE_PLAN_MAX_OUTPUT_TOKENS);
+    expect(arg.maxTokens).toBeGreaterThan(2000);
   });
 });
