@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import {
   useDashboardVNextModel,
@@ -19,6 +19,26 @@ type WireItem =
 
 type AttentionTone = 'error' | 'warning' | 'blue';
 
+/**
+ * Cards-per-page for the Needs Attention carousel. Mirrors this file's own
+ * breakpoints (1099/779, asserted by dashboard-contract.test.ts) rather than
+ * inventing a third — the dot count and arrow disabled-state are computed in
+ * JS, so they must track the same cutovers the CSS uses for --per-page.
+ */
+function subscribeAttentionPerPage(callback: () => void) {
+  const queries = [window.matchMedia('(max-width: 1099px)'), window.matchMedia('(max-width: 779px)')];
+  queries.forEach((query) => query.addEventListener('change', callback));
+  return () => queries.forEach((query) => query.removeEventListener('change', callback));
+}
+function readAttentionPerPage() {
+  if (window.matchMedia('(max-width: 779px)').matches) return 1;
+  if (window.matchMedia('(max-width: 1099px)').matches) return 2;
+  return 4;
+}
+function useAttentionPerPage() {
+  return useSyncExternalStore(subscribeAttentionPerPage, readAttentionPerPage, () => 4);
+}
+
 export function DashboardVNext() {
   return <DashboardVNextView model={useDashboardVNextModel()} />;
 }
@@ -31,12 +51,17 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
   const [selectedAttentionId, setSelectedAttentionId] = useState<string | null>(null);
   const [clearedAttentionIds, setClearedAttentionIds] = useState<Set<string>>(() => new Set());
   const [clearingAttentionIds, setClearingAttentionIds] = useState<Set<string>>(() => new Set());
-  const [showAllAttention, setShowAllAttention] = useState(false);
+  const [attentionPage, setAttentionPage] = useState(0);
   const [densityChanging, setDensityChanging] = useState(false);
 
   const attentionItems = model.needsAttention.items.filter((item) => !clearedAttentionIds.has(item.id));
   const criticalCount = attentionItems.filter((item) => item.severity === 'critical').length;
-  const visibleAttention = showAllAttention ? attentionItems : attentionItems.slice(0, 4);
+  const attentionPerPage = useAttentionPerPage();
+  const attentionPageCount = Math.max(1, Math.ceil(attentionItems.length / attentionPerPage));
+  const clampedAttentionPage = Math.min(attentionPage, attentionPageCount - 1);
+  useEffect(() => {
+    if (clampedAttentionPage !== attentionPage) setAttentionPage(clampedAttentionPage);
+  }, [attentionPage, clampedAttentionPage]);
   const laneOrder = model.order.filter((key): key is 'today' | 'work' => key === 'today' || key === 'work');
   const wireEnabled = model.visibility.news || model.visibility.xFeed;
   const hasWorkLane = model.visibility.today || model.visibility.work;
@@ -117,7 +142,7 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
           </div>
         </div>
 
-        <div className="dashv2-triage" aria-label="Needs attention">
+        <div className="dashv2-triage" aria-label="Needs attention" aria-roledescription={attentionPageCount > 1 ? 'carousel' : undefined}>
           <div className="dashv2-triage__eyebrow">
             <span>NEEDS ATTENTION</span>
             <span key={`${attentionItems.length}-${criticalCount}`} className="dashv2-pill dashv2-triage__count" data-tone={criticalCount > 0 ? 'error' : 'warning'}>
@@ -125,10 +150,28 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
               {attentionCountBase(model, attentionItems.length)}{criticalCount > 0 && model.needsAttention.status.state !== 'loading' && model.needsAttention.status.state !== 'unavailable' ? <span className="dashv2-triage__critical"> · {criticalCount} critical</span> : null}
             </span>
             <span className="dashv2-triage__spacer" />
-            {attentionItems.length > 4 ? (
-              <button type="button" className="dashv2-link" onClick={() => setShowAllAttention((value) => !value)}>
-                {showAllAttention ? 'Show first four' : `View all ${attentionItems.length}`}
-              </button>
+            {attentionPageCount > 1 ? (
+              <span className="dashv2-attn-controls">
+                <span className="dashv2-attn-dots" role="tablist" aria-label="Pages">
+                  {Array.from({ length: attentionPageCount }, (_, page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      role="tab"
+                      className="dashv2-attn-dot"
+                      aria-selected={page === clampedAttentionPage}
+                      aria-label={`Page ${page + 1} of ${attentionPageCount}`}
+                      onClick={() => setAttentionPage(page)}
+                    />
+                  ))}
+                </span>
+                <button type="button" className="dashv2-icon-button dashv2-attn-arrow" aria-label="Previous" aria-controls="dashv2-attn-track" disabled={clampedAttentionPage === 0} onClick={() => setAttentionPage((page) => page - 1)}>
+                  <span className="dashv2-attn-arrow__glyph"><DashboardIcon name="ChevronRight" size={17} /></span>
+                </button>
+                <button type="button" className="dashv2-icon-button dashv2-attn-arrow" aria-label="Next" aria-controls="dashv2-attn-track" disabled={clampedAttentionPage >= attentionPageCount - 1} onClick={() => setAttentionPage((page) => page + 1)}>
+                  <DashboardIcon name="ChevronRight" size={17} />
+                </button>
+              </span>
             ) : null}
           </div>
 
@@ -145,17 +188,26 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
               <button type="button" className="dashv2-link dashv2-link--success" onClick={model.retry}>Check now</button>
             </div>
           ) : (
-            <div className="dashv2-triage__grid" role="list">
-              {visibleAttention.map((item) => (
-                <TriageTile
-                  key={item.id}
-                  item={item}
-                  selected={selectedAttentionId === item.id}
-                  clearing={clearingAttentionIds.has(item.id)}
-                  onSelect={() => setSelectedAttentionId((current) => current === item.id ? null : item.id)}
-                  onAction={() => clearAttention(item)}
-                />
-              ))}
+            <div className="dashv2-attn-viewport">
+              <div
+                className="dashv2-attn-track"
+                id="dashv2-attn-track"
+                role="list"
+                style={{ '--per-page': attentionPerPage, '--page': clampedAttentionPage } as CSSProperties}
+              >
+                {attentionItems.map((item, index) => (
+                  <TriageTile
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    total={attentionItems.length}
+                    selected={selectedAttentionId === item.id}
+                    clearing={clearingAttentionIds.has(item.id)}
+                    onSelect={() => setSelectedAttentionId((current) => current === item.id ? null : item.id)}
+                    onAction={() => clearAttention(item)}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -192,11 +244,13 @@ export function DashboardVNextView({ model }: { model: DashboardVNextModel }) {
   );
 }
 
-function TriageTile({ item, selected, clearing, onSelect, onAction }: { item: AttentionItem; selected: boolean; clearing: boolean; onSelect: () => void; onAction: () => void }) {
+function TriageTile({ item, index, total, selected, clearing, onSelect, onAction }: { item: AttentionItem; index: number; total: number; selected: boolean; clearing: boolean; onSelect: () => void; onAction: () => void }) {
   const tone = attentionTone(item);
   return (
     <div
       role="listitem"
+      aria-roledescription="slide"
+      aria-label={`${index + 1} of ${total}`}
       tabIndex={0}
       className="dashv2-tile"
       data-tone={tone}
@@ -205,18 +259,20 @@ function TriageTile({ item, selected, clearing, onSelect, onAction }: { item: At
       onClick={onSelect}
       onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(); } }}
     >
-      <div className="dashv2-tile__top">
-        <span className="dashv2-tone-dot" />
-        <span className="dashv2-tile__kind">{item.kind}</span>
-        <span className="dashv2-triage__spacer" />
-        <span className="dashv2-tile__due">{item.due ?? ''}</span>
-      </div>
-      <div className="dashv2-tile__title">{item.title}</div>
-      <div className="dashv2-tile__bottom">
-        <span className="dashv2-tile__context">{[item.eyebrow, item.context].filter(Boolean).join(' · ')}</span>
-        <button type="button" className="dashv2-tile__action" onClick={(event) => { event.stopPropagation(); onAction(); }}>
-          {item.actionLabel}
-        </button>
+      <span className="dashv2-tile__rail" aria-hidden="true" />
+      <div className="dashv2-tile__body">
+        <div className="dashv2-tile__top">
+          <span className="dashv2-tile__kind">{item.kind}</span>
+          <span className="dashv2-triage__spacer" />
+          <span className="dashv2-tile__due">{item.due ?? ''}</span>
+        </div>
+        <div className="dashv2-tile__title">{item.title}</div>
+        <div className="dashv2-tile__bottom">
+          <span className="dashv2-tile__context">{[item.eyebrow, item.context].filter(Boolean).join(' · ')}</span>
+          <button type="button" className="dashv2-tile__action" onClick={(event) => { event.stopPropagation(); onAction(); }}>
+            {item.actionLabel}
+          </button>
+        </div>
       </div>
     </div>
   );
