@@ -477,3 +477,152 @@
 .capiro-vnext-root .capiro-feedback--first-use .capiro-feedback__illustration {
   color: var(--uui-brand-solid, #444ce7);
 }
+
+/* ── SegmentedControl ───────────────────────────────────────────────────────
+   2-up (or N-up) mutually-exclusive control — not a tab strip (.capiro-tabs
+   has a bottom-border-underline model, wrong affordance for this). */
+.capiro-vnext-root .capiro-segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+}
+.capiro-vnext-root .capiro-segmented__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 34px;
+  min-width: 0;
+  border: 0;
+  border-radius: calc(var(--capiro-radius-control) - 2px);
+  background: transparent;
+  color: var(--capiro-color-text-secondary);
+  font-size: var(--capiro-type-size-body-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--capiro-motion-fast) var(--capiro-motion-ease),
+    color var(--capiro-motion-fast) var(--capiro-motion-ease);
+}
+.capiro-vnext-root .capiro-segmented__item[aria-checked='true'] {
+  background: var(--capiro-color-bg-surface);
+  color: var(--capiro-color-text-primary);
+  box-shadow: var(--capiro-primitive-shadow-widget);
+}
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-segmented__item { height: var(--capiro-hit-size, 44px); }
+}
+
+/* ── Combobox ────────────────────────────────────────────────────────────── */
+.capiro-vnext-root .capiro-combobox { position: relative; }
+
+.capiro-vnext-root .capiro-combobox__trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  min-height: var(--capiro-control-height-standard);
+  padding: 0 12px;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-control);
+  border-radius: var(--capiro-radius-control);
+  color: var(--capiro-color-text-primary);
+  font-size: var(--capiro-type-size-body-md);
+  text-align: left;
+  cursor: pointer;
+}
+.capiro-vnext-root .capiro-combobox__trigger:disabled { cursor: not-allowed; opacity: 0.6; }
+.capiro-vnext-root .capiro-combobox__trigger[aria-expanded='true'] {
+  border-color: var(--capiro-color-action-accent-default);
+  box-shadow: var(--capiro-focus-ring);
+}
+.capiro-vnext-root .capiro-combobox__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.capiro-vnext-root .capiro-combobox__value.is-placeholder { color: var(--capiro-color-text-muted); }
+.capiro-vnext-root .capiro-combobox__chevron { color: var(--capiro-color-text-muted); transition: transform var(--capiro-motion-fast) var(--capiro-motion-ease); transform: rotate(90deg); }
+.capiro-vnext-root .capiro-combobox__trigger[aria-expanded='true'] .capiro-combobox__chevron { transform: rotate(-90deg); }
+
+.capiro-vnext-root .capiro-combobox__panel {
+  position: absolute;
+  z-index: var(--capiro-z-popover);
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-default);
+  border-radius: var(--capiro-radius-surface);
+}
+.capiro-vnext-root .capiro-combobox__search {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  min-height: var(--capiro-control-height-standard);
+  padding: 0 12px;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .capiro-combobox__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--capiro-color-text-primary);
+  font-size: var(--capiro-type-size-body-md);
+}
+.capiro-vnext-root .capiro-combobox__input:focus { outline: none; }
+
+.capiro-vnext-root .capiro-combobox__list {
+  max-height: 224px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+}
+.capiro-vnext-root .capiro-combobox__option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.capiro-vnext-root .capiro-combobox__option:hover,
+.capiro-vnext-root [role='option'][aria-selected='true'] .capiro-combobox__option {
+  background: var(--capiro-color-bg-subtle);
+}
+.capiro-vnext-root .capiro-combobox__option-copy { flex: 1; min-width: 0; display: grid; }
+.capiro-vnext-root .capiro-combobox__option-label {
+  font-size: var(--capiro-type-size-body-md);
+  font-weight: 500;
+  color: var(--capiro-color-text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.capiro-vnext-root .capiro-combobox__option-meta {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--capiro-color-text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.capiro-vnext-root .capiro-combobox__check {
+  flex: 0 0 auto;
+  color: var(--capiro-color-shell-signature-primary);
+  opacity: 0;
+}
+.capiro-vnext-root [role='option'][aria-selected='true'] .capiro-combobox__check { opacity: 1; }
+.capiro-vnext-root .capiro-combobox__empty {
+  margin: 0;
+  padding: 14px 10px;
+  font-size: var(--capiro-type-size-body-md);
+  color: var(--capiro-color-text-secondary);
+}
+@media (max-width: 779px) {
+  .capiro-vnext-root .capiro-combobox__option { min-height: var(--capiro-hit-size, 44px); }
+}

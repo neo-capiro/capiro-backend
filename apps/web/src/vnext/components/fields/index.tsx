@@ -1,5 +1,8 @@
 import { useId, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 
+export * from './Combobox.js';
+export * from './SegmentedControl.js';
+
 interface FieldChromeProps {
   label: string;
   helpText?: string;

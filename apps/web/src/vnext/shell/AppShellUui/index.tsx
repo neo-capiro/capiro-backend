@@ -16,6 +16,7 @@ import {
 import { useShellClientContext } from '../../adapters/legacy/useShellClientContext.js';
 import type { VNextRouteDefinition } from '../../adapters/routes/routeManifest.js';
 import { MeriLauncher } from '../MeriLauncher/index.js';
+import { QuickNote } from '../QuickNote/index.js';
 import { NotificationBell, ProfileMenu } from '../TopBar/index.js';
 import { GlobalSearch } from '../GlobalSearch/index.js';
 import { MailboxSyncStatusView } from '../MailboxSyncStatus/index.js';
@@ -300,6 +301,7 @@ export function AppShellUuiView({
             <GlobalSearch scopeLabel={scopeLabel} />
           </div>
           <div className="uui-topbar__actions">
+            <QuickNote />
             <span data-tour="nav-meri" style={{ display: 'contents' }}>
               <MeriLauncher />
             </span>
