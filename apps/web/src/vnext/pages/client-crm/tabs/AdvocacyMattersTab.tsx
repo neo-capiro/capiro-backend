@@ -507,6 +507,11 @@ function AdvocacyMatterDrawer({
     [matterOptions, matterId],
   );
 
+  const lifecycleEvents = useMemo(
+    () => (detail.data ? buildLifecycle(detail.data, detail.data.records, detail.data.links) : []),
+    [detail.data],
+  );
+
   return (
     <CapiroDrawer open onClose={onClose} title={detail.data?.title ?? 'Advocacy matter'}>
       {!detail.data ? (
@@ -549,6 +554,13 @@ function AdvocacyMatterDrawer({
               not claim causation between advocacy activity and government action.
             </p>
           ) : null}
+
+          <section>
+            <h4 style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', margin: '0 0 10px' }}>
+              Lifecycle
+            </h4>
+            <LifecycleView events={lifecycleEvents} />
+          </section>
 
           <section>
             <h4 style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', margin: '0 0 10px' }}>
@@ -979,6 +991,147 @@ function groupLinks(links: AdvocacyMatterLink[]): Array<{ title: string; links: 
   const other = links.filter((link) => !known.has(link.linkType));
   if (other.length > 0) grouped.push({ title: 'Other links', links: other });
   return grouped;
+}
+
+/** §15 lifecycle model: Ask -> Engagement -> Government Movement -> Outcome.
+ *  Derived ENTIRELY from real record/link types and dates already on the
+ *  Matter — never a fabricated UI state. The one synthetic anchor is the
+ *  Matter's own openedAt, standing in for "ask defined" (a Matter's
+ *  existence IS the ask being defined; there is no earlier real event to
+ *  point to). Every other event comes from an actual record or link.
+ *
+ *  Classification is a straightforward partition by TYPE, not an invented
+ *  sub-status: meeting/mail_thread/outreach/strategy links plus
+ *  client_submission records are "we did something" (Engagement); bill/
+ *  program_element/hearing/testimony/regulatory_docket/regulatory_document/
+ *  fara_record links plus federal_lobbying records are "the government-side
+ *  object was touched" (Government Movement); outcome_event links plus any
+ *  record with a non-null outcome are "something was observed afterward"
+ *  (Outcome). Strategy links are excluded — they carry no occurredAt (a
+ *  plan is not a dated event, matching §8's "a Strategy alone is not proof
+ *  the activity occurred"). */
+export type LifecycleStage = 'ask_defined' | 'engagement' | 'government_movement' | 'outcome_observed';
+
+export interface LifecycleEvent {
+  id: string;
+  stage: LifecycleStage;
+  date: string;
+  label: string;
+}
+
+const ENGAGEMENT_LINK_TYPES = new Set(['meeting', 'mail_thread', 'outreach']);
+const GOVERNMENT_MOVEMENT_LINK_TYPES = new Set([
+  'bill', 'program_element', 'hearing', 'testimony', 'regulatory_docket', 'regulatory_document', 'fara_record',
+]);
+
+function lifecycleStageForLink(link: AdvocacyMatterLink): LifecycleStage | null {
+  if (link.linkType === 'outcome_event') return 'outcome_observed';
+  if (ENGAGEMENT_LINK_TYPES.has(link.linkType)) return 'engagement';
+  if (GOVERNMENT_MOVEMENT_LINK_TYPES.has(link.linkType)) return 'government_movement';
+  return null; // strategy (no date), finding (not yet accepted evidence), unrecognized types
+}
+
+function lifecycleStageForRecord(record: AdvocacyMatterRecord): LifecycleStage {
+  if (record.outcome) return 'outcome_observed';
+  if (record.recordType === 'federal_lobbying') return 'government_movement';
+  return 'engagement'; // client_submission and any other record type defaults to "we did something"
+}
+
+function buildLifecycle(
+  matter: { id: string; title: string; openedAt: string | null; createdAt: string },
+  records: AdvocacyMatterRecord[],
+  links: AdvocacyMatterLink[],
+): LifecycleEvent[] {
+  const events: LifecycleEvent[] = [
+    {
+      id: `${matter.id}-ask`,
+      stage: 'ask_defined',
+      date: matter.openedAt ?? matter.createdAt,
+      label: `Ask defined: ${matter.title}`,
+    },
+  ];
+  for (const record of records) {
+    if (!record.activityDate) continue; // never fabricate a date for an undated record
+    events.push({ id: record.id, stage: lifecycleStageForRecord(record), date: record.activityDate, label: record.title });
+  }
+  for (const link of links) {
+    const stage = lifecycleStageForLink(link);
+    if (!stage) continue;
+    const occurredAt = link.metadata?.occurredAt;
+    if (typeof occurredAt !== 'string') continue; // strategy and any link without a real date never enters the timeline
+    events.push({ id: link.id, stage, date: occurredAt, label: link.label ?? link.linkKey });
+  }
+  return events.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+const LIFECYCLE_STAGE_LABEL: Record<LifecycleStage, string> = {
+  ask_defined: 'Ask',
+  engagement: 'Engagement',
+  government_movement: 'Government Movement',
+  outcome_observed: 'Outcome',
+};
+
+const LIFECYCLE_STAGE_ORDER: LifecycleStage[] = ['ask_defined', 'engagement', 'government_movement', 'outcome_observed'];
+
+/** §20 lifecycle visual: Ask -> Engagement -> Government Movement -> Outcome.
+ *  A stage the Matter has no events for still renders (greyed, not hidden)
+ *  — "not every Matter needs every stage" (§15) means absence is
+ *  meaningful information, not something to collapse away. Desktop is
+ *  horizontal via flex-wrap; on a narrow viewport the same flex column
+ *  degrades to vertical without a second implementation (§20: "Desktop may
+ *  be horizontal. Mobile should become vertical."). */
+function LifecycleView({ events }: { events: LifecycleEvent[] }) {
+  const byStage = useMemo(() => {
+    const map = new Map<LifecycleStage, LifecycleEvent[]>();
+    for (const stage of LIFECYCLE_STAGE_ORDER) map.set(stage, []);
+    for (const event of events) map.get(event.stage)?.push(event);
+    return map;
+  }, [events]);
+
+  return (
+    <div className="capiro-advocacy-lifecycle" style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+      {LIFECYCLE_STAGE_ORDER.map((stage, index) => {
+        const stageEvents = byStage.get(stage) ?? [];
+        const hasEvents = stageEvents.length > 0;
+        return (
+          <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                minWidth: 160,
+                padding: 12,
+                borderRadius: 8,
+                border: `1px solid ${hasEvents ? '#D0D5DD' : '#F2F0EB'}`,
+                background: hasEvents ? '#FFFFFF' : '#FAFAF9',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+              }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 600, color: hasEvents ? '#101828' : '#98A2B3' }}>
+                {LIFECYCLE_STAGE_LABEL[stage]}
+              </span>
+              {hasEvents ? (
+                <>
+                  <span style={{ fontSize: 12, color: '#475467' }}>
+                    {stageEvents.length} event{stageEvents.length === 1 ? '' : 's'}
+                  </span>
+                  <span style={{ fontSize: 11, color: '#98A2B3' }}>
+                    {formatDateShort(stageEvents[0]!.date)}
+                    {stageEvents.length > 1 ? ` – ${formatDateShort(stageEvents[stageEvents.length - 1]!.date)}` : ''}
+                  </span>
+                </>
+              ) : (
+                <span style={{ fontSize: 11, color: '#98A2B3' }}>Not yet reached</span>
+              )}
+            </div>
+            {index < LIFECYCLE_STAGE_ORDER.length - 1 ? (
+              <span aria-hidden style={{ color: '#98A2B3', fontSize: 16 }}>→</span>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function LinkRow({ link }: { link: AdvocacyMatterLink }) {

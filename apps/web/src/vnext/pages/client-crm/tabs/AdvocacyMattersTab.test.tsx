@@ -265,4 +265,74 @@ describe('ClientCrmAdvocacyMattersProto', () => {
     // §17 causality contract — the outcome link never claims causation.
     expect(screen.getByText('Association only — Capiro has not established causation.')).toBeInTheDocument();
   });
+
+  it('derives the lifecycle chronologically from real records/links and marks unreached stages honestly (§15)', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/advocacy-matters')) {
+        return { data: [matterFixture({ openedAt: '2026-01-10T00:00:00.000Z' })] };
+      }
+      return {
+        data: {
+          ...matterFixture({ openedAt: '2026-01-10T00:00:00.000Z' }),
+          records: [
+            recordFixture({ id: 'rec-engagement', recordType: 'client_submission', activityDate: '2026-02-01T00:00:00.000Z', outcome: null }),
+          ],
+          links: [
+            {
+              id: 'link-meeting',
+              linkType: 'meeting',
+              linkKey: 'meeting-1',
+              label: 'HASC staff meeting',
+              relationshipType: null,
+              confidence: 1,
+              provenance: null,
+              evidenceClass: 'PRIVATE_ACTIVITY',
+              metadata: { occurredAt: '2026-03-12T00:00:00.000Z' },
+            },
+            {
+              id: 'link-bill',
+              linkType: 'bill',
+              linkKey: '119-hr-1234',
+              label: 'NDAA language',
+              relationshipType: null,
+              confidence: null,
+              provenance: null,
+              evidenceClass: 'PUBLIC_VERIFIED',
+              metadata: {}, // no occurredAt on the original PR #1253 auto-clustered bill link
+            },
+            {
+              id: 'link-strategy',
+              linkType: 'strategy',
+              linkKey: 'strategy-1',
+              label: 'FY27 objective',
+              relationshipType: 'planned_action',
+              confidence: null,
+              provenance: null,
+              evidenceClass: null,
+              metadata: { strategyId: 'strategy-1', causationClaimed: false }, // no occurredAt — a plan has no date
+            },
+          ],
+        },
+      };
+    });
+    renderMatters();
+
+    await waitFor(() => expect(screen.getByText('0605053A Program Element')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('0605053A Program Element'));
+    await waitFor(() => expect(screen.getByText('Lifecycle')).toBeInTheDocument());
+
+    // Ask stage always has exactly the Matter's own openedAt as its one event.
+    expect(screen.getByText('Ask')).toBeInTheDocument();
+    // Engagement stage has the client_submission record + the meeting link (2 events).
+    expect(screen.getByText('Engagement')).toBeInTheDocument();
+    // Government Movement never reached: the bill link has no occurredAt in
+    // this fixture (matching a real PR #1253 auto-clustered link, which
+    // never set metadata.occurredAt) — must NOT fabricate a date for it.
+    expect(screen.getByText('Government Movement')).toBeInTheDocument();
+    expect(screen.getByText('Outcome')).toBeInTheDocument();
+    // Exactly two stages ("Not yet reached"): Government Movement (bill link
+    // undated) and Outcome (nothing observed yet). The Strategy link never
+    // contributes to any stage at all — no occurredAt.
+    expect(screen.getAllByText('Not yet reached')).toHaveLength(2);
+  });
 });
