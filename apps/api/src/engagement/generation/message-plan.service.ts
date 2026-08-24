@@ -50,6 +50,18 @@ export const MESSAGE_PLAN_MAX_OUTPUT_TOKENS = 16384;
 const AMBIGUOUS_SOURCE = '\u0000ambiguous';
 
 /**
+ * Citable identity for the server-resolved recipient block.
+ *
+ * Recipient identity arrives as prose (`recipientBrief`), not as a packet
+ * evidence row, yet `federal.congressional_office` and friends REQUIRE
+ * `recipient_identity` and invite claims about who the recipient is. Giving that
+ * block a real, resolvable id is what makes those claims citable rather than
+ * unsatisfiable. Doubles as the rendered `source=` label — the packet convention
+ * allows a single-instance source to share type and id.
+ */
+export const RECIPIENT_IDENTITY_SOURCE_ID = 'recipient_identity';
+
+/**
  * Normalize a cited source id for comparison. Case/whitespace/quote-insensitive
  * and tolerant of `:` vs `-` vs `/` segment separators, because those are the
  * differences reasoning models actually introduce when echoing a long id. It is
@@ -308,6 +320,16 @@ export class MessagePlanService {
         register(variant, e.ref.sourceId);
       }
     }
+    // The recipient block is real, server-resolved provenance — it is just carried
+    // as prose rather than as a packet evidence row. Register it ONLY when a brief
+    // was actually supplied, so a claim about the recipient cannot be "supported"
+    // by an identity the server never resolved. Also accept `directory`, the label
+    // the prompt previously used, so an older-habit citation resolves instead of
+    // failing the whole plan.
+    if (request.recipientBrief?.trim()) {
+      register(RECIPIENT_IDENTITY_SOURCE_ID, RECIPIENT_IDENTITY_SOURCE_ID);
+      register('directory', RECIPIENT_IDENTITY_SOURCE_ID);
+    }
     for (const claim of plan.supportedClaims) {
       const unknown = claim.sourceIds.filter((id) => {
         const resolved = canonicalById.get(normalizeSourceId(id));
@@ -491,7 +513,14 @@ export class MessagePlanService {
         ? `USER DIRECTIVES (authoritative — these define the task):\n${directiveLines.join('\n')}`
         : 'USER DIRECTIVES: none beyond the objective above.',
       request.recipientBrief
-        ? `RECIPIENT (server-resolved identity):\n${SPOTLIGHT_OPEN} source="directory">>>\n${request.recipientBrief}\n${SPOTLIGHT_CLOSE}`
+        ? // Carries an explicit id so identity claims are citable. Previously
+          // rendered as bare `source="directory"` while the EVIDENCE header says
+          // "cite by the id attribute" — so the planner cited `directory`, which
+          // resolved to nothing and failed the plan. Unsatisfiable by design:
+          // check #4 requires recipient_identity and accepts this prose, while
+          // check #2 had no packet source to match. Live 2026-08-24: claim
+          // "Senator … representing Oklahoma" cited `directory` and was rejected.
+          `RECIPIENT (server-resolved identity — cite as id="${RECIPIENT_IDENTITY_SOURCE_ID}"):\n${SPOTLIGHT_OPEN} source="${RECIPIENT_IDENTITY_SOURCE_ID}" id="${RECIPIENT_IDENTITY_SOURCE_ID}" trust="server_record">>>\n${request.recipientBrief}\n${SPOTLIGHT_CLOSE}`
         : 'RECIPIENT: identity not resolved.',
       packet.standingMemory.length
         ? `STANDING MEMORY: ${packet.standingMemory.length} steering item(s) apply to STYLE and standing relationships only — they prove no events.`
