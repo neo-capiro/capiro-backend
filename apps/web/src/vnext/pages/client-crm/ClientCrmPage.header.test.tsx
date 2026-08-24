@@ -19,6 +19,12 @@ vi.mock('./tabs/CapabilitiesTab.js', () => ({ ClientCrmCapabilitiesProto: () => 
 vi.mock('./tabs/RelationshipsOrgTab.js', () => ({ ClientCrmOrganizationProto: () => <div>organization</div> }));
 vi.mock('./tabs/RelationshipsGovTab.js', () => ({ ClientCrmGovernmentProto: () => <div>government</div> }));
 vi.mock('./tabs/RelationshipsHistoryTab.js', () => ({ ClientCrmHistoryProto: () => <div>history</div> }));
+// Phase 4: Advocacy history is a new always-mounted accordion section (only
+// reachable, before this closeout, via ?tab=relationships&view=matters,
+// which no test in this file exercises) — mocked for the same reason every
+// other tab surface here already is: this file tests header/drawer wiring,
+// not AdvocacyMattersTab's own query behaviour.
+vi.mock('./tabs/AdvocacyMattersTab.js', () => ({ ClientCrmAdvocacyMattersProto: () => <div>advocacy</div> }));
 vi.mock('./tabs/WorkTab.js', () => ({ ClientCrmWorkProto: () => <div>work</div> }));
 vi.mock('./tabs/IntelligenceTab.js', () => ({ ClientCrmIntelligenceProto: () => <div>intelligence</div> }));
 vi.mock('./tabs/FilesTab.js', () => ({ ClientCrmFilesProto: () => <div>files</div> }));

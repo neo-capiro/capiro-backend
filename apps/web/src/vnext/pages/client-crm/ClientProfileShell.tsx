@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
@@ -7,8 +7,10 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
 import { sectorLabel } from '../../lib/labels.js';
 import { openMeriWorkspaceWithContext } from '../../../components/chat/meri-window.js';
-import { CRM_TAB_LABELS, type CrmSurface, type CrmView } from './client-crm-routing.js';
+import type { CrmSurface, CrmView } from './client-crm-routing.js';
 import { useClientAccountOwner } from './useClientAccountOwner.js';
+import { DrawerRail, drawerKeyForRoute } from './DrawerRail.js';
+import { RecordDrawer } from './RecordDrawer.js';
 import './client-profile-shell.css';
 
 /**
@@ -31,10 +33,12 @@ function usePfBreakpoints() {
 }
 
 /**
- * Portfolio prototype client shell (spec §5). Wraps every /clients?clientId=
- * route body: breadcrumb bar → identity block → six-tab strip. The shared
- * AppShellUui owns the global top bar + rail; this shell owns everything below
- * it inside the client route, transcribed from the prototype's inline styles.
+ * Portfolio prototype client shell (spec §5, restructured for Phase 4 of the
+ * vnext UI cleanup program). Wraps every /clients?clientId= route body:
+ * breadcrumb bar → identity block → sticky DrawerRail + accordion-section
+ * stack. The shared AppShellUui owns the global top bar + rail; this shell
+ * owns everything below it inside the client route. The six-tab strip this
+ * used to render is gone — see the body comment below.
  */
 
 export interface ProfileShellProps {
@@ -62,8 +66,17 @@ export interface ProfileShellProps {
   onArchive?: () => void;
   /** Item 10: the client PUT behind a focus tag is gated at user_admin. */
   canEditFocus?: boolean;
-  /** Rendered tab body. */
+  /** The accordion-section stack (Overview / Timeline / Advocacy history / Intelligence). */
   children: ReactNode;
+  /**
+   * Phase 4: the right-side `RecordDrawer` body for Relationships/Work/Files/
+   * Capabilities, computed by the caller (it knows which `ClientCrmXxxProto`
+   * to render). `null`/`undefined` closes the drawer.
+   */
+  drawerContent?: ReactNode;
+  drawerTitle?: string;
+  drawerSub?: string;
+  onCloseDrawer?: () => void;
 }
 
 /** Focus chips come from the client's own intake vocabulary. The form writes
@@ -89,6 +102,7 @@ function focusChipsFor(client: Client): string[] {
 export function ClientProfileShell({
   client,
   tab,
+  view,
   onNavigate,
   onFillWithMeri,
   onDataHealth,
@@ -103,6 +117,10 @@ export function ClientProfileShell({
   onArchive,
   canEditFocus = false,
   children,
+  drawerContent,
+  drawerTitle,
+  drawerSub,
+  onCloseDrawer,
 }: ProfileShellProps) {
   const chips = focusChipsFor(client);
   const isActive = (client.status ?? '').toLowerCase() === 'active';
@@ -225,13 +243,9 @@ export function ClientProfileShell({
             <OverflowMenu client={client} onDataHealth={onDataHealth} canArchive={canArchive} onArchive={onArchive} />
           </div>
         </div>
-
-        {/* ── Six-tab strip (§2.8 / §5.3) ─────────────────────────────────── */}
-        <TabStrip tab={tab} onNavigate={onNavigate} />
       </div>
 
-      {/* ── Body ──────────────────────────────────────────────────────────── */}
-      {/*
+      {/* ── Body (Phase 4: drawer rail + accordion-section stack) ────────────
        * Previously two nested divs: an outer full-bleed 32px-padding spacer
        * and an inner `maxWidth: 1360` centering box. That 1360 was already a
        * no-op — the shell capped `.uui-content` at 1280px, so nothing this
@@ -241,8 +255,32 @@ export function ClientProfileShell({
        * bumped to 1440 to match the sitewide Dashboard/Strategies convention
        * (dashboard.css / strategies.css `.st-canvas`). Padding + the 779px
        * mobile step live in `.cap-pf-client__body` (client-crm.css).
+       *
+       * The six-tab strip that used to live in the identity block above is
+       * gone. Relationships/Work/Files/Capabilities are now triggers in the
+       * sticky `DrawerRail` (opening `RecordDrawer`); Overview/Timeline/
+       * Advocacy history/Intelligence are the always-mounted section stack
+       * the caller passes as `children` — see ClientCrmPage.tsx's
+       * `ClientCrmBody`. `onNavigate` is the exact same callback the old tab
+       * buttons called, so the `?tab=`/`?view=` URL contract is unchanged.
        */}
-      <div className="cap-pf-client__body">{children}</div>
+      <div className="cap-pf-client__body">
+        <div className="cap-pf-grid-record">
+          <DrawerRail activeKey={drawerKeyForRoute(tab, view)} onNavigate={onNavigate} />
+          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 24 }}>{children}</div>
+        </div>
+      </div>
+
+      {drawerContent != null ? (
+        <RecordDrawer
+          client={client}
+          title={drawerTitle ?? ''}
+          sub={drawerSub}
+          onClose={() => onCloseDrawer?.()}
+        >
+          {drawerContent}
+        </RecordDrawer>
+      ) : null}
     </div>
   );
 }
@@ -601,78 +639,6 @@ function MeriActionItem({
         </span>
         <span style={{ display: 'block', marginTop: 3, fontSize: 12, lineHeight: '17px', color: '#667085', textWrap: 'pretty' }}>{detail}</span>
       </span>
-    </button>
-  );
-}
-
-function TabStrip({ tab, onNavigate }: { tab: CrmSurface; onNavigate: (t: CrmSurface) => void }) {
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
-    const last = CRM_TAB_LABELS.length - 1;
-    let next: number | null = null;
-    if (event.key === 'ArrowRight') next = index === last ? 0 : index + 1;
-    else if (event.key === 'ArrowLeft') next = index === 0 ? last : index - 1;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = last;
-    if (next == null) return;
-    event.preventDefault();
-    const target = CRM_TAB_LABELS[next];
-    if (!target) return;
-    tabRefs.current[next]?.focus();
-    onNavigate(target.key);
-  };
-
-  return (
-    <div role="tablist" aria-label="Client sections" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 18 }}>
-      {CRM_TAB_LABELS.map((t, index) => {
-        const selected = tab === t.key;
-        return (
-          <TabButton
-            key={t.key}
-            tabKey={t.key}
-            refCb={(node) => {
-              tabRefs.current[index] = node;
-            }}
-            selected={selected}
-            label={t.label}
-            onClick={() => onNavigate(t.key)}
-            onKeyDown={(e) => onKeyDown(e, index)}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-function TabButton({
-  selected,
-  label,
-  onClick,
-  onKeyDown,
-  refCb,
-  tabKey,
-}: {
-  selected: boolean;
-  label: string;
-  onClick: () => void;
-  onKeyDown: (e: KeyboardEvent<HTMLButtonElement>) => void;
-  refCb: (node: HTMLButtonElement | null) => void;
-  tabKey: string;
-}) {
-  return (
-    <button
-      ref={refCb}
-      type="button"
-      role="tab"
-      id={`cap-pf-tab-${tabKey}`}
-      aria-selected={selected}
-      aria-controls={`cap-pf-panel-${tabKey}`}
-      tabIndex={selected ? 0 : -1}
-      onClick={onClick}
-      onKeyDown={onKeyDown}
-      className="cap-pf-tab-btn"
-    >
-      {label}
     </button>
   );
 }
