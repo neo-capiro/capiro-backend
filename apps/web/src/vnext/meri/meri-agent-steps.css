@@ -14,7 +14,7 @@
 .meri-agent-step[data-status="done"] {
   border-color: var(--capiro-color-success-border, #abefc6);
   background: var(--capiro-color-success-subtle, #f6fef9);
-  color: var(--capiro-color-success, #067647);
+  color: var(--capiro-color-success, var(--uui-success-fg));
 }
 
 .meri-agent-step[data-status="running"] {

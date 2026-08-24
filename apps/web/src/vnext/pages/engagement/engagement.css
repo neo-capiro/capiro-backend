@@ -3064,7 +3064,7 @@
 
 .capiro-vnext-root .uui-field-success {
   margin: 0;
-  color: #067647;
+  color: var(--uui-success-fg, #027a48);
   font-size: 12px;
 }
 

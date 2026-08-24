@@ -586,7 +586,7 @@
 }
 
 .uui-template-diff-row .before { color: #b42318; text-decoration: line-through; }
-.uui-template-diff-row .after { color: #067647; }
+.uui-template-diff-row .after { color: var(--uui-success-fg); }
 
 @keyframes uui-template-shimmer {
   0% { background-position: 100% 0; }
