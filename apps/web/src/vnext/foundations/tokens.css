@@ -12,15 +12,17 @@
   --capiro-type-line-body-sm: 20px;
   --capiro-type-line-body-md: 22px;
 
-  /* Canvas + surface. Warm surface palette (WARM-SURFACE-PALETTE.md): the
-     hierarchy is three tiers read at a glance — #f4f3f0 warm canvas →
-     #ffffff data surfaces → #fffdfa assistant. Keep that ordering. */
-  --capiro-color-bg-canvas: #f4f3f0;
-  --capiro-color-bg-page: #f4f3f0;
+  /* Canvas + surface. Reverted 2026-08-24 (Neo): the warm palette from
+     WARM-SURFACE-PALETTE.md clashed with the Client Profile prototype, which
+     was built against the original cool grey set — back to #f0f1f4/#f2f3f5
+     canvas, #eaedf1/#eef1f5 subtle/sunken. --capiro-surface-assistant is
+     kept as its own distinct Meri-only tier (unrelated to this revert). */
+  --capiro-color-bg-canvas: #f0f1f4;
+  --capiro-color-bg-page: #f2f3f5;
   --capiro-color-bg-surface: #ffffff;
-  --capiro-color-bg-surface-2: #faf9f6;
-  --capiro-color-bg-subtle: #edeae4;
-  --capiro-color-bg-sunken: #edeae4;
+  --capiro-color-bg-surface-2: #f8fafb;
+  --capiro-color-bg-subtle: #eaedf1;
+  --capiro-color-bg-sunken: #eef1f5;
   /* The assistant tier — Meri rails, Meri panels and the Meri launcher read
      this, and no non-Meri surface may. Warmer than the white data surface,
      never cooler. */
@@ -29,7 +31,7 @@
   --capiro-color-bg-dark-2: #21384d;
   --capiro-color-bg-interactive-primary: #131a24;
   --capiro-color-bg-destructive: #a32b23;
-  --capiro-color-bg-skeleton-highlight: #faf9f6;
+  --capiro-color-bg-skeleton-highlight: #f5f6f8;
   --capiro-color-bg-navigation-hover: rgba(255, 255, 255, 0.55);
   --capiro-color-bg-foundation-banner: rgba(255, 255, 255, 0.6);
   --capiro-color-bg-overlay-scrim: rgba(19, 26, 36, 0.36);
@@ -55,30 +57,29 @@
      blue-dark primitive the accent rails and orientation marks use. */
   --capiro-color-icon-accent: var(--capiro-primitive-accent-blue-dark);
 
-  /* Borders — warm hairlines: #e8e5df rules/edges, #e0dcd4 interactive,
-     #f2f0eb in-card dividers. */
-  --capiro-color-border-default: #e8e5df;
-  --capiro-color-border-page: #e0dcd4;
-  --capiro-color-border-quiet: #f2f0eb;
+  /* Borders — reverted 2026-08-24 with the canvas/surface set above. */
+  --capiro-color-border-default: #dfe2e8;
+  --capiro-color-border-page: #dce1e6;
+  --capiro-color-border-quiet: #eaedf1;
   --capiro-color-border-information: #1c4e7a;
-  --capiro-color-border-divider: #e8e5df;
-  --capiro-color-border-control: #e0dcd4;
+  --capiro-color-border-divider: #e4e7eb;
+  --capiro-color-border-control: #d7dbe2;
   --capiro-color-shell-search-border: #d7e0eb;
 
   /* Menu/overlay surfaces (Figma 728:2575). */
-  --capiro-color-bg-selected: #edeae4;
+  --capiro-color-bg-selected: #e6e9ef;
   /* Read from the Figma node code rather than sampled off a render. */
   --capiro-color-text-information: #1c4e7a;
   --capiro-color-text-warning: #8a6218;
   /* STALE / SOURCE UNAVAILABLE raise the module border (754:2919, 754:2932). */
   --capiro-color-border-warning: #8a6218;
-  --capiro-color-border-badge: #f2f0eb;
+  --capiro-color-border-badge: #eceef2;
   --capiro-status-badge-height: 24px;
   /* The sidebar is its own cooler surface, not the generic subtle grey. */
   --capiro-color-bg-sidebar: #f3f6fa;
   --capiro-color-border-strong: #b6bfcc;
   --capiro-color-text-faint: #8792a3;
-  --capiro-color-bg-flyout-hover: #f2f0eb;
+  --capiro-color-bg-flyout-hover: #f6f7fa;
   --capiro-color-text-destructive: #a32b23;
   --capiro-primitive-overlay-ink-16: rgba(19, 26, 36, 0.16);
 
@@ -172,7 +173,7 @@
   --capiro-primitive-product-ink: #121722;
   --capiro-primitive-product-ink-secondary: #4a5260;
   --capiro-primitive-brand-inverse-line: #2f3c50;
-  --capiro-primitive-product-border: #e8e5df;
+  --capiro-primitive-product-border: #e2e5eb;
   /* The Directory vNext screens (937:2539, 938:2628, 939:2736, 944:2867) render
      the sidebar on Figma's warm-paper primitive. It is recorded here as the
      source-of-truth primitive, but the shared shell deliberately still paints
