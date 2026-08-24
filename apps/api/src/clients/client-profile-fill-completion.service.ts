@@ -1640,6 +1640,70 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     // even for findings that stay informational and never become their own
     // client_advocacy_record row.
     changed += await this.linkReconciledFindingsToMatters(ctx, clientId, runId);
+    // §27 reconciliation: flag a possible cross-source duplicate advocacy
+    // activity — the SAME real-world event discovered via two DIFFERENT
+    // source rails (e.g. an LDA filing and a client submission describing
+    // the same meeting), which the exact-targetKey grouping above can
+    // never catch since each rail mints its own unrelated externalKey.
+    // Deterministic-source-id duplicates are already handled elsewhere
+    // (client_advocacy_record's ON CONFLICT (tenant_id, client_id,
+    // external_key) upsert, and addFinding's content-hash dedup) — this
+    // path exists ONLY for the case those can't cover: two DIFFERENT
+    // external keys that plausibly describe the same activity. Never
+    // auto-merges (§27: "Do not collapse two distinct events merely
+    // because text is similar") — always a reviewable informational
+    // finding a human confirms or dismisses.
+    changed += await this.flagPossibleAdvocacyDuplicates(ctx, clientId, runId, rows);
+    return changed;
+  }
+
+  /** §27: within this run, flags pending/informational advocacy_record
+   *  findings that plausibly describe the same real-world activity but
+   *  arrived via different source rails (different externalKey, so the
+   *  exact-key grouping in reconcileFindings never sees them together).
+   *  Deterministic signal first: same day AND >=60% title-token overlap.
+   *  Never merges — surfaces an informational "possible duplicate" finding
+   *  naming both candidates so a human decides. */
+  private async flagPossibleAdvocacyDuplicates(
+    ctx: TenantContext,
+    clientId: string,
+    runId: string,
+    rows: AdvancedFindingRow[],
+  ): Promise<number> {
+    const advocacyRows = rows.filter((row) => row.kind === 'advocacy_record' && row.status !== 'rejected');
+    let changed = 0;
+    for (let i = 0; i < advocacyRows.length; i++) {
+      for (let j = i + 1; j < advocacyRows.length; j++) {
+        const a = advocacyRows[i]!;
+        const b = advocacyRows[j]!;
+        if (a.targetKey === b.targetKey) continue; // already the same key — handled by exact-key grouping above
+        const proposedA = asRecord(a.proposedValue);
+        const proposedB = asRecord(b.proposedValue);
+        if (!sameActivityDay(proposedA.activityDate, proposedB.activityDate)) continue;
+        if (titleOverlapRatio(asString(proposedA.title), asString(proposedB.title)) < 0.6) continue;
+        const pairKey = [a.targetKey, b.targetKey].sort().join('|');
+        const inserted = await this.addFinding(ctx.tenantId, clientId, runId, {
+          kind: 'advocacy_duplicate_candidate',
+          targetKey: `advocacy-duplicate:${createHash('sha256').update(pairKey).digest('hex').slice(0, 20)}`,
+          source: 'reconciliation',
+          factKind: 'recommendation',
+          currentValue: null,
+          proposedValue: {
+            type: 'possible_duplicate',
+            findingIds: [a.id, b.id],
+            message:
+              'Two different sources may describe the same advocacy activity on the same day. Review before accepting both.',
+          },
+          confidence: 0.6,
+          status: 'informational',
+          evidence: [
+            { label: `${a.source}: ${asString(proposedA.title) ?? a.targetKey}`, source: a.source, metadata: { findingId: a.id } },
+            { label: `${b.source}: ${asString(proposedB.title) ?? b.targetKey}`, source: b.source, metadata: { findingId: b.id } },
+          ],
+        });
+        if (inserted) changed += 1;
+      }
+    }
     return changed;
   }
 
@@ -2620,6 +2684,33 @@ function normalizeEvidenceClass(value: unknown) {
   )
     ? text!
     : 'INFERRED';
+}
+
+/** §27 duplicate-candidate signal 1 (deterministic before semantic): same
+ *  calendar day. Two records timestamped on different days are never
+ *  flagged as a possible duplicate regardless of title similarity — a
+ *  recurring monthly meeting produces near-identical titles across many
+ *  distinct real events, and only the date makes them distinguishable. */
+export function sameActivityDay(a: unknown, b: unknown): boolean {
+  const dateA = parseDate(a);
+  const dateB = parseDate(b);
+  if (!dateA || !dateB) return false;
+  return dateA.toISOString().slice(0, 10) === dateB.toISOString().slice(0, 10);
+}
+
+/** §27 duplicate-candidate signal 2: title token overlap, reusing the exact
+ *  same tokenizer scoreAdvocacyOutcome already uses for consistency. Only
+ *  ever a SECONDARY signal gated behind sameActivityDay returning true
+ *  first — text similarity alone must never flag two distinct events
+ *  (§27: "Do not collapse two distinct events merely because text is
+ *  similar"). */
+export function titleOverlapRatio(a: string | null, b: string | null): number {
+  if (!a || !b) return 0;
+  const tokensA = meaningfulTokens(a);
+  const tokensB = meaningfulTokens(b);
+  if (tokensA.size === 0 || tokensB.size === 0) return 0;
+  const intersection = [...tokensA].filter((token) => tokensB.has(token)).length;
+  return intersection / Math.max(tokensA.size, tokensB.size);
 }
 
 function meaningfulTokens(value: string) {

@@ -3,7 +3,9 @@ import {
   calculateProfileCompletion,
   mergeFillProgress,
   matchAdvocacyOutcomeDeterministically,
+  sameActivityDay,
   scoreAdvocacyOutcome,
+  titleOverlapRatio,
 } from './client-profile-fill-completion.service.js';
 
 describe('Fill with Meri completion workflow', () => {
@@ -131,5 +133,20 @@ describe('Fill with Meri completion workflow', () => {
     expect(
       matchAdvocacyOutcomeDeterministically({ primaryPeCode: null, primaryBillId: null }, { peCode: '0605053A', billNumber: '119-hr-1234' }),
     ).toBeNull();
+  });
+
+  test('§27: sameActivityDay is the deterministic gate before any text-similarity check', () => {
+    expect(sameActivityDay('2026-03-12T14:00:00.000Z', '2026-03-12T09:00:00.000Z')).toBe(true); // same day, different time
+    expect(sameActivityDay('2026-03-12T00:00:00.000Z', '2026-03-13T00:00:00.000Z')).toBe(false); // one day apart
+    expect(sameActivityDay(null, '2026-03-12T00:00:00.000Z')).toBe(false); // an undated record never matches anything
+    expect(sameActivityDay(undefined, undefined)).toBe(false);
+  });
+
+  test('§27: titleOverlapRatio never collapses two dissimilar titles, and is symmetric', () => {
+    const ratio = titleOverlapRatio('HASC staff meeting on ground robotics', 'Staff meeting HASC ground robotics funding');
+    expect(ratio).toBeGreaterThan(0.5);
+    expect(titleOverlapRatio('HASC staff meeting on ground robotics', 'SASC hearing on shipbuilding budget')).toBeLessThan(0.3);
+    expect(titleOverlapRatio(null, 'anything')).toBe(0);
+    expect(titleOverlapRatio('anything', null)).toBe(0);
   });
 });
