@@ -42,22 +42,20 @@
   --uui-weight-medium: 500;
   --uui-weight-semibold: 600;
 
-  /* Neutrals. Warm surface palette (WARM-SURFACE-PALETTE.md, from the
-     Outreach redesign `Capiro Outreach - Untitled UI.dc.html`): the cool
-     grey surface/border set is replaced by a warm one so the hierarchy
-     reads as three tiers — warm canvas, white data surfaces, and the
-     warmer-than-white assistant tier. The text ramp (gray-400 and up)
-     stays cool per the handoff. */
+  /* Neutrals. Reverted 2026-08-24 (Neo): back to the original cool grey
+     surface/border set — the warm palette (WARM-SURFACE-PALETTE.md) clashed
+     with the Client Profile prototype, which was built against these cool
+     hexes. */
   --uui-white: #ffffff;
   --uui-gray-25: #fdfdfd;
-  --uui-gray-50: #faf9f6;
-  --uui-gray-100: #f2f0eb;
+  --uui-gray-50: #f9fafb;
+  --uui-gray-100: #f2f4f7;
   /* gray-200 is used exclusively as a border/divider color across shell +
      dashboard, so updating it here (rather than adding a parallel
      --uui-border-default) propagates correctly everywhere without creating
      two near-duplicate neutrals to keep in sync. */
-  --uui-gray-200: #e8e5df;
-  --uui-gray-300: #e0dcd4;
+  --uui-gray-200: #e4e7ec;
+  --uui-gray-300: #d0d5dd;
   --uui-gray-400: #98a2b3;
   --uui-gray-500: #667085;
   --uui-gray-600: #475467;
@@ -174,12 +172,12 @@
   --uui-chrome-icon-idle: #7c8698;
   --uui-chrome-divider: rgba(255, 255, 255, 0.14);
 
-  /* Canvas/sunken surfaces — v3's surface hierarchy below "raised" white,
-     on the warm ramp: #f4f3f0 canvas → #ffffff data surfaces → #fffdfa
-     assistant. Keep that ordering — never a white card on a white
-     background, and never a Meri surface cooler than the data surface. */
-  --uui-surface-canvas: #f4f3f0;
-  --uui-surface-sunken: #faf9f6;
+  /* Canvas/sunken surfaces — v3's surface hierarchy below "raised" white.
+     Reverted 2026-08-24 to the original cool ramp alongside the neutrals
+     above; --uui-surface-assistant keeps its own warm value below,
+     independent of this revert. */
+  --uui-surface-canvas: #eff1f5;
+  --uui-surface-sunken: #f7f8fa;
   /* The assistant tier — Meri rails, Meri panels and the Meri launcher read
      this, never --uui-white or a module surface token. Aliases the
      foundation token so the two roots cannot drift apart. */
