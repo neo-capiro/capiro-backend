@@ -335,4 +335,56 @@ describe('ClientCrmAdvocacyMattersProto', () => {
     // contributes to any stage at all — no occurredAt.
     expect(screen.getAllByText('Not yet reached')).toHaveLength(2);
   });
+
+  it('§24 search: filters the Matters list by title, ask (summary), PE code, or bill — a term matching neither Matter shows the real empty state, not a silent full list', async () => {
+    const matterA = matterFixture({
+      id: 'matter-a', title: '0605053A Program Element', summary: 'Support increased funding for ground robotics.',
+      primaryPeCode: '0605053A', primaryBillId: null, status: 'active',
+    });
+    const matterB = matterFixture({
+      id: 'matter-b', title: 'NDAA Section 1234', summary: 'Track the shipbuilding language.',
+      primaryPeCode: null, primaryBillId: '119-hr-1234', status: 'successful',
+    });
+    getMock.mockResolvedValue({ data: [matterA, matterB] });
+    renderMatters();
+
+    await waitFor(() => expect(screen.getByText('0605053A Program Element')).toBeInTheDocument());
+    expect(screen.getByText('NDAA Section 1234')).toBeInTheDocument();
+
+    // Search by a term that only matches the summary of one Matter.
+    fireEvent.change(screen.getByPlaceholderText('Search title, ask, PE, or bill'), { target: { value: 'shipbuilding' } });
+    expect(screen.queryByText('0605053A Program Element')).not.toBeInTheDocument();
+    expect(screen.getByText('NDAA Section 1234')).toBeInTheDocument();
+
+    // Search by a term matching neither Matter — the real empty state, not
+    // a silently unfiltered list.
+    fireEvent.change(screen.getByPlaceholderText('Search title, ask, PE, or bill'), { target: { value: 'zzz-nomatch' } });
+    expect(screen.queryByText('0605053A Program Element')).not.toBeInTheDocument();
+    expect(screen.queryByText('NDAA Section 1234')).not.toBeInTheDocument();
+    expect(screen.getByText('No matters match your search')).toBeInTheDocument();
+  });
+
+  it('§24 filters: status chips are derived from what is actually present (no empty chip for an absent status), and filtering by status genuinely narrows the list', async () => {
+    const matterA = matterFixture({ id: 'matter-a', title: 'Active ask', status: 'active' });
+    const matterB = matterFixture({ id: 'matter-b', title: 'Won ask', status: 'successful' });
+    getMock.mockResolvedValue({ data: [matterA, matterB] });
+    renderMatters();
+
+    await waitFor(() => expect(screen.getByText('Active ask')).toBeInTheDocument());
+
+    // Only the two statuses actually present render as chips — never the
+    // full static STATUS_LABEL set (e.g. no "Withdrawn" chip here).
+    expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Active' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Successful' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Withdrawn' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Successful' }));
+    expect(screen.queryByText('Active ask')).not.toBeInTheDocument();
+    expect(screen.getByText('Won ask')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    expect(screen.getByText('Active ask')).toBeInTheDocument();
+    expect(screen.getByText('Won ask')).toBeInTheDocument();
+  });
 });

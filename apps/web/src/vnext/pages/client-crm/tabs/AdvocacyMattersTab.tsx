@@ -10,6 +10,7 @@ import {
   PfEmptyState,
   PfButton,
   TabPageHead,
+  UIcon,
   type PillTone,
 } from '../portfolio-primitives.js';
 import { formatDateShort } from '../../../lib/labels.js';
@@ -178,6 +179,8 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
   const isAdmin = useIsAdvocacyAdmin();
   const [openMatterId, setOpenMatterId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('All');
 
   const matters = useQuery<AdvocacyMatterSummary[]>({
     queryKey: ['client-advocacy-matters', client.id],
@@ -202,6 +205,32 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
   const rows = matters.data ?? [];
   const genuinelyEmpty = matters.data !== undefined && !failed && rows.length === 0;
 
+  // §24 search/filters: Matter title, ask (summary), issue code/PE/bill are
+  // all fields AdvocacyMatterSummary already carries — no server-side
+  // search endpoint needed for the list view, matching the exact
+  // client-side query+filter pattern RelationshipsHistoryTab already uses
+  // elsewhere in this same client-crm surface. Status options are derived
+  // from what's actually present in this client's Matters, not the full
+  // static STATUS_LABEL set — an empty "Withdrawn" chip when nothing here
+  // is withdrawn would be noise, not a real filter.
+  const statusOptions = useMemo(
+    () => ['All', ...Array.from(new Set(rows.map((m) => m.status))).sort()],
+    [rows],
+  );
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter((matter) => {
+      if (statusFilter !== 'All' && matter.status !== statusFilter) return false;
+      if (!q) return true;
+      const haystack = [matter.title, matter.summary, matter.primaryPeCode, matter.primaryBillId]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [rows, query, statusFilter]);
+  const nothingMatchesFilters = !genuinelyEmpty && !failed && !loading && rows.length > 0 && shown.length === 0;
+
   return (
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <TabPageHead
@@ -221,6 +250,34 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
           description="Each Matter groups the advocacy asks, meetings, emails, submissions, filings, bills, Program Elements, and observed outcomes tied to one institutional ask."
           withDesc
         />
+        {!loading && !failed && !genuinelyEmpty ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '0 24px 12px' }}>
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 12px', width: 280,
+                borderRadius: 8, background: '#ffffff', border: '1px solid #E0DCD4',
+                boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
+              }}
+            >
+              <UIcon name="SearchLg" size={20} color="#667085" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                aria-label="Search matters"
+                placeholder="Search title, ask, PE, or bill"
+                style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontSize: 14, color: '#101828' }}
+              />
+            </div>
+            {statusOptions.map((s) => (
+              <FilterChip
+                key={s}
+                label={s === 'All' ? 'All' : STATUS_LABEL[s] ?? s}
+                active={statusFilter === s}
+                onClick={() => setStatusFilter(s)}
+              />
+            ))}
+          </div>
+        ) : null}
         <div style={{ padding: '2px 24px 8px' }}>
           {failed ? (
             <PfEmptyState
@@ -234,12 +291,17 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
               title="No advocacy matters yet"
               hint="Matters are created automatically when Fill with Meri applies an advocacy record (LDA filings, client submissions, or private meeting/email advocacy) and clusters it by Program Element, bill, or subject. An admin can also create one manually."
             />
+          ) : nothingMatchesFilters ? (
+            <PfEmptyState
+              title="No matters match your search"
+              hint="Try a different term, or clear the status filter."
+            />
           ) : (
-            rows.map((matter, i) => (
+            shown.map((matter, i) => (
               <MatterRow
                 key={matter.id}
                 matter={matter}
-                last={i === rows.length - 1}
+                last={i === shown.length - 1}
                 onOpen={() => setOpenMatterId(matter.id)}
               />
             ))
@@ -355,6 +417,37 @@ function MatterSkeletonRow({ last }: { last: boolean }) {
       </span>
       <PfSkeleton width={88} height={22} style={{ borderRadius: 9999 }} />
     </div>
+  );
+}
+
+/** §24 filter chip, matching RelationshipsHistoryTab's exact visual
+ *  pattern in this same client-crm surface (a private component there,
+ *  not exported — reimplemented here rather than reaching across files
+ *  for a one-off styled button). */
+function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        height: 32,
+        padding: '0 12px',
+        borderRadius: 8,
+        background: active ? '#F2F0EB' : hover ? '#FAF9F6' : 'transparent',
+        border: active ? '1px solid #E0DCD4' : '1px solid transparent',
+        color: active ? '#101828' : '#667085',
+        fontSize: 13,
+        fontWeight: active ? 600 : 500,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
