@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -23,6 +24,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
@@ -85,6 +87,41 @@ class RejectClientProfileFillDto {
   @IsString()
   @MaxLength(1000)
   reason?: string;
+}
+
+/** Matches `NewMatterForRecordDto` on the advocacy-matter controller —
+ *  same "create Matter" shape, reused here so a reviewer's "Create new
+ *  Matter" choice on a pending finding goes through identical validation
+ *  to the equivalent action elsewhere in the product. */
+class NewMatterForFindingDto {
+  @IsString()
+  @MaxLength(300)
+  title!: string;
+
+  @IsOptional()
+  @IsIn(['funding_request', 'legislative', 'regulatory', 'program_element', 'community_project', 'procurement', 'other'])
+  matterType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  summary?: string;
+}
+
+/** §22/23 follow-up: "Attach to Matter X" / "Create new Matter" on a
+ *  still-pending advocacy finding. Exactly one of `matterId`/`newMatter`
+ *  is required — enforced in the service, not here, so the error message
+ *  can name both fields together rather than two separate DTO-level
+ *  "required" complaints depending on which one is missing. */
+class AssignFindingMatterDto {
+  @IsOptional()
+  @IsUUID()
+  matterId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NewMatterForFindingDto)
+  newMatter?: NewMatterForFindingDto;
 }
 
 class UpdateClientProfileFillScheduleDto {
@@ -180,6 +217,36 @@ export class ClientProfileFillController {
     @Body() body: ApplyClientProfileFillDto,
   ) {
     return this.service.applyFindings(ctx, clientId, runId, body.findingIds);
+  }
+
+  /** §22/23 follow-up: "Attach to Matter X" / "Create new Matter" directly
+   *  on a pending advocacy_record finding. Same `user_admin` gate as the
+   *  generic apply endpoint above — this is a variant of applying a
+   *  finding, not a lower-trust action. */
+  @Post('runs/:runId/findings/:findingId/assign-matter')
+  @Roles('user_admin')
+  assignFindingMatter(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('runId') runId: string,
+    @Param('findingId') findingId: string,
+    @Body() body: AssignFindingMatterDto,
+  ) {
+    // Constructed explicitly (never `{ matterId: body.matterId! }` when
+    // matterId is undefined) so the service's exactly-one-of check sees a
+    // real absence of the key, not a present key with an undefined value.
+    if (body.newMatter && body.matterId) {
+      throw new BadRequestException('Provide exactly one of matterId or newMatter, not both');
+    }
+    const target = body.newMatter
+      ? { newMatter: body.newMatter }
+      : body.matterId
+        ? { matterId: body.matterId }
+        : null;
+    if (!target) {
+      throw new BadRequestException('Provide exactly one of matterId or newMatter');
+    }
+    return this.service.applyAdvocacyFindingToMatter(ctx, clientId, runId, findingId, target);
   }
 
   @Post('findings/:findingId/reject')
