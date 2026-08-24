@@ -1269,10 +1269,18 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       }
     }
 
-    count += await this.gatherClientSubmissionAdvocacy(ctx, clientId, runId, count);
-    count += await this.gatherPrivateAdvocacyCandidates(ctx, clientId, runId, count);
+    const submissionResult = await this.gatherClientSubmissionAdvocacy(
+      ctx, clientId, runId, count, asString(cursor.lastClientSubmissionAt),
+    );
+    count += submissionResult.count;
+    const privateResult = await this.gatherPrivateAdvocacyCandidates(
+      ctx, clientId, runId, count, asString(cursor.lastRelationshipLinkAppliedAt),
+    );
+    count += privateResult.count;
     await this.recordCursor(ctx.tenantId, clientId, 'advocacy_history', {
       lastLdaPostedAt: newestPostedAt?.toISOString() ?? lastDtPosted ?? null,
+      lastClientSubmissionAt: submissionResult.newestCreatedAt ?? cursor.lastClientSubmissionAt ?? null,
+      lastRelationshipLinkAppliedAt: privateResult.newestAppliedAt ?? cursor.lastRelationshipLinkAppliedAt ?? null,
       refreshedAt: new Date().toISOString(),
     });
     return count;
@@ -1283,25 +1291,28 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     runId: string,
     currentCount: number,
-  ): Promise<number> {
-    if (currentCount >= MAX_ADVOCACY_FINDINGS) return 0;
-    let rows: Array<{ data: unknown; capabilityName: string | null }> = [];
+    lastClientSubmissionAt: string | null,
+  ): Promise<{ count: number; newestCreatedAt: string | null }> {
+    if (currentCount >= MAX_ADVOCACY_FINDINGS) return { count: 0, newestCreatedAt: lastClientSubmissionAt };
+    let rows: Array<{ data: unknown; capabilityName: string | null; createdAt: Date }> = [];
     try {
       rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.$queryRawUnsafe<Array<{ data: unknown; capabilityName: string | null }>>(
-          `SELECT to_jsonb(s) AS data, c.name AS "capabilityName"
+        tx.$queryRawUnsafe<Array<{ data: unknown; capabilityName: string | null; createdAt: Date }>>(
+          `SELECT to_jsonb(s) AS data, c.name AS "capabilityName", s.created_at AS "createdAt"
              FROM client_submission_history s
              JOIN client_capabilities c ON c.id = s.capability_id
             WHERE c.tenant_id = $1::uuid AND c.client_id = $2::uuid
+              AND ($3::timestamptz IS NULL OR s.created_at > $3::timestamptz)
             ORDER BY s.created_at DESC
             LIMIT 100`,
           ctx.tenantId,
           clientId,
+          lastClientSubmissionAt,
         ),
       );
     } catch (error) {
       this.logger.warn(`Client submission advocacy rail unavailable: ${this.safeError(error)}`);
-      return 0;
+      return { count: 0, newestCreatedAt: lastClientSubmissionAt };
     }
     let count = 0;
     for (const row of rows) {
@@ -1345,7 +1356,12 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       });
       if (inserted) count += 1;
     }
-    return count;
+    // rows are ORDER BY created_at DESC — the first row (if any) is always
+    // the newest regardless of how many were skipped by the MAX_ADVOCACY_
+    // FINDINGS cap, so the watermark still advances correctly even on a
+    // capped run.
+    const newestCreatedAt = rows[0]?.createdAt.toISOString() ?? lastClientSubmissionAt;
+    return { count, newestCreatedAt };
   }
 
   private async gatherPrivateAdvocacyCandidates(
@@ -1353,20 +1369,26 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     runId: string,
     currentCount: number,
-  ): Promise<number> {
-    if (currentCount >= MAX_ADVOCACY_FINDINGS) return 0;
+    lastRelationshipLinkAppliedAt: string | null,
+  ): Promise<{ count: number; newestAppliedAt: string | null }> {
+    if (currentCount >= MAX_ADVOCACY_FINDINGS) {
+      return { count: 0, newestAppliedAt: lastRelationshipLinkAppliedAt };
+    }
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$queryRawUnsafe<Array<{ id: string; proposedValue: unknown; evidence: unknown }>>(
+      tx.$queryRawUnsafe<Array<{ id: string; proposedValue: unknown; evidence: unknown; appliedAt: Date | null }>>(
         `SELECT id,
                 proposed_value_jsonb AS "proposedValue",
-                evidence_jsonb AS evidence
+                evidence_jsonb AS evidence,
+                applied_at AS "appliedAt"
            FROM client_profile_fill_finding
           WHERE tenant_id = $1::uuid AND client_id = $2::uuid
             AND kind = 'relationship_link' AND status = 'accepted'
+            AND ($3::timestamptz IS NULL OR applied_at > $3::timestamptz)
           ORDER BY applied_at DESC NULLS LAST
           LIMIT 250`,
         ctx.tenantId,
         clientId,
+        lastRelationshipLinkAppliedAt,
       ),
     );
     let count = 0;
@@ -1412,7 +1434,13 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       });
       if (inserted) count += 1;
     }
-    return count;
+    // ORDER BY applied_at DESC NULLS LAST — the first row with a non-null
+    // appliedAt is the newest watermark candidate; a fully-NULL result set
+    // (or zero rows) leaves the watermark exactly where it was rather than
+    // advancing it on nothing, which would silently make the query above
+    // WIDER on some later run if a NULL applied_at ever got backfilled.
+    const newestAppliedAt = rows.find((r) => r.appliedAt)?.appliedAt?.toISOString() ?? lastRelationshipLinkAppliedAt;
+    return { count, newestAppliedAt };
   }
 
   private async gatherLifecycleOutcomes(
