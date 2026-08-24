@@ -1420,7 +1420,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     runId: string,
   ): Promise<number> {
-    const [findingRows, persistedRecords, outcomes] = await this.prisma.withTenant(
+    const [findingRows, persistedRecords, outcomes, matterIdentifiers] = await this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
         const findings = await tx.$queryRawUnsafe<Array<{ proposedValue: unknown }>>(
@@ -1455,9 +1455,25 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           orderBy: { observedAt: 'desc' },
           take: 250,
         });
-        return [findings, records, events] as const;
+        // §16 deterministic-identifier priority requires matching against
+        // the record's own MATTER's primary_pe_code/primary_bill_id (what
+        // the Matter is actually about), not anything on the individual
+        // record itself -- client_advocacy_record carries no PE/bill field
+        // of its own. One extra lookup, keyed by matter_id, rather than N
+        // per-record round trips.
+        const identifiers = await tx.$queryRawUnsafe<
+          Array<{ id: string; primaryPeCode: string | null; primaryBillId: string | null }>
+        >(
+          `SELECT id, primary_pe_code AS "primaryPeCode", primary_bill_id AS "primaryBillId"
+             FROM client_advocacy_matter
+            WHERE tenant_id = $1::uuid AND client_id = $2::uuid`,
+          ctx.tenantId,
+          clientId,
+        );
+        return [findings, records, events, identifiers] as const;
       },
     );
+    const matterIdentifierById = new Map(matterIdentifiers.map((m) => [m.id, m] as const));
     const advocacy = [
       ...findingRows.map((row) => asRecord(row.proposedValue)),
       ...persistedRecords.map((row) => normalizePersistedAdvocacy(asRecord(row.data))),
@@ -1469,16 +1485,31 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       if (!externalKey || seen.has(externalKey)) continue;
       seen.add(externalKey);
       const activityDate = parseDate(record.activityDate);
+      const matterId = asString(record.matterId);
+      const matterIdentifier = matterId ? matterIdentifierById.get(matterId) : undefined;
       for (const outcome of outcomes) {
         if (activityDate && outcome.observedAt < activityDate) continue;
-        const score = scoreAdvocacyOutcome(record, {
+        const evidence = asRecord(outcome.evidence);
+        const deterministic = matchAdvocacyOutcomeDeterministically(matterIdentifier, evidence);
+        const score = deterministic ? Math.max(0.9, deterministic.score) : scoreAdvocacyOutcome(record, {
           kind: outcome.kind,
           sourceType: outcome.sourceType,
           sourceId: outcome.sourceId,
           notes: outcome.notes,
           evidence: outcome.evidence,
         });
-        if (score < 0.34) continue;
+        if (!deterministic && score < 0.34) continue;
+        // §17 causality contract vocabulary — never a fabricated label. A
+        // deterministic PE/bill match is materially stronger evidence than
+        // pure semantic overlap, but it is still NOT the same as an
+        // explicit source relationship or a human confirmation (§16 steps
+        // 5-6) — "strongly_aligned" is the honest word for it, not
+        // "confirmed_relationship".
+        const relationship: 'strongly_aligned' | 'related' | 'observed_after_advocacy' = deterministic
+          ? 'strongly_aligned'
+          : score >= 0.6
+            ? 'related'
+            : 'observed_after_advocacy';
         const proposedValue = {
           advocacyExternalKey: externalKey,
           outcomeEventId: outcome.id,
@@ -1486,7 +1517,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           observedAt: outcome.observedAt.toISOString(),
           notes: outcome.notes,
           evidence: outcome.evidence,
-          relationship: 'temporally_and_semantically_related',
+          relationship,
+          matchedOn: deterministic?.matchedOn ?? 'semantic_and_temporal',
           causationClaimed: false,
           score,
         };
@@ -1501,12 +1533,15 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           status: 'pending',
           evidence: [
             {
-              label: `Observed outcome “${outcome.kind}” followed a related advocacy record`,
+              label: deterministic
+                ? `Observed outcome "${outcome.kind}" matches this Matter's ${deterministic.matchedOn === 'pe_code' ? 'Program Element' : 'bill'} exactly`
+                : `Observed outcome "${outcome.kind}" followed a related advocacy record`,
               source: 'Capiro Outcome Event',
               metadata: {
                 outcomeEventId: outcome.id,
                 observedAt: outcome.observedAt.toISOString(),
                 causationClaimed: false,
+                matchedOn: deterministic?.matchedOn ?? 'semantic_and_temporal',
               },
             },
           ],
@@ -2457,6 +2492,37 @@ export function calculateProfileCompletion(input: ProfileCompletionInput): Profi
   };
 }
 
+/** §16 outcome-matching priority steps 1-2: exact PE code / exact bill ID.
+ *  Checked BEFORE any semantic scoring — an outcome whose evidence carries
+ *  the SAME PE code or bill number as the record's own Matter is
+ *  materially stronger evidence than token overlap, and must never be
+ *  computed by the same 0.24-baseline formula that a title-similarity
+ *  guess uses. Returns null when no deterministic identifier lines up
+ *  (falls through to scoreAdvocacyOutcome), never a fabricated partial
+ *  match. Steps 3-4 (regulatory docket, appropriations account) are not
+ *  implemented here: OutcomeEvent.evidence has no documented docket/account
+ *  field today (schema comment only documents peCode/billNumber/fiscalYear/
+ *  stage/amountFrom/amountTo) — adding a docket/account check now would
+ *  match against a field that doesn't exist in any evidence payload the
+ *  outcome-detection pipeline actually writes, which is worse than not
+ *  matching at all. Revisit if/when a regulatory or appropriations outcome
+ *  rail starts populating those evidence fields. */
+export function matchAdvocacyOutcomeDeterministically(
+  matter: { primaryPeCode: string | null; primaryBillId: string | null } | undefined,
+  outcomeEvidence: Record<string, unknown>,
+): { matchedOn: 'pe_code' | 'bill_id'; score: number } | null {
+  if (!matter) return null;
+  const evidencePeCode = asString(outcomeEvidence.peCode);
+  if (matter.primaryPeCode && evidencePeCode && evidencePeCode === matter.primaryPeCode) {
+    return { matchedOn: 'pe_code', score: 0.95 };
+  }
+  const evidenceBillNumber = asString(outcomeEvidence.billNumber);
+  if (matter.primaryBillId && evidenceBillNumber && evidenceBillNumber === matter.primaryBillId) {
+    return { matchedOn: 'bill_id', score: 0.95 };
+  }
+  return null;
+}
+
 export function scoreAdvocacyOutcome(
   advocacy: Record<string, unknown>,
   outcome: Record<string, unknown>,
@@ -2525,6 +2591,7 @@ function normalizePersistedAdvocacy(row: Record<string, unknown>) {
     sourceType: row.source_type,
     sourceId: row.source_id,
     metadata: row.metadata_jsonb,
+    matterId: row.matter_id,
   };
 }
 
