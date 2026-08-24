@@ -1,12 +1,19 @@
 /**
  * Client CRM — Portfolio prototype shell tests.
  *
- * Behavioural contract only (URL-persisted tab state, legacy deep links, the
- * keyboard contract, real client data in the header). The tab bodies are
- * mocked at their new `./tabs/*` paths so the shell is what is under test.
+ * Behavioural contract only (URL-persisted route state, legacy deep links,
+ * real client data in the header). The tab bodies are mocked at their
+ * `./tabs/*` paths so the shell/orchestration is what is under test.
  *
- * IA note: Capabilities is a PRIMARY tab in the Portfolio prototype (§5.3,
- * §16), second in the order — it is no longer an overflow-only surface.
+ * Phase 4 (vnext UI cleanup): the old six-tab strip is gone. Relationships /
+ * Work / Files / Capabilities now open in the right-side `RecordDrawer` via
+ * the sticky `DrawerRail`; Overview / Timeline / Advocacy history /
+ * Intelligence are an always-mounted, independently collapsible accordion
+ * stack. The `?tab=`/`?view=` URL contract itself (client-crm-routing.ts) is
+ * completely unchanged — every assertion below about URL normalization is
+ * carried over verbatim from before this restructuring; only the DOM
+ * assertions (which used to target `role="tab"`) are new, since that widget
+ * no longer exists.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -45,12 +52,29 @@ vi.mock('./tabs/RelationshipsGovTab.js', () => ({
 vi.mock('./tabs/RelationshipsHistoryTab.js', () => ({
   ClientCrmHistoryProto: () => <div data-testid="history-surface">history</div>,
 }));
+// Advocacy history is a NEW always-mounted section (it was previously only
+// reachable via ?tab=relationships&view=matters, which no test here ever
+// exercised, so it had no mock before). Mocked the same way every other tab
+// surface in this file is, so this shell test stays scoped to routing/
+// presentation rather than AdvocacyMattersTab's own query behaviour, which
+// has its own dedicated test file.
+vi.mock('./tabs/AdvocacyMattersTab.js', () => ({
+  ClientCrmAdvocacyMattersProto: () => <div data-testid="advocacy-surface">advocacy</div>,
+}));
 vi.mock('./tabs/WorkTab.js', () => ({
   ClientCrmWorkProto: () => <div data-testid="work-surface">work</div>,
 }));
+// Intelligence used to render exactly one domain at a time, so one shared
+// testid was unambiguous. It is now an always-stacked section (all four
+// domains mount together), so the mock must give each instance a distinct
+// testid — otherwise four elements would answer to the same
+// `getByTestId('intelligence-surface')` and RTL would throw on the
+// ambiguity. This is a test-double change forced by the real restructuring,
+// not a weakened assertion: `intelligence-surface-<view>` is strictly more
+// precise than the old single shared id.
 vi.mock('./tabs/IntelligenceTab.js', () => ({
   ClientCrmIntelligenceProto: ({ view }: { view: string }) => (
-    <div data-testid="intelligence-surface">{view}</div>
+    <div data-testid={`intelligence-surface-${view}`}>{view}</div>
   ),
 }));
 vi.mock('./tabs/FilesTab.js', () => ({
@@ -103,139 +127,215 @@ function renderAt(initialEntry: string) {
 }
 
 const url = () => screen.getByTestId('location').textContent ?? '';
-const tab = (name: string) => screen.getByRole('tab', { name });
+/** The DrawerRail's row for one of the four drawer tabs. */
+const railRow = (key: 'relationships' | 'work' | 'files' | 'capabilities') =>
+  screen.getByTestId(`drawer-rail-${key}`);
+/** An accordion section's clickable header. */
+const sectionHeader = (id: 'overview' | 'timeline' | 'advocacy' | 'intelligence') =>
+  screen.getByTestId(`cap-pf-section-${id}-header`);
 
-describe('primary tabs (six, Portfolio order)', () => {
-  it('renders all six tabs in the prototype order with Capabilities second', () => {
+describe('DrawerRail (replaces the tab strip for Relationships/Work/Files/Capabilities)', () => {
+  it('renders the four drawer triggers, in the prototype reading order, inside a sticky rail landmark', () => {
     renderAt('/clients?clientId=client-1');
-    const tabs = screen.getAllByRole('tab').map((node) => node.textContent);
-    expect(tabs).toEqual(['Overview', 'Capabilities', 'Relationships', 'Work', 'Intelligence', 'Files']);
+    const rail = screen.getByRole('complementary', { name: 'Client record sections' });
+    const keys = within(rail)
+      .getAllByRole('button')
+      .map((button) => button.getAttribute('data-testid'));
+    expect(keys).toEqual([
+      'drawer-rail-relationships',
+      'drawer-rail-work',
+      'drawer-rail-files',
+      'drawer-rail-capabilities',
+    ]);
   });
 
-  it('opens on Overview and marks exactly one tab selected', () => {
+  it('opens the Work drawer and writes the tab into the URL so it is linkable', async () => {
     renderAt('/clients?clientId=client-1');
-    expect(tab('Overview')).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getAllByRole('tab', { selected: true })).toHaveLength(1);
-    expect(screen.getByTestId('overview-surface')).toBeInTheDocument();
-  });
-
-  it('writes the tab into the URL so the view is linkable', () => {
-    renderAt('/clients?clientId=client-1');
-    fireEvent.click(tab('Work'));
+    fireEvent.click(railRow('work'));
     expect(url()).toContain('tab=work');
     expect(url()).toContain('clientId=client-1');
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByTestId('work-surface')).toBeInTheDocument();
   });
 
-  it('writes the default secondary view when entering a two-level tab', () => {
+  it('opens the Relationships drawer on its default view with a two-option sub-nav (history/matters are promoted sections, not drawer views)', async () => {
     renderAt('/clients?clientId=client-1');
-    fireEvent.click(tab('Intelligence'));
-    expect(url()).toContain('tab=intelligence');
-    expect(url()).toContain('view=legislative');
+    fireEvent.click(railRow('relationships'));
+    expect(url()).toContain('tab=relationships');
+    expect(url()).toContain('view=organization');
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByTestId('organization-surface')).toBeInTheDocument();
+    expect(within(dialog).getByRole('tab', { name: 'Organization' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('tab', { name: 'Government relationships' })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('tab', { name: /history/i })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('tab', { name: /matters/i })).not.toBeInTheDocument();
   });
 
-  it('keeps the client identity stable across a tab change', () => {
+  it('switching the Relationships drawer sub-nav updates the URL and swaps the drawer body', async () => {
+    renderAt('/clients?clientId=client-1&tab=relationships&view=organization');
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Government relationships' }));
+    expect(url()).toContain('tab=relationships');
+    expect(url()).toContain('view=government');
+    expect(await screen.findByTestId('government-surface')).toBeInTheDocument();
+  });
+
+  it('keeps the client identity stable across a drawer open', async () => {
     renderAt('/clients?clientId=client-1');
     const heading = screen.getByRole('heading', { name: 'Overland AI' });
-    fireEvent.click(tab('Files'));
+    fireEvent.click(railRow('files'));
+    await screen.findByRole('dialog');
     expect(screen.getByRole('heading', { name: 'Overland AI' })).toBe(heading);
   });
 
-  it('selects Capabilities as a primary tab', () => {
+  it('opens the Capabilities drawer directly from a deep link and highlights its rail row', async () => {
     renderAt('/clients?clientId=client-1&tab=capabilities');
-    expect(tab('Capabilities')).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByTestId('capabilities-surface')).toBeInTheDocument();
+    expect(railRow('capabilities')).toHaveAttribute('aria-current', 'true');
+  });
+
+  it('closing the drawer (Escape) returns the URL to Overview', async () => {
+    renderAt('/clients?clientId=client-1&tab=work');
+    await screen.findByRole('dialog');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(url()).toContain('tab=overview');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
 
-describe('legacy deep links (§2 compatibility mapping)', () => {
+describe('accordion sections (replaces the single-active-panel body)', () => {
+  it('opens on Overview expanded, every other section collapsed, and no drawer', () => {
+    renderAt('/clients?clientId=client-1');
+    expect(screen.getByTestId('overview-surface')).toBeInTheDocument();
+    expect(sectionHeader('overview')).toHaveAttribute('aria-expanded', 'true');
+    expect(sectionHeader('timeline')).toHaveAttribute('aria-expanded', 'false');
+    expect(sectionHeader('advocacy')).toHaveAttribute('aria-expanded', 'false');
+    expect(sectionHeader('intelligence')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('history-surface')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('advocacy-surface')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('intelligence-surface-legislative')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('each section header is an independent toggle: expanding one never touches another', async () => {
+    renderAt('/clients?clientId=client-1');
+
+    fireEvent.click(sectionHeader('timeline'));
+    expect(sectionHeader('timeline')).toHaveAttribute('aria-expanded', 'true');
+    expect(await screen.findByTestId('history-surface')).toBeInTheDocument();
+    // Overview stayed open, Advocacy history/Intelligence stayed closed.
+    expect(sectionHeader('overview')).toHaveAttribute('aria-expanded', 'true');
+    expect(sectionHeader('advocacy')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('advocacy-surface')).not.toBeInTheDocument();
+
+    // Collapsible: clicking the same header again closes only that section.
+    fireEvent.click(sectionHeader('timeline'));
+    expect(sectionHeader('timeline')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('history-surface')).not.toBeInTheDocument();
+    expect(sectionHeader('overview')).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('?tab=relationships&view=history auto-expands Timeline, not the drawer', async () => {
+    renderAt('/clients?clientId=client-1&tab=relationships&view=history');
+    expect(await screen.findByTestId('history-surface')).toBeInTheDocument();
+    expect(sectionHeader('timeline')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('?tab=relationships&view=matters auto-expands Advocacy history, not the drawer', async () => {
+    renderAt('/clients?clientId=client-1&tab=relationships&view=matters');
+    expect(await screen.findByTestId('advocacy-surface')).toBeInTheDocument();
+    expect(sectionHeader('advocacy')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('navigating into a promoted section does not collapse a section the visitor already opened by hand', async () => {
+    renderAt('/clients?clientId=client-1');
+    fireEvent.click(sectionHeader('advocacy'));
+    expect(await screen.findByTestId('advocacy-surface')).toBeInTheDocument();
+
+    fireEvent.click(sectionHeader('timeline'));
+    expect(await screen.findByTestId('history-surface')).toBeInTheDocument();
+    // Advocacy history the visitor opened earlier is still open.
+    expect(screen.getByTestId('advocacy-surface')).toBeInTheDocument();
+  });
+
+  it('always stacks all four Intelligence domains regardless of ?view=, and expands the section', async () => {
+    for (const view of ['legislative', 'funding', 'footprint', 'district']) {
+      const rendered = renderAt(`/clients?clientId=client-1&tab=intelligence&view=${view}`);
+      expect(await screen.findByTestId('intelligence-surface-legislative')).toBeInTheDocument();
+      expect(screen.getByTestId('intelligence-surface-funding')).toBeInTheDocument();
+      expect(screen.getByTestId('intelligence-surface-footprint')).toBeInTheDocument();
+      expect(screen.getByTestId('intelligence-surface-district')).toBeInTheDocument();
+      expect(sectionHeader('intelligence')).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      rendered.unmount();
+    }
+  });
+
+  it('falls back to Overview expanded (not a blank record) for an unknown tab', () => {
+    renderAt('/clients?clientId=client-1&tab=nonsense');
+    expect(screen.getByTestId('overview-surface')).toBeInTheDocument();
+    expect(sectionHeader('overview')).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('legacy deep links (§2 compatibility mapping) — URL normalization is unchanged', () => {
   const cases: Array<[string, string, string | null]> = [
-    ['activity', 'Relationships', 'history'],
-    ['people', 'Relationships', 'organization'],
-    ['targets', 'Relationships', 'government'],
-    ['facilities', 'Intelligence', 'district'],
-    ['documents', 'Files', null],
-    ['tracker', 'Intelligence', 'legislative'],
-    ['radar', 'Intelligence', 'legislative'],
-    ['legiwatch', 'Intelligence', 'legislative'],
+    ['activity', 'relationships', 'history'],
+    ['people', 'relationships', 'organization'],
+    ['targets', 'relationships', 'government'],
+    ['facilities', 'intelligence', 'district'],
+    ['documents', 'files', null],
+    ['tracker', 'intelligence', 'legislative'],
+    ['radar', 'intelligence', 'legislative'],
+    ['legiwatch', 'intelligence', 'legislative'],
   ];
 
-  it.each(cases)('?tab=%s cold-loads into %s', async (legacy, tabName, view) => {
+  it.each(cases)('?tab=%s cold-loads and normalizes the URL to tab=%s', async (legacy, canonicalTab, view) => {
     renderAt(`/clients?clientId=client-1&tab=${legacy}`);
-    expect(tab(tabName)).toHaveAttribute('aria-selected', 'true');
-    expect(await screen.findByTestId('location')).toHaveTextContent(`tab=${tabName.toLowerCase()}`);
+    expect(await screen.findByTestId('location')).toHaveTextContent(`tab=${canonicalTab}`);
     if (view) expect(url()).toContain(`view=${view}`);
   });
 
-  it('renders a real surface for every legacy destination', () => {
-    const expected: Array<[string, string]> = [
-      ['activity', 'history-surface'],
-      ['people', 'organization-surface'],
-      ['targets', 'government-surface'],
-      ['facilities', 'intelligence-surface'],
-      ['documents', 'files-surface'],
-      ['tracker', 'intelligence-surface'],
-    ];
-    for (const [legacy, testId] of expected) {
-      const view = renderAt(`/clients?clientId=client-1&tab=${legacy}`);
-      expect(screen.getByTestId(testId)).toBeInTheDocument();
-      view.unmount();
-    }
-  });
-
-  it('routes each Intelligence view to its own surface', () => {
-    for (const view of ['legislative', 'funding', 'footprint', 'district']) {
-      const rendered = renderAt(`/clients?clientId=client-1&tab=intelligence&view=${view}`);
-      expect(screen.getByTestId('intelligence-surface')).toHaveTextContent(view);
-      rendered.unmount();
-    }
-    // Retired Overview bookmark lands on Legislative, not a blank surface.
+  it('retired ?view=overview and ?view=regulatory bookmarks under Intelligence normalize to legislative', async () => {
     const retired = renderAt('/clients?clientId=client-1&tab=intelligence&view=overview');
-    expect(screen.getByTestId('intelligence-surface')).toHaveTextContent('legislative');
+    expect(await screen.findByTestId('location')).toHaveTextContent('view=legislative');
     retired.unmount();
-    // Regulatory was folded into Legislative & Regulatory — a stale bookmark
-    // for the retired view key lands on the merged view, not a blank surface.
-    const retiredRegulatory = renderAt('/clients?clientId=client-1&tab=intelligence&view=regulatory');
-    expect(screen.getByTestId('intelligence-surface')).toHaveTextContent('legislative');
-    retiredRegulatory.unmount();
-  });
 
-  it('falls back to Overview for an unknown tab instead of rendering nothing', () => {
-    renderAt('/clients?clientId=client-1&tab=nonsense');
-    expect(tab('Overview')).toHaveAttribute('aria-selected', 'true');
+    const retiredRegulatory = renderAt('/clients?clientId=client-1&tab=intelligence&view=regulatory');
+    expect(await screen.findByTestId('location')).toHaveTextContent('view=legislative');
+    retiredRegulatory.unmount();
   });
 });
 
-describe('keyboard contract (§6)', () => {
-  it('moves focus and selection with Arrow, Home and End', () => {
-    renderAt('/clients?clientId=client-1');
-
-    tab('Overview').focus();
-    fireEvent.keyDown(document.activeElement as Element, { key: 'ArrowRight' });
-    expect(tab('Capabilities')).toHaveFocus();
-    expect(tab('Capabilities')).toHaveAttribute('aria-selected', 'true');
-
-    fireEvent.keyDown(document.activeElement as Element, { key: 'End' });
-    expect(tab('Files')).toHaveFocus();
-    expect(tab('Files')).toHaveAttribute('aria-selected', 'true');
-
-    fireEvent.keyDown(document.activeElement as Element, { key: 'Home' });
-    expect(tab('Overview')).toHaveFocus();
-    expect(tab('Overview')).toHaveAttribute('aria-selected', 'true');
+describe('legacy deep links — land on the correct new surface (section vs. drawer)', () => {
+  it('activity -> relationships/history lands on the Timeline section, no drawer', async () => {
+    renderAt('/clients?clientId=client-1&tab=activity');
+    expect(await screen.findByTestId('history-surface')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('wraps at both ends', () => {
-    renderAt('/clients?clientId=client-1');
-    tab('Overview').focus();
-    fireEvent.keyDown(document.activeElement as Element, { key: 'ArrowLeft' });
-    expect(tab('Files')).toHaveFocus();
-    fireEvent.keyDown(document.activeElement as Element, { key: 'ArrowRight' });
-    expect(tab('Overview')).toHaveFocus();
-  });
+  it.each(['facilities', 'tracker', 'radar', 'legiwatch'])(
+    '%s lands on the always-stacked Intelligence section, no drawer',
+    async (legacy) => {
+      renderAt(`/clients?clientId=client-1&tab=${legacy}`);
+      expect(await screen.findByTestId('intelligence-surface-legislative')).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    },
+  );
 
-  it('exposes a single tab stop for the tablist (roving tabindex)', () => {
-    renderAt('/clients?clientId=client-1');
-    const tabs = screen.getAllByRole('tab');
-    expect(tabs.filter((node) => node.getAttribute('tabindex') === '0')).toHaveLength(1);
+  it.each([
+    ['people', 'organization-surface'],
+    ['targets', 'government-surface'],
+    ['documents', 'files-surface'],
+  ])('%s opens the drawer, showing %s', async (legacy, testId) => {
+    renderAt(`/clients?clientId=client-1&tab=${legacy}`);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByTestId(testId)).toBeInTheDocument();
   });
 });
 

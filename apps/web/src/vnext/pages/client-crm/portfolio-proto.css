@@ -299,6 +299,16 @@
   gap: 24px;
   align-items: start;
 }
+/* Phase 4 (vnext UI cleanup): the client record body — sticky 296px
+   DrawerRail + the accordion-section stack. 296px is the prototype's own
+   transcribed `recordCols` value (client-profile-standalone decoded dump),
+   not an estimate. */
+.cap-pf-grid-record {
+  display: grid;
+  grid-template-columns: minmax(0, 296px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
 .cap-pf[data-pf-narrow='1'] .cap-pf-grid-intel,
 .cap-pf[data-pf-tight='1'] .cap-pf-grid-intel,
 .cap-pf[data-pf-narrow='1'] .cap-pf-grid-dist,
@@ -310,7 +320,9 @@
 .cap-pf[data-pf-narrow='1'] .cap-pf-grid-featured,
 .cap-pf[data-pf-tight='1'] .cap-pf-grid-featured,
 .cap-pf[data-pf-narrow='1'] .cap-pf-grid-files,
-.cap-pf[data-pf-tight='1'] .cap-pf-grid-files {
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-files,
+.cap-pf[data-pf-narrow='1'] .cap-pf-grid-record,
+.cap-pf[data-pf-tight='1'] .cap-pf-grid-record {
   grid-template-columns: minmax(0, 1fr);
 }
 

@@ -62,36 +62,6 @@
   white-space: nowrap;
 }
 
-.capiro-vnext-root .cap-pf-tab-btn {
-  background: none;
-  border: none;
-  padding: 8px 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--capiro-color-text-muted);
-  cursor: pointer;
-  position: relative;
-  transition: color 120ms;
-  white-space: nowrap;
-}
-.capiro-vnext-root .cap-pf-tab-btn:hover {
-  color: var(--capiro-color-text-primary);
-}
-.capiro-vnext-root .cap-pf-tab-btn[aria-selected="true"] {
-  color: var(--capiro-color-text-primary);
-  font-weight: 600;
-}
-.capiro-vnext-root .cap-pf-tab-btn[aria-selected="true"]::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--capiro-color-text-primary);
-  border-radius: 2px 2px 0 0;
-}
-
 .capiro-vnext-root .cap-pf-overflow-menu {
   position: absolute;
   right: 0;
