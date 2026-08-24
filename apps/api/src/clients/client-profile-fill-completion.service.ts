@@ -2026,17 +2026,43 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     });
   }
 
+  /**
+   * Applies an advocacy_record finding's proposed value as an upsert into
+   * `client_advocacy_record`.
+   *
+   * `matterTarget` distinguishes two callers:
+   *  - Omitted (the generic bulk `applyFindings` path): Matter assignment
+   *    runs via `assignMatterForRecord` in its OWN transaction, AFTER the
+   *    record commit, best-effort — a clustering failure is logged but
+   *    never blocks the accept. This is existing, unchanged behavior.
+   *  - Provided (a human explicitly picked "Attach to Matter X" / "Create
+   *    new Matter" on this pending finding — see
+   *    `applyAdvocacyFindingToMatter`): the record upsert AND the Matter
+   *    assign+lock run inside the SAME transaction. The human's choice is
+   *    the review decision; if the Matter side fails, the whole write
+   *    rolls back rather than silently accepting an unassigned record, and
+   *    the caller never proceeds to `markAccepted` — the finding stays
+   *    pending; the record upsert's own idempotency (ON CONFLICT) plus
+   *    `assignSpecificMatterForRecord`'s already-locked check make a retry
+   *    safe.
+   *
+   * Returns the resolved Matter id when `matterTarget` was provided;
+   * `null` for the untargeted path (nothing new callers need there today).
+   */
   private async applyAdvocacyRecord(
     ctx: TenantContext,
     clientId: string,
     finding: AdvancedFindingRow,
-  ) {
+    matterTarget?: { matterId: string } | { newMatter: { title: string; matterType?: string; summary?: string | null } },
+  ): Promise<string | null> {
     const proposed = asRecord(finding.proposedValue);
     const externalKey = requiredString(proposed.externalKey, 'Advocacy external key');
     const title = requiredString(proposed.title, 'Advocacy title');
     const recordType = requiredString(proposed.recordType, 'Advocacy record type');
     const sourceType = requiredString(proposed.sourceType, 'Advocacy source type');
     const evidenceClass = normalizeEvidenceClass(proposed.evidenceClass);
+    const activityDate = asString(proposed.activityDate);
+    let targetedMatterId: string | null = null;
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await tx.$executeRawUnsafe(
         `INSERT INTO client_advocacy_record
@@ -2067,7 +2093,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         recordType,
         title,
         asString(proposed.summary),
-        asString(proposed.activityDate) ?? '',
+        activityDate ?? '',
         asString(proposed.status),
         asString(proposed.outcome),
         sourceType,
@@ -2080,7 +2106,20 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         ctx.userId,
       );
       await this.auditAdvanced(tx, ctx, clientId, finding, null, proposed);
+      if (matterTarget) {
+        // Same transaction as the upsert above — a human-directed Matter
+        // choice must commit atomically with the record it applies to.
+        targetedMatterId = await this.advocacyMatters.assignSpecificMatterForRecord(
+          tx,
+          ctx,
+          clientId,
+          externalKey,
+          matterTarget,
+          activityDate,
+        );
+      }
     });
+    if (matterTarget) return targetedMatterId;
     // Assigns/creates the Advocacy Matter this record belongs to. Runs as
     // its own transaction (not nested in the upsert above — Prisma does not
     // support nesting interactive transactions on one client) immediately
@@ -2092,13 +2131,84 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         recordType,
         title,
         metadata: asRecord(proposed.metadata),
-        activityDate: asString(proposed.activityDate),
+        activityDate,
       });
     } catch (error) {
       this.logger.warn(
         `Advocacy matter assignment failed for ${clientId}/${externalKey}: ${this.safeError(error)}`,
       );
     }
+    return null;
+  }
+
+  /**
+   * §22/23 follow-up: a reviewer picks "Attach to Matter X" / "Create new
+   * Matter" directly on a still-pending advocacy_record finding. That
+   * choice IS the review/approval decision — there is no separate staging
+   * queue, no "save for later" state, and no second apply workflow. This
+   * commits immediately: record upsert + Matter assign/lock (atomic, see
+   * `applyAdvocacyRecord`) then `markAccepted` through the SAME
+   * accept/audit path every other applied finding uses.
+   *
+   * Idempotent: if the finding is already `accepted` (a duplicate
+   * invocation — e.g. a double-click, or a client retry after a response
+   * was lost in transit), this makes NO writes at all and simply returns
+   * the Matter the record already resolved to, read fresh. It does not
+   * matter whether the retry's `target` matches the original choice —
+   * once a finding is accepted, this method's job is done; further
+   * correction goes through the existing reassign/detach/merge paths, not
+   * a second application of this action.
+   */
+  async applyAdvocacyFindingToMatter(
+    ctx: TenantContext,
+    clientId: string,
+    runId: string,
+    findingId: string,
+    target: { matterId: string } | { newMatter: { title: string; matterType?: string; summary?: string | null } },
+  ): Promise<{ findingId: string; matterId: string | null; alreadyApplied: boolean }> {
+    if ('matterId' in target === 'newMatter' in target) {
+      throw new BadRequestException('Provide exactly one of matterId or newMatter');
+    }
+    const findings = await this.loadFindings(ctx.tenantId, clientId, runId, [findingId]);
+    const finding = findings[0];
+    if (!finding) throw new BadRequestException('Finding is no longer available');
+    if (finding.kind !== 'advocacy_record') {
+      throw new BadRequestException('Only advocacy findings support direct Matter assignment');
+    }
+
+    if (finding.status === 'accepted') {
+      const currentMatterId = await this.lookupAppliedAdvocacyMatterId(ctx, clientId, finding);
+      return { findingId, matterId: currentMatterId, alreadyApplied: true };
+    }
+    if (finding.status !== 'pending') {
+      throw new BadRequestException('Only pending findings can be applied');
+    }
+
+    const matterId = await this.applyAdvocacyRecord(ctx, clientId, finding, target);
+    await this.markAccepted(ctx, clientId, finding.id);
+    return { findingId, matterId, alreadyApplied: false };
+  }
+
+  /** Read-only lookup used by the idempotent-replay branch of
+   *  `applyAdvocacyFindingToMatter` — never writes anything. */
+  private async lookupAppliedAdvocacyMatterId(
+    ctx: TenantContext,
+    clientId: string,
+    finding: AdvancedFindingRow,
+  ): Promise<string | null> {
+    const proposed = asRecord(finding.proposedValue);
+    const externalKey = asString(proposed.externalKey);
+    if (!externalKey) return null;
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ matterId: string | null }>>(
+        `SELECT matter_id AS "matterId" FROM client_advocacy_record
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND external_key = $3`,
+        ctx.tenantId,
+        clientId,
+        externalKey,
+      ),
+    );
+    return rows[0]?.matterId ?? null;
   }
 
   private async applyAdvocacyOutcome(

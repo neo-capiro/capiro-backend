@@ -68,6 +68,14 @@ export function ClientCrmPage({ client }: { client: Client }) {
   const [archiving, setArchiving] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // §22/23 follow-up: set when "Attach to Matter" / "Create new Matter"
+  // commits from inside the Fill-with-Meri drawer, then read once by
+  // ClientCrmAdvocacyMattersProto (initialOpenMatterId) after navigating
+  // there. Not itself part of the URL route contract — it's a one-shot
+  // handoff, not a bookmarkable destination (the Matter's OWN id is not
+  // meant to be deep-linkable here any more than any other single-item
+  // open action on this page is).
+  const [pendingOpenMatterId, setPendingOpenMatterId] = useState<string | null>(null);
   const api = useApi();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -194,6 +202,8 @@ export function ClientCrmPage({ client }: { client: Client }) {
           onEditProfile={() => setEditing(true)}
           canManageClients={canManageClients}
           onFillWithMeri={runFillWithMeri}
+          pendingOpenMatterId={pendingOpenMatterId}
+          onOpenMatterConsumed={() => setPendingOpenMatterId(null)}
         />
       </ClientProfileShell>
       {fillOpen ? (
@@ -203,6 +213,11 @@ export function ClientCrmPage({ client }: { client: Client }) {
           open
           onClose={() => setFillOpen(false)}
           initialWebsite={client.website}
+          onOpenMatter={(matterId) => {
+            setPendingOpenMatterId(matterId);
+            setFillOpen(false);
+            goTo('relationships', 'matters');
+          }}
         />
       ) : null}
       {healthOpen ? (
@@ -246,6 +261,8 @@ function ClientCrmBody({
   onEditProfile,
   canManageClients,
   onFillWithMeri,
+  pendingOpenMatterId,
+  onOpenMatterConsumed,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
@@ -253,6 +270,11 @@ function ClientCrmBody({
   onEditProfile: () => void;
   canManageClients: boolean;
   onFillWithMeri: () => void;
+  /** §22/23 follow-up: a Matter id to open once, handed off from the
+   *  Fill-with-Meri drawer after "Attach to Matter"/"Create new Matter"
+   *  committed. Only meaningful when `route.view === 'matters'`. */
+  pendingOpenMatterId?: string | null;
+  onOpenMatterConsumed?: () => void;
 }) {
   const views =
     route.tab === 'relationships'
@@ -283,6 +305,8 @@ function ClientCrmBody({
         onEditProfile={canManageClients ? onEditProfile : undefined}
         canManageClients={canManageClients}
         onNavigate={onNavigate}
+        pendingOpenMatterId={pendingOpenMatterId}
+        onOpenMatterConsumed={onOpenMatterConsumed}
       />
     </div>
   );
@@ -294,12 +318,16 @@ function ClientCrmSurface({
   onEditProfile,
   canManageClients,
   onNavigate,
+  pendingOpenMatterId,
+  onOpenMatterConsumed,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
   onEditProfile?: () => void;
   canManageClients: boolean;
   onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
+  pendingOpenMatterId?: string | null;
+  onOpenMatterConsumed?: () => void;
 }) {
   if (route.tab === 'overview')
     return (
@@ -315,7 +343,15 @@ function ClientCrmSurface({
   if (route.tab === 'relationships') {
     if (route.view === 'government') return <ClientCrmGovernmentProto client={client} />;
     if (route.view === 'history') return <ClientCrmHistoryProto client={client} />;
-    if (route.view === 'matters') return <ClientCrmAdvocacyMattersProto client={client} />;
+    if (route.view === 'matters') {
+      return (
+        <ClientCrmAdvocacyMattersProto
+          client={client}
+          initialOpenMatterId={pendingOpenMatterId}
+          onOpenMatterConsumed={onOpenMatterConsumed}
+        />
+      );
+    }
     return <ClientCrmOrganizationProto client={client} />;
   }
   if (route.tab === 'work') return <ClientCrmWorkProto client={client} />;
