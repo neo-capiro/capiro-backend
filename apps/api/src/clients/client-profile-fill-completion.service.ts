@@ -8,6 +8,7 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
+import { HttpAdapterHost } from '@nestjs/core';
 import { IntelligenceService } from '../intelligence/intelligence.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -195,12 +196,26 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     private readonly fill: ClientProfileFillService,
     private readonly intelligence: IntelligenceService,
     private readonly facilities: ClientFacilitiesService,
+    private readonly httpAdapterHost: HttpAdapterHost,
   ) {}
 
   onModuleInit(): void {
     if (
       process.env.NODE_ENV === 'test' ||
-      process.env.CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED === 'false'
+      process.env.CLIENT_PROFILE_FILL_COMPLETION_WORKER_ENABLED === 'false' ||
+      // `NestFactory.createApplicationContext(AppModule, ...)` (e.g. the
+      // LegiWatch Phase 9 one-shot CLI bootstraps, and any future one-off
+      // script that reuses the full AppModule) never registers an HTTP
+      // adapter, so `httpAdapterHost.httpAdapter` stays unset there. Those
+      // processes run their one job in ~1s and call `app.close()`, which
+      // disconnects PrismaService — starting this sweep loop in that context
+      // means its interval-scheduled `withSystem`/`withTenant` call races the
+      // disconnect and throws "Transaction API error: Transaction not found
+      // ... obtained before disconnecting" on every invocation. Only the real
+      // long-running server (`apps/api/src/main.ts`, `NestFactory.create`)
+      // has a populated httpAdapter. See ClientProfileFillWorkflowService's
+      // identical guard for the same class of bug.
+      !this.httpAdapterHost?.httpAdapter
     ) {
       return;
     }
