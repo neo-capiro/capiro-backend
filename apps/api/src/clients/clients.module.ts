@@ -22,6 +22,8 @@ import { ClientProfileFillContextPlaneService } from './client-profile-fill-cont
 import { ClientProfileFillWorkflowService } from './client-profile-fill-workflow.service.js';
 import { ClientProfileFillRelationshipHistoryService } from './client-profile-fill-relationship-history.service.js';
 import { ClientProfileFillCompletionService } from './client-profile-fill-completion.service.js';
+import { ClientAdvocacyMatterController } from './client-advocacy-matter.controller.js';
+import { ClientAdvocacyMatterService } from './client-advocacy-matter.service.js';
 import {
   createGovernedClientProfileFillService,
   RAW_CLIENT_PROFILE_FILL_SERVICE,
@@ -75,6 +77,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     ClientTargetRecommendationsController,
     ClientCapabilityFitController,
     ClientProfileFillController,
+    ClientAdvocacyMatterController,
     ClientActivityController,
     ClientFilesController,
     ClientAccountOwnerController,
@@ -114,6 +117,10 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     // It keeps advanced task types isolated from the Phase 1-3 worker while
     // presenting one run/progress contract to the client-profile UI.
     ClientProfileFillCompletionService,
+    // Advocacy Matter clustering/assignment + read API. Injected into the
+    // completion service so applyAdvocacyRecord can assign a Matter in the
+    // same transaction as the record upsert.
+    ClientAdvocacyMatterService,
     ClientActivityService,
     ClientFilesService,
     ClientAccountOwnerService,

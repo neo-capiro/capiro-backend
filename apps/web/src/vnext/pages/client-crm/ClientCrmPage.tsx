@@ -7,6 +7,7 @@ import { ClientCrmCapabilitiesProto } from './tabs/CapabilitiesTab.js';
 import { ClientCrmOrganizationProto } from './tabs/RelationshipsOrgTab.js';
 import { ClientCrmGovernmentProto } from './tabs/RelationshipsGovTab.js';
 import { ClientCrmHistoryProto } from './tabs/RelationshipsHistoryTab.js';
+import { ClientCrmAdvocacyMattersProto } from './tabs/AdvocacyMattersTab.js';
 import { ClientCrmWorkProto } from './tabs/WorkTab.js';
 import { ClientCrmIntelligenceProto } from './tabs/IntelligenceTab.js';
 import { ClientCrmFilesProto } from './tabs/FilesTab.js';
@@ -314,6 +315,7 @@ function ClientCrmSurface({
   if (route.tab === 'relationships') {
     if (route.view === 'government') return <ClientCrmGovernmentProto client={client} />;
     if (route.view === 'history') return <ClientCrmHistoryProto client={client} />;
+    if (route.view === 'matters') return <ClientCrmAdvocacyMattersProto client={client} />;
     return <ClientCrmOrganizationProto client={client} />;
   }
   if (route.tab === 'work') return <ClientCrmWorkProto client={client} />;

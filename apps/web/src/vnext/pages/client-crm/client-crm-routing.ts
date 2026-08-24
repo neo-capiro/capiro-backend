@@ -22,7 +22,7 @@ export type CrmTab = (typeof CRM_TABS)[number];
 /** `capabilities` IS a primary tab in the Portfolio prototype (§5.3, §16). */
 export type CrmSurface = CrmTab;
 
-export const RELATIONSHIP_VIEWS = ['organization', 'government', 'history'] as const;
+export const RELATIONSHIP_VIEWS = ['organization', 'government', 'history', 'matters'] as const;
 export type RelationshipView = (typeof RELATIONSHIP_VIEWS)[number];
 
 /**
@@ -166,6 +166,7 @@ export const RELATIONSHIP_VIEW_LABELS: Array<{ key: RelationshipView; label: str
   { key: 'organization', label: 'Organization' },
   { key: 'government', label: 'Government relationships' },
   { key: 'history', label: 'Relationship history' },
+  { key: 'matters', label: 'Advocacy matters' },
 ];
 
 export const INTELLIGENCE_VIEW_LABELS: Array<{ key: IntelligenceView; label: string }> = [
