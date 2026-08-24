@@ -1,13 +1,15 @@
 import { useState, type ChangeEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
 import { CapiroBadge } from '../../components/badges/index.js';
-import { CapiroDrawer } from '../../components/overlays/index.js';
+import { CapiroDrawer, CapiroModal } from '../../components/overlays/index.js';
 import { useApi } from '../../../lib/use-api.js';
 import {
   errorText,
   useClientFillWithMeri,
   type FillFinding,
 } from '../../adapters/legacy/useClientFillWithMeri.js';
+import type { AdvocacyMatterSummary } from './tabs/AdvocacyMattersTab.js';
 
 /**
  * Fill with Meri — enrichment review (Figma `1244:4222` §4).
@@ -22,6 +24,7 @@ export function ClientFillWithMeriDrawer({
   open,
   onClose,
   initialWebsite = '',
+  onOpenMatter,
 }: {
   clientId: string;
   clientName: string;
@@ -29,6 +32,11 @@ export function ClientFillWithMeriDrawer({
   onClose: () => void;
   /** Prefill the drawer website field from the live client profile. */
   initialWebsite?: string | null;
+  /** §22/23 follow-up: after "Attach to Matter" / "Create new Matter"
+   *  commits, the caller navigates to and opens that Matter (Relationships
+   *  → Advocacy matters). Optional — omitting it just skips the
+   *  navigate-and-open step; the assignment itself still applies. */
+  onOpenMatter?: (matterId: string) => void;
 }) {
   const fill = useClientFillWithMeri(clientId, open);
   const api = useApi();
@@ -37,6 +45,18 @@ export function ClientFillWithMeriDrawer({
   const [selectedAttachmentId, setSelectedAttachmentId] = useState<string | null>(null);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [websiteInput, setWebsiteInput] = useState(initialWebsite ?? '');
+
+  // Same query key AdvocacyMattersTab uses, so this shares its cache rather
+  // than issuing a second, redundant request, and the "Attach to Matter"
+  // picker's options are byte-identical to what the Matters tab shows.
+  // Only fetched once the drawer is open AND at least one advocacy finding
+  // exists — enabled below at the call site, not here, to avoid a request
+  // firing before there is anything to attach.
+  const mattersForPicker = useQuery<AdvocacyMatterSummary[]>({
+    queryKey: ['client-advocacy-matters', clientId],
+    queryFn: async () => (await api.get<AdvocacyMatterSummary[]>(`/api/clients/${clientId}/advocacy-matters`)).data,
+    enabled: open,
+  });
 
   const persistedAttachmentId = documentAttachmentId(fill.run?.sourceStates);
 
@@ -157,7 +177,14 @@ export function ClientFillWithMeriDrawer({
         {uploadError ? <p className="capiro-crm__foot capiro-crm__state--error">{uploadError}</p> : null}
         {retryError ? <p className="capiro-crm__foot capiro-crm__state--error">{retryError}</p> : null}
 
-        <FillBody fill={fill} onClose={onClose} onRetry={retrySelectedDocument} onStart={startEnrichment} />
+        <FillBody
+          fill={fill}
+          onClose={onClose}
+          onRetry={retrySelectedDocument}
+          onStart={startEnrichment}
+          matterOptions={mattersForPicker.data ?? []}
+          onOpenMatter={onOpenMatter}
+        />
       </div>
     </CapiroDrawer>
   );
@@ -193,11 +220,15 @@ function FillBody({
   onClose,
   onRetry,
   onStart,
+  matterOptions,
+  onOpenMatter,
 }: {
   fill: Fill;
   onClose: () => void;
   onRetry: () => void;
   onStart: () => void;
+  matterOptions: AdvocacyMatterSummary[];
+  onOpenMatter?: (matterId: string) => void;
 }) {
   switch (fill.phase) {
     case 'idle':
@@ -307,7 +338,7 @@ function FillBody({
     case 'partial':
     case 'proposals':
     default:
-      return <FillProposals fill={fill} />;
+      return <FillProposals fill={fill} matterOptions={matterOptions} onOpenMatter={onOpenMatter} />;
   }
 }
 
@@ -340,7 +371,15 @@ function isAdvocacyFinding(finding: FillFinding): boolean {
   return finding.kind === 'advocacy_record' || finding.kind === 'advocacy_outcome';
 }
 
-function FillProposals({ fill }: { fill: Fill }) {
+function FillProposals({
+  fill,
+  matterOptions,
+  onOpenMatter,
+}: {
+  fill: Fill;
+  matterOptions: AdvocacyMatterSummary[];
+  onOpenMatter?: (matterId: string) => void;
+}) {
   const { proposals, selected } = fill;
   const allSelected = proposals.length > 0 && selected.size === proposals.length;
   const advocacyProposals = proposals.filter(isAdvocacyFinding);
@@ -378,6 +417,13 @@ function FillProposals({ fill }: { fill: Fill }) {
                 checked={selected.has(finding.id)}
                 onToggle={() => fill.toggle(finding.id)}
                 onNotAdvocacy={() => fill.rejectFinding(finding.id, 'Not advocacy (reviewed in Fill with Meri)')}
+                matterOptions={matterOptions}
+                onAssignMatter={
+                  finding.kind === 'advocacy_record'
+                    ? (target) => fill.assignFindingMatter(finding.id, target)
+                    : undefined
+                }
+                onOpenMatter={onOpenMatter}
               />
             ))}
           </ul>
@@ -544,11 +590,22 @@ function AdvocacyFindingRow({
   checked,
   onToggle,
   onNotAdvocacy,
+  matterOptions,
+  onAssignMatter,
+  onOpenMatter,
 }: {
   finding: FillFinding;
   checked: boolean;
   onToggle: () => void;
   onNotAdvocacy: () => void;
+  matterOptions: AdvocacyMatterSummary[];
+  /** Undefined for advocacy_outcome findings — there is no standalone
+   *  record here to attach directly; an outcome always links through an
+   *  already-applied advocacy_record's Matter instead. */
+  onAssignMatter?: (
+    target: { matterId: string } | { newMatter: { title: string; matterType?: string; summary?: string | null } },
+  ) => Promise<{ findingId: string; matterId: string | null; alreadyApplied: boolean }>;
+  onOpenMatter?: (matterId: string) => void;
 }) {
   const inputId = `fill-advocacy-${finding.id}`;
   const proposed = finding.proposedValue as Record<string, unknown> | null | undefined;
@@ -561,6 +618,31 @@ function AdvocacyFindingRow({
     (typeof proposed?.observedAt === 'string' && proposed.observedAt) ||
     null;
   const isOutcome = finding.kind === 'advocacy_outcome';
+
+  const [assigning, setAssigning] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+
+  // Non-optimistic by design (per §22/23 follow-up requirement): this
+  // write creates/locks real server state (a Matter, a record's
+  // matter_id, the finding's accepted status) that cannot be cleanly
+  // rolled back on the client if the request fails partway — so the UI
+  // shows a short "Applying…" state and only reflects the change once the
+  // server confirms, rather than assuming success and unwinding later.
+  const handleAssign = async (target: { matterId: string } | { newMatter: { title: string } }) => {
+    if (!onAssignMatter) return;
+    setApplying(true);
+    setAssignError(null);
+    try {
+      const result = await onAssignMatter(target);
+      setAssigning(false);
+      if (result.matterId) onOpenMatter?.(result.matterId);
+    } catch (error) {
+      setAssignError(errorText(error, 'Could not assign this finding to a matter.'));
+    } finally {
+      setApplying(false);
+    }
+  };
 
   return (
     <li className="capiro-crm-fill__item capiro-crm-fill__item--advocacy">
@@ -610,12 +692,145 @@ function AdvocacyFindingRow({
         ) : null}
 
         <div className="capiro-crm-fill__row-actions">
-          <CapiroButton variant="quiet" size="compact" onClick={onNotAdvocacy}>
+          {onAssignMatter ? (
+            <CapiroButton variant="quiet" size="compact" disabled={applying} onClick={() => setAssigning(true)}>
+              Attach to Matter…
+            </CapiroButton>
+          ) : null}
+          <CapiroButton variant="quiet" size="compact" disabled={applying} onClick={onNotAdvocacy}>
             Not advocacy
           </CapiroButton>
         </div>
       </div>
+
+      {assigning ? (
+        <CapiroModal open title="Attach to a Matter" onClose={() => setAssigning(false)}>
+          <AssignFindingMatterForm
+            findingTitle={title}
+            matterOptions={matterOptions}
+            busy={applying}
+            error={assignError}
+            onCancel={() => setAssigning(false)}
+            onAttach={(matterId) => handleAssign({ matterId })}
+            onCreate={(newTitle) => handleAssign({ newMatter: { title: newTitle } })}
+          />
+        </CapiroModal>
+      ) : null}
     </li>
+  );
+}
+
+/** §22/23 follow-up: the picker shown when a reviewer clicks "Attach to
+ *  Matter…" on a still-pending advocacy finding. Mirrors
+ *  `RecordActionForm`'s reassign UI in AdvocacyMattersTab.tsx (existing-
+ *  Matter select) plus a "create new" toggle for the other half of the
+ *  same action — picking a target Matter and creating one are the same
+ *  decision from the reviewer's point of view, not two different flows. */
+function AssignFindingMatterForm({
+  findingTitle,
+  matterOptions,
+  busy,
+  error,
+  onCancel,
+  onAttach,
+  onCreate,
+}: {
+  findingTitle: string;
+  matterOptions: AdvocacyMatterSummary[];
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onAttach: (matterId: string) => void;
+  onCreate: (title: string) => void;
+}) {
+  const [mode, setMode] = useState<'existing' | 'new'>(matterOptions.length > 0 ? 'existing' : 'new');
+  const [matterId, setMatterId] = useState('');
+  const [newTitle, setNewTitle] = useState(findingTitle);
+
+  return (
+    <div className="capiro-crm-fill__assign-matter">
+      <p className="capiro-crm__foot">
+        This applies the finding immediately — the same as ticking it and clicking Apply, plus
+        assigning it to the matter you choose here. It is not a draft; there is nothing to review
+        again afterward besides the usual reassign/detach correction on the Matters tab.
+      </p>
+
+      {matterOptions.length > 0 ? (
+        <div className="capiro-crm-fill__assign-matter-mode" role="radiogroup" aria-label="Matter target">
+          <label>
+            <input
+              type="radio"
+              name="assign-matter-mode"
+              checked={mode === 'existing'}
+              onChange={() => setMode('existing')}
+              disabled={busy}
+            />
+            Attach to an existing matter
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="assign-matter-mode"
+              checked={mode === 'new'}
+              onChange={() => setMode('new')}
+              disabled={busy}
+            />
+            Create a new matter
+          </label>
+        </div>
+      ) : (
+        <p className="capiro-crm__meta">No matters exist for this client yet — this will create the first one.</p>
+      )}
+
+      {mode === 'existing' && matterOptions.length > 0 ? (
+        <select value={matterId} onChange={(event) => setMatterId(event.target.value)} disabled={busy}>
+          <option value="">Select a matter…</option>
+          {matterOptions.map((matter) => (
+            <option key={matter.id} value={matter.id}>
+              {matter.title}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <label className="capiro-crm-fill__field">
+          Matter title
+          <input
+            type="text"
+            value={newTitle}
+            onChange={(event) => setNewTitle(event.target.value)}
+            disabled={busy}
+            maxLength={300}
+          />
+        </label>
+      )}
+
+      {error ? <p className="capiro-crm__foot capiro-crm__state--error">{error}</p> : null}
+
+      <div className="capiro-crm-fill__actions">
+        <CapiroButton variant="secondary" size="compact" onClick={onCancel} disabled={busy}>
+          Cancel
+        </CapiroButton>
+        {mode === 'existing' && matterOptions.length > 0 ? (
+          <CapiroButton
+            variant="primary"
+            size="compact"
+            disabled={busy || !matterId}
+            onClick={() => onAttach(matterId)}
+          >
+            {busy ? 'Applying…' : 'Attach'}
+          </CapiroButton>
+        ) : (
+          <CapiroButton
+            variant="primary"
+            size="compact"
+            disabled={busy || !newTitle.trim()}
+            onClick={() => onCreate(newTitle.trim())}
+          >
+            {busy ? 'Applying…' : 'Create matter'}
+          </CapiroButton>
+        )}
+      </div>
+    </div>
   );
 }
 

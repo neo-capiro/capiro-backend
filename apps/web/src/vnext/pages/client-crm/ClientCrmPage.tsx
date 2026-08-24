@@ -76,6 +76,14 @@ export function ClientCrmPage({ client }: { client: Client }) {
   const [archiving, setArchiving] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // §22/23 follow-up: set when "Attach to Matter" / "Create new Matter"
+  // commits from inside the Fill-with-Meri drawer, then read once by
+  // ClientCrmAdvocacyMattersProto (initialOpenMatterId) after navigating
+  // there. Not itself part of the URL route contract — it's a one-shot
+  // handoff, not a bookmarkable destination (the Matter's OWN id is not
+  // meant to be deep-linkable here any more than any other single-item
+  // open action on this page is).
+  const [pendingOpenMatterId, setPendingOpenMatterId] = useState<string | null>(null);
   const api = useApi();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -216,6 +224,8 @@ export function ClientCrmPage({ client }: { client: Client }) {
           onNavigate={goTo}
           onEditProfile={() => setEditing(true)}
           canManageClients={canManageClients}
+          pendingOpenMatterId={pendingOpenMatterId}
+          onOpenMatterConsumed={() => setPendingOpenMatterId(null)}
         />
       </ClientProfileShell>
       {fillOpen ? (
@@ -225,6 +235,11 @@ export function ClientCrmPage({ client }: { client: Client }) {
           open
           onClose={() => setFillOpen(false)}
           initialWebsite={client.website}
+          onOpenMatter={(matterId) => {
+            setPendingOpenMatterId(matterId);
+            setFillOpen(false);
+            goTo('relationships', 'matters');
+          }}
         />
       ) : null}
       {healthOpen ? (
@@ -324,12 +339,20 @@ function ClientCrmBody({
   onNavigate,
   onEditProfile,
   canManageClients,
+  pendingOpenMatterId,
+  onOpenMatterConsumed,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
   onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
   onEditProfile: () => void;
   canManageClients: boolean;
+  /** §22/23 follow-up: a Matter id to open once, handed off from the
+   *  Fill-with-Meri drawer after "Attach to Matter"/"Create new Matter"
+   *  committed. Only meaningful when the Advocacy history section is the
+   *  one rendering `ClientCrmAdvocacyMattersProto`. */
+  pendingOpenMatterId?: string | null;
+  onOpenMatterConsumed?: () => void;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<SectionId>>(() => {
     // Overview is always open on first render — the record must never look
@@ -415,7 +438,11 @@ function ClientCrmBody({
         onToggle={() => toggle('advocacy')}
         sectionRef={refFor('advocacy')}
       >
-        <ClientCrmAdvocacyMattersProto client={client} />
+        <ClientCrmAdvocacyMattersProto
+          client={client}
+          initialOpenMatterId={pendingOpenMatterId}
+          onOpenMatterConsumed={onOpenMatterConsumed}
+        />
       </AccordionSection>
 
       <AccordionSection

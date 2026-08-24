@@ -1050,6 +1050,27 @@
   padding-top: var(--capiro-space-03);
 }
 
+/* §22/23 follow-up: "Attach to Matter" / "Create new Matter" picker shown
+   from a pending advocacy finding's row action. */
+.capiro-vnext-root .capiro-crm-fill__assign-matter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-03);
+}
+
+.capiro-vnext-root .capiro-crm-fill__assign-matter-mode {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-02);
+  font-size: var(--crm-body-sm-size);
+}
+
+.capiro-vnext-root .capiro-crm-fill__assign-matter-mode label {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-01);
+}
+
 /* ── Organization (906:2790) — canvas 972 + 20 + settings 328 = 1320 ─────── */
 
 .capiro-vnext-root .capiro-crm__grid--org {
