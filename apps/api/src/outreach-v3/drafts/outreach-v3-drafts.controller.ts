@@ -38,9 +38,49 @@ export class OutreachV3DraftsController {
     private readonly refinements: OutreachV3DraftRefineService,
   ) {}
 
+  /**
+   * Draft artifacts for this campaign, with V3 author approval resolved.
+   *
+   * `listForOutreach` returns the raw `approval_status` COLUMN, but V3 approval
+   * is event-sourced: `POST :versionId/approval` appends a
+   * `draft_version_approved` event and deliberately never rewrites the
+   * immutable version row. So the column stays `not_required` forever and the
+   * list reported every draft as unapproved no matter how many times the user
+   * clicked "This is good — approve" — a silent no-op, because the request
+   * returned 200 and the refetched list looked unchanged.
+   *
+   * Send already resolves approval the correct way (via
+   * `approvals.getCurrentApproval`, which reads the event and re-verifies the
+   * exact-version identity). Reading it here too makes the review surface agree
+   * with the gate that actually governs sending, instead of contradicting it.
+   *
+   * Resolution is per-version and plan-aware: an approval is only surfaced when
+   * `getCurrentApproval` confirms it still matches the current plan hash and the
+   * artifact's current version, so editing or regenerating a draft correctly
+   * drops it back to unapproved.
+   */
   @Get()
-  list(@CurrentTenant() ctx: TenantContext, @Param('sessionId', ParseUUIDPipe) sessionId: string) {
-    return this.drafts.listForOutreach(ctx, sessionId);
+  async list(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+  ) {
+    const artifacts = await this.drafts.listForOutreach(ctx, sessionId);
+    return Promise.all(
+      artifacts.map(async (artifact) => {
+        const current = artifact.current;
+        // Only the artifact's CURRENT version is approvable, and a version that
+        // already carries a terminal column verdict needs no overlay.
+        if (!current || current.approvalStatus === 'approved') return artifact;
+        const approval = await this.approvals
+          .getCurrentApproval(ctx, sessionId, current.id)
+          .catch(() => null);
+        if (!approval) return artifact;
+        return {
+          ...artifact,
+          current: { ...current, approvalStatus: 'approved' as const },
+        };
+      }),
+    );
   }
 
   @Get(':versionId')
