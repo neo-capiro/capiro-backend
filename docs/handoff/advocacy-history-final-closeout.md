@@ -1,6 +1,6 @@
 # Advocacy History — Closeout Handoff
 
-Status: **PR #1253 merged. The 14-slice closeout (this document's original scope) was merged to `main` via PR #1257 and deployed to production** (`capiro-dev-api`, `capiro-dev-web-vnext`) — see "Deployment SHA / canary result" below for the current, corrected state. **A follow-up slice — the Attach-to-Matter/Create-Matter immediate-apply flow (Remaining debt item 2) — has since been implemented on top of that merged closeout** and is documented in this revision but has not itself been deployed as of this doc's last edit; treat its ship status as a separate, later action from the original 14-slice closeout described below.
+Status: **PR #1253 merged. The 14-slice closeout (this document's original scope) was merged to `main` via PR #1257 and deployed to production** (`capiro-dev-api`, `capiro-dev-web-vnext`). **The Attach-to-Matter/Create-Matter immediate-apply follow-up (Remaining debt item 2) has now ALSO been merged (PR #1265) and deployed to production** — see "Deployment SHA / canary result" below for the current, corrected state, including this ship. The one item still genuinely open before the overall Advocacy History project can be called complete is the production/internal canary against a real client with a real pending finding — deliberately not run in this session (canaries stay dark unless the user personally opens them, per standing instruction), so disposition remains **pending canary**, not `ADVOCACY_HISTORY_COMPLETE`.
 
 ## SHAs
 
@@ -12,8 +12,11 @@ Status: **PR #1253 merged. The 14-slice closeout (this document's original scope
 | Closeout branch base | `e748645f4` |
 | Closeout branch HEAD (this doc's original commit) | `53ba85af6c3c2fb57025dd91d69bf240e2dd323d` |
 | Closeout PR | **#1257 — opened and merged to `main`** |
-| Final merge SHA | `1a4198c1be6420239be8b9f9ed70ffe0dcd84e98` (also includes two unrelated already-merged PRs `main` was behind on at ship time — #1253 and #1256 — not just this closeout's own commits) |
-| Follow-up: Attach-to-Matter/Create-Matter branch | `agent/advocacy-history-pending-finding-matter-assignment`, based on the post-#1257 `main` tip above — not yet pushed/merged/deployed |
+| PR #1257 merge SHA | `1a4198c1be6420239be8b9f9ed70ffe0dcd84e98` (also includes two unrelated already-merged PRs `main` was behind on at ship time — #1253 and #1256 — not just this closeout's own commits) |
+| Follow-up: Attach-to-Matter/Create-Matter branch | `agent/advocacy-pending-finding-matter-assignment` |
+| Follow-up branch tip (post-rebase onto `origin/main`) | `29ebad5eee4107a54c6ba5d6efc2b6d8326ef6ee` |
+| Follow-up PR | **#1265 — "Advocacy History: make Matter assignment an immediate reviewed commit" — opened and merged to `main`** |
+| PR #1265 merge SHA (current `main` tip as of this ship) | `7cd65cdabc3cfbdc207b3d3935ee594511de6166` |
 
 Worktree: `C:\Users\neoma\Downloads\capiro-advocacy-closeout`. Repo: `neo-capiro/capirov2`.
 
@@ -147,18 +150,38 @@ GitHub Actions has a repo-wide `startup_failure` predating this closeout (noted 
 
 Verified live via CloudWatch boot-log route registration order (the literal-before-param route fix), correct-chunk bundle grep (`VNextClientCrmRoute-*.js` contains every closeout marker), and zero new Prisma/exception errors since the roll — not just green infra checks.
 
-**Production/internal canary against real tenant data: still NOT performed, and is the one remaining item under this closeout's own Definition-of-Done rule** ("Do not declare Advocacy History complete until the production/internal canary succeeds"). As of the last check, zero real Advocacy Matter data exists in production — the schema is brand new (migrations applied the same day as the ship) — so there is nothing yet to canary against. **This closeout is still not complete on that basis alone**, independent of the Attach/Create-Matter follow-up work described elsewhere in this revision.
+**Follow-up ship (Attach-to-Matter/Create-Matter, PR #1265) — deployed 2026-08-24:**
 
-The Attach-to-Matter/Create-Matter follow-up slice (Remaining debt item 2) described in this revision has NOT itself been through the push/PR/deploy sequence above — it exists on a separate branch, verified locally (tests + typecheck + `git diff --check`), awaiting the same explicit-approval ship process before it reaches production.
+| Service | Revision | Image / digest | Health |
+|---|---|---|---|
+| `capiro-dev-api` | `:230` (from `:229`) | `capiro/dev/api:7cd65cdab...` / `sha256:124e7d8876...` | 2/2 tasks `RUNNING`/`HEALTHY`, rollout `COMPLETED`, 0 failed tasks |
+| `capiro-dev-api-migrate` | `:87` (from `:86`) | same image | one-shot ran, exit 0, log: "No pending migrations to apply." (this PR's final diff contains zero migration files — confirmed via `git diff --name-only b5d235234 29ebad5ee -- apps/api/prisma/migrations/` = empty) |
+| `capiro-dev-web-vnext` (serves `os.capiro.ai`) | `:162` (from `:161`) | `capiro/dev/web-vnext@sha256:641deb6310...` | 1/1 `RUNNING`/`HEALTHY`, rollout `COMPLETED`; `runtime-config.js` `releaseSha` verified = `7cd65cdabc3cfbdc207b3d3935ee594511de6166`, `webSurface: 'vnext'` |
+| `capiro-dev-web` (legacy, `app.capiro.ai`) | **Not touched** — Advocacy Matters is vNext-only; smoke-checked `app.capiro.ai/` and `/health` = 200 anyway since this ship also rolled the shared API |
+
+Live-bundle verification (not just infra health): fetched `os.capiro.ai` → `index-C4aCABjA.js` → resolved `VNextClientCrmRoute-DBJrnNz_.js` (the client-crm route chunk) → grepped it directly (no false-negative risk from minified identifiers, since these are literal string/URL-path markers, not component names): `assign-matter` (5 hits, the new endpoint path), `Attach to Matter` (1 hit, UI copy), `Applying` (4 hits, the real non-optimistic status text), `matterLocked` (1 hit), `assignFindingMatter` (2 hits, the adapter function). All present and correct in the live, deployed bundle.
+
+**Production/internal canary against real tenant data: still NOT performed.** Deliberately left dark this session per standing instruction (canaries against production stay dark unless the user personally opens them) — not a capability gap, a policy choice. This is the one remaining item under both closeouts' own Definition-of-Done rule ("Do not declare Advocacy History complete until the production/internal canary succeeds"). **Overall Advocacy History disposition remains pending canary, not `ADVOCACY_HISTORY_COMPLETE`**, until the user runs (or explicitly delegates) that canary against a real client with a real pending finding.
 
 ## Rollback
 
-**Original text below described the pre-deploy state; corrected for the actual ship.** Rollback anchors recorded before the production mutation: API `capiro-dev-api:225` (image `c6ef14da7...`); migrate family `capiro-dev-api-migrate:85`; web-vnext `capiro-dev-web-vnext:156` (digest `sha256:23b40bfd4...`). No new migrations were introduced beyond slice 3's chain (already part of the merged PR #1253 lineage, rehearsed for rollback compatibility) — the 4 migrations applied in production are exactly that pre-existing chain, not anything new from slices 4–14. The Attach-to-Matter/Create-Matter follow-up adds zero new migrations as well.
+**PR #1257 ship (original 14-slice closeout):** API `capiro-dev-api:225` (image `c6ef14da7...`); migrate family `capiro-dev-api-migrate:85`; web-vnext `capiro-dev-web-vnext:156` (digest `sha256:23b40bfd4...`). No new migrations were introduced beyond slice 3's chain (already part of the merged PR #1253 lineage, rehearsed for rollback compatibility) — the 4 migrations applied in production are exactly that pre-existing chain, not anything new from slices 4–14.
+
+**PR #1265 ship (Attach-to-Matter/Create-Matter follow-up):** API `capiro-dev-api:229` (image `edc1aaa8a...`); migrate family `capiro-dev-api-migrate:86` (image `1a4198c1b...`); web-vnext `capiro-dev-web-vnext:161` (digest `sha256:a9b956fa46...`, `CAPIRO_WEB_RELEASE_SHA=b5d235234...`). Adds zero new migrations — `prisma migrate deploy` reported "No pending migrations to apply" against this exact image.
+
+```bash
+# API rollback
+aws ecs update-service --cluster capiro-dev --service capiro-dev-api \
+  --task-definition capiro-dev-api:229 --force-new-deployment
+# web-vnext rollback
+aws ecs update-service --cluster capiro-dev --service capiro-dev-web-vnext \
+  --task-definition capiro-dev-web-vnext:161 --force-new-deployment
+```
 
 ## Remaining debt
 
 1. **Sources view (section 18, marked optional in spec) — not built.** The Matters/Timeline toggle exists; a third Sources view (per-source `lastSuccessfulAt`/`lastAttemptAt`/`lastError`/`recordCount` from `client_profile_fill_source_cursor`) does not. The cursor data itself is now correctly tracked for `advocacy_history` (LDA + client-submission + private-candidate watermarks) and `lifecycle_outcomes`, but no endpoint or UI reads it beyond the Fill pipeline's own internal `getCursor`.
-2. **Attach to existing Matter / Create Matter on a still-*pending* Fill finding (sections 22/23) — RESOLVED and built as a follow-up to this closeout.** The product decision (asked three times via `clarify` earlier in this closeout, unanswered at the time this doc was first written) has since been made explicitly by the user, on the stated rationale that most users have already populated a client profile and are looking to **enrich** it, not stage a batch for later review:
+2. **Attach to existing Matter / Create Matter on a still-*pending* Fill finding (sections 22/23) — RESOLVED, built, and now SHIPPED to production (PR #1265, merge SHA `7cd65cdab...`, deployed 2026-08-24).** The product decision (asked three times via `clarify` earlier in this closeout, unanswered at the time this doc was first written) has since been made explicitly by the user, on the stated rationale that most users have already populated a client profile and are looking to **enrich** it, not stage a batch for later review:
    > **Matter assignment is an immediate human-reviewed commit, not a deferred batch action.**
    Selecting "Attach to Matter X" or "Create new Matter" on a still-pending finding IS the review/approval decision for that finding, and persists immediately — there is no staging queue, no "save for later" state, and no second application workflow. Implementation reuses the existing `applyAdvocacyRecord` upsert path (not a parallel write path): the record is applied, the chosen/created Matter is assigned and `matter_locked` is set to `true` in the SAME transaction as the record write, and the finding is marked accepted through the existing `markAccepted` accept/audit path — the identical mechanics `applyFindings`/"Not advocacy" already use elsewhere in this pipeline. A human Matter choice made this way overrides future automatic clustering (`assignSpecificMatterForRecord`'s lock check), exactly like a manual reassign. Idempotent: repeating the same action (double-click, retried request after a dropped response) makes no duplicate record, Matter, or audit entry — verified by dedicated tests. Existing reassign/detach/merge correction paths, and the "Not advocacy" immediate-reject action, are unaffected and still work afterward. New endpoint: `POST /clients/:clientId/fill-with-meri/runs/:runId/findings/:findingId/assign-matter`.
 3. **CPF/CDS — genuinely zero coverage**, not a build gap so much as a data gap: no canonical table exists anywhere in the schema for either program. Confirmed via schema search, not assumed.
