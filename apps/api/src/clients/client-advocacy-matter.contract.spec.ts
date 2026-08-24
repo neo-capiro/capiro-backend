@@ -19,6 +19,10 @@ describe('Advocacy Matter architecture contract', () => {
     resolve(process.cwd(), 'prisma/migrations/20271231050000_advocacy_matter_correction_ux/migration.sql'),
     'utf8',
   );
+  const directEvidenceMigration = readFileSync(
+    resolve(process.cwd(), 'prisma/migrations/20271231060000_advocacy_matter_direct_evidence_links/migration.sql'),
+    'utf8',
+  );
 
   it('exposes the Matter read/manage surface under the client route, review-gated for mutations', () => {
     expect(controller).toContain("@Controller('clients/:clientId/advocacy-matters')");
@@ -84,5 +88,42 @@ describe('Advocacy Matter architecture contract', () => {
     expect(correctionMigration).toContain('not_advocacy');
     expect(service).toMatch(/matter_id IS NOT NULL AND not_advocacy = false/);
     expect(service).toMatch(/matter_id = \$3::uuid AND not_advocacy = false/);
+  });
+
+  it('supports the four direct-evidence link types (meeting/mail_thread/outreach/strategy), admin-gated', () => {
+    expect(directEvidenceMigration).toContain("'meeting'");
+    expect(directEvidenceMigration).toContain("'mail_thread'");
+    expect(directEvidenceMigration).toContain("'outreach'");
+    expect(directEvidenceMigration).toContain("'strategy'");
+    expect(controller).toMatch(/@Post\(':matterId\/link-meeting'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+    expect(controller).toMatch(/@Post\(':matterId\/link-mail-thread'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+    expect(controller).toMatch(/@Post\(':matterId\/link-outreach'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+    expect(controller).toMatch(/@Post\(':matterId\/link-strategy'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+  });
+
+  it('only links a SHARED meeting into a Matter — a private meeting can never leak in', () => {
+    expect(service).toMatch(/linkMeeting[\s\S]{0,800}visibility: 'shared'/);
+  });
+
+  it('validates mail thread and outreach links through the canonical EngagementService access gates, not a re-derived check', () => {
+    expect(service).toContain('this.engagement.listMailThreads');
+    expect(service).toContain('this.engagement.getOutreachRecord');
+  });
+
+  it('distinguishes planned_action from completed_action for Strategy links and never claims causation', () => {
+    expect(directEvidenceMigration).toContain('planned_action');
+    expect(directEvidenceMigration).toContain('completed_action');
+    expect(service).toMatch(/linkStrategy[\s\S]{0,3000}causationClaimed: false/);
+  });
+
+  it('treats a missing sp_strategy table as source-unavailable, not a hard crash — api-strategy owns that table', () => {
+    expect(service).toMatch(/linkStrategy[\s\S]{0,3000}catch/);
+    expect(service).toContain('sp_strategy read failed');
+  });
+
+  it('every new link column stays nullable so existing PR #1253 link rows are unaffected', () => {
+    expect(directEvidenceMigration).toContain('ADD COLUMN IF NOT EXISTS relationship_type VARCHAR(32) NULL');
+    expect(directEvidenceMigration).toContain('ADD COLUMN IF NOT EXISTS confidence NUMERIC(5,4) NULL');
+    expect(directEvidenceMigration).toContain('ADD COLUMN IF NOT EXISTS provenance TEXT NULL');
   });
 });

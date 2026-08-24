@@ -85,6 +85,9 @@ export interface AdvocacyMatterLink {
   linkType: string;
   linkKey: string;
   label: string | null;
+  relationshipType: string | null;
+  confidence: number | null;
+  provenance: string | null;
   metadata: Record<string, unknown>;
 }
 
@@ -949,6 +952,10 @@ function LinkRow({ link }: { link: AdvocacyMatterLink }) {
     bill: 'Bill',
     outcome_event: 'Observed outcome',
     finding: 'Pending finding',
+    meeting: 'Meeting',
+    mail_thread: 'Email thread',
+    outreach: 'Outreach',
+    strategy: link.relationshipType === 'completed_action' ? 'Strategy (completed)' : 'Strategy (planned)',
   };
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>

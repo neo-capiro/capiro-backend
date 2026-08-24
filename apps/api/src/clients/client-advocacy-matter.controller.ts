@@ -78,6 +78,33 @@ class NotAdvocacyDto {
   reason?: string;
 }
 
+class LinkMeetingDto {
+  @IsUUID()
+  meetingId!: string;
+}
+
+class LinkMailThreadDto {
+  @IsUUID()
+  threadId!: string;
+}
+
+class LinkOutreachDto {
+  @IsUUID()
+  outreachRecordId!: string;
+}
+
+class LinkStrategyDto {
+  @IsUUID()
+  strategyId!: string;
+
+  @IsOptional()
+  @IsUUID()
+  nodeId?: string;
+
+  @IsIn(['planned_action', 'completed_action'])
+  relationshipType!: 'planned_action' | 'completed_action';
+}
+
 /**
  * Advocacy Matter read/manage surface (product spec: "the central
  * abstraction is an Advocacy Matter"). This is a thin API over
@@ -171,5 +198,53 @@ export class ClientAdvocacyMatterController {
     @Body() body: NotAdvocacyDto,
   ) {
     return this.matters.markRecordNotAdvocacy(ctx, clientId, recordId, body.reason);
+  }
+
+  @Post(':matterId/link-meeting')
+  @Roles('user_admin')
+  linkMeeting(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+    @Body() body: LinkMeetingDto,
+  ) {
+    return this.matters.linkMeeting(ctx, clientId, matterId, body.meetingId);
+  }
+
+  @Post(':matterId/link-mail-thread')
+  @Roles('user_admin')
+  linkMailThread(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+    @Body() body: LinkMailThreadDto,
+  ) {
+    return this.matters.linkMailThread(ctx, clientId, matterId, body.threadId);
+  }
+
+  @Post(':matterId/link-outreach')
+  @Roles('user_admin')
+  linkOutreach(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+    @Body() body: LinkOutreachDto,
+  ) {
+    return this.matters.linkOutreach(ctx, clientId, matterId, body.outreachRecordId);
+  }
+
+  @Post(':matterId/link-strategy')
+  @Roles('user_admin')
+  linkStrategy(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+    @Body() body: LinkStrategyDto,
+  ) {
+    return this.matters.linkStrategy(ctx, clientId, matterId, {
+      strategyId: body.strategyId,
+      nodeId: body.nodeId ?? null,
+      relationshipType: body.relationshipType,
+    });
   }
 }

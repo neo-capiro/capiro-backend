@@ -28,7 +28,11 @@ describe('ClientAdvocacyMatterService — correction UX', () => {
     const prisma = {
       withTenant: jest.fn(async (_tenantId: string, run: (tenantTx: typeof tx) => Promise<unknown>) => run(tx)),
     };
-    return { service: new ClientAdvocacyMatterService(prisma as never), tx, prisma };
+    const engagement = {
+      listMailThreads: jest.fn(async () => []),
+      getOutreachRecord: jest.fn(async () => ({})),
+    };
+    return { service: new ClientAdvocacyMatterService(prisma as never, engagement as never), tx, prisma, engagement };
   };
 
   describe('assignMatterForRecord respects matter_locked', () => {
