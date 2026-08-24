@@ -113,7 +113,10 @@ describe('ClientCrmPage header wiring', () => {
   it('opens the Fill with Meri drawer immediately and starts a real run on request (no fake delay/toast)', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Fill with Meri' }));
+    // Fill with Meri moved into the Meri Actions rich menu (one Meri entry
+    // point on the record) — open the menu, then select the item.
+    fireEvent.click(screen.getByRole('button', { name: /Meri Actions/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Fill with Meri/ }));
 
     // No setTimeout gate: the drawer is visible on the very next tick, and
     // the fabricated "Meri proposed 7 field changes" toast is gone.

@@ -221,7 +221,7 @@ export function ClientProfileShell({
           {/* Right cluster */}
           <div className="cap-pf-identity-right" style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 16 }}>
             <AccountOwnerControl clientId={client.id} canAssign={canEditFocus} />
-            <FillButton busy={fillBusy} label={fillLabel} onClick={onFillWithMeri} />
+            <MeriActionsMenu busy={fillBusy} fillLabel={fillLabel} onFillWithMeri={onFillWithMeri} />
             <OverflowMenu client={client} onDataHealth={onDataHealth} canArchive={canArchive} onArchive={onArchive} />
           </div>
         </div>
@@ -446,10 +446,161 @@ function AddFocusButton({ client, existing }: { client: Client; existing: string
   );
 }
 
-function FillButton({ busy, label, onClick }: { busy: boolean; label: string; onClick: () => void }) {
+/**
+ * One Meri entry point on the record (replaces the plain "Fill with Meri"
+ * button). Fill still opens the same review drawer via the same `onClick`
+ * prop and still writes nothing until the caller applies it.
+ *
+ * "Send Meri to Meetings" is drawn from the design handoff, but there is no
+ * per-client auto-join-meetings preference anywhere in the schema — Meri's
+ * notetaker is wired per-meeting today (`apps/api/src/engagement/notetaker`),
+ * not as a standing "join every meeting with this client" setting. Rendering
+ * it as a working action would show a false success message for something
+ * that does not happen, so it stays disabled with a "Coming soon" tag until a
+ * real preference exists to back it — same treatment STATES.md already
+ * anticipates for the Coalitions rail item.
+ */
+function MeriActionsMenu({ busy, fillLabel, onFillWithMeri }: { busy: boolean; fillLabel: string; onFillWithMeri: () => void }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   return (
-    <button type="button" onClick={onClick} className="cap-pf-fill-btn">
-      {busy ? 'Analyzing…' : label}
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 8,
+          height: 40,
+          padding: '0 14px 0 13px',
+          borderRadius: 8,
+          backgroundImage: GRADIENT_DARK,
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.14),0 1px 2px rgba(16,24,40,.12)',
+          color: '#ffffff',
+          fontSize: 14,
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <UIcon name="Stars02" size={18} color="#ffffff" />
+        Meri Actions
+        <span style={{ display: 'flex', opacity: 0.7, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 140ms cubic-bezier(.2,0,0,1)' }}>
+          <UIcon name="ChevronDown" size={16} color="#ffffff" />
+        </span>
+      </button>
+
+      {open ? (
+        <div
+          role="menu"
+          aria-label="Meri Actions"
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 'calc(100% + 6px)',
+            zIndex: 45,
+            width: 344,
+            padding: 6,
+            borderRadius: 12,
+            background: '#ffffff',
+            border: '1px solid #E4E7EC',
+            boxShadow: '0 18px 44px -14px rgba(16,24,40,.28),0 2px 6px rgba(16,24,40,.05)',
+          }}
+        >
+          <MeriActionItem
+            icon="Stars02"
+            label={busy ? 'Analyzing…' : fillLabel}
+            detail="Meri proposes field values from connected sources. Nothing is written until you review each one."
+            onSelect={() => {
+              setOpen(false);
+              onFillWithMeri();
+            }}
+          />
+          <MeriActionItem
+            icon="Calendar2"
+            label="Send Meri to Meetings"
+            detail="Meri joins every meeting with this client as a notetaker, automatically."
+            disabled
+            disabledReason="Coming soon"
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MeriActionItem({
+  icon,
+  label,
+  detail,
+  onSelect,
+  disabled = false,
+  disabledReason,
+}: {
+  icon: string;
+  label: string;
+  detail: string;
+  onSelect?: () => void;
+  disabled?: boolean;
+  disabledReason?: string;
+}) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      aria-disabled={disabled || undefined}
+      title={disabled ? disabledReason : undefined}
+      onClick={onSelect}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: 'flex',
+        width: '100%',
+        alignItems: 'flex-start',
+        gap: 12,
+        padding: '11px 10px',
+        borderRadius: 9,
+        textAlign: 'left',
+        background: hover && !disabled ? '#F7F8FA' : 'transparent',
+        opacity: disabled ? 0.55 : 1,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+      }}
+    >
+      <span style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8, background: '#F2F4F7', color: '#344054' }}>
+        <UIcon name={icon} size={16} />
+      </span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: '#101828' }}>{label}</span>
+          {disabled && disabledReason ? (
+            <span style={{ flex: '0 0 auto', height: 18, padding: '0 6px', borderRadius: 9999, background: '#F2F0EB', color: '#667085', fontSize: 10, fontWeight: 600, letterSpacing: '.02em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center' }}>
+              {disabledReason}
+            </span>
+          ) : null}
+        </span>
+        <span style={{ display: 'block', marginTop: 3, fontSize: 12, lineHeight: '17px', color: '#667085', textWrap: 'pretty' }}>{detail}</span>
+      </span>
     </button>
   );
 }
