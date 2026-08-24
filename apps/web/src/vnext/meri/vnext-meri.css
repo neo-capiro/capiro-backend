@@ -2847,6 +2847,68 @@
   color: var(--meri-text-muted);
 }
 
+/* Skills helper note reuses .vnext-meri__ctx-empty for its text treatment;
+   this second class was already being rendered alongside it with no rule of
+   its own (a no-op), leaving no visual separation from the action list
+   above. Same bug class as the panel-head fix earlier in this file. */
+.capiro-vnext-root .vnext-meri__ctx-note {
+  margin-top: 8px;
+}
+
+/* Degraded-context warning — real data (packet.degraded/degradedReason),
+   shown whenever the compiled packet is degraded, independent of whether it
+   still has items. Colors mirror this module's own warning family, already
+   used by the context-sheet's degraded banner elsewhere in this file. */
+.capiro-vnext-root .vnext-meri__ctx-degraded {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: var(--m-warning-bg);
+  border: 1px solid var(--m-warning-border);
+}
+
+.capiro-vnext-root .vnext-meri__ctx-degraded-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--meri-warning-text);
+}
+
+/* "Not included" exclusions list — condensed, read-only, same list shape as
+   the Pending Attachments block above it. Muted fill distinguishes excluded
+   items from the included cards in .vnext-meri__ctx-item (white/--meri-surface). */
+.capiro-vnext-root .vnext-meri__ctx-exclusion {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: var(--m-gray-50);
+}
+
+.capiro-vnext-root .vnext-meri__ctx-exclusion-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.capiro-vnext-root .vnext-meri__ctx-exclusion-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--meri-text-secondary);
+}
+
+.capiro-vnext-root .vnext-meri__ctx-exclusion-reason {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--meri-text-faint);
+}
+
 .capiro-vnext-root .vnext-meri__rail-action-btn {
   display: inline-flex;
   align-items: center;
@@ -2869,6 +2931,15 @@
 .capiro-vnext-root .vnext-meri__rail-action-btn:hover {
   background: var(--meri-surface-2);
   color: var(--meri-ink);
+}
+
+/* This button carries a real `disabled` binding (no open conversation) with
+   no visual treatment defined — matches the disabled-state gap flagged
+   against every hand-rolled control in this module; the real primitives'
+   own :disabled rule uses the same 0.45 opacity. */
+.capiro-vnext-root .vnext-meri__rail-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 /* Connected sources */
@@ -3056,7 +3127,9 @@
   .capiro-vnext-root .vnext-meri__composer-send-btn,
   .capiro-vnext-root .vnext-meri__rail-expand-btn,
   .capiro-vnext-root .vnext-meri__rail-badge-btn,
-  .capiro-vnext-root .vnext-meri__rail-collapse-btn {
+  .capiro-vnext-root .vnext-meri__rail-collapse-btn,
+  .capiro-vnext-root .vnext-meri__rail-panel-collapse,
+  .capiro-vnext-root .vnext-meri__rail-panel-tab {
     width: var(--capiro-hit-size);
     height: var(--capiro-hit-size);
   }

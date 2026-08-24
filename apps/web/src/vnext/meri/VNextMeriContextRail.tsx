@@ -226,12 +226,12 @@ export function VNextMeriContextRail({
     return (
       <aside className="vnext-meri__rail-right is-collapsed" data-meri-context-rail aria-label="Context panel (collapsed)">
         <div className="vnext-meri__rail-collapsed">
-          <button type="button" className="vnext-meri__rail-expand-btn" title="Expand panel" onClick={onToggle}>
+          <button type="button" className="vnext-meri__rail-expand-btn" title="Expand panel" aria-label="Expand panel" onClick={onToggle}>
             <MeriIcon name="ChevronLeft" size={16} color="#98A2B3" />
           </button>
           <span className="vnext-meri__rail-collapsed-sep" />
           {PANEL_TABS.map((tab) => (
-            <button key={tab.key} type="button" className="vnext-meri__rail-badge-btn" title={tab.label} onClick={() => onExpandSection(tab.key)}>
+            <button key={tab.key} type="button" className="vnext-meri__rail-badge-btn" title={tab.label} aria-label={tab.label} onClick={() => onExpandSection(tab.key)}>
               <MeriIcon name={tab.icon} size={16} color="#475467" />
               {badgeFor(tab.key) > 0 ? <span className="vnext-meri__rail-badge">{badgeFor(tab.key)}</span> : null}
             </button>
@@ -252,7 +252,7 @@ export function VNextMeriContextRail({
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div className="vnext-meri__rail-panel-head">
             <span className="vnext-meri__rail-panel-title">ARTIFACT CANVAS</span>
-            <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" onClick={onToggle}>
+            <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" aria-label="Collapse panel" onClick={onToggle}>
               <MeriIcon name="ChevronRight" size={15} color="#98A2B3" />
             </button>
           </div>
@@ -275,7 +275,7 @@ export function VNextMeriContextRail({
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <div className="vnext-meri__rail-panel-head">
             <span className="vnext-meri__rail-panel-title">SOURCE DETAIL</span>
-            <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" onClick={onToggle}>
+            <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" aria-label="Collapse panel" onClick={onToggle}>
               <MeriIcon name="ChevronRight" size={15} color="#98A2B3" />
             </button>
           </div>
@@ -309,7 +309,7 @@ export function VNextMeriContextRail({
               );
             })}
           </div>
-          <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" onClick={onToggle}>
+          <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" aria-label="Collapse panel" onClick={onToggle}>
             <MeriIcon name="ChevronRight" size={15} color="#98A2B3" />
           </button>
         </div>
@@ -331,6 +331,17 @@ export function VNextMeriContextRail({
         ) : (
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <div className="vnext-meri__rail-section">
+              <div className="vnext-meri__rail-footer" style={{ marginTop: 0, marginBottom: 14 }}>
+                CONTEXT IS CLIENT-SCOPED · WRITES REQUIRE APPROVAL
+              </div>
+              {packet?.degraded ? (
+                <div className="vnext-meri__ctx-degraded" role="status">
+                  <MeriIcon name="AlertTriangle" size={15} color="#B54708" />
+                  <span className="vnext-meri__ctx-degraded-text">
+                    {packet.degradedReason ?? 'Context provenance is degraded for this thread.'}
+                  </span>
+                </div>
+              ) : null}
               <div className="vnext-meri__rail-section-head">
                 <span className="vnext-meri__section-label">ACTIVE CONTEXT{contextItems.length ? ` · ${contextItems.length}` : ''}</span>
                 <MeriIcon name="ChevronUp" size={14} color="#98A2B3" />
@@ -352,6 +363,20 @@ export function VNextMeriContextRail({
                     ))}
                   </div>
                 ) : !packetLoading && !packetError ? <MeriPanelState tone="empty">{contextPacketSummary(packet)}</MeriPanelState> : null}
+                {packet && packet.exclusions.length ? (
+                  <div className="vnext-meri__ctx-list" aria-label="Context not included">
+                    <span className="vnext-meri__section-label">NOT INCLUDED · {packet.exclusions.length}</span>
+                    {packet.exclusions.slice(0, 5).map((exclusion, index) => (
+                      <div key={exclusion.id ?? `${exclusion.label}-${index}`} className="vnext-meri__ctx-exclusion">
+                        <MeriIcon name="File05" size={13} color="#98A2B3" />
+                        <div className="vnext-meri__ctx-exclusion-body">
+                          <span className="vnext-meri__ctx-exclusion-label">{exclusion.label}</span>
+                          <span className="vnext-meri__ctx-exclusion-reason">{exclusion.reason.replace(/[-_]/g, ' ').toUpperCase()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {pendingAttachments.length ? (
                   <div className="vnext-meri__ctx-list" aria-label="Pending attachments">
                     <span className="vnext-meri__section-label">PENDING ATTACHMENTS</span>
