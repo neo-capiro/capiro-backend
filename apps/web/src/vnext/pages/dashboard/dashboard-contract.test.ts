@@ -93,9 +93,11 @@ describe('Dashboard v2 prototype structure', () => {
     expect(view).toContain("type WireFilter = 'all' | 'x' | 'news'");
   });
 
-  it('uses a pinned four-tile triage ribbon and a chronological spine', () => {
-    expect(view).toContain('attentionItems.slice(0, 4)');
-    expect(view).toContain('dashv2-triage__grid');
+  it('uses a paginated Needs Attention carousel and a chronological spine', () => {
+    expect(view).toContain('dashv2-attn-viewport');
+    expect(view).toContain('dashv2-attn-track');
+    expect(view).toContain('dashv2-attn-dot');
+    expect(view).toContain('attentionPageCount');
     expect(view).toContain('TODAY ·');
     expect(view).toContain('TOMORROW ·');
     expect(view).toContain('LATER THIS WEEK');
@@ -155,7 +157,6 @@ describe('Dashboard v2 responsive and density contract', () => {
     expect(css).toContain('@media (max-width: 1099px)');
     expect(css).toContain('@media (max-width: 779px)');
     expect(css).toContain('@media (min-width: 1360px)');
-    expect(css).toContain('min-width: 250px');
   });
 
   it('keeps the Wire sticky with its own internal list scroll', () => {
@@ -203,7 +204,9 @@ describe('Dashboard v2 customization and chrome', () => {
     expect(view).toContain('name="Sliders02"');
     expect(view).toContain('name="RefreshCw01"');
     expect(meri).toContain('name="Stars02"');
-    expect(view).toContain("linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%)");
+    // The gradient itself lives once in untitled-ui-tokens.css (--uui-btn-metal-face);
+    // dashv2-primary consumes it via var() rather than duplicating the literal hex here.
+    expect(css).toContain('.dashv2-primary { color: var(--uui-white); background-image: var(--uui-btn-metal-face);');
   });
 
   it('keeps component CSS token-only for the foundation gate', () => {

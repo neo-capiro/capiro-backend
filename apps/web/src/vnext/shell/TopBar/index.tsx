@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DashboardIcon } from '../../components/untitledui/dashboard-icons.js';
+import { DashboardIcon, type DashboardIconName } from '../../components/untitledui/dashboard-icons.js';
 import type { ShellIdentityViewModel } from '../../adapters/legacy/useShellIdentity.js';
 import type { ShellNotificationsViewModel } from '../../adapters/legacy/useShellNotifications.js';
 import {
@@ -190,6 +190,7 @@ interface ProfileMenuEntry {
   id: string;
   label: string;
   path: string | null;
+  icon: DashboardIconName;
   action?: 'profile' | 'sign-out';
   tag?: string;
   destructive?: boolean;
@@ -202,9 +203,9 @@ interface ProfileMenuEntry {
  * rather than navigating — Clerk owns that surface, not a vnext settings page.
  */
 const PROFILE_MENU: readonly ProfileMenuEntry[] = [
-  { id: 'profile', label: 'Profile', path: null, action: 'profile' },
-  { id: 'settings', label: 'Settings', path: '/settings' },
-  { id: 'sign-out', label: 'Sign out', path: null, action: 'sign-out', destructive: true, separated: true },
+  { id: 'profile', label: 'Profile', path: null, icon: 'User01', action: 'profile' },
+  { id: 'settings', label: 'Settings', path: '/settings', icon: 'Settings01' },
+  { id: 'sign-out', label: 'Sign out', path: null, icon: 'LogOut01', action: 'sign-out', destructive: true, separated: true },
 ];
 
 export function ProfileMenu({
@@ -253,6 +254,9 @@ export function ProfileMenu({
             <span className="capiro-vnext-profile__role">{identity.role}</span>
           ) : null}
         </span>
+        <span className="capiro-vnext-profile__chevron" aria-hidden="true">
+          <DashboardIcon name="ChevronRight" size={16} />
+        </span>
       </button>
 
       {isOpen ? (
@@ -289,6 +293,9 @@ export function ProfileMenu({
                   if (entry.path) onNavigate(entry.path);
                 }}
               >
+                <span className="capiro-vnext-menu__icon" aria-hidden="true">
+                  <DashboardIcon name={entry.icon} size={16} />
+                </span>
                 <span className="capiro-vnext-menu__label">{entry.label}</span>
                 {(disabled || entry.tag) ? (
                   <span className="capiro-vnext-menu__tag">
