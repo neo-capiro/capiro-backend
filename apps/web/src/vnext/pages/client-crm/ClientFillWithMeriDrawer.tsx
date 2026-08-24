@@ -332,9 +332,19 @@ function SourceWarning({ sources }: { sources: string[] }) {
   );
 }
 
+/** Findings this drawer treats as Advocacy History (product spec §22/23)
+ *  rather than a generic client-profile field proposal. Matches the two
+ *  `kind`s the backend's advocacy_history Fill source actually emits —
+ *  see client-profile-fill-completion.service.ts gatherAdvocacyHistory*. */
+function isAdvocacyFinding(finding: FillFinding): boolean {
+  return finding.kind === 'advocacy_record' || finding.kind === 'advocacy_outcome';
+}
+
 function FillProposals({ fill }: { fill: Fill }) {
   const { proposals, selected } = fill;
   const allSelected = proposals.length > 0 && selected.size === proposals.length;
+  const advocacyProposals = proposals.filter(isAdvocacyFinding);
+  const otherProposals = proposals.filter((finding) => !isAdvocacyFinding(finding));
 
   return (
     <>
@@ -351,16 +361,46 @@ function FillProposals({ fill }: { fill: Fill }) {
         </CapiroButton>
       </div>
 
-      <ul className="capiro-crm-fill__list">
-        {proposals.map((finding) => (
-          <FindingRow
-            key={finding.id}
-            finding={finding}
-            checked={selected.has(finding.id)}
-            onToggle={() => fill.toggle(finding.id)}
-          />
-        ))}
-      </ul>
+      {/* §22: Advocacy History gets its own review group instead of being
+          lumped into the generic client-profile-field list — a lobbying
+          filing or a detected outcome is a fundamentally different kind of
+          proposal than "update the company website". */}
+      {advocacyProposals.length > 0 ? (
+        <div className="capiro-crm-fill__group">
+          <p className="capiro-crm__meta capiro-crm-fill__group-title">
+            Advocacy History · {advocacyProposals.length} found
+          </p>
+          <ul className="capiro-crm-fill__list">
+            {advocacyProposals.map((finding) => (
+              <AdvocacyFindingRow
+                key={finding.id}
+                finding={finding}
+                checked={selected.has(finding.id)}
+                onToggle={() => fill.toggle(finding.id)}
+                onNotAdvocacy={() => fill.rejectFinding(finding.id, 'Not advocacy (reviewed in Fill with Meri)')}
+              />
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {otherProposals.length > 0 ? (
+        <div className="capiro-crm-fill__group">
+          {advocacyProposals.length > 0 ? (
+            <p className="capiro-crm__meta capiro-crm-fill__group-title">Other proposed changes</p>
+          ) : null}
+          <ul className="capiro-crm-fill__list">
+            {otherProposals.map((finding) => (
+              <FindingRow
+                key={finding.id}
+                finding={finding}
+                checked={selected.has(finding.id)}
+                onToggle={() => fill.toggle(finding.id)}
+              />
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {fill.contextFindings.length > 0 ? <ContextFindings findings={fill.contextFindings} /> : null}
 
@@ -476,6 +516,104 @@ function FindingRow({
             ))}
           </ul>
         ) : null}
+      </div>
+    </li>
+  );
+}
+
+/** §22/23: Advocacy History finding review card. Distinct from the generic
+ *  `FindingRow` because an advocacy finding is not "propose a value for a
+ *  named field" — it is "a lobbying filing / outreach send / detected
+ *  outcome was found; decide whether it belongs in Advocacy History at
+ *  all". The checkbox still drives bulk Apply/Apply selected exactly like
+ *  any other finding (accepting = create the client_advocacy_record row,
+ *  auto-clustered into a Matter server-side); "Not advocacy" is the one
+ *  action a generic FindingRow has no equivalent for.
+ *
+ *  Matter/target-Matter assignment ("Attach to existing Matter" / "Create
+ *  Matter" from §22/23) is intentionally NOT implemented on this pending-
+ *  finding card yet — deferred pending a product decision on whether
+ *  picking a Matter here should tag-then-apply-later or apply immediately
+ *  as its own action. Today, accepting via the checkbox + Apply still goes
+ *  through the existing deterministic auto-clustering
+ *  (assignMatterForRecord), which is a safe default; the reviewer can
+ *  correct the resulting Matter assignment afterward from the Matters tab
+ *  (reassign/detach/merge — shipped in an earlier closeout slice). */
+function AdvocacyFindingRow({
+  finding,
+  checked,
+  onToggle,
+  onNotAdvocacy,
+}: {
+  finding: FillFinding;
+  checked: boolean;
+  onToggle: () => void;
+  onNotAdvocacy: () => void;
+}) {
+  const inputId = `fill-advocacy-${finding.id}`;
+  const proposed = finding.proposedValue as Record<string, unknown> | null | undefined;
+  const title =
+    (typeof proposed?.title === 'string' && proposed.title) ||
+    (typeof proposed?.label === 'string' && proposed.label) ||
+    humanizeKey(finding.targetKey);
+  const activityDate =
+    (typeof proposed?.date === 'string' && proposed.date) ||
+    (typeof proposed?.observedAt === 'string' && proposed.observedAt) ||
+    null;
+  const isOutcome = finding.kind === 'advocacy_outcome';
+
+  return (
+    <li className="capiro-crm-fill__item capiro-crm-fill__item--advocacy">
+      <input
+        id={inputId}
+        type="checkbox"
+        checked={checked}
+        onChange={onToggle}
+        className="capiro-crm-fill__check"
+      />
+      <div className="capiro-crm-fill__item-body">
+        <label htmlFor={inputId} className="capiro-crm-fill__field">
+          {title}
+        </label>
+
+        <div className="capiro-crm-fill__meta">
+          <CapiroBadge tone={isOutcome ? 'success' : 'info'}>
+            {isOutcome ? 'OUTCOME' : 'ADVOCACY'}
+          </CapiroBadge>
+          <span className="capiro-crm__meta">{sourceLabel(finding.source)}</span>
+          <span className="capiro-crm__meta">{Math.round(finding.confidence * 100)}% confidence</span>
+          {activityDate ? <span className="capiro-crm__meta">{formatValue(activityDate)}</span> : null}
+        </div>
+
+        {finding.evidence.length > 0 ? (
+          <ul className="capiro-crm-fill__evidence">
+            {finding.evidence.slice(0, 2).map((item, index) => (
+              <li key={`${finding.id}-ev-${index}`}>
+                {item.url ? (
+                  <a href={item.url} target="_blank" rel="noreferrer noopener">
+                    {item.label}
+                  </a>
+                ) : (
+                  item.label
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {/* §17 causality contract: an outcome finding is never framed as
+            confirmed causation before a human accepts it either. */}
+        {isOutcome ? (
+          <p className="capiro-crm__foot capiro-crm-fill__disclaimer">
+            This may be a related outcome. Applying it does not claim advocacy caused it.
+          </p>
+        ) : null}
+
+        <div className="capiro-crm-fill__row-actions">
+          <CapiroButton variant="quiet" size="compact" onClick={onNotAdvocacy}>
+            Not advocacy
+          </CapiroButton>
+        </div>
       </div>
     </li>
   );

@@ -57,4 +57,28 @@ describe('Client Fill with Meri document-upload contract', () => {
     expect(drawer).toContain('contextFindings');
     expect(drawer).toContain('Related context');
   });
+
+  it('gives Advocacy History its own review group instead of the generic client-profile field list (§22)', () => {
+    expect(drawer).toContain('isAdvocacyFinding');
+    expect(drawer).toContain("finding.kind === 'advocacy_record' || finding.kind === 'advocacy_outcome'");
+    expect(drawer).toContain('Advocacy History ·');
+    expect(drawer).toContain('AdvocacyFindingRow');
+  });
+
+  it('offers "Not advocacy" on a pending advocacy finding, distinct from a generic reject, and never creates a client_advocacy_record for it', () => {
+    expect(drawer).toContain('Not advocacy');
+    expect(drawer).toContain('onNotAdvocacy');
+    expect(drawer).toContain('fill.rejectFinding(finding.id,');
+    expect(adapter).toContain('rejectFinding: (findingId: string, reason?: string)');
+    expect(adapter).toContain('/findings/${findingId}/reject');
+  });
+
+  it('never claims a detected outcome was caused by advocacy before a human reviews it (§17 causality contract)', () => {
+    expect(drawer).toContain('This may be a related outcome. Applying it does not claim advocacy caused it.');
+    expect(drawer).toContain("isOutcome = finding.kind === 'advocacy_outcome'");
+  });
+
+  it('invalidates the Advocacy Matters query key on apply so an accepted finding shows up without a manual reload', () => {
+    expect(adapter).toContain("['client-advocacy-matters', clientId]");
+  });
 });

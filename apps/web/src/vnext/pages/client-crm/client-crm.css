@@ -1011,6 +1011,38 @@
   color: var(--crm-ink-secondary);
 }
 
+/* §22: Advocacy History / Other proposed changes review groups — a
+   heading above each group's list, not a new list container, so the
+   existing __list/__item styling above is reused unchanged. */
+.capiro-vnext-root .capiro-crm-fill__group + .capiro-crm-fill__group {
+  margin-top: var(--capiro-space-04);
+}
+
+.capiro-vnext-root .capiro-crm-fill__group-title {
+  font-weight: 600;
+  color: var(--crm-ink);
+  margin: 0 0 var(--capiro-space-02);
+}
+
+.capiro-vnext-root .capiro-crm-fill__item--advocacy {
+  background: var(--crm-surface);
+}
+
+.capiro-vnext-root .capiro-crm-fill__row-actions {
+  display: flex;
+  gap: var(--capiro-space-02);
+  margin-top: var(--capiro-space-02);
+}
+
+/* §17 causality contract — never let an outcome finding read as a
+   confirmed causal claim, styled as an explicit caveat, not a plain
+   evidence line. */
+.capiro-vnext-root .capiro-crm-fill__disclaimer {
+  margin: 4px 0 0;
+  color: var(--crm-ink-secondary);
+  font-style: italic;
+}
+
 .capiro-vnext-root .capiro-crm-fill__actions {
   display: flex;
   flex-wrap: wrap;

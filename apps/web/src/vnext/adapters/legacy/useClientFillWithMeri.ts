@@ -155,10 +155,32 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
         ['client-targets', clientId],
         ['client-attachments', clientId],
         ['client-kb-status', clientId],
+        // Advocacy findings write client_advocacy_record rows on apply —
+        // the Advocacy History tab reads a different query key than the
+        // core profile surfaces above, so it needs its own invalidation
+        // or an applied advocacy_record finding leaves the Matters view
+        // stale until the user manually reloads.
+        ['client-advocacy-matters', clientId],
       ]) {
         void qc.invalidateQueries({ queryKey: key });
       }
       void qc.invalidateQueries({ queryKey: ['clients'] });
+      void run.refetch();
+    },
+  });
+
+  /** Reject a still-pending finding with a reason — never silently drops it.
+   *  For an advocacy_record/advocacy_outcome finding this IS the "Not
+   *  advocacy" action from product spec §22/23: the finding is marked
+   *  rejected and no client_advocacy_record row is ever created for it, so
+   *  a human correction that something Meri surfaced is not advocacy takes
+   *  effect before any record exists — there is nothing to un-cluster
+   *  later. Reuses the existing findings/:id/reject endpoint; no new
+   *  backend surface needed for this action. */
+  const reject = useMutation({
+    mutationFn: async ({ findingId, reason }: { findingId: string; reason?: string }) =>
+      (await api.post<FillFinding>(`${base}/findings/${findingId}/reject`, { reason })).data,
+    onSuccess: () => {
       void run.refetch();
     },
   });
@@ -236,6 +258,12 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     startForAttachment: (attachmentId: string) => start.mutate({ attachmentId }),
     applySelected: () => apply.mutate([...selected]),
     applyAll: () => apply.mutate(proposals.map((finding) => finding.id)),
+    /** §22/23 "Not advocacy" — rejects a still-pending finding so it is
+     *  never written as a client_advocacy_record row. `reason` is stored
+     *  server-side for the audit trail; the UI supplies a fixed default
+     *  when the reviewer didn't type one. */
+    rejectFinding: (findingId: string, reason?: string) => reject.mutate({ findingId, reason }),
+    rejectError: reject.error,
     reset: () => {
       setRunId(null);
       setSelected(new Set());
