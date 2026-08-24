@@ -8,12 +8,33 @@
  *
  * Contract:
  *   tab=overview | relationships | work | intelligence | files
- *   tab=relationships  view=organization | government | history
+ *   tab=relationships  view=organization | government | history | matters
  *   tab=intelligence   view=legislative | funding | footprint | district
  *   tab=capabilities   preserved capability-management surface (§13)
  *
  * Legacy values keep resolving, and are rewritten to their canonical form so
  * the URL always describes the view that is actually on screen.
+ *
+ * ROUTING DECISION — Advocacy History (product spec §18): the spec's
+ * preferred IA is a first-class top-level "Advocacy" tab (Matters / Timeline
+ * / Sources). This closeout deliberately did NOT promote it there. Doing so
+ * would mean editing CRM_TABS, CRM_TAB_LABELS, the shared SegmentedTabs
+ * rendering every other client-crm surface uses, and adding a new
+ * LEGACY_TABS entry so old bookmarks still resolve — a materially larger,
+ * more disruptive change than anything else in this closeout, and one that
+ * touches a shared, Figma-governed contract used by Overview/Capabilities/
+ * Work/Intelligence/Files, not just Advocacy. §18 itself anticipates exactly
+ * this tradeoff and pre-authorizes the fallback taken here: "If current
+ * Client CRM architecture strongly favors keeping it temporarily under
+ * Relationships, preserve compatibility but provide a clear first-class
+ * entry point and document the routing decision." That is what this comment
+ * is. The entry point: `?tab=relationships&view=matters`, labeled "Advocacy
+ * matters" in the segmented sub-tab bar (RELATIONSHIP_VIEW_LABELS below) —
+ * a real, bookmarkable, always-visible destination, not buried in generic
+ * Fill context (that specific complaint was section 22's, and is addressed
+ * separately in ClientFillWithMeriDrawer.tsx's Advocacy History grouping).
+ * Promoting this to a true top-level tab remains open work, listed as
+ * remaining debt in docs/handoff/advocacy-history-final-closeout.md.
  */
 
 export const CRM_TABS = ['overview', 'capabilities', 'relationships', 'work', 'intelligence', 'files'] as const;

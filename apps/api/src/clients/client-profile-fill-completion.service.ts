@@ -1269,10 +1269,18 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       }
     }
 
-    count += await this.gatherClientSubmissionAdvocacy(ctx, clientId, runId, count);
-    count += await this.gatherPrivateAdvocacyCandidates(ctx, clientId, runId, count);
+    const submissionResult = await this.gatherClientSubmissionAdvocacy(
+      ctx, clientId, runId, count, asString(cursor.lastClientSubmissionAt),
+    );
+    count += submissionResult.count;
+    const privateResult = await this.gatherPrivateAdvocacyCandidates(
+      ctx, clientId, runId, count, asString(cursor.lastRelationshipLinkAppliedAt),
+    );
+    count += privateResult.count;
     await this.recordCursor(ctx.tenantId, clientId, 'advocacy_history', {
       lastLdaPostedAt: newestPostedAt?.toISOString() ?? lastDtPosted ?? null,
+      lastClientSubmissionAt: submissionResult.newestCreatedAt ?? cursor.lastClientSubmissionAt ?? null,
+      lastRelationshipLinkAppliedAt: privateResult.newestAppliedAt ?? cursor.lastRelationshipLinkAppliedAt ?? null,
       refreshedAt: new Date().toISOString(),
     });
     return count;
@@ -1283,25 +1291,28 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     runId: string,
     currentCount: number,
-  ): Promise<number> {
-    if (currentCount >= MAX_ADVOCACY_FINDINGS) return 0;
-    let rows: Array<{ data: unknown; capabilityName: string | null }> = [];
+    lastClientSubmissionAt: string | null,
+  ): Promise<{ count: number; newestCreatedAt: string | null }> {
+    if (currentCount >= MAX_ADVOCACY_FINDINGS) return { count: 0, newestCreatedAt: lastClientSubmissionAt };
+    let rows: Array<{ data: unknown; capabilityName: string | null; createdAt: Date }> = [];
     try {
       rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.$queryRawUnsafe<Array<{ data: unknown; capabilityName: string | null }>>(
-          `SELECT to_jsonb(s) AS data, c.name AS "capabilityName"
+        tx.$queryRawUnsafe<Array<{ data: unknown; capabilityName: string | null; createdAt: Date }>>(
+          `SELECT to_jsonb(s) AS data, c.name AS "capabilityName", s.created_at AS "createdAt"
              FROM client_submission_history s
              JOIN client_capabilities c ON c.id = s.capability_id
             WHERE c.tenant_id = $1::uuid AND c.client_id = $2::uuid
+              AND ($3::timestamptz IS NULL OR s.created_at > $3::timestamptz)
             ORDER BY s.created_at DESC
             LIMIT 100`,
           ctx.tenantId,
           clientId,
+          lastClientSubmissionAt,
         ),
       );
     } catch (error) {
       this.logger.warn(`Client submission advocacy rail unavailable: ${this.safeError(error)}`);
-      return 0;
+      return { count: 0, newestCreatedAt: lastClientSubmissionAt };
     }
     let count = 0;
     for (const row of rows) {
@@ -1345,7 +1356,12 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       });
       if (inserted) count += 1;
     }
-    return count;
+    // rows are ORDER BY created_at DESC — the first row (if any) is always
+    // the newest regardless of how many were skipped by the MAX_ADVOCACY_
+    // FINDINGS cap, so the watermark still advances correctly even on a
+    // capped run.
+    const newestCreatedAt = rows[0]?.createdAt.toISOString() ?? lastClientSubmissionAt;
+    return { count, newestCreatedAt };
   }
 
   private async gatherPrivateAdvocacyCandidates(
@@ -1353,20 +1369,26 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     runId: string,
     currentCount: number,
-  ): Promise<number> {
-    if (currentCount >= MAX_ADVOCACY_FINDINGS) return 0;
+    lastRelationshipLinkAppliedAt: string | null,
+  ): Promise<{ count: number; newestAppliedAt: string | null }> {
+    if (currentCount >= MAX_ADVOCACY_FINDINGS) {
+      return { count: 0, newestAppliedAt: lastRelationshipLinkAppliedAt };
+    }
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$queryRawUnsafe<Array<{ id: string; proposedValue: unknown; evidence: unknown }>>(
+      tx.$queryRawUnsafe<Array<{ id: string; proposedValue: unknown; evidence: unknown; appliedAt: Date | null }>>(
         `SELECT id,
                 proposed_value_jsonb AS "proposedValue",
-                evidence_jsonb AS evidence
+                evidence_jsonb AS evidence,
+                applied_at AS "appliedAt"
            FROM client_profile_fill_finding
           WHERE tenant_id = $1::uuid AND client_id = $2::uuid
             AND kind = 'relationship_link' AND status = 'accepted'
+            AND ($3::timestamptz IS NULL OR applied_at > $3::timestamptz)
           ORDER BY applied_at DESC NULLS LAST
           LIMIT 250`,
         ctx.tenantId,
         clientId,
+        lastRelationshipLinkAppliedAt,
       ),
     );
     let count = 0;
@@ -1412,7 +1434,13 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       });
       if (inserted) count += 1;
     }
-    return count;
+    // ORDER BY applied_at DESC NULLS LAST — the first row with a non-null
+    // appliedAt is the newest watermark candidate; a fully-NULL result set
+    // (or zero rows) leaves the watermark exactly where it was rather than
+    // advancing it on nothing, which would silently make the query above
+    // WIDER on some later run if a NULL applied_at ever got backfilled.
+    const newestAppliedAt = rows.find((r) => r.appliedAt)?.appliedAt?.toISOString() ?? lastRelationshipLinkAppliedAt;
+    return { count, newestAppliedAt };
   }
 
   private async gatherLifecycleOutcomes(
@@ -1420,7 +1448,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     clientId: string,
     runId: string,
   ): Promise<number> {
-    const [findingRows, persistedRecords, outcomes] = await this.prisma.withTenant(
+    const [findingRows, persistedRecords, outcomes, matterIdentifiers] = await this.prisma.withTenant(
       ctx.tenantId,
       async (tx) => {
         const findings = await tx.$queryRawUnsafe<Array<{ proposedValue: unknown }>>(
@@ -1455,9 +1483,25 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           orderBy: { observedAt: 'desc' },
           take: 250,
         });
-        return [findings, records, events] as const;
+        // §16 deterministic-identifier priority requires matching against
+        // the record's own MATTER's primary_pe_code/primary_bill_id (what
+        // the Matter is actually about), not anything on the individual
+        // record itself -- client_advocacy_record carries no PE/bill field
+        // of its own. One extra lookup, keyed by matter_id, rather than N
+        // per-record round trips.
+        const identifiers = await tx.$queryRawUnsafe<
+          Array<{ id: string; primaryPeCode: string | null; primaryBillId: string | null }>
+        >(
+          `SELECT id, primary_pe_code AS "primaryPeCode", primary_bill_id AS "primaryBillId"
+             FROM client_advocacy_matter
+            WHERE tenant_id = $1::uuid AND client_id = $2::uuid`,
+          ctx.tenantId,
+          clientId,
+        );
+        return [findings, records, events, identifiers] as const;
       },
     );
+    const matterIdentifierById = new Map(matterIdentifiers.map((m) => [m.id, m] as const));
     const advocacy = [
       ...findingRows.map((row) => asRecord(row.proposedValue)),
       ...persistedRecords.map((row) => normalizePersistedAdvocacy(asRecord(row.data))),
@@ -1469,16 +1513,31 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       if (!externalKey || seen.has(externalKey)) continue;
       seen.add(externalKey);
       const activityDate = parseDate(record.activityDate);
+      const matterId = asString(record.matterId);
+      const matterIdentifier = matterId ? matterIdentifierById.get(matterId) : undefined;
       for (const outcome of outcomes) {
         if (activityDate && outcome.observedAt < activityDate) continue;
-        const score = scoreAdvocacyOutcome(record, {
+        const evidence = asRecord(outcome.evidence);
+        const deterministic = matchAdvocacyOutcomeDeterministically(matterIdentifier, evidence);
+        const score = deterministic ? Math.max(0.9, deterministic.score) : scoreAdvocacyOutcome(record, {
           kind: outcome.kind,
           sourceType: outcome.sourceType,
           sourceId: outcome.sourceId,
           notes: outcome.notes,
           evidence: outcome.evidence,
         });
-        if (score < 0.34) continue;
+        if (!deterministic && score < 0.34) continue;
+        // §17 causality contract vocabulary — never a fabricated label. A
+        // deterministic PE/bill match is materially stronger evidence than
+        // pure semantic overlap, but it is still NOT the same as an
+        // explicit source relationship or a human confirmation (§16 steps
+        // 5-6) — "strongly_aligned" is the honest word for it, not
+        // "confirmed_relationship".
+        const relationship: 'strongly_aligned' | 'related' | 'observed_after_advocacy' = deterministic
+          ? 'strongly_aligned'
+          : score >= 0.6
+            ? 'related'
+            : 'observed_after_advocacy';
         const proposedValue = {
           advocacyExternalKey: externalKey,
           outcomeEventId: outcome.id,
@@ -1486,7 +1545,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           observedAt: outcome.observedAt.toISOString(),
           notes: outcome.notes,
           evidence: outcome.evidence,
-          relationship: 'temporally_and_semantically_related',
+          relationship,
+          matchedOn: deterministic?.matchedOn ?? 'semantic_and_temporal',
           causationClaimed: false,
           score,
         };
@@ -1501,12 +1561,15 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
           status: 'pending',
           evidence: [
             {
-              label: `Observed outcome “${outcome.kind}” followed a related advocacy record`,
+              label: deterministic
+                ? `Observed outcome "${outcome.kind}" matches this Matter's ${deterministic.matchedOn === 'pe_code' ? 'Program Element' : 'bill'} exactly`
+                : `Observed outcome "${outcome.kind}" followed a related advocacy record`,
               source: 'Capiro Outcome Event',
               metadata: {
                 outcomeEventId: outcome.id,
                 observedAt: outcome.observedAt.toISOString(),
                 causationClaimed: false,
+                matchedOn: deterministic?.matchedOn ?? 'semantic_and_temporal',
               },
             },
           ],
@@ -1605,6 +1668,70 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     // even for findings that stay informational and never become their own
     // client_advocacy_record row.
     changed += await this.linkReconciledFindingsToMatters(ctx, clientId, runId);
+    // §27 reconciliation: flag a possible cross-source duplicate advocacy
+    // activity — the SAME real-world event discovered via two DIFFERENT
+    // source rails (e.g. an LDA filing and a client submission describing
+    // the same meeting), which the exact-targetKey grouping above can
+    // never catch since each rail mints its own unrelated externalKey.
+    // Deterministic-source-id duplicates are already handled elsewhere
+    // (client_advocacy_record's ON CONFLICT (tenant_id, client_id,
+    // external_key) upsert, and addFinding's content-hash dedup) — this
+    // path exists ONLY for the case those can't cover: two DIFFERENT
+    // external keys that plausibly describe the same activity. Never
+    // auto-merges (§27: "Do not collapse two distinct events merely
+    // because text is similar") — always a reviewable informational
+    // finding a human confirms or dismisses.
+    changed += await this.flagPossibleAdvocacyDuplicates(ctx, clientId, runId, rows);
+    return changed;
+  }
+
+  /** §27: within this run, flags pending/informational advocacy_record
+   *  findings that plausibly describe the same real-world activity but
+   *  arrived via different source rails (different externalKey, so the
+   *  exact-key grouping in reconcileFindings never sees them together).
+   *  Deterministic signal first: same day AND >=60% title-token overlap.
+   *  Never merges — surfaces an informational "possible duplicate" finding
+   *  naming both candidates so a human decides. */
+  private async flagPossibleAdvocacyDuplicates(
+    ctx: TenantContext,
+    clientId: string,
+    runId: string,
+    rows: AdvancedFindingRow[],
+  ): Promise<number> {
+    const advocacyRows = rows.filter((row) => row.kind === 'advocacy_record' && row.status !== 'rejected');
+    let changed = 0;
+    for (let i = 0; i < advocacyRows.length; i++) {
+      for (let j = i + 1; j < advocacyRows.length; j++) {
+        const a = advocacyRows[i]!;
+        const b = advocacyRows[j]!;
+        if (a.targetKey === b.targetKey) continue; // already the same key — handled by exact-key grouping above
+        const proposedA = asRecord(a.proposedValue);
+        const proposedB = asRecord(b.proposedValue);
+        if (!sameActivityDay(proposedA.activityDate, proposedB.activityDate)) continue;
+        if (titleOverlapRatio(asString(proposedA.title), asString(proposedB.title)) < 0.6) continue;
+        const pairKey = [a.targetKey, b.targetKey].sort().join('|');
+        const inserted = await this.addFinding(ctx.tenantId, clientId, runId, {
+          kind: 'advocacy_duplicate_candidate',
+          targetKey: `advocacy-duplicate:${createHash('sha256').update(pairKey).digest('hex').slice(0, 20)}`,
+          source: 'reconciliation',
+          factKind: 'recommendation',
+          currentValue: null,
+          proposedValue: {
+            type: 'possible_duplicate',
+            findingIds: [a.id, b.id],
+            message:
+              'Two different sources may describe the same advocacy activity on the same day. Review before accepting both.',
+          },
+          confidence: 0.6,
+          status: 'informational',
+          evidence: [
+            { label: `${a.source}: ${asString(proposedA.title) ?? a.targetKey}`, source: a.source, metadata: { findingId: a.id } },
+            { label: `${b.source}: ${asString(proposedB.title) ?? b.targetKey}`, source: b.source, metadata: { findingId: b.id } },
+          ],
+        });
+        if (inserted) changed += 1;
+      }
+    }
     return changed;
   }
 
@@ -2457,6 +2584,37 @@ export function calculateProfileCompletion(input: ProfileCompletionInput): Profi
   };
 }
 
+/** §16 outcome-matching priority steps 1-2: exact PE code / exact bill ID.
+ *  Checked BEFORE any semantic scoring — an outcome whose evidence carries
+ *  the SAME PE code or bill number as the record's own Matter is
+ *  materially stronger evidence than token overlap, and must never be
+ *  computed by the same 0.24-baseline formula that a title-similarity
+ *  guess uses. Returns null when no deterministic identifier lines up
+ *  (falls through to scoreAdvocacyOutcome), never a fabricated partial
+ *  match. Steps 3-4 (regulatory docket, appropriations account) are not
+ *  implemented here: OutcomeEvent.evidence has no documented docket/account
+ *  field today (schema comment only documents peCode/billNumber/fiscalYear/
+ *  stage/amountFrom/amountTo) — adding a docket/account check now would
+ *  match against a field that doesn't exist in any evidence payload the
+ *  outcome-detection pipeline actually writes, which is worse than not
+ *  matching at all. Revisit if/when a regulatory or appropriations outcome
+ *  rail starts populating those evidence fields. */
+export function matchAdvocacyOutcomeDeterministically(
+  matter: { primaryPeCode: string | null; primaryBillId: string | null } | undefined,
+  outcomeEvidence: Record<string, unknown>,
+): { matchedOn: 'pe_code' | 'bill_id'; score: number } | null {
+  if (!matter) return null;
+  const evidencePeCode = asString(outcomeEvidence.peCode);
+  if (matter.primaryPeCode && evidencePeCode && evidencePeCode === matter.primaryPeCode) {
+    return { matchedOn: 'pe_code', score: 0.95 };
+  }
+  const evidenceBillNumber = asString(outcomeEvidence.billNumber);
+  if (matter.primaryBillId && evidenceBillNumber && evidenceBillNumber === matter.primaryBillId) {
+    return { matchedOn: 'bill_id', score: 0.95 };
+  }
+  return null;
+}
+
 export function scoreAdvocacyOutcome(
   advocacy: Record<string, unknown>,
   outcome: Record<string, unknown>,
@@ -2525,6 +2683,7 @@ function normalizePersistedAdvocacy(row: Record<string, unknown>) {
     sourceType: row.source_type,
     sourceId: row.source_id,
     metadata: row.metadata_jsonb,
+    matterId: row.matter_id,
   };
 }
 
@@ -2553,6 +2712,33 @@ function normalizeEvidenceClass(value: unknown) {
   )
     ? text!
     : 'INFERRED';
+}
+
+/** §27 duplicate-candidate signal 1 (deterministic before semantic): same
+ *  calendar day. Two records timestamped on different days are never
+ *  flagged as a possible duplicate regardless of title similarity — a
+ *  recurring monthly meeting produces near-identical titles across many
+ *  distinct real events, and only the date makes them distinguishable. */
+export function sameActivityDay(a: unknown, b: unknown): boolean {
+  const dateA = parseDate(a);
+  const dateB = parseDate(b);
+  if (!dateA || !dateB) return false;
+  return dateA.toISOString().slice(0, 10) === dateB.toISOString().slice(0, 10);
+}
+
+/** §27 duplicate-candidate signal 2: title token overlap, reusing the exact
+ *  same tokenizer scoreAdvocacyOutcome already uses for consistency. Only
+ *  ever a SECONDARY signal gated behind sameActivityDay returning true
+ *  first — text similarity alone must never flag two distinct events
+ *  (§27: "Do not collapse two distinct events merely because text is
+ *  similar"). */
+export function titleOverlapRatio(a: string | null, b: string | null): number {
+  if (!a || !b) return 0;
+  const tokensA = meaningfulTokens(a);
+  const tokensB = meaningfulTokens(b);
+  if (tokensA.size === 0 || tokensB.size === 0) return 0;
+  const intersection = [...tokensA].filter((token) => tokensB.has(token)).length;
+  return intersection / Math.max(tokensA.size, tokensB.size);
 }
 
 function meaningfulTokens(value: string) {

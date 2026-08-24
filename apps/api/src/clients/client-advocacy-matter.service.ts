@@ -1,7 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { asRecord, asString } from './client-profile-fill.helpers.js';
+import { EngagementService } from '../engagement/engagement.service.js';
 import {
   computeMatterClue,
   titleTokens,
@@ -51,14 +53,41 @@ export interface AdvocacyMatterDetail extends AdvocacyMatterSummary {
     confidence: number;
     metadata: Record<string, unknown>;
     createdAt: string;
+    /** True once a human has reassigned/detached/rejected this record — automatic
+     *  clustering will not touch it again. */
+    matterLocked: boolean;
   }>;
   links: Array<{
     id: string;
     linkType: string;
     linkKey: string;
     label: string | null;
+    relationshipType: string | null;
+    confidence: number | null;
+    provenance: string | null;
+    evidenceClass: string | null;
     metadata: Record<string, unknown>;
   }>;
+}
+
+/** §18/19 Timeline: one flat, chronological row spanning every Matter for a
+ *  client. `kind` distinguishes a durable client_advocacy_record from a
+ *  client_advocacy_matter_link so the UI can render each with the right
+ *  affordance (a record opens its own detail; a link's `subtype` is one of
+ *  the 13 link types and may open the authoritative Capiro/public object).
+ *  matterId/matterTitle are null only for a genuinely unassigned record —
+ *  every link always belongs to exactly one Matter (client_advocacy_matter_
+ *  link.matter_id is NOT NULL at the schema level). */
+export interface AdvocacyTimelineEntry {
+  id: string;
+  kind: 'record' | 'link';
+  title: string;
+  subtype: string;
+  date: string | null;
+  evidenceClass: string | null;
+  confidence: number | null;
+  matterId: string | null;
+  matterTitle: string | null;
 }
 
 /**
@@ -84,20 +113,30 @@ export interface AdvocacyMatterDetail extends AdvocacyMatterSummary {
 export class ClientAdvocacyMatterService {
   private readonly logger = new Logger(ClientAdvocacyMatterService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly engagement: EngagementService,
+  ) {}
 
   /**
    * Resolves (creating if necessary) the Matter a just-applied advocacy
    * record belongs to, and attaches the record to it. Called from
    * `ClientProfileFillCompletionService.applyAdvocacyRecord` right after
    * the record itself is upserted, inside the same tenant transaction.
+   *
+   * Respects `matter_locked`: once a human has reassigned, detached, or
+   * rejected ("not advocacy") a record via the correction UX, this method
+   * is a no-op for that record on every subsequent Fill with Meri re-run.
+   * Human corrections are authoritative over automatic clustering (product
+   * spec section 6) — without this check, re-running the same finding would
+   * silently undo the correction the next time the external_key upserts.
    */
   async assignMatterForRecord(
     ctx: TenantContext,
     clientId: string,
     recordExternalKey: string,
     record: { recordType: string; title: string; metadata: Record<string, unknown>; activityDate: string | null },
-  ): Promise<string> {
+  ): Promise<string | null> {
     const clue = computeMatterClue({
       recordType: record.recordType,
       title: record.title,
@@ -105,6 +144,21 @@ export class ClientAdvocacyMatterService {
     });
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.$queryRawUnsafe<Array<{ matterId: string | null; locked: boolean }>>(
+        `SELECT matter_id AS "matterId", matter_locked AS locked
+           FROM client_advocacy_record
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND external_key = $3
+          LIMIT 1`,
+        ctx.tenantId,
+        clientId,
+        recordExternalKey,
+      );
+      if (existing[0]?.locked) {
+        // A human already decided this record's Matter (or explicitly
+        // detached it, leaving matterId null while locked) — leave it alone.
+        return existing[0].matterId;
+      }
+
       const matterId = await this.resolveMatterId(tx, ctx.tenantId, clientId, clue, record.title);
       await tx.$executeRawUnsafe(
         `UPDATE client_advocacy_record
@@ -242,6 +296,525 @@ export class ClientAdvocacyMatterService {
     );
   }
 
+  /** Shared insert for the four direct-evidence link types below. Every
+   *  caller has already validated the referenced object exists, belongs to
+   *  this client, and is accessible to the acting user — this method only
+   *  persists the pointer + safe metadata. Never pass raw bodies/transcripts
+   *  in `metadata`. */
+  private async insertDirectEvidenceLink(
+    ctx: TenantContext,
+    matterId: string,
+    input: {
+      linkType: 'meeting' | 'mail_thread' | 'outreach' | 'strategy' | 'regulatory_docket' | 'regulatory_document' | 'hearing' | 'testimony' | 'fara_record';
+      linkKey: string;
+      label: string | null;
+      relationshipType: string | null;
+      confidence: number | null;
+      provenance: string | null;
+      evidenceClass?: 'PUBLIC_VERIFIED' | 'CLIENT_VERIFIED' | 'PRIVATE_ACTIVITY' | 'INFERRED' | null;
+      metadata: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await tx.$executeRawUnsafe(
+        `INSERT INTO client_advocacy_matter_link
+           (tenant_id, matter_id, link_type, link_key, label, relationship_type, confidence, provenance, evidence_class, metadata_jsonb, created_by_user_id)
+         VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7::numeric, $8, $9, $10::jsonb, $11::uuid)
+         ON CONFLICT (matter_id, link_type, link_key) DO UPDATE
+           SET label = COALESCE(EXCLUDED.label, client_advocacy_matter_link.label),
+               relationship_type = COALESCE(EXCLUDED.relationship_type, client_advocacy_matter_link.relationship_type),
+               confidence = COALESCE(EXCLUDED.confidence, client_advocacy_matter_link.confidence),
+               provenance = COALESCE(EXCLUDED.provenance, client_advocacy_matter_link.provenance),
+               evidence_class = COALESCE(EXCLUDED.evidence_class, client_advocacy_matter_link.evidence_class),
+               metadata_jsonb = client_advocacy_matter_link.metadata_jsonb || EXCLUDED.metadata_jsonb`,
+        ctx.tenantId,
+        matterId,
+        input.linkType,
+        input.linkKey,
+        input.label,
+        input.relationshipType,
+        input.confidence,
+        input.provenance,
+        input.evidenceClass ?? null,
+        JSON.stringify(input.metadata),
+        ctx.userId,
+      );
+      await this.touchMatterActivity(tx, ctx.tenantId, matterId, asString(input.metadata.occurredAt) ?? null);
+    });
+  }
+
+  /**
+   * Link an authoritative Meeting directly into a Matter (product spec
+   * section 8). Only a SHARED meeting for this client may be linked — the
+   * same visibility gate `listSharedMeetingsForClient` enforces — so one
+   * user's still-private meeting can never leak into a Matter another
+   * tenant member (or an auto-clustering pass) can see. Stores title, date,
+   * attendee names/emails, and government-directory identity ids where
+   * resolved; NEVER a transcript, note body, or debrief body.
+   */
+  async linkMeeting(ctx: TenantContext, clientId: string, matterId: string, meetingId: string): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+    const meeting = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.meeting.findFirst({
+        where: { id: meetingId, tenantId: ctx.tenantId, clientId, visibility: 'shared', status: { not: 'deleted' } },
+        include: {
+          attendees: { include: { contact: { select: { directoryEntryId: true } } } },
+          debriefs: { select: { id: true, status: true }, where: { status: 'approved' }, take: 1 },
+        },
+      }),
+    );
+    if (!meeting) {
+      throw new NotFoundException('Meeting not found, not shared to this client, or not accessible');
+    }
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'meeting',
+      linkKey: meeting.id,
+      label: meeting.subject,
+      relationshipType: null,
+      confidence: null,
+      provenance: null,
+      metadata: {
+        occurredAt: meeting.startsAt.toISOString(),
+        attendees: meeting.attendees.map((a) => ({
+          name: a.name,
+          email: a.email,
+          governmentDirectoryEntryId: a.contact?.directoryEntryId ?? null,
+        })),
+        approvedDebriefId: meeting.debriefs[0]?.id ?? null,
+      },
+    });
+  }
+
+  /**
+   * Link an authoritative mail thread directly into a Matter. Validates via
+   * `EngagementService.listMailThreads` (the same owner + client-association
+   * gate the Relationship history tab already uses) rather than re-deriving
+   * access control here. Stores subject/participants/dates only — never a
+   * message body (bodyText/bodyHtmlS3Key are not read).
+   */
+  async linkMailThread(ctx: TenantContext, clientId: string, matterId: string, threadId: string): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+    const threads = await this.engagement.listMailThreads(ctx, { clientId });
+    const thread = (threads as Array<{ id: string; subject: string; participants: unknown; lastMessageAt: Date | null; createdAt: Date }>).find(
+      (t) => t.id === threadId,
+    );
+    if (!thread) {
+      throw new NotFoundException('Mail thread not found or not associated with this client');
+    }
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'mail_thread',
+      linkKey: thread.id,
+      label: thread.subject,
+      relationshipType: null,
+      confidence: null,
+      provenance: null,
+      metadata: {
+        occurredAt: (thread.lastMessageAt ?? thread.createdAt).toISOString(),
+        participants: thread.participants,
+      },
+    });
+  }
+
+  /**
+   * Link an authoritative Outreach record directly into a Matter. Validates
+   * via `EngagementService.getOutreachRecord` (owner-scoped, matches the
+   * canonical Outreach read path). Represents campaign/type, recipient
+   * count, sent date, status — never the rendered email body.
+   */
+  async linkOutreach(ctx: TenantContext, clientId: string, matterId: string, outreachRecordId: string): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+    const record = await this.engagement.getOutreachRecord(ctx, outreachRecordId);
+    const outreach = record as unknown as {
+      id: string;
+      clientId: string | null;
+      title: string;
+      type: string;
+      status: string;
+      recipientCount: number;
+      sentAt: Date | null;
+      createdAt: Date;
+    };
+    if (outreach.clientId !== clientId) {
+      throw new NotFoundException('Outreach record not found or not associated with this client');
+    }
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'outreach',
+      linkKey: outreach.id,
+      label: outreach.title,
+      relationshipType: null,
+      confidence: null,
+      provenance: null,
+      metadata: {
+        occurredAt: (outreach.sentAt ?? outreach.createdAt).toISOString(),
+        campaignType: outreach.type,
+        status: outreach.status,
+        recipientCount: outreach.recipientCount,
+      },
+    });
+  }
+
+  /**
+   * Link a Strategy plan/node into a Matter as EITHER a `planned_action`
+   * (the Strategy states this is the objective/tactic/ask — no claim it
+   * happened) or a `completed_action` (an admin has separately confirmed
+   * the planned action was actually carried out). A Strategy link alone is
+   * never proof of activity — see product spec section 8: "A Strategy alone
+   * is not proof the activity occurred."
+   *
+   * `sp_strategy`/`sp_node` are owned and written exclusively by the
+   * separate api-strategy service; this repo has no migration for them and
+   * they live in the same database purely as a FORCE-RLS read projection
+   * (same pattern already used by `district-nexus-strategic.service.ts` and
+   * `intelligence.service.ts`). A missing table in a given environment
+   * (e.g. a fresh local database that never ran api-strategy's own
+   * migrations) is treated as SOURCE UNAVAILABLE, not "strategy not found" —
+   * per spec section 26, unavailable must never be reported as zero results.
+   */
+  async linkStrategy(
+    ctx: TenantContext,
+    clientId: string,
+    matterId: string,
+    input: { strategyId: string; nodeId?: string | null; relationshipType: 'planned_action' | 'completed_action' },
+  ): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+
+    const rows = await this.readLinkSourceOrUnavailable('sp_strategy', () =>
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.$queryRawUnsafe<Array<{ strategyTitle: string; nodeId: string | null; nodeTitle: string | null; subject: string | null }>>(
+          `SELECT s.title AS "strategyTitle", n.id::text AS "nodeId", n.title AS "nodeTitle", n.subject::text AS subject
+             FROM sp_strategy s
+             LEFT JOIN sp_node n ON n.strategy_id = s.id AND n.tenant_id = s.tenant_id
+               AND n.archived_at IS NULL AND ($4::uuid IS NULL OR n.id = $4::uuid)
+            WHERE s.tenant_id = $1::uuid AND s.client_id = $2::uuid AND s.id = $3::uuid AND s.archived_at IS NULL
+            LIMIT 1`,
+          ctx.tenantId,
+          clientId,
+          input.strategyId,
+          input.nodeId ?? null,
+        ),
+      ),
+    );
+    const row = rows[0] ?? null;
+    if (!row) throw new NotFoundException('Strategy not found or not associated with this client');
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'strategy',
+      linkKey: input.nodeId ?? input.strategyId,
+      label: row.nodeTitle ?? row.strategyTitle,
+      relationshipType: input.relationshipType,
+      confidence: null,
+      provenance: null,
+      metadata: {
+        strategyId: input.strategyId,
+        nodeId: row.nodeId,
+        subject: row.subject,
+        causationClaimed: false,
+      },
+    });
+  }
+
+  private async assertMatterBelongsToClient(ctx: TenantContext, clientId: string, matterId: string): Promise<void> {
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM client_advocacy_matter WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        matterId,
+      ),
+    );
+    if (rows.length === 0) throw new NotFoundException('Advocacy matter not found');
+  }
+
+  /** Fetches a Matter's own primary_pe_code/primary_bill_id — the deterministic
+   *  identifiers a public-source link must match against to count as
+   *  defensible (spec section 12: "Client matching must use defensible
+   *  identity evidence. No loose company-name attribution."). Throws if the
+   *  Matter doesn't exist for this client (folds assertMatterBelongsToClient's
+   *  check in, so callers only need one round trip). */
+  private async getMatterIdentifiers(
+    ctx: TenantContext,
+    clientId: string,
+    matterId: string,
+  ): Promise<{ primaryPeCode: string | null; primaryBillId: string | null }> {
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ primaryPeCode: string | null; primaryBillId: string | null }>>(
+        `SELECT primary_pe_code AS "primaryPeCode", primary_bill_id AS "primaryBillId"
+           FROM client_advocacy_matter WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        matterId,
+      ),
+    );
+    if (rows.length === 0) throw new NotFoundException('Advocacy matter not found');
+    return rows[0]!;
+  }
+
+  /** Runs a source read for a Matter link and converts any thrown error into
+   *  a source-unavailable BadRequestException (never silently reinterpreted
+   *  as "not found" / zero results — spec sections 10/13/26). A resolved
+   *  `null`/absent result is NOT converted here; that's a real zero-result
+   *  and callers throw their own NotFoundException for it. */
+  private async readLinkSourceOrUnavailable<T>(sourceName: string, read: () => Promise<T>): Promise<T> {
+    try {
+      return await read();
+    } catch (error) {
+      this.logger.warn(`${sourceName} read failed for Matter link (treated as source unavailable): ${this.safeError(error)}`);
+      throw new BadRequestException(`${sourceName} source is unavailable — cannot link right now`);
+    }
+  }
+
+  /**
+   * Link a Regulations.gov / Federal Register docket document into a
+   * Matter (product spec section 10). `regulatory_docket` is a GLOBAL
+   * table (no tenant_id, no RLS, shared across all tenants) so there is no
+   * per-tenant access gate to enforce on the source record itself — the
+   * tenant/client scoping lives entirely on the link row. Evidence class
+   * is always PUBLIC_VERIFIED. A genuinely absent document_id is a real
+   * NotFoundException (the underlying query succeeded, zero rows) —
+   * distinct from a query failure, which is reported as source-unavailable
+   * so "not found" is never confused with "we couldn't check."
+   */
+  async linkRegulatoryDocket(ctx: TenantContext, clientId: string, matterId: string, documentId: string): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+
+    let doc: { title: string; agencyId: string; docketId: string | null; postedDate: Date | null; documentType: string } | null;
+    doc = await this.readLinkSourceOrUnavailable('regulatory_docket', () =>
+      this.prisma.regulatoryDocket.findUnique({
+        where: { documentId },
+        select: { title: true, agencyId: true, docketId: true, postedDate: true, documentType: true },
+      }),
+    );
+    if (!doc) throw new NotFoundException('Regulatory docket not found');
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'regulatory_docket',
+      linkKey: documentId,
+      label: doc.title,
+      relationshipType: null,
+      confidence: null,
+      provenance: null,
+      evidenceClass: 'PUBLIC_VERIFIED',
+      metadata: {
+        occurredAt: doc.postedDate?.toISOString() ?? null,
+        agencyId: doc.agencyId,
+        docketId: doc.docketId,
+        documentType: doc.documentType,
+        sourceUrl: `https://www.regulations.gov/document/${encodeURIComponent(documentId)}`,
+      },
+    });
+  }
+
+  /**
+   * Link a Federal Register document into a Matter. Same global-table
+   * pattern as linkRegulatoryDocket. `docketIds`/`cfrReferences` on the
+   * source row are captured as-is so the UI can show what the document
+   * itself claims to relate to, without Capiro asserting a relationship
+   * the document doesn't state.
+   */
+  async linkRegulatoryDocument(ctx: TenantContext, clientId: string, matterId: string, documentNumber: string): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+
+    let doc: {
+      title: string;
+      type: string;
+      agencyNames: string[];
+      publicationDate: Date;
+      docketIds: string[];
+      htmlUrl: string | null;
+    } | null;
+    doc = await this.readLinkSourceOrUnavailable('federal_register_document', () =>
+      this.prisma.federalRegisterDocument.findUnique({
+        where: { documentNumber },
+        select: { title: true, type: true, agencyNames: true, publicationDate: true, docketIds: true, htmlUrl: true },
+      }),
+    );
+    if (!doc) throw new NotFoundException('Federal Register document not found');
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'regulatory_document',
+      linkKey: documentNumber,
+      label: doc.title,
+      relationshipType: null,
+      confidence: null,
+      provenance: null,
+      evidenceClass: 'PUBLIC_VERIFIED',
+      metadata: {
+        occurredAt: doc.publicationDate.toISOString(),
+        documentType: doc.type,
+        agencyNames: doc.agencyNames,
+        docketIds: doc.docketIds,
+        sourceUrl: doc.htmlUrl,
+      },
+    });
+  }
+
+  /**
+   * Link a congressional committee hearing into a Matter (product spec
+   * section 11). Auto-suggestable ONLY when the hearing's own
+   * committee_system_code matches a committee actually tied to the
+   * Matter's primary_bill_id (via congress_bill_committee — a deterministic
+   * code match, not title/text similarity); otherwise the caller must pass
+   * `manualRationale` so the link is still recorded as a reviewable,
+   * explicitly-inferred finding rather than an automatic claim (spec:
+   * "Do not classify every appearance as advocacy automatically. Create
+   * reviewable findings when the relationship is inferred.").
+   */
+  async linkHearing(
+    ctx: TenantContext,
+    clientId: string,
+    matterId: string,
+    hearingId: string,
+    manualRationale?: string | null,
+  ): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    const { primaryBillId } = await this.getMatterIdentifiers(ctx, clientId, matterId);
+
+    let hearing: { title: string; committeeName: string; committeeSystemCode: string | null; date: Date; chamber: string; url: string | null } | null;
+    hearing = await this.readLinkSourceOrUnavailable('committee_hearing', () =>
+      this.prisma.committeeHearing.findUnique({
+        where: { id: hearingId },
+        select: { title: true, committeeName: true, committeeSystemCode: true, date: true, chamber: true, url: true },
+      }),
+    );
+    if (!hearing) throw new NotFoundException('Committee hearing not found');
+
+    let confirmedByCommitteeCode = false;
+    if (primaryBillId && hearing.committeeSystemCode) {
+      const committeeMatch = await this.prisma.congressBillCommittee.findFirst({
+        where: { billId: primaryBillId, committeeCode: hearing.committeeSystemCode },
+        select: { id: true },
+      });
+      confirmedByCommitteeCode = committeeMatch != null;
+    }
+    if (!confirmedByCommitteeCode && !manualRationale) {
+      throw new BadRequestException(
+        'This hearing is not deterministically linked to the Matter\'s tracked bill committee — provide manualRationale to record it as an inferred, reviewable finding',
+      );
+    }
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'hearing',
+      linkKey: hearingId,
+      label: hearing.title,
+      relationshipType: null,
+      confidence: confirmedByCommitteeCode ? 1 : null,
+      provenance: confirmedByCommitteeCode ? 'Matter bill\'s committee code matches this hearing\'s committee.' : manualRationale ?? null,
+      evidenceClass: 'PUBLIC_VERIFIED',
+      metadata: {
+        occurredAt: hearing.date.toISOString(),
+        committeeName: hearing.committeeName,
+        chamber: hearing.chamber,
+        sourceUrl: hearing.url,
+      },
+    });
+  }
+
+  /**
+   * Link a specific witness's testimony at a hearing into a Matter.
+   * HONEST COVERAGE GAP: `committee_hearing.witnesses` is a bare
+   * `text[]` of names — there is no canonical testimony-document/title/
+   * organization row anywhere in this repo (confirmed absent by audit).
+   * This method can therefore only confirm the witness NAME appears in
+   * that array; it cannot verify witness organization or fetch a
+   * testimony document/title, because Capiro has no canonical source for
+   * either. Metadata is honest about this — `documentUrl`/`organization`
+   * are always null here, never fabricated.
+   */
+  async linkTestimony(
+    ctx: TenantContext,
+    clientId: string,
+    matterId: string,
+    hearingId: string,
+    witnessName: string,
+  ): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+
+    let hearing: { title: string; committeeName: string; date: Date; witnesses: string[]; url: string | null } | null;
+    hearing = await this.readLinkSourceOrUnavailable('committee_hearing', () =>
+      this.prisma.committeeHearing.findUnique({
+        where: { id: hearingId },
+        select: { title: true, committeeName: true, date: true, witnesses: true, url: true },
+      }),
+    );
+    if (!hearing) throw new NotFoundException('Committee hearing not found');
+    const matchedWitness = hearing.witnesses.find((w) => w.toLowerCase() === witnessName.toLowerCase());
+    if (!matchedWitness) throw new NotFoundException('Witness not found on this hearing\'s witness list');
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'testimony',
+      linkKey: `${hearingId}::${matchedWitness}`,
+      label: `${matchedWitness} — ${hearing.title}`,
+      relationshipType: null,
+      confidence: null,
+      provenance: null,
+      evidenceClass: 'PUBLIC_VERIFIED',
+      metadata: {
+        occurredAt: hearing.date.toISOString(),
+        witness: matchedWitness,
+        // Honest gap: no canonical per-witness organization or testimony
+        // document exists in this repo. Never fabricated.
+        organization: null,
+        documentUrl: null,
+        hearingUrl: hearing.url,
+      },
+    });
+  }
+
+  /**
+   * Link a FARA registration into a Matter (product spec section 13).
+   * `fara_registration` is a GLOBAL table (no tenant_id) holding the
+   * registration itself — there is no separate canonical filing/activity
+   * sub-row in this repo, so `filing`/`activity` in metadata mirror the
+   * registration's own fields rather than a distinct filing event. A
+   * genuinely missing registration number is NotFoundException; a query
+   * failure is source-unavailable, never silently reported as "0 FARA
+   * records" (spec: "No FARA record is not equivalent to source checked
+   * successfully unless the source actually completed.").
+   */
+  async linkFaraRecord(ctx: TenantContext, clientId: string, matterId: string, registrationNumber: string): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+
+    let record: { registrantName: string; foreignPrincipal: string; status: string | null; registrationDate: Date | null } | null;
+    record = await this.readLinkSourceOrUnavailable('fara_registration', () =>
+      this.prisma.faraRegistration.findUnique({
+        where: { registrationNumber },
+        select: { registrantName: true, foreignPrincipal: true, status: true, registrationDate: true },
+      }),
+    );
+    if (!record) throw new NotFoundException('FARA registration not found');
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'fara_record',
+      linkKey: registrationNumber,
+      label: `${record.registrantName} — ${record.foreignPrincipal}`,
+      relationshipType: null,
+      confidence: null,
+      provenance: null,
+      evidenceClass: 'PUBLIC_VERIFIED',
+      metadata: {
+        occurredAt: record.registrationDate?.toISOString() ?? null,
+        registrantName: record.registrantName,
+        foreignPrincipal: record.foreignPrincipal,
+        status: record.status,
+      },
+    });
+  }
+
+  private safeError(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
   /** Matters for a client, newest activity first, with rollup counts. */
   async listMatters(ctx: TenantContext, clientId: string): Promise<AdvocacyMatterSummary[]> {
     await this.assertClient(ctx, clientId);
@@ -281,7 +854,7 @@ export class ClientAdvocacyMatterService {
                     COUNT(*) AS count,
                     COUNT(*) FILTER (WHERE outcome IS NOT NULL) AS outcome_count
                FROM client_advocacy_record
-              WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND matter_id IS NOT NULL
+              WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND matter_id IS NOT NULL AND not_advocacy = false
               GROUP BY matter_id
            ) rc ON rc.matter_id = m.id
            LEFT JOIN (
@@ -368,15 +941,17 @@ export class ClientAdvocacyMatterService {
           confidence: number;
           metadata: unknown;
           createdAt: Date;
+          matterLocked: boolean;
         }>
       >(
         `SELECT id, record_type AS "recordType", title, summary,
                 activity_date AS "activityDate", status, outcome,
                 source_type AS "sourceType", source_id AS "sourceId",
                 source_url AS "sourceUrl", evidence_class AS "evidenceClass",
-                confidence, metadata_jsonb AS metadata, created_at AS "createdAt"
+                confidence, metadata_jsonb AS metadata, created_at AS "createdAt",
+                matter_locked AS "matterLocked"
            FROM client_advocacy_record
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND matter_id = $3::uuid
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND matter_id = $3::uuid AND not_advocacy = false
           ORDER BY activity_date DESC NULLS LAST, created_at DESC`,
         ctx.tenantId,
         clientId,
@@ -384,9 +959,21 @@ export class ClientAdvocacyMatterService {
       );
 
       const links = await tx.$queryRawUnsafe<
-        Array<{ id: string; linkType: string; linkKey: string; label: string | null; metadata: unknown }>
+        Array<{
+          id: string;
+          linkType: string;
+          linkKey: string;
+          label: string | null;
+          relationshipType: string | null;
+          confidence: number | null;
+          provenance: string | null;
+          evidenceClass: string | null;
+          metadata: unknown;
+        }>
       >(
-        `SELECT id, link_type AS "linkType", link_key AS "linkKey", label, metadata_jsonb AS metadata
+        `SELECT id, link_type AS "linkType", link_key AS "linkKey", label,
+                relationship_type AS "relationshipType", confidence, provenance,
+                evidence_class AS "evidenceClass", metadata_jsonb AS metadata
            FROM client_advocacy_matter_link
           WHERE tenant_id = $1::uuid AND matter_id = $2::uuid
           ORDER BY created_at DESC`,
@@ -434,15 +1021,256 @@ export class ClientAdvocacyMatterService {
         confidence: Number(r.confidence),
         metadata: asRecord(r.metadata),
         createdAt: r.createdAt.toISOString(),
+        matterLocked: r.matterLocked,
       })),
       links: links.map((l) => ({
         id: l.id,
         linkType: l.linkType,
         linkKey: l.linkKey,
         label: l.label,
+        relationshipType: l.relationshipType,
+        confidence: l.confidence != null ? Number(l.confidence) : null,
+        provenance: l.provenance,
+        evidenceClass: l.evidenceClass,
         metadata: asRecord(l.metadata),
       })),
     };
+  }
+
+  /**
+   * §18/19 Timeline: one chronological view across EVERY Matter for this
+   * client, not per-Matter. Two shapes feed it, exactly the same as
+   * getMatter but joined across the whole client instead of one matter_id:
+   * client_advocacy_record rows (not_advocacy excluded, same as getMatter)
+   * and client_advocacy_matter_link rows, each carrying its own Matter's id
+   * and title so a Timeline row can link back to the Matter it belongs to.
+   * A record/link with matter_id NULL (genuinely unassigned — §25's
+   * "unassigned is a valid state") still appears, with matterId/matterTitle
+   * null, rather than being silently dropped from the one place a client
+   * user would look to see everything that happened.
+   *
+   * Strategy links are still excluded from date-based ordering exactly as
+   * they are from the per-Matter lifecycle view (buildLifecycle on the web
+   * side) — a plan has no occurredAt, so it cannot be placed on a
+   * chronology, and fabricating one would misrepresent when nothing
+   * actually happened.
+   */
+  async getTimeline(ctx: TenantContext, clientId: string): Promise<AdvocacyTimelineEntry[]> {
+    await this.assertClient(ctx, clientId);
+    const [records, links] = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const recordRows = await tx.$queryRawUnsafe<
+        Array<{
+          id: string;
+          recordType: string;
+          title: string;
+          activityDate: Date | null;
+          evidenceClass: string;
+          confidence: number;
+          matterId: string | null;
+          matterTitle: string | null;
+        }>
+      >(
+        `SELECT r.id, r.record_type AS "recordType", r.title, r.activity_date AS "activityDate",
+                r.evidence_class AS "evidenceClass", r.confidence,
+                r.matter_id AS "matterId", m.title AS "matterTitle"
+           FROM client_advocacy_record r
+           LEFT JOIN client_advocacy_matter m ON m.id = r.matter_id AND m.tenant_id = r.tenant_id
+          WHERE r.tenant_id = $1::uuid AND r.client_id = $2::uuid AND r.not_advocacy = false
+          ORDER BY r.activity_date DESC NULLS LAST, r.created_at DESC
+          LIMIT 500`,
+        ctx.tenantId,
+        clientId,
+      );
+      const linkRows = await tx.$queryRawUnsafe<
+        Array<{
+          id: string;
+          linkType: string;
+          label: string | null;
+          linkKey: string;
+          evidenceClass: string | null;
+          confidence: number | null;
+          metadata: unknown;
+          matterId: string;
+          matterTitle: string;
+        }>
+      >(
+        `SELECT l.id, l.link_type AS "linkType", l.label, l.link_key AS "linkKey",
+                l.evidence_class AS "evidenceClass", l.confidence, l.metadata_jsonb AS metadata,
+                l.matter_id AS "matterId", m.title AS "matterTitle"
+           FROM client_advocacy_matter_link l
+           JOIN client_advocacy_matter m ON m.id = l.matter_id AND m.tenant_id = l.tenant_id
+          WHERE l.tenant_id = $1::uuid AND m.client_id = $2::uuid
+          ORDER BY l.created_at DESC
+          LIMIT 500`,
+        ctx.tenantId,
+        clientId,
+      );
+      return [recordRows, linkRows] as const;
+    });
+
+    const entries: AdvocacyTimelineEntry[] = [];
+    for (const r of records) {
+      entries.push({
+        id: r.id,
+        kind: 'record',
+        title: r.title,
+        subtype: r.recordType,
+        date: r.activityDate?.toISOString() ?? null,
+        evidenceClass: r.evidenceClass,
+        confidence: Number(r.confidence),
+        matterId: r.matterId,
+        matterTitle: r.matterTitle,
+      });
+    }
+    for (const l of links) {
+      const occurredAt = asString(asRecord(l.metadata).occurredAt);
+      if (!occurredAt) continue; // strategy (no date) and any undated link never enter the timeline — never fabricate one
+      entries.push({
+        id: l.id,
+        kind: 'link',
+        title: l.label ?? l.linkKey,
+        subtype: l.linkType,
+        date: occurredAt,
+        evidenceClass: l.evidenceClass,
+        confidence: l.confidence != null ? Number(l.confidence) : null,
+        matterId: l.matterId,
+        matterTitle: l.matterTitle,
+      });
+    }
+    // Undated entries (a record with no activity_date) sort last, not first
+    // — nulls-last matches every other chronological query in this file
+    // (getMatter's records, gatherAdvocacyHistory's LDA filings) rather than
+    // inventing a different convention just for this one view.
+    entries.sort((a, b) => {
+      if (a.date && b.date) return b.date.localeCompare(a.date);
+      if (a.date) return -1;
+      if (b.date) return 1;
+      return 0;
+    });
+    return entries.slice(0, 500);
+  }
+
+  /**
+   * Manually create a new Matter (not auto-clustered). Used by the
+   * correction UX's "Create new Matter" action (reassigning a record into a
+   * brand-new Matter rather than an existing one) and by Fill review's
+   * "Create Matter" action for a proposed activity that doesn't fit any
+   * existing Matter.
+   */
+  async createMatter(
+    ctx: TenantContext,
+    clientId: string,
+    input: { title: string; matterType?: string; summary?: string | null },
+  ): Promise<string> {
+    await this.assertClient(ctx, clientId);
+    const externalKey = `manual:${randomUUID()}`;
+    const inserted = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `INSERT INTO client_advocacy_matter
+           (tenant_id, client_id, title, matter_type, status, summary, external_key,
+            auto_generated, opened_at, created_by_user_id)
+         VALUES ($1::uuid, $2::uuid, $3, $4, 'planning', $5, $6, false, now(), $7::uuid)
+         RETURNING id`,
+        ctx.tenantId,
+        clientId,
+        input.title,
+        input.matterType ?? 'other',
+        input.summary ?? null,
+        externalKey,
+        ctx.userId,
+      ),
+    );
+    return inserted[0]!.id;
+  }
+
+  /** Record types product spec §25 asks "Add advocacy record" to support,
+   *  mapped to the free-form record_type string this table has always
+   *  accepted (no CHECK constraint — confirmed before adding this, so no
+   *  migration needed to introduce a new vocabulary). */
+  static readonly MANUAL_RECORD_TYPES = [
+    'advocacy_ask', 'meeting', 'submission', 'congressional_request',
+    'regulatory_comment', 'testimony', 'outreach', 'government_action', 'outcome', 'other',
+  ] as const;
+
+  /**
+   * §25 "Add advocacy record" — the one path in this file that creates a
+   * client_advocacy_record row OUTSIDE the Fill-with-Meri apply flow. A
+   * human is asserting this activity happened; it is never routed through
+   * addFinding/applyAdvocacyRecord's review step because there is no
+   * finding to review — the human IS the source.
+   *
+   * Evidence class: §25 says "CLIENT_VERIFIED unless backed by a
+   * separately attached official public source" — this only ever upgrades
+   * to PUBLIC_VERIFIED when the caller supplies a sourceUrl (the one
+   * signal this endpoint has that an official public record backs the
+   * claim); never inferred from the record TYPE alone (a manually-entered
+   * "Regulatory comment" with no URL is still just an assertion, not
+   * verified).
+   *
+   * Matter assignment is exactly one of: an existing Matter (matterId), a
+   * brand-new Matter created in the same call (newMatter), or unassigned
+   * (omit both). Whichever applies, matter_locked is set true immediately
+   * — a human manually creating this record IS the human decision §6
+   * requires before automatic clustering may be overridden; there is
+   * nothing to "correct" later because nothing auto-assigned it.
+   */
+  async createManualRecord(
+    ctx: TenantContext,
+    clientId: string,
+    input: {
+      recordType: string;
+      title: string;
+      summary?: string | null;
+      activityDate?: string | null;
+      status?: string | null;
+      outcome?: string | null;
+      sourceUrl?: string | null;
+      matterId?: string | null;
+      newMatter?: { title: string; matterType?: string; summary?: string | null } | null;
+    },
+  ): Promise<string> {
+    await this.assertClient(ctx, clientId);
+    if (input.matterId && input.newMatter) {
+      throw new BadRequestException('Choose an existing Matter or a new one, not both');
+    }
+    if (input.matterId) {
+      await this.assertMatterBelongsToClient(ctx, clientId, input.matterId);
+    }
+    const matterId = input.newMatter
+      ? await this.createMatter(ctx, clientId, input.newMatter)
+      : input.matterId ?? null;
+    const evidenceClass = input.sourceUrl ? 'PUBLIC_VERIFIED' : 'CLIENT_VERIFIED';
+    const externalKey = `manual:${randomUUID()}`;
+    const inserted = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const rows = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `INSERT INTO client_advocacy_record
+           (tenant_id, client_id, record_type, title, summary, activity_date, status, outcome,
+            source_type, source_url, evidence_class, confidence, external_key, matter_id, matter_locked,
+            created_by_user_id, reviewed_by_user_id, reviewed_at)
+         VALUES (
+           $1::uuid, $2::uuid, $3, $4, $5,
+           CASE WHEN $6::text IS NULL OR $6::text = '' THEN NULL ELSE $6::timestamptz::date END,
+           $7, $8, 'manual', $9, $10, 1, $11, $12::uuid, true, $13::uuid, $13::uuid, now()
+         )
+         RETURNING id`,
+        ctx.tenantId,
+        clientId,
+        input.recordType,
+        input.title,
+        input.summary ?? null,
+        input.activityDate ?? null,
+        input.status ?? null,
+        input.outcome ?? null,
+        input.sourceUrl ?? null,
+        evidenceClass,
+        externalKey,
+        matterId,
+        ctx.userId,
+      );
+      if (matterId) await this.touchMatterActivity(tx, ctx.tenantId, matterId, input.activityDate ?? null);
+      return rows;
+    });
+    return inserted[0]!.id;
   }
 
   /**
@@ -450,20 +1278,53 @@ export class ClientAdvocacyMatterService {
    * A Matter created automatically stays `autoGenerated: true` even after a
    * manual edit — that flag tracks provenance of the grouping decision, not
    * whether a human has since touched it.
+   *
+   * Status transitions into `successful` / `partially_successful` /
+   * `unsuccessful` require explicit evidence: either the Matter already has
+   * at least one linked `outcome_event`, or the caller passes
+   * `confirmOutcome: true` (an explicit human confirmation from the Matter
+   * detail UI). This is the enforcement point for product spec section 7 —
+   * "Meri must not automatically set successful" and "should require
+   * explicit evidence or human confirmation" — Meri only ever calls
+   * `linkToMatter`/`assignMatterForRecord`, never `updateMatter`, so this
+   * path is human-only by construction, but the evidence/confirmation
+   * requirement still applies to prevent a careless one-click status change.
+   * `outcome_observed` has no such requirement — it means "something
+   * happened," not "the ask succeeded," and does not require confirmation.
    */
   async updateMatter(
     ctx: TenantContext,
     clientId: string,
     matterId: string,
-    input: { title?: string; status?: string; summary?: string | null },
+    input: { title?: string; status?: string; summary?: string | null; confirmOutcome?: boolean },
   ): Promise<void> {
     await this.assertClient(ctx, clientId);
-    const changed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$executeRawUnsafe(
+    const OUTCOME_STATUSES = new Set(['successful', 'partially_successful', 'unsuccessful']);
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      let confirmOutcomeNow = false;
+      if (input.status && OUTCOME_STATUSES.has(input.status)) {
+        const evidence = await tx.$queryRawUnsafe<Array<{ count: number }>>(
+          `SELECT COUNT(*)::int AS count FROM client_advocacy_matter_link
+            WHERE tenant_id = $1::uuid AND matter_id = $2::uuid AND link_type = 'outcome_event'`,
+          ctx.tenantId,
+          matterId,
+        );
+        const hasOutcomeEvidence = (evidence[0]?.count ?? 0) > 0;
+        if (!hasOutcomeEvidence && input.confirmOutcome !== true) {
+          throw new BadRequestException(
+            `Setting status to "${input.status}" requires either a linked outcome event or explicit human confirmation (confirmOutcome: true)`,
+          );
+        }
+        confirmOutcomeNow = true;
+      }
+
+      const changed = await tx.$executeRawUnsafe(
         `UPDATE client_advocacy_matter
             SET title = COALESCE($4, title),
                 status = COALESCE($5, status),
                 summary = CASE WHEN $6::boolean THEN $7 ELSE summary END,
+                outcome_confirmed_by_user_id = CASE WHEN $8::boolean THEN $9::uuid ELSE outcome_confirmed_by_user_id END,
+                outcome_confirmed_at = CASE WHEN $8::boolean THEN now() ELSE outcome_confirmed_at END,
                 updated_at = now()
           WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
         ctx.tenantId,
@@ -473,9 +1334,116 @@ export class ClientAdvocacyMatterService {
         asString(input.status),
         input.summary !== undefined,
         input.summary ?? null,
-      ),
-    );
-    if (Number(changed) !== 1) throw new NotFoundException('Advocacy matter not found');
+        confirmOutcomeNow,
+        ctx.userId,
+      );
+      if (Number(changed) !== 1) throw new NotFoundException('Advocacy matter not found');
+    });
+  }
+
+  /**
+   * Reassign a single advocacy record to a different (existing) Matter.
+   * Locks the record so a later Fill with Meri re-run cannot silently move
+   * it back — see `assignMatterForRecord`'s `matter_locked` check.
+   */
+  async reassignRecord(
+    ctx: TenantContext,
+    clientId: string,
+    recordId: string,
+    targetMatterId: string,
+  ): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const targetExists = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM client_advocacy_matter WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        targetMatterId,
+      );
+      if (targetExists.length === 0) throw new NotFoundException('Target advocacy matter not found');
+
+      const sourceMatterRow = await tx.$queryRawUnsafe<Array<{ matterId: string | null }>>(
+        `SELECT matter_id AS "matterId" FROM client_advocacy_record
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        recordId,
+      );
+      if (sourceMatterRow.length === 0) throw new NotFoundException('Advocacy record not found');
+      const sourceMatterId = sourceMatterRow[0]!.matterId;
+
+      const changed = await tx.$executeRawUnsafe(
+        `UPDATE client_advocacy_record
+            SET matter_id = $4::uuid, matter_locked = true, not_advocacy = false,
+                reviewed_by_user_id = $5::uuid, reviewed_at = now(), updated_at = now()
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        recordId,
+        targetMatterId,
+        ctx.userId,
+      );
+      this.assertOneRowChanged(changed, 'Advocacy record not found');
+
+      await this.touchMatterActivity(tx, ctx.tenantId, targetMatterId, null);
+      if (sourceMatterId && sourceMatterId !== targetMatterId) {
+        await this.touchMatterActivity(tx, ctx.tenantId, sourceMatterId, null);
+      }
+    });
+  }
+
+  /**
+   * Detach a record from its Matter (falsely associated). The record is
+   * NOT deleted — it becomes unassigned (`matter_id = NULL`) and locked so
+   * automatic clustering does not immediately re-cluster it right back in.
+   */
+  async detachRecord(ctx: TenantContext, clientId: string, recordId: string): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const changed = await tx.$executeRawUnsafe(
+        `UPDATE client_advocacy_record
+            SET matter_id = NULL, matter_locked = true,
+                reviewed_by_user_id = $4::uuid, reviewed_at = now(), updated_at = now()
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        recordId,
+        ctx.userId,
+      );
+      this.assertOneRowChanged(changed, 'Advocacy record not found');
+    });
+  }
+
+  /**
+   * Mark a proposed advocacy activity "Not advocacy" — a human rejection.
+   * The record stays in the table (audit trail: who rejected it, when, and
+   * what it originally claimed) but is excluded from Matter rollups and
+   * detail record lists (see `listMatters`/`getMatter` filtering) and from
+   * the Timeline. Also detaches it from any Matter and locks it, so a later
+   * identical finding from Fill with Meri is not resurrected as a duplicate
+   * (product spec section 26).
+   */
+  async markRecordNotAdvocacy(
+    ctx: TenantContext,
+    clientId: string,
+    recordId: string,
+    reason?: string | null,
+  ): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const changed = await tx.$executeRawUnsafe(
+        `UPDATE client_advocacy_record
+            SET not_advocacy = true, not_advocacy_reason = $4, matter_id = NULL, matter_locked = true,
+                reviewed_by_user_id = $5::uuid, reviewed_at = now(), updated_at = now()
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        recordId,
+        reason ?? null,
+        ctx.userId,
+      );
+      this.assertOneRowChanged(changed, 'Advocacy record not found');
+    });
   }
 
   /**
@@ -551,5 +1519,13 @@ export class ClientAdvocacyMatterService {
     );
     if (!client) throw new NotFoundException('Client not found');
     this.logger.debug(`Advocacy matter access for client ${clientId}`);
+  }
+
+  /** Asserts an UPDATE affected exactly the one targeted row. Every record
+   *  correction mutation (reassign/detach/not-advocacy/update) is scoped by
+   *  primary key, so anything other than exactly 1 means the row didn't
+   *  exist (or didn't belong to this tenant/client) — not a partial write. */
+  private assertOneRowChanged(changed: unknown, notFoundMessage: string): void {
+    if (Number(changed) !== 1) throw new NotFoundException(notFoundMessage);
   }
 }

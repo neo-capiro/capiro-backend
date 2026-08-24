@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, type CSSProperties } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { isTenantAdmin } from '@capiro/shared';
 import {
   Card,
   CardHead,
@@ -7,12 +8,16 @@ import {
   Pill,
   PfSkeleton,
   PfEmptyState,
+  PfButton,
   TabPageHead,
+  UIcon,
+  SegmentedTabs,
   type PillTone,
 } from '../portfolio-primitives.js';
 import { formatDateShort } from '../../../lib/labels.js';
 import { useApi } from '../../../../lib/use-api.js';
-import { CapiroDrawer } from '../../../components/overlays/index.js';
+import { useMe } from '../../../../lib/me.js';
+import { CapiroDrawer, CapiroModal } from '../../../components/overlays/index.js';
 import { CapiroBadge } from '../../../components/badges/index.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 
@@ -30,10 +35,14 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
  * plus linked Program Elements, bills, and outcome events — see
  * `apps/api/src/clients/client-advocacy-matter.service.ts`.
  *
- * This is a read + light-edit surface: Matters are created and populated by
- * Fill with Meri's advocacy-history/lifecycle-outcomes specialists when a
- * finding is applied, not by hand here. A person can rename a Matter, set
- * its status, or merge a mis-split duplicate — nothing else.
+ * Correction UX (closeout PR, product spec section 6): an admin can rename
+ * a Matter, edit its summary/status, merge two Matters, create a Matter by
+ * hand, and correct an individual record's Matter assignment — reassign to
+ * a different Matter, detach (falsely associated), or mark "Not advocacy".
+ * Human corrections are authoritative: the backend locks a corrected
+ * record (`matter_locked`) so a later Fill with Meri re-run cannot silently
+ * undo the correction. Auto-clustered Matters are visually flagged so users
+ * know a correction may be warranted, not required.
  */
 
 export interface AdvocacyMatterSummary {
@@ -55,6 +64,24 @@ export interface AdvocacyMatterSummary {
   updatedAt: string;
 }
 
+/** §18/19 Timeline: one row spanning every Matter for this client. Mirrors
+ *  the backend's AdvocacyTimelineEntry exactly (client-advocacy-matter.
+ *  service.ts) — kind distinguishes a durable record from a link so the
+ *  row can carry the right subtype vocabulary (record_type vs. one of the
+ *  13 link types); matterId/matterTitle are null only for a genuinely
+ *  unassigned record. */
+export interface AdvocacyTimelineEntry {
+  id: string;
+  kind: 'record' | 'link';
+  title: string;
+  subtype: string;
+  date: string | null;
+  evidenceClass: string | null;
+  confidence: number | null;
+  matterId: string | null;
+  matterTitle: string | null;
+}
+
 export interface AdvocacyMatterRecord {
   id: string;
   recordType: string;
@@ -70,6 +97,7 @@ export interface AdvocacyMatterRecord {
   confidence: number;
   metadata: Record<string, unknown>;
   createdAt: string;
+  matterLocked: boolean;
 }
 
 export interface AdvocacyMatterLink {
@@ -77,6 +105,10 @@ export interface AdvocacyMatterLink {
   linkType: string;
   linkKey: string;
   label: string | null;
+  relationshipType: string | null;
+  confidence: number | null;
+  provenance: string | null;
+  evidenceClass: string | null;
   metadata: Record<string, unknown>;
 }
 
@@ -95,9 +127,55 @@ const MATTER_TYPE_LABEL: Record<string, string> = {
   other: 'Other',
 };
 
+const MATTER_TYPE_OPTIONS = Object.keys(MATTER_TYPE_LABEL);
+
+/** Product lifecycle statuses (spec section 7). A Matter created before this
+ *  closeout may still carry a legacy value (open/monitoring/resolved/stalled)
+ *  — STATUS_LABEL covers both so nothing renders as a raw enum string. */
+const STATUS_LABEL: Record<string, string> = {
+  planning: 'Planning',
+  active: 'Active',
+  monitoring: 'Monitoring',
+  outcome_observed: 'Outcome observed',
+  successful: 'Successful',
+  partially_successful: 'Partially successful',
+  unsuccessful: 'Unsuccessful',
+  withdrawn: 'Withdrawn',
+  archived: 'Archived',
+  // legacy (pre-closeout) values
+  open: 'Open',
+  resolved: 'Resolved',
+  stalled: 'Stalled',
+};
+
+/** Statuses offered in the edit UI going forward. Legacy values are still
+ *  rendered (STATUS_LABEL above) but not offered as new choices. */
+const MATTER_STATUS_OPTIONS = [
+  'planning', 'active', 'monitoring', 'outcome_observed',
+  'successful', 'partially_successful', 'unsuccessful', 'withdrawn', 'archived',
+];
+
+const OUTCOME_CLAIM_STATUSES = new Set(['successful', 'partially_successful', 'unsuccessful']);
+
+/** Shared text-input styling for the correction-UX forms below (create/edit
+ *  Matter, merge, record actions) — this file's only forms, so a local
+ *  constant beats repeating the same object literal eight times. */
+const FIELD_STYLE: CSSProperties = { padding: '8px 10px', borderRadius: 8, border: '1px solid #D0D5DD', fontSize: 14 };
+const TEXTAREA_STYLE: CSSProperties = { ...FIELD_STYLE, resize: 'vertical' };
+const FIELD_LABEL_STYLE: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: '#475467' };
+const FORM_STYLE: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 14, padding: 4 };
+
 const STATUS_TONE: Record<string, PillTone> = {
-  open: 'blue',
+  planning: 'gray',
+  active: 'blue',
   monitoring: 'gray',
+  outcome_observed: 'blue',
+  successful: 'success',
+  partially_successful: 'warning',
+  unsuccessful: 'gray',
+  withdrawn: 'gray',
+  archived: 'gray',
+  open: 'blue',
   resolved: 'success',
   stalled: 'warning',
 };
@@ -109,9 +187,54 @@ const EVIDENCE_LABEL: Record<string, string> = {
   INFERRED: 'Inferred',
 };
 
+/** Static subtype labels shared by TimelineCard for both entry kinds
+ *  (client_advocacy_record.record_type and client_advocacy_matter_link.
+ *  link_type share one label space here since a Timeline row only ever
+ *  shows one). Deliberately omits 'strategy' — Strategy links never reach
+ *  the Timeline at all (no occurredAt; see getTimeline's own doc comment
+ *  on the backend), so there is no live callsite that would need its
+ *  relationshipType-conditional label. LinkRow keeps its own local map for
+ *  that one case; this one is intentionally static, not a duplicate meant
+ *  to stay in sync with it. */
+const TIMELINE_SUBTYPE_LABEL: Record<string, string> = {
+  client_submission: 'Client submission',
+  federal_lobbying: 'LDA filing',
+  advocacy_meeting: 'Meeting (inferred)',
+  advocacy_correspondence: 'Correspondence (inferred)',
+  program_element: 'Program Element',
+  bill: 'Bill',
+  outcome_event: 'Observed outcome',
+  meeting: 'Meeting',
+  mail_thread: 'Email thread',
+  outreach: 'Outreach',
+  regulatory_docket: 'Regulations.gov',
+  regulatory_document: 'Federal Register',
+  hearing: 'Committee hearing',
+  testimony: 'Testimony',
+  fara_record: 'FARA registration',
+};
+
+function useIsAdvocacyAdmin(): boolean {
+  const me = useMe();
+  return me.data ? isTenantAdmin(me.data.role) : false;
+}
+
 export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
   const api = useApi();
+  const qc = useQueryClient();
+  const isAdmin = useIsAdvocacyAdmin();
   const [openMatterId, setOpenMatterId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('All');
+  // §18/19: Matters is still the primary view (per the routing decision in
+  // client-crm-routing.ts, Advocacy has not been promoted to its own
+  // top-level tab this closeout) — Timeline is a secondary sub-view
+  // reached via an in-page toggle, not a new URL param, matching the
+  // existing pattern of keeping secondary-view state local to a tab
+  // component rather than growing the shared route contract for every
+  // internal toggle a tab wants.
+  const [subView, setSubView] = useState<'matters' | 'timeline'>('matters');
 
   const matters = useQuery<AdvocacyMatterSummary[]>({
     queryKey: ['client-advocacy-matters', client.id],
@@ -119,23 +242,113 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
       (await api.get<AdvocacyMatterSummary[]>(`/api/clients/${client.id}/advocacy-matters`)).data,
   });
 
+  const timeline = useQuery<AdvocacyTimelineEntry[]>({
+    queryKey: ['client-advocacy-timeline', client.id],
+    queryFn: async () =>
+      (await api.get<AdvocacyTimelineEntry[]>(`/api/clients/${client.id}/advocacy-matters/timeline`)).data,
+    enabled: subView === 'timeline',
+  });
+
+  const refreshList = () => void qc.invalidateQueries({ queryKey: ['client-advocacy-matters', client.id] });
+
+  const createMatter = useMutation({
+    mutationFn: async (input: { title: string; matterType: string }) =>
+      (await api.post<{ id: string }>(`/api/clients/${client.id}/advocacy-matters`, input)).data,
+    onSuccess: (created) => {
+      setCreating(false);
+      refreshList();
+      setOpenMatterId(created.id);
+    },
+  });
+
   const loading = !matters.data && !matters.isError;
   const failed = matters.isError;
   const rows = matters.data ?? [];
   const genuinelyEmpty = matters.data !== undefined && !failed && rows.length === 0;
+
+  // §24 search/filters: Matter title, ask (summary), issue code/PE/bill are
+  // all fields AdvocacyMatterSummary already carries — no server-side
+  // search endpoint needed for the list view, matching the exact
+  // client-side query+filter pattern RelationshipsHistoryTab already uses
+  // elsewhere in this same client-crm surface. Status options are derived
+  // from what's actually present in this client's Matters, not the full
+  // static STATUS_LABEL set — an empty "Withdrawn" chip when nothing here
+  // is withdrawn would be noise, not a real filter.
+  const statusOptions = useMemo(
+    () => ['All', ...Array.from(new Set(rows.map((m) => m.status))).sort()],
+    [rows],
+  );
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter((matter) => {
+      if (statusFilter !== 'All' && matter.status !== statusFilter) return false;
+      if (!q) return true;
+      const haystack = [matter.title, matter.summary, matter.primaryPeCode, matter.primaryBillId]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [rows, query, statusFilter]);
+  const nothingMatchesFilters = !genuinelyEmpty && !failed && !loading && rows.length > 0 && shown.length === 0;
 
   return (
     <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <TabPageHead
         title="Advocacy matters"
         sub="What this client has advocated for, grouped into one coherent history per ask — not a flat timeline of unrelated records."
+        actions={
+          isAdmin ? (
+            <PfButton variant="secondary" size="sm" onClick={() => setCreating(true)}>
+              New matter
+            </PfButton>
+          ) : undefined
+        }
       />
+      <SegmentedTabs
+        ariaLabel="Advocacy view"
+        options={[
+          { key: 'matters', label: 'Matters' },
+          { key: 'timeline', label: 'Timeline' },
+        ]}
+        value={subView}
+        onChange={setSubView}
+      />
+      {subView === 'matters' ? (
       <Card>
         <CardHead
           title="Matters"
           description="Each Matter groups the advocacy asks, meetings, emails, submissions, filings, bills, Program Elements, and observed outcomes tied to one institutional ask."
           withDesc
         />
+        {!loading && !failed && !genuinelyEmpty ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '0 24px 12px' }}>
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 12px', width: 280,
+                borderRadius: 8, background: '#ffffff', border: '1px solid #E0DCD4',
+                boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
+              }}
+            >
+              <UIcon name="SearchLg" size={20} color="#667085" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                aria-label="Search matters"
+                placeholder="Search title, ask, PE, or bill"
+                style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontSize: 14, color: '#101828' }}
+              />
+            </div>
+            {statusOptions.map((s) => (
+              <FilterChip
+                key={s}
+                label={s === 'All' ? 'All' : STATUS_LABEL[s] ?? s}
+                active={statusFilter === s}
+                onClick={() => setStatusFilter(s)}
+              />
+            ))}
+          </div>
+        ) : null}
         <div style={{ padding: '2px 24px 8px' }}>
           {failed ? (
             <PfEmptyState
@@ -147,14 +360,19 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
           ) : genuinelyEmpty ? (
             <PfEmptyState
               title="No advocacy matters yet"
-              hint="Matters are created automatically when Fill with Meri applies an advocacy record (LDA filings, client submissions, or private meeting/email advocacy) and clusters it by Program Element, bill, or subject."
+              hint="Matters are created automatically when Fill with Meri applies an advocacy record (LDA filings, client submissions, or private meeting/email advocacy) and clusters it by Program Element, bill, or subject. An admin can also create one manually."
+            />
+          ) : nothingMatchesFilters ? (
+            <PfEmptyState
+              title="No matters match your search"
+              hint="Try a different term, or clear the status filter."
             />
           ) : (
-            rows.map((matter, i) => (
+            shown.map((matter, i) => (
               <MatterRow
                 key={matter.id}
                 matter={matter}
-                last={i === rows.length - 1}
+                last={i === shown.length - 1}
                 onOpen={() => setOpenMatterId(matter.id)}
               />
             ))
@@ -164,15 +382,100 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
           <CardFoot left={`${rows.length} matter${rows.length === 1 ? '' : 's'}`} right={<span />} />
         ) : null}
       </Card>
+      ) : (
+        <TimelineCard
+          entries={timeline.data ?? []}
+          loading={!timeline.data && !timeline.isError}
+          failed={timeline.isError}
+          onOpenMatter={(id) => setOpenMatterId(id)}
+        />
+      )}
 
       {openMatterId ? (
         <AdvocacyMatterDrawer
           clientId={client.id}
           matterId={openMatterId}
+          isAdmin={isAdmin}
+          matterOptions={rows}
           onClose={() => setOpenMatterId(null)}
+          onChanged={refreshList}
         />
       ) : null}
+
+      {creating ? (
+        <CapiroModal open title="New advocacy matter" onClose={() => setCreating(false)}>
+          <CreateMatterForm
+            busy={createMatter.isPending}
+            error={createMatter.isError ? describeError(createMatter.error) : null}
+            onCancel={() => setCreating(false)}
+            onSubmit={(input) => createMatter.mutate(input)}
+          />
+        </CapiroModal>
+      ) : null}
     </div>
+  );
+}
+
+function describeError(error: unknown): string {
+  const withResponse = error as { response?: { data?: { message?: string } } };
+  return withResponse?.response?.data?.message ?? 'Something went wrong. Try again.';
+}
+
+function CreateMatterForm({
+  busy,
+  error,
+  onCancel,
+  onSubmit,
+}: {
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onSubmit: (input: { title: string; matterType: string }) => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [matterType, setMatterType] = useState('other');
+  return (
+    <form
+      style={FORM_STYLE}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (title.trim()) onSubmit({ title: title.trim(), matterType });
+      }}
+    >
+      <label style={FIELD_LABEL_STYLE}>
+        Title
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. FY27 Ground Robotics Funding"
+          style={FIELD_STYLE}
+          autoFocus
+        />
+      </label>
+      <label style={FIELD_LABEL_STYLE}>
+        Type
+        <select
+          value={matterType}
+          onChange={(e) => setMatterType(e.target.value)}
+          style={FIELD_STYLE}
+        >
+          {MATTER_TYPE_OPTIONS.map((t) => (
+            <option key={t} value={t}>
+              {MATTER_TYPE_LABEL[t]}
+            </option>
+          ))}
+        </select>
+      </label>
+      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+        <PfButton variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </PfButton>
+        <PfButton variant="primary" size="sm" disabled={!title.trim() || busy} busy={busy}>
+          Create matter
+        </PfButton>
+      </div>
+    </form>
   );
 }
 
@@ -192,6 +495,131 @@ function MatterSkeletonRow({ last }: { last: boolean }) {
         <PfSkeleton width="35%" height={12} />
       </span>
       <PfSkeleton width={88} height={22} style={{ borderRadius: 9999 }} />
+    </div>
+  );
+}
+
+/** §24 filter chip, matching RelationshipsHistoryTab's exact visual
+ *  pattern in this same client-crm surface (a private component there,
+ *  not exported — reimplemented here rather than reaching across files
+ *  for a one-off styled button). */
+function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        height: 32,
+        padding: '0 12px',
+        borderRadius: 8,
+        background: active ? '#F2F0EB' : hover ? '#FAF9F6' : 'transparent',
+        border: active ? '1px solid #E0DCD4' : '1px solid transparent',
+        color: active ? '#101828' : '#667085',
+        fontSize: 13,
+        fontWeight: active ? 600 : 500,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+/** §18/19 Timeline: one card, one flat chronology across every Matter for
+ *  this client — the "what happened, in order, regardless of which ask it
+ *  belongs to" view the Matters list cannot answer (Matters groups BY ask;
+ *  Timeline deliberately does not). Each row still names its Matter (or
+ *  "Unassigned") so a user can jump back into Matters-grouped context from
+ *  any single event. */
+function TimelineCard({
+  entries,
+  loading,
+  failed,
+  onOpenMatter,
+}: {
+  entries: AdvocacyTimelineEntry[];
+  loading: boolean;
+  failed: boolean;
+  onOpenMatter: (matterId: string) => void;
+}) {
+  const genuinelyEmpty = !loading && !failed && entries.length === 0;
+  return (
+    <Card>
+      <CardHead
+        title="Timeline"
+        description="Every advocacy record and linked activity for this client, across all Matters, in chronological order."
+        withDesc
+      />
+      <div style={{ padding: '2px 24px 8px' }}>
+        {failed ? (
+          <PfEmptyState
+            title="Couldn't load the timeline"
+            hint="Try again, or re-run Fill with Meri's Advocacy History specialist."
+          />
+        ) : loading ? (
+          [0, 1, 2].map((i) => <MatterSkeletonRow key={i} last={i === 2} />)
+        ) : genuinelyEmpty ? (
+          <PfEmptyState
+            title="No advocacy activity yet"
+            hint="Activity appears here once Fill with Meri applies an advocacy record or a Matter link is created."
+          />
+        ) : (
+          entries.map((entry, i) => (
+            <TimelineRow
+              key={`${entry.kind}-${entry.id}`}
+              entry={entry}
+              last={i === entries.length - 1}
+              onOpenMatter={entry.matterId ? () => onOpenMatter(entry.matterId!) : undefined}
+            />
+          ))
+        )}
+      </div>
+      {entries.length > 0 ? (
+        <CardFoot left={`${entries.length} activity item${entries.length === 1 ? '' : 's'}`} right={<span />} />
+      ) : null}
+    </Card>
+  );
+}
+
+function TimelineRow({
+  entry,
+  last,
+  onOpenMatter,
+}: {
+  entry: AdvocacyTimelineEntry;
+  last: boolean;
+  onOpenMatter: (() => void) | undefined;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px 0',
+        borderBottom: last ? 'none' : '1px solid #F2F0EB',
+      }}
+    >
+      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span style={{ fontSize: 14, fontWeight: 500, color: '#101828' }}>{entry.title}</span>
+        <span style={{ fontSize: 12, color: '#667085' }}>
+          {TIMELINE_SUBTYPE_LABEL[entry.subtype] ?? entry.subtype}
+          {entry.date ? ` · ${formatDateShort(entry.date)}` : ' · Undated'}
+          {entry.evidenceClass ? ` · ${EVIDENCE_LABEL[entry.evidenceClass] ?? entry.evidenceClass}` : ''}
+        </span>
+        {onOpenMatter ? (
+          <PfButton variant="link" size="sm" onClick={onOpenMatter} style={{ alignSelf: 'flex-start', padding: 0 }}>
+            {entry.matterTitle ?? 'View matter'}
+          </PfButton>
+        ) : (
+          <span style={{ fontSize: 12, color: '#98A2B3' }}>Unassigned</span>
+        )}
+      </span>
+      {entry.confidence != null && entry.confidence < 1 ? (
+        <Pill tone="gray" size="sm" dotless>{Math.round(entry.confidence * 100)}% confidence</Pill>
+      ) : null}
     </div>
   );
 }
@@ -227,8 +655,15 @@ function MatterRow({
       }}
     >
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>
-          {matter.title}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>
+            {matter.title}
+          </span>
+          {matter.autoGenerated ? (
+            <span title="Meri grouped this Matter automatically" style={{ fontSize: 11, color: '#98A2B3' }}>
+              · Auto
+            </span>
+          ) : null}
         </span>
         <span style={{ display: 'block', marginTop: 3, fontSize: 13, color: '#667085' }}>
           {MATTER_TYPE_LABEL[matter.matterType] ?? matter.matterType}
@@ -239,7 +674,7 @@ function MatterRow({
         </span>
       </span>
       <span style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-        <Pill tone={tone}>{matter.status}</Pill>
+        <Pill tone={tone}>{STATUS_LABEL[matter.status] ?? matter.status}</Pill>
       </span>
     </button>
   );
@@ -248,18 +683,100 @@ function MatterRow({
 function AdvocacyMatterDrawer({
   clientId,
   matterId,
+  isAdmin,
+  matterOptions,
   onClose,
+  onChanged,
 }: {
   clientId: string;
   matterId: string;
+  isAdmin: boolean;
+  matterOptions: AdvocacyMatterSummary[];
   onClose: () => void;
+  onChanged: () => void;
 }) {
   const api = useApi();
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [actionRecord, setActionRecord] = useState<{ record: AdvocacyMatterRecord; action: 'reassign' | 'detach' | 'not-advocacy' } | null>(
+    null,
+  );
+
+  const detailKey = ['client-advocacy-matter', clientId, matterId];
   const detail = useQuery<AdvocacyMatterDetail>({
-    queryKey: ['client-advocacy-matter', clientId, matterId],
+    queryKey: detailKey,
     queryFn: async () =>
       (await api.get<AdvocacyMatterDetail>(`/api/clients/${clientId}/advocacy-matters/${matterId}`)).data,
   });
+
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: detailKey });
+    onChanged();
+  };
+
+  const updateMatter = useMutation({
+    mutationFn: async (input: { title?: string; status?: string; summary?: string; confirmOutcome?: boolean }) =>
+      (await api.patch(`/api/clients/${clientId}/advocacy-matters/${matterId}`, input)).data,
+    onSuccess: () => {
+      setEditing(false);
+      refresh();
+    },
+  });
+
+  const mergeMatter = useMutation({
+    mutationFn: async (sourceMatterId: string) =>
+      (await api.post(`/api/clients/${clientId}/advocacy-matters/${matterId}/merge`, { sourceMatterId })).data,
+    onSuccess: () => {
+      setMerging(false);
+      refresh();
+    },
+  });
+
+  const reassignRecord = useMutation({
+    mutationFn: async (input: { recordId: string; targetMatterId: string }) =>
+      (
+        await api.post(`/api/clients/${clientId}/advocacy-matters/records/${input.recordId}/reassign`, {
+          targetMatterId: input.targetMatterId,
+        })
+      ).data,
+    onSuccess: () => {
+      setActionRecord(null);
+      refresh();
+    },
+  });
+
+  const detachRecord = useMutation({
+    mutationFn: async (recordId: string) =>
+      (await api.post(`/api/clients/${clientId}/advocacy-matters/records/${recordId}/detach`)).data,
+    onSuccess: () => {
+      setActionRecord(null);
+      refresh();
+    },
+  });
+
+  const markNotAdvocacy = useMutation({
+    mutationFn: async (input: { recordId: string; reason?: string }) =>
+      (
+        await api.post(`/api/clients/${clientId}/advocacy-matters/records/${input.recordId}/not-advocacy`, {
+          reason: input.reason,
+        })
+      ).data,
+    onSuccess: () => {
+      setActionRecord(null);
+      refresh();
+    },
+  });
+
+  const otherMatters = useMemo(
+    () => matterOptions.filter((m) => m.id !== matterId),
+    [matterOptions, matterId],
+  );
+
+  const lifecycleEvents = useMemo(
+    () => (detail.data ? buildLifecycle(detail.data, detail.data.records, detail.data.links) : []),
+    [detail.data],
+  );
 
   return (
     <CapiroDrawer open onClose={onClose} title={detail.data?.title ?? 'Advocacy matter'}>
@@ -271,14 +788,45 @@ function AdvocacyMatterDrawer({
         </div>
       ) : (
         <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <CapiroBadge tone="neutral">{MATTER_TYPE_LABEL[detail.data.matterType] ?? detail.data.matterType}</CapiroBadge>
-            <CapiroBadge tone={detail.data.status === 'resolved' ? 'success' : 'info'}>{detail.data.status}</CapiroBadge>
-            {detail.data.autoGenerated ? <CapiroBadge tone="neutral">Auto-clustered</CapiroBadge> : null}
+            <CapiroBadge tone={detail.data.status === 'successful' ? 'success' : 'info'}>
+              {STATUS_LABEL[detail.data.status] ?? detail.data.status}
+            </CapiroBadge>
+            {detail.data.autoGenerated ? (
+              <CapiroBadge tone="neutral" title="Meri grouped this Matter automatically from clustering rules">
+                Auto-clustered
+              </CapiroBadge>
+            ) : (
+              <CapiroBadge tone="neutral">Manually created</CapiroBadge>
+            )}
+            {isAdmin ? (
+              <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                <PfButton variant="link" size="sm" onClick={() => setEditing(true)}>
+                  Edit
+                </PfButton>
+                <PfButton variant="link" size="sm" onClick={() => setMerging(true)}>
+                  Merge into another matter
+                </PfButton>
+              </span>
+            ) : null}
           </div>
           {detail.data.summary ? (
             <p style={{ margin: 0, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>{detail.data.summary}</p>
           ) : null}
+          {OUTCOME_CLAIM_STATUSES.has(detail.data.status) ? (
+            <p style={{ margin: 0, fontSize: 12, color: '#667085', fontStyle: 'italic' }}>
+              This outcome status reflects a human-confirmed determination, not an automatic conclusion — Capiro does
+              not claim causation between advocacy activity and government action.
+            </p>
+          ) : null}
+
+          <section>
+            <h4 style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', margin: '0 0 10px' }}>
+              Lifecycle
+            </h4>
+            <LifecycleView events={lifecycleEvents} />
+          </section>
 
           <section>
             <h4 style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', margin: '0 0 10px' }}>
@@ -289,7 +837,14 @@ function AdvocacyMatterDrawer({
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {detail.data.records.map((record) => (
-                  <RecordRow key={record.id} record={record} />
+                  <RecordRow
+                    key={record.id}
+                    record={record}
+                    isAdmin={isAdmin}
+                    onReassign={() => setActionRecord({ record, action: 'reassign' })}
+                    onDetach={() => setActionRecord({ record, action: 'detach' })}
+                    onNotAdvocacy={() => setActionRecord({ record, action: 'not-advocacy' })}
+                  />
                 ))}
               </div>
             )}
@@ -300,29 +855,355 @@ function AdvocacyMatterDrawer({
               <h4 style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', margin: '0 0 10px' }}>
                 Related government objects ({detail.data.links.length})
               </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {detail.data.links.map((link) => (
-                  <LinkRow key={link.id} link={link} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {groupLinks(detail.data.links).map((group) => (
+                  <div key={group.title}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#98A2B3', margin: '0 0 4px' }}>
+                      {group.title} ({group.links.length})
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {group.links.map((link) => (
+                        <LinkRow key={link.id} link={link} />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>
           ) : null}
         </div>
       )}
+
+      {editing && detail.data ? (
+        <CapiroModal open title="Edit advocacy matter" onClose={() => setEditing(false)}>
+          <EditMatterForm
+            matter={detail.data}
+            busy={updateMatter.isPending}
+            error={updateMatter.isError ? describeError(updateMatter.error) : null}
+            onCancel={() => setEditing(false)}
+            onSubmit={(input) => updateMatter.mutate(input)}
+          />
+        </CapiroModal>
+      ) : null}
+
+      {merging ? (
+        <CapiroModal open title="Merge another matter into this one" onClose={() => setMerging(false)}>
+          <MergeMatterForm
+            options={otherMatters}
+            busy={mergeMatter.isPending}
+            error={mergeMatter.isError ? describeError(mergeMatter.error) : null}
+            onCancel={() => setMerging(false)}
+            onSubmit={(sourceMatterId) => mergeMatter.mutate(sourceMatterId)}
+          />
+        </CapiroModal>
+      ) : null}
+
+      {actionRecord ? (
+        <CapiroModal
+          open
+          title={
+            actionRecord.action === 'reassign'
+              ? 'Reassign record'
+              : actionRecord.action === 'detach'
+                ? 'Detach record'
+                : 'Mark not advocacy'
+          }
+          onClose={() => setActionRecord(null)}
+        >
+          <RecordActionForm
+            record={actionRecord.record}
+            action={actionRecord.action}
+            matterOptions={otherMatters}
+            busy={reassignRecord.isPending || detachRecord.isPending || markNotAdvocacy.isPending}
+            error={
+              reassignRecord.isError
+                ? describeError(reassignRecord.error)
+                : detachRecord.isError
+                  ? describeError(detachRecord.error)
+                  : markNotAdvocacy.isError
+                    ? describeError(markNotAdvocacy.error)
+                    : null
+            }
+            onCancel={() => setActionRecord(null)}
+            onReassign={(targetMatterId) => reassignRecord.mutate({ recordId: actionRecord.record.id, targetMatterId })}
+            onDetach={() => detachRecord.mutate(actionRecord.record.id)}
+            onNotAdvocacy={(reason) => markNotAdvocacy.mutate({ recordId: actionRecord.record.id, reason })}
+          />
+        </CapiroModal>
+      ) : null}
     </CapiroDrawer>
   );
 }
 
-function RecordRow({ record }: { record: AdvocacyMatterRecord }) {
+function EditMatterForm({
+  matter,
+  busy,
+  error,
+  onCancel,
+  onSubmit,
+}: {
+  matter: AdvocacyMatterDetail;
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onSubmit: (input: { title?: string; status?: string; summary?: string; confirmOutcome?: boolean }) => void;
+}) {
+  const [title, setTitle] = useState(matter.title);
+  const [status, setStatus] = useState(matter.status);
+  const [summary, setSummary] = useState(matter.summary ?? '');
+  const requiresConfirmation = OUTCOME_CLAIM_STATUSES.has(status) && status !== matter.status && matter.outcomeCount === 0;
+  const [confirmOutcome, setConfirmOutcome] = useState(false);
+
+  return (
+    <form
+      style={FORM_STYLE}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit({ title, status, summary, confirmOutcome: requiresConfirmation ? confirmOutcome : undefined });
+      }}
+    >
+      <label style={FIELD_LABEL_STYLE}>
+        Title
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          style={FIELD_STYLE}
+        />
+      </label>
+      <label style={FIELD_LABEL_STYLE}>
+        Status
+        <select
+          value={MATTER_STATUS_OPTIONS.includes(status) ? status : ''}
+          onChange={(e) => setStatus(e.target.value)}
+          style={FIELD_STYLE}
+        >
+          {!MATTER_STATUS_OPTIONS.includes(matter.status) ? (
+            <option value={matter.status}>{STATUS_LABEL[matter.status] ?? matter.status} (legacy)</option>
+          ) : null}
+          {MATTER_STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABEL[s]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label style={FIELD_LABEL_STYLE}>
+        Summary
+        <textarea
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          rows={4}
+          style={TEXTAREA_STYLE}
+        />
+      </label>
+      {requiresConfirmation ? (
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: '#B54708' }}>
+          <input type="checkbox" checked={confirmOutcome} onChange={(e) => setConfirmOutcome(e.target.checked)} style={{ marginTop: 3 }} />
+          <span>
+            This Matter has no linked outcome evidence. I confirm this outcome status by explicit human judgment, not
+            an automatic conclusion.
+          </span>
+        </label>
+      ) : null}
+      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+        <PfButton variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </PfButton>
+        <PfButton variant="primary" size="sm" disabled={busy || (requiresConfirmation && !confirmOutcome)} busy={busy}>
+          Save
+        </PfButton>
+      </div>
+    </form>
+  );
+}
+
+function MergeMatterForm({
+  options,
+  busy,
+  error,
+  onCancel,
+  onSubmit,
+}: {
+  options: AdvocacyMatterSummary[];
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onSubmit: (sourceMatterId: string) => void;
+}) {
+  const [sourceMatterId, setSourceMatterId] = useState('');
+  return (
+    <div style={FORM_STYLE}>
+      <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+        Choose the matter to merge INTO this one. Its records and links move here, and the source matter is removed.
+        This cannot be undone.
+      </p>
+      {options.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 13, color: '#98A2B3' }}>No other matters exist for this client.</p>
+      ) : (
+        <select
+          value={sourceMatterId}
+          onChange={(e) => setSourceMatterId(e.target.value)}
+          style={FIELD_STYLE}
+        >
+          <option value="">Select a matter…</option>
+          {options.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.title}
+            </option>
+          ))}
+        </select>
+      )}
+      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <PfButton variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </PfButton>
+        <PfButton
+          variant="primary"
+          size="sm"
+          disabled={!sourceMatterId || busy}
+          busy={busy}
+          onClick={() => onSubmit(sourceMatterId)}
+        >
+          Merge
+        </PfButton>
+      </div>
+    </div>
+  );
+}
+
+function RecordActionForm({
+  record,
+  action,
+  matterOptions,
+  busy,
+  error,
+  onCancel,
+  onReassign,
+  onDetach,
+  onNotAdvocacy,
+}: {
+  record: AdvocacyMatterRecord;
+  action: 'reassign' | 'detach' | 'not-advocacy';
+  matterOptions: AdvocacyMatterSummary[];
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onReassign: (targetMatterId: string) => void;
+  onDetach: () => void;
+  onNotAdvocacy: (reason?: string) => void;
+}) {
+  const [targetMatterId, setTargetMatterId] = useState('');
+  const [reason, setReason] = useState('');
+
+  return (
+    <div style={FORM_STYLE}>
+      <p style={{ margin: 0, fontSize: 13, color: '#475467', fontWeight: 500 }}>{record.title}</p>
+      {action === 'reassign' ? (
+        <>
+          <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+            Move this record to a different matter. It will be locked so a later automatic re-clustering pass does
+            not move it back.
+          </p>
+          {matterOptions.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 13, color: '#98A2B3' }}>No other matters exist for this client.</p>
+          ) : (
+            <select
+              value={targetMatterId}
+              onChange={(e) => setTargetMatterId(e.target.value)}
+              style={FIELD_STYLE}
+            >
+              <option value="">Select a matter…</option>
+              {matterOptions.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.title}
+                </option>
+              ))}
+            </select>
+          )}
+        </>
+      ) : action === 'detach' ? (
+        <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+          This record will be removed from its matter and left unassigned. It stays visible for later manual
+          reassignment and will not be auto-clustered again.
+        </p>
+      ) : (
+        <>
+          <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+            This marks the record as not actually advocacy activity. It will be hidden from Matters and the
+            Timeline, but kept for audit — and will not reappear if Fill with Meri finds it again.
+          </p>
+          <label style={FIELD_LABEL_STYLE}>
+            Reason (optional)
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={2}
+              style={TEXTAREA_STYLE}
+            />
+          </label>
+        </>
+      )}
+      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <PfButton variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </PfButton>
+        {action === 'reassign' ? (
+          <PfButton
+            variant="primary"
+            size="sm"
+            disabled={!targetMatterId || busy}
+            busy={busy}
+            onClick={() => onReassign(targetMatterId)}
+          >
+            Reassign
+          </PfButton>
+        ) : action === 'detach' ? (
+          <PfButton variant="primary" size="sm" disabled={busy} busy={busy} onClick={onDetach}>
+            Detach
+          </PfButton>
+        ) : (
+          <PfButton variant="primary" size="sm" disabled={busy} busy={busy} onClick={() => onNotAdvocacy(reason || undefined)}>
+            Mark not advocacy
+          </PfButton>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RecordRow({
+  record,
+  isAdmin,
+  onReassign,
+  onDetach,
+  onNotAdvocacy,
+}: {
+  record: AdvocacyMatterRecord;
+  isAdmin: boolean;
+  onReassign: () => void;
+  onDetach: () => void;
+  onNotAdvocacy: () => void;
+}) {
   return (
     <div style={{ padding: 12, borderRadius: 8, border: '1px solid #F2F0EB', display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: 14, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>{record.title}</span>
-        <CapiroBadge tone="neutral">{EVIDENCE_LABEL[record.evidenceClass] ?? record.evidenceClass}</CapiroBadge>
+        <span style={{ display: 'flex', gap: 6, flex: '0 0 auto' }}>
+          {record.matterLocked ? (
+            <span title="A human corrected this record's matter assignment" style={{ fontSize: 11, color: '#98A2B3' }}>
+              Corrected
+            </span>
+          ) : null}
+          <CapiroBadge tone="neutral">{EVIDENCE_LABEL[record.evidenceClass] ?? record.evidenceClass}</CapiroBadge>
+        </span>
       </div>
       <span style={{ fontSize: 12, color: '#98A2B3' }}>
         {record.activityDate ? formatDateShort(record.activityDate) : 'Undated'}
         {record.status ? ` · ${record.status}` : ''}
+        {record.confidence != null && record.confidence < 1 ? ` · ${Math.round(record.confidence * 100)}% confidence` : ''}
       </span>
       {record.summary ? (
         <span style={{ fontSize: 13, color: '#475467', textWrap: 'pretty' }}>{record.summary}</span>
@@ -337,6 +1218,184 @@ function RecordRow({ record }: { record: AdvocacyMatterRecord }) {
           View source
         </a>
       ) : null}
+      {isAdmin ? (
+        <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+          <PfButton variant="link" size="sm" onClick={onReassign}>
+            Reassign
+          </PfButton>
+          <PfButton variant="link" size="sm" onClick={onDetach}>
+            Detach
+          </PfButton>
+          <PfButton variant="link" size="sm" onClick={onNotAdvocacy}>
+            Not advocacy
+          </PfButton>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** §20/21: government-object link groupings. A flat "Related government
+ *  objects" list mixing a Program Element, a private meeting, and a FARA
+ *  registration together gives no sense of WHAT KIND of evidence backs a
+ *  Matter — split into the section spec's actual groupings instead. */
+const LINK_GROUPS: Array<{ title: string; types: string[] }> = [
+  { title: 'Government engagement', types: ['program_element', 'bill', 'hearing', 'testimony', 'regulatory_docket', 'regulatory_document', 'fara_record'] },
+  { title: 'Direct activity', types: ['meeting', 'mail_thread', 'outreach', 'strategy'] },
+  { title: 'Observed outcomes', types: ['outcome_event'] },
+  { title: 'Other', types: ['finding'] },
+];
+
+function groupLinks(links: AdvocacyMatterLink[]): Array<{ title: string; links: AdvocacyMatterLink[] }> {
+  const grouped = LINK_GROUPS.map((group) => ({
+    title: group.title,
+    links: links.filter((link) => group.types.includes(link.linkType)),
+  })).filter((group) => group.links.length > 0);
+  // Anything not in a known type still renders — a Matter link the UI
+  // doesn't yet have a group for is never silently dropped.
+  const known = new Set(LINK_GROUPS.flatMap((group) => group.types));
+  const other = links.filter((link) => !known.has(link.linkType));
+  if (other.length > 0) grouped.push({ title: 'Other links', links: other });
+  return grouped;
+}
+
+/** §15 lifecycle model: Ask -> Engagement -> Government Movement -> Outcome.
+ *  Derived ENTIRELY from real record/link types and dates already on the
+ *  Matter — never a fabricated UI state. The one synthetic anchor is the
+ *  Matter's own openedAt, standing in for "ask defined" (a Matter's
+ *  existence IS the ask being defined; there is no earlier real event to
+ *  point to). Every other event comes from an actual record or link.
+ *
+ *  Classification is a straightforward partition by TYPE, not an invented
+ *  sub-status: meeting/mail_thread/outreach/strategy links plus
+ *  client_submission records are "we did something" (Engagement); bill/
+ *  program_element/hearing/testimony/regulatory_docket/regulatory_document/
+ *  fara_record links plus federal_lobbying records are "the government-side
+ *  object was touched" (Government Movement); outcome_event links plus any
+ *  record with a non-null outcome are "something was observed afterward"
+ *  (Outcome). Strategy links are excluded — they carry no occurredAt (a
+ *  plan is not a dated event, matching §8's "a Strategy alone is not proof
+ *  the activity occurred"). */
+export type LifecycleStage = 'ask_defined' | 'engagement' | 'government_movement' | 'outcome_observed';
+
+export interface LifecycleEvent {
+  id: string;
+  stage: LifecycleStage;
+  date: string;
+  label: string;
+}
+
+const ENGAGEMENT_LINK_TYPES = new Set(['meeting', 'mail_thread', 'outreach']);
+const GOVERNMENT_MOVEMENT_LINK_TYPES = new Set([
+  'bill', 'program_element', 'hearing', 'testimony', 'regulatory_docket', 'regulatory_document', 'fara_record',
+]);
+
+function lifecycleStageForLink(link: AdvocacyMatterLink): LifecycleStage | null {
+  if (link.linkType === 'outcome_event') return 'outcome_observed';
+  if (ENGAGEMENT_LINK_TYPES.has(link.linkType)) return 'engagement';
+  if (GOVERNMENT_MOVEMENT_LINK_TYPES.has(link.linkType)) return 'government_movement';
+  return null; // strategy (no date), finding (not yet accepted evidence), unrecognized types
+}
+
+function lifecycleStageForRecord(record: AdvocacyMatterRecord): LifecycleStage {
+  if (record.outcome) return 'outcome_observed';
+  if (record.recordType === 'federal_lobbying') return 'government_movement';
+  return 'engagement'; // client_submission and any other record type defaults to "we did something"
+}
+
+function buildLifecycle(
+  matter: { id: string; title: string; openedAt: string | null; createdAt: string },
+  records: AdvocacyMatterRecord[],
+  links: AdvocacyMatterLink[],
+): LifecycleEvent[] {
+  const events: LifecycleEvent[] = [
+    {
+      id: `${matter.id}-ask`,
+      stage: 'ask_defined',
+      date: matter.openedAt ?? matter.createdAt,
+      label: `Ask defined: ${matter.title}`,
+    },
+  ];
+  for (const record of records) {
+    if (!record.activityDate) continue; // never fabricate a date for an undated record
+    events.push({ id: record.id, stage: lifecycleStageForRecord(record), date: record.activityDate, label: record.title });
+  }
+  for (const link of links) {
+    const stage = lifecycleStageForLink(link);
+    if (!stage) continue;
+    const occurredAt = link.metadata?.occurredAt;
+    if (typeof occurredAt !== 'string') continue; // strategy and any link without a real date never enters the timeline
+    events.push({ id: link.id, stage, date: occurredAt, label: link.label ?? link.linkKey });
+  }
+  return events.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+const LIFECYCLE_STAGE_LABEL: Record<LifecycleStage, string> = {
+  ask_defined: 'Ask',
+  engagement: 'Engagement',
+  government_movement: 'Government Movement',
+  outcome_observed: 'Outcome',
+};
+
+const LIFECYCLE_STAGE_ORDER: LifecycleStage[] = ['ask_defined', 'engagement', 'government_movement', 'outcome_observed'];
+
+/** §20 lifecycle visual: Ask -> Engagement -> Government Movement -> Outcome.
+ *  A stage the Matter has no events for still renders (greyed, not hidden)
+ *  — "not every Matter needs every stage" (§15) means absence is
+ *  meaningful information, not something to collapse away. Desktop is
+ *  horizontal via flex-wrap; on a narrow viewport the same flex column
+ *  degrades to vertical without a second implementation (§20: "Desktop may
+ *  be horizontal. Mobile should become vertical."). */
+function LifecycleView({ events }: { events: LifecycleEvent[] }) {
+  const byStage = useMemo(() => {
+    const map = new Map<LifecycleStage, LifecycleEvent[]>();
+    for (const stage of LIFECYCLE_STAGE_ORDER) map.set(stage, []);
+    for (const event of events) map.get(event.stage)?.push(event);
+    return map;
+  }, [events]);
+
+  return (
+    <div className="capiro-advocacy-lifecycle" style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+      {LIFECYCLE_STAGE_ORDER.map((stage, index) => {
+        const stageEvents = byStage.get(stage) ?? [];
+        const hasEvents = stageEvents.length > 0;
+        return (
+          <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                minWidth: 160,
+                padding: 12,
+                borderRadius: 8,
+                border: `1px solid ${hasEvents ? '#D0D5DD' : '#F2F0EB'}`,
+                background: hasEvents ? '#FFFFFF' : '#FAFAF9',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 4,
+              }}
+            >
+              <span style={{ fontSize: 12, fontWeight: 600, color: hasEvents ? '#101828' : '#98A2B3' }}>
+                {LIFECYCLE_STAGE_LABEL[stage]}
+              </span>
+              {hasEvents ? (
+                <>
+                  <span style={{ fontSize: 12, color: '#475467' }}>
+                    {stageEvents.length} event{stageEvents.length === 1 ? '' : 's'}
+                  </span>
+                  <span style={{ fontSize: 11, color: '#98A2B3' }}>
+                    {formatDateShort(stageEvents[0]!.date)}
+                    {stageEvents.length > 1 ? ` – ${formatDateShort(stageEvents[stageEvents.length - 1]!.date)}` : ''}
+                  </span>
+                </>
+              ) : (
+                <span style={{ fontSize: 11, color: '#98A2B3' }}>Not yet reached</span>
+              )}
+            </div>
+            {index < LIFECYCLE_STAGE_ORDER.length - 1 ? (
+              <span aria-hidden style={{ color: '#98A2B3', fontSize: 16 }}>→</span>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -347,11 +1406,42 @@ function LinkRow({ link }: { link: AdvocacyMatterLink }) {
     bill: 'Bill',
     outcome_event: 'Observed outcome',
     finding: 'Pending finding',
+    meeting: 'Meeting',
+    mail_thread: 'Email thread',
+    outreach: 'Outreach',
+    strategy: link.relationshipType === 'completed_action' ? 'Strategy (completed)' : 'Strategy (planned)',
+    regulatory_docket: 'Regulations.gov',
+    regulatory_document: 'Federal Register',
+    hearing: 'Committee hearing',
+    testimony: 'Testimony',
+    fara_record: 'FARA registration',
   };
+  // §17 causality contract — an outcome_event link is evidence something
+  // was OBSERVED, never that advocacy caused it, regardless of confidence.
+  const isOutcome = link.linkType === 'outcome_event';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-      <CapiroBadge tone="neutral">{linkTypeLabel[link.linkType] ?? link.linkType}</CapiroBadge>
-      <span style={{ color: '#475467' }}>{link.label ?? link.linkKey}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 0', borderBottom: '1px solid #F2F0EB' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, flexWrap: 'wrap' }}>
+        <CapiroBadge tone="neutral">{linkTypeLabel[link.linkType] ?? link.linkType}</CapiroBadge>
+        <span style={{ color: '#475467' }}>{link.label ?? link.linkKey}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#98A2B3', flexWrap: 'wrap' }}>
+        {link.evidenceClass ? <span>{EVIDENCE_LABEL[link.evidenceClass] ?? link.evidenceClass}</span> : null}
+        {link.confidence != null ? <span>{Math.round(link.confidence * 100)}% confidence</span> : null}
+        {link.relationshipType && link.linkType !== 'strategy' ? <span>{link.relationshipType.replace(/_/g, ' ')}</span> : null}
+      </div>
+      {/* Provenance is only ever set for an inferred/manually-rationalized
+          link (e.g. a hearing linked without a deterministic committee-code
+          match) — showing it makes the "why" reviewable instead of a bare
+          confidence number with no explanation. */}
+      {link.provenance ? (
+        <span style={{ fontSize: 12, color: '#98A2B3', fontStyle: 'italic' }}>Meri's rationale: {link.provenance}</span>
+      ) : null}
+      {isOutcome ? (
+        <span style={{ fontSize: 12, color: '#12660B' }}>
+          Association only — Capiro has not established causation.
+        </span>
+      ) : null}
     </div>
   );
 }
