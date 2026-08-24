@@ -176,6 +176,106 @@ export class ClientAdvocacyMatterService {
   }
 
   /**
+   * Human-directed counterpart to `assignMatterForRecord`. Used when a
+   * reviewer picks "Attach to Matter X" / "Create new Matter" on a still-
+   * pending Fill-with-Meri advocacy finding — the human's choice IS the
+   * review decision (product spec §22/23 follow-up), so it is applied
+   * immediately and treated as authoritative, exactly like a manual
+   * reassign: `matter_locked = true` is set in the same statement, so a
+   * later Fill re-run's `assignMatterForRecord` call is a no-op for this
+   * record (see that method's lock check).
+   *
+   * MUST be called with a `tx` that is already inside the same
+   * `withTenant` transaction as the record upsert this follows — the two
+   * writes (record upsert, matter assign+lock) commit together. If the
+   * caller wants a brand-new Matter, pass `newMatter`; if attaching to an
+   * existing one, pass `matterId`. Exactly one of the two must be set.
+   *
+   * Idempotent by construction, not by caller discipline: this checks the
+   * record's OWN `matter_locked` flag first. If the record is already
+   * locked (a prior call — this method, a manual reassign, anything —
+   * already committed an assignment), this is a pure no-op that returns
+   * the record's current `matter_id` without creating a second Matter or
+   * touching anything. This is what makes a retried "Create new Matter"
+   * safe even if the FIRST call's transaction committed but the caller's
+   * follow-up step (e.g. `markAccepted`) never got a chance to run before
+   * the client retried — the record's lock state, not the caller's memory
+   * of what happened, is the source of truth.
+   */
+  async assignSpecificMatterForRecord(
+    tx: {
+      $queryRawUnsafe: (query: string, ...args: unknown[]) => Promise<any[]>;
+      $executeRawUnsafe: (query: string, ...args: unknown[]) => Promise<unknown>;
+    },
+    ctx: TenantContext,
+    clientId: string,
+    recordExternalKey: string,
+    target: { matterId: string } | { newMatter: { title: string; matterType?: string; summary?: string | null } },
+    activityDate: string | null,
+  ): Promise<string> {
+    const existing = await tx.$queryRawUnsafe(
+      `SELECT matter_id AS "matterId", matter_locked AS locked
+         FROM client_advocacy_record
+        WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND external_key = $3
+        LIMIT 1`,
+      ctx.tenantId,
+      clientId,
+      recordExternalKey,
+    ) as Array<{ matterId: string | null; locked: boolean }>;
+    if (existing[0]?.locked && existing[0].matterId) {
+      // Already assigned by a prior successful call (this method, or any
+      // other correction path) — a retry must not mint a second Matter or
+      // re-run the UPDATE. Returning early here is the entire idempotency
+      // guarantee for the "Create new Matter" case, where the INSERT below
+      // has no dedup key across separate invocations.
+      return existing[0].matterId;
+    }
+
+    let matterId: string;
+    if ('matterId' in target) {
+      const exists = (await tx.$queryRawUnsafe(
+        `SELECT id FROM client_advocacy_matter WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        target.matterId,
+      )) as Array<{ id: string }>;
+      if (exists.length === 0) throw new NotFoundException('Target advocacy matter not found');
+      matterId = target.matterId;
+    } else {
+      const externalKey = `manual:${randomUUID()}`;
+      const inserted = (await tx.$queryRawUnsafe(
+        `INSERT INTO client_advocacy_matter
+           (tenant_id, client_id, title, matter_type, status, summary, external_key,
+            auto_generated, opened_at, created_by_user_id)
+         VALUES ($1::uuid, $2::uuid, $3, $4, 'planning', $5, $6, false, now(), $7::uuid)
+         RETURNING id`,
+        ctx.tenantId,
+        clientId,
+        target.newMatter.title,
+        target.newMatter.matterType ?? 'other',
+        target.newMatter.summary ?? null,
+        externalKey,
+        ctx.userId,
+      )) as Array<{ id: string }>;
+      matterId = inserted[0]!.id;
+    }
+
+    await tx.$executeRawUnsafe(
+      `UPDATE client_advocacy_record
+          SET matter_id = $4::uuid, matter_locked = true, not_advocacy = false,
+              reviewed_by_user_id = $5::uuid, reviewed_at = now(), updated_at = now()
+        WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND external_key = $3`,
+      ctx.tenantId,
+      clientId,
+      recordExternalKey,
+      matterId,
+      ctx.userId,
+    );
+    await this.touchMatterActivity(tx, ctx.tenantId, matterId, activityDate);
+    return matterId;
+  }
+
+  /**
    * Resolves the Matter id for a clustering clue, creating a new Matter row
    * if none matches. Exact clue-key match first (idempotent re-runs);
    * otherwise fuzzy title-overlap against the client's OPEN auto-generated

@@ -12,6 +12,12 @@
  *   POST   /api/clients/:id/fill-with-meri/runs/:runId/apply  apply (user_admin)
  *   POST   /api/clients/:id/fill-with-meri/findings/:id/reject
  *   POST   /api/clients/:id/fill-with-meri/findings/:id/restore
+ *   POST   /api/clients/:id/fill-with-meri/runs/:runId/findings/:id/assign-matter
+ *          §22/23 follow-up: "Attach to Matter X" / "Create new Matter" on a
+ *          still-pending advocacy finding. This IS the review/approval
+ *          decision — it commits immediately (record upsert + Matter
+ *          assign/lock + finding accepted, atomically on the server side),
+ *          not a staged choice applied later by a separate Apply click.
  */
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -185,6 +191,40 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
     },
   });
 
+  /** §22/23 follow-up: "Attach to Matter X" / "Create new Matter" directly
+   *  on a still-pending advocacy finding. This IS the review/approval
+   *  decision for that finding — it commits immediately server-side (see
+   *  `applyAdvocacyFindingToMatter`), not a staged choice applied later by
+   *  a separate "Apply" click. Invalidates the same query keys `apply`
+   *  does (the finding just became `accepted`, exactly like a checkbox+
+   *  Apply would have) plus `client-advocacy-matters` for the Matter list/
+   *  detail/Timeline views, since a Matter may have just been created or
+   *  gained a new record. */
+  const assignMatter = useMutation({
+    mutationFn: async ({
+      findingId,
+      target,
+    }: {
+      findingId: string;
+      target: { matterId: string } | { newMatter: { title: string; matterType?: string; summary?: string | null } };
+    }) =>
+      (
+        await api.post<{ findingId: string; matterId: string | null; alreadyApplied: boolean }>(
+          `${base}/runs/${activeRunId}/findings/${findingId}/assign-matter`,
+          target,
+        )
+      ).data,
+    onSuccess: () => {
+      for (const key of [
+        ['client', clientId],
+        ['client-advocacy-matters', clientId],
+      ]) {
+        void qc.invalidateQueries({ queryKey: key });
+      }
+      void run.refetch();
+    },
+  });
+
   const proposals = useMemo(
     () => (current?.findings ?? []).filter((finding) => finding.status === 'pending'),
     [current],
@@ -264,6 +304,20 @@ export function useClientFillWithMeri(clientId: string, open: boolean) {
      *  when the reviewer didn't type one. */
     rejectFinding: (findingId: string, reason?: string) => reject.mutate({ findingId, reason }),
     rejectError: reject.error,
+    /** §22/23 follow-up: "Attach to Matter X" / "Create new Matter" on a
+     *  pending advocacy finding. Returns a promise (unlike the other
+     *  fire-and-forget mutators here) so the caller can await the real
+     *  server outcome — needed to open the drawer/tab on the exact Matter
+     *  id the server resolved to (especially for "Create new Matter",
+     *  where that id does not exist client-side until the response
+     *  arrives) and to know definitively whether it failed, for the
+     *  optimistic-UI rollback the UI applies around this call. */
+    assignFindingMatter: (
+      findingId: string,
+      target: { matterId: string } | { newMatter: { title: string; matterType?: string; summary?: string | null } },
+    ) => assignMatter.mutateAsync({ findingId, target }),
+    assignMatterPending: assignMatter.isPending,
+    assignMatterError: assignMatter.error,
     reset: () => {
       setRunId(null);
       setSelected(new Set());

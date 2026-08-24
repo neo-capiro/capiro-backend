@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isTenantAdmin } from '@capiro/shared';
 import {
@@ -219,11 +219,40 @@ function useIsAdvocacyAdmin(): boolean {
   return me.data ? isTenantAdmin(me.data.role) : false;
 }
 
-export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
+export function ClientCrmAdvocacyMattersProto({
+  client,
+  initialOpenMatterId,
+  onOpenMatterConsumed,
+}: {
+  client: Client;
+  /** §22/23 follow-up: when a reviewer creates/attaches a Matter directly
+   *  from the Fill-with-Meri drawer, ClientCrmPage navigates here and
+   *  seeds this so the Matter opens immediately instead of landing on the
+   *  bare list. Read once via useState's lazy initializer — a later
+   *  navigation to this same tab without a fresh matter id must NOT
+   *  re-open a stale one, so this is intentionally not synced with a
+   *  useEffect that re-runs on every `initialOpenMatterId` change. */
+  initialOpenMatterId?: string | null;
+  /** Called once, after mount, if `initialOpenMatterId` was non-null — lets
+   *  the parent clear its one-shot handoff state so switching away and
+   *  back to this same view does not attempt to reopen a stale Matter.
+   *  Deliberately NOT called from the parent's render body (that would be
+   *  a cross-component state update during render); this component calls
+   *  it itself, from an effect, which is the correct place to react to
+   *  "this prop was consumed". */
+  onOpenMatterConsumed?: () => void;
+}) {
   const api = useApi();
   const qc = useQueryClient();
   const isAdmin = useIsAdvocacyAdmin();
-  const [openMatterId, setOpenMatterId] = useState<string | null>(null);
+  const [openMatterId, setOpenMatterId] = useState<string | null>(() => initialOpenMatterId ?? null);
+  useEffect(() => {
+    if (initialOpenMatterId) onOpenMatterConsumed?.();
+    // Intentionally NOT depending on onOpenMatterConsumed (an inline arrow
+    // at the call site would otherwise re-fire this every parent render) —
+    // only initialOpenMatterId's IDENTITY at mount time matters here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [creating, setCreating] = useState(false);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');

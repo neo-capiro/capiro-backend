@@ -249,6 +249,138 @@ describe('ClientAdvocacyMatterService — correction UX', () => {
     });
   });
 
+  describe('assignSpecificMatterForRecord (§22/23 follow-up — human-directed Matter assign from a pending Fill finding)', () => {
+    const externalKey = 'lda:2027-q1-1234';
+
+    test('attaches to an existing Matter, locking the record in the same call', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([{ matterId: null, locked: false }]) // lock check: not yet locked
+        .mockResolvedValueOnce([{ id: matterId }]); // target Matter exists
+
+      const result = await service.assignSpecificMatterForRecord(
+        tx,
+        ctx,
+        clientId,
+        externalKey,
+        { matterId },
+        '2027-01-15',
+      );
+
+      expect(result).toBe(matterId);
+      const updateCall = tx.$executeRawUnsafe.mock.calls.find((call) =>
+        String(call[0]).includes('UPDATE client_advocacy_record'),
+      )!;
+      expect(String(updateCall[0])).toContain('matter_locked = true');
+      expect(updateCall).toContain(matterId);
+      expect(updateCall).toContain(externalKey);
+    });
+
+    test('throws NotFoundException when the target Matter does not belong to this client', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([{ matterId: null, locked: false }]) // lock check
+        .mockResolvedValueOnce([]); // target Matter not found for this tenant/client
+
+      await expect(
+        service.assignSpecificMatterForRecord(tx, ctx, clientId, externalKey, { matterId: otherMatterId }, null),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
+
+    test('creates a brand-new Matter and assigns/locks the record to it', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([{ matterId: null, locked: false }]) // lock check
+        .mockResolvedValueOnce([{ id: matterId }]); // the new Matter's own INSERT
+
+      const result = await service.assignSpecificMatterForRecord(
+        tx,
+        ctx,
+        clientId,
+        externalKey,
+        { newMatter: { title: 'FY27 autonomous systems funding request' } },
+        '2027-01-15',
+      );
+
+      expect(result).toBe(matterId);
+      const matterInsertCall = tx.$queryRawUnsafe.mock.calls[1]!;
+      expect(String(matterInsertCall[0])).toContain('INSERT INTO client_advocacy_matter');
+      expect(String(matterInsertCall[0])).toContain("'planning'");
+      expect(matterInsertCall).toContain('FY27 autonomous systems funding request');
+      // auto_generated is a literal `false` in the SQL text (same
+      // convention as ClientAdvocacyMatterService.createMatter above), not
+      // a bound parameter.
+      expect(String(matterInsertCall[0])).toMatch(/\$6,\s*false,\s*now\(\)/);
+      const recordUpdateCall = tx.$executeRawUnsafe.mock.calls.find((call) =>
+        String(call[0]).includes('UPDATE client_advocacy_record'),
+      )!;
+      expect(recordUpdateCall).toContain(matterId);
+    });
+
+    test('idempotent: a SECOND call after the record is already locked is a pure no-op — no second Matter, no re-run UPDATE', async () => {
+      const { service, tx } = makeService();
+      // The record is already locked to `matterId` from a prior successful
+      // call — exactly the state a retry (e.g. markAccepted failed after
+      // the first call's transaction committed) would observe.
+      tx.$queryRawUnsafe.mockResolvedValueOnce([{ matterId, locked: true }]);
+
+      const result = await service.assignSpecificMatterForRecord(
+        tx,
+        ctx,
+        clientId,
+        externalKey,
+        { newMatter: { title: 'FY27 autonomous systems funding request' } },
+        '2027-01-15',
+      );
+
+      expect(result).toBe(matterId);
+      // Only the lock-check SELECT ran — no second Matter INSERT, no record UPDATE.
+      expect(tx.$queryRawUnsafe).toHaveBeenCalledTimes(1);
+      expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
+
+    test('idempotent: repeating "attach to Matter X" after it already succeeded does not re-run the UPDATE', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe.mockResolvedValueOnce([{ matterId, locked: true }]);
+
+      const result = await service.assignSpecificMatterForRecord(
+        tx,
+        ctx,
+        clientId,
+        externalKey,
+        { matterId },
+        '2027-01-15',
+      );
+
+      expect(result).toBe(matterId);
+      expect(tx.$queryRawUnsafe).toHaveBeenCalledTimes(1);
+      expect(tx.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
+
+    test('a human assignment locks the record so a later automatic assignMatterForRecord call cannot re-cluster it', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([{ matterId: null, locked: false }]) // lock check for the human assign
+        .mockResolvedValueOnce([{ id: matterId }]); // target exists
+
+      await service.assignSpecificMatterForRecord(tx, ctx, clientId, externalKey, { matterId }, '2027-01-15');
+
+      // Simulate the NEXT Fill re-run's best-effort auto-cluster call for
+      // the same record — it must see the lock this call just set and stop.
+      const { service: service2, tx: tx2 } = makeService();
+      tx2.$queryRawUnsafe.mockResolvedValueOnce([{ matterId, locked: true }]);
+      const autoClusterResult = await service2.assignMatterForRecord(ctx, clientId, externalKey, {
+        recordType: 'federal_lobbying',
+        title: 'Support increased funding',
+        metadata: {},
+        activityDate: null,
+      });
+      expect(autoClusterResult).toBe(matterId);
+      expect(tx2.$executeRawUnsafe).not.toHaveBeenCalled();
+    });
+  });
+
   describe('updateMatter — outcome status evidence/confirmation gate', () => {
     test('rejects "successful" with no outcome evidence and no confirmation', async () => {
       const { service, tx } = makeService();
