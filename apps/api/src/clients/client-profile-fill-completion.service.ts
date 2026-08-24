@@ -20,6 +20,7 @@ import {
 } from './client-profile-fill.helpers.js';
 import { ClientFacilitiesService } from './client-facilities.service.js';
 import { ClientProfileFillService } from './client-profile-fill.service.js';
+import { ClientAdvocacyMatterService } from './client-advocacy-matter.service.js';
 import {
   ClientProfileFillWorkflowService,
   type StartClientProfileFillWorkflowInput,
@@ -197,6 +198,7 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     private readonly intelligence: IntelligenceService,
     private readonly facilities: ClientFacilitiesService,
     private readonly httpAdapterHost: HttpAdapterHost,
+    private readonly advocacyMatters: ClientAdvocacyMatterService,
   ) {}
 
   onModuleInit(): void {
@@ -1594,7 +1596,68 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       });
       if (inserted) changed += 1;
     }
+    // Link this run's informational Program Element / bill findings into any
+    // Matter that already carries the same PE code / bill id as its
+    // `primary_pe_code` / `primary_bill_id` (set when a durable advocacy
+    // record for that PE/bill was clustered — see
+    // client-advocacy-matter.helpers.ts computeMatterClue). This is how a
+    // Matter picks up "Program Elements" and "bills" per the product spec
+    // even for findings that stay informational and never become their own
+    // client_advocacy_record row.
+    changed += await this.linkReconciledFindingsToMatters(ctx, clientId, runId);
     return changed;
+  }
+
+  private async linkReconciledFindingsToMatters(
+    ctx: TenantContext,
+    clientId: string,
+    runId: string,
+  ): Promise<number> {
+    const findings = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ id: string; kind: string; proposedValue: unknown }>>(
+        `SELECT id, kind, proposed_value_jsonb AS "proposedValue"
+           FROM client_profile_fill_finding
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND run_id = $3::uuid
+            AND kind IN ('program_element', 'bill_recommendation')`,
+        ctx.tenantId,
+        clientId,
+        runId,
+      ),
+    );
+    let linked = 0;
+    for (const finding of findings) {
+      const proposed = asRecord(finding.proposedValue);
+      const isPe = finding.kind === 'program_element';
+      const matterColumn = isPe ? 'primary_pe_code' : 'primary_bill_id';
+      const matterValue = isPe ? asString(proposed.peCode) : asString(proposed.billId);
+      if (!matterValue) continue;
+      const matterRows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.$queryRawUnsafe<Array<{ id: string }>>(
+          `SELECT id FROM client_advocacy_matter
+            WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND ${matterColumn} = $3
+            LIMIT 1`,
+          ctx.tenantId,
+          clientId,
+          matterValue,
+        ),
+      );
+      const matterId = matterRows[0]?.id;
+      if (!matterId) continue;
+      try {
+        await this.advocacyMatters.linkToMatter(ctx, matterId, {
+          linkType: isPe ? 'program_element' : 'bill',
+          linkKey: matterValue,
+          label: asString(proposed.title) ?? matterValue,
+          metadata: { findingId: finding.id },
+        });
+        linked += 1;
+      } catch (error) {
+        this.logger.warn(
+          `Advocacy matter finding link failed for ${clientId}/${matterId}: ${this.safeError(error)}`,
+        );
+      }
+    }
+    return linked;
   }
 
   private async runCompletionAudit(
@@ -1891,6 +1954,24 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
       );
       await this.auditAdvanced(tx, ctx, clientId, finding, null, proposed);
     });
+    // Assigns/creates the Advocacy Matter this record belongs to. Runs as
+    // its own transaction (not nested in the upsert above — Prisma does not
+    // support nesting interactive transactions on one client) immediately
+    // after the record commit, so a failure here never blocks the record
+    // apply itself; it is logged and surfaced on the next reconciliation
+    // pass rather than rolling back a successful accept.
+    try {
+      await this.advocacyMatters.assignMatterForRecord(ctx, clientId, externalKey, {
+        recordType,
+        title,
+        metadata: asRecord(proposed.metadata),
+        activityDate: asString(proposed.activityDate),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Advocacy matter assignment failed for ${clientId}/${externalKey}: ${this.safeError(error)}`,
+      );
+    }
   }
 
   private async applyAdvocacyOutcome(
@@ -1901,7 +1982,8 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
     const proposed = asRecord(finding.proposedValue);
     const externalKey = requiredString(proposed.advocacyExternalKey, 'Advocacy record');
     const outcomeKind = requiredString(proposed.outcomeKind, 'Outcome kind');
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const outcomeEventId = asString(proposed.outcomeEventId);
+    const matterId = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const changed = await tx.$executeRawUnsafe(
         `UPDATE client_advocacy_record
             SET outcome = $4,
@@ -1922,7 +2004,36 @@ export class ClientProfileFillCompletionService implements OnModuleInit, OnModul
         throw new BadRequestException('Apply the related advocacy record before linking its outcome');
       }
       await this.auditAdvanced(tx, ctx, clientId, finding, null, proposed);
+      const matterRows = await tx.$queryRawUnsafe<Array<{ matterId: string | null }>>(
+        `SELECT matter_id AS "matterId" FROM client_advocacy_record
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND external_key = $3`,
+        ctx.tenantId,
+        clientId,
+        externalKey,
+      );
+      return matterRows[0]?.matterId ?? null;
     });
+    // Outcome events are institutional-history objects in their own right
+    // (product spec: "Matter groups ... government actions [and] outcomes")
+    // even though they never become their own client_advocacy_record row.
+    // Link the outcome event into the same Matter as the advocacy record it
+    // was matched against, so the Matter's timeline shows what happened
+    // after the ask without claiming causation (causationClaimed stays
+    // false on the record itself, set above).
+    if (matterId && outcomeEventId) {
+      try {
+        await this.advocacyMatters.linkToMatter(ctx, matterId, {
+          linkType: 'outcome_event',
+          linkKey: outcomeEventId,
+          label: `Observed outcome: ${outcomeKind}`,
+          metadata: { causationClaimed: false, outcomeKind },
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Advocacy matter outcome link failed for ${clientId}/${matterId}: ${this.safeError(error)}`,
+        );
+      }
+    }
   }
 
   private async markAccepted(ctx: TenantContext, clientId: string, findingId: string) {

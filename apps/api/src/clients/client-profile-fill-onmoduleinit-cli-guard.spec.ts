@@ -99,6 +99,7 @@ describe('Fill with Meri sweep services — CLI/one-shot bootstrap guard', () =>
         {} as any,
         {} as any,
         httpAdapterHost as any,
+        {} as any,
       );
       return service;
     }
