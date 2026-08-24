@@ -195,19 +195,21 @@ describe('evaluateCycleFamilyReadinessV1', () => {
     expect(approprWaiting.state).toBe('waiting_for_sources');
   });
 
-  it('[scoping] alternative_funding can never satisfy or overwrite the annual corpus: its track is unsupported and always waiting_for_sources regardless of its own corpus completeness', () => {
+  it('[scoping] alternative_funding can never satisfy or overwrite the annual corpus: its track reports certification_not_supported, never waiting_for_sources, regardless of its own corpus completeness', () => {
     const altFundingIdentity = identity({ authorityTrack: 'alternative_funding', familyGroup: 'rdte' });
     const decision = evaluateCycleFamilyReadinessV1({
       identity: altFundingIdentity,
       cycleId: 'cycle-2027-alt-funding',
-      // Even a FULLY resolved corpus must not advance past waiting_for_sources
-      // for this track — there is no Phase 4/5/6 certifier for it, and this
-      // module refuses to invent one.
+      // Even a FULLY resolved corpus must not advance past
+      // certification_not_supported for this track — there is no Phase 4/5/6
+      // certifier for it, and this module refuses to invent one. It must NOT
+      // report waiting_for_sources, which would (incorrectly) imply the gap is
+      // missing source documents rather than a structurally absent certifier.
       expectedSources: [
         source({ expectedSourceId: 'alt-1', expectedState: 'published', latestIngestion: 'ingested_pass' }),
       ],
     });
-    expect(decision.state).toBe('waiting_for_sources');
+    expect(decision.state).toBe('certification_not_supported');
     expect(decision.blocks[0]?.reason).toBe('unsupported_track');
 
     // And the annual (authorization) identity for the SAME fiscal year is
@@ -219,6 +221,27 @@ describe('evaluateCycleFamilyReadinessV1', () => {
       ]),
     );
     expect(annualReady.state).toBe('ready_for_reconciliation');
+  });
+
+  it('[scoping] execution reports certification_not_supported, never waiting_for_sources, even with a fully resolved corpus', () => {
+    const executionIdentity = identity({ authorityTrack: 'execution', familyGroup: 'rdte' });
+    const decision = evaluateCycleFamilyReadinessV1({
+      identity: executionIdentity,
+      cycleId: 'cycle-2027-execution',
+      expectedSources: [
+        source({ expectedSourceId: 'exec-1', expectedState: 'published', latestIngestion: 'ingested_pass' }),
+      ],
+    });
+    expect(decision.state).toBe('certification_not_supported');
+    expect(decision.blocks[0]?.reason).toBe('unsupported_track');
+  });
+
+  it('[regression guard] waiting_for_sources is still correctly reachable on a SUPPORTED track: adding certification_not_supported did not disturb the genuine missing-source path', () => {
+    const decision = evaluateCycleFamilyReadinessV1(
+      corpus([source({ expectedSourceId: 'r1', expectedState: 'expected' })]),
+    );
+    expect(decision.state).toBe('waiting_for_sources');
+    expect(decision.identity.authorityTrack).toBe('authorization');
   });
 
   it('[idempotent] identical readiness evaluation on the identical corpus is idempotent: same input twice yields byte-identical decisions', () => {

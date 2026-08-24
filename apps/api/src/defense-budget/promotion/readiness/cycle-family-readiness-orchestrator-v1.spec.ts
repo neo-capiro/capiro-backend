@@ -112,7 +112,13 @@ function candidate(overrides: Partial<TrustedCandidateRecordV1> = {}): TrustedCa
 
 function defaultEligibilityState(): EligibilityFakeState {
   return {
-    certifications: [{ certificationId: 'cert-1', contentSha256: SHA('1'), status: 'CERTIFIED_READY' }],
+    // contentSha256 intentionally matches certifiedResult()'s default
+    // certificationContentSha256 (SHA('c')) — Gap 5's exact-certification
+    // binding check requires the eligibility record's certified hash set to
+    // contain the reconciliation step's own certification hash, so these two
+    // fixtures must agree for the happy-path tests below to reach
+    // awaiting_authorization at all.
+    certifications: [{ certificationId: 'cert-1', contentSha256: SHA('c'), status: 'CERTIFIED_READY' }],
     candidates: [candidate()],
     latestTerminalRunId: { 'cand-1': 'run-1' },
     projectionPlans: [{ projectionPlanId: 'pp-1', contentSha256: SHA('2') }],
@@ -188,6 +194,10 @@ class FakePlanPersistence implements PromotionPlanPersistencePortV1 {
     this.stored.set(plan.planId, plan);
     return { filed: true, replay };
   }
+  async findPlanByPlanId(planId: string) {
+    const existing = this.stored.get(planId);
+    return existing == null ? null : { planId: existing.planId, planHash: existing.planHash };
+  }
 }
 
 function buildPorts(overrides: {
@@ -249,6 +259,34 @@ describe('evaluateAndAdvanceCycleFamilyReadinessV1', () => {
     });
     const result = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, ports, RUN_OPTIONS);
     expect(result.outcome).toBe('waiting_for_sources');
+    expect(reconciliationCertification.calls).toBe(0);
+    expect(planPersistence.persistCallCount).toBe(0);
+    expect(result.planId).toBeNull();
+  });
+
+  it('[certification_not_supported] an unsupported authority track never invokes reconciliation and never builds a plan, even with a fully resolved corpus', async () => {
+    const unsupportedIdentity: CycleFamilyReadinessIdentityV1 = {
+      ...IDENTITY,
+      authorityTrack: 'alternative_funding',
+    };
+    const resolvedCorpus: CycleFamilyCorpusInputV1 = {
+      identity: unsupportedIdentity,
+      cycleId: 'cycle-fy2027-alt-funding',
+      expectedSources: [
+        {
+          expectedSourceId: 'exp-1',
+          sourceFamily: 'pb_o1',
+          optional: false,
+          expectedState: 'published',
+          latestIngestion: 'ingested_pass',
+        },
+      ],
+    };
+    const { ports, reconciliationCertification, planPersistence } = buildPorts({
+      corpus: resolvedCorpus,
+    });
+    const result = await evaluateAndAdvanceCycleFamilyReadinessV1(unsupportedIdentity, ports, RUN_OPTIONS);
+    expect(result.outcome).toBe('certification_not_supported');
     expect(reconciliationCertification.calls).toBe(0);
     expect(planPersistence.persistCallCount).toBe(0);
     expect(result.planId).toBeNull();
@@ -338,7 +376,12 @@ describe('evaluateAndAdvanceCycleFamilyReadinessV1', () => {
     expect(second.planReplay).toBe(true);
     // Still exactly one row for this plan id — no duplicate pending promotion.
     expect(planPersistence.stored.size).toBe(1);
-    expect(planPersistence.persistCallCount).toBe(2);
+    // The second run finds the existing plan via findPlanByPlanId and never
+    // calls persistPlan a second time — replay is detected by the cheaper
+    // planId-only lookup BEFORE rebuilding the plan object, which is what
+    // keeps a real-clock-time replay from ever risking the plan_id_conflict
+    // guard (see the orchestrator's Step 4 comment).
+    expect(planPersistence.persistCallCount).toBe(1);
   });
 
   it('[new identity on change] changed source/certification input produces a new plan identity/hash rather than mutating an authorized historical plan', async () => {
@@ -348,9 +391,18 @@ describe('evaluateAndAdvanceCycleFamilyReadinessV1', () => {
     const first = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, firstPorts, RUN_OPTIONS);
 
     // A DIFFERENT certified certification content hash simulates changed
-    // source/certification input (e.g. a corrected re-extraction).
+    // source/certification input (e.g. a corrected re-extraction). Its
+    // eligibility fixture must independently carry that SAME new hash in its
+    // own certified set — Gap 5's exact-certification binding check requires
+    // eligibility to have been evaluated against the matching certification,
+    // never an unrelated stale one — so this is not merely "a different
+    // reconciliation output", it is a fully consistent changed-input scenario.
     const { ports: secondPorts, planPersistence: secondPersistence } = buildPorts({
       reconciliation: certifiedResult({ certificationContentSha256: SHA('f') }),
+      eligibilityState: {
+        ...defaultEligibilityState(),
+        certifications: [{ certificationId: 'cert-2', contentSha256: SHA('f'), status: 'CERTIFIED_READY' }],
+      },
     });
     const second = await evaluateAndAdvanceCycleFamilyReadinessV1(
       IDENTITY,
@@ -365,6 +417,83 @@ describe('evaluateAndAdvanceCycleFamilyReadinessV1', () => {
     // identity — it never mutates the first plan's row.
     expect(second.planReplay).toBe(false);
     expect(secondPersistence.stored.has(first.planId as string)).toBe(false);
+  });
+
+  it('[time-independent idempotency] identical certified corpus evaluated at two different real now() values produces the same logical planId/planHash and no duplicate pending plan', async () => {
+    const corpusLoader = new FakeCorpusLoader(readyCorpus());
+    const reconciliationCertification = new FakeReconciliationCertification(certifiedResult());
+    const eligibilityRepository = new FakeEligibilityRepository(defaultEligibilityState());
+    const eligibilityAudit = new RecordingAudit();
+    const planInputs = new FakePlanInputs([]);
+    // ONE shared persistence instance across both calls — this is what
+    // actually proves "no duplicate pending plan" rather than merely "two
+    // separately-computed hashes happen to match".
+    const planPersistence = new FakePlanPersistence();
+
+    const portsAtT1: CycleFamilyReadinessOrchestratorPortsV1 = {
+      corpusLoader,
+      reconciliationCertification,
+      eligibilityRepository,
+      eligibilityAudit,
+      planInputs,
+      planPersistence,
+      now: () => new Date('2027-01-01T00:00:00.000Z'),
+    };
+    const portsAtT2: CycleFamilyReadinessOrchestratorPortsV1 = {
+      ...portsAtT1,
+      now: () => new Date('2027-06-15T12:00:00.000Z'),
+    };
+
+    const first = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, portsAtT1, RUN_OPTIONS);
+    const second = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, portsAtT2, RUN_OPTIONS);
+
+    expect(first.outcome).toBe('awaiting_authorization');
+    expect(second.outcome).toBe('awaiting_authorization');
+    expect(second.planId).toBe(first.planId);
+    expect(second.planHash).toBe(first.planHash);
+    expect(first.planReplay).toBe(false);
+    expect(second.planReplay).toBe(true);
+    // Still exactly one row for this plan id across both real-clock values.
+    expect(planPersistence.stored.size).toBe(1);
+
+    // eligibilityHash MAY legitimately differ across T1/T2 (it embeds
+    // eligibility's own generatedAt timestamp) — that is expected and by
+    // design; Gap 4 only requires the PLAN's own identity to be
+    // time-independent, not the eligibility record's hash.
+    // (No assertion of equality/inequality here — either is acceptable;
+    // the plan identity is what must be stable.)
+  });
+
+  it('[exact certification binding] current certification hash present in eligibility\'s certified set -> planning proceeds normally', async () => {
+    const { ports } = buildPorts({
+      reconciliation: certifiedResult({ certificationContentSha256: SHA('c') }),
+      eligibilityState: {
+        ...defaultEligibilityState(),
+        certifications: [{ certificationId: 'cert-1', contentSha256: SHA('c'), status: 'CERTIFIED_READY' }],
+      },
+    });
+    const result = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, ports, RUN_OPTIONS);
+    expect(result.outcome).toBe('awaiting_authorization');
+    expect(result.planId).not.toBeNull();
+  });
+
+  it('[exact certification binding — fail closed] a stale/different certification hash in the eligibility proof set refuses to plan, even though eligibility itself reports eligible', async () => {
+    const { ports, planPersistence } = buildPorts({
+      // reconciliation just produced a NEW certification hash...
+      reconciliation: certifiedResult({ certificationContentSha256: SHA('newcert') }),
+      // ...but the eligibility repository's certified set still only names an
+      // OLDER, unrelated certification hash — simulating an eligibility
+      // record that became "eligible" against a stale certification.
+      eligibilityState: {
+        ...defaultEligibilityState(),
+        certifications: [{ certificationId: 'cert-stale', contentSha256: SHA('stale'), status: 'CERTIFIED_READY' }],
+      },
+    });
+    const result = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, ports, RUN_OPTIONS);
+    expect(result.outcome).not.toBe('awaiting_authorization');
+    expect(result.planId).toBeNull();
+    expect(planPersistence.persistCallCount).toBe(0);
+    expect(result.detail).toMatch(/stale|mismatch|exact certification/i);
   });
 
   it('[authorization boundary] the persisted plan conflict guard refuses to silently overwrite an existing plan id with different content (never mutates an authorized historical plan)', async () => {

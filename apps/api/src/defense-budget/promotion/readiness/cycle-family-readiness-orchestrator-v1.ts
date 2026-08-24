@@ -55,6 +55,7 @@ import {
   type PromotionAuditSinkV1,
   type PromotionEligibilityRequestV1,
 } from '../promotion-eligibility-service-v1.js';
+import type { DefenseBudgetPromotionEligibilityV1 } from '../promotion-eligibility-v1.js';
 import { sha256CanonicalJson, type JsonValue } from '../../contracts/canonical-json.js';
 import type { BudgetFamilyV1 } from '../../contracts/extraction-artifact-v1.js';
 
@@ -107,9 +108,25 @@ export interface FamilyReconciliationCertificationPortV1 {
  * from `promotion-planner-v1.ts` directly).
  */
 export interface PromotionPlanInputLoaderPortV1 {
+  /**
+   * `eligibility`/`eligibilityHash` are the EXACT record and hash this
+   * orchestrator run just evaluated (Step 3) — never re-derived here. A
+   * real implementation needs both, not just `certificationContentSha256`:
+   * the existing Phase 7 read seam (`PrismaEligibilityBoundProjectionSourceV1
+   * .loadForEligibilityHash`, exactly as `plan-defense-budget-promotion-v1.ts`
+   * already uses it) resolves producer plans FROM a durably persisted
+   * eligibility record found BY its content hash, and a real adapter must
+   * durably persist that exact record (idempotently, by content hash, via
+   * the existing `PromotionEligibilityPersistenceRepositoryV1.insert`) before
+   * it can be reloaded that way — there is no seam that goes straight from a
+   * bare certification hash to a projection list without the eligibility
+   * record in between.
+   */
   loadProjections(
     identity: CycleFamilyReadinessIdentityV1,
     certificationContentSha256: string,
+    eligibility: DefenseBudgetPromotionEligibilityV1,
+    eligibilityHash: string,
   ): Promise<readonly PromotionProjectionInputV1[]>;
   loadPriorRows(
     identity: CycleFamilyReadinessIdentityV1,
@@ -138,6 +155,30 @@ export interface PromotionPlanPersistencePortV1 {
    * `file-defense-budget-promotion-plan-v1.ts` already implements.
    */
   persistPlan(plan: DefenseBudgetPromotionPlanV1): Promise<{ filed: boolean; replay: boolean }>;
+  /**
+   * Looks up an already-filed plan by `planId` ALONE (not by content hash).
+   *
+   * Why this exists: `planHash` (via `promotionPlanHashV1`) hashes the WHOLE
+   * built plan object, which includes `eligibilityHash` — and
+   * `eligibilityHash` legitimately varies across otherwise-identical runs at
+   * different real wall-clock times, because the underlying Phase 7
+   * eligibility record's `generatedAt` field is part of what gets hashed
+   * (see `promotion-eligibility-v1.ts`; this orchestrator does not and must
+   * not weaken that contract). That means two runs of THIS orchestrator for
+   * the same certified corpus at real times T1 and T2 correctly derive the
+   * SAME `planId` (Gap 4's deterministic, time-independent seed) but would
+   * derive two DIFFERENT `planHash` values if each run built a fresh plan
+   * object and called `persistPlan` — which would incorrectly trip the very
+   * `plan_id_conflict` guard that exists to protect an authorized historical
+   * plan from being silently overwritten.
+   *
+   * The orchestrator therefore checks for an existing plan under the
+   * deterministic `planId` BEFORE building a new plan object at all. When
+   * one is found, that IS the idempotent replay: the orchestrator returns
+   * the historical plan's own recorded hash rather than attempting to file a
+   * second, hash-different row for the same identity.
+   */
+  findPlanByPlanId(planId: string): Promise<{ planId: string; planHash: string } | null>;
 }
 
 export interface CycleFamilyReadinessOrchestratorPortsV1 {
@@ -161,6 +202,7 @@ export interface CycleFamilyReadinessOrchestratorPortsV1 {
  * "authorized" or "executed" member — see the file header invariant.
  */
 export const ORCHESTRATOR_OUTCOME_V1_VALUES = [
+  'certification_not_supported',
   'waiting_for_sources',
   'review_required',
   'reconciliation_failed',
@@ -251,7 +293,11 @@ export async function evaluateAndAdvanceCycleFamilyReadinessV1(
   const corpus = await ports.corpusLoader.loadCorpus(identity);
   const readiness = evaluateCycleFamilyReadinessV1(corpus);
 
-  if (readiness.state === 'waiting_for_sources' || readiness.state === 'review_required') {
+  if (
+    readiness.state === 'waiting_for_sources' ||
+    readiness.state === 'review_required' ||
+    readiness.state === 'certification_not_supported'
+  ) {
     return {
       identity,
       outcome: readiness.state,
@@ -262,7 +308,9 @@ export async function evaluateAndAdvanceCycleFamilyReadinessV1(
       planReplay: null,
       eligibilityHash: null,
       detail:
-        readiness.state === 'waiting_for_sources'
+        readiness.state === 'certification_not_supported'
+          ? 'this authority track has no Phase 4/5/6 certifier; certification is structurally unsupported here, independent of whether the corpus is complete'
+          : readiness.state === 'waiting_for_sources'
           ? 'corpus is not yet complete; no reconciliation was invoked'
           : 'a required source needs human review or was rejected; no reconciliation was invoked',
     };
@@ -341,44 +389,23 @@ export async function evaluateAndAdvanceCycleFamilyReadinessV1(
     };
   }
 
+  if (!eligibilityResult.eligibility.cycleCertificationHashes.includes(
+    reconciliation.certificationContentSha256,
+  )) {
+    return {
+      identity,
+      outcome: 'certification_failed',
+      readiness,
+      reconciliation,
+      planId: null,
+      planHash: null,
+      planReplay: null,
+      eligibilityHash: eligibilityResult.eligibilityHash,
+      detail: "the eligibility record used for planning does not contain the exact certification hash produced by this run's reconciliation/certification step; refusing to plan against a stale or mismatched certification",
+    };
+  }
+
   /* ---- Step 4: build the EXISTING promotion plan (buildPromotionPlanV1) ---- */
-
-  const activeSnapshot = await ports.planInputs.loadExpectedActiveSnapshot(identity);
-  const [projections, priorRows, overlays] = await Promise.all([
-    ports.planInputs.loadProjections(identity, reconciliation.certificationContentSha256),
-    ports.planInputs.loadPriorRows(identity),
-    ports.planInputs.loadOverlays(identity),
-  ]);
-
-  const scopeSeed = {
-    domain,
-    environment: options.environment,
-    scope: eligibilityResult.eligibility.scope,
-    mode: options.mode,
-    // Bound into the plan-identity seed so a changed certified corpus (a
-    // different certification content hash) always derives a DIFFERENT
-    // planId — required by "changed certified inputs create a new plan/hash"
-    // — while an unchanged corpus replayed twice derives the SAME planId —
-    // required by "replay creates no duplicate plan".
-    certificationContentSha256: reconciliation.certificationContentSha256,
-    eligibilityHash: eligibilityResult.eligibilityHash,
-  } as unknown as JsonValue;
-  const planId = `plan-${deterministicSeedHexV1(scopeSeed)}`;
-  const proposedSnapshotId = deterministicUuidV1(`snapshot:${JSON.stringify(scopeSeed)}`);
-
-  const plan = buildPromotionPlanV1({
-    planId,
-    eligibilityHash: eligibilityResult.eligibilityHash,
-    scope: eligibilityResult.eligibility.scope,
-    mode: options.mode,
-    proposedSnapshotId,
-    expectedActiveSnapshotId: eligibilityResult.eligibility.expectedActiveSnapshotId,
-    actualActiveSnapshotId: activeSnapshot?.snapshotId ?? null,
-    mappingRegistryHash: canonicalMappingRegistryHashV1(),
-    projections: [...projections],
-    priorRows: [...priorRows],
-    overlays: [...overlays],
-  });
 
   if (
     eligibilityResult.eligibility.mappingRegistryVersion !==
@@ -397,6 +424,88 @@ export async function evaluateAndAdvanceCycleFamilyReadinessV1(
       detail: `eligibility was evaluated under a different mapping registry version/hash than is current; refusing to plan against a stale mapping`,
     };
   }
+
+  const scopeSeed = {
+    domain,
+    environment: options.environment,
+    scope: eligibilityResult.eligibility.scope,
+    mode: options.mode,
+    // Bound into the plan-identity seed so a changed certified corpus (a
+    // different certification content hash) always derives a DIFFERENT
+    // planId — required by "changed certified inputs create a new plan/hash"
+    // — while an unchanged corpus replayed twice derives the SAME planId —
+    // required by "replay creates no duplicate plan". Deliberately built ONLY
+    // from stable, deterministic source facts — never from `eligibilityHash`
+    // or `eligibility.generatedAt`, both of which legitimately vary across
+    // otherwise-identical runs at different real wall-clock times (Gap 4).
+    certificationContentSha256: reconciliation.certificationContentSha256,
+    mappingRegistryHash: canonicalMappingRegistryHashV1(),
+    fiscalYear: identity.fiscalYear,
+    authorityTrack: identity.authorityTrack,
+    familyGroup: identity.familyGroup,
+    sourceDocumentHashes: eligibilityResult.eligibility.sourceDocumentHashes,
+    artifactHashes: eligibilityResult.eligibility.artifactHashes,
+    candidateIds: eligibilityResult.eligibility.candidates.map((candidate) => candidate.candidateId),
+    expectedActiveSnapshotId: eligibilityResult.eligibility.expectedActiveSnapshotId,
+    expectedActiveSnapshotHash: eligibilityResult.eligibility.expectedActiveSnapshotHash,
+  } as unknown as JsonValue;
+  const planId = `plan-${deterministicSeedHexV1(scopeSeed)}`;
+  const proposedSnapshotId = deterministicUuidV1(`snapshot:${JSON.stringify(scopeSeed)}`);
+
+  // Idempotent-replay short-circuit. `planId` is time-independent (Gap 4),
+  // but the FULL built plan object's `planHash` is NOT — it embeds
+  // `eligibilityHash`, which legitimately changes across real wall-clock
+  // time because the underlying eligibility record's `generatedAt` field is
+  // part of what gets hashed (an existing Phase 7 contract this orchestrator
+  // must not weaken). Building a fresh plan object on every call and handing
+  // it to `persistPlan` would therefore derive a DIFFERENT `planHash` under
+  // the SAME `planId` on a second real-time run, incorrectly tripping the
+  // `plan_id_conflict` guard that exists to protect an authorized historical
+  // plan from being silently overwritten by unrelated content. Checking for
+  // an existing plan under this exact deterministic `planId` FIRST — before
+  // loading projections/priorRows/overlays or building anything — is what
+  // makes "same certified corpus, run at T1, run at T2" converge to the same
+  // logical plan with no duplicate pending promotion and no false conflict.
+  const existingPlan = await ports.planPersistence.findPlanByPlanId(planId);
+  if (existingPlan != null) {
+    return {
+      identity,
+      outcome: 'awaiting_authorization',
+      readiness,
+      reconciliation,
+      planId: existingPlan.planId,
+      planHash: existingPlan.planHash,
+      planReplay: true,
+      eligibilityHash: eligibilityResult.eligibilityHash,
+      detail: 'identical certified corpus already has a persisted plan under this exact deterministic plan identity; replaying rather than filing a new row',
+    };
+  }
+
+  const activeSnapshot = await ports.planInputs.loadExpectedActiveSnapshot(identity);
+  const [projections, priorRows, overlays] = await Promise.all([
+    ports.planInputs.loadProjections(
+      identity,
+      reconciliation.certificationContentSha256,
+      eligibilityResult.eligibility,
+      eligibilityResult.eligibilityHash,
+    ),
+    ports.planInputs.loadPriorRows(identity),
+    ports.planInputs.loadOverlays(identity),
+  ]);
+
+  const plan = buildPromotionPlanV1({
+    planId,
+    eligibilityHash: eligibilityResult.eligibilityHash,
+    scope: eligibilityResult.eligibility.scope,
+    mode: options.mode,
+    proposedSnapshotId,
+    expectedActiveSnapshotId: eligibilityResult.eligibility.expectedActiveSnapshotId,
+    actualActiveSnapshotId: activeSnapshot?.snapshotId ?? null,
+    mappingRegistryHash: canonicalMappingRegistryHashV1(),
+    projections: [...projections],
+    priorRows: [...priorRows],
+    overlays: [...overlays],
+  });
 
   /* ---- Step 5: persist plan + hash, stop at awaiting_authorization ---- */
 

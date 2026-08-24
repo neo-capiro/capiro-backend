@@ -39,7 +39,7 @@
  * readiness rule for `alternative_funding` or `execution` tracks at all (see
  * `UNSUPPORTED_READINESS_TRACKS` below): no Phase 4/5/6 certifier exists for
  * either track today, so a family group in one of those tracks reports
- * `waiting_for_sources` forever rather than being fabricated a fake "ready"
+ * `certification_not_supported` rather than being fabricated a fake "ready"
  * path. Never use a global "current FY" — every readiness evaluation names its
  * own fiscal year explicitly.
  */
@@ -74,7 +74,7 @@ export type ReadinessFamilyGroupV1 = (typeof READINESS_FAMILY_GROUP_V1_VALUES)[n
 
 /**
  * Tracks with no existing Phase 4/5/6 certifier. A family group scoped to one
- * of these tracks always reports `waiting_for_sources` (see
+ * of these tracks always reports `certification_not_supported` (see
  * `evaluateCycleFamilyReadinessV1`) — this module does not invent a
  * certification rule for them. Kept as an explicit, testable list rather than
  * an implicit fallthrough so a future certifier's arrival is a one-line change
@@ -118,6 +118,8 @@ export function cycleFamilyReadinessKeyV1(identity: CycleFamilyReadinessIdentity
  * terminal semantics, it composes the existing ones into one ladder.
  */
 export const CYCLE_FAMILY_READINESS_STATE_V1_VALUES = [
+  /** The corpus may be complete, but no Phase 4/5/6 certifier exists for this authority track — never reconcile, plan, or fabricate certification. */
+  'certification_not_supported',
   /** Not every required expected source has reached a resolved state yet. */
   'waiting_for_sources',
   /** A required expected source (or its ingested observation) needs human review. */
@@ -182,6 +184,61 @@ export const READINESS_INGESTION_OUTCOME_V1_VALUES = [
 ] as const;
 export type ReadinessIngestionOutcomeV1 =
   (typeof READINESS_INGESTION_OUTCOME_V1_VALUES)[number];
+
+export interface DurableReadinessIngestionFactsV1 {
+  readonly observation: {
+    readonly observationState: string;
+    readonly sourceDocumentId: string | null;
+    readonly contentSha256: string;
+  } | null;
+  readonly sourceDocument: { readonly id: string; readonly sha256: string | null } | null;
+  readonly parseJobs: ReadonlyArray<{ readonly inputSha256: string; readonly status: string }>;
+  readonly candidates: ReadonlyArray<{
+    readonly id: string;
+    readonly sourceDocumentId: string;
+    readonly sourceSha256: string;
+    readonly currentRunId: string | null;
+  }>;
+  readonly verificationRuns: ReadonlyArray<{
+    readonly id: string;
+    readonly candidateId: string;
+    readonly decision: string;
+    readonly completedAt: Date | string;
+  }>;
+}
+
+/** Reconstruct restart-safe ingestion solely from persisted parser/candidate/run facts. */
+export function reconstructReadinessIngestionOutcomeV1(
+  input: DurableReadinessIngestionFactsV1,
+): ReadinessIngestionOutcomeV1 {
+  const observation = input.observation;
+  if (observation?.sourceDocumentId == null) return 'ingestion_incomplete';
+  const document = input.sourceDocument;
+  if (
+    document == null ||
+    document.id !== observation.sourceDocumentId ||
+    document.sha256 == null ||
+    document.sha256 !== observation.contentSha256
+  ) return 'ingestion_incomplete';
+  if (!input.parseJobs.some((job) => job.status === 'succeeded' && job.inputSha256 === document.sha256)) {
+    return 'ingestion_incomplete';
+  }
+  const candidate = input.candidates.find(
+    (row) => row.sourceDocumentId === document.id && row.sourceSha256 === document.sha256,
+  );
+  if (candidate == null) return 'ingestion_incomplete';
+  const candidateRuns = input.verificationRuns.filter((run) => run.candidateId === candidate.id);
+  const current = candidate.currentRunId == null
+    ? null
+    : candidateRuns.find((run) => run.id === candidate.currentRunId) ?? null;
+  const run = current ?? [...candidateRuns].sort(
+    (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime(),
+  )[0];
+  if (run?.decision === 'PASS') return 'ingested_pass';
+  if (run?.decision === 'REVIEW') return 'ingested_review';
+  if (run?.decision === 'REJECT') return 'ingested_reject';
+  return 'ingestion_incomplete';
+}
 
 /**
  * Map a Phase 10B-1 bridge result directly to a readiness ingestion outcome.
@@ -265,11 +322,11 @@ export function evaluateCycleFamilyReadinessV1(
     return {
       identity: input.identity,
       cycleId: input.cycleId,
-      state: 'waiting_for_sources',
+      state: 'certification_not_supported',
       blocks: [
         {
           reason: 'unsupported_track',
-          detail: `authorityTrack "${input.identity.authorityTrack}" has no Phase 4/5/6 certifier; readiness cannot advance past waiting_for_sources for this track`,
+          detail: `authorityTrack "${input.identity.authorityTrack}" has no Phase 4/5/6 certifier; certification is structurally unsupported for this track`,
         },
       ],
       requiredCount: 0,
