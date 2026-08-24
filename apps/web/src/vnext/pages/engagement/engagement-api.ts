@@ -289,19 +289,65 @@ export async function approveOutreachV3Approach(
   ).data;
 }
 
+export interface OutreachV3FullGenerationResponse {
+  jobId: string | null;
+  deduped: boolean;
+  complete: boolean;
+  remaining: number;
+}
+
 export async function startOutreachV3FullGeneration(
   api: AxiosInstance,
   sessionId: string,
   requestKey: string,
 ) {
   return (
-    await api.post<{
-      jobId: string | null;
-      deduped: boolean;
-      complete: boolean;
-      remaining: number;
-    }>(sessionPath(sessionId, '/generation/full'), { requestKey })
+    await api.post<OutreachV3FullGenerationResponse>(
+      sessionPath(sessionId, '/generation/full'),
+      { requestKey },
+    )
   ).data;
+}
+
+/**
+ * Deterministic logical-attempt key for full generation.
+ *
+ * Anchored to `sessionId + approvalHash` — the approval hash already binds
+ * the exact sessionId/stateVersion/specHash/planHash/sample-or-packet-hash
+ * (see `createOutreachV3ApproachApprovalSnapshot` /
+ * `createOutreachV3ReviewPacketApprovalSnapshot` server-side), so this key is
+ * stable across a double-click or a retry-after-timeout of the SAME approved
+ * generation, and changes automatically the moment approval is invalidated by
+ * any upstream edit. Never derive this from `crypto.randomUUID()` — a fresh
+ * random key on every call defeats the backend's
+ * `(tenantId, userId, requestKey)` idempotency lookup and can mint duplicate
+ * jobs for what is logically one generation attempt.
+ */
+export function outreachV3FullGenerationRequestKey(
+  sessionId: string,
+  approvalHash: string,
+): string {
+  return `${sessionId}:${approvalHash}`;
+}
+
+export type OutreachV3FullGenerationOutcome =
+  | { kind: 'job'; jobId: string; deduped: boolean; remaining: number }
+  | { kind: 'complete' }
+  /**
+   * Neither a job id nor a completed result. This must never be treated as a
+   * successful start — see VNextOutreachGuidedWorkspace's regression test for
+   * `complete=false, jobId=null`.
+   */
+  | { kind: 'invalid' };
+
+export function classifyOutreachV3FullGenerationResult(
+  result: OutreachV3FullGenerationResponse,
+): OutreachV3FullGenerationOutcome {
+  if (result.jobId) {
+    return { kind: 'job', jobId: result.jobId, deduped: result.deduped, remaining: result.remaining };
+  }
+  if (result.complete) return { kind: 'complete' };
+  return { kind: 'invalid' };
 }
 
 export async function getOutreachV3GenerationJob(
@@ -314,6 +360,24 @@ export async function getOutreachV3GenerationJob(
       sessionPath(sessionId, `/generation/jobs/${encodeURIComponent(jobId)}`),
     )
   ).data;
+}
+
+/**
+ * Server-truth recovery (section 8): the most recent full-generation job for
+ * this session, or null when none has ever been created. Call this at
+ * Drafts/session mount so recovery never depends on `sessionStorage`
+ * surviving a refresh, a browser navigation away-and-back, a lost tab, or a
+ * fresh device. `sessionStorage` remains a same-tab cache/optimization only.
+ */
+export async function getLatestOutreachV3FullGenerationJob(
+  api: AxiosInstance,
+  sessionId: string,
+) {
+  return (
+    await api.get<{ job: OutreachV3GenerationJob | null }>(
+      sessionPath(sessionId, '/generation/jobs/latest'),
+    )
+  ).data.job;
 }
 
 export async function cancelOutreachV3GenerationJob(

@@ -27,6 +27,14 @@ export interface OutreachWizardRouterProps {
   onComplete: () => void;
   initialRecord?: OutreachRecord | null;
   initialDraftId?: string | null;
+  /**
+   * A durable Outreach V3 session id restored from the URL (section 7 of the
+   * reliability repair). When present, the V3 route resumes this exact
+   * session instead of minting a new one on every reload/remount.
+   */
+  outreachV3SessionId?: string | null;
+  /** Fired once the V3 route has a real session id (new or resumed). */
+  onOutreachV3SessionReady?: (sessionId: string) => void;
 }
 
 /**
@@ -85,6 +93,8 @@ export function OutreachWizardRouter(props: OutreachWizardRouterProps) {
       sendableInboxes={props.sendableInboxes}
       onCancel={props.onCancel}
       onComplete={props.onComplete}
+      sessionId={props.outreachV3SessionId}
+      onSessionReady={props.onOutreachV3SessionReady}
       onOpenClassic={() => {
         clearOutreachV3Preview();
         setPreviewMode('off');

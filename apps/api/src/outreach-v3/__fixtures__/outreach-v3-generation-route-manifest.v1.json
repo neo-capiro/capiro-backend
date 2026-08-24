@@ -43,6 +43,11 @@
     },
     {
       "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/latest",
+      "handler": "getLatestFullGenerationJob"
+    },
+    {
+      "method": "GET",
       "path": "/api/engagement/outreach-v3/sessions/:sessionId/generation/jobs/:jobId",
       "handler": "getFullGenerationJob"
     },

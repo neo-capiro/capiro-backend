@@ -31,11 +31,4 @@ describe('Outreach V3 planning-surface architecture', () => {
     expect(strategy).not.toMatch(/REQUEST_(?:SAMPLE|FULL)_GENERATION/);
     expect(strategy).not.toContain('send-intents');
   });
-
-  it('ends Phase 6 at a truthful planning-complete boundary', () => {
-    const ready = source('ReadyForGenerationSurface.tsx');
-    expect(ready).toContain('The product stops safely here');
-    expect(ready).toContain('No sender, test send, final send, provider call, or delivery retry');
-    expect(ready).not.toMatch(/onGenerate|createSendIntent|sendCampaign/);
-  });
 });

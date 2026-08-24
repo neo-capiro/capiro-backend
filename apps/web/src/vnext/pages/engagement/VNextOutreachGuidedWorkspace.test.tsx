@@ -35,6 +35,9 @@ const { api, calls } = vi.hoisted(() => {
     }),
     post: vi.fn(async (url: string, body?: unknown) => {
       calls.push({ method: 'post', url, body });
+      if (url.includes('/generation/review-packet-approval')) {
+        return { data: { approval: { approvalHash: 'a'.repeat(64) } } };
+      }
       return { data: {} };
     }),
   };
@@ -44,15 +47,19 @@ vi.mock('../../../lib/use-api.js', () => ({ useApi: () => api }));
 
 const startFullGenerationMock = vi.hoisted(() =>
   vi.fn(async (..._args: unknown[]) => ({
-    jobId: 'job-1',
+    jobId: 'job-1' as string | null,
     deduped: false,
     complete: false,
     remaining: 2,
   })),
 );
-vi.mock('./engagement-api.js', () => ({
-  startOutreachV3FullGeneration: startFullGenerationMock,
-}));
+vi.mock('./engagement-api.js', async () => {
+  const actual = await vi.importActual<typeof import('./engagement-api.js')>('./engagement-api.js');
+  return {
+    ...actual,
+    startOutreachV3FullGeneration: startFullGenerationMock,
+  };
+});
 
 const CLIENT_ID = '8f7e6d5c-4b3a-4210-9fed-cba987654321';
 
@@ -265,6 +272,64 @@ describe('VNextOutreachGuidedWorkspace', () => {
     expect(approvalOrder).toBeLessThan(generationOrder);
 
     expect(onStepChange).toHaveBeenCalledWith('drafts');
+  });
+
+  it('does NOT advance to Drafts when generation returns complete=false and jobId=null (regression)', async () => {
+    // This is the confirmed P0: an ambiguous/failed-to-start generation
+    // response must never be treated as success. `onStepChange('drafts')`
+    // must not be called, the workspace must remain on Review, and the
+    // campaign/review state (preparedContext, personalNotes) must survive so
+    // the user can retry safely.
+    startFullGenerationMock.mockResolvedValueOnce({
+      jobId: null,
+      deduped: false,
+      complete: false,
+      remaining: 0,
+    });
+    const applyCommands = vi.fn(async () => undefined);
+    useOutreachV3SessionMock.mockReturnValue(controller({ applyCommands }));
+    const { onStepChange } = renderWorkspace();
+
+    await screen.findByText('Choose client context');
+    fireEvent.click(screen.getByRole('button', { name: /build review packet/i }));
+    await screen.findByText('Confirm exactly what Meri will use');
+
+    fireEvent.click(screen.getByRole('button', { name: /accept and generate 2 drafts/i }));
+
+    await waitFor(() => expect(startFullGenerationMock).toHaveBeenCalledTimes(1));
+    // The one and only assertion that matters most: Drafts was never entered.
+    expect(onStepChange).not.toHaveBeenCalledWith('drafts');
+    // Stayed on / returned to Review with a useful, specific error, not a
+    // generic swallow.
+    expect(
+      await screen.findByText(/Generation did not start\. The server returned neither a generation job nor a completed result\./i),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Confirm exactly what Meri will use')).toBeInTheDocument();
+    // Review state survived: the packet is still loaded, not blown away.
+    expect(screen.queryByText('Reload the client context snapshot')).not.toBeInTheDocument();
+    // Safe retry: the Generate button is available again (not stuck busy).
+    expect(screen.getByRole('button', { name: /accept and generate 2 drafts/i })).toBeEnabled();
+  });
+
+  it('derives a deterministic idempotent requestKey from the review-packet approval hash, not a random UUID', async () => {
+    const applyCommands = vi.fn(async () => undefined);
+    useOutreachV3SessionMock.mockReturnValue(controller({ applyCommands }));
+    renderWorkspace();
+
+    await screen.findByText('Choose client context');
+    fireEvent.click(screen.getByRole('button', { name: /build review packet/i }));
+    await screen.findByText('Confirm exactly what Meri will use');
+    fireEvent.click(screen.getByRole('button', { name: /accept and generate 2 drafts/i }));
+
+    await waitFor(() => expect(startFullGenerationMock).toHaveBeenCalledTimes(1));
+    const [, sessionIdArg, requestKeyArg] = startFullGenerationMock.mock.calls[0]!;
+    expect(sessionIdArg).toBe('session-1');
+    // Deterministic: sessionId + approvalHash, matching
+    // outreachV3FullGenerationRequestKey exactly. Never a crypto.randomUUID().
+    expect(requestKeyArg).toBe(`session-1:${'a'.repeat(64)}`);
+    expect(requestKeyArg).not.toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
   });
 
   it('supersedes client-profile context accepted by an earlier review packet instead of duplicating it', async () => {

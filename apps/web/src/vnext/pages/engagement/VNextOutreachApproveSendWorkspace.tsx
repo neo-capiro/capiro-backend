@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -15,9 +15,11 @@ import {
   approveOutreachV3Draft,
   cancelOutreachV3GenerationJob,
   cancelOutreachV3SendIntent,
+  classifyOutreachV3FullGenerationResult,
   createOutreachV3SendIntent,
   createOutreachV3TestSend,
   generateOutreachV3Samples,
+  getLatestOutreachV3FullGenerationJob,
   getOutreachV3ApproachApproval,
   getOutreachV3GenerationJob,
   getOutreachV3GenerationPlan,
@@ -26,6 +28,7 @@ import {
   listOutreachAttachments,
   listOutreachReplyCandidates,
   listOutreachV3Drafts,
+  outreachV3FullGenerationRequestKey,
   proposeOutreachReplyLearning,
   refineOutreachV3Draft,
   refreshOutreachV3SendIntent,
@@ -118,6 +121,37 @@ export function VNextOutreachApproveSendWorkspace({
   useEffect(() => sessionStorageSet(intentStorageKey, intentId), [intentId, intentStorageKey]);
   useEffect(() => sessionStorageSet(sendKeyStorageKey, sendRequestKey), [sendKeyStorageKey, sendRequestKey]);
 
+  // Server-truth recovery (section 8): sessionStorage seeds `jobId` above as
+  // a same-tab cache/optimization only. The server's "latest job for this
+  // session" is authoritative on MOUNT — a refresh, a browser navigation
+  // away-and-back, a lost tab, or opening the campaign on a different device
+  // must all still resume the real active/completed job rather than showing
+  // an empty Drafts screen. Reconciliation runs exactly once per sessionId
+  // (guarded by the ref below) so it seeds/corrects the initial state without
+  // fighting a job this component itself just started via startFullGeneration
+  // — that job legitimately doesn't exist in the "latest" snapshot fetched
+  // moments earlier.
+  const latestJobQuery = useQuery({
+    queryKey: ['outreach-v3', 'latest-generation-job', sessionId],
+    queryFn: () => getLatestOutreachV3FullGenerationJob(api, sessionId),
+    enabled: Boolean(sessionId),
+    retry: false,
+  });
+  const reconciledForSession = useRef<string | null>(null);
+  useEffect(() => {
+    if (!latestJobQuery.isSuccess || reconciledForSession.current === sessionId) return;
+    reconciledForSession.current = sessionId;
+    const latest = latestJobQuery.data;
+    if (!latest) {
+      // No job has ever been created server-side. Do not trust a stale
+      // sessionStorage id pointing at a job from a different session/browser
+      // profile — server truth here is "no job", full stop.
+      setJobId(null);
+      return;
+    }
+    setJobId(latest.id);
+  }, [latestJobQuery.isSuccess, latestJobQuery.data, sessionId]);
+
   const planQuery = useQuery({
     queryKey: ['outreach-v3', 'generation-plan', sessionId],
     queryFn: () => getOutreachV3GenerationPlan(api, sessionId),
@@ -189,18 +223,39 @@ export function VNextOutreachApproveSendWorkspace({
     onError: (error) => setOperationError(errorText(error, 'Samples could not be generated.')),
   });
   const fullGeneration = useMutation({
-    mutationFn: () => startOutreachV3FullGeneration(api, sessionId, randomKey('full')),
+    mutationFn: (requestKey: string) => startOutreachV3FullGeneration(api, sessionId, requestKey),
     onSuccess: (result) => {
-      if (result.jobId) setJobId(result.jobId);
-      else void qc.invalidateQueries({ queryKey: ['outreach-v3', 'drafts', sessionId] });
+      const outcome = classifyOutreachV3FullGenerationResult(result);
+      if (outcome.kind === 'job') {
+        setJobId(outcome.jobId);
+        return;
+      }
+      if (outcome.kind === 'complete') {
+        void qc.invalidateQueries({ queryKey: ['outreach-v3', 'drafts', sessionId] });
+        return;
+      }
+      // Neither a job nor a completed result — never silently treat this as
+      // success. Surface it exactly like any other failed-to-start case.
+      setOperationError(
+        'Generation did not start. The server returned neither a generation job nor a completed result.',
+      );
     },
     onError: (error) => setOperationError(errorText(error, 'Full generation could not start.')),
   });
+  const startFullGeneration = () => {
+    if (!approach?.approvalHash) {
+      setOperationError('Approve the current approach before starting full generation.');
+      return;
+    }
+    fullGeneration.mutate(outreachV3FullGenerationRequestKey(sessionId, approach.approvalHash));
+  };
   const approachMutation = useMutation({
     mutationFn: (versionIds: string[]) => approveOutreachV3Approach(api, sessionId, versionIds),
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       await qc.invalidateQueries({ queryKey: ['outreach-v3', 'approach-approval', sessionId] });
-      fullGeneration.mutate();
+      fullGeneration.mutate(
+        outreachV3FullGenerationRequestKey(sessionId, result.approval.approvalHash),
+      );
     },
     onError: (error) => setOperationError(errorText(error, 'The approach could not be approved.')),
   });
@@ -392,6 +447,29 @@ export function VNextOutreachApproveSendWorkspace({
   if (!session || !sessionId) {
     return <div className="ov3p1-error-page"><AlertTriangle size={22} /><h2>This campaign could not be opened</h2><p>{controller.errorMessage || 'The canonical session is unavailable.'}</p><button type="button" className="ov3p1-button is-secondary" onClick={onExit}>Back to campaigns</button></div>;
   }
+  // Section 12 of the reliability repair: a completed/partial generation job
+  // with a failed drafts fetch must be distinguishable from generation
+  // itself having failed, and must be safely retryable — never silently
+  // falling back to an empty draft list, which would otherwise read as
+  // "generation is still running" forever (deriveOutreachPhase1View treats
+  // drafts.length < expected as 'generating' when the job is terminal).
+  if (draftsQuery.isError && job && isGenerationTerminal(job.status)) {
+    return (
+      <div className="ov3p1-error-page">
+        <AlertTriangle size={22} />
+        <h2>Generation finished, but drafts could not be loaded</h2>
+        <p>
+          {errorText(
+            draftsQuery.error,
+            'The generated drafts could not be retrieved from the server. Generation itself succeeded — this is a retrieval problem, not a generation failure.',
+          )}
+        </p>
+        <button type="button" className="ov3p1-button is-primary" onClick={() => draftsQuery.refetch()}>
+          Retry loading drafts
+        </button>
+      </div>
+    );
+  }
 
   const renderMain = () => {
     if (controller.stage !== 'ready_for_generation' && step === 'drafts') {
@@ -401,7 +479,7 @@ export function VNextOutreachApproveSendWorkspace({
       return <ApproachScreen plan={plan} drafts={drafts} generationBusy={sampleMutation.isPending} approvalBusy={approachMutation.isPending || fullGeneration.isPending} refinementBusy={bulkRefineMutation.isPending} error={operationError} onGenerateSamples={() => { setOperationError(null); sampleMutation.mutate(); }} onApprove={() => approachMutation.mutate(sampleVersionIds)} onEdit={setEditingDraft} onRegenerate={(draft) => draft.current && refineMutation.mutate({ draft, instruction: 'Regenerate this representative sample from the approved campaign plan, preserving only grounded facts.' })} onRefineAll={(instruction) => bulkRefineMutation.mutate({ drafts: sampleDrafts, instruction })} />;
     }
     if (view === 'generating') {
-      return <GenerationScreen plan={plan} drafts={drafts} job={job} busy={fullGeneration.isPending} error={operationError} onStart={() => fullGeneration.mutate()} onRetry={(itemId) => jobId && retryOutreachV3GenerationItem(api, sessionId, jobId, itemId).then(() => jobQuery.refetch()).catch((error) => setOperationError(errorText(error, 'Retry failed.')))} onCancel={() => jobId && cancelOutreachV3GenerationJob(api, sessionId, jobId).then(() => jobQuery.refetch()).catch((error) => setOperationError(errorText(error, 'Generation could not be stopped.')))} />;
+      return <GenerationScreen plan={plan} drafts={drafts} job={job} busy={fullGeneration.isPending} error={operationError} onStart={startFullGeneration} onRetry={(itemId) => jobId && retryOutreachV3GenerationItem(api, sessionId, jobId, itemId).then(() => jobQuery.refetch()).catch((error) => setOperationError(errorText(error, 'Retry failed.')))} onCancel={() => jobId && cancelOutreachV3GenerationJob(api, sessionId, jobId).then(() => jobQuery.refetch()).catch((error) => setOperationError(errorText(error, 'Generation could not be stopped.')))} />;
     }
     if (view === 'draft-review') {
       return <DraftReviewScreen plan={plan} drafts={drafts} busy={approveMutation.isPending || approveManyMutation.isPending || bulkRefineMutation.isPending} refineBusyId={refineMutation.isPending ? refineMutation.variables?.draft.id ?? null : null} diffs={diffs} error={operationError} onApprove={(draft) => draft.current && approveMutation.mutate(draft.current.id)} onApproveMany={(values) => approveManyMutation.mutate(values)} onRefine={(draft, instruction) => draft.current && refineMutation.mutate({ draft, instruction })} onRefineMany={(values, instruction) => bulkRefineMutation.mutate({ drafts: values, instruction })} onRegenerateMany={(values) => bulkRefineMutation.mutate({ drafts: values, instruction: 'Regenerate these drafts from the approved approach and current governed context. Preserve the campaign ask and do not add unsupported claims.' })} onEdit={setEditingDraft} onGoSend={() => onStepChange('send')} />;

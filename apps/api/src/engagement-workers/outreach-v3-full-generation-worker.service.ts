@@ -516,20 +516,13 @@ export class OutreachV3FullGenerationWorkerService implements OnModuleInit, OnMo
         select: { status: true },
       });
       const totals = rollup(items.map((item) => item.status));
-      const terminal = totals.queued === 0;
-      const status = !terminal
-        ? 'running'
-        : totals.failed === 0 && totals.held === 0
-          ? 'complete'
-          : totals.succeeded === 0 && totals.held === 0
-            ? 'failed'
-            : 'partial';
+      const status = deriveJobTerminalStatus(totals);
       await tx.outreachJob.updateMany({
         where: { id: jobId, status: { not: 'canceled' } },
         data: {
           status,
           totals: totals as Prisma.InputJsonValue,
-          ...(terminal ? { finishedAt: new Date() } : {}),
+          ...(status !== 'running' ? { finishedAt: new Date() } : {}),
         },
       });
     });
@@ -556,7 +549,14 @@ export class OutreachV3FullGenerationWorkerService implements OnModuleInit, OnMo
   }
 }
 
-function classifyGenerated(result: GenerationResult): 'done' | 'held' | 'failed' {
+/**
+ * Exported for direct unit testing (see outreach-v3-full-generation-worker-
+ * rollup.spec.ts) — validates partial-recipient-generation status semantics
+ * (mission section 10: one recipient's failure must never discard other
+ * recipients' successful drafts, and the job's terminal status must reflect
+ * the true mixed outcome rather than collapsing to 'failed' or 'complete').
+ */
+export function classifyGenerated(result: GenerationResult): 'done' | 'held' | 'failed' {
   if (!result.versionId || !result.artifactId) return 'failed';
   if (result.generationStatus === 'generation_failed') return 'failed';
   if (['held', 'pending', 'unavailable'].includes(String(result.auditStatus ?? ''))) return 'held';
@@ -577,7 +577,13 @@ function safeGenerationResult(result: GenerationResult): Record<string, unknown>
   };
 }
 
-function rollup(statuses: readonly string[]) {
+/**
+ * Exported for direct unit testing — this is the exact terminal-status
+ * derivation the mission calls out (queued/running/partial/completed/failed
+ * semantics for a full-generation job). `finalizeJob()` writes whatever this
+ * returns as the job's row status once every item has left the queue.
+ */
+export function rollup(statuses: readonly string[]) {
   let queued = 0;
   let succeeded = 0;
   let failed = 0;
@@ -591,6 +597,29 @@ function rollup(statuses: readonly string[]) {
     else if (status === 'held') held++;
   }
   return { queued, succeeded, failed, skipped, held, total: statuses.length };
+}
+
+/**
+ * Derives a full-generation job's terminal (or still-running) status from
+ * its items' rollup totals. This is the exact partial/complete/failed/
+ * running decision `finalizeJob()` persists — extracted as a pure function
+ * so partial-recipient-generation semantics (mission section 10: one
+ * recipient's failure must never discard other recipients' successful
+ * drafts) can be unit-tested directly without a database.
+ *
+ * Rules:
+ *   - Any item still queued/claimed/generating -> 'running' (not terminal).
+ *   - Zero failed AND zero held -> 'complete' (every item succeeded).
+ *   - Zero succeeded AND zero held -> 'failed' (nothing survived).
+ *   - Otherwise -> 'partial' (a genuine mix of success and failure/hold).
+ */
+export function deriveJobTerminalStatus(
+  totals: ReturnType<typeof rollup>,
+): 'running' | 'complete' | 'failed' | 'partial' {
+  if (totals.queued > 0) return 'running';
+  if (totals.failed === 0 && totals.held === 0) return 'complete';
+  if (totals.succeeded === 0 && totals.held === 0) return 'failed';
+  return 'partial';
 }
 
 function workerContext(tenantId: string, userId: string): TenantContext {

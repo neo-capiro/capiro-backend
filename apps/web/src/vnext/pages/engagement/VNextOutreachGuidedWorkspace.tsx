@@ -47,7 +47,11 @@ import type {
 import { safeOutreachV3Error } from '../../../pages/engagement/outreach/v3/outreach-v3-api.js';
 import { TargetDirectoryBrowser } from '../../../pages/engagement/outreach/v3/TargetDirectoryBrowser.js';
 import { useOutreachV3Session } from '../../../pages/engagement/outreach/v3/useOutreachV3Session.js';
-import { startOutreachV3FullGeneration } from './engagement-api.js';
+import {
+  classifyOutreachV3FullGenerationResult,
+  outreachV3FullGenerationRequestKey,
+  startOutreachV3FullGeneration,
+} from './engagement-api.js';
 import {
   OUTREACH_FORMAT_OPTIONS,
   contentTemplateById,
@@ -111,10 +115,6 @@ const SECTION_ICON: Record<ClientProfileContextKey, typeof Building2> = {
 };
 
 const PROFILE_SOURCE_LABELS = new Set(['capiro_client_profile', 'outreach_review_packet']);
-
-function randomRequestKey(prefix: string): string {
-  return `${prefix}:${crypto.randomUUID()}`;
-}
 
 function allAcceptedContextRefs(
   refs: OutreachV3CampaignSpec['context'] | undefined,
@@ -559,24 +559,63 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
 
       // The user accepted the exact input review packet above. Persist that
       // distinct human gate server-side; do not mislabel unseen model output as
-      // a reviewed representative-sample approach.
-      await api.post(
-        `/api/engagement/outreach-v3/sessions/${encodeURIComponent(session.session.id)}/generation/review-packet-approval`,
-        {},
-      );
+      // a reviewed representative-sample approach. The response carries the
+      // approval hash that anchors this exact reviewed state — it is the
+      // deterministic key for the generation request below, NOT a random id.
+      const reviewPacketApproval = (
+        await api.post<{ approval?: { approvalHash?: string } }>(
+          `/api/engagement/outreach-v3/sessions/${encodeURIComponent(session.session.id)}/generation/review-packet-approval`,
+          {},
+        )
+      ).data;
+      const approvalHash = reviewPacketApproval.approval?.approvalHash;
+      if (!approvalHash) {
+        // An ambiguous/malformed approval response must never be treated as a
+        // successful review-packet approval — fail closed rather than derive
+        // a request key from missing state.
+        throw new Error(
+          'The review packet could not be approved. No approval reference was returned.',
+        );
+      }
+
+      // Idempotency: derive the request key from the exact approved state
+      // (sessionId + approvalHash), never from crypto.randomUUID(). A
+      // double-click, a browser retry, or a request timeout replays the SAME
+      // logical attempt and must resolve to the SAME backend job — see
+      // outreachV3FullGenerationRequestKey's doc comment and the backend's
+      // (tenantId, userId, requestKey) dedup in
+      // OutreachV3FullGenerationService.submit.
+      const requestKey = outreachV3FullGenerationRequestKey(session.session.id, approvalHash);
       const generation = await startOutreachV3FullGeneration(
         api,
         session.session.id,
-        randomRequestKey('review-packet'),
+        requestKey,
       );
-      if (generation.jobId) {
+
+      // The most important regression assertion in this file: a response
+      // that is neither a real job (`jobId`) nor an already-complete
+      // generation (`complete: true`) is a FAILED START, not a successful
+      // one. It must never advance to Drafts — see
+      // VNextOutreachGuidedWorkspace.test.tsx "does not advance to Drafts on
+      // an ambiguous complete=false/jobId=null generation response".
+      const outcome = classifyOutreachV3FullGenerationResult(generation);
+      if (outcome.kind === 'invalid') {
+        throw new Error(
+          'Generation did not start. The server returned neither a generation job nor a completed result.',
+        );
+      }
+      if (outcome.kind === 'job') {
         window.sessionStorage.setItem(
           `outreach-v3:${session.session.id}:phase1-job`,
-          generation.jobId,
+          outcome.jobId,
         );
       }
       props.onStepChange('drafts');
     } catch (cause) {
+      // Remain on Review with the campaign/review state intact. The user can
+      // retry safely: preparedContext, personalNotes, and the campaign fields
+      // above are untouched, and the review-packet-approval call is itself
+      // idempotent per (session, stateVersion) so replaying it is safe.
       setError(`Draft generation could not start. ${safeOutreachV3Error(cause)}`);
       setActiveStep('review');
       props.onStepChange('context');

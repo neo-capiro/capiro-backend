@@ -98,6 +98,21 @@ export class OutreachV3GenerationController {
     return this.full.submit(ctx, sessionId, requestKey(body));
   }
 
+  /**
+   * Server-truth recovery (Workstream H). Returns the most recent full
+   * generation job for this session, or `{ job: null }` when none has ever
+   * been created. Registered before `jobs/:jobId` so "latest" is never
+   * captured by the ParseUUIDPipe'd :jobId param.
+   */
+  @Get('jobs/latest')
+  @UseGuards(OutreachV3FullGenerationGuard)
+  async getLatestFullGenerationJob(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+  ) {
+    return { job: await this.full.getLatestJob(ctx, sessionId) };
+  }
+
   @Get('jobs/:jobId')
   @UseGuards(OutreachV3FullGenerationGuard)
   getFullGenerationJob(

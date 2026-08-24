@@ -440,6 +440,30 @@ export function OutreachView({
     const value = location.pathname.replace('/engagement/outreach/draft/', '').split('/')[0];
     return value ? decodeURIComponent(value) : null;
   }, [location.pathname]);
+  // Outreach V3 session durability (reliability repair, section 7): a
+  // `/draft-v3/:sessionId` URL segment lets a reload/remount resume the exact
+  // same V3 campaign session instead of OutreachV3CompleteRoute silently
+  // minting a brand-new one and discarding an in-progress generation job or
+  // persisted drafts. Distinct from `draftRecordIdFromPath` above, which only
+  // ever addresses a Classic (V2) `OutreachRecord`.
+  const draftV3SessionIdFromPath = useMemo(() => {
+    if (!location.pathname.startsWith('/engagement/outreach/draft-v3/')) return null;
+    const value = location.pathname.replace('/engagement/outreach/draft-v3/', '').split('/')[0];
+    return value ? decodeURIComponent(value) : null;
+  }, [location.pathname]);
+  const [outreachV3SessionId, setOutreachV3SessionId] = useState<string | null>(
+    () => draftV3SessionIdFromPath,
+  );
+  // Deep link / back-forward navigation directly to a /draft-v3/:id URL:
+  // adopt the URL's session id into state so the resume path (passed to
+  // OutreachV3CompleteRoute below) reflects it even when this component was
+  // already mounted (e.g. browser back to a previous campaign's URL).
+  useEffect(() => {
+    if (!draftV3SessionIdFromPath) return;
+    setOutreachV3SessionId((current) =>
+      current === draftV3SessionIdFromPath ? current : draftV3SessionIdFromPath,
+    );
+  }, [draftV3SessionIdFromPath]);
 
   // Moved above the mode<->URL sync effects (was declared further down,
   // alongside the effect that consumes draftRecord.data) so the mode->URL
@@ -530,6 +554,7 @@ export function OutreachView({
     // effect below so the user never lands on an empty intermediate page.
     if (rest === '/new' || rest === '/new/wizard') nextMode = 'campaign';
     else if (rest.startsWith('/draft/')) nextMode = 'campaign';
+    else if (rest.startsWith('/draft-v3/')) nextMode = 'campaign';
 
     if (mode !== nextMode) {
       syncingFromUrlRef.current = true;
@@ -565,9 +590,18 @@ export function OutreachView({
 
     let nextPath = '/engagement/outreach';
     if (mode === 'campaign') {
-      nextPath = workflow.record?.id
-        ? `/engagement/outreach/draft/${encodeURIComponent(workflow.record.id)}`
-        : '/engagement/outreach/new/wizard';
+      if (workflow.record?.id) {
+        nextPath = `/engagement/outreach/draft/${encodeURIComponent(workflow.record.id)}`;
+      } else if (outreachV3SessionId) {
+        // No classic OutreachRecord exists for this campaign (V3 sessions
+        // never create one) — once OutreachV3CompleteRoute has resolved a
+        // real session id (new or resumed), persist it into the URL so a
+        // reload/remount resumes the SAME session instead of silently
+        // minting a new one (reliability repair, section 7).
+        nextPath = `/engagement/outreach/draft-v3/${encodeURIComponent(outreachV3SessionId)}`;
+      } else {
+        nextPath = '/engagement/outreach/new/wizard';
+      }
     }
 
     if (location.pathname !== nextPath) {
@@ -583,6 +617,7 @@ export function OutreachView({
     workflow.record?.id,
     draftRecordIdFromPath,
     draftRecord.isError,
+    outreachV3SessionId,
   ]);
 
   useEffect(() => {
@@ -879,6 +914,7 @@ export function OutreachView({
       step: 1,
     });
     if (type === 'campaign') {
+      setOutreachV3SessionId(null);
       setWorkflow((current) => ({
         ...current,
         clientId: null,
@@ -924,6 +960,7 @@ export function OutreachView({
         setMode('landing');
         setWorkflow({ ...EMPTY_WORKFLOW, clientId: selectedClientId });
         setReadonlyRecord(null);
+        setOutreachV3SessionId(null);
       },
     });
   };
@@ -971,7 +1008,12 @@ export function OutreachView({
           qc.invalidateQueries({ queryKey: ['engagement-outreach'] });
           setMode('landing');
           setWorkflow({ ...EMPTY_WORKFLOW, clientId: selectedClientId });
+          setOutreachV3SessionId(null);
         }}
+        outreachV3SessionId={draftV3SessionIdFromPath ?? outreachV3SessionId}
+        onOutreachV3SessionReady={(sessionId) =>
+          setOutreachV3SessionId((current) => (current === sessionId ? current : sessionId))
+        }
       />
     );
   }

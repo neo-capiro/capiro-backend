@@ -48,6 +48,7 @@ describe('Outreach V3 governed generation architecture', () => {
     expect(controller).toContain("@Post('approach-approval')");
     expect(controller).toContain("@Post('review-packet-approval')");
     expect(controller).toContain("@Post('full')");
+    expect(controller).toContain("@Get('jobs/latest')");
     expect(controller).toContain("@Get('jobs/:jobId')");
     expect(controller).toContain("@Post('jobs/:jobId/cancel')");
     expect(controller).toContain("@Post('jobs/:jobId/items/:itemId/retry')");
@@ -152,11 +153,11 @@ describe('Outreach V3 governed generation architecture', () => {
     expect(manifest.featureFlag).toBe('OUTREACH_V3_GENERATION_ENABLED');
     expect(manifest.fullGenerationFlag).toBe('OUTREACH_V3_FULL_GENERATION_ENABLED');
     expect(manifest.disabledBehavior).toBe(404);
-    // 9 routes on OutreachV3GenerationController: plan, generateSamples,
+    // 10 routes on OutreachV3GenerationController: plan, generateSamples,
     // getApproachApproval, approveApproach, approveReviewPacket,
-    // startFullGeneration, getFullGenerationJob, cancelFullGenerationJob,
-    // retryFullGenerationItem.
-    expect(manifest.routes).toHaveLength(9);
+    // startFullGeneration, getLatestFullGenerationJob, getFullGenerationJob,
+    // cancelFullGenerationJob, retryFullGenerationItem.
+    expect(manifest.routes).toHaveLength(10);
     expect(manifest.routes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ method: 'POST', handler: 'generateSamples', maxSlots: 3 }),
