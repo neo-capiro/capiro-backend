@@ -361,7 +361,7 @@ export function VNextMeriComposer({
             }}
           >
             <span className="vnext-meri__add-popover-tile">
-              <MeriIcon name="Plus" size={13} color="#101828" />
+              <MeriIcon name="Plus" size={13} color="var(--m-gray-600)" />
             </span>
             <span className="vnext-meri__add-popover-item-body">
               <span className="vnext-meri__add-popover-item-label">Upload file</span>
@@ -381,7 +381,7 @@ export function VNextMeriComposer({
             }}
           >
             <span className="vnext-meri__add-popover-tile">
-              <MeriIcon name="Edit01" size={13} color="#101828" />
+              <MeriIcon name="Edit01" size={13} color="var(--m-gray-600)" />
             </span>
             <span className="vnext-meri__add-popover-item-body">
               <span className="vnext-meri__add-popover-item-label">Add note</span>
@@ -443,7 +443,7 @@ export function VNextMeriComposer({
             }}
           >
             <span className="vnext-meri__add-popover-tile">
-              <MeriIcon name="LayersThree01" size={13} color="#101828" />
+              <MeriIcon name="LayersThree01" size={13} color="var(--m-gray-600)" />
             </span>
             <span className="vnext-meri__add-popover-item-body">
               <span className="vnext-meri__add-popover-item-label">Import from workspace</span>
@@ -469,6 +469,13 @@ export function VNextMeriComposer({
       />
 
       <div className={`vnext-meri__composer${focused ? ' is-focused' : ''}`}>
+        {/*
+          v5 workspace mockup: the textarea spans the full composer width on
+          its own row; the "Add to conversation" trigger lives in the toolbar
+          row below, not beside the textarea. Moved rather than duplicated —
+          same button, same handler, same popover (still anchored to
+          .vnext-meri__composer-wrap so its position is unaffected).
+        */}
         {stagedAttachments.length > 0 ? (
           <div className="vnext-meri__attachments" aria-label="Attached files">
             {stagedAttachments.map((attachment) => {
@@ -514,19 +521,6 @@ export function VNextMeriComposer({
         ) : null}
 
         <div className="vnext-meri__composer-row">
-          <button
-            type="button"
-            className="vnext-meri__composer-add-btn"
-            title="Add to conversation"
-            disabled={busy}
-            onClick={() => {
-              setAddOpen((open) => !open);
-            }}
-            aria-haspopup="menu"
-            aria-expanded={addOpen}
-          >
-            <MeriIcon name="Plus" size={16} color="#475467" />
-          </button>
           <textarea
             ref={textareaRef}
             rows={1}
@@ -557,6 +551,20 @@ export function VNextMeriComposer({
         </div>
 
         <div className="vnext-meri__composer-toolbar">
+          <button
+            type="button"
+            className="vnext-meri__composer-add-btn"
+            title="Add to conversation"
+            disabled={busy}
+            onClick={() => {
+              setAddOpen((open) => !open);
+            }}
+            aria-haspopup="menu"
+            aria-expanded={addOpen}
+          >
+            <MeriIcon name="Plus" size={16} color="#475467" />
+          </button>
+
           {/*
             MeriTaskModePicker (handoff §12 row 2). Task Mode describes what the
             user is doing right now and is deliberately separate from the
@@ -599,7 +607,7 @@ export function VNextMeriComposer({
             aria-expanded={addOpen}
             title="Add context to this thread"
           >
-            <MeriIcon name="Attachment01" size={13} color="#101828" />
+            <MeriIcon name="Attachment01" size={13} />
             <span className="vnext-meri__composer-context-text">{contextLabel}</span>
           </button>
 
@@ -622,7 +630,7 @@ export function VNextMeriComposer({
               onClick={() => handleStop()}
               aria-label="Stop research"
             >
-              <MeriIcon name="StopCircle" size={15} color="#344054" />
+              <MeriIcon name="StopCircle" size={15} color="var(--meri-danger)" />
               Stop
             </button>
           ) : (

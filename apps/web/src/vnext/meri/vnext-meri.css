@@ -1134,7 +1134,9 @@
   gap: 7px;
   height: 28px;
   padding: 0 11px;
-  border-radius: var(--capiro-radius-circular);
+  /* v5 workspace mockup renders this as an 8px chip, not a fully-rounded pill
+     (both the landing and thread-header instances agree on this shape). */
+  border-radius: var(--meri-radius-sm);
   background: var(--meri-surface);
   border: 1px solid var(--meri-border);
   cursor: pointer;
@@ -1966,6 +1968,10 @@
   gap: 11px;
 }
 
+/* v5 workspace mockup: quiet at rest (no ring, transparent fill) — a fill
+   only appears on hover or while the popover is open. Now lives in the
+   toolbar row alongside the task-mode picker and context chip rather than
+   beside the textarea. */
 .capiro-vnext-root .vnext-meri__composer-add-btn {
   flex: 0 0 auto;
   display: flex;
@@ -1975,7 +1981,7 @@
   height: 32px;
   border-radius: var(--meri-radius-sm);
   background: transparent;
-  border: 1px solid var(--meri-border);
+  border: 0;
   color: var(--meri-text-secondary);
   cursor: pointer;
   transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
@@ -1984,6 +1990,15 @@
 .capiro-vnext-root .vnext-meri__composer-add-btn:hover {
   background: var(--meri-surface-2);
   color: var(--meri-ink);
+}
+
+.capiro-vnext-root .vnext-meri__composer-add-btn[aria-expanded='true'] {
+  background: var(--meri-surface-2);
+}
+
+.capiro-vnext-root .vnext-meri__composer-add-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .capiro-vnext-root .vnext-meri__composer-textarea {
@@ -1995,8 +2010,11 @@
   font-size: 15px;
   line-height: 22px;
   color: var(--meri-ink);
-  padding: 6px 2px;
-  min-height: 34px;
+  /* v5 workspace mockup: the textarea is the sole occupant of its row (the
+     add-to-conversation trigger moved to the toolbar below), so it gets more
+     breathing room than when it shared a row with a 32px button. */
+  padding: 10px 2px 4px;
+  min-height: 42px;
   max-height: 120px;
   overflow-y: auto;
   resize: none;
@@ -2119,8 +2137,10 @@
   min-height: 28px;
   padding: 4px 11px;
   border-radius: var(--meri-radius-sm);
-  background: var(--meri-surface);
-  border: 1px solid var(--meri-border);
+  /* v5 workspace mockup: quiet at rest, matching the add-to-conversation
+     trigger it shares the toolbar row with — a fill appears only on hover. */
+  background: transparent;
+  border: 0;
   cursor: pointer;
   font-family: var(--meri-font-mono);
   font-size: 10px;
@@ -2128,13 +2148,11 @@
   letter-spacing: 0.07em;
   color: var(--meri-text-secondary);
   white-space: nowrap;
-  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease),
-    border-color var(--capiro-motion-fast) var(--capiro-motion-ease);
+  transition: background var(--capiro-motion-fast) var(--capiro-motion-ease);
 }
 
 .capiro-vnext-root .vnext-meri__composer-context-label:hover {
   background: var(--meri-accent-soft);
-  border-color: var(--meri-border-control);
 }
 
 /* The label truncates, not the pill's icon or its ring. */
@@ -2331,9 +2349,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--meri-radius-sm);
   background: var(--meri-accent-soft);
   color: var(--meri-accent);
 }
@@ -3810,11 +3828,11 @@
 
 .capiro-vnext-root .vnext-meri__composer-send-btn:disabled {
   opacity: 0.55;
-  cursor: pointer;
-}
-
-.capiro-vnext-root .vnext-meri__composer.is-focused {
-  box-shadow: inset 0 0 0 1px #98A2B3, 0 0 0 4px #F2F0EB;
+  /* Was "pointer" — a disabled control must never look clickable. Matches
+     the site-wide disabled convention (primitives.css .capiro-button:disabled,
+     .capiro-icon-button:disabled) and the v5 mockup's own sendCursor logic
+     (not-allowed whenever the button isn't actionable). */
+  cursor: not-allowed;
 }
 
 .capiro-vnext-root .vnext-meri__action-label {
