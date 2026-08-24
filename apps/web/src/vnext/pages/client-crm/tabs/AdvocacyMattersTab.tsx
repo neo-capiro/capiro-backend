@@ -577,9 +577,18 @@ function AdvocacyMatterDrawer({
               <h4 style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', margin: '0 0 10px' }}>
                 Related government objects ({detail.data.links.length})
               </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {detail.data.links.map((link) => (
-                  <LinkRow key={link.id} link={link} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {groupLinks(detail.data.links).map((group) => (
+                  <div key={group.title}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#98A2B3', margin: '0 0 4px' }}>
+                      {group.title} ({group.links.length})
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {group.links.map((link) => (
+                        <LinkRow key={link.id} link={link} />
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>
@@ -916,6 +925,7 @@ function RecordRow({
       <span style={{ fontSize: 12, color: '#98A2B3' }}>
         {record.activityDate ? formatDateShort(record.activityDate) : 'Undated'}
         {record.status ? ` · ${record.status}` : ''}
+        {record.confidence != null && record.confidence < 1 ? ` · ${Math.round(record.confidence * 100)}% confidence` : ''}
       </span>
       {record.summary ? (
         <span style={{ fontSize: 13, color: '#475467', textWrap: 'pretty' }}>{record.summary}</span>
@@ -947,6 +957,30 @@ function RecordRow({
   );
 }
 
+/** §20/21: government-object link groupings. A flat "Related government
+ *  objects" list mixing a Program Element, a private meeting, and a FARA
+ *  registration together gives no sense of WHAT KIND of evidence backs a
+ *  Matter — split into the section spec's actual groupings instead. */
+const LINK_GROUPS: Array<{ title: string; types: string[] }> = [
+  { title: 'Government engagement', types: ['program_element', 'bill', 'hearing', 'testimony', 'regulatory_docket', 'regulatory_document', 'fara_record'] },
+  { title: 'Direct activity', types: ['meeting', 'mail_thread', 'outreach', 'strategy'] },
+  { title: 'Observed outcomes', types: ['outcome_event'] },
+  { title: 'Other', types: ['finding'] },
+];
+
+function groupLinks(links: AdvocacyMatterLink[]): Array<{ title: string; links: AdvocacyMatterLink[] }> {
+  const grouped = LINK_GROUPS.map((group) => ({
+    title: group.title,
+    links: links.filter((link) => group.types.includes(link.linkType)),
+  })).filter((group) => group.links.length > 0);
+  // Anything not in a known type still renders — a Matter link the UI
+  // doesn't yet have a group for is never silently dropped.
+  const known = new Set(LINK_GROUPS.flatMap((group) => group.types));
+  const other = links.filter((link) => !known.has(link.linkType));
+  if (other.length > 0) grouped.push({ title: 'Other links', links: other });
+  return grouped;
+}
+
 function LinkRow({ link }: { link: AdvocacyMatterLink }) {
   const linkTypeLabel: Record<string, string> = {
     program_element: 'Program Element',
@@ -963,10 +997,32 @@ function LinkRow({ link }: { link: AdvocacyMatterLink }) {
     testimony: 'Testimony',
     fara_record: 'FARA registration',
   };
+  // §17 causality contract — an outcome_event link is evidence something
+  // was OBSERVED, never that advocacy caused it, regardless of confidence.
+  const isOutcome = link.linkType === 'outcome_event';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-      <CapiroBadge tone="neutral">{linkTypeLabel[link.linkType] ?? link.linkType}</CapiroBadge>
-      <span style={{ color: '#475467' }}>{link.label ?? link.linkKey}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 0', borderBottom: '1px solid #F2F0EB' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, flexWrap: 'wrap' }}>
+        <CapiroBadge tone="neutral">{linkTypeLabel[link.linkType] ?? link.linkType}</CapiroBadge>
+        <span style={{ color: '#475467' }}>{link.label ?? link.linkKey}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#98A2B3', flexWrap: 'wrap' }}>
+        {link.evidenceClass ? <span>{EVIDENCE_LABEL[link.evidenceClass] ?? link.evidenceClass}</span> : null}
+        {link.confidence != null ? <span>{Math.round(link.confidence * 100)}% confidence</span> : null}
+        {link.relationshipType && link.linkType !== 'strategy' ? <span>{link.relationshipType.replace(/_/g, ' ')}</span> : null}
+      </div>
+      {/* Provenance is only ever set for an inferred/manually-rationalized
+          link (e.g. a hearing linked without a deterministic committee-code
+          match) — showing it makes the "why" reviewable instead of a bare
+          confidence number with no explanation. */}
+      {link.provenance ? (
+        <span style={{ fontSize: 12, color: '#98A2B3', fontStyle: 'italic' }}>Meri's rationale: {link.provenance}</span>
+      ) : null}
+      {isOutcome ? (
+        <span style={{ fontSize: 12, color: '#12660B' }}>
+          Association only — Capiro has not established causation.
+        </span>
+      ) : null}
     </div>
   );
 }

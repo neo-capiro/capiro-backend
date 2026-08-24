@@ -226,4 +226,43 @@ describe('ClientCrmAdvocacyMattersProto', () => {
     fireEvent.click(screen.getByRole('checkbox'));
     expect(saveButton).not.toBeDisabled();
   });
+
+  it('groups links into Government engagement / Direct activity / Observed outcomes instead of one flat list, and shows evidence class + confidence + Meri rationale (§20/21)', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/advocacy-matters')) return { data: [matterFixture({ linkCount: 4 })] };
+      return {
+        data: {
+          ...matterFixture({ linkCount: 4 }),
+          records: [],
+          links: [
+            { id: 'link-pe', linkType: 'program_element', linkKey: '0605053A', label: 'PE 0605053A', relationshipType: null, confidence: 1, provenance: null, evidenceClass: 'PUBLIC_VERIFIED', metadata: {} },
+            { id: 'link-meeting', linkType: 'meeting', linkKey: 'meeting-1', label: 'HASC staff meeting', relationshipType: null, confidence: 1, provenance: null, evidenceClass: 'PRIVATE_ACTIVITY', metadata: {} },
+            { id: 'link-outcome', linkType: 'outcome_event', linkKey: 'outcome-1', label: 'HAC-D +$18M', relationshipType: null, confidence: 0.8, provenance: null, evidenceClass: 'PUBLIC_VERIFIED', metadata: {} },
+            { id: 'link-hearing', linkType: 'hearing', linkKey: 'hearing-1', label: 'FY27 NDAA markup', relationshipType: null, confidence: 0.62, provenance: 'Staff attended and referenced this Matter by name.', evidenceClass: 'PUBLIC_VERIFIED', metadata: {} },
+          ],
+        },
+      };
+    });
+    renderMatters();
+
+    await waitFor(() => expect(screen.getByText('0605053A Program Element')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('0605053A Program Element'));
+    await waitFor(() => expect(screen.getByText('PE 0605053A')).toBeInTheDocument());
+
+    // Group headings present and correctly populated.
+    expect(screen.getByText('Government engagement (2)')).toBeInTheDocument();
+    expect(screen.getByText('Direct activity (1)')).toBeInTheDocument();
+    expect(screen.getByText('Observed outcomes (1)')).toBeInTheDocument();
+
+    // Evidence class + confidence surfaced per link (not just a bare badge+label).
+    expect(screen.getByText('HASC staff meeting')).toBeInTheDocument();
+    expect(screen.getByText('Private activity')).toBeInTheDocument();
+    expect(screen.getByText('62% confidence')).toBeInTheDocument();
+
+    // Meri's rationale is shown for the inferred hearing link.
+    expect(screen.getByText(/Staff attended and referenced this Matter by name\./)).toBeInTheDocument();
+
+    // §17 causality contract — the outcome link never claims causation.
+    expect(screen.getByText('Association only — Capiro has not established causation.')).toBeInTheDocument();
+  });
 });
