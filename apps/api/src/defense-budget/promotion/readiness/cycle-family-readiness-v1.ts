@@ -144,11 +144,21 @@ export type CycleFamilyReadinessStateV1 =
 
 /**
  * One expected source's readiness-relevant facts, exactly as governed
- * lifecycle semantics already define them. `ingestionSucceeded` and
- * `verificationDisposition` are read from Phase 10B-1's
- * `ObservationIngestionBridgeResult` (persisted per-observation outcome), NOT
- * re-derived here — this module never re-verifies a document, it only reads
- * what governed ingestion already decided.
+ * lifecycle semantics already define them.
+ *
+ * `latestIngestion` is reconstructed by
+ * `reconstructReadinessIngestionOutcomeV1` (below) purely from durable
+ * observation/SourceDocument/parse-job/candidate/verification-run rows — a
+ * fresh process with no bridge result in memory produces the identical
+ * outcome, which is the point of the restart-safety proof in
+ * `durable-ingestion-reconstruction-v1.spec.ts`. The ONLY place this module
+ * still reads Phase 10B-1's transient `ObservationIngestionBridgeResult`
+ * directly is `readinessIngestionOutcomeFromBridgeResultV1` further below —
+ * a narrow convenience mapper for a caller that happens to already hold a
+ * fresh bridge result in the SAME process that just ran ingestion (e.g. a
+ * post-success hook firing readiness immediately after a bridge run
+ * resolves), never a persisted or replayable outcome. The durable Prisma
+ * loader (`PrismaReadinessCorpusLoaderV1`) never calls that mapper.
  */
 export interface ReadinessExpectedSourceInputV1 {
   readonly expectedSourceId: string;
@@ -157,13 +167,14 @@ export interface ReadinessExpectedSourceInputV1 {
   /** The exact governed state — never inferred, never defaulted to zero/fake. */
   readonly expectedState: ExpectedSourceState;
   /**
-   * Present only when at least one observation for this expected source
-   * completed Phase 10B-1 governed ingestion (`ingestionSucceeded: true`,
-   * i.e. SourceDocument bound + parser verification resolved + durable
-   * evidence persisted). `null` when no such observation exists yet, which is
-   * a DIFFERENT fact from `expectedState: 'not_filed'` — a source can be
-   * `published` (observed, classified) while its bridge run is still
-   * in-flight or has not been attempted.
+   * Present only when at least one observation for this expected source has
+   * a durably reconstructable governed ingestion outcome (SourceDocument
+   * SHA-bound + durable parser proof + durable verification decision — see
+   * `reconstructReadinessIngestionOutcomeV1`). `null` when no such
+   * observation exists yet, which is a DIFFERENT fact from
+   * `expectedState: 'not_filed'` — a source can be `published` (observed,
+   * classified) while its durable ingestion proof is still incomplete or has
+   * not been attempted.
    */
   readonly latestIngestion: ReadinessIngestionOutcomeV1 | null;
 }
@@ -228,10 +239,23 @@ export function reconstructReadinessIngestionOutcomeV1(
   );
   if (candidate == null) return 'ingestion_incomplete';
   const candidateRuns = input.verificationRuns.filter((run) => run.candidateId === candidate.id);
-  const current = candidate.currentRunId == null
-    ? null
-    : candidateRuns.find((run) => run.id === candidate.currentRunId) ?? null;
-  const run = current ?? [...candidateRuns].sort(
+  // Fail-closed on a named current run: when the candidate names an exact
+  // currentRunId, that EXACT run must exist and be resolvable — never fall
+  // back to the latest-by-time run among the others. A candidate whose named
+  // current run is missing/unresolved (e.g. deleted, not yet replicated, or
+  // referencing a run that belongs to a different candidate) must report
+  // ingestion_incomplete, not silently promote an older, possibly-superseded
+  // PASS. Latest-by-completedAt is only a legitimate fallback when
+  // currentRunId is itself null (no run has been designated current yet).
+  if (candidate.currentRunId != null) {
+    const current = candidateRuns.find((run) => run.id === candidate.currentRunId);
+    if (current == null) return 'ingestion_incomplete';
+    if (current.decision === 'PASS') return 'ingested_pass';
+    if (current.decision === 'REVIEW') return 'ingested_review';
+    if (current.decision === 'REJECT') return 'ingested_reject';
+    return 'ingestion_incomplete';
+  }
+  const run = [...candidateRuns].sort(
     (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime(),
   )[0];
   if (run?.decision === 'PASS') return 'ingested_pass';

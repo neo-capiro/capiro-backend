@@ -23,8 +23,11 @@ type ObservationRow = {
 
 /**
  * Restart-safe corpus loader. It reconstructs ingestion from persisted source,
- * parser, candidate, and verification rows; it never consumes the transient
- * ObservationIngestionBridgeResult returned by the bridge process.
+ * parser, candidate, and verification rows via
+ * `reconstructReadinessIngestionOutcomeV1`; it never consumes the transient
+ * `ObservationIngestionBridgeResult` returned by the bridge process — a
+ * fresh process with no bridge result in memory (e.g. this class running
+ * from a cold CLI invocation) produces the identical outcome.
  */
 export class PrismaReadinessCorpusLoaderV1 implements ReadinessCorpusLoaderPortV1 {
   constructor(

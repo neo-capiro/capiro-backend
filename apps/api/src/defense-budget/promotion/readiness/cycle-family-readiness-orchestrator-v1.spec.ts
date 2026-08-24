@@ -419,6 +419,137 @@ describe('evaluateAndAdvanceCycleFamilyReadinessV1', () => {
     expect(secondPersistence.stored.has(first.planId as string)).toBe(false);
   });
 
+  describe('[logical eligibility subject] the planId seed covers the COMPLETE eligibility proof subject, not a hand-picked field subset', () => {
+    // Each case below holds the certification content hash IDENTICAL across
+    // both runs (so this is never mistaken for the "[new identity on
+    // change]" certification-hash case above) and changes exactly ONE other
+    // field that Phase 7 eligibility itself binds but an earlier, narrower
+    // planId seed omitted. Every one of these must still derive a NEW
+    // planId — proving the orchestrator can no longer replay a stale plan
+    // merely because certificationContentSha256/candidateIds/source hashes
+    // happened to stay the same.
+
+    it('a changed projectionPlanHash (same certification hash) derives a new planId', async () => {
+      const { ports: firstPorts } = buildPorts();
+      const first = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, firstPorts, RUN_OPTIONS);
+      expect(first.outcome).toBe('awaiting_authorization');
+
+      const { ports: secondPorts, planPersistence: secondPersistence } = buildPorts({
+        eligibilityState: {
+          ...defaultEligibilityState(),
+          projectionPlans: [{ projectionPlanId: 'pp-1', contentSha256: SHA('9') }],
+        },
+      });
+      const second = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, secondPorts, RUN_OPTIONS);
+
+      expect(second.outcome).toBe('awaiting_authorization');
+      expect(second.planId).not.toBe(first.planId);
+      expect(second.planReplay).toBe(false);
+      expect(secondPersistence.stored.has(first.planId as string)).toBe(false);
+    });
+
+    it('a changed verificationPolicySha256 (same certification hash) derives a new planId', async () => {
+      const { ports: firstPorts } = buildPorts();
+      const first = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, firstPorts, RUN_OPTIONS);
+      expect(first.outcome).toBe('awaiting_authorization');
+
+      const { ports: secondPorts, planPersistence: secondPersistence } = buildPorts({
+        eligibilityState: {
+          ...defaultEligibilityState(),
+          candidates: [candidate({ verificationPolicySha256: SHA('f') })],
+        },
+      });
+      const second = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, secondPorts, RUN_OPTIONS);
+
+      expect(second.outcome).toBe('awaiting_authorization');
+      expect(second.planId).not.toBe(first.planId);
+      expect(second.planReplay).toBe(false);
+      expect(secondPersistence.stored.has(first.planId as string)).toBe(false);
+    });
+
+    it('a changed sourceProfileSha256 (same certification hash, governed family) derives a new planId', async () => {
+      // sourceProfileSha256 is only non-null for a governed family
+      // (committee / public_law) — use 'committee' here so the eligibility
+      // schema's own cross-check accepts a non-null profile hash.
+      const committeeIdentity: CycleFamilyReadinessIdentityV1 = { ...IDENTITY, familyGroup: 'committee' };
+      const committeeCandidate = (profileSha: string) =>
+        candidate({ family: 'committee', sourceProfileSha256: profileSha });
+
+      const { ports: firstPorts } = buildPorts({
+        eligibilityState: {
+          ...defaultEligibilityState(),
+          candidates: [committeeCandidate(SHA('1'))],
+        },
+      });
+      const first = await evaluateAndAdvanceCycleFamilyReadinessV1(committeeIdentity, firstPorts, RUN_OPTIONS);
+      expect(first.outcome).toBe('awaiting_authorization');
+
+      const { ports: secondPorts, planPersistence: secondPersistence } = buildPorts({
+        eligibilityState: {
+          ...defaultEligibilityState(),
+          candidates: [committeeCandidate(SHA('2'))],
+        },
+      });
+      const second = await evaluateAndAdvanceCycleFamilyReadinessV1(committeeIdentity, secondPorts, RUN_OPTIONS);
+
+      expect(second.outcome).toBe('awaiting_authorization');
+      expect(second.planId).not.toBe(first.planId);
+      expect(second.planReplay).toBe(false);
+      expect(secondPersistence.stored.has(first.planId as string)).toBe(false);
+    });
+
+    it('a changed manifestSha256 (same certification hash) derives a new planId', async () => {
+      const { ports: firstPorts } = buildPorts();
+      const first = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, firstPorts, RUN_OPTIONS);
+      expect(first.outcome).toBe('awaiting_authorization');
+
+      const { ports: secondPorts, planPersistence: secondPersistence } = buildPorts({
+        eligibilityState: {
+          ...defaultEligibilityState(),
+          candidates: [candidate({ manifestSha256: SHA('9') })],
+        },
+      });
+      const second = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, secondPorts, RUN_OPTIONS);
+
+      expect(second.outcome).toBe('awaiting_authorization');
+      expect(second.planId).not.toBe(first.planId);
+      expect(second.planReplay).toBe(false);
+      expect(secondPersistence.stored.has(first.planId as string)).toBe(false);
+    });
+
+    it('an IDENTICAL complete proof subject at two different real now() values still converges to the same planId/replay (unchanged by the wider seed)', async () => {
+      const corpusLoader = new FakeCorpusLoader(readyCorpus());
+      const reconciliationCertification = new FakeReconciliationCertification(certifiedResult());
+      const eligibilityRepository = new FakeEligibilityRepository(defaultEligibilityState());
+      const eligibilityAudit = new RecordingAudit();
+      const planInputs = new FakePlanInputs([]);
+      const planPersistence = new FakePlanPersistence();
+
+      const portsAtT1: CycleFamilyReadinessOrchestratorPortsV1 = {
+        corpusLoader,
+        reconciliationCertification,
+        eligibilityRepository,
+        eligibilityAudit,
+        planInputs,
+        planPersistence,
+        now: () => new Date('2027-01-01T00:00:00.000Z'),
+      };
+      const portsAtT2: CycleFamilyReadinessOrchestratorPortsV1 = {
+        ...portsAtT1,
+        now: () => new Date('2027-06-15T12:00:00.000Z'),
+      };
+
+      const first = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, portsAtT1, RUN_OPTIONS);
+      const second = await evaluateAndAdvanceCycleFamilyReadinessV1(IDENTITY, portsAtT2, RUN_OPTIONS);
+
+      expect(first.outcome).toBe('awaiting_authorization');
+      expect(second.outcome).toBe('awaiting_authorization');
+      expect(second.planId).toBe(first.planId);
+      expect(second.planReplay).toBe(true);
+      expect(planPersistence.stored.size).toBe(1);
+    });
+  });
+
   it('[time-independent idempotency] identical certified corpus evaluated at two different real now() values produces the same logical planId/planHash and no duplicate pending plan', async () => {
     const corpusLoader = new FakeCorpusLoader(readyCorpus());
     const reconciliationCertification = new FakeReconciliationCertification(certifiedResult());

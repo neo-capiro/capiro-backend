@@ -6,7 +6,13 @@
  *   successfully ingested observations
  *     -> determine cycle/family corpus completeness   (cycle-family-readiness-v1.ts)
  *     -> assemble the exact required SourceDocument/evidence set
- *     -> run EXISTING Phase 4/5/6 reconciliation/certification (via port; never reimplemented)
+ *     -> CONSUME the already-persisted Phase 4/5/6 reconciliation/certification
+ *        output (via FamilyReconciliationCertificationPortV1 — this
+ *        orchestrator does not itself RUN reconciliation/certification; see
+ *        PrismaFamilyReconciliationCertificationV1's own header for exactly
+ *        what durable row each family group reads and
+ *        PHASE10B2_EXISTING_ELIGIBILITY_CERTIFICATION_BOUNDARY_GAP for the
+ *        pre-existing Phase 7 gap this exposes)
  *     -> call the EXISTING promotion planner (buildPromotionPlanV1) and EXISTING
  *        eligibility service (DefenseBudgetPromotionEligibilityServiceV1)
  *     -> persist plan + plan hash (same row shape as file-defense-budget-promotion-plan-v1)
@@ -65,9 +71,11 @@ import type { BudgetFamilyV1 } from '../../contracts/extraction-artifact-v1.js';
 
 /**
  * Loads the exact corpus input for one readiness identity from persistence
- * (`DefenseBudgetExpectedSource` rows joined to their latest Phase 10B-1
- * bridge outcome). Implemented against the real database in a later wiring
- * pass; the orchestration logic here is provable against a fake today.
+ * (`DefenseBudgetExpectedSource` rows joined to each source's durably
+ * reconstructed governed ingestion outcome — never the transient Phase 10B-1
+ * `ObservationIngestionBridgeResult` object; see
+ * `reconstructReadinessIngestionOutcomeV1` in `cycle-family-readiness-v1.ts`
+ * and its real adapter, `PrismaReadinessCorpusLoaderV1`).
  */
 export interface ReadinessCorpusLoaderPortV1 {
   loadCorpus(identity: CycleFamilyReadinessIdentityV1): Promise<CycleFamilyCorpusInputV1>;
@@ -255,6 +263,45 @@ function deterministicUuidV1(seed: string): string {
   return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20, 32)}`;
 }
 
+/**
+ * The complete deterministic proof subject Phase 7 eligibility itself binds,
+ * minus the one genuinely volatile field on the record.
+ *
+ * This replaces an earlier, narrower hand-picked field list (source/artifact
+ * hashes, candidate IDs, expected active snapshot) that omitted several
+ * fields Phase 7 eligibility treats as equally load-bearing:
+ * `projectionPlanIds`/`projectionPlanHashes`, `verificationPolicyHashes`,
+ * `sourceProfileHashes`, `manifestHash`, `cycleCertificationIds`,
+ * `openConflictCount`, `unsupportedItemCount`. Because the orchestrator
+ * short-circuits on a matching `planId` BEFORE rebuilding anything (see
+ * `findPlanByPlanId` below), a narrower seed meant a corpus change confined
+ * to one of those omitted fields — e.g. a corrected projection plan whose
+ * content hash changed but whose candidate IDs/source hashes happened to
+ * stay the same — could have replayed a stale plan instead of deriving a
+ * new identity. Hashing the WHOLE record (bar the one timestamp) closes
+ * that gap by construction: any future field added to
+ * `DefenseBudgetPromotionEligibilityV1` is automatically covered here with
+ * no corresponding update needed in this orchestrator.
+ *
+ * `generatedAt` is excluded because it is the record's only field that is
+ * genuinely volatile — a wall-clock timestamp of when eligibility was
+ * evaluated, not evidence about the corpus itself. Excluding it is what
+ * makes two evaluations of the IDENTICAL certified corpus at real times T1
+ * and T2 hash identically here, despite the eligibility record's OWN hash
+ * (`eligibilityHash`, via `promotionEligibilityHashV1` — used UNCHANGED for
+ * Phase 7 authorization, a separate concept from this logical plan-identity
+ * hash) legitimately differing between the two runs because that hash still
+ * includes `generatedAt`. This function must never be used as a substitute
+ * for `eligibilityHash` in any authorization-facing context.
+ */
+function logicalEligibilitySubjectHashV1(
+  eligibility: DefenseBudgetPromotionEligibilityV1,
+): string {
+  const { generatedAt, ...stableProofSubject } = eligibility;
+  void generatedAt;
+  return sha256CanonicalJson(stableProofSubject as unknown as JsonValue);
+}
+
 /* ------------------------------------------------------------------ */
 /* O4. The orchestrator                                                 */
 /* ------------------------------------------------------------------ */
@@ -428,26 +475,27 @@ export async function evaluateAndAdvanceCycleFamilyReadinessV1(
   const scopeSeed = {
     domain,
     environment: options.environment,
-    scope: eligibilityResult.eligibility.scope,
     mode: options.mode,
-    // Bound into the plan-identity seed so a changed certified corpus (a
-    // different certification content hash) always derives a DIFFERENT
-    // planId — required by "changed certified inputs create a new plan/hash"
-    // — while an unchanged corpus replayed twice derives the SAME planId —
-    // required by "replay creates no duplicate plan". Deliberately built ONLY
-    // from stable, deterministic source facts — never from `eligibilityHash`
-    // or `eligibility.generatedAt`, both of which legitimately vary across
-    // otherwise-identical runs at different real wall-clock times (Gap 4).
-    certificationContentSha256: reconciliation.certificationContentSha256,
-    mappingRegistryHash: canonicalMappingRegistryHashV1(),
     fiscalYear: identity.fiscalYear,
     authorityTrack: identity.authorityTrack,
     familyGroup: identity.familyGroup,
-    sourceDocumentHashes: eligibilityResult.eligibility.sourceDocumentHashes,
-    artifactHashes: eligibilityResult.eligibility.artifactHashes,
-    candidateIds: eligibilityResult.eligibility.candidates.map((candidate) => candidate.candidateId),
-    expectedActiveSnapshotId: eligibilityResult.eligibility.expectedActiveSnapshotId,
-    expectedActiveSnapshotHash: eligibilityResult.eligibility.expectedActiveSnapshotHash,
+    // Bound into the plan-identity seed so a changed certified corpus (a
+    // different certification content hash) always derives a DIFFERENT
+    // planId — required by "changed certified inputs create a new
+    // plan/hash" — while an unchanged corpus replayed twice derives the SAME
+    // planId — required by "replay creates no duplicate plan".
+    certificationContentSha256: reconciliation.certificationContentSha256,
+    mappingRegistryHash: canonicalMappingRegistryHashV1(),
+    // The COMPLETE eligibility proof subject (every field Phase 7 binds,
+    // minus the one genuinely volatile timestamp) — see
+    // logicalEligibilitySubjectHashV1's own doc comment for why this
+    // replaced a narrower hand-picked field list. Any change to
+    // projectionPlanIds/Hashes, verificationPolicyHashes,
+    // sourceProfileHashes, manifestHash, cycleCertificationIds, candidates,
+    // scope, expected active snapshot, or the blocking counters derives a
+    // DIFFERENT planId here; an unchanged proof subject at a different real
+    // time derives the SAME planId (generatedAt is excluded).
+    logicalEligibilitySubjectHash: logicalEligibilitySubjectHashV1(eligibilityResult.eligibility),
   } as unknown as JsonValue;
   const planId = `plan-${deterministicSeedHexV1(scopeSeed)}`;
   const proposedSnapshotId = deterministicUuidV1(`snapshot:${JSON.stringify(scopeSeed)}`);
