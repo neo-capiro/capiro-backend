@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CapiroButton } from '../../components/actions/index.js';
-import { CapiroBadge } from '../../components/badges/index.js';
 import { hasAtLeast } from '@capiro/shared';
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
@@ -74,15 +73,25 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Request failed';
 }
 
-const STATUS_TONE: Record<PortfolioRow['status'], 'success' | 'warning' | 'info'> = {
-  active: 'success',
-  'at-risk': 'warning',
-  prospect: 'info',
-};
 const STATUS_LABEL: Record<PortfolioRow['status'], string> = {
   active: 'Active',
   'at-risk': 'At risk',
   prospect: 'Prospect',
+};
+/**
+ * One status treatment per row — a rail plus colored status text, not a
+ * dot-and-badge pill as well. Only "at-risk" carries a rail; healthy/
+ * prospect rows get none, so the rail reads as an exception, not decoration.
+ */
+const STATUS_TEXT_COLOR: Record<PortfolioRow['status'], string> = {
+  active: 'var(--capiro-color-success)',
+  'at-risk': 'var(--capiro-color-warning)',
+  prospect: 'var(--capiro-color-text-muted)',
+};
+const STATUS_RAIL_COLOR: Record<PortfolioRow['status'], string> = {
+  active: 'transparent',
+  'at-risk': 'var(--capiro-color-warning)',
+  prospect: 'transparent',
 };
 
 /**
@@ -243,10 +252,15 @@ function ClientIdentity({ row, onOpen }: { row: PortfolioRow; onOpen?: () => voi
             row.name
           )}
         </div>
-        <div className="capiro-portfolio__client-status">
-          <CapiroBadge tone={STATUS_TONE[row.status]} dot>{STATUS_LABEL[row.status]}</CapiroBadge>
+        {/* One status treatment (rail on the row/card, set by the caller) plus
+            this colored text — not a dot-and-badge pill as well. */}
+        <div className="capiro-portfolio__meta" style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+          <span className="capiro-portfolio__status-text" style={{ color: STATUS_TEXT_COLOR[row.status] }}>
+            {STATUS_LABEL[row.status]}
+          </span>
+          <span aria-hidden style={{ color: 'var(--capiro-color-border-control)' }}>·</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</span>
         </div>
-        <div className="capiro-portfolio__meta">{subtitle}</div>
       </div>
     </div>
   );
@@ -254,8 +268,9 @@ function ClientIdentity({ row, onOpen }: { row: PortfolioRow; onOpen?: () => voi
 
 function ClientRow({ row, rollupState, onOpen }: { row: PortfolioRow; rollupState: RollupState; onOpen: () => void }) {
   const focus = row.focusTags.slice(0, 2);
+  const railStyle = { '--capiro-portfolio-rail-color': STATUS_RAIL_COLOR[row.status] } as CSSProperties;
   return (
-    <tr className="capiro-portfolio__tr" onClick={onOpen}>
+    <tr className="capiro-portfolio__tr" style={railStyle} onClick={onOpen}>
       <td><ClientIdentity row={row} onOpen={onOpen} /></td>
       <td>{focus.length ? <div className="capiro-portfolio__tags">{focus.map((t) => <span className="capiro-portfolio__tag" key={t}>{t}</span>)}</div> : <span className="capiro-portfolio__meta">—</span>}</td>
       <td>{row.ownerName ? <div className="capiro-portfolio__owner"><span className="capiro-portfolio__avatar" aria-hidden>{initialsFor(row.ownerName)}</span><span>{row.ownerName}</span></div> : <span className="capiro-portfolio__meta">—</span>}</td>
@@ -271,8 +286,9 @@ function ClientRow({ row, rollupState, onOpen }: { row: PortfolioRow; rollupStat
 
 function ClientCard({ row, rollupState, onOpen }: { row: PortfolioRow; rollupState: RollupState; onOpen: () => void }) {
   const focus = row.focusTags.slice(0, 2);
+  const railStyle = { '--capiro-portfolio-rail-color': STATUS_RAIL_COLOR[row.status] } as CSSProperties;
   return (
-    <button type="button" className="capiro-portfolio__clientcard" onClick={onOpen}>
+    <button type="button" className="capiro-portfolio__clientcard" style={railStyle} onClick={onOpen}>
       <div className="capiro-portfolio__card-main">
         <ClientIdentity row={row} />
         {/* G3 rollup (item 1): attention count instead of fixture */}
@@ -293,6 +309,31 @@ function ClientCard({ row, rollupState, onOpen }: { row: PortfolioRow; rollupSta
         <NextTouchCell state={rollupState} nextTouch={row.nextTouch} />
       </div>
     </button>
+  );
+}
+
+/**
+ * Engagement trend — "outreach sends and client emails across all clients,
+ * by quarter." No bounded portfolio-wide endpoint returns this (checked
+ * usePortfolioIndexModel.ts and GAPS.md — it isn't in that file's G1-G3
+ * list, so it's a newly-found gap, not a previously-triaged one). Renders
+ * the honest-unavailable state rather than a chart backed by invented
+ * quarterly numbers.
+ */
+function EngagementTrend() {
+  return (
+    <section className="capiro-portfolio__surface" aria-labelledby="capiro-portfolio-trend">
+      <div className="capiro-portfolio-trend__head">
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span className="capiro-portfolio__eyebrow capiro-portfolio-trend__title" id="capiro-portfolio-trend">Engagement trend</span>
+          <span className="capiro-portfolio-trend__sub">Outreach sends and client emails across all clients, by quarter.</span>
+        </span>
+      </div>
+      <p className="capiro-portfolio-trend__gap" role="status">
+        Portfolio-wide engagement trend has no bounded endpoint yet — showing it would mean
+        either an invented number or an N+1 fetch across every client. Not available.
+      </p>
+    </section>
   );
 }
 
@@ -391,8 +432,7 @@ export function PortfolioIndexPage() {
         <CapiroButton variant="primary" size="standard" disabled={!canCreateClients} onClick={openCreate}>New client</CapiroButton>
       </header>
 
-      <Pulse model={model} />
-
+      <div className="capiro-portfolio__top-grid">
       <section className="capiro-portfolio__clients capiro-portfolio__surface" aria-labelledby="capiro-portfolio-clients">
         <div className="capiro-portfolio__clients-toolbar">
           <div className="capiro-portfolio__title-row"><h2 className="capiro-portfolio__section-title" id="capiro-portfolio-clients">Clients</h2><span className="capiro-portfolio__count">{model.rows.length} accounts</span></div>
@@ -407,7 +447,7 @@ export function PortfolioIndexPage() {
         </div>
 
         {clients.isLoading ? <div aria-busy="true"><div className="capiro-portfolio__skeleton" style={{ height: 320 }} /></div> : clients.isError ? <div className="capiro-portfolio__state capiro-portfolio__state--error" role="status"><span>Clients could not be loaded.{clients.error instanceof Error ? ` (${clients.error.message})` : ''}</span><CapiroButton variant="quiet" size="compact" onClick={() => void clients.refetch()}>Retry</CapiroButton></div> : showEmpty ? <div className="capiro-portfolio__state" role="status">{emptyIsFilter ? <><span>No clients match the current search and filters.</span><button type="button" className="capiro-portfolio__linkbtn" onClick={() => setRoute({ q: '', status: 'all' })}>Clear search and filters</button></> : 'No clients yet. Add one with New client, or import several with Import with LDA.'}</div> : route.layout === 'list' ? (
-          <div className="capiro-portfolio__table-wrap"><table className="capiro-portfolio__table"><thead><tr><th>Client</th><th>Focus</th><th>Owner</th><th>Work</th><th>Intelligence</th><th>Attention</th><th>Next touch</th></tr></thead><tbody>{model.visible.map((row) => <ClientRow key={row.client.id} row={row} rollupState={rollupState} onOpen={() => openClient(row.client.id)} />)}</tbody></table><div className="capiro-portfolio__footer">Showing {model.visible.length} of {model.rows.length} clients · sorted by {route.sort}</div></div>
+          <div className="capiro-portfolio__table-wrap"><table className="capiro-portfolio__table"><thead><tr><th>Client</th><th>Focus</th><th>Owner</th><th>Work</th><th>Intel</th><th>Attn</th><th>Next</th></tr></thead><tbody>{model.visible.map((row) => <ClientRow key={row.client.id} row={row} rollupState={rollupState} onOpen={() => openClient(row.client.id)} />)}</tbody></table><div className="capiro-portfolio__footer">Showing {model.visible.length} of {model.rows.length} clients · sorted by {route.sort}</div></div>
         ) : (
           <>
             <div className="capiro-portfolio__cards">{model.visible.map((row) => <ClientCard key={row.client.id} row={row} rollupState={rollupState} onOpen={() => openClient(row.client.id)} />)}</div>
@@ -415,6 +455,12 @@ export function PortfolioIndexPage() {
           </>
         )}
       </section>
+
+      <div className="capiro-portfolio__side">
+        <Pulse model={model} />
+        <EngagementTrend />
+      </div>
+      </div>
 
       <PortfolioProgramElements peSummary={model.peSummary} />
       <ImportWithLdaModal open={importOpen} onClose={() => openImport(false)} />

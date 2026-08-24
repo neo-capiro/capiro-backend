@@ -82,23 +82,48 @@
   color: var(--capiro-color-text-muted);
 }
 
-/* ── 2 · Pulse band ──────────────────────────────────────────────────── */
+/* ── 0 · Top grid — Clients left, Pulse + Trend stacked in a 372px right
+   column. Collapses to one column at the canonical 1179px tablet boundary
+   (not the design source's 1200px — this file's own convention, see the
+   Responsive section at the bottom). ────────────────────────────────────── */
+.capiro-portfolio__top-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 372px);
+  gap: 24px;
+  align-items: start;
+}
+.capiro-portfolio__side {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* ── 2 · Pulse band — 2-up, sized for the 372px side column, not the old
+   full-width auto-fit band. ─────────────────────────────────────────────── */
 .capiro-portfolio-pulse__band {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
-  padding: 0 24px 20px;
+  padding: 0 4px 16px;
   background: var(--capiro-color-bg-surface);
 }
 .capiro-portfolio-pulse__stat {
   background: var(--capiro-color-bg-surface);
-  padding: 0 24px;
-  border-left: 1px solid var(--capiro-color-border-quiet);
+  padding: 14px 16px;
+  box-shadow: inset -1px -1px 0 var(--capiro-color-border-quiet);
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 4px;
+  text-align: center;
 }
-.capiro-portfolio-pulse__stat:first-child { border-left: none; padding-left: 0; }
+/* Right column (even position): no right divider, it's the edge. */
+.capiro-portfolio-pulse__stat:nth-child(2n) { box-shadow: inset 0 -1px 0 var(--capiro-color-border-quiet); }
+/* Bottom row (last two of a 6-stat grid): no bottom divider, it's the edge. */
+.capiro-portfolio-pulse__stat:nth-last-child(-n+2) { box-shadow: inset -1px 0 0 var(--capiro-color-border-quiet); }
+.capiro-portfolio-pulse__stat:nth-last-child(-n+2):nth-child(2n) { box-shadow: none; }
 .capiro-portfolio-pulse__value {
   font-size: 28px;
   line-height: 34px;
@@ -135,6 +160,26 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .capiro-portfolio-pulse__stat-skel { animation: none; }
+}
+
+/* ── 2b · Engagement trend ───────────────────────────────────────────────
+   No bounded portfolio-wide "outreach sends + client emails by quarter"
+   endpoint exists (checked usePortfolioIndexModel.ts and GAPS.md — this
+   isn't even in that file's G1-G3 list yet, so it's a new gap, not one
+   that's already been triaged). Renders the honest-unavailable state,
+   same pattern as GAPS.md's G2 net-delta-unavailable treatment, rather
+   than a chart backed by invented quarterly numbers. */
+.capiro-portfolio-trend__head { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px 4px; }
+.capiro-portfolio-trend__title { display: block; }
+.capiro-portfolio-trend__sub { display: block; margin-top: 3px; font-size: 12.5px; color: var(--capiro-color-text-muted); }
+.capiro-portfolio-trend__gap {
+  margin: 12px 16px 16px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-secondary);
+  font-size: 13px;
+  line-height: 19px;
 }
 
 /* ── 3 · Clients toolbar ─────────────────────────────────────────────── */
@@ -283,6 +328,9 @@
 }
 .capiro-portfolio__tr {
   cursor: pointer;
+  /* One status treatment per row: this 2px rail. No separate dot+badge
+     alongside it — see the client-name status text below. */
+  box-shadow: inset 2px 0 0 var(--capiro-portfolio-rail-color, transparent);
 }
 .capiro-portfolio__tr:hover {
   background: var(--capiro-color-bg-surface-2);
@@ -291,6 +339,7 @@
   outline: 2px solid var(--capiro-color-action-accent-default);
   outline-offset: -2px;
 }
+.capiro-portfolio__status-text { font-size: 12px; font-weight: 600; white-space: nowrap; }
 
 .capiro-portfolio__client {
   display: flex;
@@ -410,6 +459,8 @@
   padding: 18px 20px 14px;
   border-radius: 12px;
   border: 1px solid var(--capiro-color-border-quiet);
+  border-left-width: 2px;
+  border-left-color: var(--capiro-portfolio-rail-color, var(--capiro-color-border-quiet));
   background: var(--capiro-color-bg-surface);
   cursor: pointer;
   text-align: left;
@@ -696,8 +747,8 @@
     --capiro-page-block-start: 20px;
     --capiro-page-block-end: 40px;
   }
-  .capiro-portfolio-pulse__band {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .capiro-portfolio__top-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
   .capiro-portfolio-pe__grid {
     grid-template-columns: minmax(0, 1fr);
