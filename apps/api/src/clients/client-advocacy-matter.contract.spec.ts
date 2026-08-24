@@ -15,6 +15,10 @@ describe('Advocacy Matter architecture contract', () => {
     resolve(process.cwd(), 'prisma/migrations/20271231040000_client_advocacy_matter/migration.sql'),
     'utf8',
   );
+  const correctionMigration = readFileSync(
+    resolve(process.cwd(), 'prisma/migrations/20271231050000_advocacy_matter_correction_ux/migration.sql'),
+    'utf8',
+  );
 
   it('exposes the Matter read/manage surface under the client route, review-gated for mutations', () => {
     expect(controller).toContain("@Controller('clients/:clientId/advocacy-matters')");
@@ -47,5 +51,38 @@ describe('Advocacy Matter architecture contract', () => {
   it('clusters by Program Element / bill / issue code before falling back to title overlap', () => {
     expect(service).toContain('computeMatterClue');
     expect(service).toContain('TITLE_OVERLAP_THRESHOLD');
+  });
+
+  it('exposes the record correction UX (reassign/detach/not-advocacy) admin-gated', () => {
+    expect(controller).toMatch(/@Post\('records\/:recordId\/reassign'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+    expect(controller).toMatch(/@Post\('records\/:recordId\/detach'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+    expect(controller).toMatch(/@Post\('records\/:recordId\/not-advocacy'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+  });
+
+  it('protects a human-corrected record from automatic re-clustering via matter_locked', () => {
+    expect(correctionMigration).toContain('matter_locked');
+    expect(service).toContain('matter_locked');
+    expect(service).toMatch(/assignMatterForRecord[\s\S]{0,2000}locked/);
+  });
+
+  it('requires evidence or explicit confirmation before an outcome-claim status', () => {
+    expect(service).toContain('confirmOutcome');
+    expect(service).toMatch(/OUTCOME_STATUSES[\s\S]{0,600}outcome_event/);
+  });
+
+  it('supports the full product lifecycle status set in the correction migration constraint', () => {
+    expect(correctionMigration).toContain("'planning'");
+    expect(correctionMigration).toContain("'outcome_observed'");
+    expect(correctionMigration).toContain("'successful'");
+    expect(correctionMigration).toContain("'partially_successful'");
+    expect(correctionMigration).toContain("'unsuccessful'");
+    expect(correctionMigration).toContain("'withdrawn'");
+    expect(correctionMigration).toContain("'archived'");
+  });
+
+  it('marks not_advocacy records excluded from Matter record/outcome rollups', () => {
+    expect(correctionMigration).toContain('not_advocacy');
+    expect(service).toMatch(/matter_id IS NOT NULL AND not_advocacy = false/);
+    expect(service).toMatch(/matter_id = \$3::uuid AND not_advocacy = false/);
   });
 });

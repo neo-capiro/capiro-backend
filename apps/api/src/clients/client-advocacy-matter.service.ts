@@ -1,4 +1,5 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { asRecord, asString } from './client-profile-fill.helpers.js';
@@ -51,6 +52,9 @@ export interface AdvocacyMatterDetail extends AdvocacyMatterSummary {
     confidence: number;
     metadata: Record<string, unknown>;
     createdAt: string;
+    /** True once a human has reassigned/detached/rejected this record — automatic
+     *  clustering will not touch it again. */
+    matterLocked: boolean;
   }>;
   links: Array<{
     id: string;
@@ -91,13 +95,20 @@ export class ClientAdvocacyMatterService {
    * record belongs to, and attaches the record to it. Called from
    * `ClientProfileFillCompletionService.applyAdvocacyRecord` right after
    * the record itself is upserted, inside the same tenant transaction.
+   *
+   * Respects `matter_locked`: once a human has reassigned, detached, or
+   * rejected ("not advocacy") a record via the correction UX, this method
+   * is a no-op for that record on every subsequent Fill with Meri re-run.
+   * Human corrections are authoritative over automatic clustering (product
+   * spec section 6) — without this check, re-running the same finding would
+   * silently undo the correction the next time the external_key upserts.
    */
   async assignMatterForRecord(
     ctx: TenantContext,
     clientId: string,
     recordExternalKey: string,
     record: { recordType: string; title: string; metadata: Record<string, unknown>; activityDate: string | null },
-  ): Promise<string> {
+  ): Promise<string | null> {
     const clue = computeMatterClue({
       recordType: record.recordType,
       title: record.title,
@@ -105,6 +116,21 @@ export class ClientAdvocacyMatterService {
     });
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const existing = await tx.$queryRawUnsafe<Array<{ matterId: string | null; locked: boolean }>>(
+        `SELECT matter_id AS "matterId", matter_locked AS locked
+           FROM client_advocacy_record
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND external_key = $3
+          LIMIT 1`,
+        ctx.tenantId,
+        clientId,
+        recordExternalKey,
+      );
+      if (existing[0]?.locked) {
+        // A human already decided this record's Matter (or explicitly
+        // detached it, leaving matterId null while locked) — leave it alone.
+        return existing[0].matterId;
+      }
+
       const matterId = await this.resolveMatterId(tx, ctx.tenantId, clientId, clue, record.title);
       await tx.$executeRawUnsafe(
         `UPDATE client_advocacy_record
@@ -281,7 +307,7 @@ export class ClientAdvocacyMatterService {
                     COUNT(*) AS count,
                     COUNT(*) FILTER (WHERE outcome IS NOT NULL) AS outcome_count
                FROM client_advocacy_record
-              WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND matter_id IS NOT NULL
+              WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND matter_id IS NOT NULL AND not_advocacy = false
               GROUP BY matter_id
            ) rc ON rc.matter_id = m.id
            LEFT JOIN (
@@ -368,15 +394,17 @@ export class ClientAdvocacyMatterService {
           confidence: number;
           metadata: unknown;
           createdAt: Date;
+          matterLocked: boolean;
         }>
       >(
         `SELECT id, record_type AS "recordType", title, summary,
                 activity_date AS "activityDate", status, outcome,
                 source_type AS "sourceType", source_id AS "sourceId",
                 source_url AS "sourceUrl", evidence_class AS "evidenceClass",
-                confidence, metadata_jsonb AS metadata, created_at AS "createdAt"
+                confidence, metadata_jsonb AS metadata, created_at AS "createdAt",
+                matter_locked AS "matterLocked"
            FROM client_advocacy_record
-          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND matter_id = $3::uuid
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND matter_id = $3::uuid AND not_advocacy = false
           ORDER BY activity_date DESC NULLS LAST, created_at DESC`,
         ctx.tenantId,
         clientId,
@@ -434,6 +462,7 @@ export class ClientAdvocacyMatterService {
         confidence: Number(r.confidence),
         metadata: asRecord(r.metadata),
         createdAt: r.createdAt.toISOString(),
+        matterLocked: r.matterLocked,
       })),
       links: links.map((l) => ({
         id: l.id,
@@ -446,24 +475,90 @@ export class ClientAdvocacyMatterService {
   }
 
   /**
+   * Manually create a new Matter (not auto-clustered). Used by the
+   * correction UX's "Create new Matter" action (reassigning a record into a
+   * brand-new Matter rather than an existing one) and by Fill review's
+   * "Create Matter" action for a proposed activity that doesn't fit any
+   * existing Matter.
+   */
+  async createMatter(
+    ctx: TenantContext,
+    clientId: string,
+    input: { title: string; matterType?: string; summary?: string | null },
+  ): Promise<string> {
+    await this.assertClient(ctx, clientId);
+    const externalKey = `manual:${randomUUID()}`;
+    const inserted = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `INSERT INTO client_advocacy_matter
+           (tenant_id, client_id, title, matter_type, status, summary, external_key,
+            auto_generated, opened_at, created_by_user_id)
+         VALUES ($1::uuid, $2::uuid, $3, $4, 'planning', $5, $6, false, now(), $7::uuid)
+         RETURNING id`,
+        ctx.tenantId,
+        clientId,
+        input.title,
+        input.matterType ?? 'other',
+        input.summary ?? null,
+        externalKey,
+        ctx.userId,
+      ),
+    );
+    return inserted[0]!.id;
+  }
+
+  /**
    * Manually edit a Matter's product-facing fields (title/status/summary).
    * A Matter created automatically stays `autoGenerated: true` even after a
    * manual edit — that flag tracks provenance of the grouping decision, not
    * whether a human has since touched it.
+   *
+   * Status transitions into `successful` / `partially_successful` /
+   * `unsuccessful` require explicit evidence: either the Matter already has
+   * at least one linked `outcome_event`, or the caller passes
+   * `confirmOutcome: true` (an explicit human confirmation from the Matter
+   * detail UI). This is the enforcement point for product spec section 7 —
+   * "Meri must not automatically set successful" and "should require
+   * explicit evidence or human confirmation" — Meri only ever calls
+   * `linkToMatter`/`assignMatterForRecord`, never `updateMatter`, so this
+   * path is human-only by construction, but the evidence/confirmation
+   * requirement still applies to prevent a careless one-click status change.
+   * `outcome_observed` has no such requirement — it means "something
+   * happened," not "the ask succeeded," and does not require confirmation.
    */
   async updateMatter(
     ctx: TenantContext,
     clientId: string,
     matterId: string,
-    input: { title?: string; status?: string; summary?: string | null },
+    input: { title?: string; status?: string; summary?: string | null; confirmOutcome?: boolean },
   ): Promise<void> {
     await this.assertClient(ctx, clientId);
-    const changed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.$executeRawUnsafe(
+    const OUTCOME_STATUSES = new Set(['successful', 'partially_successful', 'unsuccessful']);
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      let confirmOutcomeNow = false;
+      if (input.status && OUTCOME_STATUSES.has(input.status)) {
+        const evidence = await tx.$queryRawUnsafe<Array<{ count: number }>>(
+          `SELECT COUNT(*)::int AS count FROM client_advocacy_matter_link
+            WHERE tenant_id = $1::uuid AND matter_id = $2::uuid AND link_type = 'outcome_event'`,
+          ctx.tenantId,
+          matterId,
+        );
+        const hasOutcomeEvidence = (evidence[0]?.count ?? 0) > 0;
+        if (!hasOutcomeEvidence && input.confirmOutcome !== true) {
+          throw new BadRequestException(
+            `Setting status to "${input.status}" requires either a linked outcome event or explicit human confirmation (confirmOutcome: true)`,
+          );
+        }
+        confirmOutcomeNow = true;
+      }
+
+      const changed = await tx.$executeRawUnsafe(
         `UPDATE client_advocacy_matter
             SET title = COALESCE($4, title),
                 status = COALESCE($5, status),
                 summary = CASE WHEN $6::boolean THEN $7 ELSE summary END,
+                outcome_confirmed_by_user_id = CASE WHEN $8::boolean THEN $9::uuid ELSE outcome_confirmed_by_user_id END,
+                outcome_confirmed_at = CASE WHEN $8::boolean THEN now() ELSE outcome_confirmed_at END,
                 updated_at = now()
           WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
         ctx.tenantId,
@@ -473,9 +568,116 @@ export class ClientAdvocacyMatterService {
         asString(input.status),
         input.summary !== undefined,
         input.summary ?? null,
-      ),
-    );
-    if (Number(changed) !== 1) throw new NotFoundException('Advocacy matter not found');
+        confirmOutcomeNow,
+        ctx.userId,
+      );
+      if (Number(changed) !== 1) throw new NotFoundException('Advocacy matter not found');
+    });
+  }
+
+  /**
+   * Reassign a single advocacy record to a different (existing) Matter.
+   * Locks the record so a later Fill with Meri re-run cannot silently move
+   * it back — see `assignMatterForRecord`'s `matter_locked` check.
+   */
+  async reassignRecord(
+    ctx: TenantContext,
+    clientId: string,
+    recordId: string,
+    targetMatterId: string,
+  ): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const targetExists = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM client_advocacy_matter WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        targetMatterId,
+      );
+      if (targetExists.length === 0) throw new NotFoundException('Target advocacy matter not found');
+
+      const sourceMatterRow = await tx.$queryRawUnsafe<Array<{ matterId: string | null }>>(
+        `SELECT matter_id AS "matterId" FROM client_advocacy_record
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        recordId,
+      );
+      if (sourceMatterRow.length === 0) throw new NotFoundException('Advocacy record not found');
+      const sourceMatterId = sourceMatterRow[0]!.matterId;
+
+      const changed = await tx.$executeRawUnsafe(
+        `UPDATE client_advocacy_record
+            SET matter_id = $4::uuid, matter_locked = true, not_advocacy = false,
+                reviewed_by_user_id = $5::uuid, reviewed_at = now(), updated_at = now()
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        recordId,
+        targetMatterId,
+        ctx.userId,
+      );
+      this.assertOneRowChanged(changed, 'Advocacy record not found');
+
+      await this.touchMatterActivity(tx, ctx.tenantId, targetMatterId, null);
+      if (sourceMatterId && sourceMatterId !== targetMatterId) {
+        await this.touchMatterActivity(tx, ctx.tenantId, sourceMatterId, null);
+      }
+    });
+  }
+
+  /**
+   * Detach a record from its Matter (falsely associated). The record is
+   * NOT deleted — it becomes unassigned (`matter_id = NULL`) and locked so
+   * automatic clustering does not immediately re-cluster it right back in.
+   */
+  async detachRecord(ctx: TenantContext, clientId: string, recordId: string): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const changed = await tx.$executeRawUnsafe(
+        `UPDATE client_advocacy_record
+            SET matter_id = NULL, matter_locked = true,
+                reviewed_by_user_id = $4::uuid, reviewed_at = now(), updated_at = now()
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        recordId,
+        ctx.userId,
+      );
+      this.assertOneRowChanged(changed, 'Advocacy record not found');
+    });
+  }
+
+  /**
+   * Mark a proposed advocacy activity "Not advocacy" — a human rejection.
+   * The record stays in the table (audit trail: who rejected it, when, and
+   * what it originally claimed) but is excluded from Matter rollups and
+   * detail record lists (see `listMatters`/`getMatter` filtering) and from
+   * the Timeline. Also detaches it from any Matter and locks it, so a later
+   * identical finding from Fill with Meri is not resurrected as a duplicate
+   * (product spec section 26).
+   */
+  async markRecordNotAdvocacy(
+    ctx: TenantContext,
+    clientId: string,
+    recordId: string,
+    reason?: string | null,
+  ): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const changed = await tx.$executeRawUnsafe(
+        `UPDATE client_advocacy_record
+            SET not_advocacy = true, not_advocacy_reason = $4, matter_id = NULL, matter_locked = true,
+                reviewed_by_user_id = $5::uuid, reviewed_at = now(), updated_at = now()
+          WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        recordId,
+        reason ?? null,
+        ctx.userId,
+      );
+      this.assertOneRowChanged(changed, 'Advocacy record not found');
+    });
   }
 
   /**
@@ -551,5 +753,13 @@ export class ClientAdvocacyMatterService {
     );
     if (!client) throw new NotFoundException('Client not found');
     this.logger.debug(`Advocacy matter access for client ${clientId}`);
+  }
+
+  /** Asserts an UPDATE affected exactly the one targeted row. Every record
+   *  correction mutation (reassign/detach/not-advocacy/update) is scoped by
+   *  primary key, so anything other than exactly 1 means the row didn't
+   *  exist (or didn't belong to this tenant/client) — not a partial write. */
+  private assertOneRowChanged(changed: unknown, notFoundMessage: string): void {
+    if (Number(changed) !== 1) throw new NotFoundException(notFoundMessage);
   }
 }

@@ -7,12 +7,21 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import type { TenantContext } from '@capiro/shared';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { ClientAdvocacyMatterService } from './client-advocacy-matter.service.js';
+
+/** Product lifecycle statuses (spec section 7). Legacy values from the
+ *  original PR #1253 enum ('open'/'resolved'/'stalled') are still valid at
+ *  the DB layer for pre-existing rows but are no longer offered here — new
+ *  writes go through the lifecycle set below. */
+const MATTER_STATUSES = [
+  'planning', 'active', 'monitoring', 'outcome_observed',
+  'successful', 'partially_successful', 'unsuccessful', 'withdrawn', 'archived',
+] as const;
 
 class UpdateAdvocacyMatterDto {
   @IsOptional()
@@ -21,13 +30,20 @@ class UpdateAdvocacyMatterDto {
   title?: string;
 
   @IsOptional()
-  @IsIn(['open', 'monitoring', 'resolved', 'stalled'])
+  @IsIn(MATTER_STATUSES)
   status?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(4000)
   summary?: string;
+
+  /** Required (true) to move status into successful/partially_successful/
+   *  unsuccessful when the Matter has no linked outcome_event yet — see
+   *  ClientAdvocacyMatterService.updateMatter. Ignored for other statuses. */
+  @IsOptional()
+  @IsBoolean()
+  confirmOutcome?: boolean;
 }
 
 class MergeAdvocacyMatterDto {
@@ -35,13 +51,43 @@ class MergeAdvocacyMatterDto {
   sourceMatterId!: string;
 }
 
+class CreateAdvocacyMatterDto {
+  @IsString()
+  @MaxLength(300)
+  title!: string;
+
+  @IsOptional()
+  @IsIn(['funding_request', 'legislative', 'regulatory', 'program_element', 'community_project', 'procurement', 'other'])
+  matterType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  summary?: string;
+}
+
+class ReassignAdvocacyRecordDto {
+  @IsUUID()
+  targetMatterId!: string;
+}
+
+class NotAdvocacyDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  reason?: string;
+}
+
 /**
  * Advocacy Matter read/manage surface (product spec: "the central
  * abstraction is an Advocacy Matter"). This is a thin API over
  * `ClientAdvocacyMatterService` — clustering and record/link assignment
  * happen as a side effect of `ClientProfileFillCompletionService.applyFindings`
- * (see that service's `applyAdvocacyRecord`), not here. This controller only
- * lists, reads, edits Matter metadata, and merges two Matters.
+ * (see that service's `applyAdvocacyRecord`), not here. This controller
+ * lists, reads, edits Matter metadata, merges two Matters, creates a Matter
+ * by hand, and lets a user correct an individual record's Matter assignment
+ * (reassign / detach / mark not advocacy) — the Matter correction UX
+ * required by product spec section 6.
  */
 @Controller('clients/:clientId/advocacy-matters')
 @UseGuards(RolesGuard)
@@ -61,6 +107,16 @@ export class ClientAdvocacyMatterController {
     @Param('matterId') matterId: string,
   ) {
     return this.matters.getMatter(ctx, clientId, matterId);
+  }
+
+  @Post()
+  @Roles('user_admin')
+  create(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Body() body: CreateAdvocacyMatterDto,
+  ) {
+    return this.matters.createMatter(ctx, clientId, body);
   }
 
   @Patch(':matterId')
@@ -83,5 +139,37 @@ export class ClientAdvocacyMatterController {
     @Body() body: MergeAdvocacyMatterDto,
   ) {
     return this.matters.mergeMatters(ctx, clientId, matterId, body.sourceMatterId);
+  }
+
+  @Post('records/:recordId/reassign')
+  @Roles('user_admin')
+  reassignRecord(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('recordId') recordId: string,
+    @Body() body: ReassignAdvocacyRecordDto,
+  ) {
+    return this.matters.reassignRecord(ctx, clientId, recordId, body.targetMatterId);
+  }
+
+  @Post('records/:recordId/detach')
+  @Roles('user_admin')
+  detachRecord(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('recordId') recordId: string,
+  ) {
+    return this.matters.detachRecord(ctx, clientId, recordId);
+  }
+
+  @Post('records/:recordId/not-advocacy')
+  @Roles('user_admin')
+  markNotAdvocacy(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('recordId') recordId: string,
+    @Body() body: NotAdvocacyDto,
+  ) {
+    return this.matters.markRecordNotAdvocacy(ctx, clientId, recordId, body.reason);
   }
 }

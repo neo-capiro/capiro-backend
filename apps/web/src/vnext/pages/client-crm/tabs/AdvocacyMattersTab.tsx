@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, type CSSProperties } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { isTenantAdmin } from '@capiro/shared';
 import {
   Card,
   CardHead,
@@ -7,12 +8,14 @@ import {
   Pill,
   PfSkeleton,
   PfEmptyState,
+  PfButton,
   TabPageHead,
   type PillTone,
 } from '../portfolio-primitives.js';
 import { formatDateShort } from '../../../lib/labels.js';
 import { useApi } from '../../../../lib/use-api.js';
-import { CapiroDrawer } from '../../../components/overlays/index.js';
+import { useMe } from '../../../../lib/me.js';
+import { CapiroDrawer, CapiroModal } from '../../../components/overlays/index.js';
 import { CapiroBadge } from '../../../components/badges/index.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 
@@ -30,10 +33,14 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
  * plus linked Program Elements, bills, and outcome events — see
  * `apps/api/src/clients/client-advocacy-matter.service.ts`.
  *
- * This is a read + light-edit surface: Matters are created and populated by
- * Fill with Meri's advocacy-history/lifecycle-outcomes specialists when a
- * finding is applied, not by hand here. A person can rename a Matter, set
- * its status, or merge a mis-split duplicate — nothing else.
+ * Correction UX (closeout PR, product spec section 6): an admin can rename
+ * a Matter, edit its summary/status, merge two Matters, create a Matter by
+ * hand, and correct an individual record's Matter assignment — reassign to
+ * a different Matter, detach (falsely associated), or mark "Not advocacy".
+ * Human corrections are authoritative: the backend locks a corrected
+ * record (`matter_locked`) so a later Fill with Meri re-run cannot silently
+ * undo the correction. Auto-clustered Matters are visually flagged so users
+ * know a correction may be warranted, not required.
  */
 
 export interface AdvocacyMatterSummary {
@@ -70,6 +77,7 @@ export interface AdvocacyMatterRecord {
   confidence: number;
   metadata: Record<string, unknown>;
   createdAt: string;
+  matterLocked: boolean;
 }
 
 export interface AdvocacyMatterLink {
@@ -95,9 +103,55 @@ const MATTER_TYPE_LABEL: Record<string, string> = {
   other: 'Other',
 };
 
+const MATTER_TYPE_OPTIONS = Object.keys(MATTER_TYPE_LABEL);
+
+/** Product lifecycle statuses (spec section 7). A Matter created before this
+ *  closeout may still carry a legacy value (open/monitoring/resolved/stalled)
+ *  — STATUS_LABEL covers both so nothing renders as a raw enum string. */
+const STATUS_LABEL: Record<string, string> = {
+  planning: 'Planning',
+  active: 'Active',
+  monitoring: 'Monitoring',
+  outcome_observed: 'Outcome observed',
+  successful: 'Successful',
+  partially_successful: 'Partially successful',
+  unsuccessful: 'Unsuccessful',
+  withdrawn: 'Withdrawn',
+  archived: 'Archived',
+  // legacy (pre-closeout) values
+  open: 'Open',
+  resolved: 'Resolved',
+  stalled: 'Stalled',
+};
+
+/** Statuses offered in the edit UI going forward. Legacy values are still
+ *  rendered (STATUS_LABEL above) but not offered as new choices. */
+const MATTER_STATUS_OPTIONS = [
+  'planning', 'active', 'monitoring', 'outcome_observed',
+  'successful', 'partially_successful', 'unsuccessful', 'withdrawn', 'archived',
+];
+
+const OUTCOME_CLAIM_STATUSES = new Set(['successful', 'partially_successful', 'unsuccessful']);
+
+/** Shared text-input styling for the correction-UX forms below (create/edit
+ *  Matter, merge, record actions) — this file's only forms, so a local
+ *  constant beats repeating the same object literal eight times. */
+const FIELD_STYLE: CSSProperties = { padding: '8px 10px', borderRadius: 8, border: '1px solid #D0D5DD', fontSize: 14 };
+const TEXTAREA_STYLE: CSSProperties = { ...FIELD_STYLE, resize: 'vertical' };
+const FIELD_LABEL_STYLE: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: '#475467' };
+const FORM_STYLE: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 14, padding: 4 };
+
 const STATUS_TONE: Record<string, PillTone> = {
-  open: 'blue',
+  planning: 'gray',
+  active: 'blue',
   monitoring: 'gray',
+  outcome_observed: 'blue',
+  successful: 'success',
+  partially_successful: 'warning',
+  unsuccessful: 'gray',
+  withdrawn: 'gray',
+  archived: 'gray',
+  open: 'blue',
   resolved: 'success',
   stalled: 'warning',
 };
@@ -109,14 +163,34 @@ const EVIDENCE_LABEL: Record<string, string> = {
   INFERRED: 'Inferred',
 };
 
+function useIsAdvocacyAdmin(): boolean {
+  const me = useMe();
+  return me.data ? isTenantAdmin(me.data.role) : false;
+}
+
 export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
   const api = useApi();
+  const qc = useQueryClient();
+  const isAdmin = useIsAdvocacyAdmin();
   const [openMatterId, setOpenMatterId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const matters = useQuery<AdvocacyMatterSummary[]>({
     queryKey: ['client-advocacy-matters', client.id],
     queryFn: async () =>
       (await api.get<AdvocacyMatterSummary[]>(`/api/clients/${client.id}/advocacy-matters`)).data,
+  });
+
+  const refreshList = () => void qc.invalidateQueries({ queryKey: ['client-advocacy-matters', client.id] });
+
+  const createMatter = useMutation({
+    mutationFn: async (input: { title: string; matterType: string }) =>
+      (await api.post<{ id: string }>(`/api/clients/${client.id}/advocacy-matters`, input)).data,
+    onSuccess: (created) => {
+      setCreating(false);
+      refreshList();
+      setOpenMatterId(created.id);
+    },
   });
 
   const loading = !matters.data && !matters.isError;
@@ -129,6 +203,13 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
       <TabPageHead
         title="Advocacy matters"
         sub="What this client has advocated for, grouped into one coherent history per ask — not a flat timeline of unrelated records."
+        actions={
+          isAdmin ? (
+            <PfButton variant="secondary" size="sm" onClick={() => setCreating(true)}>
+              New matter
+            </PfButton>
+          ) : undefined
+        }
       />
       <Card>
         <CardHead
@@ -147,7 +228,7 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
           ) : genuinelyEmpty ? (
             <PfEmptyState
               title="No advocacy matters yet"
-              hint="Matters are created automatically when Fill with Meri applies an advocacy record (LDA filings, client submissions, or private meeting/email advocacy) and clusters it by Program Element, bill, or subject."
+              hint="Matters are created automatically when Fill with Meri applies an advocacy record (LDA filings, client submissions, or private meeting/email advocacy) and clusters it by Program Element, bill, or subject. An admin can also create one manually."
             />
           ) : (
             rows.map((matter, i) => (
@@ -169,10 +250,87 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
         <AdvocacyMatterDrawer
           clientId={client.id}
           matterId={openMatterId}
+          isAdmin={isAdmin}
+          matterOptions={rows}
           onClose={() => setOpenMatterId(null)}
+          onChanged={refreshList}
         />
       ) : null}
+
+      {creating ? (
+        <CapiroModal open title="New advocacy matter" onClose={() => setCreating(false)}>
+          <CreateMatterForm
+            busy={createMatter.isPending}
+            error={createMatter.isError ? describeError(createMatter.error) : null}
+            onCancel={() => setCreating(false)}
+            onSubmit={(input) => createMatter.mutate(input)}
+          />
+        </CapiroModal>
+      ) : null}
     </div>
+  );
+}
+
+function describeError(error: unknown): string {
+  const withResponse = error as { response?: { data?: { message?: string } } };
+  return withResponse?.response?.data?.message ?? 'Something went wrong. Try again.';
+}
+
+function CreateMatterForm({
+  busy,
+  error,
+  onCancel,
+  onSubmit,
+}: {
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onSubmit: (input: { title: string; matterType: string }) => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [matterType, setMatterType] = useState('other');
+  return (
+    <form
+      style={FORM_STYLE}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (title.trim()) onSubmit({ title: title.trim(), matterType });
+      }}
+    >
+      <label style={FIELD_LABEL_STYLE}>
+        Title
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. FY27 Ground Robotics Funding"
+          style={FIELD_STYLE}
+          autoFocus
+        />
+      </label>
+      <label style={FIELD_LABEL_STYLE}>
+        Type
+        <select
+          value={matterType}
+          onChange={(e) => setMatterType(e.target.value)}
+          style={FIELD_STYLE}
+        >
+          {MATTER_TYPE_OPTIONS.map((t) => (
+            <option key={t} value={t}>
+              {MATTER_TYPE_LABEL[t]}
+            </option>
+          ))}
+        </select>
+      </label>
+      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+        <PfButton variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </PfButton>
+        <PfButton variant="primary" size="sm" disabled={!title.trim() || busy} busy={busy}>
+          Create matter
+        </PfButton>
+      </div>
+    </form>
   );
 }
 
@@ -227,8 +385,15 @@ function MatterRow({
       }}
     >
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>
-          {matter.title}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>
+            {matter.title}
+          </span>
+          {matter.autoGenerated ? (
+            <span title="Meri grouped this Matter automatically" style={{ fontSize: 11, color: '#98A2B3' }}>
+              · Auto
+            </span>
+          ) : null}
         </span>
         <span style={{ display: 'block', marginTop: 3, fontSize: 13, color: '#667085' }}>
           {MATTER_TYPE_LABEL[matter.matterType] ?? matter.matterType}
@@ -239,7 +404,7 @@ function MatterRow({
         </span>
       </span>
       <span style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-        <Pill tone={tone}>{matter.status}</Pill>
+        <Pill tone={tone}>{STATUS_LABEL[matter.status] ?? matter.status}</Pill>
       </span>
     </button>
   );
@@ -248,18 +413,95 @@ function MatterRow({
 function AdvocacyMatterDrawer({
   clientId,
   matterId,
+  isAdmin,
+  matterOptions,
   onClose,
+  onChanged,
 }: {
   clientId: string;
   matterId: string;
+  isAdmin: boolean;
+  matterOptions: AdvocacyMatterSummary[];
   onClose: () => void;
+  onChanged: () => void;
 }) {
   const api = useApi();
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [actionRecord, setActionRecord] = useState<{ record: AdvocacyMatterRecord; action: 'reassign' | 'detach' | 'not-advocacy' } | null>(
+    null,
+  );
+
+  const detailKey = ['client-advocacy-matter', clientId, matterId];
   const detail = useQuery<AdvocacyMatterDetail>({
-    queryKey: ['client-advocacy-matter', clientId, matterId],
+    queryKey: detailKey,
     queryFn: async () =>
       (await api.get<AdvocacyMatterDetail>(`/api/clients/${clientId}/advocacy-matters/${matterId}`)).data,
   });
+
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: detailKey });
+    onChanged();
+  };
+
+  const updateMatter = useMutation({
+    mutationFn: async (input: { title?: string; status?: string; summary?: string; confirmOutcome?: boolean }) =>
+      (await api.patch(`/api/clients/${clientId}/advocacy-matters/${matterId}`, input)).data,
+    onSuccess: () => {
+      setEditing(false);
+      refresh();
+    },
+  });
+
+  const mergeMatter = useMutation({
+    mutationFn: async (sourceMatterId: string) =>
+      (await api.post(`/api/clients/${clientId}/advocacy-matters/${matterId}/merge`, { sourceMatterId })).data,
+    onSuccess: () => {
+      setMerging(false);
+      refresh();
+    },
+  });
+
+  const reassignRecord = useMutation({
+    mutationFn: async (input: { recordId: string; targetMatterId: string }) =>
+      (
+        await api.post(`/api/clients/${clientId}/advocacy-matters/records/${input.recordId}/reassign`, {
+          targetMatterId: input.targetMatterId,
+        })
+      ).data,
+    onSuccess: () => {
+      setActionRecord(null);
+      refresh();
+    },
+  });
+
+  const detachRecord = useMutation({
+    mutationFn: async (recordId: string) =>
+      (await api.post(`/api/clients/${clientId}/advocacy-matters/records/${recordId}/detach`)).data,
+    onSuccess: () => {
+      setActionRecord(null);
+      refresh();
+    },
+  });
+
+  const markNotAdvocacy = useMutation({
+    mutationFn: async (input: { recordId: string; reason?: string }) =>
+      (
+        await api.post(`/api/clients/${clientId}/advocacy-matters/records/${input.recordId}/not-advocacy`, {
+          reason: input.reason,
+        })
+      ).data,
+    onSuccess: () => {
+      setActionRecord(null);
+      refresh();
+    },
+  });
+
+  const otherMatters = useMemo(
+    () => matterOptions.filter((m) => m.id !== matterId),
+    [matterOptions, matterId],
+  );
 
   return (
     <CapiroDrawer open onClose={onClose} title={detail.data?.title ?? 'Advocacy matter'}>
@@ -271,13 +513,37 @@ function AdvocacyMatterDrawer({
         </div>
       ) : (
         <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <CapiroBadge tone="neutral">{MATTER_TYPE_LABEL[detail.data.matterType] ?? detail.data.matterType}</CapiroBadge>
-            <CapiroBadge tone={detail.data.status === 'resolved' ? 'success' : 'info'}>{detail.data.status}</CapiroBadge>
-            {detail.data.autoGenerated ? <CapiroBadge tone="neutral">Auto-clustered</CapiroBadge> : null}
+            <CapiroBadge tone={detail.data.status === 'successful' ? 'success' : 'info'}>
+              {STATUS_LABEL[detail.data.status] ?? detail.data.status}
+            </CapiroBadge>
+            {detail.data.autoGenerated ? (
+              <CapiroBadge tone="neutral" title="Meri grouped this Matter automatically from clustering rules">
+                Auto-clustered
+              </CapiroBadge>
+            ) : (
+              <CapiroBadge tone="neutral">Manually created</CapiroBadge>
+            )}
+            {isAdmin ? (
+              <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                <PfButton variant="link" size="sm" onClick={() => setEditing(true)}>
+                  Edit
+                </PfButton>
+                <PfButton variant="link" size="sm" onClick={() => setMerging(true)}>
+                  Merge into another matter
+                </PfButton>
+              </span>
+            ) : null}
           </div>
           {detail.data.summary ? (
             <p style={{ margin: 0, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>{detail.data.summary}</p>
+          ) : null}
+          {OUTCOME_CLAIM_STATUSES.has(detail.data.status) ? (
+            <p style={{ margin: 0, fontSize: 12, color: '#667085', fontStyle: 'italic' }}>
+              This outcome status reflects a human-confirmed determination, not an automatic conclusion — Capiro does
+              not claim causation between advocacy activity and government action.
+            </p>
           ) : null}
 
           <section>
@@ -289,7 +555,14 @@ function AdvocacyMatterDrawer({
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {detail.data.records.map((record) => (
-                  <RecordRow key={record.id} record={record} />
+                  <RecordRow
+                    key={record.id}
+                    record={record}
+                    isAdmin={isAdmin}
+                    onReassign={() => setActionRecord({ record, action: 'reassign' })}
+                    onDetach={() => setActionRecord({ record, action: 'detach' })}
+                    onNotAdvocacy={() => setActionRecord({ record, action: 'not-advocacy' })}
+                  />
                 ))}
               </div>
             )}
@@ -309,16 +582,332 @@ function AdvocacyMatterDrawer({
           ) : null}
         </div>
       )}
+
+      {editing && detail.data ? (
+        <CapiroModal open title="Edit advocacy matter" onClose={() => setEditing(false)}>
+          <EditMatterForm
+            matter={detail.data}
+            busy={updateMatter.isPending}
+            error={updateMatter.isError ? describeError(updateMatter.error) : null}
+            onCancel={() => setEditing(false)}
+            onSubmit={(input) => updateMatter.mutate(input)}
+          />
+        </CapiroModal>
+      ) : null}
+
+      {merging ? (
+        <CapiroModal open title="Merge another matter into this one" onClose={() => setMerging(false)}>
+          <MergeMatterForm
+            options={otherMatters}
+            busy={mergeMatter.isPending}
+            error={mergeMatter.isError ? describeError(mergeMatter.error) : null}
+            onCancel={() => setMerging(false)}
+            onSubmit={(sourceMatterId) => mergeMatter.mutate(sourceMatterId)}
+          />
+        </CapiroModal>
+      ) : null}
+
+      {actionRecord ? (
+        <CapiroModal
+          open
+          title={
+            actionRecord.action === 'reassign'
+              ? 'Reassign record'
+              : actionRecord.action === 'detach'
+                ? 'Detach record'
+                : 'Mark not advocacy'
+          }
+          onClose={() => setActionRecord(null)}
+        >
+          <RecordActionForm
+            record={actionRecord.record}
+            action={actionRecord.action}
+            matterOptions={otherMatters}
+            busy={reassignRecord.isPending || detachRecord.isPending || markNotAdvocacy.isPending}
+            error={
+              reassignRecord.isError
+                ? describeError(reassignRecord.error)
+                : detachRecord.isError
+                  ? describeError(detachRecord.error)
+                  : markNotAdvocacy.isError
+                    ? describeError(markNotAdvocacy.error)
+                    : null
+            }
+            onCancel={() => setActionRecord(null)}
+            onReassign={(targetMatterId) => reassignRecord.mutate({ recordId: actionRecord.record.id, targetMatterId })}
+            onDetach={() => detachRecord.mutate(actionRecord.record.id)}
+            onNotAdvocacy={(reason) => markNotAdvocacy.mutate({ recordId: actionRecord.record.id, reason })}
+          />
+        </CapiroModal>
+      ) : null}
     </CapiroDrawer>
   );
 }
 
-function RecordRow({ record }: { record: AdvocacyMatterRecord }) {
+function EditMatterForm({
+  matter,
+  busy,
+  error,
+  onCancel,
+  onSubmit,
+}: {
+  matter: AdvocacyMatterDetail;
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onSubmit: (input: { title?: string; status?: string; summary?: string; confirmOutcome?: boolean }) => void;
+}) {
+  const [title, setTitle] = useState(matter.title);
+  const [status, setStatus] = useState(matter.status);
+  const [summary, setSummary] = useState(matter.summary ?? '');
+  const requiresConfirmation = OUTCOME_CLAIM_STATUSES.has(status) && status !== matter.status && matter.outcomeCount === 0;
+  const [confirmOutcome, setConfirmOutcome] = useState(false);
+
+  return (
+    <form
+      style={FORM_STYLE}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit({ title, status, summary, confirmOutcome: requiresConfirmation ? confirmOutcome : undefined });
+      }}
+    >
+      <label style={FIELD_LABEL_STYLE}>
+        Title
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          style={FIELD_STYLE}
+        />
+      </label>
+      <label style={FIELD_LABEL_STYLE}>
+        Status
+        <select
+          value={MATTER_STATUS_OPTIONS.includes(status) ? status : ''}
+          onChange={(e) => setStatus(e.target.value)}
+          style={FIELD_STYLE}
+        >
+          {!MATTER_STATUS_OPTIONS.includes(matter.status) ? (
+            <option value={matter.status}>{STATUS_LABEL[matter.status] ?? matter.status} (legacy)</option>
+          ) : null}
+          {MATTER_STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABEL[s]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label style={FIELD_LABEL_STYLE}>
+        Summary
+        <textarea
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          rows={4}
+          style={TEXTAREA_STYLE}
+        />
+      </label>
+      {requiresConfirmation ? (
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: '#B54708' }}>
+          <input type="checkbox" checked={confirmOutcome} onChange={(e) => setConfirmOutcome(e.target.checked)} style={{ marginTop: 3 }} />
+          <span>
+            This Matter has no linked outcome evidence. I confirm this outcome status by explicit human judgment, not
+            an automatic conclusion.
+          </span>
+        </label>
+      ) : null}
+      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+        <PfButton variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </PfButton>
+        <PfButton variant="primary" size="sm" disabled={busy || (requiresConfirmation && !confirmOutcome)} busy={busy}>
+          Save
+        </PfButton>
+      </div>
+    </form>
+  );
+}
+
+function MergeMatterForm({
+  options,
+  busy,
+  error,
+  onCancel,
+  onSubmit,
+}: {
+  options: AdvocacyMatterSummary[];
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onSubmit: (sourceMatterId: string) => void;
+}) {
+  const [sourceMatterId, setSourceMatterId] = useState('');
+  return (
+    <div style={FORM_STYLE}>
+      <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+        Choose the matter to merge INTO this one. Its records and links move here, and the source matter is removed.
+        This cannot be undone.
+      </p>
+      {options.length === 0 ? (
+        <p style={{ margin: 0, fontSize: 13, color: '#98A2B3' }}>No other matters exist for this client.</p>
+      ) : (
+        <select
+          value={sourceMatterId}
+          onChange={(e) => setSourceMatterId(e.target.value)}
+          style={FIELD_STYLE}
+        >
+          <option value="">Select a matter…</option>
+          {options.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.title}
+            </option>
+          ))}
+        </select>
+      )}
+      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <PfButton variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </PfButton>
+        <PfButton
+          variant="primary"
+          size="sm"
+          disabled={!sourceMatterId || busy}
+          busy={busy}
+          onClick={() => onSubmit(sourceMatterId)}
+        >
+          Merge
+        </PfButton>
+      </div>
+    </div>
+  );
+}
+
+function RecordActionForm({
+  record,
+  action,
+  matterOptions,
+  busy,
+  error,
+  onCancel,
+  onReassign,
+  onDetach,
+  onNotAdvocacy,
+}: {
+  record: AdvocacyMatterRecord;
+  action: 'reassign' | 'detach' | 'not-advocacy';
+  matterOptions: AdvocacyMatterSummary[];
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onReassign: (targetMatterId: string) => void;
+  onDetach: () => void;
+  onNotAdvocacy: (reason?: string) => void;
+}) {
+  const [targetMatterId, setTargetMatterId] = useState('');
+  const [reason, setReason] = useState('');
+
+  return (
+    <div style={FORM_STYLE}>
+      <p style={{ margin: 0, fontSize: 13, color: '#475467', fontWeight: 500 }}>{record.title}</p>
+      {action === 'reassign' ? (
+        <>
+          <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+            Move this record to a different matter. It will be locked so a later automatic re-clustering pass does
+            not move it back.
+          </p>
+          {matterOptions.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 13, color: '#98A2B3' }}>No other matters exist for this client.</p>
+          ) : (
+            <select
+              value={targetMatterId}
+              onChange={(e) => setTargetMatterId(e.target.value)}
+              style={FIELD_STYLE}
+            >
+              <option value="">Select a matter…</option>
+              {matterOptions.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.title}
+                </option>
+              ))}
+            </select>
+          )}
+        </>
+      ) : action === 'detach' ? (
+        <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+          This record will be removed from its matter and left unassigned. It stays visible for later manual
+          reassignment and will not be auto-clustered again.
+        </p>
+      ) : (
+        <>
+          <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+            This marks the record as not actually advocacy activity. It will be hidden from Matters and the
+            Timeline, but kept for audit — and will not reappear if Fill with Meri finds it again.
+          </p>
+          <label style={FIELD_LABEL_STYLE}>
+            Reason (optional)
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={2}
+              style={TEXTAREA_STYLE}
+            />
+          </label>
+        </>
+      )}
+      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <PfButton variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </PfButton>
+        {action === 'reassign' ? (
+          <PfButton
+            variant="primary"
+            size="sm"
+            disabled={!targetMatterId || busy}
+            busy={busy}
+            onClick={() => onReassign(targetMatterId)}
+          >
+            Reassign
+          </PfButton>
+        ) : action === 'detach' ? (
+          <PfButton variant="primary" size="sm" disabled={busy} busy={busy} onClick={onDetach}>
+            Detach
+          </PfButton>
+        ) : (
+          <PfButton variant="primary" size="sm" disabled={busy} busy={busy} onClick={() => onNotAdvocacy(reason || undefined)}>
+            Mark not advocacy
+          </PfButton>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RecordRow({
+  record,
+  isAdmin,
+  onReassign,
+  onDetach,
+  onNotAdvocacy,
+}: {
+  record: AdvocacyMatterRecord;
+  isAdmin: boolean;
+  onReassign: () => void;
+  onDetach: () => void;
+  onNotAdvocacy: () => void;
+}) {
   return (
     <div style={{ padding: 12, borderRadius: 8, border: '1px solid #F2F0EB', display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: 14, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>{record.title}</span>
-        <CapiroBadge tone="neutral">{EVIDENCE_LABEL[record.evidenceClass] ?? record.evidenceClass}</CapiroBadge>
+        <span style={{ display: 'flex', gap: 6, flex: '0 0 auto' }}>
+          {record.matterLocked ? (
+            <span title="A human corrected this record's matter assignment" style={{ fontSize: 11, color: '#98A2B3' }}>
+              Corrected
+            </span>
+          ) : null}
+          <CapiroBadge tone="neutral">{EVIDENCE_LABEL[record.evidenceClass] ?? record.evidenceClass}</CapiroBadge>
+        </span>
       </div>
       <span style={{ fontSize: 12, color: '#98A2B3' }}>
         {record.activityDate ? formatDateShort(record.activityDate) : 'Undated'}
@@ -336,6 +925,19 @@ function RecordRow({ record }: { record: AdvocacyMatterRecord }) {
         <a href={record.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>
           View source
         </a>
+      ) : null}
+      {isAdmin ? (
+        <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+          <PfButton variant="link" size="sm" onClick={onReassign}>
+            Reassign
+          </PfButton>
+          <PfButton variant="link" size="sm" onClick={onDetach}>
+            Detach
+          </PfButton>
+          <PfButton variant="link" size="sm" onClick={onNotAdvocacy}>
+            Not advocacy
+          </PfButton>
+        </div>
       ) : null}
     </div>
   );
