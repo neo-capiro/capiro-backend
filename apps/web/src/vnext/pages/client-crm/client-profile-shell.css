@@ -124,26 +124,6 @@
   color: var(--capiro-color-text-destructive, #b42318);
 }
 
-.capiro-vnext-root .cap-pf-fill-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 8px;
-  border: 0;
-  background-image: var(--uui-btn-metal-face);
-  box-shadow: var(--uui-btn-metal-shadow);
-  color: var(--uui-btn-metal-fg);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.capiro-vnext-root .cap-pf-fill-btn:hover:not(:disabled) {
-  background-image: var(--uui-btn-metal-face-hover);
-}
-
 .capiro-vnext-root .cap-pf-account-owner-select {
   height: 36px;
   max-width: 220px;
