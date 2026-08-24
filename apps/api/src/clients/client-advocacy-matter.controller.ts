@@ -7,7 +7,8 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsISO8601, IsOptional, IsString, IsUrl, IsUUID, MaxLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import type { TenantContext } from '@capiro/shared';
 import { CurrentTenant } from '../tenant/current-tenant.decorator.js';
 import { Roles } from '../auth/roles.decorator.js';
@@ -64,6 +65,66 @@ class CreateAdvocacyMatterDto {
   @IsString()
   @MaxLength(4000)
   summary?: string;
+}
+
+class NewMatterForRecordDto {
+  @IsString()
+  @MaxLength(300)
+  title!: string;
+
+  @IsOptional()
+  @IsIn(['funding_request', 'legislative', 'regulatory', 'program_element', 'community_project', 'procurement', 'other'])
+  matterType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  summary?: string;
+}
+
+/** §25 "Add advocacy record". recordType intentionally accepts the same
+ *  free-form vocabulary ClientAdvocacyMatterService.MANUAL_RECORD_TYPES
+ *  documents (no CHECK constraint on the DB column), validated here at the
+ *  API boundary instead. */
+class CreateManualAdvocacyRecordDto {
+  @IsIn(['advocacy_ask', 'meeting', 'submission', 'congressional_request', 'regulatory_comment', 'testimony', 'outreach', 'government_action', 'outcome', 'other'])
+  recordType!: string;
+
+  @IsString()
+  @MaxLength(500)
+  title!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  summary?: string;
+
+  @IsOptional()
+  @IsISO8601()
+  activityDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  outcome?: string;
+
+  @IsOptional()
+  @IsUrl()
+  sourceUrl?: string;
+
+  @IsOptional()
+  @IsUUID()
+  matterId?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NewMatterForRecordDto)
+  newMatter?: NewMatterForRecordDto;
 }
 
 class ReassignAdvocacyRecordDto {
@@ -181,6 +242,16 @@ export class ClientAdvocacyMatterController {
     @Body() body: CreateAdvocacyMatterDto,
   ) {
     return this.matters.createMatter(ctx, clientId, body);
+  }
+
+  @Post('records')
+  @Roles('user_admin')
+  createRecord(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Body() body: CreateManualAdvocacyRecordDto,
+  ) {
+    return this.matters.createManualRecord(ctx, clientId, body);
   }
 
   @Patch(':matterId')

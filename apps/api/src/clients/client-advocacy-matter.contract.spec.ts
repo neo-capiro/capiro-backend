@@ -34,6 +34,25 @@ describe('Advocacy Matter architecture contract', () => {
     expect(controller).toMatch(/@Post\(':matterId\/merge'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
   });
 
+  it('supports §25 "Add advocacy record" — review-gated, exactly one of an existing/new Matter or unassigned', () => {
+    expect(controller).toMatch(/@Post\('records'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+    expect(controller).toContain('createManualRecord');
+    // The full §25 type vocabulary, not a narrowed subset.
+    for (const type of [
+      'advocacy_ask', 'meeting', 'submission', 'congressional_request',
+      'regulatory_comment', 'testimony', 'outreach', 'government_action', 'outcome', 'other',
+    ]) {
+      expect(controller).toContain(type);
+    }
+    // §25: "CLIENT_VERIFIED unless backed by a separately attached official
+    // public source" — never inferred from record type alone, only from an
+    // actually-supplied sourceUrl.
+    expect(service).toMatch(/sourceUrl\s*\?\s*'PUBLIC_VERIFIED'\s*:\s*'CLIENT_VERIFIED'/);
+    // Choosing both an existing Matter and a new one in the same call is
+    // rejected, not silently resolved by picking one.
+    expect(service).toContain('Choose an existing Matter or a new one, not both');
+  });
+
   it('forces RLS on both new tables with rls_bypass/current_tenant_id policies', () => {
     expect(migration).toContain('ALTER TABLE client_advocacy_matter FORCE ROW LEVEL SECURITY');
     expect(migration).toContain('ALTER TABLE client_advocacy_matter_link FORCE ROW LEVEL SECURITY');

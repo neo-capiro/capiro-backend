@@ -172,6 +172,83 @@ describe('ClientAdvocacyMatterService — correction UX', () => {
     });
   });
 
+  describe('createManualRecord (§25 "Add advocacy record")', () => {
+    const recordInput = { recordType: 'meeting', title: 'Staff meeting on FY27 ask' };
+
+    test('creates an unassigned record as CLIENT_VERIFIED when no matter and no sourceUrl are given', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe.mockResolvedValueOnce([{ id: recordId }]);
+
+      const result = await service.createManualRecord(ctx, clientId, recordInput);
+
+      expect(result).toBe(recordId);
+      const insertCall = tx.$queryRawUnsafe.mock.calls[0]!;
+      expect(String(insertCall[0])).toContain('INSERT INTO client_advocacy_record');
+      expect(insertCall).toContain('CLIENT_VERIFIED');
+      expect(insertCall).toContain(null); // matter_id is null — genuinely unassigned
+    });
+
+    test('upgrades to PUBLIC_VERIFIED only when a sourceUrl is separately attached (§25)', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe.mockResolvedValueOnce([{ id: recordId }]);
+
+      await service.createManualRecord(ctx, clientId, { ...recordInput, sourceUrl: 'https://example.gov/comment/123' });
+
+      const insertCall = tx.$queryRawUnsafe.mock.calls[0]!;
+      expect(insertCall).toContain('PUBLIC_VERIFIED');
+      expect(insertCall).not.toContain('CLIENT_VERIFIED');
+    });
+
+    test('assigns to an existing Matter and immediately locks it — a manual creation IS the human decision, nothing to correct later', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe.mockResolvedValueOnce([{ id: matterId }]); // assertMatterBelongsToClient
+      tx.$queryRawUnsafe.mockResolvedValueOnce([{ id: recordId }]); // the INSERT
+
+      const result = await service.createManualRecord(ctx, clientId, { ...recordInput, matterId });
+
+      expect(result).toBe(recordId);
+      const insertCall = tx.$queryRawUnsafe.mock.calls[1]!;
+      // matter_locked is a literal `true` in the SQL text itself (this INSERT
+      // never conditionally sets it false), not a bound parameter — assert
+      // against the query text, not the parameter array.
+      expect(String(insertCall[0])).toContain('matter_locked');
+      expect(String(insertCall[0])).toMatch(/\$12::uuid,\s*true,\s*\$13::uuid/);
+      expect(insertCall).toContain(matterId);
+    });
+
+    test('rejects assigning to a Matter that does not belong to this client', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe.mockResolvedValueOnce([]); // assertMatterBelongsToClient finds nothing
+
+      await expect(
+        service.createManualRecord(ctx, clientId, { ...recordInput, matterId: otherMatterId }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    test('creates a brand-new Matter in the same call and assigns the record to it', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe.mockResolvedValueOnce([{ id: matterId }]); // createMatter's own INSERT
+      tx.$queryRawUnsafe.mockResolvedValueOnce([{ id: recordId }]); // the record INSERT
+
+      const result = await service.createManualRecord(ctx, clientId, {
+        ...recordInput,
+        newMatter: { title: 'FY27 Ground Robotics Funding' },
+      });
+
+      expect(result).toBe(recordId);
+      const recordInsertCall = tx.$queryRawUnsafe.mock.calls[1]!;
+      expect(recordInsertCall).toContain(matterId); // the newly-created Matter's id
+    });
+
+    test('rejects specifying both an existing matterId and a newMatter in the same call', async () => {
+      const { service } = makeService();
+
+      await expect(
+        service.createManualRecord(ctx, clientId, { ...recordInput, matterId, newMatter: { title: 'Conflicting' } }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
   describe('updateMatter — outcome status evidence/confirmation gate', () => {
     test('rejects "successful" with no outcome evidence and no confirmation', async () => {
       const { service, tx } = makeService();
