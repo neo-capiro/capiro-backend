@@ -23,6 +23,10 @@ describe('Advocacy Matter architecture contract', () => {
     resolve(process.cwd(), 'prisma/migrations/20271231060000_advocacy_matter_direct_evidence_links/migration.sql'),
     'utf8',
   );
+  const publicSourceMigration = readFileSync(
+    resolve(process.cwd(), 'prisma/migrations/20271231070000_advocacy_matter_public_source_links/migration.sql'),
+    'utf8',
+  );
 
   it('exposes the Matter read/manage surface under the client route, review-gated for mutations', () => {
     expect(controller).toContain("@Controller('clients/:clientId/advocacy-matters')");
@@ -117,13 +121,51 @@ describe('Advocacy Matter architecture contract', () => {
   });
 
   it('treats a missing sp_strategy table as source-unavailable, not a hard crash — api-strategy owns that table', () => {
-    expect(service).toMatch(/linkStrategy[\s\S]{0,3000}catch/);
-    expect(service).toContain('sp_strategy read failed');
+    expect(service).toMatch(/linkStrategy[\s\S]{0,3000}readLinkSourceOrUnavailable\('sp_strategy'/);
+    expect(service).toMatch(/private async readLinkSourceOrUnavailable[\s\S]{0,400}BadRequestException/);
   });
 
   it('every new link column stays nullable so existing PR #1253 link rows are unaffected', () => {
     expect(directEvidenceMigration).toContain('ADD COLUMN IF NOT EXISTS relationship_type VARCHAR(32) NULL');
     expect(directEvidenceMigration).toContain('ADD COLUMN IF NOT EXISTS confidence NUMERIC(5,4) NULL');
     expect(directEvidenceMigration).toContain('ADD COLUMN IF NOT EXISTS provenance TEXT NULL');
+  });
+
+  it('supports the five public-source link types (regulatory_docket/regulatory_document/hearing/testimony/fara_record), admin-gated, PUBLIC_VERIFIED', () => {
+    expect(publicSourceMigration).toContain("'regulatory_docket'");
+    expect(publicSourceMigration).toContain("'regulatory_document'");
+    expect(publicSourceMigration).toContain("'hearing'");
+    expect(publicSourceMigration).toContain("'testimony'");
+    expect(publicSourceMigration).toContain("'fara_record'");
+    expect(publicSourceMigration).toContain('PUBLIC_VERIFIED');
+    expect(controller).toMatch(/@Post\(':matterId\/link-regulatory-docket'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+    expect(controller).toMatch(/@Post\(':matterId\/link-regulatory-document'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+    expect(controller).toMatch(/@Post\(':matterId\/link-hearing'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+    expect(controller).toMatch(/@Post\(':matterId\/link-testimony'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+    expect(controller).toMatch(/@Post\(':matterId\/link-fara-record'\)[\s\S]{0,60}@Roles\('user_admin'\)/);
+  });
+
+  it('does not fabricate CPF/CDS coverage — confirmed absent from the repo, deliberately not added', () => {
+    expect(publicSourceMigration).toMatch(/CPF[\s\S]{0,200}NOT added|deliberately NOT added[\s\S]{0,200}CPF/);
+    expect(publicSourceMigration).not.toContain("'cpf_request'");
+    expect(publicSourceMigration).not.toContain("'cds_request'");
+  });
+
+  it('hearing links require a deterministic committee-code match OR an explicit manual rationale — never silent auto-classification', () => {
+    expect(service).toMatch(/linkHearing[\s\S]{0,2500}confirmedByCommitteeCode/);
+    expect(service).toMatch(/confirmedByCommitteeCode[\s\S]{0,500}manualRationale/);
+  });
+
+  it('testimony links never fabricate a witness organization or document — honest about the coverage gap', () => {
+    expect(service).toMatch(/linkTestimony[\s\S]{0,2500}organization: null/);
+    expect(service).toMatch(/linkTestimony[\s\S]{0,2500}documentUrl: null/);
+  });
+
+  it('every public-source read failure is source-unavailable (400), never confused with a real zero-result (404)', () => {
+    expect(service).toContain('readLinkSourceOrUnavailable');
+    expect(service).toMatch(/readLinkSourceOrUnavailable\('regulatory_docket'/);
+    expect(service).toMatch(/readLinkSourceOrUnavailable\('federal_register_document'/);
+    expect(service).toMatch(/readLinkSourceOrUnavailable\('fara_registration'/);
+    expect(service).toMatch(/private async readLinkSourceOrUnavailable[\s\S]{0,400}BadRequestException/);
   });
 });

@@ -88,6 +88,7 @@ export interface AdvocacyMatterLink {
   relationshipType: string | null;
   confidence: number | null;
   provenance: string | null;
+  evidenceClass: string | null;
   metadata: Record<string, unknown>;
 }
 
@@ -956,6 +957,11 @@ function LinkRow({ link }: { link: AdvocacyMatterLink }) {
     mail_thread: 'Email thread',
     outreach: 'Outreach',
     strategy: link.relationshipType === 'completed_action' ? 'Strategy (completed)' : 'Strategy (planned)',
+    regulatory_docket: 'Regulations.gov',
+    regulatory_document: 'Federal Register',
+    hearing: 'Committee hearing',
+    testimony: 'Testimony',
+    fara_record: 'FARA registration',
   };
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>

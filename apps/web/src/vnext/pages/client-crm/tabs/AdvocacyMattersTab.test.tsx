@@ -124,7 +124,7 @@ describe('ClientCrmAdvocacyMattersProto', () => {
             linkCount: 1,
           }),
           records: [recordFixture()],
-          links: [{ id: 'link-1', linkType: 'bill', linkKey: '119-hr-1234', label: 'NDAA language', relationshipType: null, confidence: null, provenance: null, metadata: {} }],
+          links: [{ id: 'link-1', linkType: 'bill', linkKey: '119-hr-1234', label: 'NDAA language', relationshipType: null, confidence: null, provenance: null, evidenceClass: null, metadata: {} }],
         },
       };
     });

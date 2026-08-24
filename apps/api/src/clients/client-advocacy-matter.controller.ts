@@ -105,6 +105,43 @@ class LinkStrategyDto {
   relationshipType!: 'planned_action' | 'completed_action';
 }
 
+class LinkRegulatoryDocketDto {
+  @IsString()
+  @MaxLength(64)
+  documentId!: string;
+}
+
+class LinkRegulatoryDocumentDto {
+  @IsString()
+  @MaxLength(64)
+  documentNumber!: string;
+}
+
+class LinkHearingDto {
+  @IsUUID()
+  hearingId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  manualRationale?: string;
+}
+
+class LinkTestimonyDto {
+  @IsUUID()
+  hearingId!: string;
+
+  @IsString()
+  @MaxLength(300)
+  witnessName!: string;
+}
+
+class LinkFaraRecordDto {
+  @IsString()
+  @MaxLength(64)
+  registrationNumber!: string;
+}
+
 /**
  * Advocacy Matter read/manage surface (product spec: "the central
  * abstraction is an Advocacy Matter"). This is a thin API over
@@ -246,5 +283,60 @@ export class ClientAdvocacyMatterController {
       nodeId: body.nodeId ?? null,
       relationshipType: body.relationshipType,
     });
+  }
+
+  @Post(':matterId/link-regulatory-docket')
+  @Roles('user_admin')
+  linkRegulatoryDocket(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+    @Body() body: LinkRegulatoryDocketDto,
+  ) {
+    return this.matters.linkRegulatoryDocket(ctx, clientId, matterId, body.documentId);
+  }
+
+  @Post(':matterId/link-regulatory-document')
+  @Roles('user_admin')
+  linkRegulatoryDocument(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+    @Body() body: LinkRegulatoryDocumentDto,
+  ) {
+    return this.matters.linkRegulatoryDocument(ctx, clientId, matterId, body.documentNumber);
+  }
+
+  @Post(':matterId/link-hearing')
+  @Roles('user_admin')
+  linkHearing(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+    @Body() body: LinkHearingDto,
+  ) {
+    return this.matters.linkHearing(ctx, clientId, matterId, body.hearingId, body.manualRationale ?? null);
+  }
+
+  @Post(':matterId/link-testimony')
+  @Roles('user_admin')
+  linkTestimony(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+    @Body() body: LinkTestimonyDto,
+  ) {
+    return this.matters.linkTestimony(ctx, clientId, matterId, body.hearingId, body.witnessName);
+  }
+
+  @Post(':matterId/link-fara-record')
+  @Roles('user_admin')
+  linkFaraRecord(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('matterId') matterId: string,
+    @Body() body: LinkFaraRecordDto,
+  ) {
+    return this.matters.linkFaraRecord(ctx, clientId, matterId, body.registrationNumber);
   }
 }

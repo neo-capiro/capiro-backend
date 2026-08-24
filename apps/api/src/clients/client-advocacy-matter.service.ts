@@ -65,6 +65,7 @@ export interface AdvocacyMatterDetail extends AdvocacyMatterSummary {
     relationshipType: string | null;
     confidence: number | null;
     provenance: string | null;
+    evidenceClass: string | null;
     metadata: Record<string, unknown>;
   }>;
 }
@@ -284,25 +285,27 @@ export class ClientAdvocacyMatterService {
     ctx: TenantContext,
     matterId: string,
     input: {
-      linkType: 'meeting' | 'mail_thread' | 'outreach' | 'strategy';
+      linkType: 'meeting' | 'mail_thread' | 'outreach' | 'strategy' | 'regulatory_docket' | 'regulatory_document' | 'hearing' | 'testimony' | 'fara_record';
       linkKey: string;
       label: string | null;
       relationshipType: string | null;
       confidence: number | null;
       provenance: string | null;
+      evidenceClass?: 'PUBLIC_VERIFIED' | 'CLIENT_VERIFIED' | 'PRIVATE_ACTIVITY' | 'INFERRED' | null;
       metadata: Record<string, unknown>;
     },
   ): Promise<void> {
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await tx.$executeRawUnsafe(
         `INSERT INTO client_advocacy_matter_link
-           (tenant_id, matter_id, link_type, link_key, label, relationship_type, confidence, provenance, metadata_jsonb, created_by_user_id)
-         VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7::numeric, $8, $9::jsonb, $10::uuid)
+           (tenant_id, matter_id, link_type, link_key, label, relationship_type, confidence, provenance, evidence_class, metadata_jsonb, created_by_user_id)
+         VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7::numeric, $8, $9, $10::jsonb, $11::uuid)
          ON CONFLICT (matter_id, link_type, link_key) DO UPDATE
            SET label = COALESCE(EXCLUDED.label, client_advocacy_matter_link.label),
                relationship_type = COALESCE(EXCLUDED.relationship_type, client_advocacy_matter_link.relationship_type),
                confidence = COALESCE(EXCLUDED.confidence, client_advocacy_matter_link.confidence),
                provenance = COALESCE(EXCLUDED.provenance, client_advocacy_matter_link.provenance),
+               evidence_class = COALESCE(EXCLUDED.evidence_class, client_advocacy_matter_link.evidence_class),
                metadata_jsonb = client_advocacy_matter_link.metadata_jsonb || EXCLUDED.metadata_jsonb`,
         ctx.tenantId,
         matterId,
@@ -312,6 +315,7 @@ export class ClientAdvocacyMatterService {
         input.relationshipType,
         input.confidence,
         input.provenance,
+        input.evidenceClass ?? null,
         JSON.stringify(input.metadata),
         ctx.userId,
       );
@@ -461,9 +465,8 @@ export class ClientAdvocacyMatterService {
     await this.assertClient(ctx, clientId);
     await this.assertMatterBelongsToClient(ctx, clientId, matterId);
 
-    let row: { strategyTitle: string; nodeId: string | null; nodeTitle: string | null; subject: string | null } | null;
-    try {
-      const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+    const rows = await this.readLinkSourceOrUnavailable('sp_strategy', () =>
+      this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.$queryRawUnsafe<Array<{ strategyTitle: string; nodeId: string | null; nodeTitle: string | null; subject: string | null }>>(
           `SELECT s.title AS "strategyTitle", n.id::text AS "nodeId", n.title AS "nodeTitle", n.subject::text AS subject
              FROM sp_strategy s
@@ -476,12 +479,9 @@ export class ClientAdvocacyMatterService {
           input.strategyId,
           input.nodeId ?? null,
         ),
-      );
-      row = rows[0] ?? null;
-    } catch (error) {
-      this.logger.warn(`sp_strategy read failed for Matter link (treated as source unavailable): ${this.safeError(error)}`);
-      throw new BadRequestException('Strategy source is unavailable — cannot link right now');
-    }
+      ),
+    );
+    const row = rows[0] ?? null;
     if (!row) throw new NotFoundException('Strategy not found or not associated with this client');
 
     await this.insertDirectEvidenceLink(ctx, matterId, {
@@ -510,6 +510,285 @@ export class ClientAdvocacyMatterService {
       ),
     );
     if (rows.length === 0) throw new NotFoundException('Advocacy matter not found');
+  }
+
+  /** Fetches a Matter's own primary_pe_code/primary_bill_id — the deterministic
+   *  identifiers a public-source link must match against to count as
+   *  defensible (spec section 12: "Client matching must use defensible
+   *  identity evidence. No loose company-name attribution."). Throws if the
+   *  Matter doesn't exist for this client (folds assertMatterBelongsToClient's
+   *  check in, so callers only need one round trip). */
+  private async getMatterIdentifiers(
+    ctx: TenantContext,
+    clientId: string,
+    matterId: string,
+  ): Promise<{ primaryPeCode: string | null; primaryBillId: string | null }> {
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.$queryRawUnsafe<Array<{ primaryPeCode: string | null; primaryBillId: string | null }>>(
+        `SELECT primary_pe_code AS "primaryPeCode", primary_bill_id AS "primaryBillId"
+           FROM client_advocacy_matter WHERE tenant_id = $1::uuid AND client_id = $2::uuid AND id = $3::uuid`,
+        ctx.tenantId,
+        clientId,
+        matterId,
+      ),
+    );
+    if (rows.length === 0) throw new NotFoundException('Advocacy matter not found');
+    return rows[0]!;
+  }
+
+  /** Runs a source read for a Matter link and converts any thrown error into
+   *  a source-unavailable BadRequestException (never silently reinterpreted
+   *  as "not found" / zero results — spec sections 10/13/26). A resolved
+   *  `null`/absent result is NOT converted here; that's a real zero-result
+   *  and callers throw their own NotFoundException for it. */
+  private async readLinkSourceOrUnavailable<T>(sourceName: string, read: () => Promise<T>): Promise<T> {
+    try {
+      return await read();
+    } catch (error) {
+      this.logger.warn(`${sourceName} read failed for Matter link (treated as source unavailable): ${this.safeError(error)}`);
+      throw new BadRequestException(`${sourceName} source is unavailable — cannot link right now`);
+    }
+  }
+
+  /**
+   * Link a Regulations.gov / Federal Register docket document into a
+   * Matter (product spec section 10). `regulatory_docket` is a GLOBAL
+   * table (no tenant_id, no RLS, shared across all tenants) so there is no
+   * per-tenant access gate to enforce on the source record itself — the
+   * tenant/client scoping lives entirely on the link row. Evidence class
+   * is always PUBLIC_VERIFIED. A genuinely absent document_id is a real
+   * NotFoundException (the underlying query succeeded, zero rows) —
+   * distinct from a query failure, which is reported as source-unavailable
+   * so "not found" is never confused with "we couldn't check."
+   */
+  async linkRegulatoryDocket(ctx: TenantContext, clientId: string, matterId: string, documentId: string): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+
+    let doc: { title: string; agencyId: string; docketId: string | null; postedDate: Date | null; documentType: string } | null;
+    doc = await this.readLinkSourceOrUnavailable('regulatory_docket', () =>
+      this.prisma.regulatoryDocket.findUnique({
+        where: { documentId },
+        select: { title: true, agencyId: true, docketId: true, postedDate: true, documentType: true },
+      }),
+    );
+    if (!doc) throw new NotFoundException('Regulatory docket not found');
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'regulatory_docket',
+      linkKey: documentId,
+      label: doc.title,
+      relationshipType: null,
+      confidence: null,
+      provenance: null,
+      evidenceClass: 'PUBLIC_VERIFIED',
+      metadata: {
+        occurredAt: doc.postedDate?.toISOString() ?? null,
+        agencyId: doc.agencyId,
+        docketId: doc.docketId,
+        documentType: doc.documentType,
+        sourceUrl: `https://www.regulations.gov/document/${encodeURIComponent(documentId)}`,
+      },
+    });
+  }
+
+  /**
+   * Link a Federal Register document into a Matter. Same global-table
+   * pattern as linkRegulatoryDocket. `docketIds`/`cfrReferences` on the
+   * source row are captured as-is so the UI can show what the document
+   * itself claims to relate to, without Capiro asserting a relationship
+   * the document doesn't state.
+   */
+  async linkRegulatoryDocument(ctx: TenantContext, clientId: string, matterId: string, documentNumber: string): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+
+    let doc: {
+      title: string;
+      type: string;
+      agencyNames: string[];
+      publicationDate: Date;
+      docketIds: string[];
+      htmlUrl: string | null;
+    } | null;
+    doc = await this.readLinkSourceOrUnavailable('federal_register_document', () =>
+      this.prisma.federalRegisterDocument.findUnique({
+        where: { documentNumber },
+        select: { title: true, type: true, agencyNames: true, publicationDate: true, docketIds: true, htmlUrl: true },
+      }),
+    );
+    if (!doc) throw new NotFoundException('Federal Register document not found');
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'regulatory_document',
+      linkKey: documentNumber,
+      label: doc.title,
+      relationshipType: null,
+      confidence: null,
+      provenance: null,
+      evidenceClass: 'PUBLIC_VERIFIED',
+      metadata: {
+        occurredAt: doc.publicationDate.toISOString(),
+        documentType: doc.type,
+        agencyNames: doc.agencyNames,
+        docketIds: doc.docketIds,
+        sourceUrl: doc.htmlUrl,
+      },
+    });
+  }
+
+  /**
+   * Link a congressional committee hearing into a Matter (product spec
+   * section 11). Auto-suggestable ONLY when the hearing's own
+   * committee_system_code matches a committee actually tied to the
+   * Matter's primary_bill_id (via congress_bill_committee — a deterministic
+   * code match, not title/text similarity); otherwise the caller must pass
+   * `manualRationale` so the link is still recorded as a reviewable,
+   * explicitly-inferred finding rather than an automatic claim (spec:
+   * "Do not classify every appearance as advocacy automatically. Create
+   * reviewable findings when the relationship is inferred.").
+   */
+  async linkHearing(
+    ctx: TenantContext,
+    clientId: string,
+    matterId: string,
+    hearingId: string,
+    manualRationale?: string | null,
+  ): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    const { primaryBillId } = await this.getMatterIdentifiers(ctx, clientId, matterId);
+
+    let hearing: { title: string; committeeName: string; committeeSystemCode: string | null; date: Date; chamber: string; url: string | null } | null;
+    hearing = await this.readLinkSourceOrUnavailable('committee_hearing', () =>
+      this.prisma.committeeHearing.findUnique({
+        where: { id: hearingId },
+        select: { title: true, committeeName: true, committeeSystemCode: true, date: true, chamber: true, url: true },
+      }),
+    );
+    if (!hearing) throw new NotFoundException('Committee hearing not found');
+
+    let confirmedByCommitteeCode = false;
+    if (primaryBillId && hearing.committeeSystemCode) {
+      const committeeMatch = await this.prisma.congressBillCommittee.findFirst({
+        where: { billId: primaryBillId, committeeCode: hearing.committeeSystemCode },
+        select: { id: true },
+      });
+      confirmedByCommitteeCode = committeeMatch != null;
+    }
+    if (!confirmedByCommitteeCode && !manualRationale) {
+      throw new BadRequestException(
+        'This hearing is not deterministically linked to the Matter\'s tracked bill committee — provide manualRationale to record it as an inferred, reviewable finding',
+      );
+    }
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'hearing',
+      linkKey: hearingId,
+      label: hearing.title,
+      relationshipType: null,
+      confidence: confirmedByCommitteeCode ? 1 : null,
+      provenance: confirmedByCommitteeCode ? 'Matter bill\'s committee code matches this hearing\'s committee.' : manualRationale ?? null,
+      evidenceClass: 'PUBLIC_VERIFIED',
+      metadata: {
+        occurredAt: hearing.date.toISOString(),
+        committeeName: hearing.committeeName,
+        chamber: hearing.chamber,
+        sourceUrl: hearing.url,
+      },
+    });
+  }
+
+  /**
+   * Link a specific witness's testimony at a hearing into a Matter.
+   * HONEST COVERAGE GAP: `committee_hearing.witnesses` is a bare
+   * `text[]` of names — there is no canonical testimony-document/title/
+   * organization row anywhere in this repo (confirmed absent by audit).
+   * This method can therefore only confirm the witness NAME appears in
+   * that array; it cannot verify witness organization or fetch a
+   * testimony document/title, because Capiro has no canonical source for
+   * either. Metadata is honest about this — `documentUrl`/`organization`
+   * are always null here, never fabricated.
+   */
+  async linkTestimony(
+    ctx: TenantContext,
+    clientId: string,
+    matterId: string,
+    hearingId: string,
+    witnessName: string,
+  ): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+
+    let hearing: { title: string; committeeName: string; date: Date; witnesses: string[]; url: string | null } | null;
+    hearing = await this.readLinkSourceOrUnavailable('committee_hearing', () =>
+      this.prisma.committeeHearing.findUnique({
+        where: { id: hearingId },
+        select: { title: true, committeeName: true, date: true, witnesses: true, url: true },
+      }),
+    );
+    if (!hearing) throw new NotFoundException('Committee hearing not found');
+    const matchedWitness = hearing.witnesses.find((w) => w.toLowerCase() === witnessName.toLowerCase());
+    if (!matchedWitness) throw new NotFoundException('Witness not found on this hearing\'s witness list');
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'testimony',
+      linkKey: `${hearingId}::${matchedWitness}`,
+      label: `${matchedWitness} — ${hearing.title}`,
+      relationshipType: null,
+      confidence: null,
+      provenance: null,
+      evidenceClass: 'PUBLIC_VERIFIED',
+      metadata: {
+        occurredAt: hearing.date.toISOString(),
+        witness: matchedWitness,
+        // Honest gap: no canonical per-witness organization or testimony
+        // document exists in this repo. Never fabricated.
+        organization: null,
+        documentUrl: null,
+        hearingUrl: hearing.url,
+      },
+    });
+  }
+
+  /**
+   * Link a FARA registration into a Matter (product spec section 13).
+   * `fara_registration` is a GLOBAL table (no tenant_id) holding the
+   * registration itself — there is no separate canonical filing/activity
+   * sub-row in this repo, so `filing`/`activity` in metadata mirror the
+   * registration's own fields rather than a distinct filing event. A
+   * genuinely missing registration number is NotFoundException; a query
+   * failure is source-unavailable, never silently reported as "0 FARA
+   * records" (spec: "No FARA record is not equivalent to source checked
+   * successfully unless the source actually completed.").
+   */
+  async linkFaraRecord(ctx: TenantContext, clientId: string, matterId: string, registrationNumber: string): Promise<void> {
+    await this.assertClient(ctx, clientId);
+    await this.assertMatterBelongsToClient(ctx, clientId, matterId);
+
+    let record: { registrantName: string; foreignPrincipal: string; status: string | null; registrationDate: Date | null } | null;
+    record = await this.readLinkSourceOrUnavailable('fara_registration', () =>
+      this.prisma.faraRegistration.findUnique({
+        where: { registrationNumber },
+        select: { registrantName: true, foreignPrincipal: true, status: true, registrationDate: true },
+      }),
+    );
+    if (!record) throw new NotFoundException('FARA registration not found');
+
+    await this.insertDirectEvidenceLink(ctx, matterId, {
+      linkType: 'fara_record',
+      linkKey: registrationNumber,
+      label: `${record.registrantName} — ${record.foreignPrincipal}`,
+      relationshipType: null,
+      confidence: null,
+      provenance: null,
+      evidenceClass: 'PUBLIC_VERIFIED',
+      metadata: {
+        occurredAt: record.registrationDate?.toISOString() ?? null,
+        registrantName: record.registrantName,
+        foreignPrincipal: record.foreignPrincipal,
+        status: record.status,
+      },
+    });
   }
 
   private safeError(error: unknown): string {
@@ -668,12 +947,13 @@ export class ClientAdvocacyMatterService {
           relationshipType: string | null;
           confidence: number | null;
           provenance: string | null;
+          evidenceClass: string | null;
           metadata: unknown;
         }>
       >(
         `SELECT id, link_type AS "linkType", link_key AS "linkKey", label,
                 relationship_type AS "relationshipType", confidence, provenance,
-                metadata_jsonb AS metadata
+                evidence_class AS "evidenceClass", metadata_jsonb AS metadata
            FROM client_advocacy_matter_link
           WHERE tenant_id = $1::uuid AND matter_id = $2::uuid
           ORDER BY created_at DESC`,
@@ -731,6 +1011,7 @@ export class ClientAdvocacyMatterService {
         relationshipType: l.relationshipType,
         confidence: l.confidence != null ? Number(l.confidence) : null,
         provenance: l.provenance,
+        evidenceClass: l.evidenceClass,
         metadata: asRecord(l.metadata),
       })),
     };
