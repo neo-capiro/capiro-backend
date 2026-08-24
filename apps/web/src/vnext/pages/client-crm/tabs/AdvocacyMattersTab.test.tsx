@@ -387,4 +387,80 @@ describe('ClientCrmAdvocacyMattersProto', () => {
     expect(screen.getByText('Active ask')).toBeInTheDocument();
     expect(screen.getByText('Won ask')).toBeInTheDocument();
   });
+
+  it('§18/19 Timeline: toggling to Timeline fetches and renders cross-Matter entries chronologically, distinct from the Matters list', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/advocacy-matters')) return { data: [matterFixture()] };
+      if (url.endsWith('/advocacy-matters/timeline')) {
+        return {
+          data: [
+            {
+              id: 'link-1', kind: 'link', title: 'HASC staff meeting', subtype: 'meeting',
+              date: '2026-03-12T00:00:00.000Z', evidenceClass: 'PRIVATE_ACTIVITY', confidence: 1,
+              matterId: 'matter-1', matterTitle: '0605053A Program Element',
+            },
+            {
+              id: 'rec-1', kind: 'record', title: 'FY27 ground robotics funding ask', subtype: 'client_submission',
+              date: '2026-01-10T00:00:00.000Z', evidenceClass: 'CLIENT_VERIFIED', confidence: 1,
+              matterId: 'matter-1', matterTitle: '0605053A Program Element',
+            },
+          ],
+        };
+      }
+      return { data: { ...matterFixture(), records: [], links: [] } };
+    });
+    renderMatters();
+
+    await waitFor(() => expect(screen.getByText('0605053A Program Element')).toBeInTheDocument());
+    // Timeline hasn't been requested yet — the toggle is enabled: subView === 'timeline'.
+    expect(getMock).not.toHaveBeenCalledWith(expect.stringContaining('/timeline'));
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Timeline' }));
+
+    await waitFor(() => expect(screen.getByText('HASC staff meeting')).toBeInTheDocument());
+    expect(screen.getByText('FY27 ground robotics funding ask')).toBeInTheDocument();
+    // Chronological, newest first — the meeting (March) renders before the
+    // submission (January) regardless of API response order.
+    const titles = screen.getAllByText(/HASC staff meeting|FY27 ground robotics funding ask/).map((el) => el.textContent);
+    expect(titles).toEqual(['HASC staff meeting', 'FY27 ground robotics funding ask']);
+  });
+
+  it('§18/19 Timeline: a genuinely unassigned entry shows "Unassigned" instead of a broken/missing Matter link', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/advocacy-matters')) return { data: [matterFixture()] };
+      if (url.endsWith('/advocacy-matters/timeline')) {
+        return {
+          data: [
+            {
+              id: 'rec-unassigned', kind: 'record', title: 'Unassigned candidate', subtype: 'client_submission',
+              date: '2026-01-05T00:00:00.000Z', evidenceClass: 'CLIENT_VERIFIED', confidence: 1,
+              matterId: null, matterTitle: null,
+            },
+          ],
+        };
+      }
+      return { data: { ...matterFixture(), records: [], links: [] } };
+    });
+    renderMatters();
+
+    await waitFor(() => expect(screen.getByText('0605053A Program Element')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: 'Timeline' }));
+
+    await waitFor(() => expect(screen.getByText('Unassigned candidate')).toBeInTheDocument());
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+  });
+
+  it('§18/19 Timeline: shows the real empty state when the client has no advocacy activity at all', async () => {
+    getMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/advocacy-matters')) return { data: [matterFixture()] };
+      if (url.endsWith('/advocacy-matters/timeline')) return { data: [] };
+      return { data: { ...matterFixture(), records: [], links: [] } };
+    });
+    renderMatters();
+
+    await waitFor(() => expect(screen.getByText('0605053A Program Element')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('tab', { name: 'Timeline' }));
+
+    await waitFor(() => expect(screen.getByText('No advocacy activity yet')).toBeInTheDocument());
+  });
 });

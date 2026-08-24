@@ -70,6 +70,26 @@ export interface AdvocacyMatterDetail extends AdvocacyMatterSummary {
   }>;
 }
 
+/** §18/19 Timeline: one flat, chronological row spanning every Matter for a
+ *  client. `kind` distinguishes a durable client_advocacy_record from a
+ *  client_advocacy_matter_link so the UI can render each with the right
+ *  affordance (a record opens its own detail; a link's `subtype` is one of
+ *  the 13 link types and may open the authoritative Capiro/public object).
+ *  matterId/matterTitle are null only for a genuinely unassigned record —
+ *  every link always belongs to exactly one Matter (client_advocacy_matter_
+ *  link.matter_id is NOT NULL at the schema level). */
+export interface AdvocacyTimelineEntry {
+  id: string;
+  kind: 'record' | 'link';
+  title: string;
+  subtype: string;
+  date: string | null;
+  evidenceClass: string | null;
+  confidence: number | null;
+  matterId: string | null;
+  matterTitle: string | null;
+}
+
 /**
  * Advocacy Matter: the grouping abstraction over Advocacy History.
  *
@@ -1015,6 +1035,119 @@ export class ClientAdvocacyMatterService {
         metadata: asRecord(l.metadata),
       })),
     };
+  }
+
+  /**
+   * §18/19 Timeline: one chronological view across EVERY Matter for this
+   * client, not per-Matter. Two shapes feed it, exactly the same as
+   * getMatter but joined across the whole client instead of one matter_id:
+   * client_advocacy_record rows (not_advocacy excluded, same as getMatter)
+   * and client_advocacy_matter_link rows, each carrying its own Matter's id
+   * and title so a Timeline row can link back to the Matter it belongs to.
+   * A record/link with matter_id NULL (genuinely unassigned — §25's
+   * "unassigned is a valid state") still appears, with matterId/matterTitle
+   * null, rather than being silently dropped from the one place a client
+   * user would look to see everything that happened.
+   *
+   * Strategy links are still excluded from date-based ordering exactly as
+   * they are from the per-Matter lifecycle view (buildLifecycle on the web
+   * side) — a plan has no occurredAt, so it cannot be placed on a
+   * chronology, and fabricating one would misrepresent when nothing
+   * actually happened.
+   */
+  async getTimeline(ctx: TenantContext, clientId: string): Promise<AdvocacyTimelineEntry[]> {
+    await this.assertClient(ctx, clientId);
+    const [records, links] = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const recordRows = await tx.$queryRawUnsafe<
+        Array<{
+          id: string;
+          recordType: string;
+          title: string;
+          activityDate: Date | null;
+          evidenceClass: string;
+          confidence: number;
+          matterId: string | null;
+          matterTitle: string | null;
+        }>
+      >(
+        `SELECT r.id, r.record_type AS "recordType", r.title, r.activity_date AS "activityDate",
+                r.evidence_class AS "evidenceClass", r.confidence,
+                r.matter_id AS "matterId", m.title AS "matterTitle"
+           FROM client_advocacy_record r
+           LEFT JOIN client_advocacy_matter m ON m.id = r.matter_id AND m.tenant_id = r.tenant_id
+          WHERE r.tenant_id = $1::uuid AND r.client_id = $2::uuid AND r.not_advocacy = false
+          ORDER BY r.activity_date DESC NULLS LAST, r.created_at DESC
+          LIMIT 500`,
+        ctx.tenantId,
+        clientId,
+      );
+      const linkRows = await tx.$queryRawUnsafe<
+        Array<{
+          id: string;
+          linkType: string;
+          label: string | null;
+          linkKey: string;
+          evidenceClass: string | null;
+          confidence: number | null;
+          metadata: unknown;
+          matterId: string;
+          matterTitle: string;
+        }>
+      >(
+        `SELECT l.id, l.link_type AS "linkType", l.label, l.link_key AS "linkKey",
+                l.evidence_class AS "evidenceClass", l.confidence, l.metadata_jsonb AS metadata,
+                l.matter_id AS "matterId", m.title AS "matterTitle"
+           FROM client_advocacy_matter_link l
+           JOIN client_advocacy_matter m ON m.id = l.matter_id AND m.tenant_id = l.tenant_id
+          WHERE l.tenant_id = $1::uuid AND m.client_id = $2::uuid
+          ORDER BY l.created_at DESC
+          LIMIT 500`,
+        ctx.tenantId,
+        clientId,
+      );
+      return [recordRows, linkRows] as const;
+    });
+
+    const entries: AdvocacyTimelineEntry[] = [];
+    for (const r of records) {
+      entries.push({
+        id: r.id,
+        kind: 'record',
+        title: r.title,
+        subtype: r.recordType,
+        date: r.activityDate?.toISOString() ?? null,
+        evidenceClass: r.evidenceClass,
+        confidence: Number(r.confidence),
+        matterId: r.matterId,
+        matterTitle: r.matterTitle,
+      });
+    }
+    for (const l of links) {
+      const occurredAt = asString(asRecord(l.metadata).occurredAt);
+      if (!occurredAt) continue; // strategy (no date) and any undated link never enter the timeline — never fabricate one
+      entries.push({
+        id: l.id,
+        kind: 'link',
+        title: l.label ?? l.linkKey,
+        subtype: l.linkType,
+        date: occurredAt,
+        evidenceClass: l.evidenceClass,
+        confidence: l.confidence != null ? Number(l.confidence) : null,
+        matterId: l.matterId,
+        matterTitle: l.matterTitle,
+      });
+    }
+    // Undated entries (a record with no activity_date) sort last, not first
+    // — nulls-last matches every other chronological query in this file
+    // (getMatter's records, gatherAdvocacyHistory's LDA filings) rather than
+    // inventing a different convention just for this one view.
+    entries.sort((a, b) => {
+      if (a.date && b.date) return b.date.localeCompare(a.date);
+      if (a.date) return -1;
+      if (b.date) return 1;
+      return 0;
+    });
+    return entries.slice(0, 500);
   }
 
   /**

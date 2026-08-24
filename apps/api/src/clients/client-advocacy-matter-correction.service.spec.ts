@@ -298,4 +298,91 @@ describe('ClientAdvocacyMatterService — correction UX', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
+
+  describe('getTimeline (§18/19, cross-Matter chronology)', () => {
+    test('merges records and links from different Matters into one chronological list, newest first', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([
+          {
+            id: 'rec-1', recordType: 'client_submission', title: 'Older record',
+            activityDate: new Date('2026-01-10T00:00:00.000Z'), evidenceClass: 'CLIENT_VERIFIED',
+            confidence: 1, matterId, matterTitle: 'Matter A',
+          },
+        ])
+        .mockResolvedValueOnce([
+          {
+            id: 'link-1', linkType: 'meeting', label: 'Newer meeting', linkKey: 'meeting-1',
+            evidenceClass: 'PRIVATE_ACTIVITY', confidence: 1,
+            metadata: { occurredAt: '2026-03-01T00:00:00.000Z' },
+            matterId: otherMatterId, matterTitle: 'Matter B',
+          },
+        ]);
+
+      const result = await service.getTimeline(ctx, clientId);
+
+      expect(result).toHaveLength(2);
+      expect(result[0]!.id).toBe('link-1'); // 2026-03-01 sorts before 2026-01-10
+      expect(result[0]!.matterTitle).toBe('Matter B');
+      expect(result[1]!.id).toBe('rec-1');
+      expect(result[1]!.matterTitle).toBe('Matter A');
+    });
+
+    test('a genuinely unassigned record still appears, with matterId/matterTitle null, rather than being dropped', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([
+          {
+            id: 'rec-unassigned', recordType: 'client_submission', title: 'Unassigned record',
+            activityDate: new Date('2026-01-10T00:00:00.000Z'), evidenceClass: 'CLIENT_VERIFIED',
+            confidence: 1, matterId: null, matterTitle: null,
+          },
+        ])
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getTimeline(ctx, clientId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]!.matterId).toBeNull();
+      expect(result[0]!.matterTitle).toBeNull();
+    });
+
+    test('a link with no occurredAt (Strategy-shaped metadata) never enters the timeline — never fabricates a date', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            id: 'link-strategy', linkType: 'strategy', label: 'FY27 objective', linkKey: 'strategy-1',
+            evidenceClass: null, confidence: null,
+            metadata: { strategyId: 'strategy-1', causationClaimed: false }, // no occurredAt
+            matterId, matterTitle: 'Matter A',
+          },
+        ]);
+
+      const result = await service.getTimeline(ctx, clientId);
+
+      expect(result).toHaveLength(0);
+    });
+
+    test('an undated record sorts last, not first — matches the nulls-last convention used everywhere else in this file', async () => {
+      const { service, tx } = makeService();
+      tx.$queryRawUnsafe
+        .mockResolvedValueOnce([
+          {
+            id: 'rec-dated', recordType: 'client_submission', title: 'Dated', activityDate: new Date('2026-01-10T00:00:00.000Z'),
+            evidenceClass: 'CLIENT_VERIFIED', confidence: 1, matterId, matterTitle: 'Matter A',
+          },
+          {
+            id: 'rec-undated', recordType: 'client_submission', title: 'Undated', activityDate: null,
+            evidenceClass: 'CLIENT_VERIFIED', confidence: 1, matterId, matterTitle: 'Matter A',
+          },
+        ])
+        .mockResolvedValueOnce([]);
+
+      const result = await service.getTimeline(ctx, clientId);
+
+      expect(result.map((e) => e.id)).toEqual(['rec-dated', 'rec-undated']);
+    });
+  });
 });

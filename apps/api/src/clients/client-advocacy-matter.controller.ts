@@ -225,6 +225,15 @@ export class ClientAdvocacyMatterController {
     return this.matters.listMatters(ctx, clientId);
   }
 
+  // Registered BEFORE @Get(':matterId') — Express/NestJS matches routes in
+  // registration order, so 'timeline' as a literal segment must come first
+  // or a request to GET .../timeline would instead bind matterId='timeline'
+  // and 404 inside getMatter.
+  @Get('timeline')
+  timeline(@CurrentTenant() ctx: TenantContext, @Param('clientId') clientId: string) {
+    return this.matters.getTimeline(ctx, clientId);
+  }
+
   @Get(':matterId')
   get(
     @CurrentTenant() ctx: TenantContext,

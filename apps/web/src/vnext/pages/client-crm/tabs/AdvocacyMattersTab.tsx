@@ -11,6 +11,7 @@ import {
   PfButton,
   TabPageHead,
   UIcon,
+  SegmentedTabs,
   type PillTone,
 } from '../portfolio-primitives.js';
 import { formatDateShort } from '../../../lib/labels.js';
@@ -61,6 +62,24 @@ export interface AdvocacyMatterSummary {
   linkCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+/** §18/19 Timeline: one row spanning every Matter for this client. Mirrors
+ *  the backend's AdvocacyTimelineEntry exactly (client-advocacy-matter.
+ *  service.ts) — kind distinguishes a durable record from a link so the
+ *  row can carry the right subtype vocabulary (record_type vs. one of the
+ *  13 link types); matterId/matterTitle are null only for a genuinely
+ *  unassigned record. */
+export interface AdvocacyTimelineEntry {
+  id: string;
+  kind: 'record' | 'link';
+  title: string;
+  subtype: string;
+  date: string | null;
+  evidenceClass: string | null;
+  confidence: number | null;
+  matterId: string | null;
+  matterTitle: string | null;
 }
 
 export interface AdvocacyMatterRecord {
@@ -168,6 +187,33 @@ const EVIDENCE_LABEL: Record<string, string> = {
   INFERRED: 'Inferred',
 };
 
+/** Static subtype labels shared by TimelineCard for both entry kinds
+ *  (client_advocacy_record.record_type and client_advocacy_matter_link.
+ *  link_type share one label space here since a Timeline row only ever
+ *  shows one). Deliberately omits 'strategy' — Strategy links never reach
+ *  the Timeline at all (no occurredAt; see getTimeline's own doc comment
+ *  on the backend), so there is no live callsite that would need its
+ *  relationshipType-conditional label. LinkRow keeps its own local map for
+ *  that one case; this one is intentionally static, not a duplicate meant
+ *  to stay in sync with it. */
+const TIMELINE_SUBTYPE_LABEL: Record<string, string> = {
+  client_submission: 'Client submission',
+  federal_lobbying: 'LDA filing',
+  advocacy_meeting: 'Meeting (inferred)',
+  advocacy_correspondence: 'Correspondence (inferred)',
+  program_element: 'Program Element',
+  bill: 'Bill',
+  outcome_event: 'Observed outcome',
+  meeting: 'Meeting',
+  mail_thread: 'Email thread',
+  outreach: 'Outreach',
+  regulatory_docket: 'Regulations.gov',
+  regulatory_document: 'Federal Register',
+  hearing: 'Committee hearing',
+  testimony: 'Testimony',
+  fara_record: 'FARA registration',
+};
+
 function useIsAdvocacyAdmin(): boolean {
   const me = useMe();
   return me.data ? isTenantAdmin(me.data.role) : false;
@@ -181,11 +227,26 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
   const [creating, setCreating] = useState(false);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  // §18/19: Matters is still the primary view (per the routing decision in
+  // client-crm-routing.ts, Advocacy has not been promoted to its own
+  // top-level tab this closeout) — Timeline is a secondary sub-view
+  // reached via an in-page toggle, not a new URL param, matching the
+  // existing pattern of keeping secondary-view state local to a tab
+  // component rather than growing the shared route contract for every
+  // internal toggle a tab wants.
+  const [subView, setSubView] = useState<'matters' | 'timeline'>('matters');
 
   const matters = useQuery<AdvocacyMatterSummary[]>({
     queryKey: ['client-advocacy-matters', client.id],
     queryFn: async () =>
       (await api.get<AdvocacyMatterSummary[]>(`/api/clients/${client.id}/advocacy-matters`)).data,
+  });
+
+  const timeline = useQuery<AdvocacyTimelineEntry[]>({
+    queryKey: ['client-advocacy-timeline', client.id],
+    queryFn: async () =>
+      (await api.get<AdvocacyTimelineEntry[]>(`/api/clients/${client.id}/advocacy-matters/timeline`)).data,
+    enabled: subView === 'timeline',
   });
 
   const refreshList = () => void qc.invalidateQueries({ queryKey: ['client-advocacy-matters', client.id] });
@@ -244,6 +305,16 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
           ) : undefined
         }
       />
+      <SegmentedTabs
+        ariaLabel="Advocacy view"
+        options={[
+          { key: 'matters', label: 'Matters' },
+          { key: 'timeline', label: 'Timeline' },
+        ]}
+        value={subView}
+        onChange={setSubView}
+      />
+      {subView === 'matters' ? (
       <Card>
         <CardHead
           title="Matters"
@@ -311,6 +382,14 @@ export function ClientCrmAdvocacyMattersProto({ client }: { client: Client }) {
           <CardFoot left={`${rows.length} matter${rows.length === 1 ? '' : 's'}`} right={<span />} />
         ) : null}
       </Card>
+      ) : (
+        <TimelineCard
+          entries={timeline.data ?? []}
+          loading={!timeline.data && !timeline.isError}
+          failed={timeline.isError}
+          onOpenMatter={(id) => setOpenMatterId(id)}
+        />
+      )}
 
       {openMatterId ? (
         <AdvocacyMatterDrawer
@@ -448,6 +527,100 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
     >
       {label}
     </button>
+  );
+}
+
+/** §18/19 Timeline: one card, one flat chronology across every Matter for
+ *  this client — the "what happened, in order, regardless of which ask it
+ *  belongs to" view the Matters list cannot answer (Matters groups BY ask;
+ *  Timeline deliberately does not). Each row still names its Matter (or
+ *  "Unassigned") so a user can jump back into Matters-grouped context from
+ *  any single event. */
+function TimelineCard({
+  entries,
+  loading,
+  failed,
+  onOpenMatter,
+}: {
+  entries: AdvocacyTimelineEntry[];
+  loading: boolean;
+  failed: boolean;
+  onOpenMatter: (matterId: string) => void;
+}) {
+  const genuinelyEmpty = !loading && !failed && entries.length === 0;
+  return (
+    <Card>
+      <CardHead
+        title="Timeline"
+        description="Every advocacy record and linked activity for this client, across all Matters, in chronological order."
+        withDesc
+      />
+      <div style={{ padding: '2px 24px 8px' }}>
+        {failed ? (
+          <PfEmptyState
+            title="Couldn't load the timeline"
+            hint="Try again, or re-run Fill with Meri's Advocacy History specialist."
+          />
+        ) : loading ? (
+          [0, 1, 2].map((i) => <MatterSkeletonRow key={i} last={i === 2} />)
+        ) : genuinelyEmpty ? (
+          <PfEmptyState
+            title="No advocacy activity yet"
+            hint="Activity appears here once Fill with Meri applies an advocacy record or a Matter link is created."
+          />
+        ) : (
+          entries.map((entry, i) => (
+            <TimelineRow
+              key={`${entry.kind}-${entry.id}`}
+              entry={entry}
+              last={i === entries.length - 1}
+              onOpenMatter={entry.matterId ? () => onOpenMatter(entry.matterId!) : undefined}
+            />
+          ))
+        )}
+      </div>
+      {entries.length > 0 ? (
+        <CardFoot left={`${entries.length} activity item${entries.length === 1 ? '' : 's'}`} right={<span />} />
+      ) : null}
+    </Card>
+  );
+}
+
+function TimelineRow({
+  entry,
+  last,
+  onOpenMatter,
+}: {
+  entry: AdvocacyTimelineEntry;
+  last: boolean;
+  onOpenMatter: (() => void) | undefined;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px 0',
+        borderBottom: last ? 'none' : '1px solid #F2F0EB',
+      }}
+    >
+      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span style={{ fontSize: 14, fontWeight: 500, color: '#101828' }}>{entry.title}</span>
+        <span style={{ fontSize: 12, color: '#667085' }}>
+          {TIMELINE_SUBTYPE_LABEL[entry.subtype] ?? entry.subtype}
+          {entry.date ? ` · ${formatDateShort(entry.date)}` : ' · Undated'}
+          {entry.evidenceClass ? ` · ${EVIDENCE_LABEL[entry.evidenceClass] ?? entry.evidenceClass}` : ''}
+        </span>
+        {onOpenMatter ? (
+          <PfButton variant="link" size="sm" onClick={onOpenMatter} style={{ alignSelf: 'flex-start', padding: 0 }}>
+            {entry.matterTitle ?? 'View matter'}
+          </PfButton>
+        ) : (
+          <span style={{ fontSize: 12, color: '#98A2B3' }}>Unassigned</span>
+        )}
+      </span>
+      {entry.confidence != null && entry.confidence < 1 ? (
+        <Pill tone="gray" size="sm" dotless>{Math.round(entry.confidence * 100)}% confidence</Pill>
+      ) : null}
+    </div>
   );
 }
 
