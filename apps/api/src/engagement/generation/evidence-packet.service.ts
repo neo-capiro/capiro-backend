@@ -50,6 +50,18 @@ import type { GaPolicy } from './government-affairs-policy.registry.js';
 export interface EnrichmentChannel {
   /** Stable source type recorded on the evidence ref. */
   sourceType: string;
+  /**
+   * Optional stable identity for this specific channel, used as the evidence
+   * `sourceId` instead of the derived `${sourceType}:${scope}`.
+   *
+   * The derived form cannot distinguish two channels that share a sourceType and
+   * scope, which forced callers with many same-typed sources to smuggle identity
+   * into `sourceType` — producing 130-char source ids that a planner could not
+   * cite back accurately (live Outreach V3 generation outage, 2026-08-24).
+   * Callers with a natural per-source key should pass it here and keep
+   * `sourceType` short and genuinely type-like.
+   */
+  sourceKey?: string;
   /** Human label for the manifest. */
   title: string;
   /** Trust class — enrichment is mostly server_record or external_untrusted. */
@@ -207,7 +219,7 @@ export class EvidencePacketService {
         evidence.push({
           ref: {
             sourceType: channel.sourceType,
-            sourceId: `${channel.sourceType}:${channel.scope}`,
+            sourceId: channel.sourceKey ?? `${channel.sourceType}:${channel.scope}`,
             title: channel.title,
             clientId: request.clientId,
             recipientKeys: channel.scope === 'all' ? [] : [channel.scope],

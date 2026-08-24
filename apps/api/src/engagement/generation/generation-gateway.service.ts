@@ -519,6 +519,16 @@ export class GenerationGatewayService {
     } catch (e) {
       if (e instanceof MessagePlanInvalidError) {
         // §4.22: an invalid plan means NO drafting call is made.
+        //
+        // Log the validator codes. This used to return silently, which combined
+        // with the worker dropping `planIssues` to make a 100%-failing campaign
+        // completely undiagnosable from logs or DB (live 2026-08-24). Codes only —
+        // messages/subjects can quote packet evidence, so they stay in the DB row.
+        this.logger.warn(
+          `message plan rejected for ${recipient.recipientKey}: ${e.issues
+            .map((i) => i.code)
+            .join(', ')}`,
+        );
         return {
           outcome: 'blocked',
           generationKey: recipient.generationKey,

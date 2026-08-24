@@ -43,6 +43,64 @@ import type { ReasoningEffort } from './reasoning-effort.js';
 export const MESSAGE_PLAN_MAX_OUTPUT_TOKENS = 16384;
 
 /**
+ * Sentinel marking a citation variant that two distinct evidence refs both
+ * normalize to. Such a variant must never resolve, or a claim could be silently
+ * attributed to the wrong source — the whole point of check #2.
+ */
+const AMBIGUOUS_SOURCE = '\u0000ambiguous';
+
+/**
+ * Normalize a cited source id for comparison. Case/whitespace/quote-insensitive
+ * and tolerant of `:` vs `-` vs `/` segment separators, because those are the
+ * differences reasoning models actually introduce when echoing a long id. It is
+ * NOT tolerant of missing or extra segments — those still fail to resolve.
+ */
+export function normalizeSourceId(raw: string | null | undefined): string {
+  if (!raw) return '';
+  return raw
+    .trim()
+    .replace(/^["'<[(]+|["'>\])]+$/g, '')
+    .toLowerCase()
+    .replace(/[:\-/_\s]+/g, ':')
+    .replace(/^:+|:+$/g, '');
+}
+
+/**
+ * Every accepted spelling of one evidence ref's source id, canonical first.
+ *
+ * Outreach V3 sets `sourceId` to the raw internal contextKey, which already
+ * embeds the sourceType and ends in a `:<scope>` suffix — e.g.
+ * `outreach_v3:government_record:lda_filing:campaign_fact:campaign:government_record:lda_filing:<uuid>:all`
+ * for sourceType `outreach_v3:government_record:lda_filing`. A planner that
+ * re-prefixes the type, writes the id once without it, or drops the trailing
+ * scope is citing the same source and must resolve.
+ */
+export function sourceIdVariants(sourceType: string, sourceId: string): string[] {
+  const out = new Set<string>([sourceId]);
+  const addTrimmed = (base: string): void => {
+    out.add(base);
+    // Drop a trailing scope suffix (":all" / ":<recipient-key>") — but never cut
+    // so far that the remainder is just the sourceType, which identifies no
+    // single evidence row.
+    const cut = base.lastIndexOf(':');
+    if (cut > 0 && base.slice(0, cut).length > sourceType.length) {
+      out.add(base.slice(0, cut));
+    }
+  };
+  addTrimmed(sourceId);
+  for (const sep of [':', '-']) {
+    const prefix = `${sourceType}${sep}`;
+    // A planner may re-prefix the type, or omit a prefix already inside the id.
+    out.add(`${prefix}${sourceId}`);
+    if (sourceId.toLowerCase().startsWith(prefix.toLowerCase())) {
+      addTrimmed(sourceId.slice(prefix.length));
+    }
+  }
+  // Never accept a variant short enough to collide across refs.
+  return [...out].filter((v) => v.trim().length >= 8);
+}
+
+/**
  * Models known to honor strict JSON schema output. The plan requires the fast
  * model be used "only when it supports strict JSON" — an unknown BYOK model id
  * is treated as NOT supporting it, so the draft model is used instead. Guessing
@@ -220,16 +278,41 @@ export class MessagePlanService {
     }
 
     // 2. Every supported claim must cite evidence PRESENT in the packet.
-    const knownSourceIds = new Set<string>();
+    //
+    // Citation matching is deliberately TOLERANT of formatting while remaining
+    // STRICT about provenance: a citation must still resolve to exactly one real
+    // packet evidence ref, but the planner is not required to reproduce a 130-char
+    // internal context key byte-for-byte.
+    //
+    // Why: Outreach V3 context refs use the raw internal contextKey as sourceId
+    // (outreach-v3-generation-context.ts), which yields ids like
+    //   outreach_v3:government_record:lda_filing:campaign_fact:campaign:government_record:lda_filing:<uuid>:all
+    // where the sourceType is itself a PREFIX of the sourceId and the middle
+    // segments repeat. Asking a reasoning model to echo that exactly, for every
+    // claim, made CLAIM_CITES_UNKNOWN_SOURCE fire on essentially every
+    // congressional-office campaign (live 2026-08-24: 51/51 then 49/39/23 items
+    // MESSAGE_PLAN_INVALID with zero drafts). The model had the right evidence and
+    // the right claim; it lost on transcription. Exact-match-only is the defect.
+    const canonicalById = new Map<string, string>();
+    const register = (variant: string | null | undefined, canonical: string): void => {
+      const key = normalizeSourceId(variant);
+      if (!key) return;
+      const existing = canonicalById.get(key);
+      // An ambiguous variant (two different evidence refs collapsing to the same
+      // normalized key) is never silently resolved — drop it so the citation is
+      // reported unknown rather than mapped to the wrong source.
+      canonicalById.set(key, existing && existing !== canonical ? AMBIGUOUS_SOURCE : canonical);
+    };
     for (const e of packet.evidence) {
-      knownSourceIds.add(e.ref.sourceId);
-      // Accept the composite form too, so a planner echoing "bill-hr1234" or
-      // "email:all" resolves rather than being rejected on formatting.
-      knownSourceIds.add(`${e.ref.sourceType}-${e.ref.sourceId}`);
-      knownSourceIds.add(`${e.ref.sourceType}:${e.ref.sourceId}`);
+      for (const variant of sourceIdVariants(e.ref.sourceType, e.ref.sourceId)) {
+        register(variant, e.ref.sourceId);
+      }
     }
     for (const claim of plan.supportedClaims) {
-      const unknown = claim.sourceIds.filter((id) => !knownSourceIds.has(id.trim()));
+      const unknown = claim.sourceIds.filter((id) => {
+        const resolved = canonicalById.get(normalizeSourceId(id));
+        return !resolved || resolved === AMBIGUOUS_SOURCE;
+      });
       if (unknown.length) {
         issues.push({
           code: 'CLAIM_CITES_UNKNOWN_SOURCE',

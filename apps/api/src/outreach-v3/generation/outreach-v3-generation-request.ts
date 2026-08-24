@@ -89,10 +89,31 @@ export function buildOutreachV3GatewayUnit(
   const enrichments: EnrichmentChannel[] = [];
   const auditLedger: LedgerEntry[] = [];
   for (const entry of input.prepared.serverEvidence) {
-    const packetSourceType = `${entry.sourceType}:${entry.contextKey}`;
-    const packetSourceId = `${packetSourceType}:all`;
+    // The packet's own sourceId is `${sourceType}:${scope}` (evidence-packet.service),
+    // so sourceType must stay SHORT and must not re-state what the contextKey
+    // already says.
+    //
+    // This used to be `${entry.sourceType}:${entry.contextKey}` — but
+    // outreach-v3-generation-context.ts derives sourceType FROM the same locator
+    // the contextKey is built from, so the type was always already a prefix of the
+    // key. The concatenation produced a 129-char type and a 133-char id like:
+    //
+    //   outreach_v3:government_record:lda_filing:campaign_fact:campaign:government_record:lda_filing:<uuid>:all
+    //    \________________ sourceType ________/ \_______ contextKey (repeats it) ______/ \_/
+    //
+    // The plan prompt shows that id to the model and check #2
+    // (CLAIM_CITES_UNKNOWN_SOURCE) required it back byte-exact for every claim.
+    // Verified live 2026-08-24: campaigns failed with 0 sendable drafts because
+    // the planner could not transcribe it. The contextKey alone is already unique
+    // per selected source, so the prefix bought nothing and cost every draft.
+    const packetSourceType = entry.sourceType;
+    const packetSourceId = entry.contextKey;
     enrichments.push({
       sourceType: packetSourceType,
+      // Carry the stable per-source identity explicitly rather than letting it be
+      // re-derived from `${sourceType}:${scope}`, which cannot distinguish two
+      // selected sources that share a type.
+      sourceKey: entry.contextKey,
       title: entry.title,
       trust: entry.trust,
       scope: 'all',
@@ -105,7 +126,7 @@ export function buildOutreachV3GatewayUnit(
       authoritativeAsOf: entry.authoritativeAsOf,
     });
     auditLedger.push({
-      tool: `outreach_evidence:${packetSourceType}`,
+      tool: `outreach_evidence:${entry.contextKey}`,
       serialized: entry.text,
       result: {
         sourceType: packetSourceType,

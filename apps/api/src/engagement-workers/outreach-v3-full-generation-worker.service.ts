@@ -573,7 +573,34 @@ function safeGenerationResult(result: GenerationResult): Record<string, unknown>
     ...(result.auditStatus ? { auditStatus: result.auditStatus } : {}),
     ...(result.approvalStatus ? { approvalStatus: result.approvalStatus } : {}),
     ...(result.contextNote ? { contextNote: result.contextNote } : {}),
+    // Persist WHY a plan was rejected, not just that it was.
+    //
+    // MessagePlanInvalidError carries the specific validator codes
+    // (CLAIM_CITES_UNKNOWN_SOURCE, CLAIM_MISSING_AS_OF, PLAN_INTENT_NOT_ALLOWED, …)
+    // but generation-gateway swallows the error into `{outcome:'blocked'}` with no
+    // log line, and this function used to drop `planIssues` on the floor. The
+    // result was a campaign that failed 51/51 items with a bare
+    // `MESSAGE_PLAN_INVALID` code and NO recoverable evidence anywhere — DB, logs,
+    // or metrics — of which of the nine deterministic checks actually tripped
+    // (live 2026-08-24; diagnosing it required replaying the provider call).
+    // Bounded to keep a pathological plan from bloating the row.
+    ...(result.planIssues?.length
+      ? { planIssues: result.planIssues.slice(0, 12).map(boundPlanIssue) }
+      : {}),
     manifest: result.manifest,
+  };
+}
+
+/** Keep one persisted plan issue small and free of prompt/PII spillover. */
+function boundPlanIssue(issue: {
+  code: string;
+  message?: string;
+  subject?: string;
+}): Record<string, unknown> {
+  return {
+    code: issue.code,
+    ...(issue.message ? { message: issue.message.slice(0, 300) } : {}),
+    ...(issue.subject ? { subject: issue.subject.slice(0, 200) } : {}),
   };
 }
 

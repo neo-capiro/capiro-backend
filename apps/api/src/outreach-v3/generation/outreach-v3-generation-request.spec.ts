@@ -258,11 +258,14 @@ describe('Outreach V3 gateway request compiler', () => {
     expect(await unit.enrichments[0]!.load()).toBe('Exact bounded fact A');
     expect(unit.auditLedger).toEqual([
       expect.objectContaining({
-        tool: 'outreach_evidence:outreach_v3:memory_item:fact-a',
+        tool: 'outreach_evidence:fact-a',
         serialized: 'Exact bounded fact A',
         result: expect.objectContaining({
-          sourceType: 'outreach_v3:memory_item:fact-a',
-          sourceId: 'outreach_v3:memory_item:fact-a:all',
+          // sourceType stays a genuine TYPE; per-source identity is the contextKey.
+          // Previously both were `outreach_v3:memory_item:fact-a`, which for real
+          // V3 context produced 130-char ids the planner could not cite back.
+          sourceType: 'outreach_v3:memory_item',
+          sourceId: 'fact-a',
           contextKey: 'fact-a',
           truncated: true,
         }),
@@ -304,12 +307,68 @@ describe('Outreach V3 gateway request compiler', () => {
       spec,
       prepared: preparedSlot,
     });
+    // Two sources of the SAME type must remain individually addressable. Identity
+    // now rides `sourceKey` (the contextKey) rather than being smuggled into
+    // `sourceType`, so the type stays short and citable.
     expect(unit.enrichments.map((entry) => entry.sourceType)).toEqual([
-      'outreach_v3:memory_item:fact-a',
-      'outreach_v3:memory_item:fact-b',
+      'outreach_v3:memory_item',
+      'outreach_v3:memory_item',
     ]);
+    expect(unit.enrichments.map((entry) => entry.sourceKey)).toEqual(['fact-a', 'fact-b']);
+    // The identity the planner actually has to cite is the packet's sourceId,
+    // which resolves from sourceKey — assert it is unique per source.
+    const packetSourceIds = unit.enrichments.map(
+      (entry) => entry.sourceKey ?? `${entry.sourceType}:${entry.scope}`,
+    );
+    expect(new Set(packetSourceIds).size).toBe(2);
+    expect(
+      unit.auditLedger.map((entry) => (entry.result as { sourceId: string }).sourceId),
+    ).toEqual(['fact-a', 'fact-b']);
     expect(unit.auditLedger.map((entry) => entry.serialized)).toEqual(['A text', 'B text']);
     expect(unit.enrichments[0]?.scope).toBe('all');
+  });
+
+  it('keeps V3 evidence source ids short and free of repeated segments', () => {
+    // Regression for the live 2026-08-24 outage: the compiler used to build
+    // sourceType = `${sourceType}:${contextKey}` and sourceId = `${that}:all`.
+    // Because sourceType is derived from the same locator the contextKey encodes,
+    // the result repeated whole segments and ran to 133 chars, which the planner
+    // could not echo byte-exact — every claim tripped CLAIM_CITES_UNKNOWN_SOURCE
+    // and no draft call was ever made.
+    const spec = createBlankCampaignSpecV1();
+    const generationSlot = slot('directory_staff:staff-1');
+    const preparedSlot = prepared(generationSlot);
+    const realContextKey =
+      'campaign_fact:campaign:government_record:lda_filing:4ff509f7-2b21-4e49-b11d-ba7c4ac4dc4a';
+    preparedSlot.serverEvidence = [
+      {
+        contextKey: realContextKey,
+        sourceType: 'outreach_v3:government_record:lda_filing',
+        sourceId: realContextKey,
+        title: 'CAREER START',
+        text: 'bounded fact',
+        truncated: false,
+        trust: 'authoritative_structured',
+        clientId: null,
+        authoritativeAsOf: '2026-07-20T17:52:07.000Z',
+      },
+    ];
+
+    const unit = buildOutreachV3GatewayUnit({
+      plan: plan(generationSlot),
+      spec,
+      prepared: preparedSlot,
+    });
+
+    const citedId = (unit.auditLedger[0]!.result as { sourceId: string }).sourceId;
+    // The old broken id was 133 chars; the type alone was 129.
+    expect(citedId.length).toBeLessThan(100);
+    expect(unit.enrichments[0]!.sourceType.length).toBeLessThan(50);
+    // No segment may appear twice — self-similarity is what broke transcription.
+    const segments = citedId.split(':');
+    expect(new Set(segments).size).toBe(segments.length);
+    // And the type must not be redundantly re-stated as a prefix of the id.
+    expect(citedId.startsWith(unit.enrichments[0]!.sourceType)).toBe(false);
   });
 
   it('carries a manual target\'s declared audience through as an explicit override', () => {
