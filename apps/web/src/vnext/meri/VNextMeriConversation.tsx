@@ -409,64 +409,19 @@ function ResearchClarifyInline({ controller }: { controller: MeriChatController 
   const [answers, setAnswers] = useState<Record<number, string>>({});
 
   return (
-    <div
-      style={{
-        borderRadius: 'var(--meri-radius)',
-        background: 'var(--meri-surface)',
-        boxShadow: 'var(--meri-shadow-card)',
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 11,
-          padding: '15px 18px',
-          borderBottom: '1px solid var(--meri-border)',
-          background: 'var(--meri-accent-soft)',
-        }}
-      >
-        <span
-          style={{
-            flex: '0 0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 26,
-            height: 26,
-            borderRadius: 7,
-            background: 'var(--meri-accent)',
-            color: 'var(--capiro-color-text-inverse-primary)',
-            fontSize: 13,
-          }}
-        >
+    <div className="vnext-meri__research-clarify">
+      <div className="vnext-meri__research-clarify-head">
+        <span className="vnext-meri__research-clarify-icon">
           <MeriIcon name="HelpCircle" size={13} color="#ffffff" />
         </span>
-        <span
-          style={{
-            flex: 1,
-            minWidth: 0,
-            fontSize: 14,
-            fontWeight: 600,
-            color: 'var(--meri-accent)',
-          }}
-        >
+        <span className="vnext-meri__research-clarify-title">
           A few quick questions before I dig in
         </span>
       </div>
-      <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 15 }}>
+      <div className="vnext-meri__research-clarify-body">
         {controller.researchQuestions.map((question, i) => (
-          <label key={question} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 500,
-                color: 'var(--meri-ink)',
-              }}
-            >
-              {question}
-            </span>
+          <label key={question} className="vnext-meri__research-clarify-question">
+            <span className="vnext-meri__research-clarify-question-label">{question}</span>
             <textarea
               value={answers[i] ?? ''}
               rows={1}
@@ -475,35 +430,12 @@ function ResearchClarifyInline({ controller }: { controller: MeriChatController 
               onChange={(event) =>
                 setAnswers((prev) => ({ ...prev, [i]: event.target.value }))
               }
-              style={{
-                width: '100%',
-                border: 0,
-                outline: 'none',
-                borderRadius: 'var(--meri-radius-sm)',
-                background: 'var(--meri-surface-2)',
-                boxShadow: 'var(--meri-shadow-composer)',
-                padding: '10px 12px',
-                fontSize: 13,
-                lineHeight: '20px',
-                color: 'var(--meri-ink)',
-                minHeight: 40,
-                maxHeight: 110,
-                overflowY: 'auto',
-                resize: 'none',
-              }}
+              className="vnext-meri__research-clarify-textarea"
             />
           </label>
         ))}
       </div>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: 10,
-          padding: '0 18px 16px',
-        }}
-      >
+      <div className="vnext-meri__research-clarify-actions">
         <button
           type="button"
           className="vnext-meri__new-chat-btn"
@@ -560,53 +492,16 @@ function PendingApprovalsInline({ controller }: { controller: MeriChatController
   }, [bulkOpen, proposedApprovals.length]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div
-        style={{
-          display: 'flex',
-          gap: 13,
-          padding: '15px 17px',
-          borderRadius: 11,
-          background: 'var(--meri-dark-ink)',
-        }}
-      >
-        <span
-          style={{
-            flex: '0 0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 22,
-            height: 22,
-            borderRadius: 6,
-            background: 'var(--meri-accent)',
-            color: 'var(--capiro-color-text-inverse-primary)',
-            marginTop: 1,
-          }}
-        >
+    <div className="vnext-meri__pending-approvals">
+      <div className="vnext-meri__pending-approvals-banner">
+        <span className="vnext-meri__pending-approvals-banner-icon">
           <MeriIcon name="Lock01" size={13} color="#ffffff" />
         </span>
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span
-            style={{
-              display: 'block',
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'var(--capiro-color-text-inverse-primary)',
-            }}
-          >
+        <span className="vnext-meri__pending-approvals-banner-body">
+          <span className="vnext-meri__pending-approvals-banner-title">
             Your approval is required before Meri executes a governed action.
           </span>
-          <span
-            style={{
-              display: 'block',
-              marginTop: 6,
-              fontFamily: 'var(--meri-font-mono)',
-              fontSize: 11,
-              lineHeight: 18,
-              color: 'var(--capiro-color-text-inverse-muted)',
-            }}
-          >
+          <span className="vnext-meri__pending-approvals-banner-caption">
             REVIEW THE ACTION, SCOPE, AND RISK. MERI WILL NOT EXECUTE A HELD WRITE WITHOUT YOUR
             EXPLICIT APPROVAL.
           </span>
@@ -618,43 +513,18 @@ function PendingApprovalsInline({ controller }: { controller: MeriChatController
         const outcome = proposalOutcome(proposal.resultSummary) || proposal.error?.message || null;
         const active = controller.approvingProposalId === proposal.proposalId;
         return (
-          <div
-            key={proposal.proposalId}
-            style={{
-              borderRadius: 'var(--meri-radius)',
-              background: 'var(--meri-surface)',
-              boxShadow: 'var(--meri-shadow-card)',
-              padding: '16px 18px',
-            }}
-          >
-            <div
-              style={{
-                fontFamily: 'var(--meri-font-mono)',
-                fontSize: 10,
-                fontWeight: 500,
-                letterSpacing: '0.1em',
-                color: 'var(--meri-text-muted)',
-              }}
-            >
+          <div key={proposal.proposalId} className="vnext-meri__pending-approval-card">
+            <div className="vnext-meri__pending-approval-status">
               {proposalStatusLabel(proposal.status)} · {proposal.preview.label.toUpperCase()}
             </div>
-            <div
-              style={{
-                marginTop: 8,
-                fontSize: 14,
-                lineHeight: 21,
-                color: 'var(--meri-text-secondary)',
-              }}
-            >
-              {proposal.reason}
-            </div>
+            <div className="vnext-meri__pending-approval-reason">{proposal.reason}</div>
             {outcome ? (
               <div className="vnext-meri__attachment-notice" style={{ marginTop: 10 }}>
                 {outcome}
               </div>
             ) : null}
             {canApprove || canDismiss ? (
-              <div style={{ display: 'flex', gap: 9, marginTop: 14 }}>
+              <div className="vnext-meri__pending-approval-actions">
                 {canApprove ? (
                   <button
                     type="button"
