@@ -200,6 +200,7 @@ export function VNextMeriReasoningControl({
         aria-expanded={open}
         aria-label={`Reasoning depth: ${selected.label}`}
       >
+        <MeriIcon name="Speedometer03" size={12} color="#667085" />
         <span className="vnext-meri__reasoning-label">DEPTH · {selected.label.toUpperCase()}</span>
         <MeriIcon name="ChevronDown" size={12} color="#98A2B3" />
       </button>
