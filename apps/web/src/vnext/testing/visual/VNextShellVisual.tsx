@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { VNEXT_ROUTE_MANIFEST } from '../../adapters/routes/routeManifest.js';
@@ -18,11 +19,24 @@ import {
 } from '../fixtures/directory.js';
 import { DIRECTORY_ROUTES } from '../../pages/directory/directory-routes.js';
 import { ClientProfileShell } from '../../pages/client-crm/ClientProfileShell.js';
+import { AccordionSection } from '../../pages/client-crm/AccordionSection.js';
+import { DRAWER_META, drawerKeyForRoute } from '../../pages/client-crm/DrawerRail.js';
+import { SegmentedTabs } from '../../pages/client-crm/portfolio-primitives.js';
+import {
+  RELATIONSHIP_VIEW_LABELS,
+  INTELLIGENCE_VIEWS,
+  type CrmSurface,
+  type CrmView,
+  type RelationshipView,
+  type IntelligenceView,
+} from '../../pages/client-crm/client-crm-routing.js';
+import type { Client } from '../../../pages/clients/clientTypes.js';
 import { ClientCrmOverviewProto } from '../../pages/client-crm/tabs/OverviewTab.js';
 import { ClientCrmCapabilitiesProto } from '../../pages/client-crm/tabs/CapabilitiesTab.js';
 import { ClientCrmOrganizationProto } from '../../pages/client-crm/tabs/RelationshipsOrgTab.js';
 import { ClientCrmGovernmentProto } from '../../pages/client-crm/tabs/RelationshipsGovTab.js';
 import { ClientCrmHistoryProto } from '../../pages/client-crm/tabs/RelationshipsHistoryTab.js';
+import { ClientCrmAdvocacyMattersProto } from '../../pages/client-crm/tabs/AdvocacyMattersTab.js';
 import { ClientCrmWorkProto } from '../../pages/client-crm/tabs/WorkTab.js';
 import { ClientCrmIntelligenceProto } from '../../pages/client-crm/tabs/IntelligenceTab.js';
 import { ClientCrmFilesProto } from '../../pages/client-crm/tabs/FilesTab.js';
@@ -124,14 +138,21 @@ export function VNextShellVisual({
   intelView = 'legislative',
   relView = 'organization',
   crmOverlay,
+  openSections,
   attnState,
 }: {
   collapsed?: boolean;
   screen?: VNextVisualScreen;
-  crmTab?: 'overview' | 'capabilities' | 'relationships' | 'work' | 'intelligence' | 'files';
-  intelView?: 'legislative' | 'funding' | 'footprint' | 'district';
-  relView?: 'organization' | 'government' | 'history';
+  crmTab?: CrmSurface;
+  intelView?: IntelligenceView;
+  relView?: RelationshipView;
   crmOverlay?: 'person' | 'target' | 'strategy' | 'health' | 'hierarchy' | 'move' | 'toast';
+  /** Phase 4: forces additional record sections open on top of whichever one
+   *  `crmTab`/`relView`/`intelView` already targets — e.g. `['timeline',
+   *  'advocacy']` to capture the whole section stack expanded at once, since
+   *  only one route-target section auto-expands at a time otherwise (same as
+   *  production — see `ClientCrmSectionsFixture` below). */
+  openSections?: readonly ClientCrmSectionId[];
   /** Forces Needs Attention into one of the six named states (754:2885) —
    * ModuleStateView is shared across all four modules, so this exercises the
    * same render path every module's state block uses. Dashboard-only. */
@@ -141,6 +162,20 @@ export function VNextShellVisual({
     attnState && DASHBOARD_STATE_FIXTURES[attnState]
       ? DASHBOARD_STATE_FIXTURES[attnState]
       : DASHBOARD_VISUAL_FIXTURE;
+
+  // Phase 4: the same (tab, view) shape ClientCrmPage derives from the URL via
+  // resolveCrmRoute — built directly from the fixture props here since this
+  // harness has no real route to parse. Drives DrawerRail/AccordionSection
+  // exactly as production does, so relView='history'|'matters' now expands
+  // the Timeline/Advocacy section instead of opening the drawer.
+  const crmRoute: { tab: CrmSurface; view: CrmView | null } =
+    crmTab === 'relationships'
+      ? { tab: 'relationships', view: relView }
+      : crmTab === 'intelligence'
+        ? { tab: 'intelligence', view: intelView }
+        : { tab: crmTab, view: null };
+  const crmDrawerKey = drawerKeyForRoute(crmRoute.tab, crmRoute.view);
+  const crmDrawerRow = crmDrawerKey ? DRAWER_META.find((row) => row.key === crmDrawerKey) : undefined;
 
   return (
     <QueryClientProvider client={harnessQueryClient}>
@@ -158,11 +193,13 @@ export function VNextShellVisual({
           initialCollapsed={collapsed}
         >
           {screen === 'client-crm' ? (
-            // Client CRM — Portfolio prototype shell + body (proto tabs).
+            // Client CRM — Portfolio prototype shell (Phase 4: drawer rail +
+            // accordion-section stack, mirroring ClientCrmPage.tsx's own
+            // ClientCrmBody/ClientCrmDrawerBody split).
             <ClientProfileShell
               client={CLIENT_CRM_VISUAL_CLIENT}
-              tab={crmTab}
-              view={null}
+              tab={crmRoute.tab}
+              view={crmRoute.view}
               onNavigate={() => undefined}
               onFillWithMeri={() => undefined}
               onDataHealth={() => undefined}
@@ -177,26 +214,16 @@ export function VNextShellVisual({
               canEditFocus
               canArchive
               onArchive={() => undefined}
+              drawerContent={
+                crmDrawerRow ? (
+                  <ClientCrmDrawerBodyFixture client={CLIENT_CRM_VISUAL_CLIENT} tab={crmRoute.tab} relView={relView} />
+                ) : null
+              }
+              drawerTitle={crmDrawerRow?.label}
+              drawerSub={crmDrawerRow?.detail}
+              onCloseDrawer={() => undefined}
             >
-              {crmTab === 'overview' ? (
-                <ClientCrmOverviewProto client={CLIENT_CRM_VISUAL_CLIENT} />
-              ) : crmTab === 'capabilities' ? (
-                <ClientCrmCapabilitiesProto client={CLIENT_CRM_VISUAL_CLIENT} />
-              ) : crmTab === 'relationships' ? (
-                relView === 'government' ? (
-                  <ClientCrmGovernmentProto client={CLIENT_CRM_VISUAL_CLIENT} />
-                ) : relView === 'history' ? (
-                  <ClientCrmHistoryProto client={CLIENT_CRM_VISUAL_CLIENT} />
-                ) : (
-                  <ClientCrmOrganizationProto client={CLIENT_CRM_VISUAL_CLIENT} />
-                )
-              ) : crmTab === 'work' ? (
-                <ClientCrmWorkProto client={CLIENT_CRM_VISUAL_CLIENT} />
-              ) : crmTab === 'intelligence' ? (
-                <ClientCrmIntelligenceProto client={CLIENT_CRM_VISUAL_CLIENT} view={intelView} />
-              ) : (
-                <ClientCrmFilesProto client={CLIENT_CRM_VISUAL_CLIENT} />
-              )}
+              <ClientCrmSectionsFixture client={CLIENT_CRM_VISUAL_CLIENT} route={crmRoute} openSections={openSections} />
             </ClientProfileShell>
           ) : screen === 'dashboard' ? (
             <DashboardVNextView model={dashboardModel} />
@@ -248,6 +275,155 @@ export function VNextShellVisual({
         </div>
       </MemoryRouter>
     </QueryClientProvider>
+  );
+}
+
+/* ── Client CRM body fixtures (Phase 4: drawer rail + accordion mirror) ──────
+ * ClientCrmPage.tsx computes its accordion stack and drawer body inline via
+ * two module-private functions (`ClientCrmBody`/`ClientCrmDrawerBody`) built
+ * from `sectionForRoute`/`SECTION_COPY`, also private. Reused below where
+ * exported (`AccordionSection`, `DRAWER_META`, `drawerKeyForRoute`); rebuilt
+ * verbatim where not, so this harness keeps rendering the identical
+ * structure production does instead of drifting back out of sync.
+ */
+
+type ClientCrmSectionId = 'overview' | 'timeline' | 'advocacy' | 'intelligence';
+
+const CLIENT_CRM_SECTION_COPY: Record<ClientCrmSectionId, { title: string; sub?: string }> = {
+  overview: { title: 'Overview' },
+  timeline: {
+    title: 'Timeline',
+    sub: 'The shared institutional record of what happened between your firm and this client.',
+  },
+  advocacy: {
+    title: 'Advocacy history',
+    sub: 'What this client asked for, and what happened. Submissions are recorded against the capability they support.',
+  },
+  intelligence: {
+    title: 'Intelligence',
+    sub: 'Four domains read from the client-intelligence surface.',
+  },
+};
+
+function sectionForCrmRoute(route: { tab: CrmSurface; view: CrmView | null }): ClientCrmSectionId | null {
+  if (route.tab === 'overview') return 'overview';
+  if (route.tab === 'relationships' && route.view === 'history') return 'timeline';
+  if (route.tab === 'relationships' && route.view === 'matters') return 'advocacy';
+  if (route.tab === 'intelligence') return 'intelligence';
+  return null;
+}
+
+/** Mirrors ClientCrmPage.tsx's private `ClientCrmBody` — the always-mounted
+ *  Overview/Timeline/Advocacy history/Intelligence accordion stack. Overview
+ *  plus whichever section `route` targets start expanded, same as production;
+ *  `openSections` (harness-only) forces additional ones open on top of that. */
+function ClientCrmSectionsFixture({
+  client,
+  route,
+  openSections,
+}: {
+  client: Client;
+  route: { tab: CrmSurface; view: CrmView | null };
+  openSections?: readonly ClientCrmSectionId[];
+}) {
+  const [expanded, setExpanded] = useState<ReadonlySet<ClientCrmSectionId>>(() => {
+    const target = sectionForCrmRoute(route);
+    return new Set<ClientCrmSectionId>(['overview', ...(openSections ?? []), ...(target ? [target] : [])]);
+  });
+
+  const toggle = (id: ClientCrmSectionId) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  return (
+    <>
+      <AccordionSection
+        id="cap-pf-section-overview"
+        title={CLIENT_CRM_SECTION_COPY.overview.title}
+        sub={CLIENT_CRM_SECTION_COPY.overview.sub}
+        open={expanded.has('overview')}
+        onToggle={() => toggle('overview')}
+      >
+        <ClientCrmOverviewProto
+          client={client}
+          onEditProfile={() => undefined}
+          onOpenFederalFootprint={() => undefined}
+          onOpenWork={() => undefined}
+          onOpenIntelligence={() => undefined}
+        />
+      </AccordionSection>
+
+      <AccordionSection
+        id="cap-pf-section-timeline"
+        title={CLIENT_CRM_SECTION_COPY.timeline.title}
+        sub={CLIENT_CRM_SECTION_COPY.timeline.sub}
+        open={expanded.has('timeline')}
+        onToggle={() => toggle('timeline')}
+      >
+        <ClientCrmHistoryProto client={client} />
+      </AccordionSection>
+
+      <AccordionSection
+        id="cap-pf-section-advocacy"
+        title={CLIENT_CRM_SECTION_COPY.advocacy.title}
+        sub={CLIENT_CRM_SECTION_COPY.advocacy.sub}
+        open={expanded.has('advocacy')}
+        onToggle={() => toggle('advocacy')}
+      >
+        <ClientCrmAdvocacyMattersProto client={client} />
+      </AccordionSection>
+
+      <AccordionSection
+        id="cap-pf-section-intelligence"
+        title={CLIENT_CRM_SECTION_COPY.intelligence.title}
+        sub={CLIENT_CRM_SECTION_COPY.intelligence.sub}
+        open={expanded.has('intelligence')}
+        onToggle={() => toggle('intelligence')}
+      >
+        {/* Intelligence is one always-expanded stack of all four domains now
+            (not a single `intelView`-selected panel) — see IntelligenceDomainStack
+            in ClientCrmPage.tsx, reproduced here since it too is module-private. */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+          {INTELLIGENCE_VIEWS.map((view, index) => (
+            <div key={view} style={index > 0 ? { paddingTop: 32, borderTop: '1px solid #E8E5DF' } : undefined}>
+              <ClientCrmIntelligenceProto client={client} view={view} />
+            </div>
+          ))}
+        </div>
+      </AccordionSection>
+    </>
+  );
+}
+
+/** Mirrors ClientCrmPage.tsx's private `ClientCrmDrawerBody` — the
+ *  Relationships/Work/Files/Capabilities content that opens in `RecordDrawer`.
+ *  Relationships' history/matters views never reach here (`drawerKeyForRoute`
+ *  returns null for them): those promote to the Timeline/Advocacy sections
+ *  above instead. */
+function ClientCrmDrawerBodyFixture({
+  client,
+  tab,
+  relView,
+}: {
+  client: Client;
+  tab: CrmSurface;
+  relView: RelationshipView;
+}) {
+  if (tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} />;
+  if (tab === 'work') return <ClientCrmWorkProto client={client} />;
+  if (tab === 'files') return <ClientCrmFilesProto client={client} />;
+
+  const relationshipViews = RELATIONSHIP_VIEW_LABELS.filter((v) => v.key === 'organization' || v.key === 'government');
+  const view: RelationshipView = relView === 'government' ? 'government' : 'organization';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <SegmentedTabs ariaLabel="Relationships view" options={relationshipViews} value={view} onChange={() => undefined} />
+      {view === 'government' ? <ClientCrmGovernmentProto client={client} /> : <ClientCrmOrganizationProto client={client} />}
+    </div>
   );
 }
 
