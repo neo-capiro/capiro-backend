@@ -35,6 +35,44 @@ import { OUTREACH_V3_FULL_GENERATION_JOB_KIND } from '../outreach-v3/generation/
 
 const DEFAULT_SWEEP_MS = 5_000;
 const DEFAULT_STALE_MS = 5 * 60_000;
+/**
+ * Concurrent drafts per claimed batch. Must stay in step with the
+ * OUTREACH_V3_GENERATION_CONCURRENCY default in config.schema.ts.
+ */
+const DEFAULT_GENERATION_CONCURRENCY = 4;
+
+/**
+ * Run `task` over `items` with at most `limit` in flight at once.
+ *
+ * A pull-based pool rather than `Promise.all(items.map(task))`: the number of
+ * simultaneous provider calls must stay bounded by `limit` no matter how large
+ * the claimed batch is (batchSize is per-job data, up to 25).
+ *
+ * `task` is expected to absorb its own failures. Anything it does throw is
+ * swallowed here so one bad item can neither reject the pool nor strand its
+ * siblings — the caller marks per-item failure inside `task`.
+ */
+export async function runWithConcurrency<T>(
+  items: readonly T[],
+  limit: number,
+  task: (item: T) => Promise<void>,
+): Promise<void> {
+  const queue = [...items];
+  const lanes = Math.max(1, Math.min(limit, queue.length));
+  await Promise.all(
+    Array.from({ length: lanes }, async () => {
+      for (;;) {
+        const item = queue.shift();
+        if (item === undefined) return;
+        try {
+          await task(item);
+        } catch {
+          // Per-item error handling is the task's contract; keep the lane alive.
+        }
+      }
+    }),
+  );
+}
 
 export function parseOutreachV3FullGenerationWorkerEnabled(value: string | undefined): boolean {
   if (value === undefined || value === '') return false;
@@ -68,6 +106,19 @@ export class OutreachV3FullGenerationWorkerService implements OnModuleInit, OnMo
     DEFAULT_STALE_MS,
     60_000,
     60 * 60_000,
+  );
+  /**
+   * How many recipients in a claimed batch are drafted CONCURRENTLY.
+   *
+   * Read from env like every other knob on this class (not ConfigService) so the
+   * worker keeps its single construction shape. Bounded 1..16; 1 restores the
+   * original strictly-serial loop.
+   */
+  private readonly concurrency = boundedPositiveInt(
+    process.env.OUTREACH_V3_GENERATION_CONCURRENCY,
+    DEFAULT_GENERATION_CONCURRENCY,
+    1,
+    16,
   );
 
   constructor(
@@ -169,11 +220,25 @@ export class OutreachV3FullGenerationWorkerService implements OnModuleInit, OnMo
     for (;;) {
       const batch = await this.claimBatch(job.id, descriptor.batchSize);
       if (!batch.length) break;
-      for (const item of batch) {
+      // Draft up to `concurrency` recipients at once.
+      //
+      // This was a plain `for (... ) await processItem(...)`, i.e. strictly one
+      // provider call in flight at a time. Measured live 2026-08-24: a single
+      // gpt-5 draft at effort=max takes 94-683s, so 51 recipients projected to
+      // ~5.6 hours of wall clock.
+      //
+      // A worker pool is used rather than `Promise.all(batch.map(...))` so the
+      // number of simultaneous provider calls stays bounded by `concurrency`
+      // regardless of batchSize (which is per-job data and can be up to 25).
+      // Per-item failure isolation is unchanged: each item still catches its own
+      // error and marks only itself failed, so one bad recipient cannot reject
+      // the batch or strand its siblings in `claimed`.
+      const queue = [...batch];
+      await runWithConcurrency(queue, this.concurrency, async (item) => {
         await this.processItem(ctx, job.id, descriptor, item).catch(async (error) => {
           await this.finishItem(item.id, 'failed', null, safeError(error));
         });
-      }
+      });
       const live = await this.prisma.withSystem((tx) =>
         tx.outreachJob.findFirst({ where: { id: job.id }, select: { status: true } }),
       );

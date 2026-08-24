@@ -282,6 +282,22 @@ export const configSchema = z.object({
   // reasoning model for OUTREACH_V3_GENERATION_EFFORT to have any effect.
   OUTREACH_V3_GENERATION_MODEL: z.string().default(''),
 
+  // How many recipients the full-generation worker drafts CONCURRENTLY within a
+  // claimed batch.
+  //
+  // This used to be effectively 1: the worker claimed `batchSize` items then
+  // awaited them one at a time in a `for` loop. Measured live 2026-08-24 on
+  // gpt-5 at effort=max, a single draft takes 94-683s (mean ~395s), so a
+  // 51-recipient campaign projected to ~5.6 HOURS of wall clock while issuing
+  // one provider call at a time.
+  //
+  // Each unit of concurrency is one additional in-flight provider request per
+  // worker process, so this is a direct COGS/rate-limit dial, not free speed.
+  // Default 4 is deliberately modest: ~4x faster with headroom under provider
+  // rate limits, and it keeps a single stuck draft from stalling the batch.
+  // Set 1 to restore the old strictly-serial behaviour.
+  OUTREACH_V3_GENERATION_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(4),
+
   // Per-tenant daily outreach token ceiling (plan W3.4 / A7): total (input +
   // output) AI tokens across outreach generation workflows in the current UTC
   // day. Soft-warn at 80% (generation proceeds, wizard shows a banner), hard-stop
