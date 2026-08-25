@@ -17,10 +17,34 @@ import { activeContextLabels, contextPacketSummary } from './meri-context-packet
 import { fetchLatestMeriContextPacket, type MeriContextPacket } from './meri-vnext-api.js';
 import { MeriMemoryTab } from './MeriMemoryTab.js';
 import { MeriPanelState } from './MeriPanelState.js';
+import {
+  MeriTurnInspector,
+  type MeriTurnInspectorData,
+  type MeriTurnInspectorTab,
+} from './MeriTurnInspector.js';
 
 interface ActiveSourceDetail {
   citations: MeriCitation[];
   index: number;
+}
+
+/**
+ * v6 turn inspector — a third override state alongside activeArtifact and
+ * activeSourceDetail (see the block comment above PANEL_TABS). Turn-scoped,
+ * so it is plain, un-persisted client state: unlike openSection, "which
+ * turn's panel was open" is not something you would want restored days
+ * later, and the backend's MeriVNextPreferenceInput.openSection enum
+ * (apps/api/src/meri/meri-vnext-library.service.ts normalizePreference)
+ * only accepts 'context' | 'sources' | 'actions' | 'memory' | null today —
+ * these three new tab keys would 400 if pushed through that endpoint.
+ */
+export interface ActiveTurnInspector {
+  activeTab: MeriTurnInspectorTab;
+  data: MeriTurnInspectorData;
+  approvingProposalId: string | null;
+  onApprove: (proposalId: string) => void;
+  onApproveAll: () => void;
+  onDismiss: (proposalId: string) => void;
 }
 
 interface VNextMeriContextRailProps {
@@ -37,6 +61,15 @@ interface VNextMeriContextRailProps {
   /** Set while a streamed document is open; swaps out the normal section stack. */
   activeArtifact: CanvasArtifact | null;
   onCloseArtifact: () => void;
+  /**
+   * Set while a turn's Thinking/Evidence/Approvals panel is open; swaps out
+   * the normal section stack. Optional and un-wired by the shell today — the
+   * integration that focuses a turn and supplies real data is a follow-up
+   * step; every existing caller of this component keeps compiling unchanged.
+   */
+  activeTurnInspector?: ActiveTurnInspector | null;
+  onChangeTurnInspectorTab?: (tab: MeriTurnInspectorTab) => void;
+  onCloseTurnInspector?: () => void;
 }
 
 export function normalizeMeriQuickActionCatalog(value: unknown): MeriQuickAction[] {
@@ -105,6 +138,26 @@ const PANEL_TABS: Array<{ key: MeriContextSection; icon: MeriIconName; label: st
   { key: 'memory', icon: 'Database01', label: 'Memory' },
 ];
 
+/**
+ * The turn inspector's own exclusive switcher — Thinking / Evidence /
+ * Approvals — reusing the exact tab-strip classes PANEL_TABS renders with
+ * (meri-rail-panel-structure.test.ts pins those classes, not the tab keys
+ * themselves, so this second switcher costs no new header CSS). It replaces
+ * the Context/Memory strip only while a turn is focused, the same way
+ * activeArtifact/activeSourceDetail replace the whole section stack.
+ */
+const TURN_TABS: Array<{ key: MeriTurnInspectorTab; icon: MeriIconName; label: string }> = [
+  { key: 'thinking', icon: 'CpuChip01', label: 'Thinking' },
+  { key: 'evidence', icon: 'ShieldTick', label: 'Evidence' },
+  { key: 'approvals', icon: 'Lock01', label: 'Approvals' },
+];
+
+const TURN_TAB_TITLE: Record<MeriTurnInspectorTab, string> = {
+  thinking: 'THINKING',
+  evidence: 'EVIDENCE',
+  approvals: 'APPROVALS',
+};
+
 const UNUSABLE_ATTACHMENT_STATES = new Set(['error', 'scanned', 'unsupported']);
 
 function appStatus(app: ManagedApp): string {
@@ -132,6 +185,9 @@ export function VNextMeriContextRail({
   onCloseSourceDetail,
   activeArtifact,
   onCloseArtifact,
+  activeTurnInspector,
+  onChangeTurnInspectorTab,
+  onCloseTurnInspector,
 }: VNextMeriContextRailProps) {
   const api = useApi();
   const [packet, setPacket] = useState<MeriContextPacket | null>(null);
@@ -285,6 +341,60 @@ export function VNextMeriContextRail({
               initialIndex={activeSourceDetail.index}
               scopeLabel={scopeLabel}
               onClose={onCloseSourceDetail}
+            />
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  if (activeTurnInspector) {
+    const turnActiveTab = activeTurnInspector.activeTab;
+    return (
+      <aside className="vnext-meri__rail-right is-turn-inspector" data-meri-context-rail aria-label="Turn inspector">
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div className="vnext-meri__rail-panel-head">
+            <span className="vnext-meri__rail-panel-title">{TURN_TAB_TITLE[turnActiveTab]}</span>
+            <div className="vnext-meri__rail-panel-tabs">
+              {TURN_TABS.map((tab) => {
+                const active = turnActiveTab === tab.key;
+                const badge =
+                  tab.key === 'evidence'
+                    ? activeTurnInspector.data.evidence.sources.length
+                    : tab.key === 'approvals'
+                      ? activeTurnInspector.data.approvals.filter(
+                          (proposal) => proposal.status === 'proposed' || proposal.status === 'failed_retryable',
+                        ).length
+                      : 0;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    className={`vnext-meri__rail-panel-tab${active ? ' is-active' : ''}`}
+                    title={tab.label}
+                    aria-label={tab.label}
+                    aria-pressed={active}
+                    onClick={() => onChangeTurnInspectorTab?.(tab.key)}
+                  >
+                    <MeriIcon name={tab.icon} size={15} />
+                    {badge > 0 ? <span className="vnext-meri__rail-panel-tab-badge">{badge}</span> : null}
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" className="vnext-meri__rail-panel-collapse" title="Collapse panel" aria-label="Collapse panel" onClick={onToggle}>
+              <MeriIcon name="ChevronRight" size={15} color="#98A2B3" />
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            <MeriTurnInspector
+              data={activeTurnInspector.data}
+              activeTab={turnActiveTab}
+              onClose={() => onCloseTurnInspector?.()}
+              approvingProposalId={activeTurnInspector.approvingProposalId}
+              onApprove={activeTurnInspector.onApprove}
+              onApproveAll={activeTurnInspector.onApproveAll}
+              onDismiss={activeTurnInspector.onDismiss}
             />
           </div>
         </div>

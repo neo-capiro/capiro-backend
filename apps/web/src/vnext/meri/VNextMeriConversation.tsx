@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCapiroToast } from '../components/feedback/toast.js';
 import type {
   MeriChatController,
@@ -62,6 +62,42 @@ export function VNextMeriConversation({
   const toast = useCapiroToast();
   const { messages, isStreaming, clients } = controller;
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Focus scope on the turn list (handoff: one focusable region, arrow-key
+  // traversal between turns, not one tab stop per turn — a long thread makes
+  // per-turn tab stops unusably slow). Roving tabindex, hand-rolled the same
+  // way CapiroTabs (vnext/components/menus/index.tsx) does it: exactly one
+  // turn carries tabIndex 0 at a time, arrow keys move it and call .focus()
+  // directly, everything else stays -1 so a single Tab press skips the whole
+  // transcript. Sticky by design — once the user arrows to a turn, it stays
+  // the tab stop even as new messages stream in; only scroll auto-follows.
+  const [focusedTurnId, setFocusedTurnId] = useState<string | null>(null);
+  const rovingTurnId =
+    focusedTurnId && messages.some((message) => message.id === focusedTurnId)
+      ? focusedTurnId
+      : (messages[messages.length - 1]?.id ?? null);
+
+  const handleTurnKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    const list = event.currentTarget.parentElement;
+    if (!list) return;
+    const turns = Array.from(list.querySelectorAll<HTMLElement>('[data-meri-turn]'));
+    const currentIndex = turns.indexOf(event.currentTarget);
+    if (currentIndex < 0 || turns.length === 0) return;
+
+    let nextIndex: number | null = null;
+    if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % turns.length;
+    if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + turns.length) % turns.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = turns.length - 1;
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const next = turns[nextIndex]!;
+    next.focus();
+    const nextId = next.dataset.meriTurn;
+    if (nextId) setFocusedTurnId(nextId);
+  };
 
   const hasThread = messages.length > 0;
   const selectedClient =
@@ -360,7 +396,13 @@ export function VNextMeriConversation({
                   const showDivider =
                     index === 0 || localDayKey(previous?.createdAt) !== localDayKey(message.createdAt);
                   return (
-                    <div key={message.id}>
+                    <div
+                      key={message.id}
+                      data-meri-turn={message.id}
+                      tabIndex={message.id === rovingTurnId ? 0 : -1}
+                      aria-label={message.role === 'user' ? 'Your message' : "Meri's response"}
+                      onKeyDown={handleTurnKeyDown}
+                    >
                       {showDivider ? (
                         <div className="vnext-meri__date-divider">
                           <span className="vnext-meri__date-divider-line" />

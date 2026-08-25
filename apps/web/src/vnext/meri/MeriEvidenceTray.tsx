@@ -11,9 +11,14 @@ import { MeriIcon, type MeriIconName } from './meri-icons.js';
  * the context-packet inspector have no vNext endpoints yet. All tabs render
  * prototype fixtures unless the caller passes real data through props.
  * Tracked in GAPS.md (Meri vNext — evidence tray feeds).
+ *
+ * Styling: real CSS classes (`.vnext-meri__evidence-*` in vnext-meri.css),
+ * not inline styles — converted in the v6 turn-inspector pass, same playbook
+ * as MeriWorkPerformed.tsx/MeriResearchProgress.tsx. The v6 rail's Thinking
+ * and Evidence tabs (MeriThinkingTab.tsx, MeriEvidenceTab.tsx) share this
+ * same class vocabulary rather than duplicating it — see the "Evidence
+ * vocabulary" section of vnext-meri.css.
  */
-
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
 
 /* ── Public data shapes ─────────────────────────────────────────────────── */
 
@@ -195,47 +200,22 @@ export const MERI_CONTEXT_PACKET: MeriContextPacket = {
   packet: 'CONTEXT PACKET 2D19-77E0 · COMPILED AUG 16, 9:41 AM',
 };
 
-/* ── Tone tables (from the prototype's VSTAT / CLAIM / STEP / EXC) ───────── */
+/* ── Icon + label lookups (colour now lives in CSS via data-state/data-tone) ── */
 
-const VSTAT: Record<MeriEvidenceStatTone, { bg: string; ring: string; fg: string }> = {
-  n: { bg: '#ffffff', ring: '#E8E5DF', fg: '#344054' },
-  g: { bg: '#ECFDF3', ring: '#ABEFC6', fg: '#027A48' },
-  w: { bg: '#FFFAEB', ring: '#FEDF89', fg: '#B54708' },
-  b: { bg: '#FEF3F2', ring: '#FECDCA', fg: '#B42318' },
+const CLAIM_META: Record<MeriClaimState, { state: string; icon: MeriIconName }> = {
+  verified: { state: 'VERIFIED · TIED TO A CITED LOCATOR', icon: 'Check' },
+  inference: { state: 'INFERENCE · DERIVED, NOT QUOTED', icon: 'Diamond01' },
+  unsupported: { state: 'UNSUPPORTED · NO EVIDENCE FOUND', icon: 'AlertTriangle' },
+  conflict: { state: 'SOURCES DISAGREE', icon: 'SwitchVertical01' },
+  low: { state: 'LOW CONFIDENCE · SINGLE WEAK SOURCE', icon: 'HelpCircle' },
 };
 
-const CLAIM_STYLE: Record<
-  MeriClaimState,
-  { state: string; icon: MeriIconName; dotBg: string; dotFg: string; fg: string }
-> = {
-  verified: { state: 'VERIFIED · TIED TO A CITED LOCATOR', icon: 'Check', dotBg: '#101828', dotFg: '#ffffff', fg: '#027A48' },
-  inference: { state: 'INFERENCE · DERIVED, NOT QUOTED', icon: 'Diamond01', dotBg: '#F2F0EB', dotFg: '#344054', fg: '#344054' },
-  unsupported: { state: 'UNSUPPORTED · NO EVIDENCE FOUND', icon: 'AlertTriangle', dotBg: '#FFFAEB', dotFg: '#B54708', fg: '#B54708' },
-  conflict: { state: 'SOURCES DISAGREE', icon: 'SwitchVertical01', dotBg: '#FFFAEB', dotFg: '#B54708', fg: '#B54708' },
-  low: { state: 'LOW CONFIDENCE · SINGLE WEAK SOURCE', icon: 'HelpCircle', dotBg: '#F2F0EB', dotFg: '#667085', fg: '#667085' },
-};
-
-const STEP_STYLE: Record<
-  MeriWorkStepState,
-  { state: string; icon: MeriIconName; dotBg: string; dotFg: string; pillBg: string; pillFg: string; ring: string; halo?: string }
-> = {
-  done: { state: 'DONE', icon: 'Check', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F0EB', pillFg: '#344054', ring: '#E8E5DF' },
-  running: { state: 'RUNNING', icon: 'Loading01', dotBg: '#101828', dotFg: '#ffffff', pillBg: '#F2F0EB', pillFg: '#101828', ring: '#E0DCD4', halo: '0 0 0 3px #F2F0EB' },
-  queued: { state: 'QUEUED', icon: 'Clock', dotBg: '#F2F0EB', dotFg: '#98A2B3', pillBg: '#FAF9F6', pillFg: '#667085', ring: '#E8E5DF' },
-  failed: { state: 'FAILED', icon: 'XClose', dotBg: '#FEF3F2', dotFg: '#B42318', pillBg: '#FEF3F2', pillFg: '#B42318', ring: '#FECDCA' },
-  skipped: { state: 'SKIPPED', icon: 'SlashCircle01', dotBg: '#F2F0EB', dotFg: '#98A2B3', pillBg: '#FAF9F6', pillFg: '#667085', ring: '#E8E5DF' },
-};
-
-const EXC_STYLE: Record<MeriContextExclusionTone, { bg: string; fg: string }> = {
-  n: { bg: '#F2F0EB', fg: '#344054' },
-  w: { bg: '#FFFAEB', fg: '#B54708' },
-  b: { bg: '#FEF3F2', fg: '#B42318' },
-};
-
-const SCOPE_STYLE: Record<MeriContextItem['scope'], { bg: string; fg: string }> = {
-  FIRM: { bg: '#F2F0EB', fg: '#344054' },
-  CLIENT: { bg: '#ECFDF3', fg: '#027A48' },
-  PERSONAL: { bg: '#FFFAEB', fg: '#B54708' },
+const STEP_META: Record<MeriWorkStepState, { state: string; icon: MeriIconName; spin?: boolean }> = {
+  done: { state: 'DONE', icon: 'Check' },
+  running: { state: 'RUNNING', icon: 'Loading01', spin: true },
+  queued: { state: 'QUEUED', icon: 'Clock' },
+  failed: { state: 'FAILED', icon: 'XClose' },
+  skipped: { state: 'SKIPPED', icon: 'SlashCircle01' },
 };
 
 type TrayTab = 'sources' | 'verify' | 'work' | 'ctx';
@@ -279,25 +259,8 @@ export function MeriEvidenceTray({
   ];
 
   return (
-    <div
-      style={{
-        borderTop: '1px solid #E8E5DF',
-        background: '#FAF9F6',
-        animation: 'vnext-meri-rise .14s ease',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: '11px 18px',
-          borderBottom: '1px solid #E8E5DF',
-          flexWrap: 'wrap',
-        }}
-        role="tablist"
-        aria-label="Evidence"
-      >
+    <div className="vnext-meri__evidence-tray">
+      <div className="vnext-meri__evidence-tabs" role="tablist" aria-label="Evidence">
         {tabs.map((t) => {
           const on = tab === t.key;
           return (
@@ -306,165 +269,66 @@ export function MeriEvidenceTray({
               key={t.key}
               role="tab"
               aria-selected={on}
+              className={`vnext-meri__evidence-tab${on ? ' is-active' : ''}`}
               onClick={() => setTab(t.key)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 7,
-                height: 28,
-                padding: '0 11px',
-                borderRadius: 7,
-                background: on ? '#ffffff' : 'transparent',
-                border: on ? '1px solid #E0DCD4' : '1px solid transparent',
-                boxShadow: on ? '0px 1px 2px rgba(16,24,40,.05)' : 'none',
-              }}
             >
-              <MeriIcon name={t.icon} size={13} color={on ? '#101828' : '#667085'} />
-              <span
-                style={{
-                  fontFamily: MONO,
-                  fontSize: 9.5,
-                  fontWeight: 500,
-                  letterSpacing: '.08em',
-                  color: on ? '#101828' : '#667085',
-                }}
-              >
-                {t.label}
-              </span>
+              <MeriIcon name={t.icon} size={13} />
+              <span className="vnext-meri__evidence-tab-label">{t.label}</span>
             </button>
           );
         })}
       </div>
 
       {tab === 'sources' ? (
-        <div style={{ padding: '14px 18px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {sources.map((source, index) => (
-            <button
-              type="button"
-              key={`${source.locator}-${index}`}
-              onClick={() => onOpenSource?.(source, index)}
-              style={{
-                display: 'flex',
-                gap: 11,
-                padding: '12px 13px',
-                borderRadius: 9,
-                background: '#ffffff',
-                border: '1px solid #E8E5DF',
-                textAlign: 'left',
-              }}
-            >
-              <span
-                style={{
-                  flex: '0 0 auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 26,
-                  height: 26,
-                  borderRadius: 7,
-                  background: '#F2F0EB',
-                }}
+        <div className="vnext-meri__evidence-tab-body">
+          <div className="vnext-meri__evidence-source-list">
+            {sources.map((source, index) => (
+              <button
+                type="button"
+                key={`${source.locator}-${index}`}
+                className="vnext-meri__evidence-source-row"
+                onClick={() => onOpenSource?.(source, index)}
               >
-                <MeriIcon name={source.icon} size={13} color="#101828" />
-              </span>
-              <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.08em', color: '#667085' }}>
-                    {source.provider}
+                <span className="vnext-meri__evidence-source-tile">
+                  <MeriIcon name={source.icon} size={13} />
+                </span>
+                <span className="vnext-meri__evidence-source-body">
+                  <span className="vnext-meri__evidence-source-meta">
+                    <span className="vnext-meri__evidence-source-provider">{source.provider}</span>
+                    <span className="vnext-meri__evidence-source-date">{source.date}</span>
                   </span>
-                  <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.08em', color: '#98A2B3' }}>
-                    {source.date}
+                  <span className="vnext-meri__evidence-source-title">
+                    [{index + 1}] {source.title}
                   </span>
+                  <span className="vnext-meri__evidence-source-snippet">{source.snippet}</span>
                 </span>
-                <span style={{ fontSize: 13, lineHeight: '19px', fontWeight: 600, color: '#101828' }}>
-                  [{index + 1}] {source.title}
-                </span>
-                <span style={{ fontSize: 12.5, lineHeight: '18px', color: '#475467' }}>
-                  {source.snippet}
-                </span>
-              </span>
-              <span
-                style={{
-                  flex: '0 0 auto',
-                  fontFamily: MONO,
-                  fontSize: 9,
-                  fontWeight: 500,
-                  letterSpacing: '.07em',
-                  color: '#667085',
-                  textAlign: 'right',
-                }}
-              >
-                {source.locator}
-              </span>
-            </button>
-          ))}
+                <span className="vnext-meri__evidence-source-locator">{source.locator}</span>
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
 
       {tab === 'verify' ? (
-        <div style={{ padding: '14px 18px 16px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
-            {verifyStats.map((stat) => {
-              const tone = VSTAT[stat.tone];
-              return (
-                <span
-                  key={stat.label}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 7,
-                    height: 26,
-                    padding: '0 10px',
-                    borderRadius: 7,
-                    background: tone.bg,
-                    border: `1px solid ${tone.ring}`,
-                    fontFamily: MONO,
-                    fontSize: 9.5,
-                    fontWeight: 500,
-                    letterSpacing: '.08em',
-                    color: tone.fg,
-                  }}
-                >
-                  {stat.label}
-                </span>
-              );
-            })}
+        <div className="vnext-meri__evidence-tab-body">
+          <div className="vnext-meri__evidence-stat-row">
+            {verifyStats.map((stat) => (
+              <span key={stat.label} className="vnext-meri__evidence-stat-pill" data-tone={stat.tone}>
+                {stat.label}
+              </span>
+            ))}
           </div>
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="vnext-meri__evidence-claim-list">
             {claims.map((claim, index) => {
-              const style = CLAIM_STYLE[claim.state];
+              const meta = CLAIM_META[claim.state];
               return (
-                <div
-                  key={`${claim.claim}-${index}`}
-                  style={{
-                    display: 'flex',
-                    gap: 11,
-                    padding: '12px 13px',
-                    borderRadius: 9,
-                    background: '#ffffff',
-                    border: '1px solid #E8E5DF',
-                  }}
-                >
-                  <span
-                    style={{
-                      flex: '0 0 auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 20,
-                      height: 20,
-                      marginTop: 1,
-                      borderRadius: 9999,
-                      background: style.dotBg,
-                    }}
-                  >
-                    <MeriIcon name={style.icon} size={11} color={style.dotFg} />
+                <div key={`${claim.claim}-${index}`} className="vnext-meri__evidence-claim-row" data-state={claim.state}>
+                  <span className="vnext-meri__evidence-claim-dot">
+                    <MeriIcon name={meta.icon} size={11} />
                   </span>
-                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <span style={{ fontSize: 13, lineHeight: '19px', color: '#344054' }}>{claim.claim}</span>
-                    <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.08em', color: style.fg }}>
-                      {style.state}
-                    </span>
+                  <span className="vnext-meri__evidence-claim-body">
+                    <span className="vnext-meri__evidence-claim-text">{claim.claim}</span>
+                    <span className="vnext-meri__evidence-claim-state">{meta.state}</span>
                   </span>
                 </div>
               );
@@ -474,122 +338,47 @@ export function MeriEvidenceTray({
       ) : null}
 
       {tab === 'work' ? (
-        <div style={{ padding: '14px 18px 16px' }}>
-          <div style={{ padding: '12px 13px', borderRadius: 9, background: '#ffffff', border: '1px solid #E8E5DF' }}>
-            <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
-              PLAN
-            </div>
-            <div style={{ marginTop: 7, fontSize: 13, lineHeight: '20px', color: '#344054' }}>{plan}</div>
+        <div className="vnext-meri__evidence-tab-body">
+          <div className="vnext-meri__evidence-plan">
+            <div className="vnext-meri__evidence-plan-label">PLAN</div>
+            <div className="vnext-meri__evidence-plan-text">{plan}</div>
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9, marginTop: 12 }}>
+          <div className="vnext-meri__evidence-stat-row">
             {workStats.map((stat) => (
-              <span
-                key={stat}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  height: 26,
-                  padding: '0 10px',
-                  borderRadius: 7,
-                  background: '#ffffff',
-                  border: '1px solid #E8E5DF',
-                  fontFamily: MONO,
-                  fontSize: 9.5,
-                  fontWeight: 500,
-                  letterSpacing: '.08em',
-                  color: '#344054',
-                }}
-              >
+              <span key={stat} className="vnext-meri__evidence-stat-pill" data-tone="n">
                 {stat}
               </span>
             ))}
           </div>
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="vnext-meri__evidence-step-list">
             {steps.map((step, index) => {
-              const style = STEP_STYLE[step.state];
+              const meta = STEP_META[step.state];
               return (
-                <div
-                  key={`${step.title}-${index}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 11,
-                    padding: '11px 13px',
-                    borderRadius: 9,
-                    background: '#ffffff',
-                    border: `1px solid ${style.ring}`,
-                    boxShadow: style.halo,
-                  }}
-                >
-                  <span
-                    style={{
-                      flex: '0 0 auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 20,
-                      height: 20,
-                      marginTop: 1,
-                      borderRadius: 9999,
-                      background: style.dotBg,
-                    }}
-                  >
-                    <MeriIcon name={style.icon} size={11} color={style.dotFg} />
+                <div key={`${step.title}-${index}`} className="vnext-meri__evidence-step-row" data-state={step.state}>
+                  <span className="vnext-meri__evidence-step-dot">
+                    <MeriIcon name={meta.icon} size={11} />
                   </span>
-                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontSize: 13, lineHeight: '19px', fontWeight: 500, color: '#101828' }}>
-                      {step.title}
-                    </span>
-                    <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '.05em', color: '#667085' }}>
-                      {step.detail}
-                    </span>
+                  <span className="vnext-meri__evidence-step-body">
+                    <span className="vnext-meri__evidence-step-title">{step.title}</span>
+                    <span className="vnext-meri__evidence-step-detail">{step.detail}</span>
                   </span>
-                  <span
-                    style={{
-                      flex: '0 0 auto',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      height: 20,
-                      padding: '0 7px',
-                      borderRadius: 5,
-                      background: style.pillBg,
-                      fontFamily: MONO,
-                      fontSize: 9,
-                      fontWeight: 500,
-                      letterSpacing: '.08em',
-                      color: style.pillFg,
-                    }}
-                  >
-                    {style.state}
-                  </span>
+                  <span className="vnext-meri__evidence-step-pill">{meta.state}</span>
                 </div>
               );
             })}
           </div>
-          <div style={{ marginTop: 12, padding: '11px 13px', borderRadius: 9, background: '#ffffff', border: '1px solid #E8E5DF' }}>
-            <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
-              ASSUMPTIONS STATED IN THE ANSWER
-            </div>
-            <ul style={{ margin: '8px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="vnext-meri__evidence-assumptions">
+            <div className="vnext-meri__evidence-assumptions-label">ASSUMPTIONS STATED IN THE ANSWER</div>
+            <ul className="vnext-meri__evidence-assumptions-list">
               {assumptions.map((assumption) => (
-                <li key={assumption} style={{ display: 'flex', gap: 9, fontSize: 12.5, lineHeight: '19px', color: '#344054' }}>
-                  <span style={{ flex: '0 0 auto', width: 5, height: 5, marginTop: 7, borderRadius: 9999, background: '#101828' }} />
-                  <span style={{ flex: 1, minWidth: 0 }}>{assumption}</span>
+                <li key={assumption} className="vnext-meri__evidence-assumption">
+                  <span className="vnext-meri__evidence-assumption-dot" />
+                  <span>{assumption}</span>
                 </li>
               ))}
             </ul>
           </div>
-          <div
-            style={{
-              marginTop: 11,
-              fontFamily: MONO,
-              fontSize: 9,
-              fontWeight: 500,
-              lineHeight: '15px',
-              letterSpacing: '.08em',
-              color: '#98A2B3',
-            }}
-          >
+          <div className="vnext-meri__evidence-disclaimer">
             THIS IS EXECUTION EVIDENCE — PLANS, SOURCES, CHECKS AND OUTCOMES. IT IS NOT MODEL
             REASONING.
           </div>
@@ -597,172 +386,57 @@ export function MeriEvidenceTray({
       ) : null}
 
       {tab === 'ctx' ? (
-        <div style={{ padding: '14px 18px 16px' }}>
+        <div className="vnext-meri__evidence-tab-body">
           {context.degraded ? (
-            <div style={{ marginBottom: 12, padding: '11px 13px', borderRadius: 9, background: '#FFFAEB', border: '1px solid #FEDF89' }}>
-              <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.09em', color: '#B54708' }}>
-                CONTEXT DEGRADED
-              </div>
-              <div style={{ marginTop: 6, fontSize: 12.5, lineHeight: '19px', color: '#344054' }}>
-                {context.degraded}
-              </div>
+            <div className="vnext-meri__evidence-degraded">
+              <div className="vnext-meri__evidence-degraded-label">CONTEXT DEGRADED</div>
+              <div className="vnext-meri__evidence-degraded-text">{context.degraded}</div>
             </div>
           ) : null}
-          <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
-            INCLUDED · {context.included.length}
-          </div>
-          <div style={{ marginTop: 9, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {context.included.map((item) => {
-              const scope = SCOPE_STYLE[item.scope];
-              return (
-                <div
-                  key={item.name}
-                  style={{ padding: '12px 13px', borderRadius: 9, background: '#ffffff', border: '1px solid #E8E5DF' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 13, lineHeight: '19px', fontWeight: 600, color: '#101828' }}>
-                      {item.name}
-                    </span>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        height: 19,
-                        padding: '0 6px',
-                        borderRadius: 4,
-                        background: scope.bg,
-                        fontFamily: MONO,
-                        fontSize: 8.5,
-                        fontWeight: 500,
-                        letterSpacing: '.07em',
-                        color: scope.fg,
-                      }}
-                    >
-                      {item.scope}
-                    </span>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        height: 19,
-                        padding: '0 6px',
-                        borderRadius: 4,
-                        background: '#F2F0EB',
-                        fontFamily: MONO,
-                        fontSize: 8.5,
-                        fontWeight: 500,
-                        letterSpacing: '.07em',
-                        color: '#344054',
-                      }}
-                    >
-                      {item.auto ? 'AUTO-RETRIEVED' : 'YOU SELECTED'}
-                    </span>
-                    <span style={{ flex: 1 }} />
-                    <span style={{ fontFamily: MONO, fontSize: 9, letterSpacing: '.06em', color: '#98A2B3' }}>
-                      {item.type}
-                    </span>
-                  </div>
-                  <div style={{ marginTop: 7, fontSize: 12.5, lineHeight: '18px', color: '#475467' }}>
-                    {item.rationale}
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', marginTop: 8 }}>
-                    {item.meta.map((meta) => (
-                      <span
-                        key={meta}
-                        style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.07em', color: '#667085' }}
-                      >
-                        {meta}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div style={{ marginTop: 14, fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
-            EXCLUDED · {context.excluded.length}
-          </div>
-          <div style={{ marginTop: 9, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {context.excluded.map((exclusion) => {
-              const tone = EXC_STYLE[exclusion.tone];
-              return (
-                <div
-                  key={exclusion.name}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 13px',
-                    borderRadius: 9,
-                    background: '#ffffff',
-                    border: '1px solid #E8E5DF',
-                  }}
-                >
-                  <span
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      fontSize: 12.5,
-                      lineHeight: '18px',
-                      color: exclusion.restricted ? '#98A2B3' : '#344054',
-                    }}
-                  >
-                    {exclusion.name}
+          <div className="vnext-meri__evidence-section-label">INCLUDED · {context.included.length}</div>
+          <div className="vnext-meri__evidence-section">
+            {context.included.map((item) => (
+              <div key={item.name} className="vnext-meri__evidence-ctx-item">
+                <div className="vnext-meri__evidence-ctx-item-head">
+                  <span className="vnext-meri__evidence-ctx-item-name">{item.name}</span>
+                  <span className="vnext-meri__evidence-ctx-item-scope" data-scope={item.scope}>
+                    {item.scope}
                   </span>
-                  <span
-                    style={{
-                      flex: '0 0 auto',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      height: 20,
-                      padding: '0 7px',
-                      borderRadius: 5,
-                      background: tone.bg,
-                      fontFamily: MONO,
-                      fontSize: 8.5,
-                      fontWeight: 500,
-                      letterSpacing: '.07em',
-                      color: tone.fg,
-                    }}
-                  >
-                    {exclusion.reason}
+                  <span className="vnext-meri__evidence-ctx-item-auto">
+                    {item.auto ? 'AUTO-RETRIEVED' : 'YOU SELECTED'}
                   </span>
+                  <span className="vnext-meri__evidence-ctx-item-type">{item.type}</span>
                 </div>
-              );
-            })}
+                <div className="vnext-meri__evidence-ctx-item-rationale">{item.rationale}</div>
+                <div className="vnext-meri__evidence-ctx-item-meta-row">
+                  {item.meta.map((meta) => (
+                    <span key={meta} className="vnext-meri__evidence-ctx-item-meta">
+                      {meta}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 10,
-              marginTop: 14,
-              paddingTop: 12,
-              borderTop: '1px solid #E8E5DF',
-            }}
-          >
-            <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.07em', color: '#98A2B3' }}>
-              {context.packet}
-            </span>
-            <span style={{ flex: 1 }} />
-            <button
-              type="button"
-              onClick={() => onReviewContext?.()}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 7,
-                height: 32,
-                padding: '0 12px',
-                borderRadius: 8,
-                background: '#ffffff',
-                border: '1px solid #E0DCD4',
-                boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
-              }}
-            >
-              <MeriIcon name="Sliders02" size={13} color="#344054" />
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#344054' }}>Review context</span>
+          <div className="vnext-meri__evidence-section-label">EXCLUDED · {context.excluded.length}</div>
+          <div className="vnext-meri__evidence-section">
+            {context.excluded.map((exclusion) => (
+              <div key={exclusion.name} className="vnext-meri__evidence-ctx-exclusion">
+                <span className={`vnext-meri__evidence-ctx-exclusion-name${exclusion.restricted ? ' is-restricted' : ''}`}>
+                  {exclusion.name}
+                </span>
+                <span className="vnext-meri__evidence-ctx-exclusion-reason" data-tone={exclusion.tone}>
+                  {exclusion.reason}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="vnext-meri__evidence-ctx-footer">
+            <span className="vnext-meri__evidence-ctx-footer-id">{context.packet}</span>
+            <span className="vnext-meri__evidence-ctx-footer-spacer" />
+            <button type="button" className="vnext-meri__rail-action-btn" onClick={() => onReviewContext?.()}>
+              <MeriIcon name="Sliders02" size={13} />
+              Review context
             </button>
           </div>
         </div>

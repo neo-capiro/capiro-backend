@@ -135,6 +135,7 @@
   --meri-rail-right-width: 400px;          /* context · memory */
   --meri-rail-right-width-source: 460px;   /* source detail · manage context */
   --meri-rail-right-width-artifact: 520px; /* artifact canvas */
+  --meri-rail-right-width-turn: 460px;     /* v6 turn inspector · thinking · evidence · approvals */
   --meri-rail-right-collapsed: 66px;
   --meri-conversation-min: 700px;  /* nothing compresses below reading width */
   --meri-conversation-max: 820px;  /* thread content column */
@@ -2517,6 +2518,18 @@
   overflow: hidden;
 }
 
+/* v6 turn inspector (Thinking · Evidence · Approvals) — a third override
+   state alongside is-expanded (Context/Memory) and the artifact/source-detail
+   branches. Turn-scoped, so it gets its own width step rather than
+   --meri-rail-right-width, matching the source-detail/artifact precedent of a
+   dedicated var per override. See meri-rail-panel-structure.test.ts for the
+   contract this reuses (.vnext-meri__rail-panel-tabs etc.). */
+.capiro-vnext-root .vnext-meri__rail-right.is-turn-inspector {
+  width: var(--meri-rail-right-width-turn);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* Collapsed rail */
 .capiro-vnext-root .vnext-meri__rail-collapsed {
   display: flex;
@@ -3037,6 +3050,813 @@
   font-size: 13px;
 }
 
+/* ── Evidence vocabulary ─────────────────────────────────────────────────
+ * Shared by MeriEvidenceTray (SOURCES / VERIFICATION / WORK PERFORMED /
+ * CONTEXT USED — inline beneath an answer, unchanged mount point) and the v6
+ * turn inspector's Thinking + Evidence tabs (MeriThinkingTab.tsx,
+ * MeriEvidenceTab.tsx — same visual language, new right-rail location). One
+ * vocabulary, not two near-duplicates, per the vNext bug-class note on
+ * partial-shadow CSS dupes. Every colour below resolves through the existing
+ * --m-* semantic tokens — nothing new is introduced. */
+
+.capiro-vnext-root .vnext-meri__evidence-tray {
+  border-top: 1px solid var(--m-gray-200);
+  background: var(--m-gray-50);
+  animation: vnext-meri-rise 0.14s ease;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--m-gray-200);
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 11px;
+  border-radius: var(--m-radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-tab.is-active {
+  background: var(--m-white);
+  border-color: var(--m-gray-300);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  color: var(--m-gray-900);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-tab-label {
+  font-family: var(--meri-font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-tab-body {
+  padding: 14px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-section-label {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* Source rows (SOURCES tab / Evidence tab) */
+.capiro-vnext-root .vnext-meri__evidence-source-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-source-row {
+  display: flex;
+  gap: 11px;
+  padding: 12px 13px;
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  text-align: left;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-source-row:hover {
+  background: var(--m-hover);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-source-tile {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--m-radius-sm);
+  background: var(--m-gray-100);
+  color: var(--m-gray-900);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-source-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-source-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-source-provider {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-source-date {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--m-gray-400);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-source-title {
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 600;
+  color: var(--m-gray-900);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-source-snippet {
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--m-gray-600);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-source-locator {
+  flex: 0 0 auto;
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--m-gray-500);
+  text-align: right;
+}
+
+/* Stat pills — shared by VERIFICATION's claim-check counts, the plain work
+   stats, and the Thinking tab's tool/source/issue counts. data-tone follows
+   the same n/g/w/b vocabulary as MeriEvidenceStatTone. */
+.capiro-vnext-root .vnext-meri__evidence-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--m-radius-sm);
+  font-family: var(--meri-font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-stat-pill[data-tone="g"] {
+  background: var(--m-success-bg);
+  border-color: var(--m-success-border);
+  color: var(--m-success-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-stat-pill[data-tone="w"] {
+  background: var(--m-warning-bg);
+  border-color: var(--m-warning-border);
+  color: var(--m-warning-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-stat-pill[data-tone="b"] {
+  background: var(--m-error-bg);
+  border-color: var(--m-error-border);
+  color: var(--m-error-text);
+}
+
+/* Claim rows (VERIFICATION tab / Evidence tab) */
+.capiro-vnext-root .vnext-meri__evidence-claim-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-claim-row {
+  display: flex;
+  gap: 11px;
+  padding: 12px 13px;
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-claim-dot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--m-gray-100);
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="verified"] .vnext-meri__evidence-claim-dot {
+  background: var(--m-gray-900);
+  color: var(--m-white);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="low"] .vnext-meri__evidence-claim-dot {
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="unsupported"] .vnext-meri__evidence-claim-dot,
+.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="conflict"] .vnext-meri__evidence-claim-dot {
+  background: var(--m-warning-bg);
+  color: var(--m-warning-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-claim-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-claim-text {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-claim-state {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="verified"] .vnext-meri__evidence-claim-state {
+  color: var(--m-success-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="low"] .vnext-meri__evidence-claim-state {
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="unsupported"] .vnext-meri__evidence-claim-state,
+.capiro-vnext-root .vnext-meri__evidence-claim-row[data-state="conflict"] .vnext-meri__evidence-claim-state {
+  color: var(--m-warning-text);
+}
+
+/* Step rows — MeriEvidenceTray's WORK PERFORMED tab only. MeriWorkStep has
+   five states (done/running/queued/failed/skipped); the v6 Thinking tab
+   renders TrustStep (done/running/error only) through the already-converted
+   MeriAgentSteps instead, so this stays local to the tray. */
+.capiro-vnext-root .vnext-meri__evidence-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 13px;
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="running"] {
+  border-color: var(--m-gray-300);
+  box-shadow: 0 0 0 3px var(--m-gray-100);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="failed"] {
+  border-color: var(--m-error-border);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-dot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--m-gray-100);
+  color: var(--m-gray-400);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="done"] .vnext-meri__evidence-step-dot,
+.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="running"] .vnext-meri__evidence-step-dot {
+  background: var(--m-gray-900);
+  color: var(--m-white);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="failed"] .vnext-meri__evidence-step-dot {
+  background: var(--m-error-bg);
+  color: var(--m-error-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-title {
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 500;
+  color: var(--m-gray-900);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-detail {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-pill {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--m-radius-xs);
+  background: var(--m-gray-100);
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="queued"] .vnext-meri__evidence-step-pill,
+.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="skipped"] .vnext-meri__evidence-step-pill {
+  background: var(--m-gray-50);
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-step-row[data-state="failed"] .vnext-meri__evidence-step-pill {
+  background: var(--m-error-bg);
+  color: var(--m-error-text);
+}
+
+/* Plan block (WORK PERFORMED tab / Thinking tab) */
+.capiro-vnext-root .vnext-meri__evidence-plan {
+  padding: 12px 13px;
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-plan-label {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-plan-text {
+  margin-top: 7px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-steps {
+  display: flex;
+  flex-direction: column;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-disclaimer {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 15px;
+  letter-spacing: 0.08em;
+  color: var(--m-gray-400);
+}
+
+/* Assumptions (WORK PERFORMED tab only — the v6 Thinking tab drops this
+   prop entirely, it is always [] at its one real call site today) */
+.capiro-vnext-root .vnext-meri__evidence-assumptions {
+  padding: 11px 13px;
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-assumptions-label {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-assumptions-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-assumption {
+  display: flex;
+  gap: 9px;
+  font-size: 12.5px;
+  line-height: 19px;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-assumption-dot {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  margin-top: 7px;
+  border-radius: var(--capiro-radius-circular);
+  background: var(--m-gray-900);
+}
+
+/* CONTEXT USED tab — MeriEvidenceTray only. The v6 Evidence tab deliberately
+   drops this section: the same content already lives in the rail's own
+   Context tab, so duplicating it here would be a second, divergeable copy. */
+.capiro-vnext-root .vnext-meri__evidence-degraded {
+  margin-bottom: 12px;
+  padding: 11px 13px;
+  border-radius: var(--m-radius-lg);
+  background: var(--m-warning-bg);
+  border: 1px solid var(--m-warning-border);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-degraded-label {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--m-warning-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-degraded-text {
+  margin-top: 6px;
+  font-size: 12.5px;
+  line-height: 19px;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-item {
+  padding: 12px 13px;
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-name {
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 600;
+  color: var(--m-gray-900);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-scope,
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-auto {
+  display: inline-flex;
+  align-items: center;
+  height: 19px;
+  padding: 0 6px;
+  border-radius: var(--m-radius-xs);
+  background: var(--m-gray-100);
+  font-family: var(--meri-font-mono);
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-scope[data-scope="CLIENT"] {
+  background: var(--m-success-bg);
+  color: var(--m-success-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-scope[data-scope="PERSONAL"] {
+  background: var(--m-warning-bg);
+  color: var(--m-warning-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-type {
+  margin-left: auto;
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--m-gray-400);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-rationale {
+  margin-top: 7px;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--m-gray-600);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-item-meta {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-exclusion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-exclusion-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-exclusion-name.is-restricted {
+  color: var(--m-gray-400);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-exclusion-reason {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--m-radius-xs);
+  background: var(--m-gray-100);
+  font-family: var(--meri-font-mono);
+  font-size: 8.5px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-exclusion-reason[data-tone="w"] {
+  background: var(--m-warning-bg);
+  color: var(--m-warning-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-exclusion-reason[data-tone="b"] {
+  background: var(--m-error-bg);
+  color: var(--m-error-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--m-gray-200);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-footer-id {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--m-gray-400);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-footer-spacer {
+  flex: 1;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-ctx-footer .vnext-meri__rail-action-btn {
+  margin-top: 0;
+}
+
+/* Warning notice — Evidence tab only. Folds in what MeriGroundingWarning and
+   MeriCoverageWarning render inline beneath an answer today (those two
+   components are unchanged; this is new, independent, class-based markup
+   carrying the same copy and tone logic into the tab). */
+.capiro-vnext-root .vnext-meri__evidence-warning {
+  padding: 13px 15px;
+  border-radius: var(--m-radius-lg);
+  background: var(--m-warning-bg);
+  border: 1px solid var(--m-warning-border);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning[data-tone="missing"] {
+  background: var(--m-error-bg);
+  border-color: var(--m-error-border);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--m-warning-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning[data-tone="missing"] .vnext-meri__evidence-warning-head {
+  color: var(--m-error-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning-label {
+  font-family: var(--meri-font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning-items {
+  margin-top: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning-item {
+  padding: 11px 12px;
+  border-radius: var(--m-radius-md);
+  background: var(--m-white);
+  border: 1px solid var(--m-warning-border);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning-item-kind {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--m-warning-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning-item-text {
+  margin-top: 7px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning-body {
+  margin-top: 9px;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning-meta {
+  margin-top: 8px;
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: var(--m-warning-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning[data-tone="missing"] .vnext-meri__evidence-warning-meta {
+  color: var(--m-error-text);
+}
+
+.capiro-vnext-root .vnext-meri__evidence-warning-note {
+  margin-top: 8px;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--m-gray-600);
+}
+
+/* ── v6 turn inspector shell (MeriTurnInspector.tsx) ──────────────────────
+ * Reuses the exact rail-panel-head/tabs/tab/tab-badge/collapse classes the
+ * Context/Memory switcher already uses (meri-rail-panel-structure.test.ts
+ * pins these), so the new Thinking/Evidence/Approvals switcher costs no new
+ * header CSS at all — only the back control and body wrapper below are new. */
+.capiro-vnext-root .vnext-meri__turn-inspector-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 18px 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--meri-font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__turn-inspector-back:hover {
+  color: var(--m-gray-900);
+}
+
+.capiro-vnext-root .vnext-meri__turn-inspector-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Transcript replacement notice (MeriApprovalNotice.tsx) — one sentence plus
+   a "Review it" link, standing in for the full approval card in the log. */
+.capiro-vnext-root .vnext-meri__approval-notice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 18px 16px;
+  padding: 11px 13px;
+  border-radius: var(--m-radius-lg);
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  color: var(--m-gray-500);
+}
+
+.capiro-vnext-root .vnext-meri__approval-notice-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--m-gray-700);
+}
+
+.capiro-vnext-root .vnext-meri__approval-notice-link {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--m-gray-900);
+}
+
+.capiro-vnext-root .vnext-meri__approval-notice-link:hover {
+  color: var(--meri-accent-hover);
+}
+
+/* The Approve action inside the turn inspector's Approvals tab sits in a
+   flex actions row with its own gap — the inline card's marginTop:0 override
+   becomes a real rule here instead of following along as an inline style. */
+.capiro-vnext-root .vnext-meri__pending-approval-actions .vnext-meri__rail-action-btn {
+  margin-top: 0;
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────────
  *
  * Canonical vNext breakpoints (foundations/responsive.css): 1179 tablet, 779
@@ -3065,6 +3885,10 @@
      the two rails otherwise held 700px and left 324px for the conversation. */
   .capiro-vnext-root .vnext-meri__rail-right.is-expanded {
     width: min(var(--meri-rail-right-width), 38vw);
+  }
+
+  .capiro-vnext-root .vnext-meri__rail-right.is-turn-inspector {
+    width: min(var(--meri-rail-right-width-turn), 38vw);
   }
 
   /* Touch targets. Every control below is under 44px in the desktop
@@ -3208,7 +4032,8 @@
     border-left: 0;
     border-top: 1px solid var(--meri-border);
   }
-  .capiro-vnext-root .vnext-meri__rail-right.is-expanded {
+  .capiro-vnext-root .vnext-meri__rail-right.is-expanded,
+  .capiro-vnext-root .vnext-meri__rail-right.is-turn-inspector {
     width: 100%;
     max-height: min(45vh, 420px);
     max-height: min(45dvh, 420px);
