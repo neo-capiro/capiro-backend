@@ -238,4 +238,55 @@ describe('per-evidence-type freshness thresholds (§6.6)', () => {
     const min = Math.min(...Object.values(p.freshness));
     expect(unknown).toBe(min);
   });
+
+  // Live 2026-08-24: V3 evidence carries prefixed sourceTypes (see
+  // `outreach-v3-generation-context.ts` `sourceTypeFor()`), which never
+  // matched the bare camelCase freshness keys — every V3 source silently
+  // fell through to the global minimum regardless of its configured
+  // threshold, producing false stale_source_caveat holds on 88% of live
+  // drafts in one 72h window.
+  test('a V3-prefixed government_record sourceType resolves to its configured threshold', () => {
+    const p = policyForAudience('congressional_office');
+    expect(freshnessThresholdDays(p, 'outreach_v3:government_record:program_element')).toBe(
+      freshnessThresholdDays(p, 'programElement'),
+    );
+    expect(freshnessThresholdDays(p, 'outreach_v3:government_record:bill')).toBe(
+      freshnessThresholdDays(p, 'bill'),
+    );
+    expect(freshnessThresholdDays(p, 'outreach_v3:government_record:state_bill')).toBe(
+      freshnessThresholdDays(p, 'stateBill'),
+    );
+  });
+
+  // Residual gap closed 2026-08-24: after the V3-prefix fix alone,
+  // `lda_filing` still had no configured threshold under ANY naming scheme
+  // and fell to the harsh 14-day global minimum. On the live Career Start
+  // campaign the LDA filing evidence was ~35 days old — inside the LDA's
+  // own quarterly filing cadence, but still flagged stale. `award` and
+  // `hearing` had the same gap. All three now have explicit, documented
+  // thresholds distinct from the conservative fallback.
+  test('lda_filing, award, and hearing now resolve to their own configured thresholds, not the global minimum', () => {
+    const p = policyForAudience('congressional_office');
+    const min = Math.min(...Object.values(p.freshness));
+
+    const ldaFiling = freshnessThresholdDays(p, 'outreach_v3:government_record:lda_filing');
+    expect(ldaFiling).toBe(90);
+    expect(ldaFiling).toBeGreaterThan(min);
+
+    const award = freshnessThresholdDays(p, 'outreach_v3:government_record:award');
+    expect(award).toBe(30);
+    expect(award).toBeGreaterThan(min);
+
+    const hearing = freshnessThresholdDays(p, 'outreach_v3:government_record:hearing');
+    expect(hearing).toBe(14);
+  });
+
+  test('a V3-prefixed category with genuinely no configured threshold still falls back to the global minimum, not silently to 0/Infinity', () => {
+    const p = policyForAudience('congressional_office');
+    const min = Math.min(...Object.values(p.freshness));
+    // sec_filing was never configured under any naming scheme — this must
+    // remain an explicit, conservative fallback, not a new bug this fix
+    // introduces.
+    expect(freshnessThresholdDays(p, 'outreach_v3:government_record:sec_filing')).toBe(min);
+  });
 });
