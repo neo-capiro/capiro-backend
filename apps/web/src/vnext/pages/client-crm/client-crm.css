@@ -28,10 +28,11 @@
  * are imported by ClientCrmPage.tsx — they were superseded by `tabs/*.tsx` +
  * `portfolio-proto.css` (the `cap-pf` system) and are dead code, confirmed by
  * grepping for their component names across `apps/web/src`. Only the drawer/
- * modal fragments of this file (`.capiro-crm-form*`, `.capiro-crm-fill*`,
+ * modal fragments of this file (`.capiro-crm-form*`, `.capiro-crm__form-actions`,
  * `.capiro-crm__meta`, `.capiro-crm__foot`, `.capiro-crm__level*`, ...) are
  * still live, reused by ClientPersonDrawer/ConfigureHierarchyModal/
- * ClientFillWithMeriDrawer/ClientDataHealthDrawer/VNextClientPicker. Those
+ * ClientDataHealthDrawer/VNextClientPicker. Fill with Meri now owns its
+ * prototype-parity stylesheet. The remaining
  * drawers render as fixed overlays, not inside `.uui-content`, so this escape
  * does not touch them.
  */
@@ -926,168 +927,13 @@
   min-width: 220px;
 }
 
-/* ── Fill with Meri drawer (§14) ─────────────────────────────────────────── */
-
-.capiro-vnext-root .capiro-crm-fill {
-  display: flex;
-  flex-direction: column;
-  gap: var(--capiro-space-03);
-  font-family: var(--capiro-type-family-sans);
-}
-
-.capiro-vnext-root .capiro-crm-fill__state {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--capiro-space-03);
-  padding: var(--capiro-space-04) 0;
-}
-
-.capiro-vnext-root .capiro-crm-fill__warning {
-  padding: var(--capiro-space-02) var(--capiro-space-03);
-  border: 1px solid var(--capiro-color-border-warning, var(--capiro-color-warning));
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-subtle);
-  color: var(--capiro-color-text-warning, var(--crm-ink));
-}
-
-.capiro-vnext-root .capiro-crm-fill__toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--capiro-space-03);
-  padding-bottom: var(--capiro-space-02);
-  border-bottom: 1px solid var(--crm-quiet);
-}
-
-.capiro-vnext-root .capiro-crm-fill__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.capiro-vnext-root .capiro-crm-fill__item {
-  display: flex;
-  gap: var(--capiro-space-03);
-  padding: var(--capiro-space-03) 0;
-  border-bottom: 1px solid var(--crm-quiet);
-}
-
-.capiro-vnext-root .capiro-crm-fill__item:last-child { border-bottom: 0; }
-
-.capiro-vnext-root .capiro-crm-fill__check {
-  flex: 0 0 auto;
-  width: 16px;
-  height: 16px;
-  margin-top: 2px;
-  accent-color: var(--capiro-color-text-accent);
-}
-
-.capiro-vnext-root .capiro-crm-fill__item-body { min-width: 0; flex: 1 1 auto; }
-
-.capiro-vnext-root .capiro-crm-fill__field {
-  display: block;
-  font-size: var(--crm-body-sm-size);
-  line-height: var(--crm-body-sm-line);
-  font-weight: 600;
-  color: var(--crm-ink);
-  cursor: pointer;
-}
-
-.capiro-vnext-root .capiro-crm-fill__diff {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--capiro-space-02);
-  margin: 4px 0 6px;
-  font-size: var(--crm-body-sm-size);
-  line-height: var(--crm-body-sm-line);
-}
-
-/* The existing value stays visible next to the proposal — §14 forbids a silent
-   overwrite, so the user always sees what would be replaced. */
-.capiro-vnext-root .capiro-crm-fill__before {
-  color: var(--crm-ink-secondary);
-  text-decoration: line-through;
-}
-
-.capiro-vnext-root .capiro-crm-fill__arrow { color: var(--crm-ink-secondary); }
-.capiro-vnext-root .capiro-crm-fill__after { color: var(--crm-ink-accent); font-weight: 600; }
-
-.capiro-vnext-root .capiro-crm-fill__meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--capiro-space-02);
-}
-
-.capiro-vnext-root .capiro-crm-fill__evidence {
-  margin: 6px 0 0;
-  padding-left: 16px;
-  font-size: var(--crm-body-sm-size);
-  line-height: var(--crm-body-sm-line);
-  color: var(--crm-ink-secondary);
-}
-
-/* §22: Advocacy History / Other proposed changes review groups — a
-   heading above each group's list, not a new list container, so the
-   existing __list/__item styling above is reused unchanged. */
-.capiro-vnext-root .capiro-crm-fill__group + .capiro-crm-fill__group {
-  margin-top: var(--capiro-space-04);
-}
-
-.capiro-vnext-root .capiro-crm-fill__group-title {
-  font-weight: 600;
-  color: var(--crm-ink);
-  margin: 0 0 var(--capiro-space-02);
-}
-
-.capiro-vnext-root .capiro-crm-fill__item--advocacy {
-  background: var(--crm-surface);
-}
-
-.capiro-vnext-root .capiro-crm-fill__row-actions {
-  display: flex;
-  gap: var(--capiro-space-02);
-  margin-top: var(--capiro-space-02);
-}
-
-/* §17 causality contract — never let an outcome finding read as a
-   confirmed causal claim, styled as an explicit caveat, not a plain
-   evidence line. */
-.capiro-vnext-root .capiro-crm-fill__disclaimer {
-  margin: 4px 0 0;
-  color: var(--crm-ink-secondary);
-  font-style: italic;
-}
-
-.capiro-vnext-root .capiro-crm-fill__actions {
+/* Shared actions for the remaining legacy-form drawers. Fill with Meri owns a
+   separate prototype-parity stylesheet and no longer shares this namespace. */
+.capiro-vnext-root .capiro-crm__form-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--capiro-space-02);
   padding-top: var(--capiro-space-03);
-}
-
-/* §22/23 follow-up: "Attach to Matter" / "Create new Matter" picker shown
-   from a pending advocacy finding's row action. */
-.capiro-vnext-root .capiro-crm-fill__assign-matter {
-  display: flex;
-  flex-direction: column;
-  gap: var(--capiro-space-03);
-}
-
-.capiro-vnext-root .capiro-crm-fill__assign-matter-mode {
-  display: flex;
-  flex-direction: column;
-  gap: var(--capiro-space-02);
-  font-size: var(--crm-body-sm-size);
-}
-
-.capiro-vnext-root .capiro-crm-fill__assign-matter-mode label {
-  display: flex;
-  align-items: center;
-  gap: var(--capiro-space-01);
 }
 
 /* ── Organization (906:2790) — canvas 972 + 20 + settings 328 = 1320 ─────── */
@@ -1555,8 +1401,6 @@
   .capiro-vnext-root .capiro-crm__level-toggle { min-height: var(--capiro-hit-size, 44px); }
 
   .capiro-vnext-root .capiro-crm-form__input { min-height: var(--capiro-hit-size, 44px); }
-  .capiro-vnext-root .capiro-crm-fill__check { width: 24px; height: 24px; }
-
   /*
    * Every action in this module is size="compact", which is 32px from the
    * shared --capiro-control-height-compact token. The real cause lives in
