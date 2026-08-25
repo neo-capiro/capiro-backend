@@ -18,6 +18,7 @@ import {
 } from '../fixtures/directory.js';
 import { DIRECTORY_ROUTES } from '../../pages/directory/directory-routes.js';
 import { ClientProfileShell } from '../../pages/client-crm/ClientProfileShell.js';
+import { ClientFillWithMeriDrawer } from '../../pages/client-crm/ClientFillWithMeriDrawer.js';
 import {
   CLIENT_DIRECTORY_ROWS,
   DRAWER_META,
@@ -79,7 +80,7 @@ import '../../pages/client-crm/portfolio-proto.css';
  */
 const harnessQueryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: false, refetchOnWindowFocus: false, refetchInterval: false, gcTime: Infinity },
+    queries: { retry: false, refetchOnWindowFocus: false, refetchInterval: false, staleTime: Infinity, gcTime: Infinity },
     mutations: { retry: false },
   },
 });
@@ -109,6 +110,34 @@ harnessQueryClient.setQueryData(['client-activity', CLIENT_CRM_VISUAL_CLIENT.id]
   { id: 'visual-outreach', kind: 'outreach', origin: 'synced', occurredAt: '2026-08-04T12:00:00.000Z', title: 'HASC staff outreach · 6 recipients', body: 'Campaign sent. Two replies synced back to this client.', pinned: false, sourceType: 'outreach', sourceId: 'visual-outreach', dueAt: null, settledAt: null },
   { id: 'visual-commitment', kind: 'commitment', origin: 'recorded', occurredAt: '2026-07-30T12:00:00.000Z', title: 'Send Army procurement assessment', body: 'Committed on the Jul 30 call.', pinned: false, sourceType: 'activity', sourceId: null, dueAt: '2026-08-12T12:00:00.000Z', settledAt: null },
 ]);
+
+const visualFillRun = {
+  id: 'visual-fill-run', clientId: CLIENT_CRM_VISUAL_CLIENT.id, status: 'completed', stage: 'review_ready',
+  requestedSources: ['public_web', 'sam_gov', 'synced_email', 'lda'], sourceStates: {}, summary: {}, error: null,
+  startedAt: '2026-08-25T12:00:00.000Z', completedAt: '2026-08-25T12:02:00.000Z',
+  progress: { total: 8, queued: 0, running: 0, completed: 7, failed: 1, cancelled: 0 },
+  tasks: [
+    { id: 'vf-web', runId: 'visual-fill-run', taskType: 'public_web', taskKey: 'public_web', status: 'completed', dependsOn: [], attempt: 1, maxAttempts: 3, outputSummary: null, errorCode: null, errorMessage: null, nextAttemptAt: null, completedAt: '2026-08-25T12:00:30.000Z', createdAt: '', updatedAt: '' },
+    { id: 'vf-sam', runId: 'visual-fill-run', taskType: 'sam_gov', taskKey: 'sam_gov', status: 'completed', dependsOn: [], attempt: 1, maxAttempts: 3, outputSummary: null, errorCode: null, errorMessage: null, nextAttemptAt: null, completedAt: '2026-08-25T12:00:40.000Z', createdAt: '', updatedAt: '' },
+    { id: 'vf-mail', runId: 'visual-fill-run', taskType: 'synced_email', taskKey: 'synced_email', status: 'completed', dependsOn: [], attempt: 1, maxAttempts: 3, outputSummary: null, errorCode: null, errorMessage: null, nextAttemptAt: null, completedAt: '2026-08-25T12:00:50.000Z', createdAt: '', updatedAt: '' },
+    { id: 'vf-federal', runId: 'visual-fill-run', taskType: 'federal_market', taskKey: 'federal_market', status: 'completed', dependsOn: [], attempt: 1, maxAttempts: 3, outputSummary: null, errorCode: null, errorMessage: null, nextAttemptAt: null, completedAt: '2026-08-25T12:01:00.000Z', createdAt: '', updatedAt: '' },
+    { id: 'vf-facilities', runId: 'visual-fill-run', taskType: 'facility_resolution', taskKey: 'facility_resolution', status: 'failed', dependsOn: [], attempt: 3, maxAttempts: 3, outputSummary: null, errorCode: 'unavailable', errorMessage: 'Facility records unavailable', nextAttemptAt: null, completedAt: null, createdAt: '', updatedAt: '' },
+    { id: 'vf-lda', runId: 'visual-fill-run', taskType: 'lda', taskKey: 'lda', status: 'completed', dependsOn: [], attempt: 1, maxAttempts: 3, outputSummary: null, errorCode: null, errorMessage: null, nextAttemptAt: null, completedAt: '2026-08-25T12:01:15.000Z', createdAt: '', updatedAt: '' },
+    { id: 'vf-reconcile', runId: 'visual-fill-run', taskType: 'reconciliation', taskKey: 'reconciliation', status: 'completed', dependsOn: [], attempt: 1, maxAttempts: 3, outputSummary: null, errorCode: null, errorMessage: null, nextAttemptAt: null, completedAt: '2026-08-25T12:01:45.000Z', createdAt: '', updatedAt: '' },
+    { id: 'vf-audit', runId: 'visual-fill-run', taskType: 'completion_audit', taskKey: 'completion_audit', status: 'completed', dependsOn: [], attempt: 1, maxAttempts: 3, outputSummary: null, errorCode: null, errorMessage: null, nextAttemptAt: null, completedAt: '2026-08-25T12:02:00.000Z', createdAt: '', updatedAt: '' },
+  ],
+  findings: [
+    { id: 'vf-description', runId: 'visual-fill-run', kind: 'profile_field', targetKey: 'description', source: 'public_web', factKind: 'fact', currentValue: null, proposedValue: 'Autonomy software and unmanned-ground systems for defense and national-security missions.', evidence: [{ label: 'Company overview', source: 'overland.ai/about' }], confidence: .96, status: 'pending', appliedAt: null, createdAt: '' },
+    { id: 'vf-website', runId: 'visual-fill-run', kind: 'profile_field', targetKey: 'website', source: 'public_web', factKind: 'fact', currentValue: 'overland.com', proposedValue: 'overland.ai', evidence: [{ label: 'Canonical website', source: 'Public web' }], confidence: .99, status: 'pending', appliedAt: null, createdAt: '' },
+    { id: 'vf-capability', runId: 'visual-fill-run', kind: 'capability', targetKey: 'capability.autonomy', source: 'client_document', factKind: 'fact', currentValue: null, proposedValue: { name: 'Autonomous ground systems' }, evidence: [{ label: 'Capability statement · page 3' }], confidence: .92, status: 'pending', appliedAt: null, createdAt: '' },
+    { id: 'vf-advocacy', runId: 'visual-fill-run', kind: 'advocacy_record', targetKey: 'advocacy.fy27-ground-robotics', source: 'lda', factKind: 'fact', currentValue: null, proposedValue: { title: 'FY27 ground robotics engagement' }, evidence: [{ label: 'LDA filing Q2 2026' }], confidence: .88, status: 'pending', appliedAt: null, createdAt: '' },
+    { id: 'vf-context', runId: 'visual-fill-run', kind: 'program_element', targetKey: '0605053A', source: 'program_elements', factKind: 'recommendation', currentValue: null, proposedValue: { title: 'Ground Robotics' }, evidence: [{ label: 'FY27 budget request' }], confidence: .84, status: 'informational', appliedAt: null, createdAt: '' },
+    { id: 'vf-coverage', runId: 'visual-fill-run', kind: 'profile_completion', targetKey: 'profile-completion', source: 'completion_audit', factKind: 'fact', currentValue: null, proposedValue: { score: 87 }, evidence: [], confidence: 1, status: 'informational', appliedAt: null, createdAt: '' },
+  ],
+};
+harnessQueryClient.setQueryData(['client-fill-with-meri', CLIENT_CRM_VISUAL_CLIENT.id, 'latest'], visualFillRun);
+harnessQueryClient.setQueryData(['client-fill-with-meri', CLIENT_CRM_VISUAL_CLIENT.id, 'run', visualFillRun.id], visualFillRun);
+harnessQueryClient.setQueryData(['client-advocacy-matters', CLIENT_CRM_VISUAL_CLIENT.id], []);
 
 const visualRoutes = VNEXT_ROUTE_MANIFEST.filter((route) => route.id !== 'settings');
 const settingsRoute = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'settings') ?? null;
@@ -174,7 +203,7 @@ export function VNextShellVisual({
   crmTab?: CrmSurface;
   intelView?: IntelligenceView;
   relView?: RelationshipView;
-  crmOverlay?: 'person' | 'target' | 'strategy' | 'health' | 'hierarchy' | 'move' | 'toast';
+  crmOverlay?: 'person' | 'target' | 'strategy' | 'health' | 'hierarchy' | 'move' | 'toast' | 'fill';
   /** Forces Needs Attention into one of the six named states (754:2885) —
    * ModuleStateView is shared across all four modules, so this exercises the
    * same render path every module's state block uses. Dashboard-only. */
@@ -286,6 +315,15 @@ export function VNextShellVisual({
           ) : null}
           {screen === 'client-crm' && crmOverlay === 'toast' ? (
             <PfToast message="Meri proposed 7 field changes for review" onDone={() => undefined} />
+          ) : null}
+          {screen === 'client-crm' && crmOverlay === 'fill' ? (
+            <ClientFillWithMeriDrawer
+              clientId={CLIENT_CRM_VISUAL_CLIENT.id}
+              clientName={CLIENT_CRM_VISUAL_CLIENT.name}
+              initialWebsite={CLIENT_CRM_VISUAL_CLIENT.website}
+              open
+              onClose={() => undefined}
+            />
           ) : null}
         </AppShellUuiView>
         </div>
