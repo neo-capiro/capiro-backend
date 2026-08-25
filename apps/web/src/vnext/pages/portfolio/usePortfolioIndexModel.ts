@@ -57,6 +57,25 @@ export interface PortfolioPeSummaryResponse {
   watchedCount: number;
 }
 
+/**
+ * Portfolio engagement trend — outreach sends + client emails across all
+ * non-archived clients, bucketed by quarter (six quarters / 18 months),
+ * returned by GET /api/intelligence/portfolio-engagement-trend. One bounded
+ * call — no N+1 per-client fan-out.
+ */
+export interface PortfolioEngagementTrendResponse {
+  quarters: Array<{
+    label: string;
+    start: string;
+    end: string;
+    outreachSends: number;
+    clientEmails: number;
+    total: number;
+  }>;
+  currentQuarterTotal: number;
+  qoqDeltaPct: number | null;
+}
+
 export interface PortfolioRollupResponse {
   rollup: Record<string, PortfolioRollupEntry>;
 }
@@ -193,6 +212,16 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     staleTime: 60_000,
   });
 
+  // Engagement trend (side-panel chart): outreach sends + client emails
+  // across all clients, by quarter. One bounded call — no N+1 per-client
+  // fan-out.
+  const engagementTrend = useQuery<PortfolioEngagementTrendResponse>({
+    queryKey: ['intelligence', 'portfolio-engagement-trend'],
+    queryFn: async () =>
+      (await api.get<PortfolioEngagementTrendResponse>('/api/intelligence/portfolio-engagement-trend')).data,
+    staleTime: 60_000,
+  });
+
   const rows = useMemo<PortfolioRow[]>(() => {
     const all = (clients.data ?? []).filter((c) => (c.status ?? '').toLowerCase() !== 'archived');
     const ownerMap = accountOwners.data ?? {};
@@ -273,5 +302,5 @@ export function usePortfolioIndexModel(route: PortfolioRoute) {
     return sorted;
   }, [rows, route]);
 
-  return { clients, accountOwners, summary, strategies, meetings, rollup, peSummary, rows, counts, visible };
+  return { clients, accountOwners, summary, strategies, meetings, rollup, peSummary, engagementTrend, rows, counts, visible };
 }

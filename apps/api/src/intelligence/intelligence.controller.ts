@@ -393,6 +393,16 @@ export class IntelligenceController {
     return this.service.getPortfolioPeSummary(ctx.tenantId, ctx.userId);
   }
 
+  /**
+   * Portfolio engagement trend — outreach sends + client emails across all
+   * non-archived clients, bucketed by quarter (six quarters / 18 months). Two
+   * bounded, portfolio-wide reads — no per-client fan-out.
+   */
+  @Get('portfolio-engagement-trend')
+  getPortfolioEngagementTrend(@CurrentTenant() ctx: TenantContext) {
+    return this.service.getPortfolioEngagementTrend(ctx.tenantId);
+  }
+
   @Get('live-ticker')
   getLiveTicker(@CurrentTenant() ctx: TenantContext) {
     return this.service.getLiveTicker(ctx.tenantId);

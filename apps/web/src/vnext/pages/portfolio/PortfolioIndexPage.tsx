@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { CapiroButton } from '../../components/actions/index.js';
 import { hasAtLeast } from '@capiro/shared';
 import { useCapiroToast } from '../../components/feedback/toast.js';
@@ -109,6 +119,7 @@ function freshestUpdatedAt(model: ReturnType<typeof usePortfolioIndexModel>): nu
     model.accountOwners.dataUpdatedAt,
     model.rollup.dataUpdatedAt,
     model.peSummary.dataUpdatedAt,
+    model.engagementTrend.dataUpdatedAt,
   ].filter((t) => t > 0);
   return stamps.length ? Math.max(...stamps) : 0;
 }
@@ -313,14 +324,25 @@ function ClientCard({ row, rollupState, onOpen }: { row: PortfolioRow; rollupSta
 }
 
 /**
- * Engagement trend — "outreach sends and client emails across all clients,
- * by quarter." No bounded portfolio-wide endpoint returns this (checked
- * usePortfolioIndexModel.ts and GAPS.md — it isn't in that file's G1-G3
- * list, so it's a newly-found gap, not a previously-triaged one). Renders
- * the honest-unavailable state rather than a chart backed by invented
- * quarterly numbers.
+ * Engagement trend — outreach sends and client emails across all
+ * non-archived clients, by quarter. Backed by the bounded
+ * GET /api/intelligence/portfolio-engagement-trend endpoint (two
+ * portfolio-wide reads, no per-client fan-out). Three honest states,
+ * mirroring the RollupCount/RollupState pattern above: loading → skeleton,
+ * error or missing data → the same unavailable framing (never a chart built
+ * from invented numbers), ready → the real stacked bar chart.
  */
-function EngagementTrend() {
+function EngagementTrend({ model }: { model: ReturnType<typeof usePortfolioIndexModel> }) {
+  const { engagementTrend } = model;
+  const state: RollupState = engagementTrend.isLoading
+    ? 'loading'
+    : engagementTrend.isError || !engagementTrend.data
+      ? 'error'
+      : 'ready';
+  const data = engagementTrend.data;
+  const delta = data?.qoqDeltaPct ?? null;
+  const deltaClass = `capiro-portfolio-trend__delta${delta != null && delta > 0 ? ' capiro-portfolio-trend__delta--up' : delta != null && delta < 0 ? ' capiro-portfolio-trend__delta--down' : ''}`;
+
   return (
     <section className="capiro-portfolio__surface" aria-labelledby="capiro-portfolio-trend">
       <div className="capiro-portfolio-trend__head">
@@ -329,10 +351,44 @@ function EngagementTrend() {
           <span className="capiro-portfolio-trend__sub">Outreach sends and client emails across all clients, by quarter.</span>
         </span>
       </div>
-      <p className="capiro-portfolio-trend__gap" role="status">
-        Portfolio-wide engagement trend has no bounded endpoint yet — showing it would mean
-        either an invented number or an N+1 fetch across every client. Not available.
-      </p>
+
+      {state === 'loading' ? (
+        <div className="capiro-portfolio-trend__skeleton" aria-hidden />
+      ) : state === 'error' || !data ? (
+        <p className="capiro-portfolio-trend__gap" role="status">
+          Engagement trend is unavailable right now.
+        </p>
+      ) : (
+        <>
+          <div className="capiro-portfolio-trend__stats">
+            <div className="capiro-portfolio-trend__stat">
+              <span className="capiro-portfolio-trend__stat-value">{formatNumber(data.currentQuarterTotal)}</span>
+              <span className="capiro-portfolio-trend__stat-label">This quarter</span>
+            </div>
+            <div className="capiro-portfolio-trend__stat">
+              {delta == null ? (
+                <span className="capiro-portfolio__meta">Not enough history yet</span>
+              ) : (
+                <span className={deltaClass}>{delta > 0 ? '+' : ''}{delta.toFixed(1)}%</span>
+              )}
+              <span className="capiro-portfolio-trend__stat-label">QoQ</span>
+            </div>
+          </div>
+          <div className="capiro-portfolio-trend__chart">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.quarters} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} width={28} allowDecimals={false} />
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="outreachSends" name="Outreach sends" stackId="touches" fill="var(--capiro-color-action-accent-default)" />
+                <Bar dataKey="clientEmails" name="Client emails" stackId="touches" fill="var(--capiro-color-text-muted)" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
     </section>
   );
 }
@@ -389,6 +445,7 @@ export function PortfolioIndexPage() {
       void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-summary'] });
       void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-rollup'] });
       void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-pe-summary'] });
+      void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-engagement-trend'] });
       setCreateOpen(false);
       const next = new URLSearchParams(searchParams);
       next.delete('new');
@@ -410,6 +467,7 @@ export function PortfolioIndexPage() {
     void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-summary'] });
     void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-rollup'] });
     void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-pe-summary'] });
+    void queryClient.invalidateQueries({ queryKey: ['intelligence', 'portfolio-engagement-trend'] });
     void queryClient.invalidateQueries({ queryKey: ['strategy', 'strategies'] });
     void queryClient.invalidateQueries({ queryKey: ['engagement-meetings-week'] });
     void queryClient.invalidateQueries({ queryKey: ['program-element-finder', 'portfolio-watch'] });
@@ -458,7 +516,7 @@ export function PortfolioIndexPage() {
 
       <div className="capiro-portfolio__side">
         <Pulse model={model} />
-        <EngagementTrend />
+        <EngagementTrend model={model} />
       </div>
       </div>
 

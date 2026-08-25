@@ -57,8 +57,29 @@ const summary = {
   activeStrategies: 5,
 };
 
+// Six quarters, oldest → newest, mirroring buildQuarterWindows'/foldEngagementTrend's
+// real shape. Q4'25 total 17 → Q1'26 total 23 is a +35.3% QoQ delta.
+const engagementTrend = {
+  quarters: [
+    { label: "Q4'24", start: '2024-10-01T00:00:00.000Z', end: '2025-01-01T00:00:00.000Z', outreachSends: 10, clientEmails: 4, total: 14 },
+    { label: "Q1'25", start: '2025-01-01T00:00:00.000Z', end: '2025-04-01T00:00:00.000Z', outreachSends: 8, clientEmails: 6, total: 14 },
+    { label: "Q2'25", start: '2025-04-01T00:00:00.000Z', end: '2025-07-01T00:00:00.000Z', outreachSends: 12, clientEmails: 5, total: 17 },
+    { label: "Q3'25", start: '2025-07-01T00:00:00.000Z', end: '2025-10-01T00:00:00.000Z', outreachSends: 9, clientEmails: 7, total: 16 },
+    { label: "Q4'25", start: '2025-10-01T00:00:00.000Z', end: '2026-01-01T00:00:00.000Z', outreachSends: 11, clientEmails: 6, total: 17 },
+    { label: "Q1'26", start: '2026-01-01T00:00:00.000Z', end: '2026-04-01T00:00:00.000Z', outreachSends: 14, clientEmails: 9, total: 23 },
+  ],
+  currentQuarterTotal: 23,
+  qoqDeltaPct: 35.294117647058826,
+};
+
 function makeApi(
-  overrides: { clientsError?: boolean; summaryError?: boolean; clientsArchivedOnly?: boolean } = {},
+  overrides: {
+    clientsError?: boolean;
+    summaryError?: boolean;
+    clientsArchivedOnly?: boolean;
+    engagementTrendError?: boolean;
+    engagementTrendNoHistory?: boolean;
+  } = {},
 ) {
   return {
     get: async (path: string) => {
@@ -99,6 +120,19 @@ function makeApi(
             watchedCount: 5,
           },
         };
+      }
+      if (path === '/api/intelligence/portfolio-engagement-trend') {
+        if (overrides.engagementTrendError) throw new Error('engagement trend boom');
+        if (overrides.engagementTrendNoHistory) {
+          return {
+            data: {
+              quarters: engagementTrend.quarters.map((q) => ({ ...q, outreachSends: 0, clientEmails: 0, total: 0 })),
+              currentQuarterTotal: 0,
+              qoqDeltaPct: null,
+            },
+          };
+        }
+        return { data: engagementTrend };
       }
       if (path === '/strategy-api/strategies') return { data: [] };
       if (path === '/api/engagement/meetings') return { data: [] };
@@ -332,5 +366,35 @@ describe('PortfolioIndexPage', () => {
     renderIndex('?layout=cards');
     await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
     expect(screen.getByText(/Showing 3 of 3 clients/)).toBeInTheDocument();
+  });
+
+  it('renders the engagement trend chart with the current-quarter total and QoQ delta', async () => {
+    apiOverride = makeApi();
+    renderIndex();
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    expect(screen.getByText('Engagement trend')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('23')).toBeInTheDocument());
+    expect(screen.getByText('This quarter')).toBeInTheDocument();
+    expect(screen.getByText('+35.3%')).toBeInTheDocument();
+  });
+
+  it('shows "Not enough history yet" instead of a fabricated 0% when qoqDeltaPct is null', async () => {
+    apiOverride = makeApi({ engagementTrendNoHistory: true });
+    renderIndex();
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Not enough history yet')).toBeInTheDocument());
+    expect(screen.queryByText('0.0%')).not.toBeInTheDocument();
+    expect(screen.queryByText('+0.0%')).not.toBeInTheDocument();
+  });
+
+  it('renders the engagement trend unavailable state when the query fails, without breaking the rest of the page', async () => {
+    apiOverride = makeApi({ engagementTrendError: true });
+    renderIndex();
+    await waitFor(() => expect(screen.getByText('Overland AI')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Engagement trend is unavailable right now.')).toBeInTheDocument(),
+    );
+    // The rest of the page is unaffected by this one query failing.
+    expect(screen.getByText('Portfolio pulse')).toBeInTheDocument();
   });
 });

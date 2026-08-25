@@ -7402,6 +7402,54 @@ export class IntelligenceService {
   }
 
   /**
+   * Portfolio engagement trend — outreach sends + client emails across every
+   * non-archived client, bucketed by quarter (six quarters / 18 months).
+   *
+   * Two bounded, portfolio-wide reads (not per-client fan-out):
+   *  - outreach sends: OutreachRecord.sentAt within the window, non-deleted,
+   *    scoped to a client that isn't archived.
+   *  - client emails: MailThread.lastMessageAt within the window, scoped to
+   *    a client that isn't archived. MailThread.clientId is already the
+   *    correctly-resolved "this is a client email" flag — ClientAssociation-
+   *    Service excludes Hill/gov domains and personal-email providers at
+   *    ingest time, so `clientId IS NOT NULL` alone is sufficient here; no
+   *    new email-resolution logic needed.
+   *
+   * Bucketing/derivation happens in the pure, unit-testable
+   * foldEngagementTrend helper below — this method only fetches.
+   */
+  async getPortfolioEngagementTrend(tenantId: string): Promise<PortfolioEngagementTrendResponse> {
+    const quarters = buildQuarterWindows(new Date(), 6); // oldest → newest
+    const windowStart = quarters[0]!.start;
+
+    const [outreach, mail] = await Promise.all([
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.outreachRecord.findMany({
+          where: {
+            clientId: { not: null },
+            deletedAt: null,
+            sentAt: { gte: windowStart },
+            client: { status: { not: 'archived' } },
+          },
+          select: { sentAt: true },
+        }),
+      ),
+      this.prisma.withTenant(tenantId, (tx) =>
+        tx.mailThread.findMany({
+          where: {
+            clientId: { not: null },
+            lastMessageAt: { gte: windowStart },
+            client: { status: { not: 'archived' } },
+          },
+          select: { lastMessageAt: true },
+        }),
+      ),
+    ]);
+
+    return foldEngagementTrend(quarters, outreach, mail);
+  }
+
+  /**
    * Build 8-quarter ROI series for the quarter bar chart.
    * Lobbying values come from real LDA quarterly filings.
    * Obligations values are derived from annual contractor data (÷4 per quarter).
@@ -7494,6 +7542,116 @@ function startOfQuarter(now: Date): Date {
   const month = now.getMonth();
   const quarterStartMonth = Math.floor(month / 3) * 3;
   return new Date(now.getFullYear(), quarterStartMonth, 1);
+}
+
+/** Response shape for GET /api/intelligence/portfolio-engagement-trend. */
+export interface PortfolioEngagementTrendResponse {
+  quarters: Array<{
+    label: string;
+    start: string;
+    end: string;
+    outreachSends: number;
+    clientEmails: number;
+    total: number;
+  }>;
+  currentQuarterTotal: number;
+  qoqDeltaPct: number | null;
+}
+
+/**
+ * Build `count` labeled quarter windows ending at the quarter containing
+ * `now`, oldest first. `end` is the start of the FOLLOWING quarter (an
+ * exclusive upper bound), so a timestamp buckets via `start <= t < end`.
+ * Adapted from the quarter-label loop in buildRoiQuarterSeries above and the
+ * startOfQuarter helper directly above this function — parameterized on
+ * count (6, not 8) and with no per-client scoping. Pure: no DB access.
+ */
+export function buildQuarterWindows(
+  now: Date,
+  count: number,
+): Array<{ label: string; start: Date; end: Date }> {
+  const y = now.getFullYear();
+  const q = Math.floor(now.getMonth() / 3) + 1; // 1-4
+  const windows: Array<{ label: string; start: Date; end: Date }> = [];
+  for (let i = count - 1; i >= 0; i--) {
+    let qy = y;
+    let qq = q - i;
+    while (qq < 1) {
+      qq += 4;
+      qy -= 1;
+    }
+    const nextQq = qq === 4 ? 1 : qq + 1;
+    const nextQy = qq === 4 ? qy + 1 : qy;
+    windows.push({
+      label: `Q${qq}'${String(qy).slice(2)}`,
+      start: new Date(qy, (qq - 1) * 3, 1),
+      end: new Date(nextQy, (nextQq - 1) * 3, 1),
+    });
+  }
+  return windows;
+}
+
+interface OutreachSendRow {
+  sentAt: Date | null;
+}
+
+interface ClientEmailRow {
+  lastMessageAt: Date | null;
+}
+
+/**
+ * Bucket outreach sends + client emails into their quarter windows and
+ * derive the current-quarter total + QoQ delta. Modeled directly on
+ * aggregateUsageRows (ai-usage.service.ts): a bounded findMany result folded
+ * in plain JS, pure and unit-testable with no DB access.
+ *
+ * qoqDeltaPct is null (never a fabricated percentage) whenever there is no
+ * prior-quarter bucket or its total is 0 — same zero-denominator convention
+ * as netDeltaPct in getPortfolioPeSummary above.
+ */
+export function foldEngagementTrend(
+  quarters: Array<{ label: string; start: Date; end: Date }>,
+  outreach: OutreachSendRow[],
+  mail: ClientEmailRow[],
+): PortfolioEngagementTrendResponse {
+  const buckets = quarters.map((q) => ({
+    label: q.label,
+    start: q.start,
+    end: q.end,
+    outreachSends: 0,
+    clientEmails: 0,
+  }));
+
+  const bucketFor = (t: Date) => buckets.find((b) => t >= b.start && t < b.end);
+
+  for (const row of outreach) {
+    if (!row.sentAt) continue;
+    const bucket = bucketFor(row.sentAt);
+    if (bucket) bucket.outreachSends += 1;
+  }
+  for (const row of mail) {
+    if (!row.lastMessageAt) continue;
+    const bucket = bucketFor(row.lastMessageAt);
+    if (bucket) bucket.clientEmails += 1;
+  }
+
+  const quartersOut = buckets.map((b) => ({
+    label: b.label,
+    start: b.start.toISOString(),
+    end: b.end.toISOString(),
+    outreachSends: b.outreachSends,
+    clientEmails: b.clientEmails,
+    total: b.outreachSends + b.clientEmails,
+  }));
+
+  const currentQuarterTotal = quartersOut.length ? quartersOut[quartersOut.length - 1]!.total : 0;
+  const priorQuarterTotal = quartersOut.length > 1 ? quartersOut[quartersOut.length - 2]!.total : null;
+  const qoqDeltaPct =
+    priorQuarterTotal != null && priorQuarterTotal > 0
+      ? ((currentQuarterTotal - priorQuarterTotal) / priorQuarterTotal) * 100
+      : null;
+
+  return { quarters: quartersOut, currentQuarterTotal, qoqDeltaPct };
 }
 
 /**
