@@ -79,7 +79,12 @@ describe('vNext foundation contract', () => {
       '/directory/department-of-war',
       '/directory/state-legislators',
     ]);
-    expect(VNEXT_ROUTE_GAPS.map((route) => route.id)).toEqual([]);
+    // `portfolio-coalitions` is a deliberate, disclosed gap (see routeManifest.ts's
+    // note on that entry) — shown disabled (aria-disabled, shell-contract.test.tsx)
+    // to preserve the approved Portfolio information architecture ahead of the
+    // real Coalitions surface. Any OTHER gap here would mean the shell is linking
+    // to a destination that no longer resolves.
+    expect(VNEXT_ROUTE_GAPS.map((route) => route.id)).toEqual(['portfolio-coalitions']);
     // The gap mechanism itself is still intact for future unresolved routes.
     expect(VNEXT_ROUTE_GAPS.every((route) => route.path === null)).toBe(true);
   });

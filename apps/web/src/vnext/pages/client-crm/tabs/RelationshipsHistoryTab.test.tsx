@@ -176,10 +176,10 @@ const COMMITMENTS = [
 /** The rail lives inside the "Relationship controls" sub-section of the
  *  combined "Account relationship timeline" card; the same activity also
  *  appears in the timeline column, so every rail assertion is scoped to the
- *  rail's own container (the nearest ancestor <div>, not the whole card). */
+ *  rail's own container — the <aside> landmark, not the whole card. */
 async function railCard() {
   const heading = await screen.findByText('Relationship controls');
-  const card = heading.closest('div');
+  const card = heading.closest('aside');
   if (!card) throw new Error('Relationship controls rail not found');
   return within(card);
 }

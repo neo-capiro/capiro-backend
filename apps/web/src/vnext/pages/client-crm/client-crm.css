@@ -35,7 +35,26 @@
  * drawers render as fixed overlays, not inside `.uui-content`, so this escape
  * does not touch them.
  */
-.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.cap-pf-client) { max-width: none; padding: 0; margin: 0; }
+.capiro-vnext-root .capiro-vnext-uui .uui-content:has(.cap-pf-client) {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+
+.capiro-vnext-root .cap-pf-client {
+  min-height: 100%;
+  background: #eff1f5;
+  color: #101828;
+  font-family: Inter, var(--capiro-type-family-sans), system-ui, sans-serif;
+}
+
+/* The standalone client-record prototype uses a 64px header and a 232px
+   expanded rail. Scope the geometry to this route so Dashboard keeps its
+   already-approved global shell dimensions. */
+.capiro-vnext-root .capiro-vnext-uui:has(.cap-pf-client) {
+  --uui-topbar-h: 64px;
+  --uui-rail-w-expanded: 232px;
+}
 
 /*
  * Re-centered bands for the escaped route (ClientProfileShell.tsx). The
@@ -54,10 +73,10 @@
  * exact regression the Strategies pass produced and had to fix.
  */
 .capiro-vnext-root .cap-pf-client__crumbs {
-  padding: 0 calc(32px + max(0px, (100% - 1440px) / 2));
+  padding: 14px calc(32px + max(0px, (100% - 1440px) / 2)) 0;
 }
 .capiro-vnext-root .cap-pf-client__identity {
-  padding: 20px calc(32px + max(0px, (100% - 1440px) / 2)) 0;
+  padding: 20px calc(32px + max(0px, (100% - 1440px) / 2)) 16px;
 }
 .capiro-vnext-root .cap-pf-client__body {
   flex: 1 1 auto;
@@ -65,15 +84,15 @@
   max-width: 1440px;
   width: 100%;
   margin: 0 auto;
-  padding: 28px 32px 44px;
+  padding: 24px 32px 56px;
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 @media (max-width: 779px) {
-  .capiro-vnext-root .cap-pf-client__crumbs { padding: 0 16px; }
-  .capiro-vnext-root .cap-pf-client__identity { padding: 20px 16px 0; }
-  .capiro-vnext-root .cap-pf-client__body { padding: 28px 16px 44px; }
+  .capiro-vnext-root .cap-pf-client__crumbs { padding: 12px 16px 0; }
+  .capiro-vnext-root .cap-pf-client__identity { padding: 18px 16px 16px; }
+  .capiro-vnext-root .cap-pf-client__body { padding: 20px 16px 44px; }
 }
 
 .capiro-vnext-root .capiro-crm {

@@ -42,3 +42,20 @@ describe('routeManifest — Defense Budget vNext nav label', () => {
     expect(intelligence?.children?.find((c) => c.id === 'data-explorer')?.label).toBe('Data Explorer');
   });
 });
+
+describe('routeManifest — Portfolio inline navigation', () => {
+  it('exposes the prototype children in order without inventing a Coalitions route', () => {
+    const portfolio = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'portfolio');
+    expect(portfolio?.children?.map((child) => child.label)).toEqual([
+      'Clients',
+      'Program elements',
+      'Coalitions',
+    ]);
+    expect(portfolio?.children?.map((child) => child.path)).toEqual([
+      '/clients',
+      '/program-elements',
+      null,
+    ]);
+    expect(portfolio?.children?.[2]?.availability).toBe('gap');
+  });
+});

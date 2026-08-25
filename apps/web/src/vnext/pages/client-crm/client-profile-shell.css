@@ -1,384 +1,371 @@
-/* ── ClientProfileShell component classes ────────────────────────────────────
-   All rules are scoped under .capiro-vnext-root so they do not bleed into
-   legacy surfaces. These classes replace the prototype inline styles that
-   were transcribed from hardcoded hex values in ClientProfileShell.tsx. */
+/* Client record header — scoped so the Dashboard and other vNext modules keep
+   their own layout contracts. Values mirror the standalone prototype. */
 
 .capiro-vnext-root .cap-pf-breadcrumb-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 52px;
-  background: var(--capiro-color-bg-surface);
-  border-bottom: 1px solid var(--capiro-color-border-default);
-  overflow: hidden;
+  gap: 10px;
+  min-height: 36px;
+  background: #fff;
+}
+
+.capiro-vnext-root .cap-pf-breadcrumb-spacer { flex: 1; }
+
+.capiro-vnext-root .cap-pf-crumb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #667085;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.capiro-vnext-root .cap-pf-crumb-btn:hover,
+.capiro-vnext-root .cap-pf-crumb-btn--active { color: #101828; }
+
+.capiro-vnext-root .cap-pf-breadcrumb-freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid #abefc6;
+  border-radius: 9999px;
+  background: #ecfdf3;
+  color: #475467;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.capiro-vnext-root .cap-pf-freshness-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.capiro-vnext-root .cap-pf-freshness-dot--ok { background: #12b76a; }
+.capiro-vnext-root .cap-pf-freshness-dot--warn { background: #f79009; }
+.capiro-vnext-root .cap-pf-freshness-dot--pending { background: #98a2b3; }
+
+.capiro-vnext-root .cap-pf-client__identity {
+  background: #fff;
+  border-bottom: 1px solid #e4e7ec;
+}
+
+.capiro-vnext-root .cap-pf-identity-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  flex-wrap: wrap;
 }
 
 .capiro-vnext-root .cap-pf-identity-tile {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
-  overflow: hidden;
-  flex-shrink: 0;
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  overflow: hidden;
 }
-
 .capiro-vnext-root .cap-pf-identity-tile--dark {
-  background: var(--capiro-color-text-primary);
-  color: var(--capiro-color-text-inverse-primary);
-  font-size: 15px;
+  background: linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2px rgba(16,24,40,.12);
+  color: #fff;
+  font-size: 18px;
   font-weight: 600;
   letter-spacing: .02em;
 }
-
 .capiro-vnext-root .cap-pf-identity-tile__img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.capiro-vnext-root .cap-pf-client-name {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -0.028em;
-  color: var(--capiro-color-text-primary);
-  line-height: 1.2;
-  margin: 0;
-}
-
-.capiro-vnext-root .cap-pf-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 9999px;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.capiro-vnext-root .cap-pf-focus-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 9999px;
-  background: var(--capiro-color-bg-surface-2, #faf9f6);
-  border: 1px solid var(--capiro-color-border-default);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--capiro-color-text-primary);
-  white-space: nowrap;
-}
-
-.capiro-vnext-root .cap-pf-overflow-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 50;
-  width: 200px;
-  padding: 6px;
-  background: var(--capiro-color-bg-surface);
-  border-radius: 8px;
-  box-shadow: var(--capiro-primitive-shadow-widget);
-  overflow: hidden;
-  animation: capPfFade .12s ease;
-}
-
-.capiro-vnext-root .cap-pf-menu-item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: none;
-  background: none;
-  font-size: 14px;
-  color: var(--capiro-color-text-primary);
-  cursor: pointer;
-  text-align: left;
-}
-.capiro-vnext-root .cap-pf-menu-item:hover {
-  background: var(--capiro-color-bg-canvas);
-}
-.capiro-vnext-root .cap-pf-menu-item--danger {
-  color: var(--capiro-color-text-destructive, #b42318);
-}
-
-.capiro-vnext-root .cap-pf-account-owner-select {
-  height: 36px;
-  max-width: 220px;
-  padding: 0 24px 0 8px;
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: 8px;
-  background: var(--capiro-color-bg-surface);
-  color: var(--capiro-color-text-primary);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.capiro-vnext-root .cap-pf-account-owner-select--error {
-  border-color: var(--capiro-color-text-destructive, #b42318);
-}
-.capiro-vnext-root .cap-pf-account-owner-select:disabled {
-  cursor: wait;
-}
-
-.capiro-vnext-root .cap-pf-account-owner-label {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.capiro-vnext-root .cap-pf-account-owner-eyebrow {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: var(--capiro-color-text-muted);
-}
-
-.capiro-vnext-root .cap-pf-account-owner-display {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--capiro-color-text-faint);
-  white-space: nowrap;
-}
-.capiro-vnext-root .cap-pf-account-owner-display--set {
-  color: var(--capiro-color-text-secondary);
-}
-
-.capiro-vnext-root .cap-pf-add-focus-input {
-  height: 26px;
-  width: 148px;
-  padding: 0 8px;
-  border: 1px solid var(--capiro-color-border-default);
-  border-radius: 8px;
-  background: var(--capiro-color-bg-surface);
-  font-size: 14px;
-  color: var(--capiro-color-text-primary);
-  outline: none;
-}
-.capiro-vnext-root .cap-pf-add-focus-input--duplicate {
-  border-color: var(--capiro-color-text-destructive, #b42318);
-}
-
-/* ── Breadcrumb bar dynamic pieces ────────────────────────────────────────── */
-
-.capiro-vnext-root .cap-pf-crumb-sep {
-  color: var(--capiro-color-border-default);
-  font-size: 13px;
-}
-
-.capiro-vnext-root .cap-pf-crumb-btn {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: .03em;
-  text-transform: uppercase;
-  color: var(--capiro-color-text-muted);
-  white-space: nowrap;
-}
-.capiro-vnext-root .cap-pf-crumb-btn--active {
-  color: var(--capiro-color-text-primary);
-}
-
-.capiro-vnext-root .cap-pf-breadcrumb-name {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: .03em;
-  text-transform: uppercase;
-  color: var(--capiro-color-text-primary);
-  white-space: nowrap;
-}
-
-.capiro-vnext-root .cap-pf-breadcrumb-spacer {
-  flex: 1;
-}
-
-.capiro-vnext-root .cap-pf-breadcrumb-freshness {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--capiro-color-text-secondary);
-  white-space: nowrap;
-}
-
-.capiro-vnext-root .cap-pf-breadcrumb-dot {
-  color: var(--capiro-color-border-default);
-}
-
-.capiro-vnext-root .cap-pf-freshness-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-.capiro-vnext-root .cap-pf-freshness-dot--ok {
-  background: var(--capiro-color-text-success);
-}
-.capiro-vnext-root .cap-pf-freshness-dot--warn {
-  background: var(--capiro-color-warning);
-}
-.capiro-vnext-root .cap-pf-freshness-dot--pending {
-  background: var(--capiro-color-text-faint);
-}
-
-/* ── Identity block layout ────────────────────────────────────────────────── */
-
-.capiro-vnext-root .cap-pf-client__identity {
-  background: var(--capiro-color-bg-surface);
-  border-bottom: 1px solid var(--capiro-color-border-default);
-}
-
-.capiro-vnext-root .cap-pf-identity-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
 .capiro-vnext-root .cap-pf-identity-main {
   flex: 1;
   min-width: 280px;
 }
-
 .capiro-vnext-root .cap-pf-identity-name-row {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
-
+.capiro-vnext-root .cap-pf-client-name {
+  margin: 0;
+  color: #101828;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -.028em;
+  line-height: 1.1;
+}
+.capiro-vnext-root .cap-pf-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
 .capiro-vnext-root .cap-pf-status-pill__dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
 }
+.capiro-vnext-root .cap-pf-client-description {
+  max-width: 64ch;
+  margin: 8px 0 0;
+  color: #475467;
+  font-size: 14px;
+  line-height: 21px;
+  text-wrap: pretty;
+}
 
 .capiro-vnext-root .cap-pf-identity-focus-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 7px;
+  margin-top: 12px;
   flex-wrap: wrap;
 }
-
-.capiro-vnext-root .cap-pf-focus-label {
+.capiro-vnext-root .cap-pf-focus-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 9999px;
+  background: #fff;
+  color: #344054;
   font-size: 12px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: var(--capiro-color-text-muted);
-  margin-right: 2px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .capiro-vnext-root .cap-pf-identity-right {
+  display: flex;
   flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+.capiro-vnext-root .cap-pf-identity-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
-.capiro-vnext-root .cap-pf-client-sections {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.capiro-vnext-root .cap-pf-account-card {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 2px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fcfcfd;
+  box-shadow: inset 0 0 0 1px #eff1f4;
 }
-
-/* ── Add-focus control (trigger + save button) ───────────────────────────── */
-
-.capiro-vnext-root .cap-pf-add-focus-trigger {
+.capiro-vnext-root .cap-pf-account-card__label {
+  justify-self: end;
+  color: #98a2b3;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.capiro-vnext-root .cap-pf-account-card__value {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 8px;
-  border: 1px solid var(--capiro-color-border-default);
-  color: var(--capiro-color-text-secondary);
-  background: transparent;
+  justify-self: start;
+  gap: 7px;
+  min-height: 28px;
+}
+.capiro-vnext-root .cap-pf-account-card__team { gap: 8px; }
+.capiro-vnext-root .cap-pf-account-card__since {
+  justify-self: start;
+  color: #101828;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
 }
-.capiro-vnext-root .cap-pf-add-focus-trigger--hover {
-  background: var(--capiro-color-bg-surface-2, #faf9f6);
+.capiro-vnext-root .cap-pf-account-card__muted {
+  color: #98a2b3;
+  font-size: 11px;
+}
+.capiro-vnext-root .cap-pf-account-team-avatars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.capiro-vnext-root .cap-pf-account-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #eaecf0;
+  border-radius: 50%;
+  background: #f2f4f7;
+  color: #667085;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+.capiro-vnext-root .cap-pf-account-manage {
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #667085;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.capiro-vnext-root .cap-pf-account-manage:hover {
+  background: #f2f4f7;
+  color: #101828;
 }
 
+.capiro-vnext-root .cap-pf-account-owner-select {
+  width: auto;
+  max-width: 180px;
+  height: 28px;
+  margin-left: -3px;
+  padding: 0 22px 0 2px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #101828;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.capiro-vnext-root .cap-pf-account-owner-select:hover { background: #f2f4f7; }
+.capiro-vnext-root .cap-pf-account-owner-select--error { color: #b42318; }
+.capiro-vnext-root .cap-pf-account-owner-display {
+  color: #98a2b3;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.capiro-vnext-root .cap-pf-account-owner-display--set { color: #101828; }
+
+.capiro-vnext-root .cap-pf-add-focus-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  margin-left: 2px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: #363f72;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.capiro-vnext-root .cap-pf-add-focus-trigger--hover { color: #293056; }
 .capiro-vnext-root .cap-pf-add-focus-open {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
-
-.capiro-vnext-root .cap-pf-add-focus-save {
+.capiro-vnext-root .cap-pf-add-focus-input {
+  width: 150px;
   height: 26px;
+  padding: 0 9px;
+  border: 1px solid #d0d5dd;
+  border-radius: 9999px;
+  background: #fff;
+  color: #101828;
+  font-size: 12px;
+  outline: none;
+}
+.capiro-vnext-root .cap-pf-add-focus-input--duplicate { border-color: #fda29b; }
+.capiro-vnext-root .cap-pf-add-focus-save {
+  height: 28px;
   padding: 0 10px;
-  border-radius: 8px;
-  background: linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%);
-  color: var(--capiro-color-text-inverse-primary);
-  font-size: 13px;
+  border: 0;
+  border-radius: 7px;
+  background: #101828;
+  color: #fff;
+  font-size: 12px;
   font-weight: 600;
-  white-space: nowrap;
+  cursor: pointer;
 }
 .capiro-vnext-root .cap-pf-add-focus-save--disabled {
-  background: var(--capiro-color-bg-subtle);
-  color: var(--capiro-color-text-faint);
+  background: #f2f4f7;
+  color: #98a2b3;
+  cursor: not-allowed;
 }
-
 .capiro-vnext-root .cap-pf-add-focus-error {
+  color: #b42318;
   font-size: 12px;
-  color: var(--capiro-color-text-destructive, #b42318);
   white-space: nowrap;
 }
 
-/* ── Meri Actions menu ────────────────────────────────────────────────────── */
-
-.capiro-vnext-root .cap-pf-menu-anchor {
-  position: relative;
-}
-
+.capiro-vnext-root .cap-pf-menu-anchor { position: relative; }
 .capiro-vnext-root .cap-pf-meri-actions-trigger {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   height: 40px;
-  padding: 0 14px 0 13px;
+  padding: 0 16px;
+  border: 0;
   border-radius: 8px;
-  background-image: linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%);
+  background: linear-gradient(180deg, #39424f 0%, #1b2430 46%, #0e141c 100%);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2px rgba(16,24,40,.12);
-  color: var(--capiro-color-text-inverse-primary);
+  color: #fff;
   font-size: 14px;
   font-weight: 600;
-  white-space: nowrap;
+  cursor: pointer;
 }
-
 .capiro-vnext-root .cap-pf-meri-actions-chevron {
   display: flex;
-  opacity: .7;
-  transform: none;
-  transition: transform 140ms cubic-bezier(.2,0,0,1);
+  transition: transform .12s ease;
 }
-.capiro-vnext-root .cap-pf-meri-actions-chevron--open {
-  transform: rotate(180deg);
+.capiro-vnext-root .cap-pf-meri-actions-chevron--open { transform: rotate(180deg); }
+.capiro-vnext-root .cap-pf-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #c3d4e0;
+  border-radius: 8px;
+  background: #eaf0f4;
+  color: #294e68;
+  cursor: pointer;
 }
+.capiro-vnext-root .cap-pf-menu-trigger--hover { background: #e1eaf1; }
 
-.capiro-vnext-root .cap-pf-meri-actions-menu {
+.capiro-vnext-root .cap-pf-meri-actions-menu,
+.capiro-vnext-root .cap-pf-overflow-menu {
   position: absolute;
   right: 0;
   top: calc(100% + 6px);
-  z-index: 45;
-  width: 344px;
+  z-index: 50;
   padding: 6px;
+  border: 1px solid #e4e7ec;
   border-radius: 12px;
-  background: var(--capiro-color-bg-surface);
-  border: 1px solid var(--capiro-color-border-divider);
+  background: #fff;
   box-shadow: 0 18px 44px -14px rgba(16,24,40,.28), 0 2px 6px rgba(16,24,40,.05);
+  animation: capPfFade .12s ease;
 }
+.capiro-vnext-root .cap-pf-meri-actions-menu { width: 344px; }
+.capiro-vnext-root .cap-pf-overflow-menu { width: 246px; border-radius: 10px; }
 
 .capiro-vnext-root .cap-pf-meri-action-item {
   display: flex;
@@ -386,85 +373,79 @@
   align-items: flex-start;
   gap: 12px;
   padding: 11px 10px;
+  border: 0;
   border-radius: 9px;
-  text-align: left;
   background: transparent;
-  cursor: pointer;
+  text-align: left;
 }
-.capiro-vnext-root .cap-pf-meri-action-item:disabled {
-  opacity: .55;
-  cursor: not-allowed;
-}
-.capiro-vnext-root .cap-pf-meri-action-item--hover {
-  background: var(--capiro-color-bg-surface-2, #faf9f6);
-}
-
+.capiro-vnext-root .cap-pf-meri-action-item--hover { background: #f7f8fa; }
+.capiro-vnext-root .cap-pf-meri-action-item:disabled { opacity: .62; }
 .capiro-vnext-root .cap-pf-meri-action-icon {
-  flex: 0 0 auto;
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
-  background: var(--capiro-color-bg-subtle);
-  color: var(--capiro-color-text-secondary);
+  background: #eaf0f4;
+  color: #294e68;
 }
-
-.capiro-vnext-root .cap-pf-meri-action-body {
-  flex: 1;
-  min-width: 0;
-}
-
+.capiro-vnext-root .cap-pf-meri-action-body { flex: 1; min-width: 0; }
 .capiro-vnext-root .cap-pf-meri-action-label-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
-
 .capiro-vnext-root .cap-pf-meri-action-label {
+  color: #101828;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--capiro-color-text-primary);
 }
-
-.capiro-vnext-root .cap-pf-meri-action-badge {
-  flex: 0 0 auto;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 9999px;
-  background: var(--capiro-color-bg-subtle);
-  color: var(--capiro-color-text-muted);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .02em;
-  text-transform: uppercase;
-  display: inline-flex;
-  align-items: center;
-}
-
 .capiro-vnext-root .cap-pf-meri-action-detail {
   display: block;
   margin-top: 3px;
+  color: #667085;
   font-size: 12px;
   line-height: 17px;
-  color: var(--capiro-color-text-muted);
-  text-wrap: pretty;
+}
+.capiro-vnext-root .cap-pf-meri-action-badge {
+  padding: 2px 5px;
+  border-radius: 9999px;
+  background: #f2f4f7;
+  color: #667085;
+  font-size: 10px;
 }
 
-/* ── Overflow menu trigger ────────────────────────────────────────────────── */
-
-.capiro-vnext-root .cap-pf-menu-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  border: 1px solid var(--capiro-color-border-default);
-  color: var(--capiro-color-text-secondary);
+.capiro-vnext-root .cap-pf-menu-item {
+  display: block;
+  width: 100%;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
+  color: #344054;
+  font-size: 13.5px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
 }
-.capiro-vnext-root .cap-pf-menu-trigger--hover {
-  background: var(--capiro-color-bg-surface-2, #faf9f6);
+.capiro-vnext-root .cap-pf-menu-item:hover { background: #f2f4f7; }
+.capiro-vnext-root .cap-pf-menu-item--danger { color: #b42318; }
+
+@media (max-width: 1199px) {
+  .capiro-vnext-root .cap-pf-identity-right {
+    width: 100%;
+    align-items: stretch;
+  }
+  .capiro-vnext-root .cap-pf-identity-actions { justify-content: flex-start; }
+  .capiro-vnext-root .cap-pf-account-card { width: fit-content; }
 }
+
+@media (max-width: 779px) {
+  .capiro-vnext-root .cap-pf-breadcrumb-freshness { display: none; }
+  .capiro-vnext-root .cap-pf-client-name { font-size: 26px; }
+  .capiro-vnext-root .cap-pf-identity-tile { width: 48px; height: 48px; }
+  .capiro-vnext-root .cap-pf-account-card { width: 100%; }
+}
+

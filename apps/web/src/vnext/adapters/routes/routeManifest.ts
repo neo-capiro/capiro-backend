@@ -34,7 +34,29 @@ export interface VNextRouteVisibilityContext {
  */
 export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
   { id: 'dashboard', label: 'Dashboard', path: '/', availability: 'existing' },
-  { id: 'portfolio', label: 'Portfolio', path: '/clients', availability: 'existing' },
+  {
+    id: 'portfolio',
+    label: 'Portfolio',
+    path: '/clients',
+    availability: 'existing',
+    children: [
+      { id: 'portfolio-clients', label: 'Clients', path: '/clients', availability: 'existing' },
+      {
+        id: 'portfolio-program-elements',
+        label: 'Program elements',
+        path: '/program-elements',
+        availability: 'existing',
+        tenantLabels: { 'capiro-internal': 'Defense Budget' },
+      },
+      {
+        id: 'portfolio-coalitions',
+        label: 'Coalitions',
+        path: null,
+        availability: 'gap',
+        note: 'Shown to preserve the approved Portfolio information architecture; no route exists yet.',
+      },
+    ],
+  },
   {
     id: 'engagement-manager',
     label: 'Engagement Manager',

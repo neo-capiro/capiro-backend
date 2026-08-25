@@ -19,11 +19,8 @@ vi.mock('./tabs/CapabilitiesTab.js', () => ({ ClientCrmCapabilitiesProto: () => 
 vi.mock('./tabs/RelationshipsOrgTab.js', () => ({ ClientCrmOrganizationProto: () => <div>organization</div> }));
 vi.mock('./tabs/RelationshipsGovTab.js', () => ({ ClientCrmGovernmentProto: () => <div>government</div> }));
 vi.mock('./tabs/RelationshipsHistoryTab.js', () => ({ ClientCrmHistoryProto: () => <div>history</div> }));
-// Phase 4: Advocacy history is a new always-mounted accordion section (only
-// reachable, before this closeout, via ?tab=relationships&view=matters,
-// which no test in this file exercises) — mocked for the same reason every
-// other tab surface here already is: this file tests header/drawer wiring,
-// not AdvocacyMattersTab's own query behaviour.
+// This file tests header/drawer wiring, not AdvocacyMattersTab's own query
+// behavior, so every record surface remains mocked.
 vi.mock('./tabs/AdvocacyMattersTab.js', () => ({ ClientCrmAdvocacyMattersProto: () => <div>advocacy</div> }));
 vi.mock('./tabs/WorkTab.js', () => ({ ClientCrmWorkProto: () => <div>work</div> }));
 vi.mock('./tabs/IntelligenceTab.js', () => ({ ClientCrmIntelligenceProto: () => <div>intelligence</div> }));
@@ -160,13 +157,10 @@ describe('ClientCrmPage header wiring', () => {
     expect(screen.queryByText(/Arlington partner lab/)).not.toBeInTheDocument();
   });
 
-  it('navigates the Portfolio and Clients breadcrumbs to /clients', () => {
+  it('navigates the prototype All clients back link to /clients', () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Portfolio' }));
-    expect(screen.getByTestId('location')).toHaveTextContent('/clients');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Clients' }));
+    fireEvent.click(screen.getByRole('button', { name: 'All clients' }));
     expect(screen.getByTestId('location')).toHaveTextContent('/clients');
   });
 
@@ -224,7 +218,7 @@ describe('ClientCrmPage — Focus Add (item 10)', () => {
       </QueryClientProvider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add focus' }));
     fireEvent.change(screen.getByLabelText('New focus tag'), { target: { value: 'Shipbuilding' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -248,7 +242,7 @@ describe('ClientCrmPage — Focus Add (item 10)', () => {
       </QueryClientProvider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add focus' }));
     // Case-insensitive: the same focus, differently typed.
     fireEvent.change(screen.getByLabelText('New focus tag'), { target: { value: 'autonomy' } });
 

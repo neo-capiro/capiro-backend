@@ -3,19 +3,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../../../../lib/use-api.js';
 import {
-  Card,
   CardHead,
   Eyebrow,
-  GRADIENT_DARK,
-  PfButton,
   PfSkeleton,
   Pill,
   PILL,
-  TabPageHead,
   UIcon,
   type PillTone,
 } from '../portfolio-primitives.js';
-import { OV_ATTN, TIMELINE } from '../portfolio-fixtures.js';
 import { formatDateShort } from '../../../lib/labels.js';
 import {
   LogActivityModal,
@@ -28,12 +23,10 @@ import './relationships-history-tab.css';
 /**
  * Relationships / History sub-tab (spec §8.3).
  *
- * The timeline prefers the real `/api/clients/:id/activity` union (recorded
- * CRM activity + meetings + attachments + outreach) and falls back to the
- * design's TIMELINE fixture when the client has no activity yet. Quick-add
- * rows open the canonical LogActivityModal pre-set to their kind; pin/settle
- * mutations write through the same endpoints as the canonical tab. The
- * segmented sub-tab bar is owned by the parent page.
+ * The timeline reads the real `/api/clients/:id/activity` union (recorded CRM
+ * activity + meetings + attachments + outreach). Quick-add rows open the
+ * canonical LogActivityModal pre-set to their kind; pin/settle mutations
+ * write through the same endpoints as the canonical tab.
  *
  * The Calls and Documents filter chips and the timeline Export button are
  * gone: calls are logged as activity and read under the same timeline, and
@@ -130,25 +123,9 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
       navigate(`/engagement/meetings?clientId=${encodeURIComponent(client.id)}`);
   };
 
-  // Real activity mapped to the design's entry shape. The design fixture
-  // renders while loading or on error (keeps the surface pixel-reviewable);
-  // once the fetch genuinely resolves to zero records, a real empty state
-  // renders instead — the fixture is never a stand-in for "no activity".
+  // Real activity mapped to the design's entry shape. Loading, error and empty
+  // states stay honest; the visual harness owns any deterministic fixtures.
   const entries: HistEntry[] = useMemo(() => {
-    if (genuinelyEmpty) return [];
-    if (all.length === 0) {
-      return TIMELINE.map((e, i) => ({
-        id: `fixture-${i}`,
-        date: e.date,
-        mark: e.mark,
-        kind: e.kind,
-        group: e.group,
-        title: e.title,
-        body: e.body,
-        meta: e.meta,
-        action: e.action,
-      }));
-    }
     return all.map((item) => {
       const view = KIND_VIEW[item.kind];
       const recorded = item.origin === 'recorded';
@@ -201,49 +178,18 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
 
   return (
     <div className="cap-pf-anim-rise rel-hist-root">
-      <TabPageHead
-        title="Relationship history"
-        sub="The shared institutional record of what happened between your firm and this client."
-        actions={
-          <PfButton variant="primary" onClick={() => setAdding('note')}>
-            Add activity
-          </PfButton>
-        }
-      />
-
-      {/* filter bar */}
-      <div className="rel-hist-filterbar">
-        <div className="rel-hist-search">
-          <UIcon name="SearchLg" size={20} color="var(--capiro-color-text-muted)" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            aria-label="Search history"
-            placeholder="Search history"
-            className="rel-hist-search-input"
-          />
-        </div>
-        {GROUP_FILTERS.map((g) => (
-          <FilterChip key={g} label={g} active={filter === g} onClick={() => setFilter(g)} />
-        ))}
-        <span className="rel-hist-spacer" />
-        {/* The query is `limit: 200`, not a date window — "Last 90 days"
-            described a filter that does not exist. */}
-        <Eyebrow style={{ whiteSpace: 'nowrap' }}>Recent activity</Eyebrow>
-      </div>
-
       <TimelineAndControlsCard
         entries={shown}
         noActivityYet={genuinelyEmpty}
+        loading={activity.isLoading}
+        failed={activity.isError}
         commitments={openCommitments}
-        // Fixture only while the fetch is still in flight or errored. Once
-        // it genuinely resolves to nothing, "Nothing outstanding" is the
-        // truthful answer — this used to fall back on `all.length === 0`,
-        // which showed the fixture during every load and for every client
-        // that really had no activity.
-        fallbackCommitments={!loaded}
         pinnedText={pinnedNote ? maskJoinUrls(pinnedNote.body ?? pinnedNote.title) : null}
         pinnedLoaded={loaded}
+        filter={filter}
+        query={query}
+        onFilter={setFilter}
+        onQuery={setQuery}
         onQuickAdd={(kind) => setAdding(kind)}
         onSettle={(id) => mutate.mutate({ id, settled: true })}
         settlingId={mutate.isPending ? (mutate.variables?.id ?? null) : null}
@@ -284,68 +230,96 @@ interface CommitmentRow {
 function TimelineAndControlsCard({
   entries,
   noActivityYet,
+  loading,
+  failed,
   commitments,
-  fallbackCommitments,
   pinnedText,
   pinnedLoaded,
+  filter,
+  query,
+  onFilter,
+  onQuery,
   onQuickAdd,
   onSettle,
   settlingId,
 }: {
   entries: HistEntry[];
   noActivityYet: boolean;
+  loading: boolean;
+  failed: boolean;
   commitments: ActivityItem[];
-  fallbackCommitments: boolean;
   pinnedText: string | null;
   pinnedLoaded: boolean;
+  filter: GroupFilter;
+  query: string;
+  onFilter: (filter: GroupFilter) => void;
+  onQuery: (query: string) => void;
   onQuickAdd: (kind: ActivityKind) => void;
   onSettle: (id: string) => void;
   settlingId: string | null;
 }) {
-  const rows: CommitmentRow[] = fallbackCommitments
-    ? // Design fixture (UI-only): attention items shaped as open commitments.
-      OV_ATTN.filter((a) => a.id === 'a7' || a.id === 'a3' || a.id === 'a8').map((a) => ({
-        id: a.id,
-        label: a.title,
-        when: a.due,
-        tone: a.ui as PillTone,
-      }))
-    : commitments.map((item) => ({
-        id: item.id,
-        label: item.title,
-        // A commitment with no due date is still open — it just has no date to
-        // show, which is different from being overdue.
-        when: item.dueAt ? formatDay(item.dueAt) : 'No due date',
-        tone: commitmentTone(item.dueAt),
-        // The API refuses to settle a row without a dueAt ("Only a commitment
-        // or request can be settled"), so the action is only offered where the
-        // write would actually succeed.
-        settleable: Boolean(item.dueAt),
-      }));
+  const rows: CommitmentRow[] = commitments.map((item) => ({
+    id: item.id,
+    label: item.title,
+    when: item.dueAt ? formatDay(item.dueAt) : 'No due date',
+    tone: commitmentTone(item.dueAt),
+    settleable: Boolean(item.dueAt),
+  }));
 
   return (
-    <Card>
+    <section className="rel-hist-card">
       <CardHead title="Account relationship timeline" />
-      <div className="cap-pf-grid-side-380 rel-hist-grid-flush">
-        {/* timeline */}
-        <div>
-          {entries.length === 0 ? (
+      <div className="rel-hist-filterbar">
+        <label className="rel-hist-search">
+          <UIcon name="SearchLg" size={15} color="#667085" />
+          <input
+            value={query}
+            onChange={(event) => onQuery(event.target.value)}
+            aria-label="Search history"
+            placeholder="Search history"
+            className="rel-hist-search-input"
+          />
+        </label>
+        <div className="rel-hist-filtergroup" role="group" aria-label="Timeline filters">
+          {GROUP_FILTERS.map((group) => (
+            <FilterChip
+              key={group}
+              label={group}
+              active={filter === group}
+              onClick={() => onFilter(group)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="rel-hist-grid-flush">
+        <div className="rel-hist-timeline">
+          {loading ? (
+            <p className="rel-hist-empty-msg">Loading client activity…</p>
+          ) : failed ? (
+            <p className="rel-hist-empty-msg">Client activity is temporarily unavailable.</p>
+          ) : entries.length === 0 ? (
             <p className="rel-hist-empty-msg">
               {noActivityYet ? 'No activity recorded for this client yet.' : 'No activity matches this filter.'}
             </p>
           ) : (
-            entries.map((e) => <TimelineEntry key={e.id} entry={e} />)
+            entries.map((entry, index) => (
+              <TimelineEntry key={entry.id} entry={entry} last={index === entries.length - 1} />
+            ))
           )}
         </div>
 
-        {/* relationship controls rail */}
-        <div className="rel-hist-rail">
+        <aside className="rel-hist-rail" aria-label="Relationship controls">
           <h4 className="rel-hist-rail-title">Relationship controls</h4>
-          <div className="rel-hist-rail-section">
+          <div className="rel-hist-rail-section rel-hist-rail-section--first">
             <Eyebrow>Quick add</Eyebrow>
             <div className="rel-hist-rail-list">
-              {QUICK_ADD.map((qa) => (
-                <QuickAddRow key={qa.kind} label={qa.label} onClick={() => onQuickAdd(qa.kind)} />
+              {QUICK_ADD.map((quickAdd) => (
+                <QuickAddRow
+                  key={quickAdd.kind}
+                  label={quickAdd.label}
+                  onClick={() => onQuickAdd(quickAdd.kind)}
+                />
               ))}
             </div>
           </div>
@@ -353,15 +327,17 @@ function TimelineAndControlsCard({
           <div className="rel-hist-rail-divider">
             <Eyebrow>Open commitments</Eyebrow>
             <div className="rel-hist-rail-commitments">
-              {rows.length === 0 ? (
+              {!pinnedLoaded ? (
+                <span className="rel-hist-muted-note">Loading commitments…</span>
+              ) : rows.length === 0 ? (
                 <span className="rel-hist-muted-note">Nothing outstanding.</span>
               ) : (
-                rows.map((cm) => (
+                rows.map((commitment) => (
                   <CommitmentLine
-                    key={cm.id}
-                    row={cm}
-                    settling={settlingId === cm.id}
-                    {...(!fallbackCommitments && cm.settleable ? { onSettle: () => onSettle(cm.id) } : {})}
+                    key={commitment.id}
+                    row={commitment}
+                    settling={settlingId === commitment.id}
+                    {...(commitment.settleable ? { onSettle: () => onSettle(commitment.id) } : {})}
                   />
                 ))
               )}
@@ -370,10 +346,6 @@ function TimelineAndControlsCard({
 
           <div className="rel-hist-rail-divider">
             <Eyebrow>Pinned account note</Eyebrow>
-            {/* While loading, a skeleton — the old fixture fallback was a
-                sentence of invented client preference that read exactly like a
-                real pinned note. Once the fetch settles with nothing, the honest
-                answer is that there isn't one. */}
             {pinnedLoaded ? (
               <p className="rel-hist-pinned-text">
                 {pinnedText ?? 'No pinned note yet — pin an activity to keep it here.'}
@@ -384,45 +356,55 @@ function TimelineAndControlsCard({
               </div>
             )}
           </div>
-        </div>
+        </aside>
       </div>
-    </Card>
+    </section>
   );
 }
 
-function TimelineEntry({ entry: e }: { entry: HistEntry }) {
+function TimelineEntry({ entry, last }: { entry: HistEntry; last: boolean }) {
   return (
-    <div className="rel-hist-row">
-      <span className="rel-hist-row-date">{e.date}</span>
-      <span aria-hidden className="rel-hist-row-mark" style={{ background: GRADIENT_DARK }}>
-        {e.mark}
+    <article className="rel-hist-row">
+      <span className="rel-hist-node-rail" aria-hidden>
+        <span className="rel-hist-node">
+          <UIcon name={iconForGroup(entry.group)} size={18} color="#475467" />
+        </span>
+        {!last ? <span className="rel-hist-node-connector" /> : null}
       </span>
       <span className="rel-hist-row-content">
         <span className="rel-hist-row-header">
-          <Eyebrow tight>{e.kind}</Eyebrow>
+          <span className="rel-hist-row-kind">{entry.kind}</span>
+          <span className="rel-hist-row-date">{entry.date}</span>
           <span className="rel-hist-spacer" />
-          {/* No handler, no button: a dead "Open thread" that did nothing on
-              click was worse than showing nothing. */}
-          {e.onAction ? (
-            <button type="button" onClick={e.onAction} className="rel-hist-row-action">
-              {e.action}
+          {entry.onAction ? (
+            <button type="button" onClick={entry.onAction} className="rel-hist-row-action">
+              {entry.action}
             </button>
           ) : null}
         </span>
-        <span className="rel-hist-row-title">{e.title}</span>
-        {e.body ? <span className="rel-hist-row-body">{e.body}</span> : null}
-        <span className="rel-hist-row-meta">{e.meta}</span>
+        <span className="rel-hist-row-title">{entry.title}</span>
+        {entry.body ? <span className="rel-hist-row-body">{entry.body}</span> : null}
+        <span className="rel-hist-row-meta">
+          <span className="rel-hist-row-avatar" aria-hidden>{entry.mark}</span>
+          {entry.meta}
+        </span>
       </span>
-    </div>
+    </article>
   );
 }
 
-/* ControlsCard's body was folded into TimelineAndControlsCard above. */
+function iconForGroup(group: string): string {
+  if (group === 'Meetings') return 'Calendar2';
+  if (group === 'Email') return 'Mail01';
+  if (group === 'Outreach') return 'Send01';
+  if (group === 'Notes') return 'MessageTextSquare01';
+  return 'File04';
+}
+
 
 function QuickAddRow({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className="rel-hist-quickadd">
-      <span className="rel-hist-quickadd-dot" aria-hidden />
       <span className="rel-hist-quickadd-label">{label}</span>
       <UIcon name="Plus" size={16} color="var(--capiro-color-text-muted)" style={{ flex: '0 0 auto' }} />
     </button>

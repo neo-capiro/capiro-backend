@@ -48,6 +48,7 @@ export function useShellClientContext(): ShellClientContextViewModel {
   const { selectedClientId, setSelectedClientId } = useClientFilter();
 
   const enabled = isClientContextEnabledForPath(location.pathname);
+  const linkedClientId = new URLSearchParams(location.search).get('clientId');
 
   const clients = useQuery<Client[]>({
     queryKey: ['clients'],
@@ -68,7 +69,10 @@ export function useShellClientContext(): ShellClientContextViewModel {
 
     // The Dashboard rule is scope, not just presentation: report all-client
     // regardless of any persisted selection so the surface cannot narrow.
-    const effectiveClientId = enabled ? selectedClientId : null;
+    // A client-record route is already unambiguously scoped by its canonical
+    // `clientId` query parameter. Prefer it over a stale global filter so the
+    // top-bar scope badge agrees with the record on screen.
+    const effectiveClientId = enabled ? linkedClientId ?? selectedClientId : null;
     const selected = options.find((option) => option.id === effectiveClientId) ?? null;
 
     return {
@@ -78,8 +82,12 @@ export function useShellClientContext(): ShellClientContextViewModel {
       options,
       selectedClientId: effectiveClientId,
       selectedClientName: selected?.name ?? null,
-      scopeLabel: selected ? `Scoped to ${selected.name}` : 'All clients',
+      scopeLabel: selected
+        ? linkedClientId
+          ? selected.name
+          : `Scoped to ${selected.name}`
+        : 'All clients',
       setSelectedClientId,
     };
-  }, [clients.data, clients.isError, clients.isLoading, enabled, selectedClientId, setSelectedClientId]);
+  }, [clients.data, clients.isError, clients.isLoading, enabled, linkedClientId, selectedClientId, setSelectedClientId]);
 }

@@ -1,297 +1,336 @@
-/* Relationships / History sub-tab (RelationshipsHistoryTab.tsx, mounted as
-   ClientCrmHistoryProto). Design-system reconciliation pass: this file used
-   to be pure inline hardcoded-hex `style={{}}` objects; every color below now
-   routes through the shared `--capiro-*` tokens (foundations/tokens.css)
-   instead of a private hex palette, per the vNext UI cleanup program. Scoped
-   under `.cap-pf` (the Portfolio prototype root), same convention as
-   portfolio-proto.css. */
+.cap-pf .rel-hist-root { min-width: 0; }
 
-.cap-pf .rel-hist-root {
-  display: flex;
-  flex-direction: column;
-  gap: var(--capiro-space-06);
+.cap-pf .rel-hist-card {
+  overflow: hidden;
+  border: 1px solid #e4e7ec;
+  border-radius: 12px;
+  background: #fff;
 }
-
-/* ── filter bar ────────────────────────────────────────────────────────── */
 
 .cap-pf .rel-hist-filterbar {
   display: flex;
   align-items: center;
-  gap: var(--capiro-space-02);
+  gap: 8px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f2f4f7;
   flex-wrap: wrap;
 }
 
 .cap-pf .rel-hist-search {
   display: flex;
   align-items: center;
-  gap: var(--capiro-space-02);
-  height: 40px;
-  padding: 0 12px;
-  width: 320px;
-  border-radius: var(--capiro-radius-control);
-  background: var(--capiro-color-bg-surface);
-  border: 1px solid var(--capiro-color-border-control);
-  box-shadow: 0px 1px 2px var(--capiro-primitive-shadow-shell);
+  gap: 8px;
+  width: 250px;
+  height: 34px;
+  padding: 0 11px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.cap-pf .rel-hist-search:focus-within {
+  border-color: #6172f3;
+  box-shadow: 0 0 0 3px rgba(97,114,243,.12);
 }
 
 .cap-pf .rel-hist-search-input {
   flex: 1;
   min-width: 0;
   border: 0;
-  outline: none;
+  outline: 0;
   background: transparent;
-  font-size: 14px;
-  color: var(--capiro-color-text-primary);
+  color: #101828;
+  font-size: 13px;
 }
 
-.cap-pf .rel-hist-spacer {
-  flex: 1;
+.cap-pf .rel-hist-filtergroup {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid #d0d5dd;
+  border-radius: 0;
 }
 
-/* Segmented filter chip. `--active` is a real prop-driven modifier (the
-   selected filter), not something CSS alone can know — the hover tint stays
-   pure CSS on top of it. */
 .cap-pf .rel-hist-chip {
-  height: 32px;
-  padding: 0 12px;
-  border-radius: var(--capiro-radius-control);
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--capiro-color-text-muted);
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-right: 1px solid #d0d5dd;
+  background: #fff;
+  color: #344054;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
 }
-.cap-pf .rel-hist-chip:hover {
-  background: var(--capiro-color-bg-surface-2);
+.cap-pf .rel-hist-chip:last-child { border-right: 0; }
+.cap-pf .rel-hist-chip:hover { background: #f9fafb; }
+.cap-pf .rel-hist-chip--active {
+  background: #f9fafb;
+  color: #101828;
 }
-.cap-pf .rel-hist-chip--active,
-.cap-pf .rel-hist-chip--active:hover {
-  background: var(--capiro-color-bg-subtle);
-  border-color: var(--capiro-color-border-divider);
-  color: var(--capiro-color-text-primary);
-}
-
-/* ── timeline + controls card ─────────────────────────────────────────── */
 
 .cap-pf .rel-hist-grid-flush {
-  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 296px;
+}
+
+.cap-pf .rel-hist-timeline {
+  min-width: 0;
+  padding: 6px 20px 18px;
 }
 
 .cap-pf .rel-hist-empty-msg {
   margin: 0;
-  padding: 20px 24px;
-  font-size: 14px;
-  color: var(--capiro-color-text-muted);
+  padding: 20px 0;
+  color: #667085;
+  font-size: 13.5px;
 }
-
-.cap-pf .rel-hist-rail {
-  border-left: 1px solid var(--capiro-color-border-divider);
-  padding: 20px 24px;
-}
-
-.cap-pf .rel-hist-rail-title {
-  margin: 0 0 4px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: var(--capiro-color-text-muted);
-}
-
-.cap-pf .rel-hist-rail-section {
-  margin-top: 16px;
-}
-
-.cap-pf .rel-hist-rail-divider {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px solid var(--capiro-color-border-divider);
-}
-
-.cap-pf .rel-hist-rail-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--capiro-space-02);
-  margin-top: 10px;
-}
-
-.cap-pf .rel-hist-rail-commitments {
-  display: flex;
-  flex-direction: column;
-  gap: var(--capiro-space-03);
-  margin-top: 12px;
-}
-
-.cap-pf .rel-hist-muted-note {
-  font-size: 14px;
-  color: var(--capiro-color-text-muted);
-}
-
-.cap-pf .rel-hist-pinned-text {
-  margin: 8px 0 0;
-  font-size: 14px;
-  line-height: 20px;
-  color: var(--capiro-color-text-body-secondary);
-  text-wrap: pretty;
-}
-
-.cap-pf .rel-hist-pinned-skeleton {
-  margin-top: 10px;
-  max-width: 280px;
-}
-
-/* ── timeline row ──────────────────────────────────────────────────────── */
 
 .cap-pf .rel-hist-row {
+  position: relative;
   display: flex;
-  gap: var(--capiro-space-04);
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--capiro-color-bg-subtle);
-  background: transparent;
-}
-.cap-pf .rel-hist-row:hover {
-  background: var(--capiro-color-bg-surface-2);
+  gap: 14px;
+  padding: 12px 0;
 }
 
-.cap-pf .rel-hist-row-date {
+.cap-pf .rel-hist-node-rail {
+  display: flex;
   flex: 0 0 auto;
-  width: 76px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: var(--capiro-color-text-muted);
+  flex-direction: column;
+  align-items: center;
+  width: 40px;
 }
 
-.cap-pf .rel-hist-row-mark {
-  flex: 0 0 auto;
-  display: flex;
+.cap-pf .rel-hist-node {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  color: var(--capiro-color-text-inverse-primary);
-  font-size: 11px;
-  font-weight: 600;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #eaecf0;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.cap-pf .rel-hist-node-connector {
+  flex: 1;
+  width: 2px;
+  min-height: 22px;
+  margin-top: 6px;
+  border-radius: 1px;
+  background: #eaecf0;
 }
 
 .cap-pf .rel-hist-row-content {
   flex: 1;
   min-width: 0;
+  padding-bottom: 4px;
 }
 
 .cap-pf .rel-hist-row-header {
   display: flex;
-  align-items: baseline;
-  gap: var(--capiro-space-03);
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-.cap-pf .rel-hist-row-action {
-  font-size: 13px;
+.cap-pf .rel-hist-row-kind {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #fff;
+  color: #344054;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.cap-pf .rel-hist-row-date {
+  color: #98a2b3;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--capiro-color-text-primary);
+  letter-spacing: .03em;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.cap-pf .rel-hist-row-action:hover {
-  text-decoration: underline;
+
+.cap-pf .rel-hist-spacer { flex: 1; min-width: 8px; }
+
+.cap-pf .rel-hist-row-action {
+  border: 0;
+  background: transparent;
+  color: #363f72;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
 }
+.cap-pf .rel-hist-row-action:hover { color: #293056; }
 
 .cap-pf .rel-hist-row-title {
   display: block;
-  margin-top: 4px;
-  font-size: 16px;
+  margin-top: 7px;
+  color: #101828;
+  font-size: 14.5px;
   font-weight: 600;
-  color: var(--capiro-color-text-primary);
+  letter-spacing: -.01em;
   text-wrap: pretty;
 }
 
 .cap-pf .rel-hist-row-body {
   display: block;
   margin-top: 4px;
-  font-size: 14px;
-  line-height: 20px;
-  color: var(--capiro-color-text-body-secondary);
+  color: #475467;
+  font-size: 12.5px;
+  line-height: 18px;
   text-wrap: pretty;
 }
 
 .cap-pf .rel-hist-row-meta {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin-top: 8px;
-  font-size: 12px;
-  color: var(--capiro-color-text-muted);
+  color: #667085;
+  font-size: 11.5px;
 }
 
-/* ── quick add ─────────────────────────────────────────────────────────── */
+.cap-pf .rel-hist-row-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #eaecf0;
+  border-radius: 50%;
+  background: #f2f4f7;
+  color: #667085;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.cap-pf .rel-hist-rail {
+  min-width: 0;
+  padding: 16px 18px;
+  border-left: 1px solid #e4e7ec;
+}
+
+.cap-pf .rel-hist-rail-title {
+  margin: 0 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #101828;
+}
+
+.cap-pf .rel-hist-rail-section--first { margin-top: 0; }
+
+.cap-pf .rel-hist-rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 9px;
+}
 
 .cap-pf .rel-hist-quickadd {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   width: 100%;
-  padding: 11px 14px;
-  border-radius: var(--capiro-radius-control);
-  text-align: left;
-  background: var(--capiro-color-bg-surface-2);
-  border: 1px solid var(--capiro-color-border-divider);
+  padding: 9px 11px;
+  border: 1px solid #e4e7ec;
+  border-radius: 8px;
+  background: #f9fafb;
+  cursor: pointer;
 }
 .cap-pf .rel-hist-quickadd:hover {
-  background: var(--capiro-color-bg-subtle);
-  border-color: var(--capiro-color-border-control);
+  border-color: #d0d5dd;
+  background: #f2f4f7;
 }
-
-.cap-pf .rel-hist-quickadd-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--capiro-color-text-muted);
-  flex: 0 0 auto;
-}
-
 .cap-pf .rel-hist-quickadd-label {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
-  color: var(--capiro-color-text-secondary);
+  color: #344054;
+  font-size: 12.5px;
+  text-align: left;
 }
 
-/* ── commitment line ───────────────────────────────────────────────────── */
+.cap-pf .rel-hist-rail-divider {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #e4e7ec;
+}
+
+.cap-pf .rel-hist-rail-commitments {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.cap-pf .rel-hist-muted-note,
+.cap-pf .rel-hist-pinned-text {
+  color: #475467;
+  font-size: 12.5px;
+  line-height: 18px;
+}
+
+.cap-pf .rel-hist-pinned-text {
+  margin: 8px 0 0;
+  text-wrap: pretty;
+}
+.cap-pf .rel-hist-pinned-skeleton { margin-top: 10px; }
 
 .cap-pf .rel-hist-commitment {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
-
 .cap-pf .rel-hist-commitment-dot {
+  flex: 0 0 auto;
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  flex: 0 0 auto;
 }
-
 .cap-pf .rel-hist-commitment-label {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
-  color: var(--capiro-color-text-secondary);
+  color: #344054;
+  font-size: 12.5px;
   text-wrap: pretty;
 }
-
 .cap-pf .rel-hist-settle-btn {
   flex: 0 0 auto;
-  font-size: 12px;
+  border: 0;
+  background: transparent;
+  color: #667085;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: .03em;
+  letter-spacing: .05em;
   text-transform: uppercase;
-  color: var(--capiro-color-text-muted);
-  white-space: nowrap;
+  cursor: pointer;
 }
-.cap-pf .rel-hist-settle-btn:hover:not(:disabled) {
-  color: var(--capiro-color-text-primary);
+.cap-pf .rel-hist-settle-btn:hover { color: #101828; }
+
+@media (max-width: 1199px) {
+  .cap-pf .rel-hist-grid-flush { grid-template-columns: minmax(0,1fr); }
+  .cap-pf .rel-hist-rail {
+    border-top: 1px solid #e4e7ec;
+    border-left: 0;
+  }
 }
-.cap-pf .rel-hist-settle-btn:disabled {
-  color: var(--capiro-color-text-faint);
+
+@media (max-width: 779px) {
+  .cap-pf .rel-hist-filterbar { padding: 12px; }
+  .cap-pf .rel-hist-search { width: 100%; }
+  .cap-pf .rel-hist-filtergroup {
+    width: 100%;
+    overflow-x: auto;
+  }
+  .cap-pf .rel-hist-chip { flex: 1 0 auto; min-height: 40px; }
+  .cap-pf .rel-hist-timeline { padding-inline: 12px; }
 }
+

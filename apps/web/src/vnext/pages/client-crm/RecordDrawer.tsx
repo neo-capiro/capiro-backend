@@ -5,8 +5,8 @@ import type { Client } from '../../../pages/clients/clientTypes.js';
 /**
  * Phase 4 (vnext UI cleanup — client record restructuring).
  *
- * The right-side slide-over for the four "directory" surfaces (Relationships/
- * Work/Files/Capabilities) that the sticky `DrawerRail` opens. This is a thin
+ * The right-side slide-over for the four directory surfaces (Relationships,
+ * Work, Files and Capabilities) in `ClientRecordDirectory`. This is a thin
  * wrapper around `PfDrawer` (portfolio-overlays.tsx §12), which already
  * implements the fixed scrim, `role="dialog"`, focus trap, Escape-to-close,
  * the `--pf-shadow-drawer` box-shadow and the `capPfSlideIn` animation — it

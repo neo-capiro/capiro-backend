@@ -1,0 +1,91 @@
+.capiro-vnext-root .cap-pf-record-directory {
+  min-width: 0;
+  position: sticky;
+  top: 20px;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__eyebrow {
+  padding: 0 0 8px;
+  color: #98a2b3;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: inset 2px 0 0 transparent;
+  color: #344054;
+  cursor: pointer;
+  text-align: left;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__row:hover {
+  background: #f2f4f7;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__row--active,
+.capiro-vnext-root .cap-pf-record-directory__row--active:hover {
+  background: #eaf0f4;
+  box-shadow: inset 2px 0 0 #294e68;
+  color: #101828;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__icon {
+  display: flex;
+  flex: 0 0 auto;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__label,
+.capiro-vnext-root .cap-pf-record-directory__detail {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__label {
+  color: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__detail {
+  margin-top: 1px;
+  color: #98a2b3;
+  font-size: 11px;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__row--active .cap-pf-record-directory__label {
+  font-weight: 600;
+}
+
+.capiro-vnext-root .cap-pf-record-directory__row--active .cap-pf-record-directory__detail {
+  color: #294e68;
+}
+
+@media (max-width: 1199px) {
+  .capiro-vnext-root .cap-pf-record-directory {
+    position: static;
+    order: 2;
+  }
+}

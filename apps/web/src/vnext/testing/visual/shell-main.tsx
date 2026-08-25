@@ -28,13 +28,9 @@ const crmTab = params.get('crmTab') ?? undefined;
 const intelView = params.get('intelView') ?? undefined;
 const relView = params.get('relView') ?? undefined;
 const crmOverlay = params.get('crmOverlay') ?? undefined;
-// Phase 4: e.g. `?openSections=timeline,advocacy` to force those record
-// sections open in addition to whatever crmTab/relView/intelView already
-// target — see VNextShellVisual's `openSections` prop doc.
-const openSections = params.get('openSections')?.split(',') ?? undefined;
 
 ReactDOM.createRoot(root).render(
   <React.StrictMode>
-    <VNextShellVisual collapsed={collapsed} screen={screen} crmTab={crmTab as never} intelView={intelView as never} relView={relView as never} crmOverlay={crmOverlay as never} openSections={openSections as never} attnState={attnState as never} />
+    <VNextShellVisual collapsed={collapsed} screen={screen} crmTab={crmTab as never} intelView={intelView as never} relView={relView as never} crmOverlay={crmOverlay as never} attnState={attnState as never} />
   </React.StrictMode>,
 );

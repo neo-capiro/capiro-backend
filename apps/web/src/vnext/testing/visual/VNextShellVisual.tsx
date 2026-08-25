@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { VNEXT_ROUTE_MANIFEST } from '../../adapters/routes/routeManifest.js';
@@ -19,8 +18,12 @@ import {
 } from '../fixtures/directory.js';
 import { DIRECTORY_ROUTES } from '../../pages/directory/directory-routes.js';
 import { ClientProfileShell } from '../../pages/client-crm/ClientProfileShell.js';
-import { AccordionSection } from '../../pages/client-crm/AccordionSection.js';
-import { DRAWER_META, drawerKeyForRoute } from '../../pages/client-crm/DrawerRail.js';
+import {
+  CLIENT_DIRECTORY_ROWS,
+  DRAWER_META,
+  activeDirectoryKey,
+  drawerKeyForRoute,
+} from '../../pages/client-crm/ClientRecordDirectory.js';
 import { SegmentedTabs } from '../../pages/client-crm/portfolio-primitives.js';
 import {
   RELATIONSHIP_VIEW_LABELS,
@@ -31,7 +34,6 @@ import {
   type IntelligenceView,
 } from '../../pages/client-crm/client-crm-routing.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
-import { ClientCrmOverviewProto } from '../../pages/client-crm/tabs/OverviewTab.js';
 import { ClientCrmCapabilitiesProto } from '../../pages/client-crm/tabs/CapabilitiesTab.js';
 import { ClientCrmOrganizationProto } from '../../pages/client-crm/tabs/RelationshipsOrgTab.js';
 import { ClientCrmGovernmentProto } from '../../pages/client-crm/tabs/RelationshipsGovTab.js';
@@ -54,6 +56,7 @@ import {
 } from '../../pages/client-crm/portfolio-overlays.js';
 import { PEOPLE, TARGETS, NODES, FOLDERS } from '../../pages/client-crm/portfolio-fixtures.js';
 import '../../pages/client-crm/client-crm.css';
+import '../../pages/client-crm/client-record-surface.css';
 import '../../pages/client-crm/portfolio-proto.css';
 
 /**
@@ -80,6 +83,32 @@ const harnessQueryClient = new QueryClient({
     mutations: { retry: false },
   },
 });
+
+// Deterministic harness data lives only in the visual entry point. Production
+// ClientCrmHistoryProto still reads the real activity/account APIs.
+const visualOwner = {
+  id: 'visual-sarah',
+  email: 'sarah@capiro.ai',
+  firstName: 'Sarah',
+  lastName: 'Martinez',
+};
+harnessQueryClient.setQueryData(['client-account-owner', CLIENT_CRM_VISUAL_CLIENT.id], {
+  accountOwnerUserId: visualOwner.id,
+  accountOwner: visualOwner,
+});
+harnessQueryClient.setQueryData(['client-account-owner-options'], [visualOwner]);
+harnessQueryClient.setQueryData(['client-team', CLIENT_CRM_VISUAL_CLIENT.id], [
+  { ...visualOwner, id: null, userId: visualOwner.id, role: null, isOwner: true, addedAt: null },
+  { id: 'team-jc', userId: 'visual-jordan', email: 'jordan@capiro.ai', firstName: 'Jordan', lastName: 'Clayton', role: null, isOwner: false, addedAt: '2026-01-15T00:00:00.000Z' },
+  { id: 'team-ar', userId: 'visual-amara', email: 'amara@capiro.ai', firstName: 'Amara', lastName: 'Reid', role: null, isOwner: false, addedAt: '2026-01-15T00:00:00.000Z' },
+]);
+harnessQueryClient.setQueryData(['client-activity', CLIENT_CRM_VISUAL_CLIENT.id], [
+  { id: 'visual-note', kind: 'note', origin: 'recorded', occurredAt: '2026-08-10T12:00:00.000Z', title: 'Priority shifted toward Army procurement', body: 'Stephanie wants the next meeting focused on procurement rather than RDT&E.', pinned: true, sourceType: 'activity', sourceId: null, dueAt: null, settledAt: null },
+  { id: 'visual-email', kind: 'email', origin: 'synced', occurredAt: '2026-08-08T12:00:00.000Z', title: 'RE: FY27 Ground Robotics Mark', body: '2 emails exchanged with Stephanie Bonk. Client requested an assessment before Tuesday.', pinned: false, sourceType: 'mail_thread', sourceId: 'visual-thread', dueAt: null, settledAt: null },
+  { id: 'visual-meeting', kind: 'meeting', origin: 'synced', occurredAt: '2026-08-06T12:00:00.000Z', title: 'Strategy review · conference outlook', body: 'Debrief filed. Two commitments recorded, one still open.', pinned: false, sourceType: 'meeting', sourceId: 'visual-meeting', dueAt: null, settledAt: null },
+  { id: 'visual-outreach', kind: 'outreach', origin: 'synced', occurredAt: '2026-08-04T12:00:00.000Z', title: 'HASC staff outreach · 6 recipients', body: 'Campaign sent. Two replies synced back to this client.', pinned: false, sourceType: 'outreach', sourceId: 'visual-outreach', dueAt: null, settledAt: null },
+  { id: 'visual-commitment', kind: 'commitment', origin: 'recorded', occurredAt: '2026-07-30T12:00:00.000Z', title: 'Send Army procurement assessment', body: 'Committed on the Jul 30 call.', pinned: false, sourceType: 'activity', sourceId: null, dueAt: '2026-08-12T12:00:00.000Z', settledAt: null },
+]);
 
 const visualRoutes = VNEXT_ROUTE_MANIFEST.filter((route) => route.id !== 'settings');
 const settingsRoute = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'settings') ?? null;
@@ -138,7 +167,6 @@ export function VNextShellVisual({
   intelView = 'legislative',
   relView = 'organization',
   crmOverlay,
-  openSections,
   attnState,
 }: {
   collapsed?: boolean;
@@ -147,12 +175,6 @@ export function VNextShellVisual({
   intelView?: IntelligenceView;
   relView?: RelationshipView;
   crmOverlay?: 'person' | 'target' | 'strategy' | 'health' | 'hierarchy' | 'move' | 'toast';
-  /** Phase 4: forces additional record sections open on top of whichever one
-   *  `crmTab`/`relView`/`intelView` already targets — e.g. `['timeline',
-   *  'advocacy']` to capture the whole section stack expanded at once, since
-   *  only one route-target section auto-expands at a time otherwise (same as
-   *  production — see `ClientCrmSectionsFixture` below). */
-  openSections?: readonly ClientCrmSectionId[];
   /** Forces Needs Attention into one of the six named states (754:2885) —
    * ModuleStateView is shared across all four modules, so this exercises the
    * same render path every module's state block uses. Dashboard-only. */
@@ -163,11 +185,7 @@ export function VNextShellVisual({
       ? DASHBOARD_STATE_FIXTURES[attnState]
       : DASHBOARD_VISUAL_FIXTURE;
 
-  // Phase 4: the same (tab, view) shape ClientCrmPage derives from the URL via
-  // resolveCrmRoute — built directly from the fixture props here since this
-  // harness has no real route to parse. Drives DrawerRail/AccordionSection
-  // exactly as production does, so relView='history'|'matters' now expands
-  // the Timeline/Advocacy section instead of opening the drawer.
+  // Same (tab, view) shape ClientCrmPage derives from the URL.
   const crmRoute: { tab: CrmSurface; view: CrmView | null } =
     crmTab === 'relationships'
       ? { tab: 'relationships', view: relView }
@@ -186,16 +204,14 @@ export function VNextShellVisual({
           identity={fixtureIdentity}
           notifications={fixtureNotifications}
           mailboxStatus={FOUNDATION_MAILBOX_STATES[0]}
-          scopeLabel="All clients"
+          scopeLabel={screen === 'client-crm' ? CLIENT_CRM_VISUAL_CLIENT.name : 'All clients'}
           onNavigate={() => undefined}
           onSignOut={() => undefined}
           onOpenProfile={() => undefined}
           initialCollapsed={collapsed}
         >
           {screen === 'client-crm' ? (
-            // Client CRM — Portfolio prototype shell (Phase 4: drawer rail +
-            // accordion-section stack, mirroring ClientCrmPage.tsx's own
-            // ClientCrmBody/ClientCrmDrawerBody split).
+            // Client CRM — seven-row directory + one active surface.
             <ClientProfileShell
               client={CLIENT_CRM_VISUAL_CLIENT}
               tab={crmRoute.tab}
@@ -220,10 +236,10 @@ export function VNextShellVisual({
                 ) : null
               }
               drawerTitle={crmDrawerRow?.label}
-              drawerSub={crmDrawerRow?.detail}
+              drawerSub={crmDrawerRow?.description}
               onCloseDrawer={() => undefined}
             >
-              <ClientCrmSectionsFixture client={CLIENT_CRM_VISUAL_CLIENT} route={crmRoute} openSections={openSections} />
+              <ClientCrmSurfaceFixture client={CLIENT_CRM_VISUAL_CLIENT} route={crmRoute} />
             </ClientProfileShell>
           ) : screen === 'dashboard' ? (
             <DashboardVNextView model={dashboardModel} />
@@ -278,129 +294,46 @@ export function VNextShellVisual({
   );
 }
 
-/* ── Client CRM body fixtures (Phase 4: drawer rail + accordion mirror) ──────
- * ClientCrmPage.tsx computes its accordion stack and drawer body inline via
- * two module-private functions (`ClientCrmBody`/`ClientCrmDrawerBody`) built
- * from `sectionForRoute`/`SECTION_COPY`, also private. Reused below where
- * exported (`AccordionSection`, `DRAWER_META`, `drawerKeyForRoute`); rebuilt
- * verbatim where not, so this harness keeps rendering the identical
- * structure production does instead of drifting back out of sync.
- */
+/* ── Client CRM body fixture: same one-surface architecture as production. */
 
-type ClientCrmSectionId = 'overview' | 'timeline' | 'advocacy' | 'intelligence';
-
-const CLIENT_CRM_SECTION_COPY: Record<ClientCrmSectionId, { title: string; sub?: string }> = {
-  overview: { title: 'Overview' },
-  timeline: {
-    title: 'Timeline',
-    sub: 'The shared institutional record of what happened between your firm and this client.',
-  },
-  advocacy: {
-    title: 'Advocacy history',
-    sub: 'What this client asked for, and what happened. Submissions are recorded against the capability they support.',
-  },
-  intelligence: {
-    title: 'Intelligence',
-    sub: 'Four domains read from the client-intelligence surface.',
-  },
-};
-
-function sectionForCrmRoute(route: { tab: CrmSurface; view: CrmView | null }): ClientCrmSectionId | null {
-  if (route.tab === 'overview') return 'overview';
-  if (route.tab === 'relationships' && route.view === 'history') return 'timeline';
-  if (route.tab === 'relationships' && route.view === 'matters') return 'advocacy';
-  if (route.tab === 'intelligence') return 'intelligence';
-  return null;
-}
-
-/** Mirrors ClientCrmPage.tsx's private `ClientCrmBody` — the always-mounted
- *  Overview/Timeline/Advocacy history/Intelligence accordion stack. Overview
- *  plus whichever section `route` targets start expanded, same as production;
- *  `openSections` (harness-only) forces additional ones open on top of that. */
-function ClientCrmSectionsFixture({
+function ClientCrmSurfaceFixture({
   client,
   route,
-  openSections,
 }: {
   client: Client;
   route: { tab: CrmSurface; view: CrmView | null };
-  openSections?: readonly ClientCrmSectionId[];
 }) {
-  const [expanded, setExpanded] = useState<ReadonlySet<ClientCrmSectionId>>(() => {
-    const target = sectionForCrmRoute(route);
-    return new Set<ClientCrmSectionId>(['overview', ...(openSections ?? []), ...(target ? [target] : [])]);
-  });
-
-  const toggle = (id: ClientCrmSectionId) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const key = activeDirectoryKey(route.tab, route.view);
+  const row =
+    CLIENT_DIRECTORY_ROWS.find((item) => item.key === key && !item.drawer) ??
+    CLIENT_DIRECTORY_ROWS[0]!;
 
   return (
-    <>
-      <AccordionSection
-        id="cap-pf-section-overview"
-        title={CLIENT_CRM_SECTION_COPY.overview.title}
-        sub={CLIENT_CRM_SECTION_COPY.overview.sub}
-        open={expanded.has('overview')}
-        onToggle={() => toggle('overview')}
-      >
-        <ClientCrmOverviewProto
-          client={client}
-          onEditProfile={() => undefined}
-          onOpenFederalFootprint={() => undefined}
-          onOpenWork={() => undefined}
-          onOpenIntelligence={() => undefined}
-        />
-      </AccordionSection>
-
-      <AccordionSection
-        id="cap-pf-section-timeline"
-        title={CLIENT_CRM_SECTION_COPY.timeline.title}
-        sub={CLIENT_CRM_SECTION_COPY.timeline.sub}
-        open={expanded.has('timeline')}
-        onToggle={() => toggle('timeline')}
-      >
-        <ClientCrmHistoryProto client={client} />
-      </AccordionSection>
-
-      <AccordionSection
-        id="cap-pf-section-advocacy"
-        title={CLIENT_CRM_SECTION_COPY.advocacy.title}
-        sub={CLIENT_CRM_SECTION_COPY.advocacy.sub}
-        open={expanded.has('advocacy')}
-        onToggle={() => toggle('advocacy')}
-      >
+    <section className="cap-pf-record-surface" data-record-surface={row.key}>
+      <header className="cap-pf-record-surface__head">
+        <div>
+          <h2 className="cap-pf-record-surface__title">{row.label}</h2>
+          <p className="cap-pf-record-surface__sub">{row.description}</p>
+        </div>
+      </header>
+      {row.key === 'advocacy' ? (
         <ClientCrmAdvocacyMattersProto client={client} />
-      </AccordionSection>
-
-      <AccordionSection
-        id="cap-pf-section-intelligence"
-        title={CLIENT_CRM_SECTION_COPY.intelligence.title}
-        sub={CLIENT_CRM_SECTION_COPY.intelligence.sub}
-        open={expanded.has('intelligence')}
-        onToggle={() => toggle('intelligence')}
-      >
-        {/* Intelligence is one always-expanded stack of all four domains now
-            (not a single `intelView`-selected panel) — see IntelligenceDomainStack
-            in ClientCrmPage.tsx, reproduced here since it too is module-private. */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-          {INTELLIGENCE_VIEWS.map((view, index) => (
-            <div key={view} style={index > 0 ? { paddingTop: 32, borderTop: '1px solid #E8E5DF' } : undefined}>
+      ) : row.key === 'intelligence' ? (
+        <div className="cap-pf-intelligence-domain-stack">
+          {INTELLIGENCE_VIEWS.map((view) => (
+            <div key={view} className="cap-pf-intelligence-domain">
               <ClientCrmIntelligenceProto client={client} view={view} />
             </div>
           ))}
         </div>
-      </AccordionSection>
-    </>
+      ) : (
+        <ClientCrmHistoryProto client={client} />
+      )}
+    </section>
   );
 }
 
-/** Mirrors ClientCrmPage.tsx's private `ClientCrmDrawerBody` — the
- *  Relationships/Work/Files/Capabilities content that opens in `RecordDrawer`.
+/** Relationships/Work/Files/Capabilities content that opens in `RecordDrawer`.
  *  Relationships' history/matters views never reach here (`drawerKeyForRoute`
  *  returns null for them): those promote to the Timeline/Advocacy sections
  *  above instead. */

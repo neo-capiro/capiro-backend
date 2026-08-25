@@ -62,6 +62,13 @@ const targets = [
   },
   { name: 'shell-tablet', path: '/vnext-shell.html', width: 900, height: 1000, expect: '.capiro-vnext-uui' },
   { name: 'shell-mobile', path: '/vnext-shell.html', width: 390, height: 844, expect: '.capiro-vnext-uui' },
+  {
+    name: 'client-record-desktop',
+    path: '/vnext-shell.html?screen=client-crm&crmTab=relationships&relView=history',
+    width: 2048,
+    height: 1189,
+    expect: '.cap-pf-record-directory [aria-current="page"]',
+  },
   // Directory vNext (Figma 937:2539). Added under the README's own baseline
   // rule: a product screen earns a baseline once it is implemented from its
   // canonical node, which Congressional Staff now is.

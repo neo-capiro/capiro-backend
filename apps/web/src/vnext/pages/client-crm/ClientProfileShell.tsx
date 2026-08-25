@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
-import { UIcon, PfButton, PILL } from './portfolio-primitives.js';
+import { UIcon, PILL } from './portfolio-primitives.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
 import { sectorLabel } from '../../lib/labels.js';
 import { openMeriWorkspaceWithContext } from '../../../components/chat/meri-window.js';
 import type { CrmSurface, CrmView } from './client-crm-routing.js';
 import { useClientAccountOwner } from './useClientAccountOwner.js';
-import { DrawerRail, drawerKeyForRoute } from './DrawerRail.js';
+import { ClientRecordDirectory } from './ClientRecordDirectory.js';
 import { RecordDrawer } from './RecordDrawer.js';
+import { ManageAccountTeamModal } from './ManageAccountTeamModal.js';
+import { clientTeamKey, getClientTeam, teamMemberLabel } from './client-team-api.js';
 import './client-profile-shell.css';
 
 /**
@@ -33,12 +35,10 @@ function usePfBreakpoints() {
 }
 
 /**
- * Portfolio prototype client shell (spec §5, restructured for Phase 4 of the
- * vnext UI cleanup program). Wraps every /clients?clientId= route body:
- * breadcrumb bar → identity block → sticky DrawerRail + accordion-section
- * stack. The shared AppShellUui owns the global top bar + rail; this shell
- * owns everything below it inside the client route. The six-tab strip this
- * used to render is gone — see the body comment below.
+ * Portfolio prototype client shell. Wraps every /clients?clientId= route body:
+ * back/freshness bar → identity block → seven-row record directory + one
+ * active record surface. The shared AppShellUui owns the global top bar and
+ * rail; this shell owns everything below it inside the client route.
  */
 
 export interface ProfileShellProps {
@@ -64,12 +64,13 @@ export interface ProfileShellProps {
   /** Item 9: archive is gated at standard_user on the API. */
   canArchive?: boolean;
   onArchive?: () => void;
+  onEditProfile?: () => void;
   /** Item 10: the client PUT behind a focus tag is gated at user_admin. */
   canEditFocus?: boolean;
-  /** The accordion-section stack (Overview / Timeline / Advocacy history / Intelligence). */
+  /** The one active record surface. */
   children: ReactNode;
   /**
-   * Phase 4: the right-side `RecordDrawer` body for Relationships/Work/Files/
+   * The right-side `RecordDrawer` body for Relationships/Work/Files/
    * Capabilities, computed by the caller (it knows which `ClientCrmXxxProto`
    * to render). `null`/`undefined` closes the drawer.
    */
@@ -115,6 +116,7 @@ export function ClientProfileShell({
   sourceFailures = 0,
   canArchive = false,
   onArchive,
+  onEditProfile,
   canEditFocus = false,
   children,
   drawerContent,
@@ -138,20 +140,9 @@ export function ClientProfileShell({
       data-pf-tight={bp.tight ? '1' : undefined}
       data-pf-collapsed={bp.collapsed ? '1' : undefined}
     >
-      {/* ── Breadcrumb bar (§5.1) ─────────────────────────────────────────── */}
-      {/* Horizontal padding lives in client-crm.css (.cap-pf-client__crumbs) —
-          it re-centers this full-bleed band now that the shell's own 1280px
-          cap is escaped for this route (see the escape rule at the top of
-          that file), and drops to 16px at 779px so a phone still gets an
-          inset instead of the shell's now-removed padding. */}
+      {/* ── Back + freshness bar ──────────────────────────────────────────── */}
       <div className="cap-pf-client__crumbs cap-pf-breadcrumb-bar">
-        <CrumbButton label="Portfolio" onClick={() => navigate('/clients')} />
-        <Sep />
-        <CrumbButton label="Clients" onClick={() => navigate('/clients')} />
-        <Sep />
-        <span className="cap-pf-breadcrumb-name">
-          {client.name}
-        </span>
+        <CrumbButton label="All clients" back onClick={() => navigate('/clients')} />
         <span className="cap-pf-breadcrumb-spacer" />
         {/* Item 11: real freshness. The green pulse is a health claim, so it
             only shows when every source answered — a failing source turns the
@@ -168,7 +159,6 @@ export function ClientProfileShell({
               ? `Sources read ${refreshedLabel}`
               : 'Reading sources…'}
         </span>
-        <span className="cap-pf-breadcrumb-dot">·</span>
         {profileGapCount > 0 ? (
           <CrumbButton
             label={`${profileGapCount} profile gap${profileGapCount === 1 ? '' : 's'}`}
@@ -180,10 +170,6 @@ export function ClientProfileShell({
       </div>
 
       {/* ── Identity block (§5.2) ─────────────────────────────────────────── */}
-      {/* Same reasoning as the breadcrumb bar above: horizontal padding moved
-          to .cap-pf-client__identity in client-crm.css so it re-centers at
-          1440px (with a 32px floor) instead of the shell's escaped 1280px
-          cap, and drops to 16px at 779px. */}
       <div className="cap-pf-client__identity">
         <div className="cap-pf-identity-row">
           {/* 56px dark tile */}
@@ -208,11 +194,14 @@ export function ClientProfileShell({
               </span>
             </div>
 
+            {client.description || client.productDescription ? (
+              <p className="cap-pf-client-description">
+                {client.description || client.productDescription}
+              </p>
+            ) : null}
+
             {/* Focus row */}
             <div className="cap-pf-identity-focus-row">
-              <span className="cap-pf-focus-label">
-                Focus
-              </span>
               {chips.map((chip) => (
                 <span key={chip} className="cap-pf-focus-chip">
                   {chip}
@@ -224,35 +213,25 @@ export function ClientProfileShell({
 
           {/* Right cluster */}
           <div className="cap-pf-identity-right">
-            <AccountOwnerControl clientId={client.id} canAssign={canEditFocus} />
-            <MeriActionsMenu busy={fillBusy} fillLabel={fillLabel} onFillWithMeri={onFillWithMeri} />
-            <OverflowMenu client={client} onDataHealth={onDataHealth} canArchive={canArchive} onArchive={onArchive} />
+            <div className="cap-pf-identity-actions">
+              <MeriActionsMenu busy={fillBusy} fillLabel={fillLabel} onFillWithMeri={onFillWithMeri} />
+              <OverflowMenu
+                client={client}
+                onDataHealth={onDataHealth}
+                onEditProfile={onEditProfile}
+                canArchive={canArchive}
+                onArchive={onArchive}
+              />
+            </div>
+            <AccountSummaryCard client={client} canAssign={canEditFocus} />
           </div>
         </div>
       </div>
 
-      {/* ── Body (Phase 4: drawer rail + accordion-section stack) ────────────
-       * Previously two nested divs: an outer full-bleed 32px-padding spacer
-       * and an inner `maxWidth: 1360` centering box. That 1360 was already a
-       * no-op — the shell capped `.uui-content` at 1280px, so nothing this
-       * route rendered ever reached 1360 to begin with. Now that the shell's
-       * cap is escaped (client-crm.css, `.uui-content:has(.cap-pf-client)`),
-       * the max-width takes real effect, so it is collapsed into one node and
-       * bumped to 1440 to match the sitewide Dashboard/Strategies convention
-       * (dashboard.css / strategies.css `.st-canvas`). Padding + the 779px
-       * mobile step live in `.cap-pf-client__body` (client-crm.css).
-       *
-       * The six-tab strip that used to live in the identity block above is
-       * gone. Relationships/Work/Files/Capabilities are now triggers in the
-       * sticky `DrawerRail` (opening `RecordDrawer`); Overview/Timeline/
-       * Advocacy history/Intelligence are the always-mounted section stack
-       * the caller passes as `children` — see ClientCrmPage.tsx's
-       * `ClientCrmBody`. `onNavigate` is the exact same callback the old tab
-       * buttons called, so the `?tab=`/`?view=` URL contract is unchanged.
-       */}
+      {/* ── Body: prototype directory + one active record surface ───────── */}
       <div className="cap-pf-client__body">
         <div className="cap-pf-grid-record">
-          <DrawerRail activeKey={drawerKeyForRoute(tab, view)} onNavigate={onNavigate} />
+          <ClientRecordDirectory tab={tab} view={view} onNavigate={onNavigate} />
           <div className="cap-pf-client-sections">{children}</div>
         </div>
       </div>
@@ -273,11 +252,7 @@ export function ClientProfileShell({
 
 /* ── small shell pieces ───────────────────────────────────────────────────── */
 
-function Sep() {
-  return <span className="cap-pf-crumb-sep">/</span>;
-}
-
-function CrumbButton({ label, strong = false, onClick }: { label: string; strong?: boolean; onClick?: () => void }) {
+function CrumbButton({ label, strong = false, back = false, onClick }: { label: string; strong?: boolean; back?: boolean; onClick?: () => void }) {
   const [hover, setHover] = useState(false);
   return (
     <button
@@ -287,50 +262,89 @@ function CrumbButton({ label, strong = false, onClick }: { label: string; strong
       onMouseLeave={() => setHover(false)}
       className={strong || hover ? 'cap-pf-crumb-btn cap-pf-crumb-btn--active' : 'cap-pf-crumb-btn'}
     >
+      {back ? <UIcon name="ChevronLeft" size={16} /> : null}
       {label}
     </button>
   );
 }
 
-function AccountOwnerControl({ clientId, canAssign }: { clientId: string; canAssign: boolean }) {
-  const owner = useClientAccountOwner(clientId, canAssign);
+function AccountSummaryCard({ client, canAssign }: { client: Client; canAssign: boolean }) {
+  const api = useApi();
+  const owner = useClientAccountOwner(client.id, canAssign);
+  const team = useQuery({
+    queryKey: clientTeamKey(client.id),
+    queryFn: () => getClientTeam(api, client.id),
+  });
+  const [managing, setManaging] = useState(false);
   const currentMissing =
     owner.owner != null && !owner.options.some((option) => option.id === owner.owner?.id);
   const display = owner.isLoading ? 'Loading…' : owner.ownerLabel ?? 'Unassigned';
+  const roster = team.data ?? [];
 
   return (
-    <label className="cap-pf-account-owner-label">
-      <span className="cap-pf-account-owner-eyebrow">
-        Account owner
-      </span>
-      {canAssign ? (
-        <select
-          aria-label="Account owner"
-          value={owner.assignment?.accountOwnerUserId ?? ''}
-          disabled={owner.isLoading || owner.isAssigning}
-          onChange={(event) => owner.setOwner(event.target.value || null)}
-          title={owner.error instanceof Error ? owner.error.message : undefined}
-          className={owner.error ? 'cap-pf-account-owner-select cap-pf-account-owner-select--error' : 'cap-pf-account-owner-select'}
-        >
-          <option value="">Unassigned</option>
-          {currentMissing && owner.owner ? (
-            <option value={owner.owner.id}>{`${owner.ownerLabel ?? owner.owner.email} (inactive)`}</option>
-          ) : null}
-          {owner.options.map((option) => {
-            const name = [option.firstName, option.lastName].filter(Boolean).join(' ').trim() || option.email;
-            return <option key={option.id} value={option.id}>{name}</option>;
-          })}
-        </select>
-      ) : (
-        <span
-          title={owner.error instanceof Error ? owner.error.message : undefined}
-          className={owner.ownerLabel ? 'cap-pf-account-owner-display cap-pf-account-owner-display--set' : 'cap-pf-account-owner-display'}
-        >
-          {owner.error ? 'Unavailable' : display}
+    <>
+      <div className="cap-pf-account-card">
+        <span className="cap-pf-account-card__label">Owner</span>
+        <span className="cap-pf-account-card__value">
+          <span className="cap-pf-account-avatar" aria-hidden>{initialsFor(display)}</span>
+          {canAssign ? (
+            <select
+              aria-label="Account owner"
+              value={owner.assignment?.accountOwnerUserId ?? ''}
+              disabled={owner.isLoading || owner.isAssigning}
+              onChange={(event) => owner.setOwner(event.target.value || null)}
+              title={owner.error instanceof Error ? owner.error.message : undefined}
+              className={owner.error ? 'cap-pf-account-owner-select cap-pf-account-owner-select--error' : 'cap-pf-account-owner-select'}
+            >
+              <option value="">Unassigned</option>
+              {currentMissing && owner.owner ? (
+                <option value={owner.owner.id}>{`${owner.ownerLabel ?? owner.owner.email} (inactive)`}</option>
+              ) : null}
+              {owner.options.map((option) => {
+                const name = [option.firstName, option.lastName].filter(Boolean).join(' ').trim() || option.email;
+                return <option key={option.id} value={option.id}>{name}</option>;
+              })}
+            </select>
+          ) : (
+            <span
+              title={owner.error instanceof Error ? owner.error.message : undefined}
+              className={owner.ownerLabel ? 'cap-pf-account-owner-display cap-pf-account-owner-display--set' : 'cap-pf-account-owner-display'}
+            >
+              {owner.error ? 'Unavailable' : display}
+            </span>
+          )}
         </span>
-      )}
-    </label>
+
+        <span className="cap-pf-account-card__label">Team</span>
+        <span className="cap-pf-account-card__value cap-pf-account-card__team">
+          <span className="cap-pf-account-team-avatars">
+            {roster.slice(0, 3).map((member) => {
+              const label = teamMemberLabel(member);
+              return <span key={member.userId} className="cap-pf-account-avatar" title={label}>{initialsFor(label)}</span>;
+            })}
+            {team.isLoading ? <span className="cap-pf-account-card__muted">Loading…</span> : null}
+            {team.isError ? <span className="cap-pf-account-card__muted">Unavailable</span> : null}
+          </span>
+          {canAssign ? (
+            <button type="button" className="cap-pf-account-manage" onClick={() => setManaging(true)}>Manage</button>
+          ) : null}
+        </span>
+
+        <span className="cap-pf-account-card__label">Since</span>
+        <span className="cap-pf-account-card__since">{formatAccountSince(client.createdAt)}</span>
+      </div>
+      {managing ? (
+        <ManageAccountTeamModal open clientId={client.id} clientName={client.name} onClose={() => setManaging(false)} />
+      ) : null}
+    </>
   );
+}
+
+function formatAccountSince(value: string | null | undefined): string {
+  if (!value) return 'Not recorded';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not recorded';
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
 }
 
 /**
@@ -395,7 +409,7 @@ function AddFocusButton({ client, existing }: { client: Client; existing: string
         className={hover ? 'cap-pf-add-focus-trigger cap-pf-add-focus-trigger--hover' : 'cap-pf-add-focus-trigger'}
       >
         <UIcon name="Plus" size={14} />
-        Add
+        Add focus
       </button>
     );
   }
@@ -568,11 +582,13 @@ function MeriActionItem({
 function OverflowMenu({
   client,
   onDataHealth,
+  onEditProfile,
   canArchive,
   onArchive,
 }: {
   client: Client;
   onDataHealth: () => void;
+  onEditProfile?: () => void;
   canArchive?: boolean;
   onArchive?: () => void;
 }) {
@@ -636,6 +652,9 @@ function OverflowMenu({
   };
 
   const items: Array<{ label: string; danger?: boolean; onSelect: () => void }> = [
+    ...(onEditProfile
+      ? [{ label: 'Edit client profile', onSelect: () => { setOpen(false); onEditProfile(); } }]
+      : []),
     {
       // Item 18 (wire-audit "2 Wire existing APIs"): opens the real Meriv3
       // workspace scoped to this client. The prompt is required — Meri's own

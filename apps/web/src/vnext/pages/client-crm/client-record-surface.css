@@ -1,0 +1,49 @@
+.capiro-vnext-root .cap-pf-client-sections {
+  min-width: 0;
+}
+
+.capiro-vnext-root .cap-pf-record-surface {
+  min-width: 0;
+}
+
+.capiro-vnext-root .cap-pf-record-surface__head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 0 2px 5px;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .cap-pf-record-surface__title {
+  margin: 0;
+  color: #101828;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -.024em;
+  line-height: 1.25;
+}
+
+.capiro-vnext-root .cap-pf-record-surface__sub {
+  max-width: 82ch;
+  margin: 0 2px 12px;
+  color: #667085;
+  font-size: 13px;
+  line-height: 19px;
+  text-wrap: pretty;
+}
+
+.capiro-vnext-root .cap-pf-intelligence-domain-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.capiro-vnext-root .cap-pf-intelligence-domain {
+  min-width: 0;
+  scroll-margin-top: 20px;
+}
+
+@media (max-width: 1199px) {
+  .capiro-vnext-root .cap-pf-client-sections { order: 1; }
+}
+

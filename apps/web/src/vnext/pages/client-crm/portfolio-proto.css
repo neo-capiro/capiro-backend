@@ -299,10 +299,8 @@
   gap: 24px;
   align-items: start;
 }
-/* Phase 4 (vnext UI cleanup): the client record body — sticky 296px
-   DrawerRail + the accordion-section stack. 296px is the prototype's own
-   transcribed `recordCols` value (client-profile-standalone decoded dump),
-   not an estimate. */
+/* Client record body — sticky 296px seven-row directory + one active record
+   surface. 296px is the standalone prototype's literal `recordCols` value. */
 .cap-pf-grid-record {
   display: grid;
   grid-template-columns: minmax(0, 296px) minmax(0, 1fr);
