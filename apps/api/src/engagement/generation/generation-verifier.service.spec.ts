@@ -358,6 +358,43 @@ describe('date_grounding', () => {
   test('no plan at all still grounds normally (plan is optional)', () => {
     expect(checks('Could we meet on September 15?')).toContain('date_grounding');
   });
+
+  // Occurrence/claim scoping (repair, 2026-08-25): the ask exemption is scoped
+  // to the specific clause/occurrence, never to the date VALUE globally. A
+  // date proposed as the ask is exempt only where it appears AS the ask; the
+  // identical date value asserted as a fact elsewhere in the same draft must
+  // still ground normally, even though some occurrence of that same value is
+  // legitimately exempt.
+  describe('occurrence-scoped ask exemption', () => {
+    test('ask-only: the date appears once, purely as the meeting ask — passes', () => {
+      expect(
+        checks('Could we meet on September 15?', {
+          plan: plan({ clientAsk: ['A brief meeting on September 15.'] }),
+        }),
+      ).not.toContain('date_grounding');
+    });
+
+    test('same date also asserted as fact with no supporting evidence — held, despite the ask using the identical date', () => {
+      expect(
+        checks('The hearing is scheduled for September 15. Could we meet on September 15?', {
+          plan: plan({ clientAsk: ['A brief meeting on September 15.'] }),
+        }),
+      ).toContain('date_grounding');
+    });
+
+    test('same date asserted as fact WITH supporting evidence, and also used as the ask — passes', () => {
+      const hearingEvidence = evidence({
+        ref: { sourceType: 'hearing' },
+        evidenceText: 'The Armed Services hearing is scheduled for September 15.',
+      });
+      expect(
+        checks('The hearing is scheduled for September 15. Could we meet on September 15?', {
+          packet: packet({ evidence: [hearingEvidence] }),
+          plan: plan({ clientAsk: ['A brief meeting on September 15.'] }),
+        }),
+      ).not.toContain('date_grounding');
+    });
+  });
 });
 
 // ── 9. Stale-source caveat ──────────────────────────────────────────────────

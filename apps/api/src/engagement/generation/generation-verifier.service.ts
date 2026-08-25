@@ -461,9 +461,37 @@ function checkAttendance(text: string, req: VerifyRequest): VerifierFinding[] {
 const DATE_RE =
   /\b((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,\s*\d{4})?|\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4})\b/g;
 
+/**
+ * Splits `text` into clause-ish chunks on sentence-ending punctuation,
+ * preserving each chunk's original offset. Deliberately simple (no NLP) —
+ * it only needs to answer "which clause is this character index inside of",
+ * so a date occurrence can be scoped to its own clause rather than the whole
+ * draft.
+ */
+function splitClauses(text: string): Array<{ text: string; start: number; end: number }> {
+  const clauses: Array<{ text: string; start: number; end: number }> = [];
+  const re = /[^.!?\n]+[.!?]*/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (!m[0].trim()) continue;
+    clauses.push({ text: m[0], start: m.index, end: m.index + m[0].length });
+  }
+  return clauses;
+}
+
+/**
+ * Phrasing that marks a clause as the ASK/CTA itself — a request being made
+ * — as opposed to a factual statement that happens to share the same date.
+ * "is scheduled for", "was held on", "took place on" etc. are always
+ * factual assertions and must ground normally even when the exact same
+ * date value is separately proposed in the ask elsewhere in the draft.
+ */
+const ASK_CLAUSE_RE =
+  /\b(could we|can we|would you|shall we|let (?:us|me) know|works for|available (?:on|for)|propose(?:s|d)? (?:a |meeting)?|schedule a|find \d+ minutes|would (?:love|welcome) to (?:meet|schedule))\b/i;
+
 function checkDates(text: string, req: VerifyRequest): VerifierFinding[] {
-  const asserted = [...text.matchAll(DATE_RE)].map((m) => m[0]);
-  if (!asserted.length) return [];
+  const matches = [...text.matchAll(DATE_RE)];
+  if (!matches.length) return [];
 
   const haystack = [
     ...req.packet.evidence.map((e) => e.evidenceText),
@@ -474,29 +502,42 @@ function checkDates(text: string, req: VerifyRequest): VerifierFinding[] {
 
   // `clientAsk` / `callToAction` are the client's OWN proposed terms for the
   // outreach (e.g. "Could we schedule a meeting on September 15?") — not a
-  // fact being asserted about the world. A date the model proposes as a
-  // meeting/deadline ask can never appear in evidence text, because it isn't
-  // evidence; it's the ask itself. Before this exemption, checkDates fired on
-  // every campaign whose plan proposed a concrete date (real or invented),
-  // which is the ordinary shape of a meeting-request outreach. A date is only
-  // exempt when the PLAN itself proposed it in clientAsk/callToAction — the
-  // model cannot use this to sneak an unsupported factual date into the body,
-  // because that date would also have to appear verbatim in the plan's own
-  // ask text, and the plan is itself the thing schema-validated and persisted
-  // before generation. Any date elsewhere in the body (e.g. a hearing date, an
-  // enactment date, a stated deadline outside the ask) still has to ground
-  // normally against the evidence packet.
+  // fact being asserted about the world. This exemption is scoped to the
+  // OCCURRENCE, not the date value: a date proposed as the ask in one clause
+  // can ALSO be asserted as a fact elsewhere in the same draft (e.g. "The
+  // hearing is scheduled for September 15. Could we meet on September 15?"),
+  // and that factual occurrence must still ground normally. A single date
+  // value silently exempting every occurrence of itself anywhere in the body
+  // was the earlier bug this replaces — it let an unsupported factual claim
+  // ride along for free as long as the same date also appeared in the ask.
+  //
+  // An occurrence is ask-exempt only when BOTH hold:
+  //   (a) the date value appears in the plan's own clientAsk/callToAction
+  //       text (schema-validated and persisted before generation, so the
+  //       model can't retroactively invent an ask date to launder a claim), AND
+  //   (b) the CLAUSE containing this specific occurrence reads as a request
+  //       (ASK_CLAUSE_RE) rather than a factual statement — a factual clause
+  //       using ask-adjacent vocabulary without request phrasing (e.g. "is
+  //       scheduled for") never qualifies, even if the ask elsewhere uses the
+  //       identical date.
   const planAskHaystack = [...(req.plan?.clientAsk ?? []), req.plan?.callToAction ?? ''].join(
     '\n',
   );
+  const clauses = splitClauses(text);
 
   const findings: VerifierFinding[] = [];
-  for (const raw of new Set(asserted)) {
+  for (const match of matches) {
+    const raw = match[0];
+    const index = match.index ?? 0;
+    const clause = clauses.find((c) => index >= c.start && index < c.end);
+    const isAskOccurrence = planAskHaystack.includes(raw) && !!clause && ASK_CLAUSE_RE.test(clause.text);
+    if (isAskOccurrence) continue;
+
     if (haystack.includes(raw)) continue;
     // Compare normalized forms too, so "June 1, 2026" matches "2026-06-01".
     const normalized = normalizeDate(raw);
     if (normalized && haystack.includes(normalized)) continue;
-    if (planAskHaystack.includes(raw)) continue;
+
     findings.push({
       source: 'deterministic_verifier',
       check: 'date_grounding',
