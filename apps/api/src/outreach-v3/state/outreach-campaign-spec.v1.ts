@@ -96,6 +96,68 @@ const excludedContextArray = z
   .array(outreachExcludedContextRefV1Schema)
   .max(OUTREACH_V3_LIMITS.futureContextRefs);
 
+/**
+ * The campaign's copy of the chosen template's email skeleton.
+ *
+ * Structurally identical to the template-side schema (see
+ * outreach-template.contract.ts) but declared separately and deliberately: the
+ * campaign spec is a content-addressed, hash-pinned document with its own
+ * canonicalization rules, and importing the template module here would couple
+ * state storage to the template feature's own evolution. A future template-side
+ * field must not silently change a stored campaign's hash.
+ */
+const outreachCampaignContentSkeletonSlotV1Schema = z
+  .object({
+    key: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
+    label: z.string().min(1).max(120),
+    instruction: z.string().min(1).max(1_000),
+    required: z.boolean(),
+  })
+  .strict();
+
+const outreachCampaignContentSkeletonV1Schema = z
+  .object({
+    subject: z.string().max(400),
+    body: z.string().min(1).max(8_000),
+    slots: z.array(outreachCampaignContentSkeletonSlotV1Schema).max(12),
+  })
+  .strict();
+
+export type OutreachCampaignContentSkeletonV1 = z.infer<
+  typeof outreachCampaignContentSkeletonV1Schema
+>;
+
+/**
+ * Canonicalize a skeleton, or return null when there is none.
+ *
+ * CRLF is normalized to LF in the body because a skeleton is authored in a
+ * browser textarea: a Windows user's `\r\n` and a Mac user's `\n` are the same
+ * template and must not produce two different spec hashes (and therefore two
+ * different approval identities) for identical content.
+ *
+ * Slots keep the AUTHOR'S ORDER rather than being sorted. Order is meaningful
+ * here — it drives the sequence slots are briefed to the model in — and sorting
+ * would silently reorder the author's intent. It is safe for hashing because the
+ * order is itself part of the authored content.
+ */
+function normalizeContentSkeletonV1(
+  skeleton: OutreachCampaignContentSkeletonV1 | undefined,
+): OutreachCampaignContentSkeletonV1 | null {
+  if (!skeleton) return null;
+  const body = skeleton.body.replace(/\r\n?/g, '\n').trimEnd();
+  if (!body.trim()) return null;
+  return {
+    subject: skeleton.subject.replace(/\r\n?/g, '\n').trim(),
+    body,
+    slots: skeleton.slots.map((slot) => ({
+      key: slot.key,
+      label: slot.label.trim(),
+      instruction: slot.instruction.replace(/\r\n?/g, '\n').trim(),
+      required: slot.required,
+    })),
+  };
+}
+
 const outreachCampaignSpecV1BaseSchema = z
   .object({
     schemaVersion: z.literal(OUTREACH_CAMPAIGN_SPEC_SCHEMA_VERSION),
@@ -189,6 +251,25 @@ const outreachCampaignSpecV1BaseSchema = z
       .array(outreachStyleSampleV1Schema)
       .max(OUTREACH_STYLE_SAMPLE_LIMITS.maxSamples)
       .optional(),
+    /**
+     * The user-authored email skeleton this campaign drafts against, copied from
+     * the chosen template at apply time.
+     *
+     * OPTIONAL AND OMITTED-WHEN-NULL for exactly the same content-addressing
+     * reason spelled out for `styleSamples` above: stored specs are re-parsed and
+     * re-hashed on every read, so a required key — or an optional key that
+     * canonicalizes to `null` rather than being deleted — would change the bytes
+     * of every campaign written before this field existed and turn each one into
+     * an OUTREACH_STATE_CORRUPT 500. `normalizeCampaignSpecV1` therefore deletes
+     * the key when there is no skeleton, making "no skeleton" and "field did not
+     * exist" byte-identical.
+     *
+     * It is copied ONTO the campaign rather than referenced by template id on
+     * purpose: a campaign's drafts must not change shape because someone edited
+     * the source template afterwards, and the spec hash is what pins an approval
+     * to reviewed content.
+     */
+    contentSkeleton: outreachCampaignContentSkeletonV1Schema.optional(),
   })
   .strict();
 
@@ -418,6 +499,7 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
     compareCanonicalStrings(a.clientId, b.clientId),
   );
   const normalizedStyleSamples = normalizeStyleSamplesV1(spec.styleSamples ?? []);
+  const normalizedSkeleton = normalizeContentSkeletonV1(spec.contentSkeleton);
   const normalized: OutreachCampaignSpecV1 = {
     ...spec,
     goal: {
@@ -489,8 +571,33 @@ export function normalizeCampaignSpecV1(spec: OutreachCampaignSpecV1): OutreachC
     // — breaking every state version stored before this field existed. Deleting
     // the key is what makes "no samples" byte-identical to "field absent".
     ...(normalizedStyleSamples.length ? { styleSamples: normalizedStyleSamples } : {}),
+    // Same conditional-spread discipline, same reason. See the field's schema
+    // comment: a `contentSkeleton: null` key would re-hash every pre-existing
+    // campaign into OUTREACH_STATE_CORRUPT.
+    ...(normalizedSkeleton ? { contentSkeleton: normalizedSkeleton } : {}),
   };
+  // The conditional spread above is NOT sufficient on its own: `...spec` at the
+  // top copies an explicitly-`undefined` `contentSkeleton` through as an OWN
+  // property, so a caller passing `{...spec, contentSkeleton: undefined}` to
+  // clear it would leave the key present. Delete it outright so "absent" really
+  // is absent for `Object.hasOwn` and for anything that iterates own keys —
+  // canonical JSON already skips undefined, so this protects consumers rather
+  // than the hash.
+  if (!normalizedSkeleton) delete normalized.contentSkeleton;
   return outreachCampaignSpecV1Schema.parse(normalized);
+}
+
+/**
+ * Read the skeleton without every caller re-deriving the absent-vs-null case.
+ *
+ * `contentSkeleton` is deliberately absent (never `null`) when a campaign has
+ * none — see the field's schema comment — so consumers must not special-case
+ * `undefined` themselves.
+ */
+export function campaignContentSkeletonV1(
+  spec: Pick<OutreachCampaignSpecV1, 'contentSkeleton'>,
+): OutreachCampaignContentSkeletonV1 | null {
+  return spec.contentSkeleton ?? null;
 }
 
 /**

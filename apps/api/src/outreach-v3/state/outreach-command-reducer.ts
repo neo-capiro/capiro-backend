@@ -435,6 +435,24 @@ export function reduceOutreachCommand(
         command,
       );
     }
+    case 'SET_CONTENT_SKELETON': {
+      const payload = OUTREACH_COMMAND_PAYLOAD_SCHEMAS.SET_CONTENT_SKELETON.parse(command.payload);
+      return withValidatedSpec(
+        current,
+        (spec) => {
+          // Assign-or-DELETE, never assign-null. `contentSkeleton` is
+          // omitted-when-absent in the canonical form (see the field's schema
+          // comment); writing an explicit `null` key would change the canonical
+          // bytes and therefore the spec hash, turning a "clear the template"
+          // action into a stored spec that no longer matches its own hash.
+          const next = { ...spec };
+          if (payload.value) next.contentSkeleton = payload.value;
+          else delete next.contentSkeleton;
+          return next;
+        },
+        command,
+      );
+    }
     case 'RESTORE_STATE_VERSION': {
       OUTREACH_COMMAND_PAYLOAD_SCHEMAS.RESTORE_STATE_VERSION.parse(command.payload);
       if (!command.restoreSpec) {

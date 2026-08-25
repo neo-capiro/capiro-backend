@@ -215,9 +215,14 @@ describe('Outreach V3 style samples — governance', () => {
     expect(OUTREACH_IMPLEMENTED_COMMAND_TYPES).toContain('ADD_STYLE_SAMPLES');
     expect(OUTREACH_IMPLEMENTED_COMMAND_TYPES).toContain('REMOVE_STYLE_SAMPLES');
     // The reasoning model must not be able to invent the author's own examples.
+    // SET_CONTENT_SKELETON joined this list for the same reason: a skeleton is
+    // the user's own email structure and every draft renders THROUGH it, so a
+    // model-proposed one would put model-authored text into the final email as
+    // though the user had written it, outside plan-claim validation entirely.
     expect(OUTREACH_USER_AUTHORED_COMMAND_TYPES).toEqual([
       'ADD_STYLE_SAMPLES',
       'REMOVE_STYLE_SAMPLES',
+      'SET_CONTENT_SKELETON',
     ]);
   });
 

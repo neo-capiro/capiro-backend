@@ -82,6 +82,11 @@ export function buildOutreachV3GatewayUnit(
     // through the Evidence Packet would put last quarter's figures into this
     // campaign's claim pool; see GenerationRequest.styleSamples.
     ...(styleSamples.length ? { styleSamples } : {}),
+    // The campaign's own authored skeleton, when it has one. Same reasoning as
+    // styleSamples for why it is a first-class field rather than a context item:
+    // it is structure, not evidence, and the gateway needs it as structured data
+    // to assemble the body after the model returns section prose.
+    ...(input.spec.contentSkeleton ? { contentSkeleton: input.spec.contentSkeleton } : {}),
     recipient,
     ...(input.authHeader ? { authHeader: input.authHeader } : {}),
   };

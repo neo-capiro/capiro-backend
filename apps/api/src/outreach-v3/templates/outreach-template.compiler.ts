@@ -70,6 +70,13 @@ export function compileOutreachTemplateBatch(input: {
     commands.push(command('ADD_STYLE_SAMPLES', { samples: spec.styleSamples }));
   }
 
+  // Always emitted, including as an explicit null. Applying a template must
+  // fully define the campaign's shape: if a user switches from a skeleton
+  // template to a free-body one, the old skeleton has to be CLEARED, and
+  // omitting the command would silently leave the previous template's structure
+  // in place while the UI showed the new selection.
+  commands.push(command('SET_CONTENT_SKELETON', { value: spec.contentSkeleton ?? null }));
+
   return {
     batchId: input.batchId,
     expectedStateVersion: input.expectedStateVersion,

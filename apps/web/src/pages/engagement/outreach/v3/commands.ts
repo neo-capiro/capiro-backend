@@ -247,6 +247,23 @@ export function removeStyleSamplesCommand(sampleKeys: string[]): OutreachV3Comma
   return command('REMOVE_STYLE_SAMPLES', { sampleKeys: keys });
 }
 
+/**
+ * Set (or clear) the campaign's email skeleton.
+ *
+ * Pass null to clear it and return the campaign to free-body generation — a real
+ * operation, not a degenerate case: a user who picked a template and then chose a
+ * free-body one must end up with the old structure gone, not lingering.
+ */
+export function setContentSkeletonCommand(
+  value: {
+    subject: string;
+    body: string;
+    slots: Array<{ key: string; label: string; instruction: string; required: boolean }>;
+  } | null,
+): OutreachV3Command {
+  return command('SET_CONTENT_SKELETON', { value });
+}
+
 function nullable(value: string): string | null {
   const normalized = value.trim();
   return normalized ? normalized : null;

@@ -40,6 +40,7 @@ export const OUTREACH_IMPLEMENTED_COMMAND_TYPES = [
   'SET_LENGTH',
   'ADD_STYLE_SAMPLES',
   'REMOVE_STYLE_SAMPLES',
+  'SET_CONTENT_SKELETON',
   'RESTORE_STATE_VERSION',
 ] as const;
 
@@ -58,6 +59,12 @@ export const OUTREACH_IMPLEMENTED_COMMAND_TYPES = [
 export const OUTREACH_USER_AUTHORED_COMMAND_TYPES = [
   'ADD_STYLE_SAMPLES',
   'REMOVE_STYLE_SAMPLES',
+  // A skeleton is the user's own email structure, in their own words, and every
+  // draft in the campaign is rendered THROUGH it. A model-proposed skeleton
+  // would put model-authored text into the final email as though the user had
+  // written it, outside the Message Plan's claim validation entirely — the exact
+  // failure mode this list exists to prevent for style samples.
+  'SET_CONTENT_SKELETON',
 ] as const;
 
 export const OUTREACH_FUTURE_COMMAND_TYPES = [
@@ -259,6 +266,44 @@ export const OUTREACH_COMMAND_PAYLOAD_SCHEMAS = {
         .array(boundedString(128, 1))
         .min(1)
         .max(OUTREACH_STYLE_SAMPLE_LIMITS.maxSamples),
+    })
+    .strict(),
+  /**
+   * Set (or clear) the campaign's email skeleton.
+   *
+   * `value: null` clears it, returning the campaign to free-body generation.
+   * That is a real operation, not a degenerate case: a user who picked a
+   * template and then decided against it must be able to get back to normal
+   * drafting without starting a new campaign.
+   *
+   * Slot/token agreement is NOT re-validated here. It is enforced at the
+   * template-authoring boundary (outreachTemplateContentSkeletonSchema) where
+   * the author can actually see and fix the problem; re-deriving it in the
+   * reducer would only be able to reject the batch with no way to explain which
+   * token was wrong. What this schema does enforce is bounds — a skeleton is
+   * user text arriving over the wire.
+   */
+  SET_CONTENT_SKELETON: z
+    .object({
+      value: z
+        .object({
+          subject: boundedString(400, 0),
+          body: boundedString(8_000, 1),
+          slots: z
+            .array(
+              z
+                .object({
+                  key: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
+                  label: boundedString(120, 1),
+                  instruction: boundedString(1_000, 1),
+                  required: z.boolean(),
+                })
+                .strict(),
+            )
+            .max(12),
+        })
+        .strict()
+        .nullable(),
     })
     .strict(),
   RESTORE_STATE_VERSION: z.object({ version: z.number().int().positive() }).strict(),

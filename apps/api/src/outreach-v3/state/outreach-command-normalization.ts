@@ -189,6 +189,38 @@ export function normalizeOutreachCommandEnvelope(
         ...command,
         payload: { sampleKeys: normalizeSet((payload.sampleKeys as string[]) ?? []) },
       };
+    case 'SET_CONTENT_SKELETON': {
+      // CRLF→LF here as well as in normalizeCampaignSpecV1: the command itself is
+      // hashed into the batch's idempotency identity, so the same skeleton pasted
+      // from a Windows browser must not read as a different command than from a
+      // Mac one — otherwise a retried submit would look like a new intent.
+      const raw = payload.value as
+        | {
+            subject?: unknown;
+            body?: unknown;
+            slots?: unknown[];
+          }
+        | null
+        | undefined;
+      if (!raw) return { ...command, payload: { value: null } };
+      return {
+        ...command,
+        payload: {
+          value: {
+            subject: String(raw.subject ?? '').replace(/\r\n?/g, '\n').trim(),
+            body: String(raw.body ?? '').replace(/\r\n?/g, '\n').trimEnd(),
+            slots: ((raw.slots as Array<Record<string, unknown>>) ?? []).map((slot) => ({
+              key: String(slot.key ?? ''),
+              label: String(slot.label ?? '').trim(),
+              instruction: String(slot.instruction ?? '')
+                .replace(/\r\n?/g, '\n')
+                .trim(),
+              required: Boolean(slot.required),
+            })),
+          },
+        },
+      };
+    }
     case 'RESTORE_STATE_VERSION':
       return { ...command, payload: { version: payload.version } };
     case 'SET_ATTACHMENT_REFS':

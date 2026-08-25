@@ -245,6 +245,94 @@ const templateVariablesSchema = z
     });
   });
 
+/**
+ * A user-authored email skeleton stored on the template.
+ *
+ * This is the structural half of a template, distinct from the campaign-settings
+ * half above: `goal`/`strategy`/`delivery` decide WHAT the campaign is, this
+ * decides what the email LOOKS like. It is nullable because every template
+ * created before this feature — and every template projected from a live
+ * campaign via `templateSpecFromCampaign` — legitimately has no skeleton, and
+ * those must keep working unchanged (generation simply stays in free-body mode).
+ *
+ * Token syntax here is DOUBLE-brace `{{slot}}`, deliberately different from the
+ * single-brace `{key}` campaign variables above: they are resolved by different
+ * code at different times (variables at template-apply, slots at generation), and
+ * a shared syntax would let the variable resolver silently consume a slot token.
+ */
+const contentSkeletonSlotSchema = z
+  .object({
+    key: z
+      .string()
+      .regex(/^[a-z][a-z0-9_]{0,39}$/, 'Use a stable lowercase_key like why_it_matters.'),
+    label: z.string().min(1).max(120).refine(noControlChars),
+    instruction: z.string().min(1).max(1_000).refine(noControlChars),
+    required: z.boolean(),
+  })
+  .strict();
+
+export const outreachTemplateContentSkeletonSchema = z
+  .object({
+    subject: z.string().max(400).refine(noControlChars),
+    body: z.string().min(1).max(8_000).refine(noControlChars),
+    slots: z.array(contentSkeletonSlotSchema).max(12),
+  })
+  .strict()
+  .superRefine((skeleton, ctx) => {
+    // Both directions of slot/token agreement are errors. An undeclared token
+    // would render as literal "{{foo}}" in a real email to a congressional
+    // office; a declared-but-unplaced slot means the author believes they are
+    // collecting prose that will never appear.
+    const declared = new Set(skeleton.slots.map((slot) => slot.key));
+    const used = new Set<string>();
+    for (const text of [skeleton.subject, skeleton.body]) {
+      for (const match of text.matchAll(/\{\{([a-z][a-z0-9_]{0,39})\}\}/g)) {
+        used.add(match[1]!);
+      }
+    }
+    for (const key of used) {
+      if (!declared.has(key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['body'],
+          message: `"{{${key}}}" is used in the template but is not a declared section.`,
+        });
+      }
+    }
+    skeleton.slots.forEach((slot, index) => {
+      if (!used.has(slot.key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['slots', index, 'key'],
+          message: `Section "${slot.key}" is never placed in the template. Add {{${slot.key}}} where it belongs.`,
+        });
+      }
+    });
+    const seen = new Set<string>();
+    skeleton.slots.forEach((slot, index) => {
+      if (seen.has(slot.key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['slots', index, 'key'],
+          message: `Section key "${slot.key}" is used more than once.`,
+        });
+      }
+      seen.add(slot.key);
+    });
+    if (!used.size) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['body'],
+        message:
+          'This template has no {{sections}}, so every recipient would receive identical text. Add at least one section.',
+      });
+    }
+  });
+
+export type OutreachTemplateContentSkeleton = z.infer<
+  typeof outreachTemplateContentSkeletonSchema
+>;
+
 export const outreachTemplateSpecV1Schema = z
   .object({
     schemaVersion: z.literal(OUTREACH_TEMPLATE_SPEC_VERSION),
@@ -290,6 +378,17 @@ export const outreachTemplateSpecV1Schema = z
       })
       .strict(),
     styleSamples: z.array(outreachStyleSampleInputV1Schema).max(5),
+    /**
+     * Nullable AND optional by design: pre-existing templates and
+     * campaign-projected templates have no skeleton, and generation correctly
+     * falls back to free-body mode for them. Never make this required.
+     *
+     * `.nullable().optional()` rather than `.nullable().default(null)`: a zod
+     * default makes the field REQUIRED on the parsed output type, so every
+     * existing construction site (including test fixtures) would fail to
+     * compile — a purely additive field must not force a caller change.
+     */
+    contentSkeleton: outreachTemplateContentSkeletonSchema.nullable().optional(),
     variables: templateVariablesSchema,
     defaultsPolicy: outreachTemplateDefaultsPolicySchema,
     guidance: outreachTemplateGuidanceSchema,
@@ -401,6 +500,11 @@ export function templateSpecFromCampaign(campaign: OutreachCampaignSpecV1): Outr
       subject: sample.subject,
       body: sample.body,
     })),
+    // A campaign carries no authored skeleton — the skeleton lives on the
+    // template it was applied FROM, and projecting a campaign backwards cannot
+    // recover it. Null keeps the projected template in free-body mode, which is
+    // exactly the behaviour it had before this feature existed.
+    contentSkeleton: null,
     // A campaign has no authored variables/guardrails/field-resolution policy
     // yet — every value it carries is simply the fixed fact it currently has.
     variables: [],

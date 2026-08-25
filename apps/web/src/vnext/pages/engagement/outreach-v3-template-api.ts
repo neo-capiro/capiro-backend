@@ -186,10 +186,29 @@ export interface OutreachTemplateSpec {
     customLengthInstruction: string | null;
   };
   styleSamples: Array<{ label: string | null; subject: string | null; body: string }>;
+  /**
+   * The email skeleton. Optional and nullable: templates created before this
+   * feature, and templates projected from a live campaign, legitimately have
+   * none, and generation falls back to free-body mode for them.
+   */
+  contentSkeleton?: OutreachContentSkeleton | null;
   variables: OutreachTemplateVariable[];
   defaultsPolicy: OutreachTemplateDefaultsPolicy;
   guidance: OutreachTemplateGuidance;
   guardrails: OutreachTemplateGuardrails;
+}
+
+export interface OutreachContentSkeletonSlot {
+  key: string;
+  label: string;
+  instruction: string;
+  required: boolean;
+}
+
+export interface OutreachContentSkeleton {
+  subject: string;
+  body: string;
+  slots: OutreachContentSkeletonSlot[];
 }
 
 export function blankOutreachTemplateSpec(): OutreachTemplateSpec {
@@ -201,6 +220,7 @@ export function blankOutreachTemplateSpec(): OutreachTemplateSpec {
     delivery: { pattern: 'undecided', personalization: 'undecided' },
     strategy: { campaignAngle: null, tone: null, length: 'undecided', customLengthInstruction: null },
     styleSamples: [],
+    contentSkeleton: null,
     variables: [],
     defaultsPolicy: DEFAULT_TEMPLATE_DEFAULTS_POLICY,
     guidance: BLANK_TEMPLATE_GUIDANCE,

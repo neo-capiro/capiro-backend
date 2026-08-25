@@ -1,12 +1,21 @@
 import type { OutreachV3ContextSelection } from '../../../pages/engagement/outreach/v3/contracts.js';
+import type { OutreachContentSkeleton } from './outreach-v3-template-api.js';
 import type { OutreachWorkflowTemplateId } from './outreach-v3-guided-workflow.js';
 
 /**
- * A recurring-update or meeting-request content template. The sample text
- * below is a STRUCTURE AND TONE reference only. `contentTemplateContextSelection`
- * explicitly instructs generation not to copy any of the sample's specific
- * facts (names, dates, dollar figures, the placeholder client name) — only
- * the campaign's own selected context ever supplies real facts.
+ * A recurring-update or meeting-request content template.
+ *
+ * ## `skeleton` vs `sampleBody`
+ *
+ * `skeleton` is the modern field: a real structure the SERVER renders, with
+ * `{{slot}}` regions Meri fills. When a template has one, generation switches to
+ * skeleton mode and the author's headings, wording and section order are
+ * preserved byte-exactly (see apps/api/.../content-skeleton.ts).
+ *
+ * `sampleBody` is the legacy field, kept for templates that have no skeleton
+ * yet. It reaches generation as low-authority `writing_guidance` — the model may
+ * follow its shape or not, which is precisely the drift this feature exists to
+ * remove. A template with a skeleton should not rely on `sampleBody` at all.
  */
 export interface OutreachContentTemplateDefinition {
   id: string;
@@ -16,6 +25,10 @@ export interface OutreachContentTemplateDefinition {
   description: string;
   sampleSubject: string;
   sampleBody: string;
+  /** Present = server-assembled structure. Absent = legacy guidance-only. */
+  skeleton?: OutreachContentSkeleton | null;
+  /** True for a user's own template, which they may edit in place. */
+  editable?: boolean;
 }
 
 const MEETING_REQUEST_TEMPLATE: OutreachContentTemplateDefinition = {
@@ -44,6 +57,81 @@ Thank you for considering this request. Please let us know a few times that woul
 Best regards,
 [Sender name]
 [Sponsor client]`,
+  // The same structure as the sample above, but as a real skeleton: the headings
+  // and their order are now guaranteed rather than suggested, and every bracketed
+  // specimen has become a slot (a literal "[Sponsor client]" in a skeleton would
+  // be sent to a real recipient). The signature block is dropped deliberately —
+  // the app appends the sender's signature after generation.
+  skeleton: {
+    subject: 'Meeting request: {{topic_line}}',
+    body: [
+      'Dear {{salutation}},',
+      '',
+      '{{opening}}',
+      '',
+      'Why this matters to your office',
+      '{{why_it_matters}}',
+      '',
+      'What we’d cover',
+      '{{what_wed_cover}}',
+      '',
+      'Availability',
+      '{{availability}}',
+      '',
+      '{{closing_line}}',
+    ].join('\n'),
+    slots: [
+      {
+        key: 'topic_line',
+        label: 'Subject topic',
+        instruction:
+          'The campaign topic as it should read in a subject line. A short noun phrase, no trailing punctuation.',
+        required: true,
+      },
+      {
+        key: 'salutation',
+        label: 'Salutation',
+        instruction:
+          'How to address the recipient, using the server-resolved recipient identity — e.g. "Ms. Reyes" or "Senator Lankford". Name and honorific only; the template already supplies "Dear".',
+        required: true,
+      },
+      {
+        key: 'opening',
+        label: 'Opening',
+        instruction:
+          'One or two sentences: who is writing, on whose behalf, and that they are requesting a brief meeting about the topic and its relevance to the recipient’s work.',
+        required: true,
+      },
+      {
+        key: 'why_it_matters',
+        label: 'Why this matters to your office',
+        instruction:
+          'One or two sentences citing ONE specific, supported connection — committee assignment, prior legislative interest, district or state impact, or a program element. Use only claims the Message Plan supports, and state the as-of date for any legislative or funding claim. Return an empty string if the plan supports no such connection rather than inventing one.',
+        required: false,
+      },
+      {
+        key: 'what_wed_cover',
+        label: 'What we’d cover',
+        instruction:
+          'One or two sentences on the proposed agenda and meeting length, optionally offering follow-up materials. Do not invent attendees or commitments.',
+        required: true,
+      },
+      {
+        key: 'availability',
+        label: 'Availability',
+        instruction:
+          'The scheduling ask, deferring to the recipient’s team. Name a window only if the plan’s ask specifies one; otherwise invite them to propose times. Return an empty string if the plan makes no scheduling ask.',
+        required: false,
+      },
+      {
+        key: 'closing_line',
+        label: 'Closing line',
+        instruction:
+          'One or two short courteous closing sentences — thanks for considering the request, and who to contact about scheduling. No signature block or sign-off; the app appends the signature.',
+        required: true,
+      },
+    ],
+  },
 };
 
 const SEND_UPDATE_TEMPLATES: OutreachContentTemplateDefinition[] = [
@@ -319,15 +407,26 @@ export function contentTemplateById(id: string | null): OutreachContentTemplateD
 }
 
 /**
- * Feeds the chosen template into generation as a STRUCTURE/TONE reference
- * only. The instruction explicitly forbids copying the sample's specific
- * facts — every sample above uses a placeholder sponsor name and
- * illustrative figures, never real client data, and generation must draw
- * every actual fact from the campaign's own selected context instead.
+ * Feed a chosen template into generation.
+ *
+ * ## Returns null for a skeleton template — this is the important part
+ *
+ * When the template has a skeleton, the structure travels as the campaign's
+ * `contentSkeleton` (a first-class field the server assembles from), NOT as
+ * context. Sending both would put two contradictory instructions in the same
+ * prompt: the skeleton block says "write only these sections and never the
+ * structure", while this guidance block says "here is a whole email, follow its
+ * shape". The observed result of that conflict is a section that reproduces the
+ * template's own headings, which then appear twice in the assembled body.
+ *
+ * So: skeleton templates return null here. Only legacy, skeleton-less templates
+ * still take the guidance path, where the sample is a genuine structure-and-tone
+ * reference the model may follow loosely.
  */
 export function contentTemplateContextSelection(
   template: OutreachContentTemplateDefinition,
-): OutreachV3ContextSelection {
+): OutreachV3ContextSelection | null {
+  if (template.skeleton) return null;
   return {
     locator: {
       source: 'manual',

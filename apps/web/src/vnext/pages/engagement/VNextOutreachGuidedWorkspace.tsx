@@ -9,6 +9,7 @@ import {
   FileText,
   Loader2,
   MapPin,
+  Pencil,
   Sparkles,
   UsersRound,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ import {
   deliveryCommands,
   excludeContextCommand,
   goalCommands,
+  setContentSkeletonCommand,
   sponsorCommand,
   strategyCommands,
   targetCriteriaCommand,
@@ -62,6 +64,9 @@ import {
   type OutreachFormatId,
 } from './outreach-v3-content-templates.js';
 import { SavedTargetListsPanel } from './outreach-v3-saved-target-lists.js';
+import { OutreachContentTemplateEditor } from './OutreachContentTemplateEditor.js';
+import { previewSkeleton } from './outreach-v3-skeleton-editing.js';
+import type { OutreachContentSkeleton } from './outreach-v3-template-api.js';
 import type { VNextOutreachOperatorWorkspaceProps } from './VNextOutreachOperatorWorkspace.js';
 import {
   CLIENT_PROFILE_CONTEXT_OPTIONS,
@@ -370,6 +375,14 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
   const [campaignName, setCampaignName] = useState('');
   const [customPurpose, setCustomPurpose] = useState('');
   const [contentTemplateId, setContentTemplateId] = useState<string | null>(null);
+  /**
+   * A user-customized skeleton for this campaign, overriding the chosen
+   * template's stored one. Campaign-scoped on purpose: editing here must not
+   * silently rewrite a firm-wide template other people are using. Saving it back
+   * to the library is a separate, explicit action.
+   */
+  const [editedSkeleton, setEditedSkeleton] = useState<OutreachContentSkeleton | null>(null);
+  const [skeletonEditorOpen, setSkeletonEditorOpen] = useState(false);
   const [formatId, setFormatId] = useState<OutreachFormatId>('standard');
   const [sponsorClientId, setSponsorClientId] = useState<string | null>(
     props.selectedClientId,
@@ -422,6 +435,11 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
     () => contentTemplatesForWorkflow(templateId),
     [templateId],
   );
+  /** The selected template, only when it actually has an editable skeleton. */
+  const activeSkeletonTemplate = useMemo(() => {
+    const template = contentTemplateById(contentTemplateId);
+    return template?.skeleton ? template : null;
+  }, [contentTemplateId]);
   const progressStep = activeStep === 'generating' ? 'review' : activeStep;
   const currentStepIndex = Math.max(
     0,
@@ -525,7 +543,11 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
       contextSelections.push(subjectLineContextSelection(campaignName));
       const chosenContentTemplate = contentTemplateById(contentTemplateId);
       if (chosenContentTemplate) {
-        contextSelections.push(contentTemplateContextSelection(chosenContentTemplate));
+        // Null for a skeleton template: its structure rides SET_CONTENT_SKELETON
+        // below instead, because sending both would give the model two
+        // contradictory instructions. See contentTemplateContextSelection.
+        const guidance = contentTemplateContextSelection(chosenContentTemplate);
+        if (guidance) contextSelections.push(guidance);
       }
       const chosenFormat = formatOptionById(formatId);
       if (chosenFormat) {
@@ -539,9 +561,18 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
         if (note) contextSelections.push(note);
       }
 
+      // The edited skeleton (if the user customized one) wins over the
+      // template's stored default — otherwise "Edit template" would appear to
+      // work and then silently generate against the original.
+      const effectiveSkeleton = editedSkeleton ?? chosenContentTemplate?.skeleton ?? null;
+
       const commands: OutreachV3Command[] = [
         ...deliveryCommands('personalized_separate', 'high'),
         ...strategyCommands(defaults.strategy),
+        // Always sent, including as null: switching from a skeleton template to
+        // a free-body one must CLEAR the previous structure, not leave it in
+        // place while the UI shows the new selection.
+        setContentSkeletonCommand(effectiveSkeleton),
         acceptContextCommand(contextSelections),
       ];
       const priorReviewPacketRefs = contextRefsCreatedByReviewPacket(controller);
@@ -762,52 +793,119 @@ export function VNextOutreachGuidedWorkspace(props: VNextOutreachOperatorWorkspa
 
         {activeStep === 'content_template' ? (
           <section className="outreach-guided__surface outreach-guided__surface--wide">
-            <div className="outreach-guided__surface-heading">
-              <span>{workflow?.eyebrow}</span>
-              <h2>Choose a template</h2>
-              <p>Pick the structure Meri should follow. Preview a sample before choosing — the sample is a reference for structure and tone only, never data that gets copied into your draft.</p>
-            </div>
-            <div className="outreach-guided__content-template-grid">
-              {availableContentTemplates.map((template) => (
-                <div
-                  key={template.id}
-                  className="outreach-guided__content-template"
-                  data-selected={contentTemplateId === template.id}
-                >
+            {skeletonEditorOpen && activeSkeletonTemplate ? (
+              <OutreachContentTemplateEditor
+                initial={editedSkeleton ?? activeSkeletonTemplate.skeleton!}
+                templateName={activeSkeletonTemplate.title}
+                onCancel={() => setSkeletonEditorOpen(false)}
+                onSave={(skeleton) => {
+                  setEditedSkeleton(skeleton);
+                  setSkeletonEditorOpen(false);
+                }}
+              />
+            ) : (
+              <>
+                <div className="outreach-guided__surface-heading">
+                  <span>{workflow?.eyebrow}</span>
+                  <h2>Choose a template</h2>
+                  <p>
+                    Pick the structure Meri follows. For templates marked{' '}
+                    <strong>exact structure</strong>, the headings and wording you see are sent
+                    exactly as written and Meri only writes the marked sections — you can edit any
+                    of it before generating.
+                  </p>
+                </div>
+                <div className="outreach-guided__content-template-grid">
+                  {availableContentTemplates.map((template) => {
+                    const selected = contentTemplateId === template.id;
+                    const skeleton =
+                      selected && editedSkeleton ? editedSkeleton : (template.skeleton ?? null);
+                    const skeletonPreview = skeleton ? previewSkeleton(skeleton) : null;
+                    return (
+                      <div
+                        key={template.id}
+                        className="outreach-guided__content-template"
+                        data-selected={selected}
+                      >
+                        <button
+                          type="button"
+                          className="outreach-guided__content-template-select"
+                          onClick={() => {
+                            setContentTemplateId(template.id);
+                            // Drop a customization carried over from a different
+                            // template — it belongs to the skeleton it was edited
+                            // from, and silently reusing it would be wrong.
+                            setEditedSkeleton(null);
+                          }}
+                        >
+                          <span>{template.eyebrow}</span>
+                          <strong>{template.title}</strong>
+                          <p>{template.description}</p>
+                          {skeleton ? (
+                            <em className="outreach-guided__content-template-badge">
+                              Exact structure
+                            </em>
+                          ) : null}
+                          {selected ? (
+                            <CheckCircle2
+                              size={18}
+                              className="outreach-guided__content-template-check"
+                            />
+                          ) : null}
+                        </button>
+                        <details className="outreach-guided__content-template-preview">
+                          <summary>
+                            {skeletonPreview ? 'Preview structure' : 'Preview sample draft'}
+                          </summary>
+                          <strong>
+                            {skeletonPreview ? skeletonPreview.subject : template.sampleSubject}
+                          </strong>
+                          <pre>
+                            {skeletonPreview ? skeletonPreview.body : template.sampleBody}
+                          </pre>
+                        </details>
+                        {selected && skeleton ? (
+                          <button
+                            type="button"
+                            className="outreach-guided__content-template-edit"
+                            onClick={() => setSkeletonEditorOpen(true)}
+                          >
+                            <Pencil size={14} />
+                            {editedSkeleton ? 'Edit your changes' : 'Edit this template'}
+                          </button>
+                        ) : null}
+                        {selected && editedSkeleton ? (
+                          <em className="outreach-guided__content-template-edited">
+                            Customized for this campaign
+                            <button type="button" onClick={() => setEditedSkeleton(null)}>
+                              Reset
+                            </button>
+                          </em>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="outreach-guided__actions">
                   <button
                     type="button"
-                    className="outreach-guided__content-template-select"
-                    onClick={() => setContentTemplateId(template.id)}
+                    className="outreach-guided__secondary"
+                    onClick={() => goTo('name')}
                   >
-                    <span>{template.eyebrow}</span>
-                    <strong>{template.title}</strong>
-                    <p>{template.description}</p>
-                    {contentTemplateId === template.id ? (
-                      <CheckCircle2 size={18} className="outreach-guided__content-template-check" />
-                    ) : null}
+                    Back
                   </button>
-                  <details className="outreach-guided__content-template-preview">
-                    <summary>Preview sample draft</summary>
-                    <strong>{template.sampleSubject}</strong>
-                    <pre>{template.sampleBody}</pre>
-                  </details>
+                  <button
+                    type="button"
+                    className="outreach-guided__primary"
+                    disabled={busy || !contentTemplateId}
+                    onClick={() => goTo('format')}
+                  >
+                    Continue to format
+                    <ArrowRight size={16} />
+                  </button>
                 </div>
-              ))}
-            </div>
-            <div className="outreach-guided__actions">
-              <button type="button" className="outreach-guided__secondary" onClick={() => goTo('name')}>
-                Back
-              </button>
-              <button
-                type="button"
-                className="outreach-guided__primary"
-                disabled={busy || !contentTemplateId}
-                onClick={() => goTo('format')}
-              >
-                Continue to format
-                <ArrowRight size={16} />
-              </button>
-            </div>
+              </>
+            )}
           </section>
         ) : null}
 

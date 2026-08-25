@@ -37,6 +37,11 @@ import {
   renderPolicyBlock,
   type GaPolicy,
 } from './government-affairs-policy.registry.js';
+import {
+  renderSkeletonInstruction,
+  SKELETON_SECTIONS_EXEMPLAR,
+  type ContentSkeleton,
+} from './content-skeleton.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
 import type { GatewayStyleSample } from './generation-gateway.types.js';
 import type { MessagePlan } from './message-plan.schema.js';
@@ -111,6 +116,12 @@ export interface GatewayPromptInput {
    * considers fresh, or (the live bug) never told to caveat one it holds on.
    */
   now: Date;
+  /**
+   * When set, the prompt asks for per-slot section prose instead of a whole
+   * email body, and the caller assembles the final body itself. See
+   * content-skeleton.ts for why the model never writes the structure.
+   */
+  contentSkeleton?: ContentSkeleton | null;
 }
 
 export interface GatewayPrompt {
@@ -122,7 +133,31 @@ export interface GatewayPrompt {
   mode: 'perRecipient' | 'group' | 'revision';
 }
 
-export function buildGatewaySystemPrompt(policy: GaPolicy): string {
+/**
+ * The skeleton-mode output contract.
+ *
+ * Mirrors OUTPUT_CONTRACT's Markdown-subset and no-placeholder rules — both
+ * still apply to section prose — but names the `sections` shape and, critically,
+ * repeats the "do not write the structure" rule here. The instruction appears in
+ * both the system prompt and the user block deliberately: it is the one rule
+ * whose violation silently duplicates every heading in the assembled email, and
+ * a single mention buried in a long user block is not reliably obeyed.
+ *
+ * Headings are removed from the allowed Markdown subset here: the template owns
+ * every heading, so a heading inside section prose is always a duplication.
+ */
+export const SKELETON_OUTPUT_CONTRACT = [
+  'OUTPUT CONTRACT:',
+  'Return ONLY valid JSON with exactly these fields: "sections" (array) and "contextNote" (string).',
+  '- sections: one entry per template section, each an object with "key" (the exact section key given to you) and "text" (the prose for that section).',
+  '- You are writing SECTION CONTENT ONLY. The app assembles the final email from the user’s template. Never return a whole email, a subject line, a greeting, a sign-off, or the template’s own headings — they are already in the template and would appear twice.',
+  '- For an OPTIONAL section the evidence does not support, return an empty string for "text" and the section will be omitted. Never invent filler to fill a section.',
+  '- Section prose may use ONLY this Markdown subset: paragraphs, **bold**, *italic*, [text](url) links, "-" and "1." lists. Do not use headings, tables, images, HTML, or blockquotes.',
+  '- contextNote: one or two sentences to the lobbyist (not the recipient) noting what you grounded the draft in and anything you deliberately left out for lack of context.',
+  'Never emit unresolved template variables or bracket placeholders (e.g. {district}, [NAME]) in any section. Use a real supplied value or omit the phrase.',
+].join('\n');
+
+export function buildGatewaySystemPrompt(policy: GaPolicy, mode?: { skeleton?: boolean }): string {
   const sections = [
     GATEWAY_IDENTITY,
     MERI_GROUNDING_OUTREACH_KERNEL,
@@ -131,7 +166,12 @@ export function buildGatewaySystemPrompt(policy: GaPolicy): string {
     // POLICY-GATED. Applying them to a client executive or an internal colleague
     // produced messages that read as though the recipient were a member's office.
     ...(policy.appliesHillEtiquette ? [HILL_ETIQUETTE, COMPLIANCE_GUARDRAILS] : []),
-    OUTPUT_CONTRACT,
+    // In skeleton mode the shared OUTPUT_CONTRACT is not merely unhelpful, it is
+    // contradictory: it names `subject`/`body` as the required fields, and a
+    // model told to return a `body` will write a whole email — reproducing the
+    // template's own headings inside a section. Swap the contract for the
+    // sections shape rather than layering a correction on top of a wrong rule.
+    mode?.skeleton ? SKELETON_OUTPUT_CONTRACT : OUTPUT_CONTRACT,
     GATEWAY_PRECEDENCE_LADDER,
     HONEST_FALLBACK,
     INJECTION_RULE,
@@ -183,6 +223,35 @@ export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
   const signatureRule =
     'Do NOT add a signature block, sender name, title, company, or contact line at the end — the app appends the sender’s signature after generation. You may end with a short closing line ("Best," / "Thank you,") on its own line and write nothing after it.';
 
+  // ── Skeleton mode overrides the free-body directives ──
+  //
+  // A whole-email length target and a "how to end the email" rule are actively
+  // WRONG when the model is writing individual sections: the length budget
+  // belongs to the assembled message (which the skeleton already fixes), and the
+  // closing line is skeleton text the model must not emit at all. Leaving both
+  // in produced sections that each tried to sign off.
+  // Skeleton mode is suppressed in REVISION mode, here as well as at the call
+  // site. The user is refining a body that already exists; re-deriving it from
+  // sections would silently discard their edits. Guarding in both places means a
+  // future caller that forgets cannot accidentally destroy an edited draft.
+  const skeleton = isRevision ? null : (input.contentSkeleton ?? null);
+  const skeletonBlock = skeleton ? renderSkeletonInstruction(skeleton) : null;
+  // The worked example sits INSIDE the spotlight markers, like style samples and
+  // evidence do. Those markers are what tell the model the enclosed text is data
+  // to learn a shape from, not instructions to obey — without them a block
+  // containing a sample template and a sample JSON response is a plausible thing
+  // to answer directly. It is also placed BEFORE the real task below, so the
+  // model reads the shape first and then the actual sections to fill.
+  const skeletonExemplarBlock = skeleton
+    ? `${SPOTLIGHT_OPEN} source="worked_example" authority="shape_only">>>\n${SKELETON_SECTIONS_EXEMPLAR}\n${SPOTLIGHT_CLOSE}`
+    : null;
+  const toneLineForMode = skeleton
+    ? `Write in a ${input.tone} register. Keep each section proportionate to its role in the template; the template controls overall length.`
+    : toneLine;
+  const signatureRuleForMode = skeleton
+    ? 'Do NOT write any greeting, closing, signature or sign-off inside a section — the template already contains them and they would appear twice.'
+    : signatureRule;
+
   const planBlock = [
     'VALIDATED MESSAGE PLAN (express this; it has already been checked against the evidence):',
     `- Intent: ${plan.intent}`,
@@ -216,8 +285,15 @@ export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
   const staticParts = [
     renderPolicyBlock(policy),
     audienceLine,
-    toneLine,
-    signatureRule,
+    toneLineForMode,
+    signatureRuleForMode,
+    // The worked example comes FIRST: the shape of a correct response, before
+    // the specific sections to produce. Both are in the cacheable prefix.
+    skeletonExemplarBlock,
+    // The skeleton IS the task definition, so it sits with the authoritative
+    // directives rather than down with the exemplars — and inside the cacheable
+    // prefix, since it is identical for every recipient in the campaign.
+    skeletonBlock,
     directiveBlock('USER DIRECTIVES (authoritative — these define the task):', shared),
     input.styleProfileBlock,
     // Exemplars belong in the CACHEABLE campaign prefix, not the per-recipient
@@ -278,7 +354,7 @@ export function buildGatewayPrompt(input: GatewayPromptInput): GatewayPrompt {
   const userVolatile = volatileParts.join('\n\n');
 
   return {
-    system: buildGatewaySystemPrompt(policy),
+    system: buildGatewaySystemPrompt(policy, { skeleton: Boolean(skeleton) }),
     userStatic,
     userVolatile,
     user: `${userStatic}\n\n${userVolatile}`,

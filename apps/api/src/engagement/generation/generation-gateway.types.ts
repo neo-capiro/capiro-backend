@@ -7,6 +7,7 @@
  */
 import type { GenerationSurface, SourceFailure } from './evidence-packet.types.js';
 import type { SelectedContextItemRef } from './evidence-source.service.js';
+import type { ContentSkeleton } from './content-skeleton.js';
 import type { GaAudience } from './government-affairs-policy.registry.js';
 import type { PlanValidationIssue } from './message-plan.schema.js';
 import type { ReasoningEffort } from './reasoning-effort.js';
@@ -48,6 +49,22 @@ export interface GenerationRequest {
    * explicitly that they establish no facts.
    */
   styleSamples?: GatewayStyleSample[];
+  /**
+   * A user-authored content skeleton. When present, generation switches from
+   * free-body writing to SLOT mode: the model is asked only for the prose inside
+   * each named section and the server assembles the final body from the
+   * skeleton's literal text (see content-skeleton.ts).
+   *
+   * Deliberately a request field rather than a `templatePrompt` string: the
+   * skeleton has to reach BOTH the prompt builder (to brief the model on each
+   * slot) and the post-completion assembly step, and it must survive as
+   * structured data through both. Flattening it into prose text would make the
+   * assembly step impossible.
+   *
+   * Absent means every existing caller keeps byte-identical behaviour — this is
+   * purely additive, and Classic outreach never sets it.
+   */
+  contentSkeleton?: ContentSkeleton | null;
   /** Revision mode. */
   existingSubject?: string | null;
   existingBody?: string | null;

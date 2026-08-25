@@ -57,6 +57,11 @@ import {
 import { MessagePlanService } from './message-plan.service.js';
 import { MessagePlanInvalidError, type MessagePlan } from './message-plan.schema.js';
 import { GenerationVerifierService, type VerifierFinding } from './generation-verifier.service.js';
+import {
+  assembleSkeletonBody,
+  parseSkeletonDraft,
+  skeletonDraftJsonSchema,
+} from './content-skeleton.js';
 import { AuthorStyleProfileService } from './author-style-profile.service.js';
 import { extractJsonObject } from './json-extract.js';
 import {
@@ -575,7 +580,13 @@ export class GenerationGatewayService {
       existingBody: request.existingBody ?? null,
       recipientScopeKeys: recipient.scopeKeys,
       now,
+      // Revision mode edits an existing whole body, so it must NOT run in
+      // skeleton mode: the user is refining prose that already exists, and
+      // re-deriving it from sections would silently discard their edits.
+      contentSkeleton: request.existingBody?.trim() ? null : (request.contentSkeleton ?? null),
     });
+
+    const skeleton = request.existingBody?.trim() ? null : (request.contentSkeleton ?? null);
 
     let subject: string;
     let body: string;
@@ -592,8 +603,10 @@ export class GenerationGatewayService {
         system: prompt.system,
         userStatic: prompt.userStatic,
         userVolatile: prompt.userVolatile,
-        jsonSchema: GATEWAY_DRAFT_JSON_SCHEMA as unknown as Record<string, unknown>,
-        jsonSchemaName: 'outreach_draft',
+        jsonSchema: (skeleton
+          ? skeletonDraftJsonSchema()
+          : GATEWAY_DRAFT_JSON_SCHEMA) as unknown as Record<string, unknown>,
+        jsonSchemaName: skeleton ? 'outreach_draft_sections' : 'outreach_draft',
         cacheSystem: true,
         cacheUserStatic: true,
         // The draft call is the slowest in the path; the 90s LlmCompletionService
@@ -603,24 +616,72 @@ export class GenerationGatewayService {
         // of one campaign must reason at the same depth.
         ...(pinned.reasoningEffort ? { reasoningEffort: pinned.reasoningEffort } : {}),
       });
-      // ── 7. Strict output parse ──
-      const parsed = parseDraft(completion.text);
-      if (!parsed) {
-        return {
-          outcome: 'error',
-          generationKey: recipient.generationKey,
-          recipientKey: recipient.recipientKey,
-          subject: '',
-          body: '',
-          manifest,
-          sendable: false,
-          error: 'DRAFT_OUTPUT_INVALID',
-          pinned,
-        };
+      // ── 7. Strict output parse (+ skeleton assembly) ──
+      if (skeleton) {
+        const parsedSections = parseSkeletonDraft(completion.text);
+        if (!parsedSections) {
+          return {
+            outcome: 'error',
+            generationKey: recipient.generationKey,
+            recipientKey: recipient.recipientKey,
+            subject: '',
+            body: '',
+            manifest,
+            sendable: false,
+            error: 'DRAFT_OUTPUT_INVALID',
+            pinned,
+          };
+        }
+        const assembled = assembleSkeletonBody(skeleton, parsedSections.sections);
+        // A required section the model left empty means the assembled email
+        // would have a visible hole in it. That is a failed generation, not a
+        // formatting quirk — fail it here rather than letting a reviewer find a
+        // half-written email that looks superficially structured and complete.
+        if (assembled.missingRequiredSlots.length) {
+          this.logger.warn(
+            `skeleton draft missing required section(s): ${assembled.missingRequiredSlots.join(', ')}`,
+          );
+          return {
+            outcome: 'error',
+            generationKey: recipient.generationKey,
+            recipientKey: recipient.recipientKey,
+            subject: '',
+            body: '',
+            manifest,
+            sendable: false,
+            error: 'DRAFT_SECTIONS_INCOMPLETE',
+            pinned,
+          };
+        }
+        // The skeleton's own subject wins when it has one. An author who typed a
+        // subject line meant it; only fall back to a model-written subject when
+        // the skeleton left it blank.
+        subject = assembled.subject || '';
+        body = assembled.body;
+        modelContextNote = parsedSections.contextNote || undefined;
+        if (!subject) {
+          this.logger.warn('skeleton produced an empty subject; falling back to the plan intent');
+          subject = plan.intent;
+        }
+      } else {
+        const parsed = parseDraft(completion.text);
+        if (!parsed) {
+          return {
+            outcome: 'error',
+            generationKey: recipient.generationKey,
+            recipientKey: recipient.recipientKey,
+            subject: '',
+            body: '',
+            manifest,
+            sendable: false,
+            error: 'DRAFT_OUTPUT_INVALID',
+            pinned,
+          };
+        }
+        subject = parsed.subject;
+        body = parsed.body;
+        modelContextNote = parsed.contextNote || undefined;
       }
-      subject = parsed.subject;
-      body = parsed.body;
-      modelContextNote = parsed.contextNote || undefined;
       await this.recordUsage(ctx, 'outreach_campaign', {
         provider: cred.provider,
         model: pinned.model,
