@@ -96,6 +96,20 @@ const FRESHNESS_LEGISLATIVE: GaFreshnessThresholds = {
   note: 365,
   // Durable relationship facts.
   client: 365,
+  // LDA (Lobbying Disclosure Act) LD-2 filings are quarterly by statute — a
+  // filing IS the accurate "latest known status" for the entire quarter it
+  // covers, not a fact that goes stale within days. 90 days ≈ one quarter,
+  // matching the filing cadence rather than the harsh 14-day bill bucket.
+  // Keyed camelCase (not `lda_filing`) so it matches the normalized V3
+  // sourceType key produced by normalizeFreshnessEvidenceType, same as
+  // programElement/stateBill above.
+  ldaFiling: 90,
+  // Congressional hearing status (scheduled/held/postponed) moves on the
+  // same congress.gov cadence as bill status — same bucket as `bill`.
+  hearing: 14,
+  // A federal award (usaspending.gov) can pick up a follow-on mod within a
+  // news-cycle timeframe; treat it like `press`, not the harsher bill window.
+  award: 30,
 };
 
 const FRESHNESS_INTERNAL: GaFreshnessThresholds = {
@@ -627,12 +641,39 @@ export function renderPolicyBlock(policy: GaPolicy): string {
 }
 
 /**
+ * V3 evidence carries sourceTypes like `outreach_v3:government_record:program_element`
+ * (see `outreach-v3-generation-context.ts` `sourceTypeFor()`), but `FRESHNESS_LEGISLATIVE`
+ * / `FRESHNESS_INTERNAL` are keyed by bare camelCase evidence types (`programElement`,
+ * `bill`, `stateBill`, ...) predating V3. Because `freshnessThresholdDays` did an exact
+ * key match, EVERY V3 source silently missed its configured threshold and fell through
+ * to `Math.min(...all)` (14 days) regardless of type — so a 29-day-old program element,
+ * inside its intended 45-day window, was flagged stale against the harshest bucket
+ * instead. This strips the V3 prefix/infix and converts snake_case to the camelCase key
+ * so an already-configured type (bill, stateBill, programElement) resolves correctly.
+ * Categories that were never configured (sec_filing, fara_registration,
+ * gao_report, crs_report, regulatory_docket, intel_article,
+ * federal_register) still fall through to the conservative global minimum —
+ * that fallback is deliberate for a genuinely un-decided type, not the bug.
+ * `award`, `lda_filing`, and `hearing` now have explicit thresholds (see
+ * `FRESHNESS_LEGISLATIVE` above) closing the residual gap discovered on the
+ * live Career Start campaign, where an ~35-day-old `lda_filing` still fell
+ * to the harsh 14-day global minimum after the V3-prefix fix alone.
+ */
+function normalizeFreshnessEvidenceType(evidenceType: string): string {
+  const govRecordMatch = /^outreach_v3:government_record:(.+)$/.exec(evidenceType);
+  const raw = govRecordMatch?.[1] ?? evidenceType.replace(/^outreach_v3:/, '');
+  return raw.replace(/_([a-z])/g, (_m, c: string) => c.toUpperCase());
+}
+
+/**
  * Days after which a source of `evidenceType` needs an explicit as-of caveat
  * under this policy. Falls back to the most conservative configured threshold
  * rather than "no limit" for an unknown type.
  */
 export function freshnessThresholdDays(policy: GaPolicy, evidenceType: string): number {
-  const explicit = policy.freshness[evidenceType];
+  const explicit =
+    policy.freshness[evidenceType] ??
+    policy.freshness[normalizeFreshnessEvidenceType(evidenceType)];
   if (typeof explicit === 'number') return explicit;
   const all = Object.values(policy.freshness);
   return all.length ? Math.min(...all) : 14;

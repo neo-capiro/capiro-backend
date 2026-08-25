@@ -14,6 +14,7 @@ import {
 } from './generation-verifier.service.js';
 import { policyForAudience } from './government-affairs-policy.registry.js';
 import type { EvidenceItem, EvidencePacketV2 } from './evidence-packet.types.js';
+import type { MessagePlan } from './message-plan.schema.js';
 
 const NOW = new Date('2026-07-26T00:00:00.000Z');
 const svc = new GenerationVerifierService();
@@ -86,6 +87,25 @@ function verify(body: string, over: Partial<VerifyRequest> = {}) {
 
 function checks(body: string, over: Partial<VerifyRequest> = {}): string[] {
   return verify(body, over).findings.map((f) => f.check);
+}
+
+function plan(over: Partial<MessagePlan> = {}): MessagePlan {
+  return {
+    intent: 'meeting_request',
+    jurisdiction: 'federal',
+    audienceType: 'congressional_office',
+    clientRepresented: 'Aperture Defense Systems',
+    desiredOutcome: 'A 20-minute meeting.',
+    whyRecipient: ['Sits on Armed Services.'],
+    whyNow: ['The markup is approaching.'],
+    clientAsk: [],
+    supportedClaims: [],
+    unsupportedOrRiskyClaims: [],
+    tone: 'professional',
+    callToAction: 'Could we find 20 minutes?',
+    missingCriticalContext: [],
+    ...over,
+  };
 }
 
 // ── 1. Unresolved placeholders ──────────────────────────────────────────────
@@ -307,6 +327,37 @@ describe('date_grounding', () => {
       checks('Referred on June 1, 2026.', { packet: packet({ evidence: [withDate] }) }),
     ).not.toContain('date_grounding');
   });
+
+  // Live 2026-08-24: 172/195 held drafts (88%) tripped on this exact pattern —
+  // a proposed meeting date from the plan's own clientAsk/callToAction, which
+  // structurally can never appear in evidence text because it isn't evidence.
+  test('a proposed meeting date from the plan clientAsk is not held', () => {
+    expect(
+      checks('Could we schedule a brief meeting on September 15?', {
+        plan: plan({ clientAsk: ['A brief meeting on September 15.'] }),
+      }),
+    ).not.toContain('date_grounding');
+  });
+
+  test('a proposed date from callToAction is not held', () => {
+    expect(
+      checks('Let us know if September 15 works for a quick call.', {
+        plan: plan({ callToAction: 'Let us know if September 15 works.' }),
+      }),
+    ).not.toContain('date_grounding');
+  });
+
+  test('a date NOT in clientAsk/callToAction still requires grounding, even with a plan present', () => {
+    expect(
+      checks('The markup is scheduled for September 14, 2026, and we propose meeting on September 15.', {
+        plan: plan({ clientAsk: ['A brief meeting on September 15.'] }),
+      }),
+    ).toContain('date_grounding');
+  });
+
+  test('no plan at all still grounds normally (plan is optional)', () => {
+    expect(checks('Could we meet on September 15?')).toContain('date_grounding');
+  });
 });
 
 // ── 9. Stale-source caveat ──────────────────────────────────────────────────
@@ -332,6 +383,57 @@ describe('stale_source_caveat', () => {
 
   test('a FRESH source needs no caveat', () => {
     expect(checks('HR 1234 is in committee.')).not.toContain('stale_source_caveat');
+  });
+
+  // Live 2026-08-24: V3 evidence carries prefixed sourceTypes like
+  // `outreach_v3:government_record:program_element`, which never matched the
+  // bare `programElement` freshness key — EVERY V3 source silently fell
+  // through to the global-minimum 14-day threshold (the `bill` bucket)
+  // regardless of its real, more lenient configured threshold (45 days for
+  // programElement). A 29-day-old program element — fresh under its real
+  // 45-day window — must NOT be flagged stale.
+  test('a V3-prefixed programElement source within its 45-day window is not held', () => {
+    const v3ProgramElement = evidence({
+      ref: {
+        sourceType: 'outreach_v3:government_record:program_element',
+        authoritativeAsOf: '2026-06-27T00:00:00.000Z', // 29 days before NOW
+      },
+    });
+    expect(
+      checks('The program element remains active.', {
+        packet: packet({ evidence: [v3ProgramElement] }),
+      }),
+    ).not.toContain('stale_source_caveat');
+  });
+
+  // Same source is genuinely stale once past its real 45-day window and still
+  // has to be caught — the fix must not disable the check entirely for V3.
+  test('a V3-prefixed programElement source past its 45-day window is still held', () => {
+    const v3ProgramElement = evidence({
+      ref: {
+        sourceType: 'outreach_v3:government_record:program_element',
+        authoritativeAsOf: '2026-05-01T00:00:00.000Z', // ~86 days before NOW
+      },
+    });
+    expect(
+      checks('The program element remains active.', {
+        packet: packet({ evidence: [v3ProgramElement] }),
+      }),
+    ).toContain('stale_source_caveat');
+  });
+
+  // A V3-prefixed bill source should still use the strict 14-day bill
+  // threshold, not silently become lenient because of the prefix rewrite.
+  test('a V3-prefixed bill source still uses the 14-day bill threshold', () => {
+    const v3Bill = evidence({
+      ref: {
+        sourceType: 'outreach_v3:government_record:bill',
+        authoritativeAsOf: '2026-07-01T00:00:00.000Z', // 25 days before NOW
+      },
+    });
+    expect(
+      checks('HR 1234 is in committee.', { packet: packet({ evidence: [v3Bill] }) }),
+    ).toContain('stale_source_caveat');
   });
 });
 

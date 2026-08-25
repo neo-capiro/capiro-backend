@@ -472,12 +472,31 @@ function checkDates(text: string, req: VerifyRequest): VerifierFinding[] {
     ...(req.plan?.supportedClaims ?? []).map((c) => c.asOf ?? ''),
   ].join('\n');
 
+  // `clientAsk` / `callToAction` are the client's OWN proposed terms for the
+  // outreach (e.g. "Could we schedule a meeting on September 15?") — not a
+  // fact being asserted about the world. A date the model proposes as a
+  // meeting/deadline ask can never appear in evidence text, because it isn't
+  // evidence; it's the ask itself. Before this exemption, checkDates fired on
+  // every campaign whose plan proposed a concrete date (real or invented),
+  // which is the ordinary shape of a meeting-request outreach. A date is only
+  // exempt when the PLAN itself proposed it in clientAsk/callToAction — the
+  // model cannot use this to sneak an unsupported factual date into the body,
+  // because that date would also have to appear verbatim in the plan's own
+  // ask text, and the plan is itself the thing schema-validated and persisted
+  // before generation. Any date elsewhere in the body (e.g. a hearing date, an
+  // enactment date, a stated deadline outside the ask) still has to ground
+  // normally against the evidence packet.
+  const planAskHaystack = [...(req.plan?.clientAsk ?? []), req.plan?.callToAction ?? ''].join(
+    '\n',
+  );
+
   const findings: VerifierFinding[] = [];
   for (const raw of new Set(asserted)) {
     if (haystack.includes(raw)) continue;
     // Compare normalized forms too, so "June 1, 2026" matches "2026-06-01".
     const normalized = normalizeDate(raw);
     if (normalized && haystack.includes(normalized)) continue;
+    if (planAskHaystack.includes(raw)) continue;
     findings.push({
       source: 'deterministic_verifier',
       check: 'date_grounding',
