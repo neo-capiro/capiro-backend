@@ -87,6 +87,7 @@ function input(over: Partial<GatewayPromptInput> = {}): GatewayPromptInput {
     length: 'standard',
     senderName: 'Uma Sender',
     recipientScopeKeys: ['rep-dana'],
+    now: new Date(NOW),
     ...over,
   };
 }
@@ -442,5 +443,72 @@ export const GATEWAY_EVAL_FIXTURES: GatewayEvalFixture[] = [
     input: input({ styleSamples: [] }),
     promptMustContain: ['VALIDATED MESSAGE PLAN'],
     promptMustNotContain: ['EXAMPLE EMAILS FROM THIS AUTHOR'],
+  },
+  // ── stale_source_caveat closure (§ verifier_hold root cause, 2026-08) ──────
+  // Before this instruction existed, the deterministic verifier's
+  // `stale_source_caveat` check demanded an as-of phrase the prompt never
+  // asked the model to write — a spec gap, not a model failure. These two
+  // fixtures pin that the gateway now tells the model EXACTLY which sources
+  // are stale under the resolved policy, using the identical threshold math
+  // the verifier itself uses, and says nothing when nothing is stale.
+  {
+    id: 'stale-authoritative-source-gets-explicit-caveat-instruction',
+    description:
+      'An authoritative_structured source past its policy freshness window must trigger an explicit, named caveat instruction — the model is never left to infer this requirement.',
+    audience: 'congressional_office',
+    input: input({
+      // NOW is 2026-07-26; congressional_office's `bill` threshold is the
+      // FRESHNESS_LEGISLATIVE default (14 days) — 2026-06-01 is ~55 days old.
+      packet: packet({
+        evidence: [
+          {
+            ref: {
+              sourceType: 'bill',
+              sourceId: 'bill-hr1234',
+              title: 'HR 1234',
+              trust: 'authoritative_structured',
+              retrievedAt: NOW,
+              authoritativeAsOf: '2026-06-01T00:00:00.000Z',
+            },
+            evidenceText: 'HR 1234 is in committee.',
+            scope: 'all',
+          },
+        ],
+      }),
+    }),
+    promptMustContain: [
+      'STALE-SOURCE CAVEAT REQUIREMENT',
+      'id="bill-hr1234"',
+      'as of 2026-06-01',
+      'will be rejected',
+    ],
+  },
+  {
+    id: 'fresh-authoritative-source-gets-no-caveat-instruction',
+    description:
+      'A source within its policy freshness window must NOT trigger the caveat instruction — the fix must not nag on every authoritative source unconditionally.',
+    audience: 'congressional_office',
+    input: input({
+      // 2026-07-20 is 6 days before NOW (2026-07-26) — well inside the 14-day
+      // bill threshold.
+      packet: packet({
+        evidence: [
+          {
+            ref: {
+              sourceType: 'bill',
+              sourceId: 'bill-hr5678',
+              title: 'HR 5678',
+              trust: 'authoritative_structured',
+              retrievedAt: NOW,
+              authoritativeAsOf: '2026-07-20T00:00:00.000Z',
+            },
+            evidenceText: 'HR 5678 passed committee.',
+            scope: 'all',
+          },
+        ],
+      }),
+    }),
+    promptMustContain: ['VALIDATED MESSAGE PLAN'],
+    promptMustNotContain: ['STALE-SOURCE CAVEAT REQUIREMENT'],
   },
 ];
