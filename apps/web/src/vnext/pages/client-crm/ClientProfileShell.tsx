@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useApi } from '../../../lib/use-api.js';
-import { UIcon, PfButton, GRADIENT_DARK, PILL } from './portfolio-primitives.js';
+import { UIcon, PfButton, PILL } from './portfolio-primitives.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
 import { sectorLabel } from '../../lib/labels.js';
@@ -128,6 +128,8 @@ export function ClientProfileShell({
   const [st, sr, sf, sd] = PILL[statusTone];
   const bp = usePfBreakpoints();
   const navigate = useNavigate();
+  // Item 11 freshness dot tone: amber beats green beats the not-yet-loaded gray.
+  const freshnessState = sourceFailures > 0 ? 'warn' : refreshedLabel ? 'ok' : 'pending';
 
   return (
     <div
@@ -147,33 +149,18 @@ export function ClientProfileShell({
         <Sep />
         <CrumbButton label="Clients" onClick={() => navigate('/clients')} />
         <Sep />
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: '.03em',
-            textTransform: 'uppercase',
-            color: '#101828',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <span className="cap-pf-breadcrumb-name">
           {client.name}
         </span>
-        <span style={{ flex: 1 }} />
+        <span className="cap-pf-breadcrumb-spacer" />
         {/* Item 11: real freshness. The green pulse is a health claim, so it
             only shows when every source answered — a failing source turns the
             dot amber and the copy says what happened instead of a stale time.
             This measures when the app last fetched, which is what "refreshed"
             means here; no per-client ingestion timestamp exists to read. */}
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#475467', whiteSpace: 'nowrap' }}>
+        <span className="cap-pf-breadcrumb-freshness">
           <span
-            className={sourceFailures === 0 ? 'cap-pf-anim-pulse' : undefined}
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: sourceFailures > 0 ? '#F79009' : refreshedLabel ? '#12B76A' : '#98A2B3',
-            }}
+            className={`cap-pf-freshness-dot cap-pf-freshness-dot--${freshnessState}${sourceFailures === 0 ? ' cap-pf-anim-pulse' : ''}`}
           />
           {sourceFailures > 0
             ? `${sourceFailures} source${sourceFailures === 1 ? '' : 's'} unavailable`
@@ -181,7 +168,7 @@ export function ClientProfileShell({
               ? `Sources read ${refreshedLabel}`
               : 'Reading sources…'}
         </span>
-        <span style={{ color: '#E0DCD4' }}>·</span>
+        <span className="cap-pf-breadcrumb-dot">·</span>
         {profileGapCount > 0 ? (
           <CrumbButton
             label={`${profileGapCount} profile gap${profileGapCount === 1 ? '' : 's'}`}
@@ -197,19 +184,18 @@ export function ClientProfileShell({
           to .cap-pf-client__identity in client-crm.css so it re-centers at
           1440px (with a 32px floor) instead of the shell's escaped 1280px
           cap, and drops to 16px at 779px. */}
-      <div className="cap-pf-client__identity" style={{ background: '#ffffff', borderBottom: '1px solid #E8E5DF' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
-          {/* 48px dark tile */}
+      <div className="cap-pf-client__identity">
+        <div className="cap-pf-identity-row">
+          {/* 56px dark tile */}
           <span
             aria-hidden
             className={client.logoUrl ? 'cap-pf-identity-tile' : 'cap-pf-identity-tile cap-pf-identity-tile--dark'}
-            style={{ color: '#ffffff', fontSize: 15, fontWeight: 600, letterSpacing: '.02em' }}
           >
-            {client.logoUrl ? <img src={client.logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initialsFor(client.name)}
+            {client.logoUrl ? <img src={client.logoUrl} alt="" className="cap-pf-identity-tile__img" /> : initialsFor(client.name)}
           </span>
 
-          <div style={{ flex: 1, minWidth: 280 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div className="cap-pf-identity-main">
+            <div className="cap-pf-identity-name-row">
               <h1 className="cap-pf-client-name">
                 {client.name}
               </h1>
@@ -217,14 +203,14 @@ export function ClientProfileShell({
                 className="cap-pf-status-pill"
                 style={{ background: st, border: `1px solid ${sr}`, color: sf }}
               >
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: sd }} />
+                <span className="cap-pf-status-pill__dot" style={{ background: sd }} />
                 {isActive ? 'Active client' : (client.status ?? 'Unknown status')}
               </span>
             </div>
 
             {/* Focus row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', marginRight: 2 }}>
+            <div className="cap-pf-identity-focus-row">
+              <span className="cap-pf-focus-label">
                 Focus
               </span>
               {chips.map((chip) => (
@@ -237,7 +223,7 @@ export function ClientProfileShell({
           </div>
 
           {/* Right cluster */}
-          <div className="cap-pf-identity-right" style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div className="cap-pf-identity-right">
             <AccountOwnerControl clientId={client.id} canAssign={canEditFocus} />
             <MeriActionsMenu busy={fillBusy} fillLabel={fillLabel} onFillWithMeri={onFillWithMeri} />
             <OverflowMenu client={client} onDataHealth={onDataHealth} canArchive={canArchive} onArchive={onArchive} />
@@ -267,7 +253,7 @@ export function ClientProfileShell({
       <div className="cap-pf-client__body">
         <div className="cap-pf-grid-record">
           <DrawerRail activeKey={drawerKeyForRoute(tab, view)} onNavigate={onNavigate} />
-          <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 24 }}>{children}</div>
+          <div className="cap-pf-client-sections">{children}</div>
         </div>
       </div>
 
@@ -288,7 +274,7 @@ export function ClientProfileShell({
 /* ── small shell pieces ───────────────────────────────────────────────────── */
 
 function Sep() {
-  return <span style={{ color: '#E0DCD4', fontSize: 13 }}>/</span>;
+  return <span className="cap-pf-crumb-sep">/</span>;
 }
 
 function CrumbButton({ label, strong = false, onClick }: { label: string; strong?: boolean; onClick?: () => void }) {
@@ -299,14 +285,7 @@ function CrumbButton({ label, strong = false, onClick }: { label: string; strong
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        fontSize: 13,
-        fontWeight: 600,
-        letterSpacing: '.03em',
-        textTransform: 'uppercase',
-        color: strong ? (hover ? '#0E141C' : '#101828') : hover ? '#101828' : '#667085',
-        whiteSpace: 'nowrap',
-      }}
+      className={strong || hover ? 'cap-pf-crumb-btn cap-pf-crumb-btn--active' : 'cap-pf-crumb-btn'}
     >
       {label}
     </button>
@@ -320,8 +299,8 @@ function AccountOwnerControl({ clientId, canAssign }: { clientId: string; canAss
   const display = owner.isLoading ? 'Loading…' : owner.ownerLabel ?? 'Unassigned';
 
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-      <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+    <label className="cap-pf-account-owner-label">
+      <span className="cap-pf-account-owner-eyebrow">
         Account owner
       </span>
       {canAssign ? (
@@ -332,7 +311,6 @@ function AccountOwnerControl({ clientId, canAssign }: { clientId: string; canAss
           onChange={(event) => owner.setOwner(event.target.value || null)}
           title={owner.error instanceof Error ? owner.error.message : undefined}
           className={owner.error ? 'cap-pf-account-owner-select cap-pf-account-owner-select--error' : 'cap-pf-account-owner-select'}
-          style={{ padding: '0 24px 0 8px', fontWeight: 600, cursor: owner.isLoading || owner.isAssigning ? 'wait' : 'pointer' }}
         >
           <option value="">Unassigned</option>
           {currentMissing && owner.owner ? (
@@ -346,7 +324,7 @@ function AccountOwnerControl({ clientId, canAssign }: { clientId: string; canAss
       ) : (
         <span
           title={owner.error instanceof Error ? owner.error.message : undefined}
-          style={{ fontSize: 14, fontWeight: 600, color: owner.ownerLabel ? '#344054' : '#98A2B3', whiteSpace: 'nowrap' }}
+          className={owner.ownerLabel ? 'cap-pf-account-owner-display cap-pf-account-owner-display--set' : 'cap-pf-account-owner-display'}
         >
           {owner.error ? 'Unavailable' : display}
         </span>
@@ -414,20 +392,7 @@ function AddFocusButton({ client, existing }: { client: Client; existing: string
         onClick={() => setOpen(true)}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          height: 26,
-          padding: '0 10px',
-          borderRadius: 8,
-          border: '1px solid #E0DCD4',
-          color: hover ? '#344054' : '#475467',
-          background: hover ? '#FAF9F6' : 'transparent',
-          fontSize: 13,
-          fontWeight: 600,
-          whiteSpace: 'nowrap',
-        }}
+        className={hover ? 'cap-pf-add-focus-trigger cap-pf-add-focus-trigger--hover' : 'cap-pf-add-focus-trigger'}
       >
         <UIcon name="Plus" size={14} />
         Add
@@ -436,7 +401,7 @@ function AddFocusButton({ client, existing }: { client: Client; existing: string
   }
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+    <span className="cap-pf-add-focus-open">
       <input
         ref={inputRef}
         value={value}
@@ -453,30 +418,20 @@ function AddFocusButton({ client, existing }: { client: Client; existing: string
           }
         }}
         className={duplicate ? 'cap-pf-add-focus-input cap-pf-add-focus-input--duplicate' : 'cap-pf-add-focus-input'}
-        style={{ height: 26, width: 148, padding: '0 8px', outline: 'none' }}
       />
       <button
         type="button"
         onClick={submit}
         disabled={!trimmed || duplicate || save.isPending}
-        style={{
-          height: 26,
-          padding: '0 10px',
-          borderRadius: 8,
-          background: !trimmed || duplicate ? '#F2F0EB' : GRADIENT_DARK,
-          color: !trimmed || duplicate ? '#98A2B3' : '#ffffff',
-          fontSize: 13,
-          fontWeight: 600,
-          whiteSpace: 'nowrap',
-        }}
+        className={!trimmed || duplicate ? 'cap-pf-add-focus-save cap-pf-add-focus-save--disabled' : 'cap-pf-add-focus-save'}
       >
         {save.isPending ? 'Saving…' : 'Save'}
       </button>
       {duplicate ? (
-        <span style={{ fontSize: 12, color: '#B42318', whiteSpace: 'nowrap' }}>Already a focus</span>
+        <span className="cap-pf-add-focus-error">Already a focus</span>
       ) : null}
       {save.isError ? (
-        <span style={{ fontSize: 12, color: '#B42318', whiteSpace: 'nowrap' }}>
+        <span className="cap-pf-add-focus-error">
           {save.error instanceof Error ? save.error.message : 'Could not save'}
         </span>
       ) : null}
@@ -519,31 +474,18 @@ function MeriActionsMenu({ busy, fillLabel, onFillWithMeri }: { busy: boolean; f
   }, [open]);
 
   return (
-    <div ref={wrapRef} style={{ position: 'relative' }}>
+    <div ref={wrapRef} className="cap-pf-menu-anchor">
       <button
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          height: 40,
-          padding: '0 14px 0 13px',
-          borderRadius: 8,
-          backgroundImage: GRADIENT_DARK,
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,.14),0 1px 2px rgba(16,24,40,.12)',
-          color: '#ffffff',
-          fontSize: 14,
-          fontWeight: 600,
-          whiteSpace: 'nowrap',
-        }}
+        className="cap-pf-meri-actions-trigger"
       >
-        <UIcon name="Stars02" size={18} color="#ffffff" />
+        <UIcon name="Stars02" size={18} />
         Meri Actions
-        <span style={{ display: 'flex', opacity: 0.7, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 140ms cubic-bezier(.2,0,0,1)' }}>
-          <UIcon name="ChevronDown" size={16} color="#ffffff" />
+        <span className={open ? 'cap-pf-meri-actions-chevron cap-pf-meri-actions-chevron--open' : 'cap-pf-meri-actions-chevron'}>
+          <UIcon name="ChevronDown" size={16} />
         </span>
       </button>
 
@@ -551,18 +493,7 @@ function MeriActionsMenu({ busy, fillLabel, onFillWithMeri }: { busy: boolean; f
         <div
           role="menu"
           aria-label="Meri Actions"
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: 'calc(100% + 6px)',
-            zIndex: 45,
-            width: 344,
-            padding: 6,
-            borderRadius: 12,
-            background: '#ffffff',
-            border: '1px solid #E4E7EC',
-            boxShadow: '0 18px 44px -14px rgba(16,24,40,.28),0 2px 6px rgba(16,24,40,.05)',
-          }}
+          className="cap-pf-meri-actions-menu"
         >
           <MeriActionItem
             icon="Stars02"
@@ -612,32 +543,21 @@ function MeriActionItem({
       onClick={onSelect}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        width: '100%',
-        alignItems: 'flex-start',
-        gap: 12,
-        padding: '11px 10px',
-        borderRadius: 9,
-        textAlign: 'left',
-        background: hover && !disabled ? '#F7F8FA' : 'transparent',
-        opacity: disabled ? 0.55 : 1,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-      }}
+      className={hover && !disabled ? 'cap-pf-meri-action-item cap-pf-meri-action-item--hover' : 'cap-pf-meri-action-item'}
     >
-      <span style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8, background: '#F2F4F7', color: '#344054' }}>
+      <span className="cap-pf-meri-action-icon">
         <UIcon name={icon} size={16} />
       </span>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 600, color: '#101828' }}>{label}</span>
+      <span className="cap-pf-meri-action-body">
+        <span className="cap-pf-meri-action-label-row">
+          <span className="cap-pf-meri-action-label">{label}</span>
           {disabled && disabledReason ? (
-            <span style={{ flex: '0 0 auto', height: 18, padding: '0 6px', borderRadius: 9999, background: '#F2F0EB', color: '#667085', fontSize: 10, fontWeight: 600, letterSpacing: '.02em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center' }}>
+            <span className="cap-pf-meri-action-badge">
               {disabledReason}
             </span>
           ) : null}
         </span>
-        <span style={{ display: 'block', marginTop: 3, fontSize: 12, lineHeight: '17px', color: '#667085', textWrap: 'pretty' }}>{detail}</span>
+        <span className="cap-pf-meri-action-detail">{detail}</span>
       </span>
     </button>
   );
@@ -749,13 +669,12 @@ function OverflowMenu({
   }
 
   return (
-    <div ref={wrapRef} style={{ position: 'relative' }}>
+    <div ref={wrapRef} className="cap-pf-menu-anchor">
       <MenuTrigger open={open} onClick={() => setOpen((v) => !v)} name={client.name} />
       {open ? (
         <div
           role="menu"
           className="cap-pf-overflow-menu"
-          style={{ padding: 6, animation: 'capPfFade .12s ease' }}
         >
           {items.map((item) => (
             <MenuItem key={item.label} item={item} />
@@ -777,17 +696,7 @@ function MenuTrigger({ open, onClick, name }: { open: boolean; onClick: () => vo
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 40,
-        height: 40,
-        borderRadius: 8,
-        border: '1px solid #E0DCD4',
-        color: '#475467',
-        background: hover ? '#FAF9F6' : 'transparent',
-      }}
+      className={hover ? 'cap-pf-menu-trigger cap-pf-menu-trigger--hover' : 'cap-pf-menu-trigger'}
     >
       <UIcon name="DotsHorizontal" size={20} />
     </button>

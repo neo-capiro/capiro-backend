@@ -175,8 +175,8 @@ export function PortfolioProgramElements({
 
       {monitored.isLoading ? (
         <div className="capiro-portfolio-pe__grid" aria-hidden>
-          <div className="capiro-portfolio-pe__skeleton" style={{ height: 148 }} />
-          <div className="capiro-portfolio-pe__skeleton" style={{ height: 148 }} />
+          <div className="capiro-portfolio-pe__skeleton" />
+          <div className="capiro-portfolio-pe__skeleton" />
         </div>
       ) : monitored.isError ? (
         <div className="capiro-portfolio__state capiro-portfolio__state--error" role="status">

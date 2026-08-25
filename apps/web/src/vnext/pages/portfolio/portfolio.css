@@ -340,6 +340,13 @@
   outline-offset: -2px;
 }
 .capiro-portfolio__status-text { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.capiro-portfolio__status-text--active { color: var(--capiro-color-success); }
+.capiro-portfolio__status-text--at-risk { color: var(--capiro-color-warning); }
+.capiro-portfolio__status-text--prospect { color: var(--capiro-color-text-muted); }
+/* Row/card meta line: status text · location, truncating instead of wrapping. */
+.capiro-portfolio__meta-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.capiro-portfolio__meta-sep { color: var(--capiro-color-border-control); }
+.capiro-portfolio__meta-subtitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .capiro-portfolio__client {
   display: flex;
@@ -499,6 +506,9 @@
   border-radius: 12px;
   background: var(--capiro-color-bg-surface-2);
   animation: capiro-portfolio-pulse 1.4s ease-in-out infinite;
+}
+.capiro-portfolio__skeleton--tall {
+  height: 320px;
 }
 .capiro-portfolio__linkbtn {
   background: none;

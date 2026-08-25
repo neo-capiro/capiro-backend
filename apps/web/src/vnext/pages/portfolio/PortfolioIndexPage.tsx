@@ -83,10 +83,10 @@ const STATUS_LABEL: Record<PortfolioRow['status'], string> = {
  * dot-and-badge pill as well. Only "at-risk" carries a rail; healthy/
  * prospect rows get none, so the rail reads as an exception, not decoration.
  */
-const STATUS_TEXT_COLOR: Record<PortfolioRow['status'], string> = {
-  active: 'var(--capiro-color-success)',
-  'at-risk': 'var(--capiro-color-warning)',
-  prospect: 'var(--capiro-color-text-muted)',
+const STATUS_TEXT_CLASS: Record<PortfolioRow['status'], string> = {
+  active: 'capiro-portfolio__status-text--active',
+  'at-risk': 'capiro-portfolio__status-text--at-risk',
+  prospect: 'capiro-portfolio__status-text--prospect',
 };
 const STATUS_RAIL_COLOR: Record<PortfolioRow['status'], string> = {
   active: 'transparent',
@@ -254,12 +254,12 @@ function ClientIdentity({ row, onOpen }: { row: PortfolioRow; onOpen?: () => voi
         </div>
         {/* One status treatment (rail on the row/card, set by the caller) plus
             this colored text — not a dot-and-badge pill as well. */}
-        <div className="capiro-portfolio__meta" style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-          <span className="capiro-portfolio__status-text" style={{ color: STATUS_TEXT_COLOR[row.status] }}>
+        <div className="capiro-portfolio__meta capiro-portfolio__meta-row">
+          <span className={`capiro-portfolio__status-text ${STATUS_TEXT_CLASS[row.status]}`}>
             {STATUS_LABEL[row.status]}
           </span>
-          <span aria-hidden style={{ color: 'var(--capiro-color-border-control)' }}>·</span>
-          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</span>
+          <span aria-hidden className="capiro-portfolio__meta-sep">·</span>
+          <span className="capiro-portfolio__meta-subtitle">{subtitle}</span>
         </div>
       </div>
     </div>
@@ -446,7 +446,7 @@ export function PortfolioIndexPage() {
           {PORTFOLIO_SORT_LABELS.map((s) => <button key={s.key} type="button" className={`capiro-portfolio__sort-chip${route.sort === s.key ? ' is-active' : ''}`} onClick={() => setRoute({ sort: s.key })} aria-pressed={route.sort === s.key}>{s.label}</button>)}
         </div>
 
-        {clients.isLoading ? <div aria-busy="true"><div className="capiro-portfolio__skeleton" style={{ height: 320 }} /></div> : clients.isError ? <div className="capiro-portfolio__state capiro-portfolio__state--error" role="status"><span>Clients could not be loaded.{clients.error instanceof Error ? ` (${clients.error.message})` : ''}</span><CapiroButton variant="quiet" size="compact" onClick={() => void clients.refetch()}>Retry</CapiroButton></div> : showEmpty ? <div className="capiro-portfolio__state" role="status">{emptyIsFilter ? <><span>No clients match the current search and filters.</span><button type="button" className="capiro-portfolio__linkbtn" onClick={() => setRoute({ q: '', status: 'all' })}>Clear search and filters</button></> : 'No clients yet. Add one with New client, or import several with Import with LDA.'}</div> : route.layout === 'list' ? (
+        {clients.isLoading ? <div aria-busy="true"><div className="capiro-portfolio__skeleton capiro-portfolio__skeleton--tall" /></div> : clients.isError ? <div className="capiro-portfolio__state capiro-portfolio__state--error" role="status"><span>Clients could not be loaded.{clients.error instanceof Error ? ` (${clients.error.message})` : ''}</span><CapiroButton variant="quiet" size="compact" onClick={() => void clients.refetch()}>Retry</CapiroButton></div> : showEmpty ? <div className="capiro-portfolio__state" role="status">{emptyIsFilter ? <><span>No clients match the current search and filters.</span><button type="button" className="capiro-portfolio__linkbtn" onClick={() => setRoute({ q: '', status: 'all' })}>Clear search and filters</button></> : 'No clients yet. Add one with New client, or import several with Import with LDA.'}</div> : route.layout === 'list' ? (
           <div className="capiro-portfolio__table-wrap"><table className="capiro-portfolio__table"><thead><tr><th>Client</th><th>Focus</th><th>Owner</th><th>Work</th><th>Intel</th><th>Attn</th><th>Next</th></tr></thead><tbody>{model.visible.map((row) => <ClientRow key={row.client.id} row={row} rollupState={rollupState} onOpen={() => openClient(row.client.id)} />)}</tbody></table><div className="capiro-portfolio__footer">Showing {model.visible.length} of {model.rows.length} clients · sorted by {route.sort}</div></div>
         ) : (
           <>

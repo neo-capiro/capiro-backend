@@ -14,8 +14,8 @@
 }
 
 .capiro-vnext-root .cap-pf-identity-tile {
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  height: 56px;
   border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
@@ -26,11 +26,22 @@
 
 .capiro-vnext-root .cap-pf-identity-tile--dark {
   background: var(--capiro-color-text-primary);
+  color: var(--capiro-color-text-inverse-primary);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.capiro-vnext-root .cap-pf-identity-tile__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .capiro-vnext-root .cap-pf-client-name {
-  font-size: 20px;
+  font-size: 32px;
   font-weight: 700;
+  letter-spacing: -0.028em;
   color: var(--capiro-color-text-primary);
   line-height: 1.2;
   margin: 0;
@@ -68,10 +79,12 @@
   top: calc(100% + 4px);
   z-index: 50;
   width: 200px;
+  padding: 6px;
   background: var(--capiro-color-bg-surface);
   border-radius: 8px;
   box-shadow: var(--capiro-primitive-shadow-widget);
   overflow: hidden;
+  animation: capPfFade .12s ease;
 }
 
 .capiro-vnext-root .cap-pf-menu-item {
@@ -97,17 +110,51 @@
 .capiro-vnext-root .cap-pf-account-owner-select {
   height: 36px;
   max-width: 220px;
+  padding: 0 24px 0 8px;
   border: 1px solid var(--capiro-color-border-default);
   border-radius: 8px;
   background: var(--capiro-color-bg-surface);
   color: var(--capiro-color-text-primary);
   font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
 }
 .capiro-vnext-root .cap-pf-account-owner-select--error {
   border-color: var(--capiro-color-text-destructive, #b42318);
 }
+.capiro-vnext-root .cap-pf-account-owner-select:disabled {
+  cursor: wait;
+}
+
+.capiro-vnext-root .cap-pf-account-owner-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.capiro-vnext-root .cap-pf-account-owner-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.capiro-vnext-root .cap-pf-account-owner-display {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--capiro-color-text-faint);
+  white-space: nowrap;
+}
+.capiro-vnext-root .cap-pf-account-owner-display--set {
+  color: var(--capiro-color-text-secondary);
+}
 
 .capiro-vnext-root .cap-pf-add-focus-input {
+  height: 26px;
+  width: 148px;
+  padding: 0 8px;
   border: 1px solid var(--capiro-color-border-default);
   border-radius: 8px;
   background: var(--capiro-color-bg-surface);
@@ -117,4 +164,307 @@
 }
 .capiro-vnext-root .cap-pf-add-focus-input--duplicate {
   border-color: var(--capiro-color-text-destructive, #b42318);
+}
+
+/* ── Breadcrumb bar dynamic pieces ────────────────────────────────────────── */
+
+.capiro-vnext-root .cap-pf-crumb-sep {
+  color: var(--capiro-color-border-default);
+  font-size: 13px;
+}
+
+.capiro-vnext-root .cap-pf-crumb-btn {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+  white-space: nowrap;
+}
+.capiro-vnext-root .cap-pf-crumb-btn--active {
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .cap-pf-breadcrumb-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-primary);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .cap-pf-breadcrumb-spacer {
+  flex: 1;
+}
+
+.capiro-vnext-root .cap-pf-breadcrumb-freshness {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--capiro-color-text-secondary);
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .cap-pf-breadcrumb-dot {
+  color: var(--capiro-color-border-default);
+}
+
+.capiro-vnext-root .cap-pf-freshness-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.capiro-vnext-root .cap-pf-freshness-dot--ok {
+  background: var(--capiro-color-text-success);
+}
+.capiro-vnext-root .cap-pf-freshness-dot--warn {
+  background: var(--capiro-color-warning);
+}
+.capiro-vnext-root .cap-pf-freshness-dot--pending {
+  background: var(--capiro-color-text-faint);
+}
+
+/* ── Identity block layout ────────────────────────────────────────────────── */
+
+.capiro-vnext-root .cap-pf-client__identity {
+  background: var(--capiro-color-bg-surface);
+  border-bottom: 1px solid var(--capiro-color-border-default);
+}
+
+.capiro-vnext-root .cap-pf-identity-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .cap-pf-identity-main {
+  flex: 1;
+  min-width: 280px;
+}
+
+.capiro-vnext-root .cap-pf-identity-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .cap-pf-status-pill__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.capiro-vnext-root .cap-pf-identity-focus-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .cap-pf-focus-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+  margin-right: 2px;
+}
+
+.capiro-vnext-root .cap-pf-identity-right {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.capiro-vnext-root .cap-pf-client-sections {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Add-focus control (trigger + save button) ───────────────────────────── */
+
+.capiro-vnext-root .cap-pf-add-focus-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-default);
+  color: var(--capiro-color-text-secondary);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.capiro-vnext-root .cap-pf-add-focus-trigger--hover {
+  background: var(--capiro-color-bg-surface-2, #faf9f6);
+}
+
+.capiro-vnext-root .cap-pf-add-focus-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.capiro-vnext-root .cap-pf-add-focus-save {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%);
+  color: var(--capiro-color-text-inverse-primary);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.capiro-vnext-root .cap-pf-add-focus-save--disabled {
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-faint);
+}
+
+.capiro-vnext-root .cap-pf-add-focus-error {
+  font-size: 12px;
+  color: var(--capiro-color-text-destructive, #b42318);
+  white-space: nowrap;
+}
+
+/* ── Meri Actions menu ────────────────────────────────────────────────────── */
+
+.capiro-vnext-root .cap-pf-menu-anchor {
+  position: relative;
+}
+
+.capiro-vnext-root .cap-pf-meri-actions-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px 0 13px;
+  border-radius: 8px;
+  background-image: linear-gradient(180deg,#39424F 0%,#1B2430 46%,#0E141C 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 1px 2px rgba(16,24,40,.12);
+  color: var(--capiro-color-text-inverse-primary);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .cap-pf-meri-actions-chevron {
+  display: flex;
+  opacity: .7;
+  transform: none;
+  transition: transform 140ms cubic-bezier(.2,0,0,1);
+}
+.capiro-vnext-root .cap-pf-meri-actions-chevron--open {
+  transform: rotate(180deg);
+}
+
+.capiro-vnext-root .cap-pf-meri-actions-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 45;
+  width: 344px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-divider);
+  box-shadow: 0 18px 44px -14px rgba(16,24,40,.28), 0 2px 6px rgba(16,24,40,.05);
+}
+
+.capiro-vnext-root .cap-pf-meri-action-item {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 10px;
+  border-radius: 9px;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+.capiro-vnext-root .cap-pf-meri-action-item:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.capiro-vnext-root .cap-pf-meri-action-item--hover {
+  background: var(--capiro-color-bg-surface-2, #faf9f6);
+}
+
+.capiro-vnext-root .cap-pf-meri-action-icon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-secondary);
+}
+
+.capiro-vnext-root .cap-pf-meri-action-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.capiro-vnext-root .cap-pf-meri-action-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.capiro-vnext-root .cap-pf-meri-action-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .cap-pf-meri-action-badge {
+  flex: 0 0 auto;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+}
+
+.capiro-vnext-root .cap-pf-meri-action-detail {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--capiro-color-text-muted);
+  text-wrap: pretty;
+}
+
+/* ── Overflow menu trigger ────────────────────────────────────────────────── */
+
+.capiro-vnext-root .cap-pf-menu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-default);
+  color: var(--capiro-color-text-secondary);
+  background: transparent;
+}
+.capiro-vnext-root .cap-pf-menu-trigger--hover {
+  background: var(--capiro-color-bg-surface-2, #faf9f6);
 }
