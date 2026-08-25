@@ -3258,6 +3258,147 @@
   }
 }
 
+/* Work-performed / research-progress hero card chrome (was ad hoc inline
+   styles). MeriWorkPerformed and MeriResearchProgress are a deliberate
+   sibling pair (see MeriAgentSteps.tsx, shared by both) rendering the same
+   dark metal card chrome, so this reuses the "work" prefix already
+   established by the pre-existing vnext-meri__work-source-dot rule below
+   rather than forking a second "research" prefix for identical markup. */
+.capiro-vnext-root .vnext-meri__work-card {
+  margin: 0 18px 16px;
+}
+
+.capiro-vnext-root .vnext-meri__work-card-metal {
+  padding: 16px 18px;
+  border-radius: 11px;
+  background-image: var(--m-metal-bg);
+  box-shadow: var(--m-metal-sheen);
+}
+
+.capiro-vnext-root .vnext-meri__work-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.capiro-vnext-root .vnext-meri__work-card-label {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: #98A2B3;
+}
+
+.capiro-vnext-root .vnext-meri__work-card-spacer {
+  flex: 1;
+}
+
+.capiro-vnext-root .vnext-meri__work-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Base visual for the source-count pulse dot — the pulse animation itself
+   stays on the pre-existing .is-live modifier rule further down this file. */
+.capiro-vnext-root .vnext-meri__work-source-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #12B76A;
+}
+
+.capiro-vnext-root .vnext-meri__work-card-badge-text {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #ffffff;
+}
+
+.capiro-vnext-root .vnext-meri__work-card-title {
+  margin-top: 10px;
+  font-size: 16px;
+  line-height: 23px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.capiro-vnext-root .vnext-meri__work-card-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.capiro-vnext-root .vnext-meri__work-card-progress-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 9999px;
+  background: #1D2939;
+  overflow: hidden;
+  position: relative;
+}
+
+/* transition duration differs (240ms tool-loop vs 400ms research heartbeat)
+   and width is always data-driven — both stay inline per-instance, same
+   pattern as the button-size overrides elsewhere in this file. */
+.capiro-vnext-root .vnext-meri__work-card-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #98A2B3, #ffffff);
+}
+
+.capiro-vnext-root .vnext-meri__work-card-progress-label {
+  font-family: var(--meri-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.capiro-vnext-root .vnext-meri__work-card-steps {
+  margin-top: 8px;
+}
+
+.capiro-vnext-root .vnext-meri__work-plan {
+  margin-top: 10px;
+  padding: 11px 13px;
+  border-radius: 9px;
+  background: #FAF9F6;
+  border: 1px solid #E8E5DF;
+}
+
+.capiro-vnext-root .vnext-meri__work-plan-label {
+  font-family: var(--meri-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: #667085;
+}
+
+.capiro-vnext-root .vnext-meri__work-plan-list {
+  margin: 7px 0 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  line-height: 19px;
+  color: #344054;
+}
+
+.capiro-vnext-root .vnext-meri__work-disclaimer {
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 16px;
+  color: #98A2B3;
+}
+
 /* ── Animations ──────────────────────────────────────────────────────── */
 
 @keyframes vnext-meri-pulse {

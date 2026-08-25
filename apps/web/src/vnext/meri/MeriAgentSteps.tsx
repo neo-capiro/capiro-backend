@@ -13,8 +13,6 @@ import './meri-agent-steps.css';
  * that never ran, so those two tones are intentionally not reachable.
  */
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
-
 const STEP_TONE: Record<TrustStep['status'], { state: string; icon: MeriIconName; spin?: boolean }> = {
   done:    { state: 'DONE',    icon: 'Check' },
   running: { state: 'RUNNING', icon: 'Loading01', spin: true },
@@ -24,7 +22,7 @@ const STEP_TONE: Record<TrustStep['status'], { state: string; icon: MeriIconName
 export function MeriAgentSteps({ steps }: { steps: TrustStep[] }) {
   if (steps.length === 0) return null;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div className="meri-agent-steps-list">
       {steps.map((step, index) => {
         const tone = STEP_TONE[step.status];
         return (
@@ -36,12 +34,12 @@ export function MeriAgentSteps({ steps }: { steps: TrustStep[] }) {
             <span className={`meri-agent-step__dot${tone.spin ? ' is-running' : ''}`}>
               <MeriIcon name={tone.icon} size={11} />
             </span>
-            <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 13, lineHeight: '19px', fontWeight: 500 }}>
+            <span className="meri-agent-step__body">
+              <span className="meri-agent-step__label">
                 {step.label}
               </span>
               {step.detail ? (
-                <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '.05em', color: '#667085' }}>
+                <span className="meri-agent-step__detail">
                   {step.detail}
                 </span>
               ) : null}

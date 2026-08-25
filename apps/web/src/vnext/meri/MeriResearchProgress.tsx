@@ -15,8 +15,6 @@ import { MeriAgentSteps } from './MeriAgentSteps.js';
  * unknown budget.
  */
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
-
 interface MeriResearchProgressProps {
   isStreaming: boolean;
   progress: { note: string; elapsedMs: number; budgetMs?: number } | null;
@@ -34,71 +32,38 @@ export function MeriResearchProgress({ isStreaming, progress, steps, scope }: Me
     : null;
 
   return (
-    <div style={{ margin: '0 18px 16px' }}>
-      <div
-        style={{
-          padding: '16px 18px',
-          borderRadius: 11,
-          backgroundImage: 'var(--m-metal-bg)',
-          boxShadow: 'var(--m-metal-sheen)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 500, letterSpacing: '.1em', color: '#98A2B3' }}>
+    <div className="vnext-meri__work-card">
+      <div className="vnext-meri__work-card-metal">
+        <div className="vnext-meri__work-card-head">
+          <span className="vnext-meri__work-card-label">
             MERI RESEARCH RUN{scope ? ` · ${scope.toUpperCase()}` : ''}
           </span>
-          <span style={{ flex: 1 }} />
+          <span className="vnext-meri__work-card-spacer" />
           {sourceCount > 0 ? (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 7,
-                height: 24,
-                padding: '0 9px',
-                borderRadius: 6,
-                background: 'rgba(255,255,255,.1)',
-              }}
-            >
-              <span
-                className="vnext-meri__work-source-dot is-live"
-                style={{ width: 6, height: 6, borderRadius: 9999, background: '#12B76A' }}
-              />
-              <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.08em', color: '#ffffff' }}>
+            <span className="vnext-meri__work-card-badge">
+              <span className="vnext-meri__work-source-dot is-live" />
+              <span className="vnext-meri__work-card-badge-text">
                 {sourceCount} SOURCE{sourceCount === 1 ? '' : 'S'}
               </span>
             </span>
           ) : null}
         </div>
 
-        <div style={{ marginTop: 10, fontSize: 16, lineHeight: '23px', fontWeight: 600, color: '#ffffff' }}>
+        <div className="vnext-meri__work-card-title">
           {progress?.note || 'Researching…'}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
-          <span
-            style={{
-              flex: 1,
-              height: 6,
-              borderRadius: 9999,
-              background: '#1D2939',
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-          >
+        <div className="vnext-meri__work-card-progress-row">
+          <span className="vnext-meri__work-card-progress-track">
             <span
-              className={pct === null ? 'vnext-meri__research-bar-indeterminate' : undefined}
+              className={`vnext-meri__work-card-progress-fill${pct === null ? ' vnext-meri__research-bar-indeterminate' : ''}`}
               style={{
-                display: 'block',
                 width: pct === null ? '35%' : `${pct}%`,
-                height: '100%',
-                borderRadius: 9999,
-                background: 'linear-gradient(90deg,#98A2B3,#ffffff)',
                 transition: pct === null ? undefined : 'width 400ms ease',
               }}
             />
           </span>
-          <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 500, letterSpacing: '.08em', color: '#ffffff', whiteSpace: 'nowrap' }}>
+          <span className="vnext-meri__work-card-progress-label">
             {progress ? formatElapsed(progress.elapsedMs) : '0s'}
             {hasBudget ? ` OF ${formatElapsed(progress!.budgetMs!)}` : ' ELAPSED'}
           </span>
@@ -106,7 +71,7 @@ export function MeriResearchProgress({ isStreaming, progress, steps, scope }: Me
       </div>
 
       {steps.length > 0 ? (
-        <div style={{ marginTop: 8 }}>
+        <div className="vnext-meri__work-card-steps">
           <MeriAgentSteps steps={steps} />
         </div>
       ) : null}

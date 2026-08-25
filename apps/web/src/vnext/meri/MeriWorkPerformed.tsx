@@ -20,8 +20,6 @@ import { MeriAgentSteps } from './MeriAgentSteps.js';
  * same STEP-tone styling.
  */
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
-
 interface MeriWorkPerformedProps {
   intent?: string | null;
   tier?: 'fast' | 'deep' | null;
@@ -59,61 +57,35 @@ export function MeriWorkPerformed({ intent, tier, steps, planSteps, isStreaming 
   const pct = toolCount > 0 ? Math.round((doneCount / toolCount) * 100) : isStreaming ? 0 : 100;
 
   return (
-    <div style={{ margin: '0 18px 16px' }}>
-      <div
-        style={{
-          padding: '16px 18px',
-          borderRadius: 11,
-          backgroundImage: 'var(--m-metal-bg)',
-          boxShadow: 'var(--m-metal-sheen)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 500, letterSpacing: '.1em', color: '#98A2B3' }}>
+    <div className="vnext-meri__work-card">
+      <div className="vnext-meri__work-card-metal">
+        <div className="vnext-meri__work-card-head">
+          <span className="vnext-meri__work-card-label">
             {planLabel.toUpperCase()}
             {tier === 'deep' ? ' · DEEP' : ''}
           </span>
-          <span style={{ flex: 1 }} />
+          <span className="vnext-meri__work-card-spacer" />
           {sourceCount > 0 ? (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 7,
-                height: 24,
-                padding: '0 9px',
-                borderRadius: 6,
-                background: 'rgba(255,255,255,.1)',
-              }}
-            >
-              <span
-                className={`vnext-meri__work-source-dot${isStreaming ? ' is-live' : ''}`}
-                style={{ width: 6, height: 6, borderRadius: 9999, background: '#12B76A' }}
-              />
-              <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.08em', color: '#ffffff' }}>
+            <span className="vnext-meri__work-card-badge">
+              <span className={`vnext-meri__work-source-dot${isStreaming ? ' is-live' : ''}`} />
+              <span className="vnext-meri__work-card-badge-text">
                 {sourceCount} SOURCE{sourceCount === 1 ? '' : 'S'}
               </span>
             </span>
           ) : null}
         </div>
-        <div style={{ marginTop: 10, fontSize: 16, lineHeight: '23px', fontWeight: 600, color: '#ffffff' }}>
+        <div className="vnext-meri__work-card-title">
           {title}
         </div>
         {isStreaming ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
-            <span style={{ flex: 1, height: 6, borderRadius: 9999, background: '#1D2939', overflow: 'hidden' }}>
+          <div className="vnext-meri__work-card-progress-row">
+            <span className="vnext-meri__work-card-progress-track">
               <span
-                style={{
-                  display: 'block',
-                  width: `${pct}%`,
-                  height: '100%',
-                  borderRadius: 9999,
-                  background: 'linear-gradient(90deg,#98A2B3,#ffffff)',
-                  transition: 'width 240ms ease',
-                }}
+                className="vnext-meri__work-card-progress-fill"
+                style={{ width: `${pct}%`, transition: 'width 240ms ease' }}
               />
             </span>
-            <span style={{ fontFamily: MONO, fontSize: 10, fontWeight: 500, letterSpacing: '.08em', color: '#ffffff' }}>
+            <span className="vnext-meri__work-card-progress-label">
               {doneCount} OF {toolCount || '?'}
             </span>
           </div>
@@ -121,19 +93,11 @@ export function MeriWorkPerformed({ intent, tier, steps, planSteps, isStreaming 
       </div>
 
       {planSteps && planSteps.length > 0 ? (
-        <div
-          style={{
-            marginTop: 10,
-            padding: '11px 13px',
-            borderRadius: 9,
-            background: '#FAF9F6',
-            border: '1px solid #E8E5DF',
-          }}
-        >
-          <div style={{ fontFamily: MONO, fontSize: 9, fontWeight: 500, letterSpacing: '.09em', color: '#667085' }}>
+        <div className="vnext-meri__work-plan">
+          <div className="vnext-meri__work-plan-label">
             PLAN
           </div>
-          <ol style={{ margin: '7px 0 0', paddingLeft: 18, fontSize: 12.5, lineHeight: '19px', color: '#344054' }}>
+          <ol className="vnext-meri__work-plan-list">
             {planSteps.map((step, index) => (
               <li key={`${index}-${step}`}>{step}</li>
             ))}
@@ -142,12 +106,12 @@ export function MeriWorkPerformed({ intent, tier, steps, planSteps, isStreaming 
       ) : null}
 
       {steps.length > 0 ? (
-        <div style={{ marginTop: 8 }}>
+        <div className="vnext-meri__work-card-steps">
           <MeriAgentSteps steps={steps} />
         </div>
       ) : null}
 
-      <div style={{ marginTop: 10, fontSize: 11, lineHeight: '16px', color: '#98A2B3' }}>
+      <div className="vnext-meri__work-disclaimer">
         This shows bounded plans, tools, sources, and checks — not private model reasoning.
       </div>
     </div>
