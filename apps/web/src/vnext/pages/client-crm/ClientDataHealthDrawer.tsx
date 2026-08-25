@@ -69,7 +69,7 @@ export function ClientDataHealthDrawer({
           ))}
         </ul>
 
-        <div className="capiro-crm-fill__actions">
+        <div className="capiro-crm__form-actions">
           <CapiroButton variant="secondary" size="compact" onClick={refetchAll}>
             Re-check all
           </CapiroButton>
