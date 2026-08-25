@@ -16,8 +16,6 @@ import { displayThreadTitle } from './meri-presentation.js';
  * result set renders the empty state rather than placeholder rows.
  */
 
-const MONO = "var(--meri-font-mono, 'IBM Plex Mono', monospace)";
-
 type PaletteResultKind = 'THREAD' | 'MESSAGE' | 'CLIENT';
 
 interface PaletteResult {
@@ -59,7 +57,6 @@ export function MeriCommandPalette({
   const { conversations } = useChatStore();
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -102,7 +99,6 @@ export function MeriCommandPalette({
   useEffect(() => {
     if (!open) return;
     setQuery('');
-    setHoveredKey(null);
     window.setTimeout(() => inputRef.current?.focus(), 0);
   }, [open]);
 
@@ -169,43 +165,13 @@ export function MeriCommandPalette({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(12,17,29,.55)',
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'center',
-        paddingTop: 96,
-        zIndex: 80,
-        animation: 'vnext-meri-rise .12s ease',
-      }}
+      className="vnext-meri__palette-scrim"
       onClick={(event) => {
         if (event.target === event.currentTarget) onOpenChange(false);
       }}
     >
-      <div
-        role="dialog"
-        aria-label="Command palette"
-        style={{
-          width: 640,
-          maxWidth: 'calc(100% - 48px)',
-          borderRadius: 14,
-          background: '#ffffff',
-          boxShadow: '0px 24px 48px -12px rgba(16,24,40,.3)',
-          overflow: 'hidden',
-          animation: 'vnext-meri-rise .16s ease',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 11,
-            padding: '14px 16px',
-            borderBottom: '1px solid #E8E5DF',
-          }}
-        >
+      <div role="dialog" aria-label="Command palette" className="vnext-meri__palette-dialog">
+        <div className="vnext-meri__palette-header">
           <MeriIcon name="SearchLg" size={17} color="#98A2B3" />
           <input
             ref={inputRef}
@@ -213,45 +179,15 @@ export function MeriCommandPalette({
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search threads, messages, context, sources and actions…"
             aria-label="Search threads, messages, context, sources and actions"
-            style={{
-              flex: 1,
-              minWidth: 0,
-              background: 'none',
-              border: 0,
-              outline: 'none',
-              fontSize: 15,
-              color: '#101828',
-            }}
+            className="vnext-meri__palette-input"
           />
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            style={{
-              fontFamily: MONO,
-              fontSize: 10,
-              fontWeight: 500,
-              letterSpacing: '.09em',
-              color: '#667085',
-            }}
-          >
+          <button type="button" onClick={() => onOpenChange(false)} className="vnext-meri__palette-esc">
             ESC
           </button>
         </div>
-        <div style={{ maxHeight: 400, overflowY: 'auto', padding: 8 }}>
+        <div className="vnext-meri__palette-body">
           {results.length === 0 ? (
-            <div
-              role="status"
-              style={{
-                margin: 6,
-                padding: '16px 14px',
-                borderRadius: 10,
-                background: '#FAF9F6',
-                border: '1px solid #E8E5DF',
-                fontSize: 13,
-                lineHeight: '19px',
-                color: '#475467',
-              }}
-            >
+            <div role="status" className="vnext-meri__palette-empty">
               {messageSearch.isFetching
                 ? 'Searching…'
                 : debouncedQuery
@@ -264,78 +200,16 @@ export function MeriCommandPalette({
               type="button"
               key={result.key}
               onClick={() => pick(result)}
-              onMouseEnter={() => setHoveredKey(result.key)}
-              onMouseLeave={() => setHoveredKey(null)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 11,
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: 8,
-                background: hoveredKey === result.key ? '#FAF9F6' : 'transparent',
-              }}
+              className="vnext-meri__palette-row"
             >
-              <span
-                style={{
-                  flex: '0 0 auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 26,
-                  height: 26,
-                  borderRadius: 7,
-                  background: '#F2F0EB',
-                }}
-              >
+              <span className="vnext-meri__palette-row-icon">
                 <MeriIcon name={result.icon} size={13} color="#101828" />
               </span>
-              <span
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 13.5,
-                    lineHeight: '19px',
-                    color: '#101828',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {result.title}
-                </span>
-                <span
-                  style={{
-                    fontSize: 12,
-                    lineHeight: '17px',
-                    color: '#667085',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {result.sub}
-                </span>
+              <span className="vnext-meri__palette-row-text">
+                <span className="vnext-meri__palette-row-title">{result.title}</span>
+                <span className="vnext-meri__palette-row-sub">{result.sub}</span>
               </span>
-              <span
-                style={{
-                  flex: '0 0 auto',
-                  fontFamily: MONO,
-                  fontSize: 9,
-                  fontWeight: 500,
-                  letterSpacing: '.08em',
-                  color: '#667085',
-                }}
-              >
-                {result.kind}
-              </span>
+              <span className="vnext-meri__palette-row-kind">{result.kind}</span>
             </button>
           ))}
         </div>
