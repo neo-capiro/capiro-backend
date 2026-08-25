@@ -127,7 +127,7 @@ export function ConfigureHierarchyModal({
 
         {error ? <p className="capiro-crm__foot capiro-crm__state--error">{error}</p> : null}
 
-        <div className="capiro-crm-fill__actions">
+        <div className="capiro-crm__form-actions">
           <CapiroButton variant="primary" size="compact" onClick={onClose}>
             Done
           </CapiroButton>
