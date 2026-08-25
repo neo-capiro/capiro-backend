@@ -1,0 +1,297 @@
+/* Relationships / History sub-tab (RelationshipsHistoryTab.tsx, mounted as
+   ClientCrmHistoryProto). Design-system reconciliation pass: this file used
+   to be pure inline hardcoded-hex `style={{}}` objects; every color below now
+   routes through the shared `--capiro-*` tokens (foundations/tokens.css)
+   instead of a private hex palette, per the vNext UI cleanup program. Scoped
+   under `.cap-pf` (the Portfolio prototype root), same convention as
+   portfolio-proto.css. */
+
+.cap-pf .rel-hist-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-06);
+}
+
+/* ── filter bar ────────────────────────────────────────────────────────── */
+
+.cap-pf .rel-hist-filterbar {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  flex-wrap: wrap;
+}
+
+.cap-pf .rel-hist-search {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-02);
+  height: 40px;
+  padding: 0 12px;
+  width: 320px;
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-control);
+  box-shadow: 0px 1px 2px var(--capiro-primitive-shadow-shell);
+}
+
+.cap-pf .rel-hist-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+}
+
+.cap-pf .rel-hist-spacer {
+  flex: 1;
+}
+
+/* Segmented filter chip. `--active` is a real prop-driven modifier (the
+   selected filter), not something CSS alone can know — the hover tint stays
+   pure CSS on top of it. */
+.cap-pf .rel-hist-chip {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--capiro-radius-control);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--capiro-color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cap-pf .rel-hist-chip:hover {
+  background: var(--capiro-color-bg-surface-2);
+}
+.cap-pf .rel-hist-chip--active,
+.cap-pf .rel-hist-chip--active:hover {
+  background: var(--capiro-color-bg-subtle);
+  border-color: var(--capiro-color-border-divider);
+  color: var(--capiro-color-text-primary);
+}
+
+/* ── timeline + controls card ─────────────────────────────────────────── */
+
+.cap-pf .rel-hist-grid-flush {
+  padding: 0;
+}
+
+.cap-pf .rel-hist-empty-msg {
+  margin: 0;
+  padding: 20px 24px;
+  font-size: 14px;
+  color: var(--capiro-color-text-muted);
+}
+
+.cap-pf .rel-hist-rail {
+  border-left: 1px solid var(--capiro-color-border-divider);
+  padding: 20px 24px;
+}
+
+.cap-pf .rel-hist-rail-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.cap-pf .rel-hist-rail-section {
+  margin-top: 16px;
+}
+
+.cap-pf .rel-hist-rail-divider {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--capiro-color-border-divider);
+}
+
+.cap-pf .rel-hist-rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-02);
+  margin-top: 10px;
+}
+
+.cap-pf .rel-hist-rail-commitments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-03);
+  margin-top: 12px;
+}
+
+.cap-pf .rel-hist-muted-note {
+  font-size: 14px;
+  color: var(--capiro-color-text-muted);
+}
+
+.cap-pf .rel-hist-pinned-text {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--capiro-color-text-body-secondary);
+  text-wrap: pretty;
+}
+
+.cap-pf .rel-hist-pinned-skeleton {
+  margin-top: 10px;
+  max-width: 280px;
+}
+
+/* ── timeline row ──────────────────────────────────────────────────────── */
+
+.cap-pf .rel-hist-row {
+  display: flex;
+  gap: var(--capiro-space-04);
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--capiro-color-bg-subtle);
+  background: transparent;
+}
+.cap-pf .rel-hist-row:hover {
+  background: var(--capiro-color-bg-surface-2);
+}
+
+.cap-pf .rel-hist-row-date {
+  flex: 0 0 auto;
+  width: 76px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.cap-pf .rel-hist-row-mark {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--capiro-color-text-inverse-primary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cap-pf .rel-hist-row-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.cap-pf .rel-hist-row-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--capiro-space-03);
+  flex-wrap: wrap;
+}
+
+.cap-pf .rel-hist-row-action {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+  white-space: nowrap;
+}
+.cap-pf .rel-hist-row-action:hover {
+  text-decoration: underline;
+}
+
+.cap-pf .rel-hist-row-title {
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+  text-wrap: pretty;
+}
+
+.cap-pf .rel-hist-row-body {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--capiro-color-text-body-secondary);
+  text-wrap: pretty;
+}
+
+.cap-pf .rel-hist-row-meta {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+}
+
+/* ── quick add ─────────────────────────────────────────────────────────── */
+
+.cap-pf .rel-hist-quickadd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: var(--capiro-radius-control);
+  text-align: left;
+  background: var(--capiro-color-bg-surface-2);
+  border: 1px solid var(--capiro-color-border-divider);
+}
+.cap-pf .rel-hist-quickadd:hover {
+  background: var(--capiro-color-bg-subtle);
+  border-color: var(--capiro-color-border-control);
+}
+
+.cap-pf .rel-hist-quickadd-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--capiro-color-text-muted);
+  flex: 0 0 auto;
+}
+
+.cap-pf .rel-hist-quickadd-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--capiro-color-text-secondary);
+}
+
+/* ── commitment line ───────────────────────────────────────────────────── */
+
+.cap-pf .rel-hist-commitment {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cap-pf .rel-hist-commitment-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.cap-pf .rel-hist-commitment-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--capiro-color-text-secondary);
+  text-wrap: pretty;
+}
+
+.cap-pf .rel-hist-settle-btn {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+  white-space: nowrap;
+}
+.cap-pf .rel-hist-settle-btn:hover:not(:disabled) {
+  color: var(--capiro-color-text-primary);
+}
+.cap-pf .rel-hist-settle-btn:disabled {
+  color: var(--capiro-color-text-faint);
+}

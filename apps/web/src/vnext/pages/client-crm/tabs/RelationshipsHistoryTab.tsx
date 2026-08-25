@@ -23,6 +23,7 @@ import {
   type Kind as ActivityKind,
 } from '../ClientCrmHistory.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
+import './relationships-history-tab.css';
 
 /**
  * Relationships / History sub-tab (spec §8.3).
@@ -199,7 +200,7 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
   );
 
   return (
-    <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="cap-pf-anim-rise rel-hist-root">
       <TabPageHead
         title="Relationship history"
         sub="The shared institutional record of what happened between your firm and this client."
@@ -211,34 +212,21 @@ export function ClientCrmHistoryProto({ client }: { client: Client }) {
       />
 
       {/* filter bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            height: 40,
-            padding: '0 12px',
-            width: 320,
-            borderRadius: 8,
-            background: '#ffffff',
-            border: '1px solid #E0DCD4',
-            boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
-          }}
-        >
-          <UIcon name="SearchLg" size={20} color="#667085" />
+      <div className="rel-hist-filterbar">
+        <div className="rel-hist-search">
+          <UIcon name="SearchLg" size={20} color="var(--capiro-color-text-muted)" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             aria-label="Search history"
             placeholder="Search history"
-            style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontSize: 14, color: '#101828' }}
+            className="rel-hist-search-input"
           />
         </div>
         {GROUP_FILTERS.map((g) => (
           <FilterChip key={g} label={g} active={filter === g} onClick={() => setFilter(g)} />
         ))}
-        <span style={{ flex: 1 }} />
+        <span className="rel-hist-spacer" />
         {/* The query is `limit: 200`, not a date window — "Last 90 days"
             described a filter that does not exist. */}
         <Eyebrow style={{ whiteSpace: 'nowrap' }}>Recent activity</Eyebrow>
@@ -338,11 +326,11 @@ function TimelineAndControlsCard({
   return (
     <Card>
       <CardHead title="Account relationship timeline" />
-      <div className="cap-pf-grid-side-380" style={{ padding: 0 }}>
+      <div className="cap-pf-grid-side-380 rel-hist-grid-flush">
         {/* timeline */}
         <div>
           {entries.length === 0 ? (
-            <p style={{ margin: 0, padding: '20px 24px', fontSize: 14, color: '#667085' }}>
+            <p className="rel-hist-empty-msg">
               {noActivityYet ? 'No activity recorded for this client yet.' : 'No activity matches this filter.'}
             </p>
           ) : (
@@ -351,24 +339,22 @@ function TimelineAndControlsCard({
         </div>
 
         {/* relationship controls rail */}
-        <div style={{ borderLeft: '1px solid #E8E5DF', padding: '20px 24px' }}>
-          <h4 style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-            Relationship controls
-          </h4>
-          <div style={{ marginTop: 16 }}>
+        <div className="rel-hist-rail">
+          <h4 className="rel-hist-rail-title">Relationship controls</h4>
+          <div className="rel-hist-rail-section">
             <Eyebrow>Quick add</Eyebrow>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+            <div className="rel-hist-rail-list">
               {QUICK_ADD.map((qa) => (
                 <QuickAddRow key={qa.kind} label={qa.label} onClick={() => onQuickAdd(qa.kind)} />
               ))}
             </div>
           </div>
 
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
+          <div className="rel-hist-rail-divider">
             <Eyebrow>Open commitments</Eyebrow>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+            <div className="rel-hist-rail-commitments">
               {rows.length === 0 ? (
-                <span style={{ fontSize: 14, color: '#667085' }}>Nothing outstanding.</span>
+                <span className="rel-hist-muted-note">Nothing outstanding.</span>
               ) : (
                 rows.map((cm) => (
                   <CommitmentLine
@@ -382,18 +368,18 @@ function TimelineAndControlsCard({
             </div>
           </div>
 
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
+          <div className="rel-hist-rail-divider">
             <Eyebrow>Pinned account note</Eyebrow>
             {/* While loading, a skeleton — the old fixture fallback was a
                 sentence of invented client preference that read exactly like a
                 real pinned note. Once the fetch settles with nothing, the honest
                 answer is that there isn't one. */}
             {pinnedLoaded ? (
-              <p style={{ margin: '8px 0 0', fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
+              <p className="rel-hist-pinned-text">
                 {pinnedText ?? 'No pinned note yet — pin an activity to keep it here.'}
               </p>
             ) : (
-              <div style={{ marginTop: 10, maxWidth: 280 }}>
+              <div className="rel-hist-pinned-skeleton">
                 <PfSkeleton />
               </div>
             )}
@@ -405,78 +391,27 @@ function TimelineAndControlsCard({
 }
 
 function TimelineEntry({ entry: e }: { entry: HistEntry }) {
-  const [hover, setHover] = useState(false);
-  const [actionHover, setActionHover] = useState(false);
   return (
-    <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        gap: 16,
-        padding: '16px 24px',
-        borderBottom: '1px solid #F2F0EB',
-        background: hover ? '#FAF9F6' : 'transparent',
-      }}
-    >
-      <span
-        style={{
-          flex: '0 0 auto',
-          width: 76,
-          fontSize: 12,
-          fontWeight: 600,
-          letterSpacing: '.04em',
-          textTransform: 'uppercase',
-          color: '#667085',
-        }}
-      >
-        {e.date}
-      </span>
-      <span
-        aria-hidden
-        style={{
-          flex: '0 0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 28,
-          height: 28,
-          borderRadius: '50%',
-          background: GRADIENT_DARK,
-          color: '#ffffff',
-          fontSize: 11,
-          fontWeight: 600,
-        }}
-      >
+    <div className="rel-hist-row">
+      <span className="rel-hist-row-date">{e.date}</span>
+      <span aria-hidden className="rel-hist-row-mark" style={{ background: GRADIENT_DARK }}>
         {e.mark}
       </span>
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+      <span className="rel-hist-row-content">
+        <span className="rel-hist-row-header">
           <Eyebrow tight>{e.kind}</Eyebrow>
-          <span style={{ flex: 1 }} />
+          <span className="rel-hist-spacer" />
           {/* No handler, no button: a dead "Open thread" that did nothing on
               click was worse than showing nothing. */}
           {e.onAction ? (
-            <button
-              type="button"
-              onClick={e.onAction}
-              onMouseEnter={() => setActionHover(true)}
-              onMouseLeave={() => setActionHover(false)}
-              style={{ fontSize: 13, fontWeight: 600, color: actionHover ? '#0E141C' : '#101828', whiteSpace: 'nowrap' }}
-            >
+            <button type="button" onClick={e.onAction} className="rel-hist-row-action">
               {e.action}
             </button>
           ) : null}
         </span>
-        <span style={{ display: 'block', marginTop: 4, fontSize: 16, fontWeight: 600, color: '#101828', textWrap: 'pretty' }}>
-          {e.title}
-        </span>
-        {e.body ? (
-          <span style={{ display: 'block', marginTop: 4, fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
-            {e.body}
-          </span>
-        ) : null}
-        <span style={{ display: 'block', marginTop: 8, fontSize: 12, color: '#667085' }}>{e.meta}</span>
+        <span className="rel-hist-row-title">{e.title}</span>
+        {e.body ? <span className="rel-hist-row-body">{e.body}</span> : null}
+        <span className="rel-hist-row-meta">{e.meta}</span>
       </span>
     </div>
   );
@@ -485,28 +420,11 @@ function TimelineEntry({ entry: e }: { entry: HistEntry }) {
 /* ControlsCard's body was folded into TimelineAndControlsCard above. */
 
 function QuickAddRow({ label, onClick }: { label: string; onClick: () => void }) {
-  const [hover, setHover] = useState(false);
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        width: '100%',
-        padding: '11px 14px',
-        borderRadius: 8,
-        textAlign: 'left',
-        background: hover ? '#F2F0EB' : '#FAF9F6',
-        border: hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF',
-      }}
-    >
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#667085', flex: '0 0 auto' }} aria-hidden />
-      <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#344054' }}>{label}</span>
-      <UIcon name="Plus" size={16} color="#667085" style={{ flex: '0 0 auto' }} />
+    <button type="button" onClick={onClick} className="rel-hist-quickadd">
+      <span className="rel-hist-quickadd-dot" aria-hidden />
+      <span className="rel-hist-quickadd-label">{label}</span>
+      <UIcon name="Plus" size={16} color="var(--capiro-color-text-muted)" style={{ flex: '0 0 auto' }} />
     </button>
   );
 }
@@ -521,23 +439,19 @@ function CommitmentLine({
   settling?: boolean;
 }) {
   const [, , , dot] = PILL[cm.tone];
-  const [hover, setHover] = useState(false);
   const toneTitle = TONE_TITLE[cm.tone];
   return (
-    <span
-      style={{ display: 'flex', alignItems: 'center', gap: 10 }}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
+    <span className="rel-hist-commitment">
       {/* The dot was color-only — a named title/label carries the urgency for
           anyone who cannot rely on the color. */}
       <span
         role="img"
         aria-label={toneTitle}
         title={toneTitle}
-        style={{ width: 6, height: 6, borderRadius: '50%', background: dot, flex: '0 0 auto' }}
+        className="rel-hist-commitment-dot"
+        style={{ background: dot }}
       />
-      <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#344054', textWrap: 'pretty' }}>{cm.label}</span>
+      <span className="rel-hist-commitment-label">{cm.label}</span>
       {/* Settling writes `settledAt` through the same activity PATCH the pin
           action uses, which is what takes the row off this rail for good. */}
       {onSettle ? (
@@ -546,15 +460,7 @@ function CommitmentLine({
           onClick={onSettle}
           disabled={settling}
           aria-label={`Settle ${cm.label}`}
-          style={{
-            flex: '0 0 auto',
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: '.03em',
-            textTransform: 'uppercase',
-            color: settling ? '#98A2B3' : hover ? '#101828' : '#667085',
-            whiteSpace: 'nowrap',
-          }}
+          className="rel-hist-settle-btn"
         >
           {settling ? 'Settling…' : 'Settle'}
         </button>
@@ -567,25 +473,12 @@ function CommitmentLine({
 }
 
 function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  const [hover, setHover] = useState(false);
   return (
     <button
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        height: 32,
-        padding: '0 12px',
-        borderRadius: 8,
-        background: active ? '#F2F0EB' : hover ? '#FAF9F6' : 'transparent',
-        border: active ? '1px solid #E0DCD4' : '1px solid transparent',
-        color: active ? '#101828' : '#667085',
-        fontSize: 13,
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
-      }}
+      className={active ? 'rel-hist-chip rel-hist-chip--active' : 'rel-hist-chip'}
     >
       {label}
     </button>

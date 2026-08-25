@@ -32,6 +32,7 @@ import { profileHref } from '../../../../pages/clients/targets-normalize.js';
 import { TargetDrawer, type TargetRecord } from '../portfolio-overlays.js';
 import { AddRelationshipModal } from '../AddRelationshipModal.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
+import './relationships-gov-tab.css';
 
 /**
  * Relationships / Government sub-tab (spec §8.2).
@@ -40,8 +41,10 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
  * (`pages/clients/targets-api.ts`) — the same `['client-targets', clientId]`
  * cache entry the canonical TargetsTab uses, so an edit in either surface is
  * seen by the other. The design's TARGETS fixture still renders while the
- * query is loading or errored, keeping the surface pixel-reviewable (the
- * convention this file family already follows — see WorkTab §9).
+ * query is loading, keeping the surface pixel-reviewable (the convention this
+ * file family already follows — see WorkTab §9). On a genuine fetch error the
+ * panel says so honestly instead — it used to fall back to the same fixture
+ * on error, which showed three invented targets under a real client's name.
  *
  * The design's second "All government relationships" table is gone: it paged
  * the same targets the Current targets panel above already lists.
@@ -113,7 +116,7 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
   const openAddRelationship = () => setAddOpen(true);
 
   return (
-    <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="cap-pf-anim-rise rel-gov-root">
       <TabPageHead
         title="Government relationships"
         sub="Current targets from Strategies, plus the broader offices and officials connected to this client."
@@ -124,7 +127,16 @@ export function ClientCrmGovernmentProto({ client }: { client: Client }) {
         }
       />
 
-      {realTargets ? (
+      {/* Loading keeps the fixture on screen (pixel-reviewable); a genuine
+          fetch error gets its own honest state instead of the fixture, same
+          "never fabricate on a real error" standard as the rest of this
+          file — see the recommendations rail's own error state below. */}
+      {targetsQ.isError ? (
+        <CurrentTargetsErrorState
+          message={targetsQ.error instanceof Error ? targetsQ.error.message : undefined}
+          onRetry={() => void targetsQ.refetch()}
+        />
+      ) : realTargets ? (
         <RealCurrentTargetsPanel targets={realTargets} onOpen={setDrawerTarget} />
       ) : (
         <CurrentTargetsPanel />
@@ -171,29 +183,20 @@ function RealCurrentTargetsPanel({
   );
 
   return (
-    <section
-      style={{
-        background: '#FAF9F6',
-        borderRadius: 12,
-        border: '1px solid #E8E5DF',
-        padding: '20px 20px 22px',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>Current targets</h3>
-        <span style={{ flex: 1 }} />
+    <section className="rel-gov-panel">
+      <div className="rel-gov-panel-head">
+        <h3 className="rel-gov-panel-title">Current targets</h3>
+        <span className="rel-gov-spacer" />
         <Eyebrow>
           {ordered.length} target{ordered.length === 1 ? '' : 's'}
         </Eyebrow>
       </div>
 
       {ordered.length === 0 ? (
-        <div style={{ padding: '18px 4px 6px' }}>
+        <div className="rel-gov-panel-empty">
           {/* The page header already carries the one "Add relationship" button —
               a second one here was a duplicate call to the same action. */}
-          <p style={{ margin: 0, fontSize: 14, lineHeight: '20px', color: '#475467', textWrap: 'pretty' }}>
-            No government targets yet — add one from the header.
-          </p>
+          <p className="rel-gov-empty-msg">No government targets yet — add one from the header.</p>
         </div>
       ) : (
         <div className="cap-pf-grid-targets">
@@ -215,65 +218,30 @@ function RealTargetCard({
   slot: string;
   onOpen: () => void;
 }) {
-  const [hover, setHover] = useState(false);
   return (
-    <div
-      style={{
-        background: '#ffffff',
-        borderRadius: 10,
-        border: '1px solid #E8E5DF',
-        padding: '16px 18px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 14,
-      }}
-    >
+    <div className="rel-gov-card">
       <Eyebrow tight>{slot}</Eyebrow>
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        <button
-          type="button"
-          onClick={onOpen}
-          onMouseEnter={() => setHover(true)}
-          onMouseLeave={() => setHover(false)}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: 'flex',
-            gap: 10,
-            padding: 10,
-            borderRadius: 8,
-            textAlign: 'left',
-            background: hover ? '#FAF9F6' : 'transparent',
-            border: hover ? '1px solid #E0DCD4' : '1px solid #E8E5DF',
-          }}
-        >
+      <div className="rel-gov-card-top">
+        <button type="button" onClick={onOpen} className="rel-gov-card-link rel-gov-card-link--interactive">
           <Tile initials={initialsFor(targetName(t))} size={40} dark round />
           <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-              {DIRECTORY_LABEL[t.sourceDirectory]}
-            </span>
-            <span style={{ display: 'block', marginTop: 3, fontSize: 14, fontWeight: 600, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {targetName(t)}
-            </span>
-            <span style={{ display: 'block', fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {targetRole(t)}
-            </span>
+            <span className="rel-gov-card-eyebrow">{DIRECTORY_LABEL[t.sourceDirectory]}</span>
+            <span className="rel-gov-card-name">{targetName(t)}</span>
+            <span className="rel-gov-card-role">{targetRole(t)}</span>
             {t.party || t.state ? (
-              <span style={{ display: 'block', marginTop: 2, fontSize: 12, color: '#667085' }}>
-                {[t.party, t.state].filter(Boolean).join(' · ')}
-              </span>
+              <span className="rel-gov-card-submeta">{[t.party, t.state].filter(Boolean).join(' · ')}</span>
             ) : null}
           </span>
         </button>
-        <span style={{ flex: '0 0 auto' }}>
+        <span className="rel-gov-card-tier">
           <Pill tone={t.tier === 1 ? 'brand' : 'gray'} size="lg">
             {t.tier == null ? 'Untiered' : `Tier ${t.tier}`}
           </Pill>
         </span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12, borderTop: '1px solid #E8E5DF' }}>
+      <div className="rel-gov-card-fields">
         <TargetField
           label="Represents"
           value={
@@ -301,17 +269,10 @@ function RealTargetCard({
 
 function CurrentTargetsPanel() {
   return (
-    <section
-      style={{
-        background: '#FAF9F6',
-        borderRadius: 12,
-        border: '1px solid #E8E5DF',
-        padding: '20px 20px 22px',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#101828' }}>Current targets</h3>
-        <span style={{ flex: 1 }} />
+    <section className="rel-gov-panel">
+      <div className="rel-gov-panel-head">
+        <h3 className="rel-gov-panel-title">Current targets</h3>
+        <span className="rel-gov-spacer" />
         <Eyebrow>3 active · from Strategies</Eyebrow>
       </div>
 
@@ -324,33 +285,48 @@ function CurrentTargetsPanel() {
   );
 }
 
+/**
+ * Honest error state for the Current targets panel — same tinted-section
+ * shell as the fixture/real panels above, but with the recommendations
+ * rail's already-established "couldn't load / Try again" voice (§ below)
+ * instead of a second, differently-worded error surface.
+ */
+function CurrentTargetsErrorState({ message, onRetry }: { message?: string; onRetry: () => void }) {
+  return (
+    <section className="rel-gov-panel">
+      <div className="rel-gov-panel-head">
+        <h3 className="rel-gov-panel-title">Current targets</h3>
+      </div>
+      <PfEmptyState
+        title="Couldn't load current targets"
+        hint={message ?? 'Try again, or confirm this client has targets set in Strategies.'}
+        action={
+          <PfButton variant="secondary" size="sm" onClick={onRetry}>
+            Try again
+          </PfButton>
+        }
+      />
+    </section>
+  );
+}
+
 function TargetCard({ target: t, slot }: { target: (typeof TARGETS)[number]; slot: string }) {
   const tone = DISPOSITION_TONE[t.disposition] ?? 'gray';
   const [, , dispFg, dispDot] = PILL[tone];
   return (
-    <div
-      style={{
-        background: '#ffffff',
-        borderRadius: 10,
-        border: '1px solid #E8E5DF',
-        padding: '16px 18px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 14,
-      }}
-    >
+    <div className="rel-gov-card">
       <Eyebrow tight>{slot}</Eyebrow>
 
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <div className="rel-gov-card-top">
         <TargetMiniCard target={t} dispFg={dispFg} dispDot={dispDot} />
-        <span style={{ flex: '0 0 auto' }}>
+        <span className="rel-gov-card-tier">
           <Pill tone="gray" size="lg">
             {t.date}
           </Pill>
         </span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 12, borderTop: '1px solid #E8E5DF' }}>
+      <div className="rel-gov-card-fields">
         <TargetField label="Linked strategy" value={t.strategy} />
         <TargetField label="Current ask" value={t.ask} />
       </div>
@@ -374,74 +350,16 @@ function TargetMiniCard({
   dispDot: string;
 }) {
   return (
-    <span
-      style={{
-        flex: 1,
-        minWidth: 0,
-        display: 'flex',
-        gap: 10,
-        padding: 10,
-        borderRadius: 8,
-        textAlign: 'left',
-        border: '1px solid #E8E5DF',
-      }}
-    >
+    <span className="rel-gov-card-link">
       <Tile initials={t.init} size={40} dark round={t.kind === 'person'} />
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '.04em',
-            textTransform: 'uppercase',
-            color: dispFg,
-          }}
-        >
+        <span className="rel-gov-card-eyebrow" style={{ color: dispFg }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: dispDot }} aria-hidden />
           {t.disposition}
         </span>
-        <span
-          style={{
-            display: 'block',
-            marginTop: 3,
-            fontSize: 14,
-            fontWeight: 600,
-            color: '#101828',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {t.name}
-        </span>
-        <span
-          style={{
-            display: 'block',
-            fontSize: 13,
-            color: '#475467',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {t.role}
-        </span>
-        <span
-          style={{
-            display: 'block',
-            marginTop: 2,
-            fontSize: 12,
-            color: '#667085',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {t.confirm}
-        </span>
+        <span className="rel-gov-card-name">{t.name}</span>
+        <span className="rel-gov-card-role">{t.role}</span>
+        <span className="rel-gov-card-submeta">{t.confirm}</span>
       </span>
     </span>
   );
@@ -449,21 +367,9 @@ function TargetMiniCard({
 
 function TargetField({ label, value }: { label: string; value: string }) {
   return (
-    <span style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-      <span
-        style={{
-          flex: '0 0 auto',
-          width: 112,
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: '.05em',
-          textTransform: 'uppercase',
-          color: '#667085',
-        }}
-      >
-        {label}
-      </span>
-      <span style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#101828', textWrap: 'pretty' }}>{value}</span>
+    <span className="rel-gov-field">
+      <span className="rel-gov-field-label">{label}</span>
+      <span className="rel-gov-field-value">{value}</span>
     </span>
   );
 }
@@ -597,18 +503,18 @@ function TargetRecommendationsCard({
       />
 
       {computedAt && !recsLoading ? (
-        <div style={{ padding: '0 24px 12px', fontSize: 12, fontWeight: 500, color: '#667085' }}>
+        <div className="rel-gov-updated">
           Updated {relativeTime(computedAt)}
-          <span style={{ color: '#98A2B3' }}> · top 6 · weighted score</span>
+          <span className="rel-gov-updated-sep"> · top 6 · weighted score</span>
         </div>
       ) : null}
 
       {recsLoading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 24px 24px' }} aria-busy="true" aria-label="Loading recommendations">
+        <div className="rel-gov-recs-loading" aria-busy="true" aria-label="Loading recommendations">
           {[0, 1, 2].map((i) => (
-            <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div key={i} className="rel-gov-recs-loading-row">
               <PfSkeleton width={28} height={28} style={{ borderRadius: 8 }} />
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div className="rel-gov-recs-loading-text">
                 <PfSkeleton width="70%" height={14} />
                 <PfSkeleton width="45%" height={12} />
               </div>
@@ -647,82 +553,38 @@ function TargetRecommendationsCard({
               <div
                 key={m.memberId}
                 role="listitem"
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 12,
-                  padding: '14px 24px',
-                  borderTop: idx === 0 ? '1px solid #E8E5DF' : undefined,
-                  borderBottom: '1px solid #E8E5DF',
-                }}
+                className={idx === 0 ? 'rel-gov-sugg-row rel-gov-sugg-row--first' : 'rel-gov-sugg-row'}
               >
-                <span
-                  aria-hidden
-                  style={{
-                    flex: '0 0 auto',
-                    width: 28,
-                    height: 28,
-                    borderRadius: 8,
-                    background: '#F2F0EB',
-                    color: '#475467',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginTop: 2,
-                  }}
-                >
+                <span aria-hidden className="rel-gov-sugg-rank">
                   {idx + 1}
                 </span>
-                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div className="rel-gov-sugg-content">
                   <button
                     type="button"
                     onClick={() => navigate(profileHref('congress', m.memberId))}
-                    style={{
-                      textAlign: 'left',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: '#101828',
-                      lineHeight: '20px',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
+                    className="rel-gov-sugg-office"
                     title={m.office}
                   >
                     {m.office || m.memberId}
                   </button>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                  <div className="rel-gov-sugg-pills">
                     <Pill tone={partyTone} style={{ height: 22 }}>
                       {partyLabel}
                     </Pill>
-                    {m.chamber ? (
-                      <span style={{ fontSize: 12, color: '#667085' }}>{m.chamber}</span>
-                    ) : null}
+                    {m.chamber ? <span className="rel-gov-sugg-chamber">{m.chamber}</span> : null}
                     {m.committee ? (
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: '#667085',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          maxWidth: 160,
-                        }}
-                        title={m.committee}
-                      >
+                      <span className="rel-gov-sugg-committee" title={m.committee}>
                         {m.committee}
                       </span>
                     ) : null}
                   </div>
-                  <span style={{ fontSize: 12, color: '#667085' }}>
+                  <span className="rel-gov-sugg-stats">
                     {m.billCount} tracked bill{m.billCount === 1 ? '' : 's'}
-                    <span style={{ color: '#E0DCD4' }}> · </span>
+                    <span className="rel-gov-updated-sep"> · </span>
                     score {Number(m.score ?? 0).toFixed(2)}
                   </span>
                 </div>
-                <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                <div className="rel-gov-sugg-action">
                   {added ? (
                     <Pill tone="success" style={{ height: 28 }}>
                       Added
@@ -746,14 +608,7 @@ function TargetRecommendationsCard({
         </div>
       )}
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          padding: '12px 24px 16px',
-        }}
-      >
+      <div className="rel-gov-footer">
         <PfButton variant="link" onClick={openIntel}>
           View all in Intelligence →
         </PfButton>

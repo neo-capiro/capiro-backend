@@ -250,6 +250,35 @@ describe('ClientCrmGovernmentProto — real targets (items 11-14, wire-audit)', 
 
     expect(screen.getByText('3 active · from Strategies')).toBeInTheDocument();
   });
+
+  /**
+   * Regression: the fixture used to render whenever `targetsQ.isSuccess` was
+   * false, which covers a real fetch error just as much as loading — a
+   * client with a genuine API failure saw three invented targets ("3 active
+   * · from Strategies") under its real name. Loading still gets the fixture
+   * (pixel-reviewable, see above); an error gets an honest state instead,
+   * same "never fabricate on a real error" standard as the recommendations
+   * rail's own error state in this same file.
+   */
+  it('shows an honest error state instead of the fixture when the targets query fails', async () => {
+    getMock.mockImplementation((url: string) => {
+      if (url === '/api/clients/client-1/targets') return Promise.reject(new Error('network down'));
+      if (url === '/api/clients/client-1/target-recommendations') {
+        return Promise.resolve({ data: { recommendations: [REC], computedAt: '2026-08-01T12:00:00.000Z' } });
+      }
+      return Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderGov();
+
+    await waitFor(() => expect(screen.getByText("Couldn't load current targets")).toBeInTheDocument());
+    // The fixture must not leak through as if it were real data.
+    expect(screen.queryByText('3 active · from Strategies')).not.toBeInTheDocument();
+    expect(screen.queryByText('FY27 Ground Robotics Funding')).not.toBeInTheDocument();
+
+    getMock.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(getMock).toHaveBeenCalledWith('/api/clients/client-1/targets'));
+  });
 });
 
 describe('ClientCrmGovernmentProto — target recommendations rail', () => {

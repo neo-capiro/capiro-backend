@@ -37,6 +37,7 @@ import {
 } from '../../../adapters/legacy/useClientCrmOverviewModel.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
 import { ManageAccountTeamModal } from '../ManageAccountTeamModal.js';
+import './overview-tab.css';
 
 /**
  * Overview tab (spec §6, consolidated). Order: client profile (identity +
@@ -75,7 +76,7 @@ export function ClientCrmOverviewProto({
 }) {
   const model = useClientCrmOverviewModel(client);
   return (
-    <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="cap-pf-anim-rise ov-root">
       <TabPageHead
         title="Client overview"
         sub="The account, its federal footprint, and the advocacy record behind it."
@@ -105,8 +106,8 @@ export function ClientCrmOverviewProto({
 /** Inline failure line + Retry — the model's RegionStatus carries both. */
 function RegionErrorLine({ status, label }: { status: RegionStatus; label: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-      <span style={{ fontSize: 13, color: '#B42318', textWrap: 'pretty' }}>
+    <div className="ov-error-line">
+      <span className="ov-error-msg">
         {label}
         {status.message ? ` — ${status.message}` : ''}
       </span>
@@ -120,9 +121,9 @@ function RegionErrorLine({ status, label }: { status: RegionStatus; label: strin
 /** One loading pulse-metric slot: skeleton number over the real label. */
 function SkeletonMetricCell({ label }: { label: string }) {
   return (
-    <span style={{ flex: 1, minWidth: 104, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <span className="ov-metric-skel">
       <PfSkeleton width={56} height={28} />
-      <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', textWrap: 'pretty' }}>{label}</span>
+      <span className="ov-eyebrow">{label}</span>
     </span>
   );
 }
@@ -133,11 +134,9 @@ function SkeletonMetricCell({ label }: { label: string }) {
  *  every section stays visually and semantically one card. */
 function SectionHead({ title, action }: { title: string; action?: ReactNode }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '18px 24px 4px' }}>
-      <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
-        {title}
-      </h4>
-      <span style={{ flex: 1 }} />
+    <div className="ov-section-head">
+      <h4 className="ov-section-title">{title}</h4>
+      <span className="ov-spacer" />
       {action}
     </div>
   );
@@ -186,45 +185,25 @@ function ClientProfileCard({
       />
 
       {/* identity */}
-      <div style={{ display: 'flex', gap: 20, padding: 24 }}>
+      <div className="ov-identity">
         <Tile initials={profile.initials} size={64} src={profile.logoUrl} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 16, lineHeight: '24px', color: '#344054', textWrap: 'pretty' }}>
-            {profile.description ?? 'No description recorded yet.'}
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 16, flexWrap: 'wrap' }}>
-            {profile.sectorLabel ? (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  height: 24,
-                  padding: '0 10px',
-                  borderRadius: 9999,
-                  background: '#F2F0EB',
-                  border: '1px solid #E0DCD4',
-                  color: '#101828',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {profile.sectorLabel}
-              </span>
-            ) : null}
+          <p className="ov-identity-desc">{profile.description ?? 'No description recorded yet.'}</p>
+          <div className="ov-identity-meta">
+            {profile.sectorLabel ? <span className="ov-sector-pill">{profile.sectorLabel}</span> : null}
             {profile.website ? (
               <a
                 href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
                 target="_blank"
                 rel="noreferrer noopener"
-                style={{ fontSize: 14, fontWeight: 600 }}
+                className="ov-website-link"
               >
                 {profile.website.replace(/^https?:\/\//, '')}
               </a>
             ) : null}
-            {profile.location ? <span style={{ fontSize: 14, color: '#475467' }}>{profile.location}</span> : null}
+            {profile.location ? <span className="ov-identity-location">{profile.location}</span> : null}
           </div>
-          <div style={{ marginTop: 14, fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>
+          <div className="ov-identity-since">
             {profile.clientSince ? `Client since ${profile.clientSince}` : 'Client since not recorded'}
           </div>
         </div>
@@ -239,7 +218,7 @@ function ClientProfileCard({
         title="Account"
         action={<PfButton variant="link" onClick={() => setTeamOpen(true)}>Manage team</PfButton>}
       />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px 24px', padding: '12px 24px 20px', borderBottom: '1px solid #E8E5DF' }}>
+      <div className="ov-account-grid">
         <Field
           label="Primary contact"
           value={account.primaryContact ?? 'Not set'}
@@ -251,8 +230,8 @@ function ClientProfileCard({
             fields come from the client record and stay visible throughout. */}
         {meetingsLoading ? (
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Next meeting</div>
-            <div style={{ marginTop: 8 }}>
+            <div className="ov-eyebrow">Next meeting</div>
+            <div className="ov-account-skel-wrap">
               <PfSkeleton width={120} height={16} />
             </div>
           </div>
@@ -260,8 +239,8 @@ function ClientProfileCard({
           <Field label="Next meeting" value={account.nextMeeting?.label ?? 'None scheduled'} empty={!account.nextMeeting} />
         )}
         <div>
-          <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>Account team</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
+          <div className="ov-eyebrow">Account team</div>
+          <div className="ov-team-row">
             <AccountTeamSlot
               team={account.accountTeam}
               available={account.accountTeamAvailable}
@@ -273,12 +252,12 @@ function ClientProfileCard({
         </div>
       </div>
       {accountStatus.state === 'error' ? (
-        <div style={{ padding: '0 24px 16px' }}>
+        <div className="ov-region-error-wrap">
           <RegionErrorLine status={accountStatus} label="Couldn't read meetings" />
         </div>
       ) : null}
       {accountTeamStatus.state === 'error' ? (
-        <div style={{ padding: '0 24px 16px' }}>
+        <div className="ov-region-error-wrap">
           <RegionErrorLine status={accountTeamStatus} label="Couldn't read the account team" />
         </div>
       ) : null}
@@ -292,7 +271,7 @@ function ClientProfileCard({
           </PfButton>
         }
       />
-      <div style={{ padding: '12px 24px 20px', borderBottom: '1px solid #E8E5DF' }}>
+      <div className="ov-pulse-body">
         <PulseBody status={workStatus} errorLabel="Couldn't load this client's work pulse">
           <MetricCell metric={work.currentStrategies} label="Strategies" />
           <MetricCell metric={work.remainingActions} label="Plan steps" />
@@ -303,9 +282,7 @@ function ClientProfileCard({
             nothing in the Strategy API measures completion — so the bar was a
             permanently-empty decoration. The reason renders instead. */}
         {workStatus.state === 'ready' && (work.readinessReason || work.nextStep) ? (
-          <div style={{ marginTop: 16, fontSize: 13, lineHeight: '19px', color: '#667085', textWrap: 'pretty' }}>
-            {work.nextStep ?? work.readinessReason}
-          </div>
+          <div className="ov-pulse-note">{work.nextStep ?? work.readinessReason}</div>
         ) : null}
       </div>
 
@@ -318,7 +295,7 @@ function ClientProfileCard({
           </PfButton>
         }
       />
-      <div style={{ padding: '12px 24px 24px' }}>
+      <div className="ov-pulse-body--last">
         <PulseBody status={intelligenceStatus} errorLabel="Couldn't load this client's intelligence pulse">
           <MetricCell metric={intelligence.trackedBills} label="Tracked bills" />
           <MetricCell metric={intelligence.opportunities} label="Opportunities" />
@@ -326,7 +303,7 @@ function ClientProfileCard({
           <MetricCell metric={intelligence.regulatoryMatters} label="Regulatory matters" />
         </PulseBody>
         {intelligenceStatus.state === 'ready' && intelligence.signals.length > 0 ? (
-          <div style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
+          <div className="ov-signals-row">
             {intelligence.signals.map((signal, i) => (
               <Pill key={signal} tone={i === 0 ? 'error' : i === 1 ? 'brand' : 'gray'} dotless={i === 2} size="lg">
                 {signal}
@@ -335,9 +312,7 @@ function ClientProfileCard({
           </div>
         ) : null}
         {intelligenceStatus.state === 'ready' && intelligence.lastRefresh ? (
-          <div style={{ marginTop: 12, fontSize: 13, color: '#667085' }}>
-            {`Last intelligence refresh: ${intelligence.lastRefresh}`}
-          </div>
+          <div className="ov-last-refresh">{`Last intelligence refresh: ${intelligence.lastRefresh}`}</div>
         ) : null}
       </div>
 
@@ -375,7 +350,7 @@ function AccountTeamSlot({
   }
   if (status.state === 'error' || !available) {
     // The failure is reported once, by the card's own error line.
-    return <span style={{ fontSize: 14, color: '#98A2B3' }}>—</span>;
+    return <span className="ov-team-dash">—</span>;
   }
   if (team.length === 0) {
     return (
@@ -396,34 +371,22 @@ function AccountTeamSlot({
       title={team
         .map((member) => (member.role ? `${member.name} — ${member.role}` : member.name))
         .join(', ')}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'none', padding: 0 }}
+      className="ov-team-btn"
     >
-      <span style={{ display: 'inline-flex' }}>
+      <span className="ov-team-avatars">
         {shown.map((member, index) => (
           <span
             key={member.id}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 26,
-              height: 26,
-              // Overlap so a roster of four stays compact in a two-up card.
-              marginLeft: index === 0 ? 0 : -7,
-              borderRadius: 9999,
-              background: '#F2F0EB',
-              boxShadow: '0 0 0 2px #ffffff',
-              border: '1px solid #E0DCD4',
-              color: '#475467',
-              fontSize: 10.5,
-              fontWeight: 600,
-            }}
+            className="ov-team-avatar"
+            // Overlap so a roster of four stays compact in a two-up card —
+            // the only per-instance value here, everything else is static.
+            style={{ marginLeft: index === 0 ? 0 : -7 }}
           >
             {member.initials}
           </span>
         ))}
       </span>
-      <span style={{ fontSize: 14, color: '#475467' }}>
+      <span className="ov-team-count">
         {team.length} member{team.length === 1 ? '' : 's'}
         {overflow > 0 ? ` (+${overflow} more)` : ''}
       </span>
@@ -432,36 +395,21 @@ function AccountTeamSlot({
 }
 
 function Field({ label, value, empty = false, href }: { label: string; value: string; empty?: boolean; href?: string }) {
-  const [hover, setHover] = useState(false);
   return (
     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085' }}>{label}</div>
+      <div className="ov-eyebrow">{label}</div>
       {href ? (
-        <a
-          href={href}
-          onMouseEnter={() => setHover(true)}
-          onMouseLeave={() => setHover(false)}
-          style={{ display: 'block', marginTop: 4, fontSize: 16, fontWeight: 500, color: hover ? '#0E141C' : '#101828' }}
-        >
+        <a href={href} className="ov-field-value">
           {value}
         </a>
       ) : (
-        <div style={{ marginTop: 4, fontSize: 16, fontWeight: 500, color: empty ? '#98A2B3' : '#101828' }}>{value}</div>
+        <div className={empty ? 'ov-field-value ov-field-value--empty' : 'ov-field-value'}>{value}</div>
       )}
     </div>
   );
 }
 
 /* ── §6.2 Federal footprint ───────────────────────────────────────────────── */
-
-const FOOT_LABEL_STYLE = {
-  fontSize: 12,
-  fontWeight: 600,
-  letterSpacing: '.04em',
-  textTransform: 'uppercase',
-  color: '#667085',
-  textWrap: 'pretty',
-} as const;
 
 /**
  * Wire-audit "3 Compose extend" item 3: federal footprint now reads from the
@@ -480,15 +428,15 @@ function FootCell({ metric, label, title }: { metric: Metric; label: string; tit
       : '—';
   return (
     <>
-      <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+      <span className="ov-foot-value-wrap">
         <span
-          style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', color: metric.kind === 'value' ? '#101828' : '#98A2B3', lineHeight: 1.2 }}
+          className={metric.kind === 'value' ? 'ov-foot-value' : 'ov-foot-value ov-foot-value--unavailable'}
           title={metric.kind === 'unavailable' ? metric.reason : undefined}
         >
           {display}
         </span>
       </span>
-      <span style={FOOT_LABEL_STYLE} title={title}>
+      <span className="ov-eyebrow" title={title}>
         {label}
       </span>
     </>
@@ -504,13 +452,10 @@ function TrajectoryCell({ metric }: { metric: TrajectoryMetric }) {
   if (metric.kind === 'unavailable') {
     return (
       <>
-        <span
-          style={{ fontSize: 26, fontWeight: 600, letterSpacing: '-0.02em', color: '#98A2B3', lineHeight: 1.2 }}
-          title={metric.reason}
-        >
+        <span className="ov-foot-value ov-foot-value--unavailable" title={metric.reason}>
           —
         </span>
-        <span style={FOOT_LABEL_STYLE}>Lobbying trajectory</span>
+        <span className="ov-eyebrow">Lobbying trajectory</span>
       </>
     );
   }
@@ -520,18 +465,15 @@ function TrajectoryCell({ metric }: { metric: TrajectoryMetric }) {
   const labelText = metric.trajectoryLabel.charAt(0).toUpperCase() + metric.trajectoryLabel.slice(1);
   return (
     <>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minHeight: 31 }}>
+      <span className="ov-trajectory-wrap">
         <Pill tone="gray">{labelText}</Pill>
         {direction != null && pct != null ? (
-          <span
-            aria-label={`${direction} ${pct} percent year over year`}
-            style={{ fontSize: 13, fontWeight: 600, color: '#475467', whiteSpace: 'nowrap' }}
-          >
+          <span aria-label={`${direction} ${pct} percent year over year`} className="ov-trajectory-rate">
             {direction === 'flat' ? 'Flat YoY' : `${direction === 'down' ? '↓' : '↑'} ${pct}% YoY`}
           </span>
         ) : null}
       </span>
-      <span style={FOOT_LABEL_STYLE}>Lobbying trajectory</span>
+      <span className="ov-eyebrow">Lobbying trajectory</span>
     </>
   );
 }
@@ -556,22 +498,12 @@ function FederalFootprintCard({ model, onOpen }: { model: ClientCrmOverviewModel
     },
     { label: 'Lobbying trajectory', cell: <TrajectoryCell metric={fp.lobbyingTrajectory} /> },
   ];
-  const cellStyle = (i: number) =>
-    ({
-      flex: 1,
-      minWidth: 172,
-      padding: '18px 24px 20px',
-      boxShadow: i === 0 ? 'none' : 'inset 1px 0 0 #E8E5DF',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 3,
-    }) as const;
   return (
     <Card>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '20px 24px 18px', borderBottom: '1px solid #E8E5DF', flexWrap: 'wrap' }}>
-        <span style={{ flex: 1, minWidth: 240 }}>
-          <span style={{ display: 'block', fontSize: 18, fontWeight: 600, color: '#101828' }}>Federal footprint</span>
-          <span style={{ display: 'block', marginTop: 4, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+      <div className="ov-foot-header">
+        <span className="ov-foot-header-label">
+          <span className="ov-foot-title">Federal footprint</span>
+          <span className="ov-foot-desc">
             The public record: lobbying disclosures, federal awards, political giving, and the districts this client sits in.
           </span>
         </span>
@@ -586,18 +518,18 @@ function FederalFootprintCard({ model, onOpen }: { model: ClientCrmOverviewModel
         </div>
       ) : !fp.ready ? (
         // Loading: skeleton bars over the real labels, never four fake '—'.
-        <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+        <div className="ov-foot-row">
           {stats.map((s, i) => (
-            <span key={s.label} style={cellStyle(i)}>
+            <span key={s.label} className={i === 0 ? 'ov-foot-cell' : 'ov-foot-cell ov-foot-cell--divider'}>
               <PfSkeleton width={96} height={26} style={{ margin: '2px 0' }} />
-              <span style={FOOT_LABEL_STYLE}>{s.label}</span>
+              <span className="ov-eyebrow">{s.label}</span>
             </span>
           ))}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+        <div className="ov-foot-row">
           {stats.map((s, i) => (
-            <span key={s.label} style={cellStyle(i)}>
+            <span key={s.label} className={i === 0 ? 'ov-foot-cell' : 'ov-foot-cell ov-foot-cell--divider'}>
               {s.cell}
             </span>
           ))}
@@ -672,9 +604,9 @@ function AdvocacyHistoryCard({ client }: { client: Client }) {
           </PfButton>
         }
       />
-      <div style={{ padding: '2px 24px 8px' }}>
+      <div className="ov-advocacy-body">
         {failed ? (
-          <div style={{ padding: '14px 0 18px' }}>
+          <div className="ov-advocacy-error-wrap">
             <RegionErrorLine
               status={{ state: 'error', retry: retryReads }}
               label="Couldn't load this client's submission history"
@@ -683,7 +615,7 @@ function AdvocacyHistoryCard({ client }: { client: Client }) {
         ) : loading ? (
           [0, 1, 2].map((i) => <AdvocacySkeletonRow key={i} last={i === 2} />)
         ) : genuinelyEmpty ? (
-          <p style={{ margin: 0, padding: '10px 0 16px', fontSize: 14, color: '#667085' }}>
+          <p className="ov-advocacy-empty">
             {capabilities.length === 0
               ? 'No submissions recorded yet. Add a capability first — a submission is recorded against one.'
               : 'No submissions recorded for this client yet.'}
@@ -714,11 +646,11 @@ function AdvocacyHistoryCard({ client }: { client: Client }) {
 /** Loading placeholder mirroring one submission row's layout. */
 function AdvocacySkeletonRow({ last }: { last: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px 0', borderBottom: last ? 'none' : '1px solid #F2F0EB' }}>
-      <span style={{ flex: '0 0 auto', width: 64 }}>
+    <div className={last ? 'ov-advrow ov-advrow--last' : 'ov-advrow'}>
+      <span className="ov-advrow-date-wrap">
         <PfSkeleton width={40} height={13} />
       </span>
-      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span className="ov-advrow-content">
         <PfSkeleton width="55%" height={15} />
         <PfSkeleton width="35%" height={12} />
       </span>
@@ -731,28 +663,18 @@ function AdvocacySkeletonRow({ last }: { last: boolean }) {
 function SubmissionHistoryRowView({ row }: { row: SubmissionWithCapability }) {
   const tone = (OUTCOME_TONE[row.outcomeType] ?? 'gray') as PillTone;
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '14px 0', borderTop: '1px solid #F2F0EB' }}>
-      <span style={{ flex: '0 0 auto', width: 64, fontSize: 13, fontWeight: 600, color: '#101828' }}>
-        {row.fiscalYear}
-      </span>
+    <div className="ov-subrow">
+      <span className="ov-subrow-year">{row.fiscalYear}</span>
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>
-          {row.title}
-        </span>
-        <span style={{ display: 'block', marginTop: 3, fontSize: 13, color: '#667085', textWrap: 'pretty' }}>
+        <span className="ov-subrow-title">{row.title}</span>
+        <span className="ov-subrow-meta">
           {[row.capabilityName, row.meta].filter(Boolean).join(' · ') || 'No detail recorded'}
         </span>
-        {row.notes ? (
-          <span style={{ display: 'block', marginTop: 6, fontSize: 13, lineHeight: '19px', color: '#475467', textWrap: 'pretty' }}>
-            {row.notes}
-          </span>
-        ) : null}
+        {row.notes ? <span className="ov-subrow-notes">{row.notes}</span> : null}
       </span>
-      <span style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+      <span className="ov-subrow-outcome">
         <Pill tone={tone}>{OUTCOME_TYPE_LABEL[row.outcomeType] ?? row.outcomeType}</Pill>
-        {row.outcome ? (
-          <span style={{ fontSize: 12, color: '#667085', whiteSpace: 'nowrap' }}>{row.outcome}</span>
-        ) : null}
+        {row.outcome ? <span className="ov-subrow-outcome-text">{row.outcome}</span> : null}
       </span>
     </div>
   );
@@ -764,30 +686,6 @@ const OUTCOME_TYPE_OPTIONS: Array<{ value: SubmissionOutcomeType; label: string 
   { value: 'partial', label: 'Partial' },
   { value: 'failed', label: 'Not included' },
 ];
-
-const LOG_FIELD = {
-  display: 'block',
-  width: '100%',
-  marginTop: 6,
-  height: 40,
-  padding: '0 12px',
-  borderRadius: 8,
-  border: '1px solid #E0DCD4',
-  outline: 'none',
-  background: '#ffffff',
-  boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
-  fontSize: 14,
-  color: '#101828',
-} as const;
-
-const LOG_LABEL = {
-  display: 'block',
-  fontSize: 12,
-  fontWeight: 600,
-  letterSpacing: '.04em',
-  textTransform: 'uppercase',
-  color: '#667085',
-} as const;
 
 /**
  * Log a submission. Every field here exists on `ClientSubmissionHistory`; the
@@ -819,14 +717,14 @@ function LogSubmissionModal({
 
   return (
     <CapiroModal open title="Log a submission" onClose={onClose}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="ov-log-form">
         <label>
-          <span style={LOG_LABEL}>Capability</span>
+          <span className="ov-eyebrow">Capability</span>
           <select
             value={capabilityId}
             aria-label="Capability"
             onChange={(e) => setCapabilityId(e.target.value)}
-            style={LOG_FIELD}
+            className="ov-log-field"
           >
             {capabilities.map((capability) => (
               <option key={capability.id} value={capability.id}>
@@ -835,56 +733,56 @@ function LogSubmissionModal({
             ))}
           </select>
         </label>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <label style={{ flex: '0 0 120px' }}>
-            <span style={LOG_LABEL}>Fiscal year</span>
+        <div className="ov-log-row">
+          <label className="ov-log-field-narrow">
+            <span className="ov-eyebrow">Fiscal year</span>
             <input
               value={fiscalYear}
               aria-label="Fiscal year"
               onChange={(e) => setFiscalYear(e.target.value)}
               placeholder="FY27"
-              style={LOG_FIELD}
+              className="ov-log-field"
             />
           </label>
-          <label style={{ flex: 1, minWidth: 0 }}>
-            <span style={LOG_LABEL}>Title</span>
+          <label className="ov-log-field-grow">
+            <span className="ov-eyebrow">Title</span>
             <input
               value={title}
               aria-label="Title"
               onChange={(e) => setTitle(e.target.value)}
               placeholder="What was asked for"
-              style={LOG_FIELD}
+              className="ov-log-field"
             />
           </label>
         </div>
         <label>
-          <span style={LOG_LABEL}>Detail</span>
+          <span className="ov-eyebrow">Detail</span>
           <input
             value={meta}
             aria-label="Detail"
             onChange={(e) => setMeta(e.target.value)}
             placeholder="Vehicle, committee, who it went to"
-            style={LOG_FIELD}
+            className="ov-log-field"
           />
         </label>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <label style={{ flex: 1, minWidth: 0 }}>
-            <span style={LOG_LABEL}>Outcome</span>
+        <div className="ov-log-row">
+          <label className="ov-log-field-grow">
+            <span className="ov-eyebrow">Outcome</span>
             <input
               value={outcome}
               aria-label="Outcome"
               onChange={(e) => setOutcome(e.target.value)}
               placeholder="e.g. Included +$8M"
-              style={LOG_FIELD}
+              className="ov-log-field"
             />
           </label>
-          <label style={{ flex: '0 0 160px' }}>
-            <span style={LOG_LABEL}>Status</span>
+          <label className="ov-log-field-fixed160">
+            <span className="ov-eyebrow">Status</span>
             <select
               value={outcomeType}
               aria-label="Status"
               onChange={(e) => setOutcomeType(e.target.value as SubmissionOutcomeType)}
-              style={LOG_FIELD}
+              className="ov-log-field"
             >
               {OUTCOME_TYPE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -895,22 +793,20 @@ function LogSubmissionModal({
           </label>
         </div>
         <label>
-          <span style={LOG_LABEL}>Notes</span>
+          <span className="ov-eyebrow">Notes</span>
           <textarea
             value={notes}
             aria-label="Notes"
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             placeholder="Provenance — what is on file for this"
-            style={{ ...LOG_FIELD, height: 'auto', padding: '10px 12px', resize: 'vertical' }}
+            className="ov-log-field ov-log-field--textarea"
           />
         </label>
         {error ? (
-          <p style={{ margin: 0, fontSize: 14, color: '#B42318' }}>
-            {error instanceof Error ? error.message : 'Could not log that submission'}
-          </p>
+          <p className="ov-log-error">{error instanceof Error ? error.message : 'Could not log that submission'}</p>
         ) : null}
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="ov-log-actions">
           <CapiroButton
             variant="primary"
             size="compact"
@@ -944,16 +840,16 @@ function LogSubmissionModal({
 function MetricCell({ metric, label }: { metric: Metric; label: string }) {
   if (metric.kind === 'unavailable') {
     return (
-      <span style={{ flex: 1, minWidth: 104, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#98A2B3', lineHeight: 1.2 }} title={metric.reason}>—</span>
-        <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', textWrap: 'pretty' }}>{label}</span>
+      <span className="ov-metric">
+        <span className="ov-metric-value ov-metric-value--unavailable" title={metric.reason}>—</span>
+        <span className="ov-eyebrow">{label}</span>
       </span>
     );
   }
   return (
-    <span style={{ flex: 1, minWidth: 104, display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-0.02em', color: '#101828', lineHeight: 1.2 }}>{metric.value}</span>
-      <span style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', textWrap: 'pretty' }}>{label}</span>
+    <span className="ov-metric">
+      <span className="ov-metric-value">{metric.value}</span>
+      <span className="ov-eyebrow">{label}</span>
     </span>
   );
 }
@@ -970,9 +866,9 @@ function PulseBody({
 }) {
   if (status.state === 'loading') {
     return (
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+      <div className="ov-pulse-loading">
         {[0, 1, 2, 3].map((i) => (
-          <span key={i} style={{ flex: 1, minWidth: 104, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <span key={i} className="ov-pulse-loading-cell">
             <PfSkeleton width={48} height={28} />
             <PfSkeleton width={80} height={12} />
           </span>
@@ -983,7 +879,7 @@ function PulseBody({
   if (status.state === 'error') {
     return <RegionErrorLine status={status} label={errorLabel} />;
   }
-  return <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>{children}</div>;
+  return <div className="ov-pulse-grid">{children}</div>;
 }
 
 /* WorkPulseCard and IntelligencePulseCard were folded into ClientProfileCard

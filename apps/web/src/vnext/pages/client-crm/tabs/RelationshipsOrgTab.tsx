@@ -23,6 +23,7 @@ import { ClientPersonDrawer } from '../ClientPersonDrawer.js';
 import { ConfigureHierarchyModal } from '../ConfigureHierarchyModal.js';
 import { initialsFor } from '../../../adapters/legacy/useClientCrmOverviewModel.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
+import './relationships-org-tab.css';
 
 /**
  * Relationships / Organization sub-tab (spec §8.1).
@@ -48,7 +49,7 @@ export function ClientCrmOrganizationProto({ client }: { client: Client }) {
   const [creating, setCreating] = useState(false);
 
   return (
-    <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="cap-pf-anim-rise rel-org-root">
       <TabPageHead
         title="Client organization"
         sub="A configurable roster automatically structured from titles. Manual placement always wins."
@@ -117,50 +118,24 @@ function rowsByDepth(roots: OrgNode[]): ClientPerson[][] {
 }
 
 function RealPersonCard({ person, onOpen }: { person: ClientPerson; onOpen: () => void }) {
-  const [hover, setHover] = useState(false);
   // An unplaced card drops the per-card eyebrow and the "Unplaced · No title
   // match" footer: its group header already says "Not placed", so repeating it
   // on every card turned a large unplaced roster into a wall of the same word.
   const placed = Boolean(person.hierarchyLevel);
+  const cardClass = person.reviewRequired
+    ? 'rel-org-person-card rel-org-person-card--review'
+    : 'rel-org-person-card';
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        flex: '0 0 auto',
-        width: 196,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '14px 12px',
-        borderRadius: 10,
-        background: hover ? '#FAF9F6' : '#ffffff',
-        border: person.reviewRequired
-          ? '1px solid #FEDF89'
-          : hover
-            ? '1px solid #E0DCD4'
-            : '1px solid #E8E5DF',
-      }}
-    >
+    <button type="button" onClick={onOpen} className={cardClass}>
       {person.hierarchyLevel ? <Eyebrow tight>{LEVEL_META[person.hierarchyLevel].label}</Eyebrow> : null}
-      <span style={{ marginTop: 10, display: 'flex' }}>
+      <span className="rel-org-person-avatar">
         <Avatar initials={initialsFor(person.name)} size={32} />
       </span>
-      <span style={{ display: 'block', marginTop: 10, maxWidth: '100%', fontSize: 14, fontWeight: 600, color: '#101828', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {person.name}
-      </span>
-      <span style={{ display: 'block', marginTop: 2, maxWidth: '100%', fontSize: 13, color: '#475467', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {person.title ?? 'Open role'}
-      </span>
-      {placed ? (
-        <span style={{ display: 'block', marginTop: 8, maxWidth: '100%', fontSize: 12, color: '#667085', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {placementLabel(person)}
-        </span>
-      ) : null}
+      <span className="rel-org-person-name">{person.name}</span>
+      <span className="rel-org-person-title">{person.title ?? 'Open role'}</span>
+      {placed ? <span className="rel-org-person-meta">{placementLabel(person)}</span> : null}
       {person.reviewRequired ? (
-        <span style={{ marginTop: 8 }}>
+        <span className="rel-org-person-pill">
           <Pill tone="warning">{placed ? 'Review' : 'Needs review'}</Pill>
         </span>
       ) : null}
@@ -183,12 +158,12 @@ function LoosePeopleGroup({
 }) {
   if (people.length === 0) return null;
   return (
-    <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
+    <div className="rel-org-loose-group">
       <Eyebrow>
         {title} · {people.length}
       </Eyebrow>
-      <p style={{ margin: '4px 0 12px', fontSize: 13, color: '#667085', textWrap: 'pretty' }}>{hint}</p>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <p className="rel-org-loose-hint">{hint}</p>
+      <div className="rel-org-depth-people">
         {people.map((p) => (
           <RealPersonCard key={p.id} person={p} onOpen={() => onOpen(p)} />
         ))}
@@ -226,15 +201,15 @@ function OrgChartCard({
   return (
     <Card>
       {/* strip */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, padding: '20px 24px 16px', flexWrap: 'wrap' }}>
-        <span style={{ flex: 1, minWidth: 240 }}>
+      <div className="rel-org-strip">
+        <span className="rel-org-strip-label">
           <Eyebrow>Automatic title-based roster</Eyebrow>
           {model.isLoading ? (
-            <span style={{ display: 'block', marginTop: 6, maxWidth: 260 }}>
+            <span className="rel-org-strip-skeleton">
               <PfSkeleton />
             </span>
           ) : (
-            <span style={{ display: 'block', marginTop: 3, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>{sub}</span>
+            <span className="rel-org-strip-sub">{sub}</span>
           )}
         </span>
         {/* Coverage, not a score: an empty or still-loading roster reports
@@ -246,25 +221,23 @@ function OrgChartCard({
         )}
       </div>
 
-      <div style={{ padding: '8px 24px 20px' }}>
+      <div className="rel-org-chart-body">
         {model.isError ? (
-          <div style={{ padding: '28px 4px', textAlign: 'center' }}>
-            <p style={{ margin: 0, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
+          <div className="rel-org-state">
+            <p className="rel-org-state-msg--standalone">
               {model.error instanceof Error ? model.error.message : 'Could not load the roster.'}
             </p>
-            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+            <div className="rel-org-state-action">
               <PfButton variant="secondary" onClick={model.retry}>
                 Retry
               </PfButton>
             </div>
           </div>
         ) : !model.isLoading && model.people.length === 0 ? (
-          <div style={{ padding: '28px 4px', textAlign: 'center' }}>
-            <h4 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#101828' }}>No contacts yet</h4>
-            <p style={{ margin: '6px 0 0', fontSize: 14, color: '#475467', textWrap: 'pretty' }}>
-              Add a contact and it will be placed automatically from its title.
-            </p>
-            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+          <div className="rel-org-state">
+            <h4 className="rel-org-state-title">No contacts yet</h4>
+            <p className="rel-org-state-msg">Add a contact and it will be placed automatically from its title.</p>
+            <div className="rel-org-state-action">
               <PfButton variant="primary" onClick={onAdd}>
                 Add contact
               </PfButton>
@@ -274,11 +247,9 @@ function OrgChartCard({
           /* Item 17: the real reporting tree, one centred row per depth. */
           <>
             {depthRows.map((row, li) => (
-              <span key={li} style={{ display: 'block' }}>
-                {li > 0 ? (
-                  <span style={{ display: 'block', height: 18, width: 1, background: '#E8E5DF', margin: '0 auto' }} aria-hidden />
-                ) : null}
-                <span style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <span key={li} className="rel-org-depth-row">
+                {li > 0 ? <span className="rel-org-depth-connector" aria-hidden /> : null}
+                <span className="rel-org-depth-people">
                   {row.map((p) => (
                     <RealPersonCard key={p.id} person={p} onOpen={() => onOpenReal(p)} />
                   ))}
@@ -301,11 +272,9 @@ function OrgChartCard({
         ) : (
           /* Loading — the design's four fixture levels stay pixel-reviewable. */
           ORG.map((level, li) => (
-            <span key={li} style={{ display: 'block' }}>
-              {li > 0 ? (
-                <span style={{ display: 'block', height: 18, width: 1, background: '#E8E5DF', margin: '0 auto' }} aria-hidden />
-              ) : null}
-              <span style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <span key={li} className="rel-org-depth-row">
+              {li > 0 ? <span className="rel-org-depth-connector" aria-hidden /> : null}
+              <span className="rel-org-depth-people">
                 {level.map((p) =>
                   'ghost' in p && p.ghost ? (
                     <GhostPersonCard key={p.id} person={p} />
@@ -337,108 +306,29 @@ type OrgPerson = {
  *  roster and silently no-op on a miss — a button that mostly did nothing. */
 function PersonCard({ person }: { person: OrgPerson }) {
   return (
-    <span
-      style={{
-        flex: '0 0 auto',
-        width: 196,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '14px 12px',
-        borderRadius: 10,
-        background: '#ffffff',
-        border: '1px solid #E8E5DF',
-      }}
-    >
+    <span className="rel-org-person-card">
       <Eyebrow tight>{person.level}</Eyebrow>
-      <span style={{ marginTop: 10, display: 'flex' }}>
+      <span className="rel-org-person-avatar">
         <Avatar initials={person.init} size={32} />
       </span>
-      <span
-        style={{
-          display: 'block',
-          marginTop: 10,
-          maxWidth: '100%',
-          fontSize: 14,
-          fontWeight: 600,
-          color: '#101828',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {person.name}
-      </span>
-      <span
-        style={{
-          display: 'block',
-          marginTop: 2,
-          maxWidth: '100%',
-          fontSize: 13,
-          color: '#475467',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {person.title}
-      </span>
-      <span
-        style={{
-          display: 'block',
-          marginTop: 8,
-          maxWidth: '100%',
-          fontSize: 12,
-          color: '#667085',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {person.meta}
-      </span>
+      <span className="rel-org-person-name">{person.name}</span>
+      <span className="rel-org-person-title">{person.title}</span>
+      <span className="rel-org-person-meta">{person.meta}</span>
     </span>
   );
 }
 
-/** Open role — dashed feel via the #FAF9F6 fill; not clickable as a contact. */
+/** Open role — dashed feel via the subtle fill; not clickable as a contact. */
 function GhostPersonCard({ person }: { person: OrgPerson }) {
   return (
-    <span
-      style={{
-        flex: '0 0 auto',
-        width: 196,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '14px 12px',
-        borderRadius: 10,
-        background: '#FAF9F6',
-        border: '1px solid #E8E5DF',
-      }}
-    >
+    <span className="rel-org-ghost-card">
       <Eyebrow tight>{person.level}</Eyebrow>
-      <span
-        aria-hidden
-        style={{
-          marginTop: 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 32,
-          height: 32,
-          borderRadius: '50%',
-          background: '#F2F0EB',
-          color: '#98A2B3',
-          fontSize: 10,
-          fontWeight: 600,
-        }}
-      >
+      <span aria-hidden className="rel-org-ghost-avatar">
         —
       </span>
-      <span style={{ display: 'block', marginTop: 10, fontSize: 14, fontWeight: 600, color: '#667085' }}>{person.name}</span>
-      <span style={{ display: 'block', marginTop: 2, fontSize: 13, color: '#475467' }}>{person.title}</span>
-      <span style={{ display: 'block', marginTop: 8, fontSize: 12, color: '#667085' }}>{person.meta}</span>
+      <span className="rel-org-ghost-name">{person.name}</span>
+      <span className="rel-org-ghost-title">{person.title}</span>
+      <span className="rel-org-ghost-meta">{person.meta}</span>
     </span>
   );
 }
@@ -461,8 +351,8 @@ function HierarchySettingsCard({ model, onEdit }: { model: OrganizationModel; on
           </PfButton>
         }
       />
-      <div style={{ padding: '20px 24px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="rel-org-settings-body">
+        <div className="rel-org-settings-fields">
           <SettingField label="Mode" value="Automatic from titles" />
           {/* Item 16: there is exactly one rule set and it is built into the API
               (`client-hierarchy.helpers.ts`) with no table, route or write path,
@@ -471,39 +361,25 @@ function HierarchySettingsCard({ model, onEdit }: { model: OrganizationModel; on
           <SettingField label="Rule set" value="Built-in title rules (not editable)" />
         </div>
 
-        <div style={{ marginTop: 20, paddingTop: 18, borderTop: '1px solid #E8E5DF' }}>
+        <div className="rel-org-settings-block">
           <Eyebrow>Visible levels</Eyebrow>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+          <div className="rel-org-level-list">
             {/* Real level metadata from the model — the LEVELS fixture this
                 replaced was a byte-identical copy of it. */}
             {HIERARCHY_LEVELS.map((level) => (
-              <span
-                key={level}
-                style={{
-                  display: 'flex',
-                  alignItems: 'baseline',
-                  gap: 12,
-                  padding: '10px 12px',
-                  borderRadius: 8,
-                  background: '#FAF9F6',
-                }}
-              >
-                <span style={{ flex: '0 0 auto', fontSize: 14, fontWeight: 500, color: '#101828' }}>
-                  {LEVEL_META[level].label}
-                </span>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: '#667085', textAlign: 'right', textWrap: 'pretty' }}>
-                  {LEVEL_META[level].examples}
-                </span>
+              <span key={level} className="rel-org-level-row">
+                <span className="rel-org-level-label">{LEVEL_META[level].label}</span>
+                <span className="rel-org-level-examples">{LEVEL_META[level].examples}</span>
               </span>
             ))}
           </div>
         </div>
 
-        <div style={{ marginTop: 18 }}>
+        <div className="rel-org-settings-block--tight">
           <Eyebrow>Roster quality</Eyebrow>
-          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          <div className="rel-org-quality-row">
             {model.isLoading ? (
-              <span style={{ display: 'block', width: 220 }}>
+              <span className="rel-org-quality-skeleton">
                 <PfSkeleton />
               </span>
             ) : (
@@ -527,7 +403,7 @@ function SettingField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <Eyebrow>{label}</Eyebrow>
-      <div style={{ marginTop: 3, fontSize: 14, color: '#101828' }}>{value}</div>
+      <div className="rel-org-field-value">{value}</div>
     </div>
   );
 }

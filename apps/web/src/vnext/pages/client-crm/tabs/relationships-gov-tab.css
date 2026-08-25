@@ -1,0 +1,280 @@
+/* Relationships / Government sub-tab (RelationshipsGovTab.tsx, mounted as
+   ClientCrmGovernmentProto). Design-system reconciliation pass: colors route
+   through the shared `--capiro-*` tokens (foundations/tokens.css) instead of
+   a private hex palette. Scoped under `.cap-pf`, same convention as
+   portfolio-proto.css. */
+
+.cap-pf .rel-gov-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-06);
+}
+
+.cap-pf .rel-gov-spacer {
+  flex: 1;
+}
+
+/* ── current targets panel (tinted section) ───────────────────────────── */
+
+.cap-pf .rel-gov-panel {
+  background: var(--capiro-color-bg-surface-2);
+  border-radius: var(--capiro-radius-widget);
+  border: 1px solid var(--capiro-color-border-divider);
+  padding: 20px 20px 22px;
+}
+
+.cap-pf .rel-gov-panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--capiro-space-03);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.cap-pf .rel-gov-panel-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+}
+
+.cap-pf .rel-gov-panel-empty {
+  padding: 18px 4px 6px;
+}
+
+.cap-pf .rel-gov-empty-msg {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--capiro-color-text-body-secondary);
+  text-wrap: pretty;
+}
+
+/* ── target card (shared by the real card and the design fixture card) ──── */
+
+.cap-pf .rel-gov-card {
+  background: var(--capiro-color-bg-surface);
+  border-radius: var(--capiro-radius-surface);
+  border: 1px solid var(--capiro-color-border-divider);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cap-pf .rel-gov-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--capiro-space-03);
+}
+
+/* The inner name/role link — shared bones with the fixture's non-interactive
+   mini card; only `--interactive` gets the hover treatment. */
+.cap-pf .rel-gov-card-link {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--capiro-radius-control);
+  text-align: left;
+  background: transparent;
+  border: 1px solid var(--capiro-color-border-divider);
+}
+.cap-pf .rel-gov-card-link--interactive:hover {
+  background: var(--capiro-color-bg-surface-2);
+  border-color: var(--capiro-color-border-control);
+}
+
+.cap-pf .rel-gov-card-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.cap-pf .rel-gov-card-name {
+  display: block;
+  margin-top: 3px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cap-pf .rel-gov-card-role {
+  display: block;
+  font-size: 13px;
+  color: var(--capiro-color-text-body-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cap-pf .rel-gov-card-submeta {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+}
+
+.cap-pf .rel-gov-card-tier {
+  flex: 0 0 auto;
+}
+
+.cap-pf .rel-gov-card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--capiro-color-border-divider);
+}
+
+.cap-pf .rel-gov-field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--capiro-space-03);
+}
+
+.cap-pf .rel-gov-field-label {
+  flex: 0 0 auto;
+  width: 112px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+.cap-pf .rel-gov-field-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+  text-wrap: pretty;
+}
+
+/* ── target recommendations rail ──────────────────────────────────────── */
+
+.cap-pf .rel-gov-updated {
+  padding: 0 24px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--capiro-color-text-muted);
+}
+
+.cap-pf .rel-gov-updated-sep {
+  color: var(--capiro-color-text-faint);
+}
+
+.cap-pf .rel-gov-recs-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--capiro-space-03);
+  padding: 8px 24px 24px;
+}
+
+.cap-pf .rel-gov-recs-loading-row {
+  display: flex;
+  gap: var(--capiro-space-03);
+  align-items: center;
+}
+
+.cap-pf .rel-gov-recs-loading-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cap-pf .rel-gov-sugg-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--capiro-space-03);
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--capiro-color-border-divider);
+}
+.cap-pf .rel-gov-sugg-row--first {
+  border-top: 1px solid var(--capiro-color-border-divider);
+}
+
+.cap-pf .rel-gov-sugg-rank {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--capiro-radius-control);
+  background: var(--capiro-color-bg-subtle);
+  color: var(--capiro-color-text-body-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.cap-pf .rel-gov-sugg-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cap-pf .rel-gov-sugg-office {
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--capiro-color-text-primary);
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cap-pf .rel-gov-sugg-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cap-pf .rel-gov-sugg-chamber {
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+}
+
+.cap-pf .rel-gov-sugg-committee {
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.cap-pf .rel-gov-sugg-stats {
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+}
+
+.cap-pf .rel-gov-sugg-action {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.cap-pf .rel-gov-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 24px 16px;
+}
