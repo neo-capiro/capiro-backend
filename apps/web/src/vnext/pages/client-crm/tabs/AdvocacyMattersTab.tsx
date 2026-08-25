@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isTenantAdmin } from '@capiro/shared';
 import {
@@ -20,6 +20,7 @@ import { useMe } from '../../../../lib/me.js';
 import { CapiroDrawer, CapiroModal } from '../../../components/overlays/index.js';
 import { CapiroBadge } from '../../../components/badges/index.js';
 import type { Client } from '../../../../pages/clients/clientTypes.js';
+import './advocacy-matters-tab.css';
 
 /**
  * Advocacy Matters — Relationships / Matters sub-tab.
@@ -158,12 +159,11 @@ const MATTER_STATUS_OPTIONS = [
 const OUTCOME_CLAIM_STATUSES = new Set(['successful', 'partially_successful', 'unsuccessful']);
 
 /** Shared text-input styling for the correction-UX forms below (create/edit
- *  Matter, merge, record actions) — this file's only forms, so a local
- *  constant beats repeating the same object literal eight times. */
-const FIELD_STYLE: CSSProperties = { padding: '8px 10px', borderRadius: 8, border: '1px solid #D0D5DD', fontSize: 14 };
-const TEXTAREA_STYLE: CSSProperties = { ...FIELD_STYLE, resize: 'vertical' };
-const FIELD_LABEL_STYLE: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: '#475467' };
-const FORM_STYLE: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 14, padding: 4 };
+ *  Matter, merge, record actions) — this file's only forms. Previously a
+ *  local CSSProperties constant repeated via `style={FIELD_STYLE}`; now the
+ *  real classes `.capiro-advocacy-field` / `.capiro-advocacy-textarea` /
+ *  `.capiro-advocacy-field-label` / `.capiro-advocacy-form`
+ *  (advocacy-matters-tab.css) backed by --capiro-* tokens. */
 
 const STATUS_TONE: Record<string, PillTone> = {
   planning: 'gray',
@@ -321,8 +321,46 @@ export function ClientCrmAdvocacyMattersProto({
   }, [rows, query, statusFilter]);
   const nothingMatchesFilters = !genuinelyEmpty && !failed && !loading && rows.length > 0 && shown.length === 0;
 
+  // Client Record v3: "Advocacy history — asks and outcomes, recorded
+  // against the capability they support; 21px KPI figures." This tab had
+  // no aggregate stat display before — every figure here is derived
+  // straight from `rows` (the same AdvocacyMatterSummary[] the Matters
+  // list and CardFoot's own count already render from), unfiltered by the
+  // search/status controls — matching CardFoot's existing
+  // rows.length-not-shown.length convention below, not a second or
+  // fabricated source:
+  //  - matterCount: rows.length — one ask per Matter (this file's own
+  //    grouping model, see the doc comment above).
+  //  - recordCount: sum of each Matter's recordCount — total underlying
+  //    advocacy records (LDA filings, client submissions, private
+  //    meeting/email evidence) captured across all Matters.
+  //  - withOutcome: count of Matters whose outcomeCount > 0 — the same
+  //    field MatterRow already surfaces per-row ("N with observed
+  //    outcome"), aggregated rather than reinterpreted.
+  //  - linkCount: sum of each Matter's linkCount — Program Elements,
+  //    bills, hearings and other government objects tied to these Matters.
+  // No status-derived "active"/"successful" KPI is included: mapping the
+  // full legacy+current STATUS_LABEL set into one clean bucket isn't
+  // unambiguous from the data alone, so per the "never fabricate" rule
+  // it's left out rather than approximated.
+  const kpis = useMemo(
+    () => ({
+      matterCount: rows.length,
+      recordCount: rows.reduce((sum, m) => sum + m.recordCount, 0),
+      withOutcome: rows.filter((m) => m.outcomeCount > 0).length,
+      linkCount: rows.reduce((sum, m) => sum + m.linkCount, 0),
+    }),
+    [rows],
+  );
+  const kpiCells: Array<{ key: string; label: string; value: number }> = [
+    { key: 'matters', label: 'Matters', value: kpis.matterCount },
+    { key: 'records', label: 'Records captured', value: kpis.recordCount },
+    { key: 'outcomes', label: 'With observed outcome', value: kpis.withOutcome },
+    { key: 'links', label: 'Government objects linked', value: kpis.linkCount },
+  ];
+
   return (
-    <div className="cap-pf-anim-rise" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="cap-pf-anim-rise capiro-advocacy">
       <TabPageHead
         title="Advocacy matters"
         sub="What this client has advocated for, grouped into one coherent history per ask — not a flat timeline of unrelated records."
@@ -334,6 +372,18 @@ export function ClientCrmAdvocacyMattersProto({
           ) : undefined
         }
       />
+      <Card>
+        <div className="capiro-advocacy-kpis" role="group" aria-label="Advocacy summary">
+          {kpiCells.map((kpi) => (
+            <div className="capiro-advocacy-kpi" key={kpi.key}>
+              <span className="capiro-advocacy-kpi__value">
+                {loading ? <PfSkeleton width={36} height={21} /> : failed ? '—' : kpi.value}
+              </span>
+              <span className="capiro-advocacy-kpi__label">{kpi.label}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
       <SegmentedTabs
         ariaLabel="Advocacy view"
         options={[
@@ -351,21 +401,14 @@ export function ClientCrmAdvocacyMattersProto({
           withDesc
         />
         {!loading && !failed && !genuinelyEmpty ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '0 24px 12px' }}>
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8, height: 40, padding: '0 12px', width: 280,
-                borderRadius: 8, background: '#ffffff', border: '1px solid #E0DCD4',
-                boxShadow: '0px 1px 2px rgba(16,24,40,.05)',
-              }}
-            >
-              <UIcon name="SearchLg" size={20} color="#667085" />
+          <div className="capiro-advocacy-toolbar">
+            <div className="capiro-advocacy-search">
+              <UIcon name="SearchLg" size={20} color="var(--capiro-color-text-muted)" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 aria-label="Search matters"
                 placeholder="Search title, ask, PE, or bill"
-                style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontSize: 14, color: '#101828' }}
               />
             </div>
             {statusOptions.map((s) => (
@@ -378,7 +421,7 @@ export function ClientCrmAdvocacyMattersProto({
             ))}
           </div>
         ) : null}
-        <div style={{ padding: '2px 24px 8px' }}>
+        <div className="capiro-advocacy-list-body">
           {failed ? (
             <PfEmptyState
               title="Couldn't load advocacy matters"
@@ -397,11 +440,10 @@ export function ClientCrmAdvocacyMattersProto({
               hint="Try a different term, or clear the status filter."
             />
           ) : (
-            shown.map((matter, i) => (
+            shown.map((matter) => (
               <MatterRow
                 key={matter.id}
                 matter={matter}
-                last={i === shown.length - 1}
                 onOpen={() => setOpenMatterId(matter.id)}
               />
             ))
@@ -465,28 +507,28 @@ function CreateMatterForm({
   const [matterType, setMatterType] = useState('other');
   return (
     <form
-      style={FORM_STYLE}
+      className="capiro-advocacy-form"
       onSubmit={(e) => {
         e.preventDefault();
         if (title.trim()) onSubmit({ title: title.trim(), matterType });
       }}
     >
-      <label style={FIELD_LABEL_STYLE}>
+      <label className="capiro-advocacy-field-label">
         Title
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. FY27 Ground Robotics Funding"
-          style={FIELD_STYLE}
+          className="capiro-advocacy-field"
           autoFocus
         />
       </label>
-      <label style={FIELD_LABEL_STYLE}>
+      <label className="capiro-advocacy-field-label">
         Type
         <select
           value={matterType}
           onChange={(e) => setMatterType(e.target.value)}
-          style={FIELD_STYLE}
+          className="capiro-advocacy-field"
         >
           {MATTER_TYPE_OPTIONS.map((t) => (
             <option key={t} value={t}>
@@ -495,8 +537,8 @@ function CreateMatterForm({
           ))}
         </select>
       </label>
-      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+      {error ? <span className="capiro-advocacy-form-error">{error}</span> : null}
+      <div className="capiro-advocacy-form-actions capiro-advocacy-form-actions--spaced">
         <PfButton variant="secondary" size="sm" onClick={onCancel}>
           Cancel
         </PfButton>
@@ -510,16 +552,8 @@ function CreateMatterForm({
 
 function MatterSkeletonRow({ last }: { last: boolean }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 16,
-        padding: '16px 0',
-        borderBottom: last ? 'none' : '1px solid #F2F0EB',
-      }}
-    >
-      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div className={`capiro-advocacy-skel-row${last ? ' is-last' : ''}`}>
+      <span className="capiro-advocacy-skel-row__main">
         <PfSkeleton width="55%" height={15} />
         <PfSkeleton width="35%" height={12} />
       </span>
@@ -531,28 +565,16 @@ function MatterSkeletonRow({ last }: { last: boolean }) {
 /** §24 filter chip, matching RelationshipsHistoryTab's exact visual
  *  pattern in this same client-crm surface (a private component there,
  *  not exported — reimplemented here rather than reaching across files
- *  for a one-off styled button). */
+ *  for a one-off styled button). Hover is now plain CSS (:hover in
+ *  advocacy-matters-tab.css) rather than a JS-tracked boolean — same
+ *  visible behavior, one fewer state variable. */
 function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  const [hover, setHover] = useState(false);
   return (
     <button
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        height: 32,
-        padding: '0 12px',
-        borderRadius: 8,
-        background: active ? '#F2F0EB' : hover ? '#FAF9F6' : 'transparent',
-        border: active ? '1px solid #E0DCD4' : '1px solid transparent',
-        color: active ? '#101828' : '#667085',
-        fontSize: 13,
-        fontWeight: active ? 600 : 500,
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-      }}
+      className={`capiro-advocacy-chip${active ? ' is-active' : ''}`}
     >
       {label}
     </button>
@@ -584,7 +606,7 @@ function TimelineCard({
         description="Every advocacy record and linked activity for this client, across all Matters, in chronological order."
         withDesc
       />
-      <div style={{ padding: '2px 24px 8px' }}>
+      <div className="capiro-advocacy-list-body">
         {failed ? (
           <PfEmptyState
             title="Couldn't load the timeline"
@@ -625,15 +647,10 @@ function TimelineRow({
   onOpenMatter: (() => void) | undefined;
 }) {
   return (
-    <div
-      style={{
-        display: 'flex', alignItems: 'flex-start', gap: 16, padding: '16px 0',
-        borderBottom: last ? 'none' : '1px solid #F2F0EB',
-      }}
-    >
-      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span style={{ fontSize: 14, fontWeight: 500, color: '#101828' }}>{entry.title}</span>
-        <span style={{ fontSize: 12, color: '#667085' }}>
+    <div className={`capiro-advocacy-timeline-row${last ? ' is-last' : ''}`}>
+      <span className="capiro-advocacy-timeline-row__main">
+        <span className="capiro-advocacy-timeline-row__title">{entry.title}</span>
+        <span className="capiro-advocacy-timeline-row__meta">
           {TIMELINE_SUBTYPE_LABEL[entry.subtype] ?? entry.subtype}
           {entry.date ? ` · ${formatDateShort(entry.date)}` : ' · Undated'}
           {entry.evidenceClass ? ` · ${EVIDENCE_LABEL[entry.evidenceClass] ?? entry.evidenceClass}` : ''}
@@ -643,7 +660,7 @@ function TimelineRow({
             {entry.matterTitle ?? 'View matter'}
           </PfButton>
         ) : (
-          <span style={{ fontSize: 12, color: '#98A2B3' }}>Unassigned</span>
+          <span className="capiro-advocacy-timeline-row__unassigned">Unassigned</span>
         )}
       </span>
       {entry.confidence != null && entry.confidence < 1 ? (
@@ -655,46 +672,26 @@ function TimelineRow({
 
 function MatterRow({
   matter,
-  last,
   onOpen,
 }: {
   matter: AdvocacyMatterSummary;
-  last: boolean;
   onOpen: () => void;
 }) {
   const tone = STATUS_TONE[matter.status] ?? 'gray';
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 16,
-        width: '100%',
-        padding: '14px 0',
-        borderTop: '1px solid #F2F0EB',
-        borderBottom: last ? 'none' : undefined,
-        background: 'transparent',
-        border: 'none',
-        borderTopStyle: 'solid',
-        cursor: 'pointer',
-        textAlign: 'left',
-        font: 'inherit',
-      }}
-    >
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ display: 'block', fontSize: 15, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>
+    <button type="button" onClick={onOpen} className="capiro-advocacy-matter-row">
+      <span className="capiro-advocacy-matter-row__main">
+        <span className="capiro-advocacy-matter-row__title-line">
+          <span className="capiro-advocacy-matter-row__title">
             {matter.title}
           </span>
           {matter.autoGenerated ? (
-            <span title="Meri grouped this Matter automatically" style={{ fontSize: 11, color: '#98A2B3' }}>
+            <span title="Meri grouped this Matter automatically" className="capiro-advocacy-matter-row__auto-badge">
               · Auto
             </span>
           ) : null}
         </span>
-        <span style={{ display: 'block', marginTop: 3, fontSize: 13, color: '#667085' }}>
+        <span className="capiro-advocacy-matter-row__meta">
           {MATTER_TYPE_LABEL[matter.matterType] ?? matter.matterType}
           {matter.lastActivityAt ? ` · Last activity ${formatDateShort(matter.lastActivityAt)}` : ''}
           {' · '}
@@ -702,7 +699,7 @@ function MatterRow({
           {matter.outcomeCount > 0 ? ` · ${matter.outcomeCount} with observed outcome` : ''}
         </span>
       </span>
-      <span style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+      <span className="capiro-advocacy-matter-row__status">
         <Pill tone={tone}>{STATUS_LABEL[matter.status] ?? matter.status}</Pill>
       </span>
     </button>
@@ -810,14 +807,14 @@ function AdvocacyMatterDrawer({
   return (
     <CapiroDrawer open onClose={onClose} title={detail.data?.title ?? 'Advocacy matter'}>
       {!detail.data ? (
-        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="capiro-advocacy-drawer-loading">
           <PfSkeleton width="60%" height={16} />
           <PfSkeleton width="40%" height={13} />
           <PfSkeleton width="100%" height={80} />
         </div>
       ) : (
-        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="capiro-advocacy-drawer-body">
+          <div className="capiro-advocacy-drawer-badges">
             <CapiroBadge tone="neutral">{MATTER_TYPE_LABEL[detail.data.matterType] ?? detail.data.matterType}</CapiroBadge>
             <CapiroBadge tone={detail.data.status === 'successful' ? 'success' : 'info'}>
               {STATUS_LABEL[detail.data.status] ?? detail.data.status}
@@ -830,7 +827,7 @@ function AdvocacyMatterDrawer({
               <CapiroBadge tone="neutral">Manually created</CapiroBadge>
             )}
             {isAdmin ? (
-              <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+              <span className="capiro-advocacy-drawer-actions">
                 <PfButton variant="link" size="sm" onClick={() => setEditing(true)}>
                   Edit
                 </PfButton>
@@ -841,30 +838,30 @@ function AdvocacyMatterDrawer({
             ) : null}
           </div>
           {detail.data.summary ? (
-            <p style={{ margin: 0, fontSize: 14, color: '#475467', textWrap: 'pretty' }}>{detail.data.summary}</p>
+            <p className="capiro-advocacy-summary">{detail.data.summary}</p>
           ) : null}
           {OUTCOME_CLAIM_STATUSES.has(detail.data.status) ? (
-            <p style={{ margin: 0, fontSize: 12, color: '#667085', fontStyle: 'italic' }}>
+            <p className="capiro-advocacy-outcome-disclaimer">
               This outcome status reflects a human-confirmed determination, not an automatic conclusion — Capiro does
               not claim causation between advocacy activity and government action.
             </p>
           ) : null}
 
           <section>
-            <h4 style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', margin: '0 0 10px' }}>
+            <h4 className="capiro-advocacy-section-title">
               Lifecycle
             </h4>
             <LifecycleView events={lifecycleEvents} />
           </section>
 
           <section>
-            <h4 style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', margin: '0 0 10px' }}>
+            <h4 className="capiro-advocacy-section-title">
               Records ({detail.data.records.length})
             </h4>
             {detail.data.records.length === 0 ? (
-              <p style={{ margin: 0, fontSize: 13, color: '#98A2B3' }}>No advocacy records in this matter yet.</p>
+              <p className="capiro-advocacy-empty-note">No advocacy records in this matter yet.</p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="capiro-advocacy-records">
                 {detail.data.records.map((record) => (
                   <RecordRow
                     key={record.id}
@@ -881,16 +878,16 @@ function AdvocacyMatterDrawer({
 
           {detail.data.links.length > 0 ? (
             <section>
-              <h4 style={{ fontSize: 13, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: '#667085', margin: '0 0 10px' }}>
+              <h4 className="capiro-advocacy-section-title">
                 Related government objects ({detail.data.links.length})
               </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="capiro-advocacy-links-wrap">
                 {groupLinks(detail.data.links).map((group) => (
                   <div key={group.title}>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: '#98A2B3', margin: '0 0 4px' }}>
+                    <p className="capiro-advocacy-link-group-title">
                       {group.title} ({group.links.length})
                     </p>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <div className="capiro-advocacy-link-group-items">
                       {group.links.map((link) => (
                         <LinkRow key={link.id} link={link} />
                       ))}
@@ -985,26 +982,26 @@ function EditMatterForm({
 
   return (
     <form
-      style={FORM_STYLE}
+      className="capiro-advocacy-form"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit({ title, status, summary, confirmOutcome: requiresConfirmation ? confirmOutcome : undefined });
       }}
     >
-      <label style={FIELD_LABEL_STYLE}>
+      <label className="capiro-advocacy-field-label">
         Title
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          style={FIELD_STYLE}
+          className="capiro-advocacy-field"
         />
       </label>
-      <label style={FIELD_LABEL_STYLE}>
+      <label className="capiro-advocacy-field-label">
         Status
         <select
           value={MATTER_STATUS_OPTIONS.includes(status) ? status : ''}
           onChange={(e) => setStatus(e.target.value)}
-          style={FIELD_STYLE}
+          className="capiro-advocacy-field"
         >
           {!MATTER_STATUS_OPTIONS.includes(matter.status) ? (
             <option value={matter.status}>{STATUS_LABEL[matter.status] ?? matter.status} (legacy)</option>
@@ -1016,26 +1013,26 @@ function EditMatterForm({
           ))}
         </select>
       </label>
-      <label style={FIELD_LABEL_STYLE}>
+      <label className="capiro-advocacy-field-label">
         Summary
         <textarea
           value={summary}
           onChange={(e) => setSummary(e.target.value)}
           rows={4}
-          style={TEXTAREA_STYLE}
+          className="capiro-advocacy-textarea"
         />
       </label>
       {requiresConfirmation ? (
-        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: '#B54708' }}>
-          <input type="checkbox" checked={confirmOutcome} onChange={(e) => setConfirmOutcome(e.target.checked)} style={{ marginTop: 3 }} />
+        <label className="capiro-advocacy-confirm-warning">
+          <input type="checkbox" checked={confirmOutcome} onChange={(e) => setConfirmOutcome(e.target.checked)} />
           <span>
             This Matter has no linked outcome evidence. I confirm this outcome status by explicit human judgment, not
             an automatic conclusion.
           </span>
         </label>
       ) : null}
-      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+      {error ? <span className="capiro-advocacy-form-error">{error}</span> : null}
+      <div className="capiro-advocacy-form-actions capiro-advocacy-form-actions--spaced">
         <PfButton variant="secondary" size="sm" onClick={onCancel}>
           Cancel
         </PfButton>
@@ -1062,18 +1059,18 @@ function MergeMatterForm({
 }) {
   const [sourceMatterId, setSourceMatterId] = useState('');
   return (
-    <div style={FORM_STYLE}>
-      <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+    <div className="capiro-advocacy-form">
+      <p className="capiro-advocacy-form-hint">
         Choose the matter to merge INTO this one. Its records and links move here, and the source matter is removed.
         This cannot be undone.
       </p>
       {options.length === 0 ? (
-        <p style={{ margin: 0, fontSize: 13, color: '#98A2B3' }}>No other matters exist for this client.</p>
+        <p className="capiro-advocacy-empty-note">No other matters exist for this client.</p>
       ) : (
         <select
           value={sourceMatterId}
           onChange={(e) => setSourceMatterId(e.target.value)}
-          style={FIELD_STYLE}
+          className="capiro-advocacy-field"
         >
           <option value="">Select a matter…</option>
           {options.map((m) => (
@@ -1083,8 +1080,8 @@ function MergeMatterForm({
           ))}
         </select>
       )}
-      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+      {error ? <span className="capiro-advocacy-form-error">{error}</span> : null}
+      <div className="capiro-advocacy-form-actions">
         <PfButton variant="secondary" size="sm" onClick={onCancel}>
           Cancel
         </PfButton>
@@ -1127,21 +1124,21 @@ function RecordActionForm({
   const [reason, setReason] = useState('');
 
   return (
-    <div style={FORM_STYLE}>
-      <p style={{ margin: 0, fontSize: 13, color: '#475467', fontWeight: 500 }}>{record.title}</p>
+    <div className="capiro-advocacy-form">
+      <p className="capiro-advocacy-record-title">{record.title}</p>
       {action === 'reassign' ? (
         <>
-          <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+          <p className="capiro-advocacy-form-hint">
             Move this record to a different matter. It will be locked so a later automatic re-clustering pass does
             not move it back.
           </p>
           {matterOptions.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 13, color: '#98A2B3' }}>No other matters exist for this client.</p>
+            <p className="capiro-advocacy-empty-note">No other matters exist for this client.</p>
           ) : (
             <select
               value={targetMatterId}
               onChange={(e) => setTargetMatterId(e.target.value)}
-              style={FIELD_STYLE}
+              className="capiro-advocacy-field"
             >
               <option value="">Select a matter…</option>
               {matterOptions.map((m) => (
@@ -1153,29 +1150,29 @@ function RecordActionForm({
           )}
         </>
       ) : action === 'detach' ? (
-        <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+        <p className="capiro-advocacy-form-hint">
           This record will be removed from its matter and left unassigned. It stays visible for later manual
           reassignment and will not be auto-clustered again.
         </p>
       ) : (
         <>
-          <p style={{ margin: 0, fontSize: 13, color: '#475467' }}>
+          <p className="capiro-advocacy-form-hint">
             This marks the record as not actually advocacy activity. It will be hidden from Matters and the
             Timeline, but kept for audit — and will not reappear if Fill with Meri finds it again.
           </p>
-          <label style={FIELD_LABEL_STYLE}>
+          <label className="capiro-advocacy-field-label">
             Reason (optional)
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={2}
-              style={TEXTAREA_STYLE}
+              className="capiro-advocacy-textarea"
             />
           </label>
         </>
       )}
-      {error ? <span style={{ fontSize: 13, color: '#B42318' }}>{error}</span> : null}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+      {error ? <span className="capiro-advocacy-form-error">{error}</span> : null}
+      <div className="capiro-advocacy-form-actions">
         <PfButton variant="secondary" size="sm" onClick={onCancel}>
           Cancel
         </PfButton>
@@ -1217,38 +1214,38 @@ function RecordRow({
   onNotAdvocacy: () => void;
 }) {
   return (
-    <div style={{ padding: 12, borderRadius: 8, border: '1px solid #F2F0EB', display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ fontSize: 14, fontWeight: 500, color: '#101828', textWrap: 'pretty' }}>{record.title}</span>
-        <span style={{ display: 'flex', gap: 6, flex: '0 0 auto' }}>
+    <div className="capiro-advocacy-record">
+      <div className="capiro-advocacy-record__head">
+        <span className="capiro-advocacy-record__title">{record.title}</span>
+        <span className="capiro-advocacy-record__badges">
           {record.matterLocked ? (
-            <span title="A human corrected this record's matter assignment" style={{ fontSize: 11, color: '#98A2B3' }}>
+            <span title="A human corrected this record's matter assignment" className="capiro-advocacy-record__corrected">
               Corrected
             </span>
           ) : null}
           <CapiroBadge tone="neutral">{EVIDENCE_LABEL[record.evidenceClass] ?? record.evidenceClass}</CapiroBadge>
         </span>
       </div>
-      <span style={{ fontSize: 12, color: '#98A2B3' }}>
+      <span className="capiro-advocacy-record__meta">
         {record.activityDate ? formatDateShort(record.activityDate) : 'Undated'}
         {record.status ? ` · ${record.status}` : ''}
         {record.confidence != null && record.confidence < 1 ? ` · ${Math.round(record.confidence * 100)}% confidence` : ''}
       </span>
       {record.summary ? (
-        <span style={{ fontSize: 13, color: '#475467', textWrap: 'pretty' }}>{record.summary}</span>
+        <span className="capiro-advocacy-record__summary">{record.summary}</span>
       ) : null}
       {record.outcome ? (
-        <span style={{ fontSize: 13, color: '#12660B' }}>
+        <span className="capiro-advocacy-record__outcome">
           Outcome observed: {record.outcome} (association only — no causation claimed)
         </span>
       ) : null}
       {record.sourceUrl ? (
-        <a href={record.sourceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>
+        <a href={record.sourceUrl} target="_blank" rel="noreferrer" className="capiro-advocacy-record__source-link">
           View source
         </a>
       ) : null}
       {isAdmin ? (
-        <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+        <div className="capiro-advocacy-record__actions">
           <PfButton variant="link" size="sm" onClick={onReassign}>
             Reassign
           </PfButton>
@@ -1384,43 +1381,32 @@ function LifecycleView({ events }: { events: LifecycleEvent[] }) {
   }, [events]);
 
   return (
-    <div className="capiro-advocacy-lifecycle" style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+    <div className="capiro-advocacy-lifecycle">
       {LIFECYCLE_STAGE_ORDER.map((stage, index) => {
         const stageEvents = byStage.get(stage) ?? [];
         const hasEvents = stageEvents.length > 0;
         return (
-          <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div
-              style={{
-                minWidth: 160,
-                padding: 12,
-                borderRadius: 8,
-                border: `1px solid ${hasEvents ? '#D0D5DD' : '#F2F0EB'}`,
-                background: hasEvents ? '#FFFFFF' : '#FAFAF9',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 4,
-              }}
-            >
-              <span style={{ fontSize: 12, fontWeight: 600, color: hasEvents ? '#101828' : '#98A2B3' }}>
+          <div key={stage} className="capiro-advocacy-lifecycle__step">
+            <div className={`capiro-advocacy-lifecycle__card${hasEvents ? ' has-events' : ''}`}>
+              <span className="capiro-advocacy-lifecycle__stage-label">
                 {LIFECYCLE_STAGE_LABEL[stage]}
               </span>
               {hasEvents ? (
                 <>
-                  <span style={{ fontSize: 12, color: '#475467' }}>
+                  <span className="capiro-advocacy-lifecycle__count">
                     {stageEvents.length} event{stageEvents.length === 1 ? '' : 's'}
                   </span>
-                  <span style={{ fontSize: 11, color: '#98A2B3' }}>
+                  <span className="capiro-advocacy-lifecycle__range">
                     {formatDateShort(stageEvents[0]!.date)}
                     {stageEvents.length > 1 ? ` – ${formatDateShort(stageEvents[stageEvents.length - 1]!.date)}` : ''}
                   </span>
                 </>
               ) : (
-                <span style={{ fontSize: 11, color: '#98A2B3' }}>Not yet reached</span>
+                <span className="capiro-advocacy-lifecycle__empty">Not yet reached</span>
               )}
             </div>
             {index < LIFECYCLE_STAGE_ORDER.length - 1 ? (
-              <span aria-hidden style={{ color: '#98A2B3', fontSize: 16 }}>→</span>
+              <span aria-hidden className="capiro-advocacy-lifecycle__arrow">→</span>
             ) : null}
           </div>
         );
@@ -1449,12 +1435,12 @@ function LinkRow({ link }: { link: AdvocacyMatterLink }) {
   // was OBSERVED, never that advocacy caused it, regardless of confidence.
   const isOutcome = link.linkType === 'outcome_event';
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 0', borderBottom: '1px solid #F2F0EB' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, flexWrap: 'wrap' }}>
+    <div className="capiro-advocacy-link">
+      <div className="capiro-advocacy-link__head">
         <CapiroBadge tone="neutral">{linkTypeLabel[link.linkType] ?? link.linkType}</CapiroBadge>
-        <span style={{ color: '#475467' }}>{link.label ?? link.linkKey}</span>
+        <span className="capiro-advocacy-link__label">{link.label ?? link.linkKey}</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#98A2B3', flexWrap: 'wrap' }}>
+      <div className="capiro-advocacy-link__meta">
         {link.evidenceClass ? <span>{EVIDENCE_LABEL[link.evidenceClass] ?? link.evidenceClass}</span> : null}
         {link.confidence != null ? <span>{Math.round(link.confidence * 100)}% confidence</span> : null}
         {link.relationshipType && link.linkType !== 'strategy' ? <span>{link.relationshipType.replace(/_/g, ' ')}</span> : null}
@@ -1464,10 +1450,10 @@ function LinkRow({ link }: { link: AdvocacyMatterLink }) {
           match) — showing it makes the "why" reviewable instead of a bare
           confidence number with no explanation. */}
       {link.provenance ? (
-        <span style={{ fontSize: 12, color: '#98A2B3', fontStyle: 'italic' }}>Meri's rationale: {link.provenance}</span>
+        <span className="capiro-advocacy-link__provenance">Meri's rationale: {link.provenance}</span>
       ) : null}
       {isOutcome ? (
-        <span style={{ fontSize: 12, color: '#12660B' }}>
+        <span className="capiro-advocacy-link__outcome-note">
           Association only — Capiro has not established causation.
         </span>
       ) : null}

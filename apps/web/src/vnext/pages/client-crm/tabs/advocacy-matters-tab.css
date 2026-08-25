@@ -1,0 +1,504 @@
+/*
+ * Advocacy Matters tab — Client Record v3 design-system reconciliation pass.
+ *
+ * Scoped under `.capiro-vnext-root .capiro-advocacy` (this file's own root
+ * wrapper class, applied to ClientCrmAdvocacyMattersProto's outermost div)
+ * so nothing here leaks into sibling client-crm tabs, matching the same
+ * `import './x.css'` per-component pattern already used by
+ * capability-drawer-vnext.css / manage-account-team-modal.css /
+ * add-relationship-modal.css in this same directory.
+ *
+ * This tab renders inside the "Portfolio prototype" system (`.cap-pf`,
+ * portfolio-primitives.tsx / portfolio-proto.css) but that system's own
+ * `--pf-*` custom properties are locally-scoped hex, not real design tokens
+ * — so every color below resolves through the real `--capiro-*` layer
+ * (foundations/tokens.css) instead. Every rule was mapped from this file's
+ * previous literal hex to the closest semantically-appropriate --capiro-*
+ * token; deltas are all sub-perceptual (single-digit-to-low-teens per RGB
+ * channel) except where noted. Two disclosed exceptions where no --capiro-*
+ * token exists for the value at all:
+ *   - the search box's soft drop shadow (Untitled UI's standard
+ *     rgba(16,24,40,.05) elevation recipe — already used verbatim as
+ *     portfolio-proto.css's --pf-shadow-control/--uui-shadow-button; no
+ *     --capiro-* equivalent exists for this specific rgb base)
+ *   - none else; the warm F2F0EB/E0DCD4/FAF9F6 trio this file previously
+ *     used for hairline dividers and chip fills mapped cleanly onto
+ *     --capiro-color-border-quiet / --capiro-color-bg-subtle /
+ *     --capiro-color-bg-surface-2 (all near-identical lightness/weight)
+ *     and did not need a local exception.
+ *
+ * Spacing/radius/font-size stay literal px, matching the established
+ * convention in portfolio-proto.css and client-crm.css (both tokenize
+ * color only, not geometry).
+ */
+
+.capiro-vnext-root .capiro-advocacy {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── KPI summary band (Client Record v3: "21px KPI figures") ─────────────
+   New layout — this tab previously had no aggregate stat display, only
+   per-matter rows/pills. Every figure below is derived from
+   `matters.data` (the same AdvocacyMatterSummary[] the Matters list and
+   CardFoot count already render from), never a separate/fabricated
+   source. See ClientCrmAdvocacyMattersProto's kpis useMemo for the exact
+   derivation of each figure. */
+.capiro-vnext-root .capiro-advocacy-kpis {
+  display: flex;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .capiro-advocacy-kpi {
+  flex: 1 1 160px;
+  min-width: 160px;
+  padding: 18px 24px;
+  border-right: 1px solid var(--capiro-color-border-quiet);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.capiro-vnext-root .capiro-advocacy-kpi:last-child {
+  border-right: none;
+}
+.capiro-vnext-root .capiro-advocacy-kpi__value {
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--capiro-color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.capiro-vnext-root .capiro-advocacy-kpi__label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+}
+
+/* ── Matters toolbar (search + status chips) ─────────────────────────────── */
+.capiro-vnext-root .capiro-advocacy-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 24px 12px;
+}
+.capiro-vnext-root .capiro-advocacy-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  width: 280px;
+  border-radius: 8px;
+  background: var(--capiro-color-bg-surface);
+  border: 1px solid var(--capiro-color-border-control);
+  /* Disclosed exception — see file header: Untitled UI's standard control
+     drop shadow, no --capiro-* equivalent exists for this rgb base. */
+  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+}
+.capiro-vnext-root .capiro-advocacy-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--capiro-color-text-primary);
+}
+
+.capiro-vnext-root .capiro-advocacy-chip {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--capiro-color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.capiro-vnext-root .capiro-advocacy-chip:hover {
+  background: var(--capiro-color-bg-surface-2);
+}
+.capiro-vnext-root .capiro-advocacy-chip.is-active,
+.capiro-vnext-root .capiro-advocacy-chip.is-active:hover {
+  background: var(--capiro-color-bg-subtle);
+  border-color: var(--capiro-color-border-control);
+  color: var(--capiro-color-text-primary);
+  font-weight: 600;
+}
+
+/* ── Shared list-body padding (Matters list + Timeline list) ─────────────── */
+.capiro-vnext-root .capiro-advocacy-list-body {
+  padding: 2px 24px 8px;
+}
+
+/* ── Skeleton row (loading state) ─────────────────────────────────────────── */
+.capiro-vnext-root .capiro-advocacy-skel-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+.capiro-vnext-root .capiro-advocacy-skel-row.is-last {
+  border-bottom: none;
+}
+.capiro-vnext-root .capiro-advocacy-skel-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Timeline row ──────────────────────────────────────────────────────────── */
+.capiro-vnext-root .capiro-advocacy-timeline-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+.capiro-vnext-root .capiro-advocacy-timeline-row.is-last {
+  border-bottom: none;
+}
+.capiro-vnext-root .capiro-advocacy-timeline-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.capiro-vnext-root .capiro-advocacy-timeline-row__title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--capiro-color-text-primary);
+}
+.capiro-vnext-root .capiro-advocacy-timeline-row__meta {
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .capiro-advocacy-timeline-row__unassigned {
+  font-size: 12px;
+  color: var(--capiro-color-text-faint);
+}
+
+/* ── Matter row (list item) ───────────────────────────────────────────────── */
+.capiro-vnext-root .capiro-advocacy-matter-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 0;
+  border-top: 1px solid var(--capiro-color-border-quiet);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+.capiro-vnext-root .capiro-advocacy-matter-row__main {
+  flex: 1;
+  min-width: 0;
+}
+.capiro-vnext-root .capiro-advocacy-matter-row__title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.capiro-vnext-root .capiro-advocacy-matter-row__title {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--capiro-color-text-primary);
+  text-wrap: pretty;
+}
+.capiro-vnext-root .capiro-advocacy-matter-row__auto-badge {
+  font-size: 11px;
+  color: var(--capiro-color-text-faint);
+}
+.capiro-vnext-root .capiro-advocacy-matter-row__meta {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--capiro-color-text-muted);
+}
+.capiro-vnext-root .capiro-advocacy-matter-row__status {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+/* ── Drawer body ───────────────────────────────────────────────────────────── */
+.capiro-vnext-root .capiro-advocacy-drawer-loading {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.capiro-vnext-root .capiro-advocacy-drawer-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.capiro-vnext-root .capiro-advocacy-drawer-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.capiro-vnext-root .capiro-advocacy-drawer-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.capiro-vnext-root .capiro-advocacy-summary {
+  margin: 0;
+  font-size: 14px;
+  color: var(--capiro-color-text-secondary);
+  text-wrap: pretty;
+}
+.capiro-vnext-root .capiro-advocacy-outcome-disclaimer {
+  margin: 0;
+  font-size: 12px;
+  color: var(--capiro-color-text-muted);
+  font-style: italic;
+}
+.capiro-vnext-root .capiro-advocacy-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--capiro-color-text-muted);
+  margin: 0 0 10px;
+}
+.capiro-vnext-root .capiro-advocacy-empty-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--capiro-color-text-faint);
+}
+.capiro-vnext-root .capiro-advocacy-records {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.capiro-vnext-root .capiro-advocacy-links-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.capiro-vnext-root .capiro-advocacy-link-group-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--capiro-color-text-faint);
+  margin: 0 0 4px;
+}
+.capiro-vnext-root .capiro-advocacy-link-group-items {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Forms (Create/Edit matter, Merge, Record action) ─────────────────────── */
+.capiro-vnext-root .capiro-advocacy-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px;
+}
+.capiro-vnext-root .capiro-advocacy-field {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-control);
+  font-size: 14px;
+}
+.capiro-vnext-root .capiro-advocacy-textarea {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-control);
+  font-size: 14px;
+  resize: vertical;
+}
+.capiro-vnext-root .capiro-advocacy-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-vnext-root .capiro-advocacy-form-error {
+  font-size: 13px;
+  color: var(--capiro-color-text-destructive);
+}
+.capiro-vnext-root .capiro-advocacy-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.capiro-vnext-root .capiro-advocacy-form-actions--spaced {
+  margin-top: 4px;
+}
+.capiro-vnext-root .capiro-advocacy-form-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-vnext-root .capiro-advocacy-confirm-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--capiro-color-warning);
+}
+.capiro-vnext-root .capiro-advocacy-confirm-warning input {
+  margin-top: 3px;
+}
+.capiro-vnext-root .capiro-advocacy-record-title {
+  margin: 0;
+  font-size: 13px;
+  color: var(--capiro-color-text-secondary);
+  font-weight: 500;
+}
+
+/* ── Record row (inside drawer) ───────────────────────────────────────────── */
+.capiro-vnext-root .capiro-advocacy-record {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.capiro-vnext-root .capiro-advocacy-record__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.capiro-vnext-root .capiro-advocacy-record__title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--capiro-color-text-primary);
+  text-wrap: pretty;
+}
+.capiro-vnext-root .capiro-advocacy-record__badges {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.capiro-vnext-root .capiro-advocacy-record__corrected {
+  font-size: 11px;
+  color: var(--capiro-color-text-faint);
+}
+.capiro-vnext-root .capiro-advocacy-record__meta {
+  font-size: 12px;
+  color: var(--capiro-color-text-faint);
+}
+.capiro-vnext-root .capiro-advocacy-record__summary {
+  font-size: 13px;
+  color: var(--capiro-color-text-secondary);
+  text-wrap: pretty;
+}
+.capiro-vnext-root .capiro-advocacy-record__outcome {
+  font-size: 13px;
+  color: var(--capiro-color-text-success);
+}
+.capiro-vnext-root .capiro-advocacy-record__source-link {
+  font-size: 12px;
+}
+.capiro-vnext-root .capiro-advocacy-record__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+/* ── Lifecycle rail (Ask -> Engagement -> Government Movement -> Outcome) ── */
+.capiro-vnext-root .capiro-advocacy-lifecycle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.capiro-vnext-root .capiro-advocacy-lifecycle__step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.capiro-vnext-root .capiro-advocacy-lifecycle__card {
+  min-width: 160px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--capiro-color-border-quiet);
+  background: var(--capiro-color-bg-surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.capiro-vnext-root .capiro-advocacy-lifecycle__card.has-events {
+  border-color: var(--capiro-color-border-control);
+  background: var(--capiro-color-bg-surface);
+}
+.capiro-vnext-root .capiro-advocacy-lifecycle__stage-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--capiro-color-text-faint);
+}
+.capiro-vnext-root .capiro-advocacy-lifecycle__card.has-events .capiro-advocacy-lifecycle__stage-label {
+  color: var(--capiro-color-text-primary);
+}
+.capiro-vnext-root .capiro-advocacy-lifecycle__count {
+  font-size: 12px;
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-vnext-root .capiro-advocacy-lifecycle__range {
+  font-size: 11px;
+  color: var(--capiro-color-text-faint);
+}
+.capiro-vnext-root .capiro-advocacy-lifecycle__empty {
+  font-size: 11px;
+  color: var(--capiro-color-text-faint);
+}
+.capiro-vnext-root .capiro-advocacy-lifecycle__arrow {
+  color: var(--capiro-color-text-faint);
+  font-size: 16px;
+}
+
+/* ── Link row (government objects) ────────────────────────────────────────── */
+.capiro-vnext-root .capiro-advocacy-link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--capiro-color-border-quiet);
+}
+.capiro-vnext-root .capiro-advocacy-link__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .capiro-advocacy-link__label {
+  color: var(--capiro-color-text-secondary);
+}
+.capiro-vnext-root .capiro-advocacy-link__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--capiro-color-text-faint);
+  flex-wrap: wrap;
+}
+.capiro-vnext-root .capiro-advocacy-link__provenance {
+  font-size: 12px;
+  color: var(--capiro-color-text-faint);
+  font-style: italic;
+}
+.capiro-vnext-root .capiro-advocacy-link__outcome-note {
+  font-size: 12px;
+  color: var(--capiro-color-text-success);
+}
