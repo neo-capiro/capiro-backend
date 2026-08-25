@@ -1,4 +1,4 @@
-import { Children, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Children, useMemo, useState, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize from 'rehype-sanitize';
@@ -15,24 +15,18 @@ import { MeriMessageFeedback } from './MeriMessageFeedback.js';
 import { MeriIcon, type MeriIconName } from './meri-icons.js';
 import { formatRecordTime, MERI_LOGO_SRC, visibleMarkdown } from './meri-presentation.js';
 import { VNextMeriSourceChip } from './VNextMeriSourceChip.js';
-import {
-  MeriEvidenceTray,
-  type MeriEvidenceClaim,
-  type MeriEvidenceSource,
-  type MeriEvidenceStat,
-  type MeriWorkStep,
-} from './MeriEvidenceTray.js';
-import { evidenceContextPacket } from './meri-context-packet.js';
+import type { MeriEvidenceClaim, MeriEvidenceSource, MeriEvidenceStat } from './MeriEvidenceTray.js';
 import { MeriAttachmentChip, attachmentChipSpec } from './MeriAttachmentChip.js';
-import { MeriGroundingWarning, type MeriGroundingItem } from './MeriGroundingWarning.js';
-import { MeriCoverageWarning } from './MeriCoverageWarning.js';
 import { MeriWorkPerformed } from './MeriWorkPerformed.js';
 import { MeriResearchProgress } from './MeriResearchProgress.js';
 import { MeriMemoryCallout } from './MeriMemoryCallout.js';
-import { deleteMeriResearch, fetchMeriContextPacket } from './meri-vnext-api.js';
+import { deleteMeriResearch } from './meri-vnext-api.js';
 import { INTENT_LABELS } from '../../components/chat/work-performed-shared.js';
 import { useApi } from '../../lib/use-api.js';
 import { useCapiroToast } from '../components/feedback/toast.js';
+import type { MeriThinkingTabProps } from './MeriThinkingTab.js';
+import type { MeriEvidenceTabProps } from './MeriEvidenceTab.js';
+import type { MeriTurnInspectorData, MeriTurnInspectorTab } from './MeriTurnInspector.js';
 
 interface VNextMeriMessageProps {
   message: ChatMessage;
@@ -41,6 +35,7 @@ interface VNextMeriMessageProps {
   controller: MeriChatController;
   onOpenMemory: () => void;
   onOpenSourceDetail: (citations: MeriCitation[], index: number) => void;
+  onOpenTurnInspector: (data: MeriTurnInspectorData, tab: MeriTurnInspectorTab) => void;
 }
 
 export function VNextMeriMessage({
@@ -50,6 +45,7 @@ export function VNextMeriMessage({
   controller,
   onOpenMemory,
   onOpenSourceDetail,
+  onOpenTurnInspector,
 }: VNextMeriMessageProps) {
   if (message.role === 'user') {
     // Editing is only offered on the still-standing last user turn — editing
@@ -189,6 +185,7 @@ export function VNextMeriMessage({
       controller={controller}
       onOpenMemory={onOpenMemory}
       onOpenSourceDetail={onOpenSourceDetail}
+      onOpenTurnInspector={onOpenTurnInspector}
     />
   );
 }
@@ -200,6 +197,7 @@ function VNextMeriAssistantMessage({
   controller,
   onOpenMemory,
   onOpenSourceDetail,
+  onOpenTurnInspector,
 }: {
   message: ChatMessage;
   isLastAssistant: boolean;
@@ -207,13 +205,12 @@ function VNextMeriAssistantMessage({
   controller: MeriChatController;
   onOpenMemory: () => void;
   onOpenSourceDetail: (citations: MeriCitation[], index: number) => void;
+  onOpenTurnInspector: (data: MeriTurnInspectorData, tab: MeriTurnInspectorTab) => void;
 }) {
   const api = useApi();
   const toast = useCapiroToast();
   const [sourcesExpanded, setSourcesExpanded] = useState(false);
-  const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [deletedResearch, setDeletedResearch] = useState(false);
-  const [contextPacket, setContextPacket] = useState<Awaited<ReturnType<typeof fetchMeriContextPacket>> | null>(null);
   const [activeCitation, setActiveCitation] = useState<MeriCitation | null>(null);
   const citations = message.citations ?? [];
   const visibleCitations = sourcesExpanded ? citations : citations.slice(0, 3);
@@ -316,22 +313,6 @@ function VNextMeriAssistantMessage({
     return `AUDIT TRAIL ON · ${parts.join(' · ')}`;
   }, [citations.length, message.verification]);
 
-  useEffect(() => {
-    if (!evidenceOpen || !message.contextPacketId) return;
-    let cancelled = false;
-    setContextPacket(null);
-    void fetchMeriContextPacket(api, message.contextPacketId)
-      .then((packet) => {
-        if (!cancelled) setContextPacket(packet);
-      })
-      .catch(() => {
-        if (!cancelled) setContextPacket(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, evidenceOpen, message.contextPacketId]);
-
   const evidenceSources: MeriEvidenceSource[] = citations.map((citation) => ({
     icon: 'File05',
     provider: citation.tool.replace(/_/g, ' ').toUpperCase(),
@@ -350,16 +331,38 @@ function VNextMeriAssistantMessage({
         { label: `UNSUPPORTED · ${message.verification.unsupportedCount}`, tone: message.verification.unsupportedCount ? 'w' : 'g' },
       ]
     : [];
-  const evidenceSteps: MeriWorkStep[] = isLastAssistant
-    ? controller.trustSteps.map((step) => ({
-        state: step.status === 'error' ? 'failed' : step.status === 'running' ? 'running' : 'done',
-        title: step.label,
-        detail: step.detail ?? step.tool,
-      }))
-    : [];
-  const groundingItems: MeriGroundingItem[] = (message.groundingCaveat?.findings ?? []).map(
-    (finding) => ({ kind: finding.check.replace(/_/g, ' ').toUpperCase(), text: finding.detail }),
-  );
+
+  /**
+   * v6 turn-inspector data for this message. The live/streaming latest turn
+   * still reads controller-global state (it updates in real time before the
+   * `finally` block in useMeriChatController.ts's sendMessage persists it
+   * onto the message record); every other turn — including the latest one
+   * once streaming has actually finished — reads the per-message fields
+   * Meri v6's thinking-persistence piece added to ChatMessage. Older rows
+   * persisted before that shipped simply have these fields undefined, which
+   * MeriThinkingTab/MeriEvidenceTab already render as an honest empty state,
+   * not an error.
+   */
+  const thinkingData: MeriThinkingTabProps = {
+    plan: (isLastAssistant ? controller.planSteps : (message.planSteps ?? [])).join(' '),
+    steps: isLastAssistant ? controller.trustSteps : (message.trustSteps ?? []),
+    intent: isLastAssistant ? controller.orchestratorIntent : (message.orchestratorIntent ?? null),
+    tier: isLastAssistant ? controller.orchestratorTier : (message.orchestratorTier ?? null),
+  };
+  const hasThinkingData = thinkingData.plan.length > 0 || thinkingData.steps.length > 0 || Boolean(thinkingData.intent);
+  const evidenceTabData: MeriEvidenceTabProps = {
+    sources: evidenceSources,
+    verifyStats: evidenceStats,
+    claims: evidenceClaims,
+    groundingCaveat: message.groundingCaveat ?? null,
+    retrieval: message.retrieval ?? null,
+    onOpenSource: (_source, index) => setActiveCitation(citations[index] ?? null),
+  };
+  const openThisTurnInspector = (tab: MeriTurnInspectorTab) =>
+    onOpenTurnInspector(
+      { turnId: message.id, thinking: thinkingData, evidence: evidenceTabData, approvals: [] },
+      tab,
+    );
 
   /**
    * Skill tag (handoff §4d, e.g. `SKILL · CLIENT CHANGES`, `DEEP RESEARCH ·
@@ -382,16 +385,20 @@ function VNextMeriAssistantMessage({
    * Evidence toggle (handoff §10a) — the last control in the trust row. Shared
    * by the grounded and ungrounded strips below, which are mutually exclusive
    * branches of the same row, so this exists once rather than twice.
+   *
+   * v6: opens the rail's turn-inspector Evidence tab (which folds in what
+   * used to be the inline tray plus the separate grounding/coverage warning
+   * cards) instead of expanding an inline tray in place — so this is a
+   * one-way "open" now, not a local expand/collapse toggle.
    */
   const evidenceToggle = (
     <button
       type="button"
-      className={`vnext-meri__evidence-toggle${evidenceOpen ? ' is-open' : ''}`}
-      onClick={() => setEvidenceOpen((open) => !open)}
-      aria-expanded={evidenceOpen}
+      className="vnext-meri__evidence-toggle"
+      onClick={() => openThisTurnInspector('evidence')}
     >
-      {evidenceOpen ? 'HIDE EVIDENCE' : 'EVIDENCE'}
-      <MeriIcon name={evidenceOpen ? 'ChevronUp' : 'ChevronDown'} size={12} color="#667085" />
+      EVIDENCE
+      <MeriIcon name="ChevronRight" size={12} color="#667085" />
     </button>
   );
 
@@ -441,14 +448,11 @@ function VNextMeriAssistantMessage({
           />
         ) : null}
 
-        {groundingItems.length ? (
-          <MeriGroundingWarning
-            items={groundingItems}
-            onInspectEvidence={() => setEvidenceOpen(true)}
-          />
-        ) : null}
-
-        {message.retrieval ? <MeriCoverageWarning retrieval={message.retrieval} /> : null}
+        {/*
+          v6: the grounding-caveat and coverage-warning cards that used to
+          mount separately here are now folded into the turn inspector's
+          Evidence tab (MeriEvidenceTab) instead of duplicated inline.
+        */}
 
         {isLastAssistant && !messageIsStreaming ? (
           <MeriMemoryCallout memories={controller.learnedMemories} onOpenMemory={onOpenMemory} />
@@ -531,19 +535,12 @@ function VNextMeriAssistantMessage({
           </div>
         ) : null}
 
-        {evidenceOpen ? (
-          <MeriEvidenceTray
-            sources={evidenceSources}
-            verifyStats={evidenceStats}
-            claims={evidenceClaims}
-            plan={isLastAssistant ? controller.planSteps.join(' ') : ''}
-            workStats={isLastAssistant ? [`SOURCES · ${citations.length}`, `STEPS · ${evidenceSteps.length}`] : []}
-            steps={evidenceSteps}
-            assumptions={[]}
-            context={contextPacket ? evidenceContextPacket(contextPacket) : { degraded: 'Context provenance is loading or unavailable for this answer.', included: [], excluded: [], packet: 'CONTEXT UNAVAILABLE' }}
-            onOpenSource={(_source, index) => setActiveCitation(citations[index] ?? null)}
-          />
-        ) : null}
+        {/*
+          v6: the inline evidence tray (sources/verification/work/context
+          tabs, expanded in place via evidenceOpen) is retired from this mount
+          point — the EVIDENCE button below now opens the same content in the
+          rail's turn inspector instead.
+        */}
 
         {citations.length > 0 ? (
           <div className="vnext-meri__source-strip">
@@ -679,6 +676,23 @@ function VNextMeriAssistantMessage({
               >
                 <MeriIcon name="RefreshCcw02" size={13} color="#344054" />
                 REGENERATE
+              </button>
+            ) : null}
+            {/*
+              v6: opens the turn inspector's Thinking tab — the full plan/
+              step list this turn's subtle work-performed feed only shows a
+              trace of. Hidden when there's genuinely nothing recorded (e.g.
+              a plain answer with no tool use) rather than opening to an
+              empty tab.
+            */}
+            {hasThinkingData ? (
+              <button
+                type="button"
+                className="vnext-meri__inline-action-btn"
+                onClick={() => openThisTurnInspector('thinking')}
+              >
+                <MeriIcon name="CpuChip01" size={13} color="#344054" />
+                SHOW WORK
               </button>
             ) : null}
             {auditStamp ? (

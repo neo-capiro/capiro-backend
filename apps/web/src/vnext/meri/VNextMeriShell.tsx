@@ -10,9 +10,12 @@ import type { MeriContextSection, MeriWindowChrome } from './meri-prefs.js';
 import { VNextMeriTopBar } from './VNextMeriTopBar.js';
 import { VNextMeriThreadRail } from './VNextMeriThreadRail.js';
 import { VNextMeriConversation } from './VNextMeriConversation.js';
-import { VNextMeriContextRail } from './VNextMeriContextRail.js';
+import { VNextMeriContextRail, type ActiveTurnInspector } from './VNextMeriContextRail.js';
 import { MeriContextSheet } from './MeriContextSheet.js';
 import { MeriCommandPalette } from './MeriCommandPalette.js';
+import { MeriActionConfirm, MeriBulkActionConfirm } from './MeriActionConfirm.js';
+import type { MeriTurnInspectorData, MeriTurnInspectorTab } from './MeriTurnInspector.js';
+import type { PendingApproval } from '../../components/chat/useMeriChatController.js';
 import {
   getMeriVNextPreferences,
   saveMeriVNextPreferences,
@@ -97,6 +100,30 @@ export function VNextMeriShell({
   }>({ open: false, packet: null, loading: false, error: false });
   const threadSearchRef = useRef<HTMLInputElement>(null);
 
+  /**
+   * v6 turn inspector (Thinking/Evidence/Approvals). Plain, un-persisted
+   * client state — see the ActiveTurnInspector doc comment in
+   * VNextMeriContextRail.tsx for why this deliberately does not go through
+   * openSection/the vnext preferences endpoint. `turnInspectorData` is
+   * supplied by whichever caller opens the panel (VNextMeriMessage already
+   * computes its own per-message thinking/evidence view models for the old
+   * inline tray; this reuses that same shaping rather than recomputing it
+   * here) — Shell only owns which tab is active and the shared
+   * approve/dismiss action plumbing, since Approvals is not actually
+   * turn-scoped in the real data model (PendingApproval carries no
+   * turn/message id) and must be shared with the aggregate notice mounted
+   * once per conversation, not per message.
+   */
+  const [turnInspectorData, setTurnInspectorData] = useState<MeriTurnInspectorData | null>(null);
+  const [turnInspectorTab, setTurnInspectorTab] = useState<MeriTurnInspectorTab>('thinking');
+  // Informed-consent gate, lifted from the old per-conversation
+  // PendingApprovalsInline: a governed write only leaves the tenant after
+  // the operator confirms this exact payload in the dialog. Lives here, not
+  // in VNextMeriConversation, because both the transcript's "Review it" link
+  // and the rail's Approvals tab need to trigger the same dialog.
+  const [confirmFor, setConfirmFor] = useState<PendingApproval | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+
   const isTabletDown = useMatchesWidth('(max-width: 1179px)');
   const lastBandRef = useRef<boolean | null>(null);
   useEffect(() => {
@@ -135,6 +162,32 @@ export function VNextMeriShell({
     if (controller.activeArtifact) setRailCollapsed(false);
   }, [controller.activeArtifact]);
 
+  // A turn-inspector view pins to one turn; switching threads must not leave
+  // a stale panel referencing the previous thread's data (same reasoning as
+  // the activeSourceDetail reset above).
+  useEffect(() => {
+    setTurnInspectorData(null);
+  }, [controller.activeConversationId]);
+
+  // Drop a held confirm dialog if the server retires the proposal underneath
+  // it — moved here verbatim from the old per-conversation
+  // PendingApprovalsInline, which owned the same effect locally.
+  useEffect(() => {
+    if (!confirmFor) return;
+    const live = controller.pendingApprovals.find(
+      (proposal) => proposal.proposalId === confirmFor.proposalId,
+    );
+    if (!live) setConfirmFor(null);
+    else if (live !== confirmFor) setConfirmFor(live);
+  }, [confirmFor, controller.pendingApprovals]);
+
+  const proposedApprovals = controller.pendingApprovals.filter(
+    (proposal) => proposal.status === 'proposed',
+  );
+  useEffect(() => {
+    if (bulkOpen && proposedApprovals.length === 0) setBulkOpen(false);
+  }, [bulkOpen, proposedApprovals.length]);
+
   useEffect(() => {
     if (!preferencesHydrated) return;
     if (skipInitialPreferenceSaveRef.current) {
@@ -170,6 +223,47 @@ export function VNextMeriShell({
     setRailCollapsed(false);
     setOpenSection(section);
   };
+
+  /** Opens the turn inspector, called by VNextMeriMessage/VNextMeriConversation with the data view model for the turn being inspected. */
+  const openTurnInspector = (data: MeriTurnInspectorData, tab: MeriTurnInspectorTab) => {
+    setRailCollapsed(false);
+    setTurnInspectorData(data);
+    setTurnInspectorTab(tab);
+  };
+
+  /**
+   * Opens straight to Approvals from the transcript's aggregate "Review it"
+   * notice. Approvals are not turn-scoped in the real data (PendingApproval
+   * carries no turn/message id — see the ActiveTurnInspector doc comment),
+   * so there is no real per-turn Thinking/Evidence to show alongside them
+   * here; those tabs honestly render their own empty state if the user
+   * switches to them, rather than fabricating a turn association.
+   */
+  const openApprovalsPanel = () => {
+    openTurnInspector(
+      {
+        turnId: 'pending-approvals',
+        thinking: { plan: '', steps: [], intent: null, tier: null },
+        evidence: { sources: [], verifyStats: [], claims: [], groundingCaveat: null, retrieval: null },
+        approvals: controller.pendingApprovals,
+      },
+      'approvals',
+    );
+  };
+
+  const activeTurnInspector: ActiveTurnInspector | null = turnInspectorData
+    ? {
+        activeTab: turnInspectorTab,
+        data: { ...turnInspectorData, approvals: controller.pendingApprovals },
+        approvingProposalId: controller.approvingProposalId,
+        onApprove: (proposalId: string) => {
+          const target = controller.pendingApprovals.find((p) => p.proposalId === proposalId);
+          if (target) setConfirmFor(target);
+        },
+        onApproveAll: () => setBulkOpen(true),
+        onDismiss: (proposalId: string) => void controller.handleDismissPending(proposalId),
+      }
+    : null;
 
   if (windowChrome === 'docked') {
     return (
@@ -241,6 +335,8 @@ export function VNextMeriShell({
                 setActiveSourceDetail({ citations, index });
                 setRailCollapsed(false);
               }}
+              onOpenTurnInspector={openTurnInspector}
+              onOpenApprovals={openApprovalsPanel}
             />
 
             <VNextMeriContextRail
@@ -255,6 +351,9 @@ export function VNextMeriShell({
               onCloseSourceDetail={() => setActiveSourceDetail(null)}
               activeArtifact={controller.activeArtifact}
               onCloseArtifact={() => controller.setActiveArtifact(null)}
+              activeTurnInspector={activeTurnInspector}
+              onChangeTurnInspectorTab={setTurnInspectorTab}
+              onCloseTurnInspector={() => setTurnInspectorData(null)}
             />
           </div>
         </div>
@@ -274,6 +373,32 @@ export function VNextMeriShell({
           navigate(`/meri/t/${encodeURIComponent(conversationId)}`)
         }
         onSelectClient={(clientId) => void controller.changeSessionClient(clientId)}
+      />
+      {/*
+        Lifted from the old per-conversation PendingApprovalsInline: both the
+        transcript's aggregate "Review it" notice and the rail's Approvals
+        tab trigger these same two dialogs, so they live once here rather
+        than duplicated per caller.
+      */}
+      <MeriActionConfirm
+        proposal={confirmFor}
+        busy={Boolean(controller.approvingProposalId)}
+        onCancel={() => setConfirmFor(null)}
+        onConfirm={() => {
+          const target = confirmFor;
+          setConfirmFor(null);
+          if (target) void controller.handleApprovePending(target.proposalId);
+        }}
+      />
+      <MeriBulkActionConfirm
+        proposals={proposedApprovals}
+        open={bulkOpen}
+        busy={Boolean(controller.approvingProposalId)}
+        onCancel={() => setBulkOpen(false)}
+        onConfirm={() => {
+          setBulkOpen(false);
+          void controller.handleApproveAll();
+        }}
       />
     </ManagedMcpAppsProvider>
   );

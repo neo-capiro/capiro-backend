@@ -9,15 +9,22 @@ function readMeri(name: string): string {
 }
 
 describe('governed-action approval gate', () => {
+  // v6 turn-inspector integration moved the confirm-dialog state and the
+  // MeriActionConfirm/MeriBulkActionConfirm dialogs themselves out of
+  // VNextMeriConversation.tsx's PendingApprovalsInline and into
+  // VNextMeriShell.tsx (both the transcript's "Review it" notice and the
+  // rail's Approvals tab need to trigger the same dialogs, so they now live
+  // once at the shared parent rather than duplicated per caller) — this test
+  // moved with them, same assertions, new file.
   test('approve and approve-all open a confirmation dialog instead of executing directly', () => {
-    const source = readMeri('VNextMeriConversation.tsx');
+    const source = readMeri('VNextMeriShell.tsx');
 
-    // The inline card must not be able to execute a governed write on click.
+    // Nothing upstream of the dialogs must be able to execute a governed write on click.
     expect(source).not.toMatch(/onClick=\{\(\) => void controller\.handleApprovePending\(/);
     expect(source).not.toMatch(/onClick=\{\(\) => void controller\.handleApproveAll\(\)\}/);
 
     // It routes through the dialogs, which own the actual calls.
-    expect(source).toContain('setConfirmFor(proposal)');
+    expect(source).toContain('setConfirmFor(target)');
     expect(source).toContain('setBulkOpen(true)');
     expect(source).toContain('<MeriActionConfirm');
     expect(source).toContain('<MeriBulkActionConfirm');
@@ -53,7 +60,7 @@ describe('governed-action approval gate', () => {
   });
 
   test('a held dialog is released when the server retires the proposal', () => {
-    const source = readMeri('VNextMeriConversation.tsx');
+    const source = readMeri('VNextMeriShell.tsx');
     expect(source).toContain('if (!live) setConfirmFor(null);');
     expect(source).toContain('if (bulkOpen && proposedApprovals.length === 0) setBulkOpen(false);');
   });

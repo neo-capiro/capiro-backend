@@ -1,35 +1,19 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useCapiroToast } from '../components/feedback/toast.js';
-import type {
-  MeriChatController,
-  PendingApproval,
-} from '../../components/chat/useMeriChatController.js';
+import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { MeriIcon } from './meri-icons.js';
 import { MERI_LOGO_SRC, dayDividerLabel, localDayKey, threadKindIcon, threadScopeLabel } from './meri-presentation.js';
 import { VNextMeriMessage } from './VNextMeriMessage.js';
 import { VNextMeriComposer } from './VNextMeriComposer.js';
-import { MeriActionConfirm, MeriBulkActionConfirm } from './MeriActionConfirm.js';
+import { MeriApprovalNotice } from './MeriApprovalNotice.js';
 import { VNextMeriReasoningControl } from './VNextMeriReasoningControl.js';
 import { MeriStartWork } from './MeriStartWork.js';
+import type { MeriTurnInspectorData, MeriTurnInspectorTab } from './MeriTurnInspector.js';
 
 function greetingFor(name: string): string {
   const hour = new Date().getHours();
   const daypart = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   return name ? `${daypart}, ${name}.` : `${daypart}.`;
-}
-
-function proposalStatusLabel(status: string): string {
-  return status.replace(/_/g, ' ').toUpperCase();
-}
-
-function proposalOutcome(value: unknown): string | null {
-  if (typeof value === 'string' && value.trim()) return value;
-  if (!value || typeof value !== 'object') return null;
-  const raw = value as Record<string, unknown>;
-  for (const key of ['summary', 'message', 'detail']) {
-    if (typeof raw[key] === 'string' && raw[key].trim()) return raw[key] as string;
-  }
-  return null;
 }
 
 interface VNextMeriConversationProps {
@@ -45,6 +29,10 @@ interface VNextMeriConversationProps {
   onExpandThreadRail: () => void;
   /** Opens the rail's Source Detail view for one of a turn's citations. */
   onOpenSourceDetail: (citations: import('../../components/chat/chat-store.js').MeriCitation[], index: number) => void;
+  /** Opens the rail's v6 turn inspector, focused on one turn's data. */
+  onOpenTurnInspector: (data: MeriTurnInspectorData, tab: MeriTurnInspectorTab) => void;
+  /** Opens the turn inspector straight to Approvals (not turn-scoped — see MeriApprovalNotice). */
+  onOpenApprovals: () => void;
 }
 
 export function VNextMeriConversation({
@@ -56,6 +44,8 @@ export function VNextMeriConversation({
   threadRailCollapsed,
   onExpandThreadRail,
   onOpenSourceDetail,
+  onOpenTurnInspector,
+  onOpenApprovals,
 }: VNextMeriConversationProps) {
   const [threadMenuOpen, setThreadMenuOpen] = useState(false);
   const [pendingTitle, setPendingTitle] = useState<string | null>(null);
@@ -419,6 +409,7 @@ export function VNextMeriConversation({
                         controller={controller}
                         onOpenMemory={onOpenMemory}
                         onOpenSourceDetail={onOpenSourceDetail}
+                        onOpenTurnInspector={onOpenTurnInspector}
                       />
                     </div>
                   );
@@ -428,8 +419,17 @@ export function VNextMeriConversation({
                   <ResearchClarifyInline controller={controller} />
                 ) : null}
 
+                {/*
+                  v6: the full inline approval card (status/reason/outcome/
+                  Approve/Retry/Dismiss) moved to the rail's Approvals tab —
+                  this is now just the one-sentence notice + a link that opens
+                  it. Not turn-scoped (PendingApproval carries no turn id),
+                  so — same as the card it replaces — this stays an aggregate,
+                  once-per-conversation notice rather than something rendered
+                  per message.
+                */}
                 {controller.pendingApprovals.length > 0 && !isStreaming ? (
-                  <PendingApprovalsInline controller={controller} />
+                  <MeriApprovalNotice approvals={controller.pendingApprovals} onReview={onOpenApprovals} />
                 ) : null}
               </>
             )}
@@ -506,131 +506,6 @@ function ResearchClarifyInline({ controller }: { controller: MeriChatController 
   );
 }
 
-function PendingApprovalsInline({ controller }: { controller: MeriChatController }) {
-  const proposedCount = controller.pendingApprovals.filter(
-    (proposal) => proposal.status === 'proposed',
-  ).length;
-  const actionBusy = Boolean(controller.approvingProposalId);
-  // Informed-consent gate: a governed write only leaves the tenant after the
-  // operator confirms this exact payload in the dialog.
-  const [confirmFor, setConfirmFor] = useState<PendingApproval | null>(null);
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const proposedApprovals = controller.pendingApprovals.filter(
-    (proposal) => proposal.status === 'proposed',
-  );
-
-  // Drop a held dialog if the server retires the proposal underneath it.
-  useEffect(() => {
-    if (!confirmFor) return;
-    const live = controller.pendingApprovals.find(
-      (proposal) => proposal.proposalId === confirmFor.proposalId,
-    );
-    if (!live) setConfirmFor(null);
-    else if (live !== confirmFor) setConfirmFor(live);
-  }, [confirmFor, controller.pendingApprovals]);
-
-  useEffect(() => {
-    if (bulkOpen && proposedApprovals.length === 0) setBulkOpen(false);
-  }, [bulkOpen, proposedApprovals.length]);
-
-  return (
-    <div className="vnext-meri__pending-approvals">
-      <div className="vnext-meri__pending-approvals-banner">
-        <span className="vnext-meri__pending-approvals-banner-icon">
-          <MeriIcon name="Lock01" size={13} color="#ffffff" />
-        </span>
-        <span className="vnext-meri__pending-approvals-banner-body">
-          <span className="vnext-meri__pending-approvals-banner-title">
-            Your approval is required before Meri executes a governed action.
-          </span>
-          <span className="vnext-meri__pending-approvals-banner-caption">
-            REVIEW THE ACTION, SCOPE, AND RISK. MERI WILL NOT EXECUTE A HELD WRITE WITHOUT YOUR
-            EXPLICIT APPROVAL.
-          </span>
-        </span>
-      </div>
-      {controller.pendingApprovals.map((proposal) => {
-        const canApprove = proposal.status === 'proposed' || proposal.status === 'failed_retryable';
-        const canDismiss = proposal.status === 'proposed' || proposal.status === 'failed_retryable';
-        const outcome = proposalOutcome(proposal.resultSummary) || proposal.error?.message || null;
-        const active = controller.approvingProposalId === proposal.proposalId;
-        return (
-          <div key={proposal.proposalId} className="vnext-meri__pending-approval-card">
-            <div className="vnext-meri__pending-approval-status">
-              {proposalStatusLabel(proposal.status)} · {proposal.preview.label.toUpperCase()}
-            </div>
-            <div className="vnext-meri__pending-approval-reason">{proposal.reason}</div>
-            {outcome ? (
-              <div className="vnext-meri__attachment-notice" style={{ marginTop: 10 }}>
-                {outcome}
-              </div>
-            ) : null}
-            {canApprove || canDismiss ? (
-              <div className="vnext-meri__pending-approval-actions">
-                {canApprove ? (
-                  <button
-                    type="button"
-                    className="vnext-meri__rail-action-btn"
-                    style={{ marginTop: 0 }}
-                    disabled={actionBusy}
-                    onClick={() => setConfirmFor(proposal)}
-                  >
-                    {active
-                      ? proposal.status === 'failed_retryable'
-                        ? 'Retrying…'
-                        : 'Approving…'
-                      : proposal.status === 'failed_retryable'
-                        ? 'Retry'
-                        : 'Approve'}
-                  </button>
-                ) : null}
-                {canDismiss ? (
-                  <button
-                    type="button"
-                    className="vnext-meri__protip-trigger"
-                    style={{ height: 34, padding: '0 13px' }}
-                    disabled={actionBusy}
-                    onClick={() => void controller.handleDismissPending(proposal.proposalId)}
-                  >
-                    Dismiss
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        );
-      })}
-      {proposedCount > 1 ? (
-        <button
-          type="button"
-          className="vnext-meri__rail-action-btn"
-          disabled={actionBusy}
-          onClick={() => setBulkOpen(true)}
-        >
-          Approve all proposed actions
-        </button>
-      ) : null}
-
-      <MeriActionConfirm
-        proposal={confirmFor}
-        busy={actionBusy}
-        onCancel={() => setConfirmFor(null)}
-        onConfirm={() => {
-          const target = confirmFor;
-          setConfirmFor(null);
-          if (target) void controller.handleApprovePending(target.proposalId);
-        }}
-      />
-      <MeriBulkActionConfirm
-        proposals={proposedApprovals}
-        open={bulkOpen}
-        busy={actionBusy}
-        onCancel={() => setBulkOpen(false)}
-        onConfirm={() => {
-          setBulkOpen(false);
-          void controller.handleApproveAll();
-        }}
-      />
-    </div>
-  );
-}
+// PendingApprovalsInline (the full inline card + its own confirm-dialog
+// state) moved to VNextMeriShell.tsx + MeriApprovalNotice/MeriApprovalsTab
+// as part of the v6 turn-inspector panel — see the mount point above.
