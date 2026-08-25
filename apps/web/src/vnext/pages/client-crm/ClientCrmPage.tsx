@@ -344,26 +344,28 @@ function ClientCrmDrawerBody({
   route: { tab: CrmSurface; view: CrmView | null };
   onNavigate: (tab: CrmSurface, view?: CrmView | null) => void;
 }) {
-  if (route.tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} />;
-  if (route.tab === 'work') return <ClientCrmWorkProto client={client} />;
-  if (route.tab === 'files') return <ClientCrmFilesProto client={client} />;
+  if (route.tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} drawer />;
+  if (route.tab === 'work') return <ClientCrmWorkProto client={client} drawer />;
+  if (route.tab === 'files') return <ClientCrmFilesProto client={client} drawer />;
 
   const relationshipViews = RELATIONSHIP_VIEW_LABELS.filter(
     (item) => item.key === 'organization' || item.key === 'government',
   );
   const relView: RelationshipView = route.view === 'government' ? 'government' : 'organization';
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <SegmentedTabs
-        ariaLabel="Relationships view"
-        options={relationshipViews}
-        value={relView}
-        onChange={(value) => onNavigate('relationships', value as RelationshipView)}
-      />
+    <div className="cap-pf-record-drawer__relationships">
+      <div className="cap-pf-record-drawer__tabs">
+        <SegmentedTabs
+          ariaLabel="Relationships view"
+          options={relationshipViews}
+          value={relView}
+          onChange={(value) => onNavigate('relationships', value as RelationshipView)}
+        />
+      </div>
       {relView === 'government' ? (
-        <ClientCrmGovernmentProto client={client} />
+        <ClientCrmGovernmentProto client={client} drawer />
       ) : (
-        <ClientCrmOrganizationProto client={client} />
+        <ClientCrmOrganizationProto client={client} drawer />
       )}
     </div>
   );

@@ -54,12 +54,14 @@ import './capabilities-tab.css';
  * keywords, and documents — all of which need an id — are one step away.
  */
 
-export function ClientCrmCapabilitiesProto({ client }: { client: Client }) {
+export function ClientCrmCapabilitiesProto({ client, drawer = false }: { client: Client; drawer?: boolean }) {
   const api = useApi();
   const qc = useQueryClient();
   const [editing, setEditing] = useState<Capability | null>(null);
   const [creating, setCreating] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Capability | null>(null);
+  const [drawerPage, setDrawerPage] = useState(0);
+  const [registrationsOpen, setRegistrationsOpen] = useState(false);
 
   const capabilities = useQuery<Capability[]>({
     // Same key the canonical profile uses, so both surfaces share one cache.
@@ -80,9 +82,100 @@ export function ClientCrmCapabilitiesProto({ client }: { client: Client }) {
 
   const live = capabilities.data ?? [];
   const areas: CapabilityAreaView[] = live.map((cap) => toLiveAreaView(cap));
+  const drawerPageCount = Math.max(1, Math.ceil(areas.length / 3));
+  const safeDrawerPage = Math.min(drawerPage, drawerPageCount - 1);
+  const drawerAreas = areas.slice(safeDrawerPage * 3, safeDrawerPage * 3 + 3);
 
   return (
-    <div className="cap-pf-anim-rise cap-pf-caps">
+    <div className={`cap-pf-anim-rise cap-pf-caps${drawer ? ' cap-pf-caps--drawer' : ''}`}>
+      {drawer ? (
+        <>
+          <div className="cap-pf-caps-drawer__toolbar">
+            <span>Capability areas</span>
+            <button type="button" onClick={() => setCreating(true)}>Add capability</button>
+            {areas.length > 0 ? (
+              <span className="cap-pf-caps-drawer__range">
+                {safeDrawerPage * 3 + 1}–{Math.min(areas.length, safeDrawerPage * 3 + 3)} of {areas.length}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className="cap-pf-caps-drawer__arrow"
+              aria-label="Previous capability"
+              disabled={safeDrawerPage === 0}
+              onClick={() => setDrawerPage((page) => Math.max(0, page - 1))}
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className="cap-pf-caps-drawer__arrow"
+              aria-label="Next capability"
+              disabled={safeDrawerPage >= drawerPageCount - 1}
+              onClick={() => setDrawerPage((page) => Math.min(drawerPageCount - 1, page + 1))}
+            >
+              ›
+            </button>
+          </div>
+          {capabilities.isLoading ? (
+            <div className="cap-pf-caps-drawer__state" aria-busy="true">Loading capability areas…</div>
+          ) : capabilities.isError ? (
+            <div className="cap-pf-caps-drawer__state cap-pf-caps-drawer__state--error">
+              Capability areas could not be loaded.
+              <button type="button" onClick={() => void capabilities.refetch()}>Retry</button>
+            </div>
+          ) : drawerAreas.length === 0 ? (
+            <div className="cap-pf-caps-drawer__state">
+              <span>No capability areas recorded yet.</span>
+              <button type="button" onClick={() => setCreating(true)}>Add capability</button>
+            </div>
+          ) : (
+            <div className="cap-pf-caps-drawer__cards">
+              {drawerAreas.map((area) => (
+                <button
+                  key={area.key}
+                  type="button"
+                  disabled={!area.capability}
+                  className="cap-pf-caps-drawer__card"
+                  onClick={() => area.capability && setEditing(area.capability)}
+                >
+                  <span className="cap-pf-caps-drawer__icon" aria-hidden>▦</span>
+                  <span className="cap-pf-caps-drawer__copy">
+                    <strong>{area.name}</strong>
+                    <small>{area.body}</small>
+                  </span>
+                  <span className="cap-pf-caps-drawer__meta">
+                    <Pill tone={area.tone}>{area.maturity}</Pill>
+                    <small>{area.pe === 'Not yet mapped' ? 'No program line mapped' : area.pe}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="cap-pf-caps-drawer__card-footer">
+            <span className="cap-pf-caps-drawer__pages" aria-label={`Capability page ${safeDrawerPage + 1} of ${drawerPageCount}`}>
+              {Array.from({ length: drawerPageCount }, (_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  aria-label={`Capability page ${index + 1}`}
+                  aria-current={index === safeDrawerPage ? 'page' : undefined}
+                  onClick={() => setDrawerPage(index)}
+                />
+              ))}
+            </span>
+            <button type="button" className="cap-pf-caps-drawer__registrations" onClick={() => setRegistrationsOpen(true)}>
+              Registrations &amp; codes
+            </button>
+          </div>
+          <CapabilityFitCard client={client} onAddCapability={() => setCreating(true)} drawer />
+          <div className="cap-pf-caps-drawer__past">
+            <span>Past performance</span>
+            <small>Available in Intelligence · Federal footprint</small>
+          </div>
+        </>
+      ) : (
+        <>
       <TabPageHead
         title="Capabilities"
         sub="What the client actually does, how it is registered to sell, and what it has delivered. This record drives every legislative, funding, and district match in Capiro."
@@ -104,6 +197,12 @@ export function ClientCrmCapabilitiesProto({ client }: { client: Client }) {
         <RegistrationsCard client={client} />
         <CapabilityFitCard client={client} onAddCapability={() => setCreating(true)} />
       </div>
+        </>
+      )}
+
+      <CapiroModal open={registrationsOpen} title="Registrations & codes" onClose={() => setRegistrationsOpen(false)}>
+        <RegistrationsCard client={client} />
+      </CapiroModal>
 
       {/* The canonical editor is an in-flow side panel on the legacy profile.
           In vNext that made a clicked capability look as if it had been appended
@@ -433,7 +532,15 @@ type CapabilityFitResult = {
   sources: { pe: boolean; bill: boolean; fo: boolean };
 };
 
-function CapabilityFitCard({ client, onAddCapability }: { client: Client; onAddCapability: () => void }) {
+function CapabilityFitCard({
+  client,
+  onAddCapability,
+  drawer = false,
+}: {
+  client: Client;
+  onAddCapability: () => void;
+  drawer?: boolean;
+}) {
   const api = useApi();
   const qc = useQueryClient();
   const fitQ = useQuery<CapabilityFitResult>({
@@ -456,6 +563,36 @@ function CapabilityFitCard({ client, onAddCapability }: { client: Client; onAddC
       {refreshing ? 'Refreshing…' : 'Refresh'}
     </SecondaryBtn>
   );
+
+  if (drawer) {
+    return (
+      <section className="cap-pf-caps-drawer__fit">
+        <span className="cap-pf-caps-drawer__fit-icon" aria-hidden>!</span>
+        <span className="cap-pf-caps-drawer__fit-copy">
+          <small>Where capabilities create fit</small>
+          {loading ? (
+            <strong>Checking fit matches…</strong>
+          ) : matches.length > 0 ? (
+            <>
+              <strong>{matches.length} fit match{matches.length === 1 ? '' : 'es'} available</strong>
+              <span>{matches.slice(0, 3).map((match) => match.target).join(' · ')}</span>
+            </>
+          ) : result?.status === 'profile_too_thin' ? (
+            <>
+              <strong>No fit matches yet</strong>
+              <span>{result.emptyReason ?? 'Add more capability detail before matching.'}</span>
+            </>
+          ) : (
+            <>
+              <strong>No fit matches yet</strong>
+              <span>{result?.emptyReason ?? 'Capability-to-program matching has not been computed yet.'}</span>
+            </>
+          )}
+        </span>
+        {!loading ? <span className="cap-pf-caps-drawer__fit-action">{refreshButton}</span> : null}
+      </section>
+    );
+  }
 
   return (
     <Card>

@@ -33,6 +33,94 @@
   --pf-success-dot: #12B76A;
 }
 
+/* Client-record drawer: the standalone prototype uses a compact strategy
+   table here, not the full-page portfolio dashboard above. */
+.cap-pf-work-drawer { min-width: 0; background: #fff; }
+.cap-pf-work-drawer__scroll { overflow-x: auto; }
+.cap-pf-work-drawer__table { min-width: 660px; }
+.cap-pf-work-drawer__head,
+.cap-pf-work-drawer__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px 58px 84px 104px;
+  align-items: center;
+  gap: 14px;
+}
+.cap-pf-work-drawer__head {
+  padding: 10px 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e4e7ec;
+  color: #667085;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.cap-pf-work-drawer__head > :nth-child(n+3) { text-align: right; }
+.cap-pf-work-drawer__row {
+  width: 100%;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f2f4f7;
+  background: #fff;
+  text-align: left;
+}
+.cap-pf-work-drawer__row:hover { background: #f9fafb; }
+.cap-pf-work-drawer__strategy,
+.cap-pf-work-drawer__owner { min-width: 0; }
+.cap-pf-work-drawer__strategy strong {
+  display: block;
+  overflow: hidden;
+  color: #101828;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cap-pf-work-drawer__strategy small {
+  display: block;
+  margin-top: 2px;
+  color: #667085;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.cap-pf-work-drawer__owner { display: flex; align-items: center; gap: 8px; }
+.cap-pf-work-drawer__owner > span:last-child {
+  overflow: hidden;
+  color: #344054;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cap-pf-work-drawer__number { color: #101828; font-size: 13.5px; font-weight: 600; text-align: right; }
+.cap-pf-work-drawer__target { color: #475467; font-size: 13px; text-align: right; }
+.cap-pf-work-drawer__status { display: flex; justify-content: flex-end; }
+.cap-pf-work-drawer__state { padding: 28px 20px; color: #667085; font-size: 13px; }
+.cap-pf-work-drawer__state--error { display: flex; align-items: center; gap: 10px; color: #b42318; }
+.cap-pf-work-drawer__state button,
+.cap-pf-work-drawer__footer button { color: #294e68; font-size: 12.5px; font-weight: 600; }
+.cap-pf-work-drawer__footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: #f9fafb;
+  flex-wrap: wrap;
+}
+.cap-pf-work-drawer__footer > button { margin-left: auto; }
+.cap-pf-work-drawer__truth {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #363f72;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.cap-pf-work-drawer__truth i { width: 5px; height: 5px; border-radius: 50%; background: #363f72; }
+
 /* ── header actions: "Source of truth" pill ──────────────────────────────── */
 
 .cap-pf-work__truth-pill {

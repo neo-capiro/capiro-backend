@@ -384,16 +384,22 @@ function ClientCrmDrawerBodyFixture({
   tab: CrmSurface;
   relView: RelationshipView;
 }) {
-  if (tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} />;
-  if (tab === 'work') return <ClientCrmWorkProto client={client} />;
-  if (tab === 'files') return <ClientCrmFilesProto client={client} />;
+  if (tab === 'capabilities') return <ClientCrmCapabilitiesProto client={client} drawer />;
+  if (tab === 'work') return <ClientCrmWorkProto client={client} drawer />;
+  if (tab === 'files') return <ClientCrmFilesProto client={client} drawer />;
 
   const relationshipViews = RELATIONSHIP_VIEW_LABELS.filter((v) => v.key === 'organization' || v.key === 'government');
   const view: RelationshipView = relView === 'government' ? 'government' : 'organization';
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <SegmentedTabs ariaLabel="Relationships view" options={relationshipViews} value={view} onChange={() => undefined} />
-      {view === 'government' ? <ClientCrmGovernmentProto client={client} /> : <ClientCrmOrganizationProto client={client} />}
+    <div className="cap-pf-record-drawer__relationships">
+      <div className="cap-pf-record-drawer__tabs">
+        <SegmentedTabs ariaLabel="Relationships view" options={relationshipViews} value={view} onChange={() => undefined} />
+      </div>
+      {view === 'government' ? (
+        <ClientCrmGovernmentProto client={client} drawer />
+      ) : (
+        <ClientCrmOrganizationProto client={client} drawer />
+      )}
     </div>
   );
 }

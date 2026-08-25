@@ -246,7 +246,7 @@ function usePfNarrow(): boolean {
 
 /* ── the tab ──────────────────────────────────────────────────────────────── */
 
-export function ClientCrmWorkProto({ client }: { client: Client }) {
+export function ClientCrmWorkProto({ client, drawer = false }: { client: Client; drawer?: boolean }) {
   const api = useApi();
   const navigate = useNavigate();
   const narrow = usePfNarrow();
@@ -358,6 +358,81 @@ export function ClientCrmWorkProto({ client }: { client: Client }) {
     if (id && UUID_RE.test(id)) navigate(`/strategies/${id}`);
     else navigate('/strategies');
   };
+
+  if (drawer) {
+    const rows = loaded.map((detail) => {
+      const owner = memberName(members, detail.ownerUserId, 'Team member');
+      const committedNodes = detail.nodes.filter(isCommitted);
+      const hasActive = committedNodes.some((node) => node.status === 'active');
+      const hasInFlight = committedNodes.some(
+        (node) => node.status === 'in_progress' || node.status === 'internal_review',
+      );
+      const status = detail.archivedAt ? 'Archived' : hasActive ? 'Active' : hasInFlight ? 'In progress' : 'Planned';
+      const tone: PillTone = detail.archivedAt ? 'gray' : hasActive ? 'success' : hasInFlight ? 'blue' : 'warning';
+      return {
+        id: detail.id,
+        title: detail.title,
+        kind: typeLabel(detail.type),
+        owner,
+        init: initialsOf(owner),
+        steps: committedNodes.length,
+        target: formatDateShort(detail.targetDate) ?? '—',
+        status,
+        tone,
+      };
+    });
+
+    return (
+      <div className="cap-pf-work-drawer">
+        <div className="cap-pf-work-drawer__scroll">
+          <div className="cap-pf-work-drawer__table">
+            <div className="cap-pf-work-drawer__head" aria-hidden>
+              <span>Strategy</span>
+              <span>Owner</span>
+              <span>Steps</span>
+              <span>Target</span>
+              <span>Status</span>
+            </div>
+            {loading ? (
+              <div className="cap-pf-work-drawer__state" aria-busy="true">Loading strategies…</div>
+            ) : listError || allDetailsFailed ? (
+              <div className="cap-pf-work-drawer__state cap-pf-work-drawer__state--error">
+                <span>Strategies could not be loaded.</span>
+                <button type="button" onClick={retry}>Retry</button>
+              </div>
+            ) : rows.length === 0 ? (
+              <div className="cap-pf-work-drawer__state">No strategies yet for this client.</div>
+            ) : (
+              rows.map((row) => (
+                <button
+                  key={row.id}
+                  type="button"
+                  className="cap-pf-work-drawer__row"
+                  onClick={() => openStrategy(row.id)}
+                >
+                  <span className="cap-pf-work-drawer__strategy">
+                    <strong>{row.title}</strong>
+                    <small>{row.kind}</small>
+                  </span>
+                  <span className="cap-pf-work-drawer__owner">
+                    <Avatar initials={row.init} size={24} />
+                    <span>{row.owner}</span>
+                  </span>
+                  <span className="cap-pf-work-drawer__number">{row.steps}</span>
+                  <span className="cap-pf-work-drawer__target">{row.target}</span>
+                  <span className="cap-pf-work-drawer__status"><Pill tone={row.tone}>{row.status}</Pill></span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="cap-pf-work-drawer__footer">
+          <span className="cap-pf-work-drawer__truth"><i />Source of truth · Strategies</span>
+          <button type="button" onClick={() => navigate('/strategies')}>Open Strategies →</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="cap-pf-anim-rise cap-pf-work">
